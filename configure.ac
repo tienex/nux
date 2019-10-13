@@ -28,9 +28,6 @@ AC_SUBST(LINK_LIBEC, ["include ${ecdir}/libec.mk"])
 AC_CONFIG_FILES([libec/libec.mk libec/libec-compile.mk])
 AC_MK_CONFIG_FILES([
 	Makefile
-	libhal_x86/Makefile
-	libnux/Makefile
-	example/Makefile
 	apxh/Makefile
 	apxh/multiboot/Makefile
 ])
