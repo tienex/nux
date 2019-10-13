@@ -1,0 +1,1 @@
+SUBDIRS=apxh @HALDIR@ #libnux example

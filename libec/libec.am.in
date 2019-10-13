@@ -1,0 +1,60 @@
+#
+# EC - An embedded non standard C library
+#
+# This is the automake include. Can only be included through
+# the infamous and terribly specific automake rules:
+#
+#    include $(srcdir)/file
+#    include $(top_srcdir)/file
+#
+# i.e., only if they are under your own configure script.
+#
+# To embed libec in your target, include this file,
+# and add $(EC_SRCS) to your sources.
+#
+
+EC_ARCH_DIR=@MACHINE@
+
+EC_ARCH_SRCS= 	$(EC_DIR)/$(EC_ARCH_DIR)/_setjmp.S \
+		$(EC_DIR)/$(EC_ARCH_DIR)/atomic.S \
+		$(EC_DIR)/$(EC_ARCH_DIR)/ffs.S \
+		$(EC_DIR)/$(EC_ARCH_DIR)/fls.S \
+		$(EC_DIR)/$(EC_ARCH_DIR)/memcmp.S \
+		$(EC_DIR)/$(EC_ARCH_DIR)/memcpy.S \
+		$(EC_DIR)/$(EC_ARCH_DIR)/memmove.S \
+		$(EC_DIR)/$(EC_ARCH_DIR)/memset.S \
+		$(EC_DIR)/$(EC_ARCH_DIR)/strlen.S \
+		$(EC_DIR)/$(EC_ARCH_DIR)/strncmp.S
+
+
+EC_CFLAGS= -nostdinc -fno-builtin
+EC_LDFLAGS= -nostdlib
+EC_CPPFLAGS= -D_EC_SOURCE -I $(EC_DIR)
+EC_CCASFLAGS= -D_ASSEMBLER
+
+EC_SRCS = 	$(EC_DIR)/crt0-common.c \
+		$(EC_DIR)/printf.c \
+		$(EC_DIR)/rb.c \
+		$(EC_DIR)/strcspn.c \
+		$(EC_DIR)/strlcpy.c \
+		$(EC_DIR)/atexit.c \
+		$(EC_ARCH_SRCS)
+
+# Used for crt* asm files
+%.o: $(EC_DIR)/$(EC_ARCH_DIR)/%.S
+	$(CCAS) -c $(EC_CPPFLAGS) $(EC_CCASFLAGS)  $< -o $@
+
+
+#
+# Compile an executable with embedded libc.
+#
+# To use this rule you need to first create libPROGNAME, and then
+# define a PROGNAME$(EXEEXT) target.
+# You also need to create a target-specific crt0.o
+#
+%$(EXEEXT): lib%.a crt0.o crti.o crtbegin.o crtend.o crtn.o
+	$(CC) crt0.o crti.o crtbegin.o \
+	$(AM_LDFLAGS) $(EC_LDFLAGS) $(LDFLAGS) \
+	-Wl,--start-group $< $(AM_LDADD) -lgcc -Wl,--end-group \
+	crtend.o crtn.o \
+	-o $@

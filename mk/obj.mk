@@ -1,0 +1,33 @@
+.PHONY: objdir_clean objs_clean
+
+VPATH+= $(dir $(SRCS))
+
+OBJS= $(addprefix $(OBJDIR)/,$(addsuffix .o, $(basename $(notdir $(SRCS)))))
+
+$(OBJDIR)/%.S.o: %.S
+	$(CC) -c $(CPPFLAGS) $(ASFLAGS) -o $@ $^
+
+$(OBJDIR)/%.o: %.S
+	$(CC) -c $(CPPFLAGS) $(ASFLAGS) -o $@ $^
+
+$(OBJDIR)/%.c.o: %.c
+	$(CC) -c $(CPPFLAGS) $(CFLAGS) -o $@ $^
+
+$(OBJDIR)/%.o: %.c
+	$(CC) -c $(CPPFLAGS) $(CFLAGS) -o $@ $^
+
+ifneq ($(CUSTOBJS)z,z)
+OBJS+= $(CUSTOBJS)
+endif
+
+$(OBJDIR):
+	mkdir -p $(OBJDIR)
+
+objs_clean:
+	-rm $(OBJS)
+
+objdir_clean:
+	-rmdir $(OBJDIR)
+
+ALL_TARGET+=$(OBJDIR) $(OBJS)
+CLEAN_TARGET+=objs_clean objdir_clean

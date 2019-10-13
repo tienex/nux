@@ -1,0 +1,9 @@
+*~
+*.o
+*.a
+.deps
+.build
+.dirstamp
+\#*#
+Makefile
+apxh/multiboot/apxh
