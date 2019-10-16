@@ -7,9 +7,10 @@
 #include <string.h>
 #include <stdbool.h>
 
-#define BOOTINFO_REGION_UNKNOWN 0
-#define BOOTINFO_REGION_RAM 1
-#define BOOTINFO_REGION_OTHER 2
+#define BOOTINFO_REGION_UNKNOWN 0	/* Unusable address. */
+#define BOOTINFO_REGION_RAM 1 		/* Available RAM. */
+#define BOOTINFO_REGION_OTHER 2		/* Non-RAM physical address. */
+#define BOOTINFO_REGION_BSY 3 		/* Boot allocated RAM. */
 
 struct bootinfo_region
 {

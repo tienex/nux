@@ -5,10 +5,9 @@
 
 static arch_t elf_arch;
 static uint8_t boot_pagemap[PAGEMAP_SZ(BOOTMEM)] __attribute__((aligned(4096)));
-static unsigned long req_info_va;
-static size_t req_info_size;
+static unsigned long req_pfnmap_va, req_info_va;
+static size_t req_pfnmap_size, req_info_size;
 static bool stop_payload_allocation = false;
-
 
 
 struct apxh_bootinfo
@@ -37,6 +36,18 @@ get_payload_page(void)
   boot_pagemap[pfn >> 3] |= 1 << (pfn & 7);
 
   return page;
+}
+
+unsigned
+check_payload_page (unsigned addr)
+{
+  unsigned i = addr >> PAGE_SHIFT;
+  unsigned by = i >> 3;
+  unsigned bi = i & 7;
+
+  assert (by <= PAGEMAP_SZ(BOOTMEM));
+
+  return !!(boot_pagemap[by] & bi);
 }
 
 void init (void)
@@ -178,6 +189,11 @@ va_info_copy (void)
   struct apxh_bootinfo i;
   uint64_t psize;
 
+  if (va == 0) {
+    /* No INFO. Skip. */
+    return;
+  }
+
   /* The pagemap size. */
   if (size > sizeof (struct apxh_bootinfo))
     psize = MIN (size - sizeof (struct apxh_bootinfo), sizeof (boot_pagemap));
@@ -192,6 +208,7 @@ va_info_copy (void)
 
   va += sizeof (struct apxh_bootinfo);
   va_copy (va, boot_pagemap, psize, 0, 0);
+#undef MIN
 }
 
 void
@@ -236,6 +253,44 @@ va_pfnmap (unsigned long va, size_t size)
 	    *ptr = reg->type;
 	}
     }
+
+  req_pfnmap_va = va;
+  req_pfnmap_size = size;
+}
+
+static void
+va_pfnmap_copy (void)
+{
+  unsigned long va = req_pfnmap_va;
+  unsigned long size = req_pfnmap_size;
+  unsigned maxframe = size / PFNMAP_ENTRY_SIZE;
+#define MIN(x,y) ((x < y) ? x : y)
+  unsigned long pa;
+  
+  if (va == 0)
+    {
+      /* No PFNMAP. Skip. */
+      return;
+    }
+
+  for (pa = 0; pa < BOOTMEM; pa += PAGE_SIZE)
+    {
+      unsigned frame = pa >> PAGE_SHIFT;
+
+      if (frame > maxframe)
+	break;
+
+      if (check_payload_page (pa))
+	{
+	  /* Page is allocated. Mark as BSY. */
+
+	  uint8_t *ptr = (uint8_t *)va_getphys (va + frame * PFNMAP_ENTRY_SIZE);
+	  assert (ptr != NULL);
+
+	  *ptr = BOOTINFO_REGION_BSY;
+	}
+    }
+#undef MIN
 }
 
 void
@@ -311,6 +366,7 @@ int main (int argc, char *argv[])
   /* Stop allocations as we're copying boot-time allocation. */
   stop_payload_allocation = true;
   va_info_copy ();
+  va_pfnmap_copy ();
 
   va_entry (entry);
   return 0;
