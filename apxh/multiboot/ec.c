@@ -29,6 +29,7 @@ int putchar (int c)
       for ( i = 0; i < 80; i++)
 	*(unsigned char *)(vptr + 80 * 2 * (25 - 1) + i * 2) = 0;
       y = 25 - 1;
+      x = 0;
     }
 
   *(unsigned char *)(0xb8000 + x++ * 2 + y * 80 * 2) = c;

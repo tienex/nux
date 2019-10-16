@@ -71,7 +71,9 @@ parse_multiboot_mmap (struct multiboot_info *info)
       hreg.len = (mbptr->len + PAGE_SIZE -1) >> PAGE_SHIFT;
       mbsize = mbptr->size + sizeof (mbptr->size);
 
-      if (maxpfn < hreg.pfn + hreg.len)
+      /* Count RAM max pfn */
+      if ((hreg.type == BOOTINFO_REGION_RAM)
+	  && (maxpfn < hreg.pfn + hreg.len))
 	maxpfn = hreg.pfn + hreg.len;
 
       /* We consumed this entry. Can write the hreg region. */

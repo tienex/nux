@@ -1,7 +1,7 @@
 
 #include "project.h"
 
-#define BOOTMEM MB(64) /* We won't be using more than 64Mb to boot. Promise. */
+#define BOOTMEM MB(512) /* We won't be using more than 512Mb to boot. Promise. */
 
 static arch_t elf_arch;
 static uint8_t boot_pagemap[PAGEMAP_SZ(BOOTMEM)] __attribute__((aligned(4096)));
@@ -220,23 +220,25 @@ va_pfnmap (unsigned long va, size_t size)
 
   maxframe = size / PFNMAP_ENTRY_SIZE;
 
+  if (maxframe > md_maxpfn ()) {
+    maxframe = md_maxpfn ();
+    size = maxframe * PFNMAP_ENTRY_SIZE;
+  }
+
   va_populate (va, size, 1, 0);
 
   for (i = 0; i < regions; i++)
     {
       unsigned j;
-      unsigned pfn2m, len2m;
 
       reg = md_getmemregion (i);
 
-      pfn2m = (reg->pfn >> (PAGE2M_SHIFT - PAGE_SHIFT));
-      len2m = (((reg->len << PAGE_SHIFT) + (PAGE2M_SIZE - 1)) & PAGE2M_MASK) >> PAGE2M_SHIFT;
-      printf ("Reg: %d Type %02d, PA: %016llx (%ld) 2m: %ld\n", i, reg->type, (uint64_t)reg->pfn << PAGE_SHIFT, reg->len, len2m);
+      printf ("Reg: %d Type %02d, PA: %016llx (%ld)\n", i, reg->type, (uint64_t)reg->pfn << PAGE_SHIFT, reg->len);
 
 
-      for (j = 0; j < len2m; j++)
+      for (j = 0; j < reg->len; j++)
 	{
-	  unsigned frame = pfn2m + j;
+	  unsigned frame = reg->pfn + j;
 	  uint8_t *ptr;
 
 	  if (frame > maxframe) {
@@ -322,6 +324,7 @@ va_getphys (unsigned long va)
 void
 va_entry (unsigned long entry)
 {
+
   switch (elf_arch) {
   case ARCH_386:
     pae_entry(entry);
