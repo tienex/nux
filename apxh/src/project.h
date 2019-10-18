@@ -23,7 +23,8 @@ struct bootinfo_region
 #define PHT_APXH_INFO     0xAF100000
 #define PHT_APXH_EMPTY    0xAF100001
 #define PHT_APXH_PHYSMAP  0xAF100002
-#define PHT_APXH_PFNMAP2M 0xAF100003
+#define PHT_APXH_PFNMAP   0xAF100003
+#define PHT_APXH_STREE    0xAF100004
 
 #define PFNMAP_ENTRY_SIZE 64
 
@@ -74,6 +75,7 @@ void va_memset (unsigned long va, int c, size_t size, int w, int x);
 void va_physmap (unsigned long va, size_t size);
 void va_info (unsigned long va, size_t size);
 void va_pfnmap (unsigned long va, size_t size);
+void va_stree (unsigned long va, size_t size);
 void va_entry (unsigned long entry);
 
 void pae_init (void);

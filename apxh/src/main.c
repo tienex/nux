@@ -1,12 +1,13 @@
 
 #include "project.h"
 
-#define BOOTMEM MB(512) /* We won't be using more than 512Mb to boot. Promise. */
+#define BOOTMEM MB(64) /* We won't be using more than 512Mb to boot. Promise. */
 
 static arch_t elf_arch;
 static uint8_t boot_pagemap[PAGEMAP_SZ(BOOTMEM)] __attribute__((aligned(4096)));
-static unsigned long req_pfnmap_va, req_info_va;
-static size_t req_pfnmap_size, req_info_size;
+static unsigned long req_pfnmap_va, req_info_va, req_stree_va;
+static size_t req_pfnmap_size, req_info_size, req_stree_size;
+static unsigned req_stree_order;
 static bool stop_payload_allocation = false;
 
 
@@ -17,6 +18,17 @@ struct apxh_bootinfo
   uint64_t maxpfn;
   uint64_t pagemap_size;
   uint8_t  pagemap[0];
+} __attribute__((packed));
+
+struct apxh_stree
+{
+#define APXH_STREE_MAGIC 0xAF1057EE
+  uint64_t magic;
+#define APXH_STREE_VERSION 0
+  uint8_t version;
+  uint8_t order;
+  uint16_t offset;
+  uint32_t size;
 } __attribute__((packed));
 
 
@@ -115,6 +127,9 @@ va_copy (unsigned long va, void *addr, size_t size, int w, int x)
       uintptr_t paddr;
       size_t clen = PAGE_CEILING(va) - va;
 
+      if (clen > len)
+	clen = len;
+
       paddr = va_getphys (va);
 
       memcpy ((void *)paddr, addr, clen);
@@ -209,6 +224,120 @@ va_info_copy (void)
   va += sizeof (struct apxh_bootinfo);
   va_copy (va, boot_pagemap, psize, 0, 0);
 #undef MIN
+}
+
+void
+va_ramregions (unsigned long va, size_t size)
+{
+
+}
+
+
+#define OR_WORD(p, x) ((*(uint64_t *)va_getphys((unsigned long)(p))) |= (x))
+#define MASK_WORD(p,x) ((*(uint64_t *)va_getphys((unsigned long)(p))) &= (x))
+#define GET_WORD(p) (*(uint64_t *)va_getphys((unsigned long)(p)))
+#define SET_WORD(p,x) (*(uint64_t *)va_getphys((unsigned long)(p)) = x)
+#include <stree.h>
+
+void
+va_stree (unsigned long va, size_t size)
+{
+  size_t s;
+  int i, order;
+  unsigned long stree_va;
+  struct apxh_stree hdr;
+  struct bootinfo_region *reg;
+  unsigned regions = md_memregions ();
+  unsigned maxframe = md_maxpfn ();
+
+  order = stree_order(maxframe);
+  s = 8 * STREE_SIZE(order);
+  s += sizeof(struct apxh_stree);
+
+  if (s > size) {
+    printf("Can't create PFN S-Tree of order %d: "
+	   "required %d bytes, %d available.\n",
+	   order, s, size);
+  }
+
+  size = s;
+  printf("Populating size %d (order: %d)\n", size, order);
+  va_populate (va, size, 1, 0);
+
+  /* Copy the header. */
+  hdr.magic = APXH_STREE_MAGIC;
+  hdr.version = APXH_STREE_VERSION;
+  hdr.order = order;
+  hdr.offset = sizeof(hdr);
+  hdr.size = 8 * STREE_SIZE(order);
+  va_copy (va, &hdr, sizeof(hdr), 1, 0);
+
+  /* Fill the S-Tree with all RAM regions. */
+  stree_va = va + sizeof(hdr);
+
+  for (i = 0; i < regions; i++)
+    {
+      unsigned j;
+
+      reg = md_getmemregion (i);
+
+      if (reg->type != BOOTINFO_REGION_RAM)
+      	continue;
+
+      printf ("Reg: %d Type %02d, PA: %016llx (%ld)\n",
+	      i, reg->type, (uint64_t)reg->pfn << PAGE_SHIFT, reg->len);
+
+      for (j = 0; j < reg->len; j++)
+	{
+	  unsigned frame = reg->pfn + j;
+
+	  if (frame > maxframe) {
+	    printf ("Maximum reached.\n");
+	    break;
+	  }
+
+	  stree_setbit ((WORD_T *)stree_va, order, frame);
+	}
+    }
+  
+
+  /* We'll need to continue to update allocated pages. */
+  req_stree_va = va;
+  req_stree_order = order;
+  req_stree_size = size;
+}
+
+void
+va_stree_copy (void)
+{
+  unsigned long va = req_stree_va;
+  size_t size = req_stree_size;
+  unsigned order = req_stree_order;
+  uint64_t pa;
+  unsigned long stree_va, maxframe;
+
+  if (va == 0)
+    {
+      /* No STREE. Skip. */
+      return;
+    }
+
+  maxframe = md_maxpfn (); 
+  stree_va = va + sizeof(struct apxh_stree);
+
+  for (pa = 0; pa < BOOTMEM; pa += PAGE_SIZE)
+    {
+      unsigned frame = pa >> PAGE_SHIFT;
+
+      if (frame > maxframe)
+	break;
+
+      if (check_payload_page (pa))
+	{
+	  /* Page is allocated. Mark as BSY. */
+	  stree_clrbit ((WORD_T *)stree_va, order, frame);
+	}
+    }
 }
 
 void
@@ -370,6 +499,7 @@ int main (int argc, char *argv[])
   stop_payload_allocation = true;
   va_info_copy ();
   va_pfnmap_copy ();
+  va_stree_copy ();
 
   va_entry (entry);
   return 0;

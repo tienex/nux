@@ -119,9 +119,13 @@ uintptr_t load_elf32 (void *elfimg)
 	printf("Empty VA area at %08lx (size: %ld).\n", ph->va, ph->msize);
 	/* Just VA allocation. Leave it. */
 	break;
-      case PHT_APXH_PFNMAP2M:
+      case PHT_APXH_PFNMAP:
 	printf("PFN Map at %08lx (size: %ld).\n", ph->va, ph->msize);
 	va_pfnmap (ph->va, ph->msize);
+	break;
+      case PHT_APXH_STREE:
+	printf("S-Tree at %08lx (size: %ld).\n", ph->va, ph->msize);
+	va_stree (ph->va, ph->msize);
 	break;
       default:
 	printf("Ignored segment type %08lx.\n", ph->type);
