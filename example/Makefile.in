@@ -1,0 +1,9 @@
+CPPFLAGS+= -I$(SRCROOT)/include -I$(SRCROOT)/@HALDIR@/include #-I$(SRCROOT)/libnux/include
+
+LDFLAGS+=-L$(SRCROOT)/@HALDIR@ -L$(SRCROOT)/libnux -T$(SRCROOT)/@HALDIR@/exe.ld
+LDADD+=-lhal -lnux -u _nux_sysinit
+
+PROGRAM=example
+
+SRCS+= main.c
+@LINK_LIBEC@

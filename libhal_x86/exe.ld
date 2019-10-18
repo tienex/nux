@@ -1,0 +1,96 @@
+OUTPUT_FORMAT("elf32-i386", "elf32-i386", "elf32-i386")
+OUTPUT_ARCH(i386)
+ENTRY(_start)
+SECTIONS
+{
+   /* kernel code */
+   .text 0xc0100000 : AT (0x00100000)
+   {
+      *(.text)
+   } : text
+
+   .ctors :
+   {
+      KEEP (*crtbegin.o(.ctors))
+      KEEP (*crtbegin?.o(.ctors))
+
+      KEEP (*(EXCLUDE_FILE (*crtend.o *crtend?.o ) .ctors))
+      KEEP (*(SORT(.ctors.*)))
+      KEEP (*(.ctors))
+    } : text
+
+   .dtors :
+   { 
+      KEEP (*crtbegin.o(.dtors))
+      KEEP (*crtbegin?.o(.dtors))
+      KEEP (*(EXCLUDE_FILE (*crtend.o *crtend?.o ) .dtors))
+      KEEP (*(SORT(.dtors.*)))
+      KEEP (*(.dtors))
+   } : text
+   _ecode = .;
+
+   .rodata ALIGN(4096) :
+   {
+      *(.rodata.str?.*);
+      *(.rodata);       
+   } : rodata
+
+
+   .data ALIGN (4096) :
+   {
+
+      *(.data);
+   } : data
+
+   .bss :
+   {
+      _sbss = .;
+      *(COMMON);
+      *(.bss);
+      _ebss = .;
+   } : data
+
+   /* First megabyte needed by HAL. */
+   .physmap ALIGN(4096) : AT(0)
+   {
+	_physmap_start = .;
+	. += 1 * 1024 * 1024;
+	_physmap_end = .;
+   } : physmap
+
+   .info ALIGN (4096) : AT(0)
+   {
+	_info_start = .;
+	. += 4096;
+	_info_end = .;
+   } : info
+
+   .stree ALIGN (4096) : AT(0)
+   {
+	_stree_start = .;
+	. += 3 * 1024 * 1024;
+	_stree_end = .;
+   } : stree
+
+   .kva ALIGN(4096) : AT (0)
+   {
+	_kva_start = .;
+	. += 512 * 1024 * 1024;
+	_kva_end = .;
+   } : kva
+
+   _end = .;
+
+}
+
+
+PHDRS
+{
+    text    PT_LOAD;
+    rodata  PT_LOAD;
+    data    PT_LOAD;
+    info    0xAF100000;
+    kva     0xAF100001;
+    physmap 0xAF100002;
+    stree   0xAF100004;
+}

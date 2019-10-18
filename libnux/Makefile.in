@@ -1,0 +1,7 @@
+@COMPILE_LIBEC@
+
+CPPFLAGS+=-Iinclude -I$(SRCROOT)/include -I$(SRCROOT)/@HALDIR@/include
+
+LIBRARY=nux
+
+SRCS+= init.c pgalloc.c

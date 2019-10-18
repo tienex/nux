@@ -30,6 +30,10 @@ AC_MK_CONFIG_FILES([
 	Makefile
 	apxh/Makefile
 	apxh/multiboot/Makefile
+	lib${hal}/Makefile
+	libnux/Makefile
+	example/Makefile
+	test_apxh/Makefile
 ])
 
 AC_OUTPUT

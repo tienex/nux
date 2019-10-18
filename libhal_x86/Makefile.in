@@ -1,0 +1,25 @@
+
+@COMPILE_LIBEC@
+
+HAL_MACHINE=@MACHINE@
+
+ifeq ($(HAL_MACHINE),i386)
+ARCH_DIR=i386
+endif
+
+ifeq ($(HAL_MACHINE),amd64)
+ARCH_DIR=amd64
+endif
+
+CPPFLAGS+=-Iinclude -I$(SRCROOT)/include
+
+LIBRARY=hal
+
+SRCS+= x86.c vga_text.c
+
+include $(ARCH_DIR)/Makefile.inc
+
+#crt0.o: $(ARCH_DIR)/crt0.S
+#	$(CC) -c $(CPPFLAGS) $(ASFLAGS) $< -o $@
+
+#ALL_TARGET+= crt0.o
