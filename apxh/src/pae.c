@@ -371,7 +371,7 @@ void pae_physmap (unsigned long va, size_t size)
   for (i = 0; i < n; i++)
     {
       pte = pae_get_l1p (va + (i << PAGE_SHIFT));
-      set_pte (pte, i, PTE_P|PTE_W);
+      set_pte (pte, i, PTE_P|PTE_W|PTE_NX);
     }
   
 }
@@ -400,7 +400,7 @@ void pae_linear (unsigned long va, size_t size)
     pte_t *l2p;
     
     l2p = l2s[l3off] + l2off + i;
-    set_pte (l2p, (uint64_t)l2s[i] >> PAGE_SHIFT, PTE_NX|PTE_W|PTE_P);
+    set_pte (l2p, (uint64_t)(uintptr_t)l2s[i] >> PAGE_SHIFT, PTE_NX|PTE_W|PTE_P);
   }
 }
 
