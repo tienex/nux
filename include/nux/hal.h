@@ -120,37 +120,19 @@ void *hal_physmem_stree (unsigned *order);
 /*
   User Area description. 
  */
-void *hal_virtmem_userbase (void);
+vaddr_t hal_virtmem_userbase (void);
 const size_t hal_virtmem_usersize (void);
 
 /*
   Direct Memory Map description. 
  */
-void *hal_virtmem_dmapbase (void);
+vaddr_t hal_virtmem_dmapbase (void);
 const size_t hal_virtmem_dmapsize (void);
 
 /*
-  Frame Map description.
-
-  FIXME: Change size of frame map entry based on a structure.
-
-  The frame map is built by HAL or the Bootloader, and is an array of
-  64-bytes entries.  The map is mostly empty, with the exception of
-  the first byte of each entry, whose value indicate the status of the
-  page:
-
-  	'0': the PFN is unmapped.
-	'1': the PFN is RAM.
-	'2': the PFN is non-RAM (MMIO/Other)
-
+  Kernel Virtual Area Map Description. 
  */
-void *hal_virtmem_fmapbase (void);
-const size_t hal_virtmem_fmapsize (void);
-
-/*
-  Kernel Virtual Memory Map Description. 
- */
-void *hal_virtmem_kvabase (void);
+vaddr_t hal_virtmem_kvabase (void);
 const size_t hal_virtmem_kvasize (void);
 
 
