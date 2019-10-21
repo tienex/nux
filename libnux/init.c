@@ -10,7 +10,7 @@ init_mem (void)
   /*
      Initialise Page Allocator.
    */
-  pginit();
+  pfninit();
 
   /*
     Initialise KVA Allocator.

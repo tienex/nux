@@ -4,4 +4,4 @@ CPPFLAGS+=-Iinclude -I$(SRCROOT)/include -I$(SRCROOT)/@HALDIR@/include
 
 LIBRARY=nux
 
-SRCS+= init.c pgalloc.c kva.c
+SRCS+= init.c hal.c pfn.c kva.c

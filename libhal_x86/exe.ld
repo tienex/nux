@@ -86,6 +86,7 @@ SECTIONS
 	_linear_end = .;
 
    } : linear
+   _linear_l2table = (_linear_start + (_linear_start >> 9));
 
    _end = .;
 }

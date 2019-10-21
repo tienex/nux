@@ -6,7 +6,7 @@
 
 #include <nux/hal.h>
 
-#include "x86.h"
+#include "internal.h"
 #include "stree.h"
 
 
@@ -49,6 +49,16 @@ __halt (void)
 {
   while (1)
     asm volatile ("cli; hlt");
+}
+
+uint64_t rdmsr(uint32_t ecx)
+{
+  uint32_t edx, eax;
+
+
+  asm volatile ("rdmsr\n" : "=d"(edx), "=a" (eax) : "c" (ecx));
+
+  return ((uint64_t)edx << 32) | eax;
 }
 
 int
@@ -228,10 +238,10 @@ hal_physmem_stree (unsigned *order)
   return hal_stree_ptr;
 }
 
-void *
+vaddr_t
 hal_virtmem_kvabase (void)
 {
-  return (void *)&_kva_start;
+  return (vaddr_t)&_kva_start;
 }
 
 const size_t
@@ -249,7 +259,7 @@ early_print (const char *str)
     hal_putchar (str[i]);
 }
 
-int
+void
 x86_init (void)
 {
   size_t stree_memsize;
@@ -292,5 +302,5 @@ x86_init (void)
   early_print("AMD64 HAL booting from APXH.\n");
 #endif
 
-  return 0;
+  pmap_init ();
 }

@@ -9,7 +9,7 @@ static WORD_T *stree;
 static unsigned order;
 
 void
-pginit (void)
+pfninit (void)
 {
   long first, last;
 

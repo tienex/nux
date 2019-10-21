@@ -1,4 +1,4 @@
-#include "x86.h"
+#include "internal.h"
 
 #include <string.h>
 
