@@ -159,7 +159,9 @@ const size_t hal_virtmem_kvasize (void);
  */
 
 /*
-  Return current pmap. 
+  Return current pmap.
+
+  If returns NULL, we're still running the boot-time PMAP.
  */
 struct hal_pmap *hal_pmap_current (void);
 
@@ -185,6 +187,8 @@ void hal_pmap_setcur (struct hal_pmap *pmap);
 
 /*
   Install an L1E in the pmap 
+
+  If PMAP is NULL, set in current pmap.
  */
 hal_l1e_t hal_pmap_setl1e (struct hal_pmap *pmap, unsigned long va,
 			   hal_l1e_t new);
