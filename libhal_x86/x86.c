@@ -229,13 +229,13 @@ hal_physmem_stree (unsigned *order)
 }
 
 void *
-hal_virtmem_vmapbase (void)
+hal_virtmem_kvabase (void)
 {
   return (void *)&_kva_start;
 }
 
 const size_t
-hal_virtmem_vmapsize (void)
+hal_virtmem_kvasize (void)
 {
   return (size_t)((void *)&_kva_end - (void *)&_kva_start);
 }

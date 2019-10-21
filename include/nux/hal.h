@@ -150,8 +150,8 @@ const size_t hal_virtmem_fmapsize (void);
 /*
   Kernel Virtual Memory Map Description. 
  */
-void *hal_virtmem_vmapbase (void);
-const size_t hal_virtmem_vmapsize (void);
+void *hal_virtmem_kvabase (void);
+const size_t hal_virtmem_kvasize (void);
 
 
 /*
@@ -251,19 +251,19 @@ uint64_t hal_pcpu_prepare (unsigned pcpu);
 /*
   Log Support.
  */
-void hal_srv_logdebug (const char *, const int, const char *, ...);
-void hal_srv_loginfo (const char *, const int, const char *, ...);
-void hal_srv_logwarn (const char *, const int, const char *, ...);
-void hal_srv_logerror (const char *, const int, const char *, ...);
-__dead void hal_srv_logfatal (const char *, const int, const char *, ...);
+void hal_req_logdebug (const char *, const int, const char *, ...);
+void hal_req_loginfo (const char *, const int, const char *, ...);
+void hal_req_logwarn (const char *, const int, const char *, ...);
+void hal_req_logerror (const char *, const int, const char *, ...);
+__dead void hal_req_logfatal (const char *, const int, const char *, ...);
 
 
 /*
   HAL Memory Allocation.
  */
 
-paddr_t hal_srv_pfnalloc (enum memreq_type);
-paddr_t hal_srv_pfnfree (void *, enum memreq_type);
+pfn_t hal_req_pfnalloc (void);
+void hal_req_pfnfree (pfn_t);
 
 
 /*
