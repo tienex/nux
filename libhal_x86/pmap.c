@@ -43,9 +43,7 @@ get_curl2p (vaddr_t va)
   l2e_t *ptr;
 
   va &= ~((1L << L2_SHIFT) - 1);
-  printf("get_curl2p of %lx\n", va);
   ptr = (l3e_t *)(l2_linaddr + (va >> 18));
-  printf("PTR = %lx\n", ptr);
   return ptr;
 }
 
@@ -94,14 +92,11 @@ get_l1p (void *pmap, unsigned long va)
 
       /* Create an l2e with max permissions. L1 will filter. */
       pte = mkpte (pfn, PTE_U|PTE_P|PTE_W);
-      printf("Setting pte %lx\n", pte);
       set_pte ((uint64_t *)l2p, pte);
       /* Not present, no TLB flush necessary. */
 
       l2e = (l2e_t)pte;
     }
-
-  printf("l2e = %llx\n", l2e);
 
   assert (!l2e_leaf (l2e) && "Splintering big pages not supported.");
 

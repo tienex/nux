@@ -35,7 +35,6 @@ _kva_alloc (int low)
   if (vfn >= 0)
     stree_clrbit(stree, HAL_KVA_ORDER, vfn);
   spinunlock (&lock);
-  printf("vfn = %lx\n", vfn);
 
   if (vfn < 0)
     va = VADDR_INVALID;
