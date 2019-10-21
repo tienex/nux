@@ -4,13 +4,18 @@
 #include "internal.h"
 
 static void
-init_physmem (void)
+init_mem (void)
 {
 
   /*
      Initialise Page Allocator.
    */
   pginit();
+
+  /*
+    Initialise KVA Allocator.
+  */
+  kvainit();
 
 #if 0
   /*
@@ -32,16 +37,6 @@ init_physmem (void)
      Step 4: Initialise Slab Allocator. 
    */
   slab_init ();
-#endif
-}
-
-static void
-init_virtmem (void)
-{
-#if 0
-  mmap_init ();
-  vmap_init ();
-  vmap_free ((vaddr_t) hal_virtmem_vmapbase (), hal_virtmem_vmapsize ());
 #endif
 }
 
@@ -74,13 +69,11 @@ void __attribute__((constructor(0)))
 _nux_sysinit (void)
 {
   banner ();
-  init_physmem ();
+
+  /* Initialise memory management */
+  init_mem ();
+
 #if 0
-  klog_start ();
-
-
-  init_virtmem ();
-
   /* Init CPUs operations */
   cpu_init ();
 
@@ -90,9 +83,6 @@ _nux_sysinit (void)
 
   /* Start CPUs operations. */
   cpu_start ();
-
-  /* Initialise components log. */
-  klog_init (&uctxtlog, "UCTXT");
 #endif
 }
 

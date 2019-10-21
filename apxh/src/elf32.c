@@ -127,6 +127,10 @@ uintptr_t load_elf32 (void *elfimg)
 	printf("S-Tree at %08lx (size: %ld).\n", ph->va, ph->msize);
 	va_stree (ph->va, ph->msize);
 	break;
+      case PHT_APXH_LINEAR:
+	printf("Linear Map at %08lx (size: %ld).\n", ph->va, ph->msize);
+	va_linear (ph->va, ph->msize);
+	break;
       default:
 	printf("Ignored segment type %08lx.\n", ph->type);
 	break;

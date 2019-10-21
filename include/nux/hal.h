@@ -1,6 +1,7 @@
 #ifndef _HAL_H
 #define _HAL_H
 
+#include <nux/types.h>
 #include <stddef.h>
 #include <stdbool.h>
 #include <inttypes.h>
@@ -258,19 +259,11 @@ __dead void hal_srv_logfatal (const char *, const int, const char *, ...);
 
 
 /*
-  HAL Memory Allocation (aligned memory of 4kb, 8kb, 12kb or 16kb size).
+  HAL Memory Allocation.
  */
 
-enum memreq_type
-{
-  MEMREQ_4KB,
-  MEMREQ_8KB,
-  MEMREQ_12KB,
-  MEMREQ_16KB,
-};
-
-void *hal_srv_memalloc (enum memreq_type);
-void hal_srv_fixmemfree (void *, enum memreq_type);
+paddr_t hal_srv_pfnalloc (enum memreq_type);
+paddr_t hal_srv_pfnfree (void *, enum memreq_type);
 
 
 /*

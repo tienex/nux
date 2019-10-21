@@ -182,6 +182,24 @@ va_physmap (unsigned long va, size_t size)
 }
 
 void
+va_linear (unsigned long va, size_t size)
+{
+  md_verify (va, size);
+  va_verify (va, size);
+
+  switch (elf_arch) {
+  case ARCH_386:
+    pae_linear (va, size);
+    break;
+  default:
+    printf("Unsupported VM architecture.\n");
+    exit (-1);
+  }
+}
+
+
+
+void
 va_info (unsigned long va, size_t size)
 {
   md_verify (va, size);
@@ -226,12 +244,6 @@ va_info_copy (void)
 #undef MIN
 }
 
-void
-va_ramregions (unsigned long va, size_t size)
-{
-
-}
-
 
 #define OR_WORD(p, x) ((*(uint64_t *)va_getphys((unsigned long)(p))) |= (x))
 #define MASK_WORD(p,x) ((*(uint64_t *)va_getphys((unsigned long)(p))) &= (x))
@@ -249,6 +261,9 @@ va_stree (unsigned long va, size_t size)
   struct bootinfo_region *reg;
   unsigned regions = md_memregions ();
   unsigned maxframe = md_maxpfn ();
+
+  md_verify (va, size);
+  va_verify (va, size);
 
   order = stree_order(maxframe);
   s = 8 * STREE_SIZE(order);
@@ -346,6 +361,9 @@ va_pfnmap (unsigned long va, size_t size)
   unsigned i, maxframe;
   struct bootinfo_region *reg;
   unsigned regions = md_memregions ();
+
+  md_verify (va, size);
+  va_verify (va, size);
 
   maxframe = size / PFNMAP_ENTRY_SIZE;
 

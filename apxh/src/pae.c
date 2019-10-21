@@ -376,6 +376,34 @@ void pae_physmap (unsigned long va, size_t size)
   
 }
 
+#define PAE_LINEAR_SHIFT (PAGE_SHIFT + 9 + 2)
+#define PAE_LINEAR_SIZE (1L << PAE_LINEAR_SHIFT)
+#define PAE_LINEAR_ALIGN (PAE_LINEAR_SIZE - 1)
+
+void pae_linear (unsigned long va, size_t size)
+{
+  int i;
+  unsigned l3off = L3OFF(va);
+  unsigned l2off = L2OFF(va);
+
+  if (va & PAE_LINEAR_ALIGN) {
+    printf ("PAE Linear VA %llx not aligned (align mask: %lx).\n", va, PAE_LINEAR_ALIGN);
+    exit (-1);
+  }
+
+  if (size < PAE_LINEAR_SIZE) {
+    printf ("PAE Linear size %llx too small.\n", size);
+    exit (-1);
+  }
+
+  for (i = 0; i < 4; i++) {
+    pte_t *l2p;
+    
+    l2p = l2s[l3off] + l2off + i;
+    set_pte (l2p, (uint64_t)l2s[i] >> PAGE_SHIFT, PTE_NX|PTE_W|PTE_P);
+  }
+}
+
 void pae_populate (unsigned long va, size_t size, int w, int x)
 {
   ssize_t len = size;

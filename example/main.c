@@ -1,39 +1,37 @@
+#include <stdio.h>
+#include <nux/nux.h>
+
 int
 putchar (int c)
 {
   return hal_putchar (c);
 }
 
-int hal_main_ap (void)
+void hal_main_ap (void)
 {
-  return 0;
+
 }
 
 int main ()
 {
   printf ("Hello");
+
+  extern int _linear_start;
+  uintptr_t linaddr = (uintptr_t)&_linear_start;
+
+  linaddr = linaddr + (0xc0100000 >> 9);
+  uint64_t *pte = (uint64_t *)linaddr;
+  
+  printf("pte linaddr= %lx\n", linaddr);
+
+  int i;
+  for (i = 0; i < 512; i++) {
+    printf("%llx", pte[i]);
+  }
 }
 
 int exit()
 {
-  long t;
-  for (;;) {
-    long l = pgalloc_low();
-    if (l < 0)
-      break;
-    printf("%lx ", l);
-  }
-
-  pgfree(0x170);
-
-  for (;;) {
-    long l = pgalloc_low();
-    if (l < 0)
-      break;
-    printf("%lx ", l);
-  }
-
-  
   printf("Exit");
   while (1);
 }

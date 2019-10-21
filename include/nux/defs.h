@@ -1,7 +1,7 @@
 #ifndef NUX_DEFS_H
 #define NUX_DEFS_H
 
-#include <nux/hal.h>
+#include <nux/hal_config.h>
 
 #define PAGE_SHIFT HAL_PAGE_SHIFT
 #define PAGE_SIZE (1 << PAGE_SHIFT)

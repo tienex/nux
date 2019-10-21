@@ -79,8 +79,15 @@ SECTIONS
 	_kva_end = .;
    } : kva
 
-   _end = .;
+   .linear ALIGN(8 * 1024 * 1024) : AT (0)
+   {
+	_linear_start = .;
+	. += 8 * 1024 * 1024;
+	_linear_end = .;
 
+   } : linear
+
+   _end = .;
 }
 
 
@@ -93,4 +100,5 @@ PHDRS
     kva     0xAF100001;
     physmap 0xAF100002;
     stree   0xAF100004;
+    linear  0xAF10FFFF;
 }

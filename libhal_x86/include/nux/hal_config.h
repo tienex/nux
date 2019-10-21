@@ -10,9 +10,13 @@
 #define HAL_PAGING 1
 #define HAL_MAXCPUS 64
 
-#define HAL_KVASiZE (512 * 1024 * 1024)
+/* Currently at 512Gb (128k virtual pages) */
+#define HAL_KVA_ORDER 17
+#define HAL_KVA_SIZE (1 << (HAL_KVA_ORDER + HAL_PAGE_SHIFT))
 
 #ifndef _ASSEMBLER
+
+#include <stdint.h>
 
 typedef uint64_t hal_l1e_t;
 

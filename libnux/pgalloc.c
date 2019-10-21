@@ -1,11 +1,12 @@
 #include <nux/hal.h>
 #include <nux/locks.h>
+#include <nux/types.h>
 #include <stree.h>
 #include <assert.h>
 
-lock_t pglock;
-WORD_T *stree;
-unsigned order;
+static lock_t pglock;
+static WORD_T *stree;
+static unsigned order;
 
 void
 pginit (void)
@@ -26,38 +27,41 @@ pginit (void)
 }
 
 
-long
-pgalloc (void)
+static pfn_t
+_pfn_alloc (int low)
 {
   long pg;
 
   spinlock(&pglock);
-  pg = stree_bitsearch(stree, order, 0);
+  pg = stree_bitsearch(stree, order, low);
   if (pg > 0)
     stree_clrbit(stree, order, pg);
   spinunlock(&pglock);
 
-  return pg;
+  if (pg < 0)
+    return PFN_INVALID;
+  else
+    return (pfn_t)pg;
 }
 
-unsigned long
-pgalloc_low (void)
+pfn_t
+pfn_alloc (void)
 {
-  long pg;
+  return _pfn_alloc(0);
+}
 
-  spinlock(&pglock);
-  pg = stree_bitsearch(stree, order, 1);
-  if (pg > 0)
-    stree_clrbit(stree, order, pg);
-  spinunlock(&pglock);
-
-  return pg;
+pfn_t
+pfn_alloc_low (void)
+{
+  return _pfn_alloc(1);
 }
 
 void
-pgfree (unsigned long pg)
+pfn_free (pfn_t pfn)
 {
+  assert (pfn != PFN_INVALID);
+
   spinlock(&pglock);
-  stree_setbit(stree, order, pg);
+  stree_setbit(stree, order, pfn);
   spinunlock(&pglock);
 }
