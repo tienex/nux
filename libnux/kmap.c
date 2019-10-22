@@ -16,8 +16,34 @@ kmapinit (void)
 
 
 /*
-  Returns one if commit() is necessary.
+  Check if va is mapped.
 */
+int
+kmap_mapped (vaddr_t va)
+{
+  hal_l1e_t l1e;
+  unsigned prot;
+
+  l1e = hal_pmap_getl1e (NULL, va);
+  hal_pmap_unboxl1e (l1e, NULL, &prot);
+  return !!(prot & HAL_PFNPROT_PRESENT);
+}
+
+int
+kmap_mapped_range (vaddr_t va, size_t size)
+{
+  vaddr_t i, s, e;
+
+  s = trunc_page (va);
+  e = s + size;
+
+  for (i = s; i < e; i+= PAGE_SIZE)
+    if (!kmap_mapped (i))
+      return 0;
+
+  return 1;
+}
+
 int
 kmap_ensure (vaddr_t va, unsigned reqprot)
 {
