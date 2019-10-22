@@ -1,5 +1,4 @@
 #include <stdio.h>
-//#include <nux/hal.h>
 
 #include "internal.h"
 
@@ -16,6 +15,11 @@ init_mem (void)
     Initialise KVA Allocator.
   */
   kvainit();
+
+  /*
+    Initialise KMEM.
+  */
+  kmeminit();
 
 #if 0
   /*

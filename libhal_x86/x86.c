@@ -18,6 +18,9 @@ extern int _physmap_end;
 extern int _kva_start;
 extern int _kva_end;
 
+extern int _kmem_start;
+extern int _kmem_end;
+
 extern int _stree_start;
 extern int _stree_end;
 
@@ -201,7 +204,7 @@ hal_cpu_halt (void)
 }
 
 void
-hal_tlbop (hal_tlbop_t tlbop)
+hal_cpu_tlbop (hal_tlbop_t tlbop)
 {
   if (tlbop == HAL_TLBOP_NONE)
     return;
@@ -248,6 +251,18 @@ const size_t
 hal_virtmem_kvasize (void)
 {
   return (size_t)((void *)&_kva_end - (void *)&_kva_start);
+}
+
+vaddr_t
+hal_virtmem_kmembase (void)
+{
+  return (vaddr_t)&_kmem_start;
+}
+
+const size_t
+hal_virtmem_kmemsize (void)
+{
+  return (size_t)((void *)&_kmem_end - (void *)&_kmem_start);
 }
 
 static void

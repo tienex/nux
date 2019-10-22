@@ -5,5 +5,6 @@
 
 void pfninit (void);
 void kvainit (void);
+void kmeminit (void);
 
 #endif

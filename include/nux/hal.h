@@ -135,6 +135,11 @@ const size_t hal_virtmem_dmapsize (void);
 vaddr_t hal_virtmem_kvabase (void);
 const size_t hal_virtmem_kvasize (void);
 
+/*
+  Kernel Memory Area Description.
+*/
+vaddr_t hal_virtmem_kmembase (void);
+const size_t hal_virtmem_kmemsize (void);
 
 /*
   HAL Virtual Memory Mapping.
@@ -166,6 +171,11 @@ void hal_pmap_init (void);
   Set current pmap 
  */
 void hal_pmap_setcur (struct hal_pmap *pmap);
+
+/*
+  Return current l1e in the pmap.
+*/
+hal_l1e_t hal_pmap_getl1e (struct hal_pmap *pmap, unsigned long va);
 
 /*
   Install an L1E in the pmap 

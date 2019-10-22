@@ -3,6 +3,9 @@
 #include <nux/hal.h>
 #include "internal.h"
 
+#define l1epfn(_l1e) ((_l1e)>>HAL_PAGE_SHIFT)
+#define l1eflags(_l1e) ((_l1e) & 0x8000000000000fffULL)
+
 #define PTE_P       1
 #define PTE_W       2
 #define PTE_U       4
@@ -70,7 +73,7 @@ set_pte (uint64_t *ptep, uint64_t pte)
 }
 
 static l1e_t *
-get_l1p (void *pmap, unsigned long va)
+get_l1p (void *pmap, unsigned long va, int alloc)
 {
   l2e_t *l2p, l2e;
 
@@ -82,6 +85,9 @@ get_l1p (void *pmap, unsigned long va)
   l2e = *l2p;
   if (!l2e_present (l2e))
     {
+      if (!alloc)
+	return NULL;
+
       /* Populate L1. */
       pfn_t pfn;
       uint64_t pte;
@@ -104,11 +110,25 @@ get_l1p (void *pmap, unsigned long va)
 }
 
 hal_l1e_t
+hal_pmap_getl1e (struct hal_pmap *pmap, unsigned long va)
+{
+  l1e_t *l1p, r;
+
+  l1p = get_l1p (pmap, va, 0);
+  if (l1p == NULL)
+    r = (hal_l1e_t)0;
+  else
+    r = *l1p;
+
+  return r;
+}
+
+hal_l1e_t
 hal_pmap_setl1e (struct hal_pmap *pmap, unsigned long va, hal_l1e_t l1e)
 {
   l1e_t ol1e, *l1p;
 
-  l1p = get_l1p (pmap, va);
+  l1p = get_l1p (pmap, va, 1);
   ol1e = *l1p;
   set_pte ((uint64_t *)l1p, (uint64_t)l1e);
   return ol1e;
@@ -165,6 +185,31 @@ hal_pmap_unboxl1e (hal_l1e_t l1e, unsigned long *pfnp, unsigned *protp)
 
   *pfnp = l1e >> HAL_PAGE_SHIFT;
   *protp = prot;
+}
+
+unsigned
+hal_pmap_tlbop (hal_l1e_t old, hal_l1e_t new)
+{
+#define restricts_permissions(_o, _n) 1
+
+  /* Previous not present. Don't flush. */
+  if (!(l1eflags(old) & PTE_P))
+      return 0;
+
+  /* Mapping a different page. Flush. */
+  if ((l1epfn (old) != l1epfn (new)) || restricts_permissions (old, new))
+    {
+      if ((l1eflags (old) & PTE_G) || (l1eflags (new) & PTE_G))
+	{
+	  return HAL_TLBOP_FLUSHALL;
+	}
+      else
+	{
+	  return HAL_TLBOP_FLUSH;
+	}
+    }
+
+  return HAL_TLBOP_NONE;
 }
 
 static bool

@@ -72,10 +72,17 @@ SECTIONS
 	_stree_end = .;
    } : stree
 
-   .kva ALIGN(4096) : AT (0)
+   .kmem ALIGN(4096) : AT (0)
+   {
+	_kmem_start = .;
+	. += 512 * 1024 * 1024;
+	_kmem_end = .;
+   } : kmem
+
+   .kva ALIGN(4096): AT (0)
    {
 	_kva_start = .;
-	. += 512 * 1024 * 1024;
+	. += 256 * 1024 * 1024;
 	_kva_end = .;
    } : kva
 
@@ -98,6 +105,7 @@ PHDRS
     rodata  PT_LOAD;
     data    PT_LOAD;
     info    0xAF100000;
+    kmem    0xAF100001;
     kva     0xAF100001;
     physmap 0xAF100002;
     stree   0xAF100004;

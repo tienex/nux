@@ -13,4 +13,9 @@ vaddr_t kva_alloc (void);
 vaddr_t kva_alloc_low (void);
 void kva_free (vaddr_t va);
 
+int kmem_brk (int low, vaddr_t vaddr);
+vaddr_t kmem_sbrk (int low, long inc);
+vaddr_t kmem_brkgrow (int low, unsigned size);
+int kmem_brkshrink (int low, unsigned size);
+
 #endif
