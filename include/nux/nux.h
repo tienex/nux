@@ -70,7 +70,7 @@ __log(const int level, const char *fmt, ...)
     exit(-1);
 }
 
-#define debug(...) __log(LOGL_DEBUG, __VA_ARGS__)
+#define debug(...) //__log(LOGL_DEBUG, __VA_ARGS__)
 #define info(...) __log(LOGL_INFO, __VA_ARGS__)
 #define warn(...) __log(LOGL_WARN, __VA_ARGS__)
 #define error(...) __log(LOGL_ERROR, __VA_ARGS__)
