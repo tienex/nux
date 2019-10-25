@@ -112,7 +112,6 @@ _setup_gdt:
 .endm
 
 _setup_idt:
-#if 0
 	repeat setidt 0, 31
 	repeat setidt 32, 63
 	repeat setidt 64, 95
@@ -120,7 +119,6 @@ _setup_idt:
 	repeat setidt 128, 191
 	repeat setidt 192, 255
 	_setidt 33 1 /* syscall */
-#endif
 	ret
 	
 

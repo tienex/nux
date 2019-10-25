@@ -15,11 +15,7 @@
 	mov $KDS, %ax
 	mov %ax, %ds
 	mov %ax, %es
-	call _C_LABEL(plt_pcpu_id)
-	shl $5, %ax	
-	add $(6 << 3), %ax
-	mov %ax, %fs
-	xor %eax, %eax
+	mov %ax, %fs /* Set FS later. */
 	mov %ax, %gs
 	
 	mov %esp, %eax

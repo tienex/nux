@@ -215,6 +215,18 @@ hal_pmap_tlbop (hal_l1e_t old, hal_l1e_t new)
   return HAL_TLBOP_NONE;
 }
 
+vaddr_t
+hal_virtmem_userbase (void)
+{
+  return 0;
+}
+
+const size_t
+hal_virtmem_usersize (void)
+{
+  return (3L << 30); /* 3 GB */
+}
+
 static bool
 cpu_supports_nx (void)
 {
@@ -228,5 +240,7 @@ void
 pmap_init (void)
 {
   if (cpu_supports_nx ())
-      pte_nx = PTE_NX;
+    pte_nx = PTE_NX;
+  else
+    printf ("CPU does not support NX.\n");
 }
