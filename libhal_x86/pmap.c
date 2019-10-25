@@ -142,22 +142,22 @@ hal_pmap_boxl1e (unsigned long pfn, unsigned prot)
 
   l1e = (uint64_t) pfn << HAL_PAGE_SHIFT;
 
-  if (prot & HAL_PFNPROT_PRESENT)
+  if (prot & HAL_PTE_P)
     l1e |= PTE_P;
-  if (prot & HAL_PFNPROT_WRITE)
+  if (prot & HAL_PTE_W)
     l1e |= PTE_W;
-  if (!(prot & HAL_PFNPROT_EXEC)
-      && (prot & HAL_PFNPROT_PRESENT))
+  if (!(prot & HAL_PTE_X)
+      && (prot & HAL_PTE_P))
     l1e |= pte_nx;
-  if (prot & HAL_PFNPROT_USER)
+  if (prot & HAL_PTE_U)
     l1e |= PTE_U;
-  if (prot & HAL_PFNPROT_GLOBAL)
+  if (prot & HAL_PTE_GLOBAL)
     l1e |= PTE_G;
-  if (prot & HAL_PFNPROT_AVL0)
+  if (prot & HAL_PTE_AVL0)
     l1e |= PTE_AVAIL0;
-  if (prot & HAL_PFNPROT_AVL1)
+  if (prot & HAL_PTE_AVL1)
     l1e |= PTE_AVAIL1;
-  if (prot & HAL_PFNPROT_AVL2)
+  if (prot & HAL_PTE_AVL2)
     l1e |= PTE_AVAIL2;
 
   return l1e;
@@ -169,22 +169,22 @@ hal_pmap_unboxl1e (hal_l1e_t l1e, unsigned long *pfnp, unsigned *protp)
   unsigned prot = 0;
 
   if (l1e & PTE_P)
-    prot |= HAL_PFNPROT_PRESENT;
+    prot |= HAL_PTE_P;
   if (l1e & PTE_W)
-    prot |= HAL_PFNPROT_WRITE;
+    prot |= HAL_PTE_W;
   if (!(l1e & PTE_NX)
       && (l1e & PTE_P))
-    prot |= HAL_PFNPROT_EXEC;
+    prot |= HAL_PTE_X;
   if (l1e & PTE_U)
-    prot |= HAL_PFNPROT_USER;
+    prot |= HAL_PTE_U;
   if (l1e & PTE_G)
-    prot |= HAL_PFNPROT_GLOBAL;
+    prot |= HAL_PTE_GLOBAL;
   if (l1e & PTE_AVAIL0)
-    prot |= HAL_PFNPROT_AVL0;
+    prot |= HAL_PTE_AVL0;
   if (l1e & PTE_AVAIL1)
-    prot |= HAL_PFNPROT_AVL1;
+    prot |= HAL_PTE_AVL1;
   if (l1e & PTE_AVAIL2)
-    prot |= HAL_PFNPROT_AVL2;
+    prot |= HAL_PTE_AVL2;
 
   *pfnp = l1e >> HAL_PAGE_SHIFT;
   *protp = prot;

@@ -34,7 +34,7 @@ kmap_mapped (vaddr_t va)
 
   l1e = hal_pmap_getl1e (NULL, va);
   hal_pmap_unboxl1e (l1e, NULL, &prot);
-  return !!(prot & HAL_PFNPROT_PRESENT);
+  return !!(prot & HAL_PTE_P);
 }
 
 int
@@ -72,9 +72,9 @@ kmap_ensure (vaddr_t va, unsigned reqprot)
 
   /* Check present bit. If we are adding a P bit allocate, if we are
      removing it free the page. */
-  if ((reqprot & HAL_PFNPROT_PRESENT) !=  (prot & HAL_PFNPROT_PRESENT))
+  if ((reqprot & HAL_PTE_P) !=  (prot & HAL_PTE_P))
     {
-      if (reqprot & HAL_PFNPROT_PRESENT)
+      if (reqprot & HAL_PTE_P)
 	{
 	  /* Populate page. */
 	  pfn = pfn_alloc (0);

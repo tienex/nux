@@ -187,19 +187,19 @@ hal_l1e_t hal_pmap_getl1e (struct hal_pmap *pmap, unsigned long va);
 hal_l1e_t hal_pmap_setl1e (struct hal_pmap *pmap, unsigned long va,
 			   hal_l1e_t new);
 
-#define HAL_PFNPROT_PRESENT (1 << 0)
-#define HAL_PFNPROT_WRITE (1 << 1)
-#define HAL_PFNPROT_EXEC (1 << 2)
-#define HAL_PFNPROT_USER (1 << 3)
-#define HAL_PFNPROT_GLOBAL (1 << 4)
-#define HAL_PFNPROT_AVL0 (1 << 5)
-#define HAL_PFNPROT_AVL1 (1 << 6)
-#define HAL_PFNPROT_AVL2 (1 << 7)
+#define HAL_PTE_P      (1 << 0)
+#define HAL_PTE_W      (1 << 1)
+#define HAL_PTE_X      (1 << 2)
+#define HAL_PTE_U      (1 << 3)
+#define HAL_PTE_GLOBAL (1 << 4)
+#define HAL_PTE_AVL0   (1 << 5)
+#define HAL_PTE_AVL1   (1 << 6)
+#define HAL_PTE_AVL2   (1 << 7)
 
 /*
   Create a l1e value 
  */
-hal_l1e_t hal_pmap_boxl1e (unsigned long pfn, unsigned prot);
+hal_l1e_t hal_pmap_boxl1e (unsigned long pfn, unsigned flags);
 
 /*
   Decompose a l1e value 

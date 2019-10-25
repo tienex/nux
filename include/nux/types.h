@@ -31,25 +31,6 @@ typedef unsigned long pfn_t;
 #define VFN_INVALID ((pfn_t)-1)
 typedef unsigned long vfn_t;
 
-
-#if 0
-#include <nux/hal.h>
-
-/* pfnprot_t: Page Properties for Mapping. */
-enum pfnprot
-{
-  PFNPROT_PRESENT = HAL_PFNPROT_PRESENT,
-  PFNPROT_WRITE = HAL_PFNPROT_WRITE,
-  PFNPROT_EXEC = HAL_PFNPROT_EXEC,
-  PFNPROT_USER = HAL_PFNPROT_USER,
-  PFNPROT_GLOBAL = HAL_PFNPROT_GLOBAL,
-  PFNPROT_AVAIL0 = HAL_PFNPROT_AVL0,
-  PFNPROT_AVAIL1 = HAL_PFNPROT_AVL1,
-  PFNPROT_AVAIL2 = HAL_PFNPROT_AVL2,
-};
-typedef enum pfnprot pfnprot_t;
-#endif
-
 /*
 
    tlbop_t

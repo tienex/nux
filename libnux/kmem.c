@@ -39,7 +39,7 @@ _ensure_range (vaddr_t v1, vaddr_t v2, int mapped)
 
   s = MIN(v1, v2);
   e = MAX(v1, v2);
-  prot = mapped ? HAL_PFNPROT_PRESENT|HAL_PFNPROT_WRITE : 0;
+  prot = mapped ? HAL_PTE_P|HAL_PTE_W : 0;
 
   if (kmap_ensure_range (s, e - s, prot))
     return -1;

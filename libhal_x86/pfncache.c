@@ -20,7 +20,7 @@ ___cache_fill (uintptr_t slot, uintptr_t old, uintptr_t new)
 
   assert (slot < CACHE_SLOTS);
 
-  kmap_map (va, new, HAL_PFNPROT_PRESENT|HAL_PFNPROT_WRITE);
+  kmap_map (va, new, HAL_PTE_P|HAL_PTE_W);
   kmap_commit ();
 }
 
