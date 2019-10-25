@@ -12,9 +12,9 @@
 #define HAL_PAGE_SHIFT 12
 #define HAL_MAXCPUS 64
 
-/* Currently at 256Gb (64k virtual pages) */
-#define HAL_KVA_ORDER 16
-#define HAL_KVA_SIZE (1 << (HAL_KVA_ORDER + HAL_PAGE_SHIFT))
+/* KVA is (1 << HAL_KVA_SHIFT) size. */
+#define HAL_KVA_SHIFT 28 /* 256Gb */
+#define HAL_KVA_SIZE (1 << 28)//(HAL_KVA_ORDER + HAL_PAGE_SHIFT))
 
 #ifndef _ASSEMBLER
 
