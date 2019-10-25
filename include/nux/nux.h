@@ -5,13 +5,11 @@
 #include <nux/types.h>
 #include <nux/locks.h>
 
-pfn_t pfn_alloc (void);
-pfn_t pfn_alloc_low (void);
+pfn_t pfn_alloc (int low);
 void pfn_free (pfn_t pfn);
 
-vaddr_t kva_alloc (void);
-vaddr_t kva_alloc_low (void);
-void kva_free (vaddr_t va);
+vaddr_t kva_allocva (int low);
+void kva_freeva (vaddr_t va);
 
 int kmap_mapped (vaddr_t va);
 int kmap_mapped_range (vaddr_t va, size_t size);

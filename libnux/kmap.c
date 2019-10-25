@@ -77,7 +77,7 @@ kmap_ensure (vaddr_t va, unsigned reqprot)
       if (reqprot & HAL_PFNPROT_PRESENT)
 	{
 	  /* Populate page. */
-	  pfn = pfn_alloc ();
+	  pfn = pfn_alloc (0);
 	  if (pfn == PFN_INVALID)
 	    goto out;
 	}

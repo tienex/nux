@@ -23,8 +23,8 @@ kvainit(void)
   kvabase = hal_virtmem_kvabase ();
 }
 
-static vaddr_t
-_kva_alloc (int low)
+vaddr_t
+kva_allocva (int low)
 {
   long vfn;
   vaddr_t va;
@@ -44,20 +44,8 @@ _kva_alloc (int low)
   return va;
 }
 
-vaddr_t
-kva_alloc (void)
-{
-  return _kva_alloc(0);
-}
-
-vaddr_t
-kva_alloc_low (void)
-{
-  return _kva_alloc(1);
-}
-
 void
-kva_free (vaddr_t va)
+kva_freeva (vaddr_t va)
 {
   vfn_t vfn;
 

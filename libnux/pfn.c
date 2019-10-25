@@ -27,10 +27,11 @@ pfninit (void)
 }
 
 
-static pfn_t
-_pfn_alloc (int low)
+pfn_t
+pfn_alloc (int low)
 {
   long pg;
+  vaddr_t va;
 
   spinlock(&pglock);
   pg = stree_bitsearch(stree, order, low);
@@ -38,22 +39,14 @@ _pfn_alloc (int low)
     stree_clrbit(stree, order, pg);
   spinunlock(&pglock);
 
+  va = hal_physmem_getpfn (pg);
+  memset (va, 0, PAGE_SIZE);
+  hal_physmem_putpfn (pg, va);
+  
   if (pg < 0)
     return PFN_INVALID;
   else
     return (pfn_t)pg;
-}
-
-pfn_t
-pfn_alloc (void)
-{
-  return _pfn_alloc(0);
-}
-
-pfn_t
-pfn_alloc_low (void)
-{
-  return _pfn_alloc(1);
 }
 
 void
