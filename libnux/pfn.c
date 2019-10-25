@@ -1,3 +1,4 @@
+#include <string.h>
 #include <nux/hal.h>
 #include <nux/locks.h>
 #include <nux/types.h>
@@ -31,7 +32,7 @@ pfn_t
 pfn_alloc (int low)
 {
   long pg;
-  vaddr_t va;
+  void *va;
 
   spinlock(&pglock);
   pg = stree_bitsearch(stree, order, low);
