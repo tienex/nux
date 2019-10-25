@@ -24,7 +24,7 @@
 #define L2_SHIFT (9 + PAGE_SHIFT)
 #define L1_SHIFT PAGE_SHIFT
 
-#define mkpte(_p, _f) ((uint64_t)((_p) << PAGE_SHIFT) | (_f))
+#define mkpte(_p, _f) (((uint64_t)(_p) << PAGE_SHIFT) | (_f))
 #define pte_present(_pte) ((_pte) & PTE_P)
 
 #define l2e_present(_l2e) pte_present((uint64_t)(_l2e))
@@ -145,7 +145,8 @@ hal_pmap_boxl1e (unsigned long pfn, unsigned prot)
     l1e |= PTE_P;
   if (prot & HAL_PFNPROT_WRITE)
     l1e |= PTE_W;
-  if (!(prot & HAL_PFNPROT_EXEC))
+  if (!(prot & HAL_PFNPROT_EXEC)
+      && (prot & HAL_PFNPROT_PRESENT))
     l1e |= pte_nx;
   if (prot & HAL_PFNPROT_USER)
     l1e |= PTE_U;
@@ -170,7 +171,8 @@ hal_pmap_unboxl1e (hal_l1e_t l1e, unsigned long *pfnp, unsigned *protp)
     prot |= HAL_PFNPROT_PRESENT;
   if (l1e & PTE_W)
     prot |= HAL_PFNPROT_WRITE;
-  if (!(l1e & PTE_NX))
+  if (!(l1e & PTE_NX)
+      && (l1e & PTE_P))
     prot |= HAL_PFNPROT_EXEC;
   if (l1e & PTE_U)
     prot |= HAL_PFNPROT_USER;
