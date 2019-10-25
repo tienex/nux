@@ -6,6 +6,7 @@
 #include <stdint.h>
 #include <string.h>
 #include <stdbool.h>
+#include <nux/apxh.h>
 
 #define BOOTINFO_REGION_UNKNOWN 0	/* Unusable address. */
 #define BOOTINFO_REGION_RAM 1 		/* Available RAM. */

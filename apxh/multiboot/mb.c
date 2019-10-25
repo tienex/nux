@@ -15,6 +15,8 @@ static uintptr_t brk;
 static unsigned bootinfo_regions;
 static uint64_t bootinfo_maxpfn;
 
+uint64_t rsdp_find (void);
+
 static void
 parse_multiboot_mmap (struct multiboot_info *info)
 {
