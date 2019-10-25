@@ -16,8 +16,7 @@ struct apxh_bootinfo
 #define APXH_BOOTINFO_MAGIC 0xAF10B007
   uint64_t magic;
   uint64_t maxpfn;
-  uint64_t pagemap_size;
-  uint8_t  pagemap[0];
+  uint64_t acpi_rsdp;
 } __attribute__((packed));
 
 struct apxh_stree
@@ -235,12 +234,8 @@ va_info_copy (void)
 
   i.magic = APXH_BOOTINFO_MAGIC;
   i.maxpfn = md_maxpfn ();
-  i.pagemap_size = psize;
-
+  i.acpi_rsdp = md_acpi_rsdp ();
   va_copy (va, &i, MIN(size, sizeof (struct apxh_bootinfo)), 0, 0);
-
-  va += sizeof (struct apxh_bootinfo);
-  va_copy (va, boot_pagemap, psize, 0, 0);
 #undef MIN
 }
 

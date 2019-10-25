@@ -154,6 +154,12 @@ md_getmemregion (unsigned i)
   return hrptr + i;
 }
 
+uint64_t
+md_acpi_rsdp (void)
+{
+  return rsdp_find ();
+}
+
 void
 md_verify(unsigned long va, size_t size)
 {

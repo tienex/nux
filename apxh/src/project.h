@@ -52,6 +52,7 @@ typedef enum {
 
 void md_init(void);
 uint64_t md_maxpfn (void);
+uint64_t md_acpi_rsdp (void);
 unsigned md_memregions (void);
 struct bootinfo_region *md_getmemregion (unsigned i);
 void md_verify(unsigned long va, size_t size);
@@ -87,5 +88,11 @@ void pae_populate (unsigned long va, size_t size, int w, int x);
 void pae_physmap (unsigned long va, size_t size);
 void pae_linear (unsigned long va, size_t size);
 void pae_entry (unsigned long entry);
+
+
+#define info(...) do { printf (__VA_ARGS__); putchar('\n'); } while (0)
+#define debug(...) do { printf (__VA_ARGS__); putchar('\n'); } while (0)
+#define warn(...) do { printf ("Warning: "); printf (__VA_ARGS__); putchar('\n'); } while (0)
+#define fatal(...) do { printf ("Fatal: "); printf (__VA_ARGS__); putchar('\n'); exit(-1); } while (0)
 
 #endif

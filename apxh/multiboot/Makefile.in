@@ -4,7 +4,7 @@ LDADD_START+= crt0.o
 
 PROGRAM=apxh
 SRCS+= ../src/main.c ../src/elf32.c ../src/payload.c ../src/pae.c
-SRCS+= ec.c mb.c
+SRCS+= ec.c mb.c rsdp.c
 
 EC_MACHINE=i386
 @LINK_LIBEC@
