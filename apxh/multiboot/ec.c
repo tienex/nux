@@ -17,7 +17,7 @@ int putchar (int c)
 
   if (c == '\n')
     {
-      y = x/80 + 1;
+      y += x/80 + 1;
       x=0;
       return c;
     }
