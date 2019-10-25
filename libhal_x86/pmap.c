@@ -1,6 +1,7 @@
 #include <assert.h>
 #include <stdbool.h>
 #include <nux/hal.h>
+#include <nux/nux.h>
 #include "internal.h"
 
 #define l1epfn(_l1e) ((_l1e)>>HAL_PAGE_SHIFT)
@@ -92,7 +93,7 @@ get_l1p (void *pmap, unsigned long va, int alloc)
       pfn_t pfn;
       uint64_t pte;
 
-      pfn = hal_req_pfnalloc();
+      pfn = pfn_alloc (0);
       if (pfn == PFN_INVALID)
 	return NULL;
 

@@ -91,7 +91,7 @@ _nux_sysinit (void)
 }
 
 void
-_nux_apinit (void)
+hal_main_ap (void)
 {
 #if 0
   mmap_enter ();

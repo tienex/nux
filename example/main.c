@@ -1,37 +1,23 @@
 #include <stdio.h>
 #include <nux/nux.h>
 
-int
-putchar (int c)
-{
-  return hal_putchar (c);
-}
-
-void hal_main_ap (void)
-{
-
-}
-
 int main ()
 {
   printf ("Hello");
 
-  extern int _linear_start;
-  uintptr_t linaddr = (uintptr_t)&_linear_start;
+  uintptr_t x1, y1, x2, y2;
 
-  linaddr = linaddr + (0xc0100000 >> 9);
-  uint64_t *pte = (uint64_t *)linaddr;
-  
-  printf("pte linaddr= %lx\n", linaddr);
+  x1 = kmem_alloc (0, 64);
+  y1 = kmem_alloc (1, 5123);
+  x2 = kmem_alloc (0, 64);
+  y2 = kmem_alloc (1, 5123);
 
-  int i;
-  for (i = 0; i < 512; i++) {
-    printf("%llx", pte[i]);
-  }
+  kmem_free (1, y2, 5123);
+  kmem_free (0, x2, 64);
+  kmem_free (1, y1, 5123);
+  kmem_free (0, x1, 64);
+
+  kmem_trim ();
+  printf("Done");
 }
 
-int exit()
-{
-  printf("Exit");
-  while (1);
-}

@@ -238,33 +238,6 @@ uint64_t hal_pcpu_prepare (unsigned pcpu);
 
 
 /*
-  Hardware Abstraction Layer: System Services.
-
-  Some components of the HAL (device drivers) will talk with higher
-  levels of the main kernel.
-
-  This is their interface.
- */
-
-/*
-  Log Support.
- */
-void hal_req_logdebug (const char *, const int, const char *, ...);
-void hal_req_loginfo (const char *, const int, const char *, ...);
-void hal_req_logwarn (const char *, const int, const char *, ...);
-void hal_req_logerror (const char *, const int, const char *, ...);
-__dead void hal_req_logfatal (const char *, const int, const char *, ...);
-
-
-/*
-  HAL Memory Allocation.
- */
-
-pfn_t hal_req_pfnalloc (void);
-void hal_req_pfnfree (pfn_t);
-
-
-/*
   Hardware Abstraction Layer: Interrupt Frame.
 
   The HAL communicates information about the status of the CPU when

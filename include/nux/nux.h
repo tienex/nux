@@ -23,5 +23,6 @@ vaddr_t kmem_brkgrow (int low, unsigned size);
 int kmem_brkshrink (int low, unsigned size);
 vaddr_t kmem_alloc (int low, size_t size);
 void kmem_free (int low, vaddr_t vaddr, size_t size);
+void kmem_trim (void);
 
 #endif
