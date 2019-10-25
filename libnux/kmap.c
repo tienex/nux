@@ -43,7 +43,7 @@ kmap_mapped_range (vaddr_t va, size_t size)
   vaddr_t i, s, e;
 
   s = trunc_page (va);
-  e = s + size;
+  e = va + size;
 
   for (i = s; i < e; i+= PAGE_SIZE)
     if (!kmap_mapped (i))
@@ -104,7 +104,7 @@ kmap_ensure_range (vaddr_t va, size_t size, unsigned reqprot)
   vaddr_t i, s, e;
 
   s = trunc_page (va);
-  e = s + size;
+  e = va + size;
 
   for (i = s; i < e; i+= PAGE_SIZE)
     if (kmap_ensure (i, reqprot))
