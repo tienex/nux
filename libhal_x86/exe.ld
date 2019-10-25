@@ -58,6 +58,13 @@ SECTIONS
 	_physmap_end = .;
    } : physmap
 
+   .pfncache ALIGN(4096) : AT(0)
+   {
+	_pfncache_start = .;
+	. += 1 * 1024 * 1024;
+	_pfncache_end = .;
+   } : pfncache
+
    .info ALIGN (4096) : AT(0)
    {
 	_info_start = .;
@@ -107,6 +114,7 @@ PHDRS
     info    0xAF100000;
     kmem    0xAF100001;
     kva     0xAF100001;
+    pfncache 0xAF100001;
     physmap 0xAF100002;
     stree   0xAF100004;
     linear  0xAF10FFFF;

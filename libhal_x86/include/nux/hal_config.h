@@ -10,7 +10,6 @@
 #define HAL_PAGED  /* This HAL uses paging. */
 
 #define HAL_PAGE_SHIFT 12
-#define HAL_PAGING 1
 #define HAL_MAXCPUS 64
 
 /* Currently at 256Gb (64k virtual pages) */

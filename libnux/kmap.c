@@ -14,6 +14,14 @@ kmapinit (void)
 {
 }
 
+void
+kmap_map (vaddr_t va, pfn_t pfn, unsigned prot)
+{
+  hal_l1e_t l1e = hal_pmap_boxl1e (pfn, prot);
+  hal_l1e_t oldl1e = hal_pmap_setl1e (NULL, va, l1e);
+  __sync_or_and_fetch (&kmap_tlbop, hal_pmap_tlbop (oldl1e, l1e));
+}
+
 
 /*
   Check if va is mapped.

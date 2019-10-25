@@ -112,6 +112,8 @@ unsigned long hal_physmem_maxpfn (void);
 */
 void *hal_physmem_stree (unsigned *order);
 
+void *hal_physmem_getpfn (pfn_t);
+void hal_physmem_putpfn (pfn_t, void *);
 
 /*
   HAL Virtual Memory Description.

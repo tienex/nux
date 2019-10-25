@@ -318,4 +318,5 @@ x86_init (void)
 #endif
 
   pmap_init ();
+  pfncache_init();
 }
