@@ -1,0 +1,7 @@
+@COMPILE_LIBEC@
+
+CPPFLAGS+=-Iinclude -I$(SRCROOT)/include -I$(SRCROOT)/@HALDIR@/include
+
+LIBRARY=plt
+
+SRCS+= plt.c lapic.c ioapic.c hpet.c hw.c acpi.c

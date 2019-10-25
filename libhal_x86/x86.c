@@ -5,6 +5,7 @@
 #include <string.h>
 
 #include <nux/hal.h>
+#include <nux/apxh.h>
 
 #include "internal.h"
 #include "stree.h"
@@ -24,25 +25,9 @@ extern int _kmem_end;
 extern int _stree_start;
 extern int _stree_end;
 
-#define APXH_BOOTINFO_MAGIC 0xAF10B007
-struct apxh_bootinfo
-{
-  uint64_t magic;
-  uint64_t maxpfn;
-} __attribute__ ((__packed__));
-
-#define APXH_STREE_MAGIC 0xAF1057EE
-#define APXH_STREE_VERSION 0
-struct apxh_stree
-{
-  uint64_t magic;
-  uint8_t version;
-  uint8_t order;
-  uint16_t offset;
-  uint32_t size;
-} __attribute__ ((__packed__));
-
 const struct apxh_bootinfo *bootinfo = (struct apxh_bootinfo *)&_info_start;
+
+struct hal_pltinfo_desc pltdesc;
 
 void *hal_stree_ptr;
 unsigned hal_stree_order;
@@ -274,6 +259,12 @@ early_print (const char *str)
     hal_putchar (str[i]);
 }
 
+const struct hal_pltinfo_desc *
+hal_pltinfo (void)
+{
+  return (const struct hal_pltinfo_desc *)&pltdesc;
+}
+
 void
 x86_init (void)
 {
@@ -316,6 +307,8 @@ x86_init (void)
 #ifdef __amd64__
   early_print("AMD64 HAL booting from APXH.\n");
 #endif
+
+  pltdesc.acpi_rsdp = bootinfo->acpi_rsdp;
 
   pmap_init ();
   pfncache_init();

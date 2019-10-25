@@ -1,7 +1,7 @@
 CPPFLAGS+= -I$(SRCROOT)/include -I$(SRCROOT)/@HALDIR@/include #-I$(SRCROOT)/libnux/include
 
-LDFLAGS+=-L$(SRCROOT)/@HALDIR@ -L$(SRCROOT)/libnux -T$(SRCROOT)/@HALDIR@/exe.ld
-LDADD+=-lhal -lnux -u _nux_sysinit
+LDFLAGS+=-L$(SRCROOT)/@HALDIR@ -L$(SRCROOT)/@PLTDIR@ -L$(SRCROOT)/libnux -T$(SRCROOT)/@HALDIR@/exe.ld
+LDADD+=-lhal -lplt -lnux -u _nux_sysinit
 
 PROGRAM=example
 

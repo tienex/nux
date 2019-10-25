@@ -370,6 +370,19 @@ void hal_main_ap (void);
 int hal_putchar (int c);
 
 /*
+  Platform Information acquired from bootloader.
+
+  This should be a generic as possible, and should be extended to
+  support fields for every platform.
+*/
+struct hal_pltinfo_desc {
+  uint64_t acpi_rsdp;
+};
+
+const struct hal_pltinfo_desc *
+hal_pltinfo (void);
+
+/*
   Stop all CPUs and panic. Of course you'll never need to call this!
 */
 __dead void hal_panic (void);

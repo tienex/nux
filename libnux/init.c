@@ -77,6 +77,10 @@ _nux_sysinit (void)
   /* Initialise memory management */
   init_mem ();
 
+  /* Start the platform. This will discover CPUs and set up interrupt
+     controllers. */
+  plt_init ();
+
 #if 0
   /* Init CPUs operations */
   cpu_init ();

@@ -1,1 +1,2 @@
-SUBDIRS=apxh @HALDIR@ libnux example
+SUBDIRS=apxh @HALDIR@ @PLTDIR@ libnux example
+

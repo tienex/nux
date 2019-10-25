@@ -12,14 +12,16 @@ AS_CASE([$host],
 	[x86_64-*], [machine=amd64])
 
 AS_CASE([$machine],
-	[i386], [hal=hal_x86],
-	[amd64], [hal=hal_x86])
+	[i386], [hal=hal_x86 plt=plt_acpi],
+	[amd64], [hal=hal_x86 plt=plt_acpi])
 
 ecdir='$(SRCROOT)'/libec
 optflags='-O7'
+#optflags='-O0 -g'
 
 AC_SUBST(MACHINE, ${machine})
 AC_SUBST(HALDIR, lib${hal})
+AC_SUBST(PLTDIR, lib${plt})
 AC_SUBST(INSTALLDIR, "$(pwd)"/dist)
 
 AC_SUBST(ECDIR, ${ecdir})
@@ -34,6 +36,7 @@ AC_MK_CONFIG_FILES([
 	apxh/Makefile
 	apxh/multiboot/Makefile
 	lib${hal}/Makefile
+	lib${plt}/Makefile
 	libnux/Makefile
 	example/Makefile
 	test_apxh/Makefile

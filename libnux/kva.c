@@ -68,7 +68,7 @@ kva_freeva (vaddr_t va)
 }
 
 void *
-kva_map (pfn_t pfn, unsigned no, unsigned prot)
+kva_map (int low, pfn_t pfn, unsigned no, unsigned prot)
 {
   unsigned i;
   vaddr_t va;
@@ -76,13 +76,31 @@ kva_map (pfn_t pfn, unsigned no, unsigned prot)
   if (no > (1 << KVA_ALLOC_ORDER))
     return NULL;
 
-  va = kva_allocva (0);
+  va = kva_allocva (low);
   if (va == VADDR_INVALID)
     return NULL;
 
   for (i = 0; i < no; i++)
     kmap_map (va + i * PAGE_SIZE, pfn + i, prot);
   kmap_commit ();
+  return va;
+}
+
+void *
+kva_physmap (int low, paddr_t paddr, size_t size, unsigned prot)
+{
+  void *ptr;
+  pfn_t pfn;
+  unsigned no;
+
+  pfn = paddr >> PAGE_SHIFT;
+  no = round_page((paddr & PAGE_MASK) + size) >> PAGE_SHIFT;
+
+  ptr = kva_map (low, pfn, no, prot);
+  if (ptr != NULL)
+    ptr += (paddr & PAGE_MASK);
+
+  return ptr;
 }
 
 void

@@ -11,6 +11,7 @@
 void
 hal_pcpu_init (unsigned pcpuid, struct hal_cpu *pcpu)
 {
+#if 0
   void _set_tss (unsigned, void *);
   void _set_fs (unsigned, void *);
 
@@ -20,6 +21,7 @@ hal_pcpu_init (unsigned pcpuid, struct hal_cpu *pcpu)
   pcpu->data = NULL;
   _set_tss (pcpuid, &pcpu->tss);
   _set_fs (pcpuid, &pcpu->data);
+#endif
 }
 
 void
