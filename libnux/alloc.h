@@ -12,7 +12,7 @@
 #endif
 
 #ifdef ALLOCDEBUG
-#define dbgprintf(...) log (__VA_ARGS__)
+#define dbgprintf(...) printf (__VA_ARGS__)
 #else
 #define dbgprintf(...)
 #endif
@@ -127,14 +127,14 @@ _zone_findfree (struct zone *zn, size_t size)
 }
 
 static inline void
-_zone_remove (struct zone *z, struct __ZENTRY *ze)
+zone_remove (struct zone *z, struct __ZENTRY *ze)
 {
   _zone_detachentry (z, ze);
   ___freeptr (ze, z->opq);
 }
 
 static inline void
-_zone_create (struct zone *z, zaddr_t zaddr, size_t size)
+zone_create (struct zone *z, zaddr_t zaddr, size_t size)
 {
   struct __ZENTRY *ze, *pze = NULL, *nze = NULL;
   zaddr_t fprev = zaddr, lnext = zaddr + size;
@@ -144,13 +144,13 @@ _zone_create (struct zone *z, zaddr_t zaddr, size_t size)
   if (pze)
     {
       fprev = pze->addr;
-      _zone_remove (z, pze);
+      zone_remove (z, pze);
     }
   dbgprintf ("HHH");
   if (nze)
     {
       lnext = nze->addr + nze->size;
-      _zone_remove (z, nze);
+      zone_remove (z, nze);
     }
   dbgprintf ("HHH");
   ze = ___mkptr (fprev, lnext - fprev, z->opq);
@@ -165,7 +165,7 @@ zone_free (struct zone * z, zaddr_t zaddr, size_t size)
 
   assert (size != 0);
   dbgprintf ("Freeing %lx", zaddr);
-  _zone_create (z, zaddr, size);
+  zone_create (z, zaddr, size);
 }
 
 static inline zaddr_t
@@ -184,9 +184,9 @@ zone_alloc (struct zone * z, size_t size)
   addr = ze->addr;
   diff = ze->size - size;
   assert (diff >= 0);
-  _zone_remove (z, ze);
+  zone_remove (z, ze);
   if (diff > 0)
-    _zone_create (z, addr + size, diff);
+    zone_create (z, addr + size, diff);
 
 out:
   dbgprintf ("Allocating %lx", addr);
