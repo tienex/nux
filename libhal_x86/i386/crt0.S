@@ -33,8 +33,9 @@ _start:
 
 	call _clear_bss
 
+	// Save CR3 for future AP boots.
 	mov %cr3, %eax
-	mov %eax, _bootcr3
+	mov %eax, _ap_cr3
 
 	/* init hal */
 	call _C_LABEL(x86_init)
@@ -199,7 +200,7 @@ ENTRY(_ap_start)
 	movw %ax, %ds
 
 	lgdtl .Lap_gdtreg - _C_LABEL(_ap_start)
-	lidtl .Lap_idtreg - _C_LABEL(_ap_start)
+	/* No IDT. If anything goes wrong here, machine triple-faults. */
 
 	movw $0xb800, %ax
 	movw %ax, %es
@@ -208,20 +209,36 @@ ENTRY(_ap_start)
 	/* Save AP Boostrap Page Segment. */
 	mov %cs, %bx
 
+	/* Enter protected mode. */
 	mov $1, %ax
 	lmsw %ax
-	ljmpl $0x8, $(apsetup - KERNBASE)
+	ljmpl $0x8, $(.Lap_setup - _C_LABEL(_ap_start) + 0x2000)
 
+	.align 16
+.Lap_gdttmp:
+	.long 0
+	.long 0
+	.long 0x0000ffff
+	.long 0x00cf9a00
+	.long 0x0000ffff
+	.long 0x00cf9200
 .Lap_gdtreg:
-	.hword (GDTSIZE * 8) - 1
-	.long _gdt - KERNBASE
-.Lap_idtreg:
-	.hword (256 * 8) - 1
-	.long _idt - KERNBASE
-ENTRY(_ap_end)
+	.hword 127
+	.long .Lap_gdttmp - _C_LABEL(_ap_start) + 0x2000
 
+	/*
+	  AP Bootstrap configuration.
+
+	  Both ap_stackpage and ap_cr3 wil be written by cpu prepare, to configure the boot.
+	*/
+	.globl _ap_stackpage
+_ap_stackpage:
+	.long 0
+	.globl _ap_cr3
+_ap_cr3:
+	.long 0x12345
 	.code32
-apsetup: /* bx:	AP Bootstrap Segment */
+.Lap_setup:
 	/* Setup segments. */
 	mov $KDS, %ax
 	mov %ax, %ss
@@ -230,16 +247,52 @@ apsetup: /* bx:	AP Bootstrap Segment */
 	mov %ax, %fs
 	mov %ax, %gs
 
+	/* Get AP configuration. */
+	xor %ecx, %ecx
+	mov %bx, %cx
+	shl $4, %ecx
+	mov (_ap_cr3 - _ap_start)(%ecx), %eax
+	mov %eax, %cr3
+	mov (_ap_stackpage - _ap_start)(%ecx), %edi
+
+	/*
+	   Set NX mode.
+
+                NB: This is hairy. If there's any misunderstanding
+	        between BSP and APs on the NX setting (I am
+	        looking at you IA32_MISC_ENABLE's DISABLE_NX)
+	        then the AP will likely triple fault on loading
+	        the pagetable. This will reset the whole machine.
+
+	        It shouldn't happen,  but if you ever see a machine
+	        reset while enabling secondary processor, start looking
+	        at this.
+	*/
+	mov $0x80000001, %eax
+	mov %ecx, 0
+	cpuid
+	and $(1 << 20), %edx
+	jz .Lno_nx
+
+	mov $MSR_IA32_EFER, %ecx
+	rdmsr
+	or $(1 << 11), %eax
+	wrmsr
+	/* NX should be enabled now. */
+
+.Lno_nx:
 	/* Setup CR registers. */
 	mov %cr4, %eax
 	or  $0x30, %eax
 	mov  %eax, %cr4
-	mov _bootcr3, %eax
-	mov %eax, %cr3
 	mov  %cr0, %eax
 	or   $((1<<31)|(1<<16)), %eax
 	mov  %eax, %cr0
-	ljmp $0x08, $1f
+	ljmp $0x08, $apsetup
+ENTRY(_ap_end)
+
+	.code32
+apsetup: /* edi: ESP */
 1:
 	/* Reload GDT and IDT */
 	lgdt _gdtr
@@ -247,11 +300,7 @@ apsetup: /* bx:	AP Bootstrap Segment */
 	ljmp $KCS, $1f
 1:
 	/* Setup stack */
-	xor %eax, %eax
-	mov %bx, %ax
-	shl $4, %eax
-	add $(KERNBASE + 0x1000), %eax
-	mov %eax, %esp
+	mov %edi, %esp
 	call _C_LABEL(hal_main_ap)
 1:	hlt
 	jmp 1b
@@ -280,8 +329,6 @@ print:
 	.data
 	.globl _gdtr, _gdt, _idtr, _idt
 
-_bootcr3:
-	.long 0
 
 	.align 64
 	.globl _gdtr, _gdt
