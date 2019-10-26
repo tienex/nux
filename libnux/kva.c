@@ -60,7 +60,7 @@ kva_freeva (vaddr_t va)
   assert (va != VADDR_INVALID);
   assert (va >= kvabase && va < kvabase + kvasize); 
 
-  vfn = va >> KVA_PAGE_SHIFT;
+  vfn = (va - kvabase) >> KVA_PAGE_SHIFT;
 
   spinlock (&lock);
   stree_setbit(stree, KVA_STREE_ORDER, vfn);
@@ -83,7 +83,7 @@ kva_map (int low, pfn_t pfn, unsigned no, unsigned prot)
   for (i = 0; i < no; i++)
     kmap_map (va + i * PAGE_SIZE, pfn + i, prot);
   kmap_commit ();
-  return va;
+  return (void *)va;
 }
 
 void *
