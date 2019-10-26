@@ -44,7 +44,7 @@ hal_pcpu_init (unsigned pcpuid, struct hal_cpu *pcpu)
   pcpu_stackpfn[pcpuid] = pfn;
   pcpu_stackva[pcpuid] = va;
 
-  pcpu->tss.esp0 = pcpu_stackva[pcpuid] + 4096;
+  pcpu->tss.esp0 = (unsigned long)pcpu_stackva[pcpuid] + 4096;
   pcpu->tss.ss0 = KDS;
   pcpu->tss.iomap = 108;
   pcpu->data = NULL;
@@ -88,7 +88,7 @@ hal_pcpu_prepare (unsigned pcpu)
   reset = kva_physmap (0, 0x467, 2, HAL_PTE_P|HAL_PTE_W|HAL_PTE_X);
   *reset = pstart & 0xf;
   *(reset + 1) = pstart >> 4;
-  kva_unmap (reset);
+  kva_unmap ((void *)reset);
 
   /* Setup AP bootstrap page */
   memcpy (start, &_ap_start,
@@ -98,7 +98,7 @@ hal_pcpu_prepare (unsigned pcpu)
 
   /* Setup AP Stack. */
   void *ptr = start + ((void *)&_ap_stackpage - (void *)&_ap_start);
-  *(uintptr_t *)ptr = start + PAGE_SIZE;
+  *(void **)ptr = start + PAGE_SIZE;
   return pstart;
 }
 
