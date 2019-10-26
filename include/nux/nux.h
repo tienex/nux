@@ -37,6 +37,39 @@ vaddr_t kmem_alloc (int low, size_t size);
 void kmem_free (int low, vaddr_t vaddr, size_t size);
 void kmem_trim (void);
 
+void cpu_startall (void);
+unsigned cpu_id (void);
+unsigned cpu_num (void);
+cpumask_t cpu_activemask (void);
+void cpu_setdata (void *ptr);
+void *cpu_getdata (void);
+
+void cpu_nmi (int cpu);
+void cpu_nmi_broadcast (void);
+void cpu_nmi_mask (cpumask_t map);
+
+unsigned cpu_ipi_avail (void);
+void cpu_ipi (int cpu, uint8_t vct);
+void cpu_ipi_mask (cpumask_t map, uint8_t vct);
+void cpu_ipi_broadcast (uint8_t vct);
+
+void cpu_tlbflush (int cpu, tlbop_t op, bool sync);
+void cpu_tlbflush_mask (cpumask_t mask, tlbop_t op, bool sync);
+void cpu_tlbflush_broadcast (tlbop_t op, bool sync);
+void cpu_tlbflush_sync_broadcast (void);
+
+bool uaddr_valid (uaddr_t);
+bool uaddr_validrange (uaddr_t a, size_t size);
+bool uaddr_copyfrom (void *dst, uaddr_t src, size_t size,
+		     bool (*pf_handler)(uaddr_t va, hal_pfinfo_t info));
+bool uaddr_copyto (uaddr_t dst, void *src, size_t size,
+		   bool (*pf_handler)(uaddr_t va, hal_pfinfo_t info));
+bool uaddr_memset (uaddr_t dst, int ch, size_t size,
+		   bool (*pf_handler)(uaddr_t va, hal_pfinfo_t info));
+
+bool uctxt_signal (uctxt_t *uctxt, unsigned long ip, unsigned long arg,
+		   bool (*pf_handler)(uaddr_t va, hal_pfinfo_t info));
+
 #define LOGL_DEBUG -1
 #define LOGL_INFO  0
 #define LOGL_WARN  1

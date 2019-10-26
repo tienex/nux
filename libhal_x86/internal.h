@@ -10,12 +10,12 @@
 
 #ifndef _ASSEMBLER
 
-#include <stdint.h>
+#include <nux/nux.h>
 
-#define haldebug(...) printf("D:"__VA_ARGS__)
-#define hallog(...) printf(__VA_ARGS__)
-#define halwarn(...) printf("WARN:" __VA_ARGS__)
-#define halfatal(...) assert (0 && __VA_ARGS__)
+#define haldebug(...) debug(__VA_ARGS__)
+#define hallog(...) info(__VA_ARGS__)
+#define halwarn(...) warn(__VA_ARGS__)
+#define halfatal(...) fatal(__VA_ARGS__)
 
 void x86_init (void);
 void pmap_init (void);
