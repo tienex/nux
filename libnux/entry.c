@@ -6,12 +6,14 @@ struct hal_frame *hal_entry_pf (struct hal_frame *f, unsigned long va,
 				hal_pfinfo_t info)
 {
   printf ("Pagefault at %lx\n", va);
+  hal_frame_print (f);
   hal_cpu_halt ();
 }
 
 struct hal_frame *hal_entry_xcpt (struct hal_frame *f, unsigned xcpt)
 {
   printf ("Exception %lx\n", xcpt);
+  hal_frame_print (f);
   hal_cpu_halt ();
 }
 

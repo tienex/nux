@@ -11,6 +11,16 @@
 
 static pfn_t pcpu_stackpfn[MAXCPUS];
 static void *pcpu_stackva[MAXCPUS];
+static int _enter_called = 0;
+
+uint16_t
+_i386_fs (void)
+{
+  if (_enter_called)
+    return (5 + 4 * plt_pcpu_id() + 1) << 3;
+  else
+    return 0;
+}
 
 void
 hal_pcpu_init (unsigned pcpuid, struct hal_cpu *pcpu)
@@ -52,6 +62,8 @@ hal_pcpu_enter (unsigned pcpuid)
 
   asm volatile ("ltr %%ax"::"a" (tss));
   asm volatile ("mov %%ax, %%fs"::"a" (fs));
+
+  _enter_called = 1;
 }
 
 uint64_t
