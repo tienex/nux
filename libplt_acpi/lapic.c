@@ -216,7 +216,7 @@ plt_pcpu_iterate (void)
 }
 
 void
-plt_pcpu_init (void)
+plt_pcpu_enter (void)
 {
   lapic_configure ();
 }
@@ -252,7 +252,7 @@ plt_pcpu_id (void)
 }
 
 void
-plt_pcpu_wake (unsigned pcpuid, paddr_t start)
+plt_pcpu_start (unsigned pcpuid, paddr_t start)
 {
   if (pcpuid == lapic_getcurrent ())
     return;
