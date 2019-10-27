@@ -4,6 +4,6 @@ OBJDIR=.build
 SRCROOT=@top_srcdir@
 MKDIR=$(SRCROOT)/@mk_dir@
 INSTALLDIR=@INSTALLDIR@
-CFLAGS+=@OPTIMIZE_FLAGS@ -fno-strict-aliasing
+CFLAGS+=@CONFIGURE_FLAGS@
 
 all: do_all

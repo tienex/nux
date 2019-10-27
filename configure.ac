@@ -16,7 +16,7 @@ AS_CASE([$machine],
 	[amd64], [hal=hal_x86 plt=plt_acpi])
 
 ecdir='$(SRCROOT)'/libec
-optflags='-O7'
+optflags='-O7 -g'
 #optflags='-O0 -g'
 
 AC_SUBST(MACHINE, ${machine})
@@ -28,7 +28,7 @@ AC_SUBST(ECDIR, ${ecdir})
 AC_SUBST(COMPILE_LIBEC, ["include ${ecdir}/libec-compile.mk"])
 AC_SUBST(LINK_LIBEC, ["include ${ecdir}/libec.mk"])
 
-AC_SUBST(OPTIMIZE_FLAGS, [${optflags}])
+AC_SUBST(CONFIGURE_FLAGS, ["${optflags}"])
 
 AC_CONFIG_FILES([libec/libec.mk libec/libec-compile.mk])
 AC_MK_CONFIG_FILES([

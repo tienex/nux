@@ -1,4 +1,12 @@
-CFLAGS+= -nostdinc -fno-builtin
+ifeq (z$(EC_MACHINE),z)
+EC_MACHINE=@MACHINE@
+endif
+
+ifeq ($(EC_MACHINE),amd64)
+CFLAGS+= -mcmodel=large
+endif
+
+CFLAGS+= -Wall -nostdinc -fno-builtin -ffreestanding -fno-strict-aliasing
 LDFLAGS+= -nostdlib
 CPPFLAGS+= -D_EC_SOURCE -I@ECDIR@
 ASFLAGS+= -D_ASSEMBLER
