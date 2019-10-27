@@ -8,6 +8,8 @@
 #include <stdbool.h>
 #include <nux/apxh.h>
 
+typedef uint64_t vaddr_t;
+
 #define BOOTINFO_REGION_UNKNOWN 0	/* Unusable address. */
 #define BOOTINFO_REGION_RAM 1 		/* Available RAM. */
 #define BOOTINFO_REGION_OTHER 2		/* Non-RAM physical address. */
@@ -49,6 +51,7 @@ typedef enum {
   ARCH_INVALID,
   ARCH_UNSUPPORTED,
   ARCH_386,
+  ARCH_AMD64,
 } arch_t;
 
 void md_init(void);
@@ -56,7 +59,7 @@ uint64_t md_maxpfn (void);
 uint64_t md_acpi_rsdp (void);
 unsigned md_memregions (void);
 struct bootinfo_region *md_getmemregion (unsigned i);
-void md_verify(unsigned long va, size_t size);
+void md_verify(vaddr_t va, size_t size);
 
 void * payload_get (unsigned i, size_t *size);
 
@@ -64,31 +67,40 @@ void * get_payload_start (int argc, char *argv[]);
 size_t get_payload_size (void);
 
 arch_t get_elf_arch (void *elf);
-uintptr_t load_elf32 (void *elf);
+vaddr_t load_elf32 (void *elf);
+vaddr_t load_elf64 (void *elf);
 
 uintptr_t get_page (void);
 uintptr_t get_payload_page (void);
 
 void va_init (void);
-uintptr_t va_getphys (unsigned long va);
-void va_verify (unsigned long va, size_t size);
-void va_populate (unsigned long va, size_t size, int w, int x);
-void va_copy (unsigned long va, void *addr, size_t size, int w, int x);
-void va_memset (unsigned long va, int c, size_t size, int w, int x);
-void va_physmap (unsigned long va, size_t size);
-void va_linear (unsigned long va, size_t size);
-void va_info (unsigned long va, size_t size);
-void va_pfnmap (unsigned long va, size_t size);
-void va_stree (unsigned long va, size_t size);
-void va_entry (unsigned long entry);
+uintptr_t va_getphys (vaddr_t va);
+void va_verify (vaddr_t va, size_t size);
+void va_populate (vaddr_t va, size_t size, int w, int x);
+void va_copy (vaddr_t va, void *addr, size_t size, int w, int x);
+void va_memset (vaddr_t va, int c, size_t size, int w, int x);
+void va_physmap (vaddr_t va, size_t size);
+void va_linear (vaddr_t va, size_t size);
+void va_info (vaddr_t va, size_t size);
+void va_pfnmap (vaddr_t va, size_t size);
+void va_stree (vaddr_t va, size_t size);
+void va_entry (vaddr_t entry);
 
 void pae_init (void);
-uintptr_t pae_getphys (unsigned long va);
-void pae_verify (unsigned long va, size_t size);
-void pae_populate (unsigned long va, size_t size, int w, int x);
-void pae_physmap (unsigned long va, size_t size);
-void pae_linear (unsigned long va, size_t size);
-void pae_entry (unsigned long entry);
+uintptr_t pae_getphys (vaddr_t va);
+void pae_verify (vaddr_t va, size_t size);
+void pae_populate (vaddr_t va, size_t size, int w, int x);
+void pae_physmap (vaddr_t va, size_t size);
+void pae_linear (vaddr_t va, size_t size);
+void pae_entry (vaddr_t entry);
+
+void pae64_init (void);
+uintptr_t pae64_getphys (vaddr_t va);
+void pae64_verify (vaddr_t va, size_t size);
+void pae64_populate (vaddr_t va, size_t size, int w, int x);
+void pae64_physmap (vaddr_t va, size_t size);
+void pae64_linear (vaddr_t va, size_t size);
+void pae64_entry (vaddr_t entry);
 
 
 #define info(...) do { printf (__VA_ARGS__); putchar('\n'); } while (0)

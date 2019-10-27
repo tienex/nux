@@ -5,7 +5,7 @@
 
 static arch_t elf_arch;
 static uint8_t boot_pagemap[PAGEMAP_SZ(BOOTMEM)] __attribute__((aligned(4096)));
-static unsigned long req_pfnmap_va, req_info_va, req_stree_va;
+static vaddr_t req_pfnmap_va, req_info_va, req_stree_va;
 static size_t req_pfnmap_size, req_info_size, req_stree_size;
 static unsigned req_stree_order;
 static bool stop_payload_allocation = false;
@@ -56,6 +56,8 @@ get_arch_name (arch_t arch)
     return "unsupported";
   case ARCH_386:
     return "i386";
+  case ARCH_AMD64:
+    return "AMD64";
   default:
     return "unknown";
   }
@@ -68,21 +70,8 @@ va_init (void)
   case ARCH_386:
     pae_init();
     break;
-  default:
-    printf("Unsupported VM architecture.\n");
-    exit (-1);
-  }
-}
-
-void
-va_populate (unsigned long va, size_t size, int w, int x)
-{
-  md_verify (va, size);
-  va_verify (va, size);
-
-  switch (elf_arch) {
-  case ARCH_386:
-    pae_populate(va, size, w, x);
+  case ARCH_AMD64:
+    pae64_init();
     break;
   default:
     printf("Unsupported VM architecture.\n");
@@ -91,14 +80,33 @@ va_populate (unsigned long va, size_t size, int w, int x)
 }
 
 void
-va_copy (unsigned long va, void *addr, size_t size, int w, int x)
+va_populate (vaddr_t va, size_t size, int w, int x)
+{
+  md_verify (va, size);
+  va_verify (va, size);
+
+  switch (elf_arch) {
+  case ARCH_386:
+    pae_populate(va, size, w, x);
+    break;
+  case ARCH_AMD64:
+    pae64_populate(va, size, w, x);
+    break;
+  default:
+    printf("Unsupported VM architecture.\n");
+    exit (-1);
+  }
+}
+
+void
+va_copy (vaddr_t va, void *addr, size_t size, int w, int x)
 {
   ssize_t len = size;
 
   md_verify(va, size);
   va_verify(va, size);
 
-  printf("Copying %08lx <- %p (w:%d, x:%d, %d bytes)\n", va, addr, w, x, size);
+  printf("Copying %08llx <- %p (w:%d, x:%d, %d bytes)\n", va, addr, w, x, size);
   va_populate(va, size, w, x);
 
   while (len > 0)
@@ -120,14 +128,14 @@ va_copy (unsigned long va, void *addr, size_t size, int w, int x)
 }
 
 void
-va_memset (unsigned long va, int c, size_t size, int w, int x)
+va_memset (vaddr_t va, int c, size_t size, int w, int x)
 {
   ssize_t len = size;
 
   md_verify(va, size);
   va_verify(va, size);
 
-  printf("Setting %08lx <- %d (w:%d, x: %d, %d bytes)\n", va, c, w, x, size);
+  printf("Setting %08llx <- %d (w:%d, x: %d, %d bytes)\n", va, c, w, x, size);
   va_populate(va, size, w, x);
 
   while (len > 0)
@@ -145,7 +153,7 @@ va_memset (unsigned long va, int c, size_t size, int w, int x)
 }
 
 void
-va_physmap (unsigned long va, size_t size)
+va_physmap (vaddr_t va, size_t size)
 {
   md_verify (va, size);
   va_verify (va, size);
@@ -161,7 +169,7 @@ va_physmap (unsigned long va, size_t size)
 }
 
 void
-va_linear (unsigned long va, size_t size)
+va_linear (vaddr_t va, size_t size)
 {
   md_verify (va, size);
   va_verify (va, size);
@@ -179,7 +187,7 @@ va_linear (unsigned long va, size_t size)
 
 
 void
-va_info (unsigned long va, size_t size)
+va_info (vaddr_t va, size_t size)
 {
   md_verify (va, size);
   va_verify (va, size);
@@ -195,7 +203,7 @@ va_info (unsigned long va, size_t size)
 static void
 va_info_copy (void)
 {
-  unsigned long va = req_info_va;
+  vaddr_t va = req_info_va;
   size_t size = req_info_size;
 #define MIN(x,y) ((x < y) ? x : y)
   struct apxh_bootinfo i;
@@ -220,18 +228,18 @@ va_info_copy (void)
 }
 
 
-#define OR_WORD(p, x) ((*(uint64_t *)va_getphys((unsigned long)(p))) |= (x))
-#define MASK_WORD(p,x) ((*(uint64_t *)va_getphys((unsigned long)(p))) &= (x))
-#define GET_WORD(p) (*(uint64_t *)va_getphys((unsigned long)(p)))
-#define SET_WORD(p,x) (*(uint64_t *)va_getphys((unsigned long)(p)) = x)
+#define OR_WORD(p, x) ((*(uint64_t *)va_getphys(req_stree_va + (vaddr_t)(uintptr_t)(p))) |= (x))
+#define MASK_WORD(p,x) ((*(uint64_t *)va_getphys(req_stree_va + (vaddr_t)(uintptr_t)(p))) &= (x))
+#define GET_WORD(p) (*(uint64_t *)va_getphys(req_stree_va + (vaddr_t)(uintptr_t)(p)))
+#define SET_WORD(p,x) (*(uint64_t *)va_getphys(req_stree_va + (vaddr_t)(uintptr_t)(p)) = x)
 #include <stree.h>
 
 void
-va_stree (unsigned long va, size_t size)
+va_stree (vaddr_t va, size_t size)
 {
   size_t s;
+  vaddr_t stree_va;
   int i, order;
-  unsigned long stree_va;
   struct apxh_stree hdr;
   struct bootinfo_region *reg;
   unsigned regions = md_memregions ();
@@ -265,6 +273,8 @@ va_stree (unsigned long va, size_t size)
   /* Fill the S-Tree with all RAM regions. */
   stree_va = va + sizeof(hdr);
 
+  req_stree_va = stree_va;
+
   for (i = 0; i < regions; i++)
     {
       unsigned j;
@@ -286,13 +296,12 @@ va_stree (unsigned long va, size_t size)
 	    break;
 	  }
 
-	  stree_setbit ((WORD_T *)stree_va, order, frame);
+	  stree_setbit ((WORD_T *)0, order, frame);
 	}
     }
   
 
   /* We'll need to continue to update allocated pages. */
-  req_stree_va = va;
   req_stree_order = order;
   req_stree_size = size;
 }
@@ -300,11 +309,11 @@ va_stree (unsigned long va, size_t size)
 void
 va_stree_copy (void)
 {
-  unsigned long va = req_stree_va;
+  vaddr_t va = req_stree_va;
   size_t size = req_stree_size;
   unsigned order = req_stree_order;
   uint64_t pa;
-  unsigned long stree_va, maxframe;
+  vaddr_t stree_va, maxframe;
 
   if (va == 0)
     {
@@ -325,13 +334,13 @@ va_stree_copy (void)
       if (check_payload_page (pa))
 	{
 	  /* Page is allocated. Mark as BSY. */
-	  stree_clrbit ((WORD_T *)stree_va, order, frame);
+	  stree_clrbit ((WORD_T *)0, order, frame);
 	}
     }
 }
 
 void
-va_pfnmap (unsigned long va, size_t size)
+va_pfnmap (vaddr_t va, size_t size)
 {
   unsigned i, maxframe;
   struct bootinfo_region *reg;
@@ -385,7 +394,7 @@ va_pfnmap (unsigned long va, size_t size)
 static void
 va_pfnmap_copy (void)
 {
-  unsigned long va = req_pfnmap_va;
+  vaddr_t va = req_pfnmap_va;
   unsigned long size = req_pfnmap_size;
   unsigned maxframe = size / PFNMAP_ENTRY_SIZE;
 #define MIN(x,y) ((x < y) ? x : y)
@@ -418,11 +427,14 @@ va_pfnmap_copy (void)
 }
 
 void
-va_verify (unsigned long va, size_t size)
+va_verify (vaddr_t va, size_t size)
 {
   switch (elf_arch) {
   case ARCH_386:
     pae_verify(va, size);
+    break;
+  case ARCH_AMD64:
+    pae64_verify(va, size);
     break;
   default:
     printf("Unsupported VM architecture.\n");
@@ -431,11 +443,14 @@ va_verify (unsigned long va, size_t size)
 }
 
 uintptr_t
-va_getphys (unsigned long va)
+va_getphys (vaddr_t va)
 {
   switch (elf_arch) {
   case ARCH_386:
     return pae_getphys(va);
+    break;
+  case ARCH_AMD64:
+    return pae64_getphys(va);
     break;
   default:
     printf("Unsupported VM architecture.\n");
@@ -444,12 +459,15 @@ va_getphys (unsigned long va)
 }
 
 void
-va_entry (unsigned long entry)
+va_entry (vaddr_t entry)
 {
 
   switch (elf_arch) {
   case ARCH_386:
     pae_entry(entry);
+    break;
+  case ARCH_AMD64:
+    pae64_entry(entry);
     break;
   default:
     printf("Unsupported VM architecture.\n");
@@ -464,7 +482,7 @@ int main (int argc, char *argv[])
 {
   void *elf_start;
   size_t elf_size;
-  uintptr_t entry;
+  uint64_t entry;
 
   printf("\nAPXH started.\n\n");
 
@@ -481,12 +499,15 @@ int main (int argc, char *argv[])
   case ARCH_386:
     entry = load_elf32(elf_start);
     break;
+  case ARCH_AMD64:
+    entry = load_elf64(elf_start);
+    break;
   default:
     printf ("Unsupported ELF architecture");
     exit (-1);
   }
 
-  printf("entry = %lx\n", entry);
+  printf("entry = %llx\n", entry);
 
   /* Stop allocations as we're copying boot-time allocation. */
   stop_payload_allocation = true;
