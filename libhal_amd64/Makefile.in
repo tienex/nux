@@ -1,0 +1,8 @@
+
+@COMPILE_LIBEC@
+
+CPPFLAGS+=-Iinclude -I$(SRCROOT)/include
+
+LIBRARY=hal
+
+SRCS+= crt0.S amd64.c vga_text.c
