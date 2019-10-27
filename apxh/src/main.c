@@ -6,7 +6,7 @@
 static arch_t elf_arch;
 static uint8_t boot_pagemap[PAGEMAP_SZ(BOOTMEM)] __attribute__((aligned(4096)));
 static vaddr_t req_pfnmap_va, req_info_va, req_stree_va;
-static size_t req_pfnmap_size, req_info_size, req_stree_size;
+static size64_t req_pfnmap_size, req_info_size, req_stree_size;
 static unsigned req_stree_order;
 static bool stop_payload_allocation = false;
 
@@ -80,7 +80,7 @@ va_init (void)
 }
 
 void
-va_populate (vaddr_t va, size_t size, int w, int x)
+va_populate (vaddr_t va, size64_t size, int w, int x)
 {
   md_verify (va, size);
   va_verify (va, size);
@@ -99,9 +99,9 @@ va_populate (vaddr_t va, size_t size, int w, int x)
 }
 
 void
-va_copy (vaddr_t va, void *addr, size_t size, int w, int x)
+va_copy (vaddr_t va, void *addr, size64_t size, int w, int x)
 {
-  ssize_t len = size;
+  ssize64_t len = size;
 
   md_verify(va, size);
   va_verify(va, size);
@@ -112,7 +112,7 @@ va_copy (vaddr_t va, void *addr, size_t size, int w, int x)
   while (len > 0)
     {
       uintptr_t paddr;
-      size_t clen = PAGE_CEILING(va) - va;
+      size64_t clen = PAGE_CEILING(va) - va;
 
       if (clen > len)
 	clen = len;
@@ -128,9 +128,9 @@ va_copy (vaddr_t va, void *addr, size_t size, int w, int x)
 }
 
 void
-va_memset (vaddr_t va, int c, size_t size, int w, int x)
+va_memset (vaddr_t va, int c, size64_t size, int w, int x)
 {
-  ssize_t len = size;
+  ssize64_t len = size;
 
   md_verify(va, size);
   va_verify(va, size);
@@ -141,7 +141,7 @@ va_memset (vaddr_t va, int c, size_t size, int w, int x)
   while (len > 0)
     {
       uintptr_t paddr;
-      size_t clen = PAGE_CEILING(va) - va;
+      size64_t clen = PAGE_CEILING(va) - va;
 
       paddr = va_getphys (va);
 
@@ -153,7 +153,7 @@ va_memset (vaddr_t va, int c, size_t size, int w, int x)
 }
 
 void
-va_physmap (vaddr_t va, size_t size)
+va_physmap (vaddr_t va, size64_t size)
 {
   md_verify (va, size);
   va_verify (va, size);
@@ -162,6 +162,9 @@ va_physmap (vaddr_t va, size_t size)
   case ARCH_386:
     pae_physmap (va, size);
     break;
+  case ARCH_AMD64:
+    pae64_physmap (va, size);
+    break;
   default:
     printf("Unsupported VM architecture.\n");
     exit (-1);
@@ -169,7 +172,7 @@ va_physmap (vaddr_t va, size_t size)
 }
 
 void
-va_linear (vaddr_t va, size_t size)
+va_linear (vaddr_t va, size64_t size)
 {
   md_verify (va, size);
   va_verify (va, size);
@@ -177,6 +180,9 @@ va_linear (vaddr_t va, size_t size)
   switch (elf_arch) {
   case ARCH_386:
     pae_linear (va, size);
+    break;
+  case ARCH_AMD64:
+    pae64_linear (va, size);
     break;
   default:
     printf("Unsupported VM architecture.\n");
@@ -187,7 +193,7 @@ va_linear (vaddr_t va, size_t size)
 
 
 void
-va_info (vaddr_t va, size_t size)
+va_info (vaddr_t va, size64_t size)
 {
   md_verify (va, size);
   va_verify (va, size);
@@ -204,7 +210,7 @@ static void
 va_info_copy (void)
 {
   vaddr_t va = req_info_va;
-  size_t size = req_info_size;
+  size64_t size = req_info_size;
 #define MIN(x,y) ((x < y) ? x : y)
   struct apxh_bootinfo i;
   uint64_t psize;
@@ -235,9 +241,9 @@ va_info_copy (void)
 #include <stree.h>
 
 void
-va_stree (vaddr_t va, size_t size)
+va_stree (vaddr_t va, size64_t size)
 {
-  size_t s;
+  size64_t s;
   vaddr_t stree_va;
   int i, order;
   struct apxh_stree hdr;
@@ -310,7 +316,7 @@ void
 va_stree_copy (void)
 {
   vaddr_t va = req_stree_va;
-  size_t size = req_stree_size;
+  size64_t size = req_stree_size;
   unsigned order = req_stree_order;
   uint64_t pa;
   vaddr_t stree_va, maxframe;
@@ -340,7 +346,7 @@ va_stree_copy (void)
 }
 
 void
-va_pfnmap (vaddr_t va, size_t size)
+va_pfnmap (vaddr_t va, size64_t size)
 {
   unsigned i, maxframe;
   struct bootinfo_region *reg;
@@ -427,7 +433,7 @@ va_pfnmap_copy (void)
 }
 
 void
-va_verify (vaddr_t va, size_t size)
+va_verify (vaddr_t va, size64_t size)
 {
   switch (elf_arch) {
   case ARCH_386:
@@ -481,7 +487,7 @@ va_entry (vaddr_t entry)
 int main (int argc, char *argv[])
 {
   void *elf_start;
-  size_t elf_size;
+  size64_t elf_size;
   uint64_t entry;
 
   printf("\nAPXH started.\n\n");

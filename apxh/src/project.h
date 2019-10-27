@@ -8,6 +8,8 @@
 #include <stdbool.h>
 #include <nux/apxh.h>
 
+typedef int64_t ssize64_t;
+typedef uint64_t size64_t;
 typedef uint64_t vaddr_t;
 
 #define BOOTINFO_REGION_UNKNOWN 0	/* Unusable address. */
@@ -59,7 +61,7 @@ uint64_t md_maxpfn (void);
 uint64_t md_acpi_rsdp (void);
 unsigned md_memregions (void);
 struct bootinfo_region *md_getmemregion (unsigned i);
-void md_verify(vaddr_t va, size_t size);
+void md_verify(vaddr_t va, size64_t size);
 
 void * payload_get (unsigned i, size_t *size);
 
@@ -75,31 +77,31 @@ uintptr_t get_payload_page (void);
 
 void va_init (void);
 uintptr_t va_getphys (vaddr_t va);
-void va_verify (vaddr_t va, size_t size);
-void va_populate (vaddr_t va, size_t size, int w, int x);
-void va_copy (vaddr_t va, void *addr, size_t size, int w, int x);
-void va_memset (vaddr_t va, int c, size_t size, int w, int x);
-void va_physmap (vaddr_t va, size_t size);
-void va_linear (vaddr_t va, size_t size);
-void va_info (vaddr_t va, size_t size);
-void va_pfnmap (vaddr_t va, size_t size);
-void va_stree (vaddr_t va, size_t size);
+void va_verify (vaddr_t va, size64_t size);
+void va_populate (vaddr_t va, size64_t size, int w, int x);
+void va_copy (vaddr_t va, void *addr, size64_t size, int w, int x);
+void va_memset (vaddr_t va, int c, size64_t size, int w, int x);
+void va_physmap (vaddr_t va, size64_t size);
+void va_linear (vaddr_t va, size64_t size);
+void va_info (vaddr_t va, size64_t size);
+void va_pfnmap (vaddr_t va, size64_t size);
+void va_stree (vaddr_t va, size64_t size);
 void va_entry (vaddr_t entry);
 
 void pae_init (void);
 uintptr_t pae_getphys (vaddr_t va);
-void pae_verify (vaddr_t va, size_t size);
-void pae_populate (vaddr_t va, size_t size, int w, int x);
-void pae_physmap (vaddr_t va, size_t size);
-void pae_linear (vaddr_t va, size_t size);
+void pae_verify (vaddr_t va, size64_t size);
+void pae_populate (vaddr_t va, size64_t size, int w, int x);
+void pae_physmap (vaddr_t va, size64_t size);
+void pae_linear (vaddr_t va, size64_t size);
 void pae_entry (vaddr_t entry);
 
 void pae64_init (void);
 uintptr_t pae64_getphys (vaddr_t va);
-void pae64_verify (vaddr_t va, size_t size);
-void pae64_populate (vaddr_t va, size_t size, int w, int x);
-void pae64_physmap (vaddr_t va, size_t size);
-void pae64_linear (vaddr_t va, size_t size);
+void pae64_verify (vaddr_t va, size64_t size);
+void pae64_populate (vaddr_t va, size64_t size, int w, int x);
+void pae64_physmap (vaddr_t va, size64_t size);
+void pae64_linear (vaddr_t va, size64_t size);
 void pae64_entry (vaddr_t entry);
 
 

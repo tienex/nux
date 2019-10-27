@@ -139,28 +139,28 @@ ph_load (void *elfimg, uint32_t type, uint32_t flags,
 	break;
       case PHT_APXH_INFO:
 	/* Boot Information segment. */
-	printf("Boot Information area at %08lx (size: %ld).\n", va, msize);
+	printf("Boot Information area at %08llx (size: %lld).\n", va, msize);
 	va_info (va, msize);
 	break;
       case PHT_APXH_PHYSMAP:
 	/* Direct 1:1 PA mapping. */
-	printf("Physmap VA area at %08lx (size: %ld).\n", va, msize);
+	printf("Physmap VA area at %08llx (size: %lld).\n", va, msize);
 	va_physmap (va, msize);
 	break;
       case PHT_APXH_EMPTY:
-	printf("Empty VA area at %08lx (size: %ld).\n", va, msize);
+	printf("Empty VA area at %08llx (size: %lld).\n", va, msize);
 	/* Just VA allocation. Leave it. */
 	break;
       case PHT_APXH_PFNMAP:
-	printf("PFN Map at %08lx (size: %ld).\n", va, msize);
+	printf("PFN Map at %08llx (size: %lld).\n", va, msize);
 	va_pfnmap (va, msize);
 	break;
       case PHT_APXH_STREE:
-	printf("S-Tree at %08lx (size: %ld).\n", va, msize);
+	printf("S-Tree at %08llx (size: %lld).\n", va, msize);
 	va_stree (va, msize);
 	break;
       case PHT_APXH_LINEAR:
-	printf("Linear Map at %08lx (size: %ld).\n", va, msize);
+	printf("Linear Map at %08llx (size: %lld).\n", va, msize);
 	va_linear (va, msize);
 	break;
       default:

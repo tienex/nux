@@ -163,7 +163,7 @@ md_acpi_rsdp (void)
 }
 
 void
-md_verify(vaddr_t va, size_t size)
+md_verify(vaddr_t va, size64_t size)
 {
   /* Check that we're not overwriting something we'll need */
 

@@ -270,7 +270,7 @@ pte_mergeflags (uint64_t fl1, uint64_t fl2)
 }
 
 void
-pae_verify (vaddr_t va, size_t size)
+pae_verify (vaddr_t va, size64_t size)
 {
   if (va < PAE_DIRECTMAP_END)
     {
@@ -388,7 +388,7 @@ pae_getphys(vaddr_t va)
   return page | (va & ~(PAGE_MASK));
 }
 
-void pae_physmap (vaddr_t va, size_t size)
+void pae_physmap (vaddr_t va, size64_t size)
 {
   unsigned i, n;
   pte_t *pte;
@@ -407,7 +407,7 @@ void pae_physmap (vaddr_t va, size_t size)
 #define PAE_LINEAR_SIZE (1L << PAE_LINEAR_SHIFT)
 #define PAE_LINEAR_ALIGN (PAE_LINEAR_SIZE - 1)
 
-void pae_linear (vaddr_t va, size_t size)
+void pae_linear (vaddr_t va, size64_t size)
 {
   int i;
   unsigned l3off = L3OFF(va);
@@ -431,9 +431,9 @@ void pae_linear (vaddr_t va, size_t size)
   }
 }
 
-void pae_populate (vaddr_t va, size_t size, int w, int x)
+void pae_populate (vaddr_t va, size64_t size, int w, int x)
 {
-  ssize_t len = size;
+  ssize64_t len = size;
 
   while (len > 0)
     {
@@ -504,11 +504,11 @@ pae64_get_l3p (vaddr_t va)
 }
 
 static pte_t *
-pae64_get_l1p (vaddr_t va)
+pae64_get_l2p (vaddr_t va)
 {
-  pte_t *l3p, *l2p, *l1p;
+  pte_t *l3p, *l2p;
+
   unsigned l2off = L2OFF64(va);
-  unsigned l1off = L1OFF64(va);
 
   l3p = pae64_get_l3p (va);
 
@@ -523,7 +523,17 @@ pae64_get_l1p (vaddr_t va)
       set_pte (l3p, l2page >> PAGE_SHIFT, PTE_W|PTE_P);
       l2p = (pte_t *)l2page;
     }
-  l2p += l2off;
+
+  return l2p + l2off;
+}
+
+static pte_t *
+pae64_get_l1p (vaddr_t va)
+{
+  pte_t *l2p, *l1p;
+  unsigned l1off = L1OFF64(va);
+
+  l2p = pae64_get_l2p (va);
 
   l1p = (pte_t *)pte_getaddr(l2p);
   if (l1p == NULL)
@@ -541,7 +551,7 @@ pae64_get_l1p (vaddr_t va)
 }
 
 void
-pae64_verify (vaddr_t va, size_t size)
+pae64_verify (vaddr_t va, size64_t size)
 {
   if (va < PAE64_DIRECTMAP_END)
     {
@@ -642,9 +652,95 @@ pae64_getphys(vaddr_t va)
   return page |= (va & ~(PAGE_MASK));
 }
 
-void pae64_populate (vaddr_t va, size_t size, int w, int x)
+void pae64_physmap (vaddr_t va, size64_t size)
 {
-  ssize_t len = size;
+  ssize64_t len;
+  uint64_t pa;
+  int p1g = cpu_supports_1gbpages ();
+
+  unsigned long l3cnt = 0, l2cnt = 0, l1cnt = 0;
+
+#define GB1ALIGNED(_a) (((_a) & ((1L << 30) - 1)) == 0)
+#define MB2ALIGNED(_a) (((_a) & ((1L << 21) - 1)) == 0)
+
+  /*
+    Not the fastest way to do this, but good enough for startup.
+
+    Please note: it is a very bad idea to have a huge physmap
+    given the costs in pagetables.
+  */
+
+
+  /* Signed to unsigned: no one will ask us a 1<<64 bytes physmap. */
+  len = (ssize64_t)size; 
+  pa = 0;
+  printf("len = %llx, size = %llx\n", len, size);
+  while (len > 0) {
+
+    if (p1g && GB1ALIGNED(pa) && GB1ALIGNED(va) && len >= (1L << 30))
+      {
+	pte_t *l3p = pae64_get_l3p (va);
+
+	set_pte (l3p, pa >> PAGE_SHIFT, PTE_PS|PTE_W|PTE_P);
+	va += (1L << 30);
+	pa += (1L << 30);
+	len -= (1L << 30);
+	l3cnt++;
+      }
+    else if (MB2ALIGNED(pa) && MB2ALIGNED(va) && len >= (1 << 21))
+      {
+	pte_t *l2p = pae64_get_l2p (va);
+
+	set_pte (l2p, pa >> PAGE_SHIFT, PTE_PS|PTE_W|PTE_P);
+	va += (1L << 21);
+	pa += (1L << 21);
+	len -= (1L << 21);
+	l2cnt++;
+      }
+    else
+      {
+	pte_t *l1p= pae64_get_l1p (va);
+
+	set_pte(l1p, pa >>PAGE_SHIFT, PTE_W|PTE_P);
+	va += (1L << PAGE_SHIFT);
+	pa += (1L << PAGE_SHIFT);
+	len -= (1L << PAGE_SHIFT);
+	l1cnt++;
+      }
+  }
+
+  printf ("Physmap set %ld L3Es, %d L2Es, %d L1Es\n",
+	  l3cnt, l2cnt, l1cnt);
+}
+
+#define PAE64_LINEAR_SHIFT (PAGE_SHIFT + 9 + 9 + 9)
+#define PAE64_LINEAR_SIZE  (1LL << PAE64_LINEAR_SHIFT)
+#define PAE64_LINEAR_ALIGN (PAE64_LINEAR_SIZE - 1)
+
+void pae64_linear (vaddr_t va, size64_t size)
+{
+  unsigned l4off = L4OFF64(va);
+  pte_t *l4p;
+
+  if (va & PAE_LINEAR_ALIGN) {
+    printf ("PAE Linear VA %llx not aligned (align mask: %llx).\n",
+	    va, PAE_LINEAR_ALIGN);
+    exit (-1);
+  }
+
+  if (size < PAE_LINEAR_SIZE) {
+    printf ("PAE Linear size %llx too small.\n", size);
+    exit (-1);
+  }
+
+  l4p = pae64_cr3 + l4off;
+  set_pte (l4p, (uintptr_t)pae64_cr3 >> PAGE_SHIFT, PTE_W|PTE_P);
+  printf ("Wrote %llx at %p\n", *l4p, l4p);
+}
+
+void pae64_populate (vaddr_t va, size64_t size, int w, int x)
+{
+  ssize64_t len = size;
 
   while (len > 0)
     {
