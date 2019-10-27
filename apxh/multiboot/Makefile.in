@@ -8,6 +8,8 @@ PROGRAM=apxh
 SRCS+= ../src/main.c ../src/elf.c ../src/payload.c ../src/pae.c
 SRCS+= ec.c mb.c rsdp.c
 
+CC=i686-elf-gcc
+
 EC_MACHINE=i386
 @LINK_LIBEC@
 
