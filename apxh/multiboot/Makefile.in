@@ -1,4 +1,6 @@
-CFLAGS+= -I../src/ -I$(SRCROOT)/include
+ASFLAGS=-m32
+#-fno-delete-null-pointer-checks because 0 is a valid address.
+CFLAGS+= -I../src/ -I$(SRCROOT)/include -fno-delete-null-pointer-checks
 LDFLAGS+= -Tmultiboot.ld
 LDADD_START+= crt0.o
 
