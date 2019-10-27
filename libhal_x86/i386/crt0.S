@@ -265,8 +265,8 @@ _ap_cr3:
 	        the pagetable. This will reset the whole machine.
 
 	        It shouldn't happen,  but if you ever see a machine
-	        reset while enabling secondary processor, start looking
-	        at this.
+	        reset while enabling secondary processor, start
+	        looking at this.
 	*/
 	mov $0x80000001, %eax
 	mov %ecx, 0
