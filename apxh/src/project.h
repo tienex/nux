@@ -1,3 +1,10 @@
+/*
+  APXH: An ELF boot-loader.
+  Copyright (C) 2019 Gianluca Guida <glguida@tlbflush.org>
+
+  SPDX-License-Identifier:	GPL2.0+
+*/
+
 #ifndef _PROJECT_H
 #define _PROJECT_H
 

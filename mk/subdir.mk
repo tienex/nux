@@ -1,3 +1,10 @@
+#
+# NUX: A kernel Library.
+# Copyright (C) 2019 Gianluca Guida <glguida@tlbflush.org>
+#
+#  SPDX-License-Identifier:	GPL2.0+
+#
+
 .PHONY : subdirs clean_subdirs install_subdirs $(SUBDIRS)
 ALL_TARGET+= subdirs
 CLEAN_TARGET+= clean_subdirs

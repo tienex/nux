@@ -1,3 +1,9 @@
+/*
+  EC - An embedded non standard C library
+
+  SPDX-License-Identifier:	BSD-2-Clause
+*/
+
 #ifndef I386_ANSI_H
 #define I386_ANSI_H
 

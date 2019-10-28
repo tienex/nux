@@ -1,3 +1,10 @@
+/*
+  APXH: An ELF boot-loader.
+  Copyright (C) 2019 Gianluca Guida <glguida@tlbflush.org>
+
+  SPDX-License-Identifier:	GPL2.0+
+*/
+
 /* multiboot.h - Multiboot header file. */
 /* Copyright (C) 1999,2003,2007,2008,2009,2010  Free Software Foundation, Inc.
  *

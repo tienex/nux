@@ -1,3 +1,9 @@
+/*
+  EC - An embedded non standard C library
+
+  SPDX-License-Identifier:	BSD-2-Clause
+*/
+
 #include <cdefs.h>
 #include <stdint.h>
 #include <stdarg.h>

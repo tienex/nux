@@ -1,3 +1,17 @@
+/*
+  NUX: A kernel Library.
+  Copyright (C) 2019 Gianluca Guida, glguida@tlbflush.org
+
+  This program is free software; you can redistribute it and/or
+  modify it under the terms of the GNU General Public License
+  as published by the Free Software Foundation; either version 2
+  of the License, or (at your option) any later version.
+
+  See COPYING file for the full license.
+
+  SPDX-License-Identifier:	GPL2.0+
+*/
+
 #include <stdio.h>
 #include <nux/nux.h>
 #include <nux/hal.h>
@@ -5,7 +19,7 @@
 struct hal_frame *hal_entry_pf (struct hal_frame *f, unsigned long va,
 				hal_pfinfo_t info)
 {
-  printf ("Pagefault at %lx\n", va);
+  printf ("CPU%d: Pagefault at %lx\n", 0x1234, va);
   hal_frame_print (f);
   hal_cpu_halt ();
 }

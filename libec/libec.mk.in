@@ -1,16 +1,10 @@
 #
 # EC - An embedded non standard C library
 #
-# This is the automake include. Can only be included through
-# the infamous and terribly specific automake rules:
-#
-#    include $(srcdir)/file
-#    include $(top_srcdir)/file
-#
-# i.e., only if they are under your own configure script.
-#
 # To embed libec in your target, include this file,
 # and add $(EC_SRCS) to your sources.
+#
+# SPDX-License-Identifier:	BSD-2-Clause
 #
 
 ifeq (z$(EC_MACHINE),z)

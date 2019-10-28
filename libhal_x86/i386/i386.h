@@ -1,3 +1,10 @@
+/*
+  NUX: A kernel Library.
+  Copyright (C) 2019 Gianluca Guida <glguida@tlbflush.org>
+
+  SPDX-License-Identifier:	GPL2.0+
+*/
+
 #ifndef HAL_X86_I386_H
 #define HAL_X86_I386_h
 
