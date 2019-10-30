@@ -13,7 +13,7 @@ AS_CASE([$host],
 
 AS_CASE([$machine],
 	[i386], [hal=hal_x86 plt=plt_acpi],
-	[amd64], [hal=hal_amd64 plt=plt_acpi])
+	[amd64], [hal=hal_x86 plt=plt_acpi])
 
 ecdir='$(SRCROOT)'/libec
 optflags='-O7 -g'
