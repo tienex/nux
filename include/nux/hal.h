@@ -119,8 +119,6 @@ unsigned long hal_physmem_maxpfn (void);
 */
 void *hal_physmem_stree (unsigned *order);
 
-void *hal_physmem_getpfn (pfn_t);
-void hal_physmem_putpfn (pfn_t, void *);
 
 /*
   HAL Virtual Memory Description.
@@ -182,16 +180,28 @@ void hal_pmap_init (void);
 void hal_pmap_setcur (struct hal_pmap *pmap);
 
 /*
-  Return current l1e in the pmap.
+  Do a page walk (populating pagetables if ALLOC is true).
+
+  If an l1p exists, save it into L1P and return true.
+
+  If no l1p is found, set L1P to L1P_INVALID and return false.
+
+  Note that it might still return false with ALLOC=true if out of memory.
 */
-hal_l1e_t hal_pmap_getl1e (struct hal_pmap *pmap, unsigned long va);
+bool hal_pmap_getl1p (struct hal_pmap *pmap, unsigned long va, bool alloc,
+		      hal_l1p_t *l1p);
+
+/*
+  Get L1E pointed by L1P.
+*/
+hal_l1e_t hal_pmap_getl1e (struct hal_pmap *pmap, hal_l1p_t l1p);
 
 /*
   Install an L1E in the pmap 
 
   If PMAP is NULL, set in current pmap.
  */
-hal_l1e_t hal_pmap_setl1e (struct hal_pmap *pmap, unsigned long va,
+hal_l1e_t hal_pmap_setl1e (struct hal_pmap *pmap, hal_l1p_t l1p,
 			   hal_l1e_t new);
 
 #define HAL_PTE_P      (1 << 0)

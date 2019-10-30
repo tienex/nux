@@ -53,6 +53,7 @@ struct cpu_info
 void pfninit (void);
 void kvainit (void);
 void kmeminit (void);
+void pfncacheinit (void);
 
 void cpu_init (void);
 void cpu_enter (void);

@@ -30,7 +30,10 @@ AC_SUBST(LINK_LIBEC, ["include ${ecdir}/libec.mk"])
 
 AC_SUBST(CONFIGURE_FLAGS, ["${optflags}"])
 
-AC_CONFIG_FILES([libec/libec.mk libec/libec-compile.mk])
+AS_CASE([$hal],
+	[hal_x86], [extraconf=libhal_x86/hal.mk])
+
+AC_CONFIG_FILES([libec/libec.mk libec/libec-compile.mk ${extraconf}])
 AC_MK_CONFIG_FILES([
 	Makefile
 	apxh/Makefile

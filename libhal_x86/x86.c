@@ -53,7 +53,8 @@ __halt (void)
     asm volatile ("cli; hlt");
 }
 
-uint64_t rdmsr(uint32_t ecx)
+uint64_t
+rdmsr(uint32_t ecx)
 {
   uint32_t edx, eax;
 
@@ -61,6 +62,38 @@ uint64_t rdmsr(uint32_t ecx)
   asm volatile ("rdmsr\n" : "=d"(edx), "=a" (eax) : "c" (ecx));
 
   return ((uint64_t)edx << 32) | eax;
+}
+
+unsigned long
+read_cr4 (void)
+{
+  unsigned long r;
+
+  asm volatile ("mov %%cr4, %0\n" : "=r"(r));
+
+  return r;
+}
+
+void
+write_cr4 (unsigned long r)
+{
+  asm volatile ("mov %0, %%cr4\n" :: "r"(r));
+}
+
+unsigned long
+read_cr3 (void)
+{
+  unsigned long r;
+
+  asm volatile ("mov %%cr3, %0\n" : "=r"(r));
+
+  return r;
+}
+
+void
+write_cr3 (unsigned long r)
+{
+  asm volatile ("mov %0, %%cr3\n" :: "r"(r));
 }
 
 int
@@ -111,16 +144,20 @@ outl (unsigned port, int val)
 void
 tlbflush_global (void)
 {
-  asm volatile ("mov %%cr4, %%eax\n"
-		"and $0xffffff7f, %%eax\n"
-		"mov %%eax, %%cr4\n"
-		"or  $0x00000080, %%eax\n" "mov %%eax, %%cr4\n":::"eax");
+  unsigned long r;
+
+  r = read_cr4();
+  write_cr4 (r ^ (1 << 7));
+  write_cr4 (r);
 }
 
 void
 tlbflush_local (void)
 {
-  asm volatile ("mov %%cr3, %%eax; mov %%eax, %%cr3\n":::"eax");
+  unsigned long r;
+
+  r = read_cr3 ();
+  write_cr3 (r);
 }
 
 
@@ -214,14 +251,14 @@ hal_cpu_tlbop (hal_tlbop_t tlbop)
     tlbflush_local ();
 }
 
-uint64_t
-hal_physmem_dmapbase (void)
+vaddr_t
+hal_virtmem_dmapbase (void)
 {
-  return (const uint64_t) 0;
+  return (uint64_t)(uintptr_t)&_physmap_start;
 }
 
 const size_t
-hal_physmem_dmapsize (void)
+hal_virtmem_dmapsize (void)
 {
   return (size_t)((void *)&_physmap_end - (void *)&_physmap_start);
 }
@@ -315,15 +352,18 @@ x86_init (void)
   /* Reserve page 0. It's special in X86. */
   stree_clrbit(hal_stree_ptr, hal_stree_order, 0);
 
-#ifdef __i386__
-  early_print("i386 HAL booting from APXH.\n");
-#endif
-#ifdef __amd64__
-  early_print("AMD64 HAL booting from APXH.\n");
-#endif
-
   pltdesc.acpi_rsdp = bootinfo->acpi_rsdp;
 
   pmap_init ();
-  pfncache_init();
+
+#ifdef __i386__
+  early_print("i386 HAL booting from APXH.\n");
+  i386_init ();
+#endif
+#ifdef __amd64__
+  early_print("AMD64 HAL booting from APXH.\n");
+  amd64_init ();
+#endif
+
+
 }

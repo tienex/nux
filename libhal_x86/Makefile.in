@@ -22,6 +22,6 @@ CPPFLAGS+=-Iinclude -I$(SRCROOT)/include
 
 LIBRARY=hal
 
-SRCS+= x86.c pfncache.c pmap.c vga_text.c
+SRCS+= x86.c pmap.c vga_text.c
 
 include $(ARCH_DIR)/Makefile.inc

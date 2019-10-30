@@ -18,132 +18,41 @@
 #include <nux/nux.h>
 #include "internal.h"
 
-#define l1epfn(_l1e) ((_l1e)>>HAL_PAGE_SHIFT)
-#define l1eflags(_l1e) ((_l1e) & 0x8000000000000fffULL)
-
-#define PTE_P       1
-#define PTE_W       2
-#define PTE_U       4
-#define PTE_A       0x20
-#define PTE_D       0x40
-#define PTE_PS      0x80
-#define PTE_G       0x100
-#define PTE_AVAIL   0xe00
-#define PTE_NX      0x8000000000000000LL
-
-#define PTE_AVAIL0 (1 << 9)
-#define PTE_AVAIL1 (2 << 9)
-#define PTE_AVAIL2 (4 << 9)
-
-#define L3_SHIFT (9 + 9 + PAGE_SHIFT)
-#define L2_SHIFT (9 + PAGE_SHIFT)
-#define L1_SHIFT PAGE_SHIFT
-
-#define mkpte(_p, _f) (((uint64_t)(_p) << PAGE_SHIFT) | (_f))
-#define pte_present(_pte) ((_pte) & PTE_P)
-
-#define l2e_present(_l2e) pte_present((uint64_t)(_l2e))
-#define l2e_leaf(_l2e) (((_l2e) & (PTE_PS|PTE_P)) == (PTE_PS|PTE_P))
-
-extern int _linear_start;
-extern int _linear_l2table;
-const vaddr_t linaddr = (vaddr_t)&_linear_start;
-const vaddr_t l2_linaddr = (vaddr_t)&_linear_l2table;
 uint64_t pte_nx = 0;
 
-typedef uint64_t l1e_t;
-typedef uint64_t l2e_t;
-typedef uint64_t l3e_t;
+#define l1epfn(_l1e) ((_l1e) >> PAGE_SHIFT)
+#define l1eflags(_l1e) ((_l1e) & 0x8000000000000fffULL)
 
-static l2e_t *
-get_curl2p (vaddr_t va)
+bool
+hal_pmap_getl1p (struct hal_pmap *pmap, unsigned long va, bool alloc,
+			   hal_l1p_t *l1popq)
 {
-  l2e_t *ptr;
+  hal_l1e_t *l1p = get_l1p (pmap, va, alloc);
 
-  va &= ~((1L << L2_SHIFT) - 1);
-  ptr = (l3e_t *)(l2_linaddr + (va >> 18));
-  return ptr;
-}
-
-static l1e_t *
-get_curl1p (vaddr_t va)
-{
-  l1e_t *ptr;
-
-  va &= ~((1L << L1_SHIFT) - 1);
-
-  ptr = (l1e_t *)(linaddr + (va >> 9));
-  return ptr;
-}
-
-static void
-set_pte (uint64_t *ptep, uint64_t pte)
-{
- volatile uint32_t *ptr = (volatile uint32_t *) ptep;
-
-  /* 32-bit specific.  This or atomic 64 bit write.  */
-  *ptr = 0;
-  *(ptr + 1) = pte >> 32;
-  *ptr = pte & 0xffffffff;
-}
-
-static l1e_t *
-get_l1p (void *pmap, unsigned long va, int alloc)
-{
-  l2e_t *l2p, l2e;
-
-  assert (pmap == NULL && "Cross-pmap not currently supported.");
-
-  /* Assuming all L3 PTE are present. */
-
-  l2p = get_curl2p (va);
-  l2e = *l2p;
-  if (!l2e_present (l2e))
+  if (l1p == NULL)
     {
-      if (!alloc)
-	return NULL;
-
-      /* Populate L1. */
-      pfn_t pfn;
-      uint64_t pte;
-
-      pfn = pfn_alloc (0);
-      if (pfn == PFN_INVALID)
-	return NULL;
-
-      /* Create an l2e with max permissions. L1 will filter. */
-      pte = mkpte (pfn, PTE_U|PTE_P|PTE_W);
-      set_pte ((uint64_t *)l2p, pte);
-      /* Not present, no TLB flush necessary. */
-
-      l2e = (l2e_t)pte;
+      if (l1popq != NULL)
+	*l1popq = L1P_INVALID;
+      return false;
     }
 
-  assert (!l2e_leaf (l2e) && "Splintering big pages not supported.");
-
-  return get_curl1p (va);
+  if (l1popq != NULL)
+    *l1popq = (hal_l1p_t)(uintptr_t)l1p;
+  return true;
 }
 
 hal_l1e_t
-hal_pmap_getl1e (struct hal_pmap *pmap, unsigned long va)
+hal_pmap_getl1e (struct hal_pmap *pmap, hal_l1p_t l1popq)
 {
-  l1e_t *l1p, r;
-
-  l1p = get_l1p (pmap, va, 0);
-  if (l1p == NULL)
-    r = (hal_l1e_t)0;
-  else
-    r = *l1p;
-
-  return r;
+  return *(hal_l1e_t *)l1popq;
 }
 
 hal_l1e_t
-hal_pmap_setl1e (struct hal_pmap *pmap, unsigned long va, hal_l1e_t l1e)
+hal_pmap_setl1e (struct hal_pmap *pmap, hal_l1p_t l1popq, hal_l1e_t l1e)
 {
-  l1e_t ol1e, *l1p;
+  hal_l1e_t ol1e, *l1p;
 
-  l1p = get_l1p (pmap, va, 1);
+  l1p = (hal_l1e_t *)l1popq;
   ol1e = *l1p;
   set_pte ((uint64_t *)l1p, (uint64_t)l1e);
   return ol1e;
@@ -200,8 +109,10 @@ hal_pmap_unboxl1e (hal_l1e_t l1e, unsigned long *pfnp, unsigned *protp)
   if (l1e & PTE_AVAIL2)
     prot |= HAL_PTE_AVL2;
 
-  *pfnp = l1e >> HAL_PAGE_SHIFT;
-  *protp = prot;
+  if (pfnp)
+    *pfnp = l1e >> HAL_PAGE_SHIFT;
+  if (protp)
+    *protp = prot;
 }
 
 unsigned
@@ -238,7 +149,12 @@ hal_virtmem_userbase (void)
 const size_t
 hal_virtmem_usersize (void)
 {
+#ifdef __i386__
   return (3L << 30); /* 3 GB */
+#endif
+#ifdef __amd64__
+  return (size_t)0x0000800000000000UL;
+#endif
 }
 
 static bool
@@ -257,4 +173,8 @@ pmap_init (void)
     pte_nx = PTE_NX;
   else
     printf ("CPU does not support NX.\n");
+
+#ifdef __amd64__
+  pae64_init ();
+#endif
 }

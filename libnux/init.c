@@ -24,6 +24,7 @@ init_mem (void)
   /*
      Initialise Page Allocator.
    */
+  _pfncache_bootstrap();
   pfninit();
 
   /*
@@ -35,6 +36,8 @@ init_mem (void)
     Initialise KMEM.
   */
   kmeminit();
+
+  pfncacheinit();
 
 #if 0
   /*

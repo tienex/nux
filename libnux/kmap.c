@@ -12,6 +12,7 @@
   SPDX-License-Identifier:	GPL2.0+
 */
 
+#include <assert.h>
 #include <nux/hal.h>
 #include <nux/nux.h>
 
@@ -28,12 +29,26 @@ kmapinit (void)
 {
 }
 
-void
+pfn_t
 kmap_map (vaddr_t va, pfn_t pfn, unsigned prot)
 {
-  hal_l1e_t l1e = hal_pmap_boxl1e (pfn, prot);
-  hal_l1e_t oldl1e = hal_pmap_setl1e (NULL, va, l1e);
+  hal_l1p_t l1p;
+  hal_l1e_t l1e, oldl1e;
+  pfn_t oldpfn;
+  unsigned oldprot;
+
+  printf ("mapping at %lx: %lx %ld\n", va, pfn, prot);
+
+  l1e = hal_pmap_boxl1e (pfn, prot);
+  
+  assert(hal_pmap_getl1p (NULL, va, 1, &l1p));
+  printf ("KMAP %lx\n", va);
+  oldl1e = hal_pmap_setl1e (NULL, l1p, l1e);
   __sync_or_and_fetch (&kmap_tlbop, hal_pmap_tlbop (oldl1e, l1e));
+
+  hal_pmap_unboxl1e (oldl1e, &oldpfn, &oldprot);
+
+  return oldprot & HAL_PTE_P ? oldpfn : PFN_INVALID;
 }
 
 
@@ -46,9 +61,7 @@ kmap_mapped (vaddr_t va)
   hal_l1e_t l1e;
   unsigned prot;
 
-  l1e = hal_pmap_getl1e (NULL, va);
-  hal_pmap_unboxl1e (l1e, NULL, &prot);
-  return !!(prot & HAL_PTE_P);
+  return hal_pmap_getl1p (NULL, va, 0, NULL);
 }
 
 int
@@ -70,12 +83,21 @@ int
 kmap_ensure (vaddr_t va, unsigned reqprot)
 {
   int ret = -1;
+  hal_l1p_t l1p = L1P_INVALID;
   hal_l1e_t oldl1e, l1e;
   pfn_t pfn;
   unsigned prot;
 
-  l1e = hal_pmap_getl1e (NULL, va);
-  hal_pmap_unboxl1e (l1e, &pfn, &prot);
+  if (hal_pmap_getl1p (NULL, va, 0, &l1p))
+    {
+      l1e = hal_pmap_getl1e (NULL, l1p);
+      hal_pmap_unboxl1e (l1e, &pfn, &prot);
+    }
+  else
+    {
+      pfn = PFN_INVALID;
+      prot = 0;
+    }
 
   if (!(reqprot ^ prot))
     {
@@ -90,6 +112,9 @@ kmap_ensure (vaddr_t va, unsigned reqprot)
     {
       if (reqprot & HAL_PTE_P)
 	{
+	  /* Ensure pagetable populated. */
+	  if (l1p == L1P_INVALID)
+	    assert (hal_pmap_getl1p (NULL, va, 1, &l1p));
 	  /* Populate page. */
 	  pfn = pfn_alloc (0);
 	  if (pfn == PFN_INVALID)
@@ -104,7 +129,7 @@ kmap_ensure (vaddr_t va, unsigned reqprot)
     }
 
   l1e = hal_pmap_boxl1e (pfn, reqprot);
-  oldl1e = hal_pmap_setl1e (NULL, va, l1e);
+  oldl1e = hal_pmap_setl1e (NULL, l1p, l1e);
   __sync_or_and_fetch (&kmap_tlbop, hal_pmap_tlbop (oldl1e, l1e));
   ret = 0;
   

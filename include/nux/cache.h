@@ -38,139 +38,164 @@ SPDX-License-Identifier:	GPL2.0+
 #include <stdint.h>
 #include <rbtree.h>
 
-struct centry {
+struct slot {
   rb_node_t rbn; /* Must be first. */
+  TAILQ_ENTRY(slot) lru_entry;
+
   uintptr_t addr;
-  unsigned ref;
-  TAILQ_ENTRY(centry) lru_entry;
+  struct {
+    uint32_t valid :  1;
+    uint32_t ref   : 31;
+  };
+
 };
 
+struct cache {
+  rb_tree_t map; /* Must be First. */
+  TAILQ_HEAD(,slot) freelist;
+  lock_t lock;
 
-static rb_tree_t cache_locked_map;
-static rb_tree_t cache_free_map;
-static TAILQ_HEAD(,centry) cache_free_lru;
-static struct centry cache[CACHE_SLOTS];
+  void (*fill)(unsigned, uintptr_t, uintptr_t);
 
-#define cache_entry2slot(_ce) \
-  (((uintptr_t)(_ce) - (uintptr_t)cache)/sizeof(struct centry))
+  unsigned numslots;
+  struct slot *slots;
+};
 
 static int
-centrycmp (void *ctx, const void *a, const void *b)
+_slotcmp (void *ctx, const void *a, const void *b)
 {
-  const struct centry *ce1 = (const struct centry *)a;
-  const struct centry *ce2 = (const struct centry *)b;
+  const struct slot *slot1 = (const struct slot *)a;
+  const struct slot *slot2 = (const struct slot *)b;
 
-  if (ce1->addr < ce2->addr)
+  if (slot1->addr < slot2->addr)
     return -1;
-  if (ce1->addr > ce2->addr)
+  if (slot1->addr > slot2->addr)
     return 1;
   return 0;
 }
 
 static int
-centry_keycmp (void *ctx, const void *a, const void *b)
+_slot_keycmp (void *ctx, const void *a, const void *b)
 {
-  const struct centry *ce = (const struct centry *)a;
+  const struct slot *slot = (const struct slot *)a;
   const uintptr_t addr = (uintptr_t)b;
 
-  if (ce->addr < addr)
+  if (slot->addr < addr)
     return -1;
-  if (ce->addr > addr)
+  if (slot->addr > addr)
     return 1;
   return 0;
 }
 
 static const rb_tree_ops_t cacheops = {
-  centrycmp,
-  centry_keycmp,
+  _slotcmp,
+  _slot_keycmp,
   0,
   NULL
 };
 
+static inline unsigned
+cache_getslotno (struct cache *c, struct slot *s)
+{
+  return ((uintptr_t)s - (uintptr_t)(c->slots))/sizeof (struct slot);
+}
+
 static inline void
-cache_init (void)
+cache_init (struct cache *c,
+	    struct slot *slots, unsigned numslots,
+	    /* Arguments passed to fill:
+	       1. Slot allocated
+	       2. Old Entry
+	       3. New Entry
+	    */
+	    void (*fill)(unsigned, uintptr_t, uintptr_t))
 {
   uintptr_t i;
 
-  rb_tree_init (&cache_locked_map, &cacheops);
-  rb_tree_init (&cache_free_map, &cacheops);
-  TAILQ_INIT (&cache_free_lru);
-
-  for (i = 0; i < CACHE_SLOTS; i++)
+  spinlock_init (&c->lock);
+  rb_tree_init (&c->map, &cacheops);
+  TAILQ_INIT (&c->freelist);
+  c->numslots = numslots;
+  c->slots = slots;
+  c->fill = fill;
+  for (i = 0; i < numslots; i++)
     {
-      cache[i].addr = (uintptr_t)(-1 -i);
-      cache[i].ref = 0;
-      rb_tree_insert_node (&cache_free_map, cache + i);
-      TAILQ_INSERT_TAIL (&cache_free_lru, cache + i, lru_entry);
+      slots[i].valid = 0;
+      slots[i].ref = 0;
+      TAILQ_INSERT_TAIL (&c->freelist, slots + i, lru_entry);
     }
 }
 
-static inline uintptr_t
-cache_get (uintptr_t addr)
+static inline unsigned
+cache_get (struct cache *c, uintptr_t addr)
 {
-  struct centry *ce;
+  struct slot *slot;
+  unsigned slotno;
 
-  ce = (struct centry *)rb_tree_find_node (&cache_locked_map, (const void *)addr);
-  if (ce != NULL)
+  spinlock (&c->lock);
+  slot = (struct slot *)rb_tree_find_node (&c->map, (const void *)addr);
+  if (slot != NULL)
     {
-      /* Already present and locked, inc refcount and return. */
-      ce->ref++;
-      assert (ce->ref != 0);
-      goto out;
-    }
-
-  ce = (struct centry *)rb_tree_find_node (&cache_free_map, (const void *)addr);
-  if (ce != NULL)
-    {
-      /* Was currently in cache but unlocked. Lock it and return slot. */
-      rb_tree_remove_node(&cache_free_map, ce);
-      TAILQ_REMOVE(&cache_free_lru, ce, lru_entry);
-      assert (ce->ref == 0);
-      ce->ref = 1;
-      rb_tree_insert_node (&cache_locked_map, ce);
-      goto out;
+      assert (slot->valid);
+      if (slot->ref > 0)
+	{
+	  /* Already present and used, inc refcount and return. */
+	  slot->ref++;
+	  assert (slot->ref != 0);
+	  goto out;
+	}
+      else
+	{
+	  /* Currently in cache but unused. inc refcount and return. */
+	  TAILQ_REMOVE(&c->freelist, slot, lru_entry);
+	  slot->ref = 1;
+	  goto out;
+	}
     }
 
   /* Not present in the cache. Evict from free list. */
-  ce = TAILQ_FIRST (&cache_free_lru);
-  if (ce != NULL)
+  slot = TAILQ_FIRST (&c->freelist);
+  if (slot != NULL)
     {
-      rb_tree_remove_node(&cache_free_map, ce);
-      TAILQ_REMOVE(&cache_free_lru, ce, lru_entry);
-      assert (ce->ref == 0);
-      uintptr_t slot = cache_entry2slot(ce);
-      ___cache_fill (slot, ce->addr, addr);
-      ce->addr = addr;
-      ce->ref = 1;
-      rb_tree_insert_node (&cache_locked_map, ce);
+      unsigned n = cache_getslotno(c, slot);
+
+      TAILQ_REMOVE(&c->freelist, slot, lru_entry);
+      assert (slot->ref == 0);
+      c->fill (n, slot->addr, addr);
+      slot->addr = addr;
+      slot->ref = 1;
+      slot->valid = 1;
+      rb_tree_insert_node (&c->map, slot);
+      goto out;
     }
 
  out:
-  if (ce != NULL)
-    return cache_entry2slot(ce);
+
+  if (slot != NULL)
+    slotno = cache_getslotno(c, slot);
   else
-    return (uintptr_t)-1;
+    slotno = (unsigned)-1;  
+
+  spinunlock (&c->lock);
+  
+  return slotno;
 }
 
 static void
-cache_put (uintptr_t slot)
+cache_put (struct cache *c, uintptr_t slotno)
 {
-  struct centry *ce;
+  struct slot *slot;
 
-  assert (slot < CACHE_SLOTS);
-  ce = cache + slot;
-  assert (ce->ref > 0);
+  spinlock (&c->lock);
+  assert (slotno < c->numslots);
+  slot = c->slots + slotno;
 
-  ce->ref--;
-  if (!ce->ref)
-    {
-      /* Move to free list. */
-      rb_tree_remove_node(&cache_locked_map, ce);
-      rb_tree_insert_node (&cache_free_map, ce);
-      TAILQ_INSERT_TAIL (&cache_free_lru, cache + slot, lru_entry);
-    }
+  assert (slot->ref > 0);
+  slot->ref--;
+  if (slot->ref == 0)
+    TAILQ_INSERT_TAIL (&c->freelist, slot, lru_entry);
+
+  spinunlock (&c->lock);
 }
-
-#undef cache_entrytoslot
 
 #endif /* _CACHE_H */

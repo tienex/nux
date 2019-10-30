@@ -1,0 +1,11 @@
+#
+# NUX: A kernel Library
+#
+#  SPDX-License-Identifier:	GPL-2.0+
+#
+#
+
+MACHINE= @MACHINE@
+
+LDFILE=$(MACHINE)/exe.ld
+

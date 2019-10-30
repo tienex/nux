@@ -15,6 +15,21 @@
 #define MSR_IA32_EFER 0xc0000080
 #define _MSR_IA32_EFER_NXE (1LL << 11)
 
+#define PTE_P       1
+#define PTE_W       2
+#define PTE_U       4
+#define PTE_A       0x20
+#define PTE_D       0x40
+#define PTE_PS      0x80
+#define PTE_G       0x100
+#define PTE_AVAIL   0xe00
+#define PTE_NX      0x8000000000000000LL
+
+#define PTE_AVAIL0 (1 << 9)
+#define PTE_AVAIL1 (2 << 9)
+#define PTE_AVAIL2 (4 << 9)
+
+
 #ifndef _ASSEMBLER
 
 #include <nux/nux.h>
@@ -25,7 +40,13 @@
 #define halfatal(...) fatal(__VA_ARGS__)
 
 void x86_init (void);
+void i386_init (void);
+void amd64_init (void);
+void pae64_init (void);
 void pmap_init (void);
+
+void set_pte (uint64_t *ptep, uint64_t pte);
+hal_l1e_t * get_l1p (void *pmap, unsigned long va, int alloc);
 
 int vga_putchar (int c);
 

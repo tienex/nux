@@ -16,6 +16,7 @@
 #include <nux/hal.h>
 #include <nux/locks.h>
 #include <nux/types.h>
+#include <nux/nux.h>
 #include <stree.h>
 #include <assert.h>
 
@@ -54,9 +55,9 @@ pfn_alloc (int low)
     stree_clrbit(stree, order, pg);
   spinunlock(&pglock);
 
-  va = hal_physmem_getpfn (pg);
+  va = pfn_get (pg);
   memset (va, 0, PAGE_SIZE);
-  hal_physmem_putpfn (pg, va);
+  pfn_put (pg, va);
   
   if (pg < 0)
     return PFN_INVALID;

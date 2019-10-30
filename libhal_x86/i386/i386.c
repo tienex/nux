@@ -149,3 +149,8 @@ hal_vect_max (void)
 {
   return 255;
 }
+
+void
+i386_init (void)
+{
+}
