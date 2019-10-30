@@ -1,7 +1,6 @@
 #
-# NUX: A kernel Library.
+# top.mk
 # Copyright (C) 2019 Gianluca Guida <glguida@tlbflush.org>
-#
 #  SPDX-License-Identifier:	GPL2.0+
 #
 

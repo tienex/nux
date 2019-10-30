@@ -1,10 +1,9 @@
+
 #
-# NUX: A kernel Library.
+# bottom.mk
 # Copyright (C) 2019 Gianluca Guida <glguida@tlbflush.org>
-#
 #  SPDX-License-Identifier:	GPL2.0+
 #
-
 
 ifneq (z$(SUBDIRS),z)
 include $(MKDIR)/subdir.mk
