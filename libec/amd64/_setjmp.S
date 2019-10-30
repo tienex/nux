@@ -52,7 +52,7 @@
  * The previous signal state is NOT restored.
  */
 
-_setjmp:	
+ENTRY(_setjmp)
 	movq    (%rsp),%r11
 	movq    %rbx,(_JB_RBX * 8)(%rdi)
 	movq    %rbp,(_JB_RBP * 8)(%rdi)
@@ -65,10 +65,9 @@ _setjmp:
 
 	xorl	%eax,%eax
 	ret
-//END(_setjmp)
+END(_setjmp)
 
-	//ENTRY(_longjmp)
-_longjmp:	
+ENTRY(_longjmp)
 	movq    (_JB_RBX * 8)(%rdi),%rbx
 	movq    (_JB_RBP * 8)(%rdi),%rbp
 	movq    (_JB_R12 * 8)(%rdi),%r12
@@ -84,4 +83,4 @@ _longjmp:
 	incl	%eax
 1:	movq	%r11,0(%rsp)
 	ret
-//END(_longjmp)
+END(_longjmp)

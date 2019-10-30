@@ -154,9 +154,9 @@
   to create an STREE to manage them.
 */
 static inline size_t
-stree_order(int n)
+stree_order(size_t n)
 {
-	int r = WORD_BIT - 1 - __builtin_clz(n);
+	int r = WORD_BIT - 1 - __builtin_clzl((long)n);
 
 	/* Is the number a power of two? If not, add 1 */
 	r += __builtin_popcount(n) > 1 ? 1 : 0;

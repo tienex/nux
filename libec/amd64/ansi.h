@@ -8,8 +8,8 @@
 #ifndef AMD64_ANSI_H
 #define AMD64_ANSI_H
 
-typedef int ptrdiff_t;
-typedef unsigned int size_t;
-typedef int ssize_t;
+typedef long ptrdiff_t;
+typedef unsigned long size_t;
+typedef long ssize_t;
 
-#endif /* I386_ANSI_H */
+#endif /* AMD64_ANSI_H */
