@@ -37,12 +37,9 @@ kmap_map (vaddr_t va, pfn_t pfn, unsigned prot)
   pfn_t oldpfn;
   unsigned oldprot;
 
-  printf ("mapping at %lx: %lx %ld\n", va, pfn, prot);
-
   l1e = hal_pmap_boxl1e (pfn, prot);
   
   assert(hal_pmap_getl1p (NULL, va, 1, &l1p));
-  printf ("KMAP %lx\n", va);
   oldl1e = hal_pmap_setl1e (NULL, l1p, l1e);
   __sync_or_and_fetch (&kmap_tlbop, hal_pmap_tlbop (oldl1e, l1e));
 
