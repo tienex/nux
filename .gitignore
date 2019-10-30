@@ -8,6 +8,10 @@
 Makefile
 apxh/multiboot/apxh
 
+libhal_x86/hal.mk
+libec/libec.mk
+libec/libec-compile.mk
+
 aclocal.m4
 autom4te.cache
 config.log
