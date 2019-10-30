@@ -280,7 +280,6 @@ static inline long
 stree_bitsearch(WORD_T *stree, unsigned o, int low)
 {
   int l;
-  WORD_T *lmap;
   size_t laddr;
 
   laddr = 0;

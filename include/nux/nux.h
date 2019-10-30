@@ -92,7 +92,6 @@ bool uctxt_signal (uctxt_t *uctxt, unsigned long ip, unsigned long arg,
 static inline void __printflike(2, 3)
 __log(const int level, const char *fmt, ...)
 {
-  int r;
   va_list ap;
 
   if (level == LOGL_WARN)
@@ -103,7 +102,7 @@ __log(const int level, const char *fmt, ...)
     printf("ERROR: ");
 
   va_start (ap, fmt);
-  r = vprintf (fmt, ap);
+  vprintf (fmt, ap);
   va_end (ap);
 
   putchar('\n');
