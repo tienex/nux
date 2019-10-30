@@ -28,7 +28,7 @@ void gsi_start (void);
 void acpi_init (paddr_t rdsp);
 void acpi_madt_scan(void);
 
-int hw_cmos_write (uint8_t addr, uint8_t val);
+void hw_cmos_write (uint8_t addr, uint8_t val);
 void hw_delay (void);
 void hw_reset_vector (uint32_t start);
 

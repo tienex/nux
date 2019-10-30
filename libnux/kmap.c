@@ -58,8 +58,6 @@ kmap_map (vaddr_t va, pfn_t pfn, unsigned prot)
 int
 kmap_mapped (vaddr_t va)
 {
-  hal_l1e_t l1e;
-  unsigned prot;
 
   return hal_pmap_getl1p (NULL, va, 0, NULL);
 }

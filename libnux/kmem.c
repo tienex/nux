@@ -68,13 +68,13 @@ _ensure_range (vaddr_t v1, vaddr_t v2, int mapped)
 static int
 _ensure_range_mapped (vaddr_t v1, vaddr_t v2)
 {
-  _ensure_range (v1, v2, 1);
+  return _ensure_range (v1, v2, 1);
 }
 
 static int
 _ensure_range_unmapped (vaddr_t v1, vaddr_t v2)
 {
-  _ensure_range (v1, v2, 0);
+  return _ensure_range (v1, v2, 0);
 }
 #endif
 

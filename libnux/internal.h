@@ -49,7 +49,7 @@ struct cpu_info
   struct hal_cpu hal_cpu;
 };
 
-
+void _pfncache_bootstrap (void);
 void pfninit (void);
 void kvainit (void);
 void kmeminit (void);

@@ -85,7 +85,7 @@ uint64_t
 hal_pcpu_prepare (unsigned pcpu)
 {
   extern volatile long _ap_stackpage;
-  extern char *_ap_start, *_ap_end, _ap_cr3;
+  extern char *_ap_start, *_ap_end;
   paddr_t pstart;
   void *start;
   volatile uint16_t *reset;

@@ -20,7 +20,7 @@
 
 #include "internal.h"
 
-int
+void
 hw_cmos_write (uint8_t addr, uint8_t val)
 {
   hal_cpu_out (1, 0x70, addr);

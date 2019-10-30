@@ -82,7 +82,7 @@ pfncacheinit (void)
 	  &_pfncache_start, &_pfncache_end, numslots);
   assert (numslots != 0);
 
-  slots = kmem_brkgrow (1, sizeof (struct slot) * numslots);
+  slots = (struct slot *)kmem_brkgrow (1, sizeof (struct slot) * numslots);
 
   cache_init (&cache, slots, 256, _pfncache_fill);
 }
@@ -99,8 +99,7 @@ pfncacheinit (void)
   reserve the required amount of slots and start the real, full size
   cache.
 */
-static struct cache boot_cache;
-static struct slot boot_slot[2];
+static struct slot boot_slot;
 
 void
 _pfncache_bootstrap (void)
@@ -108,6 +107,6 @@ _pfncache_bootstrap (void)
   max_dmap_pfn = hal_virtmem_dmapsize () >> PAGE_SHIFT;
 
   printf ("Initializing PFN boot cache.");
-  cache_init (&cache, boot_slot, 2, _pfncache_fill);
+  cache_init (&cache, &boot_slot, 1, _pfncache_fill);
 }
 
