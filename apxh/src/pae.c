@@ -417,6 +417,16 @@ void pae_physmap (vaddr_t va, size64_t size)
   
 }
 
+void pae_ptalloc (vaddr_t va, size64_t size)
+{
+  unsigned i, n;
+
+  n = size >> PAGE_SHIFT;
+
+  for (i = 0; i < n; i++)
+    (void)pae_get_l1p (va + (i << PAGE_SHIFT));
+}
+
 #define PAE_LINEAR_SHIFT (PAGE_SHIFT + 9 + 2)
 #define PAE_LINEAR_SIZE (1L << PAE_LINEAR_SHIFT)
 #define PAE_LINEAR_ALIGN (PAE_LINEAR_SIZE - 1)
@@ -725,6 +735,16 @@ void pae64_physmap (vaddr_t va, size64_t size)
 
   printf ("Physmap set %ld L3Es, %d L2Es, %d L1Es\n",
 	  l3cnt, l2cnt, l1cnt);
+}
+
+void pae64_ptalloc (vaddr_t va, size64_t size)
+{
+  unsigned i, n;
+
+  n = size >> PAGE_SHIFT;
+
+  for (i = 0; i < n; i++)
+    (void)pae64_get_l1p (va + (i << PAGE_SHIFT));
 }
 
 #define PAE64_LINEAR_SHIFT (PAGE_SHIFT + 9 + 9 + 9)

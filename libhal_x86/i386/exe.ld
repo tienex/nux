@@ -114,7 +114,7 @@ PHDRS
     info    0xAF100000;
     kmem    0xAF100001;
     kva     0xAF100001;
-    pfncache 0xAF100001;
+    pfncache 0xAF100005;
     physmap 0xAF100002;
     stree   0xAF100004;
     linear  0xAF10FFFF;

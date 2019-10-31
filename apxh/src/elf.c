@@ -165,6 +165,10 @@ ph_load (void *elfimg, uint32_t type, uint32_t flags,
 	printf("Empty VA area at %08llx (size: %lld).\n", va, msize);
 	/* Just VA allocation. Leave it. */
 	break;
+      case PHT_APXH_PTALLOC:
+	printf("PT Alloc VA area at %08llx (size: %lld).\n", va, msize);
+	va_ptalloc (va, msize);
+	break;
       case PHT_APXH_PFNMAP:
 	printf("PFN Map at %08llx (size: %lld).\n", va, msize);
 	va_pfnmap (va, msize);

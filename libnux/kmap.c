@@ -29,8 +29,8 @@ kmapinit (void)
 {
 }
 
-pfn_t
-kmap_map (vaddr_t va, pfn_t pfn, unsigned prot)
+static pfn_t
+_kmap_map (vaddr_t va, pfn_t pfn, unsigned prot, const int alloc)
 {
   hal_l1p_t l1p;
   hal_l1e_t l1e, oldl1e;
@@ -39,7 +39,7 @@ kmap_map (vaddr_t va, pfn_t pfn, unsigned prot)
 
   l1e = hal_pmap_boxl1e (pfn, prot);
   
-  assert(hal_pmap_getl1p (NULL, va, 1, &l1p));
+  assert(hal_pmap_getl1p (NULL, va, alloc, &l1p));
   oldl1e = hal_pmap_setl1e (NULL, l1p, l1e);
   __sync_or_and_fetch (&kmap_tlbop, hal_pmap_tlbop (oldl1e, l1e));
 
@@ -48,6 +48,20 @@ kmap_map (vaddr_t va, pfn_t pfn, unsigned prot)
   return oldprot & HAL_PTE_P ? oldpfn : PFN_INVALID;
 }
 
+pfn_t
+kmap_map (vaddr_t va, pfn_t pfn, unsigned prot)
+{
+  return _kmap_map (va, pfn, prot, 1);
+}
+
+/*
+  Only map a VA if no pagetable allocations are needed.
+*/
+pfn_t
+kmap_map_noalloc (vaddr_t va, pfn_t pfn, unsigned prot)
+{
+  return _kmap_map (va, pfn, prot, 0);
+}
 
 /*
   Check if va is mapped.

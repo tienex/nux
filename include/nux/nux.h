@@ -32,6 +32,7 @@ void *kva_physmap (int low, paddr_t paddr, size_t size, unsigned prot);
 void kva_unmap (void *va);
 
 pfn_t kmap_map (vaddr_t va, pfn_t pfn, unsigned prot);
+pfn_t kmap_map_noalloc (vaddr_t va, pfn_t pfn, unsigned prot);
 int kmap_mapped (vaddr_t va);
 int kmap_mapped_range (vaddr_t va, size_t size);
 int kmap_ensure (vaddr_t va, unsigned reqprot);

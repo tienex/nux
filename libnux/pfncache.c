@@ -36,9 +36,15 @@ _pfncache_fill (unsigned slot, uintptr_t old, uintptr_t new)
   pfn_t upfn;
   vaddr_t va = (vaddr_t)pfncache_base + ((vaddr_t)slot << PAGE_SHIFT);
 
-  printf ("slot: %ld (%lx)", slot, slot);
+  /*
+    NEVER allocate pagetables while mapping PFN Cache.
 
-  kmap_map (va, new, HAL_PTE_P|HAL_PTE_W);
+    The pagetables themselves are cleared, possibly using the PFN Cache,
+    which would resultin a deadlock.
+
+    PFN Cache's pagetables must be allocated during boot.
+  */
+  kmap_map_noalloc (va, new, HAL_PTE_P|HAL_PTE_W);
   kmap_commit ();
 }
 

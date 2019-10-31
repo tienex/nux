@@ -37,6 +37,7 @@ struct bootinfo_region
 #define PHT_APXH_PHYSMAP  0xAF100002
 #define PHT_APXH_PFNMAP   0xAF100003
 #define PHT_APXH_STREE    0xAF100004
+#define PHT_APXH_PTALLOC  0xAF100005
 #define PHT_APXH_LINEAR   0xAF10FFFF
 
 #define PFNMAP_ENTRY_SIZE 64
@@ -93,6 +94,7 @@ void va_linear (vaddr_t va, size64_t size);
 void va_info (vaddr_t va, size64_t size);
 void va_pfnmap (vaddr_t va, size64_t size);
 void va_stree (vaddr_t va, size64_t size);
+void va_ptalloc (vaddr_t va, size64_t size);
 void va_entry (vaddr_t entry);
 
 void pae_init (void);
@@ -100,6 +102,7 @@ uintptr_t pae_getphys (vaddr_t va);
 void pae_verify (vaddr_t va, size64_t size);
 void pae_populate (vaddr_t va, size64_t size, int w, int x);
 void pae_physmap (vaddr_t va, size64_t size);
+void pae_ptalloc (vaddr_t va, size64_t size);
 void pae_linear (vaddr_t va, size64_t size);
 void pae_entry (vaddr_t entry);
 
@@ -108,6 +111,7 @@ uintptr_t pae64_getphys (vaddr_t va);
 void pae64_verify (vaddr_t va, size64_t size);
 void pae64_populate (vaddr_t va, size64_t size, int w, int x);
 void pae64_physmap (vaddr_t va, size64_t size);
+void pae64_ptalloc (vaddr_t va, size64_t size);
 void pae64_linear (vaddr_t va, size64_t size);
 void pae64_entry (vaddr_t entry);
 
