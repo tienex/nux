@@ -203,22 +203,30 @@ lmap_bitoff(unsigned l, unsigned a)
   return ((size_t)a >> WORDLOG2*l);
 }
 
-static inline void
+static inline bool
 set_bit (WORD_T *map, size_t bitaddr)
 {
+  WORD_T old;
   size_t off = bitaddr >> WORDLOG2;
   size_t bit = bitaddr & WORDMASK;
 
+  old = GET_WORD (map + off);
   OR_WORD (map + off, ((WORD_T)1 << bit));
+
+  /* Return true if this is NOT the first bit set. */
+  return !!old;
 }
 
-static inline void
+static inline bool
 clr_bit (WORD_T *map, size_t bitaddr)
 {
   size_t off = bitaddr >> WORDLOG2;
   size_t bit = bitaddr & WORDMASK;
 
   MASK_WORD (map + off, ~((WORD_T)1 << bit));
+
+  /* Return true if word still has bit set. */
+  return !!GET_WORD (map + off);
 }
 
 static inline int
@@ -235,12 +243,16 @@ stree_setbit(WORD_T *stree, unsigned o, size_t bitaddr)
 {
   int l;
 
-  for (l = LOGWORD(o) - 1; l >= 0; l-=1)
+  for (l = 0; l <= LOGWORD(o) - 1; l++)
     {
       WORD_T *lmap = stree_lmap(stree, o, l);
       size_t laddr = lmap_bitoff(l, bitaddr);
 
-      set_bit(lmap, laddr);
+      if (set_bit(lmap, laddr))
+	{
+	  /* Other bits were set before. Don't set upper levels. */
+	  break;
+	}
     }
 }
 
@@ -251,18 +263,13 @@ stree_clrbit(WORD_T *stree, unsigned o, size_t bitaddr)
 
   for (l = 0; l <= LOGWORD(o) - 1; l++)
     {
-      WORD_T word;
       WORD_T *lmap = stree_lmap(stree, o, l);
       size_t laddr = lmap_bitoff(l, bitaddr);
 
-      clr_bit(lmap, laddr);
-
-      word = GET_WORD(lmap + (laddr >> WORDLOG2));
-      if (word != 0)
-	{
-	  /* Other bits are set. Don't clear upper levels. */
-	  break;
-	}
+      if (clr_bit(lmap, laddr)) {
+	/* Other bits are set. Don't clear upper levels. */
+	break;
+      }
     }
 }
 
