@@ -20,7 +20,7 @@
 
 uint64_t pte_nx = 0;
 
-#define l1epfn(_l1e) ((_l1e) >> PAGE_SHIFT)
+#define l1epfn(_l1e) (((_l1e) &   0x7ffffffffffff000ULL) >> PAGE_SHIFT)
 #define l1eflags(_l1e) ((_l1e) & 0x8000000000000fffULL)
 
 bool
@@ -110,7 +110,7 @@ hal_pmap_unboxl1e (hal_l1e_t l1e, unsigned long *pfnp, unsigned *protp)
     prot |= HAL_PTE_AVL2;
 
   if (pfnp)
-    *pfnp = l1e >> HAL_PAGE_SHIFT;
+    *pfnp = l1epfn (l1e);
   if (protp)
     *protp = prot;
 }
