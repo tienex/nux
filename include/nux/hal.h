@@ -137,6 +137,14 @@ vaddr_t hal_virtmem_dmapbase (void);
 const size_t hal_virtmem_dmapsize (void);
 
 /*
+  PFN Cache Area.
+
+  NB: no, this is not VMS.
+*/
+vaddr_t hal_virtmem_pfn$base (void);
+const size_t hal_virtmem_pfn$size (void);
+
+/*
   Kernel Virtual Area Map Description. 
  */
 vaddr_t hal_virtmem_kvabase (void);

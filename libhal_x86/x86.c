@@ -30,6 +30,9 @@ extern int _info_start;
 extern int _physmap_start;
 extern int _physmap_end;
 
+extern int _pfncache_start;
+extern int _pfncache_end;
+
 extern int _kva_start;
 extern int _kva_end;
 
@@ -261,6 +264,18 @@ const size_t
 hal_virtmem_dmapsize (void)
 {
   return (size_t)((void *)&_physmap_end - (void *)&_physmap_start);
+}
+
+vaddr_t
+hal_virtmem_pfn$base (void)
+{
+  return (uint64_t)(uintptr_t)&_pfncache_start;
+}
+
+const size_t
+hal_virtmem_pfn$size (void)
+{
+  return (size_t)((void *)&_pfncache_end - (void *)&_pfncache_start);
 }
 
 unsigned long

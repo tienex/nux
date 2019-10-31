@@ -22,9 +22,7 @@
   Don't take this too seriously. SPINLOCK usage is awful.
 */
 
-extern int _pfncache_start;
-extern int _pfncache_end;
-const void *pfncache_base = (const void *)&_pfncache_start;
+const void *pfncache_base;
 
 static pfn_t max_dmap_pfn;
 
@@ -75,11 +73,11 @@ pfn_put (pfn_t pfn, void *va)
 void
 pfncacheinit (void)
 {
-  uintptr_t pfncache_size = (uintptr_t)&_pfncache_end - (uintptr_t)pfncache_base;
+  uintptr_t pfncache_size = hal_virtmem_pfn$size ();
   unsigned numslots = pfncache_size / PAGE_SIZE;
 
   printf ("PFN Cache from %p to %p (%u entries)\n",
-	  &_pfncache_start, &_pfncache_end, numslots);
+	  pfncache_base, pfncache_base + pfncache_size, numslots);
   assert (numslots != 0);
 
   slots = (struct slot *)kmem_brkgrow (1, sizeof (struct slot) * numslots);
@@ -105,6 +103,7 @@ void
 _pfncache_bootstrap (void)
 {
   max_dmap_pfn = hal_virtmem_dmapsize () >> PAGE_SHIFT;
+  pfncache_base = hal_virtmem_pfn$base ();
 
   printf ("Initializing PFN boot cache.");
   cache_init (&cache, &boot_slot, 1, _pfncache_fill);
