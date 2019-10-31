@@ -79,6 +79,15 @@ SECTIONS
 	_kva_end = .;
    } : kva
 
+   /* 256 Mb PFN Cache */
+   .pfncache ALIGN(4096) : AT(0)
+   {
+	_pfncache_start = .;
+	. += 256 * 1024 * 1024;
+	_pfncache_end = .;
+   } : pfncache
+
+
    /* 512 GB physmap, 512GB Aligned. */
    .physmap ALIGN(512 * 1024 * 1024 * 1024) : AT(0)
    {
@@ -105,6 +114,7 @@ PHDRS
     info    0xAF100000;
     kmem    0xAF100001;
     kva     0xAF100001;
+    pfncache 0xAF100005;
     physmap 0xAF100002;
     stree   0xAF100004;
     linear  0xAF10FFFF;

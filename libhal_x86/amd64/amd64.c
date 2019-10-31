@@ -43,34 +43,29 @@ set_tss (struct amd64_tss *tss)
 void
 hal_cpu_setdata (void *data)
 {
-  assert (0 && __FUNCTION__);
 }
 
 void *
 hal_cpu_getdata (void)
 {
-  assert (0 && __FUNCTION__);
   return NULL;
 }
 
 unsigned
 hal_vect_irqbase (void)
 {
-  assert (0 && __FUNCTION__);
   return 33;
 }
 
 unsigned
 hal_vect_ipibase (void)
 {
-  assert (0 && __FUNCTION__);
   return 34;
 }
 
 unsigned
 hal_vect_max (void)
 {
-  assert (0 && __FUNCTION__);
   return 255;
 }
 
