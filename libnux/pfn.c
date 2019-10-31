@@ -51,18 +51,18 @@ pfn_alloc (int low)
 
   spinlock(&pglock);
   pg = stree_bitsearch(stree, order, low);
-  if (pg > 0)
+  if (pg >= 0)
     stree_clrbit(stree, order, pg);
   spinunlock(&pglock);
+
+  if (pg < 0)
+    return PFN_INVALID;
 
   va = pfn_get (pg);
   memset (va, 0, PAGE_SIZE);
   pfn_put (pg, va);
   
-  if (pg < 0)
-    return PFN_INVALID;
-  else
-    return (pfn_t)pg;
+  return (pfn_t)pg;
 }
 
 void
