@@ -69,6 +69,7 @@ void
 pfn_free (pfn_t pfn)
 {
   assert (pfn != PFN_INVALID);
+  assert (pfn < hal_physmem_maxpfn ());
 
   spinlock(&pglock);
   stree_setbit(stree, order, pfn);

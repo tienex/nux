@@ -53,8 +53,6 @@ pfn_get (pfn_t pfn)
 {
   uintptr_t slot;
 
-  printf ("(MAX:%lx) (pfncache_base: %lx) pfn: %lx\n", max_dmap_pfn, pfncache_base, pfn);
-
   if (pfn < max_dmap_pfn)
     return (void *)(hal_virtmem_dmapbase () + (pfn << PAGE_SHIFT));
 
@@ -66,8 +64,6 @@ void
 pfn_put (pfn_t pfn, void *va)
 {
   uintptr_t slot;
-
-  printf ("(MAX:%lx) (pfncache_base: %lx) pfn: %lx, va: %p\n", max_dmap_pfn, pfncache_base, pfn, va);
 
   if (pfn < max_dmap_pfn)
     return;
