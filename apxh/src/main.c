@@ -48,7 +48,7 @@ check_payload_page (unsigned addr)
 {
   unsigned i = addr >> PAGE_SHIFT;
   unsigned by = i >> 3;
-  unsigned bi = i & 7;
+  unsigned bi = (1 << (i & 7));
 
   assert (by <= PAGEMAP_SZ(BOOTMEM));
 
