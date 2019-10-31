@@ -153,7 +153,7 @@ kmem_brkgrow (int low, unsigned size)
   if (low)
     ret = kmem_sbrk (low, size);
   else {
-    ret = kmem_sbrk (low, -size);
+    ret = kmem_sbrk (low, -(long)size);
     ret = ret != VADDR_INVALID ? ret - size : ret;
   }
 
