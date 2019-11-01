@@ -321,7 +321,7 @@ cpu_tlbflush (int cpu, tlbop_t op, bool sync)
 
   if (sync)
     {
-      cpumask_t cpumask;
+      cpumask_t cpumask = 0;
 
       cpumask_set (&cpumask, cpu_id ());
       cpu_tlbflush_sync (cpumask);

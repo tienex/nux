@@ -366,9 +366,11 @@ kmem_free (int low, vaddr_t vaddr, size_t size)
     }
   spinunlock (&brklock);
 
+  /*
+    Free using allocator.
+  */
   z = kmemz + this;
   l = lockz + this;
-
   spinlock (l);
   zone_free (z, vaddr, size);
   spinunlock (l);
@@ -380,10 +382,6 @@ kmem_free (int low, vaddr_t vaddr, size_t size)
 void
 kmem_trim_one (unsigned trim_mode)
 {
-  struct kmem_tail *t;
-  struct kmem_head *h;
-  vaddr_t va;
-
   spinlock (&brklock);
   if (trim_mode >= TRIM_BRK)
     {

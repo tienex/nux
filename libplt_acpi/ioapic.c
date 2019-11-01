@@ -95,7 +95,7 @@ ioapic_add (unsigned num, uint64_t base, unsigned irqbase)
       ioapic_write (num, IO_RED_LO (i), 0x00010000);
       ioapic_write (num, IO_RED_HI (i), 0x00000000);
     }
-  info ("IOAPIC: %02d PA: %08llx VA: %p IRQ:%02d PINS: %02d",
+  info ("IOAPIC: %02d PA: %08"PRIx64" VA: %p IRQ:%02d PINS: %02d",
 	  num, base, ioapics[num].base, irqbase, ioapics[num].pins);
 }
 
@@ -150,7 +150,6 @@ gsi_setup (unsigned i, unsigned irq, enum plt_irq_type mode)
 static void
 irqresolve (unsigned gsi)
 {
-  unsigned irq = gsis[gsi].irq;
   unsigned i, start, end;
 
   for (i = 0; i < ioapics_no; i++)
@@ -171,8 +170,7 @@ irqresolve (unsigned gsi)
 static void
 gsi_set_irqtype (unsigned irq, enum plt_irq_type mode)
 {
-  uint32_t hi, lo;
-  uint32_t mask = 0;
+  uint32_t lo;
 
   lo = ioapic_read (gsis[irq].ioapic, IO_RED_LO (gsis[irq].pin));
   lo &= ~((1L << 13) | (1L << 15));

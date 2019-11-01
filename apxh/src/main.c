@@ -244,18 +244,11 @@ va_info_copy (void)
   size64_t size = req_info_size;
 #define MIN(x,y) ((x < y) ? x : y)
   struct apxh_bootinfo i;
-  uint64_t psize;
 
   if (va == 0) {
     /* No INFO. Skip. */
     return;
   }
-
-  /* The pagemap size. */
-  if (size > sizeof (struct apxh_bootinfo))
-    psize = MIN (size - sizeof (struct apxh_bootinfo), sizeof (boot_pagemap));
-  else
-    psize = 0;
 
   i.magic = APXH_BOOTINFO_MAGIC;
   i.maxpfn = md_maxpfn ();
@@ -275,7 +268,6 @@ void
 va_stree (vaddr_t va, size64_t size)
 {
   size64_t s;
-  vaddr_t stree_va;
   int i, order;
   struct apxh_stree hdr;
   struct bootinfo_region *reg;
@@ -308,9 +300,7 @@ va_stree (vaddr_t va, size64_t size)
   va_copy (va, &hdr, sizeof(hdr), 1, 0);
 
   /* Fill the S-Tree with all RAM regions. */
-  stree_va = va + sizeof(hdr);
-
-  req_stree_va = stree_va;
+  req_stree_va = va + sizeof(hdr);
 
   for (i = 0; i < regions; i++)
     {
@@ -347,10 +337,9 @@ void
 va_stree_copy (void)
 {
   vaddr_t va = req_stree_va;
-  size64_t size = req_stree_size;
   unsigned order = req_stree_order;
   uint64_t pa;
-  vaddr_t stree_va, maxframe;
+  vaddr_t maxframe;
 
   if (va == 0)
     {
@@ -359,7 +348,6 @@ va_stree_copy (void)
     }
 
   maxframe = md_maxpfn (); 
-  stree_va = va + sizeof(struct apxh_stree);
 
   for (pa = 0; pa < BOOTMEM; pa += PAGE_SIZE)
     {

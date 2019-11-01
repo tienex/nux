@@ -108,7 +108,7 @@ hpet_init (paddr_t hpetpa)
 
   info ("HPET Found at %" PRIx64 ", mapped at %p", hpetpa,
 	hpet_base);
-  info ("HPET period: %lx, counters: %d", period_femto, num);
+  info ("HPET period: %" PRIx32 "x, counters: %d", period_femto, num);
 
   if (period_femto == 0)
     {
@@ -116,7 +116,7 @@ hpet_init (paddr_t hpetpa)
       return false;
     }
   freq = (1000000000000000LL / period_femto);
-  info ("HPET counter frequency: %lld Hz", freq);
+  info ("HPET counter frequency: %" PRId64 " Hz", freq);
   period = period_femto;
 
   hpet_pause ();		/* Stop, in case it's running */

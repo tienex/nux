@@ -179,7 +179,7 @@ acpi_madt_scan(void)
   /* *INDENT-OFF* */
   madt_foreach({
       case ACPI_MADT_TYPE_LAPICOVERRIDE:
-	info("ACPI MADT LAPICOVR %08llx", _.lavr->address);
+	info("ACPI MADT LAPICOVR %"PRIx64, _.lavr->address);
 	lapic_addr = _.lavr->address;
 	break;
       case ACPI_MADT_TYPE_LAPIC:

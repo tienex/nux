@@ -52,7 +52,7 @@ typedef uint64_t pte_t;
 #define pte_present(_pte) ((_pte) & PTE_P)
 
 extern int _linear_start;
-static const pte_t * linaddr = (uintptr_t)&_linear_start;
+static const pte_t * linaddr = (const pte_t *)&_linear_start;
 static pte_t * linaddr_l2;
 static pte_t * linaddr_l3;
 static pte_t * linaddr_l4;
@@ -185,7 +185,7 @@ get_l1p (void *pmap, unsigned long va, int alloc)
 void
 pae64_init (void)
 {
-  linaddr_l2 = linaddr + (((uintptr_t)linaddr & ((1L << 48) - 1)) >> (9 + 3));
+  linaddr_l2 = (pte_t *)linaddr + (((uintptr_t)linaddr & ((1L << 48) - 1)) >> (9 + 3));
   linaddr_l3 = linaddr_l2 + (((uintptr_t)linaddr & ((1L << 48) - 1)) >> (18 + 3));
   linaddr_l4 = linaddr_l3 + (((uintptr_t)linaddr & ((1L << 48) - 1)) >> (27 + 3));
 }

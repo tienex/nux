@@ -22,7 +22,7 @@
   Don't take this too seriously. SPINLOCK usage is awful.
 */
 
-const void *pfncache_base;
+vaddr_t pfncache_base;
 
 static pfn_t max_dmap_pfn;
 
@@ -33,7 +33,6 @@ static struct slot *slots;
 static void
 _pfncache_fill (unsigned slot, uintptr_t old, uintptr_t new)
 {
-  pfn_t upfn;
   vaddr_t va = (vaddr_t)pfncache_base + ((vaddr_t)slot << PAGE_SHIFT);
 
   /*
