@@ -19,19 +19,25 @@ int main ()
 {
   printf ("Hello");
 
+  kmem_trim_setmode (TRIM_BRK);
+
+  for (int i = 0; i < 2; i++) {
   uintptr_t x1, y1, x2, y2;
 
-  x1 = kmem_alloc (0, 64);
+  x1 = kmem_alloc (0, 61234);
   y1 = kmem_alloc (1, 5123);
-  x2 = kmem_alloc (0, 64);
+  x2 = kmem_alloc (0, 61234);
   y2 = kmem_alloc (1, 5123);
 
   kmem_free (1, y2, 5123);
-  kmem_free (0, x2, 64);
+  kmem_free (0, x2, 61234);
   kmem_free (1, y1, 5123);
-  kmem_free (0, x1, 64);
+  kmem_free (0, x1, 61234);
 
-  kmem_trim ();
+  kmem_trim_one (TRIM_BRK);
+  }
+
+
   printf("Done");
 }
 
