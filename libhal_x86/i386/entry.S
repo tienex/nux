@@ -15,7 +15,6 @@
 	mov $KDS, %ax
 	mov %ax, %ds
 	mov %ax, %es
-	/* Check that PLT as been initialised. */
 	call _C_LABEL(_i386_fs)
 	mov %ax, %fs
 	xor %ax, %ax

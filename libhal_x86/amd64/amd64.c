@@ -86,66 +86,6 @@ hal_pcpu_prepare (unsigned pcpu)
 }
 
 void
-hal_frame_init (struct hal_frame *f)
-{
-}
-
-bool
-hal_frame_isuser (struct hal_frame *f)
-{
-}
-
-void
-hal_frame_setip (struct hal_frame *f, unsigned long ip)
-{
-}
-
-unsigned long
-hal_frame_getip (struct hal_frame *f)
-{
-}
-
-void
-hal_frame_setsp (struct hal_frame *f, unsigned long ip)
-{
-}
-
-unsigned long
-hal_frame_getsp (struct hal_frame *f)
-{
-}
-
-void
-hal_frame_seta0 (struct hal_frame *f, unsigned long a0)
-{
-}
-
-void
-hal_frame_seta1 (struct hal_frame *f, unsigned long a1)
-{
-}
-
-void
-hal_frame_seta2 (struct hal_frame *f, unsigned long a2)
-{
-}
-
-void
-hal_frame_setret (struct hal_frame *f, unsigned long r)
-{
-}
-
-void
-hal_frame_print (struct hal_frame *f)
-{
-}
-
-bool
-hal_frame_signal (struct hal_frame *f, unsigned long ip, unsigned long arg)
-{
-}
-
-void
 amd64_init (void)
 {
 

@@ -10,4 +10,9 @@
 
 #define TSS_GDTIDX 5
 
+#define KCS 0x08
+#define KDS 0x10
+#define UCS 0x18
+#define UDS 0x20
+
 #endif

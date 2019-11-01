@@ -1,7 +1,6 @@
 #include <machine/asm.h>
+#include "amd64.h"
 #include "../internal.h"
-
-#define KCS 0x08
 
 	.altmacro
 .macro repeat macro from to
@@ -38,7 +37,7 @@ _start:
 	movabs $_gdtr, %rax
 	lgdt (%rax)
 
-	mov $0x10, %ax
+	mov $KDS, %ax
 	mov %ax, %ss
 
 	repeat setidt 0, 31
