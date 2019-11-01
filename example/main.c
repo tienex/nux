@@ -37,6 +37,7 @@ int main ()
   kmem_trim_one (TRIM_BRK);
   }
 
+  *(int *)5000000 = 0;
 
   printf("Done");
 }
