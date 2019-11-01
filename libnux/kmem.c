@@ -25,6 +25,9 @@ static lock_t brklock;
 static vaddr_t base[2];
 static vaddr_t brk[2];
 static vaddr_t maxbrk[2];
+#ifdef HAL_PAGED
+static int kmem_trim = TRIM_NONE;
+#endif
 
 #define MIN(a,b) ((a) <= (b) ? (a) : (b))
 #define MAX(a,b) ((a) >= (b) ? (a) : (b))
@@ -326,79 +329,83 @@ kmem_alloc (int low, size_t size)
 void
 kmem_free (int low, vaddr_t vaddr, size_t size)
 {
+  unsigned this;
+  vaddr_t base;
+  vaddr_t limit;
   struct zone *z;
   lock_t *l;
 
-  z = low ? kmemz + LO : kmemz + HI;
-  l = low ? lockz + LO : lockz + HI;
+  this = low ? LO : HI;
+  base = low ? vaddr : vaddr + size;
+  limit = low ? vaddr + size : vaddr;
+
+  /*
+    If we're freeing up to the BRK, reduce BRK allocation.
+  */
+  spinlock (&brklock);
+  printf ("(BRK) %lx == %lx ? ", brk[this], limit);
+  if (brk[this] == limit)
+    {
+      printf ("BRK set to %lx\n", base);
+      brk[this] = base;
+
+      if (kmem_trim >= TRIM_BRK)
+	{
+	  /*
+	    If in TRIM mode, unmap and free unneeded pages.
+	  */
+	  vaddr_t v1 = low ? round_page(base) : trunc_page(base);
+	  vaddr_t v2 = low ? round_page(limit) : trunc_page(limit);
+
+	  printf ("Unmapping from [%lx-%lx] ", v1, v2);
+	  _ensure_range_unmapped (v1, v2);
+	  printf (" done\n");
+	}
+      spinunlock (&brklock);
+      goto out;
+    }
+  spinunlock (&brklock);
+
+  z = kmemz + this;
+  l = lockz + this;
 
   spinlock (l);
   zone_free (z, vaddr, size);
   spinunlock (l);
+
+ out:
+  return;
 }
 
 void
-kmem_trim (void)
+kmem_trim_one (unsigned trim_mode)
 {
   struct kmem_tail *t;
   struct kmem_head *h;
   vaddr_t va;
 
-  /* We can reduce the BRK allocation if the area nexts to the BRKs are
-     free HEAP space. */
-  spinlock (lockz + LO);
   spinlock (&brklock);
-  va = brk[LO] - sizeof (*t);
-
-  if ((va > base[LO])
-#ifdef HAL_PAGED
-      && (kmap_mapped_range (va, brk[LO]))
-#endif
-      && ((t = (struct kmem_tail *)va)->magic == ZONE_TAIL_MAGIC))
+  if (trim_mode >= TRIM_BRK)
     {
-      /* LO brk is a tail free space. Reduce brk. */
-      va -= t->offset;
-
-      if ((va >= base[LO])
-#ifdef HAL_PAGED
-	  && (kmap_mapped_range (va, va + sizeof (struct kmem_head)))
-#endif
-	  && ((h = (struct kmem_head *)va)->magic == ZONE_HEAD_MAGIC))
-	{
-	  zone_remove (kmemz + LO, h);
-	  brk[LO] = va;
-	}
+      /* Unmap all pages between the BRKs. */
+      _ensure_range_unmapped (round_page(brk[LO]), round_page(maxbrk[LO]));
+      maxbrk[LO] = brk[LO];
+      _ensure_range_unmapped (trunc_page(brk[HI]), trunc_page(maxbrk[HI]));
+      maxbrk[HI] = brk[HI];
     }
   spinunlock (&brklock);
-  spinunlock (lockz + LO);
+}
 
-  /* XXX: Check for HI BRK for [BRKHI][HEAD]......[TAIL]....[BASE]  */
-  spinlock (lockz + HI);
+void
+kmem_trim_setmode (unsigned trim_mode)
+{
+  printf ("Setting TRIM mode to %d (%s).\n",
+	  trim_mode,
+	  trim_mode == TRIM_NONE ? "off" :
+	  trim_mode == TRIM_BRK ? "BRK" : "unknown");
+
   spinlock (&brklock);
-  va = brk[HI] + sizeof (*h);
-
-  if ((va < base[HI])
-#ifdef HAL_PAGED
-      && (kmap_mapped_range (brk[HI], va))
-#endif
-      && ((h = (struct kmem_head *)brk[HI])->magic == ZONE_HEAD_MAGIC))
-    {
-      brk[HI] += h->size;
-      zone_remove (kmemz + HI, h);
-    }
-
-  spinunlock (&brklock);
-  spinunlock (lockz + HI);
-
-  /* Unmap all pages between the BRKs. */
-  spinlock (&brklock);
-
-  _ensure_range_unmapped (round_page(brk[LO]), round_page(maxbrk[LO]));
-  maxbrk[LO] = brk[LO];
-
-  _ensure_range_unmapped (trunc_page(brk[HI]), trunc_page(maxbrk[HI]));
-  maxbrk[HI] = brk[HI];
-
+  kmem_trim = trim_mode;
   spinunlock (&brklock);
 }
 

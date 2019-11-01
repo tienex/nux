@@ -45,7 +45,11 @@ vaddr_t kmem_brkgrow (int low, unsigned size);
 int kmem_brkshrink (int low, unsigned size);
 vaddr_t kmem_alloc (int low, size_t size);
 void kmem_free (int low, vaddr_t vaddr, size_t size);
-void kmem_trim (void);
+#define TRIM_NONE 0
+#define TRIM_BRK  1
+#define TRIM_HEAP 2
+void kmem_trim_setmode (unsigned trim_mode);
+void kmem_trim_one (unsigned trim_mode);
 
 void cpu_startall (void);
 unsigned cpu_id (void);
