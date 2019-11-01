@@ -19,7 +19,7 @@
 #include "amd64.h"
 #include "../internal.h"
 
-extern uint32_t *_gdt;
+extern uint64_t *_gdt;
 extern int _physmap_start;
 extern int _physmap_end;
 
@@ -32,11 +32,12 @@ set_tss (struct amd64_tss *tss)
   uint8_t mh8 = (uint8_t)(ptr >> 24);
   uint32_t hi32 = (uint32_t)(ptr >> 32);
   uint16_t limit = sizeof (*tss);
+  uint32_t *ptr32 = (uint32_t *)(_gdt + TSS_GDTIDX);
 
-  _gdt[TSS_GDTIDX + 0] = limit | (lo16 << 16);
-  _gdt[TSS_GDTIDX + 1] = ml8 | (0x0089 << 8) | (mh8 << 24);
-  _gdt[TSS_GDTIDX + 2] = hi32;
-  _gdt[TSS_GDTIDX + 3] = 0;
+  ptr32[0] = limit | (lo16 << 16);
+  ptr32[1] = ml8 | (0x0089 << 8) | (mh8 << 24);
+  ptr32[2] = hi32;
+  ptr32[3] = 0;
 }
 
 
