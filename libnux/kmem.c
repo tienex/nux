@@ -24,6 +24,10 @@
 static lock_t brklock;
 static vaddr_t base[2];
 static vaddr_t brk[2];
+static vaddr_t maxbrk[2];
+
+#define MIN(a,b) ((a) <= (b) ? (a) : (b))
+#define MAX(a,b) ((a) >= (b) ? (a) : (b))
 
 #ifdef HAL_PAGED
 #define KMEM_TYPE "Paged"
@@ -48,9 +52,6 @@ _ensure_range (vaddr_t v1, vaddr_t v2, int mapped)
   vaddr_t s, e;
   unsigned prot;
 
-#define MIN(a,b) ((a) <= (b) ? (a) : (b))
-#define MAX(a,b) ((a) >= (b) ? (a) : (b))
-
   s = MIN(v1, v2);
   e = MAX(v1, v2);
   prot = mapped ? HAL_PTE_P|HAL_PTE_W : 0;
@@ -60,9 +61,6 @@ _ensure_range (vaddr_t v1, vaddr_t v2, int mapped)
 
   kmap_commit ();
   return 0;
-
-#undef MIN
-#undef MAX
 }
 
 static int
@@ -110,8 +108,8 @@ kmem_brk (int low, vaddr_t vaddr)
 vaddr_t
 kmem_sbrk (int low, long inc)
 {
-  int this = low ? LO : HI;
-  int other = low ? HI : LO;
+  const int this = low ? LO : HI;
+  const int other = low ? HI : LO;
   vaddr_t ret = VADDR_INVALID;
   vaddr_t vaddr;
 
@@ -136,6 +134,7 @@ kmem_sbrk (int low, long inc)
     goto out;
 #endif
 
+  maxbrk[this] = low ? MAX(maxbrk[this], vaddr) : MIN(maxbrk[this], vaddr);
   ret = brk[this];
   brk[this] = vaddr;
 
@@ -374,10 +373,32 @@ kmem_trim (void)
   spinunlock (lockz + LO);
 
   /* XXX: Check for HI BRK for [BRKHI][HEAD]......[TAIL]....[BASE]  */
+  spinlock (lockz + HI);
+  spinlock (&brklock);
+  va = brk[HI] + sizeof (*h);
+
+  if ((va < base[HI])
+#ifdef HAL_PAGED
+      && (kmap_mapped_range (brk[HI], va))
+#endif
+      && ((h = (struct kmem_head *)brk[HI])->magic == ZONE_HEAD_MAGIC))
+    {
+      brk[HI] += h->size;
+      zone_remove (kmemz + HI, h);
+    }
+
+  spinunlock (&brklock);
+  spinunlock (lockz + HI);
 
   /* Unmap all pages between the BRKs. */
   spinlock (&brklock);
-  _ensure_range_unmapped (round_page(brk[LO]), trunc_page(brk[HI]));
+
+  _ensure_range_unmapped (round_page(brk[LO]), round_page(maxbrk[LO]));
+  maxbrk[LO] = brk[LO];
+
+  _ensure_range_unmapped (trunc_page(brk[HI]), trunc_page(maxbrk[HI]));
+  maxbrk[HI] = brk[HI];
+
   spinunlock (&brklock);
 }
 
@@ -389,6 +410,9 @@ kmeminit (void)
 
   brk[LO] = base[LO];
   brk[HI] = base[HI];
+
+  maxbrk[LO] = base[LO];
+  maxbrk[HI] = base[HI];
 
   zone_init (kmemz + LO, 0);
   spinlock_init (lockz + LO);
