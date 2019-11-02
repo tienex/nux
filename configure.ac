@@ -5,6 +5,8 @@ AC_MK_DIR([mk])
 #Allow AC_PROG_CC test to succeed on cross compilers.
 CFLAGS=-nostdlib
 AC_PROG_CC([gcc])
+AC_CHECK_TOOL(LD, ld, :)
+AC_CHECK_TOOL(AR, ar, :)
 
 AS_CASE([$host],
 	[i?86-*], [machine=i386],
