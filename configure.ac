@@ -17,7 +17,7 @@ AS_CASE([$machine],
 	[i386], [hal=hal_x86 plt=plt_acpi],
 	[amd64], [hal=hal_x86 plt=plt_acpi])
 
-ecdir='$(SRCROOT)'/libec
+
 optflags='-O7 -g'
 #optflags='-O0 -g'
 
@@ -26,16 +26,21 @@ AC_SUBST(HALDIR, lib${hal})
 AC_SUBST(PLTDIR, lib${plt})
 AC_SUBST(INSTALLDIR, "$(pwd)"/dist)
 
+ecdir='$(SRCROOT)'/libec
 AC_SUBST(ECDIR, ${ecdir})
 AC_SUBST(COMPILE_LIBEC, ["include ${ecdir}/libec-compile.mk"])
 AC_SUBST(LINK_LIBEC, ["include ${ecdir}/libec.mk"])
+
+nuxdir='$(SRCROOT)'/libnux
+AC_SUBST(COMPILE_LIBNUX, ["include ${nuxdir}/libnux-compile.mk"])
+AC_SUBST(LINK_LIBNUX, ["include ${nuxdir}/libnux.mk"])
 
 AC_SUBST(CONFIGURE_FLAGS, ["${optflags}"])
 
 AS_CASE([$hal],
 	[hal_x86], [extraconf=libhal_x86/hal.mk])
 
-AC_CONFIG_FILES([libec/libec.mk libec/libec-compile.mk ${extraconf}])
+AC_CONFIG_FILES([libec/libec.mk libec/libec-compile.mk libnux/libnux.mk libnux/libnux-compile.mk ${extraconf}])
 AC_MK_CONFIG_FILES([
 	Makefile
 	apxh/Makefile

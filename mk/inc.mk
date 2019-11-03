@@ -6,7 +6,6 @@
 #
 
 .PHONY: all includes incdir incs
-ALL_TARGET+= includes
 
 ifneq ($(INCDIR)z,z)
 ALL_TARGET+= incdir
@@ -25,6 +24,7 @@ incs:
 endif
 
 ifneq ($(INCSUBDIRS)z,z)
+ALL_TARGET+= includes
 includes:
 	for dir in $(INCSUBDIRS); do $(MAKE) -C $$dir includes incdir incs; done
 else

@@ -1,0 +1,12 @@
+#
+# NUX: A kernel Library.
+# Copyright (C) 2019 Gianluca Guida <glguida@tlbflush.org>
+#
+#  SPDX-License-Identifier:	GPL-2.0+
+#
+#
+
+include $(SRCROOT)/@HALDIR@/hal.mk
+
+CPPFLAGS+= -I$(SRCROOT)/include -I$(SRCROOT)/@HALDIR@/include -I$(SRCROOT)/libnux/include
+

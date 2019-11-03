@@ -6,8 +6,8 @@
 #
 
 @COMPILE_LIBEC@
+@COMPILE_LIBNUX@
 
-CPPFLAGS+=-Iinclude -I$(SRCROOT)/include -I$(SRCROOT)/@HALDIR@/include
 
 LIBRARY=plt
 

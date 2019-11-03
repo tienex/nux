@@ -10,11 +10,7 @@ ifeq (z$(EC_MACHINE),z)
 EC_MACHINE=@MACHINE@
 endif
 
-ifeq ($(EC_MACHINE),amd64)
-CFLAGS+= -mcmodel=large -mno-red-zone
-endif
-
-CFLAGS+= -Wall -nostdinc -fno-builtin -ffreestanding -fno-strict-aliasing -mno-mmx -mno-sse -mno-sse2 -mno-sse3 -mno-avx -mno-avx2
+CFLAGS+= -Wall -nostdinc -fno-builtin -ffreestanding -fno-strict-aliasing
 LDFLAGS+= -nostdlib
 CPPFLAGS+= -D_EC_SOURCE -I@ECDIR@
 ASFLAGS+= -D_ASSEMBLER
