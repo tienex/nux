@@ -140,6 +140,6 @@ hal_frame_print (struct hal_frame *f)
   hallog (" CS: %04x     EIP: %016lx EFL: %016lx",
 	  (int) f->cs, f->rip, f->rflags);
   hallog (" SS: %04x     RSP: %016lx",
-	  (int) f->cs, f->rip, f->rflags);
-  hallog ("CR3: %08x CR2: %08x err: %08x", f->cr3, f->cr2, f->err);
+	  (int) f->ss, f->rsp);
+  hallog ("CR3: %016lx CR2: %016lx err: %08lx", f->cr3, f->cr2, f->err);
 }
