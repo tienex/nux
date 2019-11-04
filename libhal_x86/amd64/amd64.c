@@ -167,7 +167,7 @@ hal_pcpu_prepare (unsigned pcpu)
     The following is trampoline dependent code, and configures the
     trampoline to use the page just selected as bootstrap page.
   */
-  extern char _ap_stackpage, _ap_gdtreg, _ap_ljmp1, _ap_ljmp2, _ap_stackpage;
+  extern char _ap_gdtreg, _ap_ljmp1, _ap_ljmp2, _ap_stackpage;
 
   /* Setup AP Stack. */
   ptr = start + ((void *)&_ap_stackpage - (void *)&_ap_start);

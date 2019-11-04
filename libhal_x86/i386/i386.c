@@ -84,10 +84,9 @@ hal_pcpu_enter (unsigned pcpuid)
 uint64_t
 hal_pcpu_prepare (unsigned pcpu)
 {
-  extern volatile long _ap_stackpage;
   extern char *_ap_start, *_ap_end;
   paddr_t pstart;
-  void *start;
+  void *start, *ptr;
   volatile uint16_t *reset;
 
   if (pcpu >= MAXCPUS)
@@ -111,9 +110,24 @@ hal_pcpu_prepare (unsigned pcpu)
 
   asm volatile ("":::"memory");
 
+  /*
+    The following is trampoline dependent code, and configures the
+    trampoline to use the page just selected as bootstrap page.
+  */
+  extern char _ap_gdtreg, _ap_ljmp, _ap_stackpage;
+
   /* Setup AP Stack. */
-  void *ptr = start + ((void *)&_ap_stackpage - (void *)&_ap_start);
+  ptr = start + ((void *)&_ap_stackpage - (void *)&_ap_start);
   *(void **)ptr = start + PAGE_SIZE;
+
+  /* Setup temporary GDT register. */
+  ptr = start + ((void *)&_ap_gdtreg - (void *)&_ap_start);
+  *(uint32_t *)(ptr + 2) += (uint32_t)pstart;
+
+  /* Setup trampoline 1 */
+  ptr = start + ((void *)&_ap_ljmp - (void *)&_ap_start);
+  *(uint32_t *)ptr += (uint32_t)pstart;
+
   return pstart;
 }
 

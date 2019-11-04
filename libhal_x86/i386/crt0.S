@@ -199,7 +199,7 @@ ENTRY(_ap_start)
 	movw %cs, %ax
 	movw %ax, %ds
 
-	lgdtl .Lap_gdtreg - _C_LABEL(_ap_start)
+	lgdtl _ap_gdtreg - _C_LABEL(_ap_start)
 	/* No IDT. If anything goes wrong here, machine triple-faults. */
 
 	movw $0xb800, %ax
@@ -212,7 +212,7 @@ ENTRY(_ap_start)
 	/* Enter protected mode. */
 	mov $1, %ax
 	lmsw %ax
-	ljmpl $0x8, $(.Lap_setup - _C_LABEL(_ap_start) + 0x2000)
+	ljmpl _ap_ljmp - _ap_start
 
 	.align 16
 .Lap_gdttmp:
@@ -222,19 +222,21 @@ ENTRY(_ap_start)
 	.long 0x00cf9a00
 	.long 0x0000ffff
 	.long 0x00cf9200
-.Lap_gdtreg:
-	.hword 127
-	.long .Lap_gdttmp - _C_LABEL(_ap_start) + 0x2000
 
 	/*
 	  AP Bootstrap configuration.
 
-	  Both ap_stackpage and ap_cr3 wil be written by cpu prepare, to configure the boot.
+	  The following fields are set up by prepare.
 	*/
-	.globl _ap_stackpage
+	.globl _ap_gdtreg, _ap_ljmp, _ap_stackpage, _ap_cr3
+_ap_gdtreg:
+	.hword 127
+	.long .Lap_gdttmp - _C_LABEL(_ap_start)
+_ap_ljmp:
+	.long .Lap_setup - _ap_start
+	.word KCS
 _ap_stackpage:
 	.long 0
-	.globl _ap_cr3
 _ap_cr3:
 	.long 0x12345
 	.code32
