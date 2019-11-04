@@ -54,6 +54,7 @@ hal_l1e_t * get_l1p (void *pmap, unsigned long va, int alloc);
 int vga_putchar (int c);
 
 uint64_t rdmsr (uint32_t ecx);
+void wrmsr (uint32_t ecx, uint64_t val);
 
 #endif
 

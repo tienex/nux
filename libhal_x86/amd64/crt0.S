@@ -51,11 +51,166 @@ _start:
 
 	/* init hal */
 	call _C_LABEL(x86_init)
-	
+
+	// Save CR3 for future AP boots.
+	mov %cr3, %rax
+	movabs $_ap_cr3, %rbx
+	mov %rax, (%rbx)
+
 	movabs $zippostring, %rdi
 	call ___start
 	jmp zippo
-	
+
+
+/*
+ * AP BOOTSTRAP.
+ *
+ * This code is copied into per-cpu pages.
+ * These same page will become the AP kernel
+ * stack.
+ */
+	.code16
+	.globl _C_LABEL(_ap_start)
+ENTRY(_ap_start)
+	cli
+	movw %cs, %ax
+	movw %ax, %ds
+	movw %ax, %es
+
+	lgdtl _ap_gdtreg - _C_LABEL(_ap_start)
+	/* No IDT. If anything goes wrong here, machine triple-faults. */
+
+	movw $0xb800, %ax
+	movw %ax, %es
+	movw $('A'<<8 + 'A'), %es:0
+
+	/* Save AP Boostrap Page Segment. */
+	mov %cs, %bx
+
+	/* Enter protected mode. */
+	mov $1, %ax
+	lmsw %ax
+
+	/* Jump into protected mode */
+	ljmpl _ap_ljmp1 - _ap_start
+
+	.align 16
+.Lap_gdttmp:
+	.long 0
+	.long 0
+	/* 64-bit CS */
+	.long 0x0000ffff
+	.long 0x00af9a00
+	/* DS */
+	.long 0x0000ffff
+	.long 0x00cf9200
+	/* 32-bit CS */
+#define APTMP_CS32 0x18	
+	.long 0x0000ffff
+	.long 0x00cf9a00
+
+	/*
+	  AP Bootstrap configuration.
+
+	  The following fields are set up by prepare.
+	*/
+	.globl _ap_gdtreg, _ap_ljmp1, _ap_ljmp2, _ap_stackpage, _ap_cr3
+_ap_gdtreg:
+	.hword 127
+	.long .Lap_gdttmp - _C_LABEL(_ap_start)
+_ap_ljmp1:
+	.long .Lap_setup - _ap_start
+	.word APTMP_CS32
+_ap_ljmp2:
+	.long .Lap_tramp64 - _ap_start
+	.word KCS
+_ap_stackpage:
+	.quad 0
+	.globl _ap_cr3
+_ap_cr3:
+	.quad 0x12345
+	.code32
+.Lap_setup:
+	/* Setup segments. */
+	mov $KDS, %ax
+	mov %ax, %ds
+
+	/* Get AP configuration. */
+	xor %ecx, %ebp
+	mov %bx, %bp
+	shl $4, %ebp
+	mov (_ap_cr3 - _ap_start)(%ebp), %eax
+	mov %eax, %cr3
+	mov (_ap_stackpage - _ap_start)(%ebp), %edi
+	mov (_ap_stackpage - _ap_start + 4)(%ebp), %esi
+
+	/*
+	   Set NX mode.
+
+                NB: This is hairy. If there's any misunderstanding
+	        between BSP and APs on the NX setting (I am
+	        looking at you IA32_MISC_ENABLE's DISABLE_NX)
+	        then the AP will likely triple fault on loading
+	        the pagetable. This will reset the whole machine.
+
+	        It shouldn't happen,  but if you ever see a machine
+	        reset while enabling secondary processor, start
+	        looking at this.
+	*/
+	mov $0x80000001, %eax
+	mov $0, %ecx
+	cpuid
+	and $(1 << 20), %edx
+	jz .Lno_nx
+
+	mov $MSR_IA32_EFER, %ecx
+	rdmsr
+	or $(1 << 11), %eax
+	wrmsr
+	/* NX should be enabled now. */
+
+.Lno_nx:
+	/* Set EFER.LME */
+	mov $MSR_IA32_EFER, %ecx
+	rdmsr
+	or $(1 << 8), %eax
+	wrmsr
+	/* Setup CR registers. */
+	mov %cr4, %eax
+	or  $0x30, %eax /* PAE on */
+	mov  %eax, %cr4
+	mov  %cr0, %eax
+	or   $((1<<31)|(1<<16)), %eax
+	mov  %eax, %cr0
+
+
+	/* trampoline2 */
+	ljmpl (_ap_ljmp2 - _ap_start)(%ebp)
+	.code64
+.Lap_tramp64:
+	movabs $apsetup, %rax
+	jmp *%rax
+	.globl _ap_end
+_ap_end:	
+
+apsetup: /* edi: ESP low 32, esi: ESP hi 32 */
+1:
+	/* Reload GDT and IDT */
+	movabs $_gdtr, %rax
+	lgdt (%rax)
+	movabs $_idtr, %rax
+	lidt (%rax)
+
+	mov $KDS, %ax
+	mov %ax, %ss
+
+	/* Setup stack */
+	mov %edi, %esp
+	shl $32, %rsi
+	or %rsi, %rsp
+	call _C_LABEL(hal_main_ap)
+1:	hlt
+	jmp 1b	
 
 zippo:
 	movabs $zippostring, %rsi

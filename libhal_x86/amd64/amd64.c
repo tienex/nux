@@ -15,6 +15,7 @@
 
 #include <assert.h>
 #include <stdint.h>
+#include <string.h>
 #include <nux/hal.h>
 #include "amd64.h"
 #include "../internal.h"
@@ -24,7 +25,7 @@ extern int _physmap_start;
 extern int _physmap_end;
 
 pfn_t pcpu_stackpfn[MAXCPUS];
-vaddr_t pcpu_stackva[MAXCPUS];
+void *pcpu_stackva[MAXCPUS];
 vaddr_t pcpu_haldata[MAXCPUS];
 
 void
@@ -98,7 +99,7 @@ hal_vect_max (void)
 void
 hal_pcpu_init (unsigned pcpuid, struct hal_cpu *haldata)
 {
-  vaddr_t va;
+  void *va;
   pfn_t pfn;
 
   assert (pcpuid < MAXCPUS);
@@ -115,7 +116,7 @@ hal_pcpu_init (unsigned pcpuid, struct hal_cpu *haldata)
   pcpu_stackpfn[pcpuid] = pfn;
   pcpu_stackva[pcpuid] = va;
 
-  haldata->tss.rsp0 = (unsigned long)pcpu_stackva[pcpuid] + PAGE_SIZE;
+  haldata->tss.rsp0 = (uintptr_t)pcpu_stackva[pcpuid] + PAGE_SIZE;
   haldata->tss.iomap = 108; /* XXX: FIX with sizeof(tss) + 1 */
   haldata->data = NULL;
 
@@ -137,6 +138,56 @@ hal_pcpu_enter (unsigned pcpuid)
 uint64_t
 hal_pcpu_prepare (unsigned pcpu)
 {
+  extern char *_ap_start, *_ap_end;
+  paddr_t pstart;
+  void *start, *ptr;
+  volatile uint16_t *reset;
+
+  if (pcpu >= MAXCPUS)
+    return PADDR_INVALID;
+
+  if (pcpu_stackva[pcpu] == NULL)
+    return PADDR_INVALID;
+
+  pstart = pcpu_stackpfn[pcpu] << PAGE_SHIFT;
+  start = pcpu_stackva[pcpu];
+
+  reset = kva_physmap (0, 0x467, 2, HAL_PTE_P|HAL_PTE_W|HAL_PTE_X);
+  *reset = pstart & 0xf;
+  *(reset + 1) = pstart >> 4;
+  kva_unmap ((void *)reset);
+
+  /* Setup AP bootstrap page */
+  memcpy (start, &_ap_start,
+	  (size_t) ((void *) &_ap_end - (void *) &_ap_start));
+
+  asm volatile ("":::"memory");
+
+  /*
+    The following is trampoline dependent code, and configures the
+    trampoline to use the page just selected as bootstrap page.
+  */
+  extern char _ap_stackpage, _ap_gdtreg, _ap_ljmp1, _ap_ljmp2, _ap_stackpage;
+
+  /* Setup AP Stack. */
+  ptr = start + ((void *)&_ap_stackpage - (void *)&_ap_start);
+  *(void **)ptr = start + PAGE_SIZE;
+
+  /* Setup temporary GDT register. */
+  ptr = start + ((void *)&_ap_gdtreg - (void *)&_ap_start);
+  *(uint32_t *)(ptr + 2) += (uint32_t)pstart;
+
+  /* Setup trampoline 1 */
+  ptr = start + ((void *)&_ap_ljmp1 - (void *)&_ap_start);
+  *(uint32_t *)ptr += (uint32_t)pstart;
+
+  /* Setup trampoline 2 */
+  ptr = start + ((void *)&_ap_ljmp2 - (void *)&_ap_start);
+  *(uint32_t *)ptr += (uint32_t)pstart;
+
+
+  return pstart;
+
 }
 
 void

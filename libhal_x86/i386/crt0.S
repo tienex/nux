@@ -269,7 +269,7 @@ _ap_cr3:
 	        looking at this.
 	*/
 	mov $0x80000001, %eax
-	mov %ecx, 0
+	mov $0, %ecx
 	cpuid
 	and $(1 << 20), %edx
 	jz .Lno_nx
