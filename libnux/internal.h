@@ -16,9 +16,6 @@
    CPU management
 */
 
-#define MAX_CPUS 64
-#define MAX_PHYSCPUS 64
-
 struct cpu_info
 {
   unsigned cpu_id;

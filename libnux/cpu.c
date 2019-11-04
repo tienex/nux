@@ -26,7 +26,7 @@
 
 static unsigned number_cpus = 0;
 static unsigned cpu_phys_to_id[HAL_MAXCPUS] = { -1, };
-static struct cpu_info *cpus[MAX_CPUS] = { 0, };
+static struct cpu_info *cpus[HAL_MAXCPUS] = { 0, };
 
 static cpumask_t tlbmap = 0;
 static cpumask_t cpus_active = 0;
@@ -41,7 +41,7 @@ cpu_idfromphys (unsigned physid)
 
   assert (physid < HAL_MAXCPUS);
   id = cpu_phys_to_id[physid];
-  assert (id < MAX_CPUS);
+  assert (id < HAL_MAXCPUS);
   return id;
 }
 
@@ -49,7 +49,7 @@ static struct cpu_info *
 cpu_getinfo (unsigned id)
 {
 
-  if (id >= MAX_CPUS)
+  if (id >= HAL_MAXCPUS)
     {
       error ("CPU ID %d too big", id);
       return NULL;
@@ -74,7 +74,7 @@ cpu_add (uint16_t physid)
       return -1;
     }
 
-  if (number_cpus >= MAX_CPUS)
+  if (number_cpus >= HAL_MAXCPUS)
     {
       warn ("Too many CPUs. Skipping.");
       return -1;
