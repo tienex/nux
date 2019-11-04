@@ -12,5 +12,6 @@
 #define PRId32 "d"
 #define PRIx64 "lx"
 #define PRId64 "ld"
+#define PRIu64 "lu"
 
 #endif

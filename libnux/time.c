@@ -12,34 +12,30 @@
   SPDX-License-Identifier:	GPL2.0+
 */
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <nux/hal.h>
 #include <nux/nux.h>
+#include <nux/plt.h>
+#include "internal.h"
 
-int
-putchar (int c)
+void
+timer_alarm (uint32_t time_ns)
 {
-  return hal_putchar (c);
+  uint64_t period_fs = plt_tmr_period ();
+  uint64_t time_fs = 1000000LL * time_ns;
+
+  plt_tmr_setalm ((time_fs + period_fs - 1) / period_fs);
 }
 
-void __dead
-exit (int status)
+void
+timer_clear (void)
 {
-  if (status == EXIT_HALT)
-    {
-      hal_cpu_halt ();
-    }
-  else if (status == EXIT_IDLE)
-    {
-      cpu_idle ();
-    }
-  else
-    {
-      hal_cpu_halt ();
-      /* Full-blown panic */
-    }
+  plt_tmr_clralm ();
+}
 
+uint64_t
+timer_gettime (void)
+{
+  uint64_t period_fs = plt_tmr_period ();
+  uint64_t ctr = plt_tmr_ctr ();
 
-  hal_cpu_halt ();
+  return (period_fs * ctr) / 1000000;
 }

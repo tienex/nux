@@ -82,7 +82,8 @@ uctxt_frame (uctxt_t *uctxt)
 void
 uctxt_init (uctxt_t *uctxt, vaddr_t ip, vaddr_t sp)
 {
-  struct hal_frame *f = (struct hal_frame *)uctxt;
+  struct hal_frame *f = uctxt_frame_pointer (uctxt);
+  assert (f);
 
   hal_frame_init (f);
   hal_frame_setip (f, ip);
@@ -92,46 +93,62 @@ uctxt_init (uctxt_t *uctxt, vaddr_t ip, vaddr_t sp)
 void
 uctxt_setip (uctxt_t *uctxt, vaddr_t ip)
 {
-  struct hal_frame *f = (struct hal_frame *)uctxt;
+  struct hal_frame *f = uctxt_frame_pointer (uctxt);
+  assert (f);
   hal_frame_setip (f, ip);
 }
 
 void
 uctxt_setsp (uctxt_t *uctxt, vaddr_t sp)
 {
-  struct hal_frame *f = (struct hal_frame *)uctxt;
+  struct hal_frame *f = uctxt_frame_pointer (uctxt);
+  assert (f);
   hal_frame_setsp (f, sp);
 }
 
 void
 uctxt_setret (uctxt_t *uctxt, unsigned long ret)
 {
-  hal_frame_setret (uctxt, ret);
+  struct hal_frame *f = uctxt_frame_pointer (uctxt);
+  assert (f);
+  hal_frame_setret (f, ret);
 }
 
 void
 uctxt_seta0 (uctxt_t *uctxt, unsigned long a0)
 {
-  struct hal_frame *f = (struct hal_frame *)uctxt;
+  struct hal_frame *f = uctxt_frame_pointer (uctxt);
+  assert (f);
   hal_frame_seta0 (f, a0);
 }
 
 void
 uctxt_seta1 (uctxt_t *uctxt, unsigned long a1)
 {
-  struct hal_frame *f = (struct hal_frame *)uctxt;
+  struct hal_frame *f = uctxt_frame_pointer (uctxt);
+  assert (f);
   hal_frame_seta1 (f, a1);
 }
 
 void
 uctxt_seta2 (uctxt_t *uctxt, unsigned long a2)
 {
-  struct hal_frame *f = (struct hal_frame *)uctxt;
+  struct hal_frame *f = uctxt_frame_pointer (uctxt);
+  assert (f);
   hal_frame_seta1 (f, a2);
 }
 
 void
 uctxt_print (uctxt_t *uctxt)
 {
-  hal_frame_print ((struct hal_frame *)uctxt);
+  struct hal_frame *f = uctxt_frame_pointer (uctxt);
+
+  switch ((uintptr_t)f)
+    {
+    case 0:
+      info ("INVALID/IDLE FRAME");
+      break;
+    default:
+      hal_frame_print (f);
+    }
 }

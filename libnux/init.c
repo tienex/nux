@@ -14,6 +14,7 @@
 
 #include <stdio.h>
 #include <nux/plt.h>
+#include <nux/nux.h>
 
 #include "internal.h"
 
@@ -102,24 +103,16 @@ _nux_sysinit (void)
   /* Init CPUs operations */
   cpu_init ();
 
-#if 0
-
-
-  /* Start the platform. This will discover CPUs and set up interrupt
-     controllers. */
-  plt_platform_start ();
-
-  /* Start CPUs operations. */
-  cpu_start ();
-#endif
+  /* Start all CPUs. */
+  cpu_startall ();
 }
 
 void
 hal_main_ap (void)
 {
   cpu_enter ();
+  exit (main_ap ());
 
-  
 #if 0
   mmap_enter ();
   cpu_enter ();

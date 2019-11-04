@@ -81,13 +81,13 @@ hal_cpu_getdata (void)
 unsigned
 hal_vect_irqbase (void)
 {
-  return 33;
+  return VECT_IRQ0;
 }
 
 unsigned
 hal_vect_ipibase (void)
 {
-  return 34;
+  return VECT_IPI0;
 }
 
 unsigned

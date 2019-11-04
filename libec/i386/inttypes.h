@@ -11,5 +11,6 @@
 #define PRId32 "d"
 #define PRIx64 "llx"
 #define PRId64 "lld"
+#define PRIu64 "llu"
 
 #endif /* EC_I386_INTTYPES_H */

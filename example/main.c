@@ -15,9 +15,14 @@
 #include <stdio.h>
 #include <nux/nux.h>
 
-int main ()
+uctxt_t u_init;
+
+int
+main (int argc, char *argv[])
 {
-  printf ("Hello");
+  printf ("Hello, %s (%"PRIx64")!", argv[1], timer_gettime());
+
+  timer_alarm (1 * 1000 * 1000 * 1000);
 
   kmem_trim_setmode (TRIM_BRK);
 
@@ -37,8 +42,62 @@ int main ()
   kmem_trim_one (TRIM_BRK);
   }
 
-  *(int *)5000000 = 0;
-
-  printf("Done");
+  return EXIT_IDLE;
 }
 
+int
+main_ap (void)
+{
+  printf ("%d: %"PRIx64"\n", cpu_id(), timer_gettime());
+  return EXIT_IDLE;
+}
+
+uctxt_t *
+entry_sysc (uctxt_t *u,
+	    unsigned long a1, unsigned long a2, unsigned long a3,
+	    unsigned long a4, unsigned long a5, unsigned long a6)
+{
+  if (a1 == 4096)
+    putchar (a2);
+  return u;
+}
+
+uctxt_t *
+entry_ipi (uctxt_t *uctxt, unsigned ipi)
+{
+  info ("IPI!");
+  return &u_init;
+}
+
+uctxt_t *
+entry_alarm (uctxt_t *uctxt)
+{
+  timer_alarm (1 * 1000 * 1000 * 1000);
+  info ("TMR: %"PRIu64" us", timer_gettime ());
+  uctxt_print (uctxt);
+  return uctxt;
+}
+
+uctxt_t *
+entry_ex (uctxt_t *uctxt, unsigned ex)
+{
+  info ("Exception %d", ex);
+  uctxt_print (uctxt);
+  return uctxt;
+}
+
+uctxt_t *
+entry_pf (uctxt_t *uctxt, vaddr_t va, hal_pfinfo_t pfi)
+{
+  info ("CPU #%d Pagefault at %08lx (%d)", cpu_id (), va, pfi);
+  uctxt_print (uctxt);
+  return UCTXT_IDLE;
+}
+
+uctxt_t *
+entry_irq (uctxt_t *uctxt, unsigned irq, bool lvl)
+{
+  info ("IRQ %d", irq);
+  return uctxt;
+
+}

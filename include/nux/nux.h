@@ -58,6 +58,8 @@ cpumask_t cpu_activemask (void);
 void cpu_setdata (void *ptr);
 void *cpu_getdata (void);
 
+void cpu_idle (void);
+
 void cpu_nmi (int cpu);
 void cpu_nmi_broadcast (void);
 void cpu_nmi_mask (cpumask_t map);
@@ -72,6 +74,10 @@ void cpu_tlbflush_mask (cpumask_t mask, tlbop_t op, bool sync);
 void cpu_tlbflush_broadcast (tlbop_t op, bool sync);
 void cpu_tlbflush_sync_broadcast (void);
 
+void timer_alarm (uint32_t time_ns);
+void timer_clear (void);
+uint64_t timer_gettime (void);
+
 bool uaddr_valid (uaddr_t);
 bool uaddr_validrange (uaddr_t a, size_t size);
 bool uaddr_copyfrom (void *dst, uaddr_t src, size_t size,
@@ -81,8 +87,16 @@ bool uaddr_copyto (uaddr_t dst, void *src, size_t size,
 bool uaddr_memset (uaddr_t dst, int ch, size_t size,
 		   bool (*pf_handler)(uaddr_t va, hal_pfinfo_t info));
 
+void uctxt_init (uctxt_t *uctxt, vaddr_t ip, vaddr_t sp);
+void uctxt_setip (uctxt_t *uctxt, vaddr_t ip);
+void uctxt_setsp (uctxt_t *uctxt, vaddr_t sp);
+void uctxt_setret (uctxt_t *uctxt, unsigned long ret);
+void uctxt_seta0 (uctxt_t *uctxt, unsigned long a0);
+void uctxt_seta1 (uctxt_t *uctxt, unsigned long a1);
+void uctxt_seta2 (uctxt_t *uctxt, unsigned long a2);
 bool uctxt_signal (uctxt_t *uctxt, unsigned long ip, unsigned long arg,
 		   bool (*pf_handler)(uaddr_t va, hal_pfinfo_t info));
+void uctxt_print (uctxt_t *uctxt);
 
 #define LOGL_DEBUG -1
 #define LOGL_INFO  0
@@ -121,5 +135,121 @@ __log(const int level, const char *fmt, ...)
 #define warn(...) __log(LOGL_WARN, __VA_ARGS__)
 #define error(...) __log(LOGL_ERROR, __VA_ARGS__)
 #define fatal(...) __log(LOGL_FATAL, __VA_ARGS__)
+
+/*
+  External Interface of NUX.
+
+  This is the interface that has to be implemented by the main program
+  in order to use NUX.
+*/
+
+/*
+  NUX Exit Values
+
+  The libec call exit () will halt the system except for the exit
+ values listed below.
+*/
+
+/* Halt the current cpu. */
+#define EXIT_HALT 0
+
+/* Set the current cpu to idle. */
+#define EXIT_IDLE 1
+
+/*
+  NUX Kernel main functions.
+
+  A NUX kernel has two main functions:
+
+  1. main: this is the function called at initialisation by the
+     primary processor. When main starts, no other processor is
+     running. Its role is to initialise the whole kernel, start
+     secondary processors (if desired) and exit.
+
+  2 main_ap: this is the function called when a secondary processor
+    start. At this time it is safe to assume that all other processors
+    are running, with the primary being fully initialised. The role of
+    this function is to initialise cpu-specific kernel state, and exit.
+
+  The return value of these functions is important because it gets
+  passed to the exit() call. See Exit Values.
+*/
+
+/*
+  The main program entry.
+
+  This will be called at startup, after HAL and PLT have been
+  initialised.
+*/
+int main (int argc, char *argv[]);
+
+/*
+  Entry for Secondary Processors.
+
+  If the primary CPU, running the main program, starts secondary
+  processors, after initialization is complete will call this
+  function.
+*/
+int main_ap (void);
+
+/*
+  NUX kernel entries.
+
+  The following functions are entries in the system. These are the events
+  to which a kernel has to react.
+
+  A NUX kernel is essentially an event based system, and the following are
+  the events a NUX kernel will have to respond to.
+
+  Every entry function takes a uctxt in input and returns a
+  uctxt. The two uctxt doesn't have to be the same.
+
+  The uctxt in input contains the user context of the interrupted
+  process, and will be NULL if the entry was generated while the CPU
+  was idle.
+
+  The uctxt returned contains the user context of the process that
+  will be restored on re-entry. If NULL, the CPU will be put in
+  idle mode.
+*/
+
+/*
+  Entry for Syscall
+*/
+uctxt_t *entry_sysc (uctxt_t *u,
+		     unsigned long a1, unsigned long a2, unsigned long a3,
+		     unsigned long a4, unsigned long a5, unsigned long a6);
+
+/*
+  Entry for Page Fault
+*/
+uctxt_t *entry_pf (uctxt_t *u, vaddr_t va, hal_pfinfo_t pfi);
+
+/*
+  Entry for Generic Exception
+*/
+uctxt_t *entry_ex (uctxt_t *u, unsigned ex);
+
+/*
+  Entry for Platform Alarm.
+
+  This function will be called whenever the platform alarm is fired.
+*/
+uctxt_t *entry_alarm (uctxt_t *f);
+
+/*
+  Entry for IPI.
+
+  This function will be called on IPI.
+*/
+uctxt_t *entry_ipi (uctxt_t *f, unsigned ipi);
+
+/*
+ Entry for IRQ.
+
+ This function will be called on IRQ.
+*/
+uctxt_t *entry_irq (uctxt_t *f, unsigned irq, bool lvl);
+
        
 #endif

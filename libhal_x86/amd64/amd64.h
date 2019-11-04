@@ -12,7 +12,11 @@
 
 #define KCS 0x08
 #define KDS 0x10
-#define UCS 0x18
-#define UDS 0x20
+#define UCS 0x1b
+#define UDS 0x23
+
+#define VECT_IPI0 0xF0
+#define VECT_IRQ0 0x21
+#define MAXIRQS   (VECT_IPI0 - VECT_IRQ0)
 
 #endif
