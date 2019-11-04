@@ -15,6 +15,9 @@
 #define MSR_IA32_EFER 0xc0000080
 #define _MSR_IA32_EFER_NXE (1LL << 11)
 
+#define MSR_IA32_GS_BASE 0xc0000101
+#define MSR_IA32_KERNEL_GS_BASE 0xc0000102
+
 #define PTE_P       1
 #define PTE_W       2
 #define PTE_U       4

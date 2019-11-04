@@ -53,6 +53,8 @@ struct hal_cpu
 
 struct hal_frame
 {
+  uint64_t gsbase;
+
   uint64_t cr2;
   uint64_t cr3;
 

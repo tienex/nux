@@ -67,6 +67,17 @@ rdmsr(uint32_t ecx)
   return ((uint64_t)edx << 32) | eax;
 }
 
+void
+wrmsr(uint32_t ecx, uint64_t val)
+{
+  uint32_t edx, eax;
+
+  eax = (uint32_t)val;
+  edx = (uint32_t)(val >> 32);
+
+  asm volatile ("wrmsr\n" :: "a" (eax), "d" (edx), "c" (ecx));
+}
+
 unsigned long
 read_cr4 (void)
 {

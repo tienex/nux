@@ -19,9 +19,10 @@
 struct hal_frame *hal_entry_pf (struct hal_frame *f, unsigned long va,
 				hal_pfinfo_t info)
 {
-  printf ("CPU%d: Pagefault at %lx\n", 0x1234, va);
+  printf ("CPU%d: Pagefault at %lx\n", cpu_id(), va);
   hal_frame_print (f);
   hal_cpu_halt ();
+  return f;
 }
 
 struct hal_frame *hal_entry_xcpt (struct hal_frame *f, unsigned xcpt)

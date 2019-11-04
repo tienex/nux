@@ -86,8 +86,8 @@ _gdt:
 	.quad 0x00cf93000000ffff /* Kernel Data */
 	.quad 0x00a0fa0000000000 /* User Code */
 	.quad 0                  /* User Data */
-	.quad 0                  /* TSS 1/2 */
-	.quad 0                  /* TSS 2/2 */
+	.skip (8 * (3*MAXCPUS))  /* TSS + GS per CPU. */
+	.globl _end_gdt
 _end_gdt:
 
 	.align 64

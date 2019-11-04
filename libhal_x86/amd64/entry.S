@@ -22,11 +22,22 @@
 	push %rax
 	mov %cr2, %rax
 	push %rax
-	/* XXX: fs, gs handling */
+	/* Save GS BASE. Ehr. */
+	mov $MSR_IA32_GS_BASE, %rcx
+	rdmsr
+	shl $32, %rdx
+	or %rdx, %rax
+	push %rax
 	/* End of frame. */
 
 	mov %rsp, %rsi
 	mov $\vct, %rdi
+
+	/* Restore Kernel GS BASE unconditionally. */
+	mov $MSR_IA32_KERNEL_GS_BASE, %rcx
+	rdmsr
+	mov $MSR_IA32_GS_BASE, %rcx
+	wrmsr
 
 	.if \vct == 2
 	call _C_LABEL(do_nmi)

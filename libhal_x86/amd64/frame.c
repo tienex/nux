@@ -137,7 +137,8 @@ hal_frame_print (struct hal_frame *f)
 	  f->r8, f->r9, f->r10, f->r11);
   hallog ("R12: %016lx R13: %016lx\nR14: %016lx R15: %016lx",
 	  f->r12, f->r13, f->r14, f->r15);
-  hallog (" CS: %04x     EIP: %016lx EFL: %016lx",
+  hallog ("GSBASE: %016lx\n", f->gsbase);
+  hallog (" CS: %04x     RIP: %016lx RFL: %016lx",
 	  (int) f->cs, f->rip, f->rflags);
   hallog (" SS: %04x     RSP: %016lx",
 	  (int) f->ss, f->rsp);
