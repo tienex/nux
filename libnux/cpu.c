@@ -25,7 +25,7 @@
 #include "internal.h"
 
 static unsigned number_cpus = 0;
-static unsigned cpu_phys_to_id[MAX_PHYSCPUS] = { -1, };
+static unsigned cpu_phys_to_id[HAL_MAXCPUS] = { -1, };
 static struct cpu_info *cpus[MAX_CPUS] = { 0, };
 
 static cpumask_t tlbmap = 0;
@@ -39,7 +39,7 @@ cpu_idfromphys (unsigned physid)
 {
   unsigned id;
 
-  assert (physid < MAX_PHYSCPUS);
+  assert (physid < HAL_MAXCPUS);
   id = cpu_phys_to_id[physid];
   assert (id < MAX_CPUS);
   return id;
@@ -68,7 +68,7 @@ cpu_add (uint16_t physid)
   int id;
   struct cpu_info *cpuinfo;
 
-  if (physid >= MAX_PHYSCPUS)
+  if (physid >= HAL_MAXCPUS)
     {
       warn ("CPU Phys ID %02x too big. Skipping.", physid);
       return -1;
@@ -182,6 +182,9 @@ cpu_startall (void)
       paddr_t start;
 
       if (pcpu == plt_pcpu_id ())
+	continue;
+
+      if (pcpu >= HAL_MAXCPUS)
 	continue;
 
       info ("Starting CPU %d", cpu_idfromphys (pcpu));

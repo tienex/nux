@@ -195,7 +195,7 @@ void
 lapic_init (uint64_t base, unsigned no)
 {
   lapic_base = kva_physmap (1, base, LAPIC_SIZE, HAL_PTE_P|HAL_PTE_W); /* XXX: trusting MTRR on caching. */
-  lapics_no = no;
+  lapics_no = no < MAXCPUS ? no : MAXCPUS;
   debug ("LAPIC PA: %08llx VA: %p", base, lapic_base);
 }
 
