@@ -112,7 +112,7 @@ void
 do_cleanboot (void)
 {
   int i;
-  pte_t *ptep;
+  l2e_t *ptep;
 
   printf ("cleaning");
   /* Unmap L2s */
