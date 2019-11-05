@@ -393,3 +393,10 @@ x86_init (void)
 
 
 }
+
+void
+hal_init_done (void)
+{
+  /* Remove 1:1 mapping left by APXH. */
+  do_cleanboot ();
+}

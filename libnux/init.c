@@ -105,6 +105,9 @@ _nux_sysinit (void)
 
   /* Start all CPUs. */
   cpu_startall ();
+
+  /* Signal HAL that we're done initialising. */
+  hal_init_done ();
 }
 
 void

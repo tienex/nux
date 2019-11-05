@@ -32,6 +32,8 @@
 #define PTE_AVAIL1 (2 << 9)
 #define PTE_AVAIL2 (4 << 9)
 
+#define l1epfn(_l1e) (((_l1e) &   0x7ffffffffffff000ULL) >> PAGE_SHIFT)
+#define l1eflags(_l1e) ((_l1e) & 0x8000000000000fffULL)
 
 #ifndef _ASSEMBLER
 
@@ -55,6 +57,8 @@ int vga_putchar (int c);
 
 uint64_t rdmsr (uint32_t ecx);
 void wrmsr (uint32_t ecx, uint64_t val);
+
+void do_cleanboot (void);
 
 #endif
 

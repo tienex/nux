@@ -20,9 +20,6 @@
 
 uint64_t pte_nx = 0;
 
-#define l1epfn(_l1e) (((_l1e) &   0x7ffffffffffff000ULL) >> PAGE_SHIFT)
-#define l1eflags(_l1e) ((_l1e) & 0x8000000000000fffULL)
-
 bool
 hal_pmap_getl1p (struct hal_pmap *pmap, unsigned long va, bool alloc,
 			   hal_l1p_t *l1popq)

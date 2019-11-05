@@ -390,6 +390,11 @@ void hal_main_ap (void);
  */
 
 /*
+  Boot-time is over.
+*/
+void hal_init_done (void);
+
+/*
   Boot-time put character to screen. 
  */
 int hal_putchar (int c);
