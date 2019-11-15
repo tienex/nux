@@ -32,6 +32,7 @@
 	.text
 	.globl _start
 _start:
+	mov %rsi, %cr3
 	movabs $_stacktop, %rsp
 
 	movabs $_gdtr, %rax
@@ -208,7 +209,7 @@ apsetup: /* edi: ESP low 32, esi: ESP hi 32 */
 	mov %edi, %esp
 	shl $32, %rsi
 	or %rsi, %rsp
-	call _C_LABEL(hal_main_ap)
+	call _C_LABEL(amd64_init_ap)
 1:	hlt
 	jmp 1b	
 

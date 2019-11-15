@@ -14,6 +14,7 @@
 
 #include "project.h"
 
+#include "x86.h"
 #include "multiboot.h"
 
 /*
@@ -135,6 +136,8 @@ get_page (void)
 
   brk = m + PAGE_SIZE;
 
+  memset ((void *)m, 0, PAGE_SIZE);
+
   return m;
 }
 
@@ -185,5 +188,139 @@ md_verify(vaddr_t va, size64_t size)
     {
       printf ("ELF would overwrite memory map");
       exit(-1);
+    }
+}
+
+static uint64_t pae64_gdt[3] __attribute__((aligned(64))) = {
+  0,
+  0x00a09a0000000000LL,
+};
+
+static struct gdtreg {
+  uint16_t size;
+  uint32_t base;
+} __attribute__((aligned(64))) __packed gdtreg = {
+  .size = 15,
+  .base = (uint32_t)((uintptr_t)&pae64_gdt & 0xffffffff),
+  
+};
+
+void mb_amd64_entry (vaddr_t pt, vaddr_t entry)
+{
+  void *trampcr3;
+  void *tramp;
+  uint16_t tramp_code = 0xe7ff; /* jmp *%rdi */
+  unsigned long cr0, cr3, cr4;
+  uint64_t efer;
+  vaddr_t tramp_entry;
+
+  /* Allocate trampoline pagetable. */
+  trampcr3 = (void *)get_page ();
+
+  /* Setup trampoline. */
+  tramp = (void *)get_page ();
+  *(uint16_t *)tramp = tramp_code;
+  tramp_entry = (vaddr_t)(uintptr_t)tramp;
+
+  printf ("tramp is %lx (%x)\n", tramp, *(uint64_t *)tramp);
+
+  /* Setup Direct map at 0->1Gb */
+  pae64_directmap (trampcr3, 0, 1L << 30, 0, 1);
+
+  /* Map Entry page in transitional pagetable VA. */
+  pae64_map_page (trampcr3, (vaddr_t)entry, pae64_getphys(entry), 0, 0, 1);
+  printf ("mapping in %lx %llx at %lx\n", trampcr3, entry, pae64_getphys(entry));
+
+  cr4 = read_cr4();
+  write_cr4 (cr4 | CR4_PAE);
+  printf("CR4: %08lx -> %08lx.\n", cr4, read_cr4());
+
+  cr3 = read_cr3();
+  write_cr3 ((unsigned long)trampcr3);
+  printf("CR3: %08lx -> %08lx.\n", cr3, read_cr3());
+
+  efer = rdmsr(MSR_IA32_EFER);
+  wrmsr(MSR_IA32_EFER, efer | _MSR_IA32_EFER_LME);
+  printf("EFER: %016llx -> %016llx.\n", efer, rdmsr(MSR_IA32_EFER));
+
+  cr0 = read_cr0();
+  write_cr0 (cr0 | CR0_PG | CR0_WP);
+  printf("CR0: %08lx -> %08lx.\n", cr0, read_cr0());
+
+  lgdt ((uintptr_t)&gdtreg);
+
+  asm volatile
+    ("ljmp $8,$1f\n"
+     ".code64\n"
+     "1:\n"
+     "mov %0, %%rax\n"
+     "mov %1, %%rdi\n"
+     "mov %2, %%rsi\n"
+     "jmp *%%rax\n"
+     ".code32"
+     :: "m"(tramp_entry), "m"(entry), "m"(pt));
+
+  exit (-1);
+}
+
+void mb_386_entry (vaddr_t pt, vaddr_t entry)
+{
+  void *trampcr3;
+  void *tramp;
+  vaddr_t tramp_entry;
+  uint16_t tramp_code = 0xe7ff; /* jmp *%edi */
+  unsigned long cr4 = read_cr4();
+  unsigned long cr3 = read_cr3();
+  unsigned long cr0 = read_cr0();
+
+  /* Allocate trampoline pagetable. */
+  trampcr3 = (void *)get_page ();
+
+  /* Setup trampoline. */
+  tramp = (void *)get_page ();
+  *(uint16_t *)tramp = tramp_code;
+  tramp_entry = (vaddr_t)(uintptr_t)tramp;
+
+  printf ("tramp is %lx (%x)\n", tramp, *(uint64_t *)tramp);
+
+  /* Setup Direct map at 0->1Gb */
+  pae_directmap (trampcr3, 0, 1L << 30, 0, 1);
+
+  /* Map Entry page in transitional pagetable VA. */
+  pae_map_page (trampcr3, (vaddr_t)entry, pae_getphys(entry), 0, 0, 1);
+  printf ("mapping in %lx %llx at %lx\n", trampcr3, entry, pae_getphys(entry));
+
+  write_cr4 (cr4 | CR4_PAE);
+  printf("CR4: %08lx -> %08lx.\n", cr4, read_cr4());
+
+  write_cr3 ((unsigned long)trampcr3);
+  printf("CR3: %08lx -> %08lx.\n", cr3, read_cr3());
+
+  write_cr0 (cr0 | CR0_PG | CR0_WP);
+  printf("CR0: %08lx -> %08lx.\n", cr0, read_cr0());
+
+  asm volatile   
+    ("mov %0, %%eax\n"
+     "mov %1, %%edi\n"
+     "mov %2, %%esi\n"
+     "jmp *%%eax\n"
+     :: "m"(tramp_entry), "m"(entry), "m"(pt));
+}
+
+void
+md_entry(arch_t arch, vaddr_t pt, vaddr_t entry)
+{
+  switch (arch)
+    {
+    case ARCH_386:
+      mb_386_entry (pt, entry);
+      break;
+    case ARCH_AMD64:
+      mb_amd64_entry (pt, entry);
+      break;
+    default:
+      printf ("Architecture not supported by multiboot!\n");
+      exit(-1);
+      break;
     }
 }

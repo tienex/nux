@@ -5,6 +5,7 @@
 	.text
 	.globl _start
 _start:
+	mov %esi, %cr3
 	movl $stacktop, %esp
 
 	/* Clear flags (cld and cli) */
@@ -303,7 +304,7 @@ apsetup: /* edi: ESP */
 1:
 	/* Setup stack */
 	mov %edi, %esp
-	call _C_LABEL(hal_main_ap)
+	call _C_LABEL(i386_init_ap)
 1:	hlt
 	jmp 1b
 

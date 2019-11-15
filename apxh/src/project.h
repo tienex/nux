@@ -70,6 +70,7 @@ uint64_t md_acpi_rsdp (void);
 unsigned md_memregions (void);
 struct bootinfo_region *md_getmemregion (unsigned i);
 void md_verify(vaddr_t va, size64_t size);
+void md_entry(arch_t arch, vaddr_t pt, vaddr_t entry);
 
 void * payload_get (unsigned i, size_t *size);
 
@@ -106,6 +107,10 @@ void pae_ptalloc (vaddr_t va, size64_t size);
 void pae_linear (vaddr_t va, size64_t size);
 void pae_entry (vaddr_t entry);
 
+/* Internal PAE functions. */
+void pae_directmap (void *pt, vaddr_t va, size64_t size, int payload, int x);
+void pae_map_page (void *pt, vaddr_t va, uintptr_t pa, int payload, int w, int x);
+
 void pae64_init (void);
 uintptr_t pae64_getphys (vaddr_t va);
 void pae64_verify (vaddr_t va, size64_t size);
@@ -114,6 +119,10 @@ void pae64_physmap (vaddr_t va, size64_t size);
 void pae64_ptalloc (vaddr_t va, size64_t size);
 void pae64_linear (vaddr_t va, size64_t size);
 void pae64_entry (vaddr_t entry);
+
+/* Internal PAE64 functions. */
+void pae64_directmap (void *pt, vaddr_t va, size64_t size, int payload, int x);
+void pae64_map_page (void *pt, vaddr_t va, uintptr_t pa, int payload, int w, int x);
 
 
 #define info(...) do { printf (__VA_ARGS__); putchar('\n'); } while (0)

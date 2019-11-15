@@ -13,87 +13,7 @@
 */
 
 #include "project.h"
-
-#define MSR_IA32_MISC_ENABLE 0x000001a0
-#define _MSR_IA32_MISC_ENABLE_XD_DISABLE (1LL << 34)
-
-#define MSR_IA32_EFER 0xc0000080
-#define _MSR_IA32_EFER_NXE (1LL << 11)
-#define _MSR_IA32_EFER_LME (1LL << 8)
-
-#define CR4_PAE (1 << 5)
-
-#define CR0_PG  (1 << 31)
-#define CR0_WP  (1 << 16)
-
-unsigned long read_cr4 (void)
-{
-  unsigned long reg;
-
-  asm volatile ("mov %%cr4, %0\n" : "=r" (reg));
-  return reg;
-}
-
-void write_cr4 (unsigned long reg)
-{
-  asm volatile ("mov %0, %%cr4\n" :: "r" (reg));
-}
-
-unsigned long read_cr3 (void)
-{
-  unsigned long reg;
-
-  asm volatile ("mov %%cr3, %0\n" : "=r" (reg));
-  return reg;
-}
-
-void write_cr3 (unsigned long reg)
-{
-  asm volatile ("mov %0, %%cr3\n" :: "r" (reg));
-}
-
-unsigned long read_cr0 (void)
-{
-  unsigned long reg;
-
-  asm volatile ("mov %%cr0, %0\n" : "=r" (reg));
-  return reg;
-}
-
-void write_cr0 (unsigned long reg)
-{
-  asm volatile ("mov %0, %%cr0\n" :: "r" (reg));
-}
-
-void cpuid(uint32_t *eax, uint32_t *ebx, uint32_t *ecx, uint32_t *edx)
-{
-  asm volatile ("cpuid\n" : "+a"(*eax), "=b"(*ebx), "+c"(*ecx), "=d"(*edx));
-}
-
-uint64_t rdmsr(uint32_t ecx)
-{
-  uint32_t edx, eax;
-
-
-  asm volatile ("rdmsr\n" : "=d"(edx), "=a" (eax) : "c" (ecx));
-
-  return ((uint64_t)edx << 32) | eax;
-}
-
-void wrmsr(uint32_t ecx, uint64_t msr)
-{
-  uint32_t edx, eax;
-
-  eax = (uint32_t)msr;
-  edx = msr >> 32;
-
-  asm volatile ("wrmsr\n" :: "c" (ecx), "d" (edx), "a" (eax));
-}
-
-void lgdt(uintptr_t ptr)
-{
-  asm volatile ("lgdtl (%0)\n" :: "r" (ptr));
-}
+#include "x86.h"
 
 bool cpu_is_intel ()
 {
@@ -286,11 +206,7 @@ pte_mergeflags (uint64_t fl1, uint64_t fl2)
 void
 pae_verify (vaddr_t va, size64_t size)
 {
-  if (va < PAE_DIRECTMAP_END)
-    {
-      printf ("ELF would overwrite direct physical map");
-      exit (-1);
-    }
+  /* Nothing to check. */
 }
 
 void pae_init (void)
@@ -314,13 +230,57 @@ void pae_init (void)
       l2s[i] = (pte_t *)l2page;
     }
 
-  /* Setup Direct map  at 0->1Gb */
-  for (i = 0; i < 512; i++)
-      set_pte (l2s[0] + i, i, PTE_PS|PTE_W|PTE_P);
-
   printf ("Using PAE paging (CR3: %08lx, NX: %d).\n", pae_cr3, nx_enabled);
 }
 
+static pte_t *
+pae_get_l2p (pte_t *cr3, vaddr_t va, int payload)
+{
+  pte_t *l3p, *l2p;
+  unsigned l3off = L3OFF(va);
+  unsigned l2off = L2OFF(va);
+
+  l3p = cr3 + l3off;
+
+  l2p = (pte_t *)pte_getaddr(l3p);
+  if (l2p == NULL)
+    {
+      uintptr_t l2page;
+
+      /* Populating L2. */
+      l2page = payload ? get_payload_page () : get_page ();
+
+      set_pte (l3p, l2page >> PAGE_SHIFT, PTE_P);
+      l2p = (pte_t *)l2page;
+    }
+
+  return l2p + l2off;
+}
+
+static pte_t *
+pae_get_l1p (pte_t *cr3, vaddr_t va, int payload)
+{
+  pte_t *l2p, *l1p;
+  unsigned l1off = L1OFF(va);
+
+  l2p = pae_get_l2p (cr3, va, payload);
+
+  l1p = (pte_t *)pte_getaddr(l2p);
+  if (l1p == NULL)
+    {
+      uintptr_t l1page;
+
+      /* Populating L1. */
+      l1page = payload ? get_payload_page () : get_page ();
+
+      set_pte (l2p, l1page >> PAGE_SHIFT, PTE_W|PTE_P);
+      l1p = (pte_t *)l1page;
+    }
+
+  return l1p + l1off;
+}
+
+#if 0
 static pte_t *
 pae_get_l1p (vaddr_t va)
 {
@@ -341,10 +301,28 @@ pae_get_l1p (vaddr_t va)
 
       set_pte(l2p, l1page >> PAGE_SHIFT, PTE_W|PTE_P);
       l1 = (pte_t *)l1page;
-      //      printf("populated l1 with %lx\n", l1);
     }
 
   return l1 + l1off;
+}
+#endif
+
+void
+pae_map_page (void *pt, vaddr_t va, uintptr_t pa, int payload, int w, int x)
+{
+  pte_t *l1p, *cr3;
+  uint64_t l1f;
+  uintptr_t page;
+
+  cr3 = (pte_t *)pt;
+
+  l1p = pae_get_l1p (cr3, va, payload);
+  l1f = (w ? PTE_W : 0) | (x ? 0 : PTE_NX) | PTE_P;
+
+  page = (uintptr_t)pte_getaddr (l1p);
+  assert (page == 0);
+  page = pa >> PAGE_SHIFT;
+  set_pte(l1p, page, l1f);
 }
 
 static uintptr_t
@@ -354,7 +332,7 @@ pae_populate_page (vaddr_t va, int w, int x)
   uint64_t l1f;
   uintptr_t page;
 
-  l1p = pae_get_l1p (va);
+  l1p = pae_get_l1p (pae_cr3, va, 1);
 
   l1f = (w ? PTE_W : 0) | (x ? 0 : PTE_NX) | PTE_P;
 
@@ -389,7 +367,7 @@ pae_getphys(vaddr_t va)
   unsigned l2off = L2OFF(va);
   unsigned l1off = L1OFF(va);
 
-   l2e = l2s[l3off] + l2off;
+  l2e = l2s[l3off] + l2off;
 
   l1 = (pte_t *)pte_getaddr(l2e);
   assert (l1 != NULL);
@@ -402,7 +380,7 @@ pae_getphys(vaddr_t va)
   return page | (va & ~(PAGE_MASK));
 }
 
-void pae_physmap (vaddr_t va, size64_t size)
+void pae_directmap (void *pt, vaddr_t va, size64_t size, int payload, int x)
 {
   unsigned i, n;
   pte_t *pte;
@@ -411,10 +389,14 @@ void pae_physmap (vaddr_t va, size64_t size)
 
   for (i = 0; i < n; i++)
     {
-      pte = pae_get_l1p (va + (i << PAGE_SHIFT));
-      set_pte (pte, i, PTE_P|PTE_W|PTE_NX);
+      pte = pae_get_l1p (pt, va + (i << PAGE_SHIFT), payload);
+      set_pte (pte, i, PTE_P | PTE_W | (x ? 0 : PTE_NX));
     }
-  
+}
+
+void pae_physmap (vaddr_t va, size64_t size)
+{
+  pae_directmap (pae_cr3, va, size, 1, 0);
 }
 
 void pae_ptalloc (vaddr_t va, size64_t size)
@@ -424,7 +406,7 @@ void pae_ptalloc (vaddr_t va, size64_t size)
   n = size >> PAGE_SHIFT;
 
   for (i = 0; i < n; i++)
-    (void)pae_get_l1p (va + (i << PAGE_SHIFT));
+    (void)pae_get_l1p (pae_cr3, va + (i << PAGE_SHIFT), 1);
 }
 
 #define PAE_LINEAR_SHIFT (PAGE_SHIFT + 9 + 2)
@@ -469,23 +451,9 @@ void pae_populate (vaddr_t va, size64_t size, int w, int x)
     }
 }
 
-
 void pae_entry (vaddr_t entry)
 {
-  unsigned long cr4 = read_cr4();
-  unsigned long cr3 = read_cr3();
-  unsigned long cr0 = read_cr0();
-
-  write_cr4 (cr4 | CR4_PAE);
-  printf("CR4: %08lx -> %08lx.\n", cr4, read_cr4());
-
-  write_cr3 ((unsigned long)pae_cr3);
-  printf("CR3: %08lx -> %08lx.\n", cr3, read_cr3());
-
-  write_cr0 (cr0 | CR0_PG | CR0_WP);
-  printf("CR0: %08lx -> %08lx.\n", cr0, read_cr0());
-
-  ((void (*)())(uintptr_t)entry)();
+  md_entry (ARCH_386, (vaddr_t)(uintptr_t)pae_cr3, entry);
 }
 
 
@@ -504,13 +472,13 @@ void pae_entry (vaddr_t entry)
 static pte_t *pae64_cr3;
 
 static pte_t *
-pae64_get_l3p (vaddr_t va)
+pae64_get_l3p (pte_t *cr3, vaddr_t va, int payload)
 {
   pte_t *l4p, *l3p;
   unsigned l4off = L4OFF64(va);
   unsigned l3off = L3OFF64(va);
 
-  l4p = pae64_cr3 + l4off;
+  l4p = cr3 + l4off;
 
   l3p = (pte_t *)pte_getaddr(l4p);
   if (l3p == NULL)
@@ -518,7 +486,7 @@ pae64_get_l3p (vaddr_t va)
       uintptr_t l3page;
 
       /* Populating L3. */
-      l3page = get_payload_page ();
+      l3page = payload ? get_payload_page () : get_page ();
 
       set_pte (l4p, l3page >> PAGE_SHIFT, PTE_W|PTE_P);
       l3p = (pte_t *)l3page;
@@ -528,13 +496,13 @@ pae64_get_l3p (vaddr_t va)
 }
 
 static pte_t *
-pae64_get_l2p (vaddr_t va)
+pae64_get_l2p (pte_t *cr3, vaddr_t va, int payload)
 {
   pte_t *l3p, *l2p;
 
   unsigned l2off = L2OFF64(va);
 
-  l3p = pae64_get_l3p (va);
+  l3p = pae64_get_l3p (cr3, va, payload);
 
   l2p = (pte_t *)pte_getaddr(l3p);
   if (l2p == NULL)
@@ -542,7 +510,7 @@ pae64_get_l2p (vaddr_t va)
       uintptr_t l2page;
 
       /* Populating L2. */
-      l2page = get_payload_page ();
+      l2page = payload ? get_payload_page () : get_page ();
 
       set_pte (l3p, l2page >> PAGE_SHIFT, PTE_W|PTE_P);
       l2p = (pte_t *)l2page;
@@ -552,12 +520,12 @@ pae64_get_l2p (vaddr_t va)
 }
 
 static pte_t *
-pae64_get_l1p (vaddr_t va)
+pae64_get_l1p (pte_t *cr3, vaddr_t va, int payload)
 {
   pte_t *l2p, *l1p;
   unsigned l1off = L1OFF64(va);
 
-  l2p = pae64_get_l2p (va);
+  l2p = pae64_get_l2p (cr3, va, payload);
 
   l1p = (pte_t *)pte_getaddr(l2p);
   if (l1p == NULL)
@@ -565,7 +533,7 @@ pae64_get_l1p (vaddr_t va)
       uintptr_t l1page;
 
       /* Populating L1. */
-      l1page = get_payload_page ();
+      l1page = payload ? get_payload_page () : get_page ();
 
       set_pte (l2p, l1page >> PAGE_SHIFT, PTE_W|PTE_P);
       l1p = (pte_t *)l1page;
@@ -577,57 +545,54 @@ pae64_get_l1p (vaddr_t va)
 void
 pae64_verify (vaddr_t va, size64_t size)
 {
-  if (va < PAE64_DIRECTMAP_END)
-    {
-      printf ("ELF would overwrite direct physical map");
-      exit (-1);
-    }
+  /* Nothing to check. */
 }
 
 void pae64_init (void)
 {
-  pte_t *l3p;
-
   assert (cpu_supports_longmode ());
 
   nx_enabled = cpu_supports_nx ();
 
   pae64_cr3 = (pte_t *)get_payload_page ();
 
-
-  /* Setup Direct map at 0->1Gb */
-  l3p = pae64_get_l3p (0);
-  if (cpu_supports_1gbpages ())
-    {
-      set_pte (l3p, 0, PTE_PS|PTE_W|PTE_P);
-    }
-  else
-    {
-      int i;
-      pte_t *l2page = (pte_t *)get_payload_page ();
-
-      for (i = 0; i < 512; i++)
-	  set_pte(l2page + i, i, PTE_PS|PTE_W|PTE_P);
-      set_pte (l3p, (uintptr_t)l2page >> PAGE_SHIFT, PTE_P|PTE_W);
-    }
-
   printf ("Using PAE64 paging (CR3: %08lx, NX: %d).\n", pae64_cr3, nx_enabled);
 }
 
+void
+pae64_map_page (void *pt, vaddr_t va, uintptr_t pa, int payload, int w, int x)
+{
+  pte_t *l1p, *cr3;
+  uint64_t l1f;
+  uintptr_t page;
+
+  cr3 = (pte_t *)pt;
+
+  printf ("Mapping at va %llx PA %lx (p:%d, w:%d, x:%d)\n", va, pa, payload, w, x);
+
+  l1p = pae64_get_l1p (cr3, va, payload);
+  l1f = (w ? PTE_W : 0) | (x ? 0 : PTE_NX) | PTE_P;
+
+  page = (uintptr_t)pte_getaddr (l1p);
+  assert (page == 0);
+  page = pa >> PAGE_SHIFT;
+  set_pte(l1p, page, l1f);
+}
+
 static uintptr_t
-pae64_populate_page (vaddr_t va, int w, int x)
+pae64_populate_page (pte_t *cr3, vaddr_t va, int w, int x, int payload)
 {
   pte_t *l1p;
   uint64_t l1f;
   uintptr_t page;
 
-  l1p = pae64_get_l1p (va);
+  l1p = pae64_get_l1p (cr3, va, payload);
   l1f = (w ? PTE_W : 0) | (x ? 0 : PTE_NX) | PTE_P;
 
   page = (uintptr_t)pte_getaddr (l1p);
   if (page == 0)
     {
-      page = get_payload_page ();
+      page = payload ? get_payload_page () : get_page ();
       set_pte(l1p, page >> PAGE_SHIFT, l1f);
     } 
   else
@@ -676,12 +641,12 @@ pae64_getphys(vaddr_t va)
   return page |= (va & ~(PAGE_MASK));
 }
 
-void pae64_physmap (vaddr_t va, size64_t size)
+void pae64_directmap (void *pt, vaddr_t va, size64_t size, int payload, int x)
 {
   ssize64_t len;
   uint64_t pa;
+  pte_t *cr3 = (pte_t *)pt;
   int p1g = cpu_supports_1gbpages ();
-
   unsigned long l3cnt = 0, l2cnt = 0, l1cnt = 0;
 
 #define GB1ALIGNED(_a) (((_a) & ((1L << 30) - 1)) == 0)
@@ -698,14 +663,14 @@ void pae64_physmap (vaddr_t va, size64_t size)
   /* Signed to unsigned: no one will ask us a 1<<64 bytes physmap. */
   len = (ssize64_t)size; 
   pa = 0;
-  printf("len = %llx, size = %llx\n", len, size);
+
   while (len > 0) {
 
     if (p1g && GB1ALIGNED(pa) && GB1ALIGNED(va) && len >= (1L << 30))
       {
-	pte_t *l3p = pae64_get_l3p (va);
+	pte_t *l3p = pae64_get_l3p (cr3, va, payload);
 
-	set_pte (l3p, pa >> PAGE_SHIFT, PTE_PS|PTE_W|PTE_P);
+	set_pte (l3p, pa >> PAGE_SHIFT, PTE_PS|PTE_W|PTE_P| (x ? 0 : PTE_NX));
 	va += (1L << 30);
 	pa += (1L << 30);
 	len -= (1L << 30);
@@ -713,9 +678,9 @@ void pae64_physmap (vaddr_t va, size64_t size)
       }
     else if (MB2ALIGNED(pa) && MB2ALIGNED(va) && len >= (1 << 21))
       {
-	pte_t *l2p = pae64_get_l2p (va);
+	pte_t *l2p = pae64_get_l2p (cr3, va, payload);
 
-	set_pte (l2p, pa >> PAGE_SHIFT, PTE_PS|PTE_W|PTE_P);
+	set_pte (l2p, pa >> PAGE_SHIFT, PTE_PS|PTE_W|PTE_P| (x ? 0 : PTE_NX));
 	va += (1L << 21);
 	pa += (1L << 21);
 	len -= (1L << 21);
@@ -723,18 +688,20 @@ void pae64_physmap (vaddr_t va, size64_t size)
       }
     else
       {
-	pte_t *l1p= pae64_get_l1p (va);
+	pte_t *l1p= pae64_get_l1p (cr3, va, payload);
 
-	set_pte(l1p, pa >>PAGE_SHIFT, PTE_W|PTE_P);
+	set_pte(l1p, pa >>PAGE_SHIFT, PTE_W|PTE_P| (x ? 0 : PTE_NX));
 	va += (1L << PAGE_SHIFT);
 	pa += (1L << PAGE_SHIFT);
 	len -= (1L << PAGE_SHIFT);
 	l1cnt++;
       }
   }
+}
 
-  printf ("Physmap set %ld L3Es, %d L2Es, %d L1Es\n",
-	  l3cnt, l2cnt, l1cnt);
+void pae64_physmap (vaddr_t va, size64_t size)
+{
+  pae64_directmap (pae64_cr3, va, size, 1, 0);
 }
 
 void pae64_ptalloc (vaddr_t va, size64_t size)
@@ -744,7 +711,7 @@ void pae64_ptalloc (vaddr_t va, size64_t size)
   n = size >> PAGE_SHIFT;
 
   for (i = 0; i < n; i++)
-    (void)pae64_get_l1p (va + (i << PAGE_SHIFT));
+    (void)pae64_get_l1p (pae64_cr3, va + (i << PAGE_SHIFT), 1);
 }
 
 #define PAE64_LINEAR_SHIFT (PAGE_SHIFT + 9 + 9 + 9)
@@ -756,13 +723,13 @@ void pae64_linear (vaddr_t va, size64_t size)
   unsigned l4off = L4OFF64(va);
   pte_t *l4p;
 
-  if (va & PAE_LINEAR_ALIGN) {
+  if (va & PAE64_LINEAR_ALIGN) {
     printf ("PAE Linear VA %llx not aligned (align mask: %llx).\n",
-	    va, PAE_LINEAR_ALIGN);
+	    va, PAE64_LINEAR_ALIGN);
     exit (-1);
   }
 
-  if (size < PAE_LINEAR_SIZE) {
+  if (size < PAE64_LINEAR_SIZE) {
     printf ("PAE Linear size %llx too small.\n", size);
     exit (-1);
   }
@@ -778,7 +745,7 @@ void pae64_populate (vaddr_t va, size64_t size, int w, int x)
 
   while (len > 0)
     {
-      pae64_populate_page(va, w, x);
+      pae64_populate_page(pae64_cr3, va, w, x, 1);
 
       len -= PAGE_CEILING(va) - va;
       va += PAGE_CEILING(va) - va;
@@ -786,49 +753,7 @@ void pae64_populate (vaddr_t va, size64_t size, int w, int x)
     }
 }
 
-static uint64_t pae64_gdt[3] __attribute__((aligned(64))) = {
-  0,
-  0x00a09a0000000000LL,
-};
-
-static struct gdtreg {
-  uint16_t size;
-  uint32_t base;
-} __attribute__((aligned(64))) __packed gdtreg = {
-  .size = 15,
-  .base = (uint32_t)&pae64_gdt,
-  
-};
-
 void pae64_entry (vaddr_t entry)
 {
-  unsigned long cr4 = read_cr4();
-  unsigned long cr3 = read_cr3();
-  unsigned long cr0 = read_cr0();
-  uint64_t efer = rdmsr(MSR_IA32_EFER);
-
-  write_cr4 (cr4 | CR4_PAE);
-  printf("CR4: %08lx -> %08lx.\n", cr4, read_cr4());
-
-  write_cr3 ((unsigned long)pae64_cr3);
-  printf("CR3: %08lx -> %08lx.\n", cr3, read_cr3());
-
-  wrmsr(MSR_IA32_EFER, efer | _MSR_IA32_EFER_LME);
-  printf("EFER: %016llx -> %016llx.\n", efer, rdmsr(MSR_IA32_EFER));
-
-  write_cr0 (cr0 | CR0_PG | CR0_WP);
-  printf("CR0: %08lx -> %08lx.\n", cr0, read_cr0());
-
-  lgdt ((uintptr_t)&gdtreg);
-
-  asm volatile
-    ("ljmp $8,$1f\n"
-     ".code64\n"
-     "1:\n"
-     "mov %0, %%rax\n"
-     "jmp *%%rax\n"
-     ".code32"
-     :: "m"(entry));
-
-  exit (-1);
+  md_entry (ARCH_AMD64, (vaddr_t)(uintptr_t)pae64_cr3, entry);
 }

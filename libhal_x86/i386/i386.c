@@ -28,6 +28,9 @@ static pfn_t pcpu_stackpfn[MAXCPUS];
 static void *pcpu_stackva[MAXCPUS];
 static int _enter_called = 0;
 
+static vaddr_t smp_oldva;
+static hal_l1e_t smp_oldl1e;
+
 uint16_t
 _i386_fs (void)
 {
@@ -85,6 +88,7 @@ uint64_t
 hal_pcpu_prepare (unsigned pcpu)
 {
   extern char *_ap_start, *_ap_end;
+  hal_l1p_t l1p;
   paddr_t pstart;
   void *start, *ptr;
   volatile uint16_t *reset;
@@ -104,11 +108,19 @@ hal_pcpu_prepare (unsigned pcpu)
   *(reset + 1) = pstart >> 4;
   kva_unmap ((void *)reset);
 
-  /* Setup AP bootstrap page */
+  /*
+    Setup AP bootstrap page
+  */
   memcpy (start, &_ap_start,
 	  (size_t) ((void *) &_ap_end - (void *) &_ap_start));
 
   asm volatile ("":::"memory");
+
+  /* The following assumes that CPUs are woke up one at the time. */
+  assert (hal_pmap_getl1p (NULL, pstart, true, &l1p));
+  smp_oldva = pstart;
+  smp_oldl1e = hal_pmap_getl1e (NULL, l1p);
+  hal_pmap_setl1e (NULL, l1p, (pstart & ~PAGE_MASK) | PTE_P | PTE_W);
 
   /*
     The following is trampoline dependent code, and configures the
@@ -162,6 +174,20 @@ unsigned
 hal_vect_max (void)
 {
   return 255;
+}
+
+void
+i386_init_ap (void)
+{
+  hal_l1p_t l1p;
+
+  /* Restore old mapping. Assumes CPUs are brought up one at the time. */
+  assert (hal_pmap_getl1p (NULL, smp_oldva, false, &l1p));
+  hal_pmap_setl1e (NULL, l1p, smp_oldl1e);
+  smp_oldl1e = 0;
+  smp_oldva = 0;
+
+  hal_main_ap ();
 }
 
 void
