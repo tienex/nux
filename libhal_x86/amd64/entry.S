@@ -1,8 +1,14 @@
 #include <machine/asm.h>
+#include <nux/hal_config_amd64.h>
 #include "../internal.h"
 
 	.altmacro
 .macro _do_entry vct
+	pushq $\vct
+	jmp _intr_frame_entry
+.endm
+
+_intr_frame_entry:
 	push %r15
 	push %r14
 	push %r13
@@ -18,20 +24,19 @@
 	push %rcx
 	push %rbx
 	push %rax
-	mov %cr3, %rax
-	push %rax
 	mov %cr2, %rax
 	push %rax
-	/* Save GS BASE. Ehr. */
+
+	/* Save GS BASE. There are better ways. */
 	mov $MSR_IA32_GS_BASE, %rcx
 	rdmsr
 	shl $32, %rdx
 	or %rdx, %rax
 	push %rax
-	/* End of frame. */
 
-	mov %rsp, %rsi
-	mov $\vct, %rdi
+	pushq $FRAMETYPE_INTR
+	
+	mov %rsp, %rdi
 
 	/* Restore Kernel GS BASE unconditionally. */
 	mov $MSR_IA32_KERNEL_GS_BASE, %rcx
@@ -39,21 +44,22 @@
 	mov $MSR_IA32_GS_BASE, %rcx
 	wrmsr
 
-	.if \vct == 2
-	call _C_LABEL(do_nmi)
-	.elseif \vct < 32
-	call _C_LABEL(do_xcpt)
-	.else
-	call _C_LABEL(do_intr)
-	.endif
+	call _C_LABEL(do_intr_entry)
+	jmp _frame_return
 
+_frame_return:
 	mov %rax, %rsp
-.endm
 
+	add $8, %rsp /* Skip frame type: interrupt frame */
 
-.macro _do_iret_exit
-	/* Skip CR3, CR2 */
-	add $16, %rsp
+	/* Restore GSBASE */
+	popq %rax
+	mov %rax, %rdx
+	shr $32, %rdx
+	mov $MSR_IA32_GS_BASE, %rcx
+	wrmsr
+
+	add $8, %rsp /* Skip CR2 */
 	popq %rax
 	popq %rbx
 	popq %rcx
@@ -69,17 +75,14 @@
 	popq %r13
 	popq %r14
 	popq %r15
-
-	/* Skip error */
-	add $8, %rsp
+	add $16, %rsp /* Skip vect, error */
 	iretq
-.endm
+
 
 .macro handler_e vct
 	.globl hdlr_&\vct
 hdlr_&\vct&:
 	_do_entry \vct
-	_do_iret_exit
 .endm
 
 .macro handler vct
@@ -87,7 +90,6 @@ hdlr_&\vct&:
 hdlr_&\vct&:
 	pushq $0
 	_do_entry \vct
-	_do_iret_exit
 .endm
 	
 

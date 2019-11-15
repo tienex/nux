@@ -22,6 +22,8 @@
 #define HAL_KVA_SHIFT 39 /* 512Gb */
 #define HAL_KVA_SIZE (1LL << HAL_KVA_SHIFT)
 
+#define FRAMETYPE_INTR 0x0
+
 #ifndef _ASSEMBLER
 
 #include <stdint.h>
@@ -53,34 +55,42 @@ struct hal_cpu
 
 struct hal_frame
 {
-  uint64_t gsbase;
+  uint64_t type;
+  union
+  {
+    struct amd64_intr_frame
+    {
+      uint64_t gsbase;
 
-  uint64_t cr2;
-  uint64_t cr3;
+      uint64_t cr2;
 
-  uint64_t rax;
-  uint64_t rbx;
-  uint64_t rcx;
-  uint64_t rdx;
-  uint64_t rbp;
-  uint64_t rsi;
-  uint64_t rdi;
-  uint64_t r8;
-  uint64_t r9;
-  uint64_t r10;
-  uint64_t r11;
-  uint64_t r12;
-  uint64_t r13;
-  uint64_t r14;
-  uint64_t r15;
+      uint64_t rax;
+      uint64_t rbx;
+      uint64_t rcx;
+      uint64_t rdx;
+      uint64_t rbp;
+      uint64_t rsi;
+      uint64_t rdi;
+      uint64_t r8;
+      uint64_t r9;
+      uint64_t r10;
+      uint64_t r11;
+      uint64_t r12;
+      uint64_t r13;
+      uint64_t r14;
+      uint64_t r15;
+
+      uint64_t vect;
   
-  /* exception stack */
-  uint64_t err;
-  uint64_t rip;
-  uint64_t cs;
-  uint64_t rflags;
-  uint64_t rsp;
-  uint64_t ss;
+      /* exception stack */
+      uint64_t err;
+      uint64_t rip;
+      uint64_t cs;
+      uint64_t rflags;
+      uint64_t rsp;
+      uint64_t ss;
+    } intr;
+  };
 };
 
 #endif

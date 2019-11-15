@@ -21,7 +21,7 @@
 #include "../internal.h"
 
 struct hal_frame *
-do_nmi (uint32_t vect, struct hal_frame *f)
+do_nmi (struct hal_frame *f)
 {
   return hal_entry_nmi (f);
 }
@@ -37,7 +37,7 @@ do_xcpt (uint64_t vect, struct hal_frame *f)
 
       /* Page Fault. */
 
-      if (f->err & 1)
+      if (f->intr.err & 1)
 	{
 	  xcpterr = HAL_PF_REASON_PROT;
 	}
@@ -46,13 +46,13 @@ do_xcpt (uint64_t vect, struct hal_frame *f)
 	  xcpterr = HAL_PF_REASON_NOTP;
 	}
 
-      if (f->err & 2)
+      if (f->intr.err & 2)
 	xcpterr |= HAL_PF_INFO_WRITE;
 
-      if (f->err & 4)
+      if (f->intr.err & 4)
 	xcpterr |= HAL_PF_INFO_USER;
 
-      rf = hal_entry_pf (f, f->cr2, xcpterr);
+      rf = hal_entry_pf (f, f->intr.cr2, xcpterr);
     }
   else
     {
@@ -63,60 +63,87 @@ do_xcpt (uint64_t vect, struct hal_frame *f)
 }
 
 struct hal_frame *
-do_intr (uint32_t vect, struct hal_frame *f)
+do_intr (uint64_t vect, struct hal_frame *f)
 {
-
   return hal_entry_vect (f, vect);
+}
+
+struct hal_frame *
+do_intr_entry (struct hal_frame *f)
+{
+  uint64_t vect;
+  struct hal_frame *rf;
+
+  assert (f->type == FRAMETYPE_INTR);
+
+  vect = f->intr.vect;
+
+  if (vect > 32)
+    rf = do_intr (vect, f);
+  else if (vect == 2)
+    rf = do_nmi (f);
+  else
+    rf = do_xcpt (vect, f);
+
+  return rf;
 }
 
 void
 hal_frame_init (struct hal_frame *f)
 {
   memset (f, 0, sizeof (*f));
-  f->rflags = 0x202;
-  f->ss = UDS;
+  f->type = FRAMETYPE_INTR;
+  f->intr.rflags = 0x202;
+  f->intr.ss = UDS;
 }
 
 bool
 hal_frame_isuser (struct hal_frame *f)
 {
-  return f->cs == UCS;
+  assert (f->type == FRAMETYPE_INTR);
+  return f->intr.cs == UCS;
 }
 
 void
 hal_frame_setip (struct hal_frame *f, unsigned long ip)
 {
-  f->rip = ip;
+  assert (f->type == FRAMETYPE_INTR);
+  f->intr.rip = ip;
 }
 
 void
 hal_frame_setsp (struct hal_frame *f, vaddr_t sp)
 {
-  f->rsp = sp;
+  assert (f->type == FRAMETYPE_INTR);
+  f->intr.rsp = sp;
 }
 
 void
 hal_frame_seta0 (struct hal_frame *f, unsigned long a0)
 {
-  f->rdi = a0;
+  assert (f->type == FRAMETYPE_INTR);
+  f->intr.rdi = a0;
 }
 
 void
 hal_frame_seta1 (struct hal_frame *f, unsigned long a1)
 {
-  f->rsi = a1;
+  assert (f->type == FRAMETYPE_INTR);
+  f->intr.rsi = a1;
 }
 
 void
 hal_frame_seta2 (struct hal_frame *f, unsigned long a2)
 {
-  f->rdx = a2;
+  assert (f->type == FRAMETYPE_INTR);
+  f->intr.rdx = a2;
 }
 
 void
 hal_frame_setret (struct hal_frame *f, unsigned long r)
 {
-  f->rax = r;
+  assert (f->type == FRAMETYPE_INTR);
+  f->intr.rax = r;
 }
 
 bool
@@ -129,18 +156,21 @@ hal_frame_signal (struct hal_frame *f, unsigned long ip, unsigned long arg)
 void
 hal_frame_print (struct hal_frame *f)
 {
+  assert (f->type == FRAMETYPE_INTR);
+
   hallog ("RAX: %016lx RBX: %016lx\nRCX: %016lx RDX: %016lx",
-	  f->rax, f->rbx, f->rcx, f->rdx);
+	  f->intr.rax, f->intr.rbx, f->intr.rcx, f->intr.rdx);
   hallog ("RDI: %016lx RSI: %016lx\nRBP: %016lx RSP: %016lx",
-	  f->rdi, f->rsi, f->rbp, f->rsp);
+	  f->intr.rdi, f->intr.rsi, f->intr.rbp, f->intr.rsp);
   hallog ("R8 : %016lx R9 : %016lx\nR10: %016lx R11: %016lx",
-	  f->r8, f->r9, f->r10, f->r11);
+	  f->intr.r8, f->intr.r9, f->intr.r10, f->intr.r11);
   hallog ("R12: %016lx R13: %016lx\nR14: %016lx R15: %016lx",
-	  f->r12, f->r13, f->r14, f->r15);
-  hallog ("GSBASE: %016lx\n", f->gsbase);
+	  f->intr.r12, f->intr.r13, f->intr.r14, f->intr.r15);
+  hallog ("GSBASE: %016lx\n", f->intr.gsbase);
   hallog (" CS: %04x     RIP: %016lx RFL: %016lx",
-	  (int) f->cs, f->rip, f->rflags);
+	  (int) f->intr.cs, f->intr.rip, f->intr.rflags);
   hallog (" SS: %04x     RSP: %016lx",
-	  (int) f->ss, f->rsp);
-  hallog ("CR3: %016lx CR2: %016lx err: %08lx", f->cr3, f->cr2, f->err);
+	  (int) f->intr.ss, f->intr.rsp);
+  hallog ("CR2: %016lx err: %08lx",
+	  f->intr.cr2, f->intr.err);
 }
