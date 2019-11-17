@@ -6,7 +6,7 @@ AC_DEFUN([AC_MK_DIR],
 
 AC_DEFUN([AC_MK_CONFIG_FILE],
 [
-	AC_CONFIG_FILES([$1:mk/top.mk:$1.in:mk/bottom.mk])
+	AC_CONFIG_FILES([$1:${mk_dir}/top.mk:$1.in:${mk_dir}/bottom.mk])
 ])
 
 AC_DEFUN([AC_MK_CONFIG_FILES],

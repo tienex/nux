@@ -6,10 +6,11 @@
 
 .PHONY: all install clean
 CC=@CC@
+CCLD=@CC@
 LD=@LD@
 AR=@AR@
 OBJDIR=.build/@MACHINE@
-SRCROOT=@top_srcdir@
+SRCROOT=@top_srcdir@/
 MKDIR=$(SRCROOT)/@mk_dir@
 INSTALLDIR=@INSTALLDIR@
 CFLAGS+=@CONFIGURE_FLAGS@

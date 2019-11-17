@@ -11,6 +11,8 @@ SRCS+= ec.c mb.c rsdp.c
 CC=i686-elf-gcc
 
 EC_MACHINE=i386
+
+@COMPILE_LIBEC@
 @LINK_LIBEC@
 
 ALL_TARGET+= crt0.o

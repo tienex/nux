@@ -1,1 +1,1 @@
-SUBDIRS= multiboot
+SUBDIRS= @APXH_SUBDIRS@

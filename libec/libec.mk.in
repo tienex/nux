@@ -27,8 +27,6 @@ EC_ARCH_SRCS=  amd64/_setjmp.S amd64/ffs.S amd64/fls.S \
 		amd64/memset.S amd64/strlen.S amd64/strncmp.S
 endif
 
-include $(EC_DIR)/libec-compile.mk
-
 EC_SRCS = 	crt0-common.c \
 		printf.c \
 		rb.c \

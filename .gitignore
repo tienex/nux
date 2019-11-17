@@ -8,9 +8,10 @@
 Makefile
 apxh/multiboot/apxh
 
+libec.mk
+libec-compile.mk
+
 libhal_x86/hal.mk
-libec/libec.mk
-libec/libec-compile.mk
 libnux/libnux.mk
 libnux/libnux-compile.mk
 
