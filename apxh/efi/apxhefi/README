@@ -1,0 +1,9 @@
+This directory builds a single object that contains
+the whole APXH linked against libec.
+
+This object export apxh_main, which is called by the
+main EFI application.
+
+This allows APXH to still be compiled by the embedded
+libc, and run in the EFI runtime as independently as
+possible.

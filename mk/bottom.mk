@@ -21,6 +21,10 @@ ifneq (z$(LIBRARY),z)
 include $(MKDIR)/lib.mk
 endif
 
+ifneq (z$(FATOBJ),z)
+include $(MKDIR)/fatobj.mk
+endif
+
 ifneq (z$(PROGRAM),z)
 include $(MKDIR)/exe.mk
 endif

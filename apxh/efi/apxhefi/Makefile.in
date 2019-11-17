@@ -1,0 +1,23 @@
+# remove crt0-common from EFI.
+@COMPILE_LIBEC@
+@LINK_LIBEC@
+tmpsrcs:= $(filter-out $(EC_DIR)/crt0-common.c, $(SRCS))
+SRCS= $(tmpsrcs)
+
+FATOBJ=apxhefi
+
+SRCS+=../../src/main.c ../../src/elf.c ../../src/pae.c efi_md.c
+CFLAGS+= -I../../src/ -I$(SRCROOT)/include -fno-delete-null-pointer-checks -fPIC
+LDADD=-lgcc -nostdlib
+LDFLAGS=-Wl,--defsym=start_apxh=main
+
+%.apxh_main.o: %.o
+	objcopy --redefine-sym main=apxh_main $< $@
+
+
+.PHONY: clean_apxhefi.apxh_main.o
+clean_apxhefi.apxh_main.o:
+	-rm apxhefi.apxh_main.o
+
+ALL_TARGET+= apxhefi.apxh_main.o
+CLEAN_TARGET+= clean_apxhefi.apxh_main.o

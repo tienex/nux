@@ -18,7 +18,7 @@ AS_CASE([$host],
 
 AS_CASE([$machine],
 	[i386], [apxh_subdirs=multiboot],
-	[amd64], [apxh_subdirs=multiboot])
+	[amd64], [apxh_subdirs="multiboot efi"])
 
 AC_SUBST(MACHINE, ${machine})
 AC_SUBST(CONFIGURE_FLAGS, ["${optflags} -I\$(SRCROOT)../include"])
