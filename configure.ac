@@ -45,7 +45,10 @@ AC_MK_CONFIG_FILES([
 	lib${hal}/Makefile
 	lib${plt}/Makefile
 	libnux/Makefile
+	libnux_user/Makefile
 	example/Makefile
+	example/kern/Makefile
+	example/user/Makefile
 ])
 
 AC_CONFIG_SUBDIRS([apxh])

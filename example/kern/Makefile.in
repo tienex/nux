@@ -5,4 +5,10 @@
 #  SPDX-License-Identifier:	GPL2.0+
 #
 
-SUBDIRS=apxh @HALDIR@ @PLTDIR@ libnux libnux_user example
+@COMPILE_LIBEC@
+@LINK_LIBEC@
+@LINK_LIBNUX@
+
+PROGRAM=example
+
+SRCS+= main.c

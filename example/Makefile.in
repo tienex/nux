@@ -1,13 +1,1 @@
-#
-# NUX: A kernel Library.
-# Copyright (C) 2019 Gianluca Guida <glguida@tlbflush.org>
-#
-#  SPDX-License-Identifier:	GPL2.0+
-#
-
-@LINK_LIBEC@
-@LINK_LIBNUX@
-
-PROGRAM=example
-
-SRCS+= main.c
+SUBDIRS= kern user
