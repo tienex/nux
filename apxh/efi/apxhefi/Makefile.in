@@ -7,7 +7,7 @@ SRCS= $(tmpsrcs)
 FATOBJ=apxhefi
 
 SRCS+=../../src/main.c ../../src/elf.c ../../src/pae.c efi_md.c
-CFLAGS+= -I../../src/ -I$(SRCROOT)/include -fno-delete-null-pointer-checks -fPIC
+CFLAGS+= -I../../src/ -I$(SRCROOT)/include -fno-delete-null-pointer-checks -fPIC -mno-red-zone -fno-stack-protector
 LDADD=-lgcc -nostdlib
 LDFLAGS=-Wl,--defsym=start_apxh=main
 
