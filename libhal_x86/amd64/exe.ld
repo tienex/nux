@@ -1,12 +1,11 @@
 ENTRY(_start)
 SECTIONS
 {
-    . = 0xffff800000000000;
+    . = 0xffff800000000000 + SIZEOF_HEADERS;
 
-    .text : 
+    .text :
     {
         *(.text)
-        *(.rodata*)
      } : text
 
    .ctors :
