@@ -106,7 +106,7 @@ _pfncache_bootstrap (void)
   max_dmap_pfn = hal_virtmem_dmapsize () >> PAGE_SHIFT;
   pfncache_base = hal_virtmem_pfn$base ();
 
-  printf ("Initializing PFN boot cache.");
+  printf ("Initializing PFN boot cache.\n");
   cache_init (&cache, &boot_slot, 1, _pfncache_fill);
 }
 
