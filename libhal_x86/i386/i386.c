@@ -28,8 +28,8 @@ static pfn_t pcpu_stackpfn[MAXCPUS];
 static void *pcpu_stackva[MAXCPUS];
 static int _enter_called = 0;
 
-static vaddr_t smp_oldva;
-static hal_l1e_t smp_oldl1e;
+static vaddr_t smp_oldva[MAXCPUS];
+static hal_l1e_t smp_oldl1e[MAXCPUS];
 
 uint16_t
 _i386_fs (void)
@@ -118,8 +118,8 @@ hal_pcpu_prepare (unsigned pcpu)
 
   /* The following assumes that CPUs are woke up one at the time. */
   assert (hal_pmap_getl1p (NULL, pstart, true, &l1p));
-  smp_oldva = pstart;
-  smp_oldl1e = hal_pmap_getl1e (NULL, l1p);
+  smp_oldva[pcpu] = pstart;
+  smp_oldl1e[pcpu] = hal_pmap_getl1e (NULL, l1p);
   hal_pmap_setl1e (NULL, l1p, (pstart & ~PAGE_MASK) | PTE_P | PTE_W);
 
   /*
@@ -180,12 +180,14 @@ void
 i386_init_ap (void)
 {
   hal_l1p_t l1p;
+  unsigned pcpu = plt_pcpu_id ();
 
   /* Restore old mapping. Assumes CPUs are brought up one at the time. */
-  assert (hal_pmap_getl1p (NULL, smp_oldva, false, &l1p));
-  hal_pmap_setl1e (NULL, l1p, smp_oldl1e);
-  smp_oldl1e = 0;
-  smp_oldva = 0;
+  assert (hal_pmap_getl1p (NULL, smp_oldva[pcpu], false, &l1p));
+  hal_pmap_setl1e (NULL, l1p, smp_oldl1e[pcpu]);
+  printf ("Restored %lx at %lx\n", smp_oldl1e[pcpu], smp_oldva[pcpu]);
+  smp_oldl1e[pcpu] = 0;
+  smp_oldva[pcpu] = 0;
 
   hal_main_ap ();
 }
