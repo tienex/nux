@@ -11,4 +11,4 @@
 
 LIBRARY=nux
 
-SRCS+= init.c ec.c pfn.c kmem.c kmap.c kva.c uaddr.c uctxt.c cpu.c entry.c pfncache.c time.c
+SRCS+= init.c ec.c pfn.c kmem.c kmap.c kva.c uaddr.c uctxt.c cpu.c entry.c pfncache.c time.c framebuffer.c
