@@ -380,8 +380,10 @@ pae_getphys(vaddr_t va)
   return page | (va & ~(PAGE_MASK));
 }
 
-void pae_directmap (void *pt, vaddr_t va, size64_t size, int payload, int x)
+void pae_directmap (void *pt, uint64_t pa, vaddr_t va, size64_t size,
+		    int payload, int x)
 {
+  uint64_t papfn = pa >> PAGE_SHIFT;
   unsigned i, n;
   pte_t *pte;
 
@@ -390,13 +392,13 @@ void pae_directmap (void *pt, vaddr_t va, size64_t size, int payload, int x)
   for (i = 0; i < n; i++)
     {
       pte = pae_get_l1p (pt, va + (i << PAGE_SHIFT), payload);
-      set_pte (pte, i, PTE_P | PTE_W | (x ? 0 : PTE_NX));
+      set_pte (pte, papfn + i, PTE_P | PTE_W | (x ? 0 : PTE_NX));
     }
 }
 
-void pae_physmap (vaddr_t va, size64_t size)
+void pae_physmap (vaddr_t va, size64_t size, uint64_t pa)
 {
-  pae_directmap (pae_cr3, va, size, 1, 0);
+  pae_directmap (pae_cr3, pa, va, size, 1, 0);
 }
 
 void pae_ptalloc (vaddr_t va, size64_t size)
@@ -641,7 +643,8 @@ pae64_getphys(vaddr_t va)
   return page |= (va & ~(PAGE_MASK));
 }
 
-void pae64_directmap (void *pt, vaddr_t va, size64_t size, int payload, int x)
+void pae64_directmap (void *pt, uint64_t pabase, vaddr_t va, size64_t size,
+		      int payload, int x)
 {
   ssize64_t len;
   uint64_t pa;
@@ -662,7 +665,7 @@ void pae64_directmap (void *pt, vaddr_t va, size64_t size, int payload, int x)
 
   /* Signed to unsigned: no one will ask us a 1<<64 bytes physmap. */
   len = (ssize64_t)size; 
-  pa = 0;
+  pa = pabase;
 
   while (len > 0) {
 
@@ -699,9 +702,9 @@ void pae64_directmap (void *pt, vaddr_t va, size64_t size, int payload, int x)
   }
 }
 
-void pae64_physmap (vaddr_t va, size64_t size)
+void pae64_physmap (vaddr_t va, size64_t size, uint64_t pa)
 {
-  pae64_directmap (pae64_cr3, va, size, 1, 0);
+  pae64_directmap (pae64_cr3, pa, va, size, 1, 0);
 }
 
 void pae64_ptalloc (vaddr_t va, size64_t size)

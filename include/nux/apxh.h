@@ -9,6 +9,7 @@
 #define _APXH_H
 
 #include <stdint.h>
+#include <framebuffer.h>
 
 struct apxh_bootinfo
 {
@@ -16,6 +17,7 @@ struct apxh_bootinfo
   uint64_t magic;
   uint64_t maxpfn;
   uint64_t acpi_rsdp;
+  struct fbdesc fbdesc;
 } __attribute__((packed));
 
 struct apxh_stree

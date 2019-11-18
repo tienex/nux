@@ -93,6 +93,14 @@ SECTIONS
 	_kva_end = .;
    } : kva
 
+   /* 16Mb Framebuffer. */
+   .fbuffer ALIGN (4096) : AT(0)
+   {
+	_fbuf_start = .;
+	. += 16 * 1024 * 1024;
+	_fbuf_end = .;
+   } : fbuf
+
    .linear ALIGN(8 * 1024 * 1024) : AT (0)
    {
 	_linear_start = .;
@@ -117,5 +125,6 @@ PHDRS
     pfncache 0xAF100005;
     physmap 0xAF100002;
     stree   0xAF100004;
+    fbuf    0xAF100006;
     linear  0xAF10FFFF;
 }

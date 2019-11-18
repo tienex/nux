@@ -37,10 +37,9 @@ load_table (paddr_t pa)
   tbl = (struct acpi_thdr *) kva_physmap (1, pa, ACPI_MAX_TBL, HAL_PTE_P);
 
   if (tbl->length >= ACPI_MAX_TBL) {
-    error ("Table %4.4s [%6.6s %8.8s rev%d] size %d > ACPI_MAX_TBL. Please report this.",
+    error ("Table %4.4s [%6.6s %8.8s rev%d] size %d > ACPI_MAX_TBL. Skipping checks.",
 	   tbl->signature, tbl->oemid, tbl->oemtableid, tbl->oemrevision, tbl->length);
-    kva_unmap (tbl);
-    return NULL;
+    return tbl;
   }
 
   sum = 0;

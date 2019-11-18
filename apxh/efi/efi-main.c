@@ -2,34 +2,27 @@
 #include <efi.h>
 #include <efilib.h>
 
-#define EFI_MMAP_MAX 1024
-static EFI_MEMORY_DESCRIPTOR mmap[EFI_MMAP_MAX];
 static EFI_HANDLE image_handle;
 static EFI_LOADED_IMAGE *img = NULL;
 
-#if defined(__GNUC__)
-#warning GNU C DEFINED
-#endif
-
-#if defined(__STDC_VERSION__)
-#warning STDC VERSION DEFINED
-#endif
-
 unsigned long
-get_page (void)
+efi_allocate_maxaddr (unsigned long maxaddr)
 {
   EFI_STATUS efi_status;
   void *addr;
-  //  printf ("get page\n");
-  efi_status = uefi_call_wrapper(BS->AllocatePages, 4, AllocateAnyPages, EfiBootServicesData, 1, &addr);
 
+  addr = (void *)maxaddr;
+
+  efi_status = uefi_call_wrapper(BS->AllocatePages, 4,
+				 AllocateMaxAddress,
+				 EfiLoaderData,
+				 1, &addr);
   if ( EFI_ERROR(efi_status) ) {
     printf("Allocate Pages Failed: %d\n", efi_status);
     exit (-1);
   }
 
   memset (addr, 0, 4096);
-
   return (unsigned long)addr;
 }
 
@@ -39,10 +32,91 @@ putchar (int c)
   Print(L"%c", c);
 }
 
-void *payload_start;
-unsigned long payload_size;
+static void *payload_start;
+static unsigned long payload_size;
 
-static char buf[4 * 1024*1024];
+EFI_STATUS
+efi_getframebuffer (void)
+{
+  extern EFI_GUID GraphicsOutputProtocol;
+  EFI_STATUS rc;
+  UINTN infosize;
+  EFI_GRAPHICS_OUTPUT_MODE_INFORMATION *info;
+  EFI_GRAPHICS_OUTPUT_PROTOCOL *gop;
+  uint32_t r_mask, g_mask, b_mask, bpp, pitch, width, height;
+  uint64_t addr, size;
+
+  rc = LibLocateProtocol(&GraphicsOutputProtocol, (void **)&gop);
+  if (rc != EFI_SUCCESS)
+    {
+      Print (L"Cannot locate Graphic Output Proto (%d)\n", rc);
+      return rc;
+    }
+
+  if (gop->Mode == NULL)
+    {
+      Print (L"Mode not found in GOP.\n");
+      return EFI_SUCCESS;
+    }
+
+  info = gop->Mode->Info;
+  if (info == NULL)
+    {
+      Print (L"Info not found in GOP.\n");
+      return EFI_SUCCESS;
+    }
+
+  switch (info->PixelFormat)
+    {
+    case PixelRedGreenBlueReserved8BitPerColor:
+      r_mask = 0x0000ff;
+      g_mask = 0x00ff00;
+      b_mask = 0xff0000;
+      bpp = 32;
+      break;
+
+    case PixelBlueGreenRedReserved8BitPerColor:
+      r_mask = 0xff0000;
+      g_mask = 0x00ff00;
+      b_mask = 0x0000ff;
+      bpp = 32;
+      break;
+
+    case PixelBitMask: {
+      uint32_t mask;
+
+      r_mask = info->PixelInformation.RedMask;
+      g_mask = info->PixelInformation.GreenMask;
+      b_mask = info->PixelInformation.BlueMask;
+
+      mask = (r_mask | g_mask | b_mask
+	      | info->PixelInformation.ReservedMask);
+      bpp = __builtin_popcountl((long)mask);
+      break;
+    }
+    case PixelBltOnly:
+    default:
+      Print (L"No Framebuffer (pixel format is %d)\n", info->PixelFormat);
+      return EFI_SUCCESS;
+    }
+
+  addr = gop->Mode->FrameBufferBase;
+  size = gop->Mode->FrameBufferSize;
+  pitch = (uint32_t)((uint64_t)info->PixelsPerScanLine * bpp / 8);
+  width = info->HorizontalResolution;
+  height = info->VerticalResolution;
+
+  Print (L"Framebuffer found:\n"
+	 "        ADDR: %lx\n        SIZE: %lx\n"
+	 "        WIDTH: %d\n        HEIGHT: %d\n"
+	 "        PITCH: %d\n        BPP: %d\n"
+	 "        RMASK: %08lx        GMASK: %08lx        BMASK: %08lx\n",
+	 addr, size, width, height,
+	 pitch, bpp, r_mask, g_mask, b_mask);
+
+  apxhefi_add_framebuffer (addr, size, width, height, pitch, bpp, r_mask, g_mask, b_mask);
+
+}
 
 EFI_STATUS
 efi_getpayload (CHAR16 *name, void **ptr, unsigned long *size)
@@ -52,25 +126,114 @@ efi_getpayload (CHAR16 *name, void **ptr, unsigned long *size)
   SIMPLE_READ_FILE rdhdl;
   EFI_DEVICE_PATH *filepath;
 
-  *ptr = buf;
-  *size = sizeof(buf);
-
   filepath = FileDevicePath(img->DeviceHandle,L"kernel.elf");
+
   rc = OpenSimpleReadFile(FALSE, NULL, 0, &filepath, &hdl, &rdhdl);
   if (rc != EFI_SUCCESS)
     {
-      Print ("OpenSimpleReadFile failed (%d)!\n", rc);
+      Print (L"OpenSimpleReadFile failed (%d)!\n", rc);
       return rc;
     }
-  rc = ReadSimpleReadFile(rdhdl, 0, size, buf);
+
+  rc = EFI_SUCCESS;
+  *ptr = NULL;
+  *size = 8 * 1024 * 1024;
+
+  while (GrowBuffer (&rc, ptr, *size)) {
+    Print (L"GrowBuffer!\n");
+    rc = ReadSimpleReadFile(rdhdl, 0, size, *ptr);
+  }
+
   if (rc != EFI_SUCCESS)
     {
-      Print ("ReadSimpleReadFile failed (%d)!\n", rc);
+      Print (L"ReadSimpleReadFile failed (%d)!\n", rc);
       return rc;
     }
+
   CloseSimpleReadFile(rdhdl);
 
+  apxhefi_add_payload (payload_start, payload_size);
+
   return EFI_SUCCESS;
+}
+
+void
+efi_getmemorymap (void)
+{
+  UINTN num, i;
+  UINTN key;
+  UINTN descsize;
+  UINT32 descver;
+  EFI_MEMORY_DESCRIPTOR *md, *ptr;
+
+
+  md = LibMemoryMap (&num, &key, &descsize, &descver);
+
+  Print (L"Found %ld memory entries, Key: %ld, Size: %ld, Version: %d\n",
+	 num, key, descsize, descver);
+
+  for (i = 0; i < num; i++)
+    {
+      int ram, bsy;
+      unsigned len;
+      unsigned long pfn;
+
+      ptr = (void *)md + i * descsize;
+
+      switch (ptr->Type)
+	{
+	case EfiReservedMemoryType:
+	case EfiUnusableMemory:
+	case EfiACPIReclaimMemory:
+	case EfiACPIMemoryNVS:
+	case EfiMemoryMappedIO:
+	  ram = 0;
+	  bsy = 1;
+	  break;
+
+	case EfiLoaderCode:
+	case EfiLoaderData:
+	case EfiBootServicesCode:
+	case EfiBootServicesData:
+	case EfiConventionalMemory:
+	  ram = 1;
+	  bsy = 0;
+	  break;
+
+	case EfiRuntimeServicesCode:
+	case EfiRuntimeServicesData:
+	  ram = 1;
+	  bsy = 1;
+	  break;
+
+	case EfiMemoryMappedIOPortSpace:
+	case EfiPalCode:
+	default:
+	  continue;
+	}
+
+      pfn = ptr->PhysicalStart >> 12;
+      len = ptr->NumberOfPages;
+
+      apxhefi_add_memregion (ram, bsy, pfn, len);
+    }
+}
+
+EFI_STATUS
+efi_getrsdp (void)
+{
+  EFI_GUID guid_rsdp20 = ACPI_20_TABLE_GUID;
+  EFI_GUID guid_rsdp = ACPI_TABLE_GUID;
+  void *rsdp;
+
+  LibGetSystemConfigurationTable(&guid_rsdp20, &rsdp);
+  if (rsdp == NULL)
+      LibGetSystemConfigurationTable(&guid_rsdp, &rsdp);
+
+  if (rsdp == NULL)
+    Print ("No RSDP found!\n");
+
+  apxhefi_add_rsdp (rsdp);
 }
 
 
@@ -89,7 +252,7 @@ efi_main (EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE *SystemTable)
 			 ImageHandle, NULL, EFI_OPEN_PROTOCOL_BY_HANDLE_PROTOCOL);
   if (rc != EFI_SUCCESS)
     {
-      Print ("Open Protocol failed (%d)!\n", rc);
+      Print (L"Open Protocol failed (%d)!\n", rc);
       return rc;
     }
 
@@ -98,25 +261,49 @@ efi_main (EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE *SystemTable)
   */
   rc = efi_getpayload (L"kernel.elf", &payload_start, &payload_size);
 
-  UINTN mmap_size = EFI_MMAP_MAX;
-  BS->GetMemoryMap (&mmap_size, mmap, NULL, NULL, NULL);
+  /*
+    Populate memory map.
+  */
+  efi_getmemorymap ();
 
+  /*
+    Get Framebuffer info.
+  */
+  efi_getframebuffer ();
+
+  /*
+    Get RSDP.
+  */
+  efi_getrsdp ();
+
+  /*
+    Launch APXH.
+  */
   apxh_main(0, 0);
 
   return EFI_SUCCESS;
 }
 
-
-void *
-efi_payload_start (void)
+void
+efi_exitbs (void)
 {
-  return payload_start;
-}
+  EFI_STATUS rc;
+  UINTN num, i;
+  UINTN key;
+  UINTN descsize;
+  UINT32 descver;
+  EFI_MEMORY_DESCRIPTOR *md;
 
-unsigned long
-efi_payload_size (void)
-{
-  return payload_size;
+
+  md = LibMemoryMap (&num, &key, &descsize, &descver);
+
+  rc = uefi_call_wrapper((void *)BS->ExitBootServices, 2, image_handle, key);
+  if (rc != EFI_SUCCESS)
+    {
+      Print (L"EBS failed! (%d)\n", rc);
+      /* XXX: efi_exit */
+      return;
+    }
 }
 
 void 

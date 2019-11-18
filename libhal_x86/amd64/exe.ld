@@ -62,6 +62,14 @@ SECTIONS
 	_stree_end = .;
    } : stree
 
+   /* 32Mb Framebuffer. */
+   .fbuffer ALIGN (4096) : AT(0)
+   {
+	_fbuf_start = .;
+	. += 32 * 1024 * 1024;
+	_fbuf_end = .;
+   } : fbuf
+
    /* 512GB KMEM, 4k aligned. */
    .kmem ALIGN(4096) : AT (0)
    {
@@ -116,5 +124,6 @@ PHDRS
     pfncache 0xAF100005;
     physmap 0xAF100002;
     stree   0xAF100004;
+    fbuf    0xAF100006;
     linear  0xAF10FFFF;
 }

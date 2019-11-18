@@ -181,6 +181,10 @@ ph_load (void *elfimg, uint32_t type, uint32_t flags,
 	printf("Linear Map at %08llx (size: %lld).\n", va, msize);
 	va_linear (va, msize);
 	break;
+      case PHT_APXH_FRAMEBUF:
+	printf("Framebuffer Map at %08llx (size: %lld).\n", va, msize);
+	va_framebuf (va, msize);
+	break;
       default:
 	printf("Ignored segment type %08lx.\n", type);
 	break;

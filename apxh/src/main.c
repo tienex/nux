@@ -15,8 +15,6 @@
 
 #include "project.h"
 
-#define BOOTMEM MB(64) /* We won't be using more than 512Mb to boot. Promise. */
-
 static arch_t elf_arch;
 static uint8_t boot_pagemap[PAGEMAP_SZ(BOOTMEM)] __attribute__((aligned(4096)));
 static vaddr_t req_pfnmap_va, req_info_va, req_stree_va;
@@ -34,6 +32,7 @@ get_payload_page(void)
   assert (!stop_payload_allocation);
 
   page = get_page();
+  assert (page < BOOTMEM);
   memset ((void *)page, 0, PAGE_SIZE);
 
   pfn = page >> PAGE_SHIFT;
@@ -174,10 +173,45 @@ va_physmap (vaddr_t va, size64_t size)
 
   switch (elf_arch) {
   case ARCH_386:
-    pae_physmap (va, size);
+    pae_physmap (va, size, 0);
     break;
   case ARCH_AMD64:
-    pae64_physmap (va, size);
+    pae64_physmap (va, size, 0);
+    break;
+  default:
+    printf("Unsupported VM architecture.\n");
+    exit (-1);
+  }
+}
+
+void
+va_framebuf (vaddr_t va, size64_t size)
+{
+  uint64_t pa;
+  struct fbdesc *fbptr;
+
+  md_verify (va, size);
+  va_verify (va, size);
+
+  fbptr = md_getframebuffer ();
+  if (fbptr == NULL || fbptr->type == FB_INVALID)
+    return;
+
+  if (fbptr->size > size)
+    {
+      printf ("ERROR: framebuffer too big. Shrinking int from %lx to %lx\n",
+	      fbptr->size, size);
+      fbptr->size = size;
+    }
+  
+  pa = fbptr->addr;
+
+  switch (elf_arch) {
+  case ARCH_386:
+    pae_physmap (va, size, pa);
+    break;
+  case ARCH_AMD64:
+    pae64_physmap (va, size, pa);
     break;
   default:
     printf("Unsupported VM architecture.\n");
@@ -244,6 +278,7 @@ va_info_copy (void)
   size64_t size = req_info_size;
 #define MIN(x,y) ((x < y) ? x : y)
   struct apxh_bootinfo i;
+  struct fbdesc *fbptr;
 
   if (va == 0) {
     /* No INFO. Skip. */
@@ -253,6 +288,15 @@ va_info_copy (void)
   i.magic = APXH_BOOTINFO_MAGIC;
   i.maxpfn = md_maxpfn ();
   i.acpi_rsdp = md_acpi_rsdp ();
+
+  i.fbdesc.type = FB_INVALID;
+
+  fbptr = md_getframebuffer ();
+  if (fbptr != NULL)
+    i.fbdesc = *fbptr;
+  else
+    i.fbdesc.type = FB_INVALID;
+
   va_copy (va, &i, MIN(size, sizeof (struct apxh_bootinfo)), 0, 0);
 #undef MIN
 }

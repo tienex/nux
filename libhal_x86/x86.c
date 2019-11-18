@@ -17,6 +17,7 @@
 #include <inttypes.h>
 #include <stdbool.h>
 #include <string.h>
+#include <framebuffer.h>
 
 #include <nux/hal.h>
 #include <nux/apxh.h>
@@ -42,12 +43,18 @@ extern int _kmem_end;
 extern int _stree_start;
 extern int _stree_end;
 
+extern int _fbuf_start;
+extern int _fbuf_end;
+
 const struct apxh_bootinfo *bootinfo = (struct apxh_bootinfo *)&_info_start;
 
 struct hal_pltinfo_desc pltdesc;
+struct fbdesc fbdesc;
 
 void *hal_stree_ptr;
 unsigned hal_stree_order;
+
+int use_fb;
 
 static inline __dead void
 __halt (void)
@@ -172,13 +179,19 @@ tlbflush_local (void)
 
   r = read_cr3 ();
   write_cr3 (r);
+
+  asm volatile ("" ::: "memory");
 }
 
 
 int
 hal_putchar (int c)
 {
-  vga_putchar (c);
+  if (use_fb)
+    framebuffer_putc (c, 0xe0e0e0);
+  else
+    vga_putchar (c);
+
   return c;
 }
 
@@ -350,9 +363,13 @@ x86_init (void)
 
   if (bootinfo->magic != APXH_BOOTINFO_MAGIC)
     {
-      early_print("ERROR: Unrecognised bootinfo magic!");
-      hal_cpu_halt ();
+      /* Only way to let know that things are wrong. */
+      hal_cpu_trap ();
     }
+
+  fbdesc = bootinfo->fbdesc;
+  fbdesc.addr = (uint64_t)(uintptr_t)&_fbuf_start;
+  use_fb = framebuffer_init (&fbdesc);
 
   /* Check  APXH stree. */
   stree_hdr = (struct apxh_stree *)&_stree_start;

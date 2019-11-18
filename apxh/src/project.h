@@ -13,7 +13,10 @@
 #include <stdint.h>
 #include <string.h>
 #include <stdbool.h>
+#include <framebuffer.h>
 #include <nux/apxh.h>
+
+#define BOOTMEM MB(512) /* We won't be using more than 512Mb to boot. Promise. */
 
 typedef int64_t ssize64_t;
 typedef uint64_t size64_t;
@@ -38,6 +41,7 @@ struct bootinfo_region
 #define PHT_APXH_PFNMAP   0xAF100003
 #define PHT_APXH_STREE    0xAF100004
 #define PHT_APXH_PTALLOC  0xAF100005
+#define PHT_APXH_FRAMEBUF 0xAF100006
 #define PHT_APXH_LINEAR   0xAF10FFFF
 
 #define PFNMAP_ENTRY_SIZE 64
@@ -69,6 +73,7 @@ uint64_t md_maxpfn (void);
 uint64_t md_acpi_rsdp (void);
 unsigned md_memregions (void);
 struct bootinfo_region *md_getmemregion (unsigned i);
+struct fbdesc *md_getframebuffer (void);
 void md_verify(vaddr_t va, size64_t size);
 void md_entry(arch_t arch, vaddr_t pt, vaddr_t entry);
 
@@ -96,32 +101,33 @@ void va_info (vaddr_t va, size64_t size);
 void va_pfnmap (vaddr_t va, size64_t size);
 void va_stree (vaddr_t va, size64_t size);
 void va_ptalloc (vaddr_t va, size64_t size);
+void va_framebuf (vaddr_t va, size64_t size);
 void va_entry (vaddr_t entry);
 
 void pae_init (void);
 uintptr_t pae_getphys (vaddr_t va);
 void pae_verify (vaddr_t va, size64_t size);
 void pae_populate (vaddr_t va, size64_t size, int w, int x);
-void pae_physmap (vaddr_t va, size64_t size);
+void pae_physmap (vaddr_t va, size64_t size, uint64_t pa);
 void pae_ptalloc (vaddr_t va, size64_t size);
 void pae_linear (vaddr_t va, size64_t size);
 void pae_entry (vaddr_t entry);
 
 /* Internal PAE functions. */
-void pae_directmap (void *pt, vaddr_t va, size64_t size, int payload, int x);
+void pae_directmap (void *pt, uint64_t pa, vaddr_t va, size64_t size, int payload, int x);
 void pae_map_page (void *pt, vaddr_t va, uintptr_t pa, int payload, int w, int x);
 
 void pae64_init (void);
 uintptr_t pae64_getphys (vaddr_t va);
 void pae64_verify (vaddr_t va, size64_t size);
 void pae64_populate (vaddr_t va, size64_t size, int w, int x);
-void pae64_physmap (vaddr_t va, size64_t size);
+void pae64_physmap (vaddr_t va, size64_t size, uint64_t pa);
 void pae64_ptalloc (vaddr_t va, size64_t size);
 void pae64_linear (vaddr_t va, size64_t size);
 void pae64_entry (vaddr_t entry);
 
 /* Internal PAE64 functions. */
-void pae64_directmap (void *pt, vaddr_t va, size64_t size, int payload, int x);
+void pae64_directmap (void *pt, uint64_t pa, vaddr_t va, size64_t size, int payload, int x);
 void pae64_map_page (void *pt, vaddr_t va, uintptr_t pa, int payload, int w, int x);
 
 

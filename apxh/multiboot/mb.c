@@ -225,7 +225,7 @@ void mb_amd64_entry (vaddr_t pt, vaddr_t entry)
   printf ("tramp is %lx (%x)\n", tramp, *(uint64_t *)tramp);
 
   /* Setup Direct map at 0->1Gb */
-  pae64_directmap (trampcr3, 0, 1L << 30, 0, 1);
+  pae64_directmap (trampcr3, 0, 0, 1L << 30, 0, 1);
 
   /* Map Entry page in transitional pagetable VA. */
   pae64_map_page (trampcr3, (vaddr_t)entry, pae64_getphys(entry), 0, 0, 1);
@@ -284,7 +284,7 @@ void mb_386_entry (vaddr_t pt, vaddr_t entry)
   printf ("tramp is %lx (%x)\n", tramp, *(uint64_t *)tramp);
 
   /* Setup Direct map at 0->1Gb */
-  pae_directmap (trampcr3, 0, 1L << 30, 0, 1);
+  pae_directmap (trampcr3, 0, 0, 1L << 30, 0, 1);
 
   /* Map Entry page in transitional pagetable VA. */
   pae_map_page (trampcr3, (vaddr_t)entry, pae_getphys(entry), 0, 0, 1);
