@@ -2,7 +2,7 @@
 	
 #define MULTIBOOT_HDRSIGN 0x1badb002 
 #define MULTIBOOT_REGSIGN 0x2badb002
-#define _BOOT_FLAGS       0x00000003
+#define _BOOT_FLAGS       0x00000007
 
 #define MBIOFFSET_FLAGS   0
 #define _MBIF_CMDLINE     (1 << 2)
@@ -22,6 +22,10 @@ multiboot_header:
 	.long _edata
 	.long _end
 	.long multiboot_entry
+	.long 0
+	.long 0
+	.long 0
+	.long 0
 
 multiboot_entry:
 	movl $stacktop, %esp

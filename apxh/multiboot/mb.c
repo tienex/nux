@@ -30,7 +30,31 @@ static uintptr_t brk;
 static unsigned bootinfo_regions;
 static uint64_t bootinfo_maxpfn;
 
+static struct fbdesc fbdesc = {.type = FB_INVALID };
+
 uint64_t rsdp_find (void);
+
+static void
+parse_multiboot_framebuffer (struct multiboot_info *info)
+{
+  if (info->framebuffer_type == MULTIBOOT_FRAMEBUFFER_TYPE_EGA_TEXT)
+    {
+      fbdesc.type = FB_INVALID;
+      return;
+    }
+  
+  /* Warning: we're current setting INDEXED as RGB. */
+  fbdesc.type = FB_RGB;
+  fbdesc.addr = info->framebuffer_addr;
+  fbdesc.size = (uint64_t)info->framebuffer_pitch * info->framebuffer_height;
+
+  fbdesc.pitch = info->framebuffer_pitch;
+  fbdesc.width = info->framebuffer_width;
+  fbdesc.height = info->framebuffer_height;
+  fbdesc.bpp =info->framebuffer_bpp;
+
+  /* XXX: Set mask. */
+}
 
 static void
 parse_multiboot_mmap (struct multiboot_info *info)
@@ -110,6 +134,9 @@ parse_multiboot_mmap (struct multiboot_info *info)
 void
 parse_multiboot (struct multiboot_info *info)
 {
+  if (info->flags & MULTIBOOT_INFO_FRAMEBUFFER_INFO)
+    parse_multiboot_framebuffer (info);
+
   assert (info->flags & MULTIBOOT_INFO_MEM_MAP);
   parse_multiboot_mmap (info);
 }
@@ -171,6 +198,12 @@ md_getmemregion (unsigned i)
 
   assert (i < bootinfo_regions);
   return hrptr + i;
+}
+
+struct fbdesc *
+md_getframebuffer (void)
+{
+  return &fbdesc;
 }
 
 uint64_t
