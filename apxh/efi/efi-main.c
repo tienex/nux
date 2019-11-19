@@ -59,6 +59,33 @@ efi_getframebuffer (void)
       return EFI_SUCCESS;
     }
 
+  UINTN i;
+  UINTN mmax = 0;
+  UINTN rmax = 0;
+  UINTN imax = gop->Mode->MaxMode;
+
+  /* Search for highest (horizontal) resolution. */
+  for (i = 0; i < imax; i++)
+    {
+      UINTN infosz;
+      rc = uefi_call_wrapper(gop->QueryMode, 4, gop, i, &infosz,
+			     &info);
+      if (rc != EFI_SUCCESS)
+	continue;
+
+      Print (L"EFI GFX Mode %d: %ldx%ld.\n",
+	     i, info->HorizontalResolution, info->VerticalResolution);
+
+      if ((UINTN)info->HorizontalResolution * info->VerticalResolution > rmax)
+	{
+	  rmax = (UINTN)info->HorizontalResolution * info->VerticalResolution;
+	  mmax = i;
+	}
+    }
+
+  Print (L"Setting mode %d\n", mmax);
+  rc = uefi_call_wrapper(gop->SetMode, 2, gop, mmax);
+
   info = gop->Mode->Info;
   if (info == NULL)
     {
