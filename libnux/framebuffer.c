@@ -88,6 +88,8 @@ static uint8_t scrawl_fnt[];
 static uint8_t s_fnt[];
 static uint8_t t_fnt[];
 
+static unsigned __cols = 79;
+
 void
 framebuffer_putc_xy (unsigned x, unsigned y, uint32_t color, unsigned char c)
 {
@@ -96,13 +98,25 @@ framebuffer_putc_xy (unsigned x, unsigned y, uint32_t color, unsigned char c)
   framebuffer_blt (x, y, color, data, 8, 16);
 }
 
+static void
+blank_line (unsigned c, unsigned x, unsigned y, unsigned chars)
+{
+  unsigned i;
+
+  for (i = 0; i < chars; i++)
+    {
+      framebuffer_putc_xy (8 * (c * (__cols + 1) + x + i), 16 * y, 0, '\0');
+    }
+}
+
 int
 framebuffer_putc (int ch, uint32_t color)
 {
   static int init = 0;
+  static int sc = 0; /* Screen column. */
   static int x = 0;
   static int y = 0;
-  static unsigned __cols = 0;
+  static unsigned __scrcol = 0;
   static unsigned __lines = 0;;
   unsigned px, py;
   unsigned char c = (unsigned char)ch;
@@ -111,28 +125,38 @@ framebuffer_putc (int ch, uint32_t color)
   if (!init)
     {
       memset((void *)fbdesc->addr, 0, fbdesc->size);
-      init = 1;
-      __cols = fbdesc->width / 8;
+      __scrcol = (fbdesc->width / 8) / (__cols + 1);
+      __scrcol = __scrcol == 0 ? 1 : __scrcol;
       __lines = fbdesc->height / 16;
+      init = 1;
     }
 
   if (c == '\n')
     {
-      y += x/__cols + 1;
       x=0;
+      y += 1;
+      if (y >= __lines)
+	{
+	  y = 0;
+	  sc = (sc + 1) % __scrcol;
+	}
+      blank_line (sc, x, y, __cols);
       return ch;
     }
 
-  if (__cols * y + x >= __cols * __lines)
+  if (x >= __cols)
     {
-      int i;
-      memmove ((void *)fbdesc->addr, (void *)fbdesc->addr + 16 * fbdesc->pitch, fbdesc->size - 16 * fbdesc->pitch);
-      memset ((void *)fbdesc->addr + fbdesc->size - 16 * fbdesc->pitch, 0, fbdesc->pitch * 16);
-      y = __lines - 1;
-      x = 0;
+      x=0;
+      y += 1;
+      if (y >= __lines)
+	{
+	  y = 0;
+	  sc = (sc + 1) % __scrcol;
+	}
+      blank_line (sc, x, y, __cols);
     }
 
-  px = x * 8;
+  px = 8 * (sc * (__cols + 1) + x);
   py = y * 16;
   x++;
   framebuffer_putc_xy (px, py, color, c);
