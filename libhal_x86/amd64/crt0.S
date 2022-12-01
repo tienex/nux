@@ -81,10 +81,6 @@ ENTRY(_ap_start)
 	lgdtl _ap_gdtreg - _C_LABEL(_ap_start)
 	/* No IDT. If anything goes wrong here, machine triple-faults. */
 
-	movw $0xb800, %ax
-	movw %ax, %es
-	movw $('A'<<8 + 'A'), %es:0
-
 	/* Save AP Boostrap Page Segment. */
 	mov %cs, %bx
 
