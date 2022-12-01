@@ -1,28 +1,44 @@
 AC_INIT([NUX],[0.0])
+
 AC_CONFIG_MACRO_DIRS([mk])
 AC_MK_DIR([mk])
 
 AC_CONFIG_MACRO_DIRS([libec])
 AC_LIBEC_DIR([libec])
 
-#Allow AC_PROG_CC test to succeed on cross compilers.
-CFLAGS=-nostdlib
-AC_PROG_CC([gcc])
-AC_CHECK_TOOL(LD, ld, :)
-AC_CHECK_TOOL(AR, ar, :)
+AC_PREFIX_DEFAULT([${PWD}/build/])
 
-AS_CASE([$host],
-	[i?86-*], [machine=i386],
-	[amd64-*], [machine=amd64],
-	[x86_64-*], [machine=amd64])
+AC_ARG_VAR([ARCH], [The architecture to compile for: i386 or amd64])
+
+if test x"${ARCH}" == x ; then
+   AC_MSG_ERROR([Please select a valid architecture with `./configure ARCH=<arch>`])
+fi
+
+AS_CASE([${ARCH}],
+	[i386], [tool_prefix=i686-elf],
+	[amd64], [tool_prefix=x86_64-elf],
+	[*], [AC_MSG_ERROR([Supported Architectures: i386, amd64])])
+
+
+AC_CHECK_TOOL(CC, ${tool_prefix}-gcc, :)
+AC_CHECK_TOOL(LD, ${tool_prefix}-ld, :)
+AC_CHECK_TOOL(AR, ${tool_prefix}-ar, :)
+
+
+machine=${ARCH}
 
 AS_CASE([$machine],
 	[i386], [hal=hal_x86 plt=plt_acpi],
 	[amd64], [hal=hal_x86 plt=plt_acpi])
 
 
-optflags='-O7 -g'
-#optflags='-O0 -g'
+AC_ARG_ENABLE([opt],
+	AS_HELP_STRING([--disable-opt],[compile without compiler optimizations]))
+
+AS_IF([test "x$enable_opt" != "xno"],
+	[optflags='-O7 -g'],
+	[optflags='-O0 -g'])
+
 
 AC_SUBST(MACHINE, ${machine})
 AC_SUBST(HALDIR, lib${hal})
