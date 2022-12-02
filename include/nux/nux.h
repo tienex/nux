@@ -8,6 +8,7 @@
 #ifndef _NUX_H
 #define _NUX_H
 
+#include <config.h>
 #include <nux/defs.h>
 #include <nux/types.h>
 #include <nux/locks.h>
@@ -130,7 +131,11 @@ __log(const int level, const char *fmt, ...)
     exit(-1);
 }
 
-#define debug(...) //__log(LOGL_DEBUG, __VA_ARGS__)
+#ifdef DEBUG
+#define debug(...) __log(LOGL_DEBUG, __VA_ARGS__)
+#else
+#define debug(...)
+#endif
 #define info(...) __log(LOGL_INFO, __VA_ARGS__)
 #define warn(...) __log(LOGL_WARN, __VA_ARGS__)
 #define error(...) __log(LOGL_ERROR, __VA_ARGS__)
