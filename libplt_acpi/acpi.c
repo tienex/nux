@@ -21,7 +21,7 @@
 #include "acpitbl.h"
 #include "internal.h"
 
-#define ACPI_MAX_TBL (4 << 10)
+#define ACPI_MAX_TBL (16 << 12)
 
 static paddr_t pa_root_table;
 static paddr_t pa_apic_table;

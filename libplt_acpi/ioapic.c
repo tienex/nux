@@ -147,7 +147,7 @@ gsi_setup (unsigned i, unsigned irq, enum plt_irq_type mode)
   gsis[i].mode = mode;
 }
 
-static void
+static bool
 irqresolve (unsigned gsi)
 {
   unsigned i, start, end;
@@ -161,10 +161,11 @@ irqresolve (unsigned gsi)
 	{
 	  gsis[gsi].ioapic = i;
 	  gsis[gsi].pin = gsi - start;
-	  return;
+	  return true;
 	}
     }
-  fatal ("Hello Impossiblity, I was waiting for you!");
+  warn ("GSI not found in IOAPIC: %d", gsi);
+  return false;
 }
 
 static void
@@ -215,9 +216,8 @@ gsi_start (void)
     {
       /* Now that we have the proper GSI to IRQ mapping, resolve the
        * IOAPIC/PIN of the GSI. */
-      irqresolve (i);
-
-      gsi_set_irqtype (i, gsis[i].mode);
+      if (irqresolve (i))
+	gsi_set_irqtype (i, gsis[i].mode);
     }
 
   /* 1:1 map GSI <-> Kernel IRQ */

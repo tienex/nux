@@ -24,7 +24,7 @@ void pfn_free (pfn_t pfn);
   With KVA_ALLOC_ORDER 2, NUX will allocate (1 << 2) = 4 virtual pages
   at the time.
 */
-#define KVA_ALLOC_ORDER 2
+#define KVA_ALLOC_ORDER 6
 #define KVA_ALLOC_SIZE (1L << (KVA_ALLOC_ORDER + PAGE_SHIFT))
 vaddr_t kva_allocva (int low);
 void kva_freeva (vaddr_t va);

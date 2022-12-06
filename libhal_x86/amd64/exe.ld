@@ -80,7 +80,7 @@ SECTIONS
    .stree ALIGN (4096) : AT(0)
    {
 	_stree_start = .;
-	. += 3 * 1024 * 1024;
+	. += 16 * 1024 * 1024;
 	_stree_end = .;
    } : stree
 
