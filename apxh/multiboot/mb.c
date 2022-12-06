@@ -37,23 +37,49 @@ uint64_t rsdp_find (void);
 static void
 parse_multiboot_framebuffer (struct multiboot_info *info)
 {
-  if (info->framebuffer_type == MULTIBOOT_FRAMEBUFFER_TYPE_EGA_TEXT)
+  if (info->framebuffer_type == MULTIBOOT_FRAMEBUFFER_TYPE_RGB)
+    {
+      fbdesc.type = FB_RGB;
+      fbdesc.addr = info->framebuffer_addr;
+      fbdesc.size = (uint64_t)info->framebuffer_pitch * info->framebuffer_height;
+
+      fbdesc.pitch = info->framebuffer_pitch;
+      fbdesc.width = info->framebuffer_width;
+      fbdesc.height = info->framebuffer_height;
+      fbdesc.bpp =info->framebuffer_bpp;
+
+#define MB2MASK(_p, _s)  (((1 << (_s)) - 1) << (1 << (_p)))
+      fbdesc.r_mask = MB2MASK(info->rpos, info->rsize);
+      fbdesc.g_mask = MB2MASK(info->gpos, info->gsize);
+      fbdesc.b_mask = MB2MASK(info->bpos, info->bsize);
+#undef MB2MASK
+    }
+  else if (info->framebuffer_type == MULTIBOOT_FRAMEBUFFER_TYPE_INDEXED)
+    {
+      /*
+	Indexed Frame Buffer not supported!
+
+	Unfortunately not much can be done here as GRUB will have switched
+	to frame buffer and we have no way (yet!) to handle it.
+      */
+      fbdesc.type = FB_RGB;
+      fbdesc.addr = info->framebuffer_addr;
+      fbdesc.size = (uint64_t)info->framebuffer_pitch * info->framebuffer_height;
+
+      fbdesc.pitch = info->framebuffer_pitch;
+      fbdesc.width = info->framebuffer_width;
+      fbdesc.height = info->framebuffer_height;
+      fbdesc.bpp =info->framebuffer_bpp;
+
+      fbdesc.r_mask = 0xff;
+      fbdesc.g_mask = 0xff;
+      fbdesc.b_mask = 0xff;
+    }
+  else
     {
       fbdesc.type = FB_INVALID;
       return;
     }
-  
-  /* Warning: we're current setting INDEXED as RGB. */
-  fbdesc.type = FB_RGB;
-  fbdesc.addr = info->framebuffer_addr;
-  fbdesc.size = (uint64_t)info->framebuffer_pitch * info->framebuffer_height;
-
-  fbdesc.pitch = info->framebuffer_pitch;
-  fbdesc.width = info->framebuffer_width;
-  fbdesc.height = info->framebuffer_height;
-  fbdesc.bpp =info->framebuffer_bpp;
-
-  /* XXX: Set mask. */
 }
 
 static void

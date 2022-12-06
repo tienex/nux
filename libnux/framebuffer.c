@@ -14,9 +14,12 @@
 
 #include "internal.h"
 #include <assert.h>
+#include <string.h>
+#include <nux/locks.h>
 #include <framebuffer.h>
 
 static struct fbdesc *fbdesc;
+static lock_t fblock;
 
 int
 framebuffer_init (struct fbdesc *desc)
@@ -93,7 +96,7 @@ static unsigned __cols = 79;
 void
 framebuffer_putc_xy (unsigned x, unsigned y, uint32_t color, unsigned char c)
 {
-  void *data = s_fnt + c * 16;
+  void *data = t_fnt + c * 16;
 
   framebuffer_blt (x, y, color, data, 8, 16);
 }
@@ -124,6 +127,7 @@ framebuffer_putc (int ch, uint32_t color)
 
   if (!init)
     {
+      spinlock_init(&fblock);
       memset((void *)fbdesc->addr, 0, fbdesc->size);
       __scrcol = (fbdesc->width / 8) / (__cols + 1);
       __scrcol = __scrcol == 0 ? 1 : __scrcol;
@@ -131,6 +135,7 @@ framebuffer_putc (int ch, uint32_t color)
       init = 1;
     }
 
+  spinlock(&fblock);
   if (c == '\n')
     {
       x=0;
@@ -141,6 +146,7 @@ framebuffer_putc (int ch, uint32_t color)
 	  sc = (sc + 1) % __scrcol;
 	}
       blank_line (sc, x, y, __cols);
+      spinunlock(&fblock);
       return ch;
     }
 
@@ -160,6 +166,8 @@ framebuffer_putc (int ch, uint32_t color)
   py = y * 16;
   x++;
   framebuffer_putc_xy (px, py, color, c);
+  spinunlock(&fblock);
+  return ch;
 }
 
 static uint8_t t_fnt[] = {

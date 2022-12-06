@@ -216,12 +216,12 @@ struct multiboot_info
     };
     struct
     {
-      multiboot_uint8_t framebuffer_red_field_position;
-      multiboot_uint8_t framebuffer_red_mask_size;
-      multiboot_uint8_t framebuffer_green_field_position;
-      multiboot_uint8_t framebuffer_green_mask_size;
-      multiboot_uint8_t framebuffer_blue_field_position;
-      multiboot_uint8_t framebuffer_blue_mask_size;
+      multiboot_uint8_t rpos;
+      multiboot_uint8_t rsize;
+      multiboot_uint8_t gpos;
+      multiboot_uint8_t gsize;
+      multiboot_uint8_t bpos;
+      multiboot_uint8_t bsize;
     };
   };
 };
