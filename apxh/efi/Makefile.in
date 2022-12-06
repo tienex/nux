@@ -8,40 +8,48 @@ ifeq (@MACHINE@,i386)
 ARCH=ia32
 endif
 
-EFISRC		= $(SRCROOT)../contrib/gnu-efi
-EFIINC		= $(EFISRC)/inc
-EFIINCS         = -I$(EFIINC) -I$(EFIINC)/$(ARCH) -I$(EFIINC)/protocol
-EFILIB          = $(EFISRC)
-EFI_CRT_OBJS    = $(EFILIB)/gnuefi/crt0-efi-$(ARCH).o
-EFI_LDS         = $(EFISRC)/gnuefi/elf_$(ARCH)_efi.lds
+GNUEFI_SRC		= $(SRCROOT)../contrib/gnu-efi
+GNUEFI_INC		= $(GNUEFI_SRC)/inc
+GNUEFI_CFLAGS_INCS	= -I$(GNUEFI_INC) -I$(GNUEFI_INC)/$(ARCH) \
+			  -I$(GNUEFI_INC)/protocol
+GNUEFI_LIB		= $(GNUEFI_SRC)
+GNUEFI_CRT_OBJS		= $(GNUEFI_LIB)/gnuefi/crt0-efi-$(ARCH).o
+GNUEFI_LDS		= $(GNUEFI_SRC)/gnuefi/elf_$(ARCH)_efi.lds
 
-CFLAGS          = $(EFIINCS) -fno-stack-protector -fPIC \
-		  -fshort-wchar -mno-red-zone -Wall -nostdinc -ffreestanding -fno-builtin 
+GNUEFI_CFLAGS += $(GNUEFI_CFLAGS_INCS) -fno-stack-protector -fPIC -fshort-wchar \
+	  -mno-red-zone -Wall -nostdinc -ffreestanding -fno-builtin
+#Add elf.h
+GNUEFI_CFLAGS+= -I../../include
+#Confuse elfbind.h into doing the right thing.
+GNUEFI_CFLAGS+= -U__STDC_VERSION__
 
 ifeq ($(ARCH),x86_64)
   CFLAGS += -DEFI_FUNCTION_WRAPPER
 endif
 
-LDFLAGS         = -nostdlib -znocombreloc -T $(EFI_LDS) -shared \
-		  -Bsymbolic -L $(EFILIB)/gnuefi -L $(EFILIB)/lib $(EFI_CRT_OBJS)
+LDFLAGS         = -nostdlib -znocombreloc -T $(GNUEFI_LDS) -shared \
+		  -Bsymbolic -L $(GNUEFI_LIB)/gnuefi -L $(GNUEFI_LIB)/lib $(GNUEFI_CRT_OBJS)
 
+CFLAGS		= $(GNUEFI_CFLAGS)
 EFIOBJS 	= efi-main.o
 EFITARGET	= apxh.efi
 
+.PHONY: gnu-efi
 gnu-efi:
-	$(MAKE) -C $(EFISRC) OBJDIR=$(EFISRC)/@MACHINE@ CFLAGS=-I../../include
+	$(MAKE) -C $(GNUEFI_SRC) OBJDIR=$(GNUEFI_SRC)/@MACHINE@ ARCH=$(ARCH) CC=$(CC) CFLAGS='$(GNUEFI_CFLAGS)' AR=$(AR) LD=$(LD)
 
 apxh.so: $(EFIOBJS)  subdirs
 	$(LD) $(LDFLAGS) --start-group $(EFIOBJS) apxhefi/apxhefi.apxh_main.o -lefi -lgnuefi --end-group -o $@
 
 
 %.efi: %.so
-	objcopy -j .text* -j .sdata -j .data -j .dynamic \
+	$(OBJCOPY) -j .text* -j .sdata -j .data -j .dynamic \
 		-j .dynsym  -j .rel -j .rela -j .reloc \
 		--target=efi-app-$(ARCH) $^ $@
 
 .PHONY: clean_efi
 clean_efi:
+	$(MAKE) -C $(GNUEFI_SRC) clean
 	-rm *.o *.so *.efi
 
 ALL_TARGET	+= gnu-efi apxh.efi

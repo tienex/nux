@@ -12,8 +12,7 @@ LDADD=-lgcc -nostdlib
 LDFLAGS=-Wl,--defsym=start_apxh=main
 
 %.apxh_main.o: %.o
-	objcopy --redefine-sym main=apxh_main $< $@
-
+	$(OBJCOPY) --redefine-sym main=apxh_main $< $@
 
 .PHONY: clean_apxhefi.apxh_main.o
 clean_apxhefi.apxh_main.o:

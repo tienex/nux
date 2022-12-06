@@ -19,6 +19,7 @@ AS_CASE([${ARCH}],
 AC_CHECK_TOOL(CC, ${tool_prefix}-gcc, :)
 AC_CHECK_TOOL(LD, ${tool_prefix}-ld, :)
 AC_CHECK_TOOL(AR, ${tool_prefix}-ar, :)
+AC_CHECK_TOOL(OBJCOPY, ${tool_prefix}-objcopy, :)
 
 machine=${ARCH}
 

@@ -1,4 +1,3 @@
 #!/bin/sh
-aclocal
-autoconf
-(cd apxh; autoconf)
+aclocal && autoconf
+(cd apxh; aclocal && autoconf)

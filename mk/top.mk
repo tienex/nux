@@ -9,6 +9,7 @@ CC=@CC@
 CCLD=@CC@
 LD=@LD@
 AR=@AR@
+OBJCOPY=@OBJCOPY@
 OBJDIR=.build/@MACHINE@
 SRCROOT=@top_srcdir@/
 MKDIR=$(SRCROOT)/@mk_dir@
