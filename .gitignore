@@ -1,6 +1,8 @@
 *~
 *.o
 *.a
+*.efi
+*.so
 .deps
 .build
 .dirstamp
@@ -14,6 +16,7 @@ libec-compile.mk
 libhal_x86/hal.mk
 libnux/libnux.mk
 libnux/libnux-compile.mk
+include/config.h
 
 aclocal.m4
 autom4te.cache
