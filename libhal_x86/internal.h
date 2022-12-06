@@ -53,6 +53,8 @@ void pmap_init (void);
 void set_pte (uint64_t *ptep, uint64_t pte);
 hal_l1e_t * get_l1p (void *pmap, unsigned long va, int alloc);
 
+void tlbflush_global (void);
+
 int vga_putchar (int c);
 
 uint64_t rdmsr (uint32_t ecx);

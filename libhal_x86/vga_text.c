@@ -16,11 +16,13 @@
 
 #include <string.h>
 
+#define VGA_TEXTSIZE (80*25*2)
+
 int
 vga_putchar (int c)
 {
-  extern unsigned char _physmap_start;
-  const unsigned char *vptr = (const void *)(&_physmap_start + 0xb8000);
+  extern unsigned char _physmap_start[];
+  const unsigned char *vptr = (const unsigned char *)(_physmap_start + 0xb8000);
   static int init = 0;
   static int x = 0;
   static int y = 0;

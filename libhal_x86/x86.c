@@ -40,8 +40,8 @@ extern int _kva_end;
 extern int _kmem_start;
 extern int _kmem_end;
 
-extern int _stree_start;
-extern int _stree_end;
+extern int _stree_start[];
+extern int _stree_end[];
 
 extern int _fbuf_start;
 extern int _fbuf_end;
@@ -372,7 +372,7 @@ x86_init (void)
   use_fb = framebuffer_init (&fbdesc);
 
   /* Check  APXH stree. */
-  stree_hdr = (struct apxh_stree *)&_stree_start;
+  stree_hdr = (struct apxh_stree *)_stree_start;
   if (stree_hdr->magic != APXH_STREE_MAGIC)
     {
       early_print("ERROR: Unrecognised stree magic!");
@@ -383,7 +383,7 @@ x86_init (void)
       early_print("ERROR: stree size doesn't match!");
       hal_cpu_halt();
     }
-  stree_memsize = (size_t)((void *)&_stree_end - (void *)&_stree_start);
+  stree_memsize = (size_t)((void *)_stree_end - (void *)_stree_start);
   if (stree_hdr->size + stree_hdr->offset > stree_memsize)
     {
       early_print("ERROR: stree doesn't fit in allocated memory!");
