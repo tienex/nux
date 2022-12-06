@@ -80,12 +80,18 @@ void md_entry (arch_t arch, vaddr_t pt, vaddr_t entry);
 
 void *payload_get (unsigned i, size_t *size);
 
-void *get_payload_start (int argc, char *argv[]);
-size_t get_payload_size (void);
+typedef enum
+{
+  PAYLOAD_KERNEL,
+  PAYLOAD_USER,
+} plid_t;
+
+void *get_payload_start (int argc, char *argv[], plid_t id);
+size_t get_payload_size (plid_t id);
 
 arch_t get_elf_arch (void *elf);
-vaddr_t load_elf32 (void *elf);
-vaddr_t load_elf64 (void *elf);
+vaddr_t load_elf32 (void *elf, int u);
+vaddr_t load_elf64 (void *elf, int u);
 
 uintptr_t get_page (void);
 uintptr_t get_payload_page (void);
@@ -93,9 +99,9 @@ uintptr_t get_payload_page (void);
 void va_init (void);
 uintptr_t va_getphys (vaddr_t va);
 void va_verify (vaddr_t va, size64_t size);
-void va_populate (vaddr_t va, size64_t size, int w, int x);
-void va_copy (vaddr_t va, void *addr, size64_t size, int w, int x);
-void va_memset (vaddr_t va, int c, size64_t size, int w, int x);
+void va_populate (vaddr_t va, size64_t size, int u, int w, int x);
+void va_copy (vaddr_t va, void *addr, size64_t size, int u, int w, int x);
+void va_memset (vaddr_t va, int c, size64_t size, int u, int w, int x);
 void va_physmap (vaddr_t va, size64_t size);
 void va_linear (vaddr_t va, size64_t size);
 void va_info (vaddr_t va, size64_t size);
@@ -108,7 +114,7 @@ void va_entry (vaddr_t entry);
 void pae_init (void);
 uintptr_t pae_getphys (vaddr_t va);
 void pae_verify (vaddr_t va, size64_t size);
-void pae_populate (vaddr_t va, size64_t size, int w, int x);
+void pae_populate (vaddr_t va, size64_t size, int u, int w, int x);
 void pae_physmap (vaddr_t va, size64_t size, uint64_t pa);
 void pae_ptalloc (vaddr_t va, size64_t size);
 void pae_linear (vaddr_t va, size64_t size);
@@ -123,7 +129,7 @@ void pae_map_page (void *pt, vaddr_t va, uintptr_t pa, int payload, int w,
 void pae64_init (void);
 uintptr_t pae64_getphys (vaddr_t va);
 void pae64_verify (vaddr_t va, size64_t size);
-void pae64_populate (vaddr_t va, size64_t size, int w, int x);
+void pae64_populate (vaddr_t va, size64_t size, int u, int w, int x);
 void pae64_physmap (vaddr_t va, size64_t size, uint64_t pa);
 void pae64_ptalloc (vaddr_t va, size64_t size);
 void pae64_linear (vaddr_t va, size64_t size);

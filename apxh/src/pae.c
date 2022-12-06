@@ -152,6 +152,7 @@ static bool nx_enabled;
 
 #define PTE_P 1LL
 #define PTE_W 2LL
+#define PTE_U 4LL
 #define PTE_PS (1L << 7)
 #define PTE_NX (nx_enabled ? 1LL << 63 : 0)
 
@@ -197,6 +198,11 @@ pte_mergeflags (uint64_t fl1, uint64_t fl2)
   //PTE_P always present
   assert (fl1 & fl2 & PTE_P);
   newf = PTE_P;
+
+  //PTE_U is either present on both or absent on both
+  if ((fl1 & PTE_U) != (fl2 & PTE_U))
+    fatal ("Mixed user/kernel addresses not allowed.");
+  newf |= fl1 & PTE_U;
 
   // Write must be OR'd.
   newf |= (fl1 | fl2) & PTE_W;
@@ -332,7 +338,7 @@ pae_map_page (void *pt, vaddr_t va, uintptr_t pa, int payload, int w, int x)
 }
 
 static uintptr_t
-pae_populate_page (vaddr_t va, int w, int x)
+pae_populate_page (vaddr_t va, int u, int w, int x)
 {
   pte_t *l1p;
   uint64_t l1f;
@@ -340,7 +346,7 @@ pae_populate_page (vaddr_t va, int w, int x)
 
   l1p = pae_get_l1p (pae_cr3, va, 1);
 
-  l1f = (w ? PTE_W : 0) | (x ? 0 : PTE_NX) | PTE_P;
+  l1f = (u ? PTE_U : 0) | (w ? PTE_W : 0) | (x ? 0 : PTE_NX) | PTE_P;
 
   page = (uintptr_t) pte_getaddr (l1p);
   if (pte_getaddr (l1p) == NULL)
@@ -455,13 +461,13 @@ pae_linear (vaddr_t va, size64_t size)
 }
 
 void
-pae_populate (vaddr_t va, size64_t size, int w, int x)
+pae_populate (vaddr_t va, size64_t size, int u, int w, int x)
 {
   ssize64_t len = size;
 
   while (len > 0)
     {
-      pae_populate_page (va, w, x);
+      pae_populate_page (va, u, w, x);
 
       len -= PAGE_CEILING (va) - va;
       va += PAGE_CEILING (va) - va;
@@ -602,14 +608,15 @@ pae64_map_page (void *pt, vaddr_t va, uintptr_t pa, int payload, int w, int x)
 }
 
 static uintptr_t
-pae64_populate_page (pte_t * cr3, vaddr_t va, int w, int x, int payload)
+pae64_populate_page (pte_t * cr3, vaddr_t va, int u, int w, int x,
+		     int payload)
 {
   pte_t *l1p;
   uint64_t l1f;
   uintptr_t page;
 
   l1p = pae64_get_l1p (cr3, va, payload);
-  l1f = (w ? PTE_W : 0) | (x ? 0 : PTE_NX) | PTE_P;
+  l1f = (u ? PTE_U : 0) | (w ? PTE_W : 0) | (x ? 0 : PTE_NX) | PTE_P;
 
   page = (uintptr_t) pte_getaddr (l1p);
   if (page == 0)
@@ -772,13 +779,13 @@ pae64_linear (vaddr_t va, size64_t size)
 }
 
 void
-pae64_populate (vaddr_t va, size64_t size, int w, int x)
+pae64_populate (vaddr_t va, size64_t size, int u, int w, int x)
 {
   ssize64_t len = size;
 
   while (len > 0)
     {
-      pae64_populate_page (pae64_cr3, va, w, x, 1);
+      pae64_populate_page (pae64_cr3, va, u, w, x, 1);
 
       len -= PAGE_CEILING (va) - va;
       va += PAGE_CEILING (va) - va;

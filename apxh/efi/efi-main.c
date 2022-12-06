@@ -155,7 +155,7 @@ efi_getpayload (CHAR16 * name, void **ptr, unsigned long *size)
   SIMPLE_READ_FILE rdhdl;
   EFI_DEVICE_PATH *filepath;
 
-  filepath = FileDevicePath (img->DeviceHandle, L"kernel.elf");
+  filepath = FileDevicePath (img->DeviceHandle, name);
 
   rc = OpenSimpleReadFile (FALSE, NULL, 0, &filepath, &hdl, &rdhdl);
   if (rc != EFI_SUCCESS)
@@ -181,8 +181,6 @@ efi_getpayload (CHAR16 * name, void **ptr, unsigned long *size)
     }
 
   CloseSimpleReadFile (rdhdl);
-
-  apxhefi_add_payload (payload_start, payload_size);
 
   return EFI_SUCCESS;
 }
@@ -287,9 +285,22 @@ efi_main (EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE * SystemTable)
     }
 
   /*
-     Get kernel payload.
+     Get payloads.
    */
   rc = efi_getpayload (L"kernel.elf", &payload_start, &payload_size);
+  if (rc != EFI_SUCCESS)
+    {
+      Print (L"Could not load kernel.elf (%d)!\n", rc);
+      return rc;
+    }
+  apxhefi_add_kernel_payload (payload_start, payload_size);
+
+  rc = efi_getpayload (L"user.elf", &payload_start, &payload_size);
+  if (rc == EFI_SUCCESS)
+    {
+      Print (L"Loading user.elf");
+      apxhefi_add_user_payload (payload_start, payload_size);
+    }
 
   /*
      Populate memory map.

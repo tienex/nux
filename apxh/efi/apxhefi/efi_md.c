@@ -2,8 +2,8 @@
 
 #define BOOTINFO_REGIONS_MAX 1024
 
-static void *payload_start;
-static unsigned long payload_size;
+static void *elf_kernel_payload, *elf_user_payload;
+static size_t elf_kernel_payload_size, elf_user_payload_size;
 static unsigned long maxpfn;
 static unsigned numregions;
 static void *efi_rsdp;
@@ -112,15 +112,47 @@ md_acpi_rsdp (void)
 }
 
 void *
-get_payload_start (int argc, char *argv[])
+get_payload_start (int argc, char *argv[], plid_t id)
 {
-  return payload_start;
+  void *elf_payload;
+
+  switch (id)
+    {
+    case PAYLOAD_KERNEL:
+      elf_payload = elf_kernel_payload;
+      break;
+    case PAYLOAD_USER:
+      elf_payload = elf_user_payload;
+      break;
+    default:
+      printf ("Unsupported payload ID %d\n", id);
+      elf_payload = NULL;
+      break;
+    }
+
+  return elf_payload;
 }
 
 unsigned long
-get_payload_size (void)
+get_payload_size (plid_t id)
 {
-  return payload_size;
+  size_t elf_payload_size;
+
+  switch (id)
+    {
+    case PAYLOAD_KERNEL:
+      elf_payload_size = elf_kernel_payload_size;
+      break;
+    case PAYLOAD_USER:
+      elf_payload_size = elf_user_payload_size;
+      break;
+    default:
+      printf ("Unsupported payload ID %d\n", id);
+      elf_payload_size = 0;
+      break;
+    }
+
+  return elf_payload_size;
 }
 
 void
@@ -176,10 +208,17 @@ apxhefi_add_memregion (int ram, int bsy, unsigned long pfn, unsigned len)
 }
 
 void
-apxhefi_add_payload (void *start, size_t size)
+apxhefi_add_kernel_payload (void *start, size_t size)
 {
-  payload_start = start;
-  payload_size = size;
+  elf_kernel_payload = start;
+  elf_kernel_payload_size = size;
+}
+
+void
+apxhefi_add_user_payload (void *start, size_t size)
+{
+  elf_user_payload = start;
+  elf_user_payload_size = size;
 }
 
 void

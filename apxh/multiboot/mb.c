@@ -23,8 +23,8 @@
 #define BOOTMEM_MMAP      0x10000	/* Multiboot memory map (256kb Max) */
 #define BOOTMEM_MMAPSIZE  0x30000	/* Memory map maximum size */
 
-static void *elf_payload;
-static size_t elf_payload_size;
+static void *elf_kernel_payload, *elf_user_payload;
+static size_t elf_kernel_payload_size, elf_user_payload_size;
 
 static uintptr_t brk;
 static unsigned bootinfo_regions;
@@ -174,14 +174,46 @@ parse_multiboot (struct multiboot_info *info)
 
 
 void *
-get_payload_start (int argc, char *argv[])
+get_payload_start (int argc, char *argv[], plid_t id)
 {
+  void *elf_payload;
+
+  switch (id)
+    {
+    case PAYLOAD_KERNEL:
+      elf_payload = elf_kernel_payload;
+      break;
+    case PAYLOAD_USER:
+      elf_payload = elf_user_payload;
+      break;
+    default:
+      printf ("Unsupported payload ID %d\n", id);
+      elf_payload = NULL;
+      break;
+    }
+
   return elf_payload;
 }
 
 size_t
-get_payload_size (void)
+get_payload_size (plid_t id)
 {
+  size_t elf_payload_size;
+
+  switch (id)
+    {
+    case PAYLOAD_KERNEL:
+      elf_payload_size = elf_kernel_payload_size;
+      break;
+    case PAYLOAD_USER:
+      elf_payload_size = elf_user_payload_size;
+      break;
+    default:
+      printf ("Unsupported payload ID %d\n", id);
+      elf_payload_size = 0;
+      break;
+    }
+
   return elf_payload_size;
 }
 
@@ -202,9 +234,14 @@ get_page (void)
 void
 md_init (void)
 {
-  elf_payload = payload_get (0, &elf_payload_size);
+  uintptr_t ptr;
 
-  uintptr_t ptr = (uintptr_t) elf_payload + elf_payload_size;
+  elf_kernel_payload = payload_get (0, &elf_kernel_payload_size);
+  ptr = (uintptr_t) elf_kernel_payload + elf_kernel_payload_size;
+  brk = PAGE_ROUND (ptr);
+
+  elf_user_payload = payload_get (1, &elf_user_payload_size);
+  ptr = (uintptr_t) elf_user_payload + elf_user_payload_size;
   brk = PAGE_ROUND (ptr);
 
   printf ("multiboot initialised: brk at %08x\n", brk);
