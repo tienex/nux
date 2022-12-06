@@ -355,8 +355,6 @@ va_stree (vaddr_t va, size64_t size)
       if (reg->type != BOOTINFO_REGION_RAM)
       	continue;
 
-      printf ("Reg: %d Type %02d, PA: %016llx (%ld)\n",
-	      i, reg->type, (uint64_t)reg->pfn << PAGE_SHIFT, reg->len);
 
       for (j = 0; j < reg->len; j++)
 	{
