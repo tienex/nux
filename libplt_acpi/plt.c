@@ -35,9 +35,9 @@ plt_init (void)
 
   printf ("RSDP: %llx\n", desc->acpi_rsdp);
 
-  acpi_init(desc->acpi_rsdp);
-  acpi_madt_scan();
-  gsi_start();
+  acpi_init (desc->acpi_rsdp);
+  acpi_madt_scan ();
+  gsi_start ();
 
   acpi_hpet_scan ();
 }

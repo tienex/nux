@@ -38,7 +38,8 @@ static int kmem_trim = TRIM_NONE;
 #define KMEM_TYPE "Unpaged"
 #endif
 
-static int cmp (vaddr_t a, vaddr_t b)
+static int
+cmp (vaddr_t a, vaddr_t b)
 {
   if (a > b)
     return 1;
@@ -55,9 +56,9 @@ _ensure_range (vaddr_t v1, vaddr_t v2, int mapped)
   vaddr_t s, e;
   unsigned prot;
 
-  s = MIN(v1, v2);
-  e = MAX(v1, v2);
-  prot = mapped ? HAL_PTE_P|HAL_PTE_W : 0;
+  s = MIN (v1, v2);
+  e = MAX (v1, v2);
+  prot = mapped ? HAL_PTE_P | HAL_PTE_W : 0;
 
   if (kmap_ensure_range (s, e - s, prot))
     return -1;
@@ -92,18 +93,18 @@ kmem_brk (int low, vaddr_t vaddr)
     goto out;
 
   /* Check if we pass the other brk. */
-  if (cmp(vaddr, brk[other]) != cmp (brk[this], brk[other]))
+  if (cmp (vaddr, brk[other]) != cmp (brk[this], brk[other]))
     goto out;
 
 #ifdef HAL_PAGED
-  if (_ensure_range_mapped(brk[this], vaddr))
+  if (_ensure_range_mapped (brk[this], vaddr))
     goto out;
 #endif
 
   brk[this] = vaddr;
   ret = 0;
 
- out:
+out:
   spinunlock (&brklock);
   return ret;
 }
@@ -129,19 +130,19 @@ kmem_sbrk (int low, long inc)
     goto out;
 
   /* Check if we pass the other brk. */
-  if (cmp(vaddr, brk[other]) != cmp (brk[this], brk[other]))
+  if (cmp (vaddr, brk[other]) != cmp (brk[this], brk[other]))
     goto out;
 
 #ifdef HAL_PAGED
-  if (_ensure_range_mapped(brk[this], vaddr))
+  if (_ensure_range_mapped (brk[this], vaddr))
     goto out;
 #endif
 
-  maxbrk[this] = low ? MAX(maxbrk[this], vaddr) : MIN(maxbrk[this], vaddr);
+  maxbrk[this] = low ? MAX (maxbrk[this], vaddr) : MIN (maxbrk[this], vaddr);
   ret = brk[this];
   brk[this] = vaddr;
 
- out:
+out:
   spinunlock (&brklock);
 
   return ret;
@@ -154,10 +155,11 @@ kmem_brkgrow (int low, unsigned size)
 
   if (low)
     ret = kmem_sbrk (low, size);
-  else {
-    ret = kmem_sbrk (low, -(long)size);
-    ret = ret != VADDR_INVALID ? ret - size : ret;
-  }
+  else
+    {
+      ret = kmem_sbrk (low, -(long) size);
+      ret = ret != VADDR_INVALID ? ret - size : ret;
+    }
 
   return ret;
 }
@@ -178,14 +180,16 @@ kmem_brkshrink (int low, unsigned size)
   KMEM heap allocation.
 */
 
-struct kmem_head {
+struct kmem_head
+{
   unsigned long magic;
-  LIST_ENTRY(kmem_head) list;
+    LIST_ENTRY (kmem_head) list;
   vaddr_t addr;
   size_t size;
 };
 
-struct kmem_tail {
+struct kmem_tail
+{
   size_t offset;
   unsigned long magic;
 };
@@ -204,12 +208,13 @@ ___mkptr (vaddr_t addr, size_t size, uintptr_t opq)
   struct kmem_head *ptr;
   struct kmem_tail *tail;
 
-  ptr = (struct kmem_head *)addr;
+  ptr = (struct kmem_head *) addr;
   ptr->magic = ZONE_HEAD_MAGIC;
   ptr->addr = addr;
   ptr->size = size;
 
-  tail = (struct kmem_tail *)((void *)ptr + size - sizeof(struct kmem_tail));
+  tail =
+    (struct kmem_tail *) ((void *) ptr + size - sizeof (struct kmem_tail));
   tail->magic = ZONE_TAIL_MAGIC;
   tail->offset = size - sizeof (struct kmem_tail);
 
@@ -222,7 +227,9 @@ static void
 ___freeptr (struct kmem_head *ptr, uintptr_t opq)
 {
   struct kmem_tail *tail;
-  tail = (struct kmem_tail *)((void *)ptr + ptr->size - sizeof(struct kmem_tail));
+  tail =
+    (struct kmem_tail *) ((void *) ptr + ptr->size -
+			  sizeof (struct kmem_tail));
   memset (ptr, 0, sizeof (*ptr));
   memset (tail, 0, sizeof (*tail));
 
@@ -231,8 +238,7 @@ ___freeptr (struct kmem_head *ptr, uintptr_t opq)
 
 static void
 ___get_neighbors (vaddr_t zaddr, size_t size,
-		  struct kmem_head **ph, struct kmem_head **nh,
-		  uintptr_t opq)
+		  struct kmem_head **ph, struct kmem_head **nh, uintptr_t opq)
 {
 
   int low = opq;
@@ -264,18 +270,18 @@ ___get_neighbors (vaddr_t zaddr, size_t size,
   if (ptail == VADDR_INVALID)
     goto check_next;
 
-  t = (struct kmem_tail *)ptail;
+  t = (struct kmem_tail *) ptail;
 #ifdef HAL_PAGED
-  if (!kmap_mapped_range ((vaddr_t)t, sizeof (struct kmem_tail)))
+  if (!kmap_mapped_range ((vaddr_t) t, sizeof (struct kmem_tail)))
     goto check_next;
 #endif
 
   if (t->magic != ZONE_TAIL_MAGIC)
     goto check_next;
 
-  h = (struct kmem_head *)(ptail - t->offset);
+  h = (struct kmem_head *) (ptail - t->offset);
 #ifdef HAL_PAGED
-  if (!kmap_mapped_range ((vaddr_t)h, sizeof (struct kmem_head)))
+  if (!kmap_mapped_range ((vaddr_t) h, sizeof (struct kmem_head)))
     goto check_next;
 #endif
 
@@ -284,14 +290,14 @@ ___get_neighbors (vaddr_t zaddr, size_t size,
 
   *ph = h;
 
- check_next:
-  
+check_next:
+
   if (nhead == VADDR_INVALID)
     return;
 
-  h = (struct kmem_head *)nhead;
+  h = (struct kmem_head *) nhead;
 #ifdef HAL_PAGED
-  if (!kmap_mapped_range ((vaddr_t)h, sizeof (struct kmem_head)))
+  if (!kmap_mapped_range ((vaddr_t) h, sizeof (struct kmem_head)))
     return;
 #endif
 
@@ -340,8 +346,8 @@ kmem_free (int low, vaddr_t vaddr, size_t size)
   limit = low ? vaddr + size : vaddr;
 
   /*
-    If we're freeing up to the BRK, reduce BRK allocation.
-  */
+     If we're freeing up to the BRK, reduce BRK allocation.
+   */
   spinlock (&brklock);
   printf ("(BRK) %lx == %lx ? ", brk[this], limit);
   if (brk[this] == limit)
@@ -352,10 +358,10 @@ kmem_free (int low, vaddr_t vaddr, size_t size)
       if (kmem_trim >= TRIM_BRK)
 	{
 	  /*
-	    If in TRIM mode, unmap and free unneeded pages.
-	  */
-	  vaddr_t v1 = low ? round_page(base) : trunc_page(base);
-	  vaddr_t v2 = low ? round_page(limit) : trunc_page(limit);
+	     If in TRIM mode, unmap and free unneeded pages.
+	   */
+	  vaddr_t v1 = low ? round_page (base) : trunc_page (base);
+	  vaddr_t v2 = low ? round_page (limit) : trunc_page (limit);
 
 	  printf ("Unmapping from [%lx-%lx] ", v1, v2);
 	  _ensure_range_unmapped (v1, v2);
@@ -367,15 +373,15 @@ kmem_free (int low, vaddr_t vaddr, size_t size)
   spinunlock (&brklock);
 
   /*
-    Free using allocator.
-  */
+     Free using allocator.
+   */
   z = kmemz + this;
   l = lockz + this;
   spinlock (l);
   zone_free (z, vaddr, size);
   spinunlock (l);
 
- out:
+out:
   return;
 }
 
@@ -386,9 +392,9 @@ kmem_trim_one (unsigned trim_mode)
   if (trim_mode >= TRIM_BRK)
     {
       /* Unmap all pages between the BRKs. */
-      _ensure_range_unmapped (round_page(brk[LO]), round_page(maxbrk[LO]));
+      _ensure_range_unmapped (round_page (brk[LO]), round_page (maxbrk[LO]));
       maxbrk[LO] = brk[LO];
-      _ensure_range_unmapped (trunc_page(brk[HI]), trunc_page(maxbrk[HI]));
+      _ensure_range_unmapped (trunc_page (brk[HI]), trunc_page (maxbrk[HI]));
       maxbrk[HI] = brk[HI];
     }
   spinunlock (&brklock);
@@ -410,8 +416,8 @@ kmem_trim_setmode (unsigned trim_mode)
 void
 kmeminit (void)
 {
-  base[LO] = hal_virtmem_kmembase();
-  base[HI] = hal_virtmem_kmembase() + hal_virtmem_kmemsize();
+  base[LO] = hal_virtmem_kmembase ();
+  base[HI] = hal_virtmem_kmembase () + hal_virtmem_kmemsize ();
 
   brk[LO] = base[LO];
   brk[HI] = base[HI];
@@ -424,6 +430,5 @@ kmeminit (void)
   zone_init (kmemz + HI, 0);
   spinlock_init (lockz + HI);
 
-  printf("%s KMEM from %08lx to %08lx\n", KMEM_TYPE, brk[LO], brk[HI]);
+  printf ("%s KMEM from %08lx to %08lx\n", KMEM_TYPE, brk[LO], brk[HI]);
 }
-

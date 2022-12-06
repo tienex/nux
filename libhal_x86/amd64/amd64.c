@@ -35,16 +35,16 @@ uint64_t pcpu_kstack[MAXCPUS];
 void
 set_tss (unsigned pcpuid, struct amd64_tss *tss)
 {
-  uintptr_t ptr = (uintptr_t)tss;
-  uint16_t lo16 = (uint16_t)ptr;
-  uint8_t ml8 = (uint8_t)(ptr >> 16);
-  uint8_t mh8 = (uint8_t)(ptr >> 24);
-  uint32_t hi32 = (uint32_t)(ptr >> 32);
+  uintptr_t ptr = (uintptr_t) tss;
+  uint16_t lo16 = (uint16_t) ptr;
+  uint8_t ml8 = (uint8_t) (ptr >> 16);
+  uint8_t mh8 = (uint8_t) (ptr >> 24);
+  uint32_t hi32 = (uint32_t) (ptr >> 32);
   uint16_t limit = sizeof (*tss);
-  uint32_t *ptr32 = (uint32_t *)(_gdt + TSS_GDTIDX(pcpuid));
+  uint32_t *ptr32 = (uint32_t *) (_gdt + TSS_GDTIDX (pcpuid));
 
-  ptr32[0] = limit | ((uint32_t)lo16 << 16);
-  ptr32[1] = ml8 | (0x0089 << 8) | ((uint32_t)mh8 << 24);
+  ptr32[0] = limit | ((uint32_t) lo16 << 16);
+  ptr32[1] = ml8 | (0x0089 << 8) | ((uint32_t) mh8 << 24);
   ptr32[2] = hi32;
   ptr32[3] = 0;
 }
@@ -52,19 +52,19 @@ set_tss (unsigned pcpuid, struct amd64_tss *tss)
 void
 set_kernel_gsbase (unsigned long gsbase)
 {
- wrmsr(MSR_IA32_KERNEL_GS_BASE, gsbase);
+  wrmsr (MSR_IA32_KERNEL_GS_BASE, gsbase);
 }
 
 void
 set_gsbase (unsigned long gsbase)
 {
-  wrmsr(MSR_IA32_GS_BASE, gsbase);
+  wrmsr (MSR_IA32_GS_BASE, gsbase);
 }
 
 uint64_t
 get_gsbase (void)
 {
-  return rdmsr(MSR_IA32_GS_BASE);
+  return rdmsr (MSR_IA32_GS_BASE);
 }
 
 void
@@ -109,15 +109,15 @@ hal_pcpu_add (unsigned pcpuid, struct hal_cpu *haldata)
   assert (pcpuid < MAXCPUS);
 
   /* Allocate PCPU kernel stack. */
-  pfn = pfn_alloc(1);
+  pfn = pfn_alloc (1);
   assert (pfn != PFN_INVALID);
-  va = kva_map (1, pfn, 1, HAL_PTE_W|HAL_PTE_P);
+  va = kva_map (1, pfn, 1, HAL_PTE_W | HAL_PTE_P);
   assert (va != NULL);
-  pcpu_kstack[pcpu_kstackno++] = (uint64_t)va + PAGE_SIZE;
+  pcpu_kstack[pcpu_kstackno++] = (uint64_t) va + PAGE_SIZE;
 
   set_tss (pcpuid, &haldata->tss);
 
-  pcpu_haldata[pcpuid] = (vaddr_t)(uintptr_t)haldata;
+  pcpu_haldata[pcpuid] = (vaddr_t) (uintptr_t) haldata;
 }
 
 void
@@ -132,55 +132,55 @@ hal_pcpu_init (void)
   extern char *_ap_start, *_ap_end;
 
   /* Allocate PCPU bootstrap code page. */
-  pfn = pfn_alloc(1);
+  pfn = pfn_alloc (1);
   /* This is tricky. The hope is that is low enough to be addressed by
      16 bit. */
   assert (pfn < (1 << 8) && "Can't allocate Memory below 1MB!");
 
   /* Map and prepare the bootstrap code page. */
-  va = kva_map (1, pfn, 1, HAL_PTE_W|HAL_PTE_P);
+  va = kva_map (1, pfn, 1, HAL_PTE_W | HAL_PTE_P);
   assert (va != NULL);
   start = va;
   size_t apbootsz = (size_t) ((void *) &_ap_end - (void *) &_ap_start);
   assert (apbootsz <= PAGE_SIZE);
   memcpy (start, &_ap_start, apbootsz);
 
-  pstart = (paddr_t)pfn << PAGE_SHIFT;
+  pstart = (paddr_t) pfn << PAGE_SHIFT;
 
   /*
-    The following is trampoline dependent code, and configures the
-    trampoline to use the page just selected as bootstrap page.
-  */
+     The following is trampoline dependent code, and configures the
+     trampoline to use the page just selected as bootstrap page.
+   */
   extern char _ap_gdtreg, _ap_ljmp1, _ap_ljmp2, _ap_cr3;
   extern uint64_t _bsp_cr3;
 
   /* Copy BSP CR3 into AP */
-  ptr = start + ((void *)&_ap_cr3 - (void *)&_ap_start);
-  *(uint64_t *)ptr = _bsp_cr3;
+  ptr = start + ((void *) &_ap_cr3 - (void *) &_ap_start);
+  *(uint64_t *) ptr = _bsp_cr3;
 
   /* Setup temporary GDT register. */
-  ptr = start + ((void *)&_ap_gdtreg - (void *)&_ap_start);
-  *(uint32_t *)(ptr + 2) += (uint32_t)pstart;
+  ptr = start + ((void *) &_ap_gdtreg - (void *) &_ap_start);
+  *(uint32_t *) (ptr + 2) += (uint32_t) pstart;
 
   /* Setup trampoline 1 */
-  ptr = start + ((void *)&_ap_ljmp1 - (void *)&_ap_start);
-  *(uint32_t *)ptr += (uint32_t)pstart;
-  printf ("Trampoline 1 (%p) = %lx\n", ptr, *(uint32_t *)ptr);
+  ptr = start + ((void *) &_ap_ljmp1 - (void *) &_ap_start);
+  *(uint32_t *) ptr += (uint32_t) pstart;
+  printf ("Trampoline 1 (%p) = %lx\n", ptr, *(uint32_t *) ptr);
 
   /* Setup trampoline 2 */
-  ptr = start + ((void *)&_ap_ljmp2 - (void *)&_ap_start);
-  *(uint32_t *)ptr += (uint32_t)pstart;
-  printf ("Trampoline 2 (%p) = %lx\n", ptr, *(uint32_t *)ptr);
-	  
+  ptr = start + ((void *) &_ap_ljmp2 - (void *) &_ap_start);
+  *(uint32_t *) ptr += (uint32_t) pstart;
+  printf ("Trampoline 2 (%p) = %lx\n", ptr, *(uint32_t *) ptr);
+
 
   /* Set reset vector */
-  reset = kva_physmap (0, 0x467, 2, HAL_PTE_P|HAL_PTE_W|HAL_PTE_X);
+  reset = kva_physmap (0, 0x467, 2, HAL_PTE_P | HAL_PTE_W | HAL_PTE_X);
   *reset = pstart & 0xf;
   *(reset + 1) = pstart >> 4;
-  kva_unmap ((void *)reset);
+  kva_unmap ((void *) reset);
 
   assert (hal_pmap_getl1p (NULL, pstart, true, &l1p));
-  hal_pmap_setl1e (NULL, l1p, (pstart & ~PAGE_MASK) | PTE_P | PTE_W );
+  hal_pmap_setl1e (NULL, l1p, (pstart & ~PAGE_MASK) | PTE_P | PTE_W);
 
   pcpu_pstart = pstart;
 }
@@ -202,17 +202,17 @@ hal_pcpu_enter (unsigned pcpuid)
   set_gsbase (pcpu_haldata[pcpuid]);
   set_kernel_gsbase (pcpu_haldata[pcpuid]);
 
-  asm volatile ("ltr %%ax" :: "a" (TSS_GDTIDX(pcpuid) << 3));
+  asm volatile ("ltr %%ax"::"a" (TSS_GDTIDX (pcpuid) << 3));
 }
 
 void
 amd64_init_ap (uintptr_t esp)
 {
   unsigned pcpu = plt_pcpu_id ();
-  struct hal_cpu *haldata = (struct hal_cpu *)(uintptr_t)pcpu_haldata[pcpu];
+  struct hal_cpu *haldata = (struct hal_cpu *) (uintptr_t) pcpu_haldata[pcpu];
 
   haldata->tss.rsp0 = esp;
-  haldata->tss.iomap = 108; /* XXX: FIX with sizeof(tss) + 1 */
+  haldata->tss.iomap = 108;	/* XXX: FIX with sizeof(tss) + 1 */
   haldata->data = NULL;
 
   hal_main_ap ();
@@ -222,5 +222,5 @@ amd64_init_ap (uintptr_t esp)
 void
 amd64_init (void)
 {
-  
+
 }

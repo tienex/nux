@@ -1,4 +1,5 @@
-/* *INDENT-OFF* */ /* Imported from NetBSD -- MHDIFFIGNORE */
+/* *INDENT-OFF* */
+/* Imported from NetBSD -- MHDIFFIGNORE */
 /*	$NetBSD: queue.h,v 1.67 2014/05/17 21:22:56 rmind Exp $	*/
 
 /*

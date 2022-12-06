@@ -22,7 +22,7 @@ uint64_t pte_nx = 0;
 
 bool
 hal_pmap_getl1p (struct hal_pmap *pmap, unsigned long va, bool alloc,
-			   hal_l1p_t *l1popq)
+		 hal_l1p_t * l1popq)
 {
   hal_l1e_t *l1p = get_l1p (pmap, va, alloc);
 
@@ -34,14 +34,14 @@ hal_pmap_getl1p (struct hal_pmap *pmap, unsigned long va, bool alloc,
     }
 
   if (l1popq != NULL)
-    *l1popq = (hal_l1p_t)(uintptr_t)l1p;
+    *l1popq = (hal_l1p_t) (uintptr_t) l1p;
   return true;
 }
 
 hal_l1e_t
 hal_pmap_getl1e (struct hal_pmap *pmap, hal_l1p_t l1popq)
 {
-  return *(hal_l1e_t *)l1popq;
+  return *(hal_l1e_t *) l1popq;
 }
 
 hal_l1e_t
@@ -49,9 +49,9 @@ hal_pmap_setl1e (struct hal_pmap *pmap, hal_l1p_t l1popq, hal_l1e_t l1e)
 {
   hal_l1e_t ol1e, *l1p;
 
-  l1p = (hal_l1e_t *)l1popq;
+  l1p = (hal_l1e_t *) l1popq;
   ol1e = *l1p;
-  set_pte ((uint64_t *)l1p, (uint64_t)l1e);
+  set_pte ((uint64_t *) l1p, (uint64_t) l1e);
   return ol1e;
 }
 
@@ -66,8 +66,7 @@ hal_pmap_boxl1e (unsigned long pfn, unsigned prot)
     l1e |= PTE_P;
   if (prot & HAL_PTE_W)
     l1e |= PTE_W;
-  if (!(prot & HAL_PTE_X)
-      && (prot & HAL_PTE_P))
+  if (!(prot & HAL_PTE_X) && (prot & HAL_PTE_P))
     l1e |= pte_nx;
   if (prot & HAL_PTE_U)
     l1e |= PTE_U;
@@ -92,8 +91,7 @@ hal_pmap_unboxl1e (hal_l1e_t l1e, unsigned long *pfnp, unsigned *protp)
     prot |= HAL_PTE_P;
   if (l1e & PTE_W)
     prot |= HAL_PTE_W;
-  if (!(l1e & PTE_NX)
-      && (l1e & PTE_P))
+  if (!(l1e & PTE_NX) && (l1e & PTE_P))
     prot |= HAL_PTE_X;
   if (l1e & PTE_U)
     prot |= HAL_PTE_U;
@@ -118,8 +116,8 @@ hal_pmap_tlbop (hal_l1e_t old, hal_l1e_t new)
 #define restricts_permissions(_o, _n) 1
 
   /* Previous not present. Don't flush. */
-  if (!(l1eflags(old) & PTE_P))
-      return 0;
+  if (!(l1eflags (old) & PTE_P))
+    return 0;
 
   /* Mapping a different page. Flush. */
   if ((l1epfn (old) != l1epfn (new)) || restricts_permissions (old, new))
@@ -147,10 +145,10 @@ const size_t
 hal_virtmem_usersize (void)
 {
 #ifdef __i386__
-  return (3L << 30); /* 3 GB */
+  return (3L << 30);		/* 3 GB */
 #endif
 #ifdef __amd64__
-  return (size_t)0x0000800000000000UL;
+  return (size_t) 0x0000800000000000UL;
 #endif
 }
 

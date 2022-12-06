@@ -7,7 +7,8 @@ static unsigned long payload_size;
 static unsigned long maxpfn;
 static unsigned numregions;
 static void *efi_rsdp;
-static struct fbdesc fbdesc = { .type = FB_INVALID, };
+static struct fbdesc fbdesc = {.type = FB_INVALID, };
+
 static struct bootinfo_region memregions[BOOTINFO_REGIONS_MAX];
 
 
@@ -15,7 +16,7 @@ void __dead
 exit (int st)
 {
   printf ("EXIT CALLED!\n");
-  
+
   efi_exit (st);
   while (1);
   //  Exit(_image_handle, EFI_SUCCESS, 0, NULL);
@@ -24,7 +25,7 @@ exit (int st)
 uintptr_t
 get_page (void)
 {
-  return (uintptr_t)efi_allocate_maxaddr ((unsigned long)BOOTMEM);
+  return (uintptr_t) efi_allocate_maxaddr ((unsigned long) BOOTMEM);
 }
 
 void
@@ -44,25 +45,25 @@ md_entry (arch_t arch, vaddr_t pt, vaddr_t entry)
   void *trampcr3;
   void *tramp;
   vaddr_t tramp_entry;
-  uint64_t tramp_code = 0xe7ffd9220fL; /* mov %rcx, %cr3; jmp *%rdi */
+  uint64_t tramp_code = 0xe7ffd9220fL;	/* mov %rcx, %cr3; jmp *%rdi */
 
   assert (arch == ARCH_AMD64);
 
   printf ("Entry called.\n");
 
   /* Allocate trampoline pagetable. */
-  trampcr3 = (void *)get_page ();
+  trampcr3 = (void *) get_page ();
 
   /* Setup trampoline. */
-  tramp = (void *)get_page ();
-  *(uint64_t *)tramp = tramp_code;
-  tramp_entry = (vaddr_t)(uintptr_t)tramp;
+  tramp = (void *) get_page ();
+  *(uint64_t *) tramp = tramp_code;
+  tramp_entry = (vaddr_t) (uintptr_t) tramp;
 
   /* Setup Direct map at 0->1Gb */
   pae64_directmap (trampcr3, 0, 0, 64L << 30, 0, 1);
 
   /* Map Entry page in transitional pagetable VA. */
-  pae64_map_page (trampcr3, (vaddr_t)entry, pae64_getphys(entry), 0, 0, 1);
+  pae64_map_page (trampcr3, (vaddr_t) entry, pae64_getphys (entry), 0, 0, 1);
 
   efi_exitbs ();
 
@@ -73,8 +74,8 @@ md_entry (arch_t arch, vaddr_t pt, vaddr_t entry)
      "mov %2, %%rsi\n"
      "mov %3, %%rcx\n"
      "cli\n"
-     "jmp *%%rax\n"
-     :: "m"(tramp_entry), "m"(entry), "m"(pt), "m" (trampcr3));
+     "jmp *%%rax\n"::"m" (tramp_entry), "m" (entry), "m" (pt),
+     "m" (trampcr3));
 }
 
 unsigned long
@@ -107,7 +108,7 @@ md_getframebuffer (void)
 unsigned long
 md_acpi_rsdp (void)
 {
-  return (unsigned long)efi_rsdp;
+  return (unsigned long) efi_rsdp;
 }
 
 void *

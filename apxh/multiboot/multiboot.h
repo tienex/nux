@@ -98,10 +98,10 @@
 
 #ifndef ASM_FILE
 
-typedef unsigned char           multiboot_uint8_t;
-typedef unsigned short          multiboot_uint16_t;
-typedef unsigned int            multiboot_uint32_t;
-typedef unsigned long long      multiboot_uint64_t;
+typedef unsigned char multiboot_uint8_t;
+typedef unsigned short multiboot_uint16_t;
+typedef unsigned int multiboot_uint32_t;
+typedef unsigned long long multiboot_uint64_t;
 
 struct multiboot_header
 {
@@ -146,7 +146,8 @@ struct multiboot_elf_section_header_table
   multiboot_uint32_t addr;
   multiboot_uint32_t shndx;
 };
-typedef struct multiboot_elf_section_header_table multiboot_elf_section_header_table_t;
+typedef struct multiboot_elf_section_header_table
+  multiboot_elf_section_header_table_t;
 
 struct multiboot_info
 {
@@ -279,4 +280,3 @@ struct multiboot_apm_info
 #endif /* ! ASM_FILE */
 
 #endif /* ! MULTIBOOT_HEADER */
-

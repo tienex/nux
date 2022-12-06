@@ -40,7 +40,7 @@ uint16_t
 _i386_fs (void)
 {
   if (bsp_enter_called)
-    return (5 + 4 * plt_pcpu_id() + 1) << 3;
+    return (5 + 4 * plt_pcpu_id () + 1) << 3;
   else
     return 0;
 }
@@ -56,16 +56,16 @@ hal_pcpu_add (unsigned pcpuid, struct hal_cpu *haldata)
   assert (pcpuid < MAXCPUS);
 
   /* Allocate PCPU kernel stack. */
-  pfn = pfn_alloc(1);
+  pfn = pfn_alloc (1);
   assert (pfn != PFN_INVALID);
-  va = kva_map (1, pfn, 1, HAL_PTE_W|HAL_PTE_P);
+  va = kva_map (1, pfn, 1, HAL_PTE_W | HAL_PTE_P);
   assert (va != NULL);
-  pcpu_kstack[pcpu_kstackno++] = (uint64_t)va + PAGE_SIZE;
+  pcpu_kstack[pcpu_kstackno++] = (uint64_t) va + PAGE_SIZE;
 
   _set_tss (pcpuid, &haldata->tss);
   _set_fs (pcpuid, &haldata->data);
 
-  pcpu_haldata[pcpuid] = (vaddr_t)(uintptr_t)haldata;
+  pcpu_haldata[pcpuid] = (vaddr_t) (uintptr_t) haldata;
 }
 
 void
@@ -86,37 +86,37 @@ hal_pcpu_init (void)
   assert (pfn < (1 << 8) && "Can't allocate Memory below 1MB!");
 
   /* Map and prepare the bootstrap code page. */
-  va = kva_map (1, pfn, 1, HAL_PTE_W|HAL_PTE_P);
+  va = kva_map (1, pfn, 1, HAL_PTE_W | HAL_PTE_P);
   assert (va != NULL);
   start = va;
   size_t apbootsz = (size_t) ((void *) &_ap_end - (void *) &_ap_start);
   assert (apbootsz <= PAGE_SIZE);
   memcpy (start, &_ap_start, apbootsz);
 
-  pstart = (paddr_t)pfn << PAGE_SHIFT;
+  pstart = (paddr_t) pfn << PAGE_SHIFT;
 
   /*
-    The following is trampoline dependent code, and configures the
-    trampoline to use the page just selected as bootstrap page.
-  */
+     The following is trampoline dependent code, and configures the
+     trampoline to use the page just selected as bootstrap page.
+   */
   extern char _ap_gdtreg, _ap_ljmp;
 
   /* Setup temporary GDT register. */
-  ptr = start + ((void *)&_ap_gdtreg - (void *)&_ap_start);
-  *(uint32_t *)(ptr + 2) += (uint32_t)pstart;
+  ptr = start + ((void *) &_ap_gdtreg - (void *) &_ap_start);
+  *(uint32_t *) (ptr + 2) += (uint32_t) pstart;
 
   /* Setup trampoline 1 */
-  ptr = start + ((void *)&_ap_ljmp - (void *)&_ap_start);
-  *(uint32_t *)ptr += (uint32_t)pstart;
+  ptr = start + ((void *) &_ap_ljmp - (void *) &_ap_start);
+  *(uint32_t *) ptr += (uint32_t) pstart;
 
   /* Set reset vector */
-  reset = kva_physmap (0, 0x467, 2, HAL_PTE_P|HAL_PTE_W|HAL_PTE_X);
+  reset = kva_physmap (0, 0x467, 2, HAL_PTE_P | HAL_PTE_W | HAL_PTE_X);
   *reset = pstart & 0xf;
   *(reset + 1) = pstart >> 4;
-  kva_unmap ((void *)reset);
+  kva_unmap ((void *) reset);
 
   assert (hal_pmap_getl1p (NULL, pstart, true, &l1p));
-  hal_pmap_setl1e (NULL, l1p, (pstart & ~PAGE_MASK) | PTE_P | PTE_W );
+  hal_pmap_setl1e (NULL, l1p, (pstart & ~PAGE_MASK) | PTE_P | PTE_W);
 
   pcpu_pstart = pstart;
 }
@@ -187,7 +187,7 @@ void
 i386_init_ap (uintptr_t esp)
 {
   unsigned pcpu = plt_pcpu_id ();
-  struct hal_cpu *haldata = (struct hal_cpu *)(uintptr_t)pcpu_haldata[pcpu];
+  struct hal_cpu *haldata = (struct hal_cpu *) (uintptr_t) pcpu_haldata[pcpu];
 
   haldata->tss.esp0 = esp;
   haldata->tss.iomap = 108;

@@ -14,12 +14,12 @@
   HAL Configuration.
 */
 
-#define HAL_PAGED  /* This HAL uses paging. */
+#define HAL_PAGED		/* This HAL uses paging. */
 
 #define HAL_PAGE_SHIFT 12
 #define HAL_MAXCPUS 256
 
-#define HAL_KVA_SHIFT 39 /* 512Gb */
+#define HAL_KVA_SHIFT 39	/* 512Gb */
 #define HAL_KVA_SIZE (1LL << HAL_KVA_SHIFT)
 
 #define FRAMETYPE_INTR 0x0
@@ -81,7 +81,7 @@ struct hal_frame
       uint64_t r15;
 
       uint64_t vect;
-  
+
       /* exception stack */
       uint64_t err;
       uint64_t rip;

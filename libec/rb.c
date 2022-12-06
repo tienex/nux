@@ -1,4 +1,5 @@
-/* *INDENT-OFF* */ /* Imported from NetBSD -- MHDIFFIGNORE */
+/* *INDENT-OFF* */
+/* Imported from NetBSD -- MHDIFFIGNORE */
 /*	$NetBSD: rb.c,v 1.11.22.1 2014/08/29 11:32:01 martin Exp $	*/
 
 /*-

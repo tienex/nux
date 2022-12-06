@@ -37,6 +37,7 @@ uint32_t framebuffer_color (unsigned r, unsigned g, unsigned b);
 void framebuffer_blt (unsigned x, unsigned y, uint32_t color,
 		      void *data, size_t width, size_t height);
 int framebuffer_putc (int ch, uint32_t color);
-void framebuffer_putc_xy (unsigned x, unsigned y, uint32_t color, unsigned char c);
+void framebuffer_putc_xy (unsigned x, unsigned y, uint32_t color,
+			  unsigned char c);
 
 #endif

@@ -25,7 +25,8 @@
 #define ACPI_MADT_TYPE_GENINT 11
 #define ACPI_MADT_TYPE_GENDISTR 12
 
-struct acpi_rsdp_thdr {
+struct acpi_rsdp_thdr
+{
   char signature[8];
   uint8_t checksum;
   char oemid[6];
@@ -39,7 +40,8 @@ struct acpi_rsdp_thdr {
   uint8_t reserved[3];
 } __packed;
 
-struct acpi_thdr {
+struct acpi_thdr
+{
   char signature[4];
   uint32_t length;
   uint8_t revision;

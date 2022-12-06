@@ -29,17 +29,17 @@ pfninit (void)
 {
   long first, last;
 
-  stree = hal_physmem_stree(&order);
+  stree = hal_physmem_stree (&order);
   assert (stree);
 
-  first = stree_bitsearch(stree, order, 1);
-  last = stree_bitsearch(stree, order, 0);
+  first = stree_bitsearch (stree, order, 1);
+  last = stree_bitsearch (stree, order, 0);
   assert (first >= 0);
   assert (last >= 0);
-  printf("Lowest physical page free:  %08lx.\n", first);
-  printf("Highest physical page free: %08lx.\n", last);
+  printf ("Lowest physical page free:  %08lx.\n", first);
+  printf ("Highest physical page free: %08lx.\n", last);
 
-  spinlock_init(&pglock);
+  spinlock_init (&pglock);
 }
 
 
@@ -49,11 +49,11 @@ pfn_alloc (int low)
   long pg;
   void *va;
 
-  spinlock(&pglock);
-  pg = stree_bitsearch(stree, order, low);
+  spinlock (&pglock);
+  pg = stree_bitsearch (stree, order, low);
   if (pg >= 0)
-    stree_clrbit(stree, order, pg);
-  spinunlock(&pglock);
+    stree_clrbit (stree, order, pg);
+  spinunlock (&pglock);
 
   if (pg < 0)
     return PFN_INVALID;
@@ -61,8 +61,8 @@ pfn_alloc (int low)
   va = pfn_get (pg);
   memset (va, 0, PAGE_SIZE);
   pfn_put (pg, va);
-  
-  return (pfn_t)pg;
+
+  return (pfn_t) pg;
 }
 
 void
@@ -71,7 +71,7 @@ pfn_free (pfn_t pfn)
   assert (pfn != PFN_INVALID);
   assert (pfn < hal_physmem_maxpfn ());
   printf (",");
-  spinlock(&pglock);
-  stree_setbit(stree, order, pfn);
-  spinunlock(&pglock);
+  spinlock (&pglock);
+  stree_setbit (stree, order, pfn);
+  spinunlock (&pglock);
 }

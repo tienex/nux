@@ -102,7 +102,7 @@ vprintf (const char *fmt, va_list ap)
   while (1)
     {
       while (*p && *p != '%')
-	putchar(*p++);
+	putchar (*p++);
 
       if (!*p)
 	return 0;
@@ -141,7 +141,7 @@ vprintf (const char *fmt, va_list ap)
 	{
 	  switch (*p)
 	    {
-	    case '0'...'9':
+	    case '0' ... '9':
 	      mwidth *= 10;
 	      mwidth += *p - '0';
 	      break;
@@ -159,7 +159,7 @@ vprintf (const char *fmt, va_list ap)
 	{
 	  switch (*p)
 	    {
-	    case '0'...'9':
+	    case '0' ... '9':
 	      maxlen *= 10;
 	      maxlen += *p - '0';
 	      break;
@@ -235,9 +235,9 @@ vprintf (const char *fmt, va_list ap)
 	    break;
 	  }
 	default:
-	  putchar('<');
-	  putchar('?');
-	  putchar('>');
+	  putchar ('<');
+	  putchar ('?');
+	  putchar ('>');
 	case '\0':
 	  return 0;
 	}
@@ -259,17 +259,17 @@ vprintf (const char *fmt, va_list ap)
 	{
 	  while (len++ < mwidth)
 	    if (opt & O_ZERO)
-	      putchar('0');
+	      putchar ('0');
 	    else
-	      putchar(' ');
+	      putchar (' ');
 	}
 
       while (maxlen--)
-	putchar(*str++);
+	putchar (*str++);
 
       if (opt & O_LEFT)
 	while (len++ < mwidth)
-	  putchar(' ');
+	  putchar (' ');
 
       p++;
     }

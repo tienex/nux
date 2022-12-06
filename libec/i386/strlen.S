@@ -1,4 +1,5 @@
-/* *INDENT-OFF* */ /* Imported from NetBSD -- MHDIFFIGNORE */
+/* *INDENT-OFF* */
+/* Imported from NetBSD -- MHDIFFIGNORE */
 /*
  * Written by J.T. Conklin <jtc@acorntoolworks.com>
  * Public domain.

@@ -16,7 +16,8 @@
 #include "project.h"
 
 static arch_t elf_arch;
-static uint8_t boot_pagemap[PAGEMAP_SZ(BOOTMEM)] __attribute__((aligned(4096)));
+static uint8_t boot_pagemap[PAGEMAP_SZ (BOOTMEM)]
+  __attribute__((aligned (4096)));
 static vaddr_t req_pfnmap_va, req_info_va, req_stree_va;
 static size64_t req_pfnmap_size, req_info_size, req_stree_size;
 static unsigned req_stree_order;
@@ -24,16 +25,16 @@ static bool stop_payload_allocation = false;
 
 
 uintptr_t
-get_payload_page(void)
+get_payload_page (void)
 {
   unsigned pfn;
   uintptr_t page;
 
   assert (!stop_payload_allocation);
 
-  page = get_page();
+  page = get_page ();
   assert (page < BOOTMEM);
-  memset ((void *)page, 0, PAGE_SIZE);
+  memset ((void *) page, 0, PAGE_SIZE);
 
   pfn = page >> PAGE_SHIFT;
 
@@ -49,12 +50,13 @@ check_payload_page (unsigned addr)
   unsigned by = i >> 3;
   unsigned bi = (1 << (i & 7));
 
-  assert (by <= PAGEMAP_SZ(BOOTMEM));
+  assert (by <= PAGEMAP_SZ (BOOTMEM));
 
   return !!(boot_pagemap[by] & bi);
 }
 
-void init (void)
+void
+init (void)
 {
   md_init ();
 }
@@ -62,34 +64,36 @@ void init (void)
 const char *
 get_arch_name (arch_t arch)
 {
-  switch (arch) {
-  case ARCH_INVALID:
-    return "invalid";
-  case ARCH_UNSUPPORTED:
-    return "unsupported";
-  case ARCH_386:
-    return "i386";
-  case ARCH_AMD64:
-    return "AMD64";
-  default:
-    return "unknown";
-  }
+  switch (arch)
+    {
+    case ARCH_INVALID:
+      return "invalid";
+    case ARCH_UNSUPPORTED:
+      return "unsupported";
+    case ARCH_386:
+      return "i386";
+    case ARCH_AMD64:
+      return "AMD64";
+    default:
+      return "unknown";
+    }
 }
 
 void
 va_init (void)
 {
-  switch (elf_arch) {
-  case ARCH_386:
-    pae_init();
-    break;
-  case ARCH_AMD64:
-    pae64_init();
-    break;
-  default:
-    printf("Unsupported VM architecture.\n");
-    exit (-1);
-  }
+  switch (elf_arch)
+    {
+    case ARCH_386:
+      pae_init ();
+      break;
+    case ARCH_AMD64:
+      pae64_init ();
+      break;
+    default:
+      printf ("Unsupported VM architecture.\n");
+      exit (-1);
+    }
 }
 
 void
@@ -98,17 +102,18 @@ va_populate (vaddr_t va, size64_t size, int w, int x)
   md_verify (va, size);
   va_verify (va, size);
 
-  switch (elf_arch) {
-  case ARCH_386:
-    pae_populate(va, size, w, x);
-    break;
-  case ARCH_AMD64:
-    pae64_populate(va, size, w, x);
-    break;
-  default:
-    printf("Unsupported VM architecture.\n");
-    exit (-1);
-  }
+  switch (elf_arch)
+    {
+    case ARCH_386:
+      pae_populate (va, size, w, x);
+      break;
+    case ARCH_AMD64:
+      pae64_populate (va, size, w, x);
+      break;
+    default:
+      printf ("Unsupported VM architecture.\n");
+      exit (-1);
+    }
 }
 
 void
@@ -116,23 +121,24 @@ va_copy (vaddr_t va, void *addr, size64_t size, int w, int x)
 {
   ssize64_t len = size;
 
-  md_verify(va, size);
-  va_verify(va, size);
+  md_verify (va, size);
+  va_verify (va, size);
 
-  printf("Copying %08llx <- %p (w:%d, x:%d, %d bytes)\n", va, addr, w, x, size);
-  va_populate(va, size, w, x);
+  printf ("Copying %08llx <- %p (w:%d, x:%d, %d bytes)\n", va, addr, w, x,
+	  size);
+  va_populate (va, size, w, x);
 
   while (len > 0)
     {
       uintptr_t paddr;
-      size64_t clen = PAGE_CEILING(va) - va;
+      size64_t clen = PAGE_CEILING (va) - va;
 
       if (clen > len)
 	clen = len;
 
       paddr = va_getphys (va);
 
-      memcpy ((void *)paddr, addr, clen);
+      memcpy ((void *) paddr, addr, clen);
 
       len -= clen;
       va += clen;
@@ -145,20 +151,21 @@ va_memset (vaddr_t va, int c, size64_t size, int w, int x)
 {
   ssize64_t len = size;
 
-  md_verify(va, size);
-  va_verify(va, size);
+  md_verify (va, size);
+  va_verify (va, size);
 
-  printf("Setting %08llx <- %d (w:%d, x: %d, %d bytes)\n", va, c, w, x, size);
-  va_populate(va, size, w, x);
+  printf ("Setting %08llx <- %d (w:%d, x: %d, %d bytes)\n", va, c, w, x,
+	  size);
+  va_populate (va, size, w, x);
 
   while (len > 0)
     {
       uintptr_t paddr;
-      size64_t clen = PAGE_CEILING(va) - va;
+      size64_t clen = PAGE_CEILING (va) - va;
 
       paddr = va_getphys (va);
 
-      memset ((void *)paddr, 0, clen);
+      memset ((void *) paddr, 0, clen);
 
       len -= clen;
       va += clen;
@@ -171,17 +178,18 @@ va_physmap (vaddr_t va, size64_t size)
   md_verify (va, size);
   va_verify (va, size);
 
-  switch (elf_arch) {
-  case ARCH_386:
-    pae_physmap (va, size, 0);
-    break;
-  case ARCH_AMD64:
-    pae64_physmap (va, size, 0);
-    break;
-  default:
-    printf("Unsupported VM architecture.\n");
-    exit (-1);
-  }
+  switch (elf_arch)
+    {
+    case ARCH_386:
+      pae_physmap (va, size, 0);
+      break;
+    case ARCH_AMD64:
+      pae64_physmap (va, size, 0);
+      break;
+    default:
+      printf ("Unsupported VM architecture.\n");
+      exit (-1);
+    }
 }
 
 void
@@ -203,20 +211,21 @@ va_framebuf (vaddr_t va, size64_t size)
 	      fbptr->size, size);
       fbptr->size = size;
     }
-  
+
   pa = fbptr->addr;
 
-  switch (elf_arch) {
-  case ARCH_386:
-    pae_physmap (va, size, pa);
-    break;
-  case ARCH_AMD64:
-    pae64_physmap (va, size, pa);
-    break;
-  default:
-    printf("Unsupported VM architecture.\n");
-    exit (-1);
-  }
+  switch (elf_arch)
+    {
+    case ARCH_386:
+      pae_physmap (va, size, pa);
+      break;
+    case ARCH_AMD64:
+      pae64_physmap (va, size, pa);
+      break;
+    default:
+      printf ("Unsupported VM architecture.\n");
+      exit (-1);
+    }
 }
 
 void
@@ -225,17 +234,18 @@ va_linear (vaddr_t va, size64_t size)
   md_verify (va, size);
   va_verify (va, size);
 
-  switch (elf_arch) {
-  case ARCH_386:
-    pae_linear (va, size);
-    break;
-  case ARCH_AMD64:
-    pae64_linear (va, size);
-    break;
-  default:
-    printf("Unsupported VM architecture.\n");
-    exit (-1);
-  }
+  switch (elf_arch)
+    {
+    case ARCH_386:
+      pae_linear (va, size);
+      break;
+    case ARCH_AMD64:
+      pae64_linear (va, size);
+      break;
+    default:
+      printf ("Unsupported VM architecture.\n");
+      exit (-1);
+    }
 }
 
 void
@@ -244,17 +254,18 @@ va_ptalloc (vaddr_t va, size64_t size)
   md_verify (va, size);
   va_verify (va, size);
 
-  switch (elf_arch) {
-  case ARCH_386:
-    pae_ptalloc (va, size);
-    break;
-  case ARCH_AMD64:
-    pae64_ptalloc (va, size);
-    break;
-  default:
-    printf("Unsupported VM architecture.\n");
-    exit (-1);
-  }
+  switch (elf_arch)
+    {
+    case ARCH_386:
+      pae_ptalloc (va, size);
+      break;
+    case ARCH_AMD64:
+      pae64_ptalloc (va, size);
+      break;
+    default:
+      printf ("Unsupported VM architecture.\n");
+      exit (-1);
+    }
 }
 
 void
@@ -280,10 +291,11 @@ va_info_copy (void)
   struct apxh_bootinfo i;
   struct fbdesc *fbptr;
 
-  if (va == 0) {
-    /* No INFO. Skip. */
-    return;
-  }
+  if (va == 0)
+    {
+      /* No INFO. Skip. */
+      return;
+    }
 
   i.magic = APXH_BOOTINFO_MAGIC;
   i.maxpfn = md_maxpfn ();
@@ -297,7 +309,7 @@ va_info_copy (void)
   else
     i.fbdesc.type = FB_INVALID;
 
-  va_copy (va, &i, MIN(size, sizeof (struct apxh_bootinfo)), 0, 0);
+  va_copy (va, &i, MIN (size, sizeof (struct apxh_bootinfo)), 0, 0);
 #undef MIN
 }
 
@@ -321,30 +333,30 @@ va_stree (vaddr_t va, size64_t size)
   md_verify (va, size);
   va_verify (va, size);
 
-  order = stree_order(maxframe);
-  s = 8 * STREE_SIZE(order);
-  s += sizeof(struct apxh_stree);
+  order = stree_order (maxframe);
+  s = 8 * STREE_SIZE (order);
+  s += sizeof (struct apxh_stree);
 
-  if (s > size) {
-    printf("Can't create PFN S-Tree of order %d: "
-	   "required %d bytes, %d available.\n",
-	   order, s, size);
-  }
+  if (s > size)
+    {
+      printf ("Can't create PFN S-Tree of order %d: "
+	      "required %d bytes, %d available.\n", order, s, size);
+    }
 
   size = s;
-  printf("Populating size %d (order: %d)\n", size, order);
+  printf ("Populating size %d (order: %d)\n", size, order);
   va_populate (va, size, 1, 0);
 
   /* Copy the header. */
   hdr.magic = APXH_STREE_MAGIC;
   hdr.version = APXH_STREE_VERSION;
   hdr.order = order;
-  hdr.offset = sizeof(hdr);
-  hdr.size = 8 * STREE_SIZE(order);
-  va_copy (va, &hdr, sizeof(hdr), 1, 0);
+  hdr.offset = sizeof (hdr);
+  hdr.size = 8 * STREE_SIZE (order);
+  va_copy (va, &hdr, sizeof (hdr), 1, 0);
 
   /* Fill the S-Tree with all RAM regions. */
-  req_stree_va = va + sizeof(hdr);
+  req_stree_va = va + sizeof (hdr);
 
   for (i = 0; i < regions; i++)
     {
@@ -353,22 +365,23 @@ va_stree (vaddr_t va, size64_t size)
       reg = md_getmemregion (i);
 
       if (reg->type != BOOTINFO_REGION_RAM)
-      	continue;
+	continue;
 
 
       for (j = 0; j < reg->len; j++)
 	{
 	  unsigned frame = reg->pfn + j;
 
-	  if (frame > maxframe) {
-	    printf ("Maximum reached.\n");
-	    break;
-	  }
+	  if (frame > maxframe)
+	    {
+	      printf ("Maximum reached.\n");
+	      break;
+	    }
 
-	  stree_setbit ((WORD_T *)0, order, frame);
+	  stree_setbit ((WORD_T *) 0, order, frame);
 	}
     }
-  
+
 
   /* We'll need to continue to update allocated pages. */
   req_stree_order = order;
@@ -389,7 +402,7 @@ va_stree_copy (void)
       return;
     }
 
-  maxframe = md_maxpfn (); 
+  maxframe = md_maxpfn ();
 
   for (pa = 0; pa < BOOTMEM; pa += PAGE_SIZE)
     {
@@ -401,7 +414,7 @@ va_stree_copy (void)
       if (check_payload_page (pa))
 	{
 	  /* Page is allocated. Mark as BSY. */
-	  stree_clrbit ((WORD_T *)0, order, frame);
+	  stree_clrbit ((WORD_T *) 0, order, frame);
 	}
     }
 }
@@ -418,10 +431,11 @@ va_pfnmap (vaddr_t va, size64_t size)
 
   maxframe = size / PFNMAP_ENTRY_SIZE;
 
-  if (maxframe > md_maxpfn ()) {
-    maxframe = md_maxpfn ();
-    size = maxframe * PFNMAP_ENTRY_SIZE;
-  }
+  if (maxframe > md_maxpfn ())
+    {
+      maxframe = md_maxpfn ();
+      size = maxframe * PFNMAP_ENTRY_SIZE;
+    }
 
   va_populate (va, size, 1, 0);
 
@@ -431,7 +445,8 @@ va_pfnmap (vaddr_t va, size64_t size)
 
       reg = md_getmemregion (i);
 
-      printf ("Reg: %d Type %02d, PA: %016llx (%ld)\n", i, reg->type, (uint64_t)reg->pfn << PAGE_SHIFT, reg->len);
+      printf ("Reg: %d Type %02d, PA: %016llx (%ld)\n", i, reg->type,
+	      (uint64_t) reg->pfn << PAGE_SHIFT, reg->len);
 
 
       for (j = 0; j < reg->len; j++)
@@ -439,12 +454,13 @@ va_pfnmap (vaddr_t va, size64_t size)
 	  unsigned frame = reg->pfn + j;
 	  uint8_t *ptr;
 
-	  if (frame > maxframe) {
-	    printf ("Maximum reached.\n");
-	    break;
-	  }
+	  if (frame > maxframe)
+	    {
+	      printf ("Maximum reached.\n");
+	      break;
+	    }
 
-	  ptr = (uint8_t *)va_getphys (va + frame * PFNMAP_ENTRY_SIZE);
+	  ptr = (uint8_t *) va_getphys (va + frame * PFNMAP_ENTRY_SIZE);
 	  assert (ptr != NULL);
 
 	  /* There's  a  priority  in  numbering of  regions.  RAM  is
@@ -466,7 +482,7 @@ va_pfnmap_copy (void)
   unsigned maxframe = size / PFNMAP_ENTRY_SIZE;
 #define MIN(x,y) ((x < y) ? x : y)
   unsigned long pa;
-  
+
   if (va == 0)
     {
       /* No PFNMAP. Skip. */
@@ -484,7 +500,8 @@ va_pfnmap_copy (void)
 	{
 	  /* Page is allocated. Mark as BSY. */
 
-	  uint8_t *ptr = (uint8_t *)va_getphys (va + frame * PFNMAP_ENTRY_SIZE);
+	  uint8_t *ptr =
+	    (uint8_t *) va_getphys (va + frame * PFNMAP_ENTRY_SIZE);
 	  assert (ptr != NULL);
 
 	  *ptr = BOOTINFO_REGION_BSY;
@@ -496,85 +513,91 @@ va_pfnmap_copy (void)
 void
 va_verify (vaddr_t va, size64_t size)
 {
-  switch (elf_arch) {
-  case ARCH_386:
-    pae_verify(va, size);
-    break;
-  case ARCH_AMD64:
-    pae64_verify(va, size);
-    break;
-  default:
-    printf("Unsupported VM architecture.\n");
-    exit (-1);
-  }
+  switch (elf_arch)
+    {
+    case ARCH_386:
+      pae_verify (va, size);
+      break;
+    case ARCH_AMD64:
+      pae64_verify (va, size);
+      break;
+    default:
+      printf ("Unsupported VM architecture.\n");
+      exit (-1);
+    }
 }
 
 uintptr_t
 va_getphys (vaddr_t va)
 {
-  switch (elf_arch) {
-  case ARCH_386:
-    return pae_getphys(va);
-    break;
-  case ARCH_AMD64:
-    return pae64_getphys(va);
-    break;
-  default:
-    printf("Unsupported VM architecture.\n");
-    exit (-1);
-  }
+  switch (elf_arch)
+    {
+    case ARCH_386:
+      return pae_getphys (va);
+      break;
+    case ARCH_AMD64:
+      return pae64_getphys (va);
+      break;
+    default:
+      printf ("Unsupported VM architecture.\n");
+      exit (-1);
+    }
 }
 
 void
 va_entry (vaddr_t entry)
 {
 
-  switch (elf_arch) {
-  case ARCH_386:
-    pae_entry(entry);
-    break;
-  case ARCH_AMD64:
-    pae64_entry(entry);
-    break;
-  default:
-    printf("Unsupported VM architecture.\n");
-    exit (-1);
-  }
+  switch (elf_arch)
+    {
+    case ARCH_386:
+      pae_entry (entry);
+      break;
+    case ARCH_AMD64:
+      pae64_entry (entry);
+      break;
+    default:
+      printf ("Unsupported VM architecture.\n");
+      exit (-1);
+    }
 
-  printf("Returned from entry!");
+  printf ("Returned from entry!");
   exit (-1);
 }
 
-int main (int argc, char *argv[])
+int
+main (int argc, char *argv[])
 {
   void *elf_start;
   size64_t elf_size;
   uint64_t entry;
 
-  printf("\nAPXH started.\n\n");
+  printf ("\nAPXH started.\n\n");
 
-  init();
+  init ();
 
   elf_start = get_payload_start (argc, argv);
   elf_size = get_payload_size ();
-  elf_arch = get_elf_arch(elf_start);
-  printf("Payload %s ELF at addr %p (%d bytes)\n", get_arch_name(elf_arch), elf_start, elf_size);
+  elf_arch = get_elf_arch (elf_start);
+  printf ("Payload %s ELF at addr %p (%d bytes)\n", get_arch_name (elf_arch),
+	  elf_start, elf_size);
 
-  va_init();
+  va_init ();
 
-  switch (elf_arch) {
-  case ARCH_386:
-    entry = load_elf32(elf_start);
-    break;
-  case ARCH_AMD64:
-    entry = load_elf64(elf_start);
-    break;
-  default:
-    printf ("Unsupported ELF architecture");
-    exit (-1);
-  }
+  switch (elf_arch)
+    {
+    case ARCH_386:
+      entry = load_elf32 (elf_start);
+      break;
+    case ARCH_AMD64:
+      entry = load_elf64 (elf_start);
+      break;
+    default:
+      printf ("Unsupported ELF architecture");
+      exit (-1);
+    }
 
-  printf("entry = %llx\n", entry);
+  printf ("entry = %llx\n", entry);
 
   /* Stop allocations as we're copying boot-time allocation. */
   stop_payload_allocation = true;
@@ -585,5 +608,3 @@ int main (int argc, char *argv[])
   va_entry (entry);
   return 0;
 }
-
-

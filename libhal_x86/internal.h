@@ -50,8 +50,8 @@ void amd64_init (void);
 void pae64_init (void);
 void pmap_init (void);
 
-void set_pte (uint64_t *ptep, uint64_t pte);
-hal_l1e_t * get_l1p (void *pmap, unsigned long va, int alloc);
+void set_pte (uint64_t * ptep, uint64_t pte);
+hal_l1e_t *get_l1p (void *pmap, unsigned long va, int alloc);
 
 void tlbflush_global (void);
 

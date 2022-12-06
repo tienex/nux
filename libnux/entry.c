@@ -25,10 +25,10 @@ hal_entry_syscall (struct hal_frame *f,
 {
   uctxt_t *uctxt = uctxt_get (f);
 
-  switch ((uintptr_t)uctxt)
+  switch ((uintptr_t) uctxt)
     {
-    case (uintptr_t)UCTXT_INVALID:
-    case (uintptr_t)UCTXT_IDLE:
+    case (uintptr_t) UCTXT_INVALID:
+    case (uintptr_t) UCTXT_IDLE:
       /* Syscall in kernel? */
       error ("Unexpected Kernel Exception -- Syscall(!)");
       hal_frame_print (f);
@@ -47,20 +47,20 @@ hal_entry_pf (struct hal_frame *f, unsigned long va, hal_pfinfo_t info)
 {
   uctxt_t *uctxt = uctxt_get (f);
 
-  switch ((uintptr_t)uctxt)
+  switch ((uintptr_t) uctxt)
     {
-    case (uintptr_t)UCTXT_INVALID:
+    case (uintptr_t) UCTXT_INVALID:
       if (uaddr_valid (va))
 	{
 	  /*
-	    This could be a PF due to kernel user access.
+	     This could be a PF due to kernel user access.
 
-	    In this case we would longjmp to the user pagefault jmp_buf and
-	    the next function won't return.
-	  */
+	     In this case we would longjmp to the user pagefault jmp_buf and
+	     the next function won't return.
+	   */
 	  cpu_useraccess_checkpf (va, info);
 	}
-    case (uintptr_t)UCTXT_IDLE:
+    case (uintptr_t) UCTXT_IDLE:
       error ("Unexpected Kernel Page Fault");
       hal_frame_print (f);
       exit (-1);
@@ -78,10 +78,10 @@ hal_entry_xcpt (struct hal_frame *f, unsigned xcpt)
 {
   uctxt_t *uctxt = uctxt_get (f);
 
-  switch ((uintptr_t)uctxt)
+  switch ((uintptr_t) uctxt)
     {
-    case (uintptr_t)UCTXT_INVALID:
-    case (uintptr_t)UCTXT_IDLE:
+    case (uintptr_t) UCTXT_INVALID:
+    case (uintptr_t) UCTXT_IDLE:
       /* Kernel exception. */
       error ("Unexpected Kernel Exception %d", xcpt);
       hal_frame_print (f);
@@ -139,38 +139,42 @@ hal_entry_vect (struct hal_frame *f, unsigned vect)
 
 #if 0
 
-struct hal_frame *hal_entry_pf (struct hal_frame *f, unsigned long va,
-				hal_pfinfo_t info)
+struct hal_frame *
+hal_entry_pf (struct hal_frame *f, unsigned long va, hal_pfinfo_t info)
 {
-  printf ("CPU%d: Pagefault at %lx\n", cpu_id(), va);
+  printf ("CPU%d: Pagefault at %lx\n", cpu_id (), va);
   hal_frame_print (f);
   hal_cpu_halt ();
   return f;
 }
 
-struct hal_frame *hal_entry_xcpt (struct hal_frame *f, unsigned xcpt)
+struct hal_frame *
+hal_entry_xcpt (struct hal_frame *f, unsigned xcpt)
 {
   printf ("Exception %lx\n", xcpt);
   hal_frame_print (f);
   hal_cpu_halt ();
 }
 
-struct hal_frame *hal_entry_nmi (struct hal_frame *f)
+struct hal_frame *
+hal_entry_nmi (struct hal_frame *f)
 {
   printf ("Hm. NMI received!\n");
   hal_cpu_halt ();
 }
 
-struct hal_frame *hal_entry_vect (struct hal_frame *f, unsigned irq)
+struct hal_frame *
+hal_entry_vect (struct hal_frame *f, unsigned irq)
 {
   printf ("Hm. IRQ %d received\n");
   hal_cpu_halt ();
 }
 
-struct hal_frame *hal_entry_syscall (struct hal_frame *f,
-				     unsigned long a0, unsigned long a1,
-				     unsigned long a2, unsigned long a3,
-				     unsigned long a4, unsigned long a5)
+struct hal_frame *
+hal_entry_syscall (struct hal_frame *f,
+		   unsigned long a0, unsigned long a1,
+		   unsigned long a2, unsigned long a3,
+		   unsigned long a4, unsigned long a5)
 {
   printf ("Oh! Syscalls!\n");
   hal_cpu_halt ();

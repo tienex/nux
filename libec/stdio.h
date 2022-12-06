@@ -10,8 +10,8 @@
 #include <stdarg.h>
 
 int putchar (int);		/* EXTERNAL */
-int vprintf (const char  * fmt, va_list ap);
-int printf (const char * fmt, ...);
+int vprintf (const char *fmt, va_list ap);
+int printf (const char *fmt, ...);
 
 
 #endif

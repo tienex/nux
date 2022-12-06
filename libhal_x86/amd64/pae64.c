@@ -52,12 +52,13 @@ typedef uint64_t pte_t;
 #define pte_present(_pte) ((_pte) & PTE_P)
 
 extern int _linear_start;
-static const pte_t * linaddr = (const pte_t *)&_linear_start;
-static pte_t * linaddr_l2;
-static pte_t * linaddr_l3;
-static pte_t * linaddr_l4;
+static const pte_t *linaddr = (const pte_t *) &_linear_start;
+static pte_t *linaddr_l2;
+static pte_t *linaddr_l3;
+static pte_t *linaddr_l4;
 
-void set_pte (uint64_t *ptep, uint64_t pte)
+void
+set_pte (uint64_t * ptep, uint64_t pte)
 {
   *ptep = pte;
 }
@@ -66,7 +67,7 @@ static pte_t *
 get_curl4p (unsigned long va)
 {
 
-  return linaddr_l4 + (UNCANON(va) >> L4_SHIFT);
+  return linaddr_l4 + (UNCANON (va) >> L4_SHIFT);
 }
 
 static inline pte_t *
@@ -98,7 +99,7 @@ get_curl3p (unsigned long va, const int alloc, const int user)
 
   assert (!l4e_reserved (l4e) && "Invalid L4E.");
 
-  return linaddr_l3 + (UNCANON(va) >> L3_SHIFT);
+  return linaddr_l3 + (UNCANON (va) >> L3_SHIFT);
 }
 
 static inline pte_t *
@@ -134,7 +135,7 @@ get_curl2p (unsigned long va, const int alloc, const int user)
   assert (!l3e_reserved (l3e) && "Invalid L3E.");
   assert (!l3e_bigpage (l3e) && "Splintering not supported at L3");
 
-  return (pte_t *)linaddr_l2 + (UNCANON(va) >> L2_SHIFT);
+  return (pte_t *) linaddr_l2 + (UNCANON (va) >> L2_SHIFT);
 }
 
 static inline pte_t *
@@ -170,7 +171,7 @@ get_curl1p (unsigned long va, const int alloc, const int user)
   assert (!l2e_reserved (l2e) && "Invalid L2E.");
   assert (!l2e_bigpage (l2e) && "Splintering not supported at L2");
 
-  return (pte_t *)linaddr + (UNCANON(va) >> L1_SHIFT);
+  return (pte_t *) linaddr + (UNCANON (va) >> L1_SHIFT);
 }
 
 hal_l1e_t *
@@ -194,7 +195,7 @@ do_cleanboot (void)
     return;
 
   set_pte (ptep, 0);
-  tlbflush_global (); /* Better safe than. */
+  tlbflush_global ();		/* Better safe than. */
 
   /* XXX: Free the unused page tables. */
 }
@@ -202,7 +203,10 @@ do_cleanboot (void)
 void
 pae64_init (void)
 {
-  linaddr_l2 = (pte_t *)linaddr + (((uintptr_t)linaddr & ((1L << 48) - 1)) >> (9 + 3));
-  linaddr_l3 = linaddr_l2 + (((uintptr_t)linaddr & ((1L << 48) - 1)) >> (18 + 3));
-  linaddr_l4 = linaddr_l3 + (((uintptr_t)linaddr & ((1L << 48) - 1)) >> (27 + 3));
+  linaddr_l2 =
+    (pte_t *) linaddr + (((uintptr_t) linaddr & ((1L << 48) - 1)) >> (9 + 3));
+  linaddr_l3 =
+    linaddr_l2 + (((uintptr_t) linaddr & ((1L << 48) - 1)) >> (18 + 3));
+  linaddr_l4 =
+    linaddr_l3 + (((uintptr_t) linaddr & ((1L << 48) - 1)) >> (27 + 3));
 }

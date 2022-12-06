@@ -28,7 +28,7 @@ void *payload_get (unsigned i, size_t *size);
 
 /*
   The payload magic: DEC RAD-50 encoding of "nux-payload".
-*/ 
+*/
 #define ELFPAYLOAD_MAGIC 0x54a2f911659dece0LL
 
 /*
@@ -42,7 +42,7 @@ struct payload_hdr
   uint64_t magic;
   uint64_t filename;
   uint32_t size;
-} __attribute__ ((aligned));
+} __attribute__((aligned));
 
 
 

@@ -197,7 +197,7 @@ void hal_pmap_setcur (struct hal_pmap *pmap);
   Note that it might still return false with ALLOC=true if out of memory.
 */
 bool hal_pmap_getl1p (struct hal_pmap *pmap, unsigned long va, bool alloc,
-		      hal_l1p_t *l1p);
+		      hal_l1p_t * l1p);
 
 /*
   Get L1E pointed by L1P.
@@ -333,7 +333,8 @@ void hal_frame_print (struct hal_frame *);
   will have to guarantee that the user address is mapped. HAL needs to
   check that the address is effectively userspace and not kernel.
 */
-bool hal_frame_signal (struct hal_frame *f, unsigned long ip, unsigned long arg);
+bool hal_frame_signal (struct hal_frame *f, unsigned long ip,
+		       unsigned long arg);
 
 
 /*
@@ -405,12 +406,12 @@ int hal_putchar (int c);
   This should be a generic as possible, and should be extended to
   support fields for every platform.
 */
-struct hal_pltinfo_desc {
+struct hal_pltinfo_desc
+{
   uint64_t acpi_rsdp;
 };
 
-const struct hal_pltinfo_desc *
-hal_pltinfo (void);
+const struct hal_pltinfo_desc *hal_pltinfo (void);
 
 /*
   Stop all CPUs and panic. Of course you'll never need to call this!
@@ -418,5 +419,3 @@ hal_pltinfo (void);
 __dead void hal_panic (void);
 
 #endif /* _HAL_H */
-
-

@@ -1,4 +1,5 @@
-/* *INDENT-OFF* */ /* Imported from NetBSD -- MHDIFFIGNORE */
+/* *INDENT-OFF* */
+/* Imported from NetBSD -- MHDIFFIGNORE */
 /*	$NetBSD: strcspn.c,v 1.1 2014/07/19 18:38:33 lneto Exp $	*/
 
 /*-

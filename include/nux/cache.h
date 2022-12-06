@@ -38,24 +38,27 @@ SPDX-License-Identifier:	GPL2.0+
 #include <stdint.h>
 #include <rbtree.h>
 
-struct slot {
-  rb_node_t rbn; /* Must be first. */
-  TAILQ_ENTRY(slot) lru_entry;
+struct slot
+{
+  rb_node_t rbn;		/* Must be first. */
+    TAILQ_ENTRY (slot) lru_entry;
 
   uintptr_t addr;
-  struct {
-    uint32_t valid :  1;
-    uint32_t ref   : 31;
+  struct
+  {
+    uint32_t valid:1;
+    uint32_t ref:31;
   };
 
 };
 
-struct cache {
-  rb_tree_t map; /* Must be First. */
-  TAILQ_HEAD(,slot) freelist;
+struct cache
+{
+  rb_tree_t map;		/* Must be First. */
+    TAILQ_HEAD (, slot) freelist;
   lock_t lock;
 
-  void (*fill)(unsigned, uintptr_t, uintptr_t);
+  void (*fill) (unsigned, uintptr_t, uintptr_t);
 
   unsigned numslots;
   struct slot *slots;
@@ -64,8 +67,8 @@ struct cache {
 static int
 _slotcmp (void *ctx, const void *a, const void *b)
 {
-  const struct slot *slot1 = (const struct slot *)a;
-  const struct slot *slot2 = (const struct slot *)b;
+  const struct slot *slot1 = (const struct slot *) a;
+  const struct slot *slot2 = (const struct slot *) b;
 
   if (slot1->addr < slot2->addr)
     return -1;
@@ -77,8 +80,8 @@ _slotcmp (void *ctx, const void *a, const void *b)
 static int
 _slot_keycmp (void *ctx, const void *a, const void *b)
 {
-  const struct slot *slot = (const struct slot *)a;
-  const uintptr_t addr = (uintptr_t)b;
+  const struct slot *slot = (const struct slot *) a;
+  const uintptr_t addr = (uintptr_t) b;
 
   if (slot->addr < addr)
     return -1;
@@ -97,18 +100,17 @@ static const rb_tree_ops_t cacheops = {
 static inline unsigned
 cache_getslotno (struct cache *c, struct slot *s)
 {
-  return ((uintptr_t)s - (uintptr_t)(c->slots))/sizeof (struct slot);
+  return ((uintptr_t) s - (uintptr_t) (c->slots)) / sizeof (struct slot);
 }
 
 static inline void
-cache_init (struct cache *c,
-	    struct slot *slots, unsigned numslots,
+cache_init (struct cache *c, struct slot *slots, unsigned numslots,
 	    /* Arguments passed to fill:
 	       1. Slot allocated
 	       2. Old Entry
 	       3. New Entry
-	    */
-	    void (*fill)(unsigned, uintptr_t, uintptr_t))
+	     */
+	    void (*fill) (unsigned, uintptr_t, uintptr_t))
 {
   uintptr_t i;
 
@@ -133,7 +135,7 @@ cache_get (struct cache *c, uintptr_t addr)
   unsigned slotno;
 
   spinlock (&c->lock);
-  slot = (struct slot *)rb_tree_find_node (&c->map, (const void *)addr);
+  slot = (struct slot *) rb_tree_find_node (&c->map, (const void *) addr);
   if (slot != NULL)
     {
       assert (slot->valid);
@@ -147,7 +149,7 @@ cache_get (struct cache *c, uintptr_t addr)
       else
 	{
 	  /* Currently in cache but unused. inc refcount and return. */
-	  TAILQ_REMOVE(&c->freelist, slot, lru_entry);
+	  TAILQ_REMOVE (&c->freelist, slot, lru_entry);
 	  slot->ref = 1;
 	  goto out;
 	}
@@ -157,9 +159,9 @@ cache_get (struct cache *c, uintptr_t addr)
   slot = TAILQ_FIRST (&c->freelist);
   if (slot != NULL)
     {
-      unsigned n = cache_getslotno(c, slot);
+      unsigned n = cache_getslotno (c, slot);
 
-      TAILQ_REMOVE(&c->freelist, slot, lru_entry);
+      TAILQ_REMOVE (&c->freelist, slot, lru_entry);
       assert (slot->ref == 0);
       c->fill (n, slot->addr, addr);
       slot->addr = addr;
@@ -169,15 +171,15 @@ cache_get (struct cache *c, uintptr_t addr)
       goto out;
     }
 
- out:
+out:
 
   if (slot != NULL)
-    slotno = cache_getslotno(c, slot);
+    slotno = cache_getslotno (c, slot);
   else
-    slotno = (unsigned)-1;  
+    slotno = (unsigned) -1;
 
   spinunlock (&c->lock);
-  
+
   return slotno;
 }
 

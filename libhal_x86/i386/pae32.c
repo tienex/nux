@@ -34,8 +34,8 @@ typedef uint64_t l3e_t;
 
 extern int _linear_start;
 extern int _linear_l2table;
-const vaddr_t linaddr = (vaddr_t)&_linear_start;
-const vaddr_t l2_linaddr = (vaddr_t)&_linear_l2table;
+const vaddr_t linaddr = (vaddr_t) & _linear_start;
+const vaddr_t l2_linaddr = (vaddr_t) & _linear_l2table;
 
 
 static l2e_t *
@@ -44,7 +44,7 @@ get_curl2p (vaddr_t va)
   l2e_t *ptr;
 
   va &= ~((1L << L2_SHIFT) - 1);
-  ptr = (l3e_t *)(l2_linaddr + (va >> 18));
+  ptr = (l3e_t *) (l2_linaddr + (va >> 18));
   return ptr;
 }
 
@@ -55,14 +55,14 @@ get_curl1p (vaddr_t va)
 
   va &= ~((1L << L1_SHIFT) - 1);
 
-  ptr = (l1e_t *)(linaddr + (va >> 9));
+  ptr = (l1e_t *) (linaddr + (va >> 9));
   return ptr;
 }
 
 void
-set_pte (uint64_t *ptep, uint64_t pte)
+set_pte (uint64_t * ptep, uint64_t pte)
 {
- volatile uint32_t *ptr = (volatile uint32_t *) ptep;
+  volatile uint32_t *ptr = (volatile uint32_t *) ptep;
 
   /* 32-bit specific.  This or atomic 64 bit write.  */
   *ptr = 0;
@@ -95,11 +95,11 @@ get_l1p (void *pmap, unsigned long va, int alloc)
 	return NULL;
 
       /* Create an l2e with max permissions. L1 will filter. */
-      pte = mkpte (pfn, PTE_U|PTE_P|PTE_W);
-      set_pte ((uint64_t *)l2p, pte);
+      pte = mkpte (pfn, PTE_U | PTE_P | PTE_W);
+      set_pte ((uint64_t *) l2p, pte);
       /* Not present, no TLB flush necessary. */
 
-      l2e = (l2e_t)pte;
+      l2e = (l2e_t) pte;
     }
 
   assert (!l2e_leaf (l2e) && "Splintering big pages not supported.");
@@ -118,15 +118,15 @@ do_cleanboot (void)
   /* Unmap L2s */
   for (i = 0; i < 512; i++)
     {
-      ptep = get_curl2p ((vaddr_t)i << L2_SHIFT);
+      ptep = get_curl2p ((vaddr_t) i << L2_SHIFT);
       if (ptep != NULL)
 	*ptep = 0;
     }
-  tlbflush_global (); /* Better safe than. */
+  tlbflush_global ();		/* Better safe than. */
 
   /*
-    Note: nothing to free here. L3s are always mapped and APXH
-    should've mapped 2Mb pages. Of course we should check to be
-    thorough.
-  */
+     Note: nothing to free here. L3s are always mapped and APXH
+     should've mapped 2Mb pages. Of course we should check to be
+     thorough.
+   */
 }

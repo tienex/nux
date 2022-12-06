@@ -169,8 +169,6 @@ hal_frame_print (struct hal_frame *f)
   hallog ("GSBASE: %016lx\n", f->intr.gsbase);
   hallog (" CS: %04x     RIP: %016lx RFL: %016lx",
 	  (int) f->intr.cs, f->intr.rip, f->intr.rflags);
-  hallog (" SS: %04x     RSP: %016lx",
-	  (int) f->intr.ss, f->intr.rsp);
-  hallog ("CR2: %016lx err: %08lx",
-	  f->intr.cr2, f->intr.err);
+  hallog (" SS: %04x     RSP: %016lx", (int) f->intr.ss, f->intr.rsp);
+  hallog ("CR2: %016lx err: %08lx", f->intr.cr2, f->intr.err);
 }

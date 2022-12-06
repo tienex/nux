@@ -1,4 +1,5 @@
-/* *INDENT-OFF* */ /* Imported from NetBSD -- MHDIFFIGNORE */
+/* *INDENT-OFF* */
+/* Imported from NetBSD -- MHDIFFIGNORE */
 /*	$NetBSD: memset.S,v 1.5 2014/05/23 03:17:31 uebayasi Exp $	*/
 
 /*-

@@ -19,7 +19,7 @@ extern int _end;
 void *
 payload_get (unsigned i, size_t *size)
 {
-  struct payload_hdr *ptr = (struct payload_hdr *)&_end;
+  struct payload_hdr *ptr = (struct payload_hdr *) &_end;
   unsigned j;
 
   j = 0;
@@ -27,14 +27,14 @@ payload_get (unsigned i, size_t *size)
     {
       if (j != i)
 	{
-	  ptr = (struct payload_hdr *)((void *)(ptr + 1) + ptr->size);
+	  ptr = (struct payload_hdr *) ((void *) (ptr + 1) + ptr->size);
 	  j++;
 	  continue;
 	}
 
       if (size)
-	*size = ptr->size;	
-      return (void *)(ptr + 1);
+	*size = ptr->size;
+      return (void *) (ptr + 1);
     }
 
   if (size)

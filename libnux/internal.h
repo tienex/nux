@@ -30,8 +30,8 @@ struct cpu_info
   tlbop_t tlbop;
 
   /*
-    User copy setjmp/longjmp for pagefaults.
-  */
+     User copy setjmp/longjmp for pagefaults.
+   */
   jmp_buf usrpgfaultctx;
   unsigned usrpgfault;
   uaddr_t usrpgaddr;
@@ -40,7 +40,7 @@ struct cpu_info
   /* 
      This pointer can be set by users of
      libnux to store their private data.
-  */
+   */
   void *data;
 
   struct hal_cpu hal_cpu;
@@ -79,9 +79,9 @@ uctxt_t *uctxt_get (struct hal_frame *f);
 uctxt_t *uctxt_getuser (struct hal_frame *f);
 
 /* Transform a user context to a HAL frame. Or become idle. */
-struct hal_frame *uctxt_frame (uctxt_t *uctxt);
+struct hal_frame *uctxt_frame (uctxt_t * uctxt);
 
 /* Transform a user context to a HAL frame. Or return NULL. */
-struct hal_frame *uctxt_frame_pointer (uctxt_t *uctxt);
+struct hal_frame *uctxt_frame_pointer (uctxt_t * uctxt);
 
 #endif

@@ -56,7 +56,9 @@ void
 ioapic_init (unsigned no)
 {
 
-  ioapics = (struct ioapic_desc *)kmem_brkgrow (1, (sizeof (struct ioapic_desc) * no));
+  ioapics =
+    (struct ioapic_desc *) kmem_brkgrow (1,
+					 (sizeof (struct ioapic_desc) * no));
   ioapics_no = no;
 }
 
@@ -85,7 +87,8 @@ ioapic_add (unsigned num, uint64_t base, unsigned irqbase)
 {
   unsigned i;
 
-  ioapics[num].base = kva_physmap (1, base, IOAPIC_SIZE, HAL_PTE_P|HAL_PTE_W);
+  ioapics[num].base =
+    kva_physmap (1, base, IOAPIC_SIZE, HAL_PTE_P | HAL_PTE_W);
   ioapics[num].irq = irqbase;
   ioapics[num].pins = 1 + ((ioapic_read (num, IO_VER) >> 16) & 0xff);
 
@@ -95,8 +98,8 @@ ioapic_add (unsigned num, uint64_t base, unsigned irqbase)
       ioapic_write (num, IO_RED_LO (i), 0x00010000);
       ioapic_write (num, IO_RED_HI (i), 0x00000000);
     }
-  info ("IOAPIC: %02d PA: %08"PRIx64" VA: %p IRQ:%02d PINS: %02d",
-	  num, base, ioapics[num].base, irqbase, ioapics[num].pins);
+  info ("IOAPIC: %02d PA: %08" PRIx64 " VA: %p IRQ:%02d PINS: %02d",
+	num, base, ioapics[num].base, irqbase, ioapics[num].pins);
 }
 
 unsigned
@@ -119,7 +122,8 @@ gsi_init (void)
 {
   unsigned i, irqs = ioapic_irqs ();
   gsis_no = irqs;
-  gsis = (struct gsi_desc *)kmem_brkgrow (1, sizeof (struct gsi_desc) * irqs);
+  gsis =
+    (struct gsi_desc *) kmem_brkgrow (1, sizeof (struct gsi_desc) * irqs);
 
   /* Setup identity map, edge triggered (this is ISA) */
   for (i = 0; i < 16; i++)
@@ -222,7 +226,7 @@ gsi_start (void)
 
   /* 1:1 map GSI <-> Kernel IRQ */
   for (i = 0; i < gsis_no; i++)
-    gsi_register (i, hal_vect_irqbase() + i);
+    gsi_register (i, hal_vect_irqbase () + i);
 }
 
 void
@@ -233,9 +237,9 @@ gsi_dump (void)
   for (i = 0; i < gsis_no; i++)
     {
       info ("GSI: %02d IRQ: %02d MODE: %5s APIC: %02d PIN: %02d", i,
-	   gsis[i].irq,
-	   gsis[i].mode == PLT_IRQ_EDGE ? "EDGE" : gsis[i].mode ==
-	   PLT_IRQ_LVLHI ? "LVLHI" : "LVLLO", gsis[i].ioapic, gsis[i].pin);
+	    gsis[i].irq,
+	    gsis[i].mode == PLT_IRQ_EDGE ? "EDGE" : gsis[i].mode ==
+	    PLT_IRQ_LVLHI ? "LVLHI" : "LVLLO", gsis[i].ioapic, gsis[i].pin);
     }
 }
 

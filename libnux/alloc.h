@@ -167,7 +167,7 @@ zone_create (struct zone *z, zaddr_t zaddr, size_t size)
 
 
 static inline void
-zone_free (struct zone * z, zaddr_t zaddr, size_t size)
+zone_free (struct zone *z, zaddr_t zaddr, size_t size)
 {
 
   assert (size != 0);
@@ -176,10 +176,10 @@ zone_free (struct zone * z, zaddr_t zaddr, size_t size)
 }
 
 static inline zaddr_t
-zone_alloc (struct zone * z, size_t size)
+zone_alloc (struct zone *z, size_t size)
 {
   struct __ZENTRY *ze;
-  zaddr_t addr = (zaddr_t)-1;
+  zaddr_t addr = (zaddr_t) - 1;
   long diff;
 
   assert (size != 0);
@@ -201,7 +201,7 @@ out:
 }
 
 static inline void
-zone_init (struct zone * z, uintptr_t opq)
+zone_init (struct zone *z, uintptr_t opq)
 {
   int i;
 

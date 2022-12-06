@@ -1,4 +1,5 @@
-/* *INDENT-OFF* */ /* Imported from NetBSD -- MHDIFFIGNORE */
+/* *INDENT-OFF* */
+/* Imported from NetBSD -- MHDIFFIGNORE */
 /*	$NetBSD: memcpy.S,v 1.4 2014/03/22 19:38:46 jakllsch Exp $	*/
 
 /*-

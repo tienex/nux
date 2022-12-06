@@ -36,14 +36,17 @@ load_table (paddr_t pa)
 
   tbl = (struct acpi_thdr *) kva_physmap (1, pa, ACPI_MAX_TBL, HAL_PTE_P);
 
-  if (tbl->length >= ACPI_MAX_TBL) {
-    error ("Table %4.4s [%6.6s %8.8s rev%d] size %d > ACPI_MAX_TBL. Skipping checks.",
-	   tbl->signature, tbl->oemid, tbl->oemtableid, tbl->oemrevision, tbl->length);
-    return tbl;
-  }
+  if (tbl->length >= ACPI_MAX_TBL)
+    {
+      error
+	("Table %4.4s [%6.6s %8.8s rev%d] size %d > ACPI_MAX_TBL. Skipping checks.",
+	 tbl->signature, tbl->oemid, tbl->oemtableid, tbl->oemrevision,
+	 tbl->length);
+      return tbl;
+    }
 
   sum = 0;
-  ptr = (uint8_t *)tbl;
+  ptr = (uint8_t *) tbl;
 
   for (i = 0; i < tbl->length; i++)
     {
@@ -56,20 +59,22 @@ load_table (paddr_t pa)
       return NULL;
     }
 
-  debug ("loaded table '%4.4s' [%6.6s %8.8s rev%d]", tbl->signature, tbl->oemid, tbl->oemtableid, tbl->oemrevision);
+  debug ("loaded table '%4.4s' [%6.6s %8.8s rev%d]", tbl->signature,
+	 tbl->oemid, tbl->oemtableid, tbl->oemrevision);
   return tbl;
 }
 
 static void
 unload_table (void *tbl)
 {
-  kva_unmap(tbl);
+  kva_unmap (tbl);
 }
 
 static void
-print_table(struct acpi_thdr *tbl)
+print_table (struct acpi_thdr *tbl)
 {
-  info ("TABLE '%4.4s' [%6.6s %8.8s rev%d]", tbl->signature, tbl->oemid, tbl->oemtableid, tbl->oemrevision);
+  info ("TABLE '%4.4s' [%6.6s %8.8s rev%d]", tbl->signature, tbl->oemid,
+	tbl->oemtableid, tbl->oemrevision);
 }
 
 void
@@ -82,9 +87,11 @@ acpi_init (paddr_t root)
   struct acpi_rsdp_thdr *rsdp;
   struct acpi_thdr *roottable, *sdtable;
 
-  rsdp = (struct acpi_rsdp_thdr *)kva_physmap (1, root, ACPI_MAX_TBL, HAL_PTE_P);
+  rsdp =
+    (struct acpi_rsdp_thdr *) kva_physmap (1, root, ACPI_MAX_TBL, HAL_PTE_P);
 
-  info ("TABLE: '%8.8s' [%6.6s] rev: %d", rsdp->signature, rsdp->oemid, rsdp->revision);
+  info ("TABLE: '%8.8s' [%6.6s] rev: %d", rsdp->signature, rsdp->oemid,
+	rsdp->revision);
 
   if (rsdp->revision == 0)
     {
@@ -102,37 +109,37 @@ acpi_init (paddr_t root)
   kva_unmap (rsdp);
 
   pa_root_table = pasdt;
-  roottable = load_table(pasdt);
+  roottable = load_table (pasdt);
 
   /* Iterate through ACPI tables. */
-  ptr = (void *)(roottable + 1);
-  length = (int64_t)roottable->length - sizeof(*roottable);
+  ptr = (void *) (roottable + 1);
+  length = (int64_t) roottable->length - sizeof (*roottable);
   while (length > 0)
     {
-      pasdt = entrylen == 8 ? *(uint64_t *)ptr : *(uint32_t *)ptr;
-      sdtable = load_table(pasdt);
+      pasdt = entrylen == 8 ? *(uint64_t *) ptr : *(uint32_t *) ptr;
+      sdtable = load_table (pasdt);
 
-      print_table(sdtable);
+      print_table (sdtable);
 
-      if (!memcmp(sdtable->signature, "APIC", 4))
+      if (!memcmp (sdtable->signature, "APIC", 4))
 	pa_apic_table = pasdt;
-      else if (!memcmp(sdtable->signature, "HPET", 4))
+      else if (!memcmp (sdtable->signature, "HPET", 4))
 	pa_hpet_table = pasdt;
 
-      unload_table(sdtable);
+      unload_table (sdtable);
       length -= entrylen;
       ptr += entrylen;
     }
 
-  unload_table(roottable);
+  unload_table (roottable);
 
-  debug("RDST table at pa %lx", pa_root_table);
-  debug("APIC table at pa %lx", pa_apic_table);
-  debug("HPET table at pa %lx", pa_hpet_table);
+  debug ("RDST table at pa %lx", pa_root_table);
+  debug ("APIC table at pa %lx", pa_apic_table);
+  debug ("HPET table at pa %lx", pa_hpet_table);
 }
 
 void
-acpi_madt_scan(void)
+acpi_madt_scan (void)
 {
   int len;
   unsigned flags, nlapic = 0, nioapic = 0;
@@ -164,7 +171,7 @@ acpi_madt_scan(void)
 		}							\
 	} while (0)
 
-  acpi_madt = load_table(pa_apic_table);
+  acpi_madt = load_table (pa_apic_table);
   if (acpi_madt == NULL)
     {
       error ("Could not load ACPI MADT Table.");
@@ -207,12 +214,12 @@ acpi_madt_scan(void)
   /* *INDENT-ON* */
   if (nlapic == 0)
     {
-      info("Warning: NO LOCAL APICS, ACPI SAYS");
+      info ("Warning: NO LOCAL APICS, ACPI SAYS");
       nlapic = 1;
     }
 
-  lapic_init(lapic_addr, nlapic);
-  ioapic_init(nioapic);
+  lapic_init (lapic_addr, nlapic);
+  ioapic_init (nioapic);
 
   /* Add APICs. Local and I/O APICs existence is notified to the
    * kernel after this. */
@@ -232,7 +239,7 @@ acpi_madt_scan(void)
     });
   /* *INDENT-ON* */
 
-  gsi_init();
+  gsi_init ();
   /* *INDENT-OFF* */
   madt_foreach({
       case ACPI_MADT_TYPE_LAPICNMI:
@@ -280,7 +287,7 @@ acpi_madt_scan(void)
     });
   /* *INDENT-ON* */
 
-  unload_table(acpi_madt);
+  unload_table (acpi_madt);
 }
 
 bool

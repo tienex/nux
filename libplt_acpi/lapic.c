@@ -194,7 +194,7 @@ lapic_add (uint16_t physid, uint16_t plid)
 void
 lapic_init (uint64_t base, unsigned no)
 {
-  lapic_base = kva_physmap (1, base, LAPIC_SIZE, HAL_PTE_P|HAL_PTE_W); /* XXX: trusting MTRR on caching. */
+  lapic_base = kva_physmap (1, base, LAPIC_SIZE, HAL_PTE_P | HAL_PTE_W);	/* XXX: trusting MTRR on caching. */
   lapics_no = no < MAXCPUS ? no : MAXCPUS;
   debug ("LAPIC PA: %08llx VA: %p", base, lapic_base);
 }
@@ -207,7 +207,7 @@ lapic_init (uint64_t base, unsigned no)
 void
 plt_irq_eoi (void)
 {
-  lapic_eoi();
+  lapic_eoi ();
 }
 
 
@@ -262,7 +262,7 @@ plt_pcpu_ipiall (unsigned vct)
 unsigned
 plt_pcpu_id (void)
 {
-  return lapic_getcurrent();
+  return lapic_getcurrent ();
 }
 
 void

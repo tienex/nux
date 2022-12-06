@@ -100,14 +100,13 @@ hpet_init (paddr_t hpetpa)
   uint64_t gencap;
   int num;
 
-  hpet_base = kva_physmap (0, hpetpa, HPET_SIZE, HAL_PTE_P|HAL_PTE_W);
+  hpet_base = kva_physmap (0, hpetpa, HPET_SIZE, HAL_PTE_P | HAL_PTE_W);
   gencap = hpet_read (REG_GENCAP);
   gencfg = 0;
   period_femto = gencap >> 32;
   num = 1 + ((gencap >> 8) & 0xf);
 
-  info ("HPET Found at %" PRIx64 ", mapped at %p", hpetpa,
-	hpet_base);
+  info ("HPET Found at %" PRIx64 ", mapped at %p", hpetpa, hpet_base);
   info ("HPET period: %" PRIx32 "x, counters: %d", period_femto, num);
 
   if (period_femto == 0)
@@ -145,8 +144,7 @@ hpet_init (paddr_t hpetpa)
 	}
       irqno = ffs (irqcap) - 1;
       tmrcfg |= (irqno << 9);
-      debug ("Using Interrupt Routing (%d - %x).\n", irqno,
-	     irqcap);
+      debug ("Using Interrupt Routing (%d - %x).\n", irqno, irqcap);
     }
 
   if (plt_irq_islevel (irqno))

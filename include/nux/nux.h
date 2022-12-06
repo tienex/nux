@@ -13,7 +13,7 @@
 #include <nux/types.h>
 #include <nux/locks.h>
 
-void * pfn_get (pfn_t pfn);
+void *pfn_get (pfn_t pfn);
 void pfn_put (pfn_t pfn, void *va);
 pfn_t pfn_alloc (int low);
 void pfn_free (pfn_t pfn);
@@ -82,22 +82,22 @@ uint64_t timer_gettime (void);
 bool uaddr_valid (uaddr_t);
 bool uaddr_validrange (uaddr_t a, size_t size);
 bool uaddr_copyfrom (void *dst, uaddr_t src, size_t size,
-		     bool (*pf_handler)(uaddr_t va, hal_pfinfo_t info));
+		     bool (*pf_handler) (uaddr_t va, hal_pfinfo_t info));
 bool uaddr_copyto (uaddr_t dst, void *src, size_t size,
-		   bool (*pf_handler)(uaddr_t va, hal_pfinfo_t info));
+		   bool (*pf_handler) (uaddr_t va, hal_pfinfo_t info));
 bool uaddr_memset (uaddr_t dst, int ch, size_t size,
-		   bool (*pf_handler)(uaddr_t va, hal_pfinfo_t info));
+		   bool (*pf_handler) (uaddr_t va, hal_pfinfo_t info));
 
-void uctxt_init (uctxt_t *uctxt, vaddr_t ip, vaddr_t sp);
-void uctxt_setip (uctxt_t *uctxt, vaddr_t ip);
-void uctxt_setsp (uctxt_t *uctxt, vaddr_t sp);
-void uctxt_setret (uctxt_t *uctxt, unsigned long ret);
-void uctxt_seta0 (uctxt_t *uctxt, unsigned long a0);
-void uctxt_seta1 (uctxt_t *uctxt, unsigned long a1);
-void uctxt_seta2 (uctxt_t *uctxt, unsigned long a2);
-bool uctxt_signal (uctxt_t *uctxt, unsigned long ip, unsigned long arg,
-		   bool (*pf_handler)(uaddr_t va, hal_pfinfo_t info));
-void uctxt_print (uctxt_t *uctxt);
+void uctxt_init (uctxt_t * uctxt, vaddr_t ip, vaddr_t sp);
+void uctxt_setip (uctxt_t * uctxt, vaddr_t ip);
+void uctxt_setsp (uctxt_t * uctxt, vaddr_t sp);
+void uctxt_setret (uctxt_t * uctxt, unsigned long ret);
+void uctxt_seta0 (uctxt_t * uctxt, unsigned long a0);
+void uctxt_seta1 (uctxt_t * uctxt, unsigned long a1);
+void uctxt_seta2 (uctxt_t * uctxt, unsigned long a2);
+bool uctxt_signal (uctxt_t * uctxt, unsigned long ip, unsigned long arg,
+		   bool (*pf_handler) (uaddr_t va, hal_pfinfo_t info));
+void uctxt_print (uctxt_t * uctxt);
 
 #define LOGL_DEBUG -1
 #define LOGL_INFO  0
@@ -109,26 +109,27 @@ void uctxt_print (uctxt_t *uctxt);
 #include <stdlib.h>
 #include <stdio.h>
 
-static inline void __printflike(2, 3)
-__log(const int level, const char *fmt, ...)
+static inline void
+__printflike (2, 3)
+__log (const int level, const char *fmt, ...)
 {
   va_list ap;
 
   if (level == LOGL_WARN)
-    printf("Warning: ");
+    printf ("Warning: ");
   else if (level == LOGL_FATAL)
-    printf("Fatal: ");
+    printf ("Fatal: ");
   else if (level == LOGL_ERROR)
-    printf("ERROR: ");
+    printf ("ERROR: ");
 
   va_start (ap, fmt);
   vprintf (fmt, ap);
   va_end (ap);
 
-  putchar('\n');
+  putchar ('\n');
 
   if (level == LOGL_FATAL)
-    exit(-1);
+    exit (-1);
 }
 
 #ifdef DEBUG
@@ -221,40 +222,40 @@ int main_ap (void);
 /*
   Entry for Syscall
 */
-uctxt_t *entry_sysc (uctxt_t *u,
+uctxt_t *entry_sysc (uctxt_t * u,
 		     unsigned long a1, unsigned long a2, unsigned long a3,
 		     unsigned long a4, unsigned long a5, unsigned long a6);
 
 /*
   Entry for Page Fault
 */
-uctxt_t *entry_pf (uctxt_t *u, vaddr_t va, hal_pfinfo_t pfi);
+uctxt_t *entry_pf (uctxt_t * u, vaddr_t va, hal_pfinfo_t pfi);
 
 /*
   Entry for Generic Exception
 */
-uctxt_t *entry_ex (uctxt_t *u, unsigned ex);
+uctxt_t *entry_ex (uctxt_t * u, unsigned ex);
 
 /*
   Entry for Platform Alarm.
 
   This function will be called whenever the platform alarm is fired.
 */
-uctxt_t *entry_alarm (uctxt_t *f);
+uctxt_t *entry_alarm (uctxt_t * f);
 
 /*
   Entry for IPI.
 
   This function will be called on IPI.
 */
-uctxt_t *entry_ipi (uctxt_t *f, unsigned ipi);
+uctxt_t *entry_ipi (uctxt_t * f, unsigned ipi);
 
 /*
  Entry for IRQ.
 
  This function will be called on IRQ.
 */
-uctxt_t *entry_irq (uctxt_t *f, unsigned irq, bool lvl);
+uctxt_t *entry_irq (uctxt_t * f, unsigned irq, bool lvl);
 
-       
+
 #endif

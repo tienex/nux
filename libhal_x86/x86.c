@@ -46,7 +46,7 @@ extern int _stree_end[];
 extern int _fbuf_start;
 extern int _fbuf_end;
 
-const struct apxh_bootinfo *bootinfo = (struct apxh_bootinfo *)&_info_start;
+const struct apxh_bootinfo *bootinfo = (struct apxh_bootinfo *) &_info_start;
 
 struct hal_pltinfo_desc pltdesc;
 struct fbdesc fbdesc;
@@ -64,25 +64,25 @@ __halt (void)
 }
 
 uint64_t
-rdmsr(uint32_t ecx)
+rdmsr (uint32_t ecx)
 {
   uint32_t edx, eax;
 
 
-  asm volatile ("rdmsr\n" : "=d"(edx), "=a" (eax) : "c" (ecx));
+  asm volatile ("rdmsr\n":"=d" (edx), "=a" (eax):"c" (ecx));
 
-  return ((uint64_t)edx << 32) | eax;
+  return ((uint64_t) edx << 32) | eax;
 }
 
 void
-wrmsr(uint32_t ecx, uint64_t val)
+wrmsr (uint32_t ecx, uint64_t val)
 {
   uint32_t edx, eax;
 
-  eax = (uint32_t)val;
-  edx = (uint32_t)(val >> 32);
+  eax = (uint32_t) val;
+  edx = (uint32_t) (val >> 32);
 
-  asm volatile ("wrmsr\n" :: "a" (eax), "d" (edx), "c" (ecx));
+  asm volatile ("wrmsr\n"::"a" (eax), "d" (edx), "c" (ecx));
 }
 
 unsigned long
@@ -90,7 +90,7 @@ read_cr4 (void)
 {
   unsigned long r;
 
-  asm volatile ("mov %%cr4, %0\n" : "=r"(r));
+  asm volatile ("mov %%cr4, %0\n":"=r" (r));
 
   return r;
 }
@@ -98,7 +98,7 @@ read_cr4 (void)
 void
 write_cr4 (unsigned long r)
 {
-  asm volatile ("mov %0, %%cr4\n" :: "r"(r));
+  asm volatile ("mov %0, %%cr4\n"::"r" (r));
 }
 
 unsigned long
@@ -106,7 +106,7 @@ read_cr3 (void)
 {
   unsigned long r;
 
-  asm volatile ("mov %%cr3, %0\n" : "=r"(r));
+  asm volatile ("mov %%cr3, %0\n":"=r" (r));
 
   return r;
 }
@@ -114,7 +114,7 @@ read_cr3 (void)
 void
 write_cr3 (unsigned long r)
 {
-  asm volatile ("mov %0, %%cr3\n" :: "r"(r));
+  asm volatile ("mov %0, %%cr3\n"::"r" (r));
 }
 
 int
@@ -167,7 +167,7 @@ tlbflush_global (void)
 {
   unsigned long r;
 
-  r = read_cr4();
+  r = read_cr4 ();
   write_cr4 (r ^ (1 << 7));
   write_cr4 (r);
 }
@@ -180,7 +180,7 @@ tlbflush_local (void)
   r = read_cr3 ();
   write_cr3 (r);
 
-  asm volatile ("" ::: "memory");
+  asm volatile ("":::"memory");
 }
 
 
@@ -263,7 +263,7 @@ hal_cpu_idle (void)
 __dead void
 hal_cpu_halt (void)
 {
-  __halt();
+  __halt ();
 }
 
 void
@@ -281,31 +281,31 @@ hal_cpu_tlbop (hal_tlbop_t tlbop)
 vaddr_t
 hal_virtmem_dmapbase (void)
 {
-  return (uint64_t)(uintptr_t)&_physmap_start;
+  return (uint64_t) (uintptr_t) & _physmap_start;
 }
 
 const size_t
 hal_virtmem_dmapsize (void)
 {
-  return (size_t)((void *)&_physmap_end - (void *)&_physmap_start);
+  return (size_t) ((void *) &_physmap_end - (void *) &_physmap_start);
 }
 
 vaddr_t
 hal_virtmem_pfn$base (void)
 {
-  return (uint64_t)(uintptr_t)&_pfncache_start;
+  return (uint64_t) (uintptr_t) & _pfncache_start;
 }
 
 const size_t
 hal_virtmem_pfn$size (void)
 {
-  return (size_t)((void *)&_pfncache_end - (void *)&_pfncache_start);
+  return (size_t) ((void *) &_pfncache_end - (void *) &_pfncache_start);
 }
 
 unsigned long
 hal_physmem_maxpfn (void)
 {
-  return (unsigned long)bootinfo->maxpfn;
+  return (unsigned long) bootinfo->maxpfn;
 }
 
 void *
@@ -319,25 +319,25 @@ hal_physmem_stree (unsigned *order)
 vaddr_t
 hal_virtmem_kvabase (void)
 {
-  return (vaddr_t)&_kva_start;
+  return (vaddr_t) & _kva_start;
 }
 
 const size_t
 hal_virtmem_kvasize (void)
 {
-  return (size_t)((void *)&_kva_end - (void *)&_kva_start);
+  return (size_t) ((void *) &_kva_end - (void *) &_kva_start);
 }
 
 vaddr_t
 hal_virtmem_kmembase (void)
 {
-  return (vaddr_t)&_kmem_start;
+  return (vaddr_t) & _kmem_start;
 }
 
 const size_t
 hal_virtmem_kmemsize (void)
 {
-  return (size_t)((void *)&_kmem_end - (void *)&_kmem_start);
+  return (size_t) ((void *) &_kmem_end - (void *) &_kmem_start);
 }
 
 static void
@@ -352,7 +352,7 @@ early_print (const char *str)
 const struct hal_pltinfo_desc *
 hal_pltinfo (void)
 {
-  return (const struct hal_pltinfo_desc *)&pltdesc;
+  return (const struct hal_pltinfo_desc *) &pltdesc;
 }
 
 void
@@ -368,43 +368,43 @@ x86_init (void)
     }
 
   fbdesc = bootinfo->fbdesc;
-  fbdesc.addr = (uint64_t)(uintptr_t)&_fbuf_start;
+  fbdesc.addr = (uint64_t) (uintptr_t) & _fbuf_start;
   use_fb = framebuffer_init (&fbdesc);
 
   /* Check  APXH stree. */
-  stree_hdr = (struct apxh_stree *)_stree_start;
+  stree_hdr = (struct apxh_stree *) _stree_start;
   if (stree_hdr->magic != APXH_STREE_MAGIC)
     {
-      early_print("ERROR: Unrecognised stree magic!");
-      hal_cpu_halt();
+      early_print ("ERROR: Unrecognised stree magic!");
+      hal_cpu_halt ();
     }
-  if (stree_hdr->size != 8 * STREE_SIZE(stree_hdr->order))
+  if (stree_hdr->size != 8 * STREE_SIZE (stree_hdr->order))
     {
-      early_print("ERROR: stree size doesn't match!");
-      hal_cpu_halt();
+      early_print ("ERROR: stree size doesn't match!");
+      hal_cpu_halt ();
     }
-  stree_memsize = (size_t)((void *)_stree_end - (void *)_stree_start);
+  stree_memsize = (size_t) ((void *) _stree_end - (void *) _stree_start);
   if (stree_hdr->size + stree_hdr->offset > stree_memsize)
     {
-      early_print("ERROR: stree doesn't fit in allocated memory!");
-      hal_cpu_halt();
+      early_print ("ERROR: stree doesn't fit in allocated memory!");
+      hal_cpu_halt ();
     }
   hal_stree_order = stree_hdr->order;
-  hal_stree_ptr = (uint8_t *)stree_hdr + stree_hdr->offset;
+  hal_stree_ptr = (uint8_t *) stree_hdr + stree_hdr->offset;
 
   /* Reserve page 0. It's special in X86. */
-  stree_clrbit(hal_stree_ptr, hal_stree_order, 0);
+  stree_clrbit (hal_stree_ptr, hal_stree_order, 0);
 
   pltdesc.acpi_rsdp = bootinfo->acpi_rsdp;
 
   pmap_init ();
 
 #ifdef __i386__
-  early_print("i386 HAL booting from APXH.\n");
+  early_print ("i386 HAL booting from APXH.\n");
   i386_init ();
 #endif
 #ifdef __amd64__
-  early_print("AMD64 HAL booting from APXH.\n");
+  early_print ("AMD64 HAL booting from APXH.\n");
   amd64_init ();
 #endif
 

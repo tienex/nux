@@ -38,8 +38,8 @@ _kmap_map (vaddr_t va, pfn_t pfn, unsigned prot, const int alloc)
   unsigned oldprot;
 
   l1e = hal_pmap_boxl1e (pfn, prot);
-  
-  assert(hal_pmap_getl1p (NULL, va, alloc, &l1p));
+
+  assert (hal_pmap_getl1p (NULL, va, alloc, &l1p));
   oldl1e = hal_pmap_setl1e (NULL, l1p, l1e);
   __sync_or_and_fetch (&kmap_tlbop, hal_pmap_tlbop (oldl1e, l1e));
 
@@ -81,7 +81,7 @@ kmap_mapped_range (vaddr_t va, size_t size)
   s = trunc_page (va);
   e = va + size;
 
-  for (i = s; i < e; i+= PAGE_SIZE)
+  for (i = s; i < e; i += PAGE_SIZE)
     if (!kmap_mapped (i))
       return 0;
 
@@ -117,7 +117,7 @@ kmap_ensure (vaddr_t va, unsigned reqprot)
 
   /* Check present bit. If we are adding a P bit allocate, if we are
      removing it free the page. */
-  if ((reqprot & HAL_PTE_P) !=  (prot & HAL_PTE_P))
+  if ((reqprot & HAL_PTE_P) != (prot & HAL_PTE_P))
     {
       if (reqprot & HAL_PTE_P)
 	{
@@ -141,8 +141,8 @@ kmap_ensure (vaddr_t va, unsigned reqprot)
   oldl1e = hal_pmap_setl1e (NULL, l1p, l1e);
   __sync_or_and_fetch (&kmap_tlbop, hal_pmap_tlbop (oldl1e, l1e));
   ret = 0;
-  
- out:
+
+out:
   return ret;
 }
 
@@ -154,7 +154,7 @@ kmap_ensure_range (vaddr_t va, size_t size, unsigned reqprot)
   s = trunc_page (va);
   e = va + size;
 
-  for (i = s; i < e; i+= PAGE_SIZE)
+  for (i = s; i < e; i += PAGE_SIZE)
     if (kmap_ensure (i, reqprot))
       return -1;
 

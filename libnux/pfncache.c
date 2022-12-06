@@ -33,17 +33,17 @@ static struct slot *slots;
 static void
 _pfncache_fill (unsigned slot, uintptr_t old, uintptr_t new)
 {
-  vaddr_t va = (vaddr_t)pfncache_base + ((vaddr_t)slot << PAGE_SHIFT);
+  vaddr_t va = (vaddr_t) pfncache_base + ((vaddr_t) slot << PAGE_SHIFT);
 
   /*
-    NEVER allocate pagetables while mapping PFN Cache.
+     NEVER allocate pagetables while mapping PFN Cache.
 
-    The pagetables themselves are cleared, possibly using the PFN Cache,
-    which would resultin a deadlock.
+     The pagetables themselves are cleared, possibly using the PFN Cache,
+     which would resultin a deadlock.
 
-    PFN Cache's pagetables must be allocated during boot.
-  */
-  kmap_map_noalloc (va, new, HAL_PTE_P|HAL_PTE_W);
+     PFN Cache's pagetables must be allocated during boot.
+   */
+  kmap_map_noalloc (va, new, HAL_PTE_P | HAL_PTE_W);
   kmap_commit ();
 }
 
@@ -53,10 +53,10 @@ pfn_get (pfn_t pfn)
   uintptr_t slot;
 
   if (pfn < max_dmap_pfn)
-    return (void *)(hal_virtmem_dmapbase () + (pfn << PAGE_SHIFT));
+    return (void *) (hal_virtmem_dmapbase () + (pfn << PAGE_SHIFT));
 
   slot = cache_get (&cache, pfn);
-  return (void *)pfncache_base + (slot << PAGE_SHIFT);
+  return (void *) pfncache_base + (slot << PAGE_SHIFT);
 }
 
 void
@@ -67,8 +67,8 @@ pfn_put (pfn_t pfn, void *va)
   if (pfn < max_dmap_pfn)
     return;
 
-  slot = ((uintptr_t)va - (uintptr_t)pfncache_base) >> PAGE_SHIFT;
-  cache_put (&cache, (uintptr_t)slot);
+  slot = ((uintptr_t) va - (uintptr_t) pfncache_base) >> PAGE_SHIFT;
+  cache_put (&cache, (uintptr_t) slot);
 }
 
 void
@@ -81,7 +81,7 @@ pfncacheinit (void)
 	  pfncache_base, pfncache_base + pfncache_size, numslots);
   assert (numslots != 0);
 
-  slots = (struct slot *)kmem_brkgrow (1, sizeof (struct slot) * numslots);
+  slots = (struct slot *) kmem_brkgrow (1, sizeof (struct slot) * numslots);
 
   cache_init (&cache, slots, 256, _pfncache_fill);
 }
@@ -109,4 +109,3 @@ _pfncache_bootstrap (void)
   printf ("Initializing PFN boot cache.\n");
   cache_init (&cache, &boot_slot, 1, _pfncache_fill);
 }
-

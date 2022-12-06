@@ -23,7 +23,7 @@
 bool
 uaddr_valid (uaddr_t a)
 {
-  uaddr_t min = (uaddr_t)hal_virtmem_userbase ();
+  uaddr_t min = (uaddr_t) hal_virtmem_userbase ();
   uaddr_t max = min + hal_virtmem_usersize ();
 
   return ((a >= min) && (a < max));

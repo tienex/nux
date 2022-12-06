@@ -79,8 +79,7 @@ rsdp_check (void *ptr)
 
       if (sum != 0)
 	{
-	  warn ("Extended checksum failed for RSDP at addr %p",
-		ptr);
+	  warn ("Extended checksum failed for RSDP at addr %p", ptr);
 	  return false;
 	}
     }
@@ -96,7 +95,7 @@ static void *
 bios_find_rsdp (void)
 {
   unsigned paddr;
-  void *memstart = (void *)0;
+  void *memstart = (void *) 0;
 
   debug ("Searching for RSDP.");
 
@@ -112,8 +111,7 @@ bios_find_rsdp (void)
     {
       void *ptr;
 
-      debug ("Scanning EBDA at addr %x (%p)", paddr,
-	     memstart + paddr);
+      debug ("Scanning EBDA at addr %x (%p)", paddr, memstart + paddr);
       ptr = rsdp_scan ((uint8_t *) memstart + paddr, 1 * KB);
       if (ptr != NULL)
 	return ptr;
@@ -140,5 +138,5 @@ rsdp_find (void)
     return 0;
 
   info ("RSDP found at %p", rsdp);
-  return (uint64_t)(uintptr_t)rsdp;
+  return (uint64_t) (uintptr_t) rsdp;
 }

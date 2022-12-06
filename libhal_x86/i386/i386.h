@@ -14,7 +14,7 @@
 #define KDS 0x10
 #define UCS 0x1b
 #define UDS 0x23
-	
+
 #define VECT_IPI0 0xF0
 #define VECT_IRQ0 0x22
 #define VECT_SYSC 0x21

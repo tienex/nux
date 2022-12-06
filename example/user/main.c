@@ -4,13 +4,13 @@
 int
 putchar (const char c)
 {
-  (void)syscall1(4096, c);
+  (void) syscall1 (4096, c);
 }
 
 void
 exit (int status)
 {
-  return syscall0(0);
+  return syscall0 (0);
 }
 
 int
@@ -24,7 +24,8 @@ puts (const char *s)
   return 0;
 }
 
-int main (void)
+int
+main (void)
 {
   puts ("Hello from userspace, NUX!\n");
 

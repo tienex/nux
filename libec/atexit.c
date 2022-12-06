@@ -2,7 +2,8 @@ typedef unsigned int u_int;
 int __cxa_atexit (void (*)(void *), void *, void *);
 void __cxa_finalize (void *);
 
-/* *INDENT-OFF* */ /* Imported from NetBSD -- MHDIFFIGNORE */
+/* *INDENT-OFF* */
+/* Imported from NetBSD -- MHDIFFIGNORE */
 /*	$NetBSD: atexit.c,v 1.29 2015/04/19 18:15:26 joerg Exp $	*/
 
 /*-

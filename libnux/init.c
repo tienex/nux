@@ -25,20 +25,20 @@ init_mem (void)
   /*
      Initialise Page Allocator.
    */
-  _pfncache_bootstrap();
-  pfninit();
+  _pfncache_bootstrap ();
+  pfninit ();
 
   /*
-    Initialise KVA Allocator.
-  */
-  kvainit();
+     Initialise KVA Allocator.
+   */
+  kvainit ();
 
   /*
-    Initialise KMEM.
-  */
-  kmeminit();
+     Initialise KMEM.
+   */
+  kmeminit ();
 
-  pfncacheinit();
+  pfncacheinit ();
 
 #if 0
   /*
@@ -88,8 +88,7 @@ details.\n\n", COPYRIGHT_YEAR);
 
 void klog_start (void);
 
-void __attribute__((constructor(0)))
-_nux_sysinit (void)
+void __attribute__((constructor (0))) _nux_sysinit (void)
 {
   banner ();
 

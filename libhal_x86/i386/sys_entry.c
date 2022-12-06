@@ -94,7 +94,8 @@ do_syscall (struct hal_frame *f)
 {
   assert (f->cs == UCS);
 
-  return hal_entry_syscall (f, f->eax, f->edi, f->esi, f->ecx, f->edx, f->ebx);
+  return hal_entry_syscall (f, f->eax, f->edi, f->esi, f->ecx, f->edx,
+			    f->ebx);
 }
 
 struct hal_frame *
@@ -107,7 +108,7 @@ do_intr (uint32_t vect, struct hal_frame *f)
 void
 hal_frame_init (struct hal_frame *f)
 {
-  memset(f, 0, sizeof(*f));
+  memset (f, 0, sizeof (*f));
   f->eip = 0;
   f->esp = 0;
 
@@ -127,8 +128,7 @@ hal_frame_isuser (struct hal_frame *f)
   return f->cs == UCS;
 }
 
-vaddr_t
-hal_frame_getip (struct hal_frame *f);
+vaddr_t hal_frame_getip (struct hal_frame *f);
 
 void
 hal_frame_setip (struct hal_frame *f, vaddr_t ip)
@@ -136,8 +136,7 @@ hal_frame_setip (struct hal_frame *f, vaddr_t ip)
   f->eip = ip;
 }
 
-vaddr_t
-hal_frame_getsp (struct hal_frame *f);
+vaddr_t hal_frame_getsp (struct hal_frame *f);
 
 void
 hal_frame_setsp (struct hal_frame *f, vaddr_t sp)
@@ -173,7 +172,8 @@ bool
 hal_frame_signal (struct hal_frame *f, unsigned long ip, unsigned long arg)
 {
   vaddr_t start, end;
-  struct stackframe {
+  struct stackframe
+  {
     uint32_t arg;
     uint32_t eip;
   } __packed sf = {
@@ -182,8 +182,8 @@ hal_frame_signal (struct hal_frame *f, unsigned long ip, unsigned long arg)
   };
 
   /*
-    Check that the addresses we will write are all in userspace.
-  */
+     Check that the addresses we will write are all in userspace.
+   */
   start = f->esp - sizeof (sf);
   end = f->esp;
 
@@ -195,10 +195,10 @@ hal_frame_signal (struct hal_frame *f, unsigned long ip, unsigned long arg)
     return false;
 
   /* Write to userspace. Kernel is responsible for recovering from faults. */
-  memcpy ((void *)start, &sf, sizeof (sf));
+  memcpy ((void *) start, &sf, sizeof (sf));
 
   /* Change frame with new IP and SP. */
-  f->esp = (uint32_t)start;
+  f->esp = (uint32_t) start;
   f->eip = ip;
   return true;
 }
@@ -217,4 +217,3 @@ hal_frame_print (struct hal_frame *f)
 	  f->ds, f->es, f->fs, f->gs);
   hallog ("CR3: %08x CR2: %08x err: %08x", f->cr3, f->cr2, f->err);
 }
-

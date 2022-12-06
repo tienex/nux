@@ -84,7 +84,7 @@ cpu_add (uint16_t physid)
   info ("Found CPU %d (PHYS:%d)", id, physid);
 
   /* We are at init-time. We use LOW KMEM via BRK. */
-  cpuinfo = (struct cpu_info *)kmem_brkgrow(1, sizeof (struct cpu_info));
+  cpuinfo = (struct cpu_info *) kmem_brkgrow (1, sizeof (struct cpu_info));
   cpuinfo->cpu_id = id;
   cpuinfo->phys_id = physid;
   cpuinfo->self = cpuinfo;
@@ -177,7 +177,7 @@ cpu_startall (void)
 {
   unsigned pcpu;
 
-  hal_pcpu_init();
+  hal_pcpu_init ();
 
   while ((pcpu = plt_pcpu_iterate ()) != PLT_PCPU_INVALID)
     {
@@ -198,8 +198,7 @@ cpu_startall (void)
 	}
       else
 	{
-	  warn ("HAL can't prepare for boot CPU %d",
-		cpu_idfromphys (pcpu));
+	  warn ("HAL can't prepare for boot CPU %d", cpu_idfromphys (pcpu));
 	}
     }
 }
@@ -389,21 +388,21 @@ cpu_useraccess_end (void)
 
 bool
 cpu_useraccess_copyfrom (void *dst, uaddr_t src, size_t size,
-		       bool (*pf_handler)(uaddr_t va, hal_pfinfo_t info))
+			 bool (*pf_handler) (uaddr_t va, hal_pfinfo_t info))
 {
   struct cpu_info *ci = cpu_curinfo ();
 
-  if (! uaddr_validrange (src, size))
+  if (!uaddr_validrange (src, size))
     return false;
 
   ci->usrpgfault = 1;
-  __insn_barrier();
+  __insn_barrier ();
   if (setjmp (ci->usrpgfaultctx) != 0)
     {
       uaddr_t uaddr = ci->usrpgaddr;
       hal_pfinfo_t pfinfo = ci->usrpginfo;
 
-      if (!pf_handler || ! pf_handler (uaddr, pfinfo))
+      if (!pf_handler || !pf_handler (uaddr, pfinfo))
 	{
 	  cpu_useraccess_end ();
 	  return false;
@@ -412,7 +411,7 @@ cpu_useraccess_copyfrom (void *dst, uaddr_t src, size_t size,
       // pass-through
     }
 
-  memcpy (dst, (void *)src, size);
+  memcpy (dst, (void *) src, size);
 
   cpu_useraccess_end ();
   return true;
@@ -420,21 +419,21 @@ cpu_useraccess_copyfrom (void *dst, uaddr_t src, size_t size,
 
 bool
 cpu_useraccess_copyto (uaddr_t dst, void *src, size_t size,
-		       bool (*pf_handler)(uaddr_t va, hal_pfinfo_t info))
+		       bool (*pf_handler) (uaddr_t va, hal_pfinfo_t info))
 {
   struct cpu_info *ci = cpu_curinfo ();
 
-  if (! uaddr_validrange (dst, size))
+  if (!uaddr_validrange (dst, size))
     return false;
 
   ci->usrpgfault = 1;
-  __insn_barrier();
+  __insn_barrier ();
   if (setjmp (ci->usrpgfaultctx) != 0)
     {
       uaddr_t uaddr = ci->usrpgaddr;
       hal_pfinfo_t pfinfo = ci->usrpginfo;
 
-      if (!pf_handler || ! pf_handler (uaddr, pfinfo))
+      if (!pf_handler || !pf_handler (uaddr, pfinfo))
 	{
 	  cpu_useraccess_end ();
 	  return false;
@@ -443,7 +442,7 @@ cpu_useraccess_copyto (uaddr_t dst, void *src, size_t size,
       // pass-through
     }
 
-  memcpy ((void *)dst, src, size);
+  memcpy ((void *) dst, src, size);
 
   cpu_useraccess_end ();
   return true;
@@ -451,21 +450,21 @@ cpu_useraccess_copyto (uaddr_t dst, void *src, size_t size,
 
 bool
 cpu_useraccess_memset (uaddr_t dst, int ch, size_t size,
-		       bool (*pf_handler)(uaddr_t va, hal_pfinfo_t info))
+		       bool (*pf_handler) (uaddr_t va, hal_pfinfo_t info))
 {
   struct cpu_info *ci = cpu_curinfo ();
 
-  if (! uaddr_validrange (dst, size))
+  if (!uaddr_validrange (dst, size))
     return false;
 
   ci->usrpgfault = 1;
-  __insn_barrier();
+  __insn_barrier ();
   if (setjmp (ci->usrpgfaultctx) != 0)
     {
       uaddr_t uaddr = ci->usrpgaddr;
       hal_pfinfo_t pfinfo = ci->usrpginfo;
 
-      if (!pf_handler || ! pf_handler (uaddr, pfinfo))
+      if (!pf_handler || !pf_handler (uaddr, pfinfo))
 	{
 	  cpu_useraccess_end ();
 	  return false;
@@ -474,15 +473,15 @@ cpu_useraccess_memset (uaddr_t dst, int ch, size_t size,
       // pass-through
     }
 
-  memset ((void *)dst, ch, size);
+  memset ((void *) dst, ch, size);
 
   cpu_useraccess_end ();
   return true;
 }
 
 bool
-cpu_useraccess_signal (uctxt_t *uctxt, unsigned long ip, unsigned long arg,
-		       bool (*pf_handler)(uaddr_t va, hal_pfinfo_t info))
+cpu_useraccess_signal (uctxt_t * uctxt, unsigned long ip, unsigned long arg,
+		       bool (*pf_handler) (uaddr_t va, hal_pfinfo_t info))
 {
   struct cpu_info *ci = cpu_curinfo ();
   struct hal_frame *f;
@@ -492,22 +491,22 @@ cpu_useraccess_signal (uctxt_t *uctxt, unsigned long ip, unsigned long arg,
   if (f == NULL)
     return false;
 
-  if (! hal_frame_isuser (f))
+  if (!hal_frame_isuser (f))
     return false;
 
   /*
-    We can't be sure of what addresses the HAL will write, and the HAL
-    is reponsible for checking that it's writing to userspace addresses.
-  */
+     We can't be sure of what addresses the HAL will write, and the HAL
+     is reponsible for checking that it's writing to userspace addresses.
+   */
 
   ci->usrpgfault = 1;
-  __insn_barrier();
+  __insn_barrier ();
   if (setjmp (ci->usrpgfaultctx) != 0)
     {
       uaddr_t uaddr = ci->usrpgaddr;
       hal_pfinfo_t pfinfo = ci->usrpginfo;
 
-      if (!pf_handler || ! pf_handler (uaddr, pfinfo))
+      if (!pf_handler || !pf_handler (uaddr, pfinfo))
 	{
 	  cpu_useraccess_end ();
 	  return false;
@@ -533,7 +532,7 @@ cpu_useraccess_checkpf (uaddr_t addr, hal_pfinfo_t info)
       ci->usrpgaddr = addr;
       ci->usrpginfo = info;
       __insn_barrier ();
-      longjmp(ci->usrpgfaultctx, 1);
+      longjmp (ci->usrpgfaultctx, 1);
       /* Not reached */
     }
 }

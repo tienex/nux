@@ -26,14 +26,14 @@ void gsi_start (void);
 
 
 void acpi_init (paddr_t rdsp);
-void acpi_madt_scan(void);
+void acpi_madt_scan (void);
 
 void hw_cmos_write (uint8_t addr, uint8_t val);
 void hw_delay (void);
 void hw_reset_vector (uint32_t start);
 
-bool hpet_init(paddr_t hpetpa);
-bool hpet_doirq(void);
+bool hpet_init (paddr_t hpetpa);
+bool hpet_doirq (void);
 bool acpi_hpet_scan (void);
 
 #endif
