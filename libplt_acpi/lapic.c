@@ -21,7 +21,7 @@
 #include <nux/nux.h>
 #include <nux/plt.h>
 
-#define MAXCPUS 64
+#define MAXCPUS 256
 
 void *lapic_base = NULL;
 unsigned lapics_no;
@@ -270,8 +270,6 @@ plt_pcpu_start (unsigned pcpuid, paddr_t start)
 {
   if (pcpuid == lapic_getcurrent ())
     return;
-
-  hw_reset_vector(start);
 
   /* INIT-SIPI-SIPI sequence. */
   lapic_ipi (pcpuid, APIC_DLVR_INIT, 0);

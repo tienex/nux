@@ -1,12 +1,47 @@
 ENTRY(_start)
 SECTIONS
 {
-    . = 0xffff800000000000 + SIZEOF_HEADERS;
+   . = 0xffff800000000000 + SIZEOF_HEADERS;
 
-    .text :
-    {
-        *(.text)
-     } : text
+   .text :
+   {
+       *(.text)
+       *(.text.*)
+   } : text
+      _ecode = .;	
+
+   .init :
+   {
+      KEEP (*crti.o(.init))
+      KEEP (*crti?.o(.init))
+
+      KEEP (*(EXCLUDE_FILE (*crtn.o *crtn?.o ) .init))
+      KEEP (*(SORT(.init.*)))
+      KEEP (*(.init))
+   } :text
+
+   .fini :
+   {
+      KEEP (*crti.o(.fini))
+      KEEP (*crti?.o(.fini))
+
+      KEEP (*(EXCLUDE_FILE (*crtn.o *crtn?.o ) .fini))
+      KEEP (*(SORT(.fini.*)))
+      KEEP (*(.fini))
+   } :text
+
+   .rodata ALIGN(4096) :
+   {
+      *(.rodata);
+      *(.rodata.*)
+   } : rodata
+
+   .data ALIGN (4096) :
+   {
+
+      *(.data);
+      *(.data.*);
+   } : data
 
    .ctors :
    {
@@ -16,7 +51,7 @@ SECTIONS
       KEEP (*(EXCLUDE_FILE (*crtend.o *crtend?.o ) .ctors))
       KEEP (*(SORT(.ctors.*)))
       KEEP (*(.ctors))
-    } : text
+    } : data
 
    .dtors :
    { 
@@ -25,19 +60,6 @@ SECTIONS
       KEEP (*(EXCLUDE_FILE (*crtend.o *crtend?.o ) .dtors))
       KEEP (*(SORT(.dtors.*)))
       KEEP (*(.dtors))
-   } : text
-   _ecode = .;
-
-   .rodata ALIGN(4096) :
-   {
-      *(.rodata.str?.*);
-      *(.rodata);       
-   } : rodata
-
-   .data ALIGN (4096) :
-   {
-
-      *(.data);
    } : data
 
    .bss :

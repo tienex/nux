@@ -55,8 +55,8 @@ _start:
 
 	// Save CR3 for future AP boots.
 	mov %cr3, %rax
-	movabs $_ap_cr3, %rbx
-	mov %rax, (%rbx)
+	movabs $_bsp_cr3, %rbx
+	mov %eax, (%rbx)
 
 	movabs $zippostring, %rdi
 	call ___start
@@ -71,6 +71,8 @@ _start:
  * stack.
  */
 	.code16
+	.globl _ap_ljmp1, _ap_ljmp2, _ap_gdtreg, _ap_cr3, _ap_end
+
 	.globl _C_LABEL(_ap_start)
 ENTRY(_ap_start)
 	cli
@@ -79,11 +81,8 @@ ENTRY(_ap_start)
 	movw %ax, %es
 
 	lgdtl _ap_gdtreg - _C_LABEL(_ap_start)
-	/* No IDT. If anything goes wrong here, machine triple-faults. */
-
-	movw $0xb800, %ax
-	movw %ax, %es
-	movw $('A'<<8 + 'A'), %es:0
+	/* No IDT. If anything goes wrong here, machine
+	/* triple-faults. */
 
 	/* Save AP Boostrap Page Segment. */
 	mov %cs, %bx
@@ -95,46 +94,17 @@ ENTRY(_ap_start)
 	/* Jump into protected mode */
 	ljmpl _ap_ljmp1 - _ap_start
 
-	.align 16
-.Lap_gdttmp:
-	.long 0
-	.long 0
-	/* 64-bit CS */
-	.long 0x0000ffff
-	.long 0x00af9a00
-	/* DS */
-	.long 0x0000ffff
-	.long 0x00cf9200
-	/* 32-bit CS */
-#define APTMP_CS32 0x18	
-	.long 0x0000ffff
-	.long 0x00cf9a00
-
-	/*
-	  AP Bootstrap configuration.
-
-	  The following fields are set up by prepare.
-	*/
-	.globl _ap_gdtreg, _ap_ljmp1, _ap_ljmp2, _ap_stackpage, _ap_cr3
-_ap_gdtreg:
-	.hword 127
-	.long .Lap_gdttmp - _C_LABEL(_ap_start)
 _ap_ljmp1:
 	.long .Lap_setup - _ap_start
+#define APTMP_CS32 0x18	
 	.word APTMP_CS32
-_ap_ljmp2:
-	.long .Lap_tramp64 - _ap_start
-	.word KCS
-_ap_stackpage:
-	.quad 0
-	.globl _ap_cr3
-_ap_cr3:
-	.quad 0x12345
+
 	.code32
 .Lap_setup:
 	/* Setup segments. */
 	mov $KDS, %ax
 	mov %ax, %ds
+	mov %ax, %ss
 
 	/* Get AP configuration. */
 	xor %ecx, %ebp
@@ -142,22 +112,8 @@ _ap_cr3:
 	shl $4, %ebp
 	mov (_ap_cr3 - _ap_start)(%ebp), %eax
 	mov %eax, %cr3
-	mov (_ap_stackpage - _ap_start)(%ebp), %edi
-	mov (_ap_stackpage - _ap_start + 4)(%ebp), %esi
 
-	/*
-	   Set NX mode.
-
-                NB: This is hairy. If there's any misunderstanding
-	        between BSP and APs on the NX setting (I am
-	        looking at you IA32_MISC_ENABLE's DISABLE_NX)
-	        then the AP will likely triple fault on loading
-	        the pagetable. This will reset the whole machine.
-
-	        It shouldn't happen,  but if you ever see a machine
-	        reset while enabling secondary processor, start
-	        looking at this.
-	*/
+	/* Check NX Support. */
 	mov $0x80000001, %eax
 	mov $0, %ecx
 	cpuid
@@ -169,13 +125,13 @@ _ap_cr3:
 	or $(1 << 11), %eax
 	wrmsr
 	/* NX should be enabled now. */
-
 .Lno_nx:
 	/* Set EFER.LME */
 	mov $MSR_IA32_EFER, %ecx
 	rdmsr
 	or $(1 << 8), %eax
 	wrmsr
+
 	/* Setup CR registers. */
 	mov %cr4, %eax
 	or  $0x30, %eax /* PAE on */
@@ -184,17 +140,50 @@ _ap_cr3:
 	or   $((1<<31)|(1<<16)), %eax
 	mov  %eax, %cr0
 
-
 	/* trampoline2 */
 	ljmpl (_ap_ljmp2 - _ap_start)(%ebp)
+
+_ap_ljmp2:
+	.long .Lap_tramp64 - _ap_start
+	.word KCS
+
 	.code64
 .Lap_tramp64:
 	movabs $apsetup, %rax
 	jmp *%rax
-	.globl _ap_end
+
+	/*
+	 * Trampoline GDTREG + GDT
+	 */
+_ap_gdtreg:
+	.hword 127
+	.long .Lap_gdttmp - _C_LABEL(_ap_start)
+	.align 16
+.Lap_gdttmp:
+	.long 0
+	.long 0
+	/* 64-bit CS */
+	.long 0x0000ffff
+	.long 0x00af9a00
+	/* DS */
+	.long 0x0000ffff
+	.long 0x00cf9200
+	/* 32-bit CS (APTMP_CS32) */
+	.long 0x0000ffff
+	.long 0x00cf9a00
+	
+	/*
+	  Temporary 1:1 CR3
+	*/
+_ap_cr3:
+	.quad 0x12345
+
+	/*
+	 * End of trampoline code
+	 */
 _ap_end:	
 
-apsetup: /* edi: ESP low 32, esi: ESP hi 32 */
+apsetup:
 1:
 	/* Reload GDT and IDT */
 	movabs $_gdtr, %rax
@@ -205,10 +194,22 @@ apsetup: /* edi: ESP low 32, esi: ESP hi 32 */
 	mov $KDS, %ax
 	mov %ax, %ss
 
-	/* Setup stack */
-	mov %edi, %esp
-	shl $32, %rsi
-	or %rsi, %rsp
+	/* Allocate and setup stack. */
+	movabs $pcpu_kstack, %rsi
+	movabs $pcpu_kstackcnt, %rdi
+	mov (%rdi), %rax
+1:
+	mov %rax, %rbx
+	inc %rbx
+	lock cmpxchg %rbx, (%rdi)
+	jz 1f
+	pause
+	jmp 1b
+1:
+	lea (%rsi, %rax, 8), %rax
+	mov (%rax), %rsp
+
+	mov %rsp, %rdi
 	call _C_LABEL(amd64_init_ap)
 1:	hlt
 	jmp 1b	
@@ -226,6 +227,11 @@ zippo:
 
 
 	.data
+
+	.globl _bsp_cr3
+_bsp_cr3:
+	.quad 0
+	
 zippostring:
 	.asciz "Zippo."
 	

@@ -17,19 +17,20 @@
 #include <stdint.h>
 #include <string.h>
 #include <nux/hal.h>
+#include <nux/plt.h>
 #include "amd64.h"
 #include "../internal.h"
 
-extern uint64_t _gdt;
+extern uint64_t _gdt[];
 extern int _physmap_start;
 extern int _physmap_end;
 
-pfn_t pcpu_stackpfn[MAXCPUS];
-void *pcpu_stackva[MAXCPUS];
+paddr_t pcpu_pstart;
 vaddr_t pcpu_haldata[MAXCPUS];
 
-static vaddr_t smp_oldva;
-static hal_l1e_t smp_oldl1e;
+uint64_t pcpu_kstackno = 0;
+uint64_t pcpu_kstackcnt = 0;
+uint64_t pcpu_kstack[MAXCPUS];
 
 void
 set_tss (unsigned pcpuid, struct amd64_tss *tss)
@@ -40,7 +41,7 @@ set_tss (unsigned pcpuid, struct amd64_tss *tss)
   uint8_t mh8 = (uint8_t)(ptr >> 24);
   uint32_t hi32 = (uint32_t)(ptr >> 32);
   uint16_t limit = sizeof (*tss);
-  uint32_t *ptr32 = (uint32_t *)(&_gdt + TSS_GDTIDX(pcpuid));
+  uint32_t *ptr32 = (uint32_t *)(_gdt + TSS_GDTIDX(pcpuid));
 
   ptr32[0] = limit | ((uint32_t)lo16 << 16);
   ptr32[1] = ml8 | (0x0089 << 8) | ((uint32_t)mh8 << 24);
@@ -100,28 +101,19 @@ hal_vect_max (void)
 }
 
 void
-hal_pcpu_init (unsigned pcpuid, struct hal_cpu *haldata)
+hal_pcpu_add (unsigned pcpuid, struct hal_cpu *haldata)
 {
-  void *va;
   pfn_t pfn;
+  void *va;
 
   assert (pcpuid < MAXCPUS);
 
-  /* Allocate PCPU stack. Use KVA. */
-  pfn = pfn_alloc (1);
+  /* Allocate PCPU kernel stack. */
+  pfn = pfn_alloc(1);
   assert (pfn != PFN_INVALID);
-  /* This is tricky. The hope is that is low enough to be addressed by 16 bit. */
-  assert (pfn < (1 << 8) && "Can't allocate Memory below 1MB!");
-
   va = kva_map (1, pfn, 1, HAL_PTE_W|HAL_PTE_P);
   assert (va != NULL);
-
-  pcpu_stackpfn[pcpuid] = pfn;
-  pcpu_stackva[pcpuid] = va;
-
-  haldata->tss.rsp0 = (uintptr_t)pcpu_stackva[pcpuid] + PAGE_SIZE;
-  haldata->tss.iomap = 108; /* XXX: FIX with sizeof(tss) + 1 */
-  haldata->data = NULL;
+  pcpu_kstack[pcpu_kstackno++] = (uint64_t)va + PAGE_SIZE;
 
   set_tss (pcpuid, &haldata->tss);
 
@@ -129,60 +121,42 @@ hal_pcpu_init (unsigned pcpuid, struct hal_cpu *haldata)
 }
 
 void
-hal_pcpu_enter (unsigned pcpuid)
+hal_pcpu_init (void)
 {
-  assert (pcpuid < MAXCPUS);
-
-  set_gsbase (pcpu_haldata[pcpuid]);
-  set_kernel_gsbase (pcpu_haldata[pcpuid]);
-  asm volatile ("ltr %%ax" :: "a" (TSS_GDTIDX(pcpuid) << 3));
-}
-
-uint64_t
-hal_pcpu_prepare (unsigned pcpu)
-{
-  extern char *_ap_start, *_ap_end;
+  void *va;
+  pfn_t pfn;
+  void *start, *ptr;
   hal_l1p_t l1p;
   paddr_t pstart;
-  void *start, *ptr;
   volatile uint16_t *reset;
+  extern char *_ap_start, *_ap_end;
 
-  if (pcpu >= MAXCPUS)
-    return PADDR_INVALID;
+  /* Allocate PCPU bootstrap code page. */
+  pfn = pfn_alloc(1);
+  /* This is tricky. The hope is that is low enough to be addressed by
+     16 bit. */
+  assert (pfn < (1 << 8) && "Can't allocate Memory below 1MB!");
 
-  if (pcpu_stackva[pcpu] == NULL)
-    return PADDR_INVALID;
+  /* Map and prepare the bootstrap code page. */
+  va = kva_map (1, pfn, 1, HAL_PTE_W|HAL_PTE_P);
+  assert (va != NULL);
+  start = va;
+  size_t apbootsz = (size_t) ((void *) &_ap_end - (void *) &_ap_start);
+  assert (apbootsz <= PAGE_SIZE);
+  memcpy (start, &_ap_start, apbootsz);
 
-  pstart = pcpu_stackpfn[pcpu] << PAGE_SHIFT;
-  start = pcpu_stackva[pcpu];
-
-  reset = kva_physmap (0, 0x467, 2, HAL_PTE_P|HAL_PTE_W|HAL_PTE_X);
-  *reset = pstart & 0xf;
-  *(reset + 1) = pstart >> 4;
-  kva_unmap ((void *)reset);
-
-  /* Setup AP bootstrap page */
-  memcpy (start, &_ap_start,
-	  (size_t) ((void *) &_ap_end - (void *) &_ap_start));
-
-  asm volatile ("":::"memory");
-
-  /* The following assumes that CPUs are woke up one at the time. */
-  assert (hal_pmap_getl1p (NULL, pstart, true, &l1p));
-  assert (smp_oldva == 0);
-  smp_oldva = pstart;
-  smp_oldl1e = hal_pmap_getl1e (NULL, l1p);
-  hal_pmap_setl1e (NULL, l1p, (pstart & ~PAGE_MASK) | PTE_P | PTE_W);
+  pstart = (paddr_t)pfn << PAGE_SHIFT;
 
   /*
     The following is trampoline dependent code, and configures the
     trampoline to use the page just selected as bootstrap page.
   */
-  extern char _ap_gdtreg, _ap_ljmp1, _ap_ljmp2, _ap_stackpage;
+  extern char _ap_gdtreg, _ap_ljmp1, _ap_ljmp2, _ap_cr3;
+  extern uint64_t _bsp_cr3;
 
-  /* Setup AP Stack. */
-  ptr = start + ((void *)&_ap_stackpage - (void *)&_ap_start);
-  *(void **)ptr = start + PAGE_SIZE;
+  /* Copy BSP CR3 into AP */
+  ptr = start + ((void *)&_ap_cr3 - (void *)&_ap_start);
+  *(uint64_t *)ptr = _bsp_cr3;
 
   /* Setup temporary GDT register. */
   ptr = start + ((void *)&_ap_gdtreg - (void *)&_ap_start);
@@ -197,22 +171,49 @@ hal_pcpu_prepare (unsigned pcpu)
   ptr = start + ((void *)&_ap_ljmp2 - (void *)&_ap_start);
   *(uint32_t *)ptr += (uint32_t)pstart;
   printf ("Trampoline 2 (%p) = %lx\n", ptr, *(uint32_t *)ptr);
+	  
 
-  return pstart;
+  /* Set reset vector */
+  reset = kva_physmap (0, 0x467, 2, HAL_PTE_P|HAL_PTE_W|HAL_PTE_X);
+  *reset = pstart & 0xf;
+  *(reset + 1) = pstart >> 4;
+  kva_unmap ((void *)reset);
 
+  assert (hal_pmap_getl1p (NULL, pstart, true, &l1p));
+  hal_pmap_setl1e (NULL, l1p, (pstart & ~PAGE_MASK) | PTE_P | PTE_W );
+
+  pcpu_pstart = pstart;
+}
+
+uint64_t
+hal_pcpu_prepare (unsigned pcpu)
+{
+  if (pcpu >= MAXCPUS)
+    return PADDR_INVALID;
+
+  return pcpu_pstart;
 }
 
 void
-amd64_init_ap (void)
+hal_pcpu_enter (unsigned pcpuid)
 {
-  hal_l1p_t l1p;
+  assert (pcpuid < MAXCPUS);
 
-  /* Restore old mapping. Assumes CPUs are brought up one at the time. */
-  assert (hal_pmap_getl1p (NULL, smp_oldva, false, &l1p));
-  hal_pmap_setl1e (NULL, l1p, smp_oldl1e);
-  printf ("Restored %lx at %lx\n", smp_oldl1e, smp_oldva);
-  smp_oldl1e = 0;
-  smp_oldva = 0;
+  set_gsbase (pcpu_haldata[pcpuid]);
+  set_kernel_gsbase (pcpu_haldata[pcpuid]);
+
+  asm volatile ("ltr %%ax" :: "a" (TSS_GDTIDX(pcpuid) << 3));
+}
+
+void
+amd64_init_ap (uintptr_t esp)
+{
+  unsigned pcpu = plt_pcpu_id ();
+  struct hal_cpu *haldata = (struct hal_cpu *)(uintptr_t)pcpu_haldata[pcpu];
+
+  haldata->tss.rsp0 = esp;
+  haldata->tss.iomap = 108; /* XXX: FIX with sizeof(tss) + 1 */
+  haldata->data = NULL;
 
   hal_main_ap ();
 

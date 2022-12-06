@@ -98,7 +98,7 @@ void plt_pcpu_ipiall (unsigned vct);
 unsigned plt_pcpu_id (void);
 
 /* Start-up remote CPU. */
-void plt_pcpu_start (unsigned pcpuid, paddr_t paddr);
+void plt_pcpu_start (unsigned pcpuid, paddr_t start);
 
 
 /*

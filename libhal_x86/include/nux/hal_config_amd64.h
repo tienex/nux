@@ -17,7 +17,7 @@
 #define HAL_PAGED  /* This HAL uses paging. */
 
 #define HAL_PAGE_SHIFT 12
-#define HAL_MAXCPUS 64
+#define HAL_MAXCPUS 256
 
 #define HAL_KVA_SHIFT 39 /* 512Gb */
 #define HAL_KVA_SIZE (1LL << HAL_KVA_SHIFT)

@@ -256,21 +256,8 @@ _ap_cr3:
 	shl $4, %ecx
 	mov (_ap_cr3 - _ap_start)(%ecx), %eax
 	mov %eax, %cr3
-	mov (_ap_stackpage - _ap_start)(%ecx), %edi
 
-	/*
-	   Set NX mode.
-
-                NB: This is hairy. If there's any misunderstanding
-	        between BSP and APs on the NX setting (I am
-	        looking at you IA32_MISC_ENABLE's DISABLE_NX)
-	        then the AP will likely triple fault on loading
-	        the pagetable. This will reset the whole machine.
-
-	        It shouldn't happen,  but if you ever see a machine
-	        reset while enabling secondary processor, start
-	        looking at this.
-	*/
+	/* Check NX Support. */
 	mov $0x80000001, %eax
 	mov $0, %ecx
 	cpuid
@@ -295,15 +282,29 @@ _ap_cr3:
 ENTRY(_ap_end)
 
 	.code32
-apsetup: /* edi: ESP */
+apsetup:
 1:
 	/* Reload GDT and IDT */
 	lgdt _gdtr
 	lidt _idtr
 	ljmp $KCS, $1f
 1:
-	/* Setup stack */
-	mov %edi, %esp
+	/* Allocate and setup stack. */
+	mov $pcpu_kstack, %esi
+	mov $pcpu_kstackcnt, %edi
+	mov (%esi), %eax
+1:
+	mov %eax, %ebx
+	inc %ebx
+	lock cmpxchg %ebx, (%edi)
+	jz 1f
+	pause
+	jmp 1b
+1:	
+	lea (%esi, %eax, 8), %eax
+	mov (%eax), %esp
+
+	push %esp
 	call _C_LABEL(i386_init_ap)
 1:	hlt
 	jmp 1b

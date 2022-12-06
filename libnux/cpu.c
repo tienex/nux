@@ -88,7 +88,7 @@ cpu_add (uint16_t physid)
   cpuinfo->cpu_id = id;
   cpuinfo->phys_id = physid;
   cpuinfo->self = cpuinfo;
-  hal_pcpu_init (physid, &cpuinfo->hal_cpu);
+  hal_pcpu_add (physid, &cpuinfo->hal_cpu);
 
   cpus[id] = cpuinfo;
   cpu_phys_to_id[physid] = id;
@@ -176,6 +176,8 @@ void
 cpu_startall (void)
 {
   unsigned pcpu;
+
+  hal_pcpu_init();
 
   while ((pcpu = plt_pcpu_iterate ()) != PLT_PCPU_INVALID)
     {

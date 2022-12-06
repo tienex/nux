@@ -246,7 +246,7 @@ hal_tlbop_t hal_pmap_tlbop (hal_l1e_t old, hal_l1e_t new);
   
   Provide the requested data structure to the HAL for its internal use. 
  */
-void hal_pcpu_init (unsigned pcpuid, struct hal_cpu *haldata);
+void hal_pcpu_add (unsigned pcpuid, struct hal_cpu *haldata);
 
 /*
   Load HAL-specific status for the current CPU..
@@ -257,9 +257,9 @@ void hal_pcpu_enter (unsigned pcpuid);
 
 /*
   Prepare machine for booting cpu PCPU. Returns address where CPU
-  bootstrap code starts.. 
+  bootstrap code starts, or PADDR_INVLID is CPU cannot boot.
  */
-uint64_t hal_pcpu_prepare (unsigned pcpu);
+paddr_t hal_pcpu_prepare (unsigned pcpu);
 
 
 /*
