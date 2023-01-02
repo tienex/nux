@@ -46,29 +46,6 @@ _i386_fs (void)
 }
 
 void
-hal_pcpu_add (unsigned pcpuid, struct hal_cpu *haldata)
-{
-  pfn_t pfn;
-  void *va;
-  void _set_tss (unsigned, void *);
-  void _set_fs (unsigned, void *);
-
-  assert (pcpuid < MAXCPUS);
-
-  /* Allocate PCPU kernel stack. */
-  pfn = pfn_alloc (1);
-  assert (pfn != PFN_INVALID);
-  va = kva_map (1, pfn, 1, HAL_PTE_W | HAL_PTE_P);
-  assert (va != NULL);
-  pcpu_kstack[pcpu_kstackno++] = (uint64_t) va + PAGE_SIZE;
-
-  _set_tss (pcpuid, &haldata->tss);
-  _set_fs (pcpuid, &haldata->data);
-
-  pcpu_haldata[pcpuid] = (vaddr_t) (uintptr_t) haldata;
-}
-
-void
 hal_pcpu_init (void)
 {
   void *va;
@@ -79,7 +56,7 @@ hal_pcpu_init (void)
   volatile uint16_t *reset;
   extern char *_ap_start, *_ap_end;
 
-  /* Allocate PCPU stack. Use KVA. */
+  /* Allocate PCPU bootstrap code. Use KVA. *//* TODO: USE KVA? Not needed, not a long term mapping. */
   pfn = pfn_alloc (1);
   assert (pfn != PFN_INVALID);
   /* This is tricky. The hope is that is low enough to be addressed by 16 bit. */
@@ -92,7 +69,6 @@ hal_pcpu_init (void)
   size_t apbootsz = (size_t) ((void *) &_ap_end - (void *) &_ap_start);
   assert (apbootsz <= PAGE_SIZE);
   memcpy (start, &_ap_start, apbootsz);
-
   pstart = (paddr_t) pfn << PAGE_SHIFT;
 
   /*
@@ -117,8 +93,39 @@ hal_pcpu_init (void)
 
   assert (hal_pmap_getl1p (NULL, pstart, true, &l1p));
   hal_pmap_setl1e (NULL, l1p, (pstart & ~PAGE_MASK) | PTE_P | PTE_W);
-
   pcpu_pstart = pstart;
+  /* TODO: RESTORE PTE AFTER INIT DONE. */
+
+  /* Initialize BSP TSS. */
+  extern char *_bsp_stacktop;
+  unsigned pcpu = plt_pcpu_id ();
+  struct hal_cpu *haldata = (struct hal_cpu *) (uintptr_t) pcpu_haldata[pcpu];
+  haldata->tss.esp0 = (uintptr_t) _bsp_stacktop;
+  haldata->tss.iomap = 108;
+  haldata->data = NULL;
+}
+
+void
+hal_pcpu_add (unsigned pcpuid, struct hal_cpu *haldata)
+{
+  pfn_t pfn;
+  void *va;
+  void _set_tss (unsigned, void *);
+  void _set_fs (unsigned, void *);
+
+  assert (pcpuid < MAXCPUS);
+
+  /* Allocate PCPU kernel stack. */
+  pfn = pfn_alloc (1);
+  assert (pfn != PFN_INVALID);
+  va = kva_map (1, pfn, 1, HAL_PTE_W | HAL_PTE_P);
+  assert (va != NULL);
+  pcpu_kstack[pcpu_kstackno++] = (uint64_t) va + PAGE_SIZE;
+
+  _set_tss (pcpuid, &haldata->tss);
+  _set_fs (pcpuid, &haldata->data);
+
+  pcpu_haldata[pcpuid] = (vaddr_t) (uintptr_t) haldata;
 }
 
 uint64_t

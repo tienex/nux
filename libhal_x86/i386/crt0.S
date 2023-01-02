@@ -6,7 +6,7 @@
 	.globl _start
 _start:
 	mov %esi, %cr3
-	movl $stacktop, %esp
+	movl $_bsp_stacktop, %esp
 
 	/* Clear flags (cld and cli) */
 	pushl $0
@@ -365,4 +365,5 @@ zippostring:
 	.align 4096
 stackbtm:
 	.skip 4096
-stacktop:
+	.globl _bsp_stacktop
+_bsp_stacktop:
