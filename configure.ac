@@ -79,6 +79,8 @@ AC_MK_CONFIG_FILES([
 	example/Makefile
 	example/kern/Makefile
 	example/user/Makefile
+	tools/Makefile
+	tools/libbfd/Makefile
 ])
 
 AC_CONFIG_SUBDIRS([apxh])
