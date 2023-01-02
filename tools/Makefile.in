@@ -1,1 +1,1 @@
-SUBDIRS= libbfd
+SUBDIRS= libbfd nuxar

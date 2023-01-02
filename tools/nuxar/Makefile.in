@@ -1,0 +1,17 @@
+IBERTYSRCS= $(SRCROOT)/contrib/binutils/libiberty
+BFDSRCS= $(SRCROOT)/contrib/binutils/bfd
+
+HOST_CC=gcc
+
+CFLAGS= -I$(IBERTYSRCS) -I$(BFDSRCS) -I$(ZLIBSRCS)
+LDFLAGS= -L$(ZLIBSRCS) -L$(IBERTYSRCS) -L$(BFDSRCS) 
+
+nuxar: nux-payload.c squoze.c
+	$(HOST_CC) $^ -o $@ $(CFLAGS) $(LDFLAGS) -lbfd -lz -liberty
+
+.PHONY: clean
+clean:
+	rm *.o nuxar
+
+ALL_TARGET += nuxar
+CLEAN_TARGET += clean
