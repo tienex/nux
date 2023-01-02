@@ -242,6 +242,15 @@ hal_tlbop_t hal_pmap_tlbop (hal_l1e_t old, hal_l1e_t new);
  */
 
 /*
+  Initialization of HAL PCPU subsystem.
+
+  This is called when the platform and memory management is
+  initialized, for operations that cannot be done early at boot but
+  must be done before secondary CPUs are started.
+*/
+void hal_pcpu_init (void);
+
+/*
   Initialisation of HAL CPU <PCPUID>.
   
   Provide the requested data structure to the HAL for its internal use. 
