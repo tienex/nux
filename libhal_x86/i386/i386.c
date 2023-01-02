@@ -27,11 +27,20 @@
 paddr_t pcpu_pstart;
 vaddr_t pcpu_haldata[MAXCPUS];
 
+/*
+  CPU kernel stack allocation:
+
+   CPUs at boot allocate a stack by incrementing (with a spinlock)
+   'kstackno' and using the page pointed at 'pcpu_kstack'.
+
+   Importantly, pcpu_kstack[pcpu_id] doesn't mean is the stack of PCPU ID.
+*/
 uint64_t pcpu_kstackno = 0;
 uint64_t pcpu_kstackcnt = 0;
 uint64_t pcpu_kstack[MAXCPUS];
 
 static int bsp_enter_called = 0;
+static unsigned bsp_pcpuid;
 
 static vaddr_t smp_oldva[MAXCPUS];
 static hal_l1e_t smp_oldl1e[MAXCPUS];
@@ -96,13 +105,7 @@ hal_pcpu_init (void)
   pcpu_pstart = pstart;
   /* TODO: RESTORE PTE AFTER INIT DONE. */
 
-  /* Initialize BSP TSS. */
-  extern char *_bsp_stacktop;
-  unsigned pcpu = plt_pcpu_id ();
-  struct hal_cpu *haldata = (struct hal_cpu *) (uintptr_t) pcpu_haldata[pcpu];
-  haldata->tss.esp0 = (uintptr_t) _bsp_stacktop;
-  haldata->tss.iomap = 108;
-  haldata->data = NULL;
+  bsp_pcpuid = plt_pcpu_id ();
 }
 
 void
@@ -115,13 +118,19 @@ hal_pcpu_add (unsigned pcpuid, struct hal_cpu *haldata)
 
   assert (pcpuid < MAXCPUS);
 
-  /* Allocate PCPU kernel stack. */
-  pfn = pfn_alloc (1);
-  assert (pfn != PFN_INVALID);
-  va = kva_map (1, pfn, 1, HAL_PTE_W | HAL_PTE_P);
-  assert (va != NULL);
-  pcpu_kstack[pcpu_kstackno++] = (uint64_t) va + PAGE_SIZE;
-
+  if (pcpuid == bsp_pcpuid) {
+    /* Adding the BSP PCPU: Initialize TSS */
+    extern char *_bsp_stacktop;
+    haldata->tss.esp0 = (uintptr_t) _bsp_stacktop;
+    haldata->tss.iomap = 108;
+  } else {
+    /* Adding secondary CPU: Allocate one PCPU kernel stack. */
+    pfn = pfn_alloc (1);
+    assert (pfn != PFN_INVALID);
+    va = kva_map (1, pfn, 1, HAL_PTE_W | HAL_PTE_P);
+    assert (va != NULL);
+    pcpu_kstack[pcpu_kstackno++] = (uint64_t) va + PAGE_SIZE;
+  }
   _set_tss (pcpuid, &haldata->tss);
   _set_fs (pcpuid, &haldata->data);
 
@@ -198,7 +207,6 @@ i386_init_ap (uintptr_t esp)
 
   haldata->tss.esp0 = esp;
   haldata->tss.iomap = 108;
-  haldata->data = NULL;
 
   hal_main_ap ();
 }
