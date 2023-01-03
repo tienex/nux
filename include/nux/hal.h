@@ -410,6 +410,9 @@ void hal_main_ap (void);
 
 /*
   Boot-time is over.
+
+  This is called by NUX when all initialization is done, to allow HAL
+  to clean up boot-time structures.
 */
 void hal_init_done (void);
 

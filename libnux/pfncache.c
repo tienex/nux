@@ -18,10 +18,6 @@
 #include <nux/cache.h>
 #include "internal.h"
 
-/*
-  Don't take this too seriously. SPINLOCK usage is awful.
-*/
-
 vaddr_t pfncache_base;
 
 static pfn_t max_dmap_pfn;
