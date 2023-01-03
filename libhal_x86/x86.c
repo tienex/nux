@@ -407,7 +407,6 @@ x86_init (void)
 
 #ifdef __i386__
   early_print ("i386 HAL booting from APXH.\n");
-  i386_init ();
 #endif
 #ifdef __amd64__
   early_print ("AMD64 HAL booting from APXH.\n");
@@ -420,6 +419,7 @@ x86_init (void)
 void
 hal_init_done (void)
 {
-  /* Remove 1:1 mapping left by APXH. */
-  do_cleanboot ();
+#ifdef __i386__
+  i386_init_done ();
+#endif
 }
