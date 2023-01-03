@@ -2,7 +2,7 @@
 PROGRAM=exuser
 
 CFLAGS+= -I../../libnux_user
-SRCS+= main.c
+SRCS+= crt0.S main.c
 LDFLAGS= -L../../libnux_user
 LDADD_END= -lnux_user
 

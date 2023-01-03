@@ -43,6 +43,14 @@ main (int argc, char *argv[])
       kmem_trim_one (TRIM_BRK);
     }
 
+  if (!uctxt_bootstrap (&u_init))
+    {
+      printf ("NO USER PROCESS.");
+    }
+  else
+    {
+      cpu_ipi (cpu_id (), cpu_ipi_base () + 0);
+    }
   return EXIT_IDLE;
 }
 
@@ -58,8 +66,18 @@ entry_sysc (uctxt_t * u,
 	    unsigned long a1, unsigned long a2, unsigned long a3,
 	    unsigned long a4, unsigned long a5, unsigned long a6)
 {
-  if (a1 == 4096)
-    putchar (a2);
+  switch (a1)
+    {
+    case 4096:
+      putchar (a2);
+      break;
+    case 0:
+      info ("User exited with error code: %d", a2);
+      return UCTXT_IDLE;
+    default:
+      error ("Unknown syscall");
+      break;
+    }
   return u;
 }
 
@@ -84,7 +102,7 @@ entry_ex (uctxt_t * uctxt, unsigned ex)
 {
   info ("Exception %d", ex);
   uctxt_print (uctxt);
-  return uctxt;
+  return UCTXT_IDLE;
 }
 
 uctxt_t *

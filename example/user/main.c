@@ -10,7 +10,7 @@ putchar (const char c)
 void
 exit (int status)
 {
-  return syscall0 (0);
+  syscall1 (0, status);
 }
 
 int
@@ -29,5 +29,5 @@ main (void)
 {
   puts ("Hello from userspace, NUX!\n");
 
-  return 0;
+  return 42;
 }
