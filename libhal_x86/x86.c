@@ -302,6 +302,12 @@ hal_virtmem_pfn$size (void)
   return (size_t) ((void *) &_pfncache_end - (void *) &_pfncache_start);
 }
 
+const vaddr_t
+hal_virtmem_userentry (void)
+{
+  return (const vaddr_t) bootinfo->uentry;
+}
+
 unsigned long
 hal_physmem_maxpfn (void)
 {

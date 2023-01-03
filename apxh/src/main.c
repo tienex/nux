@@ -283,7 +283,7 @@ va_info (vaddr_t va, size64_t size)
 }
 
 static void
-va_info_copy (void)
+va_info_copy (uint64_t uentry)
 {
   vaddr_t va = req_info_va;
   size64_t size = req_info_size;
@@ -299,9 +299,8 @@ va_info_copy (void)
 
   i.magic = APXH_BOOTINFO_MAGIC;
   i.maxpfn = md_maxpfn ();
+  i.uentry = uentry;
   i.acpi_rsdp = md_acpi_rsdp ();
-
-  i.fbdesc.type = FB_INVALID;
 
   fbptr = md_getframebuffer ();
   if (fbptr != NULL)
@@ -630,7 +629,7 @@ main (int argc, char *argv[])
 
   /* Stop allocations as we're copying boot-time allocation. */
   stop_payload_allocation = true;
-  va_info_copy ();
+  va_info_copy (uentry);
   va_pfnmap_copy ();
   va_stree_copy ();
 

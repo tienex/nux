@@ -285,7 +285,7 @@ pae_get_l1p (pte_t * cr3, vaddr_t va, int payload)
       /* Populating L1. */
       l1page = payload ? get_payload_page () : get_page ();
 
-      set_pte (l2p, l1page >> PAGE_SHIFT, PTE_W | PTE_P);
+      set_pte (l2p, l1page >> PAGE_SHIFT, PTE_U | PTE_W | PTE_P);
       l1p = (pte_t *) l1page;
     }
 
@@ -486,7 +486,7 @@ pae64_get_l3p (pte_t * cr3, vaddr_t va, int payload)
       /* Populating L3. */
       l3page = payload ? get_payload_page () : get_page ();
 
-      set_pte (l4p, l3page >> PAGE_SHIFT, PTE_W | PTE_P);
+      set_pte (l4p, l3page >> PAGE_SHIFT, PTE_U | PTE_W | PTE_P);
       l3p = (pte_t *) l3page;
     }
 
@@ -510,7 +510,7 @@ pae64_get_l2p (pte_t * cr3, vaddr_t va, int payload)
       /* Populating L2. */
       l2page = payload ? get_payload_page () : get_page ();
 
-      set_pte (l3p, l2page >> PAGE_SHIFT, PTE_W | PTE_P);
+      set_pte (l3p, l2page >> PAGE_SHIFT, PTE_U | PTE_W | PTE_P);
       l2p = (pte_t *) l2page;
     }
 
@@ -533,7 +533,7 @@ pae64_get_l1p (pte_t * cr3, vaddr_t va, int payload)
       /* Populating L1. */
       l1page = payload ? get_payload_page () : get_page ();
 
-      set_pte (l2p, l1page >> PAGE_SHIFT, PTE_W | PTE_P);
+      set_pte (l2p, l1page >> PAGE_SHIFT, PTE_U | PTE_W | PTE_P);
       l1p = (pte_t *) l1page;
     }
 

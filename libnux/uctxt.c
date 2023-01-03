@@ -151,3 +151,18 @@ uctxt_print (uctxt_t * uctxt)
       hal_frame_print (f);
     }
 }
+
+bool
+uctxt_bootstrap (uctxt_t * uctxt)
+{
+  vaddr_t uentry;
+
+  uentry = hal_virtmem_userentry ();
+  if (uentry == 0)
+    {
+      return false;
+    }
+
+  uctxt_init (uctxt, uentry, 0);
+  return true;
+}

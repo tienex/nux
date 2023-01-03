@@ -157,6 +157,15 @@ vaddr_t hal_virtmem_kmembase (void);
 const size_t hal_virtmem_kmemsize (void);
 
 /*
+  Boot-time user entry point.
+
+  If zero there's no boot-time user process.
+*/
+const vaddr_t hal_virtmem_userentry (void);
+
+
+
+/*
   HAL Virtual Memory Mapping.
  */
 
