@@ -262,6 +262,12 @@ cpu_nmi_mask (cpumask_t map)
 }
 
 unsigned
+cpu_ipi_base (void)
+{
+  return hal_vect_ipibase ();
+}
+
+unsigned
 cpu_ipi_avail (void)
 {
   unsigned vectmax = hal_vect_max ();

@@ -65,6 +65,7 @@ void cpu_nmi (int cpu);
 void cpu_nmi_broadcast (void);
 void cpu_nmi_mask (cpumask_t map);
 
+unsigned cpu_ipi_base (void);
 unsigned cpu_ipi_avail (void);
 void cpu_ipi (int cpu, uint8_t vct);
 void cpu_ipi_mask (cpumask_t map, uint8_t vct);
