@@ -410,7 +410,6 @@ x86_init (void)
 #endif
 #ifdef __amd64__
   early_print ("AMD64 HAL booting from APXH.\n");
-  amd64_init ();
 #endif
 
 
@@ -421,5 +420,8 @@ hal_init_done (void)
 {
 #ifdef __i386__
   i386_init_done ();
+#endif
+#ifdef __amd64__
+  amd64_init_done ();
 #endif
 }

@@ -33,7 +33,7 @@
 	.globl _start
 _start:
 	mov %rsi, %cr3
-	movabs $_stacktop, %rsp
+	movabs $_bsp_stacktop, %rsp
 
 	movabs $_gdtr, %rax
 	lgdt (%rax)
@@ -246,8 +246,8 @@ _gdt:
 	.quad 0
 	.quad 0x00af9a000000ffff /* Kernel Code */
 	.quad 0x00cf93000000ffff /* Kernel Data */
-	.quad 0x00a0fa0000000000 /* User Code */
-	.quad 0                  /* User Data */
+	.quad 0x00a0fa000000ffff /* User Code */
+	.quad 0x00c0f3000000ffff /* User Data */
 	.skip (8 * (3*MAXCPUS))  /* TSS + GS per CPU. */
 	.globl _end_gdt
 _end_gdt:
@@ -267,4 +267,5 @@ _end_idt:
 	.align 4096
 _stackbtm:
 	.zero 4096
-_stacktop:	
+	.globl _bsp_stacktop
+_bsp_stacktop:	

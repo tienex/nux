@@ -93,7 +93,8 @@ hal_frame_init (struct hal_frame *f)
 {
   memset (f, 0, sizeof (*f));
   f->type = FRAMETYPE_INTR;
-  f->intr.rflags = 0x202;
+  f->intr.cs = UCS;
+  f->intr.rflags = 0x82;
   f->intr.ss = UDS;
 }
 
