@@ -23,14 +23,10 @@
 	pushl %eax
 
 	.if \vct == VECT_SYSC
-
 	call _C_LABEL(do_syscall)
 	add $4, %esp
-
 	.else
-
 	pushl $\vct
-
 	.if \vct == 2
 	call _C_LABEL(do_nmi)
 	.elseif \vct < 32
