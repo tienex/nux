@@ -292,33 +292,6 @@ pae_get_l1p (pte_t * cr3, vaddr_t va, int payload)
   return l1p + l1off;
 }
 
-#if 0
-static pte_t *
-pae_get_l1p (vaddr_t va)
-{
-  pte_t *l2p, *l1;
-  unsigned l3off = L3OFF (va);
-  unsigned l2off = L2OFF (va);
-  unsigned l1off = L1OFF (va);
-
-  l2p = l2s[l3off] + l2off;
-
-  l1 = (pte_t *) pte_getaddr (l2p);
-  if (l1 == NULL)
-    {
-      uintptr_t l1page;
-
-      /* Populating L1. */
-      l1page = get_payload_page ();
-
-      set_pte (l2p, l1page >> PAGE_SHIFT, PTE_W | PTE_P);
-      l1 = (pte_t *) l1page;
-    }
-
-  return l1 + l1off;
-}
-#endif
-
 void
 pae_map_page (void *pt, vaddr_t va, uintptr_t pa, int payload, int w, int x)
 {
