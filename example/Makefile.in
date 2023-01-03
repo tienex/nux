@@ -9,3 +9,4 @@ example_multiboot: subdirs
 	$(NUXAR) $@ -a user/exuser
 
 ALL_TARGET += example_multiboot
+CLEAN_FILES += example_multiboot
