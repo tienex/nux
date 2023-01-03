@@ -2,3 +2,4 @@
 LIBRARY=nux_user
 CFLAGS+= -I. -DNUX_MACHINE=i386
 SRCS+= syscalls.c
+SRCS+= i386/crt0.S
