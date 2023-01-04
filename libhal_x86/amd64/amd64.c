@@ -113,11 +113,22 @@ hal_vect_max (void)
   return 255;
 }
 
-void
-hal_pcpu_add (unsigned pcpuid, struct hal_cpu *haldata)
+static void *
+alloc_stackpage (void)
 {
   pfn_t pfn;
   void *va;
+
+  pfn = pfn_alloc (1);
+  assert (pfn != PFN_INVALID);
+  va = kva_map (1, pfn, 1, HAL_PTE_W | HAL_PTE_P);
+  assert (va != NULL);
+  return va;
+}
+
+void
+hal_pcpu_add (unsigned pcpuid, struct hal_cpu *haldata)
+{
 
   assert (pcpuid < MAXCPUS);
 
@@ -125,16 +136,16 @@ hal_pcpu_add (unsigned pcpuid, struct hal_cpu *haldata)
     {
       /* Adding the BSP PCPU: Initialize TSS */
       extern char _bsp_stacktop;
+      haldata->tss.ist[0] = alloc_stackpage () + PAGE_SIZE;
+      haldata->tss.ist[1] = alloc_stackpage () + PAGE_SIZE;
+      haldata->tss.ist[2] = alloc_stackpage () + PAGE_SIZE;
       haldata->tss.rsp0 = (uintptr_t) & _bsp_stacktop;
       haldata->tss.iomap = 108;	/* XXX: FIX with sizeof(tss) + 1 */
     }
   else
     {
       /* Adding secondary CPU: Allocate one PCPU kernel stack. */
-      pfn = pfn_alloc (1);
-      assert (pfn != PFN_INVALID);
-      va = kva_map (1, pfn, 1, HAL_PTE_W | HAL_PTE_P);
-      assert (va != NULL);
+      void *va = alloc_stackpage ();
       pcpu_kstack[pcpu_kstackno++] = (uint64_t) va + PAGE_SIZE;
     }
   set_tss (pcpuid, &haldata->tss);
@@ -237,9 +248,11 @@ amd64_init_ap (uintptr_t esp)
   unsigned pcpu = plt_pcpu_id ();
   struct hal_cpu *haldata = (struct hal_cpu *) (uintptr_t) pcpu_haldata[pcpu];
 
+  haldata->tss.ist[0] = alloc_stackpage () + PAGE_SIZE;
+  haldata->tss.ist[1] = alloc_stackpage () + PAGE_SIZE;
+  haldata->tss.ist[2] = alloc_stackpage () + PAGE_SIZE;
   haldata->tss.rsp0 = esp;
   haldata->tss.iomap = 108;	/* XXX: FIX with sizeof(tss) + 1 */
-  haldata->data = NULL;
 
   hal_main_ap ();
 
