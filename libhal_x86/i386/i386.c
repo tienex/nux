@@ -134,7 +134,7 @@ hal_pcpu_add (unsigned pcpuid, struct hal_cpu *haldata)
       assert (pfn != PFN_INVALID);
       va = kva_map (1, pfn, 1, HAL_PTE_W | HAL_PTE_P);
       assert (va != NULL);
-      pcpu_kstack[pcpu_kstackno++] = (uint64_t) va + PAGE_SIZE;
+      pcpu_kstack[pcpu_kstackno++] = (uint64_t) (uintptr_t) va + PAGE_SIZE;
     }
   _set_tss (pcpuid, &haldata->tss);
   _set_fs (pcpuid, &haldata->data);
@@ -145,12 +145,6 @@ hal_pcpu_add (unsigned pcpuid, struct hal_cpu *haldata)
 uint64_t
 hal_pcpu_prepare (unsigned pcpu)
 {
-  extern char *_ap_start, *_ap_end;
-  hal_l1p_t l1p;
-  paddr_t pstart;
-  void *start, *ptr;
-  volatile uint16_t *reset;
-
   if (pcpu >= MAXCPUS)
     return PADDR_INVALID;
 
