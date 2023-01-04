@@ -70,9 +70,10 @@ framebuffer_blt (unsigned x, unsigned y, uint32_t color,
 	  while (bits)
 	    {
 	      if (byte & 0x80)
-		*(volatile uint32_t *) (fbdesc->addr + off) = color;
+		*(volatile uint32_t *) (uintptr_t) (fbdesc->addr + off) =
+		  color;
 	      else
-		*(volatile uint32_t *) (fbdesc->addr + off) = 0;
+		*(volatile uint32_t *) (uintptr_t) (fbdesc->addr + off) = 0;
 
 	      off += bypp;
 	      byte <<= 1;
@@ -87,8 +88,12 @@ framebuffer_blt (unsigned x, unsigned y, uint32_t color,
     }
 }
 
+#if 0
 static uint8_t scrawl_fnt[];
+#endif
+#if 0
 static uint8_t s_fnt[];
+#endif
 static uint8_t t_fnt[];
 
 static unsigned __cols = 79;
@@ -128,7 +133,7 @@ framebuffer_putc (int ch, uint32_t color)
   if (!init)
     {
       spinlock_init (&fblock);
-      memset ((void *) fbdesc->addr, 0, fbdesc->size);
+      memset ((void *) (uintptr_t) fbdesc->addr, 0, fbdesc->size);
       __scrcol = (fbdesc->width / 8) / (__cols + 1);
       __scrcol = __scrcol == 0 ? 1 : __scrcol;
       __lines = fbdesc->height / 16;
@@ -686,7 +691,7 @@ static uint8_t t_fnt[] = {
   0x00, 0x00, 0x00,
 };
 
-
+#if 0
 static uint8_t s_fnt[] = {
   0x00,
   0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -1202,7 +1207,9 @@ static uint8_t s_fnt[] = {
   0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
   0x00, 0x00, 0x00,
 };
+#endif
 
+#if 0
 static uint8_t scrawl_fnt[] = {
   0x00,
   0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -1718,3 +1725,4 @@ static uint8_t scrawl_fnt[] = {
   0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
   0x00, 0x00, 0x00,
 };
+#endif

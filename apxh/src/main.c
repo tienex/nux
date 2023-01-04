@@ -97,7 +97,7 @@ va_init (void)
 }
 
 void
-va_populate (vaddr_t va, size64_t size, int w, int x)
+va_populate (vaddr_t va, size64_t size, int u, int w, int x)
 {
   md_verify (va, size);
   va_verify (va, size);
@@ -105,10 +105,10 @@ va_populate (vaddr_t va, size64_t size, int w, int x)
   switch (elf_arch)
     {
     case ARCH_386:
-      pae_populate (va, size, w, x);
+      pae_populate (va, size, u, w, x);
       break;
     case ARCH_AMD64:
-      pae64_populate (va, size, w, x);
+      pae64_populate (va, size, u, w, x);
       break;
     default:
       printf ("Unsupported VM architecture.\n");
@@ -117,16 +117,16 @@ va_populate (vaddr_t va, size64_t size, int w, int x)
 }
 
 void
-va_copy (vaddr_t va, void *addr, size64_t size, int w, int x)
+va_copy (vaddr_t va, void *addr, size64_t size, int u, int w, int x)
 {
   ssize64_t len = size;
 
   md_verify (va, size);
   va_verify (va, size);
 
-  printf ("Copying %08llx <- %p (w:%d, x:%d, %d bytes)\n", va, addr, w, x,
-	  size);
-  va_populate (va, size, w, x);
+  printf ("Copying %08llx <- %p (u: %d, w:%d, x:%d, %d bytes)\n", va, addr, u,
+	  w, x, size);
+  va_populate (va, size, u, w, x);
 
   while (len > 0)
     {
@@ -147,16 +147,16 @@ va_copy (vaddr_t va, void *addr, size64_t size, int w, int x)
 }
 
 void
-va_memset (vaddr_t va, int c, size64_t size, int w, int x)
+va_memset (vaddr_t va, int c, size64_t size, int u, int w, int x)
 {
   ssize64_t len = size;
 
   md_verify (va, size);
   va_verify (va, size);
 
-  printf ("Setting %08llx <- %d (w:%d, x: %d, %d bytes)\n", va, c, w, x,
-	  size);
-  va_populate (va, size, w, x);
+  printf ("Setting %08llx <- %d (u:%d, w:%d, x: %d, %d bytes)\n", va, c, u, w,
+	  x, size);
+  va_populate (va, size, u, w, x);
 
   while (len > 0)
     {
@@ -274,7 +274,7 @@ va_info (vaddr_t va, size64_t size)
   md_verify (va, size);
   va_verify (va, size);
 
-  va_populate (va, size, 0, 0);
+  va_populate (va, size, 0, 0, 0);
 
   /* Only save the va and size, we'll have to finish all allocations
      before we can return the proper data. */
@@ -283,7 +283,7 @@ va_info (vaddr_t va, size64_t size)
 }
 
 static void
-va_info_copy (void)
+va_info_copy (uint64_t uentry)
 {
   vaddr_t va = req_info_va;
   size64_t size = req_info_size;
@@ -299,9 +299,8 @@ va_info_copy (void)
 
   i.magic = APXH_BOOTINFO_MAGIC;
   i.maxpfn = md_maxpfn ();
+  i.uentry = uentry;
   i.acpi_rsdp = md_acpi_rsdp ();
-
-  i.fbdesc.type = FB_INVALID;
 
   fbptr = md_getframebuffer ();
   if (fbptr != NULL)
@@ -309,7 +308,7 @@ va_info_copy (void)
   else
     i.fbdesc.type = FB_INVALID;
 
-  va_copy (va, &i, MIN (size, sizeof (struct apxh_bootinfo)), 0, 0);
+  va_copy (va, &i, MIN (size, sizeof (struct apxh_bootinfo)), 0, 0, 0);
 #undef MIN
 }
 
@@ -345,7 +344,7 @@ va_stree (vaddr_t va, size64_t size)
 
   size = s;
   printf ("Populating size %d (order: %d)\n", size, order);
-  va_populate (va, size, 1, 0);
+  va_populate (va, size, 0, 1, 0);
 
   /* Copy the header. */
   hdr.magic = APXH_STREE_MAGIC;
@@ -353,7 +352,7 @@ va_stree (vaddr_t va, size64_t size)
   hdr.order = order;
   hdr.offset = sizeof (hdr);
   hdr.size = 8 * STREE_SIZE (order);
-  va_copy (va, &hdr, sizeof (hdr), 1, 0);
+  va_copy (va, &hdr, sizeof (hdr), 0, 1, 0);
 
   /* Fill the S-Tree with all RAM regions. */
   req_stree_va = va + sizeof (hdr);
@@ -437,7 +436,7 @@ va_pfnmap (vaddr_t va, size64_t size)
       size = maxframe * PFNMAP_ENTRY_SIZE;
     }
 
-  va_populate (va, size, 1, 0);
+  va_populate (va, size, 0, 1, 0);
 
   for (i = 0; i < regions; i++)
     {
@@ -547,7 +546,6 @@ va_getphys (vaddr_t va)
 void
 va_entry (vaddr_t entry)
 {
-
   switch (elf_arch)
     {
     case ARCH_386:
@@ -570,41 +568,74 @@ main (int argc, char *argv[])
 {
   void *elf_start;
   size64_t elf_size;
-  uint64_t entry;
+  uint64_t kentry, uentry;
 
   printf ("\nAPXH started.\n\n");
 
   init ();
 
-  elf_start = get_payload_start (argc, argv);
-  elf_size = get_payload_size ();
+  /*
+     Load kernel.
+   */
+  elf_start = get_payload_start (argc, argv, PAYLOAD_KERNEL);
+  elf_size = get_payload_size (PAYLOAD_KERNEL);
   elf_arch = get_elf_arch (elf_start);
-  printf ("Payload %s ELF at addr %p (%d bytes)\n", get_arch_name (elf_arch),
-	  elf_start, elf_size);
+  printf ("Kernel payload %s ELF at addr %p (%d bytes)\n",
+	  get_arch_name (elf_arch), elf_start, elf_size);
 
   va_init ();
 
   switch (elf_arch)
     {
     case ARCH_386:
-      entry = load_elf32 (elf_start);
+      kentry = load_elf32 (elf_start, 0);
       break;
     case ARCH_AMD64:
-      entry = load_elf64 (elf_start);
+      kentry = load_elf64 (elf_start, 0);
       break;
     default:
       printf ("Unsupported ELF architecture");
       exit (-1);
     }
 
-  printf ("entry = %llx\n", entry);
+  printf ("Kernel entry: %llx\n", kentry);
+
+  /*
+     Load user if it exists.
+   */
+  elf_start = get_payload_start (argc, argv, PAYLOAD_USER);
+  if (elf_start != NULL)
+    {
+      elf_size = get_payload_size (PAYLOAD_USER);
+      elf_arch = get_elf_arch (elf_start);
+      printf ("User payload %s ELF at addr %p (%d bytes)\n",
+	      get_arch_name (elf_arch), elf_start, elf_size);
+
+      switch (elf_arch)
+	{
+	case ARCH_386:
+	  uentry = load_elf32 (elf_start, 1);
+	  break;
+	case ARCH_AMD64:
+	  uentry = load_elf64 (elf_start, 1);
+	  break;
+	default:
+	  printf ("Unsupported ELF architecture");
+	  exit (-1);
+	}
+      printf ("User entry: %llx\n", uentry);
+    }
+  else
+    {
+      uentry = 0;
+    }
 
   /* Stop allocations as we're copying boot-time allocation. */
   stop_payload_allocation = true;
-  va_info_copy ();
+  va_info_copy (uentry);
   va_pfnmap_copy ();
   va_stree_copy ();
 
-  va_entry (entry);
+  va_entry (kentry);
   return 0;
 }

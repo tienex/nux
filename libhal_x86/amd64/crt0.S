@@ -10,7 +10,7 @@
 	.endif
 .endm
 
-.macro _setidt vct usr
+.macro _setidt vct usr ist
 	movabs $hdlr_&\vct, %rcx
 	movabs $_idt, %rbx
 	movl $(KCS << 16), %eax
@@ -18,22 +18,22 @@
 	movl %eax, (\vct * 16)(%rbx)
 	movq %rcx, %rax
 	.if \usr > 0
-	movw $0xee00, %ax
+	movw $0xee00 + \ist, %ax
 	.else
-	movw $0x8e00, %ax
+	movw $0x8e00 + \ist, %ax
 	.endif
 	movq %rax, ((\vct * 16) + 4)(%rbx)
 .endm
 
 .macro setidt vct
-	_setidt \vct 0
+	_setidt \vct 0 0
 .endm
 
 	.text
 	.globl _start
 _start:
 	mov %rsi, %cr3
-	movabs $_stacktop, %rsp
+	movabs $_bsp_stacktop, %rsp
 
 	movabs $_gdtr, %rax
 	lgdt (%rax)
@@ -41,7 +41,14 @@ _start:
 	mov $KDS, %ax
 	mov %ax, %ss
 
-	repeat setidt 0, 31
+	setidt 0
+	setidt 1
+	_setidt 2 0 1 /* IST #1: NMI */
+	repeat setidt 3, 7
+	_setidt 8 0 2 /* IST #2: #DF */
+	repeat setidt 9, 17
+	_setidt 18 0 3 /* IST #3: #MC */
+	repeat setidt 19, 31
 	repeat setidt 32, 63
 	repeat setidt 64, 95
 	repeat setidt 96, 127
@@ -246,8 +253,9 @@ _gdt:
 	.quad 0
 	.quad 0x00af9a000000ffff /* Kernel Code */
 	.quad 0x00cf93000000ffff /* Kernel Data */
-	.quad 0x00a0fa0000000000 /* User Code */
-	.quad 0                  /* User Data */
+	.quad 0			 /* Left empty. Base of MSR_IA32_STAR[63:48] */
+	.quad 0x00c0f3000000ffff /* User Data */
+	.quad 0x00a0fa000000ffff /* User Code */
 	.skip (8 * (3*MAXCPUS))  /* TSS + GS per CPU. */
 	.globl _end_gdt
 _end_gdt:
@@ -267,4 +275,5 @@ _end_idt:
 	.align 4096
 _stackbtm:
 	.zero 4096
-_stacktop:	
+	.globl _bsp_stacktop
+_bsp_stacktop:	

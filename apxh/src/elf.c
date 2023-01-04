@@ -126,8 +126,8 @@ struct elf64hdr
 #define ELFOFF(_o) ((void *)(uintptr_t)(elfimg + (_o)))
 
 void
-ph_load (void *elfimg, uint32_t type, uint32_t flags,
-	 uint64_t va, uint64_t msize, uint64_t off, uint64_t fsize)
+ph_uload (void *elfimg, uint32_t type, uint32_t flags,
+	  uint64_t va, uint64_t msize, uint64_t off, uint64_t fsize)
 {
   switch (type)
     {
@@ -144,7 +144,7 @@ ph_load (void *elfimg, uint32_t type, uint32_t flags,
 	  /*
 	     memcpy() to user and populate on fault.
 	   */
-	  va_copy (va, ELFOFF (off), fsize,
+	  va_copy (va, ELFOFF (off), fsize, 1,
 		   !!(flags & PHF_W), !!(flags & PHF_X));
 	}
 
@@ -153,7 +153,45 @@ ph_load (void *elfimg, uint32_t type, uint32_t flags,
 	  /*
 	     memset() to user and populate on fault.
 	   */
-	  va_memset (va + fsize, 0, msize - fsize,
+	  va_memset (va + fsize, 0, msize - fsize, 1,
+		     !!(flags & PHF_W), !!(flags & PHF_X));
+	}
+      break;
+    default:
+      printf ("Ignored segment type %08lx.\n", type);
+      break;
+    }
+}
+
+void
+ph_kload (void *elfimg, uint32_t type, uint32_t flags,
+	  uint64_t va, uint64_t msize, uint64_t off, uint64_t fsize)
+{
+  switch (type)
+    {
+    case PHT_LOAD:
+      /* Normal load segment. */
+      if (va + msize < va)
+	{
+	  printf ("size of PH too big.");
+	  exit (-1);
+	}
+
+      if (fsize)
+	{
+	  /*
+	     memcpy() to user and populate on fault.
+	   */
+	  va_copy (va, ELFOFF (off), fsize, 0,
+		   !!(flags & PHF_W), !!(flags & PHF_X));
+	}
+
+      if (msize - fsize > 0)
+	{
+	  /*
+	     memset() to user and populate on fault.
+	   */
+	  va_memset (va + fsize, 0, msize - fsize, 0,
 		     !!(flags & PHF_W), !!(flags & PHF_X));
 	}
       break;
@@ -198,7 +236,7 @@ ph_load (void *elfimg, uint32_t type, uint32_t flags,
 }
 
 vaddr_t
-load_elf32 (void *elfimg)
+load_elf32 (void *elfimg, int u)
 {
   int i;
 
@@ -214,15 +252,19 @@ load_elf32 (void *elfimg)
 
   for (i = 0; i < hdr->phs; i++, ph++)
     {
-      ph_load (elfimg, ph->type, ph->flags, ph->va, ph->msize, ph->off,
-	       ph->fsize);
+      if (u)
+	ph_uload (elfimg, ph->type, ph->flags, ph->va, ph->msize, ph->off,
+		  ph->fsize);
+      else
+	ph_kload (elfimg, ph->type, ph->flags, ph->va, ph->msize, ph->off,
+		  ph->fsize);
     }
 
   return (vaddr_t) hdr->entry;
 }
 
 vaddr_t
-load_elf64 (void *elfimg)
+load_elf64 (void *elfimg, int u)
 {
   int i;
 
@@ -238,8 +280,12 @@ load_elf64 (void *elfimg)
 
   for (i = 0; i < hdr->phs; i++, ph++)
     {
-      ph_load (elfimg, ph->type, ph->flags, ph->va, ph->msize, ph->off,
-	       ph->fsize);
+      if (u)
+	ph_uload (elfimg, ph->type, ph->flags, ph->va, ph->msize, ph->off,
+		  ph->fsize);
+      else
+	ph_kload (elfimg, ph->type, ph->flags, ph->va, ph->msize, ph->off,
+		  ph->fsize);
     }
 
   return (vaddr_t) hdr->entry;

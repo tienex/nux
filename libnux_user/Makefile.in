@@ -1,4 +1,13 @@
+HAL_MACHINE=@MACHINE@
+
+ifeq ($(HAL_MACHINE),i386)
+ARCH_DIR=i386
+endif
+
+ifeq ($(HAL_MACHINE),amd64)
+ARCH_DIR=amd64
+endif
 
 LIBRARY=nux_user
-CFLAGS+= -I. -DNUX_MACHINE=i386
+CFLAGS+= -I. -I$(ARCH_DIR)
 SRCS+= syscalls.c

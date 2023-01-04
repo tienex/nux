@@ -23,6 +23,7 @@
 #define HAL_KVA_SIZE (1LL << HAL_KVA_SHIFT)
 
 #define FRAMETYPE_INTR 0x0
+#define FRAMETYPE_SYSC 0x1
 
 #ifndef _ASSEMBLER
 
@@ -45,9 +46,11 @@ struct amd64_tss
 
 struct hal_cpu
 {
-  void *data;
+  void *data;			/* Must be at %gs:0 */
+  uint64_t kstack;		/* syscall kstack. Must be at %gs:8 */
+  uint64_t scratch;		/* syscall scratch. Must be at %gs:16 */
   struct amd64_tss tss;
-};
+} __packed;
 
 /*
   HAL Frame definition.

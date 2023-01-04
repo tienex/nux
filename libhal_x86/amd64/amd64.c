@@ -28,6 +28,19 @@ extern int _physmap_end;
 paddr_t pcpu_pstart;
 vaddr_t pcpu_haldata[MAXCPUS];
 
+static unsigned bsp_pcpuid;
+
+static vaddr_t smp_oldva;
+static hal_l1e_t smp_oldl1e;
+
+/*
+  CPU kernel stack allocation:
+
+   CPUs at boot allocate a stack by incrementing (with a spinlock)
+   'kstackno' and using the page pointed at 'pcpu_kstack'.
+
+   Importantly, pcpu_kstack[pcpu_id] doesn't mean is the stack of PCPU ID.
+*/
 uint64_t pcpu_kstackno = 0;
 uint64_t pcpu_kstackcnt = 0;
 uint64_t pcpu_kstack[MAXCPUS];
@@ -100,21 +113,41 @@ hal_vect_max (void)
   return 255;
 }
 
-void
-hal_pcpu_add (unsigned pcpuid, struct hal_cpu *haldata)
+static uint64_t
+alloc_stackpage (void)
 {
   pfn_t pfn;
   void *va;
 
-  assert (pcpuid < MAXCPUS);
-
-  /* Allocate PCPU kernel stack. */
   pfn = pfn_alloc (1);
   assert (pfn != PFN_INVALID);
   va = kva_map (1, pfn, 1, HAL_PTE_W | HAL_PTE_P);
   assert (va != NULL);
-  pcpu_kstack[pcpu_kstackno++] = (uint64_t) va + PAGE_SIZE;
+  return (uint64_t) (uintptr_t) va;
+}
 
+void
+hal_pcpu_add (unsigned pcpuid, struct hal_cpu *haldata)
+{
+
+  assert (pcpuid < MAXCPUS);
+
+  if (pcpuid == bsp_pcpuid)
+    {
+      /* Adding the BSP PCPU: Initialize TSS */
+      extern char _bsp_stacktop;
+      haldata->kstack = (uintptr_t) & _bsp_stacktop;
+      haldata->tss.ist[0] = alloc_stackpage () + PAGE_SIZE;
+      haldata->tss.ist[1] = alloc_stackpage () + PAGE_SIZE;
+      haldata->tss.ist[2] = alloc_stackpage () + PAGE_SIZE;
+      haldata->tss.rsp0 = (uintptr_t) & _bsp_stacktop;
+      haldata->tss.iomap = 108;	/* XXX: FIX with sizeof(tss) + 1 */
+    }
+  else
+    {
+      /* Adding secondary CPU: Allocate one PCPU kernel stack. */
+      pcpu_kstack[pcpu_kstackno++] = alloc_stackpage () + PAGE_SIZE;
+    }
   set_tss (pcpuid, &haldata->tss);
 
   pcpu_haldata[pcpuid] = (vaddr_t) (uintptr_t) haldata;
@@ -180,9 +213,13 @@ hal_pcpu_init (void)
   kva_unmap ((void *) reset);
 
   assert (hal_pmap_getl1p (NULL, pstart, true, &l1p));
+  /* Save the l1e we're abou to overwrite. We'll restore it after init is done. */
+  smp_oldl1e = hal_pmap_getl1e (NULL, l1p);
+  smp_oldva = pstart;
   hal_pmap_setl1e (NULL, l1p, (pstart & ~PAGE_MASK) | PTE_P | PTE_W);
-
   pcpu_pstart = pstart;
+
+  bsp_pcpuid = plt_pcpu_id ();
 }
 
 uint64_t
@@ -206,21 +243,44 @@ hal_pcpu_enter (unsigned pcpuid)
 }
 
 void
+amd64_init (void)
+{
+  extern char _syscall_frame_entry;
+  wrmsr (MSR_IA32_EFER, rdmsr (MSR_IA32_EFER) | _MSR_IA32_EFER_SCE);
+  wrmsr (MSR_IA32_LSTAR, (uintptr_t) & _syscall_frame_entry);
+  wrmsr (MSR_IA32_FMASK, 0xfffffffd);
+  wrmsr (MSR_IA32_STAR, 0x18L << 48);
+}
+
+void
 amd64_init_ap (uintptr_t esp)
 {
+  extern char _syscall_frame_entry;
   unsigned pcpu = plt_pcpu_id ();
   struct hal_cpu *haldata = (struct hal_cpu *) (uintptr_t) pcpu_haldata[pcpu];
 
+  wrmsr (MSR_IA32_EFER, rdmsr (MSR_IA32_EFER) | _MSR_IA32_EFER_SCE);
+  wrmsr (MSR_IA32_LSTAR, (uintptr_t) & _syscall_frame_entry);
+  wrmsr (MSR_IA32_FMASK, 0xfffffffd);
+  wrmsr (MSR_IA32_STAR, 0);
+
+  haldata->kstack = esp;
+  haldata->tss.ist[0] = alloc_stackpage () + PAGE_SIZE;
+  haldata->tss.ist[1] = alloc_stackpage () + PAGE_SIZE;
+  haldata->tss.ist[2] = alloc_stackpage () + PAGE_SIZE;
   haldata->tss.rsp0 = esp;
   haldata->tss.iomap = 108;	/* XXX: FIX with sizeof(tss) + 1 */
-  haldata->data = NULL;
 
   hal_main_ap ();
 
 }
 
 void
-amd64_init (void)
+amd64_init_done (void)
 {
+  hal_l1p_t l1p;
 
+  /* Restore the mapping created for boostrapping secondary CPUS. */
+  assert (hal_pmap_getl1p (NULL, smp_oldva, true, &l1p));
+  hal_pmap_setl1e (NULL, l1p, smp_oldl1e);
 }

@@ -23,7 +23,9 @@
 struct hal_frame *
 do_nmi (struct hal_frame *f)
 {
-  return hal_entry_nmi (f);
+  hal_entry_nmi (f);
+  /* NMI cannot switch current frame. */
+  return f;
 }
 
 struct hal_frame *
@@ -88,76 +90,94 @@ do_intr_entry (struct hal_frame *f)
   return rf;
 }
 
+static inline bool
+is_canonical (uint64_t addr)
+{
+  return ((uint64_t) ((int64_t) addr << 16) >> 16) == addr;
+}
+
+struct hal_frame *
+do_syscall_entry (struct hal_frame *f)
+{
+  assert (f->type == FRAMETYPE_SYSC);
+
+  f = hal_entry_syscall (f, f->intr.rax, f->intr.rdi, f->intr.rsi,
+			 f->intr.rcx, f->intr.rdx, f->intr.rbx);
+
+  if (!is_canonical (f->intr.rip))
+    {
+      /*
+         This is problematic on Intel. #GP will run in kernel mode on
+         user stack. Get the #GP from iret.
+       */
+      f->type = FRAMETYPE_INTR;
+    }
+
+  return f;
+}
+
 void
 hal_frame_init (struct hal_frame *f)
 {
   memset (f, 0, sizeof (*f));
   f->type = FRAMETYPE_INTR;
-  f->intr.rflags = 0x202;
+  f->intr.cs = UCS;
+  f->intr.rflags = 0x82;
   f->intr.ss = UDS;
 }
 
 bool
 hal_frame_isuser (struct hal_frame *f)
 {
-  assert (f->type == FRAMETYPE_INTR);
   return f->intr.cs == UCS;
 }
 
 void
 hal_frame_setip (struct hal_frame *f, unsigned long ip)
 {
-  assert (f->type == FRAMETYPE_INTR);
   f->intr.rip = ip;
 }
 
 void
 hal_frame_setsp (struct hal_frame *f, vaddr_t sp)
 {
-  assert (f->type == FRAMETYPE_INTR);
   f->intr.rsp = sp;
 }
 
 void
 hal_frame_seta0 (struct hal_frame *f, unsigned long a0)
 {
-  assert (f->type == FRAMETYPE_INTR);
   f->intr.rdi = a0;
 }
 
 void
 hal_frame_seta1 (struct hal_frame *f, unsigned long a1)
 {
-  assert (f->type == FRAMETYPE_INTR);
   f->intr.rsi = a1;
 }
 
 void
 hal_frame_seta2 (struct hal_frame *f, unsigned long a2)
 {
-  assert (f->type == FRAMETYPE_INTR);
   f->intr.rdx = a2;
 }
 
 void
 hal_frame_setret (struct hal_frame *f, unsigned long r)
 {
-  assert (f->type == FRAMETYPE_INTR);
   f->intr.rax = r;
 }
 
 bool
 hal_frame_signal (struct hal_frame *f, unsigned long ip, unsigned long arg)
 {
-#warning Implement AMD64 signals
+  /* Implement AMD64 signals */
   assert (0);
 }
 
 void
 hal_frame_print (struct hal_frame *f)
 {
-  assert (f->type == FRAMETYPE_INTR);
-
   hallog ("RAX: %016lx RBX: %016lx\nRCX: %016lx RDX: %016lx",
 	  f->intr.rax, f->intr.rbx, f->intr.rcx, f->intr.rdx);
   hallog ("RDI: %016lx RSI: %016lx\nRBP: %016lx RSP: %016lx",

@@ -96,13 +96,13 @@ acpi_init (paddr_t root)
   if (rsdp->revision == 0)
     {
       pasdt = rsdp->rsdt;
-      debug ("SDT found at addr %lx", pasdt);
+      debug ("SDT found at addr %" PRIx64, pasdt);
       entrylen = 4;
     }
   else
     {
       pasdt = rsdp->xsdt;
-      debug ("XSDT found at addr %lx", pasdt);
+      debug ("XSDT found at addr %" PRIx64, pasdt);
       entrylen = 8;
     }
 
@@ -133,9 +133,9 @@ acpi_init (paddr_t root)
 
   unload_table (roottable);
 
-  debug ("RDST table at pa %lx", pa_root_table);
-  debug ("APIC table at pa %lx", pa_apic_table);
-  debug ("HPET table at pa %lx", pa_hpet_table);
+  debug ("RDST table at pa %" PRIx64, pa_root_table);
+  debug ("APIC table at pa %" PRIx64, pa_apic_table);
+  debug ("HPET table at pa %" PRIx64, pa_hpet_table);
 }
 
 void

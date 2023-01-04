@@ -1,0 +1,27 @@
+#
+# NUX: A kernel Library.
+# Copyright (C) 2019 Gianluca Guida <glguida@tlbflush.org>
+#
+#  SPDX-License-Identifier:	GPL2.0+
+#
+
+ZLIBSRCS= $(SRCROOT)/contrib/binutils/zlib
+IBERTYSRCS= $(SRCROOT)/contrib/binutils/libiberty
+BFDSRCS= $(SRCROOT)/contrib/binutils/bfd
+
+%/libz.a:
+	(cd $(ZLIBSRCS); ./configure && make)
+
+%/libiberty.a:
+	(cd $(IBERTYSRCS); ./configure && make)
+
+%/bfd.a:
+	(cd $(BFDSRCS); ./configure --disable-plugins && make CFLAGS='-Wno-cast-function-type -Wno-error=overflow')
+
+.PHONY: clean_all
+clean_all:
+	(cd $(IBERTYSRCS); make clean)
+	(cd $(BFDSRCS); make clean)
+
+ALL_TARGET += $(IBERTYSRCS)/libiberty.a $(BFDSRCS)/bfd.a
+CLEAN_TARGET += clean_all

@@ -16,6 +16,7 @@ struct apxh_bootinfo
 #define APXH_BOOTINFO_MAGIC 0xAF10B007
   uint64_t magic;
   uint64_t maxpfn;
+  uint64_t uentry;
   uint64_t acpi_rsdp;
   struct fbdesc fbdesc;
 } __attribute__((packed));

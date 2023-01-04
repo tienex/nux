@@ -2,6 +2,8 @@
 #include <efi.h>
 #include <efilib.h>
 
+#include "internal.h"
+
 static EFI_HANDLE image_handle;
 static EFI_LOADED_IMAGE *img = NULL;
 
@@ -18,7 +20,7 @@ efi_allocate_maxaddr (unsigned long maxaddr)
 				  EfiLoaderData, 1, &addr);
   if (EFI_ERROR (efi_status))
     {
-      printf ("Allocate Pages Failed: %d\n", efi_status);
+      Print (L"Allocate Pages Failed: %d\n", efi_status);
       exit (-1);
     }
 
@@ -155,7 +157,7 @@ efi_getpayload (CHAR16 * name, void **ptr, unsigned long *size)
   SIMPLE_READ_FILE rdhdl;
   EFI_DEVICE_PATH *filepath;
 
-  filepath = FileDevicePath (img->DeviceHandle, L"kernel.elf");
+  filepath = FileDevicePath (img->DeviceHandle, name);
 
   rc = OpenSimpleReadFile (FALSE, NULL, 0, &filepath, &hdl, &rdhdl);
   if (rc != EFI_SUCCESS)
@@ -181,8 +183,6 @@ efi_getpayload (CHAR16 * name, void **ptr, unsigned long *size)
     }
 
   CloseSimpleReadFile (rdhdl);
-
-  apxhefi_add_payload (payload_start, payload_size);
 
   return EFI_SUCCESS;
 }
@@ -261,7 +261,7 @@ efi_getrsdp (void)
     LibGetSystemConfigurationTable (&guid_rsdp, &rsdp);
 
   if (rsdp == NULL)
-    Print ("No RSDP found!\n");
+    Print (L"No RSDP found!\n");
 
   apxhefi_add_rsdp (rsdp);
 }
@@ -287,9 +287,22 @@ efi_main (EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE * SystemTable)
     }
 
   /*
-     Get kernel payload.
+     Get payloads.
    */
   rc = efi_getpayload (L"kernel.elf", &payload_start, &payload_size);
+  if (rc != EFI_SUCCESS)
+    {
+      Print (L"Could not load kernel.elf (%d)!\n", rc);
+      return rc;
+    }
+  apxhefi_add_kernel_payload (payload_start, payload_size);
+
+  rc = efi_getpayload (L"user.elf", &payload_start, &payload_size);
+  if (rc == EFI_SUCCESS)
+    {
+      Print (L"Loading user.elf");
+      apxhefi_add_user_payload (payload_start, payload_size);
+    }
 
   /*
      Populate memory map.

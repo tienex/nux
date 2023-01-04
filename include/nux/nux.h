@@ -65,6 +65,7 @@ void cpu_nmi (int cpu);
 void cpu_nmi_broadcast (void);
 void cpu_nmi_mask (cpumask_t map);
 
+unsigned cpu_ipi_base (void);
 unsigned cpu_ipi_avail (void);
 void cpu_ipi (int cpu, uint8_t vct);
 void cpu_ipi_mask (cpumask_t map, uint8_t vct);
@@ -88,6 +89,10 @@ bool uaddr_copyto (uaddr_t dst, void *src, size_t size,
 bool uaddr_memset (uaddr_t dst, int ch, size_t size,
 		   bool (*pf_handler) (uaddr_t va, hal_pfinfo_t info));
 
+/*
+  Get the uctxt of the boot-time user process. Returns false if not present.
+*/
+bool uctxt_bootstrap (uctxt_t * uctxt);
 void uctxt_init (uctxt_t * uctxt, vaddr_t ip, vaddr_t sp);
 void uctxt_setip (uctxt_t * uctxt, vaddr_t ip);
 void uctxt_setsp (uctxt_t * uctxt, vaddr_t sp);

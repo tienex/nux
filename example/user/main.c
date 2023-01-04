@@ -5,12 +5,13 @@ int
 putchar (const char c)
 {
   (void) syscall1 (4096, c);
+  return 0;
 }
 
 void
 exit (int status)
 {
-  return syscall0 (0);
+  syscall1 (0, status);
 }
 
 int
@@ -29,5 +30,5 @@ main (void)
 {
   puts ("Hello from userspace, NUX!\n");
 
-  return 0;
+  return 42;
 }

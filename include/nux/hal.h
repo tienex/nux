@@ -157,6 +157,15 @@ vaddr_t hal_virtmem_kmembase (void);
 const size_t hal_virtmem_kmemsize (void);
 
 /*
+  Boot-time user entry point.
+
+  If zero there's no boot-time user process.
+*/
+const vaddr_t hal_virtmem_userentry (void);
+
+
+
+/*
   HAL Virtual Memory Mapping.
  */
 
@@ -240,6 +249,15 @@ hal_tlbop_t hal_pmap_tlbop (hal_l1e_t old, hal_l1e_t new);
 /*
   HAL PCPU: Physical CPU bringup and setup.
  */
+
+/*
+  Initialization of HAL PCPU subsystem.
+
+  This is called when the platform and memory management is
+  initialized, for operations that cannot be done early at boot but
+  must be done before secondary CPUs are started.
+*/
+void hal_pcpu_init (void);
 
 /*
   Initialisation of HAL CPU <PCPUID>.
@@ -363,11 +381,6 @@ struct hal_frame *hal_entry_pf (struct hal_frame *, unsigned long,
 struct hal_frame *hal_entry_xcpt (struct hal_frame *, unsigned);
 
 /*
-  NMI: interrupt to CPU. (can be in kernel) 
- */
-struct hal_frame *hal_entry_nmi (struct hal_frame *f);
-
-/*
   Interrupts: IPIs and IRQs
  */
 struct hal_frame *hal_entry_vect (struct hal_frame *f, unsigned irq);
@@ -381,6 +394,13 @@ struct hal_frame *hal_entry_syscall (struct hal_frame *,
 				     unsigned long, unsigned long);
 
 /*
+  NMI: interrupt to CPU. (can be in kernel)
+
+  Note: This is special as it is not allowed to switch frame.
+ */
+void hal_entry_nmi (struct hal_frame *f);
+
+/*
   Secondary CPUs start up. 
  */
 void hal_main_ap (void);
@@ -392,6 +412,9 @@ void hal_main_ap (void);
 
 /*
   Boot-time is over.
+
+  This is called by NUX when all initialization is done, to allow HAL
+  to clean up boot-time structures.
 */
 void hal_init_done (void);
 

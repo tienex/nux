@@ -107,26 +107,3 @@ get_l1p (void *pmap, unsigned long va, int alloc)
 
   return get_curl1p (va);
 }
-
-void
-do_cleanboot (void)
-{
-  int i;
-  l2e_t *ptep;
-
-  printf ("cleaning");
-  /* Unmap L2s */
-  for (i = 0; i < 512; i++)
-    {
-      ptep = get_curl2p ((vaddr_t) i << L2_SHIFT);
-      if (ptep != NULL)
-	*ptep = 0;
-    }
-  tlbflush_global ();		/* Better safe than. */
-
-  /*
-     Note: nothing to free here. L3s are always mapped and APXH
-     should've mapped 2Mb pages. Of course we should check to be
-     thorough.
-   */
-}

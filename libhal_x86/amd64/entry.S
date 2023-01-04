@@ -1,5 +1,6 @@
 #include <machine/asm.h>
 #include <nux/hal_config_amd64.h>
+#include "amd64.h"
 #include "../internal.h"
 
 	.altmacro
@@ -7,6 +8,108 @@
 	pushq $\vct
 	jmp _intr_frame_entry
 .endm
+
+/*
+PLAN: 
+	---DONE -- 1. IST stack for #MCE #DOUBLE #NMI
+	2. SWAP GS but then restore the kernel value in it.
+*/
+
+	.globl _syscall_frame_entry
+_syscall_frame_entry:
+	/* Setup RSP, then emulate IRET frame. */
+	swapgs
+	movq %rsp, %gs:16 /* Save rsp in scratch. */
+	movq %gs:8, %rsp  /* Restore kernel rsp. */
+
+	pushq $UDS
+	pushq %gs:16
+	push %r11
+	pushq $UCS
+	push %rcx
+	pushq $0 /* Error code. */
+
+	pushq $0 /* Vector */
+
+	push %r15
+	push %r14
+	push %r13
+	push %r12
+	pushq $0
+	push %r10
+	push %r9
+	push %r8
+	push %rdi
+	push %rsi
+	push %rbp
+	push %rdx
+	pushq $0
+	push %rbx
+	push %rax
+	mov %cr2, %rax
+	push %rax
+
+	swapgs
+	/* Save GS BASE. There are better ways. */
+	mov $MSR_IA32_GS_BASE, %rcx
+	rdmsr
+	shl $32, %rdx
+	or %rdx, %rax
+	push %rax
+
+	pushq $FRAMETYPE_SYSC
+
+	mov %rsp, %rdi
+
+	/* Restore Kernel GS BASE unconditionally. */
+	mov $MSR_IA32_KERNEL_GS_BASE, %rcx
+	rdmsr
+	mov $MSR_IA32_GS_BASE, %rcx
+	wrmsr
+
+	call _C_LABEL(do_syscall_entry)
+	mov %rax, %rsp
+
+	// switch to IRET if frame type is intr
+	mov $FRAMETYPE_INTR, %rax
+	cmpq (%rsp), %rax
+	je _intr_frame_return
+
+	add $8, %rsp /* Skip frame type: syscall frame */
+
+	/* Restore GSBASE */
+	popq %rax
+	mov %rax, %rdx
+	shr $32, %rdx
+	mov $MSR_IA32_GS_BASE, %rcx
+	wrmsr
+
+	add $8, %rsp /* Skip CR2 */
+	popq %rax
+	popq %rbx
+	xor %rcx, %rcx /* clear RCX */
+	add $8, %rsp
+	popq %rdx
+	popq %rbp
+	popq %rsi
+	popq %rdi
+	popq %r8
+	popq %r9
+	popq %r10
+	xor %r11, %r11 /* clear RCX */
+	add $8, %rsp
+	popq %r12
+	popq %r13
+	popq %r14
+	popq %r15
+	add $16, %rsp /* Skip vect, error */
+	/* Get SYSRET from iret stack. */
+	pop %rcx /* EIP */
+	add $8, %rsp /* Skip CS */
+	pop %r11 /* FLAGS */
+	pop %rsp /* RSP */
+	/* SS Ignored. RSP has changed. */
+	rex.w sysret
 
 _intr_frame_entry:
 	push %r15
@@ -45,10 +148,11 @@ _intr_frame_entry:
 	wrmsr
 
 	call _C_LABEL(do_intr_entry)
-	jmp _frame_return
-
-_frame_return:
 	mov %rax, %rsp
+
+	jmp _intr_frame_return
+
+_intr_frame_return:
 
 	add $8, %rsp /* Skip frame type: interrupt frame */
 

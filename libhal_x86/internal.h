@@ -13,10 +13,15 @@
 #define MAXCPUS	        HAL_MAXCPUS
 
 #define MSR_IA32_EFER 0xc0000080
+#define _MSR_IA32_EFER_SCE (1LL << 0)
 #define _MSR_IA32_EFER_NXE (1LL << 11)
 
 #define MSR_IA32_GS_BASE 0xc0000101
 #define MSR_IA32_KERNEL_GS_BASE 0xc0000102
+
+#define MSR_IA32_STAR 0xc0000081
+#define MSR_IA32_LSTAR 0xc0000082
+#define MSR_IA32_FMASK 0xc0000084
 
 #define PTE_P       1
 #define PTE_W       2
@@ -45,10 +50,11 @@
 #define halfatal(...) fatal(__VA_ARGS__)
 
 void x86_init (void);
-void i386_init (void);
 void amd64_init (void);
 void pae64_init (void);
 void pmap_init (void);
+void i386_init_done (void);
+void amd64_init_done (void);
 
 void set_pte (uint64_t * ptep, uint64_t pte);
 hal_l1e_t *get_l1p (void *pmap, unsigned long va, int alloc);
