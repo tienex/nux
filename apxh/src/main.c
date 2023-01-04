@@ -625,7 +625,10 @@ main (int argc, char *argv[])
 	}
       printf ("User entry: %llx\n", uentry);
     }
-
+  else
+    {
+      uentry = 0;
+    }
 
   /* Stop allocations as we're copying boot-time allocation. */
   stop_payload_allocation = true;

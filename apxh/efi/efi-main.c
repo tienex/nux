@@ -2,6 +2,8 @@
 #include <efi.h>
 #include <efilib.h>
 
+#include "internal.h"
+
 static EFI_HANDLE image_handle;
 static EFI_LOADED_IMAGE *img = NULL;
 
@@ -18,7 +20,7 @@ efi_allocate_maxaddr (unsigned long maxaddr)
 				  EfiLoaderData, 1, &addr);
   if (EFI_ERROR (efi_status))
     {
-      printf ("Allocate Pages Failed: %d\n", efi_status);
+      Print (L"Allocate Pages Failed: %d\n", efi_status);
       exit (-1);
     }
 
@@ -259,7 +261,7 @@ efi_getrsdp (void)
     LibGetSystemConfigurationTable (&guid_rsdp, &rsdp);
 
   if (rsdp == NULL)
-    Print ("No RSDP found!\n");
+    Print (L"No RSDP found!\n");
 
   apxhefi_add_rsdp (rsdp);
 }

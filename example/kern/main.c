@@ -72,7 +72,7 @@ entry_sysc (uctxt_t * u,
       putchar (a2);
       break;
     case 0:
-      info ("User exited with error code: %d", a2);
+      info ("User exited with error code: %ld", a2);
       return UCTXT_IDLE;
     default:
       error ("Unknown syscall");

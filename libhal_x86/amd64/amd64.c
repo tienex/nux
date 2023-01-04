@@ -113,7 +113,7 @@ hal_vect_max (void)
   return 255;
 }
 
-static void *
+static uint64_t
 alloc_stackpage (void)
 {
   pfn_t pfn;
@@ -123,7 +123,7 @@ alloc_stackpage (void)
   assert (pfn != PFN_INVALID);
   va = kva_map (1, pfn, 1, HAL_PTE_W | HAL_PTE_P);
   assert (va != NULL);
-  return va;
+  return (uint64_t) (uintptr_t) va;
 }
 
 void
@@ -146,8 +146,7 @@ hal_pcpu_add (unsigned pcpuid, struct hal_cpu *haldata)
   else
     {
       /* Adding secondary CPU: Allocate one PCPU kernel stack. */
-      void *va = alloc_stackpage ();
-      pcpu_kstack[pcpu_kstackno++] = (uint64_t) va + PAGE_SIZE;
+      pcpu_kstack[pcpu_kstackno++] = alloc_stackpage() + PAGE_SIZE;
     }
   set_tss (pcpuid, &haldata->tss);
 

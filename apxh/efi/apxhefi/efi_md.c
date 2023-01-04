@@ -11,6 +11,7 @@ static struct fbdesc fbdesc = {.type = FB_INVALID, };
 
 static struct bootinfo_region memregions[BOOTINFO_REGIONS_MAX];
 
+#include "internal.h"
 
 void __dead
 exit (int st)

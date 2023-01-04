@@ -24,7 +24,7 @@ GNUEFI_CFLAGS+= -I../../include
 GNUEFI_CFLAGS+= -U__STDC_VERSION__
 
 ifeq ($(ARCH),x86_64)
-  CFLAGS += -DEFI_FUNCTION_WRAPPER
+  CFLAGS += -DEFI_FUNCTION_WRAPPER -I.
 endif
 
 LDFLAGS         = -nostdlib -znocombreloc -T $(GNUEFI_LDS) -shared \

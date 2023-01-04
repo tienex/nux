@@ -5,6 +5,7 @@ int
 putchar (const char c)
 {
   (void) syscall1 (4096, c);
+  return 0;
 }
 
 void

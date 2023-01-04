@@ -171,7 +171,7 @@ hal_frame_setret (struct hal_frame *f, unsigned long r)
 bool
 hal_frame_signal (struct hal_frame *f, unsigned long ip, unsigned long arg)
 {
-#warning Implement AMD64 signals
+  /* Implement AMD64 signals */
   assert (0);
 }
 

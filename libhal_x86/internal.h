@@ -54,6 +54,7 @@ void amd64_init (void);
 void pae64_init (void);
 void pmap_init (void);
 void i386_init_done (void);
+void amd64_init_done (void);
 
 void set_pte (uint64_t * ptep, uint64_t pte);
 hal_l1e_t *get_l1p (void *pmap, unsigned long va, int alloc);
