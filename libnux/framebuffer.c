@@ -70,7 +70,8 @@ framebuffer_blt (unsigned x, unsigned y, uint32_t color,
 	  while (bits)
 	    {
 	      if (byte & 0x80)
-		*(volatile uint32_t *) (uintptr_t) (fbdesc->addr + off) = color;
+		*(volatile uint32_t *) (uintptr_t) (fbdesc->addr + off) =
+		  color;
 	      else
 		*(volatile uint32_t *) (uintptr_t) (fbdesc->addr + off) = 0;
 

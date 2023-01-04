@@ -146,7 +146,7 @@ hal_pcpu_add (unsigned pcpuid, struct hal_cpu *haldata)
   else
     {
       /* Adding secondary CPU: Allocate one PCPU kernel stack. */
-      pcpu_kstack[pcpu_kstackno++] = alloc_stackpage() + PAGE_SIZE;
+      pcpu_kstack[pcpu_kstackno++] = alloc_stackpage () + PAGE_SIZE;
     }
   set_tss (pcpuid, &haldata->tss);
 
