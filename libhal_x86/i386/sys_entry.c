@@ -50,7 +50,8 @@ static char *exceptions[] = {
 struct hal_frame *
 do_nmi (uint32_t vect, struct hal_frame *f)
 {
-  return hal_entry_nmi (f);
+  hal_entry_nmi (f);
+  return f;
 }
 
 struct hal_frame *

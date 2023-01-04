@@ -95,12 +95,12 @@ hal_entry_xcpt (struct hal_frame *f, unsigned xcpt)
   return uctxt_frame (uctxt);
 }
 
-struct hal_frame *
+void
 hal_entry_nmi (struct hal_frame *f)
 {
   /* NMI are handled internally in NUX. */
   cpu_tlbnmi ();
-  return f;
+  /* NMI cannot switch frame. */
 }
 
 struct hal_frame *

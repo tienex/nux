@@ -381,11 +381,6 @@ struct hal_frame *hal_entry_pf (struct hal_frame *, unsigned long,
 struct hal_frame *hal_entry_xcpt (struct hal_frame *, unsigned);
 
 /*
-  NMI: interrupt to CPU. (can be in kernel) 
- */
-struct hal_frame *hal_entry_nmi (struct hal_frame *f);
-
-/*
   Interrupts: IPIs and IRQs
  */
 struct hal_frame *hal_entry_vect (struct hal_frame *f, unsigned irq);
@@ -397,6 +392,13 @@ struct hal_frame *hal_entry_syscall (struct hal_frame *,
 				     unsigned long, unsigned long,
 				     unsigned long, unsigned long,
 				     unsigned long, unsigned long);
+
+/*
+  NMI: interrupt to CPU. (can be in kernel)
+
+  Note: This is special as it is not allowed to switch frame.
+ */
+void hal_entry_nmi (struct hal_frame *f);
 
 /*
   Secondary CPUs start up. 

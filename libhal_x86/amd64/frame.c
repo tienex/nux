@@ -23,7 +23,9 @@
 struct hal_frame *
 do_nmi (struct hal_frame *f)
 {
-  return hal_entry_nmi (f);
+  hal_entry_nmi (f);
+  /* NMI cannot switch current frame. */
+  return f;
 }
 
 struct hal_frame *
