@@ -3,7 +3,7 @@
 #define _str(_x) #_x
 #define ___systrap(_vect)	\
 	"movl %0, %%eax;"	\
-	"int $" _str(_vect)
+	"syscall;"
 
 #define __systrap ___systrap(VECT_SYSC)
 

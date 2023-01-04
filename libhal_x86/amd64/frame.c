@@ -90,6 +90,15 @@ do_intr_entry (struct hal_frame *f)
   return rf;
 }
 
+struct hal_frame *
+do_syscall_entry (struct hal_frame *f)
+{
+  assert (f->type == FRAMETYPE_SYSC);
+
+  return hal_entry_syscall (f, f->intr.rax, f->intr.rdi, f->intr.rsi,
+			    f->intr.rcx, f->intr.rdx, f->intr.rbx);
+}
+
 void
 hal_frame_init (struct hal_frame *f)
 {
@@ -103,49 +112,42 @@ hal_frame_init (struct hal_frame *f)
 bool
 hal_frame_isuser (struct hal_frame *f)
 {
-  assert (f->type == FRAMETYPE_INTR);
   return f->intr.cs == UCS;
 }
 
 void
 hal_frame_setip (struct hal_frame *f, unsigned long ip)
 {
-  assert (f->type == FRAMETYPE_INTR);
   f->intr.rip = ip;
 }
 
 void
 hal_frame_setsp (struct hal_frame *f, vaddr_t sp)
 {
-  assert (f->type == FRAMETYPE_INTR);
   f->intr.rsp = sp;
 }
 
 void
 hal_frame_seta0 (struct hal_frame *f, unsigned long a0)
 {
-  assert (f->type == FRAMETYPE_INTR);
   f->intr.rdi = a0;
 }
 
 void
 hal_frame_seta1 (struct hal_frame *f, unsigned long a1)
 {
-  assert (f->type == FRAMETYPE_INTR);
   f->intr.rsi = a1;
 }
 
 void
 hal_frame_seta2 (struct hal_frame *f, unsigned long a2)
 {
-  assert (f->type == FRAMETYPE_INTR);
   f->intr.rdx = a2;
 }
 
 void
 hal_frame_setret (struct hal_frame *f, unsigned long r)
 {
-  assert (f->type == FRAMETYPE_INTR);
   f->intr.rax = r;
 }
 
@@ -159,8 +161,6 @@ hal_frame_signal (struct hal_frame *f, unsigned long ip, unsigned long arg)
 void
 hal_frame_print (struct hal_frame *f)
 {
-  assert (f->type == FRAMETYPE_INTR);
-
   hallog ("RAX: %016lx RBX: %016lx\nRCX: %016lx RDX: %016lx",
 	  f->intr.rax, f->intr.rbx, f->intr.rcx, f->intr.rdx);
   hallog ("RDI: %016lx RSI: %016lx\nRBP: %016lx RSP: %016lx",

@@ -136,6 +136,7 @@ hal_pcpu_add (unsigned pcpuid, struct hal_cpu *haldata)
     {
       /* Adding the BSP PCPU: Initialize TSS */
       extern char _bsp_stacktop;
+      haldata->kstack = (uintptr_t) & _bsp_stacktop;
       haldata->tss.ist[0] = alloc_stackpage () + PAGE_SIZE;
       haldata->tss.ist[1] = alloc_stackpage () + PAGE_SIZE;
       haldata->tss.ist[2] = alloc_stackpage () + PAGE_SIZE;
@@ -243,11 +244,28 @@ hal_pcpu_enter (unsigned pcpuid)
 }
 
 void
+amd64_init (void)
+{
+  extern char _syscall_frame_entry;
+  wrmsr (MSR_IA32_EFER, rdmsr (MSR_IA32_EFER) | _MSR_IA32_EFER_SCE);
+  wrmsr (MSR_IA32_LSTAR, (uintptr_t) & _syscall_frame_entry);
+  wrmsr (MSR_IA32_FMASK, 0xfffffffd);
+  wrmsr (MSR_IA32_STAR, 0);
+}
+
+void
 amd64_init_ap (uintptr_t esp)
 {
+  extern char _syscall_frame_entry;
   unsigned pcpu = plt_pcpu_id ();
   struct hal_cpu *haldata = (struct hal_cpu *) (uintptr_t) pcpu_haldata[pcpu];
 
+  wrmsr (MSR_IA32_EFER, rdmsr (MSR_IA32_EFER) | _MSR_IA32_EFER_SCE);
+  wrmsr (MSR_IA32_LSTAR, (uintptr_t) & _syscall_frame_entry);
+  wrmsr (MSR_IA32_FMASK, 0xfffffffd);
+  wrmsr (MSR_IA32_STAR, 0);
+
+  haldata->kstack = esp;
   haldata->tss.ist[0] = alloc_stackpage () + PAGE_SIZE;
   haldata->tss.ist[1] = alloc_stackpage () + PAGE_SIZE;
   haldata->tss.ist[2] = alloc_stackpage () + PAGE_SIZE;
