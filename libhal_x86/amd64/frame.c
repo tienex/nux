@@ -90,13 +90,30 @@ do_intr_entry (struct hal_frame *f)
   return rf;
 }
 
+static inline bool
+is_canonical (uint64_t addr)
+{
+  return ((uint64_t) ((int64_t) addr << 16) >> 16) == addr;
+}
+
 struct hal_frame *
 do_syscall_entry (struct hal_frame *f)
 {
   assert (f->type == FRAMETYPE_SYSC);
 
-  return hal_entry_syscall (f, f->intr.rax, f->intr.rdi, f->intr.rsi,
-			    f->intr.rcx, f->intr.rdx, f->intr.rbx);
+  f = hal_entry_syscall (f, f->intr.rax, f->intr.rdi, f->intr.rsi,
+			 f->intr.rcx, f->intr.rdx, f->intr.rbx);
+
+  if (!is_canonical (f->intr.rip))
+    {
+      /*
+         This is problematic on Intel. #GP will run in kernel mode on
+         user stack. Get the #GP from iret.
+       */
+      f->type = FRAMETYPE_INTR;
+    }
+
+  return f;
 }
 
 void
