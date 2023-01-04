@@ -1,9 +1,4 @@
-
-#if NUX_MACHINE==i386
-#include <i386/syscalls.h>
-#else
-#error "Unknown NUX architecture"
-#endif
+#include <arch_syscalls.h>
 
 int
 syscall0 (unsigned sys)
