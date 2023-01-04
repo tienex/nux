@@ -68,8 +68,48 @@ _syscall_frame_entry:
 	wrmsr
 
 	call _C_LABEL(do_syscall_entry)
-	jmp _frame_return
+	mov %rax, %rsp
 
+	// switch to IRET if frame type is intr
+	mov $FRAMETYPE_INTR, %rax
+	cmpq (%rsp), %rax
+	je _intr_frame_return
+
+	add $8, %rsp /* Skip frame type: syscall frame */
+
+	/* Restore GSBASE */
+	popq %rax
+	mov %rax, %rdx
+	shr $32, %rdx
+	mov $MSR_IA32_GS_BASE, %rcx
+	wrmsr
+
+	add $8, %rsp /* Skip CR2 */
+	popq %rax
+	popq %rbx
+	xor %rcx, %rcx /* clear RCX */
+	add $8, %rsp
+	popq %rdx
+	popq %rbp
+	popq %rsi
+	popq %rdi
+	popq %r8
+	popq %r9
+	popq %r10
+	xor %r11, %r11 /* clear RCX */
+	add $8, %rsp
+	popq %r12
+	popq %r13
+	popq %r14
+	popq %r15
+	add $16, %rsp /* Skip vect, error */
+	/* Get SYSRET from iret stack. */
+	pop %rcx /* EIP */
+	add $8, %rsp /* Skip CS */
+	pop %r11 /* FLAGS */
+	pop %rsp /* RSP */
+	/* SS Ignored. RSP has changed. */
+	rex.w sysret
 
 _intr_frame_entry:
 	push %r15
@@ -108,10 +148,11 @@ _intr_frame_entry:
 	wrmsr
 
 	call _C_LABEL(do_intr_entry)
-	jmp _frame_return
-
-_frame_return:
 	mov %rax, %rsp
+
+	jmp _intr_frame_return
+
+_intr_frame_return:
 
 	add $8, %rsp /* Skip frame type: interrupt frame */
 

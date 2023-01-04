@@ -250,7 +250,7 @@ amd64_init (void)
   wrmsr (MSR_IA32_EFER, rdmsr (MSR_IA32_EFER) | _MSR_IA32_EFER_SCE);
   wrmsr (MSR_IA32_LSTAR, (uintptr_t) & _syscall_frame_entry);
   wrmsr (MSR_IA32_FMASK, 0xfffffffd);
-  wrmsr (MSR_IA32_STAR, 0);
+  wrmsr (MSR_IA32_STAR, 0x18L << 48);
 }
 
 void

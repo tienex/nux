@@ -8,12 +8,14 @@
 #ifndef _AMD64_INTERNAL
 #define _AMD64_INTERNAL
 
-#define TSS_GDTIDX(_i) (5 + (_i) * 3)
+#define TSS_GDTIDX(_i) (6 + (_i) * 3)
 
 #define KCS 0x08
 #define KDS 0x10
-#define UCS 0x1b
+/* 0x18 Unused */
 #define UDS 0x23
+#define UCS 0x2b
+
 
 #define VECT_IPI0 0xF0
 #define VECT_IRQ0 0x21

@@ -253,8 +253,9 @@ _gdt:
 	.quad 0
 	.quad 0x00af9a000000ffff /* Kernel Code */
 	.quad 0x00cf93000000ffff /* Kernel Data */
-	.quad 0x00a0fa000000ffff /* User Code */
+	.quad 0			 /* Left empty. Base of MSR_IA32_STAR[63:48] */
 	.quad 0x00c0f3000000ffff /* User Data */
+	.quad 0x00a0fa000000ffff /* User Code */
 	.skip (8 * (3*MAXCPUS))  /* TSS + GS per CPU. */
 	.globl _end_gdt
 _end_gdt:
