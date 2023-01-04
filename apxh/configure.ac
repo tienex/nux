@@ -30,14 +30,18 @@ AS_CASE([$machine],
 
 AC_ARG_ENABLE([opt],
 	AS_HELP_STRING([--disable-opt],[compile without compiler optimizations]))
-
 AS_IF([test "x$enable_opt" != "xno"],
 	[optflags='-O7 -g'],
 	[optflags='-O0 -g'])
 
+AC_ARG_ENABLE([werror],
+	AS_HELP_STRING([--disable-werror],[compile ignoring compiler warnings]))
+AS_IF([test "x$enable_relax" != "xno"],
+	[wflags='-Werror'],
+	[wflags=''])
 
 AC_SUBST(MACHINE, ${machine})
-AC_SUBST(CONFIGURE_FLAGS, ["${optflags} -I\$(SRCROOT)../include"])
+AC_SUBST(CONFIGURE_FLAGS, ["${optflags} ${wflags} -I\$(SRCROOT)../include"])
 AC_SUBST(APXH_SUBDIRS, [${apxh_subdirs}])
 
 AC_MK_CONFIG_FILES([

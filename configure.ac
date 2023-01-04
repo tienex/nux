@@ -38,6 +38,12 @@ AS_IF([test "x$enable_opt" != "xno"],
 	[optflags='-O7 -g'],
 	[optflags='-O0 -g'])
 
+AC_ARG_ENABLE([werror],
+	AS_HELP_STRING([--disable-werror],[compile ignoring compiler warnings]))
+AS_IF([test "x$enable_relax" != "xno"],
+	[wflags='-Werror'],
+	[wflags=''])
+
 debug=1
 AC_ARG_ENABLE([debug],
 	AS_HELP_STRING([--disable-debug],[compile without debug code and messages]))
@@ -64,7 +70,7 @@ nuxdir='$(SRCROOT)'/libnux
 AC_SUBST(COMPILE_LIBNUX, ["include ${nuxdir}/libnux-compile.mk"])
 AC_SUBST(LINK_LIBNUX, ["include ${nuxdir}/libnux.mk"])
 
-AC_SUBST(CONFIGURE_FLAGS, ["${optflags} -DNUX_MACHINE=${machine}"])
+AC_SUBST(CONFIGURE_FLAGS, ["${optflags} ${wflags} -DNUX_MACHINE=${machine}"])
 
 AS_CASE([$hal],
 	[hal_x86], [extraconf=libhal_x86/hal.mk])
