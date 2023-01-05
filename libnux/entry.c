@@ -136,4 +136,3 @@ hal_entry_vect (struct hal_frame *f, unsigned vect)
 
   return uctxt_frame (uctxt);
 }
-
