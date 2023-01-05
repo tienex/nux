@@ -1,0 +1,5 @@
+#Configuration with the directories relative to ${nux_dir}
+HALDIR=@HALDIR@
+PLTDIR=@PLTDIR@
+
+

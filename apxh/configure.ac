@@ -1,12 +1,25 @@
 AC_INIT([APXH],[0.0])
-AC_CONFIG_MACRO_DIRS([../mk])
-AC_MK_DIR([../mk])
 
-AC_CONFIG_MACRO_DIRS([../libec])
-AC_LIBEC_DIR([../libec])
+AC_ARG_WITH([nux],
+	[AS_HELP_STRING(
+		[--with-nux],
+		[specify location of the NUX repository @<:@default=..@:>@])],
+	[],[with_nux=..])
+nux_dir=${with_nux}
+
+AC_ARG_WITH([libec],
+	[AS_HELP_STRING(
+		[--with-libec],
+		[specify location of libec @<:@default=<nuxdir>/libec@:>@])],
+	[],[with_libec=${with_nux}/libec])
+libec_dir=${with_libec}
+
+AC_CONFIG_MACRO_DIRS([../m4])
+
+AC_MK_DIR([${nux_dir}/mk])
+AC_LIBEC_DIR([${libec_dir}])
 
 AC_ARG_VAR([ARCH], [The architecture to compile for: i386 or amd64])
-
 if test x"${ARCH}" == x ; then
    AC_MSG_ERROR([Please select a valid architecture with `./configure ARCH=<arch>`])
 fi
@@ -16,10 +29,27 @@ AS_CASE([${ARCH}],
 	[amd64], [tool_prefix=x86_64-elf],
 	[*], [AC_MSG_ERROR([Supported Architectures: i386, amd64])])
 
+AC_ARG_VAR([TOOLCHAIN],[toolchain prefix @<:@default: <ARCH>-elf@:>@])
+if test x"${TOOLCHAIN}" != x ; then
+   tool_prefix="${TOOLCHAIN}"
+fi
+
 AC_CHECK_TOOL(CC, ${tool_prefix}-gcc, :)
+if test x"${CC}" = 'x:' ; then
+  AC_MSG_ERROR([${tool_prefix}-gcc not found])
+fi
 AC_CHECK_TOOL(LD, ${tool_prefix}-ld, :)
+if test x"${LD}" = 'x:' ; then
+  AC_MSG_ERROR([${tool_prefix}-ld not found])
+fi
 AC_CHECK_TOOL(AR, ${tool_prefix}-ar, :)
+if test x"${AR}" = 'x:' ; then
+  AC_MSG_ERROR([${tool_prefix}-ar not found])
+fi
 AC_CHECK_TOOL(OBJCOPY, ${tool_prefix}-objcopy, :)
+if test x"${OBJCOPY}" = 'x:' ; then
+  AC_MSG_ERROR([${tool_prefix}-objcopy not found])
+fi
 
 machine=${ARCH}
 

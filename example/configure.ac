@@ -1,23 +1,35 @@
-AC_INIT([NUX],[0.0])
+AC_INIT([NUX_EXAMPLE],[0.0])
+
+AC_ARG_WITH([nux],
+	[AS_HELP_STRING(
+		[--with-nux],
+		[specify location of the NUX repository @<:@default=..@:>@])],
+	[],[with_nux=..])
+nux_dir=${with_nux}
+
+AC_ARG_WITH([libec],
+	[AS_HELP_STRING(
+		[--with-libec],
+		[specify location of libec @<:@default=<nuxdir>/libec@:>@])],
+	[],[with_libec=${with_nux}/libec])
+libec_dir=${with_libec}
 
 AC_CONFIG_MACRO_DIRS([m4])
 
-AC_MK_DIR([mk])
-AC_LIBEC_DIR([libec])
-AC_LIBNUX_DIR([.])
-
-AC_PREFIX_DEFAULT([${PWD}/build/])
+AC_MK_DIR([${nux_dir}/mk])
+AC_LIBEC_DIR([${libec_dir}])
+AC_LIBNUX_DIR([${nux_dir}])
 
 AC_ARG_VAR([ARCH], [The architecture to compile for: i386 or amd64])
+
 if test x"${ARCH}" == x ; then
    AC_MSG_ERROR([Please select a valid architecture with `./configure ARCH=<arch>`])
 fi
 
 AS_CASE([${ARCH}],
 	[i386], [tool_prefix=i686-elf],
-	[amd64], [tool_prefix=amd64-elf],
+	[amd64], [tool_prefix=x86_64-elf],
 	[*], [AC_MSG_ERROR([Supported Architectures: i386, amd64])])
-
 
 AC_ARG_VAR([TOOLCHAIN],[toolchain prefix @<:@default: <ARCH>-elf@:>@])
 if test x"${TOOLCHAIN}" != x ; then
@@ -28,28 +40,20 @@ AC_CHECK_TOOL(CC, ${tool_prefix}-gcc, :)
 if test x"${CC}" = 'x:' ; then
   AC_MSG_ERROR([${tool_prefix}-gcc not found])
 fi
-
 AC_CHECK_TOOL(LD, ${tool_prefix}-ld, :)
 if test x"${LD}" = 'x:' ; then
   AC_MSG_ERROR([${tool_prefix}-ld not found])
 fi
-
 AC_CHECK_TOOL(AR, ${tool_prefix}-ar, :)
 if test x"${AR}" = 'x:' ; then
   AC_MSG_ERROR([${tool_prefix}-ar not found])
 fi
-
 AC_CHECK_TOOL(OBJCOPY, ${tool_prefix}-objcopy, :)
 if test x"${OBJCOPY}" = 'x:' ; then
   AC_MSG_ERROR([${tool_prefix}-objcopy not found])
 fi
 
 machine=${ARCH}
-
-AS_CASE([$machine],
-	[i386], [hal=hal_x86 plt=plt_acpi],
-	[amd64], [hal=hal_x86 plt=plt_acpi])
-
 
 AC_ARG_ENABLE([opt],
 	AS_HELP_STRING([--disable-opt],[compile without compiler optimizations]))
@@ -63,47 +67,15 @@ AS_IF([test "x$enable_relax" != "xno"],
 	[wflags='-Werror'],
 	[wflags=''])
 
-debug=1
-AC_ARG_ENABLE([debug],
-	AS_HELP_STRING([--disable-debug],[compile without debug code and messages]))
-AS_IF([test "x$enable_debug" != "xno"],
-	[debug=1],
-	[debug=0])
-AC_SUBST(DEBUG, ${debug})
-
-plt_verbose = 0
-AC_ARG_ENABLE([plt_verbose],
-	AS_HELP_STRING([--enable-plt-verbose],[print extra information from the plt module]))
-AS_IF([test "x$enable_plt_verbose" != "xyes"],
-	[plt_verbose=0],
-	[plt_verbose=1])
-AC_SUBST(PLT_VERBOSE, ${plt_verbose})
-
 AC_SUBST(MACHINE, ${machine})
-AC_SUBST(HALDIR, lib${hal})
-AC_SUBST(PLTDIR, lib${plt})
-AC_SUBST(INSTALLDIR, "$(pwd)"/dist)
+AC_SUBST(CONFIGURE_FLAGS, ["${optflags} ${wflags} -I${nux_dir}/include"])
+AC_SUBST(APXH_SUBDIRS, [${apxh_subdirs}])
 
-AC_SUBST(CONFIGURE_FLAGS, ["${optflags} ${wflags} -DNUX_MACHINE=${machine}"])
-
-AS_CASE([$hal],
-	[hal_x86], [extraconf=libhal_x86/hal.mk])
-
-AC_CONFIG_FILES([include/config.h libnux/cfg.mk ${extraconf}])
 AC_MK_CONFIG_FILES([
 	Makefile
-	lib${hal}/Makefile
-	lib${plt}/Makefile
-	libnux/Makefile
-	libnux_user/Makefile
-	example/Makefile
-	example/kern/Makefile
-	example/user/Makefile
-	tools/Makefile
-	tools/libbfd/Makefile
-	tools/nuxar/Makefile
+	kern/Makefile
+	user/Makefile
 ])
 
-AC_CONFIG_SUBDIRS([apxh example])
 
 AC_OUTPUT
