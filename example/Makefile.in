@@ -1,10 +1,10 @@
 SUBDIRS= kern user
 
-TOOLS= $(SRCROOT)/tools
+TOOLS= @NUXROOT@/tools
 NUXAR= $(TOOLS)/nuxar/nuxar
 
 example_multiboot: subdirs
-	cp $(SRCROOT)/apxh/multiboot/apxh $@
+	cp @NUXROOT@/apxh/multiboot/apxh $@
 	$(NUXAR) $@ -a kern/example
 	$(NUXAR) $@ -a user/exuser
 

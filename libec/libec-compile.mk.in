@@ -12,5 +12,5 @@ endif
 
 CFLAGS+= -Wall -nostdinc -fno-builtin -ffreestanding -fno-strict-aliasing
 LDFLAGS+= -nostdlib
-CPPFLAGS+= -D_EC_SOURCE -I@ECDIR@
+CPPFLAGS+= -D_EC_SOURCE -I$(SRCROOT)/@ECDIR@
 ASFLAGS+= -D_ASSEMBLER

@@ -13,10 +13,10 @@ endif
 
 PROGRAM=exuser
 
-CFLAGS+= -I../../libnux_user
+CFLAGS+= -I$(SRCROOT)/@NUXROOT@/libnux_user
 SRCS+= main.c
 SRCS+= $(ARCH_DIR)/crt0.S
-LDFLAGS= -L../../libnux_user
+LDFLAGS= -L$(SRCROOT)/@NUXROOT@/libnux_user
 LDADD_END= -lnux_user
 
 @COMPILE_LIBEC@

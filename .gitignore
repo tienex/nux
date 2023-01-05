@@ -10,12 +10,12 @@
 Makefile
 apxh/multiboot/apxh
 
+libnux/cfg.mk
 libec.mk
 libec-compile.mk
-
-libhal_x86/hal.mk
-libnux/libnux.mk
-libnux/libnux-compile.mk
+hal.mk
+libnux.mk
+libnux-compile.mk
 include/config.h
 
 aclocal.m4

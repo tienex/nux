@@ -6,7 +6,9 @@
 #
 #
 
-include $(SRCROOT)/@HALDIR@/hal.mk
+include $(SRCROOT)/@NUXDIR@/cfg.mk
 
-CPPFLAGS+= -I$(SRCROOT)/include -I$(SRCROOT)/@HALDIR@/include -I$(SRCROOT)/libnux/include
+include $(SRCROOT)/@NUXROOT@/$(HALDIR)/hal.mk
+
+CPPFLAGS+= -I@NUXROOT@/$(SRCROOT)/include -I$(SRCROOT)/@NUXROOT@/$(HALDIR)/include -I$(SRCROOT)/@NUXDIR@/include
 
