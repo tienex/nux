@@ -341,21 +341,6 @@ void hal_frame_setret (struct hal_frame *f, unsigned long r);
 void hal_frame_print (struct hal_frame *);
 
 /*
-  Send a signal to the userspace.
-
-  This function updates the frame's IP and expands the stack. Writes a
-  new stack frame that will allow a function to return normally to the
-  interrupted code.
-
-  The HAL will simply write to user address space. Users of this calls
-  will have to guarantee that the user address is mapped. HAL needs to
-  check that the address is effectively userspace and not kernel.
-*/
-bool hal_frame_signal (struct hal_frame *f, unsigned long ip,
-		       unsigned long arg);
-
-
-/*
   Hardware Abstraction Layer: System Entries.
  
   The following are callbacks to the main program. These calls are

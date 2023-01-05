@@ -169,41 +169,6 @@ hal_frame_setret (struct hal_frame *f, unsigned long r)
   f->eax = r;
 }
 
-bool
-hal_frame_signal (struct hal_frame *f, unsigned long ip, unsigned long arg)
-{
-  vaddr_t start, end;
-  struct stackframe
-  {
-    uint32_t arg;
-    uint32_t eip;
-  } __packed sf = {
-    .arg = arg,
-    .eip = f->eip,
-  };
-
-  /*
-     Check that the addresses we will write are all in userspace.
-   */
-  start = f->esp - sizeof (sf);
-  end = f->esp;
-
-  if ((start > end)
-      || (start < hal_virtmem_userbase ())
-      || (start > (hal_virtmem_userbase () + hal_virtmem_usersize ()))
-      || (end < hal_virtmem_userbase ())
-      || (end > (hal_virtmem_userbase () + hal_virtmem_usersize ())))
-    return false;
-
-  /* Write to userspace. Kernel is responsible for recovering from faults. */
-  memcpy ((void *) start, &sf, sizeof (sf));
-
-  /* Change frame with new IP and SP. */
-  f->esp = (uint32_t) start;
-  f->eip = ip;
-  return true;
-}
-
 void
 hal_frame_print (struct hal_frame *f)
 {

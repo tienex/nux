@@ -100,8 +100,6 @@ void uctxt_setret (uctxt_t * uctxt, unsigned long ret);
 void uctxt_seta0 (uctxt_t * uctxt, unsigned long a0);
 void uctxt_seta1 (uctxt_t * uctxt, unsigned long a1);
 void uctxt_seta2 (uctxt_t * uctxt, unsigned long a2);
-bool uctxt_signal (uctxt_t * uctxt, unsigned long ip, unsigned long arg,
-		   bool (*pf_handler) (uaddr_t va, hal_pfinfo_t info));
 void uctxt_print (uctxt_t * uctxt);
 
 #define LOGL_DEBUG -1

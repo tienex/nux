@@ -485,49 +485,6 @@ cpu_useraccess_memset (uaddr_t dst, int ch, size_t size,
   return true;
 }
 
-bool
-cpu_useraccess_signal (uctxt_t * uctxt, unsigned long ip, unsigned long arg,
-		       bool (*pf_handler) (uaddr_t va, hal_pfinfo_t info))
-{
-  struct cpu_info *ci = cpu_curinfo ();
-  struct hal_frame *f;
-
-
-  f = uctxt_frame_pointer (uctxt);
-  if (f == NULL)
-    return false;
-
-  if (!hal_frame_isuser (f))
-    return false;
-
-  /*
-     We can't be sure of what addresses the HAL will write, and the HAL
-     is reponsible for checking that it's writing to userspace addresses.
-   */
-
-  ci->usrpgfault = 1;
-  __insn_barrier ();
-  if (setjmp (ci->usrpgfaultctx) != 0)
-    {
-      uaddr_t uaddr = ci->usrpgaddr;
-      hal_pfinfo_t pfinfo = ci->usrpginfo;
-
-      if (!pf_handler || !pf_handler (uaddr, pfinfo))
-	{
-	  cpu_useraccess_end ();
-	  return false;
-	}
-      cpu_useraccess_reset ();
-      // pass-through
-    }
-
-  hal_frame_signal (f, ip, arg);
-
-  cpu_useraccess_end ();
-  return true;
-
-}
-
 void
 cpu_useraccess_checkpf (uaddr_t addr, hal_pfinfo_t info)
 {

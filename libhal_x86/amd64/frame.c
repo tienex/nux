@@ -168,13 +168,6 @@ hal_frame_setret (struct hal_frame *f, unsigned long r)
   f->intr.rax = r;
 }
 
-bool
-hal_frame_signal (struct hal_frame *f, unsigned long ip, unsigned long arg)
-{
-  /* Implement AMD64 signals */
-  assert (0);
-}
-
 void
 hal_frame_print (struct hal_frame *f)
 {
