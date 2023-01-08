@@ -26,8 +26,14 @@ struct cpu_info
   jmp_buf idlejmp;
   bool idle;
 
-  /* TLB shootdown */
-  tlbop_t tlbop;
+#define NMIOP_KMAPUPDATE 1	/* Only update KMAP TLBs */
+#define NMIOP_FLUSH 2		/* Force TLB flush. Will flush globally if
+				   KMAP requires it. */
+#define NMIOP_FLUSHALL 4	/* Force TLB flush globally. */
+  volatile unsigned nmiop;
+  /* TLB generation for kmap. Accessed from NMI: volatile. */
+  volatile tlbgen_t kmap_tlbgen_global;
+  volatile tlbgen_t kmap_tlbgen;
 
   /*
      User copy setjmp/longjmp for pagefaults.
@@ -57,7 +63,7 @@ void cpu_enter (void);
 __dead void cpu_idle (void);
 bool cpu_wasidle (void);
 void cpu_clridle (void);
-void cpu_tlbnmi (void);
+void cpu_nmiop (void);
 void cpu_useraccess_checkpf (uaddr_t addr, hal_pfinfo_t info);
 
 /*

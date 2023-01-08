@@ -40,14 +40,68 @@ typedef unsigned long vfn_t;
 
 /*
 
+   tlbgen_t
+
+   Almost ordered TLB generation, wrap friendly.
+
+   This type is unsigned long: must be atomically accessible.
+
+   There are two parts in this type: the WRAP count and the GEN count.
+   Increasing a generation count is the same as an addition (the
+   higher bits are essentially a wrap cound. Equality is also the same
+   as an integer.  What changes is the comparison:
+
+       A < B iff wrap(A) == wrap(B) && gen(A) < gen(B)
+
+   I.e., we can compare A and B only if their wrap count is the same,
+   otherwhise the comparation fails, and we ought to flush.
+
+   All of this is to avoid depending on a simple integer comparison
+   and shooting ourself in the foot when the integer wraps. It costs a
+   few rare spurious TLB flushes.
+
+   The trade off is that generation part should be as big as possible
+   to avoid spurious TLB flushes, wrap count must be as big as
+   possible to avoid wrapping the wrap count, i.e. a TLB not being
+   updated flushed while the wrapcount itself has wrapped would cause
+   a missed TLB flush. The latter is a much more serious and deadly
+   fault.
+*/
+typedef unsigned long tlbgen_t;
+#define _TG_WSHIFT 6		/* Wrapcount of 64. */
+#define _TG_WRAP(_t) ((_t) & ((1L << _TG_WSHIFT) - 1))
+#define _TG_GCNT(_t) ((_t) >> _TG_WSHIFT)
+
+/*
+ * Return <0 if a < b. 0 if a == b, >0 if a > b or wrapcounts differ.
+ */
+static inline int
+tlbgen_cmp (tlbgen_t a, tlbgen_t b)
+{
+  if (_TG_WRAP (a) == _TG_WRAP (b))
+    {
+      if (a < b)
+	return -1;
+      else if (a > b)
+	return 1;
+      else
+	return 0;
+    }
+  else
+    return 1;
+}
+
+/*
+
    tlbop_t
 
    TLBs flushing operations
 */
 enum tlbop
 {
-  TLBOP_LOCAL = (1 << 0),	/* Only flush non-global TLBs mappings. */
-  TLBOP_GLOBAL = (1 << 1)	/* Flush all TLBs including globals. */
+  TLBOP_KMAPUPDATE,		/* Only flush if KMAP needs update. */
+  TLBOP_FLUSH,			/* Only flush non-global TLBs mappings. */
+  TLBOP_FLUSHALL		/* Flush all TLBs including globals. */
 };
 typedef enum tlbop tlbop_t;
 

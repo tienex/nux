@@ -135,11 +135,12 @@ hal_pcpu_add (unsigned pcpuid, struct hal_cpu *haldata)
   if (pcpuid == bsp_pcpuid)
     {
       /* Adding the BSP PCPU: Initialize TSS */
-      extern char _bsp_stacktop;
+      extern char _bsp_stacktop, _ist1_stacktop, _ist1_stacktop,
+	_ist2_stacktop, _ist3_stacktop;
       haldata->kstack = (uintptr_t) & _bsp_stacktop;
-      haldata->tss.ist[0] = alloc_stackpage () + PAGE_SIZE;
-      haldata->tss.ist[1] = alloc_stackpage () + PAGE_SIZE;
-      haldata->tss.ist[2] = alloc_stackpage () + PAGE_SIZE;
+      haldata->tss.ist[0] = (uintptr_t) & _ist1_stacktop;
+      haldata->tss.ist[1] = (uintptr_t) & _ist2_stacktop;
+      haldata->tss.ist[2] = (uintptr_t) & _ist3_stacktop;
       haldata->tss.rsp0 = (uintptr_t) & _bsp_stacktop;
       haldata->tss.iomap = 108;	/* XXX: FIX with sizeof(tss) + 1 */
     }
