@@ -200,10 +200,14 @@ void hal_pmap_setcur (struct hal_pmap *pmap);
   Do a page walk (populating pagetables if ALLOC is true).
 
   If an l1p exists, save it into L1P and return true.
-
   If no l1p is found, set L1P to L1P_INVALID and return false.
+  If ALLOC=true and there's not enough memory, return false.
 
-  Note that it might still return false with ALLOC=true if out of memory.
+  If PMAP=NULL, the current PMAP is used. This is also special because
+  it _requires_ that no pages are accessed via the PFN cache -- The
+  PFN cache uses this format.  This means that either on
+  PMAP=NULL linear mappings must be used, or that all page-tables need
+  to be allocated in the direct map.
 */
 bool hal_pmap_getl1p (struct hal_pmap *pmap, unsigned long va, bool alloc,
 		      hal_l1p_t * l1p);
