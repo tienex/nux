@@ -22,7 +22,7 @@ rwlock_t;
 static inline void
 spinlock_init (lock_t * l)
 {
-  *(int *) l = 0;
+  *l = 0;
 }
 
 static inline void
