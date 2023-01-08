@@ -1,16 +1,16 @@
 /*
-  NUX: A kernel Library.
-  Copyright (C) 2019 Gianluca Guida, glguida@tlbflush.org
-
-  This program is free software; you can redistribute it and/or
-  modify it under the terms of the GNU General Public License
-  as published by the Free Software Foundation; either version 2
-  of the License, or (at your option) any later version.
-
-  See COPYING file for the full license.
-
-  SPDX-License-Identifier:	GPL2.0+
-*/
+ * NUX: A kernel Library. Copyright (C) 2019 Gianluca Guida,
+ * glguida@tlbflush.org
+ * 
+ * This program is free software; you can redistribute it and/or modify it under
+ * the terms of the GNU General Public License as published by the Free
+ * Software Foundation; either version 2 of the License, or (at your option)
+ * any later version.
+ * 
+ * See COPYING file for the full license.
+ * 
+ * SPDX-License-Identifier:	GPL2.0+
+ */
 
 #include <stdio.h>
 #include <nux/nux.h>
@@ -53,10 +53,10 @@ hal_entry_pf (struct hal_frame *f, unsigned long va, hal_pfinfo_t info)
       if (uaddr_valid (va))
 	{
 	  /*
-	     This could be a PF due to kernel user access.
-
-	     In this case we would longjmp to the user pagefault jmp_buf and
-	     the next function won't return.
+	   * This could be a PF due to kernel user access.
+	   * 
+	   * In this case we would longjmp to the user pagefault
+	   * jmp_buf and the next function won't return.
 	   */
 	  cpu_useraccess_checkpf (va, info);
 	}
@@ -99,7 +99,7 @@ void
 hal_entry_nmi (struct hal_frame *f)
 {
   /* NMI are handled internally in NUX. */
-  cpu_tlbnmi ();
+  cpu_nmiop ();
   /* NMI cannot switch frame. */
 }
 

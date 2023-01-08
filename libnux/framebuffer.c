@@ -1,16 +1,16 @@
 /*
-  NUX: A kernel Library.
-  Copyright (C) 2019 Gianluca Guida, glguida@tlbflush.org
-
-  This program is free software; you can redistribute it and/or
-  modify it under the terms of the GNU General Public License
-  as published by the Free Software Foundation; either version 2
-  of the License, or (at your option) any later version.
-
-  See COPYING file for the full license.
-
-  SPDX-License-Identifier:	GPL2.0+
-*/
+ * NUX: A kernel Library. Copyright (C) 2019 Gianluca Guida,
+ * glguida@tlbflush.org
+ * 
+ * This program is free software; you can redistribute it and/or modify it under
+ * the terms of the GNU General Public License as published by the Free
+ * Software Foundation; either version 2 of the License, or (at your option)
+ * any later version.
+ * 
+ * See COPYING file for the full license.
+ * 
+ * SPDX-License-Identifier:	GPL2.0+
+ */
 
 #include "internal.h"
 #include <assert.h>
@@ -40,11 +40,10 @@ framebuffer_color (unsigned r, unsigned g, unsigned b)
 }
 
 /*
-  Possibly the slowest software blitter.
-
-  XXX: Doesn't check boundaries.
-  XXX: COMPLETE REWRITE CLEARLY NEEDED.
-*/
+ * Possibly the slowest software blitter.
+ * 
+ * XXX: Doesn't check boundaries. XXX: COMPLETE REWRITE CLEARLY NEEDED.
+ */
 void
 framebuffer_blt (unsigned x, unsigned y, uint32_t color,
 		 void *data, size_t width, size_t height)
@@ -139,7 +138,6 @@ framebuffer_putc (int ch, uint32_t color)
       __lines = fbdesc->height / 16;
       init = 1;
     }
-
   spinlock (&fblock);
   if (c == '\n')
     {
@@ -154,7 +152,6 @@ framebuffer_putc (int ch, uint32_t color)
       spinunlock (&fblock);
       return ch;
     }
-
   if (x >= __cols)
     {
       x = 0;
@@ -166,7 +163,6 @@ framebuffer_putc (int ch, uint32_t color)
 	}
       blank_line (sc, x, y, __cols);
     }
-
   px = 8 * (sc * (__cols + 1) + x);
   py = y * 16;
   x++;

@@ -1,16 +1,16 @@
 /*
-  NUX: A kernel Library.
-  Copyright (C) 2019 Gianluca Guida, glguida@tlbflush.org
-
-  This program is free software; you can redistribute it and/or
-  modify it under the terms of the GNU General Public License
-  as published by the Free Software Foundation; either version 2
-  of the License, or (at your option) any later version.
-
-  See COPYING file for the full license.
-
-  SPDX-License-Identifier:	GPL2.0+
-*/
+ * NUX: A kernel Library. Copyright (C) 2019 Gianluca Guida,
+ * glguida@tlbflush.org
+ * 
+ * This program is free software; you can redistribute it and/or modify it under
+ * the terms of the GNU General Public License as published by the Free
+ * Software Foundation; either version 2 of the License, or (at your option)
+ * any later version.
+ * 
+ * See COPYING file for the full license.
+ * 
+ * SPDX-License-Identifier:	GPL2.0+
+ */
 
 
 #include <assert.h>
@@ -24,6 +24,8 @@
 
 #include "internal.h"
 
+static int cpu_initialized = 0;
+
 static unsigned number_cpus = 0;
 static unsigned cpu_phys_to_id[HAL_MAXCPUS] = { -1, };
 static struct cpu_info *cpus[HAL_MAXCPUS] = { 0, };
@@ -31,7 +33,10 @@ static struct cpu_info *cpus[HAL_MAXCPUS] = { 0, };
 static cpumask_t tlbmap = 0;
 static cpumask_t cpus_active = 0;
 
-/* We use this struct during bootstrap before the cpu infrastructure has been initialised. The CPU number is zero. */
+/*
+ * We use this struct during bootstrap before the cpu infrastructure has been
+ * initialised. The CPU number is zero.
+ */
 struct cpu_info __boot_cpuinfo = { 0, };
 
 static unsigned
@@ -73,13 +78,11 @@ cpu_add (uint16_t physid)
       warn ("CPU Phys ID %02x too big. Skipping.", physid);
       return -1;
     }
-
   if (number_cpus >= HAL_MAXCPUS)
     {
       warn ("Too many CPUs. Skipping.");
       return -1;
     }
-
   id = number_cpus++;
   info ("Found CPU %d (PHYS:%d)", id, physid);
 
@@ -129,7 +132,6 @@ cpu_enter (void)
       cpu_curinfo ()->idle = true;
       hal_cpu_idle ();
     }
-
   info ("CPU %d set as active", cpuid);
 }
 
@@ -157,18 +159,91 @@ cpu_init (void)
   cpu_enter ();
 }
 
-void
-cpu_tlbnmi (void)
+hal_tlbop_t
+cpu_kmap_tlbop (void)
 {
-  /* Called on NMI. No locks whatsoever. */
-  hal_tlbop_t tlbop;
+  /* Called from NMI. */
+  hal_tlbop_t op = HAL_TLBOP_NONE;
   struct cpu_info *ci = cpu_curinfo ();
+  unsigned long kmap_tg_global, kmap_tg, cpu_tg_global, cpu_tg;
 
-  tlbop = __sync_fetch_and_and (&ci->tlbop, 0);
-  if (tlbop != HAL_TLBOP_NONE)
+  kmap_tg_global = kmap_tlbgen_global ();
+  kmap_tg = kmap_tlbgen ();
+  /* SMP barrier for the above. */
+  cpu_tg_global = ci->kmap_tlbgen;
+  cpu_tg = ci->kmap_tlbgen;
+  __insn_barrier ();
+
+  /*
+   * If old != cpu_tg that means that something has modified
+   * ci->kmap_tlbgen between our read at the beginning of the function
+   * and the atomic operation. This means that an NMI handler ran and
+   * flushed the TLB. Do not flush in that case.
+   */
+  if (kmap_tg_global != cpu_tg_global)
     {
-      hal_cpu_tlbop (tlbop);
+      uint64_t old =
+	__sync_val_compare_and_swap (&ci->kmap_tlbgen_global, cpu_tg_global,
+				     kmap_tg_global);
+      if (old == cpu_tg_global)
+	{
+	  /*
+	   * Ignore if someone has flushed the TLBs
+	   * non-globally in the meanwhile.
+	   */
+	  (void) __sync_val_compare_and_swap (&ci->kmap_tlbgen, cpu_tg,
+					      kmap_tg);
+	  op = HAL_TLBOP_FLUSHALL;
+	}
     }
+  else if (kmap_tg != cpu_tg)
+    {
+      uint64_t old =
+	__sync_val_compare_and_swap (&ci->kmap_tlbgen, cpu_tg, kmap_tg);
+      if (old == cpu_tg)
+	{
+	  op = HAL_TLBOP_FLUSHALL;
+	}
+    }
+  else
+    {
+      op = HAL_TLBOP_NONE;
+    }
+
+  return op;
+}
+
+void
+cpu_nmiop (void)
+{
+  struct cpu_info *ci = cpu_curinfo ();
+  unsigned nmiop = ci->nmiop;
+  hal_tlbop_t tlbop = HAL_TLBOP_NONE;
+
+  if (nmiop & NMIOP_FLUSHALL)
+    {
+      /* Update but ignore result. We'll flush globally anyway. */
+      (void) cpu_kmap_tlbop ();
+      tlbop = HAL_TLBOP_FLUSHALL;
+    }
+  else if (nmiop & NMIOP_FLUSH)
+    {
+      /* If kmap requires a global flush, we'll global flush. */
+      if (cpu_kmap_tlbop () == HAL_TLBOP_FLUSHALL)
+	{
+	  tlbop = HAL_TLBOP_FLUSHALL;
+	}
+      else
+	{
+	  tlbop = HAL_TLBOP_FLUSH;
+	}
+    }
+  else if (nmiop & NMIOP_KMAPUPDATE)
+    {
+      tlbop = cpu_kmap_tlbop ();
+    }
+  hal_cpu_tlbop (tlbop);
+
   atomic_cpumask_clear (&tlbmap, cpu_id ());
 }
 
@@ -208,10 +283,11 @@ cpu_activemask (void)
 {
   cpumask_t mask = atomic_cpumask (&cpus_active);
 
-  /* The following might happen when we call a cpu operation at init
-     in PLT (e.g.) and we haven't set up CPUs yet. This should be
-     fixed with init-time ad-hoc code. Use this assert to catch these
-     issues.  */
+  /*
+   * The following might happen when we call a cpu operation at init in
+   * PLT (e.g.) and we haven't set up CPUs yet. This should be fixed
+   * with init-time ad-hoc code. Use this assert to catch these issues.
+   */
   assert (mask != 0);
   return mask;
 }
@@ -314,20 +390,39 @@ cpu_tlbflush_sync (cpumask_t map)
     {
       hal_cpu_relax ();
     }
+  printf ("synced\n");
 }
 
 void
 cpu_tlbflush (int cpu, tlbop_t op, bool sync)
 {
+  unsigned nmiop;
   struct cpu_info *ci = cpu_getinfo (cpu);
 
-  if (ci != NULL)
+  printf ("TLBF%d-", cpu);
+
+  if (ci == NULL)
+    return;
+
+  switch (op)
     {
-      __sync_fetch_and_or (&ci->tlbop, op);
-      atomic_cpumask_set (&tlbmap, cpu);
-      cpu_nmi (cpu);
+    case TLBOP_KMAPUPDATE:
+      nmiop = NMIOP_KMAPUPDATE;
+      break;
+    case TLBOP_FLUSH:
+      nmiop = NMIOP_FLUSH;
+      break;
+    case TLBOP_FLUSHALL:
+      nmiop = NMIOP_FLUSHALL;
+      break;
+    default:
+      nmiop = 0;
+      break;
     }
 
+  __sync_fetch_and_or (&ci->nmiop, nmiop);
+  atomic_cpumask_set (&tlbmap, cpu);
+  cpu_nmi (cpu);
 
   if (sync)
     {
@@ -350,18 +445,18 @@ cpu_tlbflush_mask (cpumask_t mask, tlbop_t op, bool sync)
 void
 cpu_tlbflush_broadcast (tlbop_t op, bool sync)
 {
-  cpumask_t mask = atomic_cpumask (&cpus_active);
-
-  if (mask == 0)
+  if (__predict_true (cpu_initialized))
     {
-      /* PLT code might call kva_map() to map pages at startup. When
-         PLT starts the CPU subsystem hasn't started yet. Flush only
-         the local TLBs.  */
-      hal_cpu_tlbop (op);
+      cpu_tlbflush_mask (cpu_activemask (), op, sync);
     }
   else
     {
-      cpu_tlbflush_mask (cpu_activemask (), op, sync);
+      /*
+       * PLT code might call kva_map() to map pages at startup.
+       * When PLT starts the CPU subsystem hasn't started yet.
+       * Flush only the local TLBs.
+       */
+      hal_cpu_tlbop (op);
     }
 }
 
@@ -414,9 +509,8 @@ cpu_useraccess_copyfrom (void *dst, uaddr_t src, size_t size,
 	  return false;
 	}
       cpu_useraccess_reset ();
-      // pass-through
+      //pass - through
     }
-
   memcpy (dst, (void *) src, size);
 
   cpu_useraccess_end ();
@@ -445,9 +539,8 @@ cpu_useraccess_copyto (uaddr_t dst, void *src, size_t size,
 	  return false;
 	}
       cpu_useraccess_reset ();
-      // pass-through
+      //pass - through
     }
-
   memcpy ((void *) dst, src, size);
 
   cpu_useraccess_end ();
@@ -476,9 +569,8 @@ cpu_useraccess_memset (uaddr_t dst, int ch, size_t size,
 	  return false;
 	}
       cpu_useraccess_reset ();
-      // pass-through
+      //pass - through
     }
-
   memset ((void *) dst, ch, size);
 
   cpu_useraccess_end ();
@@ -501,8 +593,9 @@ cpu_useraccess_signal (uctxt_t * uctxt, unsigned long ip, unsigned long arg,
     return false;
 
   /*
-     We can't be sure of what addresses the HAL will write, and the HAL
-     is reponsible for checking that it's writing to userspace addresses.
+   * We can't be sure of what addresses the HAL will write, and the HAL
+   * is reponsible for checking that it's writing to userspace
+   * addresses.
    */
 
   ci->usrpgfault = 1;
@@ -518,9 +611,8 @@ cpu_useraccess_signal (uctxt_t * uctxt, unsigned long ip, unsigned long arg,
 	  return false;
 	}
       cpu_useraccess_reset ();
-      // pass-through
+      //pass - through
     }
-
   hal_frame_signal (f, ip, arg);
 
   cpu_useraccess_end ();

@@ -1,9 +1,9 @@
 /*
-  NUX: A kernel Library.
-  Copyright (C) 2019 Gianluca Guida <glguida@tlbflush.org>
-
-  SPDX-License-Identifier:	GPL2.0+
-*/
+ * NUX: A kernel Library. Copyright (C) 2019 Gianluca Guida
+ * <glguida@tlbflush.org>
+ * 
+ * SPDX-License-Identifier:	GPL2.0+
+ */
 
 #ifndef _ALLOC_H
 #define _ALLOC_H
@@ -30,15 +30,12 @@
 typedef __ZADDR_T zaddr_t;
 #endif
 
-/* Basic zentry structure must contain these fields:
-
-   struct zentry {
-       LIST_ENTRY(zentry) list;
-       zaddr_t addr;
-       size_t size;
-   };
-
-*/
+/*
+ * Basic zentry structure must contain these fields:
+ * 
+ * struct zentry { LIST_ENTRY(zentry) list; zaddr_t addr; size_t size; };
+ * 
+ */
 
 static inline uint32_t
 lsbit (uint32_t x)
@@ -121,7 +118,6 @@ _zone_findfree (struct zone *zn, size_t size)
       /* Wrong size */
       return NULL;
     }
-
   tmp = zn->bmap >> minbit;
   if (tmp)
     {

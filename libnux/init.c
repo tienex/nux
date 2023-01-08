@@ -1,16 +1,16 @@
 /*
-  NUX: A kernel Library.
-  Copyright (C) 2019 Gianluca Guida, glguida@tlbflush.org
-
-  This program is free software; you can redistribute it and/or
-  modify it under the terms of the GNU General Public License
-  as published by the Free Software Foundation; either version 2
-  of the License, or (at your option) any later version.
-
-  See COPYING file for the full license.
-
-  SPDX-License-Identifier:	GPL2.0+
-*/
+ * NUX: A kernel Library. Copyright (C) 2019 Gianluca Guida,
+ * glguida@tlbflush.org
+ * 
+ * This program is free software; you can redistribute it and/or modify it under
+ * the terms of the GNU General Public License as published by the Free
+ * Software Foundation; either version 2 of the License, or (at your option)
+ * any later version.
+ * 
+ * See COPYING file for the full license.
+ * 
+ * SPDX-License-Identifier:	GPL2.0+
+ */
 
 #include <stdio.h>
 #include <nux/plt.h>
@@ -23,18 +23,18 @@ init_mem (void)
 {
 
   /*
-     Initialise Page Allocator.
+   * Initialise Page Allocator.
    */
   _pfncache_bootstrap ();
   pfninit ();
 
   /*
-     Initialise KVA Allocator.
+   * Initialise KVA Allocator.
    */
   kvainit ();
 
   /*
-     Initialise KMEM.
+   * Initialise KMEM.
    */
   kmeminit ();
 
@@ -42,7 +42,7 @@ init_mem (void)
 
 #if 0
   /*
-     Step 1: Initialise PFN Database.
+   * Step 1: Initialise PFN Database.
    */
   fmap_init ();
 
@@ -51,13 +51,13 @@ init_mem (void)
 
 
   /*
-     Step 3: Enable heap.
+   * Step 3: Enable heap.
    */
   heap_init ();
 
 
   /*
-     Step 4: Initialise Slab Allocator. 
+   * Step 4: Initialise Slab Allocator.
    */
   slab_init ();
 #endif
@@ -95,8 +95,10 @@ void __attribute__((constructor (0))) _nux_sysinit (void)
   /* Initialise memory management */
   init_mem ();
 
-  /* Start the platform. This will discover CPUs and set up interrupt
-     controllers. */
+  /*
+   * Start the platform. This will discover CPUs and set up interrupt
+   * controllers.
+   */
   plt_init ();
 
   /* Init CPUs operations */

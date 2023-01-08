@@ -23,8 +23,8 @@ static asymbol **isym, **osym;
 
 
 /*
-  On disk structure with payload information.
-*/
+ * On disk structure with payload information.
+ */
 struct payload_hdr
 {
 #define PAYLOAD_HDR_MAGIC squoze ("nux-payload")
@@ -133,8 +133,10 @@ _copyhdr_section (bfd * ibfd, asection * isection, void *obfdarg)
 
   osection->compress_status = isection->compress_status;
 
-  /* Set a link between input and output section for successive deeper
-     copies. */
+  /*
+   * Set a link between input and output section for successive deeper
+   * copies.
+   */
   isection->output_section = osection;
   isection->output_offset = 0;
 
@@ -167,7 +169,10 @@ _setreloc_section (bfd * ibfd, asection * isection, void *obfdarg)
   relsize = bfd_get_reloc_upper_bound (ibfd, isection);
   if (relsize < 0)
     {
-      /* Do not complain if the target does not support relocations.  */
+      /*
+       * Do not complain if the target does not support
+       * relocations.
+       */
       if (relsize == -1 && bfd_get_error () == bfd_error_invalid_operation)
 	relsize = 0;
       else
@@ -297,8 +302,8 @@ create_payload_section (bfd * obfd, char *filename,
   s->lma = lma;
 
   /*
-     Set output_section to NULL, to differentiate this new payload in
-     next section walks. We have in fact no input equivalent.
+   * Set output_section to NULL, to differentiate this new payload in
+   * next section walks. We have in fact no input equivalent.
    */
   s->output_section = NULL;
 
@@ -362,13 +367,12 @@ update_payload_section (bfd * obfd, char *filename)
       flagword flags;
 
       flags = SEC_LINKER_CREATED | SEC_LOAD | SEC_HAS_CONTENTS;
-      //        | SEC_READONLY | SEC_DATA;
+      //|SEC_READONLY | SEC_DATA;
 
       s = bfd_make_section_anyway_with_flags (obfd, PAYLOAD_SECTNAME, flags);
       if (s == NULL)
 	bfd_fatal ("can't add payload section");
     }
-
   size = bfd_get_section_size (s);
 
   if (!(bfd_get_section_flags (obfd, s) & SEC_HAS_CONTENTS) || size == 0)
@@ -411,17 +415,17 @@ update_payload_section (bfd * obfd, char *filename)
 }
 
 /*
-  Poor man's objcopy.
-
-  This copies a read-only bfd into a writable bfd, modifying it while
-  creating it.
-
-  Bfd does not support read-modify-write, so this is the only way to
-  modify a binary. Historically, this has been made in binutils by
-  objcopy (that shares code with strip).
-
-  In here we simplify by copying to the same architecture.
-*/
+ * Poor man's objcopy.
+ * 
+ * This copies a read-only bfd into a writable bfd, modifying it while creating
+ * it.
+ * 
+ * Bfd does not support read-modify-write, so this is the only way to modify a
+ * binary. Historically, this has been made in binutils by objcopy (that
+ * shares code with strip).
+ * 
+ * In here we simplify by copying to the same architecture.
+ */
 void
 copy_bfd (bfd * ibfd, bfd * obfd,
 	  char *add_file, unsigned long add_lma, unsigned long add_vma)
@@ -432,20 +436,20 @@ copy_bfd (bfd * ibfd, bfd * obfd,
   asection *psec;
 
   /*
-     Set format.
+   * Set format.
    */
   if (!bfd_set_format (obfd, bfd_get_format (ibfd)))
     bfd_fatal (NULL);
 
   /*
-     Check sections.
+   * Check sections.
    */
   if (ibfd->sections == NULL)
     fatal ("file has no sections");
 
 
   /*
-     Set start and flags.
+   * Set start and flags.
    */
   flags = bfd_get_file_flags (ibfd);
   flags &= bfd_applicable_file_flags (obfd);
@@ -455,7 +459,7 @@ copy_bfd (bfd * ibfd, bfd * obfd,
 
 
   /*
-     Set arch and mach.
+   * Set arch and mach.
    */
   if (bfd_get_arch (ibfd) == bfd_arch_unknown)
     fatal ("unable to recognise the format of the input file");
@@ -467,7 +471,7 @@ copy_bfd (bfd * ibfd, bfd * obfd,
 
 
   /*
-     Copy symbols.
+   * Copy symbols.
    */
   isym = NULL;
   osym = NULL;
@@ -489,10 +493,8 @@ copy_bfd (bfd * ibfd, bfd * obfd,
       free (isym);
       osym = isym = NULL;
     }
-
-
   /*
-     Update sections.
+   * Update sections.
    */
 
   /* Step 1: add sections. */
@@ -657,10 +659,10 @@ main (int argc, char *const argv[])
       if (!bfd_close (obfd))
 	bfd_fatal ("bfd_close");
     }
+  //
+  else if (removeall)
+    //do_removeall(ibfd);
 
-  //  else if (removeall)
-  //    do_removeall (ibfd);
-
-  //  bfd_close (ibfd);
-  close (fd);
+    //bfd_close(ibfd);
+    close (fd);
 }

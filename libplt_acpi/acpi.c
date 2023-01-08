@@ -1,16 +1,16 @@
 /*
-  NUX: A kernel Library.
-  Copyright (C) 2019 Gianluca Guida, glguida@tlbflush.org
-
-  This program is free software; you can redistribute it and/or
-  modify it under the terms of the GNU General Public License
-  as published by the Free Software Foundation; either version 2
-  of the License, or (at your option) any later version.
-
-  See COPYING file for the full license.
-
-  SPDX-License-Identifier:	GPL2.0+
-*/
+ * NUX: A kernel Library. Copyright (C) 2019 Gianluca Guida,
+ * glguida@tlbflush.org
+ * 
+ * This program is free software; you can redistribute it and/or modify it under
+ * the terms of the GNU General Public License as published by the Free
+ * Software Foundation; either version 2 of the License, or (at your option)
+ * any later version.
+ * 
+ * See COPYING file for the full license.
+ * 
+ * SPDX-License-Identifier:	GPL2.0+
+ */
 
 
 #include <string.h>
@@ -44,7 +44,6 @@ load_table (paddr_t pa)
 	 tbl->length);
       return tbl;
     }
-
   sum = 0;
   ptr = (uint8_t *) tbl;
 
@@ -58,7 +57,6 @@ load_table (paddr_t pa)
       kva_unmap (tbl);
       return NULL;
     }
-
   debug ("loaded table '%4.4s' [%6.6s %8.8s rev%d]", tbl->signature,
 	 tbl->oemid, tbl->oemtableid, tbl->oemrevision);
   return tbl;
@@ -177,115 +175,119 @@ acpi_madt_scan (void)
       error ("Could not load ACPI MADT Table.");
       return;
     }
-
   lapic_addr = acpi_madt->lapic;
 
-  /* Search for APICs. Output of this stage is number of Local
-     and I/O APICs and Lapic address. */
-  /* *INDENT-OFF* */
-  madt_foreach({
-      case ACPI_MADT_TYPE_LAPICOVERRIDE:
-	info("ACPI MADT LAPICOVR %"PRIx64, _.lavr->address);
-	lapic_addr = _.lavr->address;
-	break;
-      case ACPI_MADT_TYPE_LAPIC:
-	info("ACPI MADT LAPICOVR %02d %02d %08x",
-	       _.lapic->lapicid, _.lapic->acpiid, _.lapic->flags);
-	if (_.lapic->flags & ACPI_MADT_LAPIC_ENABLED)
-	  nlapic++;
-	break;
-      case ACPI_MADT_TYPE_IOAPIC:
-	info("ACPI MADT IOAPIC %02d %08x %02d",
-	       _.ioapic->ioapicid, _.ioapic->address, _.ioapic->gsibase);
-	nioapic++;
-	break;
-      case ACPI_MADT_TYPE_LSAPIC:
-	info("Warning: LSAPIC ENTRY IGNORED");
-	break;
-      case ACPI_MADT_TYPE_LX2APIC:
-	info("Warning: X2APIC ENTRY IGNORED");
-	break;
-      case ACPI_MADT_TYPE_IOSAPIC:
-	info("Warning: IOSAPIC ENTRY IGNORED");
-	break;
-      default:
-	break;
-    });
-  /* *INDENT-ON* */
+  /*
+   * Search for APICs. Output of this stage is number of Local and I/O
+   * APICs and Lapic address.
+   */
+	/* *INDENT-OFF* */
+	madt_foreach({
+case ACPI_MADT_TYPE_LAPICOVERRIDE:
+		info("ACPI MADT LAPICOVR %" PRIx64, _.lavr->address);
+		lapic_addr = _.lavr->address;
+		break;
+case ACPI_MADT_TYPE_LAPIC:
+		info("ACPI MADT LAPICOVR %02d %02d %08x",
+		     _.lapic->lapicid, _.lapic->acpiid, _.lapic->flags);
+		if (_.lapic->flags & ACPI_MADT_LAPIC_ENABLED)
+			nlapic++;
+		break;
+case ACPI_MADT_TYPE_IOAPIC:
+		info("ACPI MADT IOAPIC %02d %08x %02d",
+		  _.ioapic->ioapicid, _.ioapic->address, _.ioapic->gsibase);
+		nioapic++;
+		break;
+case ACPI_MADT_TYPE_LSAPIC:
+		info("Warning: LSAPIC ENTRY IGNORED");
+		break;
+case ACPI_MADT_TYPE_LX2APIC:
+		info("Warning: X2APIC ENTRY IGNORED");
+		break;
+case ACPI_MADT_TYPE_IOSAPIC:
+		info("Warning: IOSAPIC ENTRY IGNORED");
+		break;
+default:
+		break;
+	});
+	/* *INDENT-ON* */
   if (nlapic == 0)
     {
       info ("Warning: NO LOCAL APICS, ACPI SAYS");
       nlapic = 1;
     }
-
   lapic_init (lapic_addr, nlapic);
   ioapic_init (nioapic);
 
-  /* Add APICs. Local and I/O APICs existence is notified to the
-   * kernel after this. */
+  /*
+   * Add APICs. Local and I/O APICs existence is notified to the kernel
+   * after this.
+   */
   nioapic = 0;
-  /* *INDENT-OFF* */
-  madt_foreach({
-      case ACPI_MADT_TYPE_LAPIC:
-	if (_.lapic->flags & ACPI_MADT_LAPIC_ENABLED)
-	  lapic_add(_.lapic->lapicid, _.lapic->acpiid);
-	break;
-      case ACPI_MADT_TYPE_IOAPIC:
-	ioapic_add(nioapic, _.ioapic->address, _.ioapic->gsibase);
-	nioapic++;
-	break;
-      default:
-	break;
-    });
-  /* *INDENT-ON* */
+	/* *INDENT-OFF* */
+	madt_foreach({
+case ACPI_MADT_TYPE_LAPIC:
+		if (_.lapic->flags & ACPI_MADT_LAPIC_ENABLED)
+			lapic_add(_.lapic->lapicid, _.lapic->acpiid);
+		break;
+case ACPI_MADT_TYPE_IOAPIC:
+		ioapic_add(nioapic, _.ioapic->address, _.ioapic->gsibase);
+		nioapic++;
+		break;
+default:
+		break;
+	});
+	/* *INDENT-ON* */
 
   gsi_init ();
-  /* *INDENT-OFF* */
-  madt_foreach({
-      case ACPI_MADT_TYPE_LAPICNMI:
-	info ("ACPI MADT LAPICNMI LINT%01d FL:%04x PROC:%02d",
-	       _.lanmi->lint, _.lanmi->flags, _.lanmi->acpiid);
-	/* Ignore IntiFlags as NMI vectors ignore
-	 * polarity and trigger */
-	lapic_add_nmi(_.lanmi->acpiid, _.lanmi->lint);
-	break;
-      case ACPI_MADT_TYPE_LX2APICNMI:
-	warn ("LX2APICNMI ENTRY IGNORED");
-	break;
-      case ACPI_MADT_TYPE_INTOVERRIDE:
-	info ("ACPI MADT INTOVR BUS %02d IRQ: %02d GSI: %02d FL: %04x",
-	       _.intovr->bus, _.intovr->irq, _.intovr->gsi, _.intovr->flags);
-	flags = _.intovr->flags;
-	switch (flags & ACPI_MADT_TRIGGER_MASK) {
-	case ACPI_MADT_TRIGGER_RESERVED:
-	  warn ("reserved trigger value");
-	  /* Passtrhough to edge. */
-	case ACPI_MADT_TRIGGER_CONFORMS:
-	  /* ISA is EDGE */
-	case ACPI_MADT_TRIGGER_EDGE:
-	  gsi_setup(_.intovr->gsi, _.intovr->irq, PLT_IRQ_EDGE);
-	  break;
-	case ACPI_MADT_TRIGGER_LEVEL:
-	  switch(flags &ACPI_MADT_POLARITY_MASK) {
-	  case ACPI_MADT_POLARITY_RESERVED:
-	    warn ("Warning: reserved polarity value");
-	    /* Passthrough to Level Low */
-	  case ACPI_MADT_POLARITY_CONFORMS:
-	    /* Default for EISA is LOW */
-	  case ACPI_MADT_POLARITY_ACTIVE_LOW:
-	    gsi_setup(_.intovr->gsi, _.intovr->irq, PLT_IRQ_LVLLO);
-	    break;
-	  case ACPI_MADT_POLARITY_ACTIVE_HIGH:
-	    gsi_setup(_.intovr->gsi, _.intovr->irq, PLT_IRQ_LVLHI);
-	    break;
-	  }
-	  break;
-	}
-	break;
-      default:
-	break;
-    });
-  /* *INDENT-ON* */
+	/* *INDENT-OFF* */
+	madt_foreach({
+case ACPI_MADT_TYPE_LAPICNMI:
+		info("ACPI MADT LAPICNMI LINT%01d FL:%04x PROC:%02d",
+		     _.lanmi->lint, _.lanmi->flags, _.lanmi->acpiid);
+		/*
+		 * Ignore IntiFlags as NMI vectors ignore polarity and
+		 * trigger
+		 */
+		lapic_add_nmi(_.lanmi->acpiid, _.lanmi->lint);
+		break;
+case ACPI_MADT_TYPE_LX2APICNMI:
+		warn("LX2APICNMI ENTRY IGNORED");
+		break;
+case ACPI_MADT_TYPE_INTOVERRIDE:
+		info("ACPI MADT INTOVR BUS %02d IRQ: %02d GSI: %02d FL: %04x",
+		     _.intovr->bus, _.intovr->irq, _.intovr->gsi, _.intovr->flags);
+		flags = _.intovr->flags;
+		switch (flags & ACPI_MADT_TRIGGER_MASK) {
+		case ACPI_MADT_TRIGGER_RESERVED:
+			warn("reserved trigger value");
+			/* Passtrhough to edge. */
+		case ACPI_MADT_TRIGGER_CONFORMS:
+			/* ISA is EDGE */
+		case ACPI_MADT_TRIGGER_EDGE:
+			gsi_setup(_.intovr->gsi, _.intovr->irq, PLT_IRQ_EDGE);
+			break;
+		case ACPI_MADT_TRIGGER_LEVEL:
+			switch (flags & ACPI_MADT_POLARITY_MASK) {
+			case ACPI_MADT_POLARITY_RESERVED:
+				warn("Warning: reserved polarity value");
+				/* Passthrough to Level Low */
+			case ACPI_MADT_POLARITY_CONFORMS:
+				/* Default for EISA is LOW */
+			case ACPI_MADT_POLARITY_ACTIVE_LOW:
+				gsi_setup(_.intovr->gsi, _.intovr->irq, PLT_IRQ_LVLLO);
+				break;
+			case ACPI_MADT_POLARITY_ACTIVE_HIGH:
+				gsi_setup(_.intovr->gsi, _.intovr->irq, PLT_IRQ_LVLHI);
+				break;
+			}
+			break;
+		}
+		break;
+default:
+		break;
+	});
+	/* *INDENT-ON* */
 
   unload_table (acpi_madt);
 }
@@ -301,14 +303,12 @@ acpi_hpet_scan (void)
       warn ("No HPET found");
       return false;
     }
-
   hpet = load_table (pa_hpet_table);
   if (hpet == NULL)
     {
       error ("Error loading HPET table");
       return false;
     }
-
   rc = hpet_init (hpet->address.address);
 
   unload_table (hpet);

@@ -1,0 +1,182 @@
+/Library/Developer/CommandLineTools/usr/bin/make subdirs
+/Library/Developer/CommandLineTools/usr/bin/make -C multiboot all
+/Library/Developer/CommandLineTools/usr/bin/make crti.o crtn.o crtbegin.o crtend.o crt0.o .build/amd64 .build/amd64/main.o .build/amd64/elf.o .build/amd64/payload.o .build/amd64/pae.o .build/amd64/ec.o .build/amd64/mb.o .build/amd64/rsdp.o .build/amd64/crt0-common.o .build/amd64/printf.o .build/amd64/rb.o .build/amd64/strcspn.o .build/amd64/strlcpy.o .build/amd64/atexit.o .build/amd64/_setjmp.o .build/amd64/atomic.o .build/amd64/ffs.o .build/amd64/fls.o .build/amd64/memcmp.o .build/amd64/memcpy.o .build/amd64/memmove.o .build/amd64/memset.o .build/amd64/strlen.o .build/amd64/strncmp.o apxh
+i686-elf-gcc -c -D_EC_SOURCE -I../../libec -m32 -D_ASSEMBLER ../../libec/i386/crti.S -o crti.o
+i686-elf-gcc -c -D_EC_SOURCE -I../../libec -m32 -D_ASSEMBLER ../../libec/i386/crtn.S -o crtn.o
+i686-elf-gcc -c -D_EC_SOURCE -I../../libec -m32 -D_ASSEMBLER ../../libec/i386/crtbegin.S -o crtbegin.o
+i686-elf-gcc -c -D_EC_SOURCE -I../../libec -m32 -D_ASSEMBLER ../../libec/i386/crtend.S -o crtend.o
+i686-elf-gcc -m32 -D_ASSEMBLER -D_EC_SOURCE -I../../libec  -c -o crt0.o crt0.S
+mkdir -p .build/amd64
+i686-elf-gcc -c -D_EC_SOURCE -I../../libec -O7 -g -I../../include -I../src/ -I..//include -fno-delete-null-pointer-checks -Wall -nostdinc -fno-builtin -ffreestanding -fno-strict-aliasing -o .build/amd64/main.o ../src/main.c
+i686-elf-gcc -c -D_EC_SOURCE -I../../libec -O7 -g -I../../include -I../src/ -I..//include -fno-delete-null-pointer-checks -Wall -nostdinc -fno-builtin -ffreestanding -fno-strict-aliasing -o .build/amd64/elf.o ../src/elf.c
+i686-elf-gcc -c -D_EC_SOURCE -I../../libec -O7 -g -I../../include -I../src/ -I..//include -fno-delete-null-pointer-checks -Wall -nostdinc -fno-builtin -ffreestanding -fno-strict-aliasing -o .build/amd64/payload.o ../src/payload.c
+i686-elf-gcc -c -D_EC_SOURCE -I../../libec -O7 -g -I../../include -I../src/ -I..//include -fno-delete-null-pointer-checks -Wall -nostdinc -fno-builtin -ffreestanding -fno-strict-aliasing -o .build/amd64/pae.o ../src/pae.c
+i686-elf-gcc -c -D_EC_SOURCE -I../../libec -O7 -g -I../../include -I../src/ -I..//include -fno-delete-null-pointer-checks -Wall -nostdinc -fno-builtin -ffreestanding -fno-strict-aliasing -o .build/amd64/ec.o ec.c
+i686-elf-gcc -c -D_EC_SOURCE -I../../libec -O7 -g -I../../include -I../src/ -I..//include -fno-delete-null-pointer-checks -Wall -nostdinc -fno-builtin -ffreestanding -fno-strict-aliasing -o .build/amd64/mb.o mb.c
+i686-elf-gcc -c -D_EC_SOURCE -I../../libec -O7 -g -I../../include -I../src/ -I..//include -fno-delete-null-pointer-checks -Wall -nostdinc -fno-builtin -ffreestanding -fno-strict-aliasing -o .build/amd64/rsdp.o rsdp.c
+i686-elf-gcc -c -D_EC_SOURCE -I../../libec -O7 -g -I../../include -I../src/ -I..//include -fno-delete-null-pointer-checks -Wall -nostdinc -fno-builtin -ffreestanding -fno-strict-aliasing -o .build/amd64/crt0-common.o ../../libec/crt0-common.c
+i686-elf-gcc -c -D_EC_SOURCE -I../../libec -O7 -g -I../../include -I../src/ -I..//include -fno-delete-null-pointer-checks -Wall -nostdinc -fno-builtin -ffreestanding -fno-strict-aliasing -o .build/amd64/printf.o ../../libec/printf.c
+i686-elf-gcc -c -D_EC_SOURCE -I../../libec -O7 -g -I../../include -I../src/ -I..//include -fno-delete-null-pointer-checks -Wall -nostdinc -fno-builtin -ffreestanding -fno-strict-aliasing -o .build/amd64/rb.o ../../libec/rb.c
+i686-elf-gcc -c -D_EC_SOURCE -I../../libec -O7 -g -I../../include -I../src/ -I..//include -fno-delete-null-pointer-checks -Wall -nostdinc -fno-builtin -ffreestanding -fno-strict-aliasing -o .build/amd64/strcspn.o ../../libec/strcspn.c
+i686-elf-gcc -c -D_EC_SOURCE -I../../libec -O7 -g -I../../include -I../src/ -I..//include -fno-delete-null-pointer-checks -Wall -nostdinc -fno-builtin -ffreestanding -fno-strict-aliasing -o .build/amd64/strlcpy.o ../../libec/strlcpy.c
+i686-elf-gcc -c -D_EC_SOURCE -I../../libec -O7 -g -I../../include -I../src/ -I..//include -fno-delete-null-pointer-checks -Wall -nostdinc -fno-builtin -ffreestanding -fno-strict-aliasing -o .build/amd64/atexit.o ../../libec/atexit.c
+i686-elf-gcc -c -D_EC_SOURCE -I../../libec -m32 -D_ASSEMBLER -o .build/amd64/_setjmp.o ../../libec/i386/_setjmp.S
+i686-elf-gcc -c -D_EC_SOURCE -I../../libec -m32 -D_ASSEMBLER -o .build/amd64/atomic.o ../../libec/i386/atomic.S
+i686-elf-gcc -c -D_EC_SOURCE -I../../libec -m32 -D_ASSEMBLER -o .build/amd64/ffs.o ../../libec/i386/ffs.S
+i686-elf-gcc -c -D_EC_SOURCE -I../../libec -m32 -D_ASSEMBLER -o .build/amd64/fls.o ../../libec/i386/fls.S
+i686-elf-gcc -c -D_EC_SOURCE -I../../libec -m32 -D_ASSEMBLER -o .build/amd64/memcmp.o ../../libec/i386/memcmp.S
+i686-elf-gcc -c -D_EC_SOURCE -I../../libec -m32 -D_ASSEMBLER -o .build/amd64/memcpy.o ../../libec/i386/memcpy.S
+i686-elf-gcc -c -D_EC_SOURCE -I../../libec -m32 -D_ASSEMBLER -o .build/amd64/memmove.o ../../libec/i386/memmove.S
+i686-elf-gcc -c -D_EC_SOURCE -I../../libec -m32 -D_ASSEMBLER -o .build/amd64/memset.o ../../libec/i386/memset.S
+i686-elf-gcc -c -D_EC_SOURCE -I../../libec -m32 -D_ASSEMBLER -o .build/amd64/strlen.o ../../libec/i386/strlen.S
+i686-elf-gcc -c -D_EC_SOURCE -I../../libec -m32 -D_ASSEMBLER -o .build/amd64/strncmp.o ../../libec/i386/strncmp.S
+i686-elf-gcc crt0.o crti.o crtbegin.o -Tmultiboot.ld -nostdlib \
+	-Wl,--start-group .build/amd64/main.o .build/amd64/elf.o .build/amd64/payload.o .build/amd64/pae.o .build/amd64/ec.o .build/amd64/mb.o .build/amd64/rsdp.o .build/amd64/crt0-common.o .build/amd64/printf.o .build/amd64/rb.o .build/amd64/strcspn.o .build/amd64/strlcpy.o .build/amd64/atexit.o .build/amd64/_setjmp.o .build/amd64/atomic.o .build/amd64/ffs.o .build/amd64/fls.o .build/amd64/memcmp.o .build/amd64/memcpy.o .build/amd64/memmove.o .build/amd64/memset.o .build/amd64/strlen.o .build/amd64/strncmp.o -lgcc -Wl,--end-group \
+	crtn.o crtend.o -o apxh
+/Library/Developer/CommandLineTools/usr/bin/make -C efi all
+/Library/Developer/CommandLineTools/usr/bin/make gnu-efi apxh.efi subdirs
+/Library/Developer/CommandLineTools/usr/bin/make -C ../../contrib/gnu-efi OBJDIR=../../contrib/gnu-efi/amd64 ARCH=x86_64 CC=x86_64-unknown-elf-gcc CFLAGS='-I../../contrib/gnu-efi/inc -I../../contrib/gnu-efi/inc/x86_64 -I../../contrib/gnu-efi/inc/protocol -fno-stack-protector -fPIC -fshort-wchar -mno-red-zone -Wall -nostdinc -ffreestanding -fno-builtin -I../../include -U__STDC_VERSION__'
+mkdir -p lib
+/Library/Developer/CommandLineTools/usr/bin/make -C lib -f /Users/glguida/src/the_nux/contrib/gnu-efi/lib/Makefile SRCDIR=/Users/glguida/src/the_nux/contrib/gnu-efi/lib ARCH=x86_64
+for sdir in ia32 x86_64 ia64 runtime; do mkdir -p $sdir; done
+x86_64-unknown-elf-gcc -I/Users/glguida/src/the_nux/contrib/gnu-efi/lib -I/Users/glguida/src/the_nux/contrib/gnu-efi/lib/../inc -I/Users/glguida/src/the_nux/contrib/gnu-efi/lib/../inc/x86_64 -I/Users/glguida/src/the_nux/contrib/gnu-efi/lib/../inc/protocol -I../../contrib/gnu-efi/inc -I../../contrib/gnu-efi/inc/x86_64 -I../../contrib/gnu-efi/inc/protocol -fno-stack-protector -fPIC -fshort-wchar -mno-red-zone -Wall -nostdinc -ffreestanding -fno-builtin -I../../include -U__STDC_VERSION__ -DCONFIG_x86_64 -DGNU_EFI_USE_MS_ABI -maccumulate-outgoing-args --std=c11 -c boxdraw.c -o boxdraw.o
+ar rv libefi.a boxdraw.o
+a - boxdraw.o
+x86_64-unknown-elf-gcc -I/Users/glguida/src/the_nux/contrib/gnu-efi/lib -I/Users/glguida/src/the_nux/contrib/gnu-efi/lib/../inc -I/Users/glguida/src/the_nux/contrib/gnu-efi/lib/../inc/x86_64 -I/Users/glguida/src/the_nux/contrib/gnu-efi/lib/../inc/protocol -I../../contrib/gnu-efi/inc -I../../contrib/gnu-efi/inc/x86_64 -I../../contrib/gnu-efi/inc/protocol -fno-stack-protector -fPIC -fshort-wchar -mno-red-zone -Wall -nostdinc -ffreestanding -fno-builtin -I../../include -U__STDC_VERSION__ -DCONFIG_x86_64 -DGNU_EFI_USE_MS_ABI -maccumulate-outgoing-args --std=c11 -c smbios.c -o smbios.o
+ar rv libefi.a smbios.o
+a - smbios.o
+x86_64-unknown-elf-gcc -I/Users/glguida/src/the_nux/contrib/gnu-efi/lib -I/Users/glguida/src/the_nux/contrib/gnu-efi/lib/../inc -I/Users/glguida/src/the_nux/contrib/gnu-efi/lib/../inc/x86_64 -I/Users/glguida/src/the_nux/contrib/gnu-efi/lib/../inc/protocol -I../../contrib/gnu-efi/inc -I../../contrib/gnu-efi/inc/x86_64 -I../../contrib/gnu-efi/inc/protocol -fno-stack-protector -fPIC -fshort-wchar -mno-red-zone -Wall -nostdinc -ffreestanding -fno-builtin -I../../include -U__STDC_VERSION__ -DCONFIG_x86_64 -DGNU_EFI_USE_MS_ABI -maccumulate-outgoing-args --std=c11 -c console.c -o console.o
+ar rv libefi.a console.o
+a - console.o
+x86_64-unknown-elf-gcc -I/Users/glguida/src/the_nux/contrib/gnu-efi/lib -I/Users/glguida/src/the_nux/contrib/gnu-efi/lib/../inc -I/Users/glguida/src/the_nux/contrib/gnu-efi/lib/../inc/x86_64 -I/Users/glguida/src/the_nux/contrib/gnu-efi/lib/../inc/protocol -I../../contrib/gnu-efi/inc -I../../contrib/gnu-efi/inc/x86_64 -I../../contrib/gnu-efi/inc/protocol -fno-stack-protector -fPIC -fshort-wchar -mno-red-zone -Wall -nostdinc -ffreestanding -fno-builtin -I../../include -U__STDC_VERSION__ -DCONFIG_x86_64 -DGNU_EFI_USE_MS_ABI -maccumulate-outgoing-args --std=c11 -c crc.c -o crc.o
+ar rv libefi.a crc.o
+a - crc.o
+x86_64-unknown-elf-gcc -I/Users/glguida/src/the_nux/contrib/gnu-efi/lib -I/Users/glguida/src/the_nux/contrib/gnu-efi/lib/../inc -I/Users/glguida/src/the_nux/contrib/gnu-efi/lib/../inc/x86_64 -I/Users/glguida/src/the_nux/contrib/gnu-efi/lib/../inc/protocol -I../../contrib/gnu-efi/inc -I../../contrib/gnu-efi/inc/x86_64 -I../../contrib/gnu-efi/inc/protocol -fno-stack-protector -fPIC -fshort-wchar -mno-red-zone -Wall -nostdinc -ffreestanding -fno-builtin -I../../include -U__STDC_VERSION__ -DCONFIG_x86_64 -DGNU_EFI_USE_MS_ABI -maccumulate-outgoing-args --std=c11 -c data.c -o data.o
+ar rv libefi.a data.o
+a - data.o
+x86_64-unknown-elf-gcc -I/Users/glguida/src/the_nux/contrib/gnu-efi/lib -I/Users/glguida/src/the_nux/contrib/gnu-efi/lib/../inc -I/Users/glguida/src/the_nux/contrib/gnu-efi/lib/../inc/x86_64 -I/Users/glguida/src/the_nux/contrib/gnu-efi/lib/../inc/protocol -I../../contrib/gnu-efi/inc -I../../contrib/gnu-efi/inc/x86_64 -I../../contrib/gnu-efi/inc/protocol -fno-stack-protector -fPIC -fshort-wchar -mno-red-zone -Wall -nostdinc -ffreestanding -fno-builtin -I../../include -U__STDC_VERSION__ -DCONFIG_x86_64 -DGNU_EFI_USE_MS_ABI -maccumulate-outgoing-args --std=c11 -c debug.c -o debug.o
+ar rv libefi.a debug.o
+a - debug.o
+x86_64-unknown-elf-gcc -I/Users/glguida/src/the_nux/contrib/gnu-efi/lib -I/Users/glguida/src/the_nux/contrib/gnu-efi/lib/../inc -I/Users/glguida/src/the_nux/contrib/gnu-efi/lib/../inc/x86_64 -I/Users/glguida/src/the_nux/contrib/gnu-efi/lib/../inc/protocol -I../../contrib/gnu-efi/inc -I../../contrib/gnu-efi/inc/x86_64 -I../../contrib/gnu-efi/inc/protocol -fno-stack-protector -fPIC -fshort-wchar -mno-red-zone -Wall -nostdinc -ffreestanding -fno-builtin -I../../include -U__STDC_VERSION__ -DCONFIG_x86_64 -DGNU_EFI_USE_MS_ABI -maccumulate-outgoing-args --std=c11 -c dpath.c -o dpath.o
+ar rv libefi.a dpath.o
+a - dpath.o
+x86_64-unknown-elf-gcc -I/Users/glguida/src/the_nux/contrib/gnu-efi/lib -I/Users/glguida/src/the_nux/contrib/gnu-efi/lib/../inc -I/Users/glguida/src/the_nux/contrib/gnu-efi/lib/../inc/x86_64 -I/Users/glguida/src/the_nux/contrib/gnu-efi/lib/../inc/protocol -I../../contrib/gnu-efi/inc -I../../contrib/gnu-efi/inc/x86_64 -I../../contrib/gnu-efi/inc/protocol -fno-stack-protector -fPIC -fshort-wchar -mno-red-zone -Wall -nostdinc -ffreestanding -fno-builtin -I../../include -U__STDC_VERSION__ -DCONFIG_x86_64 -DGNU_EFI_USE_MS_ABI -maccumulate-outgoing-args --std=c11 -c error.c -o error.o
+ar rv libefi.a error.o
+a - error.o
+x86_64-unknown-elf-gcc -I/Users/glguida/src/the_nux/contrib/gnu-efi/lib -I/Users/glguida/src/the_nux/contrib/gnu-efi/lib/../inc -I/Users/glguida/src/the_nux/contrib/gnu-efi/lib/../inc/x86_64 -I/Users/glguida/src/the_nux/contrib/gnu-efi/lib/../inc/protocol -I../../contrib/gnu-efi/inc -I../../contrib/gnu-efi/inc/x86_64 -I../../contrib/gnu-efi/inc/protocol -fno-stack-protector -fPIC -fshort-wchar -mno-red-zone -Wall -nostdinc -ffreestanding -fno-builtin -I../../include -U__STDC_VERSION__ -DCONFIG_x86_64 -DGNU_EFI_USE_MS_ABI -maccumulate-outgoing-args --std=c11 -c event.c -o event.o
+ar rv libefi.a event.o
+a - event.o
+x86_64-unknown-elf-gcc -I/Users/glguida/src/the_nux/contrib/gnu-efi/lib -I/Users/glguida/src/the_nux/contrib/gnu-efi/lib/../inc -I/Users/glguida/src/the_nux/contrib/gnu-efi/lib/../inc/x86_64 -I/Users/glguida/src/the_nux/contrib/gnu-efi/lib/../inc/protocol -I../../contrib/gnu-efi/inc -I../../contrib/gnu-efi/inc/x86_64 -I../../contrib/gnu-efi/inc/protocol -fno-stack-protector -fPIC -fshort-wchar -mno-red-zone -Wall -nostdinc -ffreestanding -fno-builtin -I../../include -U__STDC_VERSION__ -DCONFIG_x86_64 -DGNU_EFI_USE_MS_ABI -maccumulate-outgoing-args --std=c11 -c guid.c -o guid.o
+ar rv libefi.a guid.o
+a - guid.o
+x86_64-unknown-elf-gcc -I/Users/glguida/src/the_nux/contrib/gnu-efi/lib -I/Users/glguida/src/the_nux/contrib/gnu-efi/lib/../inc -I/Users/glguida/src/the_nux/contrib/gnu-efi/lib/../inc/x86_64 -I/Users/glguida/src/the_nux/contrib/gnu-efi/lib/../inc/protocol -I../../contrib/gnu-efi/inc -I../../contrib/gnu-efi/inc/x86_64 -I../../contrib/gnu-efi/inc/protocol -fno-stack-protector -fPIC -fshort-wchar -mno-red-zone -Wall -nostdinc -ffreestanding -fno-builtin -I../../include -U__STDC_VERSION__ -DCONFIG_x86_64 -DGNU_EFI_USE_MS_ABI -maccumulate-outgoing-args --std=c11 -c hand.c -o hand.o
+ar rv libefi.a hand.o
+a - hand.o
+x86_64-unknown-elf-gcc -I/Users/glguida/src/the_nux/contrib/gnu-efi/lib -I/Users/glguida/src/the_nux/contrib/gnu-efi/lib/../inc -I/Users/glguida/src/the_nux/contrib/gnu-efi/lib/../inc/x86_64 -I/Users/glguida/src/the_nux/contrib/gnu-efi/lib/../inc/protocol -I../../contrib/gnu-efi/inc -I../../contrib/gnu-efi/inc/x86_64 -I../../contrib/gnu-efi/inc/protocol -fno-stack-protector -fPIC -fshort-wchar -mno-red-zone -Wall -nostdinc -ffreestanding -fno-builtin -I../../include -U__STDC_VERSION__ -DCONFIG_x86_64 -DGNU_EFI_USE_MS_ABI -maccumulate-outgoing-args --std=c11 -c hw.c -o hw.o
+ar rv libefi.a hw.o
+a - hw.o
+x86_64-unknown-elf-gcc -I/Users/glguida/src/the_nux/contrib/gnu-efi/lib -I/Users/glguida/src/the_nux/contrib/gnu-efi/lib/../inc -I/Users/glguida/src/the_nux/contrib/gnu-efi/lib/../inc/x86_64 -I/Users/glguida/src/the_nux/contrib/gnu-efi/lib/../inc/protocol -I../../contrib/gnu-efi/inc -I../../contrib/gnu-efi/inc/x86_64 -I../../contrib/gnu-efi/inc/protocol -fno-stack-protector -fPIC -fshort-wchar -mno-red-zone -Wall -nostdinc -ffreestanding -fno-builtin -I../../include -U__STDC_VERSION__ -DCONFIG_x86_64 -DGNU_EFI_USE_MS_ABI -maccumulate-outgoing-args --std=c11 -c init.c -o init.o
+ar rv libefi.a init.o
+a - init.o
+x86_64-unknown-elf-gcc -I/Users/glguida/src/the_nux/contrib/gnu-efi/lib -I/Users/glguida/src/the_nux/contrib/gnu-efi/lib/../inc -I/Users/glguida/src/the_nux/contrib/gnu-efi/lib/../inc/x86_64 -I/Users/glguida/src/the_nux/contrib/gnu-efi/lib/../inc/protocol -I../../contrib/gnu-efi/inc -I../../contrib/gnu-efi/inc/x86_64 -I../../contrib/gnu-efi/inc/protocol -fno-stack-protector -fPIC -fshort-wchar -mno-red-zone -Wall -nostdinc -ffreestanding -fno-builtin -I../../include -U__STDC_VERSION__ -DCONFIG_x86_64 -DGNU_EFI_USE_MS_ABI -maccumulate-outgoing-args --std=c11 -c lock.c -o lock.o
+ar rv libefi.a lock.o
+a - lock.o
+x86_64-unknown-elf-gcc -I/Users/glguida/src/the_nux/contrib/gnu-efi/lib -I/Users/glguida/src/the_nux/contrib/gnu-efi/lib/../inc -I/Users/glguida/src/the_nux/contrib/gnu-efi/lib/../inc/x86_64 -I/Users/glguida/src/the_nux/contrib/gnu-efi/lib/../inc/protocol -I../../contrib/gnu-efi/inc -I../../contrib/gnu-efi/inc/x86_64 -I../../contrib/gnu-efi/inc/protocol -fno-stack-protector -fPIC -fshort-wchar -mno-red-zone -Wall -nostdinc -ffreestanding -fno-builtin -I../../include -U__STDC_VERSION__ -DCONFIG_x86_64 -DGNU_EFI_USE_MS_ABI -maccumulate-outgoing-args --std=c11 -c misc.c -o misc.o
+ar rv libefi.a misc.o
+a - misc.o
+x86_64-unknown-elf-gcc -I/Users/glguida/src/the_nux/contrib/gnu-efi/lib -I/Users/glguida/src/the_nux/contrib/gnu-efi/lib/../inc -I/Users/glguida/src/the_nux/contrib/gnu-efi/lib/../inc/x86_64 -I/Users/glguida/src/the_nux/contrib/gnu-efi/lib/../inc/protocol -I../../contrib/gnu-efi/inc -I../../contrib/gnu-efi/inc/x86_64 -I../../contrib/gnu-efi/inc/protocol -fno-stack-protector -fPIC -fshort-wchar -mno-red-zone -Wall -nostdinc -ffreestanding -fno-builtin -I../../include -U__STDC_VERSION__ -DCONFIG_x86_64 -DGNU_EFI_USE_MS_ABI -maccumulate-outgoing-args --std=c11 -c print.c -o print.o
+ar rv libefi.a print.o
+a - print.o
+x86_64-unknown-elf-gcc -I/Users/glguida/src/the_nux/contrib/gnu-efi/lib -I/Users/glguida/src/the_nux/contrib/gnu-efi/lib/../inc -I/Users/glguida/src/the_nux/contrib/gnu-efi/lib/../inc/x86_64 -I/Users/glguida/src/the_nux/contrib/gnu-efi/lib/../inc/protocol -I../../contrib/gnu-efi/inc -I../../contrib/gnu-efi/inc/x86_64 -I../../contrib/gnu-efi/inc/protocol -fno-stack-protector -fPIC -fshort-wchar -mno-red-zone -Wall -nostdinc -ffreestanding -fno-builtin -I../../include -U__STDC_VERSION__ -DCONFIG_x86_64 -DGNU_EFI_USE_MS_ABI -maccumulate-outgoing-args --std=c11 -c sread.c -o sread.o
+ar rv libefi.a sread.o
+a - sread.o
+x86_64-unknown-elf-gcc -I/Users/glguida/src/the_nux/contrib/gnu-efi/lib -I/Users/glguida/src/the_nux/contrib/gnu-efi/lib/../inc -I/Users/glguida/src/the_nux/contrib/gnu-efi/lib/../inc/x86_64 -I/Users/glguida/src/the_nux/contrib/gnu-efi/lib/../inc/protocol -I../../contrib/gnu-efi/inc -I../../contrib/gnu-efi/inc/x86_64 -I../../contrib/gnu-efi/inc/protocol -fno-stack-protector -fPIC -fshort-wchar -mno-red-zone -Wall -nostdinc -ffreestanding -fno-builtin -I../../include -U__STDC_VERSION__ -DCONFIG_x86_64 -DGNU_EFI_USE_MS_ABI -maccumulate-outgoing-args --std=c11 -c str.c -o str.o
+ar rv libefi.a str.o
+a - str.o
+x86_64-unknown-elf-gcc -I/Users/glguida/src/the_nux/contrib/gnu-efi/lib -I/Users/glguida/src/the_nux/contrib/gnu-efi/lib/../inc -I/Users/glguida/src/the_nux/contrib/gnu-efi/lib/../inc/x86_64 -I/Users/glguida/src/the_nux/contrib/gnu-efi/lib/../inc/protocol -I../../contrib/gnu-efi/inc -I../../contrib/gnu-efi/inc/x86_64 -I../../contrib/gnu-efi/inc/protocol -fno-stack-protector -fPIC -fshort-wchar -mno-red-zone -Wall -nostdinc -ffreestanding -fno-builtin -I../../include -U__STDC_VERSION__ -DCONFIG_x86_64 -DGNU_EFI_USE_MS_ABI -maccumulate-outgoing-args --std=c11 -c cmdline.c -o cmdline.o
+ar rv libefi.a cmdline.o
+a - cmdline.o
+x86_64-unknown-elf-gcc -I/Users/glguida/src/the_nux/contrib/gnu-efi/lib -I/Users/glguida/src/the_nux/contrib/gnu-efi/lib/../inc -I/Users/glguida/src/the_nux/contrib/gnu-efi/lib/../inc/x86_64 -I/Users/glguida/src/the_nux/contrib/gnu-efi/lib/../inc/protocol -I../../contrib/gnu-efi/inc -I../../contrib/gnu-efi/inc/x86_64 -I../../contrib/gnu-efi/inc/protocol -fno-stack-protector -fPIC -fshort-wchar -mno-red-zone -Wall -nostdinc -ffreestanding -fno-builtin -I../../include -U__STDC_VERSION__ -DCONFIG_x86_64 -DGNU_EFI_USE_MS_ABI -maccumulate-outgoing-args --std=c11 -c runtime/rtlock.c -o runtime/rtlock.o
+ar rv libefi.a runtime/rtlock.o
+a - runtime/rtlock.o
+x86_64-unknown-elf-gcc -I/Users/glguida/src/the_nux/contrib/gnu-efi/lib -I/Users/glguida/src/the_nux/contrib/gnu-efi/lib/../inc -I/Users/glguida/src/the_nux/contrib/gnu-efi/lib/../inc/x86_64 -I/Users/glguida/src/the_nux/contrib/gnu-efi/lib/../inc/protocol -I../../contrib/gnu-efi/inc -I../../contrib/gnu-efi/inc/x86_64 -I../../contrib/gnu-efi/inc/protocol -fno-stack-protector -fPIC -fshort-wchar -mno-red-zone -Wall -nostdinc -ffreestanding -fno-builtin -I../../include -U__STDC_VERSION__ -DCONFIG_x86_64 -DGNU_EFI_USE_MS_ABI -maccumulate-outgoing-args --std=c11 -c runtime/efirtlib.c -o runtime/efirtlib.o
+ar rv libefi.a runtime/efirtlib.o
+a - runtime/efirtlib.o
+x86_64-unknown-elf-gcc -I/Users/glguida/src/the_nux/contrib/gnu-efi/lib -I/Users/glguida/src/the_nux/contrib/gnu-efi/lib/../inc -I/Users/glguida/src/the_nux/contrib/gnu-efi/lib/../inc/x86_64 -I/Users/glguida/src/the_nux/contrib/gnu-efi/lib/../inc/protocol -I../../contrib/gnu-efi/inc -I../../contrib/gnu-efi/inc/x86_64 -I../../contrib/gnu-efi/inc/protocol -fno-stack-protector -fPIC -fshort-wchar -mno-red-zone -Wall -nostdinc -ffreestanding -fno-builtin -I../../include -U__STDC_VERSION__ -DCONFIG_x86_64 -DGNU_EFI_USE_MS_ABI -maccumulate-outgoing-args --std=c11 -c runtime/rtstr.c -o runtime/rtstr.o
+ar rv libefi.a runtime/rtstr.o
+a - runtime/rtstr.o
+x86_64-unknown-elf-gcc -I/Users/glguida/src/the_nux/contrib/gnu-efi/lib -I/Users/glguida/src/the_nux/contrib/gnu-efi/lib/../inc -I/Users/glguida/src/the_nux/contrib/gnu-efi/lib/../inc/x86_64 -I/Users/glguida/src/the_nux/contrib/gnu-efi/lib/../inc/protocol -I../../contrib/gnu-efi/inc -I../../contrib/gnu-efi/inc/x86_64 -I../../contrib/gnu-efi/inc/protocol -fno-stack-protector -fPIC -fshort-wchar -mno-red-zone -Wall -nostdinc -ffreestanding -fno-builtin -I../../include -U__STDC_VERSION__ -DCONFIG_x86_64 -DGNU_EFI_USE_MS_ABI -maccumulate-outgoing-args --std=c11 -c runtime/vm.c -o runtime/vm.o
+ar rv libefi.a runtime/vm.o
+a - runtime/vm.o
+x86_64-unknown-elf-gcc -I/Users/glguida/src/the_nux/contrib/gnu-efi/lib -I/Users/glguida/src/the_nux/contrib/gnu-efi/lib/../inc -I/Users/glguida/src/the_nux/contrib/gnu-efi/lib/../inc/x86_64 -I/Users/glguida/src/the_nux/contrib/gnu-efi/lib/../inc/protocol -I../../contrib/gnu-efi/inc -I../../contrib/gnu-efi/inc/x86_64 -I../../contrib/gnu-efi/inc/protocol -fno-stack-protector -fPIC -fshort-wchar -mno-red-zone -Wall -nostdinc -ffreestanding -fno-builtin -I../../include -U__STDC_VERSION__ -DCONFIG_x86_64 -DGNU_EFI_USE_MS_ABI -maccumulate-outgoing-args --std=c11 -c runtime/rtdata.c -o runtime/rtdata.o
+ar rv libefi.a runtime/rtdata.o
+a - runtime/rtdata.o
+x86_64-unknown-elf-gcc -I/Users/glguida/src/the_nux/contrib/gnu-efi/lib -I/Users/glguida/src/the_nux/contrib/gnu-efi/lib/../inc -I/Users/glguida/src/the_nux/contrib/gnu-efi/lib/../inc/x86_64 -I/Users/glguida/src/the_nux/contrib/gnu-efi/lib/../inc/protocol -I../../contrib/gnu-efi/inc -I../../contrib/gnu-efi/inc/x86_64 -I../../contrib/gnu-efi/inc/protocol -fno-stack-protector -fPIC -fshort-wchar -mno-red-zone -Wall -nostdinc -ffreestanding -fno-builtin -I../../include -U__STDC_VERSION__ -DCONFIG_x86_64 -DGNU_EFI_USE_MS_ABI -maccumulate-outgoing-args --std=c11 -c x86_64/initplat.c -o x86_64/initplat.o
+ar rv libefi.a x86_64/initplat.o
+a - x86_64/initplat.o
+x86_64-unknown-elf-gcc -I/Users/glguida/src/the_nux/contrib/gnu-efi/lib -I/Users/glguida/src/the_nux/contrib/gnu-efi/lib/../inc -I/Users/glguida/src/the_nux/contrib/gnu-efi/lib/../inc/x86_64 -I/Users/glguida/src/the_nux/contrib/gnu-efi/lib/../inc/protocol -I../../contrib/gnu-efi/inc -I../../contrib/gnu-efi/inc/x86_64 -I../../contrib/gnu-efi/inc/protocol -fno-stack-protector -fPIC -fshort-wchar -mno-red-zone -Wall -nostdinc -ffreestanding -fno-builtin -I../../include -U__STDC_VERSION__ -DCONFIG_x86_64 -DGNU_EFI_USE_MS_ABI -maccumulate-outgoing-args --std=c11 -c x86_64/math.c -o x86_64/math.o
+ar rv libefi.a x86_64/math.o
+a - x86_64/math.o
+x86_64-unknown-elf-gcc -I/Users/glguida/src/the_nux/contrib/gnu-efi/lib -I/Users/glguida/src/the_nux/contrib/gnu-efi/lib/../inc -I/Users/glguida/src/the_nux/contrib/gnu-efi/lib/../inc/x86_64 -I/Users/glguida/src/the_nux/contrib/gnu-efi/lib/../inc/protocol -I../../contrib/gnu-efi/inc -I../../contrib/gnu-efi/inc/x86_64 -I../../contrib/gnu-efi/inc/protocol -fno-stack-protector -fPIC -fshort-wchar -mno-red-zone -Wall -nostdinc -ffreestanding -fno-builtin -I../../include -U__STDC_VERSION__ -DCONFIG_x86_64 -DGNU_EFI_USE_MS_ABI -maccumulate-outgoing-args --std=c11 -c x86_64/callwrap.c -o x86_64/callwrap.o
+ar rv libefi.a x86_64/callwrap.o
+a - x86_64/callwrap.o
+x86_64-unknown-elf-gcc  -DCONFIG_x86_64 -DGNU_EFI_USE_MS_ABI -maccumulate-outgoing-args --std=c11  -c -o x86_64/efi_stub.o x86_64/efi_stub.S
+ar rv libefi.a x86_64/efi_stub.o
+a - x86_64/efi_stub.o
+rm hand.o data.o runtime/vm.o runtime/efirtlib.o x86_64/callwrap.o cmdline.o print.o init.o debug.o misc.o console.o str.o x86_64/initplat.o error.o crc.o smbios.o hw.o x86_64/math.o runtime/rtdata.o runtime/rtlock.o guid.o boxdraw.o x86_64/efi_stub.o event.o sread.o runtime/rtstr.o dpath.o lock.o
+mkdir -p gnuefi
+/Library/Developer/CommandLineTools/usr/bin/make -C gnuefi -f /Users/glguida/src/the_nux/contrib/gnu-efi/gnuefi/Makefile SRCDIR=/Users/glguida/src/the_nux/contrib/gnu-efi/gnuefi ARCH=x86_64
+x86_64-unknown-elf-gcc  -DCONFIG_x86_64 -DGNU_EFI_USE_MS_ABI -maccumulate-outgoing-args --std=c11  -c -o crt0-efi-x86_64.o crt0-efi-x86_64.S
+x86_64-unknown-elf-gcc -I/Users/glguida/src/the_nux/contrib/gnu-efi/gnuefi -I/Users/glguida/src/the_nux/contrib/gnu-efi/gnuefi/../inc -I/Users/glguida/src/the_nux/contrib/gnu-efi/gnuefi/../inc/x86_64 -I/Users/glguida/src/the_nux/contrib/gnu-efi/gnuefi/../inc/protocol -I../../contrib/gnu-efi/inc -I../../contrib/gnu-efi/inc/x86_64 -I../../contrib/gnu-efi/inc/protocol -fno-stack-protector -fPIC -fshort-wchar -mno-red-zone -Wall -nostdinc -ffreestanding -fno-builtin -I../../include -U__STDC_VERSION__ -DCONFIG_x86_64 -DGNU_EFI_USE_MS_ABI -maccumulate-outgoing-args --std=c11 -c reloc_x86_64.c -o reloc_x86_64.o
+ar rv libgnuefi.a reloc_x86_64.o
+a - reloc_x86_64.o
+rm reloc_x86_64.o
+x86_64-unknown-elf-gcc -I../../contrib/gnu-efi/inc -I../../contrib/gnu-efi/inc/x86_64 -I../../contrib/gnu-efi/inc/protocol -fno-stack-protector -fPIC -fshort-wchar -mno-red-zone -Wall -nostdinc -ffreestanding -fno-builtin -I../../include -U__STDC_VERSION__   -c -o efi-main.o efi-main.c
+/Library/Developer/CommandLineTools/usr/bin/make -C apxhefi all
+/Library/Developer/CommandLineTools/usr/bin/make crti.o crtn.o crtbegin.o crtend.o apxhefi.apxh_main.o .build/amd64 .build/amd64/printf.o .build/amd64/rb.o .build/amd64/strcspn.o .build/amd64/strlcpy.o .build/amd64/atexit.o .build/amd64/_setjmp.o .build/amd64/ffs.o .build/amd64/fls.o .build/amd64/memcmp.o .build/amd64/memcpy.o .build/amd64/memmove.o .build/amd64/memset.o .build/amd64/strlen.o .build/amd64/strncmp.o .build/amd64/main.o .build/amd64/elf.o .build/amd64/pae.o .build/amd64/efi_md.o apxhefi.o
+x86_64-unknown-elf-gcc -c -D_EC_SOURCE -I../../../libec -D_ASSEMBLER ../../../libec/amd64/crti.S -o crti.o
+x86_64-unknown-elf-gcc -c -D_EC_SOURCE -I../../../libec -D_ASSEMBLER ../../../libec/amd64/crtn.S -o crtn.o
+x86_64-unknown-elf-gcc -c -D_EC_SOURCE -I../../../libec -D_ASSEMBLER ../../../libec/amd64/crtbegin.S -o crtbegin.o
+x86_64-unknown-elf-gcc -c -D_EC_SOURCE -I../../../libec -D_ASSEMBLER ../../../libec/amd64/crtend.S -o crtend.o
+mkdir -p .build/amd64
+x86_64-unknown-elf-gcc -c -D_EC_SOURCE -I../../../libec -O7 -g -I../../../include -Wall -nostdinc -fno-builtin -ffreestanding -fno-strict-aliasing -I../../src/ -I../..//include -fno-delete-null-pointer-checks -fPIC -mno-red-zone -fno-stack-protector -o .build/amd64/printf.o ../../../libec/printf.c
+x86_64-unknown-elf-gcc -c -D_EC_SOURCE -I../../../libec -O7 -g -I../../../include -Wall -nostdinc -fno-builtin -ffreestanding -fno-strict-aliasing -I../../src/ -I../..//include -fno-delete-null-pointer-checks -fPIC -mno-red-zone -fno-stack-protector -o .build/amd64/rb.o ../../../libec/rb.c
+x86_64-unknown-elf-gcc -c -D_EC_SOURCE -I../../../libec -O7 -g -I../../../include -Wall -nostdinc -fno-builtin -ffreestanding -fno-strict-aliasing -I../../src/ -I../..//include -fno-delete-null-pointer-checks -fPIC -mno-red-zone -fno-stack-protector -o .build/amd64/strcspn.o ../../../libec/strcspn.c
+x86_64-unknown-elf-gcc -c -D_EC_SOURCE -I../../../libec -O7 -g -I../../../include -Wall -nostdinc -fno-builtin -ffreestanding -fno-strict-aliasing -I../../src/ -I../..//include -fno-delete-null-pointer-checks -fPIC -mno-red-zone -fno-stack-protector -o .build/amd64/strlcpy.o ../../../libec/strlcpy.c
+x86_64-unknown-elf-gcc -c -D_EC_SOURCE -I../../../libec -O7 -g -I../../../include -Wall -nostdinc -fno-builtin -ffreestanding -fno-strict-aliasing -I../../src/ -I../..//include -fno-delete-null-pointer-checks -fPIC -mno-red-zone -fno-stack-protector -o .build/amd64/atexit.o ../../../libec/atexit.c
+x86_64-unknown-elf-gcc -c -D_EC_SOURCE -I../../../libec -D_ASSEMBLER -o .build/amd64/_setjmp.o ../../../libec/amd64/_setjmp.S
+x86_64-unknown-elf-gcc -c -D_EC_SOURCE -I../../../libec -D_ASSEMBLER -o .build/amd64/ffs.o ../../../libec/amd64/ffs.S
+x86_64-unknown-elf-gcc -c -D_EC_SOURCE -I../../../libec -D_ASSEMBLER -o .build/amd64/fls.o ../../../libec/amd64/fls.S
+x86_64-unknown-elf-gcc -c -D_EC_SOURCE -I../../../libec -D_ASSEMBLER -o .build/amd64/memcmp.o ../../../libec/amd64/memcmp.S
+x86_64-unknown-elf-gcc -c -D_EC_SOURCE -I../../../libec -D_ASSEMBLER -o .build/amd64/memcpy.o ../../../libec/amd64/memcpy.S
+x86_64-unknown-elf-gcc -c -D_EC_SOURCE -I../../../libec -D_ASSEMBLER -o .build/amd64/memmove.o ../../../libec/amd64/memmove.S
+x86_64-unknown-elf-gcc -c -D_EC_SOURCE -I../../../libec -D_ASSEMBLER -o .build/amd64/memset.o ../../../libec/amd64/memset.S
+x86_64-unknown-elf-gcc -c -D_EC_SOURCE -I../../../libec -D_ASSEMBLER -o .build/amd64/strlen.o ../../../libec/amd64/strlen.S
+x86_64-unknown-elf-gcc -c -D_EC_SOURCE -I../../../libec -D_ASSEMBLER -o .build/amd64/strncmp.o ../../../libec/amd64/strncmp.S
+x86_64-unknown-elf-gcc -c -D_EC_SOURCE -I../../../libec -O7 -g -I../../../include -Wall -nostdinc -fno-builtin -ffreestanding -fno-strict-aliasing -I../../src/ -I../..//include -fno-delete-null-pointer-checks -fPIC -mno-red-zone -fno-stack-protector -o .build/amd64/main.o ../../src/main.c
+x86_64-unknown-elf-gcc -c -D_EC_SOURCE -I../../../libec -O7 -g -I../../../include -Wall -nostdinc -fno-builtin -ffreestanding -fno-strict-aliasing -I../../src/ -I../..//include -fno-delete-null-pointer-checks -fPIC -mno-red-zone -fno-stack-protector -o .build/amd64/elf.o ../../src/elf.c
+x86_64-unknown-elf-gcc -c -D_EC_SOURCE -I../../../libec -O7 -g -I../../../include -Wall -nostdinc -fno-builtin -ffreestanding -fno-strict-aliasing -I../../src/ -I../..//include -fno-delete-null-pointer-checks -fPIC -mno-red-zone -fno-stack-protector -o .build/amd64/pae.o ../../src/pae.c
+x86_64-unknown-elf-gcc -c -D_EC_SOURCE -I../../../libec -O7 -g -I../../../include -Wall -nostdinc -fno-builtin -ffreestanding -fno-strict-aliasing -I../../src/ -I../..//include -fno-delete-null-pointer-checks -fPIC -mno-red-zone -fno-stack-protector -o .build/amd64/efi_md.o efi_md.c
+x86_64-unknown-elf-gcc -r -Wl,--defsym=start_apxh=main -o apxhefi.o .build/amd64/printf.o .build/amd64/rb.o .build/amd64/strcspn.o .build/amd64/strlcpy.o .build/amd64/atexit.o .build/amd64/_setjmp.o .build/amd64/ffs.o .build/amd64/fls.o .build/amd64/memcmp.o .build/amd64/memcpy.o .build/amd64/memmove.o .build/amd64/memset.o .build/amd64/strlen.o .build/amd64/strncmp.o .build/amd64/main.o .build/amd64/elf.o .build/amd64/pae.o .build/amd64/efi_md.o -lgcc -nostdlib
+x86_64-unknown-elf-objcopy --redefine-sym main=apxh_main apxhefi.o apxhefi.apxh_main.o
+make[5]: `.build/amd64' is up to date.
+make[5]: `.build/amd64/printf.o' is up to date.
+make[5]: `.build/amd64/rb.o' is up to date.
+make[5]: `.build/amd64/strcspn.o' is up to date.
+make[5]: `.build/amd64/strlcpy.o' is up to date.
+make[5]: `.build/amd64/atexit.o' is up to date.
+make[5]: `.build/amd64/_setjmp.o' is up to date.
+make[5]: `.build/amd64/ffs.o' is up to date.
+make[5]: `.build/amd64/fls.o' is up to date.
+make[5]: `.build/amd64/memcmp.o' is up to date.
+make[5]: `.build/amd64/memcpy.o' is up to date.
+make[5]: `.build/amd64/memmove.o' is up to date.
+make[5]: `.build/amd64/memset.o' is up to date.
+make[5]: `.build/amd64/strlen.o' is up to date.
+make[5]: `.build/amd64/strncmp.o' is up to date.
+make[5]: `.build/amd64/main.o' is up to date.
+make[5]: `.build/amd64/elf.o' is up to date.
+make[5]: `.build/amd64/pae.o' is up to date.
+make[5]: `.build/amd64/efi_md.o' is up to date.
+make[5]: `apxhefi.o' is up to date.
+x86_64-unknown-elf-ld -nostdlib -znocombreloc -T ../../contrib/gnu-efi/gnuefi/elf_x86_64_efi.lds -shared -Bsymbolic -L ../../contrib/gnu-efi/gnuefi -L ../../contrib/gnu-efi/lib  --start-group efi-main.o apxhefi/apxhefi.apxh_main.o -lefi -lgnuefi --end-group -o apxh.so
