@@ -16,7 +16,7 @@ jobs:
     - name: bootstrap
       run: sh bootstrap.sh
     - name: configure
-      run: ./configure ARCH=amd64 TOLCHAIN=x86_64-linux-gnu
+      run: ./configure ARCH=amd64 TOOLCHAIN=x86_64-linux-gnu
     - name: make
       run: make
    
