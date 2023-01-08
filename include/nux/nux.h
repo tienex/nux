@@ -74,7 +74,7 @@ void cpu_ipi_broadcast (uint8_t vct);
 void cpu_tlbflush (int cpu, tlbop_t op, bool sync);
 void cpu_tlbflush_mask (cpumask_t mask, tlbop_t op, bool sync);
 void cpu_tlbflush_broadcast (tlbop_t op, bool sync);
-void cpu_tlbflush_sync_broadcast (void);
+void cpu_tlbflush_broadcast_sync (void);
 
 void timer_alarm (uint32_t time_ns);
 void timer_clear (void);

@@ -366,7 +366,7 @@ cpu_tlbflush_broadcast (tlbop_t op, bool sync)
 }
 
 void
-cpu_tlbflush_sync_broadcast (void)
+cpu_tlbflush_broadcast_sync (void)
 {
   cpu_tlbflush_sync (cpu_activemask ());
 }
