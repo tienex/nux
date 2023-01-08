@@ -66,8 +66,6 @@ int vga_putchar (int c);
 uint64_t rdmsr (uint32_t ecx);
 void wrmsr (uint32_t ecx, uint64_t val);
 
-void do_cleanboot (void);
-
 #endif
 
 #endif

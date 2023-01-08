@@ -184,23 +184,6 @@ get_l1p (void *pmap, unsigned long va, int alloc)
 }
 
 void
-do_cleanboot (void)
-{
-
-  pte_t *ptep;
-
-  /* Unmap everything down the first 512GB */
-  ptep = get_curl4p (0);
-  if (ptep == NULL)
-    return;
-
-  set_pte (ptep, 0);
-  tlbflush_global ();		/* Better safe than. */
-
-  /* XXX: Free the unused page tables. */
-}
-
-void
 pae64_init (void)
 {
   linaddr_l2 =
