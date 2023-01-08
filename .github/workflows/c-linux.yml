@@ -16,7 +16,7 @@ jobs:
     - name: bootstrap
       run: sh bootstrap.sh
     - name: configure
-      run: ./configure
+      run: ./configure ARCH=amd64
     - name: make
       run: make
    
