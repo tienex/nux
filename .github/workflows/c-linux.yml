@@ -1,0 +1,22 @@
+name: C/C++ CI
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v3
+    - name: bootstrap
+      run: sh bootstrap.sh
+    - name: configure
+      run: ./configure ARCH=amd64 TOOLCHAIN=x86_64-linux-gnu
+    - name: make
+      run: make
+   
