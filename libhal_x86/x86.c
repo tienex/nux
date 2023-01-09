@@ -55,6 +55,7 @@ void *hal_stree_ptr;
 unsigned hal_stree_order;
 
 int use_fb;
+int nux_initialized = 0;
 
 static inline __dead void
 __halt (void)
@@ -425,4 +426,5 @@ hal_init_done (void)
 #ifdef __amd64__
   amd64_init_done ();
 #endif
+  nux_initialized = 1;
 }

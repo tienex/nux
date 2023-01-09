@@ -33,7 +33,29 @@ do_xcpt (uint64_t vect, struct hal_frame *f)
 {
   struct hal_frame *rf;
 
-  if (vect == 14)
+  if (__predict_false (!nux_initialized))
+    {
+      printf ("HAL/amd64: EARLY EXCEPION %ld\n", vect);
+      hal_frame_print (f);
+      while (1)
+	asm volatile ("cli; hlt");
+    }
+
+  if (vect == 8)
+    {
+      printf ("HAL/amd64: DOUBLE FAULT EXCEPTION:\n");
+      hal_frame_print (f);
+      while (1)
+	asm volatile ("cli; hlt");
+    }
+  else if (vect == 18)
+    {
+      printf ("HAL/amd64: MACHINE CHECK EXCEPTION:\n");
+      hal_frame_print (f);
+      while (1)
+	asm volatile ("cli; hlt");
+    }
+  else if (vect == 14)
     {
       unsigned xcpterr;
 
