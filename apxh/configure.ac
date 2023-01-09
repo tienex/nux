@@ -26,12 +26,17 @@ fi
 
 AS_CASE([${ARCH}],
 	[i386], [tool_prefix=i686-elf],
-	[amd64], [tool_prefix=x86_64-elf],
+	[amd64], [tool_prefix=x86_64-elf, tool_prefix_32=i686-elf],
 	[*], [AC_MSG_ERROR([Supported Architectures: i386, amd64])])
 
 AC_ARG_VAR([TOOLCHAIN],[toolchain prefix @<:@default: <ARCH>-elf@:>@])
 if test x"${TOOLCHAIN}" != x ; then
    tool_prefix="${TOOLCHAIN}"
+fi
+
+AC_ARG_VAR([TOOLCHAIN32],[32-bit toolchain prefix (for amd64 multiboot) @<:@default: i686-elf@:>@])
+if test x"${TOOLCHAIN32}" != x ; then
+   tool_prefix_32="${TOOLCHAIN32}"
 fi
 
 AC_CHECK_TOOL(CC, ${tool_prefix}-gcc, :)
@@ -71,6 +76,7 @@ AS_IF([test "x$enable_relax" != "xno"],
 	[wflags=''])
 
 AC_SUBST(MACHINE, ${machine})
+AC_SUBST(TOOLCHAIN_32, ${tool_prefix_32})
 AC_SUBST(CONFIGURE_FLAGS, ["${optflags} ${wflags} -I\$(SRCROOT)../include"])
 AC_SUBST(APXH_SUBDIRS, [${apxh_subdirs}])
 
