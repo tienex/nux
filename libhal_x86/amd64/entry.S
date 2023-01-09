@@ -9,12 +9,6 @@
 	jmp _intr_frame_entry
 .endm
 
-/*
-PLAN: 
-	---DONE -- 1. IST stack for #MCE #DOUBLE #NMI
-	2. SWAP GS but then restore the kernel value in it.
-*/
-
 	.globl _syscall_frame_entry
 _syscall_frame_entry:
 	/* Setup RSP, then emulate IRET frame. */

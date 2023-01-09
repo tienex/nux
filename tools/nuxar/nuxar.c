@@ -13,9 +13,8 @@
 
 #include <bfd.h>
 
-#define PROGNAME "nux-payload"
+#define PROGNAME "nuxar"
 #define PAYLOAD_SECTNAME ".nux-payload"
-#define OLDPAYLOAD_SECTNAME ".nux-garbage"
 
 uint64_t squoze (char *);
 char *unsquoze (uint64_t enc);
@@ -96,7 +95,7 @@ _print_payload (bfd * abfd, asection * sect, void *ptr)
 
   bfd_get_section_contents (abfd, sect, &hdr, 0, sizeof (struct payload_hdr));
   char *name = unsquoze (hdr.filename);
-  fprintf (f, "%12s: %-10ld %08llx\n", name, hdr.size, sect->vma);
+  fprintf (f, "%12s: %-10u %08lx\n", name, hdr.size, sect->vma);
   free (name);
 }
 
@@ -231,7 +230,7 @@ _get_max_vma (bfd * ibfd, asection * isection, void *ptr)
 {
   unsigned long vma, *maxvma = (unsigned long *) ptr;
 
-  if (!bfd_get_section_flags (ibfd, isection) & SEC_ALLOC)
+  if (!(bfd_get_section_flags (ibfd, isection) & SEC_ALLOC))
     return;
 
   vma =
@@ -245,7 +244,7 @@ _get_max_lma (bfd * ibfd, asection * isection, void *ptr)
 {
   unsigned long lma, *maxlma = (unsigned long *) ptr;
 
-  if (!bfd_get_section_flags (ibfd, isection) & SEC_ALLOC)
+  if (!(bfd_get_section_flags (ibfd, isection) & SEC_ALLOC))
     return;
 
   lma = isection->lma + bfd_section_size (ibfd, isection);

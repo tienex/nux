@@ -99,7 +99,7 @@ void
 hal_entry_nmi (struct hal_frame *f)
 {
   /* NMI are handled internally in NUX. */
-  cpu_tlbnmi ();
+  cpu_nmiop ();
   /* NMI cannot switch frame. */
 }
 

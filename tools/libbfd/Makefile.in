@@ -16,7 +16,7 @@ BFDSRCS= $(SRCROOT)/contrib/binutils/bfd
 	(cd $(IBERTYSRCS); ./configure && make)
 
 %/bfd.a:
-	(cd $(BFDSRCS); ./configure --disable-plugins && make CFLAGS='-Wno-cast-function-type -Wno-error=overflow')
+	(cd $(BFDSRCS); ./configure --disable-werror --enable-targets=all --disable-plugins && make CFLAGS='-Wno-cast-function-type -Wno-error=overflow')
 
 .PHONY: clean_all
 clean_all:

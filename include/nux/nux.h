@@ -38,6 +38,8 @@ int kmap_mapped (vaddr_t va);
 int kmap_mapped_range (vaddr_t va, size_t size);
 int kmap_ensure (vaddr_t va, unsigned reqprot);
 int kmap_ensure_range (vaddr_t va, size_t size, unsigned reqprot);
+volatile tlbgen_t kmap_tlbgen (void);
+volatile tlbgen_t kmap_tlbgen_global (void);
 void kmap_commit (void);
 
 int kmem_brk (int low, vaddr_t vaddr);

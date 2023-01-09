@@ -276,4 +276,22 @@ _end_idt:
 _stackbtm:
 	.zero 4096
 	.globl _bsp_stacktop
-_bsp_stacktop:	
+_bsp_stacktop:
+
+	.align 4096
+_ist1btm:
+	.zero 4096
+	.globl _ist1_stacktop
+_ist1_stacktop:
+
+	.align 4096
+_ist2btm:
+	.zero 4096
+	.globl _ist2_stacktop
+_ist2_stacktop:
+
+	.align 4096
+_ist3btm:
+	.zero 4096
+	.globl _ist3_stacktop
+_ist3_stacktop:

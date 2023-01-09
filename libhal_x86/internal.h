@@ -49,6 +49,8 @@
 #define halwarn(...) warn(__VA_ARGS__)
 #define halfatal(...) fatal(__VA_ARGS__)
 
+extern int nux_initialized;
+
 void x86_init (void);
 void amd64_init (void);
 void pae64_init (void);
