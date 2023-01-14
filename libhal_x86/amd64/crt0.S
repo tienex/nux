@@ -38,6 +38,15 @@ _start:
 	movabs $_gdtr, %rax
 	lgdt (%rax)
 
+	movabs $_setcs_ljmp, %rax
+	push $KCS
+	movabs $1f, %rax
+	push %rax
+	lretq
+_setcs_ljmp:
+	.quad 1f
+	.word KCS
+1:
 	mov $KDS, %ax
 	mov %ax, %ss
 
