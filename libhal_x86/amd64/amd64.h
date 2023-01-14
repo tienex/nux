@@ -12,7 +12,7 @@
 
 #define KCS 0x08
 #define KDS 0x10
-/* 0x18 Unused */
+#define UCS32 0x1b		/* Unused. */
 #define UDS 0x23
 #define UCS 0x2b
 
