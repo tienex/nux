@@ -349,10 +349,10 @@ kmem_free (int low, vaddr_t vaddr, size_t size)
      If we're freeing up to the BRK, reduce BRK allocation.
    */
   spinlock (&brklock);
-  printf ("(BRK) %lx == %lx ? ", brk[this], limit);
+  kmdbg_printf ("(BRK) %lx == %lx ? ", brk[this], limit);
   if (brk[this] == limit)
     {
-      printf ("BRK set to %lx\n", base);
+      kmdbg_printf ("BRK set to %lx\n", base);
       brk[this] = base;
 
       if (kmem_trim >= TRIM_BRK)
@@ -363,9 +363,9 @@ kmem_free (int low, vaddr_t vaddr, size_t size)
 	  vaddr_t v1 = low ? round_page (base) : trunc_page (base);
 	  vaddr_t v2 = low ? round_page (limit) : trunc_page (limit);
 
-	  printf ("Unmapping from [%lx-%lx] ", v1, v2);
+	  kmdbg_printf ("Unmapping from [%lx-%lx] ", v1, v2);
 	  _ensure_range_unmapped (v1, v2);
-	  printf (" done\n");
+	  kmdbg_printf (" done\n");
 	}
       spinunlock (&brklock);
       goto out;
@@ -403,10 +403,10 @@ kmem_trim_one (unsigned trim_mode)
 void
 kmem_trim_setmode (unsigned trim_mode)
 {
-  printf ("Setting TRIM mode to %d (%s).\n",
-	  trim_mode,
-	  trim_mode == TRIM_NONE ? "off" :
-	  trim_mode == TRIM_BRK ? "BRK" : "unknown");
+  kmdbg_printf ("Setting TRIM mode to %d (%s).\n",
+		trim_mode,
+		trim_mode == TRIM_NONE ? "off" :
+		trim_mode == TRIM_BRK ? "BRK" : "unknown");
 
   spinlock (&brklock);
   kmem_trim = trim_mode;
@@ -430,5 +430,5 @@ kmeminit (void)
   zone_init (kmemz + HI, 0);
   spinlock_init (lockz + HI);
 
-  printf ("%s KMEM from %08lx to %08lx\n", KMEM_TYPE, brk[LO], brk[HI]);
+  kmdbg_printf ("%s KMEM from %08lx to %08lx\n", KMEM_TYPE, brk[LO], brk[HI]);
 }
