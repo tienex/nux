@@ -88,20 +88,17 @@ framebuffer_blt (unsigned x, unsigned y, uint32_t color,
     }
 }
 
-#if 0
-static uint8_t scrawl_fnt[];
-#endif
-#if 0
-static uint8_t s_fnt[];
-#endif
-static uint8_t t_fnt[];
-
+#define S_FONT 0
+#define T_FONT 1
+#define SCRAWL_FONT 2
+#define FBFONT SCRAWL_FONT
+static uint8_t fontdata[];
 static unsigned __cols = 79;
 
 void
 framebuffer_putc_xy (unsigned x, unsigned y, uint32_t color, unsigned char c)
 {
-  void *data = t_fnt + c * 16;
+  void *data = fontdata + c * 16;
 
   framebuffer_blt (x, y, color, data, 8, 16);
 }
@@ -175,7 +172,8 @@ framebuffer_putc (int ch, uint32_t color)
   return ch;
 }
 
-static uint8_t t_fnt[] = {
+#if FBFONT == T_FONT
+static uint8_t fontdata[] = {
   0x00,
   0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
   0x00, 0x00, 0x00, 0x00,
@@ -690,9 +688,10 @@ static uint8_t t_fnt[] = {
   0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
   0x00, 0x00, 0x00,
 };
+#endif
 
-#if 0
-static uint8_t s_fnt[] = {
+#if FBFONT == S_FONT
+static uint8_t fontdata[] = {
   0x00,
   0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
   0x00, 0x00, 0x00, 0x00,
@@ -1209,8 +1208,8 @@ static uint8_t s_fnt[] = {
 };
 #endif
 
-#if 0
-static uint8_t scrawl_fnt[] = {
+#if FBFONT == SCRAWL_FONT
+static uint8_t fontdata[] = {
   0x00,
   0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
   0x00, 0x00, 0x00, 0x00,
