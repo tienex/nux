@@ -23,6 +23,12 @@
 struct hal_frame *
 do_nmi (struct hal_frame *f)
 {
+
+  if (__predict_false (!nux_initialized))
+    {
+      /* Spurious NMIs happen. */
+      return f;
+    }
   hal_entry_nmi (f);
   /* NMI cannot switch current frame. */
   return f;

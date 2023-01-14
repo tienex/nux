@@ -122,15 +122,16 @@ cpu_enter (void)
   cpu = cpu_getinfo (cpuid);
   hal_cpu_setdata ((void *) cpu);
 
-  /* Mark as active */
-  atomic_cpumask_set (&cpus_active, cpuid);
-
   /* Setup CPU idle loop. */
   if (setjmp (cpu->idlejmp))
     {
       cpu_curinfo ()->idle = true;
       hal_cpu_idle ();
     }
+
+  /* Mark as active */
+  atomic_cpumask_set (&cpus_active, cpuid);
+  /* From now on we can receive NMIs. */
 
   info ("CPU %d set as active", cpuid);
 }
