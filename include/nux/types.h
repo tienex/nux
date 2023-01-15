@@ -72,38 +72,6 @@ typedef unsigned long tlbgen_t;
 #define _TG_WRAP(_t) ((_t) & ((1L << _TG_WSHIFT) - 1))
 #define _TG_GCNT(_t) ((_t) >> _TG_WSHIFT)
 
-/*
- * Return <0 if a < b. 0 if a == b, >0 if a > b or wrapcounts differ.
- */
-static inline int
-tlbgen_cmp (tlbgen_t a, tlbgen_t b)
-{
-  if (_TG_WRAP (a) == _TG_WRAP (b))
-    {
-      if (a < b)
-	return -1;
-      else if (a > b)
-	return 1;
-      else
-	return 0;
-    }
-  else
-    return 1;
-}
-
-/*
-
-   tlbop_t
-
-   TLBs flushing operations
-*/
-enum tlbop
-{
-  TLBOP_KMAPUPDATE,		/* Only flush if KMAP needs update. */
-  TLBOP_FLUSH,			/* Only flush non-global TLBs mappings. */
-  TLBOP_FLUSHALL		/* Flush all TLBs including globals. */
-};
-typedef enum tlbop tlbop_t;
 
 /* 
    umap_t

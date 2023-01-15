@@ -12,6 +12,35 @@
 #include <nux/types.h>
 #include <nux/hal.h>
 
+/*
+  Kernel TLB status.
+*/
+struct ktlb
+{
+  tlbgen_t global;		/* Global mappings. */
+  tlbgen_t normal;		/* Non-global mappings. */
+};
+
+/*
+  Return <0 if a < b. 0 if a == b, >0 if a > b or wrapcounts differ.
+*/
+static inline int
+tlbgen_cmp (tlbgen_t a, tlbgen_t b)
+{
+  if (_TG_WRAP (a) == _TG_WRAP (b))
+    {
+      if (a < b)
+	return -1;
+      else if (a > b)
+	return 1;
+      else
+	return 0;
+    }
+  else
+    return 1;
+}
+
+
 /* 
    CPU management
 */
@@ -34,6 +63,13 @@ struct cpu_info
   /* TLB generation for kmap. Accessed from NMI: volatile. */
   volatile tlbgen_t kmap_tlbgen_global;
   volatile tlbgen_t kmap_tlbgen;
+
+  /* NMI operations. */
+#define NMIOP_TLBFLUSH 1	/* Flush TLBs. */
+  unsigned nmiop;
+
+  /* TLB status for current CPU. */
+  volatile struct ktlb ktlb;
 
   /*
      User copy setjmp/longjmp for pagefaults.
@@ -65,6 +101,10 @@ bool cpu_wasidle (void);
 void cpu_clridle (void);
 void cpu_nmiop (void);
 void cpu_useraccess_checkpf (uaddr_t addr, hal_pfinfo_t info);
+
+void ktlbgen_markdirty (hal_tlbop_t op);
+tlbgen_t ktlbgen_global (void);
+tlbgen_t ktlbgen_normal (void);
 
 /*
   User Context

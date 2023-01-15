@@ -16,32 +16,17 @@
 #include <nux/hal.h>
 #include <nux/nux.h>
 
+#include "internal.h"
+
 /*
   Low level routines to handle kernel mappings.
 
   Unlocked, unflushing, use with care.
 */
-static volatile tlbgen_t _tlbgen, _tlbgen_global;
 
 void
 kmapinit (void)
 {
-}
-
-static void
-_kmap_dirty (hal_tlbop_t op)
-{
-  switch (op)
-    {
-    case HAL_TLBOP_FLUSHALL:
-      (void) __sync_fetch_and_add (&_tlbgen_global, 1);
-      break;
-    case HAL_TLBOP_FLUSH:
-      (void) __sync_fetch_and_add (&_tlbgen, 1);
-      break;
-    default:
-      break;
-    }
 }
 
 static pfn_t
@@ -56,7 +41,7 @@ _kmap_map (vaddr_t va, pfn_t pfn, unsigned prot, const int alloc)
 
   assert (hal_pmap_getl1p (NULL, va, alloc, &l1p));
   oldl1e = hal_pmap_setl1e (NULL, l1p, l1e);
-  _kmap_dirty (hal_pmap_tlbop (oldl1e, l1e));
+  ktlbgen_markdirty (hal_pmap_tlbop (oldl1e, l1e));
 
   hal_pmap_unboxl1e (oldl1e, &oldpfn, &oldprot);
 
@@ -153,7 +138,7 @@ kmap_ensure (vaddr_t va, unsigned reqprot)
     }
   l1e = hal_pmap_boxl1e (pfn, reqprot);
   oldl1e = hal_pmap_setl1e (NULL, l1p, l1e);
-  _kmap_dirty (hal_pmap_tlbop (oldl1e, l1e));
+  ktlbgen_markdirty (hal_pmap_tlbop (oldl1e, l1e));
   ret = 0;
 
 out:
@@ -173,20 +158,6 @@ kmap_ensure_range (vaddr_t va, size_t size, unsigned reqprot)
       return -1;
 
   return 0;
-}
-
-volatile tlbgen_t
-kmap_tlbgen (void)
-{
-  /* smp barrier */
-  return _tlbgen;
-}
-
-volatile tlbgen_t
-kmap_tlbgen_global (void)
-{
-  /* smp barrier */
-  return _tlbgen_global;
 }
 
 void
