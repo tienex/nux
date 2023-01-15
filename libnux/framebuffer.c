@@ -29,6 +29,8 @@ framebuffer_init (struct fbdesc *desc)
 
   assert (desc->type == FB_RGB);
   fbdesc = desc;
+  memset ((void *) (uintptr_t) fbdesc->addr, 0, fbdesc->size);
+  framebuffer_reset ();
   return 1;
 }
 
@@ -88,12 +90,38 @@ framebuffer_blt (unsigned x, unsigned y, uint32_t color,
     }
 }
 
+
+/*
+  Framebuffer character handling.
+*/
+static volatile int fb_sc = 0;
+static volatile int fb_x = 0;
+static volatile int fb_y = 0;
+
+#define FB_ROWCHARS 79
+static int fb_scrcols;		/* Split screen in different columns. */
+static int fb_scrrows;		/* How many rows per screen column. */
+
+
+/*
+  This unlocks the framebuffer if present.
+*/
+void
+framebuffer_reset (void)
+{
+  spinlock_init (&fblock);
+  fb_scrcols = (fbdesc->width / 8) / (FB_ROWCHARS + 1);
+  fb_scrcols = fb_scrcols == 0 ? 1 : fb_scrcols;
+  fb_scrrows = fbdesc->height / 16;
+}
+
+
 #define S_FONT 0
 #define T_FONT 1
 #define SCRAWL_FONT 2
 #define FBFONT SCRAWL_FONT
 static uint8_t fontdata[];
-static unsigned __cols = 79;
+
 
 void
 framebuffer_putc_xy (unsigned x, unsigned y, uint32_t color, unsigned char c)
@@ -110,65 +138,80 @@ blank_line (unsigned c, unsigned x, unsigned y, unsigned chars)
 
   for (i = 0; i < chars; i++)
     {
-      framebuffer_putc_xy (8 * (c * (__cols + 1) + x + i), 16 * y, 0, '\0');
+      framebuffer_putc_xy (8 * (c * (FB_ROWCHARS + 1) + x + i), 16 * y, 0,
+			   '\0');
     }
+}
+
+static void
+newline (void)
+{
+  int sc, x, y;
+
+  spinlock (&fblock);
+  fb_x = 0;
+  fb_y += 1;
+  if (fb_y >= fb_scrrows)
+    {
+      fb_y = 0;
+      fb_sc = (fb_sc + 1) % fb_scrcols;
+    }
+
+  x = fb_x;
+  y = fb_y;
+  sc = fb_sc;
+  spinunlock (&fblock);
+
+  blank_line (sc, x, y, FB_ROWCHARS);
+}
+
+static void
+allocchar (int *scp, int *xp, int *yp)
+{
+  int sc, x, y;
+
+  spinlock (&fblock);
+  if (fb_x >= FB_ROWCHARS)
+    {
+      fb_x = 0;
+      fb_y += 1;
+      if (fb_y >= fb_scrrows)
+	{
+	  fb_y = 0;
+	  fb_sc = (fb_sc + 1) % fb_scrcols;
+	}
+      blank_line (fb_sc, fb_x, fb_y, FB_ROWCHARS);
+    }
+  sc = fb_sc;
+  x = fb_x;
+  y = fb_y;
+  fb_x++;
+  spinunlock (&fblock);
+
+  *scp = sc;
+  *xp = x;
+  *yp = y;
 }
 
 int
 framebuffer_putc (int ch, uint32_t color)
 {
-  static int init = 0;
-  static int sc = 0;		/* Screen column. */
-  static int x = 0;
-  static int y = 0;
-  static unsigned __scrcol = 0;
-  static unsigned __lines = 0;;
+  int x, y, sc;
   unsigned px, py;
   unsigned char c = (unsigned char) ch;
 
 
-  if (!init)
-    {
-      spinlock_init (&fblock);
-      memset ((void *) (uintptr_t) fbdesc->addr, 0, fbdesc->size);
-      __scrcol = (fbdesc->width / 8) / (__cols + 1);
-      __scrcol = __scrcol == 0 ? 1 : __scrcol;
-      __lines = fbdesc->height / 16;
-      init = 1;
-    }
-
-  spinlock (&fblock);
   if (c == '\n')
     {
-      x = 0;
-      y += 1;
-      if (y >= __lines)
-	{
-	  y = 0;
-	  sc = (sc + 1) % __scrcol;
-	}
-      blank_line (sc, x, y, __cols);
-      spinunlock (&fblock);
+      newline ();
       return ch;
     }
 
-  if (x >= __cols)
-    {
-      x = 0;
-      y += 1;
-      if (y >= __lines)
-	{
-	  y = 0;
-	  sc = (sc + 1) % __scrcol;
-	}
-      blank_line (sc, x, y, __cols);
-    }
+  allocchar (&sc, &x, &y);
 
-  px = 8 * (sc * (__cols + 1) + x);
+  px = 8 * (sc * (FB_ROWCHARS + 1) + x);
   py = y * 16;
-  x++;
   framebuffer_putc_xy (px, py, color, c);
-  spinunlock (&fblock);
   return ch;
 }
 

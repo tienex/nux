@@ -40,4 +40,6 @@ int framebuffer_putc (int ch, uint32_t color);
 void framebuffer_putc_xy (unsigned x, unsigned y, uint32_t color,
 			  unsigned char c);
 
+void framebuffer_reset (void);
+
 #endif
