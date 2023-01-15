@@ -81,6 +81,9 @@ void cpu_tlbflush_mask (cpumask_t mask);
 void cpu_tlbflush_broadcast (void);
 void cpu_tlbflush_broadcast_sync (void);
 
+void cpu_ktlb_update (void);
+void cpu_ktlb_reach (tlbgen_t target);
+
 void cpu_stop (int cpu);
 void cpu_stop_mask (cpumask_t mask);
 void cpu_stop_broadcast (void);

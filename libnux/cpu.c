@@ -354,7 +354,7 @@ cpu_idle (void)
   Can be called by NMI.
 */
 void
-cpu_ktlb_update ()
+cpu_ktlb_update (void)
 {
   struct cpu_info *ci = cpu_curinfo ();
   tlbgen_t cpu_global, cpu_normal;
@@ -390,9 +390,17 @@ cpu_ktlb_update ()
 void
 cpu_ktlb_reach (tlbgen_t target)
 {
-  tlbgen_t cur = ktlbgen_normal ();
+  if (__predict_false(!(nux_status () & NUXST_OKCPU)))
+    {
+      /* early boot: just flush the tlb. */
+      hal_cpu_tlbop (HAL_TLBOP_FLUSH);
+      return;
+    }
+  struct cpu_info *ci = cpu_curinfo ();
+  tlbgen_t cpu_ktlb;
+  __atomic_load (&ci->ktlb.normal, &cpu_ktlb, __ATOMIC_RELAXED);
 
-  if (tlbgen_cmp (target, cur) > 0)
+  if (tlbgen_cmp (target, cpu_ktlb) > 0)
     {
       cpu_ktlb_update ();
     }
