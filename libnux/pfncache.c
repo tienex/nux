@@ -25,10 +25,13 @@ static pfn_t max_dmap_pfn;
 static struct cache cache;
 static struct slot *slots;
 
+static volatile tlbgen_t pfnc_tlbgen = 0;
+
 
 static void
 _pfncache_fill (unsigned slot, uintptr_t old, uintptr_t new)
 {
+  tlbgen_t tlbgen;
   vaddr_t va = (vaddr_t) pfncache_base + ((vaddr_t) slot << PAGE_SHIFT);
 
   /*
@@ -40,18 +43,28 @@ _pfncache_fill (unsigned slot, uintptr_t old, uintptr_t new)
      PFN Cache's pagetables must be allocated during boot.
    */
   kmap_map_noalloc (va, new, HAL_PTE_P | HAL_PTE_W);
-  kmap_commit ();
+
+  /*
+    Save the new TLB generation target for pfn cache.
+  */
+  tlbgen = ktlbgen_normal();
+  __atomic_store(&pfnc_tlbgen, &tlbgen, __ATOMIC_RELEASE);
 }
 
 void *
 pfn_get (pfn_t pfn)
 {
   uintptr_t slot;
+  tlbgen_t target;
 
   if (pfn < max_dmap_pfn)
     return (void *) (hal_virtmem_dmapbase () + (pfn << PAGE_SHIFT));
 
   slot = cache_get (&cache, pfn);
+
+  /* Update tlb if we have stale entries in our PFN cache. */
+  __atomic_load(&pfnc_tlbgen, &target, __ATOMIC_ACQUIRE);
+  cpu_ktlb_reach (target);
   return (void *) pfncache_base + (slot << PAGE_SHIFT);
 }
 
