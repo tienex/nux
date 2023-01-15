@@ -194,8 +194,8 @@ struct kmem_tail
   unsigned long magic;
 };
 
-//#define kmdbg_printf(...) printf(__VA_ARGS__)
-#define kmdbg_printf(...)
+#define kmdbg_printf(...) printf(__VA_ARGS__)
+//#define kmdbg_printf(...)
 
 #define ZONE_HEAD_MAGIC 0x616001DA
 #define ZONE_TAIL_MAGIC 0x616001DA

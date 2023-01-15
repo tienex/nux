@@ -13,6 +13,17 @@
 #include <nux/hal.h>
 
 /*
+  NUX 'status' flags.
+*/
+
+#define NUXST_OKPLT   1		/* Platform initialized. */
+#define NUXST_OKCPU   2		/* BSP is initialized and CPU operations are available. */
+#define NUXST_RUNNING 4		/* NUX is fully initialized. */
+#define NUXST_PANIC   128	/* NUX is in panic mode and shutting down. */
+uint8_t nux_status (void);
+uint8_t nux_status_setfl (uint8_t flags);
+
+/*
   Kernel TLB status.
 */
 struct ktlb
@@ -55,14 +66,6 @@ struct cpu_info
   jmp_buf idlejmp;
   bool idle;
 
-#define NMIOP_KMAPUPDATE 1	/* Only update KMAP TLBs */
-#define NMIOP_FLUSH 2		/* Force TLB flush. Will flush globally if
-				   KMAP requires it. */
-#define NMIOP_FLUSHALL 4	/* Force TLB flush globally. */
-  volatile unsigned nmiop;
-  /* TLB generation for kmap. Accessed from NMI: volatile. */
-  volatile tlbgen_t kmap_tlbgen_global;
-  volatile tlbgen_t kmap_tlbgen;
 
   /* NMI operations. */
 #define NMIOP_TLBFLUSH 1	/* Flush TLBs. */
@@ -101,6 +104,7 @@ bool cpu_wasidle (void);
 void cpu_clridle (void);
 void cpu_nmiop (void);
 void cpu_useraccess_checkpf (uaddr_t addr, hal_pfinfo_t info);
+unsigned cpu_try_id (void);
 
 void ktlbgen_markdirty (hal_tlbop_t op);
 tlbgen_t ktlbgen_global (void);

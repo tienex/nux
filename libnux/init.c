@@ -18,6 +18,23 @@
 
 #include "internal.h"
 
+volatile uint8_t _nux_stflags = 0;
+
+uint8_t
+nux_status (void)
+{
+  uint8_t st;
+  __atomic_load (&_nux_stflags, &st, __ATOMIC_ACQUIRE);
+  return st;
+}
+
+uint8_t
+nux_status_setfl (uint8_t flags)
+{
+  return __atomic_fetch_or (&_nux_stflags, flags, __ATOMIC_ACQ_REL);
+}
+
+
 static void
 init_mem (void)
 {
@@ -99,14 +116,21 @@ void __attribute__((constructor (0))) _nux_sysinit (void)
      controllers. */
   plt_init ();
 
+  nux_status_setfl (NUXST_OKPLT);
+
   /* Init CPUs operations */
   cpu_init ();
+
+  /* Now safe to use CPU operations. */
+  nux_status_setfl (NUXST_OKCPU);
 
   /* Start all CPUs. */
   cpu_startall ();
 
   /* Signal HAL that we're done initialising. */
   hal_init_done ();
+
+  nux_status_setfl (NUXST_RUNNING);
 }
 
 void

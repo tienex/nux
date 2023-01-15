@@ -24,13 +24,7 @@ struct hal_frame *
 do_nmi (struct hal_frame *f)
 {
 
-  if (__predict_false (!nux_initialized))
-    {
-      /* Spurious NMIs happen. */
-      return f;
-    }
   hal_entry_nmi (f);
-  /* NMI cannot switch current frame. */
   return f;
 }
 
@@ -39,27 +33,13 @@ do_xcpt (uint64_t vect, struct hal_frame *f)
 {
   struct hal_frame *rf;
 
-  if (__predict_false (!nux_initialized))
-    {
-      printf ("HAL/amd64: EARLY EXCEPION %ld\n", vect);
-      hal_frame_print (f);
-      while (1)
-	asm volatile ("cli; hlt");
-    }
-
   if (vect == 8)
     {
-      printf ("HAL/amd64: DOUBLE FAULT EXCEPTION:\n");
-      hal_frame_print (f);
-      while (1)
-	asm volatile ("cli; hlt");
+      nux_panic ("DOUBLE FAULT EXCEPTION:\n", f);
     }
   else if (vect == 18)
     {
-      printf ("HAL/amd64: MACHINE CHECK EXCEPTION:\n");
-      hal_frame_print (f);
-      while (1)
-	asm volatile ("cli; hlt");
+      nux_panic ("MACHINE CHECK EXCEPTION:\n", f);
     }
   else if (vect == 14)
     {
@@ -81,7 +61,6 @@ do_xcpt (uint64_t vect, struct hal_frame *f)
 
       if (f->intr.err & 4)
 	xcpterr |= HAL_PF_INFO_USER;
-
       rf = hal_entry_pf (f, f->intr.cr2, xcpterr);
     }
   else

@@ -17,10 +17,35 @@
 #include <nux/hal.h>
 #include <nux/nux.h>
 
+#include "internal.h"
+
 int
 putchar (int c)
 {
   return hal_putchar (c);
+}
+
+void __dead
+nux_panic (const char *message, struct hal_frame *f)
+{
+  if (nux_status_setfl (NUXST_PANIC) & NUXST_PANIC)
+    {
+      /* System was already in panic. Just halt the CPU. */
+      hal_cpu_halt ();
+      /* Unreachable. */
+    }
+
+  /* STOP all CPUs except this one. */
+  cpu_nmi_allbutself ();
+
+  hal_panic (cpu_try_id (), message, f);
+}
+
+void __dead
+abort (void)
+{
+  while (1)
+    hal_debug ();
 }
 
 void __dead
@@ -34,12 +59,7 @@ exit (int status)
     {
       cpu_idle ();
     }
-  else
-    {
-      hal_cpu_halt ();
-      /* Full-blown panic */
-    }
 
 
-  hal_cpu_halt ();
+  abort ();
 }

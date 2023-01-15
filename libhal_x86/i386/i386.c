@@ -143,7 +143,7 @@ hal_pcpu_add (unsigned pcpuid, struct hal_cpu *haldata)
 }
 
 uint64_t
-hal_pcpu_prepare (unsigned pcpu)
+hal_pcpu_startaddr (unsigned pcpu)
 {
   if (pcpu >= MAXCPUS)
     return PADDR_INVALID;

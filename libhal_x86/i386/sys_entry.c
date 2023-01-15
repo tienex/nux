@@ -50,6 +50,7 @@ static char *exceptions[] = {
 struct hal_frame *
 do_nmi (uint32_t vect, struct hal_frame *f)
 {
+
   hal_entry_nmi (f);
   return f;
 }
@@ -59,7 +60,15 @@ do_xcpt (uint32_t vect, struct hal_frame *f)
 {
   struct hal_frame *rf;
 
-  if (vect == 14)
+  if (vect == 8)
+    {
+      nux_panic ("DOUBLE FAULT EXCEPTION:\n", f);
+    }
+  else if (vect == 18)
+    {
+      nux_panic ("MACHINE CHECK EXCEPTION:\n", f);
+    }
+  else if (vect == 14)
     {
       unsigned xcpterr;
 

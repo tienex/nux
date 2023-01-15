@@ -278,10 +278,10 @@ void hal_pcpu_add (unsigned pcpuid, struct hal_cpu *haldata);
 void hal_pcpu_enter (unsigned pcpuid);
 
 /*
-  Prepare machine for booting cpu PCPU. Returns address where CPU
-  bootstrap code starts, or PADDR_INVLID is CPU cannot boot.
+  Returns address where PCPU bootstrap code starts, or PADDR_INVLID is
+  PCPU cannot boot.
  */
-paddr_t hal_pcpu_prepare (unsigned pcpu);
+paddr_t hal_pcpu_startaddr (unsigned pcpu);
 
 
 /*
@@ -426,8 +426,9 @@ struct hal_pltinfo_desc
 const struct hal_pltinfo_desc *hal_pltinfo (void);
 
 /*
-  Stop all CPUs and panic. Of course you'll never need to call this!
+  Stop all CPUs and panic.
 */
-__dead void hal_panic (void);
+__dead void hal_panic (unsigned cpu, const char *error,
+		       struct hal_frame *frame);
 
 #endif /* _HAL_H */

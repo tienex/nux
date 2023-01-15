@@ -11,5 +11,6 @@
 
 int atexit (void (*func) (void));
 void __dead exit (int status);	/* EXTERNAL */
+void __dead abort (void);	/* EXTERNAL */
 
 #endif

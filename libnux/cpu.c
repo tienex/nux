@@ -24,8 +24,6 @@
 
 #include "internal.h"
 
-static int cpu_initialized = 0;
-
 static unsigned number_cpus = 0;
 static unsigned cpu_phys_to_id[HAL_MAXCPUS] = { -1, };
 static struct cpu_info *cpus[HAL_MAXCPUS] = { 0, };
@@ -36,40 +34,14 @@ static cpumask_t cpus_active = 0;
 /* We use this struct during bootstrap before the cpu infrastructure has been initialised. The CPU number is zero. */
 struct cpu_info __boot_cpuinfo = { 0, };
 
-static unsigned
-cpu_idfromphys (unsigned physid)
-{
-  unsigned id;
-
-  assert (physid < HAL_MAXCPUS);
-  id = cpu_phys_to_id[physid];
-  assert (id < HAL_MAXCPUS);
-  return id;
-}
-
-static struct cpu_info *
-cpu_getinfo (unsigned id)
-{
-
-  if (id >= HAL_MAXCPUS)
-    {
-      error ("CPU ID %d too big", id);
-      return NULL;
-    }
-  else if (id >= number_cpus)
-    {
-      error ("Requested non-active cpu %d", id);
-      return NULL;
-    }
-  return cpus[id];
-}
-
+/* NUXST: OKPLT */
 static int
 cpu_add (uint16_t physid)
 {
   int id;
   struct cpu_info *cpuinfo;
 
+  assert (nux_status () & NUXST_OKPLT);
   if (physid >= HAL_MAXCPUS)
     {
       warn ("CPU Phys ID %02x too big. Skipping.", physid);
@@ -97,12 +69,59 @@ cpu_add (uint16_t physid)
   return id;
 }
 
+/* NUXST: OKPLT */
+void
+cpu_init (void)
+{
+  unsigned pcpu;
+
+  /* Add all CPUs found in the platform. */
+  while ((pcpu = plt_pcpu_iterate ()) != PLT_PCPU_INVALID)
+    cpu_add (pcpu);
+
+  hal_pcpu_init ();
+
+  cpu_enter ();
+}
+
+/* NUXST: OKCPU */
+static unsigned
+cpu_idfromphys (unsigned physid)
+{
+  unsigned id;
+
+  assert (physid < HAL_MAXCPUS);
+  id = cpu_phys_to_id[physid];
+  assert (id < HAL_MAXCPUS);
+  return id;
+}
+
+/* NUXST: OKPLT */
+static struct cpu_info *
+cpu_getinfo (unsigned id)
+{
+
+  if (id >= HAL_MAXCPUS)
+    {
+      error ("CPU ID %d too big", id);
+      return NULL;
+    }
+  else if (id >= number_cpus)
+    {
+      error ("Requested non-active cpu %d", id);
+      return NULL;
+    }
+  return cpus[id];
+}
+
+/* NUXST: OKCPU */
 static struct cpu_info *
 cpu_curinfo (void)
 {
   return (struct cpu_info *) hal_cpu_getdata ();
 }
 
+/* NUXST: OKPLT */
 void
 cpu_enter (void)
 {
@@ -125,6 +144,7 @@ cpu_enter (void)
   /* Setup CPU idle loop. */
   if (setjmp (cpu->idlejmp))
     {
+      /* From a longjmp, OKCPU post here. */
       cpu_curinfo ()->idle = true;
       hal_cpu_idle ();
     }
@@ -133,133 +153,36 @@ cpu_enter (void)
   atomic_cpumask_set (&cpus_active, cpuid);
   /* From now on we can receive NMIs. */
 
+  /* Check if the system hit a panic before we could receive the NMI. */
+  if (__predict_false (nux_status () & NUXST_PANIC))
+    {
+      hal_cpu_halt ();
+      /* Unreachable */
+    }
+
   info ("CPU %d set as active", cpuid);
 }
 
+
+/* NUXST: OKCPU */
 bool
 cpu_wasidle (void)
 {
   return cpu_curinfo ()->idle;
 }
 
+/* NUXST: OKCPU */
 void
 cpu_clridle (void)
 {
   cpu_curinfo ()->idle = false;
 }
 
-void
-cpu_init (void)
-{
-  unsigned pcpu;
-
-  /* Add all CPUs found in the platform. */
-  while ((pcpu = plt_pcpu_iterate ()) != PLT_PCPU_INVALID)
-    cpu_add (pcpu);
-
-  cpu_enter ();
-}
-
-hal_tlbop_t
-cpu_kmap_tlbop (void)
-{
-  /* Called from NMI. */
-  if (__predict_false (!cpu_initialized))
-    return HAL_TLBOP_NONE;
-
-
-  hal_tlbop_t op = HAL_TLBOP_NONE;
-  struct cpu_info *ci = cpu_curinfo ();
-  unsigned long kmap_tg_global, kmap_tg, cpu_tg_global, cpu_tg;
-
-  kmap_tg_global = kmap_tlbgen_global ();
-  kmap_tg = kmap_tlbgen ();
-  /* SMP barrier for the above. */
-  cpu_tg_global = ci->kmap_tlbgen;
-  cpu_tg = ci->kmap_tlbgen;
-  __insn_barrier ();
-
-  /* 
-     If old != cpu_tg that means that something has modified
-     ci->kmap_tlbgen between our read at the beginning of the function
-     and the atomic operation. This means that an NMI handler ran and
-     flushed the TLB. Do not flush in that case.
-   */
-  if (kmap_tg_global != cpu_tg_global)
-    {
-      uint64_t old =
-	__sync_val_compare_and_swap (&ci->kmap_tlbgen_global, cpu_tg_global,
-				     kmap_tg_global);
-      if (old == cpu_tg_global)
-	{
-	  /* 
-	     Ignore if someone has flushed the TLBs
-	     non-globally in the meanwhile.
-	   */
-	  (void) __sync_val_compare_and_swap (&ci->kmap_tlbgen, cpu_tg,
-					      kmap_tg);
-	  op = HAL_TLBOP_FLUSHALL;
-	}
-    }
-  else if (kmap_tg != cpu_tg)
-    {
-      uint64_t old =
-	__sync_val_compare_and_swap (&ci->kmap_tlbgen, cpu_tg, kmap_tg);
-      if (old == cpu_tg)
-	{
-	  op = HAL_TLBOP_FLUSHALL;
-	}
-    }
-  else
-    {
-      op = HAL_TLBOP_NONE;
-    }
-
-  return op;
-}
-
-void
-cpu_nmiop (void)
-{
-  struct cpu_info *ci = cpu_curinfo ();
-  unsigned nmiop = ci->nmiop;
-  hal_tlbop_t tlbop = HAL_TLBOP_NONE;
-
-  if (nmiop & NMIOP_FLUSHALL)
-    {
-      /* Update but ignore result. We'll flush globally anyway. */
-      (void) cpu_kmap_tlbop ();
-      tlbop = HAL_TLBOP_FLUSHALL;
-    }
-  else if (nmiop & NMIOP_FLUSH)
-    {
-      /* If kmap requires a global flush, we'll global flush. */
-      if (cpu_kmap_tlbop () == HAL_TLBOP_FLUSHALL)
-	{
-	  tlbop = HAL_TLBOP_FLUSHALL;
-	}
-      else
-	{
-	  tlbop = HAL_TLBOP_FLUSH;
-	}
-    }
-  else if (nmiop & NMIOP_KMAPUPDATE)
-    {
-      tlbop = cpu_kmap_tlbop ();
-    }
-  hal_cpu_tlbop (tlbop);
-
-  atomic_cpumask_clear (&tlbmap, cpu_id ());
-}
-
+/* NUXST: OKCPU */
 void
 cpu_startall (void)
 {
   unsigned pcpu;
-
-  hal_pcpu_init ();
-
-  cpu_initialized = 1;
 
   while ((pcpu = plt_pcpu_iterate ()) != PLT_PCPU_INVALID)
     {
@@ -273,7 +196,7 @@ cpu_startall (void)
 
       info ("Starting CPU %d", cpu_idfromphys (pcpu));
 
-      start = hal_pcpu_prepare (pcpu);
+      start = hal_pcpu_startaddr (pcpu);
       if (start != PADDR_INVALID)
 	{
 	  plt_pcpu_start (pcpu, start);
@@ -285,45 +208,60 @@ cpu_startall (void)
     }
 }
 
+
+/* NUXST: OKCPU */
 cpumask_t
 cpu_activemask (void)
 {
   cpumask_t mask = atomic_cpumask (&cpus_active);
 
-  /*
-     The following might happen when we call a cpu operation at init
-     in PLT (e.g.) and we haven't set up CPUs yet. This should be
-     fixed with init-time ad-hoc code. Use this assert to catch these
-     issues.
-   */
-  assert (mask != 0);
   return mask;
 }
 
+/* NUXST: OKCPU */
 unsigned
 cpu_id (void)
 {
   return cpu_curinfo ()->cpu_id;
 }
 
+/* NUXST: any */
+unsigned
+cpu_try_id (void)
+{
+  if (__predict_false (!(nux_status () & NUXST_OKCPU)))
+    {
+      return 0;
+    }
+  else
+    {
+      struct cpu_info *ci = cpu_curinfo ();
+      return ci->cpu_id;
+    }
+}
+
+/* NUXST: OKPLT */
 void
 cpu_setdata (void *ptr)
 {
   cpu_curinfo ()->data = ptr;
 }
 
+/* NUXST: OKCPU */
 void *
 cpu_getdata (void)
 {
   return cpu_curinfo ()->data;
 }
 
+/* NUXST: OKCPU */
 unsigned
 cpu_num (void)
 {
   return number_cpus;
 }
 
+/* NUXST: OKCPU */
 void
 cpu_nmi (int cpu)
 {
@@ -333,24 +271,40 @@ cpu_nmi (int cpu)
     plt_pcpu_nmi (ci->phys_id);
 }
 
-void
-cpu_nmi_broadcast (void)
-{
-  plt_pcpu_nmiall ();
-}
-
+/* NUXST: OKCPU */
 void
 cpu_nmi_mask (cpumask_t map)
 {
   foreach_cpumask (map, cpu_nmi (i));
 }
 
+/* NUXST: any */
+void
+cpu_nmi_allbutself (void)
+{
+  if (__predict_true (nux_status () & NUXST_OKCPU))
+    {
+      cpumask_t mask = cpu_activemask ();
+      cpumask_clear (&mask, cpu_id ());
+      cpu_nmi_mask (mask);
+    }
+}
+
+/* NUXST: OKCPU */
+void
+cpu_nmi_broadcast (void)
+{
+  cpu_tlbflush_mask (cpu_activemask ());
+}
+
+/* NUXST: any */
 unsigned
 cpu_ipi_base (void)
 {
   return hal_vect_ipibase ();
 }
 
+/* NUXST: any */
 unsigned
 cpu_ipi_avail (void)
 {
@@ -362,6 +316,7 @@ cpu_ipi_avail (void)
   return ipilimit - ipibase;
 }
 
+/* NUXST: OKCPU */
 void
 cpu_ipi (int cpu, uint8_t vct)
 {
@@ -371,18 +326,21 @@ cpu_ipi (int cpu, uint8_t vct)
     plt_pcpu_ipi (ci->phys_id, vct);
 }
 
+/* NUXST: OKCPU */
 void
 cpu_ipi_broadcast (uint8_t vct)
 {
   plt_pcpu_ipiall (vct);
 }
 
+/* NUXST: OKCPU */
 void
 cpu_ipi_mask (cpumask_t map, uint8_t vct)
 {
   foreach_cpumask (map, cpu_ipi (i, vct));
 }
 
+/* NUXST: OKCPU */
 void
 cpu_idle (void)
 {
@@ -391,85 +349,111 @@ cpu_idle (void)
   longjmp (ci->idlejmp, 1);
 }
 
+/*
+  NUXST: OKCPU
+  Can be called by NMI.
+*/
 void
-cpu_tlbflush_sync (cpumask_t map)
+cpu_ktlb_update ()
 {
-  while (__sync_add_and_fetch (&tlbmap, 0) & map)
+  struct cpu_info *ci = cpu_curinfo ();
+  tlbgen_t cpu_global, cpu_normal;
+  __atomic_load (&ci->ktlb.global, &cpu_global, __ATOMIC_RELAXED);
+  __atomic_load (&ci->ktlb.normal, &cpu_normal, __ATOMIC_RELAXED);
+  tlbgen_t kglobal = ktlbgen_global ();
+  tlbgen_t knormal = ktlbgen_normal ();
+
+  if (tlbgen_cmp (kglobal, cpu_global) > 0)
     {
-      hal_cpu_relax ();
+      hal_cpu_tlbop (HAL_TLBOP_FLUSHALL);
+      /*
+         Ignore if CPU's tlbgens have been modified. This means an NMI
+         has modified it in the meanwhile.
+
+         Both failure and success case are relaxed because these
+         variable are per cpu and accessed with relaxed order.
+       */
+      __atomic_compare_exchange (&ci->ktlb.global, &cpu_global, &kglobal,
+				 false, __ATOMIC_RELAXED, __ATOMIC_RELAXED);
+      __atomic_compare_exchange (&ci->ktlb.normal, &cpu_normal, &knormal,
+				 false, __ATOMIC_RELAXED, __ATOMIC_RELAXED);
+    }
+  else if (tlbgen_cmp (knormal, cpu_normal) > 0)
+    {
+      hal_cpu_tlbop (HAL_TLBOP_FLUSH);
+      __atomic_compare_exchange (&ci->ktlb.normal, &cpu_normal, &knormal,
+				 false, __ATOMIC_RELAXED, __ATOMIC_RELAXED);
     }
 }
 
+/* NUXST: OKCPU */
 void
-cpu_tlbflush (int cpu, tlbop_t op, bool sync)
+cpu_ktlb_reach (tlbgen_t target)
 {
-  unsigned nmiop;
-  struct cpu_info *ci = cpu_getinfo (cpu);
+  tlbgen_t cur = ktlbgen_normal ();
 
-  if (ci == NULL)
+  if (tlbgen_cmp (target, cur) > 0)
+    {
+      cpu_ktlb_update ();
+    }
+}
+
+/*
+  NUXST: OKCPU 
+  Called from NMI.
+*/
+void
+cpu_nmiop (void)
+{
+  struct cpu_info *ci = cpu_curinfo ();
+  unsigned nmiop = ci->nmiop;
+
+  if (nmiop & NMIOP_TLBFLUSH)
+    {
+      cpu_ktlb_update ();
+    }
+
+  atomic_cpumask_clear (&tlbmap, cpu_id ());
+}
+
+/* NUXST: OKPLT */
+void
+cpu_tlbflush (int cpu)
+{
+  struct cpu_info *ci = cpu_getinfo (cpu);
+  if (ci != NULL)
     return;
 
-  switch (op)
-    {
-    case TLBOP_KMAPUPDATE:
-      nmiop = NMIOP_KMAPUPDATE;
-      break;
-    case TLBOP_FLUSH:
-      nmiop = NMIOP_FLUSH;
-      break;
-    case TLBOP_FLUSHALL:
-      nmiop = NMIOP_FLUSHALL;
-      break;
-    default:
-      nmiop = 0;
-      break;
-    }
-
-  __sync_fetch_and_or (&ci->nmiop, nmiop);
-  atomic_cpumask_set (&tlbmap, cpu);
+  __atomic_or_fetch (&ci->nmiop, NMIOP_TLBFLUSH, __ATOMIC_RELAXED);
   cpu_nmi (cpu);
-
-  if (sync)
-    {
-      cpumask_t cpumask = 0;
-
-      cpumask_set (&cpumask, cpu_id ());
-      cpu_tlbflush_sync (cpumask);
-    }
 }
 
+/* NUXST: OKPLT */
 void
-cpu_tlbflush_mask (cpumask_t mask, tlbop_t op, bool sync)
+cpu_tlbflush_mask (cpumask_t mask)
 {
-  foreach_cpumask (mask, cpu_tlbflush (i, op, false));
-
-  if (sync)
-    cpu_tlbflush_sync (mask);
+  foreach_cpumask (mask, cpu_tlbflush (i));
 }
 
+/* NUXST: any */
 void
-cpu_tlbflush_broadcast (tlbop_t op, bool sync)
+cpu_tlbflush_broadcast (void)
 {
-  if (__predict_true (cpu_initialized))
+  if (__predict_true (nux_status () & NUXST_OKCPU))
     {
-      cpu_tlbflush_mask (cpu_activemask (), op, sync);
+      cpu_tlbflush_mask (cpu_activemask ());
     }
   else
     {
-      /* 
+      /*
          PLT code might call kva_map() to map pages at startup.
          When PLT starts the CPU subsystem hasn't started yet.
-         Flush only the local TLBs.
+         Flush only the local TLBs, but globally.
        */
       hal_cpu_tlbop (HAL_TLBOP_FLUSHALL);
     }
 }
 
-void
-cpu_tlbflush_broadcast_sync (void)
-{
-  cpu_tlbflush_sync (cpu_activemask ());
-}
 
 static void
 cpu_useraccess_reset (void)

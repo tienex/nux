@@ -24,15 +24,13 @@ hal_entry_syscall (struct hal_frame *f,
 		   unsigned long a4, unsigned long a5, unsigned long a6)
 {
   uctxt_t *uctxt = uctxt_get (f);
-
   switch ((uintptr_t) uctxt)
     {
     case (uintptr_t) UCTXT_INVALID:
     case (uintptr_t) UCTXT_IDLE:
       /* Syscall in kernel? */
-      error ("Unexpected Kernel Exception -- Syscall(!)");
-      hal_frame_print (f);
-      exit (-1);
+      nux_panic ("Unexpected Kernel Exception -- Syscall(!)", f);
+      /* Unreached. */
     default:
       break;
     }
@@ -45,8 +43,13 @@ hal_entry_syscall (struct hal_frame *f,
 struct hal_frame *
 hal_entry_pf (struct hal_frame *f, unsigned long va, hal_pfinfo_t info)
 {
-  uctxt_t *uctxt = uctxt_get (f);
+  if (__predict_false (!(nux_status () & NUXST_OKCPU)))
+    {
+      nux_panic ("Early Kernel Page Fault", f);
+      /* Unreachable */
+    }
 
+  uctxt_t *uctxt = uctxt_get (f);
   switch ((uintptr_t) uctxt)
     {
     case (uintptr_t) UCTXT_INVALID:
@@ -61,9 +64,8 @@ hal_entry_pf (struct hal_frame *f, unsigned long va, hal_pfinfo_t info)
 	  cpu_useraccess_checkpf (va, info);
 	}
     case (uintptr_t) UCTXT_IDLE:
-      error ("Unexpected Kernel Page Fault");
-      hal_frame_print (f);
-      exit (-1);
+      nux_panic ("Unexpected Kernel Page Fault", f);
+      /* Unreached. */
     default:
       break;
     }
@@ -74,18 +76,29 @@ hal_entry_pf (struct hal_frame *f, unsigned long va, hal_pfinfo_t info)
 }
 
 struct hal_frame *
+hal_entry_debug (struct hal_frame *f, unsigned xcpt)
+{
+  nux_panic ("Kernel Panic", f);
+  /* Unreachable */
+}
+
+struct hal_frame *
 hal_entry_xcpt (struct hal_frame *f, unsigned xcpt)
 {
-  uctxt_t *uctxt = uctxt_get (f);
+  if (__predict_false (!(nux_status () & NUXST_OKCPU)))
+    {
+      nux_panic ("Early Kernel Exception", f);
+      /* Unreachable */
+    }
 
+  uctxt_t *uctxt = uctxt_get (f);
   switch ((uintptr_t) uctxt)
     {
     case (uintptr_t) UCTXT_INVALID:
     case (uintptr_t) UCTXT_IDLE:
       /* Kernel exception. */
-      error ("Unexpected Kernel Exception %d", xcpt);
-      hal_frame_print (f);
-      exit (-1);
+      nux_panic ("Unexpected Kernel Exception", f);
+      /* Unreached. */
     default:
       break;
     }
@@ -98,9 +111,19 @@ hal_entry_xcpt (struct hal_frame *f, unsigned xcpt)
 void
 hal_entry_nmi (struct hal_frame *f)
 {
+  if (__predict_false (nux_status () & NUXST_PANIC))
+    {
+      hal_cpu_halt ();
+      /* Unreachable */
+    }
+
+  if (__predict_false (!(nux_status () & NUXST_OKCPU)))
+    {
+      return;
+    }
+
   /* NMI are handled internally in NUX. */
   cpu_nmiop ();
-  /* NMI cannot switch frame. */
 }
 
 struct hal_frame *

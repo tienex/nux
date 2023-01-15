@@ -188,6 +188,7 @@ tlbflush_local (void)
 int
 hal_putchar (int c)
 {
+
   if (use_fb)
     framebuffer_putc (c, 0xe0e0e0);
   else
@@ -413,8 +414,6 @@ x86_init (void)
   early_print ("AMD64 HAL booting from APXH.\n");
   amd64_init ();
 #endif
-
-
 }
 
 void
@@ -427,4 +426,30 @@ hal_init_done (void)
   amd64_init_done ();
 #endif
   nux_initialized = 1;
+}
+
+
+__dead void
+hal_panic (unsigned cpu, const char *error, struct hal_frame *f)
+{
+  if (use_fb)
+    {
+      /*
+         Reset frame buffer. This will unlock in case any CPU was
+         holding the spinlock.
+       */
+      framebuffer_reset ();
+    }
+
+  printf ("\n"
+	  "----------------------------------------"
+	  "---------------------------------------\n"
+	  "Fatal error on CPU%d: %s\n", cpu, error);
+  if (f != NULL)
+    {
+      hal_frame_print (f);
+    }
+  printf ("----------------------------------------"
+	  "---------------------------------------\n");
+  __halt ();
 }

@@ -8,8 +8,8 @@
 @COMPILE_LIBEC@
 @COMPILE_LIBNUX@
 
-CFLAGS+= -Wno-prio-ctor-dtor
+CFLAGS+= -Wno-prio-ctor-dtor -Wno-stringop-overflow
 
 LIBRARY=nux
 
-SRCS+= init.c ec.c pfn.c kmem.c kmap.c kva.c uaddr.c uctxt.c cpu.c entry.c pfncache.c time.c framebuffer.c
+SRCS+= init.c ec.c pfn.c kmem.c kmap.c kva.c uaddr.c uctxt.c cpu.c entry.c pfncache.c time.c framebuffer.c ktlbgen.c

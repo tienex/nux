@@ -50,6 +50,13 @@ _setcs_ljmp:
 	mov $KDS, %ax
 	mov %ax, %ss
 
+	/* Load Temporary TSS to have IST working. */
+	xor %rdi, %rdi
+	movabs $_tss, %rsi
+	call _C_LABEL(gdt_settss)
+	mov $(6 << 3), %ax
+	ltr %ax
+
 	setidt 0
 	setidt 1
 	_setidt 2 0 1 /* IST #1: NMI */
@@ -74,9 +81,10 @@ _setcs_ljmp:
 	movabs $_bsp_cr3, %rbx
 	mov %eax, (%rbx)
 
-	movabs $zippostring, %rdi
+	xor %rdi, %rdi
 	call ___start
-	jmp zippo
+1:	hlt
+	jmp 1b
 
 
 /*
@@ -230,32 +238,38 @@ apsetup:
 1:	hlt
 	jmp 1b	
 
-zippo:
-	movabs $zippostring, %rsi
-	movl $0x1000, %ecx
-	movb $0x87, %ah
-	movl $0xb8000, %edi
-1:	lodsb
-	stosw
-	cmp $0, %al
-	loopne 1b
-1:	jmp 1b
+	.section .kstack_bsp, "aw"
+	.align 4096
+_stackbtm:
+	.zero 4096
+	.globl _bsp_stacktop
+_bsp_stacktop:
+
+	.section .kstack_ist1, "aw"
+	.align 4096
+_ist1btm:
+	.zero 4096
+	.globl _ist1_stacktop 
+_ist1_stacktop:
 
 
-	.data
+	.section .kstack_ist2, "aw"
+	.align 4096
+_ist2btm:
+	.zero 4096
+	.globl _ist2_stacktop
+_ist2_stacktop:
+
+	.section .kstack_ist3, "aw"
+	.align 4096
+_ist3btm:
+	.zero 4096
+	.globl _ist3_stacktop
+_ist3_stacktop:
 
 	.globl _bsp_cr3
 _bsp_cr3:
 	.quad 0
-	
-zippostring:
-	.asciz "Zippo."
-	
-	.align 64
-_gdtr:
-	.hword (_end_gdt - _gdt) - 1
-	.quad _gdt
-
 	.align 64
 	.globl _gdt
 _gdt:
@@ -265,9 +279,22 @@ _gdt:
 	.quad 0			 /* Left empty. Base of MSR_IA32_STAR[63:48] */
 	.quad 0x00c0f3000000ffff /* User Data */
 	.quad 0x00a0fa000000ffff /* User Code */
-	.skip (8 * (3*MAXCPUS))  /* TSS + GS per CPU. */
+	
+	.skip (8 * (2*MAXCPUS))  /* TSS + GS per CPU. */
 	.globl _end_gdt
 _end_gdt:
+	.align 64
+	.globl _idtr
+_idt:	
+	.skip 256 * 16
+_end_idt:
+
+
+	.section .rodata
+	.align 64
+_gdtr:
+	.hword (_end_gdt - _gdt) - 1
+	.quad _gdt
 
 	.align 64
 	.globl _idtr
@@ -276,31 +303,22 @@ _idtr:
 	.quad _idt
 
 	.align 64
-	.globl _idtr
-_idt:	
-	.skip 256 * 16
-_end_idt:
+	.globl _tss
+_tss:
+	.long 0 /* Res */
+	.quad _bsp_stacktop /*RSP0 */
+	.quad 0 /* RSP1 */
+	.quad 0 /* RSP2 */
+	.quad 0 /* Res */
+	.quad _ist1_stacktop /* IST1 */
+	.quad _ist2_stacktop /* IST2 */
+	.quad _ist3_stacktop /* IST3 */
+	.quad 0 /* IST4 */
+	.quad 0 /* IST5 */
+	.quad 0 /* IST6 */
+	.quad 0 /* IST7 */
+	.quad 0 /* Res */
+	.word 0 /* Res */
+	.word 108 /* IOMAP */
+_etss:	
 
-	.align 4096
-_stackbtm:
-	.zero 4096
-	.globl _bsp_stacktop
-_bsp_stacktop:
-
-	.align 4096
-_ist1btm:
-	.zero 4096
-	.globl _ist1_stacktop
-_ist1_stacktop:
-
-	.align 4096
-_ist2btm:
-	.zero 4096
-	.globl _ist2_stacktop
-_ist2_stacktop:
-
-	.align 4096
-_ist3btm:
-	.zero 4096
-	.globl _ist3_stacktop
-_ist3_stacktop:

@@ -17,6 +17,12 @@
 typedef uintptr_t hal_l1p_t;
 typedef uint64_t hal_l1e_t;
 
+static inline void
+hal_debug (void)
+{
+  asm volatile ("int3\n\t");
+}
+
 #endif
 
 #ifdef __i386__

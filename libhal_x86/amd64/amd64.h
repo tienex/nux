@@ -8,7 +8,7 @@
 #ifndef _AMD64_INTERNAL
 #define _AMD64_INTERNAL
 
-#define TSS_GDTIDX(_i) (6 + (_i) * 3)
+#define TSS_GDTIDX(_i) (6 + (_i) * 2)
 
 #define KCS 0x08
 #define KDS 0x10

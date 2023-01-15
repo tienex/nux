@@ -70,6 +70,34 @@ SECTIONS
       _ebss = .;
    } : data
 
+   . += 4096;
+
+   .kstack_bsp ALIGN(4096) :
+   {
+	*(.kstack)
+   } : kstack1
+
+   . += 4096;
+
+   .kstack_ist1 ALIGN(4096) :
+   {
+	*(.kstack_ist1)
+   } : kstack2
+
+   . += 4096;
+
+   .kstack_ist2 ALIGN(4096) :
+   {
+	*(.kstack_ist2)
+   } : kstack3
+
+   . += 4096;
+
+   .kstack_ist3 ALIGN(4096) :
+   {
+	*(.kstack_ist3)
+   } : kstack4
+
    .info ALIGN(4096) :
    {
 	_info_start = .;
@@ -140,6 +168,10 @@ PHDRS
     text    PT_LOAD;
     rodata  PT_LOAD;
     data    PT_LOAD;
+    kstack1  PT_LOAD;
+    kstack2  PT_LOAD;
+    kstack3  PT_LOAD;
+    kstack4  PT_LOAD;
     info    0xAF100000;
     kmem    0xAF100001;
     kva     0xAF100001;

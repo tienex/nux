@@ -46,7 +46,7 @@ uint64_t pcpu_kstackcnt = 0;
 uint64_t pcpu_kstack[MAXCPUS];
 
 void
-set_tss (unsigned pcpuid, struct amd64_tss *tss)
+gdt_settss (unsigned pcpuid, struct amd64_tss *tss)
 {
   uintptr_t ptr = (uintptr_t) tss;
   uint16_t lo16 = (uint16_t) ptr;
@@ -132,6 +132,9 @@ hal_pcpu_add (unsigned pcpuid, struct hal_cpu *haldata)
 
   assert (pcpuid < MAXCPUS);
 
+  pcpu_haldata[pcpuid] = (vaddr_t) (uintptr_t) haldata;
+  gdt_settss (pcpuid, &haldata->tss);
+
   if (pcpuid == bsp_pcpuid)
     {
       /* Adding the BSP PCPU: Initialize TSS */
@@ -142,16 +145,13 @@ hal_pcpu_add (unsigned pcpuid, struct hal_cpu *haldata)
       haldata->tss.ist[1] = (uintptr_t) & _ist2_stacktop;
       haldata->tss.ist[2] = (uintptr_t) & _ist3_stacktop;
       haldata->tss.rsp0 = (uintptr_t) & _bsp_stacktop;
-      haldata->tss.iomap = 108;	/* XXX: FIX with sizeof(tss) + 1 */
+      haldata->tss.iomap = 108;
     }
   else
     {
       /* Adding secondary CPU: Allocate one PCPU kernel stack. */
       pcpu_kstack[pcpu_kstackno++] = alloc_stackpage () + PAGE_SIZE;
     }
-  set_tss (pcpuid, &haldata->tss);
-
-  pcpu_haldata[pcpuid] = (vaddr_t) (uintptr_t) haldata;
 }
 
 void
@@ -199,13 +199,10 @@ hal_pcpu_init (void)
   /* Setup trampoline 1 */
   ptr = start + ((void *) &_ap_ljmp1 - (void *) &_ap_start);
   *(uint32_t *) ptr += (uint32_t) pstart;
-  printf ("Trampoline 1 (%p) = %lx\n", ptr, *(uint32_t *) ptr);
 
   /* Setup trampoline 2 */
   ptr = start + ((void *) &_ap_ljmp2 - (void *) &_ap_start);
   *(uint32_t *) ptr += (uint32_t) pstart;
-  printf ("Trampoline 2 (%p) = %lx\n", ptr, *(uint32_t *) ptr);
-
 
   /* Set reset vector */
   reset = kva_physmap (0, 0x467, 2, HAL_PTE_P | HAL_PTE_W | HAL_PTE_X);
@@ -223,8 +220,8 @@ hal_pcpu_init (void)
   bsp_pcpuid = plt_pcpu_id ();
 }
 
-uint64_t
-hal_pcpu_prepare (unsigned pcpu)
+paddr_t
+hal_pcpu_startaddr (unsigned pcpu)
 {
   if (pcpu >= MAXCPUS)
     return PADDR_INVALID;
@@ -270,7 +267,7 @@ amd64_init_ap (uintptr_t esp)
   haldata->tss.ist[1] = alloc_stackpage () + PAGE_SIZE;
   haldata->tss.ist[2] = alloc_stackpage () + PAGE_SIZE;
   haldata->tss.rsp0 = esp;
-  haldata->tss.iomap = 108;	/* XXX: FIX with sizeof(tss) + 1 */
+  haldata->tss.iomap = 108;
 
   hal_main_ap ();
 
@@ -283,5 +280,5 @@ amd64_init_done (void)
 
   /* Restore the mapping created for boostrapping secondary CPUS. */
   assert (hal_pmap_getl1p (NULL, smp_oldva, true, &l1p));
-  hal_pmap_setl1e (NULL, l1p, smp_oldl1e);
+  //  hal_pmap_setl1e (NULL, l1p, smp_oldl1e);
 }

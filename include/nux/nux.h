@@ -13,6 +13,8 @@
 #include <nux/types.h>
 #include <nux/locks.h>
 
+void __dead nux_panic (const char *message, struct hal_frame *f);
+
 void *pfn_get (pfn_t pfn);
 void pfn_put (pfn_t pfn, void *va);
 pfn_t pfn_alloc (int low);
@@ -64,8 +66,9 @@ void *cpu_getdata (void);
 void cpu_idle (void);
 
 void cpu_nmi (int cpu);
-void cpu_nmi_broadcast (void);
 void cpu_nmi_mask (cpumask_t map);
+void cpu_nmi_allbutself (void);
+void cpu_nmi_broadcast (void);
 
 unsigned cpu_ipi_base (void);
 unsigned cpu_ipi_avail (void);
@@ -73,10 +76,14 @@ void cpu_ipi (int cpu, uint8_t vct);
 void cpu_ipi_mask (cpumask_t map, uint8_t vct);
 void cpu_ipi_broadcast (uint8_t vct);
 
-void cpu_tlbflush (int cpu, tlbop_t op, bool sync);
-void cpu_tlbflush_mask (cpumask_t mask, tlbop_t op, bool sync);
-void cpu_tlbflush_broadcast (tlbop_t op, bool sync);
+void cpu_tlbflush (int cpu);
+void cpu_tlbflush_mask (cpumask_t mask);
+void cpu_tlbflush_broadcast (void);
 void cpu_tlbflush_broadcast_sync (void);
+
+void cpu_stop (int cpu);
+void cpu_stop_mask (cpumask_t mask);
+void cpu_stop_broadcast (void);
 
 void timer_alarm (uint32_t time_ns);
 void timer_clear (void);
@@ -261,6 +268,7 @@ uctxt_t *entry_ipi (uctxt_t * f, unsigned ipi);
  This function will be called on IRQ.
 */
 uctxt_t *entry_irq (uctxt_t * f, unsigned irq, bool lvl);
+
 
 
 #endif
