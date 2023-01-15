@@ -93,7 +93,7 @@ parse_multiboot_mmap (struct multiboot_info *info)
 
   /*
      Step 1: check that we'll fit in the area allocated for the memory
-     map. You never know with EFI shitty firmwares of today's hardware.
+     map.
    */
   assert (mmap_length < BOOTMEM_MMAPSIZE);
 
@@ -105,7 +105,8 @@ parse_multiboot_mmap (struct multiboot_info *info)
      the kernel offset and the beginning of virtual memory: we can
      dereference multiboot pointers safely.
    */
-  memmove ((void *) BOOTMEM_MMAP, (void *) info->mmap_addr, mmap_length);
+  memmove ((void *) BOOTMEM_MMAP, (void *) (uintptr_t) info->mmap_addr,
+	   mmap_length);
   /* Unsafe to use multiboot info after this. */
 
   /*
@@ -304,7 +305,7 @@ static struct gdtreg
 } __attribute__((aligned (64)))
      __packed gdtreg = {
        .size = 15,
-       .base = (uint32_t) ((uintptr_t) & pae64_gdt & 0xffffffff),
+       .base = 0,
 
      };
 
@@ -352,7 +353,8 @@ mb_amd64_entry (vaddr_t pt, vaddr_t entry)
   write_cr0 (cr0 | CR0_PG | CR0_WP);
   printf ("CR0: %08lx -> %08lx.\n", cr0, read_cr0 ());
 
-  lgdt ((uintptr_t) & gdtreg);
+  gdtreg.base = (uint32_t) ((uintptr_t) & pae64_gdt & 0xffffffff),
+    lgdt ((uintptr_t) & gdtreg);
 
   asm volatile
     ("ljmp $8,$1f\n"

@@ -47,7 +47,7 @@ putchar (int c)
       x = 0;
     }
 
-  *(unsigned char *) (0xb8000 + x++ * 2 + y * 80 * 2) = c;
+  *(unsigned char *) ((void *) 0xb8000 + x++ * 2 + y * 80 * 2) = c;
   return c;
 }
 

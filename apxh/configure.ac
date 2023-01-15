@@ -25,8 +25,8 @@ if test x"${ARCH}" == x ; then
 fi
 
 AS_CASE([${ARCH}],
-	[i386], [tool_prefix=i686-elf],
-	[amd64], [tool_prefix=x86_64-elf, tool_prefix_32=i686-elf],
+	[i386], [tool_prefix=i686-elf tool_prefix_32=i686-elf],
+	[amd64], [tool_prefix=x86_64-elf tool_prefix_32=i686-elf],
 	[*], [AC_MSG_ERROR([Supported Architectures: i386, amd64])])
 
 AC_ARG_VAR([TOOLCHAIN],[toolchain prefix @<:@default: <ARCH>-elf@:>@])
