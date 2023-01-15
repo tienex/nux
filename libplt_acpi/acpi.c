@@ -189,7 +189,7 @@ acpi_madt_scan (void)
 	lapic_addr = _.lavr->address;
 	break;
       case ACPI_MADT_TYPE_LAPIC:
-	info("ACPI MADT LAPICOVR %02d %02d %08x",
+	info("ACPI MADT LAPIC %02d %02d %08x",
 	       _.lapic->lapicid, _.lapic->acpiid, _.lapic->flags);
 	if (_.lapic->flags & ACPI_MADT_LAPIC_ENABLED)
 	  nlapic++;
