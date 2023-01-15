@@ -121,15 +121,23 @@ lapic_configure (void)
 }
 
 static void
+lapic_icr_write (uint32_t lo, uint32_t hi)
+{
+  while (lapic_read (L_ICR_LO) & (1 << 12))
+    hal_cpu_relax ();
+
+  lapic_write (L_ICR_HI, hi);
+  lapic_write (L_ICR_LO, lo);
+}
+
+static void
 lapic_ipi (unsigned physid, uint8_t dlvr, uint8_t vct)
 {
   uint32_t hi, lo;
 
   lo = 0x4000 | (dlvr & 0x7) << 8 | vct;
   hi = (physid & 0xff) << 24;
-
-  lapic_write (L_ICR_HI, hi);
-  lapic_write (L_ICR_LO, lo);
+  lapic_icr_write (lo, hi);
 }
 
 static void
@@ -138,8 +146,7 @@ lapic_ipi_broadcast (uint8_t dlvr, uint8_t vct)
   uint32_t lo;
 
   lo = (dlvr & 0x7) << 8 | vct | /*ALLBUTSELF*/ 0xc0000 | /*ASSERT*/ 0x4000;
-  lapic_write (L_ICR_HI, 0);
-  lapic_write (L_ICR_LO, lo);
+  lapic_icr_write (lo, 0);
 }
 
 static void
