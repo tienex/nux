@@ -45,10 +45,10 @@ _pfncache_fill (unsigned slot, uintptr_t old, uintptr_t new)
   kmap_map_noalloc (va, new, HAL_PTE_P | HAL_PTE_W);
 
   /*
-    Save the new TLB generation target for pfn cache.
-  */
-  tlbgen = ktlbgen_normal();
-  __atomic_store(&pfnc_tlbgen, &tlbgen, __ATOMIC_RELEASE);
+     Save the new TLB generation target for pfn cache.
+   */
+  tlbgen = ktlbgen_normal ();
+  __atomic_store (&pfnc_tlbgen, &tlbgen, __ATOMIC_RELEASE);
 }
 
 void *
@@ -63,7 +63,7 @@ pfn_get (pfn_t pfn)
   slot = cache_get (&cache, pfn);
 
   /* Update tlb if we have stale entries in our PFN cache. */
-  __atomic_load(&pfnc_tlbgen, &target, __ATOMIC_ACQUIRE);
+  __atomic_load (&pfnc_tlbgen, &target, __ATOMIC_ACQUIRE);
   cpu_ktlb_reach (target);
   return (void *) pfncache_base + (slot << PAGE_SHIFT);
 }

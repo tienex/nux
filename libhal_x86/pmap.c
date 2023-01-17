@@ -24,34 +24,26 @@ bool
 hal_pmap_getl1p (struct hal_pmap *pmap, unsigned long va, bool alloc,
 		 hal_l1p_t * l1popq)
 {
-  hal_l1e_t *l1p = get_l1p (pmap, va, alloc);
-
-  if (l1p == NULL)
-    {
-      if (l1popq != NULL)
-	*l1popq = L1P_INVALID;
-      return false;
-    }
+  hal_l1p_t l1p = get_l1p (pmap, va, alloc);
 
   if (l1popq != NULL)
-    *l1popq = (hal_l1p_t) (uintptr_t) l1p;
-  return true;
+    *l1popq = l1p;
+
+  return l1p != L1P_INVALID;
 }
 
 hal_l1e_t
 hal_pmap_getl1e (struct hal_pmap *pmap, hal_l1p_t l1popq)
 {
-  return *(hal_l1e_t *) l1popq;
+  return (hal_l1e_t) get_pte (l1popq);
 }
 
 hal_l1e_t
 hal_pmap_setl1e (struct hal_pmap *pmap, hal_l1p_t l1popq, hal_l1e_t l1e)
 {
-  hal_l1e_t ol1e, *l1p;
+  hal_l1e_t ol1e;
 
-  l1p = (hal_l1e_t *) l1popq;
-  ol1e = *l1p;
-  set_pte ((uint64_t *) l1p, (uint64_t) l1e);
+  ol1e = set_pte ((ptep_t) l1popq, (pte_t) l1e);
   return ol1e;
 }
 
@@ -169,6 +161,9 @@ pmap_init (void)
   else
     printf ("CPU does not support NX.\n");
 
+#ifdef __i386__
+  pae32_init ();
+#endif
 #ifdef __amd64__
   pae64_init ();
 #endif

@@ -29,7 +29,10 @@
 
 #include <stdint.h>
 
-typedef uint64_t hal_l1e_t;
+struct hal_pmap
+{
+  unsigned long l4pfn;
+};
 
 struct amd64_tss
 {

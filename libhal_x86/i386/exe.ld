@@ -109,6 +109,7 @@ SECTIONS
 
    } : linear
    _linear_l2table = (_linear_start + (_linear_start >> 9));
+   _linear_l3table = (_linear_start + (_linear_start >> 9) + (_linear_start >> 18));
 
    _end = .;
 }

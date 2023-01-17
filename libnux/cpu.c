@@ -390,7 +390,7 @@ cpu_ktlb_update (void)
 void
 cpu_ktlb_reach (tlbgen_t target)
 {
-  if (__predict_false(!(nux_status () & NUXST_OKCPU)))
+  if (__predict_false (!(nux_status () & NUXST_OKCPU)))
     {
       /* early boot: just flush the tlb. */
       hal_cpu_tlbop (HAL_TLBOP_FLUSH);

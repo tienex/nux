@@ -53,13 +53,18 @@ extern int nux_initialized;
 
 void x86_init (void);
 void amd64_init (void);
+void pae32_init (void);
 void pae64_init (void);
 void pmap_init (void);
 void i386_init_done (void);
 void amd64_init_done (void);
 
-void set_pte (uint64_t * ptep, uint64_t pte);
-hal_l1e_t *get_l1p (void *pmap, unsigned long va, int alloc);
+typedef uint64_t pte_t;
+typedef uintptr_t ptep_t;
+
+pte_t get_pte (ptep_t ptep);
+pte_t set_pte (ptep_t ptep, pte_t pte);
+hal_l1p_t get_l1p (struct hal_pmap *pmap, unsigned long va, int alloc);
 
 void tlbflush_global (void);
 
@@ -67,6 +72,11 @@ int vga_putchar (int c);
 
 uint64_t rdmsr (uint32_t ecx);
 void wrmsr (uint32_t ecx, uint64_t val);
+
+unsigned long read_cr4 (void);
+void write_cr4 (unsigned long r);
+unsigned long read_cr3 (void);
+void write_cr3 (unsigned long r);
 
 #endif
 

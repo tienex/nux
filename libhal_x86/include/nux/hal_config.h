@@ -12,7 +12,7 @@
 
 #include <stdint.h>
 
-#define L1P_INVALID ((uintptr_t)NULL)
+#define L1P_INVALID ((uintptr_t)0)
 
 typedef uintptr_t hal_l1p_t;
 typedef uint64_t hal_l1e_t;
