@@ -35,14 +35,14 @@ struct bootinfo_region
 };
 
 /* APXH ELF extensions. */
-#define PHT_APXH_INFO     0xAF100000
-#define PHT_APXH_EMPTY    0xAF100001
-#define PHT_APXH_PHYSMAP  0xAF100002
-#define PHT_APXH_PFNMAP   0xAF100003
-#define PHT_APXH_STREE    0xAF100004
-#define PHT_APXH_PTALLOC  0xAF100005
-#define PHT_APXH_FRAMEBUF 0xAF100006
-#define PHT_APXH_LINEAR   0xAF10FFFF
+#define PHT_APXH_INFO      0xAF100000	/* Info Page. */
+#define PHT_APXH_EMPTY     0xAF100001	/* Empty (no page tables). */
+#define PHT_APXH_PHYSMAP   0xAF100002	/* 1:1 Memory Map. */
+#define PHT_APXH_PFNMAP    0xAF100003	/* PFN Map. */
+#define PHT_APXH_STREE     0xAF100004	/* Allocated Pages Bitmap. */
+#define PHT_APXH_PTALLOC   0xAF100005	/* Empty (alloc all page tables). */
+#define PHT_APXH_FRAMEBUF  0xAF100006	/* Frame Buffer. */
+#define PHT_APXH_LINEAR    0xAF10FFFF	/* Linear map. */
 
 #define PFNMAP_ENTRY_SIZE 64
 
