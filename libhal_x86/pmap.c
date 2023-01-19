@@ -21,10 +21,9 @@
 uint64_t pte_nx = 0;
 
 bool
-hal_pmap_getl1p (struct hal_pmap *pmap, unsigned long va, bool alloc,
-		 hal_l1p_t * l1popq)
+hal_pmap_getl1p (unsigned long va, bool alloc, hal_l1p_t * l1popq)
 {
-  hal_l1p_t l1p = get_l1p (pmap, va, alloc);
+  hal_l1p_t l1p = get_l1p (va, alloc);
 
   if (l1popq != NULL)
     *l1popq = l1p;
@@ -33,13 +32,13 @@ hal_pmap_getl1p (struct hal_pmap *pmap, unsigned long va, bool alloc,
 }
 
 hal_l1e_t
-hal_pmap_getl1e (struct hal_pmap *pmap, hal_l1p_t l1popq)
+hal_pmap_getl1e (hal_l1p_t l1popq)
 {
   return (hal_l1e_t) get_pte (l1popq);
 }
 
 hal_l1e_t
-hal_pmap_setl1e (struct hal_pmap *pmap, hal_l1p_t l1popq, hal_l1e_t l1e)
+hal_pmap_setl1e (hal_l1p_t l1popq, hal_l1e_t l1e)
 {
   hal_l1e_t ol1e;
 
@@ -125,23 +124,6 @@ hal_pmap_tlbop (hal_l1e_t old, hal_l1e_t new)
     }
 
   return HAL_TLBOP_NONE;
-}
-
-vaddr_t
-hal_virtmem_userbase (void)
-{
-  return 0;
-}
-
-const size_t
-hal_virtmem_usersize (void)
-{
-#ifdef __i386__
-  return (3L << 30);		/* 3 GB */
-#endif
-#ifdef __amd64__
-  return (size_t) 0x0000800000000000UL;
-#endif
 }
 
 static bool

@@ -39,8 +39,8 @@ _kmap_map (vaddr_t va, pfn_t pfn, unsigned prot, const int alloc)
 
   l1e = hal_pmap_boxl1e (pfn, prot);
 
-  assert (hal_pmap_getl1p (NULL, va, alloc, &l1p));
-  oldl1e = hal_pmap_setl1e (NULL, l1p, l1e);
+  assert (hal_pmap_getl1p (va, alloc, &l1p));
+  oldl1e = hal_pmap_setl1e (l1p, l1e);
   ktlbgen_markdirty (hal_pmap_tlbop (oldl1e, l1e));
 
   hal_pmap_unboxl1e (oldl1e, &oldpfn, &oldprot);
@@ -70,7 +70,7 @@ int
 kmap_mapped (vaddr_t va)
 {
 
-  return hal_pmap_getl1p (NULL, va, 0, NULL);
+  return hal_pmap_getl1p (va, 0, NULL);
 }
 
 int
@@ -97,9 +97,9 @@ kmap_ensure (vaddr_t va, unsigned reqprot)
   pfn_t pfn;
   unsigned prot;
 
-  if (hal_pmap_getl1p (NULL, va, 0, &l1p))
+  if (hal_pmap_getl1p (va, 0, &l1p))
     {
-      l1e = hal_pmap_getl1e (NULL, l1p);
+      l1e = hal_pmap_getl1e (l1p);
       hal_pmap_unboxl1e (l1e, &pfn, &prot);
     }
   else
@@ -123,7 +123,7 @@ kmap_ensure (vaddr_t va, unsigned reqprot)
 	{
 	  /* Ensure pagetable populated. */
 	  if (l1p == L1P_INVALID)
-	    assert (hal_pmap_getl1p (NULL, va, 1, &l1p));
+	    assert (hal_pmap_getl1p (va, 1, &l1p));
 	  /* Populate page. */
 	  pfn = pfn_alloc (0);
 	  if (pfn == PFN_INVALID)
@@ -137,7 +137,7 @@ kmap_ensure (vaddr_t va, unsigned reqprot)
 	}
     }
   l1e = hal_pmap_boxl1e (pfn, reqprot);
-  oldl1e = hal_pmap_setl1e (NULL, l1p, l1e);
+  oldl1e = hal_pmap_setl1e (l1p, l1e);
   ktlbgen_markdirty (hal_pmap_tlbop (oldl1e, l1e));
   ret = 0;
 

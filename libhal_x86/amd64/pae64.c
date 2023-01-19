@@ -63,8 +63,6 @@ static pte_t *linaddr_l2;
 static pte_t *linaddr_l3;
 static pte_t *linaddr_l4;
 
-struct hal_pmap boot_pmap;
-
 pte_t
 get_pte (ptep_t ptep)
 {
@@ -131,35 +129,31 @@ alloc_table (bool user)
 }
 
 static ptep_t
-_get_l4p (struct hal_pmap *pmap, unsigned long va)
+get_pmap_l4p (unsigned long va)
 {
-  ptep_t l4p;
+  return mkptep_cur (linaddr_l4 + (UNCANON (va) >> L4_SHIFT));
+}
 
-  if (pmap == NULL)
-    {
-      l4p = mkptep_cur (linaddr_l4 + (UNCANON (va) >> L4_SHIFT));
-    }
-  else
-    {
-      l4p = mkptep_fgn ((pmap->l4pfn << PAGE_SHIFT) + (L4OFF (va) << 3));
-    }
-  return l4p;
+static pte_t
+get_pmap_l4e (unsigned long va)
+{
+  return *(pte_t *)(linaddr_l4 + (UNCANON (va) >> L4_SHIFT));
 }
 
 static ptep_t
-_get_l3p (struct hal_pmap *pmap, unsigned long va, bool alloc)
+get_pmap_l3p (unsigned long va, bool alloc, bool user)
 {
-  ptep_t l4p, l3p;
+  ptep_t l4p;
   pte_t l4e;
 
-  l4p = _get_l4p (pmap, va);
+  l4p = get_pmap_l4p (va);
   l4e = get_pte (l4p);
 
   if (!pte_present (l4e))
     {
       if (!alloc)
 	return PTEP_INVALID;
-      l4e = alloc_table (true);
+      l4e = alloc_table (user);
       if (l4e == PTE_INVALID)
 	return PTEP_INVALID;
       set_pte (l4p, l4e);
@@ -168,9 +162,192 @@ _get_l3p (struct hal_pmap *pmap, unsigned long va, bool alloc)
 
   assert (!l4e_reserved (l4e) && "Invalid L4E.");
 
+  return mkptep_cur (linaddr_l3 + (UNCANON (va) >> L3_SHIFT));
+}
+
+static ptep_t
+get_pmap_l2p (unsigned long va, bool alloc, bool user)
+{
+  ptep_t l3p;
+  pte_t l3e;
+
+  l3p = get_pmap_l3p (va, alloc, user);
+  l3e = get_pte (l3p);
+
+  if (!pte_present (l3e))
+    {
+      if (!alloc)
+	return PTEP_INVALID;
+      l3e = alloc_table (user);
+      if (l3e == PTE_INVALID)
+	return PTEP_INVALID;
+      set_pte (l3p, l3e);
+      /* Not present, no TLB flush necessary. */
+    }
+
+  assert (!l3e_reserved (l3e) && "Invalid L3E.");
+  assert (!l3e_bigpage (l3e) && "Invalid page size.");
+
+  return mkptep_cur (linaddr_l2 + (UNCANON (va) >> L2_SHIFT));
+}
+
+static ptep_t
+get_pmap_l1p (unsigned long va, bool alloc, bool user)
+{
+  ptep_t l2p;
+  pte_t l2e;
+
+  l2p = get_pmap_l2p (va, alloc, user);
+  l2e = get_pte (l2p);
+
+  if (!pte_present (l2e))
+    {
+      if (!alloc)
+	return PTEP_INVALID;
+      l2e = alloc_table (user);
+      if (l2e == PTE_INVALID)
+	return PTEP_INVALID;
+      set_pte (l2p, l2e);
+      /* Not present, no TLB flush necessary. */
+    }
+
+  assert (!l2e_reserved (l2e) && "Invalid L2E.");
+  assert (!l2e_bigpage (l2e) && "Invalid page size.");
+
+  return mkptep_cur (linaddr + (UNCANON (va) >> L1_SHIFT));
+}
+
+static ptep_t
+get_umap_l4p (struct hal_umap *umap, unsigned long va)
+{
+  assert (umap != NULL);
+  assert (L4OFF(va) < UMAP_L4PTES);
+
+  return mkptep_cur(umap->l4 + L4OFF(va));
+}
+
+
+static ptep_t
+get_umap_l3p (struct hal_umap *umap, unsigned long va, bool alloc)
+{
+  ptep_t l4p;
+  pte_t l4e;
+  pfn_t l3pfn;
+
+  l4p = get_umap_l4p (umap, va);
+  l4e = get_pte (l4p);
+
+  if (!pte_present (l4e))
+    {
+      if (!alloc)
+	return PTEP_INVALID;
+      l4e = alloc_table (true /* user */);
+      if (l4e == PTE_INVALID)
+	return PTEP_INVALID;
+      set_pte (l4p, l4e);
+      /* Not present, no TLB flush necessary. */
+    }
+  
+  assert (!l4e_reserved (l4e) && "Invalid L4E.");
+
+  l3pfn = pte_pfn (l4e);
+  
+  return mkptep_fgn ((l3pfn << PAGE_SHIFT) + (L3OFF (va) << 3));
+}
+
+static ptep_t
+get_umap_l2p (struct hal_umap *umap, unsigned long va, bool alloc)
+{
+  ptep_t l3p;
+  pte_t l3e;
+  pfn_t l2pfn;
+
+  l3p = get_umap_l3p (umap, va, alloc);
+  l3e = get_pte (l3p);
+
+  if (!pte_present (l3e))
+    {
+      if (!alloc)
+	return PTEP_INVALID;
+      l3e = alloc_table (true /* user */);
+      if (l3e == PTE_INVALID)
+	return PTEP_INVALID;
+      set_pte (l3p, l3e);
+      /* Not present, no TLB flush necessary. */
+    }
+
+  assert (!l3e_reserved (l3e) && "Invalid L3E.");
+  assert (!l3e_bigpage (l3e) && "Invalid page size.");
+
+  l2pfn = pte_pfn (l3e);
+
+  return mkptep_fgn ((l2pfn << PAGE_SHIFT) + (L2OFF (va) << 3));
+}
+
+static ptep_t
+get_umap_l1p (struct hal_umap *umap, unsigned long va, bool alloc)
+{
+  ptep_t l2p;
+  pte_t l2e;
+  pfn_t l1pfn;
+
+  if (umap == NULL)
+    {
+      /* Use PMAP if current. */
+      return get_pmap_l1p (va, alloc, true /* user */);
+    }
+
+  l2p = get_umap_l2p (umap, va, alloc);
+  l2e = get_pte (l2p);
+
+  if (!pte_present (l2e))
+    {
+      if (!alloc)
+	return PTEP_INVALID;
+      l2e = alloc_table (true /* user */);
+      if (l2e == PTE_INVALID)
+	return PTEP_INVALID;
+      set_pte (l2p, l2e);
+      /* Not present, no TLB flush necessary. */
+    }
+
+
+  assert (!l2e_reserved (l2e) && "Invalid L2E.");
+  assert (!l2e_bigpage (l2e) && "Invalid page size.");
+
+  l1pfn = pte_pfn (l2e);
+
+  return mkptep_fgn ((l1pfn << PAGE_SHIFT) + (L1OFF (va) << 3));
+}
+
+/*
+static ptep_t
+_get_l4p (struct hal_pmap *pmap, unsigned long va)
+{
+
+
   if (pmap == NULL)
     {
-      l3p = mkptep_cur (linaddr_l3 + (UNCANON (va) >> L3_SHIFT));
+      
+    }
+  else
+    {
+      l4p = mkptep_fgn ((pmap->l4pfn << PAGE_SHIFT) + (L4OFF (va) << 3));
+    }
+  return l4p;
+}
+*/
+/*
+static ptep_t
+_get_l3p (struct hal_pmap *pmap, unsigned long va, bool alloc)
+{
+
+
+
+
+  if (pmap == NULL)
+    {
+
     }
   else
     {
@@ -178,9 +355,11 @@ _get_l3p (struct hal_pmap *pmap, unsigned long va, bool alloc)
 
       l3p = mkptep_fgn ((l3pfn << PAGE_SHIFT) + (L3OFF (va) << 3));
     }
-  return l3p;
-}
 
+}
+*/
+
+/*
 static ptep_t
 _get_l2p (struct hal_pmap *pmap, unsigned long va, bool alloc)
 {
@@ -198,7 +377,7 @@ _get_l2p (struct hal_pmap *pmap, unsigned long va, bool alloc)
       if (l3e == PTE_INVALID)
 	return PTEP_INVALID;
       set_pte (l3p, l3e);
-      /* Not present, no TLB flush necessary. */
+      / * Not present, no TLB flush necessary. * /
     }
 
   assert (!l3e_reserved (l3e) && "Invalid L3E.");
@@ -217,6 +396,7 @@ _get_l2p (struct hal_pmap *pmap, unsigned long va, bool alloc)
   return l2p;
 }
 
+
 static ptep_t
 _get_l1p (struct hal_pmap *pmap, unsigned long va, bool alloc)
 {
@@ -234,7 +414,7 @@ _get_l1p (struct hal_pmap *pmap, unsigned long va, bool alloc)
       if (l2e == PTE_INVALID)
 	return PTEP_INVALID;
       set_pte (l2p, l2e);
-      /* Not present, no TLB flush necessary. */
+      / * Not present, no TLB flush necessary. * /
     }
 
   assert (!l2e_reserved (l2e) && "Invalid L2E.");
@@ -253,14 +433,84 @@ _get_l1p (struct hal_pmap *pmap, unsigned long va, bool alloc)
 
   return l1p;
 }
+*/
 
 hal_l1p_t
-get_l1p (struct hal_pmap *pmap, unsigned long va, int alloc)
+get_l1p (unsigned long va, int alloc)
+{
+  return (hal_l1p_t) get_pmap_l1p (va, alloc, false /* !user */);
+}
+
+const vaddr_t
+hal_virtmem_userbase (void)
+{
+  return 0;
+}
+
+const size_t
+hal_virtmem_usersize (void)
+{
+  return 1L << (39 + UMAP_LOG2_L4PTES);
+}
+
+void
+hal_umap_init (struct hal_umap *umap)
+{
+  for (int i = 0; i < UMAP_L4PTES; i++)
+    {
+      umap->l4[i] = 0;
+    }
+}
+
+void
+hal_umap_bootstrap (struct hal_umap *umap)
+{
+  vaddr_t va = hal_virtmem_userbase ();
+  int i;
+
+  for (i = 0; i < UMAP_L4PTES; i++, va += (1L << L4_SHIFT))
+    {
+      ptep_t l4p;
+      pte_t l4e;
+
+        l4p = get_pmap_l4p (va);
+	l4e = get_pte (l4p);
+
+	if (!pte_present (l4e))
+	  {
+	    l4e = alloc_table (true);
+	    /* We're in bootstrap. Can assert. */
+	    assert (l4e != PTE_INVALID);
+	    set_pte (l4p, l4e);
+	    /* Not present, no TLB flush necessary. */
+	  }
+	umap->l4[i] = l4e;
+    }
+
+  /* Panic if the boot user mapping doesn't fit in a UMAP. */
+  for (; i < 256; i++, va += (1L << L4_SHIFT))
+    {
+      assert (!pte_present (get_pmap_l4e (va)));
+    }
+}
+
+bool
+hal_umap_getl1p (struct hal_umap *umap, unsigned long uaddr, bool alloc, hal_l1p_t * l1popq)
 {
   hal_l1p_t l1p;
 
-  l1p = (hal_l1p_t) _get_l1p (pmap, va, alloc);
-  return l1p;
+  /* hal_virtmem_base() is zero */
+  if (uaddr >= hal_virtmem_usersize())
+    {
+      *l1popq = L1P_INVALID;
+      return false;
+    }
+
+  l1p = get_umap_l1p (umap, uaddr, alloc);
+  if (l1popq != NULL)
+    *l1popq = l1p;
+
+  return l1p != L1P_INVALID;
 }
 
 void
@@ -272,7 +522,4 @@ pae64_init (void)
     linaddr_l2 + (((uintptr_t) linaddr & ((1L << 48) - 1)) >> (18 + 3));
   linaddr_l4 =
     linaddr_l3 + (((uintptr_t) linaddr & ((1L << 48) - 1)) >> (27 + 3));
-
-  /* Initialize boot_pmap */
-  boot_pmap.l4pfn = (pfn_t) (read_cr3 () >> PAGE_SHIFT);
 }

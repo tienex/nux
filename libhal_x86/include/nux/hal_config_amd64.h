@@ -29,10 +29,29 @@
 
 #include <stdint.h>
 
-struct hal_pmap
+/*
+  AMD64 UMAP.
+
+  We save and restore only a small number of the 256 L4 PTEs that make
+  the user mapping of a 4-level AMD64 page table. This reduces the
+  virtual address space of the user process.
+
+  Change UMAP_L4PTES to increase or reduce the virtual address
+  space. The trade of is between virtual address size and number of
+  PTEs to be saved/restored at each UMAP switch.
+*/
+#define UMAP_LOG2_L4PTES 3	/* 39 + log2(8) = 42bit User VA. */
+#define UMAP_L4PTES (1 << UMAP_LOG2_L4PTES)
+
+struct hal_umap
 {
-  unsigned long l4pfn;
+  uint64_t l4[UMAP_L4PTES];
 };
+
+
+/*
+  HAL CPU definition.
+*/
 
 struct amd64_tss
 {

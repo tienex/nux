@@ -27,41 +27,20 @@
 
 #include <stdint.h>
 
-/*
-  HAL pmap Alignment.
-
-  Since the top level PAE is quite small (4 64bit entries), it makes
-  sense to include that in the hal_pmap structure, to avoid small
-  allocations.
-
-  The PDPTR in PAE needs to be aligned to PAE_PDPTR_ALIGN, and we
-  can't control the alignment of the structure of libnux.
-
-  Solve this by increasing the structure size allocated by libnux by
-  PAE_PDPTR_ALIGN - 1, so that we can align it.
-
-  The alignment of the structure is also saved in the (aligned)
-  structure itself, so that hal_pmap_current() can return the
-  unaligned struct back to libnux.
-*/
-
-#define PAE_PDPTR_ALIGN 32
-
 typedef uint64_t hal_l1e_t;
 
-struct align_pmap
-{
-#define NPDPTE 4
-  uint64_t pdptr[NPDPTE];
-#undef NPDPTE
-  uint64_t *l1s;
-  unsigned align;
-};
 
-struct hal_pmap
+/*
+  I386 UMAP.
+
+  As we're using PAE, we save the lower L3s that make the 3Gb of user
+  address space.
+*/
+struct hal_umap
 {
-  uint8_t buf[sizeof (struct align_pmap) + PAE_PDPTR_ALIGN - 1];
-};
+  uint64_t l3[3];
+}
+
 
 /*
   HAL CPU definition.

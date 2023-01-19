@@ -167,24 +167,11 @@ const vaddr_t hal_virtmem_userentry (void);
 
 /*
   HAL Virtual Memory Mapping.
- */
 
-/*
-  Return current pmap.
-
-  If returns NULL, we're still running the boot-time PMAP.
+  PMAP represents the CPU's virtual to physical mappings. the kernel
+  ones are static, while the one in the user area are changed by
+  loading a different umap in the CPU's pmap.
  */
-struct hal_pmap *hal_pmap_current (void);
-
-/*
-  Initialise new pmap. 
- */
-bool hal_pmap_create (struct hal_pmap *pmap);
-
-/*
-  Finalise new pmap. 
- */
-void hal_pmap_destroy (struct hal_pmap *pmap);
 
 /*
   Initialise HAL pmap subsystem. 
@@ -192,48 +179,46 @@ void hal_pmap_destroy (struct hal_pmap *pmap);
 void hal_pmap_init (void);
 
 /*
-  Set current pmap 
- */
-void hal_pmap_setcur (struct hal_pmap *pmap);
-
-/*
   Do a page walk (populating pagetables if ALLOC is true).
 
   If an l1p exists, save it into L1P and return true.
   If no l1p is found, set L1P to L1P_INVALID and return false.
   If ALLOC=true and there's not enough memory, return false.
-
-  If PMAP=NULL, the current PMAP is used. This is also special because
-  it _requires_ that no pages are accessed via the PFN cache -- The
-  PFN cache uses this format.  This means that either on
-  PMAP=NULL linear mappings must be used, or that all page-tables need
-  to be allocated in the direct map.
 */
-bool hal_pmap_getl1p (struct hal_pmap *pmap, unsigned long va, bool alloc,
-		      hal_l1p_t * l1p);
+bool hal_pmap_getl1p (unsigned long va, bool alloc, hal_l1p_t * l1p);
 
 /*
   Get L1E pointed by L1P.
 */
-hal_l1e_t hal_pmap_getl1e (struct hal_pmap *pmap, hal_l1p_t l1p);
+hal_l1e_t hal_pmap_getl1e (hal_l1p_t l1p);
 
 /*
   Install an L1E in the pmap 
 
-  If PMAP is NULL, set in current pmap.
  */
-hal_l1e_t hal_pmap_setl1e (struct hal_pmap *pmap, hal_l1p_t l1p,
-			   hal_l1e_t new);
+/* TODO: This must be hal_l1e_set */
+hal_l1e_t hal_pmap_setl1e (hal_l1p_t l1p, hal_l1e_t new);
 
-#define HAL_PTE_P      (1 << 0)
-#define HAL_PTE_W      (1 << 1)
-#define HAL_PTE_X      (1 << 2)
-#define HAL_PTE_U      (1 << 3)
-#define HAL_PTE_GLOBAL (1 << 4)
-#define HAL_PTE_AVL0   (1 << 5)
-#define HAL_PTE_AVL1   (1 << 6)
-#define HAL_PTE_AVL2   (1 << 7)
 
+/*
+  HAL L1 Pagetable Entry.
+
+  In NUX L1 are the pagetable that actually map data pages.
+*/
+
+/*
+  HAL PTE permission bits.
+*/
+#define HAL_PTE_P      (1 << 0)	/* The data page is present. */
+#define HAL_PTE_W      (1 << 1)	/* The data page is writable. */
+#define HAL_PTE_X      (1 << 2)	/* The data page is executable. */
+#define HAL_PTE_U      (1 << 3)	/* The data page is a user mapping. */
+#define HAL_PTE_GLOBAL (1 << 4)	/* The data page is global (will persist across normal tlb flushes). */
+#define HAL_PTE_AVL0   (1 << 5)	/* Available bit */
+#define HAL_PTE_AVL1   (1 << 6)	/* Available bit */
+#define HAL_PTE_AVL2   (1 << 7)	/* Available bit */
+
+/* TODO: Rename these to hal_l1e_box,unbox,tlbop */
 /*
   Create a l1e value 
  */
@@ -248,6 +233,44 @@ void hal_pmap_unboxl1e (hal_l1e_t l1e, unsigned long *pfn, unsigned *prot);
   TLB flush operation for a PT change. 
  */
 hal_tlbop_t hal_pmap_tlbop (hal_l1e_t old, hal_l1e_t new);
+
+
+/*
+  HAL UMAP: User mappings.
+
+  User mappings represent a virtual to physical mapping for user
+  mode. They can be loaded in a CPU's pmap, so that the CPU can access
+  those mappings.
+*/
+
+/*
+  Initialize an empty UMAP.
+*/
+void hal_umap_init (struct hal_umap *umap);
+
+/*
+  Save boot user mappings into a UMAP.
+
+  Called at boot to save the user mappings loaded by the bootloader
+  into a UMAP. This will initialize the UMAP to one contains the boot
+  user mappings.
+*/
+void hal_umap_bootstrap (struct hal_umap *umap);
+
+/*
+  Do a UMAP page walk (populating pagetables if ALLOC is true).
+
+  VA must be a user address or L1P will be set to L1P_INVALID and
+  false will be returned.
+
+  If an l1p exists, save it into L1P and return true.
+  If no l1p is found, set L1P to L1P_INVALID and return false.
+  If ALLOC=true and there's not enough memory, return false.
+*/
+bool hal_umap_getl1p (struct hal_umap *umap, uaddr_t uaddr, bool alloc,
+		      hal_l1p_t * l1p);
+
+/* TODO: ITERATOR FOR UMAP */
 
 
 /*
