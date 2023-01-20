@@ -129,24 +129,24 @@ alloc_table (bool user)
 }
 
 static ptep_t
-get_pmap_l4p (unsigned long va)
+linmap_get_l4p (unsigned long va)
 {
   return mkptep_cur (linaddr_l4 + (UNCANON (va) >> L4_SHIFT));
 }
 
 static pte_t
-get_pmap_l4e (unsigned long va)
+linmap_get_l4e (unsigned long va)
 {
-  return *(pte_t *)(linaddr_l4 + (UNCANON (va) >> L4_SHIFT));
+  return *(pte_t *) (linaddr_l4 + (UNCANON (va) >> L4_SHIFT));
 }
 
 static ptep_t
-get_pmap_l3p (unsigned long va, bool alloc, bool user)
+linmap_get_l3p (unsigned long va, bool alloc, bool user)
 {
   ptep_t l4p;
   pte_t l4e;
 
-  l4p = get_pmap_l4p (va);
+  l4p = linmap_get_l4p (va);
   l4e = get_pte (l4p);
 
   if (!pte_present (l4e))
@@ -166,12 +166,12 @@ get_pmap_l3p (unsigned long va, bool alloc, bool user)
 }
 
 static ptep_t
-get_pmap_l2p (unsigned long va, bool alloc, bool user)
+linmap_get_l2p (unsigned long va, bool alloc, bool user)
 {
   ptep_t l3p;
   pte_t l3e;
 
-  l3p = get_pmap_l3p (va, alloc, user);
+  l3p = linmap_get_l3p (va, alloc, user);
   l3e = get_pte (l3p);
 
   if (!pte_present (l3e))
@@ -192,12 +192,12 @@ get_pmap_l2p (unsigned long va, bool alloc, bool user)
 }
 
 static ptep_t
-get_pmap_l1p (unsigned long va, bool alloc, bool user)
+linmap_get_l1p (unsigned long va, bool alloc, bool user)
 {
   ptep_t l2p;
   pte_t l2e;
 
-  l2p = get_pmap_l2p (va, alloc, user);
+  l2p = linmap_get_l2p (va, alloc, user);
   l2e = get_pte (l2p);
 
   if (!pte_present (l2e))
@@ -221,9 +221,9 @@ static ptep_t
 get_umap_l4p (struct hal_umap *umap, unsigned long va)
 {
   assert (umap != NULL);
-  assert (L4OFF(va) < UMAP_L4PTES);
+  assert (L4OFF (va) < UMAP_L4PTES);
 
-  return mkptep_cur(umap->l4 + L4OFF(va));
+  return mkptep_cur (umap->l4 + L4OFF (va));
 }
 
 
@@ -241,17 +241,17 @@ get_umap_l3p (struct hal_umap *umap, unsigned long va, bool alloc)
     {
       if (!alloc)
 	return PTEP_INVALID;
-      l4e = alloc_table (true /* user */);
+      l4e = alloc_table (true /* user */ );
       if (l4e == PTE_INVALID)
 	return PTEP_INVALID;
       set_pte (l4p, l4e);
       /* Not present, no TLB flush necessary. */
     }
-  
+
   assert (!l4e_reserved (l4e) && "Invalid L4E.");
 
   l3pfn = pte_pfn (l4e);
-  
+
   return mkptep_fgn ((l3pfn << PAGE_SHIFT) + (L3OFF (va) << 3));
 }
 
@@ -269,7 +269,7 @@ get_umap_l2p (struct hal_umap *umap, unsigned long va, bool alloc)
     {
       if (!alloc)
 	return PTEP_INVALID;
-      l3e = alloc_table (true /* user */);
+      l3e = alloc_table (true /* user */ );
       if (l3e == PTE_INVALID)
 	return PTEP_INVALID;
       set_pte (l3p, l3e);
@@ -284,8 +284,8 @@ get_umap_l2p (struct hal_umap *umap, unsigned long va, bool alloc)
   return mkptep_fgn ((l2pfn << PAGE_SHIFT) + (L2OFF (va) << 3));
 }
 
-static ptep_t
-get_umap_l1p (struct hal_umap *umap, unsigned long va, bool alloc)
+ptep_t
+umap_get_l1p (struct hal_umap *umap, unsigned long va, bool alloc)
 {
   ptep_t l2p;
   pte_t l2e;
@@ -294,7 +294,8 @@ get_umap_l1p (struct hal_umap *umap, unsigned long va, bool alloc)
   if (umap == NULL)
     {
       /* Use PMAP if current. */
-      return get_pmap_l1p (va, alloc, true /* user */);
+      assert (L4OFF (va) < UMAP_L4PTES);
+      return linmap_get_l1p (va, alloc, true /* user */ );
     }
 
   l2p = get_umap_l2p (umap, va, alloc);
@@ -304,7 +305,7 @@ get_umap_l1p (struct hal_umap *umap, unsigned long va, bool alloc)
     {
       if (!alloc)
 	return PTEP_INVALID;
-      l2e = alloc_table (true /* user */);
+      l2e = alloc_table (true /* user */ );
       if (l2e == PTE_INVALID)
 	return PTEP_INVALID;
       set_pte (l2p, l2e);
@@ -320,137 +321,16 @@ get_umap_l1p (struct hal_umap *umap, unsigned long va, bool alloc)
   return mkptep_fgn ((l1pfn << PAGE_SHIFT) + (L1OFF (va) << 3));
 }
 
-/*
-static ptep_t
-_get_l4p (struct hal_pmap *pmap, unsigned long va)
-{
-
-
-  if (pmap == NULL)
-    {
-      
-    }
-  else
-    {
-      l4p = mkptep_fgn ((pmap->l4pfn << PAGE_SHIFT) + (L4OFF (va) << 3));
-    }
-  return l4p;
-}
-*/
-/*
-static ptep_t
-_get_l3p (struct hal_pmap *pmap, unsigned long va, bool alloc)
-{
-
-
-
-
-  if (pmap == NULL)
-    {
-
-    }
-  else
-    {
-      pfn_t l3pfn = pte_pfn (l4e);
-
-      l3p = mkptep_fgn ((l3pfn << PAGE_SHIFT) + (L3OFF (va) << 3));
-    }
-
-}
-*/
-
-/*
-static ptep_t
-_get_l2p (struct hal_pmap *pmap, unsigned long va, bool alloc)
-{
-  ptep_t l3p, l2p;
-  pte_t l3e;
-
-  l3p = _get_l3p (pmap, va, alloc);
-  l3e = get_pte (l3p);
-
-  if (!pte_present (l3e))
-    {
-      if (!alloc)
-	return PTEP_INVALID;
-      l3e = alloc_table (true);
-      if (l3e == PTE_INVALID)
-	return PTEP_INVALID;
-      set_pte (l3p, l3e);
-      / * Not present, no TLB flush necessary. * /
-    }
-
-  assert (!l3e_reserved (l3e) && "Invalid L3E.");
-  assert (!l3e_bigpage (l3e) && "Invalid page size.");
-
-  if (pmap == NULL)
-    {
-      l2p = mkptep_cur (linaddr_l2 + (UNCANON (va) >> L2_SHIFT));
-    }
-  else
-    {
-      pfn_t l2pfn = pte_pfn (l3e);
-
-      l2p = mkptep_fgn ((l2pfn << PAGE_SHIFT) + (L2OFF (va) << 3));
-    }
-  return l2p;
-}
-
-
-static ptep_t
-_get_l1p (struct hal_pmap *pmap, unsigned long va, bool alloc)
-{
-  ptep_t l2p, l1p;
-  pte_t l2e;
-
-  l2p = _get_l2p (pmap, va, alloc);
-  l2e = get_pte (l2p);
-
-  if (!pte_present (l2e))
-    {
-      if (!alloc)
-	return PTEP_INVALID;
-      l2e = alloc_table (true);
-      if (l2e == PTE_INVALID)
-	return PTEP_INVALID;
-      set_pte (l2p, l2e);
-      / * Not present, no TLB flush necessary. * /
-    }
-
-  assert (!l2e_reserved (l2e) && "Invalid L2E.");
-  assert (!l2e_bigpage (l2e) && "Invalid page size.");
-
-  if (pmap == NULL)
-    {
-      l1p = mkptep_cur (linaddr + (UNCANON (va) >> L1_SHIFT));
-    }
-  else
-    {
-      pfn_t l1pfn = pte_pfn (l2e);
-
-      l1p = mkptep_fgn ((l1pfn << PAGE_SHIFT) + (L1OFF (va) << 3));
-    }
-
-  return l1p;
-}
-*/
-
-hal_l1p_t
-get_l1p (unsigned long va, int alloc)
-{
-  return (hal_l1p_t) get_pmap_l1p (va, alloc, false /* !user */);
-}
-
-const vaddr_t
-hal_virtmem_userbase (void)
-{
-  return 0;
-}
-
-const size_t
-hal_virtmem_usersize (void)
+unsigned long
+umap_maxaddr (void)
 {
   return 1L << (39 + UMAP_LOG2_L4PTES);
+}
+
+hal_l1p_t
+kmap_get_l1p (unsigned long va, int alloc)
+{
+  return (hal_l1p_t) linmap_get_l1p (va, alloc, false /* !user */ );
 }
 
 void
@@ -473,44 +353,57 @@ hal_umap_bootstrap (struct hal_umap *umap)
       ptep_t l4p;
       pte_t l4e;
 
-        l4p = get_pmap_l4p (va);
-	l4e = get_pte (l4p);
+      l4p = linmap_get_l4p (va);
+      l4e = get_pte (l4p);
 
-	if (!pte_present (l4e))
-	  {
-	    l4e = alloc_table (true);
-	    /* We're in bootstrap. Can assert. */
-	    assert (l4e != PTE_INVALID);
-	    set_pte (l4p, l4e);
-	    /* Not present, no TLB flush necessary. */
-	  }
-	umap->l4[i] = l4e;
+      if (!pte_present (l4e))
+	{
+	  l4e = alloc_table (true);
+	  /* We're in bootstrap. Can assert. */
+	  assert (l4e != PTE_INVALID);
+	  set_pte (l4p, l4e);
+	  /* Not present, no TLB flush necessary. */
+	}
+      umap->l4[i] = l4e;
     }
 
   /* Panic if the boot user mapping doesn't fit in a UMAP. */
   for (; i < 256; i++, va += (1L << L4_SHIFT))
-    {
-      assert (!pte_present (get_pmap_l4e (va)));
-    }
+    if (pte_present (linmap_get_l4e (va)))
+      {
+	halfatal ("Boot user mapping do not fit into UMAP");
+      }
 }
 
-bool
-hal_umap_getl1p (struct hal_umap *umap, unsigned long uaddr, bool alloc, hal_l1p_t * l1popq)
+hal_tlbop_t
+hal_umap_load (struct hal_umap *umap)
 {
-  hal_l1p_t l1p;
+  vaddr_t va = hal_virtmem_userbase ();
+  hal_tlbop_t tlbop = HAL_TLBOP_NONE;
+  int i;
 
-  /* hal_virtmem_base() is zero */
-  if (uaddr >= hal_virtmem_usersize())
+  for (i = 0; i < UMAP_L4PTES; i++, va += (1L << L4_SHIFT))
     {
-      *l1popq = L1P_INVALID;
-      return false;
+      ptep_t l4p;
+      pte_t oldl4e, newl4e;
+
+      if (umap != NULL)
+	newl4e = umap->l4[i];
+      else
+	newl4e = 0;
+
+      l4p = linmap_get_l4p (va);
+      oldl4e = set_pte (l4p, newl4e);
+      tlbop |= hal_l1e_tlbop (oldl4e, newl4e);
     }
+  return tlbop;
+}
 
-  l1p = get_umap_l1p (umap, uaddr, alloc);
-  if (l1popq != NULL)
-    *l1popq = l1p;
+hal_tlbop_t
+hal_umap_scan (struct hal_umap *umap, uaddr_t start, uaddr_t end,
+	       bool (*ptefunc) (uaddr_t va, hal_l1p_t l1p))
+{
 
-  return l1p != L1P_INVALID;
 }
 
 void

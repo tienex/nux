@@ -21,9 +21,17 @@
 uint64_t pte_nx = 0;
 
 bool
-hal_pmap_getl1p (unsigned long va, bool alloc, hal_l1p_t * l1popq)
+hal_kmap_getl1p (unsigned long va, bool alloc, hal_l1p_t * l1popq)
 {
-  hal_l1p_t l1p = get_l1p (va, alloc);
+  hal_l1p_t l1p;
+
+  if (va < umap_maxaddr ())
+    {
+      *l1popq = L1P_INVALID;
+      return false;
+    }
+
+  l1p = kmap_get_l1p (va, alloc);
 
   if (l1popq != NULL)
     *l1popq = l1p;
@@ -31,14 +39,40 @@ hal_pmap_getl1p (unsigned long va, bool alloc, hal_l1p_t * l1popq)
   return l1p != L1P_INVALID;
 }
 
+bool
+hal_umap_getl1p (struct hal_umap *umap, unsigned long uaddr, bool alloc,
+		 hal_l1p_t * l1popq)
+{
+  hal_l1p_t l1p;
+
+  if (uaddr >= umap_maxaddr ())
+    {
+      *l1popq = L1P_INVALID;
+      return false;
+    }
+
+  l1p = umap_get_l1p (umap, uaddr, alloc);
+  if (l1popq != NULL)
+    *l1popq = l1p;
+
+  return l1p != L1P_INVALID;
+}
+
+bool
+hal_umap_scan (struct hal_umap *umap, uaddr_t start, uaddr_t end, void *opq,
+	       bool (*ptefunc) (uaddr_t va, hal_l1p_t l1p, void *opq))
+{
+  return umap_scan (umap, start, end, opq, ptefunc);
+}
+
 hal_l1e_t
-hal_pmap_getl1e (hal_l1p_t l1popq)
+hal_l1e_get (hal_l1p_t l1popq)
 {
   return (hal_l1e_t) get_pte (l1popq);
 }
 
 hal_l1e_t
-hal_pmap_setl1e (hal_l1p_t l1popq, hal_l1e_t l1e)
+hal_l1e_set (hal_l1p_t l1popq, hal_l1e_t l1e)
 {
   hal_l1e_t ol1e;
 
@@ -47,7 +81,7 @@ hal_pmap_setl1e (hal_l1p_t l1popq, hal_l1e_t l1e)
 }
 
 hal_l1e_t
-hal_pmap_boxl1e (unsigned long pfn, unsigned prot)
+hal_l1e_box (unsigned long pfn, unsigned prot)
 {
   hal_l1e_t l1e;
 
@@ -74,7 +108,7 @@ hal_pmap_boxl1e (unsigned long pfn, unsigned prot)
 }
 
 void
-hal_pmap_unboxl1e (hal_l1e_t l1e, unsigned long *pfnp, unsigned *protp)
+hal_l1e_unbox (hal_l1e_t l1e, unsigned long *pfnp, unsigned *protp)
 {
   unsigned prot = 0;
 
@@ -102,7 +136,7 @@ hal_pmap_unboxl1e (hal_l1e_t l1e, unsigned long *pfnp, unsigned *protp)
 }
 
 unsigned
-hal_pmap_tlbop (hal_l1e_t old, hal_l1e_t new)
+hal_l1e_tlbop (hal_l1e_t old, hal_l1e_t new)
 {
 #define restricts_permissions(_o, _n) 1
 

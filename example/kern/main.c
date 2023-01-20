@@ -15,6 +15,8 @@
 #include <stdio.h>
 #include <nux/nux.h>
 
+#include <nux/hal.h>
+
 uctxt_t u_init;
 
 int
@@ -51,6 +53,9 @@ main (int argc, char *argv[])
     {
       cpu_ipi (cpu_id (), cpu_ipi_base () + 0);
     }
+
+  struct hal_umap umap;
+  hal_umap_bootstrap (&umap);
   return EXIT_IDLE;
 }
 
