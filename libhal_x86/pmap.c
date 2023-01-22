@@ -60,7 +60,7 @@ hal_umap_getl1p (struct hal_umap *umap, unsigned long uaddr, bool alloc,
 
 bool
 hal_umap_scan (struct hal_umap *umap, uaddr_t start, uaddr_t end, void *opq,
-	       bool (*ptefunc) (uaddr_t va, hal_l1p_t l1p, void *opq))
+	       bool (*ptefunc) (uaddr_t va, hal_l1p_t l1p, hal_l1e_t l1e, void *opq))
 {
   return umap_scan (umap, start, end, opq, ptefunc);
 }

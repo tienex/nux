@@ -66,6 +66,8 @@ pte_t get_pte (ptep_t ptep);
 pte_t set_pte (ptep_t ptep, pte_t pte);
 hal_l1p_t kmap_get_l1p (unsigned long va, int alloc);
 hal_l1p_t umap_get_l1p (struct hal_umap *umap, unsigned long va, int alloc);
+bool hal_umap_scan (struct hal_umap *umap, uaddr_t start, uaddr_t end, void *opq,
+		    bool (*ptefunc) (uaddr_t va, hal_l1p_t l1p, hal_l1e_t l1e, void *opq));
 unsigned long umap_maxaddr (void);
 
 void tlbflush_global (void);

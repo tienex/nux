@@ -247,7 +247,7 @@ bool hal_umap_getl1p (struct hal_umap *umap, uaddr_t uaddr, bool alloc,
 */
 bool hal_umap_scan (struct hal_umap *umap, uaddr_t start, uaddr_t end,
 		    void *opq, bool (*ptefunc) (uaddr_t va, hal_l1p_t l1p,
-						hal_l1p_t l1e));
+						hal_l1p_t l1e, void *opq));
 
 
 /*

@@ -399,11 +399,16 @@ hal_umap_load (struct hal_umap *umap)
   return tlbop;
 }
 
-hal_tlbop_t
-hal_umap_scan (struct hal_umap *umap, uaddr_t start, uaddr_t end,
-	       bool (*ptefunc) (uaddr_t va, hal_l1p_t l1p))
+bool hal_umap_next(struct hal_umap *umap, uaddr_t va)
 {
+  
+}
 
+bool
+umap_scan (struct hal_umap *umap, uaddr_t start, uaddr_t end,
+	       bool (*ptefunc) (uaddr_t va, hal_l1p_t l1p, hal_l1e_t l1e))
+{
+  
 }
 
 void
