@@ -305,6 +305,18 @@ hal_virtmem_pfn$size (void)
 }
 
 const vaddr_t
+hal_virtmem_userbase (void)
+{
+  return 0;
+}
+
+const size_t
+hal_virtmem_usersize (void)
+{
+  return umap_maxaddr ();
+}
+
+const vaddr_t
 hal_virtmem_userentry (void)
 {
   return (const vaddr_t) bootinfo->uentry;

@@ -99,11 +99,13 @@ hal_pcpu_init (void)
   *(reset + 1) = pstart >> 4;
   kva_unmap ((void *) reset);
 
-  assert (hal_pmap_getl1p (NULL, pstart, true, &l1p));
+  /* pstart is in user address space: use kmap_ instead of hal_kmap */
+  l1p = kmap_get_l1p (pstart, true);
+  assert (l1p != L1P_INVALID);
   /* Save the l1e we're abou to overwrite. We'll restore it after init is done. */
-  smp_oldl1e = hal_pmap_getl1e (NULL, l1p);
+  smp_oldl1e = hal_l1e_get (l1p);
   smp_oldva = pstart;
-  hal_pmap_setl1e (NULL, l1p, (pstart & ~PAGE_MASK) | PTE_P | PTE_W);
+  hal_l1e_set (l1p, (pstart & ~PAGE_MASK) | PTE_P | PTE_W);
   pcpu_pstart = pstart;
 
   bsp_pcpuid = plt_pcpu_id ();
@@ -216,6 +218,7 @@ i386_init_done (void)
   hal_l1p_t l1p;
 
   /* Restore the mapping created for boostrapping secondary CPUS. */
-  assert (hal_pmap_getl1p (NULL, smp_oldva, true, &l1p));
-  hal_pmap_setl1e (NULL, l1p, smp_oldl1e);
+  l1p = kmap_get_l1p (smp_oldva, false);
+  assert (l1p != L1P_INVALID);
+  //hal_pmap_setl1e (NULL, l1p, smp_oldl1e);
 }

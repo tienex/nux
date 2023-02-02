@@ -21,10 +21,17 @@
 uint64_t pte_nx = 0;
 
 bool
-hal_pmap_getl1p (struct hal_pmap *pmap, unsigned long va, bool alloc,
-		 hal_l1p_t * l1popq)
+hal_kmap_getl1p (unsigned long va, bool alloc, hal_l1p_t * l1popq)
 {
-  hal_l1p_t l1p = get_l1p (pmap, va, alloc);
+  hal_l1p_t l1p;
+
+  if (va < umap_maxaddr ())
+    {
+      *l1popq = L1P_INVALID;
+      return false;
+    }
+
+  l1p = kmap_get_l1p (va, alloc);
 
   if (l1popq != NULL)
     *l1popq = l1p;
@@ -32,14 +39,33 @@ hal_pmap_getl1p (struct hal_pmap *pmap, unsigned long va, bool alloc,
   return l1p != L1P_INVALID;
 }
 
+bool
+hal_umap_getl1p (struct hal_umap *umap, unsigned long uaddr, bool alloc,
+		 hal_l1p_t * l1popq)
+{
+  hal_l1p_t l1p;
+
+  if (uaddr >= umap_maxaddr ())
+    {
+      *l1popq = L1P_INVALID;
+      return false;
+    }
+
+  l1p = umap_get_l1p (umap, uaddr, alloc);
+  if (l1popq != NULL)
+    *l1popq = l1p;
+
+  return l1p != L1P_INVALID;
+}
+
 hal_l1e_t
-hal_pmap_getl1e (struct hal_pmap *pmap, hal_l1p_t l1popq)
+hal_l1e_get (hal_l1p_t l1popq)
 {
   return (hal_l1e_t) get_pte (l1popq);
 }
 
 hal_l1e_t
-hal_pmap_setl1e (struct hal_pmap *pmap, hal_l1p_t l1popq, hal_l1e_t l1e)
+hal_l1e_set (hal_l1p_t l1popq, hal_l1e_t l1e)
 {
   hal_l1e_t ol1e;
 
@@ -48,7 +74,7 @@ hal_pmap_setl1e (struct hal_pmap *pmap, hal_l1p_t l1popq, hal_l1e_t l1e)
 }
 
 hal_l1e_t
-hal_pmap_boxl1e (unsigned long pfn, unsigned prot)
+hal_l1e_box (unsigned long pfn, unsigned prot)
 {
   hal_l1e_t l1e;
 
@@ -75,7 +101,7 @@ hal_pmap_boxl1e (unsigned long pfn, unsigned prot)
 }
 
 void
-hal_pmap_unboxl1e (hal_l1e_t l1e, unsigned long *pfnp, unsigned *protp)
+hal_l1e_unbox (hal_l1e_t l1e, unsigned long *pfnp, unsigned *protp)
 {
   unsigned prot = 0;
 
@@ -103,7 +129,7 @@ hal_pmap_unboxl1e (hal_l1e_t l1e, unsigned long *pfnp, unsigned *protp)
 }
 
 unsigned
-hal_pmap_tlbop (hal_l1e_t old, hal_l1e_t new)
+hal_l1e_tlbop (hal_l1e_t old, hal_l1e_t new)
 {
 #define restricts_permissions(_o, _n) 1
 
@@ -127,21 +153,17 @@ hal_pmap_tlbop (hal_l1e_t old, hal_l1e_t new)
   return HAL_TLBOP_NONE;
 }
 
-vaddr_t
-hal_virtmem_userbase (void)
+uaddr_t
+hal_umap_next (struct hal_umap *umap, uaddr_t uaddr, hal_l1p_t * l1p,
+	       hal_l1e_t * l1e)
 {
-  return 0;
+  return umap_next (umap, uaddr, l1p, l1e);
 }
 
-const size_t
-hal_virtmem_usersize (void)
+void
+hal_umap_free (struct hal_umap *umap)
 {
-#ifdef __i386__
-  return (3L << 30);		/* 3 GB */
-#endif
-#ifdef __amd64__
-  return (size_t) 0x0000800000000000UL;
-#endif
+  return umap_free (umap);
 }
 
 static bool
