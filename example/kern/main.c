@@ -12,10 +12,14 @@
   SPDX-License-Identifier:	GPL2.0+
 */
 
+#include <assert.h>
 #include <stdio.h>
 #include <nux/nux.h>
 
+#include <nux/hal.h>
+
 uctxt_t u_init;
+struct hal_umap umap;
 
 int
 main (int argc, char *argv[])
@@ -51,6 +55,22 @@ main (int argc, char *argv[])
     {
       cpu_ipi (cpu_id (), cpu_ipi_base () + 0);
     }
+
+
+  hal_l1p_t l1p;
+  hal_l1e_t l1e;
+  hal_umap_bootstrap (&umap);
+  uctxt_print (&u_init);
+
+  for (uint64_t i = 0;; i += (1 << 12))
+    {
+      uint64_t x = hal_umap_next (&umap, i, &l1p, &l1e);
+      if (x == UADDR_INVALID)
+	break;
+      printf ("%lx - %lx(%lx)\n", x, l1p, l1e);
+      i = x;
+    }
+
   return EXIT_IDLE;
 }
 
@@ -73,6 +93,8 @@ entry_sysc (uctxt_t * u,
       break;
     case 0:
       info ("User exited with error code: %ld", a2);
+      hal_umap_load (NULL);
+      hal_umap_free (&umap);
       return UCTXT_IDLE;
     default:
       error ("Unknown syscall");

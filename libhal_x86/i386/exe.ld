@@ -120,12 +120,12 @@ PHDRS
     text    PT_LOAD;
     rodata  PT_LOAD;
     data    PT_LOAD;
-    info    0xAF100000;
-    kmem    0xAF100001;
-    kva     0xAF100001;
-    pfncache 0xAF100005;
-    physmap 0xAF100002;
-    stree   0xAF100004;
-    fbuf    0xAF100006;
-    linear  0xAF10FFFF;
+    info    0xAF100000; /* PHT_APXH_INFO */
+    kmem    0xAF100001; /* PHT_APXH_EMPTY */
+    kva     0xAF100001; /* PHT_APXH_EMPTY */
+    pfncache 0xAF100005; /* PHT_APXH_PTALLOC */
+    physmap 0xAF100002; /* PHT_APXH_PHYSMAP */
+    stree   0xAF100004; /* PHT_APXH_STREE */
+    fbuf    0xAF100006; /* PHT_APXH_FRAMEBUF */
+    linear  0xAF10FFFF; /* PHT_APXH_LINEAR */
 }

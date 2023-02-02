@@ -91,8 +91,6 @@ _setcs_ljmp:
  * AP BOOTSTRAP.
  *
  * This code is copied into per-cpu pages.
- * These same page will become the AP kernel
- * stack.
  */
 	.code16
 	.globl _ap_ljmp1, _ap_ljmp2, _ap_gdtreg, _ap_cr3, _ap_end
