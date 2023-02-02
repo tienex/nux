@@ -631,8 +631,8 @@ umap_free (struct hal_umap *umap)
 	    }
 	  printf ("Freeing L3 %lx\n", l3pfn);
 	  pfn_free (l3pfn);
-	  umap->l4[i] = PTE_INVALID;
 	}
+      umap->l4[i] = PTE_INVALID;
     }
 }
 

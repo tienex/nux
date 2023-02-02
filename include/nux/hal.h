@@ -243,6 +243,7 @@ uaddr_t hal_umap_next (struct hal_umap *umap, uaddr_t uaddr, hal_l1p_t * l1p,
 /*
   Free all memory associated with this UMAP.
 
+  Doesn't free the pages mapped by this UMAP.
   The umap structure can be discarded after this call.
 
   NOTE: This function does not check whether the UMAP is mapped to any CPU. 

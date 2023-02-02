@@ -485,9 +485,8 @@ umap_next (struct hal_umap *umap, uaddr_t uaddr, hal_l1p_t * l1p_out,
 void
 umap_free (struct hal_umap *umap)
 {
-  pte_t l3e;
   pfn_t l2pfn, l1pfn;
-  pte_t *l2ptr, l2e;
+  pte_t l3e, *l2ptr, l2e;
 
   for (unsigned i = 0; i < UMAP_L3PTES; i++)
     {
