@@ -12,9 +12,20 @@
   SPDX-License-Identifier:	GPL2.0+
 */
 
+/*
+  Boot-loader assumptions:
+
+  All L3s are present. This is to allow UMAP to be consistent across
+  all CPUs when new mappings are created.
+
+  All kernel L2s are present. This is to allow the kernel mappings to
+  be consistent across all CPUs.
+*/
+
 #include <assert.h>
 #include <stdint.h>
 #include <nux/nux.h>
+#include <nux/plt.h>
 #include <nux/types.h>
 #include "../internal.h"
 
@@ -25,6 +36,12 @@
 #define L3OFF(_va) (((_va) >> L3_SHIFT) & 3)
 #define L2OFF(_va) (((_va) >> L2_SHIFT) & 0x1ff)
 #define L1OFF(_va) (((_va) >> L1_SHIFT) & 0x1ff)
+
+unsigned long
+l2off (unsigned long _va)
+{
+  return (((_va) >> L2_SHIFT) & 0x1ff);
+}
 
 /* The following RES definitions assume 48-bit MAX PA */
 #define L3_RESPT 0xFFFF000000000000LL
@@ -54,25 +71,23 @@ const vaddr_t linaddr = (vaddr_t) & _linear_start;
 const vaddr_t l2_linaddr = (vaddr_t) & _linear_l2table;
 pte_t *l3_linaddr = (pte_t *) & _linear_l3table;
 
-/*
-static struct align_pmap *
-get_align_pmap (struct hal_pmap *hal_pmap)
+struct pdptr
 {
-  uintptr_t ptr = (uintptr_t) hal_pmap;
-  ptr += PAE_PDPTR_ALIGN - 1;
-  ptr &= ~(PAE_PDPTR_ALIGN - 1);
-  return (struct align_pmap *) ptr;
+#define NPDPTE 4
+  uint64_t pdptr[NPDPTE];
+  uint64_t _a[NPDPTE];
+  uint64_t _b[NPDPTE];
+  uint64_t _c[NPDPTE];
+  uint64_t _d[NPDPTE];
+  uint64_t _e[NPDPTE];
+  uint64_t _f[NPDPTE];
+  uint64_t _g[NPDPTE];
+#undef NPDPTE
+} __packed;
 
-}
+struct pdptr pdptrs[MAXCPUS] __aligned (4096);
 
-static unsigned
-get_align_pmap_offset (struct hal_pmap *hal_pmap)
-{
-  uintptr_t hp = (uintptr_t) hal_pmap;
-  uintptr_t ap = (uintptr_t) get_align_pmap (hal_pmap);
-  return (unsigned) (ap - hp);
-}
-*/
+typedef uint64_t hal_l1e_t;
 
 uint64_t
 mkaddr (uint64_t l3off, uint64_t l2off, uint64_t l1off)
@@ -133,6 +148,25 @@ set_pte (ptep_t ptep, pte_t pte)
   return old;
 }
 
+pte_t
+set_l3e (unsigned long va, pte_t pte)
+{
+  struct pdptr *pdptr = pdptrs + plt_pcpu_id ();
+  pte_t old;
+
+  /*
+     Everything is special in PTE.
+
+     The PTEs that create the linear page table are not a reflection of
+     the actual top level pagetable. So we need to write both of them.
+   */
+  old = l3_linaddr[L3OFF (va)];
+  l3_linaddr[L3OFF (va)] = pte;
+  pdptr->pdptr[L3OFF (va)] = pte;
+
+  return old;
+}
+
 static pte_t
 alloc_table (bool user)
 {
@@ -152,29 +186,24 @@ linmap_get_l3p (unsigned long va)
 }
 
 static ptep_t
-linmap_get_l2p (unsigned long va, bool alloc, bool user)
+linmap_get_l2p (unsigned long va)
 {
   ptep_t l3p;
   pte_t l3e;
 
   l3p = linmap_get_l3p (va);
   l3e = get_pte (l3p);
-
-  if (!pte_present (l3e))
-    {
-      if (!alloc)
-	return PTEP_INVALID;
-      l3e = alloc_table (user);
-      if (l3e == PTE_INVALID)
-	return PTEP_INVALID;
-      set_pte (l3p, l3e);
-      /* Not present, no TLB flush necessary. */
-    }
-
-  //  assert (!l3e_reserved (l3e) && "Invalid L3E.");
+  /* In PAE32, All L3E must be present. */
+  assert (pte_present (l3e));
 
   va &= ~((1L << L2_SHIFT) - 1);
   return mkptep_cur (l2_linaddr + (va >> 18));
+}
+
+static pte_t
+linmap_get_l2e (unsigned long va)
+{
+  return *(pte_t *) (l2_linaddr + (va >> 18));
 }
 
 static ptep_t
@@ -183,16 +212,13 @@ linmap_get_l1p (unsigned long va, bool alloc, bool user)
   ptep_t l2p;
   pte_t l2e;
 
-  l2p = linmap_get_l2p (va, alloc, user);
+  l2p = linmap_get_l2p (va);
   l2e = get_pte (l2p);
-
   if (!pte_present (l2e))
     {
-      printf ("Not present!");
       if (!alloc)
 	return PTEP_INVALID;
       l2e = alloc_table (user);
-      printf ("ALLOCATED %lx\n", l2e);
       if (l2e == PTE_INVALID)
 	return PTEP_INVALID;
       set_pte (l2p, l2e);
@@ -224,17 +250,7 @@ get_umap_l2pfn (struct hal_umap *umap, unsigned long va, bool alloc)
   l3p = get_umap_l3p (umap, va);
   l3e = get_pte (l3p);
 
-  if (!pte_present (l3e))
-    {
-      if (!alloc)
-	return PFN_INVALID;
-      l3e = alloc_table (true /* user */ );
-      if (l3e == PTE_INVALID)
-	return PFN_INVALID;
-      set_pte (l3p, l3e);
-      /* Not present, no TLB flush necessary. */
-    }
-
+  assert (pte_present (l3e));
   //  assert (!l3e_reserved (l3e) && "Invalid L3E.");
 
   return pte_pfn (l3e);
@@ -281,11 +297,61 @@ get_umap_l1pfn (struct hal_umap *umap, unsigned long va, bool alloc)
   return pte_pfn (l2e);
 }
 
+unsigned long
+alloc_cpu_cr3 (void)
+{
+  struct pdptr *pdptr = pdptrs + plt_pcpu_id ();
+  pfn_t k_l2pfn;
+  ptep_t l1p;
+  pte_t l1e, *l2ptr;
+
+  /* Alloc new L2 for kernel */
+  k_l2pfn = pfn_alloc (0);
+
+  /* Set the L3s. */
+  for (unsigned i = 0; i < 4; i++)
+    {
+      if (i == 3)
+	pdptr->pdptr[i] = mkpte (k_l2pfn, PTE_P);
+      else
+	pdptr->pdptr[i] = 0;
+    }
+
+  /* Copy kernel address and fix linear addresses. */
+  l2ptr = pfn_get (k_l2pfn);
+  for (unsigned i = 0; i < 512; i++)
+    {
+      if ((i >= L2OFF (linaddr)) && (i < (L2OFF (linaddr) + 3)))
+	{
+	  printf ("there -- %llx --", mkaddr (3, i, 0));
+	  l2ptr[i] = 0;
+	}
+      else if (i == L2OFF (linaddr) + 3)
+	{
+	  printf ("-- here: %lx --", mkaddr (3, i, 0));
+	  l2ptr[i] = mkpte (k_l2pfn, PTE_P | PTE_W);
+	}
+      else
+	{
+	  l2ptr[i] = linmap_get_l2e (mkaddr (3, i, 0));
+	}
+    }
+  pfn_put (k_l2pfn, l2ptr);
+
+
+  /* Get physical address of pdptr and return CR3 */
+  l1p = linmap_get_l1p ((uintptr_t) pdptr, false, false);
+  assert (l1p != L1P_INVALID);
+  l1e = get_pte (l1p);
+  assert (pte_present (l1e));
+  return (pte_pfn (l1e) << PAGE_SHIFT) +
+    ((uintptr_t) pdptr & (PAGE_SIZE - 1));
+}
+
 ptep_t
 umap_get_l1p (struct hal_umap *umap, unsigned long va, bool alloc)
 {
   pfn_t l1pfn;
-
   if (umap == NULL)
     {
       /* Use PMAP if current. */
@@ -311,15 +377,21 @@ umap_maxaddr (void)
 hal_l1p_t
 kmap_get_l1p (unsigned long va, bool alloc)
 {
-  return (hal_l1p_t) linmap_get_l1p (va, alloc, false /* !user */ );
+  return (hal_l1p_t) linmap_get_l1p (va, alloc, false
+				     /* !user */
+    );
 }
 
 void
 hal_umap_init (struct hal_umap *umap)
 {
+  pfn_t pfn;
+
   for (int i = 0; i < UMAP_L3PTES; i++)
     {
-      umap->l3[i] = 0;
+      pfn = pfn_alloc (0);
+      assert (pfn != PFN_INVALID);
+      umap->l3[i] = mkpte (pfn, PTE_P);
     }
 }
 
@@ -328,22 +400,19 @@ hal_umap_bootstrap (struct hal_umap *umap)
 {
   vaddr_t va = hal_virtmem_userbase ();
   int i;
-
   for (i = 0; i < UMAP_L3PTES; i++, va += (1L << L3_SHIFT))
     {
       ptep_t l3p;
       pte_t l3e;
-
       l3p = linmap_get_l3p (va);
       l3e = get_pte (l3p);
-
-      if (!pte_present (l3e))
+      if (!pte_present(l3e))
 	{
-	  l3e = alloc_table (true);
-	  /* We're in bootstrap. Can assert. */
-	  assert (l3e != PTE_INVALID);
-	  set_pte (l3p, l3e);
-	  /* Not present, no TLB flush necessary. */
+	  pfn_t pfn;
+
+	  pfn = pfn_alloc (0);
+	  assert (pfn != PFN_INVALID);
+	  l3e = mkpte (pfn, PTE_P);
 	}
       umap->l3[i] = l3e;
     }
@@ -355,30 +424,26 @@ hal_umap_load (struct hal_umap *umap)
   vaddr_t va = hal_virtmem_userbase ();
   hal_tlbop_t tlbop = HAL_TLBOP_NONE;
   int i;
-
   for (i = 0; i < UMAP_L3PTES; i++, va += (1L << L3_SHIFT))
     {
-      ptep_t l3p;
       pte_t oldl3e, newl3e;
-
       if (umap != NULL)
-	newl3e = umap->l3[i];
+	{
+	  newl3e = umap->l3[i];
+	}
       else
 	newl3e = 0;
-
-      l3p = linmap_get_l3p (va);
-      oldl3e = set_pte (l3p, newl3e);
+      oldl3e = set_l3e (va, newl3e);
       tlbop |= hal_l1e_tlbop (oldl3e, newl3e);
     }
   return tlbop;
 }
 
 static bool
-scan_l1 (pfn_t l1pfn, unsigned off, unsigned *l1off_out, hal_l1p_t * l1p_out,
-	 hal_l1e_t * l1e_out)
+scan_l1 (pfn_t l1pfn, unsigned off,
+	 unsigned *l1off_out, hal_l1p_t * l1p_out, hal_l1e_t * l1e_out)
 {
   pte_t *l1ptr, l1e;
-
   l1ptr = pfn_get (l1pfn);
   for (unsigned i = off; i < 512; i++)
     {
@@ -399,12 +464,12 @@ scan_l1 (pfn_t l1pfn, unsigned off, unsigned *l1off_out, hal_l1p_t * l1p_out,
 }
 
 static bool
-scan_l2 (pfn_t l2pfn, unsigned off, unsigned *l2off_out, unsigned *l1off_out,
-	 hal_l1p_t * l1p_out, hal_l1e_t * l1e_out)
+scan_l2 (pfn_t l2pfn, unsigned off,
+	 unsigned *l2off_out,
+	 unsigned *l1off_out, hal_l1p_t * l1p_out, hal_l1e_t * l1e_out)
 {
   pte_t *l2ptr, l2e;
   pfn_t l1pfn;
-
   l2ptr = pfn_get (l2pfn);
   for (unsigned i = off; i < 512; i++)
     {
@@ -426,8 +491,9 @@ scan_l2 (pfn_t l2pfn, unsigned off, unsigned *l2off_out, unsigned *l1off_out,
 
 static bool
 scan_l3 (struct hal_umap *umap, unsigned off,
-	 unsigned *l3off_out, unsigned *l2off_out, unsigned *l1off_out,
-	 hal_l1p_t * l1p_out, hal_l1e_t * l1e_out)
+	 unsigned *l3off_out,
+	 unsigned *l2off_out,
+	 unsigned *l1off_out, hal_l1p_t * l1p_out, hal_l1e_t * l1e_out)
 {
   pte_t l3e;
   pfn_t l2pfn;
@@ -448,16 +514,14 @@ scan_l3 (struct hal_umap *umap, unsigned off,
 }
 
 uaddr_t
-umap_next (struct hal_umap *umap, uaddr_t uaddr, hal_l1p_t * l1p_out,
-	   hal_l1e_t * l1e_out)
+umap_next (struct hal_umap *umap,
+	   uaddr_t uaddr, hal_l1p_t * l1p_out, hal_l1e_t * l1e_out)
 {
-
   unsigned l3off = L3OFF (uaddr);
   unsigned l2off = L2OFF (uaddr);
   unsigned l1off = L1OFF (uaddr);
   pfn_t l1pfn, l2pfn;
   unsigned l3next, l2next, l1next;
-
   /* Check till end of current l1. */
   l1pfn = get_umap_l1pfn (umap, uaddr, false);
   if (l1pfn != PFN_INVALID
@@ -487,7 +551,6 @@ umap_free (struct hal_umap *umap)
 {
   pfn_t l2pfn, l1pfn;
   pte_t l3e, *l2ptr, l2e;
-
   for (unsigned i = 0; i < UMAP_L3PTES; i++)
     {
       l3e = umap->l3[i];
@@ -506,6 +569,7 @@ umap_free (struct hal_umap *umap)
 		}
 	    }
 	  printf ("Freeing L2 %lx\n", l2pfn);
+	  pfn_put (l2pfn, l2ptr);
 	  pfn_free (l2pfn);
 	}
       umap->l3[i] = PTE_INVALID;
@@ -515,5 +579,4 @@ umap_free (struct hal_umap *umap)
 void
 pae32_init (void)
 {
-
 }

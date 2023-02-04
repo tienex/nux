@@ -45,6 +45,8 @@ uint64_t pcpu_kstackno = 0;
 uint64_t pcpu_kstackcnt = 0;
 uint64_t pcpu_kstack[MAXCPUS];
 
+static struct hal_umap init_umap;
+
 void
 gdt_settss (unsigned pcpuid, struct amd64_tss *tss)
 {
@@ -165,6 +167,9 @@ hal_pcpu_init (void)
   volatile uint16_t *reset;
   extern char *_ap_start, *_ap_end;
 
+  /* We're about to map the page. Save the initial user mapping to a UMAP. */
+  hal_umap_bootstrap(&init_umap);
+
   /* Allocate PCPU bootstrap code page. */
   pfn = pfn_alloc (1);
   /* This is tricky. The hope is that is low enough to be addressed by
@@ -277,15 +282,8 @@ amd64_init_ap (uintptr_t esp)
 void
 amd64_init_done (void)
 {
-  hal_l1p_t l1p;
 
-  /*
-     TODO: This should clear the UMAP freeing all the page table
-     created. Also, we need to add support for per-cpu page table and
-     call this at AP initialization.
-   */
-  /* Restore the mapping created for boostrapping secondary CPUS. */
-  l1p = kmap_get_l1p (smp_oldva, false);
-  assert (l1p != L1P_INVALID);
-  //  hal_pmap_setl1e (NULL, l1p, smp_oldl1e);
+  write_cr3 (alloc_cpu_cr3 ());
+
+  //  hal_umap_load (&init_umap);
 }

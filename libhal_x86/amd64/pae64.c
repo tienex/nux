@@ -31,6 +31,7 @@
 #define L1OFF(_va) (((_va) >> L1_SHIFT) & 0x1ff)
 
 #define UNCANON(_va) ((_va) & ((1LL << 48) - 1))
+#define CANON(_va) ((_va) | ((_va) & (1L << 47)) ? 0xffff000000000000L : 0)
 
 /* The following RES definitions assume 48-bit MAX PA */
 #define L4_RESPT 0x000F000000000080
@@ -68,8 +69,8 @@ static pte_t *linaddr_l4;
 uint64_t
 mkaddr (uint64_t l4off, uint64_t l3off, uint64_t l2off, uint64_t l1off)
 {
-  return (l4off << L4_SHIFT) | (l3off << L3_SHIFT) | (l2off << L2_SHIFT) |
-    (l1off << L1_SHIFT);
+  return CANON((l4off << L4_SHIFT) | (l3off << L3_SHIFT) | (l2off << L2_SHIFT) |
+	       (l1off << L1_SHIFT));
 }
 
 pte_t
@@ -146,7 +147,7 @@ linmap_get_l4p (unsigned long va)
 static pte_t
 linmap_get_l4e (unsigned long va)
 {
-  return *(pte_t *) (linaddr_l4 + (UNCANON (va) >> L4_SHIFT));
+  return linaddr_l4[L4OFF(va)];
 }
 
 static ptep_t
@@ -244,18 +245,7 @@ get_umap_l3pfn (struct hal_umap *umap, unsigned long va, bool alloc)
 
   l4p = get_umap_l4p (umap, va);
   l4e = get_pte (l4p);
-
-  if (!pte_present (l4e))
-    {
-      if (!alloc)
-	return PFN_INVALID;
-      l4e = alloc_table (true /* user */ );
-      if (l4e == PTE_INVALID)
-	return PFN_INVALID;
-      set_pte (l4p, l4e);
-      /* Not present, no TLB flush necessary. */
-    }
-
+  assert (pte_present(l4e));
   assert (!l4e_reserved (l4e) && "Invalid L4E.");
 
   return pte_pfn (l4e);
@@ -342,7 +332,27 @@ get_umap_l1pfn (struct hal_umap *umap, unsigned long va, bool alloc)
   return pte_pfn (l2e);
 }
 
+unsigned long
+alloc_cpu_cr3 ()
+{
+  pfn_t pfn;
+  pte_t *l4p;
 
+  pfn = pfn_alloc (0);
+  assert (pfn != PFN_INVALID);
+  l4p = pfn_get (pfn);
+  for (unsigned i = 256; i < 512; i++)
+    {
+      if (i == L4OFF((uintptr_t)linaddr)) {
+	printf("THERE %p %lx %lx", linaddr, i, L4OFF((uintptr_t)linaddr));
+	l4p[i] = mkpte(pfn, PTE_W | PTE_P);
+      }
+      else
+	l4p[i] = linmap_get_l4e (mkaddr (i, 0, 0, 0));
+    }
+  pfn_put (pfn, l4p);
+  return (pfn << PAGE_SHIFT);
+}
 
 ptep_t
 umap_get_l1p (struct hal_umap *umap, unsigned long va, bool alloc)
@@ -382,7 +392,11 @@ hal_umap_init (struct hal_umap *umap)
 {
   for (int i = 0; i < UMAP_L4PTES; i++)
     {
-      umap->l4[i] = 0;
+      pfn_t pfn;
+
+      pfn = pfn_alloc (0);
+      assert (pfn != PFN_INVALID);
+      umap->l4[i] = mkpte (pfn, PTE_P);
     }
 }
 
@@ -399,14 +413,13 @@ hal_umap_bootstrap (struct hal_umap *umap)
 
       l4p = linmap_get_l4p (va);
       l4e = get_pte (l4p);
-
       if (!pte_present (l4e))
 	{
-	  l4e = alloc_table (true);
-	  /* We're in bootstrap. Can assert. */
-	  assert (l4e != PTE_INVALID);
-	  set_pte (l4p, l4e);
-	  /* Not present, no TLB flush necessary. */
+	  pfn_t pfn;
+
+	  pfn = pfn_alloc (0);
+	  assert (pfn != PFN_INVALID);
+	  l4e = mkpte (pfn, PTE_P);
 	}
       umap->l4[i] = l4e;
     }
@@ -626,10 +639,12 @@ umap_free (struct hal_umap *umap)
 			}
 		    }
 		  printf ("Freeing L2 %lx\n", l2pfn);
+		  pfn_put (l2pfn, l2ptr);
 		  pfn_free (l2pfn);
 		}
 	    }
 	  printf ("Freeing L3 %lx\n", l3pfn);
+	  pfn_put(l3pfn, l3ptr);
 	  pfn_free (l3pfn);
 	}
       umap->l4[i] = PTE_INVALID;
@@ -645,4 +660,5 @@ pae64_init (void)
     linaddr_l2 + (((uintptr_t) linaddr & ((1L << 48) - 1)) >> (18 + 3));
   linaddr_l4 =
     linaddr_l3 + (((uintptr_t) linaddr & ((1L << 48) - 1)) >> (27 + 3));
+
 }

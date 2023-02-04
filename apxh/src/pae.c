@@ -389,6 +389,17 @@ pae_physmap (vaddr_t va, size64_t size, uint64_t pa)
 }
 
 void
+pae_empty (vaddr_t va, size64_t size)
+{
+  unsigned i, n;
+
+  n = size >> (PAGE_SHIFT + 9);
+
+  for (i = 0; i < n; i++)
+    (void) pae_get_l2p (pae_cr3, va + (i << PAGE_SHIFT), 1);
+}
+
+void
 pae_ptalloc (vaddr_t va, size64_t size)
 {
   unsigned i, n;
@@ -710,6 +721,17 @@ void
 pae64_physmap (vaddr_t va, size64_t size, uint64_t pa)
 {
   pae64_directmap (pae64_cr3, pa, va, size, 1, 0);
+}
+
+void
+pae64_empty (vaddr_t va, size64_t size)
+{
+  unsigned i, n;
+
+  n = size >> (PAGE_SHIFT + 9);
+
+  for (i = 0; i < n; i++)
+    (void) pae64_get_l3p (pae64_cr3, va + (i << PAGE_SHIFT), 1);
 }
 
 void

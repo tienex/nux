@@ -193,6 +193,26 @@ va_physmap (vaddr_t va, size64_t size)
 }
 
 void
+va_empty (vaddr_t va, size64_t size)
+{
+  md_verify (va, size);
+  va_verify (va, size);
+
+  switch (elf_arch)
+    {
+    case ARCH_386:
+      pae_empty (va, size);
+      break;
+    case ARCH_AMD64:
+      pae64_empty (va, size);
+      break;
+    default:
+      printf ("Unsupported VM architecture.\n");
+      exit (-1);
+    }
+}
+
+void
 va_framebuf (vaddr_t va, size64_t size)
 {
   uint64_t pa;

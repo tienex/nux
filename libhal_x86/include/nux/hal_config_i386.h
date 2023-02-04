@@ -29,7 +29,6 @@
 
 typedef uint64_t hal_l1e_t;
 
-
 /*
   I386 UMAP.
 

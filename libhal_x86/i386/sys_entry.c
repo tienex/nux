@@ -182,13 +182,13 @@ void
 hal_frame_print (struct hal_frame *f)
 {
 
-  hallog ("EAX: %08x EBX: %08x ECX: %08x EDX:%08x",
+  hallog ("EAX: %08x EBX: %08x ECX: %08x EDX: %08x",
 	  f->eax, f->ebx, f->ecx, f->edx);
-  hallog ("EDI: %08x ESI: %08x EBP: %08x ESP:%08x",
+  hallog ("EDI: %08x ESI: %08x EBP: %08x ESP: %08x",
 	  f->edi, f->esi, f->ebp, f->esp);
   hallog (" CS: %04x     EIP: %08x EFL: %08x",
 	  (int) f->cs, f->eip, f->eflags);
-  hallog (" DS: %04x      ES: %04x     FS: %04x      GS: %04x",
+  hallog (" DS: %04x      ES: %04x      FS: %04x      GS: %04x",
 	  f->ds, f->es, f->fs, f->gs);
   hallog ("CR3: %08x CR2: %08x err: %08x", f->cr3, f->cr2, f->err);
 }

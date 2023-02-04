@@ -209,16 +209,26 @@ i386_init_ap (uintptr_t esp)
   haldata->tss.esp0 = esp;
   haldata->tss.iomap = 108;
 
+  write_cr3 (alloc_cpu_cr3 ());
+
   hal_main_ap ();
 }
+
+struct hal_umap init;
 
 void
 i386_init_done (void)
 {
-  hal_l1p_t l1p;
+  //hal_l1p_t l1p;
 
-  /* Restore the mapping created for boostrapping secondary CPUS. */
-  l1p = kmap_get_l1p (smp_oldva, false);
-  assert (l1p != L1P_INVALID);
-  //hal_pmap_setl1e (NULL, l1p, smp_oldl1e);
+
+  hal_umap_bootstrap (&init);
+
+  /* Switch to new CR3. We abandon the original CR3 as setup by the
+     bootloader (that contains extra mappings for the trampoline
+     code). */
+  write_cr3 (alloc_cpu_cr3 ());
+  hal_umap_load (&init);
+  tlbflush_local ();
+
 }

@@ -99,7 +99,7 @@ read_cr4 (void)
 void
 write_cr4 (unsigned long r)
 {
-  asm volatile ("mov %0, %%cr4\n"::"r" (r));
+  asm volatile ("mov %0, %%cr4\n"::"r" (r):"memory");
 }
 
 unsigned long
@@ -115,7 +115,7 @@ read_cr3 (void)
 void
 write_cr3 (unsigned long r)
 {
-  asm volatile ("mov %0, %%cr3\n"::"r" (r));
+  asm volatile ("mov %0, %%cr3\n"::"r" (r):"memory");
 }
 
 int

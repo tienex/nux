@@ -207,7 +207,8 @@ ph_kload (void *elfimg, uint32_t type, uint32_t flags,
       break;
     case PHT_APXH_EMPTY:
       printf ("Empty VA area at %08llx (size: %lld).\n", va, msize);
-      /* Just VA allocation. Leave it. */
+      /* Allocate top level page-table only. */
+      va_empty (va, msize);
       break;
     case PHT_APXH_PTALLOC:
       printf ("PT Alloc VA area at %08llx (size: %lld).\n", va, msize);

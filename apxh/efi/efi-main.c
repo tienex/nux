@@ -77,11 +77,9 @@ efi_getframebuffer (void)
       Print (L"EFI GFX Mode %d: %ldx%ld.\n",
 	     i, info->HorizontalResolution, info->VerticalResolution);
 
-      if ((UINTN) info->HorizontalResolution * info->VerticalResolution >
-	  rmax)
+      if ((UINTN) info->HorizontalResolution > rmax)
 	{
-	  rmax =
-	    (UINTN) info->HorizontalResolution * info->VerticalResolution;
+	  rmax = (UINTN) info->HorizontalResolution;
 	  mmax = i;
 	}
     }
