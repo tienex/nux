@@ -30,9 +30,6 @@ vaddr_t pcpu_haldata[MAXCPUS];
 
 static unsigned bsp_pcpuid;
 
-static vaddr_t smp_oldva;
-static hal_l1e_t smp_oldl1e;
-
 /*
   CPU kernel stack allocation:
 
@@ -44,8 +41,6 @@ static hal_l1e_t smp_oldl1e;
 uint64_t pcpu_kstackno = 0;
 uint64_t pcpu_kstackcnt = 0;
 uint64_t pcpu_kstack[MAXCPUS];
-
-static struct hal_umap init_umap;
 
 void
 gdt_settss (unsigned pcpuid, struct amd64_tss *tss)
@@ -162,13 +157,9 @@ hal_pcpu_init (void)
   void *va;
   pfn_t pfn;
   void *start, *ptr;
-  hal_l1p_t l1p;
   paddr_t pstart;
   volatile uint16_t *reset;
   extern char *_ap_start, *_ap_end;
-
-  /* We're about to map the page. Save the initial user mapping to a UMAP. */
-  hal_umap_bootstrap(&init_umap);
 
   /* Allocate PCPU bootstrap code page. */
   pfn = pfn_alloc (1);
@@ -176,9 +167,7 @@ hal_pcpu_init (void)
      16 bit. */
   assert (pfn < (1 << 8) && "Can't allocate Memory below 1MB!");
 
-  /* Map and prepare the bootstrap code page. */
-  va = kva_map (1, pfn, 1, HAL_PTE_W | HAL_PTE_P);
-  assert (va != NULL);
+  va = pfn_get(pfn);
   start = va;
   size_t apbootsz = (size_t) ((void *) &_ap_end - (void *) &_ap_start);
   assert (apbootsz <= PAGE_SIZE);
@@ -191,11 +180,10 @@ hal_pcpu_init (void)
      trampoline to use the page just selected as bootstrap page.
    */
   extern char _ap_gdtreg, _ap_ljmp1, _ap_ljmp2, _ap_cr3;
-  extern uint64_t _bsp_cr3;
 
   /* Copy BSP CR3 into AP */
   ptr = start + ((void *) &_ap_cr3 - (void *) &_ap_start);
-  *(uint64_t *) ptr = _bsp_cr3;
+  *(uint64_t *) ptr = bootstrap_pagetable (pfn);
 
   /* Setup temporary GDT register. */
   ptr = start + ((void *) &_ap_gdtreg - (void *) &_ap_start);
@@ -209,19 +197,14 @@ hal_pcpu_init (void)
   ptr = start + ((void *) &_ap_ljmp2 - (void *) &_ap_start);
   *(uint32_t *) ptr += (uint32_t) pstart;
 
+  pfn_put(pfn, va);
+
   /* Set reset vector */
   reset = kva_physmap (0, 0x467, 2, HAL_PTE_P | HAL_PTE_W | HAL_PTE_X);
   *reset = pstart & 0xf;
   *(reset + 1) = pstart >> 4;
   kva_unmap ((void *) reset);
 
-  /* pstart is in user address space: use kmap_ instead of hal_kmap */
-  l1p = kmap_get_l1p (pstart, true);
-  assert (l1p != L1P_INVALID);
-  /* Save the l1e we're abou to overwrite. We'll restore it after init is done. */
-  smp_oldl1e = hal_l1e_get (l1p);
-  smp_oldva = pstart;
-  hal_l1e_set (l1p, (pstart & ~PAGE_MASK) | PTE_P | PTE_W);
   pcpu_pstart = pstart;
 
   bsp_pcpuid = plt_pcpu_id ();
@@ -276,14 +259,16 @@ amd64_init_ap (uintptr_t esp)
   haldata->tss.rsp0 = esp;
   haldata->tss.iomap = 108;
 
+  /*
+    Alloc final per-CPU pagetable. Does not contain SMP bootstrap
+    mappings.
+  */
+  write_cr3 (new_pagetable ());
+
   hal_main_ap ();
 }
 
 void
 amd64_init_done (void)
 {
-
-  write_cr3 (alloc_cpu_cr3 ());
-
-  //  hal_umap_load (&init_umap);
 }

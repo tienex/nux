@@ -14,6 +14,7 @@
 
 #include <assert.h>
 #include <stdint.h>
+#include <string.h>
 #include <nux/nux.h>
 #include <nux/types.h>
 #include "../internal.h"
@@ -31,7 +32,7 @@
 #define L1OFF(_va) (((_va) >> L1_SHIFT) & 0x1ff)
 
 #define UNCANON(_va) ((_va) & ((1LL << 48) - 1))
-#define CANON(_va) ((_va) | ((_va) & (1L << 47)) ? 0xffff000000000000L : 0)
+#define CANON(_va) ((_va) | (((_va) & (1L << 47)) ? 0xffff000000000000L : 0))
 
 /* The following RES definitions assume 48-bit MAX PA */
 #define L4_RESPT 0x000F000000000080
@@ -60,11 +61,13 @@
 #define mkptep_fgn(_p) ((ptep_t)(uintptr_t)(_p) | 1)
 #define ptep_is_foreign(_p) ((_p) & 1)
 
-extern int _linear_start;
-static const pte_t *linaddr = (const pte_t *) &_linear_start;
+extern uint8_t _linear_start[1L << L4_SHIFT];
+static const pte_t *linaddr = (const pte_t *) _linear_start;
 static pte_t *linaddr_l2;
 static pte_t *linaddr_l3;
 static pte_t *linaddr_l4;
+
+static pte_t kernel_l4s[256];
 
 uint64_t
 mkaddr (uint64_t l4off, uint64_t l3off, uint64_t l2off, uint64_t l1off)
@@ -272,6 +275,10 @@ get_umap_l2pfn (struct hal_umap *umap, unsigned long va, bool alloc)
   pte_t l3e;
 
   l3p = get_umap_l3p (umap, va, alloc);
+  if (l3p == PTEP_INVALID)
+    {
+      return PFN_INVALID;
+    }
   l3e = get_pte (l3p);
 
   if (!pte_present (l3e))
@@ -312,6 +319,10 @@ get_umap_l1pfn (struct hal_umap *umap, unsigned long va, bool alloc)
   pte_t l2e;
 
   l2p = get_umap_l2p (umap, va, alloc);
+  if (l2p == PTEP_INVALID)
+    {
+      return PFN_INVALID;
+    }
   l2e = get_pte (l2p);
 
   if (!pte_present (l2e))
@@ -332,25 +343,71 @@ get_umap_l1pfn (struct hal_umap *umap, unsigned long va, bool alloc)
   return pte_pfn (l2e);
 }
 
-unsigned long
-alloc_cpu_cr3 ()
+static pfn_t _alloc_pagetable(void)
 {
   pfn_t pfn;
-  pte_t *l4p;
+  pte_t *l4;
 
   pfn = pfn_alloc (0);
   assert (pfn != PFN_INVALID);
-  l4p = pfn_get (pfn);
+  l4 = pfn_get (pfn);
   for (unsigned i = 256; i < 512; i++)
     {
-      if (i == L4OFF((uintptr_t)linaddr)) {
-	printf("THERE %p %lx %lx", linaddr, i, L4OFF((uintptr_t)linaddr));
-	l4p[i] = mkpte(pfn, PTE_W | PTE_P);
-      }
+      if (i == L4OFF((uintptr_t)linaddr))
+	{
+	  l4[i] = mkpte(pfn, PTE_W | PTE_P);
+	}
       else
-	l4p[i] = linmap_get_l4e (mkaddr (i, 0, 0, 0));
+	{
+	  l4[i] = kernel_l4s[i - 256];
+	}
     }
-  pfn_put (pfn, l4p);
+  pfn_put (pfn, l4);
+  return pfn;
+}
+
+unsigned long
+bootstrap_pagetable (pfn_t bootstrap_pfn)
+{
+  pte_t *pteptr;;
+  unsigned long bootstrap_va;
+  pfn_t l3pfn, l2pfn, l1pfn;
+  pfn_t l4pfn = _alloc_pagetable();
+
+  /* Alloc intermediate pagetables for mapping. */
+  l3pfn = pfn_alloc(0);
+  assert (l3pfn != PFN_INVALID);
+  l2pfn = pfn_alloc(0);
+  assert (l2pfn != PFN_INVALID);
+  l1pfn = pfn_alloc(0);
+  assert (l1pfn != PFN_INVALID);
+
+  /* Map 1:1 the bootstrap PFN */
+  bootstrap_va = ((unsigned long)bootstrap_pfn << PAGE_SHIFT);
+
+  pteptr = pfn_get (l4pfn);
+  pteptr[L4OFF(bootstrap_va)] = mkpte(l3pfn, PTE_W|PTE_P);
+  pfn_put (l4pfn, pteptr);
+
+  pteptr = pfn_get (l3pfn);
+  pteptr[L3OFF(bootstrap_va)] = mkpte(l2pfn, PTE_W|PTE_P);
+  pfn_put (l3pfn, pteptr);
+
+  pteptr = pfn_get (l2pfn);
+  pteptr[L2OFF(bootstrap_va)] = mkpte(l1pfn, PTE_W|PTE_P);
+  pfn_put (l2pfn, pteptr);
+
+  pteptr = pfn_get (l1pfn);
+  pteptr[L1OFF(bootstrap_va)] = mkpte(bootstrap_pfn, PTE_W|PTE_P);
+  pfn_put (l1pfn, pteptr);
+
+  return (l4pfn << PAGE_SHIFT);
+}
+
+unsigned long
+new_pagetable (void)
+{
+  pfn_t pfn = _alloc_pagetable();
   return (pfn << PAGE_SHIFT);
 }
 
@@ -661,4 +718,10 @@ pae64_init (void)
   linaddr_l4 =
     linaddr_l3 + (((uintptr_t) linaddr & ((1L << 48) - 1)) >> (27 + 3));
 
+  /* Save kernel L4s */
+  for (int i = 256; i < 512; i++)
+    {
+      unsigned long va = ((unsigned long)i << L4_SHIFT);
+      kernel_l4s[i - 256] = linmap_get_l4e(va);
+    }
 }

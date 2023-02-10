@@ -64,7 +64,8 @@ typedef uintptr_t ptep_t;
 
 pte_t get_pte (ptep_t ptep);
 pte_t set_pte (ptep_t ptep, pte_t pte);
-unsigned long alloc_cpu_cr3 ();
+unsigned long bootstrap_pagetable ();
+unsigned long new_pagetable ();
 hal_l1p_t kmap_get_l1p (unsigned long va, int alloc);
 hal_l1p_t umap_get_l1p (struct hal_umap *umap, unsigned long va, int alloc);
 uaddr_t umap_next (struct hal_umap *umap, uaddr_t uaddr, hal_l1p_t * l1p_out,
