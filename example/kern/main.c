@@ -124,6 +124,10 @@ entry_ex (uctxt_t * uctxt, unsigned ex)
 {
   info ("Exception %d", ex);
   uctxt_print (uctxt);
+  printf("LOAD");
+  hal_umap_load (NULL);
+  printf("FREE");
+  hal_umap_free (&umap);
   return UCTXT_IDLE;
 }
 
@@ -132,6 +136,10 @@ entry_pf (uctxt_t * uctxt, vaddr_t va, hal_pfinfo_t pfi)
 {
   info ("CPU #%d Pagefault at %08lx (%d)", cpu_id (), va, pfi);
   uctxt_print (uctxt);
+  printf("LOAD");
+  hal_umap_load (NULL);
+  printf("FREE");
+  hal_umap_free (&umap);
   return UCTXT_IDLE;
 }
 
