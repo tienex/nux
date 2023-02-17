@@ -76,11 +76,6 @@ _setcs_ljmp:
 	/* init hal */
 	call _C_LABEL(x86_init)
 
-	// Save CR3 for future AP boots.
-	mov %cr3, %rax
-	movabs $_bsp_cr3, %rbx
-	mov %eax, (%rbx)
-
 	xor %rdi, %rdi
 	call ___start
 1:	hlt
@@ -264,10 +259,6 @@ _ist3btm:
 	.zero 4096
 	.globl _ist3_stacktop
 _ist3_stacktop:
-
-	.globl _bsp_cr3
-_bsp_cr3:
-	.quad 0
 	.align 64
 	.globl _gdt
 _gdt:

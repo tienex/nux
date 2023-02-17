@@ -81,7 +81,11 @@ hal_pcpu_init (void)
      The following is trampoline dependent code, and configures the
      trampoline to use the page just selected as bootstrap page.
    */
-  extern char _ap_gdtreg, _ap_ljmp;
+  extern char _ap_gdtreg, _ap_ljmp, _ap_cr3;
+
+  /* Copy BSP CR3 into AP */
+  ptr = start + ((void *) &_ap_cr3 - (void *) &_ap_start);
+  *(uint32_t *) ptr = bootstrap_pagetable (pfn);
 
   /* Setup temporary GDT register. */
   ptr = start + ((void *) &_ap_gdtreg - (void *) &_ap_start);
@@ -159,11 +163,11 @@ hal_pcpu_enter (unsigned pcpuid)
   uint16_t tss = (5 + 4 * pcpuid) << 3;
   uint16_t fs = (5 + 4 * pcpuid + 1) << 3;
 
-  assert (pcpuid < MAXCPUS);
-
   asm volatile ("ltr %%ax"::"a" (tss));
   asm volatile ("mov %%ax, %%fs"::"a" (fs));
 
+  write_cr3(cpu_pagetable ());
+  
   bsp_enter_called = 1;
 }
 
@@ -203,14 +207,6 @@ hal_vect_max (void)
 void
 i386_init_ap (uintptr_t esp)
 {
-  unsigned pcpu = plt_pcpu_id ();
-  struct hal_cpu *haldata = (struct hal_cpu *) (uintptr_t) pcpu_haldata[pcpu];
-
-  haldata->tss.esp0 = esp;
-  haldata->tss.iomap = 108;
-
-  write_cr3 (alloc_cpu_cr3 ());
-
   hal_main_ap ();
 }
 
@@ -227,8 +223,8 @@ i386_init_done (void)
   /* Switch to new CR3. We abandon the original CR3 as setup by the
      bootloader (that contains extra mappings for the trampoline
      code). */
-  write_cr3 (alloc_cpu_cr3 ());
-  hal_umap_load (&init);
-  tlbflush_local ();
+  //  write_cr3 (cpu_pagetable ());
+  //  hal_umap_load (&init);
+  //  tlbflush_local ();
 
 }

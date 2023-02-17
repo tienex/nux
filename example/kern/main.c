@@ -21,6 +21,8 @@
 uctxt_t u_init;
 struct hal_umap umap;
 
+static volatile uint8_t ap_barrier = 0;
+
 int
 main (int argc, char *argv[])
 {
@@ -53,7 +55,7 @@ main (int argc, char *argv[])
     }
   else
     {
-      cpu_ipi (cpu_id (), cpu_ipi_base () + 0);
+      cpu_ipi (30, cpu_ipi_base () + 0);
     }
 
 
@@ -71,6 +73,9 @@ main (int argc, char *argv[])
       i = x;
     }
 
+  __atomic_store_n (&ap_barrier, 1, __ATOMIC_RELEASE);
+  hal_umap_load (NULL);
+
   return EXIT_IDLE;
 }
 
@@ -78,6 +83,9 @@ int
 main_ap (void)
 {
   printf ("%d: %" PRIx64 "\n", cpu_id (), timer_gettime ());
+  while (!__atomic_load_n (&ap_barrier, __ATOMIC_ACQUIRE))
+    hal_cpu_relax();
+  hal_umap_load(&umap);
   return EXIT_IDLE;
 }
 
@@ -106,7 +114,7 @@ entry_sysc (uctxt_t * u,
 uctxt_t *
 entry_ipi (uctxt_t * uctxt, unsigned ipi)
 {
-  info ("IPI!");
+  info ("IPI %d!", cpu_id ());
   return &u_init;
 }
 

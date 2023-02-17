@@ -79,6 +79,7 @@ mkaddr (uint64_t l4off, uint64_t l3off, uint64_t l2off, uint64_t l1off)
 pte_t
 get_pte (ptep_t ptep)
 {
+  assert (ptep != PTEP_INVALID);
   if (ptep_is_foreign (ptep))
     {
       pte_t *t, pte;
@@ -106,6 +107,7 @@ set_pte (ptep_t ptep, pte_t pte)
 {
   pte_t old;
 
+  assert (ptep != PTEP_INVALID);
   if (ptep_is_foreign (ptep))
     {
       pte_t *t;
@@ -139,6 +141,74 @@ alloc_table (bool user)
     return PTE_INVALID;
 
   return mkpte (pfn, PTE_P | PTE_W | (user ? PTE_U : 0));
+}
+
+static pfn_t _alloc_pagetable(void)
+{
+  pfn_t pfn;
+  pte_t *l4;
+
+  pfn = pfn_alloc (0);
+  assert (pfn != PFN_INVALID);
+  l4 = pfn_get (pfn);
+  for (unsigned i = 256; i < 512; i++)
+    {
+      if (i == L4OFF((uintptr_t)linaddr))
+	{
+	  l4[i] = mkpte(pfn, PTE_W | PTE_P);
+	}
+      else
+	{
+	  l4[i] = kernel_l4s[i - 256];
+	}
+    }
+  pfn_put (pfn, l4);
+  return pfn;
+}
+
+unsigned long
+bootstrap_pagetable (pfn_t bootstrap_pfn)
+{
+  pte_t *pteptr;
+  unsigned long bootstrap_va;
+  pfn_t l3pfn, l2pfn, l1pfn;
+  pfn_t l4pfn = _alloc_pagetable();
+
+  /* Alloc intermediate pagetables for mapping. */
+  l3pfn = pfn_alloc(0);
+  assert (l3pfn != PFN_INVALID);
+  l2pfn = pfn_alloc(0);
+  assert (l2pfn != PFN_INVALID);
+  l1pfn = pfn_alloc(0);
+  assert (l1pfn != PFN_INVALID);
+
+  /* Map 1:1 the bootstrap PFN */
+  bootstrap_va = ((unsigned long)bootstrap_pfn << PAGE_SHIFT);
+
+  pteptr = pfn_get (l4pfn);
+  pteptr[L4OFF(bootstrap_va)] = mkpte(l3pfn, PTE_W|PTE_P);
+  pfn_put (l4pfn, pteptr);
+
+  pteptr = pfn_get (l3pfn);
+  pteptr[L3OFF(bootstrap_va)] = mkpte(l2pfn, PTE_W|PTE_P);
+  pfn_put (l3pfn, pteptr);
+
+  pteptr = pfn_get (l2pfn);
+  pteptr[L2OFF(bootstrap_va)] = mkpte(l1pfn, PTE_W|PTE_P);
+  pfn_put (l2pfn, pteptr);
+
+  pteptr = pfn_get (l1pfn);
+  pteptr[L1OFF(bootstrap_va)] = mkpte(bootstrap_pfn, PTE_W|PTE_P);
+  pfn_put (l1pfn, pteptr);
+
+  return (l4pfn << PAGE_SHIFT);
+}
+
+unsigned long
+cpu_pagetable (void)
+{
+  pfn_t pfn = _alloc_pagetable();
+  return (pfn << PAGE_SHIFT);
 }
 
 static ptep_t
@@ -341,74 +411,6 @@ get_umap_l1pfn (struct hal_umap *umap, unsigned long va, bool alloc)
   assert (!l2e_bigpage (l2e) && "Invalid page size.");
 
   return pte_pfn (l2e);
-}
-
-static pfn_t _alloc_pagetable(void)
-{
-  pfn_t pfn;
-  pte_t *l4;
-
-  pfn = pfn_alloc (0);
-  assert (pfn != PFN_INVALID);
-  l4 = pfn_get (pfn);
-  for (unsigned i = 256; i < 512; i++)
-    {
-      if (i == L4OFF((uintptr_t)linaddr))
-	{
-	  l4[i] = mkpte(pfn, PTE_W | PTE_P);
-	}
-      else
-	{
-	  l4[i] = kernel_l4s[i - 256];
-	}
-    }
-  pfn_put (pfn, l4);
-  return pfn;
-}
-
-unsigned long
-bootstrap_pagetable (pfn_t bootstrap_pfn)
-{
-  pte_t *pteptr;;
-  unsigned long bootstrap_va;
-  pfn_t l3pfn, l2pfn, l1pfn;
-  pfn_t l4pfn = _alloc_pagetable();
-
-  /* Alloc intermediate pagetables for mapping. */
-  l3pfn = pfn_alloc(0);
-  assert (l3pfn != PFN_INVALID);
-  l2pfn = pfn_alloc(0);
-  assert (l2pfn != PFN_INVALID);
-  l1pfn = pfn_alloc(0);
-  assert (l1pfn != PFN_INVALID);
-
-  /* Map 1:1 the bootstrap PFN */
-  bootstrap_va = ((unsigned long)bootstrap_pfn << PAGE_SHIFT);
-
-  pteptr = pfn_get (l4pfn);
-  pteptr[L4OFF(bootstrap_va)] = mkpte(l3pfn, PTE_W|PTE_P);
-  pfn_put (l4pfn, pteptr);
-
-  pteptr = pfn_get (l3pfn);
-  pteptr[L3OFF(bootstrap_va)] = mkpte(l2pfn, PTE_W|PTE_P);
-  pfn_put (l3pfn, pteptr);
-
-  pteptr = pfn_get (l2pfn);
-  pteptr[L2OFF(bootstrap_va)] = mkpte(l1pfn, PTE_W|PTE_P);
-  pfn_put (l2pfn, pteptr);
-
-  pteptr = pfn_get (l1pfn);
-  pteptr[L1OFF(bootstrap_va)] = mkpte(bootstrap_pfn, PTE_W|PTE_P);
-  pfn_put (l1pfn, pteptr);
-
-  return (l4pfn << PAGE_SHIFT);
-}
-
-unsigned long
-new_pagetable (void)
-{
-  pfn_t pfn = _alloc_pagetable();
-  return (pfn << PAGE_SHIFT);
 }
 
 ptep_t

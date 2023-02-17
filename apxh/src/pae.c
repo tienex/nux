@@ -391,12 +391,12 @@ pae_physmap (vaddr_t va, size64_t size, uint64_t pa)
 void
 pae_empty (vaddr_t va, size64_t size)
 {
-  unsigned i, n;
+  unsigned long i, n;
 
-  n = size >> (PAGE_SHIFT + 9);
+  n = size >> (PAGE_SHIFT);
 
   for (i = 0; i < n; i++)
-    (void) pae_get_l2p (pae_cr3, va + (i << PAGE_SHIFT), 1);
+    (void) pae_get_l1p (pae_cr3, va + (i << PAGE_SHIFT), 1);
 }
 
 void
@@ -493,6 +493,8 @@ pae64_get_l3p (pte_t * cr3, vaddr_t va, int payload)
   if (l3p == NULL)
     {
       uintptr_t l3page;
+
+      printf("Allocating (%d) for %llx\n", payload, va);
 
       /* Populating L3. */
       l3page = payload ? get_payload_page () : get_page ();
@@ -726,12 +728,22 @@ pae64_physmap (vaddr_t va, size64_t size, uint64_t pa)
 void
 pae64_empty (vaddr_t va, size64_t size)
 {
-  unsigned i, n;
+  uint64_t l4_start, l4_end;
+
+  l4_start = L4OFF64(va);
+  l4_end = L4OFF64(va + size + ((uint64_t)1 << 39) - 1);
+  printf("L4START = %llx, L4END = %llx\n", l4_start, l4_end);
+
+  for (uint64_t i = l4_start; i < l4_end; i++) {
+    (void) pae64_get_l3p (pae64_cr3, i << 39, 1);
+  }
+  /*  unsigned i, n;
 
   n = size >> (PAGE_SHIFT + 9);
 
   for (i = 0; i < n; i++)
     (void) pae64_get_l3p (pae64_cr3, va + (i << PAGE_SHIFT), 1);
+  */
 }
 
 void

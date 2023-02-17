@@ -263,7 +263,7 @@ amd64_init_ap (uintptr_t esp)
     Alloc final per-CPU pagetable. Does not contain SMP bootstrap
     mappings.
   */
-  write_cr3 (new_pagetable ());
+  write_cr3 (cpu_pagetable ());
 
   hal_main_ap ();
 }
