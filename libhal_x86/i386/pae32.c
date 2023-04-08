@@ -86,6 +86,7 @@ struct pdptr
 } __packed;
 
 struct pdptr pdptrs[MAXCPUS] __aligned (4096);
+struct pdptr bootstrap_pdptr;
 
 typedef uint64_t hal_l1e_t;
 
@@ -298,7 +299,7 @@ get_umap_l1pfn (struct hal_umap *umap, unsigned long va, bool alloc)
 }
 
 unsigned long
-alloc_cpu_cr3 (void)
+new_pagetable (void)
 {
   struct pdptr *pdptr = pdptrs + plt_pcpu_id ();
   pfn_t k_l2pfn;
@@ -338,6 +339,75 @@ alloc_cpu_cr3 (void)
     }
   pfn_put (k_l2pfn, l2ptr);
 
+
+  /* Get physical address of pdptr and return CR3 */
+  l1p = linmap_get_l1p ((uintptr_t) pdptr, false, false);
+  assert (l1p != L1P_INVALID);
+  l1e = get_pte (l1p);
+  assert (pte_present (l1e));
+  return (pte_pfn (l1e) << PAGE_SHIFT) +
+    ((uintptr_t) pdptr & (PAGE_SIZE - 1));
+}
+
+unsigned long
+bootstrap_pagetable (pfn_t bootstrap_pfn)
+{
+  struct pdptr *pdptr = &bootstrap_pdptr;
+  unsigned long bootstrap_va;
+  pfn_t k_l2pfn, l2pfn, l1pfn;;
+  ptep_t l1p;
+  pte_t l1e, *pteptr;
+
+  /* Alloc new L2 for kernel */
+  k_l2pfn = pfn_alloc (0);
+
+  /* Set the L3s. */
+  for (unsigned i = 0; i < 4; i++)
+    {
+      if (i == 3)
+	pdptr->pdptr[i] = mkpte (k_l2pfn, PTE_P);
+      else
+	pdptr->pdptr[i] = 0;
+    }
+
+  /* Copy kernel address and fix linear addresses. */
+  pteptr = pfn_get (k_l2pfn);
+  for (unsigned i = 0; i < 512; i++)
+    {
+      if ((i >= L2OFF (linaddr)) && (i < (L2OFF (linaddr) + 3)))
+	{
+	  printf ("there -- %llx --", mkaddr (3, i, 0));
+	  pteptr[i] = 0;
+	}
+      else if (i == L2OFF (linaddr) + 3)
+	{
+	  printf ("-- here: %lx --", mkaddr (3, i, 0));
+	  pteptr[i] = mkpte (k_l2pfn, PTE_P | PTE_W);
+	}
+      else
+	{
+	  pteptr[i] = linmap_get_l2e (mkaddr (3, i, 0));
+	}
+    }
+  pfn_put (k_l2pfn, pteptr);
+
+  l2pfn = pfn_alloc(0);
+  assert (l2pfn != PFN_INVALID);
+  l1pfn = pfn_alloc(0);
+  assert (l1pfn != PFN_INVALID);
+
+  /* Map 1:1 the bootstrap PFN */
+  bootstrap_va = ((unsigned long)bootstrap_pfn << PAGE_SHIFT);
+
+  pdptr->pdptr[L3OFF(bootstrap_va)] = mkpte(l2pfn, PTE_P);
+
+  pteptr = pfn_get (l2pfn);
+  pteptr[L2OFF(bootstrap_va)] = mkpte(l1pfn, PTE_W|PTE_P);
+  pfn_put (l2pfn, pteptr);
+
+  pteptr = pfn_get (l1pfn);
+  pteptr[L1OFF(bootstrap_va)] = mkpte(bootstrap_pfn, PTE_W|PTE_P);
+  pfn_put (l1pfn, pteptr);
 
   /* Get physical address of pdptr and return CR3 */
   l1p = linmap_get_l1p ((uintptr_t) pdptr, false, false);

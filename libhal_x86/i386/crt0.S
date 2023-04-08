@@ -34,10 +34,6 @@ _start:
 
 	call _clear_bss
 
-	// Save CR3 for future AP boots.
-	mov %cr3, %eax
-	mov %eax, _ap_cr3
-
 	/* init hal */
 	call _C_LABEL(x86_init)
 

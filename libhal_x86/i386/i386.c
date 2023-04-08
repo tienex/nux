@@ -42,9 +42,6 @@ uint64_t pcpu_kstack[MAXCPUS];
 static int bsp_enter_called = 0;
 static unsigned bsp_pcpuid;
 
-static vaddr_t smp_oldva;
-static hal_l1e_t smp_oldl1e;
-
 uint16_t
 _i386_fs (void)
 {
@@ -59,7 +56,6 @@ hal_pcpu_init (void)
 {
   pfn_t pfn;
   void *start, *ptr;
-  hal_l1p_t l1p;
   paddr_t pstart;
   volatile uint16_t *reset;
   extern char *_ap_start, *_ap_end;
@@ -81,7 +77,11 @@ hal_pcpu_init (void)
      The following is trampoline dependent code, and configures the
      trampoline to use the page just selected as bootstrap page.
    */
-  extern char _ap_gdtreg, _ap_ljmp;
+  extern char _ap_gdtreg, _ap_ljmp, _ap_cr3;
+
+  /* Copy BSP CR3 into AP */
+  ptr = start + ((void *) &_ap_cr3 - (void *) &_ap_start);
+  *(uint32_t *) ptr = bootstrap_pagetable (pfn);
 
   /* Setup temporary GDT register. */
   ptr = start + ((void *) &_ap_gdtreg - (void *) &_ap_start);
@@ -99,13 +99,6 @@ hal_pcpu_init (void)
   *(reset + 1) = pstart >> 4;
   kva_unmap ((void *) reset);
 
-  /* pstart is in user address space: use kmap_ instead of hal_kmap */
-  l1p = kmap_get_l1p (pstart, true);
-  assert (l1p != L1P_INVALID);
-  /* Save the l1e we're abou to overwrite. We'll restore it after init is done. */
-  smp_oldl1e = hal_l1e_get (l1p);
-  smp_oldva = pstart;
-  hal_l1e_set (l1p, (pstart & ~PAGE_MASK) | PTE_P | PTE_W);
   pcpu_pstart = pstart;
 
   bsp_pcpuid = plt_pcpu_id ();
@@ -209,7 +202,11 @@ i386_init_ap (uintptr_t esp)
   haldata->tss.esp0 = esp;
   haldata->tss.iomap = 108;
 
-  write_cr3 (alloc_cpu_cr3 ());
+  /*
+    Alloc final per-CPU pagetable. Does not contain SMP bootstrap
+    mappings.
+  */
+  write_cr3 (new_pagetable ());
 
   hal_main_ap ();
 }
@@ -219,16 +216,5 @@ struct hal_umap init;
 void
 i386_init_done (void)
 {
-  //hal_l1p_t l1p;
-
-
-  hal_umap_bootstrap (&init);
-
-  /* Switch to new CR3. We abandon the original CR3 as setup by the
-     bootloader (that contains extra mappings for the trampoline
-     code). */
-  write_cr3 (alloc_cpu_cr3 ());
-  hal_umap_load (&init);
-  tlbflush_local ();
-
+  write_cr3 (new_pagetable ());
 }
