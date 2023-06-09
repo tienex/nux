@@ -1,0 +1,24 @@
+#IBERTYSRCS= $(SRCROOT)/contrib/binutils/libiberty
+#BFDSRCS= $(SRCROOT)/contrib/binutils/bfd
+#ZLIBSRCS= $(SRCROOT)/contrib/binutils/zlib
+
+HOST_CC=gcc
+
+#CFLAGS= -I$(IBERTYSRCS) -I$(BFDSRCS) -I$(ZLIBSRCS)
+#LDFLAGS= -L$(ZLIBSRCS) -L$(IBERTYSRCS) -L$(BFDSRCS) 
+
+ar50: ar50.c squoze.c
+	$(HOST_CC) $^ -o $@ $(CFLAGS) $(LDFLAGS)
+
+sq: sq.c squoze.c
+	$(HOST_CC) $^ -o $@ $(CFLAGS) $(LDFLAGS)
+
+unsq: unsq.c squoze.c
+	$(HOST_CC) $^ -o $@ $(CFLAGS) $(LDFLAGS)
+
+.PHONY: clean
+clean:
+	rm *.o ar50 sq unsq
+
+ALL_TARGET += ar50 sq unsq
+CLEAN_TARGET += clean

@@ -1,0 +1,9 @@
+# BFD-based tool for appending data to a binary.
+
+This tool is used to add loadable, allocatable section to an ELF file.
+
+The main difference with `objcopy`'s support for adding new sections
+is that in the ELF case the program header is also updated.
+
+The file is added in a section at the highest addresses (both VMA and
+LMA), thus effectively _appending_ the data to the image.

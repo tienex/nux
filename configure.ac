@@ -97,7 +97,8 @@ AC_MK_CONFIG_FILES([
 	example/user/Makefile
 	tools/Makefile
 	tools/libbfd/Makefile
-	tools/nuxar/Makefile
+	tools/ar50/Makefile
+	tools/objappend/Makefile
 ])
 
 AC_CONFIG_SUBDIRS([apxh example])

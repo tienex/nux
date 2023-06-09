@@ -7,12 +7,12 @@ HOST_CC=gcc
 CFLAGS= -I$(IBERTYSRCS) -I$(BFDSRCS) -I$(ZLIBSRCS)
 LDFLAGS= -L$(ZLIBSRCS) -L$(IBERTYSRCS) -L$(BFDSRCS) 
 
-nuxar: nuxar.c squoze.c
+objappend: objappend.c
 	$(HOST_CC) $^ -o $@ $(CFLAGS) $(LDFLAGS) -lbfd -lz -liberty
 
 .PHONY: clean
 clean:
-	rm *.o nuxar
+	rm *.o objappend
 
-ALL_TARGET += nuxar
+ALL_TARGET += objappend
 CLEAN_TARGET += clean

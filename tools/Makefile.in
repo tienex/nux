@@ -1,1 +1,1 @@
-SUBDIRS= libbfd nuxar
+SUBDIRS= libbfd ar50 objappend

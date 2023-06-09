@@ -1,0 +1,12 @@
+# AR50: A simple embedded archive format.
+
+A minimal, both in effort and features, archiver.
+
+AR50 is the simplest possible tool to archive and extract files.
+
+An AR50 archive is quite simple is structure, it is a sequence of
+header and file, much like `tar`. As opposed to `tar`, only file name
+and size are stored, and furthermore the file name is encoded with
+_DEC RAD-50_, thus limiting the length and the accepted charset of the
+file, but gaining the advantage of a small, fixed size element in the
+header.

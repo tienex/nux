@@ -42,7 +42,7 @@ struct payload_hdr
   uint64_t magic;
   uint64_t filename;
   uint32_t size;
-} __attribute__((aligned));
+} __attribute__((packed));
 
 
 

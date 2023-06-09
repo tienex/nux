@@ -13,26 +13,10 @@
 
 #include <bfd.h>
 
-#define PROGNAME "nuxar"
-#define PAYLOAD_SECTNAME ".nux-payload"
-
-uint64_t squoze (char *);
-char *unsquoze (uint64_t enc);
+#define PROGNAME "objappend"
+#define PAYLOAD_SECTNAME ".objappend"
 
 static asymbol **isym, **osym;
-
-
-/*
-  On disk structure with payload information.
-*/
-struct payload_hdr
-{
-#define PAYLOAD_HDR_MAGIC squoze ("nux-payload")
-  uint64_t magic;
-  uint64_t filename;
-  uint32_t size;
-} __attribute__((aligned));
-
 
 void
 report (const char *format, va_list args)
@@ -82,21 +66,6 @@ bfd_fatal (const char *string)
 {
   bfd_nonfatal (string);
   exit (1);
-}
-
-static void
-_print_payload (bfd * abfd, asection * sect, void *ptr)
-{
-  FILE *f = (FILE *) ptr;
-  struct payload_hdr hdr;
-
-  if (strcmp (PAYLOAD_SECTNAME, sect->name))
-    return;
-
-  bfd_get_section_contents (abfd, sect, &hdr, 0, sizeof (struct payload_hdr));
-  char *name = unsquoze (hdr.filename);
-  fprintf (f, "%12s: %-10u %08lx\n", name, hdr.size, sect->vma);
-  free (name);
 }
 
 static void
@@ -252,12 +221,6 @@ _get_max_lma (bfd * ibfd, asection * isection, void *ptr)
     *maxlma = lma;
 }
 
-static void
-do_list (bfd * ibfd)
-{
-
-}
-
 void
 get_payload_addresses (bfd * ibfd, unsigned long *lma, unsigned long *vma)
 {
@@ -273,7 +236,7 @@ create_payload_section (bfd * obfd, char *filename,
 {
   asection *s;
   flagword flags;
-  struct stat stat;
+  struct stat st;
 
   flags = SEC_ALLOC | SEC_LOAD | SEC_HAS_CONTENTS
     | SEC_READONLY | SEC_DATA | SEC_LINKER_CREATED;
@@ -281,11 +244,11 @@ create_payload_section (bfd * obfd, char *filename,
   if (s == NULL)
     fatal ("can't add payload section");
 
-  if (lstat (filename, &stat) < 0)
+  if (lstat (filename, &st) < 0)
     fatal ("can't stat %s", filename);
 
   if (!bfd_set_section_size
-      (obfd, s, sizeof (struct payload_hdr) + stat.st_size))
+      (obfd, s, (size_t)st.st_size))
     fatal ("can't set payload section initial size");
 
   if (!bfd_set_section_alignment (obfd, s, 0))
@@ -311,7 +274,6 @@ fill_payload_section (bfd * obfd, asection * s, char *filename)
   int r;
   bfd_byte *buf;
   FILE *f;
-  struct payload_hdr *hdr;
   struct stat st;
   size_t size;
 
@@ -319,94 +281,21 @@ fill_payload_section (bfd * obfd, asection * s, char *filename)
   if (f == NULL)
     fatal ("%s: %s", filename, strerror (errno));
 
-  r = stat (filename, &st);
+  r = lstat (filename, &st);
   if (r < 0)
     fatal ("%s: stat failed: %s", filename, strerror (errno));
 
-  size = sizeof (struct payload_hdr) + st.st_size;
-
+  size = st.st_size;
   buf = calloc (1, size);
   if (buf == NULL)
     fatal ("calloc failed");
 
-  hdr = (struct payload_hdr *) buf;
-  hdr->magic = PAYLOAD_HDR_MAGIC;
-  hdr->filename = squoze (filename);
-  hdr->size = st.st_size;
-
-  if (fread ((void *) (hdr + 1), 1, st.st_size, f) == 0 || ferror (f))
+  if (fread (buf, 1, size, f) == 0 || ferror (f))
     fatal ("%s: fread failed", filename);
   fclose (f);
 
   if (!bfd_set_section_contents (obfd, s, buf, 0, size))
     bfd_fatal ("setting payload contents");
-
-  free (buf);
-
-}
-
-void
-update_payload_section (bfd * obfd, char *filename)
-{
-  int r;
-  asection *s;
-  size_t size, newsize;
-  bfd_byte *buf;
-  FILE *f;
-  struct payload_hdr *hdr;
-  struct stat st;
-
-  s = bfd_get_section_by_name (obfd, PAYLOAD_SECTNAME);
-  if (s == NULL)
-    {
-      flagword flags;
-
-      flags = SEC_LINKER_CREATED | SEC_LOAD | SEC_HAS_CONTENTS;
-      //        | SEC_READONLY | SEC_DATA;
-
-      s = bfd_make_section_anyway_with_flags (obfd, PAYLOAD_SECTNAME, flags);
-      if (s == NULL)
-	bfd_fatal ("can't add payload section");
-    }
-
-  size = bfd_get_section_size (s);
-
-  if (!(bfd_get_section_flags (obfd, s) & SEC_HAS_CONTENTS) || size == 0)
-    buf = NULL;
-  else
-    {
-      if (!bfd_get_full_section_contents (obfd, s, &buf))
-	bfd_fatal ("couldn't get payload contents.");
-    }
-
-  f = fopen (filename, "r");
-  if (f == NULL)
-    fatal ("%s: %s", filename, strerror (errno));
-
-  r = stat (filename, &st);
-  if (r < 0)
-    fatal ("%s: stat failed: %s", filename, strerror (errno));
-
-  newsize = size + sizeof (struct payload_hdr) + st.st_size;
-
-  if (!bfd_set_section_size (obfd, s, newsize))
-    bfd_fatal ("failed to update payload section size");
-
-  buf = realloc (buf, newsize);
-  if (buf == NULL)
-    fatal ("realloc failed");
-  buf += size;
-
-  hdr = (struct payload_hdr *) buf;
-  hdr->magic = PAYLOAD_HDR_MAGIC;
-  hdr->filename = squoze (filename);
-
-  if (fread ((void *) (hdr + 1), 1, st.st_size, f) == 0 || ferror (f))
-    fatal ("%s: fread failed", filename);
-  fclose (f);
-
-  bfd_set_section_contents (obfd, s, buf, 0, newsize);
-
   free (buf);
 }
 
@@ -525,18 +414,47 @@ copy_bfd (bfd * ibfd, bfd * obfd,
     bfd_fatal ("error copying private data");
 }
 
+static void
+do_add (char *filename, char *const list[])
+{
+  char *n;
+
+  bfd_init ();
+
+  while ((n = *(list++)))
+    {
+      bfd *ibfd, *obfd;
+      unsigned long lma, vma;
+      char **obj_matching;
+
+      ibfd = bfd_openr (filename, NULL);
+      if (ibfd == NULL)
+	fatal ("%s: %s", filename, bfd_errmsg (bfd_get_error ()));
+
+      if (!bfd_check_format_matches (ibfd, bfd_object, &obj_matching))
+	fatal ("%s: Not an object or executable", filename);
+
+      obfd = bfd_openw (filename, bfd_get_target (ibfd));
+      if (obfd == NULL)
+	fatal ("%s: %s", n, bfd_errmsg (bfd_get_error ()));
+
+      get_payload_addresses (ibfd, &lma, &vma);
+
+      copy_bfd (ibfd, obfd, n, lma, vma);
+
+      if (!bfd_close (obfd))
+	bfd_fatal ("bfd_close");
+    }
+}
 
 static void
 usage (FILE * f, int status)
 {
-  fprintf (f, "Usage: %s [command] [file]\n", PROGNAME);
-  fprintf (f, " Manage NUX payloads in 'file'.\n");
+  fprintf (f, "Usage: %s [command]\n", PROGNAME);
   fprintf (f, " Command is one of the following:\n\
-  -l, --list             List all payloads (default if no options)\n\
-  -a, --add=FILE         Add FILE as a payload\n\
-  -D, --remove-all       Remove all payloads\n\
-  -h, --help             Display this information\n\
-  -V, --version          Display this program's version number\n\
+  {-a|--add} exec [<file>...]  Append files to EXEC\n\
+  {-h|--help}                  Display this information\n\
+  {-V|--version}               Display this program's version number\n \
 \n");
   exit (status);
 }
@@ -545,7 +463,7 @@ static void
 print_version (void)
 {
   printf ("%s %s\n", PROGNAME, VERSION);
-  printf ("Copyright (C) 2015 Free Software Foundation, Inc.\n");
+  printf ("Copyright (C) 2015-2023 Gianluca Guida.\n");
   printf ("\
 This program is free software; you may redistribute it under the terms of\n\
 the GNU General Public License version 3 or (at your option) any later version.\n\
@@ -554,9 +472,7 @@ This program has absolutely no warranty.\n");
 }
 
 const struct option long_options[] = {
-  {"list", 0, NULL, 'l'},
   {"add", 1, NULL, 'a'},
-  {"delete-all", 0, NULL, 'D'},
   {"help", no_argument, NULL, 'h'},
   {"version", no_argument, NULL, 'V'},
   {0, no_argument, 0, 0}
@@ -566,37 +482,21 @@ const struct option long_options[] = {
 int
 main (int argc, char *const argv[])
 {
-  int fd;
   int c;
   unsigned cmdseen;
-  char *add, *file;
+  char *filename;
   bool rdonly;
-  bool show_version, removeall, list;
+  bool add, show_version;
 
   cmdseen = 0;
-  rdonly = true;
   show_version = false;
-  removeall = false;
-  list = false;
-  add = NULL;
-  while ((c = getopt_long (argc, argv, "a:lDhV", long_options, NULL)) != EOF)
+  while ((c = getopt_long (argc, argv, "ahV", long_options, NULL)) != EOF)
     {
       switch (c)
 	{
 	case 'a':
+	  add = true;
 	  cmdseen++;
-	  add = optarg;
-	  rdonly = false;
-	  break;
-	case 'l':
-	  cmdseen++;
-	  list = true;
-	  rdonly = true;
-	  break;
-	case 'D':
-	  cmdseen++;
-	  removeall = true;
-	  rdonly = false;
 	  break;
 	case 'V':
 	  cmdseen++;
@@ -610,57 +510,35 @@ main (int argc, char *const argv[])
 	}
     }
 
-  if (cmdseen > 1)
+  if (cmdseen != 1)
     usage (stderr, 1);
 
-  if (cmdseen == 0)
-    list = true;
+  argc -= optind;
+  argv += optind;
 
   if (show_version)
-    print_version ();
+    {
+      if (argc != 0)
+	{
+	  usage (stderr, 1);
+	}
+      print_version();
+    }
 
-  if (optind + 1 != argc)
+  if (argc < 1)
     usage (stderr, 1);
 
-  file = argv[optind];
+  filename = argv[0];
+  argc -= 1;
+  argv += 1;
 
 
-  bfd_init ();
-
-  bfd *ibfd;
-  char **obj_matching;
-
-  ibfd = bfd_openr (file, NULL);
-  if (ibfd == NULL)
-    fatal ("%s: %s", file, bfd_errmsg (bfd_get_error ()));
-
-  if (!bfd_check_format_matches (ibfd, bfd_object, &obj_matching))
-    fatal ("%s: Not an object or executable", file);
-
-  if (list)
+  if (add)
     {
-      bfd_map_over_sections (ibfd, _print_payload, stdout);
+      if (argc == 0)
+	{
+	  usage (stderr, 1);
+	}
+      do_add (filename, argv);
     }
-  else if (add)
-    {
-      bfd *obfd;
-      unsigned long lma, vma;
-
-      obfd = bfd_openw (file, bfd_get_target (ibfd));
-      if (obfd == NULL)
-	fatal ("%s: %s", file, bfd_errmsg (bfd_get_error ()));
-
-      get_payload_addresses (ibfd, &lma, &vma);
-
-      copy_bfd (ibfd, obfd, add, lma, vma);
-
-      if (!bfd_close (obfd))
-	bfd_fatal ("bfd_close");
-    }
-
-  //  else if (removeall)
-  //    do_removeall (ibfd);
-
-  //  bfd_close (ibfd);
-  close (fd);
 }

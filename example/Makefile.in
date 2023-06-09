@@ -1,12 +1,13 @@
 SUBDIRS= kern user
 
-TOOLS= @NUXROOT@/tools
-NUXAR= $(TOOLS)/nuxar/nuxar
+TOOLS= ../tools
+AR50= $(TOOLS)/ar50/ar50
+OBJAPPEND= $(TOOLS)/objappend/objappend
 
 example_multiboot: subdirs
-	cp @NUXROOT@/apxh/multiboot/apxh $@
-	$(NUXAR) $@ -a kern/example
-	$(NUXAR) $@ -a user/exuser
+	cp ../apxh/multiboot/apxh $@
+	$(AR50) -m nux-payload -c $@.ar50 kern/example user/exuser
+	$(OBJAPPEND) -a $@ $@.ar50
 
 ALL_TARGET += example_multiboot
 CLEAN_FILES += example_multiboot

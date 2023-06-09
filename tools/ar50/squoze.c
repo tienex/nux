@@ -5,8 +5,6 @@
 static int
 chenc (char c)
 {
-  int r;
-
   if (c >= 'A' && c <= 'Z')
     return c - 'A' + 1;
   if (c >= 'a' && c <= 'z')
