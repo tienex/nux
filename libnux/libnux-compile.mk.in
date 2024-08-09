@@ -10,5 +10,5 @@ include $(SRCROOT)/@NUXDIR@/cfg.mk
 
 include $(SRCROOT)/@NUXROOT@/$(HALDIR)/hal.mk
 
-CPPFLAGS+= -I@NUXROOT@/$(SRCROOT)/include -I$(SRCROOT)/@NUXROOT@/$(HALDIR)/include -I$(SRCROOT)/@NUXDIR@/include
+CPPFLAGS+= -I$(SRCROOT)/@NUXROOT@/include -I$(SRCROOT)/@NUXROOT@/$(HALDIR)/include -I$(SRCROOT)/@NUXDIR@/include
 
