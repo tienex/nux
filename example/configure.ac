@@ -26,12 +26,15 @@ if test x"${ARCH}" == x ; then
    AC_MSG_ERROR([Please select a valid architecture with `./configure ARCH=<arch>`])
 fi
 
-AC_ARG_VAR([TOOLCHAIN_VENDOR],[toolchain vendor prefix @<:@default: unknown-elf@:>@])
-
 AS_CASE([${ARCH}],
-	[i386], [tool_prefix=i686-"${TOOLCHAIN_VENDOR}"],
-	[amd64], [tool_prefix=x86_64-"${TOOLCHAIN_VENDOR}"],
+	[i386], [tool_prefix=i686-elf],
+	[amd64], [tool_prefix=x86_64-elf],
 	[*], [AC_MSG_ERROR([Supported Architectures: i386, amd64])])
+
+AC_ARG_VAR([TOOLCHAIN],[toolchain prefix @<:@default: <ARCH>-elf@:>@])
+if test x"${TOOLCHAIN}" != x ; then
+   tool_prefix="${TOOLCHAIN}"
+fi
 
 AC_CHECK_TOOL(CC, ${tool_prefix}-gcc, :)
 if test x"${CC}" = 'x:' ; then
