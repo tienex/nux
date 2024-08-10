@@ -166,7 +166,7 @@ do_create(char *filename, char *const list[])
 	fatal ("%s: fread failed", n);
       fclose (f);
 
-      if (fwrite (buf, 1, size, out) == 0 || ferror (f))
+      if ((fwrite (buf, 1, size, out) == 0) || ferror (out))
 	fatal ("Can't write to output file: %s", strerror (errno));
     }
   fclose(out);
@@ -203,7 +203,7 @@ do_extract(char *filename)
 	}
       if (fread (buf, 1, hdr.size, f) == 0 || ferror (f))
 	fatal ("%s: fread failed", name);
-      if (fwrite (buf, 1, hdr.size, out) == 0 || ferror (f))
+      if ((fwrite (buf, 1, hdr.size, out) == 0) || ferror (out))
 	fatal ("Can't write to output file %s: %s", name, strerror (errno));
       fclose (out);
       free (buf);
@@ -267,10 +267,8 @@ main (int argc, char *const argv[])
   argc -= optind;
   argv += optind;
 
-  printf("a");
   if (cmdseen != 1)
     usage (stderr, 1);
-  printf("a");
   if (show_version)
     {
       if (argc != 0)
@@ -279,10 +277,8 @@ main (int argc, char *const argv[])
 	}
       print_version();
     }
-  printf("a");
   if (argc < 1)
     usage (stderr, 1);
-  printf("a");
   filename = argv[0];
   argc -= 1;
   argv += 1;
@@ -298,7 +294,6 @@ main (int argc, char *const argv[])
 
   if (extract)
     {
-      printf("B");
       if (argc != 0)
 	{
 	  usage (stderr, 1);
@@ -316,4 +311,3 @@ main (int argc, char *const argv[])
     }
 
 }
-
