@@ -16,7 +16,7 @@ void *memcpy (void *d, void *s, size_t len);
 int memcmp (void *s1, void *s2, size_t len);
 void *memmove (void *d, void *s, size_t len);
 
-int fls (int);
-int ffs (int);
+unsigned long fls (unsigned long);
+unsigned long ffs (unsigned long);
 
 #endif /* EC_STRING_H */
