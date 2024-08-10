@@ -204,7 +204,7 @@ kva_physmap (paddr_t paddr, size_t size, unsigned prot)
     kmap_map (va + i * PAGE_SIZE, pfn + i, prot);
   kmap_commit ();
 
-  return (void *)(va + (paddr & PAGE_MASK));
+  return (void *)(uintptr_t)(va + (paddr & PAGE_MASK));
 }
 
 void

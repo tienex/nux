@@ -97,7 +97,7 @@ hal_pcpu_init (void)
   reset = kva_physmap (0x467, 2, HAL_PTE_P | HAL_PTE_W | HAL_PTE_X);
   *reset = pstart & 0xf;
   *(reset + 1) = pstart >> 4;
-  kva_unmap (reset, 2);
+  kva_unmap ((void *)reset, 2);
 
   /* pstart is in user address space: use kmap_ instead of hal_kmap */
   l1p = kmap_get_l1p (pstart, true);
