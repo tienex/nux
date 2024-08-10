@@ -34,7 +34,7 @@ load_table (paddr_t pa)
   uint8_t sum, *ptr;
   struct acpi_thdr *tbl;
 
-  tbl = (struct acpi_thdr *) kva_physmap (1, pa, ACPI_MAX_TBL, HAL_PTE_P);
+  tbl = (struct acpi_thdr *) kva_physmap (pa, ACPI_MAX_TBL, HAL_PTE_P);
 
   if (tbl->length >= ACPI_MAX_TBL)
     {
@@ -55,7 +55,7 @@ load_table (paddr_t pa)
   if (sum != 0)
     {
       warn ("Wrong checksum %d != 0 for ACPI table", sum);
-      kva_unmap (tbl);
+      kva_unmap (tbl, ACPI_MAX_TBL);
       return NULL;
     }
 
@@ -67,7 +67,7 @@ load_table (paddr_t pa)
 static void
 unload_table (void *tbl)
 {
-  kva_unmap (tbl);
+  kva_unmap (tbl, ACPI_MAX_TBL);
 }
 
 static void
@@ -88,7 +88,7 @@ acpi_init (paddr_t root)
   struct acpi_thdr *roottable, *sdtable;
 
   rsdp =
-    (struct acpi_rsdp_thdr *) kva_physmap (1, root, ACPI_MAX_TBL, HAL_PTE_P);
+    (struct acpi_rsdp_thdr *) kva_physmap (root, ACPI_MAX_TBL, HAL_PTE_P);
 
   info ("TABLE: '%8.8s' [%6.6s] rev: %d", rsdp->signature, rsdp->oemid,
 	rsdp->revision);
@@ -106,7 +106,7 @@ acpi_init (paddr_t root)
       entrylen = 8;
     }
 
-  kva_unmap (rsdp);
+  kva_unmap (rsdp, ACPI_MAX_TBL);
 
   pa_root_table = pasdt;
   roottable = load_table (pasdt);

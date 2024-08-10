@@ -20,22 +20,15 @@ void pfn_put (pfn_t pfn, void *va);
 pfn_t pfn_alloc (int low);
 void pfn_free (pfn_t pfn);
 
-/*
-  Define the granularity of allocation of KVA, in pages.
-
-  With KVA_ALLOC_ORDER 2, NUX will allocate (1 << 2) = 4 virtual pages
-  at the time.
-*/
-#define KVA_ALLOC_ORDER 6
-#define KVA_ALLOC_SIZE (1L << (KVA_ALLOC_ORDER + PAGE_SHIFT))
-vaddr_t kva_allocva (int low);
-void kva_freeva (vaddr_t va);
-void *kva_map (int low, pfn_t pfn, unsigned no, unsigned prot);
-void *kva_physmap (int low, paddr_t paddr, size_t size, unsigned prot);
-void kva_unmap (void *va);
+vaddr_t kva_alloc (size_t size);
+void kva_free (vaddr_t va, size_t size);
+void *kva_map (pfn_t pfn, unsigned prot);
+void *kva_physmap (paddr_t paddr, size_t size, unsigned prot);
+void kva_unmap (void *va, size_t size);
 
 pfn_t kmap_map (vaddr_t va, pfn_t pfn, unsigned prot);
 pfn_t kmap_map_noalloc (vaddr_t va, pfn_t pfn, unsigned prot);
+pfn_t kmap_unmap (vaddr_t va);
 int kmap_mapped (vaddr_t va);
 int kmap_mapped_range (vaddr_t va, size_t size);
 int kmap_ensure (vaddr_t va, unsigned reqprot);

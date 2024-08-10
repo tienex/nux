@@ -1,133 +1,239 @@
-/*
-  NUX: A kernel Library.
-  Copyright (C) 2019 Gianluca Guida, glguida@tlbflush.org
 
-  This program is free software; you can redistribute it and/or
-  modify it under the terms of the GNU General Public License
-  as published by the Free Software Foundation; either version 2
-  of the License, or (at your option) any later version.
-
-  See COPYING file for the full license.
-
-  SPDX-License-Identifier:	GPL2.0+
-*/
-
-#include <nux/hal.h>
-#include <nux/types.h>
-#include <nux/locks.h>
-#include <nux/nux.h>
+#include <stddef.h>
+#include <rbtree.h>
 #include <assert.h>
-#include <stree.h>
 
-#define KVA_PAGE_SHIFT (KVA_ALLOC_ORDER + PAGE_SHIFT)
-#define KVA_STREE_ORDER (HAL_KVA_SHIFT - KVA_PAGE_SHIFT)
+#include "internal.h"
+#include <nux/nux.h>
 
-static lock_t lock;
-static WORD_T stree[STREE_SIZE (KVA_STREE_ORDER)];
+/*
+ * VM allocator
+ */
+
+static rb_tree_t vmap_rbtree;
 static vaddr_t kvabase;
 static size_t kvasize;
+static size_t vmap_size;
 
-void
-kvainit (void)
+
+struct vme
 {
-  unsigned long i;
-  assert (stree_order (HAL_KVA_SIZE >> KVA_PAGE_SHIFT) == KVA_STREE_ORDER);
-  assert (hal_virtmem_kvasize () == HAL_KVA_SIZE);
+  struct rb_node rb_node;
+    LIST_ENTRY (vme) list;
+  vaddr_t addr;
+  size_t size;
+};
 
-  for (i = 0; i < (1 << KVA_STREE_ORDER); i++)
-    stree_setbit (stree, KVA_STREE_ORDER, i);
+struct vmap
+{
+  rb_tree_t rbtree;
+  size_t size;
+};
 
-  spinlock_init (&lock);
+static void
+vmap_remove (struct vme *vme)
+{
 
-  kvabase = hal_virtmem_kvabase ();
-  kvasize = hal_virtmem_kvasize ();
-
-  printf ("KVA Area from %lx to %lx\n", kvabase, kvabase + kvasize);
+  /* ASSERT ISA(vme) XXX: */
+  rb_tree_remove_node (&vmap_rbtree, (void *) vme);
+  vmap_size -= vme->size;
+  kmem_alloc (0, sizeof(struct vme));
 }
 
-vaddr_t
-kva_allocva (int low)
+static struct vme *
+vmap_find (vaddr_t va)
 {
-  long vfn;
+  struct vme;
+
+  /* ASSERT ISA(vme returned) XXX: */
+  return rb_tree_find_node (&vmap_rbtree, (void *) &va);
+}
+
+static struct vme *
+vmap_insert (vaddr_t start, size_t len)
+{
+  struct vme *vme;
+
+  vme = (struct vme *)kmem_alloc(0, sizeof(struct vme));
+  vme->addr = start;
+  vme->size = len;
+  rb_tree_insert_node (&vmap_rbtree, (void *) vme);
+  vmap_size += vme->size;
+  return vme;
+}
+
+static int
+vmap_compare_key (void *ctx, const void *n, const void *key)
+{
+  const struct vme *vme = n;
+  const vaddr_t va = *(const vaddr_t *) key;
+
+  if (va < vme->addr)
+    return 1;
+  if (va > vme->addr + (vme->size - 1))
+    return -1;
+  return 0;
+}
+
+static int
+vmap_compare_nodes (void *ctx, const void *n1, const void *n2)
+{
+  const struct vme *vmap1 = n1;
+  const struct vme *vmap2 = n2;
+
+  /* Assert non overlapping */
+  assert (vmap1->addr < vmap2->addr || vmap1->addr > vmap2->size);
+  assert (vmap2->addr < vmap1->addr || vmap2->addr > vmap1->size);
+
+  if (vmap1->addr < vmap2->addr)
+    return -1;
+  if (vmap1->addr > vmap2->addr)
+    return 1;
+  return 0;
+}
+
+static const rb_tree_ops_t vmap_tree_ops = {
+  .rbto_compare_nodes = vmap_compare_nodes,
+  .rbto_compare_key = vmap_compare_key,
+  .rbto_node_offset = offsetof (struct vme, rb_node),
+  .rbto_context = NULL
+};
+
+
+/*
+ * VM allocator.
+ */
+
+#define __ZENTRY vme
+#define __ZADDR_T vaddr_t
+
+static void
+___get_neighbors (vaddr_t addr, size_t size, struct vme **pv, struct vme **nv, uintptr_t opq)
+{
+  vaddr_t end = addr + size;
+  struct vme *pvme = NULL, *nvme = NULL;
+
+  if (addr == 0)
+    goto _next;
+
+  pvme = vmap_find (addr - 1);
+  if (pvme != NULL)
+    *pv = pvme;
+
+_next:
+  nvme = vmap_find (end);
+  if (nvme != NULL)
+    *nv = nvme;
+}
+
+static struct vme *
+___mkptr (vaddr_t addr, size_t size, uintptr_t opq)
+{
+
+  return vmap_insert (addr, size);
+}
+
+static void
+___freeptr (struct vme *vme, uintptr_t opq)
+{
+
+  vmap_remove (vme);
+}
+
+#include "alloc.h"
+
+static lock_t vmap_lock = 0;
+static struct zone vmap_zone;
+
+vaddr_t
+kva_alloc (size_t size)
+{
+  size_t pgsz;
   vaddr_t va;
 
-
-  spinlock (&lock);
-  vfn = stree_bitsearch (stree, KVA_STREE_ORDER, low);
-  if (vfn >= 0)
-    stree_clrbit (stree, KVA_STREE_ORDER, vfn);
-  spinunlock (&lock);
-
-  if (vfn < 0)
-    va = VADDR_INVALID;
-  else
-    va = kvabase + (vfn << KVA_PAGE_SHIFT);
+  pgsz = round_page (size);
+  spinlock (&vmap_lock);
+  va = zone_alloc (&vmap_zone, pgsz);
+  spinunlock (&vmap_lock);
+  if (va == 0)
+    return VADDR_INVALID;
 
   return va;
 }
 
 void
-kva_freeva (vaddr_t va)
+kva_free (vaddr_t va, size_t size)
 {
-  vfn_t vfn;
 
-  assert (va != VADDR_INVALID);
-  assert (va >= kvabase && va < kvabase + kvasize);
-
-  vfn = (va - kvabase) >> KVA_PAGE_SHIFT;
-
-  spinlock (&lock);
-  stree_setbit (stree, KVA_STREE_ORDER, vfn);
-  spinunlock (&lock);
+  va = trunc_page (va);
+  size = round_page (size);
+  spinlock (&vmap_lock);
+  zone_free (&vmap_zone, va, size);
+  spinunlock (&vmap_lock);
 }
 
 void *
-kva_map (int low, pfn_t pfn, unsigned no, unsigned prot)
+kva_map (pfn_t pfn, unsigned prot)
 {
-  unsigned i;
   vaddr_t va;
 
-  if (no > (1 << KVA_ALLOC_ORDER))
+  va = kva_alloc (PAGE_SIZE);
+  if (va == VADDR_INVALID)
     return NULL;
 
-  va = kva_allocva (low);
+  kmap_map (va, pfn, prot);
+  kmap_commit ();
+  return (void *) va;
+}
+
+void *
+kva_physmap (paddr_t paddr, size_t size, unsigned prot)
+{
+  vaddr_t va;
+  pfn_t pfn;
+  unsigned no, i;
+
+  pfn = paddr >> PAGE_SHIFT;
+  no = round_page ((paddr & PAGE_MASK) + size) >> PAGE_SHIFT;
+
+  va = kva_alloc (no * PAGE_SIZE);
   if (va == VADDR_INVALID)
     return NULL;
 
   for (i = 0; i < no; i++)
     kmap_map (va + i * PAGE_SIZE, pfn + i, prot);
   kmap_commit ();
-  return (void *) va;
-}
 
-void *
-kva_physmap (int low, paddr_t paddr, size_t size, unsigned prot)
-{
-  void *ptr;
-  pfn_t pfn;
-  unsigned no;
-
-  pfn = paddr >> PAGE_SHIFT;
-  no = round_page ((paddr & PAGE_MASK) + size) >> PAGE_SHIFT;
-
-  ptr = kva_map (low, pfn, no, prot);
-  if (ptr != NULL)
-    ptr += (paddr & PAGE_MASK);
-
-  return ptr;
+  return (void *)(va + (paddr & PAGE_MASK));
 }
 
 void
-kva_unmap (void *vaptr)
+kva_unmap (void *ptr, size_t size)
 {
-  unsigned i;
-  vaddr_t va = (vaddr_t) vaptr;
+  unsigned no, i;
+  vaddr_t vaddr;
 
-  assert (va >= kvabase && va < kvabase + kvasize);
+  vaddr = trunc_page ((uintptr_t)ptr);
+  size = round_page(size);
+  no = round_page ((vaddr & PAGE_MASK) + size) >> PAGE_SHIFT;
 
-  for (i = 0; i < (1 << KVA_ALLOC_ORDER); i++)
-    kmap_map (va + i * PAGE_SIZE, 0, 0);
+  for (i = 0; i < no; i++)
+    kmap_unmap (vaddr + i * PAGE_SIZE);
   kmap_commit ();
 
-  kva_freeva (va);
+  kva_free (vaddr, size);
+}
+
+void
+kvainit (void)
+{
+  rb_tree_init (&vmap_rbtree, &vmap_tree_ops);
+  zone_init (&vmap_zone, 0);
+  vmap_lock = 0;
+  vmap_size = 0;
+
+  kvabase = hal_virtmem_kvabase ();
+  kvasize = hal_virtmem_kvasize ();
+  kva_free (kvabase, kvasize);
+  info ("KVA Area from %lx to %lx\n", kvabase, kvabase + kvasize);
 }

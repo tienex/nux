@@ -88,7 +88,7 @@ ioapic_add (unsigned num, uint64_t base, unsigned irqbase)
   unsigned i;
 
   ioapics[num].base =
-    kva_physmap (1, base, IOAPIC_SIZE, HAL_PTE_P | HAL_PTE_W);
+    kva_physmap (base, IOAPIC_SIZE, HAL_PTE_P | HAL_PTE_W);
   ioapics[num].irq = irqbase;
   ioapics[num].pins = 1 + ((ioapic_read (num, IO_VER) >> 16) & 0xff);
 

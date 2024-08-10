@@ -121,7 +121,7 @@ alloc_stackpage (void)
 
   pfn = pfn_alloc (1);
   assert (pfn != PFN_INVALID);
-  va = kva_map (1, pfn, 1, HAL_PTE_W | HAL_PTE_P);
+  va = kva_map (pfn, HAL_PTE_W | HAL_PTE_P);
   assert (va != NULL);
   return (uint64_t) (uintptr_t) va;
 }
@@ -172,7 +172,7 @@ hal_pcpu_init (void)
   assert (pfn < (1 << 8) && "Can't allocate Memory below 1MB!");
 
   /* Map and prepare the bootstrap code page. */
-  va = kva_map (1, pfn, 1, HAL_PTE_W | HAL_PTE_P);
+  va = kva_map (pfn, HAL_PTE_W | HAL_PTE_P);
   assert (va != NULL);
   start = va;
   size_t apbootsz = (size_t) ((void *) &_ap_end - (void *) &_ap_start);
@@ -205,10 +205,10 @@ hal_pcpu_init (void)
   *(uint32_t *) ptr += (uint32_t) pstart;
 
   /* Set reset vector */
-  reset = kva_physmap (0, 0x467, 2, HAL_PTE_P | HAL_PTE_W | HAL_PTE_X);
+  reset = kva_physmap (0x467, 2, HAL_PTE_P | HAL_PTE_W | HAL_PTE_X);
   *reset = pstart & 0xf;
   *(reset + 1) = pstart >> 4;
-  kva_unmap ((void *) reset);
+  kva_unmap ((void *)reset, 2);
 
   /* pstart is in user address space: use kmap_ instead of hal_kmap */
   l1p = kmap_get_l1p (pstart, true);
