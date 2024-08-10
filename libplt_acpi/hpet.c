@@ -100,7 +100,7 @@ hpet_init (paddr_t hpetpa)
   uint64_t gencap;
   int num;
 
-  hpet_base = kva_physmap (0, hpetpa, HPET_SIZE, HAL_PTE_P | HAL_PTE_W);
+  hpet_base = kva_physmap (hpetpa, HPET_SIZE, HAL_PTE_P | HAL_PTE_W);
   gencap = hpet_read (REG_GENCAP);
   gencfg = 0;
   period_femto = gencap >> 32;

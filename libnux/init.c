@@ -46,14 +46,16 @@ init_mem (void)
   pfninit ();
 
   /*
-     Initialise KVA Allocator.
-   */
-  kvainit ();
-
-  /*
      Initialise KMEM.
    */
   kmeminit ();
+
+  /*
+    Initialise KVA Allocator.
+   */
+  kvainit ();
+
+
 
   pfncacheinit ();
 

@@ -94,10 +94,10 @@ hal_pcpu_init (void)
   pfn_put (pfn, start);
 
   /* Set reset vector */
-  reset = kva_physmap (0, 0x467, 2, HAL_PTE_P | HAL_PTE_W | HAL_PTE_X);
+  reset = kva_physmap (0x467, 2, HAL_PTE_P | HAL_PTE_W | HAL_PTE_X);
   *reset = pstart & 0xf;
   *(reset + 1) = pstart >> 4;
-  kva_unmap ((void *) reset);
+  kva_unmap (reset, 2);
 
   /* pstart is in user address space: use kmap_ instead of hal_kmap */
   l1p = kmap_get_l1p (pstart, true);
@@ -134,7 +134,7 @@ hal_pcpu_add (unsigned pcpuid, struct hal_cpu *haldata)
       /* Adding secondary CPU: Allocate one PCPU kernel stack. */
       pfn = pfn_alloc (1);
       assert (pfn != PFN_INVALID);
-      va = kva_map (1, pfn, 1, HAL_PTE_W | HAL_PTE_P);
+      va = kva_map (pfn, HAL_PTE_W | HAL_PTE_P);
       assert (va != NULL);
       pcpu_kstack[pcpu_kstackno++] = (uint64_t) (uintptr_t) va + PAGE_SIZE;
     }

@@ -160,7 +160,7 @@ cpu_enter (void)
       /* Unreachable */
     }
 
-  info ("CPU %d set as active", cpuid);
+  debug ("CPU %d set as active", cpuid);
 }
 
 
