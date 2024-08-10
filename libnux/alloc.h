@@ -40,15 +40,15 @@ typedef __ZADDR_T zaddr_t;
 
 */
 
-static inline uint32_t
-lsbit (uint32_t x)
+static inline unsigned
+lsbit (unsigned long x)
 {
   assert (x != 0);
   return ffs (x) - 1;
 }
 
-static inline uint32_t
-msbit (uint32_t x)
+static inline unsigned
+msbit (unsigned long x)
 {
   assert (x != 0);
   return fls (x) - 1;
@@ -61,7 +61,7 @@ LIST_HEAD (zlist, __ZENTRY);
 struct zone
 {
   uintptr_t opq;
-  uint32_t bmap;
+  unsigned long bmap;
   struct zlist zlist[ORDMAX];
   unsigned nfree;
 };
@@ -107,7 +107,7 @@ _zone_attachentry (struct zone *z, struct __ZENTRY *ze)
 static inline struct __ZENTRY *
 _zone_findfree (struct zone *zn, size_t size)
 {
-  uint32_t tmp;
+  unsigned long tmp;
   unsigned int minbit;
   struct __ZENTRY *ze = NULL;
 
@@ -129,7 +129,6 @@ _zone_findfree (struct zone *zn, size_t size)
       ze = LIST_FIRST (zn->zlist + minbit + tmp);
       dbgprintf ("LIST_FIRST(%p + %d + %d) = %p", zn->zlist, minbit, tmp, ze);
     }
-  dbgprintf ("FFREE(%p):(%lx,%lx)", ze, ze->addr, ze->size);
   return ze;
 }
 
