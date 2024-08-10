@@ -159,8 +159,6 @@ cpu_enter (void)
       hal_cpu_halt ();
       /* Unreachable */
     }
-
-  debug ("CPU %d set as active", cpuid);
 }
 
 
