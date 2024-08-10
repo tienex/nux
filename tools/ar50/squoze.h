@@ -13,4 +13,4 @@ size_t unsquozelen (uint64_t enc, size_t en, char *string);
 /*
   Decode a DEC RAD-50 string into an allocated buffer.
 */
-char * unsquoze (uint64_t enc);
+char *unsquoze (uint64_t enc);

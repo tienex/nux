@@ -4,7 +4,8 @@
 
 #include "squoze.h"
 
-int main (int argc, char *argv[])
+int
+main (int argc, char *argv[])
 {
   char *line = NULL;
   size_t linecap = 0;
@@ -14,16 +15,16 @@ int main (int argc, char *argv[])
   (void) argc;
   (void) argv;
 
-  while ((linelen = getline(&line, &linecap, stdin)) > 0)
+  while ((linelen = getline (&line, &linecap, stdin)) > 0)
     {
-      if (line[linelen-1] == '\n')
-	line[linelen-1] = '\0';
+      if (line[linelen - 1] == '\n')
+	line[linelen - 1] = '\0';
 
-      sq = strtoull(line, NULL, 16);
-      char *str = unsquoze(sq);
-      printf("%s\n", str);
-      free(str);
+      sq = strtoull (line, NULL, 16);
+      char *str = unsquoze (sq);
+      printf ("%s\n", str);
+      free (str);
     }
 
-  free(line);
+  free (line);
 }

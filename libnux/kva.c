@@ -37,7 +37,7 @@ vmap_remove (struct vme *vme)
   /* ASSERT ISA(vme) XXX: */
   rb_tree_remove_node (&vmap_rbtree, (void *) vme);
   vmap_size -= vme->size;
-  kmem_alloc (0, sizeof(struct vme));
+  kmem_alloc (0, sizeof (struct vme));
 }
 
 static struct vme *
@@ -54,7 +54,7 @@ vmap_insert (vaddr_t start, size_t len)
 {
   struct vme *vme;
 
-  vme = (struct vme *)kmem_alloc(0, sizeof(struct vme));
+  vme = (struct vme *) kmem_alloc (0, sizeof (struct vme));
   vme->addr = start;
   vme->size = len;
   rb_tree_insert_node (&vmap_rbtree, (void *) vme);
@@ -108,7 +108,8 @@ static const rb_tree_ops_t vmap_tree_ops = {
 #define __ZADDR_T vaddr_t
 
 static void
-___get_neighbors (vaddr_t addr, size_t size, struct vme **pv, struct vme **nv, uintptr_t opq)
+___get_neighbors (vaddr_t addr, size_t size, struct vme **pv, struct vme **nv,
+		  uintptr_t opq)
 {
   vaddr_t end = addr + size;
   struct vme *pvme = NULL, *nvme = NULL;
@@ -204,7 +205,7 @@ kva_physmap (paddr_t paddr, size_t size, unsigned prot)
     kmap_map (va + i * PAGE_SIZE, pfn + i, prot);
   kmap_commit ();
 
-  return (void *)(uintptr_t)(va + (paddr & PAGE_MASK));
+  return (void *) (uintptr_t) (va + (paddr & PAGE_MASK));
 }
 
 void
@@ -213,8 +214,8 @@ kva_unmap (void *ptr, size_t size)
   unsigned no, i;
   vaddr_t vaddr;
 
-  vaddr = trunc_page ((uintptr_t)ptr);
-  size = round_page(size);
+  vaddr = trunc_page ((uintptr_t) ptr);
+  size = round_page (size);
   no = round_page ((vaddr & PAGE_MASK) + size) >> PAGE_SHIFT;
 
   for (i = 0; i < no; i++)

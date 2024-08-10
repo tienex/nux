@@ -21,7 +21,7 @@
   limits both the length and the characters.
 */
 
-#define PAYLOAD_HDR_MAGIC 0x68efe6966e3e3bb5LL /* RAD-50 for 'rad50archive' */
+#define PAYLOAD_HDR_MAGIC 0x68efe6966e3e3bb5LL	/* RAD-50 for 'rad50archive' */
 
 uint64_t magic = 0x68efe6966e3e3bb5LL;
 
@@ -99,7 +99,7 @@ This program has absolutely no warranty.\n");
 }
 
 void
-do_list(char *filename)
+do_list (char *filename)
 {
   FILE *f;
   struct payload_hdr hdr;
@@ -110,22 +110,22 @@ do_list(char *filename)
       fatal ("%s:%s", filename, strerror (errno));
     }
 
-  while (!(fread ((void *) &hdr, 1, sizeof(hdr), f) == 0 || ferror (f)))
+  while (!(fread ((void *) &hdr, 1, sizeof (hdr), f) == 0 || ferror (f)))
     {
       if (hdr.magic != magic)
 	fatal ("Corrupted entry (Bad Magic)");
       char *name = unsquoze (hdr.filename);
-      fprintf (stdout, "%12s: %-10u %08lx\n", name, hdr.size, ftell(f));
+      fprintf (stdout, "%12s: %-10u %08lx\n", name, hdr.size, ftell (f));
       free (name);
-      fseek(f, hdr.size, SEEK_CUR);
+      fseek (f, hdr.size, SEEK_CUR);
     }
 
-  if (!feof(f))
+  if (!feof (f))
     fatal ("Cannot read archive: %s", strerror (errno));
 }
 
 void
-do_create(char *filename, char *const list[])
+do_create (char *filename, char *const list[])
 {
   int r;
   FILE *f, *out;
@@ -169,12 +169,12 @@ do_create(char *filename, char *const list[])
       if ((fwrite (buf, 1, size, out) == 0) || ferror (out))
 	fatal ("Can't write to output file: %s", strerror (errno));
     }
-  fclose(out);
-  exit(0);
+  fclose (out);
+  exit (0);
 }
 
 void
-do_extract(char *filename)
+do_extract (char *filename)
 {
   FILE *f;
   struct payload_hdr hdr;
@@ -185,7 +185,7 @@ do_extract(char *filename)
       fatal ("%s:%s", filename, strerror (errno));
     }
 
-  while (!(fread ((void *) &hdr, 1, sizeof(hdr), f) == 0 || ferror (f)))
+  while (!(fread ((void *) &hdr, 1, sizeof (hdr), f) == 0 || ferror (f)))
     {
       FILE *out;
       void *buf;
@@ -210,7 +210,7 @@ do_extract(char *filename)
       free (name);
     }
 
-  if (!feof(f))
+  if (!feof (f))
     fatal ("Cannot read archive: %s", strerror (errno));
 }
 
@@ -258,7 +258,7 @@ main (int argc, char *const argv[])
 	usage (stdout, 0);
 	break;
       case 'm':
-	magic = squoze(optarg);
+	magic = squoze (optarg);
 	break;
       default:
 	usage (stderr, 1);
@@ -275,14 +275,14 @@ main (int argc, char *const argv[])
 	{
 	  usage (stderr, 1);
 	}
-      print_version();
+      print_version ();
     }
   if (argc < 1)
     usage (stderr, 1);
   filename = argv[0];
   argc -= 1;
   argv += 1;
-  
+
   if (create)
     {
       if (argc == 0)
@@ -307,7 +307,7 @@ main (int argc, char *const argv[])
 	{
 	  usage (stderr, 1);
 	}
-      do_list(filename);
+      do_list (filename);
     }
 
 }

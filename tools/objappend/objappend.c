@@ -248,8 +248,7 @@ create_payload_section (bfd * obfd, char *filename,
   if (lstat (filename, &st) < 0)
     fatal ("can't stat %s", filename);
 
-  if (!bfd_set_section_size
-      (obfd, s, (size_t)st.st_size))
+  if (!bfd_set_section_size (obfd, s, (size_t) st.st_size))
     fatal ("can't set payload section initial size");
 
   if (!bfd_set_section_alignment (obfd, s, 0))
@@ -523,7 +522,7 @@ main (int argc, char *const argv[])
 	{
 	  usage (stderr, 1);
 	}
-      print_version();
+      print_version ();
     }
 
   if (argc < 1)

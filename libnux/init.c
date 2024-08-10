@@ -51,7 +51,7 @@ init_mem (void)
   kmeminit ();
 
   /*
-    Initialise KVA Allocator.
+     Initialise KVA Allocator.
    */
   kvainit ();
 
