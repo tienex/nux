@@ -1,5 +1,3 @@
-#include "config.h"
-
 #include <stdio.h>
 #include <stdbool.h>
 #include <errno.h>
@@ -12,6 +10,7 @@
 #include "squoze.h"
 
 #define PROGNAME "ar50"
+#define VERSION "0.0"
 
 /*
   AR50 - A simple archive format.

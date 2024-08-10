@@ -14,6 +14,7 @@
 #include <bfd.h>
 
 #define PROGNAME "objappend"
+#define VERSION "0.0"
 #define PAYLOAD_SECTNAME ".objappend"
 
 static asymbol **isym, **osym;
