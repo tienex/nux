@@ -1,11 +1,11 @@
 #include <machine/asm.h>
 
 ENTRY (fls)
-	bsrl	%edi,%eax
+	bsr	%rdi,%rax
 	jz	1f
-	incl	%eax
+	inc	%rax
 	ret
 
-1:	xorl	%eax, %eax
+1:	xor	%rax, %rax
 	ret
 END (fls)

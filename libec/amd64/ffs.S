@@ -11,11 +11,11 @@
 //#endif
 
 ENTRY(ffs)
-	bsfl	%edi,%eax
+	bsf	%rdi,%rax
 	jz	1f	 		/* ZF is set if all bits are 0 */
-	incl	%eax			/* bits numbered from 1, not 0 */
+	inc	%rax			/* bits numbered from 1, not 0 */
 	ret
 
-1:	xorl	%eax,%eax		/* clear result */
+1:	xor	%rax, %rax		/* clear result */
 	ret
 END(ffs)
