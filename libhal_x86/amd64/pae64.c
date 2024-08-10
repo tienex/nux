@@ -181,6 +181,8 @@ linmap_get_l2p (unsigned long va, bool alloc, bool user)
   pte_t l3e;
 
   l3p = linmap_get_l3p (va, alloc, user);
+  if (l3p == PTEP_INVALID)
+    return l3p;
   l3e = get_pte (l3p);
 
   if (!pte_present (l3e))
@@ -207,6 +209,8 @@ linmap_get_l1p (unsigned long va, bool alloc, bool user)
   pte_t l2e;
 
   l2p = linmap_get_l2p (va, alloc, user);
+  if (l2p == PTEP_INVALID)
+    return l2p;
   l2e = get_pte (l2p);
 
   if (!pte_present (l2e))
