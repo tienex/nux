@@ -200,14 +200,35 @@ acpi_madt_scan (void)
 	nioapic++;
 	break;
       case ACPI_MADT_TYPE_LSAPIC:
-	info("Warning: LSAPIC ENTRY IGNORED");
-	break;
+	{
+	  static int warn = 0;
+	  if (!warn)
+	    {
+	      info("Warning: LSAPIC ENTRIES IGNORED");
+	      warn = 1;
+	    }
+	  break;
+	}
       case ACPI_MADT_TYPE_LX2APIC:
-	info("Warning: X2APIC ENTRY IGNORED");
+	{
+	  static int warn = 0;
+	  if (!warn)
+	    {
+	      info("Warning: X2APIC ENTRY IGNORED");
+	      warn = 1;
+	    }
+	}
 	break;
       case ACPI_MADT_TYPE_IOSAPIC:
-	info("Warning: IOSAPIC ENTRY IGNORED");
-	break;
+	{
+	  static int warn = 0;
+	  if (!warn)
+	    {
+	      info("Warning: IOSAPIC ENTRY IGNORED");
+	      warn = 1;
+	    }
+	  break;
+	}
       default:
 	break;
     });
