@@ -369,6 +369,16 @@ umap_get_l1p (struct hal_umap *umap, unsigned long va, bool alloc)
 }
 
 unsigned long
+umap_minaddr (void)
+{
+  /* Not beautiful, but the first megabyte in x86 is not part of the
+     umap. It is used by the kernel to startup APs at boot.
+  */
+
+  return 1L << 20;
+}
+
+unsigned long
 umap_maxaddr (void)
 {
   return 1L << (39 + UMAP_LOG2_L4PTES);

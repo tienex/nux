@@ -307,7 +307,7 @@ hal_virtmem_pfn$size (void)
 const vaddr_t
 hal_virtmem_userbase (void)
 {
-  return 0;
+  return umap_minaddr ();
 }
 
 const size_t

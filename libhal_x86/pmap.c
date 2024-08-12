@@ -45,7 +45,7 @@ hal_umap_getl1p (struct hal_umap *umap, unsigned long uaddr, bool alloc,
 {
   hal_l1p_t l1p;
 
-  if (uaddr >= umap_maxaddr ())
+  if ((uaddr >= umap_maxaddr ()) && (uaddr < umap_minaddr ()))
     {
       *l1popq = L1P_INVALID;
       return false;
@@ -157,6 +157,9 @@ uaddr_t
 hal_umap_next (struct hal_umap *umap, uaddr_t uaddr, hal_l1p_t * l1p,
 	       hal_l1e_t * l1e)
 {
+  if (uaddr < hal_virtmem_userbase())
+    uaddr = hal_virtmem_userbase();
+
   return umap_next (umap, uaddr, l1p, l1e);
 }
 

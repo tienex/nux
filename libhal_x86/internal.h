@@ -69,6 +69,7 @@ hal_l1p_t umap_get_l1p (struct hal_umap *umap, unsigned long va, int alloc);
 uaddr_t umap_next (struct hal_umap *umap, uaddr_t uaddr, hal_l1p_t * l1p_out,
 		   hal_l1e_t * l1e_out);
 void umap_free (struct hal_umap *umap);
+unsigned long umap_minaddr (void);
 unsigned long umap_maxaddr (void);
 
 void tlbflush_global (void);
