@@ -109,6 +109,16 @@ unsigned hal_vect_max (void);
 unsigned long hal_physmem_maxpfn (void);
 
 /*
+  Maximum Number of Memory Regions.
+*/
+unsigned hal_physmem_numregions (void);
+
+/*
+  Retrieve Memory Region.
+*/
+struct apxh_region *hal_physmem_region(unsigned i);
+
+/*
   S-Tree allocation bitmap.
 
   The HAL is responsible for building at boot

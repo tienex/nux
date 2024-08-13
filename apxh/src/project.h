@@ -42,6 +42,7 @@ struct bootinfo_region
 #define PHT_APXH_STREE     0xAF100004	/* Allocated Pages Bitmap. */
 #define PHT_APXH_PTALLOC   0xAF100005	/* Empty (alloc all page tables). */
 #define PHT_APXH_FRAMEBUF  0xAF100006	/* Frame Buffer. */
+#define PHT_APXH_REGIONS   0xAF100007   /* Region List. */
 #define PHT_APXH_LINEAR    0xAF10FFFF	/* Linear map. */
 
 #define PFNMAP_ENTRY_SIZE 64
@@ -71,6 +72,7 @@ typedef enum
 
 void md_init (void);
 uint64_t md_maxpfn (void);
+uint64_t md_maxrampfn (void);
 uint64_t md_acpi_rsdp (void);
 unsigned md_memregions (void);
 struct bootinfo_region *md_getmemregion (unsigned i);
@@ -109,6 +111,7 @@ void va_pfnmap (vaddr_t va, size64_t size);
 void va_stree (vaddr_t va, size64_t size);
 void va_ptalloc (vaddr_t va, size64_t size);
 void va_framebuf (vaddr_t va, size64_t size);
+void va_regions (vaddr_t va, size64_t size);
 void va_entry (vaddr_t entry);
 
 void pae_init (void);

@@ -105,6 +105,13 @@ SECTIONS
 	_info_end = .;
    } : info
 
+   .memregs ALIGN(4096) :
+   {
+	_memregs_start = .;
+	. += 1 * 1024 * 1024;
+	_memregs_end = .;
+   } : memregs
+
    .stree ALIGN (4096) : AT(0)
    {
 	_stree_start = .;
@@ -179,5 +186,6 @@ PHDRS
     physmap 0xAF100002; /* PHT_APXH_PHYSMAP */
     stree   0xAF100004; /* PHT_APXH_STREE */
     fbuf    0xAF100006; /* PHT_APXH_FRAMEBUF */
+    memregs 0xAF100007; /* PHT_APXH_REGIONS */
     linear  0xAF10FFFF; /* PHT_APXH_LINEAR */
 }

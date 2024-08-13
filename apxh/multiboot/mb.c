@@ -29,6 +29,7 @@ static size_t elf_kernel_payload_size, elf_user_payload_size;
 static uintptr_t brk;
 static unsigned bootinfo_regions;
 static uint64_t bootinfo_maxpfn;
+static uint64_t bootinfo_maxrampfn;
 
 static struct fbdesc fbdesc = {.type = FB_INVALID };
 
@@ -122,6 +123,7 @@ parse_multiboot_mmap (struct multiboot_info *info)
 	  sizeof (struct multiboot_mmap_entry));
 
   uint64_t maxpfn = 0;
+  uint64_t maxrampfn = 0;
   unsigned regions = 0;
   size_t cur;
   volatile struct multiboot_mmap_entry *mbptr =
@@ -144,10 +146,14 @@ parse_multiboot_mmap (struct multiboot_info *info)
       hreg.len = (mbptr->len + PAGE_SIZE - 1) >> PAGE_SHIFT;
       mbsize = mbptr->size + sizeof (mbptr->size);
 
-      /* Count RAM max pfn */
-      if ((hreg.type == BOOTINFO_REGION_RAM)
-	  && (maxpfn < hreg.pfn + hreg.len))
+      /* Count all memory as maxpfn */
+      if (maxpfn < hreg.pfn + hreg.len)
 	maxpfn = hreg.pfn + hreg.len;
+
+      /* Count RAM maxrampfn */
+      if ((hreg.type == BOOTINFO_REGION_RAM)
+	  && (maxrampfn < hreg.pfn + hreg.len))
+	maxrampfn = hreg.pfn + hreg.len;
 
       /* We consumed this entry. Can write the hreg region. */
       *hrptr = hreg;
@@ -160,6 +166,7 @@ parse_multiboot_mmap (struct multiboot_info *info)
 
   bootinfo_regions = regions;
   bootinfo_maxpfn = maxpfn;
+  bootinfo_maxrampfn = maxrampfn;
 }
 
 
@@ -252,6 +259,12 @@ uint64_t
 md_maxpfn (void)
 {
   return bootinfo_maxpfn;
+}
+
+uint64_t
+md_maxrampfn (void)
+{
+  return bootinfo_maxrampfn;
 }
 
 unsigned

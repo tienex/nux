@@ -15,7 +15,9 @@ struct apxh_bootinfo
 {
 #define APXH_BOOTINFO_MAGIC 0xAF10B007
   uint64_t magic;
+  uint64_t maxrampfn;
   uint64_t maxpfn;
+  uint64_t numregions;
   uint64_t uentry;
   uint64_t acpi_rsdp;
   struct fbdesc fbdesc;
@@ -30,6 +32,18 @@ struct apxh_stree
   uint8_t order;
   uint16_t offset;
   uint32_t size;
+} __attribute__((packed));
+
+
+struct apxh_region
+{
+#define APXH_REGION_UNKNOWN 0
+#define APXH_REGION_RAM 1
+#define APXH_REGION_MMIO 2
+#define APXH_REGION_BSY 3
+  uint64_t type : 2;
+  uint64_t pfn : 62;
+  uint64_t len;
 } __attribute__((packed));
 
 #endif

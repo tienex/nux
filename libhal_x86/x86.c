@@ -46,6 +46,9 @@ extern int _stree_end[];
 extern int _fbuf_start;
 extern int _fbuf_end;
 
+extern int _memregs_start;
+extern int _memregs_end;
+
 const struct apxh_bootinfo *bootinfo = (struct apxh_bootinfo *) &_info_start;
 
 struct hal_pltinfo_desc pltdesc;
@@ -326,6 +329,25 @@ unsigned long
 hal_physmem_maxpfn (void)
 {
   return (unsigned long) bootinfo->maxpfn;
+}
+
+unsigned hal_physmem_numregions(void)
+{
+  return (unsigned) bootinfo->numregions;
+}
+
+struct apxh_region *hal_physmem_region(unsigned i)
+{
+  struct apxh_region *ptr;
+
+  if (i >= hal_physmem_numregions())
+    return NULL;
+
+  ptr = (struct apxh_region *)&_memregs_start;
+  ptr += i;
+  assert (ptr < (struct apxh_region *)&_memregs_end);
+
+  return ptr;
 }
 
 void *

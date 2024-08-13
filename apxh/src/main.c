@@ -18,9 +18,9 @@
 static arch_t elf_arch;
 static uint8_t boot_pagemap[PAGEMAP_SZ (BOOTMEM)]
   __attribute__((aligned (4096)));
-static vaddr_t req_pfnmap_va, req_info_va, req_stree_va;
-static size64_t req_pfnmap_size, req_info_size, req_stree_size;
-static unsigned req_stree_order;
+static vaddr_t req_pfnmap_va, req_info_va, req_stree_va, req_region_va;
+static size64_t req_pfnmap_size, req_info_size, req_stree_size, req_region_size;
+static unsigned req_stree_order, req_region_num;
 static bool stop_payload_allocation = false;
 
 
@@ -283,7 +283,7 @@ va_info (vaddr_t va, size64_t size)
 }
 
 static void
-va_info_copy (uint64_t uentry)
+va_info_copy (uint64_t uentry, uint64_t num_regions)
 {
   vaddr_t va = req_info_va;
   size64_t size = req_info_size;
@@ -299,6 +299,8 @@ va_info_copy (uint64_t uentry)
 
   i.magic = APXH_BOOTINFO_MAGIC;
   i.maxpfn = md_maxpfn ();
+  i.maxrampfn = md_maxrampfn ();
+  i.numregions = num_regions;
   i.uentry = uentry;
   i.acpi_rsdp = md_acpi_rsdp ();
 
@@ -327,7 +329,7 @@ va_stree (vaddr_t va, size64_t size)
   struct apxh_stree hdr;
   struct bootinfo_region *reg;
   unsigned regions = md_memregions ();
-  unsigned maxframe = md_maxpfn ();
+  unsigned maxframe = md_maxrampfn ();
 
   md_verify (va, size);
   va_verify (va, size);
@@ -401,7 +403,7 @@ va_stree_copy (void)
       return;
     }
 
-  maxframe = md_maxpfn ();
+  maxframe = md_maxrampfn ();
 
   for (pa = 0; pa < BOOTMEM; pa += PAGE_SIZE)
     {
@@ -415,6 +417,58 @@ va_stree_copy (void)
 	  /* Page is allocated. Mark as BSY. */
 	  stree_clrbit ((WORD_T *) 0, order, frame);
 	}
+    }
+}
+
+void
+va_regions (vaddr_t va, size64_t size)
+{
+  unsigned maxregion;
+  unsigned regions = md_memregions();
+
+  md_verify (va, size);
+  va_verify (va, size);
+
+  maxregion = size / sizeof(struct apxh_region);
+
+  if (maxregion > regions)
+    maxregion = regions;
+
+  size = regions * sizeof(struct apxh_region);
+
+  printf("Size of area: %lld = %ld * %d\n", size, regions, sizeof(struct apxh_region));
+  va_populate (va, size, 0, 0, 0);
+
+  req_region_va = va;
+  req_region_size = size;
+  req_region_num = maxregion;
+}
+
+static void
+va_regions_copy (void)
+{
+  vaddr_t va = req_region_va;
+  unsigned long size = req_region_size;
+  unsigned i, regions;
+  struct apxh_region apxhreg;
+  struct bootinfo_region *reg;
+
+  if (va == 0)
+    {
+      /* No REGIONS. Skip. */
+      return;
+    }
+
+  regions = size / sizeof(struct apxh_region);
+
+  for (i = 0; i < regions; i++)
+    {
+      reg  = md_getmemregion (i);
+      apxhreg.type = reg->type;
+      apxhreg.pfn = reg->pfn;
+      apxhreg.len = reg->len;
+      printf("Copying %d %d %d\n", apxhreg.type, apxhreg.pfn, apxhreg.len);
+      va_copy (va + i * sizeof(struct apxh_region), &apxhreg, sizeof(struct apxh_region), 0, 0, 0);
     }
 }
 
@@ -632,9 +686,10 @@ main (int argc, char *argv[])
 
   /* Stop allocations as we're copying boot-time allocation. */
   stop_payload_allocation = true;
-  va_info_copy (uentry);
+  va_info_copy (uentry, req_region_num);
   va_pfnmap_copy ();
   va_stree_copy ();
+  va_regions_copy ();
 
   va_entry (kentry);
   return 0;

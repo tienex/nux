@@ -5,6 +5,7 @@
 static void *elf_kernel_payload, *elf_user_payload;
 static size_t elf_kernel_payload_size, elf_user_payload_size;
 static unsigned long maxpfn;
+static unsigned long maxrampfn;
 static unsigned numregions;
 static void *efi_rsdp;
 static struct fbdesc fbdesc = {.type = FB_INVALID, };
@@ -83,6 +84,12 @@ unsigned long
 md_maxpfn (void)
 {
   return maxpfn;
+}
+
+unsigned long
+md_maxrampfn (void)
+{
+  return maxrampfn;
 }
 
 struct bootinfo_region *
@@ -192,12 +199,14 @@ apxhefi_add_memregion (int ram, int bsy, unsigned long pfn, unsigned len)
   memregions[cur].pfn = pfn;
   memregions[cur].len = len;
 
+  if (pfn + len > maxpfn)
+    maxpfn = pfn + len;
 
   if (ram && !bsy)
     {
       memregions[cur].type = BOOTINFO_REGION_RAM;
-      if (pfn + len > maxpfn)
-	maxpfn = pfn + len;
+      if (pfn + len > maxrampfn)
+	maxrampfn = pfn + len;
     }
   else if (ram && bsy)
     memregions[cur].type = BOOTINFO_REGION_BSY;
