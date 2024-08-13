@@ -56,7 +56,9 @@ init_mem (void)
   kvainit ();
 
 
-
+  /*
+    Initialise PFN Cache.
+  */
   pfncacheinit ();
 
 #if 0
