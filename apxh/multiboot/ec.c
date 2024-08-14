@@ -14,7 +14,7 @@
 
 #include "project.h"
 
-int
+void
 putchar (int c)
 {
   const unsigned char *vptr = (const void *) 0xb8000;
@@ -34,7 +34,7 @@ putchar (int c)
     {
       y += x / 80 + 1;
       x = 0;
-      return c;
+      return;
     }
 
   if (80 * y + x >= 80 * 25)
@@ -48,7 +48,7 @@ putchar (int c)
     }
 
   *(unsigned char *) ((void *) 0xb8000 + x++ * 2 + y * 80 * 2) = c;
-  return c;
+  return;
 }
 
 

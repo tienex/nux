@@ -23,15 +23,11 @@ $(OBJDIR)/%.c.o: %.c
 $(OBJDIR)/%.o: %.c
 	$(CC) -c $(CPPFLAGS) $(CFLAGS) -o $@ $^
 
-ifneq ($(CUSTOBJS)z,z)
-OBJS+= $(CUSTOBJS)
-endif
-
 $(OBJDIR):
 	mkdir -p $(OBJDIR)
 
 objs_clean:
-	-rm $(OBJS)
+	-rm $(OBJS) $(CUSTOBJS)
 
 objdir_clean:
 	-rmdir $(OBJDIR)

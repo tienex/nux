@@ -145,10 +145,22 @@ hal_frame_setip (struct hal_frame *f, unsigned long ip)
   f->intr.rip = ip;
 }
 
+unsigned long
+hal_frame_getip (struct hal_frame *f)
+{
+  return f->intr.rip;
+}
+
 void
 hal_frame_setsp (struct hal_frame *f, vaddr_t sp)
 {
   f->intr.rsp = sp;
+}
+
+unsigned long
+hal_frame_getsp (struct hal_frame *f)
+{
+  return f->intr.rsp;
 }
 
 void

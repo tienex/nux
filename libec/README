@@ -3,4 +3,4 @@ LibEC -- An Embedded Small, Self Contained, Non Standard C library.
 This is a collection of libraries, mostly taken from NetBSD, aimed at
 providing a simple embedded libc to a program.
 
-It is definitely not complete nor standard.
+

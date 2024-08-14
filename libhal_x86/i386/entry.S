@@ -24,7 +24,6 @@
 
 	.if \vct == VECT_SYSC
 	call _C_LABEL(do_syscall)
-	add $4, %esp
 	.else
 	pushl $\vct
 	.if \vct == 2
@@ -34,11 +33,9 @@
 	.else
 	call _C_LABEL(do_intr)
 	.endif
-
-//	add $8, %esp
-	mov %eax, %esp
-
 	.endif
+
+	mov %eax, %esp
 .endm
 
 .macro _do_iret_exit

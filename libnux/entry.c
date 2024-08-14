@@ -63,6 +63,7 @@ hal_entry_pf (struct hal_frame *f, unsigned long va, hal_pfinfo_t info)
 	   */
 	  cpu_useraccess_checkpf (va, info);
 	}
+      /* PASS-THROUGH */
     case (uintptr_t) UCTXT_IDLE:
       nux_panic ("Unexpected Kernel Page Fault", f);
       /* Unreached. */

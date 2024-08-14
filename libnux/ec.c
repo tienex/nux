@@ -19,10 +19,10 @@
 
 #include "internal.h"
 
-int
+void
 putchar (int c)
 {
-  return hal_putchar (c);
+  hal_putchar (c);
 }
 
 void __dead

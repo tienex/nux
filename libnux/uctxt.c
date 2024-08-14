@@ -89,12 +89,28 @@ uctxt_init (uctxt_t * uctxt, vaddr_t ip, vaddr_t sp)
   hal_frame_setsp (f, sp);
 }
 
+vaddr_t
+uctxt_getip (uctxt_t *uctxt)
+{
+  struct hal_frame *f = uctxt_frame_pointer (uctxt);
+  assert (f);
+  return hal_frame_getip (f);
+}
+
 void
 uctxt_setip (uctxt_t * uctxt, vaddr_t ip)
 {
   struct hal_frame *f = uctxt_frame_pointer (uctxt);
   assert (f);
   hal_frame_setip (f, ip);
+}
+
+vaddr_t
+uctxt_getsp (uctxt_t *uctxt)
+{
+  struct hal_frame *f = uctxt_frame_pointer (uctxt);
+  assert (f);
+  return hal_frame_getsp (f);
 }
 
 void

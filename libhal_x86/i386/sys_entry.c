@@ -95,17 +95,19 @@ do_xcpt (uint32_t vect, struct hal_frame *f)
     {
       rf = hal_entry_xcpt (f, vect);
     }
-
   return rf;
 }
 
 struct hal_frame *
 do_syscall (struct hal_frame *f)
 {
+  struct hal_frame *rf;
+
   assert (f->cs == UCS);
 
-  return hal_entry_syscall (f, f->eax, f->edi, f->esi, f->ecx, f->edx,
+  rf =  hal_entry_syscall (f, f->eax, f->edi, f->esi, f->ecx, f->edx,
 			    f->ebx);
+  return rf;
 }
 
 struct hal_frame *
@@ -138,7 +140,10 @@ hal_frame_isuser (struct hal_frame *f)
   return f->cs == UCS;
 }
 
-vaddr_t hal_frame_getip (struct hal_frame *f);
+vaddr_t hal_frame_getip (struct hal_frame *f)
+{
+  return f->eip;
+}
 
 void
 hal_frame_setip (struct hal_frame *f, vaddr_t ip)
@@ -146,7 +151,10 @@ hal_frame_setip (struct hal_frame *f, vaddr_t ip)
   f->eip = ip;
 }
 
-vaddr_t hal_frame_getsp (struct hal_frame *f);
+vaddr_t hal_frame_getsp (struct hal_frame *f)
+{
+  return f->esp;
+}
 
 void
 hal_frame_setsp (struct hal_frame *f, vaddr_t sp)
