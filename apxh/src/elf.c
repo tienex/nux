@@ -230,7 +230,7 @@ ph_kload (void *elfimg, uint32_t type, uint32_t flags,
       va_framebuf (va, msize);
       break;
     case PHT_APXH_REGIONS:
-      printf("Region Map at %08llx (size: %lld).\n", va, msize);
+      printf ("Region Map at %08llx (size: %lld).\n", va, msize);
       va_regions (va, msize);
       break;
     default:

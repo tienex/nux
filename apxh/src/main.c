@@ -19,7 +19,8 @@ static arch_t elf_arch;
 static uint8_t boot_pagemap[PAGEMAP_SZ (BOOTMEM)]
   __attribute__((aligned (4096)));
 static vaddr_t req_pfnmap_va, req_info_va, req_stree_va, req_region_va;
-static size64_t req_pfnmap_size, req_info_size, req_stree_size, req_region_size;
+static size64_t req_pfnmap_size, req_info_size, req_stree_size,
+  req_region_size;
 static unsigned req_stree_order, req_region_num;
 static bool stop_payload_allocation = false;
 
@@ -424,19 +425,20 @@ void
 va_regions (vaddr_t va, size64_t size)
 {
   unsigned maxregion;
-  unsigned regions = md_memregions();
+  unsigned regions = md_memregions ();
 
   md_verify (va, size);
   va_verify (va, size);
 
-  maxregion = size / sizeof(struct apxh_region);
+  maxregion = size / sizeof (struct apxh_region);
 
   if (maxregion > regions)
     maxregion = regions;
 
-  size = regions * sizeof(struct apxh_region);
+  size = regions * sizeof (struct apxh_region);
 
-  printf("Size of area: %lld = %ld * %d\n", size, regions, sizeof(struct apxh_region));
+  printf ("Size of area: %lld = %ld * %d\n", size, regions,
+	  sizeof (struct apxh_region));
   va_populate (va, size, 0, 0, 0);
 
   req_region_va = va;
@@ -459,16 +461,17 @@ va_regions_copy (void)
       return;
     }
 
-  regions = size / sizeof(struct apxh_region);
+  regions = size / sizeof (struct apxh_region);
 
   for (i = 0; i < regions; i++)
     {
-      reg  = md_getmemregion (i);
+      reg = md_getmemregion (i);
       apxhreg.type = reg->type;
       apxhreg.pfn = reg->pfn;
       apxhreg.len = reg->len;
-      printf("Copying %d %d %d\n", apxhreg.type, apxhreg.pfn, apxhreg.len);
-      va_copy (va + i * sizeof(struct apxh_region), &apxhreg, sizeof(struct apxh_region), 0, 0, 0);
+      printf ("Copying %d %d %d\n", apxhreg.type, apxhreg.pfn, apxhreg.len);
+      va_copy (va + i * sizeof (struct apxh_region), &apxhreg,
+	       sizeof (struct apxh_region), 0, 0, 0);
     }
 }
 

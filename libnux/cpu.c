@@ -55,7 +55,7 @@ cpu_add (uint16_t physid)
     }
 
   id = number_cpus++;
-  printf("%d[%d] ", id, physid);
+  printf ("%d[%d] ", id, physid);
 
   /* We are at init-time. We use LOW KMEM via BRK. */
   cpuinfo = (struct cpu_info *) kmem_brkgrow (1, sizeof (struct cpu_info));
@@ -75,11 +75,11 @@ cpu_init (void)
 {
   unsigned pcpu;
 
-  printf("CPUs found: ");
+  printf ("CPUs found: ");
   /* Add all CPUs found in the platform. */
   while ((pcpu = plt_pcpu_iterate ()) != PLT_PCPU_INVALID)
     cpu_add (pcpu);
-  printf("\n");
+  printf ("\n");
 
   hal_pcpu_init ();
 

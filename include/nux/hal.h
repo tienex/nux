@@ -116,7 +116,7 @@ unsigned hal_physmem_numregions (void);
 /*
   Retrieve Memory Region.
 */
-struct apxh_region *hal_physmem_region(unsigned i);
+struct apxh_region *hal_physmem_region (unsigned i);
 
 /*
   S-Tree allocation bitmap.

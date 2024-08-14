@@ -42,7 +42,7 @@ struct bootinfo_region
 #define PHT_APXH_STREE     0xAF100004	/* Allocated Pages Bitmap. */
 #define PHT_APXH_PTALLOC   0xAF100005	/* Empty (alloc all page tables). */
 #define PHT_APXH_FRAMEBUF  0xAF100006	/* Frame Buffer. */
-#define PHT_APXH_REGIONS   0xAF100007   /* Region List. */
+#define PHT_APXH_REGIONS   0xAF100007	/* Region List. */
 #define PHT_APXH_LINEAR    0xAF10FFFF	/* Linear map. */
 
 #define PFNMAP_ENTRY_SIZE 64

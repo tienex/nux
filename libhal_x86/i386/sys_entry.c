@@ -105,8 +105,7 @@ do_syscall (struct hal_frame *f)
 
   assert (f->cs == UCS);
 
-  rf =  hal_entry_syscall (f, f->eax, f->edi, f->esi, f->ecx, f->edx,
-			    f->ebx);
+  rf = hal_entry_syscall (f, f->eax, f->edi, f->esi, f->ecx, f->edx, f->ebx);
   return rf;
 }
 
@@ -140,7 +139,8 @@ hal_frame_isuser (struct hal_frame *f)
   return f->cs == UCS;
 }
 
-vaddr_t hal_frame_getip (struct hal_frame *f)
+vaddr_t
+hal_frame_getip (struct hal_frame *f)
 {
   return f->eip;
 }
@@ -151,7 +151,8 @@ hal_frame_setip (struct hal_frame *f, vaddr_t ip)
   f->eip = ip;
 }
 
-vaddr_t hal_frame_getsp (struct hal_frame *f)
+vaddr_t
+hal_frame_getsp (struct hal_frame *f)
 {
   return f->esp;
 }

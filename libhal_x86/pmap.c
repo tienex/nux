@@ -157,8 +157,8 @@ uaddr_t
 hal_umap_next (struct hal_umap *umap, uaddr_t uaddr, hal_l1p_t * l1p,
 	       hal_l1e_t * l1e)
 {
-  if (uaddr < hal_virtmem_userbase())
-    uaddr = hal_virtmem_userbase();
+  if (uaddr < hal_virtmem_userbase ())
+    uaddr = hal_virtmem_userbase ();
 
   return umap_next (umap, uaddr, l1p, l1e);
 }

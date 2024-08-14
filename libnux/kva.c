@@ -82,8 +82,10 @@ vmap_compare_nodes (void *ctx, const void *n1, const void *n2)
   const struct vme *vmap2 = n2;
 
   /* Assert non overlapping */
-  assert (vmap1->addr < vmap2->addr || vmap1->addr > (vmap2->addr + vmap2->size));
-  assert (vmap2->addr < vmap1->addr || vmap2->addr > (vmap1->addr + vmap1->size));
+  assert (vmap1->addr < vmap2->addr
+	  || vmap1->addr > (vmap2->addr + vmap2->size));
+  assert (vmap2->addr < vmap1->addr
+	  || vmap2->addr > (vmap1->addr + vmap1->size));
 
   if (vmap1->addr < vmap2->addr)
     return -1;

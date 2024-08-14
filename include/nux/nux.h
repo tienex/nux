@@ -82,13 +82,16 @@ void cpu_stop_mask (cpumask_t mask);
 void cpu_stop_broadcast (void);
 
 bool cpu_useraccess_copyfrom (void *dst, uaddr_t src, size_t size,
-			      bool (*pf_handler) (uaddr_t va, hal_pfinfo_t info));
+			      bool (*pf_handler) (uaddr_t va,
+						  hal_pfinfo_t info));
 bool cpu_useraccess_copyto (uaddr_t dst, void *src, size_t size,
-			    bool (*pf_handler) (uaddr_t va, hal_pfinfo_t info));
+			    bool (*pf_handler) (uaddr_t va,
+						hal_pfinfo_t info));
 bool cpu_useraccess_memset (uaddr_t dst, int ch, size_t size,
-		       bool (*pf_handler) (uaddr_t va, hal_pfinfo_t info));
+			    bool (*pf_handler) (uaddr_t va,
+						hal_pfinfo_t info));
 
-  
+
 
 void timer_alarm (uint32_t time_ns);
 void timer_clear (void);
@@ -109,9 +112,9 @@ bool uaddr_memset (uaddr_t dst, int ch, size_t size,
 bool uctxt_bootstrap (uctxt_t * uctxt);
 void uctxt_init (uctxt_t * uctxt, vaddr_t ip, vaddr_t sp);
 void uctxt_setip (uctxt_t * uctxt, vaddr_t ip);
-vaddr_t uctxt_getip (uctxt_t *uctxt);
+vaddr_t uctxt_getip (uctxt_t * uctxt);
 void uctxt_setsp (uctxt_t * uctxt, vaddr_t sp);
-vaddr_t uctxt_getsp (uctxt_t *uctxt);
+vaddr_t uctxt_getsp (uctxt_t * uctxt);
 
 
 void uctxt_setret (uctxt_t * uctxt, unsigned long ret);

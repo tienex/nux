@@ -41,8 +41,8 @@ struct apxh_region
 #define APXH_REGION_RAM 1
 #define APXH_REGION_MMIO 2
 #define APXH_REGION_BSY 3
-  uint64_t type : 2;
-  uint64_t pfn : 62;
+  uint64_t type:2;
+  uint64_t pfn:62;
   uint64_t len;
 } __attribute__((packed));
 

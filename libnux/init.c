@@ -57,8 +57,8 @@ init_mem (void)
 
 
   /*
-    Initialise PFN Cache.
-  */
+     Initialise PFN Cache.
+   */
   pfncacheinit ();
 
 #if 0

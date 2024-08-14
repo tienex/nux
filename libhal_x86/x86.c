@@ -331,21 +331,23 @@ hal_physmem_maxpfn (void)
   return (unsigned long) bootinfo->maxpfn;
 }
 
-unsigned hal_physmem_numregions(void)
+unsigned
+hal_physmem_numregions (void)
 {
   return (unsigned) bootinfo->numregions;
 }
 
-struct apxh_region *hal_physmem_region(unsigned i)
+struct apxh_region *
+hal_physmem_region (unsigned i)
 {
   struct apxh_region *ptr;
 
-  if (i >= hal_physmem_numregions())
+  if (i >= hal_physmem_numregions ())
     return NULL;
 
-  ptr = (struct apxh_region *)&_memregs_start;
+  ptr = (struct apxh_region *) &_memregs_start;
   ptr += i;
-  assert (ptr < (struct apxh_region *)&_memregs_end);
+  assert (ptr < (struct apxh_region *) &_memregs_end);
 
   return ptr;
 }
