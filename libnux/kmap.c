@@ -194,5 +194,5 @@ kmap_commit (void)
      This is extremely slow, but guarantees KMAP to be aligned in all
      CPUs.
    */
-  cpu_tlbflush_broadcast ();
+  cpu_kmapupdate_broadcast ();
 }

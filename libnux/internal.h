@@ -68,7 +68,8 @@ struct cpu_info
 
 
   /* NMI operations. */
-#define NMIOP_TLBFLUSH 1	/* Flush TLBs. */
+#define NMIOP_KMAPUPDATE 1	/* Update kmap across all CPUs. */
+#define NMIOP_TLBFLUSH 2	/* Flush TLBs. */
   unsigned nmiop;
 
   /* TLB status for current CPU. */
@@ -105,6 +106,7 @@ void cpu_clridle (void);
 void cpu_nmiop (void);
 void cpu_useraccess_checkpf (uaddr_t addr, hal_pfinfo_t info);
 unsigned cpu_try_id (void);
+void cpu_kmapupdate_broadcast (void);
 
 void ktlbgen_markdirty (hal_tlbop_t op);
 tlbgen_t ktlbgen_global (void);

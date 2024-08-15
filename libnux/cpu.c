@@ -406,6 +406,27 @@ cpu_ktlb_reach (tlbgen_t target)
 }
 
 /*
+  Flush local TLBs.
+
+  Can be called by NMI.
+*/
+/* NUXST: OKCPU */
+void
+cpu_tlbflush_local (void)
+{
+  printf ("Flushing TLBs on CPU %d", cpu_id ());
+
+  /* We're flushing the cpu. Update the relevant kmap tlb generation. */
+  struct cpu_info *ci = cpu_curinfo ();
+  tlbgen_t knormal = ktlbgen_normal ();
+  tlbgen_t cpu_normal;
+  __atomic_load (&ci->ktlb.normal, &cpu_normal, __ATOMIC_RELAXED);
+  hal_cpu_tlbop (HAL_TLBOP_FLUSH);
+  __atomic_compare_exchange (&ci->ktlb.normal, &cpu_normal, &knormal,
+			     false, __ATOMIC_RELAXED, __ATOMIC_RELAXED);
+}
+
+/*
   NUXST: OKCPU 
   Called from NMI.
 */
@@ -415,9 +436,13 @@ cpu_nmiop (void)
   struct cpu_info *ci = cpu_curinfo ();
   unsigned nmiop = ci->nmiop;
 
-  if (nmiop & NMIOP_TLBFLUSH)
+  if (nmiop & NMIOP_KMAPUPDATE)
     {
       cpu_ktlb_update ();
+    }
+  if (nmiop & NMIOP_TLBFLUSH)
+    {
+      cpu_tlbflush_local ();
     }
 
   atomic_cpumask_clear (&tlbmap, cpu_id ());
@@ -425,10 +450,41 @@ cpu_nmiop (void)
 
 /* NUXST: OKPLT */
 void
-cpu_tlbflush (int cpu)
+cpu_kmapupdate (int cpu)
 {
   struct cpu_info *ci = cpu_getinfo (cpu);
   if (ci != NULL)
+    return;
+
+  __atomic_or_fetch (&ci->nmiop, NMIOP_KMAPUPDATE, __ATOMIC_RELAXED);
+  cpu_nmi (cpu);
+}
+
+/* NUXST: any */
+void
+cpu_kmapupdate_broadcast (void)
+{
+  if (__predict_true (nux_status () & NUXST_OKCPU))
+    {
+      foreach_cpumask (cpu_activemask (), cpu_kmapupdate (i));
+    }
+  else
+    {
+      /*
+         PLT code might call kva_map() to map pages at startup.
+         When PLT starts the CPU subsystem hasn't started yet.
+         Flush only the local TLBs, but globally.
+       */
+      hal_cpu_tlbop (HAL_TLBOP_FLUSHALL);
+    }
+}
+
+/* NUXST: OKPLT */
+void
+cpu_tlbflush (int cpu)
+{
+  struct cpu_info *ci = cpu_getinfo (cpu);
+  if (ci == NULL)
     return;
 
   __atomic_or_fetch (&ci->nmiop, NMIOP_TLBFLUSH, __ATOMIC_RELAXED);
