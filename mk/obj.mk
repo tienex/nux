@@ -7,7 +7,8 @@
 
 .PHONY: objdir_clean objs_clean
 
-VPATH+= $(dir $(SRCS))
+vpath %.S $(dir $(SRCS))
+vpath %.c $(dir $(SRCS))
 
 OBJS= $(addprefix $(OBJDIR)/,$(addsuffix .o, $(basename $(notdir $(SRCS)))))
 
