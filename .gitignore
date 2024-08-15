@@ -3,19 +3,32 @@
 *.a
 *.efi
 *.so
+*.ar50
 .deps
 .build
 .dirstamp
 \#*#
 Makefile
 apxh/multiboot/apxh
+example_multiboot
+example/kern/example
+example/user/exuser
+tools/ar50/ar50
+tools/ar50/sq
+tools/ar50/unsq
+tools/objappend/objappend
 
-libnux/cfg.mk
+/*.mk
 libec.mk
 libec-compile.mk
-hal.mk
+libec-include.mk
 libnux.mk
 libnux-compile.mk
+libnux_user.mk
+libnux_user-compile.mk
+
+libnux/cfg.mk
+
 include/config.h
 
 aclocal.m4
