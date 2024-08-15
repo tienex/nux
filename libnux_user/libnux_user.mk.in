@@ -1,0 +1,4 @@
+@COMPILE_LIBNUXUSER@
+
+LDFLAGS+= -L$(SRCROOT)/@NUXROOT@/libnux_user
+LDADD_END+= -lnux_user
