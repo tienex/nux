@@ -1,0 +1,22 @@
+#
+# EC - An embedded non standard C library
+#
+# To embed libec in your target, include this file,
+# and add $(EC_SRCS) to your sources.
+#
+# SPDX-License-Identifier:	BSD-2-Clause
+#
+
+ifeq (z$(EC_MACHINE),z)
+EC_MACHINE=@MACHINE@
+endif
+
+EC_DIR=$(SRCROOT)/@ECDIR@
+
+EC_ARCH_DIR= $(EC_MACHINE)
+
+include $(EC_DIR)/ec_sources.mk
+
+SRCS+= $(addprefix $(EC_DIR)/,$(EC_SRCS))
+
+
