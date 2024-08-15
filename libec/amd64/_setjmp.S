@@ -84,3 +84,10 @@ ENTRY(_longjmp)
 1:	movq	%r11,0(%rsp)
 	ret
 END(_longjmp)
+
+	
+ENTRY(_setupjmp)
+	mov %rsi, (_JB_PC * 8)(%rdi)
+	mov %rsp, (_JB_RSP * 8)(%rdi)
+	ret
+END(_longjmp)
