@@ -178,7 +178,16 @@ kmem_brkshrink (int low, unsigned size)
 
 /*
   KMEM heap allocation.
+
+  Allocate in batches of 64-bytes. zaddr_t is a 64-byte index into the
+  KMEM area.
 */
+
+typedef unsigned long zaddr_t;
+#define v_to_z(_v) ((_v) >> 6)
+#define z_to_v(_z) ((_z) << 6)
+#define zsize(_size) (v_to_z((_size) + 63))
+#define size_zalign(_size) z_to_v(zsize(_size))
 
 struct kmem_head
 {
@@ -200,17 +209,18 @@ struct kmem_tail
 #define ZONE_HEAD_MAGIC 0x616001DA
 #define ZONE_TAIL_MAGIC 0x616001DA
 #define __ZENTRY  kmem_head
-#define __ZADDR_T vaddr_t
+#define __ZADDR_T zaddr_t
 
 static struct kmem_head *
-___mkptr (vaddr_t addr, size_t size, uintptr_t opq)
+___mkptr (zaddr_t zaddr, size_t size, uintptr_t opq)
 {
   struct kmem_head *ptr;
   struct kmem_tail *tail;
+  vaddr_t addr = z_to_v(zaddr);
 
   ptr = (struct kmem_head *) addr;
   ptr->magic = ZONE_HEAD_MAGIC;
-  ptr->addr = addr;
+  ptr->addr = zaddr;
   ptr->size = size;
 
   tail =
@@ -237,18 +247,20 @@ ___freeptr (struct kmem_head *ptr, uintptr_t opq)
 }
 
 static void
-___get_neighbors (vaddr_t zaddr, size_t size,
+___get_neighbors (zaddr_t zaddr, size_t size,
 		  struct kmem_head **ph, struct kmem_head **nh, uintptr_t opq)
 {
 
   int low = opq;
+  vaddr_t vaddr;
   vaddr_t ptail;
   vaddr_t nhead;
   struct kmem_head *h;
   struct kmem_tail *t;
 
-  ptail = zaddr - sizeof (struct kmem_tail);
-  nhead = zaddr + size;
+  vaddr = z_to_v(zaddr);
+  ptail = vaddr - sizeof (struct kmem_tail);
+  nhead = vaddr + size;
 
   spinlock (&brklock);
   if (low)
@@ -315,20 +327,24 @@ static struct zone kmemz[2];
 vaddr_t
 kmem_alloc (int low, size_t size)
 {
+  zaddr_t zr;
   vaddr_t r;
   lock_t *l;
   struct zone *z;
+  size_t size_64b;
+
+  size_64b = size_zalign(size);
 
   z = low ? kmemz + LO : kmemz + HI;
   l = low ? lockz + LO : lockz + HI;
 
   spinlock (l);
-  r = zone_alloc (z, size);
+  zr = zone_alloc (z, zsize(size_64b));
   spinunlock (l);
-  if (r != VADDR_INVALID)
-    return r;
+  if (zr != (zaddr_t)-1)
+    return z_to_v(zr);
 
-  r = kmem_brkgrow (low, size);
+  r = kmem_brkgrow (low, size_64b);
   return r;
 }
 
@@ -340,10 +356,13 @@ kmem_free (int low, vaddr_t vaddr, size_t size)
   vaddr_t limit;
   struct zone *z;
   lock_t *l;
+  size_t size_64b;
+
+  size_64b = size_zalign(size);
 
   this = low ? LO : HI;
-  base = low ? vaddr : vaddr + size;
-  limit = low ? vaddr + size : vaddr;
+  base = low ? vaddr : vaddr + size_64b;
+  limit = low ? vaddr + size_64b : vaddr;
 
   /*
      If we're freeing up to the BRK, reduce BRK allocation.
@@ -378,7 +397,7 @@ kmem_free (int low, vaddr_t vaddr, size_t size)
   z = kmemz + this;
   l = lockz + this;
   spinlock (l);
-  zone_free (z, vaddr, size);
+  zone_free (z, v_to_z(vaddr), zsize(size_64b));
   spinunlock (l);
 
 out:
