@@ -64,8 +64,9 @@ _setcs_ljmp:
 	_setidt 8 0 2 /* IST #2: #DF */
 	repeat setidt 9, 17
 	_setidt 18 0 3 /* IST #3: #MC */
-	repeat setidt 19, 31
-	repeat setidt 32, 63
+	repeat setidt 19, 32
+	_setidt 33 1 0 /* USER: Syscall */
+	repeat setidt 34, 63
 	repeat setidt 64, 95
 	repeat setidt 96, 127
 	repeat setidt 128, 191

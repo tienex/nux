@@ -3,12 +3,6 @@
 #include "amd64.h"
 #include "../internal.h"
 
-	.altmacro
-.macro _do_entry vct
-	pushq $\vct
-	jmp _intr_frame_entry
-.endm
-
 	.globl _syscall_frame_entry
 _syscall_frame_entry:
 	/* Setup RSP, then emulate IRET frame. */
@@ -105,7 +99,10 @@ _syscall_frame_entry:
 	/* SS Ignored. RSP has changed. */
 	rex.w sysret
 
-_intr_frame_entry:
+	.altmacro
+.macro _do_entry vct
+	pushq $\vct
+
 	push %r15
 	push %r14
 	push %r13
@@ -145,6 +142,7 @@ _intr_frame_entry:
 	mov %rax, %rsp
 
 	jmp _intr_frame_return
+.endm
 
 _intr_frame_return:
 

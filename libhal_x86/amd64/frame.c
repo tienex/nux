@@ -20,6 +20,40 @@
 #include "amd64.h"
 #include "../internal.h"
 
+static inline bool
+is_canonical (uint64_t addr)
+{
+  return ((uint64_t) ((int64_t) addr << 16) >> 16) == addr;
+}
+
+struct hal_frame *
+do_syscall (struct hal_frame *f)
+{
+  return hal_entry_syscall (f, f->intr.rax, f->intr.rdi, f->intr.rsi,
+			    f->intr.rdx, f->intr.rbx, f->intr.r8);
+}
+
+struct hal_frame *
+do_syscall_entry (struct hal_frame *f)
+{
+  struct hal_frame *rf;
+
+  assert (f->type == FRAMETYPE_SYSC);
+
+  rf = do_syscall (f);
+
+  if (!is_canonical (rf->intr.rip))
+    {
+      /*
+         This is problematic on Intel. #GP will run in kernel mode on
+         user stack. Get the #GP from iret.
+       */
+      rf->type = FRAMETYPE_INTR;
+    }
+
+  return rf;
+}
+
 struct hal_frame *
 do_nmi (struct hal_frame *f)
 {
@@ -87,7 +121,9 @@ do_intr_entry (struct hal_frame *f)
 
   vect = f->intr.vect;
 
-  if (vect > 32)
+  if (vect == VECT_SYSC)
+    rf = do_syscall (f);
+  else if (vect > VECT_IRQ0)
     rf = do_intr (vect, f);
   else if (vect == 2)
     rf = do_nmi (f);
@@ -95,32 +131,6 @@ do_intr_entry (struct hal_frame *f)
     rf = do_xcpt (vect, f);
 
   return rf;
-}
-
-static inline bool
-is_canonical (uint64_t addr)
-{
-  return ((uint64_t) ((int64_t) addr << 16) >> 16) == addr;
-}
-
-struct hal_frame *
-do_syscall_entry (struct hal_frame *f)
-{
-  assert (f->type == FRAMETYPE_SYSC);
-
-  f = hal_entry_syscall (f, f->intr.rax, f->intr.rdi, f->intr.rsi,
-			 f->intr.rdx, f->intr.rbx, f->intr.r8);
-
-  if (!is_canonical (f->intr.rip))
-    {
-      /*
-         This is problematic on Intel. #GP will run in kernel mode on
-         user stack. Get the #GP from iret.
-       */
-      f->type = FRAMETYPE_INTR;
-    }
-
-  return f;
 }
 
 void
