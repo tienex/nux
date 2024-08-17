@@ -109,7 +109,7 @@ do_syscall_entry (struct hal_frame *f)
   assert (f->type == FRAMETYPE_SYSC);
 
   f = hal_entry_syscall (f, f->intr.rax, f->intr.rdi, f->intr.rsi,
-			 f->intr.rcx, f->intr.rdx, f->intr.rbx);
+			 f->intr.rdx, f->intr.rbx, f->intr.r8);
 
   if (!is_canonical (f->intr.rip))
     {
