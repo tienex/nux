@@ -37,74 +37,85 @@
  * Find First Set functions
  */
 #ifndef ffs32
-static inline int 
-ffs32(uint32_t _n)
+static inline int
+ffs32 (uint32_t _n)
 {
-	int _v;
+  int _v;
 
-	if (!_n)
-		return 0;
+  if (!_n)
+    return 0;
 
-	_v = 1;
-	if ((_n & 0x0000FFFFU) == 0) {
-		_n >>= 16;
-		_v += 16;
-	}
-	if ((_n & 0x000000FFU) == 0) {
-		_n >>= 8;
-		_v += 8;
-	}
-	if ((_n & 0x0000000FU) == 0) {
-		_n >>= 4;
-		_v += 4;
-	}
-	if ((_n & 0x00000003U) == 0) {
-		_n >>= 2;
-		_v += 2;
-	}
-	if ((_n & 0x00000001U) == 0) {
-		_n >>= 1;
-		_v += 1;
-	}
-	return _v;
+  _v = 1;
+  if ((_n & 0x0000FFFFU) == 0)
+    {
+      _n >>= 16;
+      _v += 16;
+    }
+  if ((_n & 0x000000FFU) == 0)
+    {
+      _n >>= 8;
+      _v += 8;
+    }
+  if ((_n & 0x0000000FU) == 0)
+    {
+      _n >>= 4;
+      _v += 4;
+    }
+  if ((_n & 0x00000003U) == 0)
+    {
+      _n >>= 2;
+      _v += 2;
+    }
+  if ((_n & 0x00000001U) == 0)
+    {
+      _n >>= 1;
+      _v += 1;
+    }
+  return _v;
 }
 #endif
 
 #ifndef ffs64
-static inline int 
-ffs64(uint64_t _n)
+static inline int
+ffs64 (uint64_t _n)
 {
-	int _v;
+  int _v;
 
-	if (!_n)
-		return 0;
+  if (!_n)
+    return 0;
 
-	_v = 1;
-	if ((_n & 0x00000000FFFFFFFFULL) == 0) {
-		_n >>= 32;
-		_v += 32;
-	}
-	if ((_n & 0x000000000000FFFFULL) == 0) {
-		_n >>= 16;
-		_v += 16;
-	}
-	if ((_n & 0x00000000000000FFULL) == 0) {
-		_n >>= 8;
-		_v += 8;
-	}
-	if ((_n & 0x000000000000000FULL) == 0) {
-		_n >>= 4;
-		_v += 4;
-	}
-	if ((_n & 0x0000000000000003ULL) == 0) {
-		_n >>= 2;
-		_v += 2;
-	}
-	if ((_n & 0x0000000000000001ULL) == 0) {
-		_n >>= 1;
-		_v += 1;
-	}
-	return _v;
+  _v = 1;
+  if ((_n & 0x00000000FFFFFFFFULL) == 0)
+    {
+      _n >>= 32;
+      _v += 32;
+    }
+  if ((_n & 0x000000000000FFFFULL) == 0)
+    {
+      _n >>= 16;
+      _v += 16;
+    }
+  if ((_n & 0x00000000000000FFULL) == 0)
+    {
+      _n >>= 8;
+      _v += 8;
+    }
+  if ((_n & 0x000000000000000FULL) == 0)
+    {
+      _n >>= 4;
+      _v += 4;
+    }
+  if ((_n & 0x0000000000000003ULL) == 0)
+    {
+      _n >>= 2;
+      _v += 2;
+    }
+  if ((_n & 0x0000000000000001ULL) == 0)
+    {
+      _n >>= 1;
+      _v += 1;
+    }
+  return _v;
 }
 #endif
 
@@ -112,74 +123,85 @@ ffs64(uint64_t _n)
  * Find Last Set functions
  */
 #ifndef fls32
-static inline int 
-fls32(uint32_t _n)
+static inline int
+fls32 (uint32_t _n)
 {
-	int _v;
+  int _v;
 
-	if (!_n)
-		return 0;
+  if (!_n)
+    return 0;
 
-	_v = 32;
-	if ((_n & 0xFFFF0000U) == 0) {
-		_n <<= 16;
-		_v -= 16;
-	}
-	if ((_n & 0xFF000000U) == 0) {
-		_n <<= 8;
-		_v -= 8;
-	}
-	if ((_n & 0xF0000000U) == 0) {
-		_n <<= 4;
-		_v -= 4;
-	}
-	if ((_n & 0xC0000000U) == 0) {
-		_n <<= 2;
-		_v -= 2;
-	}
-	if ((_n & 0x80000000U) == 0) {
-		_n <<= 1;
-		_v -= 1;
-	}
-	return _v;
+  _v = 32;
+  if ((_n & 0xFFFF0000U) == 0)
+    {
+      _n <<= 16;
+      _v -= 16;
+    }
+  if ((_n & 0xFF000000U) == 0)
+    {
+      _n <<= 8;
+      _v -= 8;
+    }
+  if ((_n & 0xF0000000U) == 0)
+    {
+      _n <<= 4;
+      _v -= 4;
+    }
+  if ((_n & 0xC0000000U) == 0)
+    {
+      _n <<= 2;
+      _v -= 2;
+    }
+  if ((_n & 0x80000000U) == 0)
+    {
+      _n <<= 1;
+      _v -= 1;
+    }
+  return _v;
 }
 #endif
 
 #ifndef fls64
-static inline int 
-fls64(uint64_t _n)
+static inline int
+fls64 (uint64_t _n)
 {
-	int _v;
+  int _v;
 
-	if (!_n)
-		return 0;
+  if (!_n)
+    return 0;
 
-	_v = 64;
-	if ((_n & 0xFFFFFFFF00000000ULL) == 0) {
-		_n <<= 32;
-		_v -= 32;
-	}
-	if ((_n & 0xFFFF000000000000ULL) == 0) {
-		_n <<= 16;
-		_v -= 16;
-	}
-	if ((_n & 0xFF00000000000000ULL) == 0) {
-		_n <<= 8;
-		_v -= 8;
-	}
-	if ((_n & 0xF000000000000000ULL) == 0) {
-		_n <<= 4;
-		_v -= 4;
-	}
-	if ((_n & 0xC000000000000000ULL) == 0) {
-		_n <<= 2;
-		_v -= 2;
-	}
-	if ((_n & 0x8000000000000000ULL) == 0) {
-		_n <<= 1;
-		_v -= 1;
-	}
-	return _v;
+  _v = 64;
+  if ((_n & 0xFFFFFFFF00000000ULL) == 0)
+    {
+      _n <<= 32;
+      _v -= 32;
+    }
+  if ((_n & 0xFFFF000000000000ULL) == 0)
+    {
+      _n <<= 16;
+      _v -= 16;
+    }
+  if ((_n & 0xFF00000000000000ULL) == 0)
+    {
+      _n <<= 8;
+      _v -= 8;
+    }
+  if ((_n & 0xF000000000000000ULL) == 0)
+    {
+      _n <<= 4;
+      _v -= 4;
+    }
+  if ((_n & 0xC000000000000000ULL) == 0)
+    {
+      _n <<= 2;
+      _v -= 2;
+    }
+  if ((_n & 0x8000000000000000ULL) == 0)
+    {
+      _n <<= 1;
+      _v -= 1;
+    }
+  return _v;
 }
 #endif
 
@@ -262,36 +284,36 @@ fls64(uint64_t _n)
 )
 
 static inline void
-fast_divide32_prepare(uint32_t _div, uint32_t * __restrict _m,
-    uint8_t *__restrict _s1, uint8_t *__restrict _s2)
+fast_divide32_prepare (uint32_t _div, uint32_t * __restrict _m,
+		       uint8_t * __restrict _s1, uint8_t * __restrict _s2)
 {
-	uint64_t _mt;
-	int _l;
+  uint64_t _mt;
+  int _l;
 
-	_l = fls32(_div - 1);
-	_mt = (uint64_t)(0x100000000ULL * ((1ULL << _l) - _div));
-	*_m = (uint32_t)(_mt / _div + 1);
-	*_s1 = (_l > 1) ? 1 : _l;
-	*_s2 = (_l == 0) ? 0 : _l - 1;
+  _l = fls32 (_div - 1);
+  _mt = (uint64_t) (0x100000000ULL * ((1ULL << _l) - _div));
+  *_m = (uint32_t) (_mt / _div + 1);
+  *_s1 = (_l > 1) ? 1 : _l;
+  *_s2 = (_l == 0) ? 0 : _l - 1;
 }
 
 /* ARGSUSED */
 static inline uint32_t
-fast_divide32(uint32_t _v, uint32_t _div , uint32_t _m, uint8_t _s1,
-    uint8_t _s2)
+fast_divide32 (uint32_t _v, uint32_t _div, uint32_t _m, uint8_t _s1,
+	       uint8_t _s2)
 {
-	uint32_t _t;
+  uint32_t _t;
 
-	_t = (uint32_t)(((uint64_t)_v * _m) >> 32);
-	return (_t + ((_v - _t) >> _s1)) >> _s2;
+  _t = (uint32_t) (((uint64_t) _v * _m) >> 32);
+  return (_t + ((_v - _t) >> _s1)) >> _s2;
 }
 
 static inline uint32_t
-fast_remainder32(uint32_t _v, uint32_t _div, uint32_t _m, uint8_t _s1,
-    uint8_t _s2)
+fast_remainder32 (uint32_t _v, uint32_t _div, uint32_t _m, uint8_t _s1,
+		  uint8_t _s2)
 {
 
-	return _v - _div * fast_divide32(_v, _div, _m, _s1, _s2);
+  return _v - _div * fast_divide32 (_v, _div, _m, _s1, _s2);
 }
 
 #define __BITMAP_TYPE(__s, __t, __n) struct __s { \
