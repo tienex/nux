@@ -7,6 +7,8 @@
 
 #define __systrap ___systrap(VECT_SYSC)
 
+#define __systrap5 \
+  "mov %%rcx, %%r8;"__systrap
 
 #define __syscall0(__sys, __ret)	\
 	asm volatile(__systrap		\
@@ -33,7 +35,7 @@
 		: "a" (__sys),			\
 		  "D" (a1),			\
 		  "S" (a2), 			\
-		  "c" (a3));
+		  "d" (a3));
 
 
 #define __syscall4(__sys, a1, a2, a3, a4, __ret)\
@@ -42,15 +44,15 @@
 		: "a" (__sys),			\
 		  "D" (a1),			\
 		  "S" (a2), 			\
-		  "c" (a3),			\
-		  "d" (a4));
+		  "d" (a3),			\
+		  "b" (a4));
 
 #define __syscall5(__sys, a1, a2, a3, a4, a5, __ret)	\
-	asm volatile(__systrap				\
+	asm volatile(__systrap5				\
 		: "=a" (__ret)				\
 		: "a" (__sys),				\
 		  "D" (a1),				\
 		  "S" (a2), 				\
-		  "c" (a3),				\
-		  "d" (a4),				\
-		  "b" (a5));
+		  "d" (a3),				\
+		  "b" (a4),				\
+		  "c" (a5));
