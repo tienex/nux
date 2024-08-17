@@ -12,8 +12,6 @@ endif
 
 EC_SRCS = 	crt0-common.c \
 		printf.c \
-		snprintf.c \
-		subr_prf.c \
 		rb.c \
 		strcspn.c \
 		strlcpy.c \
