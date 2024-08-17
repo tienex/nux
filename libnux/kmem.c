@@ -203,8 +203,8 @@ struct kmem_tail
   unsigned long magic;
 };
 
-#define kmdbg_printf(...) printf(__VA_ARGS__)
-//#define kmdbg_printf(...)
+//#define kmdbg_printf(...) printf(__VA_ARGS__)
+#define kmdbg_printf(...)
 
 #define ZONE_HEAD_MAGIC 0x616001DA
 #define ZONE_TAIL_MAGIC 0x616001DA
@@ -216,7 +216,7 @@ ___mkptr (zaddr_t zaddr, size_t size, uintptr_t opq)
 {
   struct kmem_head *ptr;
   struct kmem_tail *tail;
-  vaddr_t addr = z_to_v(zaddr);
+  vaddr_t addr = z_to_v (zaddr);
 
   ptr = (struct kmem_head *) addr;
   ptr->magic = ZONE_HEAD_MAGIC;
@@ -258,7 +258,7 @@ ___get_neighbors (zaddr_t zaddr, size_t size,
   struct kmem_head *h;
   struct kmem_tail *t;
 
-  vaddr = z_to_v(zaddr);
+  vaddr = z_to_v (zaddr);
   ptail = vaddr - sizeof (struct kmem_tail);
   nhead = vaddr + size;
 
@@ -333,16 +333,16 @@ kmem_alloc (int low, size_t size)
   struct zone *z;
   size_t size_64b;
 
-  size_64b = size_zalign(size);
+  size_64b = size_zalign (size);
 
   z = low ? kmemz + LO : kmemz + HI;
   l = low ? lockz + LO : lockz + HI;
 
   spinlock (l);
-  zr = zone_alloc (z, zsize(size_64b));
+  zr = zone_alloc (z, zsize (size_64b));
   spinunlock (l);
-  if (zr != (zaddr_t)-1)
-    return z_to_v(zr);
+  if (zr != (zaddr_t) - 1)
+    return z_to_v (zr);
 
   r = kmem_brkgrow (low, size_64b);
   return r;
@@ -358,7 +358,7 @@ kmem_free (int low, vaddr_t vaddr, size_t size)
   lock_t *l;
   size_t size_64b;
 
-  size_64b = size_zalign(size);
+  size_64b = size_zalign (size);
 
   this = low ? LO : HI;
   base = low ? vaddr : vaddr + size_64b;
@@ -397,7 +397,7 @@ kmem_free (int low, vaddr_t vaddr, size_t size)
   z = kmemz + this;
   l = lockz + this;
   spinlock (l);
-  zone_free (z, v_to_z(vaddr), zsize(size_64b));
+  zone_free (z, v_to_z (vaddr), zsize (size_64b));
   spinunlock (l);
 
 out:
