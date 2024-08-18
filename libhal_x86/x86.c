@@ -49,6 +49,22 @@ extern int _fbuf_end;
 extern int _memregs_start;
 extern int _memregs_end;
 
+/*
+  Pin areas of memory to a fixed memory region type.
+*/
+struct apxh_region _memregs_pinned[] = {
+  /*
+     Remove me after getting ACPI pointer from kernel .
+   */
+  {.type = APXH_REGION_MMIO,.pfn = 0,.len = 1,},
+  /*
+
+     Mark the whole 0xA0000-0x100000 area as MMIO. */
+  {.type = APXH_REGION_MMIO,.pfn = 0xa0,.len = 96,},
+};
+
+#define PINNED_MEMREGS (sizeof(_memregs_pinned)/sizeof(struct apxh_region))
+
 const struct apxh_bootinfo *bootinfo = (struct apxh_bootinfo *) &_info_start;
 
 struct hal_pltinfo_desc pltdesc;
@@ -334,7 +350,8 @@ hal_physmem_maxpfn (void)
 unsigned
 hal_physmem_numregions (void)
 {
-  return (unsigned) bootinfo->numregions;
+
+  return (unsigned) bootinfo->numregions + PINNED_MEMREGS;
 }
 
 struct apxh_region *
@@ -345,9 +362,15 @@ hal_physmem_region (unsigned i)
   if (i >= hal_physmem_numregions ())
     return NULL;
 
-  ptr = (struct apxh_region *) &_memregs_start;
-  ptr += i;
-  assert (ptr < (struct apxh_region *) &_memregs_end);
+  if (i < (unsigned) bootinfo->numregions)
+    {
+      ptr = (struct apxh_region *) &_memregs_start + i;
+      assert (ptr < (struct apxh_region *) &_memregs_end);
+    }
+  else
+    {
+      ptr = _memregs_pinned + i - bootinfo->numregions;
+    }
 
   return ptr;
 }
@@ -436,8 +459,14 @@ x86_init (void)
   hal_stree_order = stree_hdr->order;
   hal_stree_ptr = (uint8_t *) stree_hdr + stree_hdr->offset;
 
-  /* Reserve page 0. It's special in X86. */
-  stree_clrbit (hal_stree_ptr, hal_stree_order, 0);
+  /* Do not allow allocation in non-RAM pinned memory regions. */
+  for (int i = 0; i < PINNED_MEMREGS; i++)
+    {
+      struct apxh_region *r = _memregs_pinned + i;
+      if (r->type != APXH_REGION_RAM)
+	for (int j = 0; j < r->len; j++)
+	  stree_clrbit (hal_stree_ptr, hal_stree_order, r->pfn + j);
+    }
 
   pltdesc.acpi_rsdp = bootinfo->acpi_rsdp;
 
