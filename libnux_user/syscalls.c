@@ -1,58 +1,51 @@
 #include <arch_syscalls.h>
 
 int
-syscall0 (unsigned sys)
+syscall0 (unsigned long sys)
 {
-  int ret;
-
-  __syscall0 (sys, ret);
-  return ret;
+  __SYSCALL0 (sys);
+  return sys;
 }
 
 int
-syscall1 (unsigned sys, unsigned long arg1)
+syscall1 (unsigned long sys, unsigned long arg1)
 {
-  int ret;
 
-  __syscall1 (sys, arg1, ret);
-  return ret;
+  __SYSCALL1 (sys, arg1);
+  return sys;
 }
 
 int
-syscall2 (unsigned sys, unsigned long arg1, unsigned long arg2)
+syscall2 (unsigned long sys, unsigned long arg1, unsigned long arg2)
 {
-  int ret;
 
-  __syscall2 (sys, arg1, arg2, ret);
-  return ret;
+  __SYSCALL2 (sys, arg1, arg2);
+  return sys;
 }
 
 int
-syscall3 (unsigned sys, unsigned long arg1, unsigned long arg2,
+syscall3 (unsigned long sys, unsigned long arg1, unsigned long arg2,
 	  unsigned long arg3)
 {
-  int ret;
 
-  __syscall3 (sys, arg1, arg2, arg3, ret);
-  return ret;
+  __SYSCALL3 (sys, arg1, arg2, arg3);
+  return sys;
 }
 
 int
-syscall4 (unsigned sys, unsigned long arg1, unsigned long arg2,
+syscall4 (unsigned long sys, unsigned long arg1, unsigned long arg2,
 	  unsigned long arg3, unsigned long arg4)
 {
-  int ret;
 
-  __syscall4 (sys, arg1, arg2, arg3, arg4, ret);
-  return ret;
+  __SYSCALL4 (sys, arg1, arg2, arg3, arg4);
+  return sys;
 }
 
 int
-syscall5 (unsigned sys, unsigned long arg1, unsigned long arg2,
+syscall5 (unsigned long sys, unsigned long arg1, unsigned long arg2,
 	  unsigned long arg3, unsigned long arg4, unsigned long arg5)
 {
-  int ret;
 
-  __syscall5 (sys, arg1, arg2, arg3, arg4, arg5, ret);
-  return ret;
+  __SYSCALL5 (sys, arg1, arg2, arg3, arg4, arg5);
+  return sys;
 }

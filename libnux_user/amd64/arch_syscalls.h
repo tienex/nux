@@ -1,58 +1,50 @@
-#define VECT_SYSC 0x21
+#define __SYSCALL0(__sys)			\
+  asm volatile(					\
+	       "syscall;" :			\
+	       "+a" (__sys) :			\
+  );
 
-#define _str(_x) #_x
-#define ___systrap(_vect)	\
-	"movl %0, %%eax;"	\
-	"syscall;"
+#define __SYSCALL1(__sys, a1)			\
+  asm volatile(					\
+	       "syscall;" :			\
+	       "+a" (__sys) :			\
+	       "D" (a1)				\
+  );
 
-#define __systrap ___systrap(VECT_SYSC)
+#define __SYSCALL2(__sys, a1, a2)		\
+  asm volatile(					\
+	       "syscall;" :			\
+	       "+a" (__sys) :			\
+	       "D" (a1),			\
+	       "S" (a2) 			\
+  );
 
-#define __systrap5 \
-  "mov %%rcx, %%r8;"__systrap
+#define __SYSCALL3(__sys, a1, a2, a3)		\
+  asm volatile(					\
+	       "syscall;" :			\
+	       "+a" (__sys) :			\
+	       "D" (a1),			\
+	       "S" (a2), 			\
+	       "d" (a3)				\
+  );
 
-#define __syscall0(__sys, __ret)	\
-	asm volatile(__systrap		\
-		: "=a" (__ret)		\
-		: "a" (__sys));
+#define __SYSCALL4(__sys, a1, a2, a3, a4)	\
+  asm volatile(					\
+	       "syscall;" :			\
+	       "+a" (__sys) :			\
+	       "D" (a1),			\
+	       "S" (a2), 			\
+	       "d" (a3),			\
+	       "b" (a4)				\
+  );
 
-#define __syscall1(__sys, a1, __ret)	\
-	asm volatile(__systrap		\
-		: "=a" (__ret)		\
-		: "a" (__sys),		\
-		  "D" (a1));
-
-#define __syscall2(__sys, a1, a2, __ret)\
-	asm volatile(__systrap		\
-		: "=a" (__ret)		\
-		: "a" (__sys),		\
-		  "D" (a1),		\
-		  "S" (a2));
-
-
-#define __syscall3(__sys, a1, a2, a3, __ret)	\
-	asm volatile(__systrap			\
-		: "=a" (__ret)			\
-		: "a" (__sys),			\
-		  "D" (a1),			\
-		  "S" (a2), 			\
-		  "d" (a3));
-
-
-#define __syscall4(__sys, a1, a2, a3, a4, __ret)\
-	asm volatile(__systrap			\
-		: "=a" (__ret)			\
-		: "a" (__sys),			\
-		  "D" (a1),			\
-		  "S" (a2), 			\
-		  "d" (a3),			\
-		  "b" (a4));
-
-#define __syscall5(__sys, a1, a2, a3, a4, a5, __ret)	\
-	asm volatile(__systrap5				\
-		: "=a" (__ret)				\
-		: "a" (__sys),				\
-		  "D" (a1),				\
-		  "S" (a2), 				\
-		  "d" (a3),				\
-		  "b" (a4),				\
-		  "c" (a5));
+#define __SYSCALL5(__sys, a1, a2, a3, a4, a5)		\
+  asm volatile(						\
+	       "mov %%rcx, %%r8; syscall;" :		\
+	       "+a" (__sys) :				\
+	       "D" (a1),				\
+	       "S" (a2), 				\
+	       "d" (a3),				\
+	       "b" (a4),				\
+	       "c" (a5)      				\
+  );
