@@ -213,6 +213,9 @@ hal_putchar (int c)
   else
     vga_putchar (c);
 
+  /* Always use serial. */
+  serial_putchar (c);
+
   return c;
 }
 
@@ -434,6 +437,8 @@ x86_init (void)
       hal_cpu_trap ();
     }
 
+  serial_init ();
+
   fbdesc = bootinfo->fbdesc;
   fbdesc.addr = (uint64_t) (uintptr_t) & _fbuf_start;
   use_fb = framebuffer_init (&fbdesc);
@@ -471,6 +476,8 @@ x86_init (void)
   pltdesc.acpi_rsdp = bootinfo->acpi_rsdp;
 
   pmap_init ();
+
+  serial_init ();
 
 #ifdef __i386__
   early_print ("i386 HAL booting from APXH.\n");

@@ -59,6 +59,9 @@ void pmap_init (void);
 void i386_init_done (void);
 void amd64_init_done (void);
 
+int inb (int port);
+void outb (int port, int val);
+
 typedef uint64_t pte_t;
 typedef uintptr_t ptep_t;
 
@@ -73,6 +76,9 @@ unsigned long umap_minaddr (void);
 unsigned long umap_maxaddr (void);
 
 void tlbflush_global (void);
+
+void serial_init (void);
+void serial_putchar (int c);
 
 int vga_putchar (int c);
 
