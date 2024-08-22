@@ -62,7 +62,7 @@ md_entry (arch_t arch, vaddr_t pt, vaddr_t entry)
   tramp_entry = (vaddr_t) (uintptr_t) tramp;
 
   /* Setup Direct map at 0->1Gb */
-  pae64_directmap (trampcr3, 0, 0, 64L << 30, 0, 1);
+  pae64_directmap (trampcr3, 0, 0, 64L << 30, MEMTYPE_WB, 0, 1);
 
   /* Map Entry page in transitional pagetable VA. */
   pae64_map_page (trampcr3, (vaddr_t) entry, pae64_getphys (entry), 0, 0, 1);

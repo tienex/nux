@@ -203,7 +203,7 @@ ph_kload (void *elfimg, uint32_t type, uint32_t flags,
     case PHT_APXH_PHYSMAP:
       /* Direct 1:1 PA mapping. */
       printf ("Physmap VA area at %08llx (size: %lld).\n", va, msize);
-      va_physmap (va, msize);
+      va_physmap (va, msize, MEMTYPE_WB);
       break;
     case PHT_APXH_EMPTY:
       printf ("Empty VA area at %08llx (size: %lld).\n", va, msize);
@@ -227,11 +227,15 @@ ph_kload (void *elfimg, uint32_t type, uint32_t flags,
       break;
     case PHT_APXH_FRAMEBUF:
       printf ("Framebuffer Map at %08llx (size: %lld).\n", va, msize);
-      va_framebuf (va, msize);
+      va_framebuf (va, msize, MEMTYPE_WC);
       break;
     case PHT_APXH_REGIONS:
       printf ("Region Map at %08llx (size: %lld).\n", va, msize);
       va_regions (va, msize);
+      break;
+    case PHT_APXH_TOPPTALLOC:
+      printf ("TOP PT Alloc VA area at %08llx (size: %lld).\n", va, msize);
+      va_topptalloc (va, msize);
       break;
     default:
       printf ("Ignored segment type %08lx.\n", type);

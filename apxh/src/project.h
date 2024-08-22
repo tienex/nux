@@ -34,16 +34,24 @@ struct bootinfo_region
   unsigned long pfn;
 };
 
+enum memory_type
+{
+  MEMTYPE_WC,			/* Write Combining. */
+  MEMTYPE_WB,			/* Write Back. */
+  MEMTYPE_UC,			/* Uncached. */
+};
+
 /* APXH ELF extensions. */
-#define PHT_APXH_INFO      0xAF100000	/* Info Page. */
-#define PHT_APXH_EMPTY     0xAF100001	/* Empty (no page tables). */
-#define PHT_APXH_PHYSMAP   0xAF100002	/* 1:1 Memory Map. */
-#define PHT_APXH_PFNMAP    0xAF100003	/* PFN Map. */
-#define PHT_APXH_STREE     0xAF100004	/* Allocated Pages Bitmap. */
-#define PHT_APXH_PTALLOC   0xAF100005	/* Empty (alloc all page tables). */
-#define PHT_APXH_FRAMEBUF  0xAF100006	/* Frame Buffer. */
-#define PHT_APXH_REGIONS   0xAF100007	/* Region List. */
-#define PHT_APXH_LINEAR    0xAF10FFFF	/* Linear map. */
+#define PHT_APXH_INFO       0xAF100000	/* Info Page. */
+#define PHT_APXH_EMPTY      0xAF100001	/* Empty (no page tables). */
+#define PHT_APXH_PHYSMAP    0xAF100002	/* 1:1 Memory Map. */
+#define PHT_APXH_PFNMAP     0xAF100003	/* PFN Map. */
+#define PHT_APXH_STREE      0xAF100004	/* Allocated Pages Bitmap. */
+#define PHT_APXH_PTALLOC    0xAF100005	/* Empty (alloc all page tables). */
+#define PHT_APXH_FRAMEBUF   0xAF100006	/* Frame Buffer. */
+#define PHT_APXH_REGIONS    0xAF100007	/* Region List. */
+#define PHT_APXH_TOPPTALLOC 0xAF100008	/* Empty (alloc all top-level PTs). */
+#define PHT_APXH_LINEAR     0xAF10FFFF	/* Linear map. */
 
 #define PFNMAP_ENTRY_SIZE 64
 
@@ -104,13 +112,15 @@ void va_verify (vaddr_t va, size64_t size);
 void va_populate (vaddr_t va, size64_t size, int u, int w, int x);
 void va_copy (vaddr_t va, void *addr, size64_t size, int u, int w, int x);
 void va_memset (vaddr_t va, int c, size64_t size, int u, int w, int x);
-void va_physmap (vaddr_t va, size64_t size);
+void va_physmap (vaddr_t va, size64_t size, enum memory_type);
 void va_linear (vaddr_t va, size64_t size);
 void va_info (vaddr_t va, size64_t size);
 void va_pfnmap (vaddr_t va, size64_t size);
 void va_stree (vaddr_t va, size64_t size);
+void pae64_topptalloc (vaddr_t va, size64_t size);
+void va_topptalloc (vaddr_t va, size64_t size);
 void va_ptalloc (vaddr_t va, size64_t size);
-void va_framebuf (vaddr_t va, size64_t size);
+void va_framebuf (vaddr_t va, size64_t size, enum memory_type);
 void va_regions (vaddr_t va, size64_t size);
 void va_entry (vaddr_t entry);
 
@@ -118,14 +128,15 @@ void pae_init (void);
 uintptr_t pae_getphys (vaddr_t va);
 void pae_verify (vaddr_t va, size64_t size);
 void pae_populate (vaddr_t va, size64_t size, int u, int w, int x);
-void pae_physmap (vaddr_t va, size64_t size, uint64_t pa);
+void pae_physmap (vaddr_t va, size64_t size, uint64_t pa, enum memory_type);
 void pae_ptalloc (vaddr_t va, size64_t size);
+void pae_topptalloc (vaddr_t va, size64_t size);
 void pae_linear (vaddr_t va, size64_t size);
 void pae_entry (vaddr_t entry);
 
 /* Internal PAE functions. */
 void pae_directmap (void *pt, uint64_t pa, vaddr_t va, size64_t size,
-		    int payload, int x);
+		    enum memory_type, int payload, int x);
 void pae_map_page (void *pt, vaddr_t va, uintptr_t pa, int payload, int w,
 		   int x);
 
@@ -133,14 +144,14 @@ void pae64_init (void);
 uintptr_t pae64_getphys (vaddr_t va);
 void pae64_verify (vaddr_t va, size64_t size);
 void pae64_populate (vaddr_t va, size64_t size, int u, int w, int x);
-void pae64_physmap (vaddr_t va, size64_t size, uint64_t pa);
+void pae64_physmap (vaddr_t va, size64_t size, uint64_t pa, enum memory_type);
 void pae64_ptalloc (vaddr_t va, size64_t size);
 void pae64_linear (vaddr_t va, size64_t size);
 void pae64_entry (vaddr_t entry);
 
 /* Internal PAE64 functions. */
 void pae64_directmap (void *pt, uint64_t pa, vaddr_t va, size64_t size,
-		      int payload, int x);
+		      enum memory_type, int payload, int x);
 void pae64_map_page (void *pt, vaddr_t va, uintptr_t pa, int payload, int w,
 		     int x);
 

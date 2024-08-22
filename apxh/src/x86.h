@@ -15,6 +15,11 @@
 #define _MSR_IA32_EFER_NXE (1LL << 11)
 #define _MSR_IA32_EFER_LME (1LL << 8)
 
+#define MSR_IA32_PAT 0x00000277
+#define _MSR_IA32_PAT_UC 0
+#define _MSR_IA32_PAT_WC 1
+#define _MSR_IA32_PAT_WB 6
+
 #define CR4_PAE (1 << 5)
 
 #define CR0_PG  (1 << 31)
@@ -75,7 +80,6 @@ static inline uint64_t
 rdmsr (uint32_t ecx)
 {
   uint32_t edx, eax;
-
 
   asm volatile ("rdmsr\n":"=d" (edx), "=a" (eax):"c" (ecx));
 

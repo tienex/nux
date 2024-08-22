@@ -174,7 +174,7 @@ va_memset (vaddr_t va, int c, size64_t size, int u, int w, int x)
 }
 
 void
-va_physmap (vaddr_t va, size64_t size)
+va_physmap (vaddr_t va, size64_t size, enum memory_type mt)
 {
   md_verify (va, size);
   va_verify (va, size);
@@ -182,10 +182,10 @@ va_physmap (vaddr_t va, size64_t size)
   switch (elf_arch)
     {
     case ARCH_386:
-      pae_physmap (va, size, 0);
+      pae_physmap (va, size, 0, mt);
       break;
     case ARCH_AMD64:
-      pae64_physmap (va, size, 0);
+      pae64_physmap (va, size, 0, mt);
       break;
     default:
       printf ("Unsupported VM architecture.\n");
@@ -194,7 +194,7 @@ va_physmap (vaddr_t va, size64_t size)
 }
 
 void
-va_framebuf (vaddr_t va, size64_t size)
+va_framebuf (vaddr_t va, size64_t size, enum memory_type mt)
 {
   uint64_t pa;
   struct fbdesc *fbptr;
@@ -218,10 +218,10 @@ va_framebuf (vaddr_t va, size64_t size)
   switch (elf_arch)
     {
     case ARCH_386:
-      pae_physmap (va, size, pa);
+      pae_physmap (va, size, pa, mt);
       break;
     case ARCH_AMD64:
-      pae64_physmap (va, size, pa);
+      pae64_physmap (va, size, pa, mt);
       break;
     default:
       printf ("Unsupported VM architecture.\n");
@@ -242,6 +242,26 @@ va_linear (vaddr_t va, size64_t size)
       break;
     case ARCH_AMD64:
       pae64_linear (va, size);
+      break;
+    default:
+      printf ("Unsupported VM architecture.\n");
+      exit (-1);
+    }
+}
+
+void
+va_topptalloc (vaddr_t va, size64_t size)
+{
+  md_verify (va, size);
+  va_verify (va, size);
+
+  switch (elf_arch)
+    {
+    case ARCH_386:
+      pae_topptalloc (va, size);
+      break;
+    case ARCH_AMD64:
+      pae64_topptalloc (va, size);
       break;
     default:
       printf ("Unsupported VM architecture.\n");

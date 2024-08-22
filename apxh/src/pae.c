@@ -15,6 +15,91 @@
 #include "project.h"
 #include "x86.h"
 
+#define PTE_P 1LL
+#define PTE_W 2LL
+#define PTE_U 4LL
+#define PTE_PWT (1L << 3)
+#define PTE_PCD (1L << 4)
+#define PTE_PAT_4K (1L << 7)	/* This is for 4k leaf */
+#define PTE_PS (1L << 7)	/* This is for non-leaf */
+#define PTE_PAT_BIG (1 << 12)
+#define PTE_NX (nx_enabled ? 1LL << 63 : 0)
+
+#define PAT_UC 3
+#define PAT_WB 0
+#define PAT_WC 7
+
+static void
+scan_pat_table (void)
+{
+  bool wb_set = false;
+  bool wc_set = false;
+  bool uc_set = false;
+  uint64_t pat = rdmsr (MSR_IA32_PAT);
+
+  for (int i = 0; i < 8; i++)
+    {
+      switch (pat & 0x7)
+	{
+	case _MSR_IA32_PAT_UC:
+	  if (!uc_set)
+	    {
+	      printf ("PAT Table: UC Entry at %d\n", i);
+	      uc_set = true;
+	    }
+	  break;
+	case _MSR_IA32_PAT_WC:
+	  if (!wc_set)
+	    {
+	      printf ("PAT Table: WC Entry at %d\n", i);
+	      wc_set = true;
+	    }
+	  break;
+	case _MSR_IA32_PAT_WB:
+	  if (!wb_set)
+	    {
+	      printf ("PAT TABLE: WB Entry at %d\n", i);
+	      wb_set = true;
+	    }
+	  break;
+	}
+      pat >>= 8;
+    }
+}
+
+static void
+setup_pat_table (void)
+{
+  /*
+     Default PAT table, with added WC at 7 */
+  wrmsr (MSR_IA32_PAT, 0x0100040600070406LL);
+
+  scan_pat_table ();
+}
+
+static unsigned
+memtype_to_flags (enum memory_type mt, bool small)
+{
+  unsigned pat = small ? PTE_PAT_4K : PTE_PAT_BIG;
+
+  switch (mt)
+    {
+    case MEMTYPE_WC:
+      /* WC is 7 */
+      return pat | PTE_PCD | PTE_PWT;
+      break;
+    case MEMTYPE_WB:
+      /* WB is 0 */
+      return 0;
+      break;
+    case MEMTYPE_UC:
+      return PTE_PCD | PTE_PWT;
+      break;
+    }
+  return 0;
+}
+
+
 bool
 cpu_is_intel ()
 {
@@ -150,12 +235,6 @@ static bool nx_enabled;
 #define PAE_DIRECTMAP_START 0
 #define PAE_DIRECTMAP_END   (1LL << 30)
 
-#define PTE_P 1LL
-#define PTE_W 2LL
-#define PTE_U 4LL
-#define PTE_PS (1L << 7)
-#define PTE_NX (nx_enabled ? 1LL << 63 : 0)
-
 #define L3OFF(_va) (((_va) >> 30) & 0x3)
 #define L2OFF(_va) (((_va) >> 21) & 0x1ff)
 #define L1OFF(_va) (((_va) >> 12) & 0x1ff)
@@ -241,6 +320,8 @@ pae_init (void)
       set_pte (pae_cr3 + i, l2page >> PAGE_SHIFT, PTE_P);
       l2s[i] = (pte_t *) l2page;
     }
+
+  setup_pat_table ();
 
   printf ("Using PAE paging (CR3: %08lx, NX: %d).\n", pae_cr3, nx_enabled);
 }
@@ -367,7 +448,7 @@ pae_getphys (vaddr_t va)
 
 void
 pae_directmap (void *pt, uint64_t pa, vaddr_t va, size64_t size,
-	       int payload, int x)
+	       enum memory_type mt, int payload, int x)
 {
   uint64_t papfn = pa >> PAGE_SHIFT;
   unsigned i, n;
@@ -378,14 +459,25 @@ pae_directmap (void *pt, uint64_t pa, vaddr_t va, size64_t size,
   for (i = 0; i < n; i++)
     {
       pte = pae_get_l1p (pt, va + (i << PAGE_SHIFT), payload);
-      set_pte (pte, papfn + i, PTE_P | PTE_W | (x ? 0 : PTE_NX));
+      set_pte (pte, papfn + i,
+	       memtype_to_flags (mt,
+				 true /*4k */ ) | PTE_P | PTE_W | (x ? 0 :
+								   PTE_NX));
     }
 }
 
 void
-pae_physmap (vaddr_t va, size64_t size, uint64_t pa)
+pae_physmap (vaddr_t va, size64_t size, uint64_t pa, enum memory_type mt)
 {
-  pae_directmap (pae_cr3, pa, va, size, 1, 0);
+  pae_directmap (pae_cr3, pa, va, size, mt, 1, 0);
+}
+
+void
+pae_topptalloc (vaddr_t va, size64_t size)
+{
+  /* In PAE, TOPPTALLOC is equivalent to PTALLOC. */
+
+  pae_ptalloc (va, size);
 }
 
 void
@@ -553,6 +645,8 @@ pae64_init (void)
 
   nx_enabled = cpu_supports_nx ();
 
+  setup_pat_table ();
+
   pae64_cr3 = (pte_t *) get_payload_page ();
 
   printf ("Using PAE64 paging (CR3: %08lx, NX: %d).\n", pae64_cr3,
@@ -645,7 +739,7 @@ pae64_getphys (vaddr_t va)
 
 void
 pae64_directmap (void *pt, uint64_t pabase, vaddr_t va, size64_t size,
-		 int payload, int x)
+		 enum memory_type mt, int payload, int x)
 {
   ssize64_t len;
   uint64_t pa;
@@ -655,13 +749,6 @@ pae64_directmap (void *pt, uint64_t pabase, vaddr_t va, size64_t size,
 
 #define GB1ALIGNED(_a) (((_a) & ((1L << 30) - 1)) == 0)
 #define MB2ALIGNED(_a) (((_a) & ((1L << 21) - 1)) == 0)
-
-  /*
-     Not the fastest way to do this, but good enough for startup.
-
-     Please note: it is a very bad idea to have a huge physmap
-     given the costs in pagetables.
-   */
 
 
   /* Signed to unsigned: no one will ask us a 1<<64 bytes physmap. */
@@ -676,6 +763,7 @@ pae64_directmap (void *pt, uint64_t pabase, vaddr_t va, size64_t size,
 	  pte_t *l3p = pae64_get_l3p (cr3, va, payload);
 
 	  set_pte (l3p, pa >> PAGE_SHIFT,
+		   memtype_to_flags (mt, false /*1GB */ ) |
 		   PTE_PS | PTE_W | PTE_P | (x ? 0 : PTE_NX));
 	  va += (1L << 30);
 	  pa += (1L << 30);
@@ -687,6 +775,7 @@ pae64_directmap (void *pt, uint64_t pabase, vaddr_t va, size64_t size,
 	  pte_t *l2p = pae64_get_l2p (cr3, va, payload);
 
 	  set_pte (l2p, pa >> PAGE_SHIFT,
+		   memtype_to_flags (mt, false /* 2MB */ ) |
 		   PTE_PS | PTE_W | PTE_P | (x ? 0 : PTE_NX));
 	  va += (1L << 21);
 	  pa += (1L << 21);
@@ -697,7 +786,11 @@ pae64_directmap (void *pt, uint64_t pabase, vaddr_t va, size64_t size,
 	{
 	  pte_t *l1p = pae64_get_l1p (cr3, va, payload);
 
-	  set_pte (l1p, pa >> PAGE_SHIFT, PTE_W | PTE_P | (x ? 0 : PTE_NX));
+	  set_pte (l1p, pa >> PAGE_SHIFT,
+		   memtype_to_flags (mt,
+				     true /*4kB */ ) | PTE_W | PTE_P | (x ? 0
+									:
+									PTE_NX));
 	  va += (1L << PAGE_SHIFT);
 	  pa += (1L << PAGE_SHIFT);
 	  len -= (1L << PAGE_SHIFT);
@@ -707,9 +800,20 @@ pae64_directmap (void *pt, uint64_t pabase, vaddr_t va, size64_t size,
 }
 
 void
-pae64_physmap (vaddr_t va, size64_t size, uint64_t pa)
+pae64_physmap (vaddr_t va, size64_t size, uint64_t pa, enum memory_type mt)
 {
-  pae64_directmap (pae64_cr3, pa, va, size, 1, 0);
+  pae64_directmap (pae64_cr3, pa, va, size, mt, 1, 0);
+}
+
+void
+pae64_topptalloc (vaddr_t va, size64_t size)
+{
+  unsigned i, n;
+
+  n = (size + (1 << 30) - 1) >> 30;
+
+  for (i = 0; i < n; i++)
+    (void) pae64_get_l3p (pae64_cr3, va + (i << PAGE_SHIFT), 1);
 }
 
 void
