@@ -554,7 +554,7 @@ pae32_init_ap (void)
   kva_unmap (va, PAGE_SIZE);
   write_cr3 (ptob (l3pfn));
 
-  i386_remove_bootmappings();
+  i386_remove_bootmappings ();
 }
 
 void

@@ -677,7 +677,7 @@ pae64_init_ap (void)
 
   write_cr3 (ptob (pfn));
 
-  amd64_remove_bootmappings();
+  amd64_remove_bootmappings ();
 }
 
 void

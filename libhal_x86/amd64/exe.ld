@@ -180,8 +180,8 @@ PHDRS
     kstack3  PT_LOAD;
     kstack4  PT_LOAD;
     info    0xAF100000; /* PHT_APXH_INFO */
-    kmem    0xAF100001; /* PHT_APXH_EMPTY */
-    kva     0xAF100001; /* PHT_APXH_EMPTY */
+    kmem    0xAF100008; /* PHT_APXH_TOPPTALLOC */
+    kva     0xAF100008; /* PHT_APXH_TOPPTALLOC */
     pfncache 0xAF100005; /* PHT_APXH_PTALLOC */
     physmap 0xAF100002; /* PHT_APXH_PHYSMAP */
     stree   0xAF100004; /* PHT_APXH_STREE */

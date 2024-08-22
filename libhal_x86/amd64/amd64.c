@@ -277,14 +277,14 @@ amd64_init_ap (uintptr_t esp)
 }
 
 void
-amd64_remove_bootmappings(void)
+amd64_remove_bootmappings (void)
 {
   hal_l1p_t l1p;
 
   /*
-    Restore the mapping created for boostrapping secondary CPUS.
-    Use UMAP, as it is in the user address space.
-  */
+     Restore the mapping created for boostrapping secondary CPUS.
+     Use UMAP, as it is in the user address space.
+   */
   l1p = umap_get_l1p (NULL, smp_oldva, false);
   assert (l1p != L1P_INVALID);
   hal_l1e_set (l1p, smp_oldl1e);
@@ -294,5 +294,5 @@ void
 amd64_init_done (void)
 {
 
-  amd64_remove_bootmappings();
+  amd64_remove_bootmappings ();
 }

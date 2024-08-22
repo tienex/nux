@@ -229,5 +229,5 @@ void
 i386_init_done (void)
 {
 
-  i386_remove_bootmappings();
+  i386_remove_bootmappings ();
 }
