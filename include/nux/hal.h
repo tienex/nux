@@ -407,10 +407,11 @@ void hal_frame_print (struct hal_frame *);
   the input to the kernel.
  */
 
-#define HAL_PF_REASON_PROT 0;
-#define HAL_PF_REASON_NOTP 1;
-#define HAL_PF_INFO_WRITE (1 << 4);
-#define HAL_PF_INFO_USER  (1 << 5);
+#define HAL_PF_REASON_PROT 0
+#define HAL_PF_REASON_NOTP 1
+#define HAL_PF_REASON_MASK 1
+#define HAL_PF_INFO_WRITE (1 << 4)
+#define HAL_PF_INFO_USER  (1 << 5)
 
 typedef unsigned hal_pfinfo_t;
 
