@@ -189,10 +189,12 @@ acpi_madt_scan (void)
 	lapic_addr = _.lavr->address;
 	break;
       case ACPI_MADT_TYPE_LAPIC:
-	info("ACPI MADT LAPIC %02d %02d %08x",
-	       _.lapic->lapicid, _.lapic->acpiid, _.lapic->flags);
 	if (_.lapic->flags & ACPI_MADT_LAPIC_ENABLED)
-	  nlapic++;
+	  {
+	    info("ACPI MADT LAPIC %02d %02d %08x",
+		 _.lapic->lapicid, _.lapic->acpiid, _.lapic->flags);
+	    nlapic++;
+	  }
 	break;
       case ACPI_MADT_TYPE_IOAPIC:
 	info("ACPI MADT IOAPIC %02d %08x %02d",
