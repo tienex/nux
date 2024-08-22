@@ -22,6 +22,7 @@
 #define NUXST_PANIC   128	/* NUX is in panic mode and shutting down. */
 uint8_t nux_status (void);
 uint8_t nux_status_setfl (uint8_t flags);
+bool nux_status_okcpu (void);
 
 /*
   Kernel TLB status.

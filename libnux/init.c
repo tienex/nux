@@ -18,6 +18,9 @@
 
 #include "internal.h"
 
+/* Set and cleared by HAL. If this is on, we're still in initialisation mode. */
+volatile uint32_t _nux_apbooting = 0;
+
 volatile uint8_t _nux_stflags = 0;
 
 uint8_t
@@ -32,6 +35,17 @@ uint8_t
 nux_status_setfl (uint8_t flags)
 {
   return __atomic_fetch_or (&_nux_stflags, flags, __ATOMIC_ACQ_REL);
+}
+
+bool
+nux_status_okcpu (void)
+{
+  if (__predict_false (!(nux_status () & NUXST_OKCPU))
+      || __predict_false (_nux_apbooting))
+    return false;
+  else
+    return true;
+
 }
 
 
@@ -131,6 +145,11 @@ void __attribute__((constructor (0))) _nux_sysinit (void)
   /* Start all CPUs. */
   cpu_startall ();
 
+  printf ("Waiting for APs to boot..");
+  while (_nux_apbooting)
+    hal_cpu_relax ();
+  printf ("done.\n");
+
   /* Signal HAL that we're done initialising. */
   hal_init_done ();
 
@@ -141,6 +160,7 @@ void
 hal_main_ap (void)
 {
   cpu_enter ();
+  __atomic_sub_fetch (&_nux_apbooting, 1, __ATOMIC_ACQ_REL);
   exit (main_ap ());
 
 #if 0

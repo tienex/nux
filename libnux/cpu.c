@@ -228,7 +228,7 @@ cpu_id (void)
 unsigned
 cpu_try_id (void)
 {
-  if (__predict_false (!(nux_status () & NUXST_OKCPU)))
+  if (!nux_status_okcpu ())
     {
       return 0;
     }
@@ -281,7 +281,7 @@ cpu_nmi_mask (cpumask_t map)
 void
 cpu_nmi_allbutself (void)
 {
-  if (__predict_true (nux_status () & NUXST_OKCPU))
+  if (nux_status_okcpu ())
     {
       cpumask_t mask = cpu_activemask ();
       cpumask_clear (&mask, cpu_id ());
@@ -389,7 +389,7 @@ cpu_ktlb_update (void)
 void
 cpu_ktlb_reach (tlbgen_t target)
 {
-  if (__predict_false (!(nux_status () & NUXST_OKCPU)))
+  if (!nux_status_okcpu ())
     {
       /* early boot: just flush the tlb. */
       hal_cpu_tlbop (HAL_TLBOP_FLUSH);
@@ -464,7 +464,7 @@ cpu_kmapupdate (int cpu)
 void
 cpu_kmapupdate_broadcast (void)
 {
-  if (__predict_true (nux_status () & NUXST_OKCPU))
+  if (nux_status_okcpu ())
     {
       foreach_cpumask (cpu_activemask (), cpu_kmapupdate (i));
     }
@@ -502,7 +502,7 @@ cpu_tlbflush_mask (cpumask_t mask)
 void
 cpu_tlbflush_broadcast (void)
 {
-  if (__predict_true (nux_status () & NUXST_OKCPU))
+  if (nux_status_okcpu ())
     {
       cpu_tlbflush_mask (cpu_activemask ());
     }

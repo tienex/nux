@@ -43,7 +43,7 @@ hal_entry_syscall (struct hal_frame *f,
 struct hal_frame *
 hal_entry_pf (struct hal_frame *f, unsigned long va, hal_pfinfo_t info)
 {
-  if (__predict_false (!(nux_status () & NUXST_OKCPU)))
+  if (!nux_status_okcpu ())
     {
       nux_panic ("Early Kernel Page Fault", f);
       /* Unreachable */
@@ -86,7 +86,7 @@ hal_entry_debug (struct hal_frame *f, unsigned xcpt)
 struct hal_frame *
 hal_entry_xcpt (struct hal_frame *f, unsigned xcpt)
 {
-  if (__predict_false (!(nux_status () & NUXST_OKCPU)))
+  if (!nux_status_okcpu ())
     {
       nux_panic ("Early Kernel Exception", f);
       /* Unreachable */
@@ -118,7 +118,7 @@ hal_entry_nmi (struct hal_frame *f)
       /* Unreachable */
     }
 
-  if (__predict_false (!(nux_status () & NUXST_OKCPU)))
+  if (!nux_status_okcpu ())
     {
       return;
     }
