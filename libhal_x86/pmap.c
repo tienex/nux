@@ -27,7 +27,6 @@ hal_kmap_getl1p (unsigned long va, bool alloc, hal_l1p_t * l1popq)
 
   if (va < umap_maxaddr ())
     {
-      printf("l1p: %lx %lx\n", va, umap_maxaddr());
       if (l1popq != NULL)
 	*l1popq = L1P_INVALID;
       return false;

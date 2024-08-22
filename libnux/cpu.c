@@ -414,7 +414,6 @@ cpu_ktlb_reach (tlbgen_t target)
 void
 cpu_tlbflush_local (void)
 {
-  printf ("Flushing TLBs on CPU %d", cpu_id ());
 
   /* We're flushing the cpu. Update the relevant kmap tlb generation. */
   struct cpu_info *ci = cpu_curinfo ();
