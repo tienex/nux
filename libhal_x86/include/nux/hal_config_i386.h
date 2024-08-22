@@ -44,6 +44,15 @@ struct hal_umap
   uint64_t l3[UMAP_L3PTES];
 };
 
+#include <stdio.h>
+static inline void
+hal_umap_debug (struct hal_umap *umap)
+{
+  printf ("hal_umap: %p:", umap);
+  for (int i = 0; i < UMAP_L3PTES; i++)
+    printf ("  [%d] = %llx\n", i, umap->l3[i]);
+}
+
 
 /*
   HAL CPU definition.
