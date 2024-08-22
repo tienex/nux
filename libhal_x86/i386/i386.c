@@ -206,6 +206,7 @@ i386_init_ap (uintptr_t esp)
   unsigned pcpu = plt_pcpu_id ();
   struct hal_cpu *haldata = (struct hal_cpu *) (uintptr_t) pcpu_haldata[pcpu];
 
+  haldata->tss.ss0 = KDS;
   haldata->tss.esp0 = esp;
   haldata->tss.iomap = 108;
 
