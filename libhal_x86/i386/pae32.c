@@ -28,12 +28,10 @@
 #define L1OFF(_va) (((_va) >> L1_SHIFT) & 0x1ff)
 
 /* The following RES definitions assume 48-bit MAX PA */
-#define L3_RESPT 0xFFFF000000000000LL
 #define L2_RESPT 0x7FFF000000000000LL
 #define L2_RES2M 0x7FFF0000001FE000LL
 #define L1_RESPT 0x7FFF000000000000LL
 
-#define l3e_reserved(_pte) ((_pte) & L3_RESPT)
 #define l2e_bigpage(_pte) ((_pte) & PTE_PS)
 #define l2e_reserved(_pte) ((_pte) & (l2e_bigpage(_pte) ? L2_RES2M : L2_RESPT))
 #define l1e_reserved(_pte) ((_pte) & L1_RESPT)
@@ -164,8 +162,6 @@ linmap_get_l2p (unsigned long va, bool alloc, bool user)
       /* Not present, no TLB flush necessary. */
     }
 
-  assert (!l3e_reserved (l3e) && "Invalid L3E.");
-
   va &= ~((1L << L2_SHIFT) - 1);
   return mkptep_cur (l2_linaddr + (va >> 18));
 }
@@ -227,8 +223,6 @@ get_umap_l2pfn (struct hal_umap *umap, unsigned long va, bool alloc)
       set_pte (l3p, l3e);
       /* Not present, no TLB flush necessary. */
     }
-
-  //  assert (!l3e_reserved (l3e) && "Invalid L3E.");
 
   return pte_pfn (l3e);
 }
@@ -348,7 +342,7 @@ hal_umap_bootstrap (struct hal_umap *umap)
 	  set_pte (l3p, l3e);
 	  /* Not present, no TLB flush necessary. */
 	}
-      umap->l3[i] = l3e & 0xfffff001;	/* Remove flags from PTE. */
+      umap->l3[i] = l3e & 0x0000fffffffff001LL;	/* Remove flags from PTE. */
     }
 }
 
