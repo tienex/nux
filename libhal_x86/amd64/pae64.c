@@ -670,12 +670,14 @@ pae64_init_ap (void)
   /* Copy the kernel mappings. */
   va = kva_physmap (ptob (pfn), PAGE_SIZE, HAL_PTE_W | HAL_PTE_P);
   cr3va = kva_physmap (ptob (cr3pfn), PAGE_SIZE, HAL_PTE_P);
-  memcpy (va + 256, cr3va + 256, PAGE_SIZE / 2);
+  memcpy (va, cr3va, PAGE_SIZE);
   va[linoff] = mkpte (pfn, PTE_P | PTE_W);	/* Point the linaddr back at itself. */
   kva_unmap (va, PAGE_SIZE / 2);
   kva_unmap (cr3va, PAGE_SIZE / 2);
 
   write_cr3 (ptob (pfn));
+
+  amd64_remove_bootmappings();
 }
 
 void
