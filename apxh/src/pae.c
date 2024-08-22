@@ -460,9 +460,8 @@ pae_directmap (void *pt, uint64_t pa, vaddr_t va, size64_t size,
     {
       pte = pae_get_l1p (pt, va + (i << PAGE_SHIFT), payload);
       set_pte (pte, papfn + i,
-	       memtype_to_flags (mt,
-				 true /*4k */ ) | PTE_P | PTE_W | (x ? 0 :
-								   PTE_NX));
+	       memtype_to_flags (mt, true /*4k */ ) | PTE_P | PTE_W | (x ? 0 :
+								       PTE_NX));
     }
 }
 
