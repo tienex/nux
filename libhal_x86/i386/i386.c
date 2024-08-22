@@ -209,6 +209,8 @@ i386_init_ap (uintptr_t esp)
   haldata->tss.esp0 = esp;
   haldata->tss.iomap = 108;
 
+  pae32_init_ap ();
+
   hal_main_ap ();
 }
 

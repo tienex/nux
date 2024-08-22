@@ -271,6 +271,8 @@ amd64_init_ap (uintptr_t esp)
   haldata->tss.rsp0 = esp;
   haldata->tss.iomap = 108;
 
+  pae64_init_ap ();
+
   hal_main_ap ();
 }
 

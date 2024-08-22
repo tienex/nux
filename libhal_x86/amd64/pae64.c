@@ -14,6 +14,7 @@
 
 #include <assert.h>
 #include <stdint.h>
+#include <string.h>
 #include <nux/nux.h>
 #include <nux/types.h>
 #include "../internal.h"
@@ -30,6 +31,7 @@
 #define L2OFF(_va) (((_va) >> L2_SHIFT) & 0x1ff)
 #define L1OFF(_va) (((_va) >> L1_SHIFT) & 0x1ff)
 
+#define MKCANON(_va) ((int64_t)((_va) << 16) >> 16)
 #define UNCANON(_va) ((_va) & ((1LL << 48) - 1))
 
 /* The following RES definitions assume 48-bit MAX PA */
@@ -68,8 +70,9 @@ static pte_t *linaddr_l4;
 uint64_t
 mkaddr (uint64_t l4off, uint64_t l3off, uint64_t l2off, uint64_t l1off)
 {
-  return (l4off << L4_SHIFT) | (l3off << L3_SHIFT) | (l2off << L2_SHIFT) |
-    (l1off << L1_SHIFT);
+  return
+    MKCANON (((l4off << L4_SHIFT) | (l3off << L3_SHIFT) | (l2off << L2_SHIFT)
+	      | (l1off << L1_SHIFT)));
 }
 
 pte_t
@@ -640,10 +643,12 @@ umap_free (struct hal_umap *umap)
 			}
 		    }
 		  printf ("Freeing L2 %lx\n", l2pfn);
+		  pfn_put (l2pfn, l2ptr);
 		  pfn_free (l2pfn);
 		}
 	    }
 	  printf ("Freeing L3 %lx\n", l3pfn);
+	  pfn_put (l3pfn, l3ptr);
 	  pfn_free (l3pfn);
 	}
       umap->l4[i] = PTE_INVALID;
@@ -651,12 +656,33 @@ umap_free (struct hal_umap *umap)
 }
 
 void
+pae64_init_ap (void)
+{
+  unsigned long linoff = L4OFF ((unsigned long) linaddr);
+  pte_t *va, *cr3va;
+  pfn_t pfn, cr3pfn;
+
+
+  pfn = pfn_alloc (0);
+  assert (pfn != PFN_INVALID);
+  cr3pfn = btop (read_cr3 ());
+
+  /* Copy the kernel mappings. */
+  va = kva_physmap (ptob (pfn), PAGE_SIZE, HAL_PTE_W | HAL_PTE_P);
+  cr3va = kva_physmap (ptob (cr3pfn), PAGE_SIZE, HAL_PTE_P);
+  memcpy (va + 256, cr3va + 256, PAGE_SIZE / 2);
+  va[linoff] = mkpte (pfn, PTE_P | PTE_W);	/* Point the linaddr back at itself. */
+  kva_unmap (va, PAGE_SIZE / 2);
+  kva_unmap (cr3va, PAGE_SIZE / 2);
+
+  write_cr3 (ptob (pfn));
+}
+
+void
 pae64_init (void)
 {
-  linaddr_l2 =
-    (pte_t *) linaddr + (((uintptr_t) linaddr & ((1L << 48) - 1)) >> (9 + 3));
-  linaddr_l3 =
-    linaddr_l2 + (((uintptr_t) linaddr & ((1L << 48) - 1)) >> (18 + 3));
-  linaddr_l4 =
-    linaddr_l3 + (((uintptr_t) linaddr & ((1L << 48) - 1)) >> (27 + 3));
+  unsigned long linoff = L4OFF ((unsigned long) linaddr);
+  linaddr_l2 = (pte_t *) mkaddr (linoff, linoff, 0, 0);
+  linaddr_l3 = (pte_t *) mkaddr (linoff, linoff, linoff, 0);
+  linaddr_l4 = (pte_t *) mkaddr (linoff, linoff, linoff, linoff);
 }

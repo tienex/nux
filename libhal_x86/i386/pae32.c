@@ -14,6 +14,7 @@
 
 #include <assert.h>
 #include <stdint.h>
+#include <string.h>
 #include <nux/nux.h>
 #include <nux/types.h>
 #include "../internal.h"
@@ -53,26 +54,6 @@ extern int _linear_l3table;
 const vaddr_t linaddr = (vaddr_t) & _linear_start;
 const vaddr_t l2_linaddr = (vaddr_t) & _linear_l2table;
 pte_t *l3_linaddr = (pte_t *) & _linear_l3table;
-
-/*
-static struct align_pmap *
-get_align_pmap (struct hal_pmap *hal_pmap)
-{
-  uintptr_t ptr = (uintptr_t) hal_pmap;
-  ptr += PAE_PDPTR_ALIGN - 1;
-  ptr &= ~(PAE_PDPTR_ALIGN - 1);
-  return (struct align_pmap *) ptr;
-
-}
-
-static unsigned
-get_align_pmap_offset (struct hal_pmap *hal_pmap)
-{
-  uintptr_t hp = (uintptr_t) hal_pmap;
-  uintptr_t ap = (uintptr_t) get_align_pmap (hal_pmap);
-  return (unsigned) (ap - hp);
-}
-*/
 
 uint64_t
 mkaddr (uint64_t l3off, uint64_t l2off, uint64_t l1off)
@@ -134,6 +115,18 @@ set_pte (ptep_t ptep, pte_t pte)
 }
 
 static pte_t
+alloc_l3table ()
+{
+  pfn_t pfn;
+
+  pfn = pfn_alloc (0);
+  if (pfn == PFN_INVALID)
+    return PTE_INVALID;
+
+  return mkpte (pfn, PTE_P);
+}
+
+static pte_t
 alloc_table (bool user)
 {
   pfn_t pfn;
@@ -164,14 +157,14 @@ linmap_get_l2p (unsigned long va, bool alloc, bool user)
     {
       if (!alloc)
 	return PTEP_INVALID;
-      l3e = alloc_table (user);
+      l3e = alloc_l3table ();
       if (l3e == PTE_INVALID)
 	return PTEP_INVALID;
       set_pte (l3p, l3e);
       /* Not present, no TLB flush necessary. */
     }
 
-  //  assert (!l3e_reserved (l3e) && "Invalid L3E.");
+  assert (!l3e_reserved (l3e) && "Invalid L3E.");
 
   va &= ~((1L << L2_SHIFT) - 1);
   return mkptep_cur (l2_linaddr + (va >> 18));
@@ -228,7 +221,7 @@ get_umap_l2pfn (struct hal_umap *umap, unsigned long va, bool alloc)
     {
       if (!alloc)
 	return PFN_INVALID;
-      l3e = alloc_table (true /* user */ );
+      l3e = alloc_l3table ();
       if (l3e == PTE_INVALID)
 	return PFN_INVALID;
       set_pte (l3p, l3e);
@@ -349,37 +342,45 @@ hal_umap_bootstrap (struct hal_umap *umap)
 
       if (!pte_present (l3e))
 	{
-	  l3e = alloc_table (true);
+	  l3e = alloc_l3table ();
 	  /* We're in bootstrap. Can assert. */
 	  assert (l3e != PTE_INVALID);
 	  set_pte (l3p, l3e);
 	  /* Not present, no TLB flush necessary. */
 	}
-      umap->l3[i] = l3e;
+      umap->l3[i] = l3e & 0xfffff001;	/* Remove flags from PTE. */
     }
 }
 
 hal_tlbop_t
 hal_umap_load (struct hal_umap *umap)
 {
-  vaddr_t va = hal_virtmem_userbase ();
+  unsigned long linoff = ((unsigned long) l3_linaddr & PAGE_MASK) >> 3;
   hal_tlbop_t tlbop = HAL_TLBOP_NONE;
-  int i;
+  pfn_t cr3pfn, kpdpte_pfn;
+  pte_t *pdptes, kpdpte, *kpd;
 
-  for (i = 0; i < UMAP_L3PTES; i++, va += (1L << L3_SHIFT))
+  /* Unfortunately, in PAE the linear mappings do not point to the
+     root. */
+  cr3pfn = read_cr3 () >> PAGE_SHIFT;
+  pdptes = (pte_t *) pfn_get (cr3pfn);
+  for (int i = 0; i < UMAP_L3PTES; i++)
+    pdptes[i] = umap == NULL ? 0 : umap->l3[i];
+  kpdpte = pdptes[3];
+  pfn_put (cr3pfn, pdptes);
+
+  hal_l1e_unbox (kpdpte, &kpdpte_pfn, NULL);
+  assert (kpdpte_pfn != PFN_INVALID);
+  kpd = (pte_t *) pfn_get (kpdpte_pfn);
+  for (int i = 0; i < UMAP_L3PTES; i++)
     {
-      ptep_t l3p;
-      pte_t oldl3e, newl3e;
-
-      if (umap != NULL)
-	newl3e = umap->l3[i];
-      else
-	newl3e = 0;
-
-      l3p = linmap_get_l3p (va);
-      oldl3e = set_pte (l3p, newl3e);
-      tlbop |= hal_l1e_tlbop (oldl3e, newl3e);
+      kpd[linoff + i] = umap == NULL ? 0 : umap->l3[i] | PTE_W;
     }
+  kpd[linoff + 3] = kpdpte | PTE_W;
+  pfn_put (kpdpte_pfn, kpd);
+
+  tlbop |= HAL_TLBOP_FLUSH;
+
   return tlbop;
 }
 
@@ -523,7 +524,44 @@ umap_free (struct hal_umap *umap)
 }
 
 void
+pae32_init_ap (void)
+{
+  unsigned long linoff = ((unsigned long) l3_linaddr & PAGE_MASK) >> 3;
+  pte_t *va;
+  pfn_t l2pfn[4], l3pfn;
+
+  for (int i = 0; i < 4; i++)
+    {
+      l2pfn[i] = pfn_alloc (0);
+      assert (l2pfn[i] != PFN_INVALID);
+    }
+
+  for (int i = 0; i < 4; i++)
+    {
+      va = kva_physmap (ptob (l2pfn[i]), PAGE_SIZE, HAL_PTE_W | HAL_PTE_P);
+      memcpy (va, (void *) (l2_linaddr + ((uint32_t) i << 30 >> 18)),
+	      PAGE_SIZE);
+      kva_unmap (va, PAGE_SIZE);
+    }
+
+  /* Third l2 is special, has kernel and linear mappings. */
+  va = kva_physmap (ptob (l2pfn[2]), PAGE_SIZE, HAL_PTE_W | HAL_PTE_P);
+  for (int i = 0; i < 4; i++)
+    va[linoff + i] = mkpte (l2pfn[i], PTE_P | PTE_W | PTE_U);
+  kva_unmap (va, PAGE_SIZE);
+
+  /* Note: we allocate a full page for only 256 bytes. Could be optimized. */
+  l3pfn = pfn_alloc (0);
+  assert (l3pfn != PFN_INVALID);
+
+  va = kva_physmap (ptob (l3pfn), PAGE_SIZE, HAL_PTE_W | HAL_PTE_P);
+  for (int i = 0; i < 4; i++)
+    va[i] = mkpte (l2pfn[i], HAL_PTE_P);
+  kva_unmap (va, PAGE_SIZE);
+  write_cr3 (ptob (l3pfn));
+}
+
+void
 pae32_init (void)
 {
-
 }
