@@ -10,6 +10,11 @@ EC_ARCH_SRCS=  amd64/_setjmp.S amd64/ffs.S amd64/fls.S \
 		amd64/memset.S amd64/strlen.S amd64/strncmp.S
 endif
 
+ifeq ($(EC_MACHINE),riscv64)
+EC_ARCH_SRCS=	memcmp.c memcpy.c memmove.c \
+		memset.c strlen.c strncmp.c
+endif
+
 EC_SRCS = 	crt0-common.c \
 		printf.c \
 		snprintf.c \

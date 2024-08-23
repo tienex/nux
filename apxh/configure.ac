@@ -19,14 +19,15 @@ AC_CONFIG_MACRO_DIRS([../m4])
 AC_MK_DIR([${nux_dir}/mk])
 AC_LIBEC_DIR([${libec_dir}])
 
-AC_ARG_VAR([ARCH], [The architecture to compile for: i386 or amd64])
+AC_ARG_VAR([ARCH], [The architecture to compile for: i386, amd64, or riscv64])
 if test x"${ARCH}" == x ; then
    AC_MSG_ERROR([Please select a valid architecture with `./configure ARCH=<arch>`])
 fi
 
 AS_CASE([${ARCH}],
-	[i386], [tool_prefix=i686-elf tool_prefix_32=i686-elf],
-	[amd64], [tool_prefix=x86_64-elf tool_prefix_32=i686-elf],
+	[i386], [tool_prefix=i686-unknown-elf tool_prefix_32=i686-elf],
+	[amd64], [tool_prefix=x86_64-unknown-elf tool_prefix_32=i686-unknown-elf],
+	[riscv64], [tool_prefix=riscv64-unknown-elf],
 	[*], [AC_MSG_ERROR([Supported Architectures: i386, amd64])])
 
 AC_ARG_VAR([TOOLCHAIN],[toolchain prefix @<:@default: <ARCH>-elf@:>@])
@@ -34,7 +35,7 @@ if test x"${TOOLCHAIN}" != x ; then
    tool_prefix="${TOOLCHAIN}"
 fi
 
-AC_ARG_VAR([TOOLCHAIN32],[32-bit toolchain prefix (for amd64 multiboot) @<:@default: i686-elf@:>@])
+AC_ARG_VAR([TOOLCHAIN32],[32-bit toolchain prefix (for amd64 multiboot) @<:@default: i686-unknown-elf@:>@])
 if test x"${TOOLCHAIN32}" != x ; then
    tool_prefix_32="${TOOLCHAIN32}"
 fi
@@ -60,7 +61,8 @@ machine=${ARCH}
 
 AS_CASE([$machine],
 	[i386], [apxh_subdirs=multiboot],
-	[amd64], [apxh_subdirs="multiboot efi"])
+	[amd64], [apxh_subdirs="multiboot efi"]
+	[riscv64], [apxh_subdirs="sbi"])
 
 
 AC_ARG_ENABLE([opt],
@@ -85,6 +87,7 @@ AC_MK_CONFIG_FILES([
 	efi/Makefile
 	efi/apxhefi/Makefile
 	multiboot/Makefile
+	sbi/Makefile
 ])
 
 
