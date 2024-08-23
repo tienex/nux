@@ -30,7 +30,6 @@ ALL_TARGET+= crti.o crtn.o crtbegin.o crtend.o
 CLEAN_FILES+= crti.o crtn.o crtbegin.o crtend.o
 
 
-
 #
 # Compile an executable with embedded libc.
 #

@@ -12,3 +12,5 @@ include $(SRCROOT)/@NUXDIR@/cfg.mk
 
 LDFLAGS+= -L$(SRCROOT)/@NUXROOT@/$(HALDIR) -L$(SRCROOT)/@NUXDIR@ -L$(SRCROOT)/@NUXROOT@/$(PLTDIR)  -T$(SRCROOT)/@NUXROOT@/$(HALDIR)/$(LDFILE)
 LDADD+=-lhal -lplt -lnux -u _nux_sysinit
+
+LIBDEPS+= $(SRCROOT)/@NUXROOT@/libnux/libnux.a $(SRCROOT)/@NUXROOT@/$(HALDIR)/libhal.a $(SRCROOT)/@NUXROOT@/$(PLTDIR)/libplt.a

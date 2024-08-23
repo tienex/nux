@@ -2,3 +2,5 @@
 
 LDFLAGS+= -L$(SRCROOT)/@NUXROOT@/libnux_user
 LDADD_END+= -lnux_user
+
+LIBDEPS+=$(SRCROOT)/@NUXROOT@/libnux_user/libnux_user.a

@@ -6,9 +6,9 @@
 
 .PHONY: program_clean
 
-$(PROGRAM): $(OBJS)
+$(PROGRAM): $(OBJS) $(LIBDEPS)
 	$(CC) $(LDADD_START) $(LDFLAGS) \
-	-Wl,--start-group $^ $(LDADD) -Wl,--end-group \
+	-Wl,--start-group $(OBJS) $(LDADD) -Wl,--end-group \
 	$(LDADD_END) -o $@
 
 program_clean:
