@@ -291,11 +291,7 @@ umap_get_l1p (struct hal_umap *umap, unsigned long va, bool alloc)
 unsigned long
 umap_minaddr (void)
 {
-  /* Not beautiful, but the first megabyte in x86 is not part of the
-     umap. It is used by the kernel to startup APs at boot.
-   */
-
-  return 1L << 20;
+  return 0;
 }
 
 unsigned long
@@ -552,9 +548,8 @@ pae32_init_ap (void)
   for (int i = 0; i < 4; i++)
     va[i] = mkpte (l2pfn[i], HAL_PTE_P);
   kva_unmap (va, PAGE_SIZE);
-  write_cr3 (ptob (l3pfn));
 
-  i386_remove_bootmappings ();
+  write_cr3 (ptob (l3pfn));
 }
 
 void

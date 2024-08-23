@@ -59,9 +59,7 @@ void pae64_init (void);
 void pae64_init_ap (void);
 void pmap_init (void);
 void i386_init_done (void);
-void i386_remove_bootmappings (void);
 void amd64_init_done (void);
-void amd64_remove_bootmappings (void);
 
 int inb (int port);
 void outb (int port, int val);

@@ -215,8 +215,8 @@ i386_init_ap (uintptr_t esp)
   hal_main_ap ();
 }
 
-void
-i386_remove_bootmappings (void)
+static void
+remove_bootmappings (void)
 {
   hal_l1p_t l1p;
 
@@ -230,5 +230,5 @@ void
 i386_init_done (void)
 {
 
-  i386_remove_bootmappings ();
+  remove_bootmappings ();
 }

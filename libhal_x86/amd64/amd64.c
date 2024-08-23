@@ -276,8 +276,8 @@ amd64_init_ap (uintptr_t esp)
   hal_main_ap ();
 }
 
-void
-amd64_remove_bootmappings (void)
+static void
+remove_bootmappings (void)
 {
   hal_l1p_t l1p;
 
@@ -294,5 +294,5 @@ void
 amd64_init_done (void)
 {
 
-  amd64_remove_bootmappings ();
+  remove_bootmappings ();
 }
