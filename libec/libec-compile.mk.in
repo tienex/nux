@@ -22,3 +22,7 @@ endif
 ifeq ($(EC_MACHINE),i386)
 CPPFLAGS+= -D_EC_MACHINE_I386=1
 endif
+ifeq ($(EC_MACHINE),riscv64)
+CPPFLAGS+= -D_EC_MACHINE_RISCV64=1
+CFLAGS+= -mcmodel=medany
+endif
