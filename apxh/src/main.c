@@ -85,12 +85,14 @@ va_init (void)
 {
   switch (elf_arch)
     {
+#if (_MACHINE_I386) || (_MACHINE_AMD64)
     case ARCH_386:
       pae_init ();
       break;
     case ARCH_AMD64:
       pae64_init ();
       break;
+#endif
     default:
       printf ("Unsupported VM architecture.\n");
       exit (-1);
@@ -105,12 +107,14 @@ va_populate (vaddr_t va, size64_t size, int u, int w, int x)
 
   switch (elf_arch)
     {
+#if _MACHINE_I386 || _MACHINE_AMD64
     case ARCH_386:
       pae_populate (va, size, u, w, x);
       break;
     case ARCH_AMD64:
       pae64_populate (va, size, u, w, x);
       break;
+#endif
     default:
       printf ("Unsupported VM architecture.\n");
       exit (-1);
@@ -181,12 +185,14 @@ va_physmap (vaddr_t va, size64_t size, enum memory_type mt)
 
   switch (elf_arch)
     {
+#if _MACHINE_I386 || _MACHINE_AMD64
     case ARCH_386:
       pae_physmap (va, size, 0, mt);
       break;
     case ARCH_AMD64:
       pae64_physmap (va, size, 0, mt);
       break;
+#endif
     default:
       printf ("Unsupported VM architecture.\n");
       exit (-1);
@@ -217,13 +223,16 @@ va_framebuf (vaddr_t va, size64_t size, enum memory_type mt)
 
   switch (elf_arch)
     {
+#if _MACHINE_I386 || _MACHINE_AMD64
     case ARCH_386:
       pae_physmap (va, size, pa, mt);
       break;
     case ARCH_AMD64:
       pae64_physmap (va, size, pa, mt);
       break;
+#endif
     default:
+      (void)pa;
       printf ("Unsupported VM architecture.\n");
       exit (-1);
     }
@@ -237,12 +246,14 @@ va_linear (vaddr_t va, size64_t size)
 
   switch (elf_arch)
     {
+#if _MACHINE_I386 || _MACHINE_AMD64
     case ARCH_386:
       pae_linear (va, size);
       break;
     case ARCH_AMD64:
       pae64_linear (va, size);
       break;
+#endif
     default:
       printf ("Unsupported VM architecture.\n");
       exit (-1);
@@ -257,12 +268,14 @@ va_topptalloc (vaddr_t va, size64_t size)
 
   switch (elf_arch)
     {
+#if _MACHINE_I386 || _MACHINE_AMD64
     case ARCH_386:
       pae_topptalloc (va, size);
       break;
     case ARCH_AMD64:
       pae64_topptalloc (va, size);
       break;
+#endif
     default:
       printf ("Unsupported VM architecture.\n");
       exit (-1);
@@ -277,12 +290,14 @@ va_ptalloc (vaddr_t va, size64_t size)
 
   switch (elf_arch)
     {
+#if _MACHINE_I386 || _MACHINE_AMD64
     case ARCH_386:
       pae_ptalloc (va, size);
       break;
     case ARCH_AMD64:
       pae64_ptalloc (va, size);
       break;
+#endif
     default:
       printf ("Unsupported VM architecture.\n");
       exit (-1);
@@ -591,12 +606,14 @@ va_verify (vaddr_t va, size64_t size)
 {
   switch (elf_arch)
     {
+#if _MACHINE_I386 || _MACHINE_AMD64
     case ARCH_386:
       pae_verify (va, size);
       break;
     case ARCH_AMD64:
       pae64_verify (va, size);
       break;
+#endif
     default:
       printf ("Unsupported VM architecture.\n");
       exit (-1);
@@ -608,12 +625,14 @@ va_getphys (vaddr_t va)
 {
   switch (elf_arch)
     {
+#if _MACHINE_I386 || _MACHINE_AMD64
     case ARCH_386:
       return pae_getphys (va);
       break;
     case ARCH_AMD64:
       return pae64_getphys (va);
       break;
+#endif
     default:
       printf ("Unsupported VM architecture.\n");
       exit (-1);
@@ -625,12 +644,14 @@ va_entry (vaddr_t entry)
 {
   switch (elf_arch)
     {
+#if _MACHINE_I386 || _MACHINE_AMD64
     case ARCH_386:
       pae_entry (entry);
       break;
     case ARCH_AMD64:
       pae64_entry (entry);
       break;
+#endif
     default:
       printf ("Unsupported VM architecture.\n");
       exit (-1);
@@ -664,12 +685,14 @@ main (int argc, char *argv[])
 
   switch (elf_arch)
     {
+#if _MACHINE_I386 || _MACHINE_AMD64
     case ARCH_386:
       kentry = load_elf32 (elf_start, 0);
       break;
     case ARCH_AMD64:
       kentry = load_elf64 (elf_start, 0);
       break;
+#endif
     default:
       printf ("Unsupported ELF architecture");
       exit (-1);
@@ -690,12 +713,14 @@ main (int argc, char *argv[])
 
       switch (elf_arch)
 	{
+#if _MACHINE_I386 || _MACHINE_AMD64
 	case ARCH_386:
 	  uentry = load_elf32 (elf_start, 1);
 	  break;
 	case ARCH_AMD64:
 	  uentry = load_elf64 (elf_start, 1);
 	  break;
+#endif
 	default:
 	  printf ("Unsupported ELF architecture");
 	  exit (-1);

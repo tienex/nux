@@ -1,0 +1,17 @@
+PROGRAM=apxh
+
+CFLAGS+= -I../src/ -I$(SRCROOT)/include
+
+SRCS+= ../src/main.c ../src/elf.c ../src/payload.c
+SRCS+= ec.c md.c
+
+LDADD_START+= crt0.o
+LDFLAGS+= -Tapxh.ld
+
+@COMPILE_LIBFDT@
+@COMPILE_LIBEC@
+@LINK_LIBFDT@
+@LINK_LIBEC@
+
+ALL_TARGET+= crt0.o
+CLEAN_FILES+= crt0.o

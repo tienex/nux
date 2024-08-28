@@ -5,18 +5,21 @@ AC_CONFIG_MACRO_DIRS([m4])
 AC_MK_DIR([mk])
 AC_LIBEC_DIR([libec])
 AC_LIBNUX_DIR([.])
+AC_LIBFDT_DIR([libfdt])
 
 AC_PREFIX_DEFAULT([${PWD}/build/])
 
-AC_ARG_VAR([ARCH], [The architecture to compile for: i386 or amd64])
+AC_ARG_VAR([ARCH], [The architecture to compile for: i386, amd64, or riscv64])
 if test x"${ARCH}" == x ; then
    AC_MSG_ERROR([Please select a valid architecture with `./configure ARCH=<arch>`])
 fi
 
 AS_CASE([${ARCH}],
-	[i386], [tool_prefix=i686-elf],
-	[amd64], [tool_prefix=amd64-elf],
-	[*], [AC_MSG_ERROR([Supported Architectures: i386, amd64])])
+	[i386], [tool_prefix=i686-unknown-elf],
+	[amd64], [tool_prefix=amd64-unknown-elf],
+	[riscv64], [tool_prefix=riscv64-unknown-elf],
+
+	[*], [AC_MSG_ERROR([Supported Architectures: i386, amd64, riscv64])])
 
 
 AC_ARG_VAR([TOOLCHAIN],[toolchain prefix @<:@default: <ARCH>-elf@:>@])
@@ -48,7 +51,8 @@ machine=${ARCH}
 
 AS_CASE([$machine],
 	[i386], [hal=hal_x86 plt=plt_acpi],
-	[amd64], [hal=hal_x86 plt=plt_acpi])
+	[amd64], [hal=hal_x86 plt=plt_acpi],
+	[riscv64], [hal=hal_riscv plt=plt_sbi])
 
 
 AC_ARG_ENABLE([opt],
@@ -92,6 +96,7 @@ AS_CASE([$hal],
 AC_CONFIG_FILES([include/config.h libnux/cfg.mk ${extraconf}])
 AC_MK_CONFIG_FILES([
 	Makefile
+	libfdt/Makefile
 	lib${hal}/Makefile
 	lib${plt}/Makefile
 	libnux/Makefile
