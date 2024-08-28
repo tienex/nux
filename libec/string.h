@@ -10,11 +10,20 @@
 
 #include <stddef.h>
 
+
 size_t strlen (const char *s);
+size_t strnlen(const char *s, size_t maxlen);
+char *strchr(const char *p, int ch);
+char *strrchr(const char *p, int ch);
+size_t strcspn(const char *s, const char *charset);
+size_t strlcpy(char *dst, const char *src, size_t siz);
+int strncmp (const char *s1, const char *s2, size_t n);
+
 void *memset (void *b, int c, size_t len);
-void *memcpy (void *d, void *s, size_t len);
-int memcmp (void *s1, void *s2, size_t len);
-void *memmove (void *d, void *s, size_t len);
+void *memcpy (void *d, const void *s, size_t len);
+int memcmp (const void *s1, const void *s2, size_t len);
+void *memmove (void *d, const void *s, size_t len);
+void *memchr(const void *s, int c, size_t n);
 
 unsigned long fls (unsigned long);
 unsigned long ffs (unsigned long);

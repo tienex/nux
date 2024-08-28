@@ -9,4 +9,6 @@
 
 #include <machine/stdint.h>
 
+#include <limits.h>
+
 #endif /* EC_STDINT_H */

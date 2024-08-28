@@ -10,6 +10,4 @@
 
 #include <machine/limits.h>
 
-#define INT_MAX  ((int)((unsigned)-1 >> 1))
-
 #endif
