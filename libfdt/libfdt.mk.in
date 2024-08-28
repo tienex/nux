@@ -1,0 +1,4 @@
+LDADD+=-lfdt
+LDFLAGS+=-L$(SRCROOT)/@FDTDIR@
+
+LIBDEPS+=$(SRCROOT)@FDTDIR@/libfdt.a

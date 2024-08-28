@@ -4,3 +4,6 @@
 [submodule "contrib/binutils"]
 	path = contrib/binutils
 	url = git://sourceware.org/git/binutils-gdb.git
+[submodule "contrib/dtc"]
+	path = contrib/dtc
+	url = https://git.kernel.org/pub/scm/utils/dtc/dtc.git/

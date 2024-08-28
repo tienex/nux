@@ -26,6 +26,8 @@ libnux.mk
 libnux-compile.mk
 libnux_user.mk
 libnux_user-compile.mk
+libfdt.mk
+libfdt-compile.mk
 
 libnux/cfg.mk
 
