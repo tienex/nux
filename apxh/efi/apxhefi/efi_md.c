@@ -87,6 +87,12 @@ md_maxpfn (void)
 }
 
 unsigned long
+md_minrampfn (void)
+{
+  return 0;
+}
+
+unsigned long
 md_maxrampfn (void)
 {
   return maxrampfn;

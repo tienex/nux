@@ -23,6 +23,7 @@ static size64_t req_pfnmap_size, req_info_size, req_stree_size,
   req_region_size;
 static unsigned req_stree_order, req_region_num;
 static bool stop_payload_allocation = false;
+static uint64_t minramaddr = 0;
 
 
 uintptr_t
@@ -30,16 +31,17 @@ get_payload_page (void)
 {
   unsigned pfn;
   uintptr_t page;
+  uintptr_t base = minramaddr;
 
   assert (!stop_payload_allocation);
 
   page = get_page ();
-  assert (page < BOOTMEM);
+  assert (page - base < BOOTMEM);
   memset ((void *) page, 0, PAGE_SIZE);
 
   pfn = page >> PAGE_SHIFT;
 
-  boot_pagemap[pfn >> 3] |= 1 << (pfn & 7);
+  boot_pagemap[(page - base) >> (PAGE_SHIFT + 3)] |= 1 << (pfn & 7);
 
   return page;
 }
@@ -47,7 +49,7 @@ get_payload_page (void)
 unsigned
 check_payload_page (unsigned addr)
 {
-  unsigned i = addr >> PAGE_SHIFT;
+  unsigned i = (addr - minramaddr) >> PAGE_SHIFT;
   unsigned by = i >> 3;
   unsigned bi = (1 << (i & 7));
 
@@ -60,6 +62,7 @@ void
 init (void)
 {
   md_init ();
+  minramaddr = md_minrampfn () << PAGE_SHIFT;
 }
 
 const char *
@@ -441,7 +444,7 @@ va_stree_copy (void)
 
   maxframe = md_maxrampfn ();
 
-  for (pa = 0; pa < BOOTMEM; pa += PAGE_SIZE)
+  for (pa = minramaddr; pa < BOOTMEM + minramaddr; pa += PAGE_SIZE)
     {
       unsigned frame = pa >> PAGE_SHIFT;
 
@@ -580,7 +583,7 @@ va_pfnmap_copy (void)
       return;
     }
 
-  for (pa = 0; pa < BOOTMEM; pa += PAGE_SIZE)
+  for (pa = minramaddr; pa < BOOTMEM + minramaddr; pa += PAGE_SIZE)
     {
       unsigned frame = pa >> PAGE_SHIFT;
 

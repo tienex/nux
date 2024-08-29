@@ -80,6 +80,7 @@ typedef enum
 
 void md_init (void);
 uint64_t md_maxpfn (void);
+uint64_t md_minrampfn (void);
 uint64_t md_maxrampfn (void);
 uint64_t md_acpi_rsdp (void);
 unsigned md_memregions (void);
@@ -117,7 +118,6 @@ void va_linear (vaddr_t va, size64_t size);
 void va_info (vaddr_t va, size64_t size);
 void va_pfnmap (vaddr_t va, size64_t size);
 void va_stree (vaddr_t va, size64_t size);
-void pae64_topptalloc (vaddr_t va, size64_t size);
 void va_topptalloc (vaddr_t va, size64_t size);
 void va_ptalloc (vaddr_t va, size64_t size);
 void va_framebuf (vaddr_t va, size64_t size, enum memory_type);
@@ -146,6 +146,7 @@ void pae64_verify (vaddr_t va, size64_t size);
 void pae64_populate (vaddr_t va, size64_t size, int u, int w, int x);
 void pae64_physmap (vaddr_t va, size64_t size, uint64_t pa, enum memory_type);
 void pae64_ptalloc (vaddr_t va, size64_t size);
+void pae64_topptalloc (vaddr_t va, size64_t size);
 void pae64_linear (vaddr_t va, size64_t size);
 void pae64_entry (vaddr_t entry);
 

@@ -262,6 +262,12 @@ md_maxpfn (void)
 }
 
 uint64_t
+md_minrampfn (void)
+{
+  return 0;
+}
+
+uint64_t
 md_maxrampfn (void)
 {
   return bootinfo_maxrampfn;
