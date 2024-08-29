@@ -2,7 +2,7 @@ PROGRAM=apxh
 
 CFLAGS+= -I../src/ -I$(SRCROOT)/include
 
-SRCS+= ../src/main.c ../src/elf.c ../src/payload.c
+SRCS+= ../src/main.c ../src/elf.c ../src/payload.c ../src/rv64-sv.c
 SRCS+= ec.c md.c
 
 LDADD_START+= crt0.o

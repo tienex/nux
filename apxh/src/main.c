@@ -88,12 +88,17 @@ va_init (void)
 {
   switch (elf_arch)
     {
-#if (_MACHINE_I386) || (_MACHINE_AMD64)
+#if (EC_MACHINE_I386) || (EC_MACHINE_AMD64)
     case ARCH_386:
       pae_init ();
       break;
     case ARCH_AMD64:
       pae64_init ();
+      break;
+#endif
+#if EC_MACHINE_RISCV64
+    case ARCH_RISCV64:
+      sv48_init ();
       break;
 #endif
     default:
@@ -110,12 +115,17 @@ va_populate (vaddr_t va, size64_t size, int u, int w, int x)
 
   switch (elf_arch)
     {
-#if _MACHINE_I386 || _MACHINE_AMD64
+#if EC_MACHINE_I386 || EC_MACHINE_AMD64
     case ARCH_386:
       pae_populate (va, size, u, w, x);
       break;
     case ARCH_AMD64:
       pae64_populate (va, size, u, w, x);
+      break;
+#endif
+#if EC_MACHINE_RISCV64
+    case ARCH_RISCV64:
+      sv48_populate (va, size, u, w, x);
       break;
 #endif
     default:
@@ -188,12 +198,17 @@ va_physmap (vaddr_t va, size64_t size, enum memory_type mt)
 
   switch (elf_arch)
     {
-#if _MACHINE_I386 || _MACHINE_AMD64
+#if EC_MACHINE_I386 || EC_MACHINE_AMD64
     case ARCH_386:
       pae_physmap (va, size, 0, mt);
       break;
     case ARCH_AMD64:
       pae64_physmap (va, size, 0, mt);
+      break;
+#endif
+#if EC_MACHINE_RISCV64
+    case ARCH_RISCV64:
+      sv48_physmap (va, size, 0, mt);
       break;
 #endif
     default:
@@ -226,7 +241,7 @@ va_framebuf (vaddr_t va, size64_t size, enum memory_type mt)
 
   switch (elf_arch)
     {
-#if _MACHINE_I386 || _MACHINE_AMD64
+#if EC_MACHINE_I386 || EC_MACHINE_AMD64
     case ARCH_386:
       pae_physmap (va, size, pa, mt);
       break;
@@ -234,8 +249,13 @@ va_framebuf (vaddr_t va, size64_t size, enum memory_type mt)
       pae64_physmap (va, size, pa, mt);
       break;
 #endif
+#if EC_MACHINE_RISCV64
+    case ARCH_RISCV64:
+      sv48_physmap (va, size, pa, mt);
+      break;
+#endif
     default:
-      (void)pa;
+      (void) pa;
       printf ("Unsupported VM architecture.\n");
       exit (-1);
     }
@@ -249,12 +269,17 @@ va_linear (vaddr_t va, size64_t size)
 
   switch (elf_arch)
     {
-#if _MACHINE_I386 || _MACHINE_AMD64
+#if EC_MACHINE_I386 || EC_MACHINE_AMD64
     case ARCH_386:
       pae_linear (va, size);
       break;
     case ARCH_AMD64:
       pae64_linear (va, size);
+      break;
+#endif
+#if EC_MACHINE_RISCV64
+    case ARCH_RISCV64:
+      sv48_linear (va, size);
       break;
 #endif
     default:
@@ -271,12 +296,17 @@ va_topptalloc (vaddr_t va, size64_t size)
 
   switch (elf_arch)
     {
-#if _MACHINE_I386 || _MACHINE_AMD64
+#if EC_MACHINE_I386 || EC_MACHINE_AMD64
     case ARCH_386:
       pae_topptalloc (va, size);
       break;
     case ARCH_AMD64:
       pae64_topptalloc (va, size);
+      break;
+#endif
+#if EC_MACHINE_RISCV64
+    case ARCH_RISCV64:
+      sv48_topptalloc (va, size);
       break;
 #endif
     default:
@@ -293,12 +323,17 @@ va_ptalloc (vaddr_t va, size64_t size)
 
   switch (elf_arch)
     {
-#if _MACHINE_I386 || _MACHINE_AMD64
+#if EC_MACHINE_I386 || EC_MACHINE_AMD64
     case ARCH_386:
       pae_ptalloc (va, size);
       break;
     case ARCH_AMD64:
       pae64_ptalloc (va, size);
+      break;
+#endif
+#if EC_MACHINE_RISCV64
+    case ARCH_RISCV64:
+      sv48_ptalloc (va, size);
       break;
 #endif
     default:
@@ -609,12 +644,17 @@ va_verify (vaddr_t va, size64_t size)
 {
   switch (elf_arch)
     {
-#if _MACHINE_I386 || _MACHINE_AMD64
+#if EC_MACHINE_I386 || EC_MACHINE_AMD64
     case ARCH_386:
       pae_verify (va, size);
       break;
     case ARCH_AMD64:
       pae64_verify (va, size);
+      break;
+#endif
+#if EC_MACHINE_RISCV64
+    case ARCH_RISCV64:
+      sv48_verify (va, size);
       break;
 #endif
     default:
@@ -628,12 +668,17 @@ va_getphys (vaddr_t va)
 {
   switch (elf_arch)
     {
-#if _MACHINE_I386 || _MACHINE_AMD64
+#if EC_MACHINE_I386 || EC_MACHINE_AMD64
     case ARCH_386:
       return pae_getphys (va);
       break;
     case ARCH_AMD64:
       return pae64_getphys (va);
+      break;
+#endif
+#if EC_MACHINE_RISCV64
+    case ARCH_RISCV64:
+      return sv48_getphys (va);
       break;
 #endif
     default:
@@ -647,12 +692,17 @@ va_entry (vaddr_t entry)
 {
   switch (elf_arch)
     {
-#if _MACHINE_I386 || _MACHINE_AMD64
+#if EC_MACHINE_I386 || EC_MACHINE_AMD64
     case ARCH_386:
       pae_entry (entry);
       break;
     case ARCH_AMD64:
       pae64_entry (entry);
+      break;
+#endif
+#if EC_MACHINE_RISCV64
+    case ARCH_RISCV64:
+      sv48_entry (entry);
       break;
 #endif
     default:
@@ -688,11 +738,16 @@ main (int argc, char *argv[])
 
   switch (elf_arch)
     {
-#if _MACHINE_I386 || _MACHINE_AMD64
+#if EC_MACHINE_I386 || EC_MACHINE_AMD64
     case ARCH_386:
       kentry = load_elf32 (elf_start, 0);
       break;
     case ARCH_AMD64:
+      kentry = load_elf64 (elf_start, 0);
+      break;
+#endif
+#if EC_MACHINE_RISCV64
+    case ARCH_RISCV64:
       kentry = load_elf64 (elf_start, 0);
       break;
 #endif
@@ -707,20 +762,25 @@ main (int argc, char *argv[])
      Load user if it exists.
    */
   elf_start = get_payload_start (argc, argv, PAYLOAD_USER);
-  if (elf_start != NULL)
+  elf_size = get_payload_size (PAYLOAD_USER);
+  if (elf_start != NULL && elf_size != 0)
     {
-      elf_size = get_payload_size (PAYLOAD_USER);
       elf_arch = get_elf_arch (elf_start);
       printf ("User payload %s ELF at addr %p (%d bytes)\n",
 	      get_arch_name (elf_arch), elf_start, elf_size);
 
       switch (elf_arch)
 	{
-#if _MACHINE_I386 || _MACHINE_AMD64
+#if EC_MACHINE_I386 || EC_MACHINE_AMD64
 	case ARCH_386:
 	  uentry = load_elf32 (elf_start, 1);
 	  break;
 	case ARCH_AMD64:
+	  uentry = load_elf64 (elf_start, 1);
+	  break;
+#endif
+#if EC_MACHINE_RISCV64
+	case ARCH_RISCV64:
 	  uentry = load_elf64 (elf_start, 1);
 	  break;
 #endif

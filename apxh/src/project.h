@@ -76,6 +76,7 @@ typedef enum
   ARCH_UNSUPPORTED,
   ARCH_386,
   ARCH_AMD64,
+  ARCH_RISCV64,
 } arch_t;
 
 void md_init (void);
@@ -155,6 +156,22 @@ void pae64_directmap (void *pt, uint64_t pa, vaddr_t va, size64_t size,
 		      enum memory_type, int payload, int x);
 void pae64_map_page (void *pt, vaddr_t va, uintptr_t pa, int payload, int w,
 		     int x);
+
+void sv48_init (void);
+uintptr_t sv48_getphys (vaddr_t va);
+void sv48_verify (vaddr_t va, size64_t size);
+void sv48_populate (vaddr_t va, size64_t size, int u, int w, int x);
+void sv48_physmap (vaddr_t va, size64_t size, uint64_t pa, enum memory_type);
+void sv48_ptalloc (vaddr_t va, size64_t size);
+void sv48_topptalloc (vaddr_t va, size64_t size);
+void sv48_linear (vaddr_t va, size64_t size);
+void sv48_entry (vaddr_t entry);
+
+/* Internal SV48 functions. */
+void sv48_directmap (void *pt, uint64_t pa, vaddr_t va, size64_t size,
+		     enum memory_type, int payload, int x);
+void sv48_map_page (void *pt, vaddr_t va, uintptr_t pa, int payload, int w,
+		    int x);
 
 
 #define info(...) do { printf (__VA_ARGS__); putchar('\n'); } while (0)

@@ -10,6 +10,7 @@
 \#*#
 Makefile
 apxh/multiboot/apxh
+apxh/sbi/apxh
 example_multiboot
 example/kern/example
 example/user/exuser
