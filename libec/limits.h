@@ -10,4 +10,7 @@
 
 #include <machine/limits.h>
 
+#define INT32_MAX 0x7fffffff
+#define UINT32_MAX 0xffffffff
+
 #endif

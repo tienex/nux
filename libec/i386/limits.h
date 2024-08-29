@@ -31,7 +31,4 @@
 #define	LLONG_MAX	0x7fffffffffffffffLL
 #define	LLONG_MIN	(-0x7fffffffffffffffLL-1)
 
-#define INT_MAX 0x7fff
-#define ULONG_MAX 0xffffffffL
-
 #endif /* EC_I386_LIMITS_H */
