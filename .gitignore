@@ -4,6 +4,7 @@
 *.efi
 *.so
 *.ar50
+*.log
 .deps
 .build
 .dirstamp
