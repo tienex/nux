@@ -156,7 +156,9 @@
 static inline size_t
 stree_order (size_t n)
 {
-  int r = WORD_BIT - 1 - __builtin_clzl ((long) n);
+  int r = LONG_BIT - 1 - __builtin_clzl ((long) n);
+  printf ("%d -1 - __clzl(%d)[%d] = %d\n", WORD_BIT, n, __builtin_clzl (n),
+	  r);
 
   /* Is the number a power of two? If not, add 1 */
   r += __builtin_popcount (n) > 1 ? 1 : 0;
