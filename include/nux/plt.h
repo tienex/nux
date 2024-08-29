@@ -122,13 +122,6 @@ void plt_tmr_clralm (void);
 
 
 /*
-  PLT Console Support.
-*/
-
-void plt_console_putc (int c);
-
-
-/*
  PLT System Entries.
 */
 
