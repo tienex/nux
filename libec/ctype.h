@@ -1,6 +1,6 @@
 #ifndef EC_CTYPE_H
 #define EC_CTYPE_H
 
-int isspace(int);
+int isspace (int);
 
 #endif

@@ -30,7 +30,7 @@
 #ifndef _EC_SOURCE
 
 #include <sys/cdefs.h>
-__RCSID("$NetBSD: strtoul.c,v 1.3 2008/08/20 19:58:34 oster Exp $");
+__RCSID ("$NetBSD: strtoul.c,v 1.3 2008/08/20 19:58:34 oster Exp $");
 
 #else /* _EC_SOURCE */
 

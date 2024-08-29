@@ -36,7 +36,7 @@
 #if 0
 static char sccsid[] = "@(#)rindex.c	8.1 (Berkeley) 6/4/93";
 #else
-__RCSID("$NetBSD: strrchr.c,v 1.7 2020/04/07 08:07:58 skrll Exp $");
+__RCSID ("$NetBSD: strrchr.c,v 1.7 2020/04/07 08:07:58 skrll Exp $");
 #endif
 #endif /* LIBC_SCCS and not lint */
 
@@ -51,7 +51,7 @@ __RCSID("$NetBSD: strrchr.c,v 1.7 2020/04/07 08:07:58 skrll Exp $");
 #undef strrchr
 #endif
 
-__strong_alias(rindex, strrchr)
+__strong_alias (rindex, strrchr)
 #else /* _EC_SOURCE */
 
 #define _DIAGASSERT(_x)
@@ -61,18 +61,20 @@ __strong_alias(rindex, strrchr)
 
 #endif /* _EC_SOURCE */
 char *
-strrchr(const char *p, int ch)
+strrchr (const char *p, int ch)
 {
-	char *save;
-	const char c = ch;
+  char *save;
+  const char c = ch;
 
-	for (save = NULL;; ++p) {
-		if (*p == c) {
-			/* LINTED const cast-away */
-			save = __UNCONST(p);
-		}
-		if (!*p)
-			return(save);
+  for (save = NULL;; ++p)
+    {
+      if (*p == c)
+	{
+	  /* LINTED const cast-away */
+	  save = __UNCONST (p);
 	}
-	/* NOTREACHED */
+      if (!*p)
+	return (save);
+    }
+  /* NOTREACHED */
 }

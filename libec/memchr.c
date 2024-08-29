@@ -39,7 +39,7 @@
 #if 0
 static char sccsid[] = "@(#)memchr.c	8.1 (Berkeley) 6/4/93";
 #else
-__RCSID("$NetBSD: memchr.c,v 1.4 2018/02/04 20:22:17 mrg Exp $");
+__RCSID ("$NetBSD: memchr.c,v 1.4 2018/02/04 20:22:17 mrg Exp $");
 #endif
 #endif /* LIBC_SCCS and not lint */
 
@@ -61,17 +61,20 @@ __RCSID("$NetBSD: memchr.c,v 1.4 2018/02/04 20:22:17 mrg Exp $");
 #endif
 
 void *
-memchr(const void *s, int c, size_t n)
+memchr (const void *s, int c, size_t n)
 {
 
-	if (n != 0) {
-		const unsigned char *p = s;
-		const unsigned char cmp = c;
+  if (n != 0)
+    {
+      const unsigned char *p = s;
+      const unsigned char cmp = c;
 
-		do {
-			if (*p++ == cmp)
-				return __UNCONST(p - 1);
-		} while (--n != 0);
+      do
+	{
+	  if (*p++ == cmp)
+	    return __UNCONST (p - 1);
 	}
-	return NULL;
+      while (--n != 0);
+    }
+  return NULL;
 }
