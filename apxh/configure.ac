@@ -63,7 +63,7 @@ machine=${ARCH}
 AS_CASE([$machine],
 	[i386], [apxh_subdirs=multiboot],
 	[amd64], [apxh_subdirs="multiboot efi"]
-	[riscv64], [apxh_subdirs="sbi"])
+	[riscv64], [apxh_subdirs="sbi efi"])
 
 
 AC_ARG_ENABLE([opt],

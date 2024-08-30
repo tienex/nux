@@ -44,6 +44,7 @@ md_verify (unsigned long va, uint64_t size)
 void
 md_entry (arch_t arch, vaddr_t pt, vaddr_t entry)
 {
+#if 0
   void *trampcr3;
   void *tramp;
   vaddr_t tramp_entry;
@@ -78,6 +79,7 @@ md_entry (arch_t arch, vaddr_t pt, vaddr_t entry)
      "cli\n"
      "jmp *%%rax\n"::"m" (tramp_entry), "m" (entry), "m" (pt),
      "m" (trampcr3));
+#endif
 }
 
 unsigned long

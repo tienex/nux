@@ -18,4 +18,8 @@
       (type *)( (char *)__mptr - offsetof(type,member));	\
     })
 
+#include <stdint.h>
+
+typedef uint16_t wchar_t;
+
 #endif /* EC_STDDEF_H */

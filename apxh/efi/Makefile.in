@@ -2,10 +2,16 @@ SUBDIRS+= apxhefi
 
 ifeq (@MACHINE@,amd64)
 ARCH=x86_64
+GNUEFI_CFLAGS += -mno-red-zone
 endif
 
 ifeq (@MACHINE@,i386)
 ARCH=ia32
+GNUEFI_CFLAGS += -mno-red-zone
+endif
+
+ifeq (@MACHINE@,riscv64)
+ARCH=riscv64
 endif
 
 GNUEFI_SRC		= $(SRCROOT)../contrib/gnu-efi
@@ -16,10 +22,11 @@ GNUEFI_LIB		= $(GNUEFI_SRC)
 GNUEFI_CRT_OBJS		= $(GNUEFI_LIB)/gnuefi/crt0-efi-$(ARCH).o
 GNUEFI_LDS		= $(GNUEFI_SRC)/gnuefi/elf_$(ARCH)_efi.lds
 
-GNUEFI_CFLAGS += $(GNUEFI_CFLAGS_INCS) -fno-stack-protector -fPIC -fshort-wchar \
-	  -mno-red-zone -Wall -nostdinc -ffreestanding -fno-builtin
+GNUEFI_CFLAGS += $(GNUEFI_CFLAGS_INCS) -fno-stack-protector -fshort-wchar \
+	  -Wall -nostdinc -ffreestanding -fno-builtin
+
 #Add elf.h
-GNUEFI_CFLAGS+= -I../../include
+GNUEFI_CFLAGS+= -I../../../include -I../../../../libec
 #Confuse elfbind.h into doing the right thing.
 GNUEFI_CFLAGS+= -U__STDC_VERSION__
 
@@ -27,7 +34,7 @@ ifeq ($(ARCH),x86_64)
   CFLAGS += -DEFI_FUNCTION_WRAPPER -I.
 endif
 
-LDFLAGS         = -nostdlib -znocombreloc -T $(GNUEFI_LDS) -shared \
+LDFLAGS         = -nostdlib -znocombreloc -T $(GNUEFI_LDS) \
 		  -Bsymbolic -L $(GNUEFI_LIB)/gnuefi -L $(GNUEFI_LIB)/lib $(GNUEFI_CRT_OBJS)
 
 CFLAGS		= $(GNUEFI_CFLAGS)
