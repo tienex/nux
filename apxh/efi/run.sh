@@ -1,0 +1,1 @@
+qemu-system-riscv64 -blockdev node-name=pflash0,driver=file,read-only=on,filename=RISCV_VIRT_CODE.fd -blockdev node-name=pflash1,driver=file,filename=RISCV_VIRT_VARS.fd -M virt,pflash0=pflash0,pflash1=pflash1 -serial mon:stdio -device virtio-blk-device,drive=hd0 -drive file=/home/glguida/Downloads/disk,format=raw,id=hd0

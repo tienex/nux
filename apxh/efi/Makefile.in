@@ -14,28 +14,33 @@ ifeq (@MACHINE@,riscv64)
 ARCH=riscv64
 endif
 
-GNUEFI_SRC		= $(SRCROOT)../contrib/gnu-efi
+NUXROOT 		= ${CURDIR}/$(SRCROOT)/..
+CONTRIBDIR 		= $(NUXROOT)/contrib
+GNUEFI_SRC 		= $(CONTRIBDIR)/gnu-efi
+
 GNUEFI_INC		= $(GNUEFI_SRC)/inc
 GNUEFI_CFLAGS_INCS	= -I$(GNUEFI_INC) -I$(GNUEFI_INC)/$(ARCH) \
 			  -I$(GNUEFI_INC)/protocol
 GNUEFI_LIB		= $(GNUEFI_SRC)
-GNUEFI_CRT_OBJS		= $(GNUEFI_LIB)/gnuefi/crt0-efi-$(ARCH).o
+GNUEFI_CRT_OBJS		= $(GNUEFI_LIB)/$(ARCH)/gnuefi/crt0-efi-$(ARCH).o
 GNUEFI_LDS		= $(GNUEFI_SRC)/gnuefi/elf_$(ARCH)_efi.lds
 
 GNUEFI_CFLAGS += $(GNUEFI_CFLAGS_INCS) -fno-stack-protector -fshort-wchar \
-	  -Wall -nostdinc -ffreestanding -fno-builtin
+	  -Wall -nostdinc -ffreestanding -fno-builtin -fPIC -Wno-implicit-function-declaration
 
 #Add elf.h
-GNUEFI_CFLAGS+= -I../../../include -I../../../../libec
+GNUEFI_CFLAGS+= -I$(CONTRIBDIR)/include
+# Add libec this is called from multiple subdirectories so we have to do this.
+GNUEFI_CFLAGS+= -I$(NUXROOT)/libec #-I../$(GNUEFI_SRC)/../../libec -I../../$(GNUEFI_SRC)/../../libec
 #Confuse elfbind.h into doing the right thing.
-GNUEFI_CFLAGS+= -U__STDC_VERSION__
+#GNUEFI_CFLAGS+= -U__STDC_VERSION__
 
 ifeq ($(ARCH),x86_64)
   CFLAGS += -DEFI_FUNCTION_WRAPPER -I.
 endif
 
-LDFLAGS         = -nostdlib -znocombreloc -T $(GNUEFI_LDS) \
-		  -Bsymbolic -L $(GNUEFI_LIB)/gnuefi -L $(GNUEFI_LIB)/lib $(GNUEFI_CRT_OBJS)
+LDFLAGS         = -nostdlib -znocombreloc -T $(GNUEFI_LDS) -shared \
+		  -Bsymbolic -L $(GNUEFI_LIB)/${ARCH}/gnuefi -L $(GNUEFI_LIB)/${ARCH}/lib $(GNUEFI_CRT_OBJS)
 
 CFLAGS		= $(GNUEFI_CFLAGS)
 EFIOBJS 	= efi-main.o
@@ -43,7 +48,7 @@ EFITARGET	= apxh.efi
 
 .PHONY: gnu-efi
 gnu-efi:
-	$(MAKE) -C $(GNUEFI_SRC) OBJDIR=$(GNUEFI_SRC)/@MACHINE@ ARCH=$(ARCH) CC=$(CC) CFLAGS='$(GNUEFI_CFLAGS)' AR=$(AR) LD=$(LD)
+	$(MAKE) -C $(GNUEFI_SRC) OBJDIR=$(GNUEFI_SRC)/$(ARCH) ARCH=$(ARCH) CC=$(CC) CFLAGS='$(GNUEFI_CFLAGS)' AR=$(AR) LD=$(LD) OBJCOPY=$(OBJCOPY) gnuefi
 
 apxh.so: $(EFIOBJS)  subdirs
 	$(LD) $(LDFLAGS) --start-group $(EFIOBJS) apxhefi/apxhefi.apxh_main.o -lefi -lgnuefi --end-group -o $@
@@ -51,8 +56,9 @@ apxh.so: $(EFIOBJS)  subdirs
 
 %.efi: %.so
 	$(OBJCOPY) -j .text* -j .sdata -j .data -j .dynamic \
-		-j .dynsym  -j .rel -j .rela -j .reloc \
-		--target=efi-app-$(ARCH) $^ $@
+		-j .rodata -j .rel -j .rela -j .rel.* -j .rela.* -j .rel* -j.rela* -j .areloc -j .reloc  \
+		$^ $@ --target=efi-app-$(ARCH)
+
 
 .PHONY: clean_efi
 clean_efi:

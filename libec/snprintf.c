@@ -1,4 +1,4 @@
-				     /* *INDENT-OFF* *//* Imported from NetBSD -- MHDIFFIGNORE */
+									 /* *INDENT-OFF* *//* Imported from NetBSD -- MHDIFFIGNORE */
 /*	$NetBSD: snprintf.c,v 1.5 2011/07/17 20:54:52 joerg Exp $	*/
 
 /*-

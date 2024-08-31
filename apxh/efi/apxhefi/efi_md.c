@@ -36,7 +36,7 @@ md_init (void)
 }
 
 void
-md_verify (unsigned long va, uint64_t size)
+md_verify (vaddr_t va, uint64_t size)
 {
   /* Nothing to verify. */
 }
@@ -82,19 +82,19 @@ md_entry (arch_t arch, vaddr_t pt, vaddr_t entry)
 #endif
 }
 
-unsigned long
+uint64_t
 md_maxpfn (void)
 {
   return maxpfn;
 }
 
-unsigned long
+uint64_t
 md_minrampfn (void)
 {
   return 0;
 }
 
-unsigned long
+uint64_t
 md_maxrampfn (void)
 {
   return maxrampfn;
@@ -121,7 +121,7 @@ md_getframebuffer (void)
   return &fbdesc;
 }
 
-unsigned long
+uint64_t
 md_acpi_rsdp (void)
 {
   return (unsigned long) efi_rsdp;
