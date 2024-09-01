@@ -3,15 +3,19 @@ SUBDIRS+= apxhefi
 ifeq (@MACHINE@,amd64)
 ARCH=x86_64
 GNUEFI_CFLAGS += -mno-red-zone
+LDFLAGS += --target efi-app-$(ARCH)
 endif
 
 ifeq (@MACHINE@,i386)
 ARCH=ia32
 GNUEFI_CFLAGS += -mno-red-zone
+OBJCOPY_FLAGS += --target efi-app-$(ARCH)
 endif
 
 ifeq (@MACHINE@,riscv64)
 ARCH=riscv64
+OBJCOPY_FLAGS += -O binary
+LDFLAGS += --defsym=EFI_SUBSYSTEM=0xa
 endif
 
 NUXROOT 		= ${CURDIR}/$(SRCROOT)/..
@@ -57,7 +61,7 @@ apxh.so: $(EFIOBJS)  subdirs
 %.efi: %.so
 	$(OBJCOPY) -j .text* -j .sdata -j .data -j .dynamic \
 		-j .rodata -j .rel -j .rela -j .rel.* -j .rela.* -j .rel* -j.rela* -j .areloc -j .reloc  \
-		$^ $@ --target=efi-app-$(ARCH)
+		$^ $@ $(OBJCOPY_FLAGS)
 
 
 .PHONY: clean_efi
