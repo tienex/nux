@@ -312,8 +312,6 @@ md_entry (arch_t arch, vaddr_t pt, vaddr_t entry)
   tramp_satp = 0x9L << 60 | (uintptr_t) tramp_root >> PAGE_SHIFT;
   satp = 0x9L << 60 | pt >> PAGE_SHIFT;
 
-  printf ("%lx %lx %lx\n", tramp_satp, entry, satp);
-
   asm volatile
     (".globl __rv64_tstart, __rv64_tend\n"
      "mv t0, %0\n"
@@ -326,6 +324,4 @@ md_entry (arch_t arch, vaddr_t pt, vaddr_t entry)
      "jalr x0, t1, 0\n"
      "__rv64_tend:\n"::"r" (tramp_satp), "r" (entry), "r" (satp):"t0", "t1",
      "a0");
-
-
 }

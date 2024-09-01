@@ -18,7 +18,7 @@ efi_allocate_maxaddr (unsigned long maxaddr)
 				  EfiLoaderData, 1, &maxaddr);
   if (EFI_ERROR (efi_status))
     {
-      Print (L"Allocate Pages Failed: %d\n", efi_status);
+      Print (L"Allocate Pages Failed: %r\n", efi_status);
       exit (-1);
     }
 
@@ -50,7 +50,7 @@ efi_getframebuffer (void)
   rc = LibLocateProtocol (&GraphicsOutputProtocol, (void **) &gop);
   if (rc != EFI_SUCCESS)
     {
-      Print (L"Cannot locate Graphic Output Proto (%d)\n", rc);
+      Print (L"Cannot locate Graphic Output Proto (%r)\n", rc);
       return rc;
     }
 
@@ -161,7 +161,7 @@ efi_getpayload (CHAR16 * name, void **ptr, unsigned long *size)
   rc = OpenSimpleReadFile (TRUE, NULL, 0, &filepath, &hdl, &rdhdl);
   if (EFI_ERROR(rc))
     {
-      Print (L"OpenSimpleReadFile failed (%d)!\n", rc);
+      Print (L"OpenSimpleReadFile failed %r\n", rc);
       return rc;
     }
 
@@ -177,7 +177,7 @@ efi_getpayload (CHAR16 * name, void **ptr, unsigned long *size)
 
   if (EFI_ERROR(rc))
     {
-      Print (L"ReadSimpleReadFile failed (%d)!\n", rc);
+      Print (L"ReadSimpleReadFile failed: %r\n", rc);
       return rc;
     }
 
@@ -284,7 +284,7 @@ efi_main (EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE * SystemTable)
 			  EFI_OPEN_PROTOCOL_BY_HANDLE_PROTOCOL);
   if (rc != EFI_SUCCESS)
     {
-      Print (L"Open Protocol failed (%d)!\n", rc);
+      Print (L"Open Protocol failed: %r\n", rc);
       return rc;
     }
 
@@ -296,7 +296,7 @@ efi_main (EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE * SystemTable)
   rc = efi_getpayload (L"kernel.elf", &payload_start, &payload_size);
   if (rc != EFI_SUCCESS)
     {
-      Print (L"Could not load kernel.elf (%d)!\n", rc);
+      Print (L"Could not load kernel.elf: %r\n", rc);
       return rc;
     }
   apxhefi_add_kernel_payload (payload_start, payload_size);
@@ -348,7 +348,7 @@ efi_exitbs (void)
     uefi_call_wrapper (BS->ExitBootServices, 2, image_handle, key);
   if (rc != EFI_SUCCESS)
     {
-      Print (L"EBS failed! (%d)\n", rc);
+      Print (L"EBS failed: %r\n", rc);
       /* XXX: efi_exit */
       return;
     }

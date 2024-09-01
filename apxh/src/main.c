@@ -78,6 +78,8 @@ get_arch_name (arch_t arch)
       return "i386";
     case ARCH_AMD64:
       return "AMD64";
+    case ARCH_RISCV64:
+      return "RISCV64";
     default:
       return "unknown";
     }
