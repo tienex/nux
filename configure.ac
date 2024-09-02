@@ -91,7 +91,8 @@ AC_SUBST(INSTALLDIR, "$(pwd)"/dist)
 AC_SUBST(CONFIGURE_FLAGS, ["${optflags} ${wflags} -DNUX_MACHINE=${machine}"])
 
 AS_CASE([$hal],
-	[hal_x86], [extraconf=libhal_x86/hal.mk])
+	[hal_x86], [extraconf=libhal_x86/hal.mk],
+	[hal_riscv], [extraconf=libhal_riscv/hal.mk])
 
 AC_CONFIG_FILES([include/config.h libnux/cfg.mk ${extraconf}])
 AC_MK_CONFIG_FILES([
