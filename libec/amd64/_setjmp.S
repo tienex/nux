@@ -90,4 +90,4 @@ ENTRY(_setupjmp)
 	mov %rsi, (_JB_PC * 8)(%rdi)
 	mov %rsp, (_JB_RSP * 8)(%rdi)
 	ret
-END(_longjmp)
+END(_setupjmp)
