@@ -130,7 +130,7 @@ hal_l1e_unbox (hal_l1e_t l1e, unsigned long *pfnp, unsigned *protp)
     *protp = prot;
 }
 
-unsigned
+hal_tlbop_t
 hal_l1e_tlbop (hal_l1e_t old, hal_l1e_t new)
 {
 #define restricts_permissions(_o, _n) 1
