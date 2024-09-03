@@ -82,10 +82,10 @@ int plt_pcpu_iterate (void);
  */
 void plt_pcpu_enter (void);
 
-/* Issue an NMI. */
+/* Issue a NMI. */
 void plt_pcpu_nmi (int pcpuid);
 
-/* Broadcast an NMI. */
+/* Broadcast a NMI. */
 void plt_pcpu_nmiall (void);
 
 /* Issue an IPI. */
