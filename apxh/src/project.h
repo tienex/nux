@@ -83,10 +83,10 @@ void md_init (void);
 uint64_t md_maxpfn (void);
 uint64_t md_minrampfn (void);
 uint64_t md_maxrampfn (void);
-uint64_t md_acpi_rsdp (void);
 unsigned md_memregions (void);
 struct bootinfo_region *md_getmemregion (unsigned i);
 struct fbdesc *md_getframebuffer (void);
+struct apxh_pltdesc *md_getpltdesc (void);
 void md_verify (vaddr_t va, size64_t size);
 void md_entry (arch_t arch, vaddr_t pt, vaddr_t entry);
 

@@ -33,6 +33,8 @@ static uint64_t bootinfo_maxrampfn;
 
 static struct fbdesc fbdesc = {.type = FB_INVALID };
 
+static struct apxh_pltdesc pltdesc;
+
 uint64_t rsdp_find (void);
 
 static void
@@ -294,10 +296,13 @@ md_getframebuffer (void)
   return &fbdesc;
 }
 
-uint64_t
-md_acpi_rsdp (void)
+struct apxh_pltdesc *
+md_getpltdesc (void)
 {
-  return rsdp_find ();
+  /* Only ACPI supported. */
+  pltdesc.type = PLT_ACPI;
+  pltdesc.pltptr = rsdp_find();
+  return &pltdesc;
 }
 
 void

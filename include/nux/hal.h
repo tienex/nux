@@ -472,15 +472,8 @@ int hal_putchar (int c);
 /*
   Platform Information acquired from bootloader.
 
-  This should be a generic as possible, and should be extended to
-  support fields for every platform.
 */
-struct hal_pltinfo_desc
-{
-  uint64_t acpi_rsdp;
-};
-
-const struct hal_pltinfo_desc *hal_pltinfo (void);
+const struct apxh_pltdesc *hal_pltinfo (void);
 
 /*
   Stop all CPUs and panic.

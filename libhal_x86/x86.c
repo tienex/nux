@@ -67,8 +67,8 @@ struct apxh_region _memregs_pinned[] = {
 
 const struct apxh_bootinfo *bootinfo = (struct apxh_bootinfo *) &_info_start;
 
-struct hal_pltinfo_desc pltdesc;
 struct fbdesc fbdesc;
+struct apxh_pltdesc pltdesc;
 
 void *hal_stree_ptr;
 unsigned hal_stree_order;
@@ -419,10 +419,10 @@ early_print (const char *str)
     hal_putchar (str[i]);
 }
 
-const struct hal_pltinfo_desc *
+const struct apxh_pltdesc *
 hal_pltinfo (void)
 {
-  return (const struct hal_pltinfo_desc *) &pltdesc;
+  return &pltdesc;
 }
 
 void
@@ -473,11 +473,9 @@ x86_init (void)
 	  stree_clrbit (hal_stree_ptr, hal_stree_order, r->pfn + j);
     }
 
-  pltdesc.acpi_rsdp = bootinfo->acpi_rsdp;
+  pltdesc = bootinfo->pltdesc;
 
   pmap_init ();
-
-  serial_init ();
 
 #ifdef __i386__
   early_print ("i386 HAL booting from APXH.\n");

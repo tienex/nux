@@ -11,6 +11,15 @@
 #include <stdint.h>
 #include <framebuffer.h>
 
+struct apxh_pltdesc
+{
+#define PLT_UNKNOWN 0
+#define PLT_ACPI 1
+#define PLT_DTB 2
+  uint64_t type;
+  uint64_t pltptr; /* ACPI or DTB root */
+} __attribute__((packed));
+
 struct apxh_bootinfo
 {
 #define APXH_BOOTINFO_MAGIC 0xAF10B007
@@ -19,8 +28,8 @@ struct apxh_bootinfo
   uint64_t maxpfn;
   uint64_t numregions;
   uint64_t uentry;
-  uint64_t acpi_rsdp;
   struct fbdesc fbdesc;
+  struct apxh_pltdesc pltdesc;
 } __attribute__((packed));
 
 struct apxh_stree

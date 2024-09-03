@@ -2,6 +2,7 @@
 #include <string.h>
 #include <libfdt.h>
 #include <inttypes.h>
+#include <nux/apxh.h>
 
 extern long boothid;
 extern void *dtbptr;
@@ -16,6 +17,8 @@ static void *elf_kernel_payload, *elf_user_payload;
 static size_t elf_kernel_payload_size, elf_user_payload_size;
 
 static uintptr_t brk;
+
+static struct apxh_pltdesc pltdesc;
 
 static void
 dtb_addrsize (const void *fdt, int noff, uint32_t * addrsz, uint32_t * sizesz)
@@ -279,11 +282,13 @@ md_maxpfn (void)
   return (1L << 36);
 }
 
-uint64_t
-md_acpi_rsdp (void)
+struct apxh_pltdesc *
+md_getpltdesc (void)
 {
-  /* No ACPI. */
-  return 0;
+  /* Only DTB supported. */
+  pltdesc.type = PLT_DTB;
+  pltdesc.pltptr = (uint64_t)(uintptr_t)dtbptr;
+  return &pltdesc;
 }
 
 void

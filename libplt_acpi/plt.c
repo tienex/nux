@@ -15,6 +15,7 @@
 #include <stddef.h>
 #include <nux/hal.h>
 #include <nux/nux.h>
+#include <nux/apxh.h>
 
 #include "internal.h"
 
@@ -24,18 +25,18 @@ unsigned pltacpi_hpet_vect = PLTACPI_INVALID_VECT;
 void
 plt_init (void)
 {
-  const struct hal_pltinfo_desc *desc;
+  const struct apxh_pltdesc *desc;
 
   desc = hal_pltinfo ();
   if (desc == NULL)
     fatal ("Invalid PLT Boot Table.");
 
-  if (desc->acpi_rsdp == 0)
+  if (desc->type != PLT_ACPI)
     fatal ("No ACPI RSDP found.");
 
-  printf ("RSDP: %llx\n", desc->acpi_rsdp);
+  printf ("RSDP: %llx\n", desc->pltptr);
 
-  acpi_init (desc->acpi_rsdp);
+  acpi_init (desc->pltptr);
   acpi_madt_scan ();
   gsi_start ();
 

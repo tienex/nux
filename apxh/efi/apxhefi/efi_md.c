@@ -10,6 +10,7 @@ static unsigned long minrampfn = -1;
 static unsigned numregions;
 static void *efi_rsdp;
 static struct fbdesc fbdesc = {.type = FB_INVALID, };
+static struct apxh_pltdesc pltdesc;
 
 static struct bootinfo_region memregions[BOOTINFO_REGIONS_MAX];
 
@@ -166,10 +167,13 @@ md_getframebuffer (void)
   return &fbdesc;
 }
 
-uint64_t
-md_acpi_rsdp (void)
+struct apxh_pltdesc *
+md_getpltdesc (void)
 {
-  return (unsigned long) efi_rsdp;
+  /* Only ACPI supported. */
+  pltdesc.type = PLT_ACPI;
+  pltdesc.pltptr = (uint64_t)(uintptr_t)efi_rsdp;
+  return &pltdesc;
 }
 
 void *

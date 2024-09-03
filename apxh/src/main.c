@@ -366,6 +366,7 @@ va_info_copy (uint64_t uentry, uint64_t num_regions)
 #define MIN(x,y) ((x < y) ? x : y)
   struct apxh_bootinfo i;
   struct fbdesc *fbptr;
+  struct apxh_pltdesc *pltdesc;
 
   if (va == 0)
     {
@@ -378,7 +379,12 @@ va_info_copy (uint64_t uentry, uint64_t num_regions)
   i.maxrampfn = md_maxrampfn ();
   i.numregions = num_regions;
   i.uentry = uentry;
-  i.acpi_rsdp = md_acpi_rsdp ();
+
+  pltdesc = md_getpltdesc ();
+  if (pltdesc != NULL)
+    i.pltdesc = *pltdesc;
+  else
+    i.pltdesc = (struct apxh_pltdesc) { .type = PLT_UNKNOWN, .pltptr = 0 };
 
   fbptr = md_getframebuffer ();
   if (fbptr != NULL)
