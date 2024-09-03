@@ -458,7 +458,7 @@ x86_init (void)
   stree_memsize = (size_t) ((void *) _stree_end - (void *) _stree_start);
   if (stree_hdr->size + stree_hdr->offset > stree_memsize)
     {
-      early_print ("ERROR: stree dosn't fit in allocated memory!");
+      early_print ("ERROR: stree doesn't fit in allocated memory!");
       hal_cpu_halt ();
     }
   hal_stree_order = stree_hdr->order;
