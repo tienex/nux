@@ -159,15 +159,6 @@ SECTIONS
 	. += 512 * 1024 * 1024 * 1024;
 	_physmap_end = .;
    } : physmap
-
-   /* 512 GB linear map, 512GB Aligned necessarily. */
-   .linear ALIGN(512 * 1024 * 1024 * 1024) : AT(0)
-   {
-	_linear_start = .;
-	. += 512 * 1024 * 1024 * 1024;
-	_linear_end = .;
-
-   } : linear
 }
 
 PHDRS
@@ -187,5 +178,4 @@ PHDRS
     stree   0xAF100004; /* PHT_APXH_STREE */
     fbuf    0xAF100006; /* PHT_APXH_FRAMEBUF */
     memregs 0xAF100007; /* PHT_APXH_REGIONS */
-    linear  0xAF10FFFF; /* PHT_APXH_LINEAR */
 }

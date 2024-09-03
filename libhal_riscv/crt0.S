@@ -1,0 +1,53 @@
+#include <machine/asm.h>
+
+	.globl _start
+_start:
+	csrw satp, a0
+	
+	.option push
+	.option norelax
+	la gp, __global_pointer$
+	.option pop
+	la sp, stacktop
+
+	la t0, _sbss
+	la t1, _ebss
+1:
+	bge t0, t1, 1f
+	sw zero, 0(t0)
+	addi t0, t0, 4
+	j 1b
+1:
+
+	call riscv_init
+	
+	mv a0, zero		;
+	call ___start
+
+	csrci sstatus, 0x2
+1:	j 1b
+
+
+#define _EXPORT_FAR_PTR(_x) \
+	.globl _riscv64##_x	; \
+_riscv64##_x : .dword _x 	;
+	
+	
+	.data
+
+	_EXPORT_FAR_PTR(_kmem_start)
+	_EXPORT_FAR_PTR(_kmem_end)
+
+	_EXPORT_FAR_PTR(_kva_start)
+	_EXPORT_FAR_PTR(_kva_end)
+
+	_EXPORT_FAR_PTR(_physmap_start)
+	_EXPORT_FAR_PTR(_physmap_end)
+
+	_EXPORT_FAR_PTR(_pfncache_start)
+	_EXPORT_FAR_PTR(_pfncache_end)
+
+	.align 12
+stackbtm:
+	.skip 4096
+stacktop:

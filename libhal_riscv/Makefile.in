@@ -1,6 +1,9 @@
 @COMPILE_LIBEC@
+@COMPILE_LIBNUX@
 
 HAL_MACHINE=@MACHINE@
+
+SRCS+= riscv.c sv48.c
 
 LIBRARY=hal
 
