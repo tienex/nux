@@ -33,6 +33,8 @@ extern uint64_t _riscv64_kva_end;
 extern uint64_t _riscv64_kmem_start;
 extern uint64_t _riscv64_kmem_end;
 
+void set_stvec_final ();
+
 const struct apxh_bootinfo *bootinfo = (struct apxh_bootinfo *) &_info_start;
 
 struct fbdesc fbdesc;
@@ -44,10 +46,12 @@ unsigned hal_stree_order;
 int use_fb;
 int nux_initialized = 0;
 
+struct hal_cpu *pcpu_haldata[HAL_MAXCPUS];
+
 static void
-early_print(const char *s)
+early_print (const char *s)
 {
-  char *ptr = (char *)s;
+  char *ptr = (char *) s;
 
   while (*ptr != '\0')
     hal_putchar (*ptr++);
@@ -72,7 +76,8 @@ hal_cpu_out (uint8_t size, uint32_t port, unsigned long val)
 void
 hal_cpu_relax (void)
 {
-  asm volatile ("nop;");
+  /* Should really use __builtin_riscv_pause() */
+  asm volatile ("nop\n");
 }
 
 void
@@ -226,8 +231,7 @@ riscv_init (void)
 
   fbdesc = bootinfo->fbdesc;
   fbdesc.addr = (uint64_t) (uintptr_t) & _fbuf_start;
-  //  use_fb = framebuffer_init (&fbdesc);
-  use_fb = 0;
+  use_fb = framebuffer_init (&fbdesc);
 
   /* Check  APXH stree. */
   stree_hdr = (struct apxh_stree *) _stree_start;
@@ -252,7 +256,7 @@ riscv_init (void)
 
   pltdesc = bootinfo->pltdesc;
 
-  early_print ("riscv64 HAL bootinf from APXH.\n");
+  early_print ("riscv64 HAL booting from APXH.\n");
 }
 
 
@@ -261,4 +265,104 @@ hal_putchar (int ch)
 {
   asm volatile ("mv a0, %0\n" "li a7, 1\n" "ecall\n"::"r" (ch):"a0", "a7");
   return ch;
+}
+
+void
+hal_pcpu_init (void)
+{
+  /* TODO */
+}
+
+void
+hal_pcpu_add (unsigned pcpuid, struct hal_cpu *haldata)
+{
+  assert (pcpuid < HAL_MAXCPUS);
+
+  pcpu_haldata[pcpuid] = haldata;
+}
+
+void
+hal_pcpu_enter (unsigned pcpuid)
+{
+  assert (pcpuid < HAL_MAXCPUS);
+
+  riscv_settp ((uintptr_t) pcpu_haldata[pcpuid]);
+
+  /* CPU is up and running. Switch to full interrupt handler. */
+  set_stvec_final ();
+}
+
+paddr_t
+hal_pcpu_startaddr (unsigned pcpuid)
+{
+  /* TODO */
+  return PADDR_INVALID;
+}
+
+void
+hal_cpu_setdata (void *data)
+{
+  ((struct hal_cpu *) __builtin_thread_pointer ())->data = data;
+}
+
+void *
+hal_cpu_getdata (void)
+{
+  return ((struct hal_cpu *) __builtin_thread_pointer ())->data;
+}
+
+void
+hal_init_done (void)
+{
+  /* TODO or nothing to do */
+}
+
+__dead void
+hal_panic (unsigned cpu, const char *error, struct hal_frame *f)
+{
+  if (use_fb)
+    {
+      /*
+         Reset frame buffer. This will unlock in case any CPU was
+         holding the spinlock.
+       */
+      framebuffer_reset ();
+    }
+
+  printf ("\n"
+	  "----------------------------------------"
+	  "---------------------------------------\n"
+	  "Fatal error on CPU%d: %s\n", cpu, error);
+  if (f != NULL)
+    {
+      hal_frame_print (f);
+    }
+  printf ("----------------------------------------"
+	  "---------------------------------------\n");
+  hal_cpu_halt ();
+}
+
+__dead void
+_hal_entry (struct hal_frame *f)
+{
+  hal_entry_xcpt (f, 1);
+  nux_panic ("Early interrupt/exception!", f);
+}
+
+unsigned
+hal_vect_ipibase (void)
+{
+  return 0;
+}
+
+unsigned
+hal_vect_irqbase (void)
+{
+  return 15;
+}
+
+unsigned
+hal_vect_max (void)
+{
+  return 255;
 }

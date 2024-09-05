@@ -3,7 +3,7 @@
 
 HAL_MACHINE=@MACHINE@
 
-SRCS+= riscv.c sv48.c
+SRCS+= crt0.S riscv.c pmap.c sv48.c frame.c entry.S
 
 LIBRARY=hal
 

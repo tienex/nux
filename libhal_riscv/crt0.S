@@ -1,6 +1,7 @@
 #include <machine/asm.h>
 
 	.globl _start
+	.align 8
 _start:
 	csrw satp, a0
 	
@@ -18,6 +19,9 @@ _start:
 	addi t0, t0, 4
 	j 1b
 1:
+
+	la t0, _early_intrentry
+	csrw stvec, t0
 
 	call riscv_init
 	
