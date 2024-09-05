@@ -301,7 +301,7 @@ md_getpltdesc (void)
 {
   /* Only ACPI supported. */
   pltdesc.type = PLT_ACPI;
-  pltdesc.pltptr = rsdp_find();
+  pltdesc.pltptr = rsdp_find ();
   return &pltdesc;
 }
 

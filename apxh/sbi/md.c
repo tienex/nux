@@ -287,7 +287,7 @@ md_getpltdesc (void)
 {
   /* Only DTB supported. */
   pltdesc.type = PLT_DTB;
-  pltdesc.pltptr = (uint64_t)(uintptr_t)dtbptr;
+  pltdesc.pltptr = (uint64_t) (uintptr_t) dtbptr;
   return &pltdesc;
 }
 

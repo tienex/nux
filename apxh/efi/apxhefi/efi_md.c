@@ -29,7 +29,8 @@ exit (int st)
 uintptr_t
 get_page (void)
 {
-  return (uintptr_t) efi_allocate_maxaddr ((minrampfn << PAGE_SHIFT) + (unsigned long) BOOTMEM);
+  return (uintptr_t) efi_allocate_maxaddr ((minrampfn << PAGE_SHIFT) +
+					   (unsigned long) BOOTMEM);
 }
 
 void
@@ -111,7 +112,7 @@ md_entry (arch_t arch, vaddr_t pt, vaddr_t entry)
 
   printf ("%lx %lx %lx\n", tramp_satp, entry, satp);
 
-  efi_exitbs();
+  efi_exitbs ();
 
   asm volatile
     (".globl __rv64_tstart, __rv64_tend\n"
@@ -172,7 +173,7 @@ md_getpltdesc (void)
 {
   /* Only ACPI supported. */
   pltdesc.type = PLT_ACPI;
-  pltdesc.pltptr = (uint64_t)(uintptr_t)efi_rsdp;
+  pltdesc.pltptr = (uint64_t) (uintptr_t) efi_rsdp;
   return &pltdesc;
 }
 

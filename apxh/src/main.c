@@ -384,7 +384,8 @@ va_info_copy (uint64_t uentry, uint64_t num_regions)
   if (pltdesc != NULL)
     i.pltdesc = *pltdesc;
   else
-    i.pltdesc = (struct apxh_pltdesc) { .type = PLT_UNKNOWN, .pltptr = 0 };
+    i.pltdesc = (struct apxh_pltdesc)
+    {.type = PLT_UNKNOWN,.pltptr = 0 };
 
   fbptr = md_getframebuffer ();
   if (fbptr != NULL)

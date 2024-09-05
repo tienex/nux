@@ -1,4 +1,3 @@
-//#undef __STDC_VERSION__		/* Confuse efibind.h into doing the right thing. */
 #include <efi.h>
 #include <efilib.h>
 
@@ -159,7 +158,7 @@ efi_getpayload (CHAR16 * name, void **ptr, unsigned long *size)
   filepath = FileDevicePath (img->DeviceHandle, name);
 
   rc = OpenSimpleReadFile (TRUE, NULL, 0, &filepath, &hdl, &rdhdl);
-  if (EFI_ERROR(rc))
+  if (EFI_ERROR (rc))
     {
       Print (L"OpenSimpleReadFile failed %r\n", rc);
       return rc;
@@ -175,7 +174,7 @@ efi_getpayload (CHAR16 * name, void **ptr, unsigned long *size)
       rc = ReadSimpleReadFile (rdhdl, 0, size, *ptr);
     }
 
-  if (EFI_ERROR(rc))
+  if (EFI_ERROR (rc))
     {
       Print (L"ReadSimpleReadFile failed: %r\n", rc);
       return rc;
@@ -276,9 +275,6 @@ efi_main (EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE * SystemTable)
   InitializeLib (ImageHandle, SystemTable);
   image_handle = ImageHandle;
 
-  Print(L"HEY!\n\n");
-  printf("Hey!\n");
-
   rc = uefi_call_wrapper (BS->OpenProtocol, 6, ImageHandle, &img_prot, &ptr,
 			  ImageHandle, NULL,
 			  EFI_OPEN_PROTOCOL_BY_HANDLE_PROTOCOL);
@@ -344,8 +340,7 @@ efi_exitbs (void)
 
   md = LibMemoryMap (&num, &key, &descsize, &descver);
 
-  rc =
-    uefi_call_wrapper (BS->ExitBootServices, 2, image_handle, key);
+  rc = uefi_call_wrapper (BS->ExitBootServices, 2, image_handle, key);
   if (rc != EFI_SUCCESS)
     {
       Print (L"EBS failed: %r\n", rc);
