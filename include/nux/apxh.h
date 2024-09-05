@@ -17,7 +17,7 @@ struct apxh_pltdesc
 #define PLT_ACPI 1
 #define PLT_DTB 2
   uint64_t type;
-  uint64_t pltptr; /* ACPI or DTB root */
+  uint64_t pltptr;		/* ACPI or DTB root */
 } __attribute__((packed));
 
 struct apxh_bootinfo
