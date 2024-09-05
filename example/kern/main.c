@@ -53,7 +53,7 @@ main (int argc, char *argv[])
     }
   else
     {
-      cpu_ipi (cpu_id (), 0);
+      cpu_ipi (cpu_id ());
     }
 
 
@@ -104,7 +104,7 @@ entry_sysc (uctxt_t * u,
 }
 
 uctxt_t *
-entry_ipi (uctxt_t * uctxt, unsigned ipi)
+entry_ipi (uctxt_t * uctxt)
 {
   info ("IPI!");
   return &u_init;

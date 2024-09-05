@@ -76,29 +76,10 @@ void *hal_cpu_getdata (void);
  */
 
 /*
-  Number of IRQs supported by HAL vectors.
- */
-unsigned hal_irq_max (void);
-
-/*
-  Platform IRQ vector base.
-
-  An offset to add to the IRQ by the interrupt controller to let HAL
-  recognise the interrupt as IRQ.
+  Number of vectors available for platform interrupt controller use.
 */
-unsigned hal_irq_pltbase (void);
+unsigned hal_vect_max (void);
 
-/*
-  Number of IPIs available.
- */
-unsigned hal_ipi_max (void);
-
-/*
-  Platform IPI vector base.
-
-  An offset to add to the IPI by the interrupt controller to let HAL recognise the interrupt as IPI.
-*/
-unsigned hal_ipi_pltbase (void);
 
 /*
   HAL Physical Memory Description.
@@ -430,14 +411,25 @@ struct hal_frame *hal_entry_pf (struct hal_frame *, unsigned long,
 struct hal_frame *hal_entry_xcpt (struct hal_frame *, unsigned);
 
 /*
-  IRQs
+  Generic vector.
+
+  When a HAL cannot fully decode the vector to a specific IRQ or IPI,
+  it can pass the raw vector and let the platform decode it.
  */
-struct hal_frame *hal_entry_irq (struct hal_frame *f, unsigned irq);
+struct hal_frame *hal_entry_vect (struct hal_frame *f, unsigned vect);
+
+/*
+  Timer.
+
+  Some architecture might define a specific timer interrupt in their
+  CPU spec. (!)
+*/
+struct hal_frame *hal_entry_timer (struct hal_frame *f);
 
 /*
   IPIs
 */
-struct hal_frame *hal_entry_ipi (struct hal_frame *f, unsigned ipi);
+struct hal_frame *hal_entry_ipi (struct hal_frame *f);
 
 /*
   System Call 

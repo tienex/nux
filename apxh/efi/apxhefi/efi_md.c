@@ -10,6 +10,7 @@ static unsigned long minrampfn = -1;
 static unsigned numregions;
 static void *efi_rsdp;
 static struct fbdesc fbdesc = {.type = FB_INVALID, };
+
 static struct apxh_pltdesc pltdesc;
 
 static struct bootinfo_region memregions[BOOTINFO_REGIONS_MAX];

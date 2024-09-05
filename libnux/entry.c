@@ -127,29 +127,53 @@ hal_entry_nmi (struct hal_frame *f)
   cpu_nmiop ();
 }
 
+struct hal_frame *
+hal_entry_vect (struct hal_frame *f, unsigned vect)
+{
+  uctxt_t *uctxt = uctxt_getuser (f);
+  struct plt_vect_desc d;;
+
+  plt_vect_translate (vect, &d);
+  switch (d.type)
+    {
+    case PLT_VECT_IRQ:
+      uctxt = entry_irq (uctxt, d.no, plt_irq_islevel (d.no));
+      plt_irq_eoi ();
+      break;
+    case PLT_VECT_TMR:
+      uctxt = entry_alarm (uctxt);
+      plt_irq_eoi ();
+      break;
+    case PLT_VECT_IPI:
+      uctxt = entry_ipi (uctxt);
+      plt_irq_eoi ();
+      break;
+    default:
+    case PLT_VECT_IGN:
+      warn ("Ignoring vector %d", vect);
+      /* UCTXT unchanged. */
+      break;
+    }
+
+  return uctxt_frame (uctxt);
+}
 
 struct hal_frame *
 hal_entry_irq (struct hal_frame *f, unsigned irq)
 {
   uctxt_t *uctxt = uctxt_getuser (f);
 
-  if (plt_vect_process (irq))
-    {
-      uctxt = entry_alarm (uctxt);
-    }
-  else
-    uctxt = entry_irq (uctxt, irq, plt_irq_islevel (irq));
-
+  uctxt = entry_irq (uctxt, irq, plt_irq_islevel (irq));
   plt_irq_eoi ();
 
   return uctxt_frame (uctxt);
 }
 
 struct hal_frame *
-hal_entry_ipi (struct hal_frame *f, unsigned ipi)
+hal_entry_ipi (struct hal_frame *f)
 {
   uctxt_t *uctxt = uctxt_getuser (f);
-  uctxt = entry_ipi (uctxt, ipi);
+  uctxt = entry_ipi (uctxt);
   plt_irq_eoi ();
   return uctxt_frame (uctxt);
 }

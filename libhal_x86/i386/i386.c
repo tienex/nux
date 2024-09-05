@@ -183,27 +183,9 @@ hal_cpu_getdata (void)
 }
 
 unsigned
-hal_ipi_pltbase (void)
+hal_vect_max (void)
 {
-  return VECT_IPI0;
-}
-
-unsigned
-hal_irq_pltbase (void)
-{
-  return VECT_IRQ0;
-}
-
-unsigned
-hal_ipi_max (void)
-{
-  return 255 - VECT_IPI0;
-}
-
-unsigned
-hal_irq_max (void)
-{
-  return VECT_IPI0 - VECT_IRQ0;
+  return 255;
 }
 
 void

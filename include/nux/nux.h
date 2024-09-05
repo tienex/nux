@@ -63,10 +63,9 @@ void cpu_nmi_mask (cpumask_t map);
 void cpu_nmi_allbutself (void);
 void cpu_nmi_broadcast (void);
 
-unsigned cpu_ipi_avail (void);
-void cpu_ipi (int cpu, uint8_t ipi);
-void cpu_ipi_mask (cpumask_t map, uint8_t ipi);
-void cpu_ipi_broadcast (uint8_t ipi);
+void cpu_ipi (int cpu);
+void cpu_ipi_mask (cpumask_t map);
+void cpu_ipi_broadcast (void);
 
 void cpu_tlbflush (int cpu);
 void cpu_tlbflush_mask (cpumask_t mask);
@@ -271,7 +270,7 @@ uctxt_t *entry_alarm (uctxt_t * f);
 
   This function will be called on IPI.
 */
-uctxt_t *entry_ipi (uctxt_t * f, unsigned ipi);
+uctxt_t *entry_ipi (uctxt_t * f);
 
 /*
  Entry for IRQ.

@@ -83,13 +83,11 @@ hpet_resume (void)
   hpet_write (REG_GENCFG, ENABLE_CNF | gencfg);
 }
 
-bool
+void
 hpet_doirq (void)
 {
   if (irqlvl)
     hpet_write (REG_GENISR, hpet_read (REG_GENISR) | 1);
-
-  return true;
 }
 
 bool

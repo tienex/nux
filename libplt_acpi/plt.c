@@ -51,16 +51,20 @@ plt_hw_putc (int c)
 }
 
 /*
-  Process PLT IRQs
-
-  Returns 'true' if timer alarm expired. 'false' otherwhise.
+  Translate an external vector into an IRQ or entry type.
 */
-bool
-plt_vect_process (unsigned irq)
+
+void
+plt_vect_translate (unsigned vect, struct plt_vect_desc *desc)
 {
-  if (pltacpi_hpet_irq != PLTACPI_INVALID_IRQ && irq == pltacpi_hpet_irq)
+  gsi_translate (vect, desc);
+
+  if ((desc->type == PLT_VECT_IRQ) && (desc->no == pltacpi_hpet_irq))
     {
-      return hpet_doirq ();
+      /* Is an HPET IRQ. */
+      hpet_doirq ();
+      /* Make it a timer interrupt. */
+      desc->type = PLT_VECT_TMR;
+      desc->no = 0;
     }
-  return false;
 }

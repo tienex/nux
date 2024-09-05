@@ -96,27 +96,9 @@ hal_cpu_getdata (void)
 }
 
 unsigned
-hal_irq_max (void)
+hal_vect_max (void)
 {
-  return VECT_IPI0 - VECT_IRQ0;
-}
-
-unsigned
-hal_irq_pltbase (void)
-{
-  return VECT_IRQ0;
-}
-
-unsigned
-hal_ipi_max (void)
-{
-  return VECT_MAX - VECT_IPI0;
-}
-
-unsigned
-hal_ipi_pltbase (void)
-{
-  return VECT_IPI0;
+  return VECT_MAX;
 }
 
 static uint64_t

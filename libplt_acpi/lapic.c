@@ -17,6 +17,7 @@
 #include <assert.h>
 
 #include "internal.h"
+#include "apic.h"
 
 #include <nux/nux.h>
 #include <nux/plt.h>
@@ -255,15 +256,15 @@ plt_pcpu_nmiall (void)
 }
 
 void
-plt_pcpu_ipi (int pcpuid, unsigned ipi)
+plt_pcpu_ipi (int pcpuid)
 {
-  lapic_ipi (pcpuid, APIC_DLVR_FIX, hal_ipi_pltbase () + ipi);
+  lapic_ipi (pcpuid, APIC_DLVR_FIX, APIC_VECT_IPIBASE);
 }
 
 void
-plt_pcpu_ipiall (unsigned ipi)
+plt_pcpu_ipiall (void)
 {
-  lapic_ipi_broadcast (APIC_DLVR_FIX, hal_ipi_pltbase () + ipi);
+  lapic_ipi_broadcast (APIC_DLVR_FIX, APIC_VECT_IPIBASE);
 }
 
 unsigned

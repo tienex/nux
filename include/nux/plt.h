@@ -43,6 +43,11 @@ void plt_irq_enable (unsigned irq);
 void plt_irq_disable (unsigned irq);
 void plt_irq_eoi (void);
 
+/*
+  Number of IRQs supported by this platform.
+*/
+unsigned plt_irq_max (void);
+
 static inline bool
 plt_irq_islevel (unsigned irq)
 {
@@ -51,17 +56,26 @@ plt_irq_islevel (unsigned irq)
   return t == PLT_IRQ_LVLHI || t == PLT_IRQ_LVLLO;
 }
 
+enum plt_vect_type
+{
+  PLT_VECT_IGN,			/* Spurious or unknown. Ignore. */
+  PLT_VECT_IRQ,			/* Vector is IRQ. Field NO contains IRQ number. */
+  PLT_VECT_TMR,			/* Vector is a platform timer interrupt. Field NO unused. */
+  PLT_VECT_IPI,			/* Vector is a IPI. Field NO contains IPI number. */
+};
+
+struct plt_vect_desc
+{
+  enum plt_vect_type type;
+  unsigned no;
+};
+
 /*
-  plt_vect_process: Process PLT interrupt vector (called from HAL).
-
-  Platform might need to receive interrupts in case it implements
-  device drivers.
-
-  Returns 'true' if PLT timer alarm expired.
-
-  Called from HAL.
+  Translate the vector passed from HAL to NUX into an entry type,
+  described in desc.
 */
-bool plt_vect_process (unsigned irq);
+
+void plt_vect_translate (unsigned vect, struct plt_vect_desc *desc);
 
 
 /*
@@ -89,10 +103,10 @@ void plt_pcpu_nmi (int pcpuid);
 void plt_pcpu_nmiall (void);
 
 /* Issue an IPI. */
-void plt_pcpu_ipi (int pcpuid, unsigned ipi);
+void plt_pcpu_ipi (int pcpuid);
 
 /* Broadcast an IPI. */
-void plt_pcpu_ipiall (unsigned ipi);
+void plt_pcpu_ipiall ();
 
 /* Get current pCPU ID. */
 unsigned plt_pcpu_id (void);

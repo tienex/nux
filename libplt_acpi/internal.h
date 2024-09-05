@@ -23,6 +23,7 @@ void ioapic_add (unsigned num, uint64_t base, unsigned irqbase);
 void gsi_init (void);
 void gsi_setup (unsigned i, unsigned irq, enum plt_irq_type mode);
 void gsi_start (void);
+void gsi_translate (unsigned vect, struct plt_vect_desc *desc);
 
 
 void acpi_init (paddr_t rdsp);
@@ -33,7 +34,7 @@ void hw_delay (void);
 void hw_reset_vector (uint32_t start);
 
 bool hpet_init (paddr_t hpetpa);
-bool hpet_doirq (void);
+void hpet_doirq (void);
 bool acpi_hpet_scan (void);
 
 #endif

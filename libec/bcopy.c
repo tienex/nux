@@ -132,8 +132,7 @@ bcopy (const void *src0, void *dst0, size_t length)
        */
       t = length / wsize;
       TLOOP (*(word *) (void *) dst = *(const word *) (const void *) src;
-	     src += wsize;
-	     dst += wsize);
+	     src += wsize; dst += wsize);
       t = length & wmask;
       TLOOP (*dst++ = *src++);
     }

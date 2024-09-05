@@ -106,15 +106,9 @@ do_xcpt (uint64_t vect, struct hal_frame *f)
 }
 
 struct hal_frame *
-do_intr (uint64_t vect, struct hal_frame *f)
+do_vect (uint64_t vect, struct hal_frame *f)
 {
-  return hal_entry_irq (f, vect);
-}
-
-struct hal_frame *
-do_ipi (uint64_t vect, struct hal_frame *f)
-{
-  return hal_entry_ipi (f, vect);
+  return hal_entry_vect (f, vect);
 }
 
 struct hal_frame *
@@ -129,14 +123,12 @@ do_intr_entry (struct hal_frame *f)
 
   if (vect == VECT_SYSC)
     rf = do_syscall (f);
-  else if (vect >= VECT_IPI0)
-    rf = do_ipi (vect - VECT_IPI0, f);
-  else if (vect >= VECT_IRQ0)
-    rf = do_intr (vect - VECT_IRQ0, f);
   else if (vect == 2)
     rf = do_nmi (f);
-  else
+  else if (vect < 32)
     rf = do_xcpt (vect, f);
+  else
+    rf = do_vect (vect, f);
 
   return rf;
 }
