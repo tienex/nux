@@ -30,6 +30,8 @@
 	call _C_LABEL(do_nmi)
 	.elseif \vct < 32
 	call _C_LABEL(do_xcpt)
+	.elseif \vct >= VECT_IPI0
+	call _C_LABEL(do_ipi)
 	.else
 	call _C_LABEL(do_intr)
 	.endif

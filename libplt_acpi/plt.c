@@ -19,8 +19,8 @@
 
 #include "internal.h"
 
-#define PLTACPI_INVALID_VECT ((unsigned)-1)
-unsigned pltacpi_hpet_vect = PLTACPI_INVALID_VECT;
+#define PLTACPI_INVALID_IRQ ((unsigned)-1)
+unsigned pltacpi_hpet_irq = PLTACPI_INVALID_IRQ;
 
 void
 plt_init (void)
@@ -56,9 +56,9 @@ plt_hw_putc (int c)
   Returns 'true' if timer alarm expired. 'false' otherwhise.
 */
 bool
-plt_vect_process (unsigned vect)
+plt_vect_process (unsigned irq)
 {
-  if (pltacpi_hpet_vect != PLTACPI_INVALID_VECT && vect == pltacpi_hpet_vect)
+  if (pltacpi_hpet_irq != PLTACPI_INVALID_IRQ && irq == pltacpi_hpet_irq)
     {
       return hpet_doirq ();
     }

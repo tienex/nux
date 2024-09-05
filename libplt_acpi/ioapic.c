@@ -225,7 +225,7 @@ gsi_start (void)
 
   /* 1:1 map GSI <-> Kernel IRQ */
   for (i = 0; i < gsis_no; i++)
-    gsi_register (i, hal_vect_irqbase () + i);
+    gsi_register (i, hal_irq_pltbase () + i);
 }
 
 void

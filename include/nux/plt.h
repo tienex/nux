@@ -61,7 +61,7 @@ plt_irq_islevel (unsigned irq)
 
   Called from HAL.
 */
-bool plt_vect_process (unsigned vect);
+bool plt_vect_process (unsigned irq);
 
 
 /*
@@ -89,10 +89,10 @@ void plt_pcpu_nmi (int pcpuid);
 void plt_pcpu_nmiall (void);
 
 /* Issue an IPI. */
-void plt_pcpu_ipi (int pcpuid, unsigned vct);
+void plt_pcpu_ipi (int pcpuid, unsigned ipi);
 
 /* Broadcast an IPI. */
-void plt_pcpu_ipiall (unsigned vct);
+void plt_pcpu_ipiall (unsigned ipi);
 
 /* Get current pCPU ID. */
 unsigned plt_pcpu_id (void);

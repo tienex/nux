@@ -255,15 +255,15 @@ plt_pcpu_nmiall (void)
 }
 
 void
-plt_pcpu_ipi (int pcpuid, unsigned vct)
+plt_pcpu_ipi (int pcpuid, unsigned ipi)
 {
-  lapic_ipi (pcpuid, APIC_DLVR_FIX, vct);
+  lapic_ipi (pcpuid, APIC_DLVR_FIX, hal_ipi_pltbase () + ipi);
 }
 
 void
-plt_pcpu_ipiall (unsigned vct)
+plt_pcpu_ipiall (unsigned ipi)
 {
-  lapic_ipi_broadcast (APIC_DLVR_FIX, vct);
+  lapic_ipi_broadcast (APIC_DLVR_FIX, hal_ipi_pltbase () + ipi);
 }
 
 unsigned

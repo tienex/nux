@@ -11,7 +11,7 @@
 #include <stdint.h>
 #include <nux/plt.h>
 
-extern unsigned pltacpi_hpet_vect;
+extern unsigned pltacpi_hpet_irq;
 
 void lapic_init (uint64_t, unsigned);
 void lapic_add (uint16_t, uint16_t);

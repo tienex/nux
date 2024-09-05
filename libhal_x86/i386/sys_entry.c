@@ -113,7 +113,14 @@ struct hal_frame *
 do_intr (uint32_t vect, struct hal_frame *f)
 {
 
-  return hal_entry_vect (f, vect);
+  return hal_entry_irq (f, vect - VECT_IRQ0);
+}
+
+struct hal_frame *
+do_ipi (uint32_t vect, struct hal_frame *f)
+{
+
+  return hal_entry_ipi (f, vect - VECT_IPI0);
 }
 
 void

@@ -53,7 +53,7 @@ main (int argc, char *argv[])
     }
   else
     {
-      cpu_ipi (cpu_id (), cpu_ipi_base () + 0);
+      cpu_ipi (cpu_id (), 0);
     }
 
 

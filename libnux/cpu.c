@@ -298,45 +298,33 @@ cpu_nmi_broadcast (void)
 
 /* NUXST: any */
 unsigned
-cpu_ipi_base (void)
-{
-  return hal_vect_ipibase ();
-}
-
-/* NUXST: any */
-unsigned
 cpu_ipi_avail (void)
 {
-  unsigned vectmax = hal_vect_max ();
-  unsigned ipibase = hal_vect_ipibase ();
-  unsigned irqbase = hal_vect_irqbase ();
-  unsigned ipilimit = ipibase < irqbase ? irqbase : vectmax;
-
-  return ipilimit - ipibase;
+  return hal_ipi_max ();
 }
 
 /* NUXST: OKCPU */
 void
-cpu_ipi (int cpu, uint8_t vct)
+cpu_ipi (int cpu, uint8_t ipi)
 {
   struct cpu_info *ci = cpu_getinfo (cpu);
 
   if (ci != NULL)
-    plt_pcpu_ipi (ci->phys_id, vct);
+    plt_pcpu_ipi (ci->phys_id, ipi);
 }
 
 /* NUXST: OKCPU */
 void
-cpu_ipi_broadcast (uint8_t vct)
+cpu_ipi_broadcast (uint8_t ipi)
 {
-  plt_pcpu_ipiall (vct);
+  plt_pcpu_ipiall (ipi);
 }
 
 /* NUXST: OKCPU */
 void
-cpu_ipi_mask (cpumask_t map, uint8_t vct)
+cpu_ipi_mask (cpumask_t map, uint8_t ipi)
 {
-  foreach_cpumask (map, cpu_ipi (i, vct));
+  foreach_cpumask (map, cpu_ipi (i, ipi));
 }
 
 /* NUXST: OKCPU */

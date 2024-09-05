@@ -76,28 +76,29 @@ void *hal_cpu_getdata (void);
  */
 
 /*
-  Vector for first IRQ.
-  
-  This is used by the platform to program the interrupt controller.
-  
-  The platform interrupt controller will be programmed to send IRQ 'NUM'
-  at CPU vector 'hal_vect_irqbase() + NUM'. 
+  Number of IRQs supported by HAL vectors.
  */
-unsigned hal_vect_irqbase (void);
+unsigned hal_irq_max (void);
 
 /*
-  First vector available for IPIs.
-  
-  Vectors starting from this up until either hal_vect_irqbase() (if
-  greater) or hal_vect_max() are available to for custom IPIs. 
- */
-unsigned hal_vect_ipibase (void);
+  Platform IRQ vector base.
+
+  An offset to add to the IRQ by the interrupt controller to let HAL
+  recognise the interrupt as IRQ.
+*/
+unsigned hal_irq_pltbase (void);
 
 /*
-  Number of vectors (IRQ + IPI) available. 
+  Number of IPIs available.
  */
-unsigned hal_vect_max (void);
+unsigned hal_ipi_max (void);
 
+/*
+  Platform IPI vector base.
+
+  An offset to add to the IPI by the interrupt controller to let HAL recognise the interrupt as IPI.
+*/
+unsigned hal_ipi_pltbase (void);
 
 /*
   HAL Physical Memory Description.
@@ -429,9 +430,14 @@ struct hal_frame *hal_entry_pf (struct hal_frame *, unsigned long,
 struct hal_frame *hal_entry_xcpt (struct hal_frame *, unsigned);
 
 /*
-  Interrupts: IPIs and IRQs
+  IRQs
  */
-struct hal_frame *hal_entry_vect (struct hal_frame *f, unsigned irq);
+struct hal_frame *hal_entry_irq (struct hal_frame *f, unsigned irq);
+
+/*
+  IPIs
+*/
+struct hal_frame *hal_entry_ipi (struct hal_frame *f, unsigned ipi);
 
 /*
   System Call 
