@@ -1,5 +1,6 @@
 *~
 *.o
+*.d
 *.a
 *.efi
 *.so
@@ -9,6 +10,7 @@
 .build
 .dirstamp
 \#*#
+hal.mk
 Makefile
 apxh/multiboot/apxh
 apxh/sbi/apxh
