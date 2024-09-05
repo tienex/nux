@@ -244,6 +244,8 @@ bool hal_umap_getl1p (struct hal_umap *umap, uaddr_t uaddr, bool alloc,
 /*
   Return the next UADDR whose L1P is non-zero.
 
+  if UMAP == NULL, the current CPU mappings are searched.
+
   If L1P is not NULL, save the L1P of UADDR.
   If L1E is not NULL, save the L1E pointed by the L1P.
  */
@@ -334,7 +336,7 @@ void hal_pcpu_add (unsigned pcpuid, struct hal_cpu *haldata);
 void hal_pcpu_enter (unsigned pcpuid);
 
 /*
-  Returns address where PCPU bootstrap code starts, or PADDR_INVLID is
+  Returns address where PCPU bootstrap code starts, or PADDR_INVALID if
   PCPU cannot boot.
  */
 paddr_t hal_pcpu_startaddr (unsigned pcpu);

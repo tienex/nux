@@ -236,8 +236,14 @@ linmap_get_l1p (unsigned long va, bool alloc, bool user)
 static ptep_t
 get_umap_l4p (struct hal_umap *umap, unsigned long va)
 {
-  assert (umap != NULL);
   assert (L4OFF (va) < UMAP_L4PTES);
+
+  if (umap == NULL)
+    {
+      /* Use LINMAP if current. */
+      assert (L4OFF (va) < UMAP_L4PTES);
+      return linmap_get_l4p (va);
+    }
 
   return mkptep_cur (umap->l4 + L4OFF (va));
 }
@@ -272,6 +278,13 @@ static ptep_t
 get_umap_l3p (struct hal_umap *umap, unsigned long va, bool alloc)
 {
   pfn_t l3pfn;
+
+  if (umap == NULL)
+    {
+      /* Use LINMAP if current. */
+      assert (L4OFF (va) < UMAP_L4PTES);
+      return linmap_get_l3p (va, alloc, true /* user */ );
+    }
 
   l3pfn = get_umap_l3pfn (umap, va, alloc);
   if (l3pfn == PFN_INVALID)
@@ -312,6 +325,13 @@ static ptep_t
 get_umap_l2p (struct hal_umap *umap, unsigned long va, bool alloc)
 {
   pfn_t l2pfn;
+
+  if (umap == NULL)
+    {
+      /* Use LINMAP if current. */
+      assert (L4OFF (va) < UMAP_L4PTES);
+      return linmap_get_l2p (va, alloc, true /* user */ );
+    }
 
   l2pfn = get_umap_l2pfn (umap, va, alloc);
   if (l2pfn == PFN_INVALID)
@@ -358,7 +378,7 @@ umap_get_l1p (struct hal_umap *umap, unsigned long va, bool alloc)
 
   if (umap == NULL)
     {
-      /* Use PMAP if current. */
+      /* Use LINMAP if current. */
       assert (L4OFF (va) < UMAP_L4PTES);
       return linmap_get_l1p (va, alloc, true /* user */ );
     }
@@ -542,7 +562,11 @@ scan_l4 (struct hal_umap *umap, unsigned off, unsigned *l4off_out,
   pfn_t l3pfn;
   for (unsigned i = off; i < UMAP_L4PTES; i++)
     {
-      l4e = umap->l4[i];
+      if (umap != NULL)
+	l4e = umap->l4[i];
+      else
+	l4e = linmap_get_l4e (mkaddr (i, 0, 0, 0));
+
       if (pte_present (l4e))
 	{
 	  l3pfn = pte_pfn (l4e);
