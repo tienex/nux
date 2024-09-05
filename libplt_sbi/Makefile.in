@@ -1,0 +1,6 @@
+@COMPILE_LIBEC@
+@COMPILE_LIBNUX@
+
+LIBRARY=plt
+
+SRCS+= sbi.c
