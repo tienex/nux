@@ -54,6 +54,7 @@ __RCSID("$NetBSD: crt0-common.c,v 1.13 2013/01/31 22:24:25 matt Exp $");
 
 #include <cdefs.h>
 #include <stdlib.h>
+#include <machine/profile.h>
 
 #define Obj_Entry void
 typedef void (*fptr_t)(void);

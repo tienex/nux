@@ -18,4 +18,8 @@
 	_C_LABEL_STRING(alias) " = " _C_LABEL_STRING(sym))
 
 
+#define	__weak_reference(sym)	__attribute__((__weakref__(#sym)))
+
+#define	__weakref_visible	static
+
 #endif /* EC_CDEFS_ELF_H */
