@@ -112,6 +112,8 @@ hal_entry_xcpt (struct hal_frame *f, unsigned xcpt)
 void
 hal_entry_nmi (struct hal_frame *f)
 {
+  printf ("NMI!\n");
+  hal_frame_print (f);
   if (__predict_false (nux_status () & NUXST_PANIC))
     {
       hal_cpu_halt ();

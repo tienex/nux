@@ -101,6 +101,7 @@ AC_MK_CONFIG_FILES([
 	lib${hal}/Makefile
 	lib${plt}/Makefile
 	libnux/Makefile
+	porting/0_empty/Makefile
 	libnux_user/Makefile
 	example/Makefile
 	example/kern/Makefile
