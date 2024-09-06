@@ -1,5 +1,5 @@
 #include <nux/hal_config.h>
-#include "riscv.h"
+#include "internal.h"
 
 #define SAVE_REG(_i, _r) sd _r , -((_i) * 8)(sp)
 #define RESTORE_REG(_i, _r) ld _r, -((_i) * 8)(a0)
@@ -65,6 +65,7 @@ _early_intrentry:
 	.globl _intr_entry
 	.align 8
 _intr_entry:
+	/* Note: SSTATUS SIE set to off. */
 	csrrw tp, sscratch, tp
 	/* If zero, we're in kernel. */
 	bnez tp, 1f
@@ -123,16 +124,18 @@ _intr_entry:
 	SAVE_REG(33, t0)
 	csrr t0, stval
 	SAVE_REG(34, t0)
-	csrr t0, sstatus
+	csrr t0, sie
 	SAVE_REG(35, t0)
-
-	addi sp, sp, -35*8
+	csrr t0, sstatus
+	SAVE_REG(36, t0)
+	addi sp, sp, -36*8
 
 	mv a0, sp
 	call _hal_entry
-
-	addi a0, a0, 35*8
-	RESTORE_REG(35, t0)
+	
+	addi a0, a0, 36*8
+	/* SSTATUS */
+	RESTORE_REG(36, t0)
 	li t1, SSTATUS_FMASK
 	and t2, t0, t1
 	csrr t0, sstatus
@@ -140,6 +143,9 @@ _intr_entry:
 	and t0, t0, t1
 	or t0, t0, t2
 	csrw sstatus, t2
+	/* SIE */
+	RESTORE_REG(35, t0)
+	csrw sie, t0
 	/* Skip STVAL */
 	/* Skip SCAUSE */
 	RESTORE_REG(32, t0)
@@ -165,7 +171,7 @@ _intr_entry:
 	RESTORE_REG(13, x13)
 	RESTORE_REG(12, x12)
 	RESTORE_REG(11, x11)
-	RESTORE_REG(10, x10)
+	/* Skip a0, we're using it. */
 	RESTORE_REG(9, x9)
 	RESTORE_REG(8, x8)
 	RESTORE_REG(7, x7)
@@ -175,6 +181,8 @@ _intr_entry:
 	RESTORE_REG(3, x3)
 	RESTORE_REG(2, x2)
 	RESTORE_REG(1, x1)
+	/* Restore A0 now. */
+	RESTORE_REG(10, x10)	
 	sret
 
 

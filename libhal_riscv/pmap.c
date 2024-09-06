@@ -14,7 +14,7 @@ hal_kmap_getl1p (unsigned long va, bool alloc, hal_l1p_t * l1popq)
       return false;
     }
 
-  l1p = kmap_get_l1p (va, alloc);
+  l1p = cpumap_get_l1p (va, alloc);
 
   if (l1popq != NULL)
     *l1popq = l1p;

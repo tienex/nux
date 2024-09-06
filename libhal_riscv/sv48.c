@@ -169,7 +169,7 @@ walk_l1p (pte_t * l4ptr, unsigned long va, bool alloc)
 }
 
 hal_l1p_t
-kmap_get_l1p (unsigned long va, int alloc)
+cpumap_get_l1p (unsigned long va, int alloc)
 {
   pte_t *l4ptr;
   ptep_t l1p;

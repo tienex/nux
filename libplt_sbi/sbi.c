@@ -1,4 +1,6 @@
 #include <nux/plt.h>
+#include <nux/nmiemul.h>
+#include <nux/nux.h>
 
 void
 plt_init (void)
@@ -25,27 +27,46 @@ plt_pcpu_iterate (void)
 }
 
 void
-plt_pcpu_ipiall (unsigned vect)
+riscv_ipi (unsigned long mask)
 {
-  /* TODO */
+  asm volatile ("mv a0, %0\n"
+		"li a7, 4\n" "ecall\n"::"r" (&mask):"a0", "a1", "a7");
 }
 
 void
-plt_pcpu_ipi (int cpu, unsigned vect)
+plt_pcpu_ipiall (void)
 {
-  /* TODO */
+  nmiemul_ipi_setall ();
+  asm volatile ("csrsi sip, 2\n");
+  riscv_ipi (-1);
+}
+
+void
+plt_pcpu_ipi (int cpu)
+{
+  nmiemul_ipi_set (cpu);
+  if (cpu == cpu_id ())
+    asm volatile ("csrsi sip, 2\n");
+  else
+  riscv_ipi (1L << cpu);
 }
 
 void
 plt_pcpu_nmiall (void)
 {
-  /* TODO */
+  nmiemul_nmi_setall ();
+  asm volatile ("csrsi sip, 2\n");
+  riscv_ipi (-1);
 }
 
 void
 plt_pcpu_nmi (int cpu)
 {
-  /* TODO */
+  nmiemul_nmi_set (cpu);
+  if (cpu == cpu_id ())
+    asm volatile ("csrsi sip, 2\n");
+  else
+  riscv_ipi (1L << cpu);
 }
 
 void
@@ -78,4 +99,11 @@ void
 plt_irq_eoi (void)
 {
   /* TODO */
+}
+
+void
+plt_vect_translate (unsigned vect, struct plt_vect_desc *desc)
+{
+  desc->type = PLT_VECT_IGN;
+  desc->no = 0;
 }

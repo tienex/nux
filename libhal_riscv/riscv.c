@@ -7,6 +7,7 @@
 
 #include <nux/hal.h>
 #include <nux/apxh.h>
+#include <nux/nmiemul.h>
 #include "internal.h"
 #include "stree.h"
 
@@ -89,8 +90,14 @@ hal_cpu_trap (void)
 void
 hal_cpu_idle (void)
 {
+  riscv_sie_user ();
   while (1)
-    asm volatile ("csrsi sstatus, 0x2; wfi;");
+    {
+      /* If IPI is pending, manually enable SI. */
+      if (nmiemul_ipi_pending ())
+	asm volatile ("csrsi sip, %0"::"K" (SIP_SSIP));
+      asm volatile ("csrsi sstatus, 0x2; wfi;");
+    }
 }
 
 void
@@ -290,6 +297,10 @@ hal_pcpu_enter (unsigned pcpuid)
 
   /* CPU is up and running. Switch to full interrupt handler. */
   set_stvec_final ();
+
+  /* Allow Software Interrupts to fire now. */
+  riscv_sie_kernel ();
+  riscv_sstatus_sti ();
 }
 
 paddr_t
@@ -342,27 +353,114 @@ hal_panic (unsigned cpu, const char *error, struct hal_frame *f)
   hal_cpu_halt ();
 }
 
-__dead void
-_hal_entry (struct hal_frame *f)
-{
-  hal_entry_xcpt (f, 1);
-  nux_panic ("Early interrupt/exception!", f);
-}
-
-unsigned
-hal_vect_ipibase (void)
-{
-  return 0;
-}
-
-unsigned
-hal_vect_irqbase (void)
-{
-  return 15;
-}
-
 unsigned
 hal_vect_max (void)
 {
-  return 255;
+  /* This is not a vector-based platform. We simply send a zero vector
+     on external interrupt, and let the platform get the IRQ. */
+  return 0;
+}
+
+struct hal_frame *
+do_pagefault (struct hal_frame *f)
+{
+  hal_l1p_t l1p;
+  hal_pfinfo_t pfinfo = 0;
+
+  /* In RISCV, we have to manually create the reasons for page fault. */
+
+  if (hal_frame_isuser (f))
+    pfinfo |= HAL_PF_INFO_USER;
+
+  if (f->scause == SCAUSE_SPF)
+    pfinfo |= HAL_PF_INFO_WRITE;
+
+  l1p = cpumap_get_l1p (f->stval, false);
+  if (l1p == L1P_INVALID)
+    pfinfo |= HAL_PF_REASON_NOTP;
+  else
+    {
+      hal_l1e_t l1e;
+
+      l1e = get_pte (l1p);
+      if ((l1e & (PTE_V | PTE_R)) != (PTE_V | PTE_R))
+	pfinfo |= HAL_PF_REASON_NOTP;
+    }
+
+  return hal_entry_pf (f, f->stval, pfinfo);
+}
+
+struct hal_frame *
+do_software_interrupt (struct hal_frame *f)
+{
+  if (nmiemul_nmi_pending ())
+    {
+      nmiemul_nmi_clear ();
+      /* void */ hal_entry_nmi (f);
+    }
+
+  return f;
+}
+
+struct hal_frame *
+_hal_entry (struct hal_frame *f)
+{
+  struct hal_frame *r;
+
+  /*
+     We are here with interrupts off.
+
+     First of all, if we are entering from a software interrupt, clear
+     the pending flag so it won't be fired again when we re-enable
+     interrupts.
+     Note: SI is the only interrupt enabled in kernel, for NMI emulation.
+   */
+  if (f->scause == SCAUSE_SSI)
+    riscv_sip_siclear ();
+
+  /*
+     Now enable kernel interrupts.
+   */
+  riscv_sie_kernel ();
+  riscv_sstatus_sti ();
+
+
+  switch (f->scause)
+    {
+    case SCAUSE_IPF:
+    case SCAUSE_LPF:
+    case SCAUSE_SPF:
+      r = do_pagefault (f);
+      break;
+
+    case SCAUSE_STI:
+      r = hal_entry_timer (f);
+      break;
+
+    case SCAUSE_SEI:
+      r = hal_entry_vect (f, 0);
+      break;
+
+    case SCAUSE_SSI:
+      r = do_software_interrupt (f);
+      break;
+
+    default:
+      r = hal_entry_xcpt (f, f->scause);
+      break;
+    }
+
+  /*
+     If we are returning to an user or idle frame, check if IPI is
+     pending. If so, re-enter.
+   */
+  if ((r->sie == SIE_USER) && nmiemul_ipi_pending ())
+    {
+      nmiemul_ipi_clear ();
+      r = hal_entry_ipi (r);
+    }
+
+  /* Return with interrupts off. */
+  riscv_sstatus_cli ();
+  return r;
 }

@@ -1,10 +1,18 @@
 #include <machine/asm.h>
+#include "riscv.h"
 
 	.globl _start
 	.align 8
 _start:
 	csrw satp, a0
-	
+
+	/* Set TP to zero, to catch when it is used uninitialised. */
+	mv tp, x0
+
+	/* Set sstatus to zero. Importantly, disable interrupts and
+	set VS, FS, and XS to off. */
+	csrw sstatus, x0
+
 	.option push
 	.option norelax
 	la gp, __global_pointer$
@@ -28,7 +36,6 @@ _start:
 	mv a0, zero		;
 	call ___start
 
-	csrci sstatus, 0x2
 1:	j 1b
 
 

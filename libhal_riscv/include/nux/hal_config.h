@@ -25,6 +25,7 @@ hal_debug (void)
 */
 
 #define HAL_PAGED		/* This HAL uses paging. */
+#define HAL_NMIEMUL		/* This HAL requires NMI emulation. */
 
 #define HAL_PAGE_SHIFT 12
 #define HAL_MAXCPUS 64		/* Limited by CPUMAP implementation. */
@@ -79,6 +80,7 @@ struct hal_cpu
 struct hal_frame
 {
   unsigned long sstatus;
+  unsigned long sie;
   unsigned long stval;
   unsigned long scause;
   unsigned long pc;
@@ -117,7 +119,4 @@ struct hal_frame
 
 
 #endif
-
-
-
 #endif

@@ -159,6 +159,14 @@ hal_entry_vect (struct hal_frame *f, unsigned vect)
 }
 
 struct hal_frame *
+hal_entry_timer (struct hal_frame *f)
+{
+  uctxt_t *uctxt = uctxt_getuser (f);
+  uctxt = entry_alarm (uctxt);
+  return uctxt_frame (uctxt);
+}
+
+struct hal_frame *
 hal_entry_irq (struct hal_frame *f, unsigned irq)
 {
   uctxt_t *uctxt = uctxt_getuser (f);
