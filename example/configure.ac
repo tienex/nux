@@ -28,7 +28,7 @@ fi
 
 AS_CASE([${ARCH}],
 	[i386], [tool_prefix=i686-unknown-elf],
-	[amd64], [tool_prefix=x86_64-unknown-elf],
+	[amd64], [tool_prefix=amd64-unknown-elf],
 	[riscv64], [tool_prefix=riscv64-unknown-elf],
 	[*], [AC_MSG_ERROR([Supported Architectures: i386, amd64, riscv64])])
 
