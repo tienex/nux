@@ -10,9 +10,9 @@
 .build
 .dirstamp
 \#*#
-hal.mk
 Makefile
 apxh/multiboot/apxh
+apxh/sbi/apxh
 example_multiboot
 example/kern/example
 example/user/exuser
@@ -22,6 +22,8 @@ tools/ar50/unsq
 tools/objappend/objappend
 
 /*.mk
+hal.mk
+plt.mk
 libec.mk
 libec-compile.mk
 libec-include.mk
