@@ -1,0 +1,5 @@
+MACHINE= @MACHINE@
+
+CFLAGS+= -mcmodel=medany
+
+LDFILE=exe.ld
