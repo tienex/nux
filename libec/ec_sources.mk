@@ -13,7 +13,8 @@ EC_ARCH_SRCS=  amd64/_setjmp.S amd64/ffs.S amd64/fls.S \
 endif
 
 ifeq ($(EC_MACHINE),riscv64)
-EC_ARCH_SRCS=	memcmp.c memcpy.c memmove.c \
+EC_ARCH_SRCS=	riscv64/_setjmp.S \
+		memcmp.c memcpy.c memmove.c \
 		memset.c strlen.c strncmp.c \
 		memchr.c strchr.c strrchr.c
 endif

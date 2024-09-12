@@ -1,0 +1,16 @@
+#define _JB_RA  (0 * 8)
+#define _JB_SP  (1 * 8)
+#define _JB_S0  (2 * 8)
+#define _JB_S1  (3 * 8)
+#define _JB_S2  (4 * 8)
+#define _JB_S3  (5 * 8)
+#define _JB_S4  (6 * 8)
+#define _JB_S5  (7 * 8)
+#define _JB_S6  (8 * 8)
+#define _JB_S7  (9 * 8)
+#define _JB_S8  (10 * 8)
+#define _JB_S9  (11 * 8)
+#define _JB_S10 (12 * 8)
+#define _JB_S11 (13 * 8)
+
+#define _JBLEN 15
