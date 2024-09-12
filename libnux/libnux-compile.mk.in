@@ -6,9 +6,14 @@
 #
 #
 
+NUXDIR=@NUXDIR@
+NUXROOT=@NUXROOT@
+
 include $(SRCROOT)/@NUXDIR@/cfg.mk
 
 include $(SRCROOT)/@NUXROOT@/$(HALDIR)/hal.mk
+
+include $(SRCROOT)/@NUXROOT@/$(PLTDIR)/plt.mk
 
 CPPFLAGS+= -I$(SRCROOT)/@NUXROOT@/include -I$(SRCROOT)/@NUXROOT@/$(HALDIR)/include -I$(SRCROOT)/@NUXDIR@/include
 

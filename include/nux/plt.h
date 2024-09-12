@@ -41,7 +41,6 @@ enum plt_irq_type
 enum plt_irq_type plt_irq_type (unsigned irq);
 void plt_irq_enable (unsigned irq);
 void plt_irq_disable (unsigned irq);
-void plt_irq_eoi (void);
 
 /*
   Number of IRQs supported by this platform.
@@ -56,31 +55,10 @@ plt_irq_islevel (unsigned irq)
   return t == PLT_IRQ_LVLHI || t == PLT_IRQ_LVLLO;
 }
 
-enum plt_vect_type
-{
-  PLT_VECT_IGN,			/* Spurious or unknown. Ignore. */
-  PLT_VECT_IRQ,			/* Vector is IRQ. Field NO contains IRQ number. */
-  PLT_VECT_TMR,			/* Vector is a platform timer interrupt. Field NO unused. */
-  PLT_VECT_IPI,			/* Vector is a IPI. Field NO contains IPI number. */
-};
-
-struct plt_vect_desc
-{
-  enum plt_vect_type type;
-  unsigned no;
-};
 
 /*
-  Translate the vector passed from HAL to NUX into an entry type,
-  described in desc.
-*/
-
-void plt_vect_translate (unsigned vect, struct plt_vect_desc *desc);
-
-
-/*
-  PLT Physical CPU Interface.
-*/
+ * PLT Physical CPU Interface.
+ */
 
 #define PLT_PCPU_INVALID -1
 
@@ -134,13 +112,18 @@ void plt_tmr_setalm (uint64_t alm);
 /* Disable timer alarm. */
 void plt_tmr_clralm (void);
 
+/*
+ * PLT End of Interrupts.
+ */
+void plt_eoi_timer (void);
+void plt_eoi_irq (unsigned irq);
+void plt_eoi_ipi (void);
 
 /*
  PLT System Entries.
 */
 
-/* System Entry for alarm timer. */
-struct hal_frame *hal_entry_alarm (struct hal_frame *);
+struct hal_frame *plt_interrupt (unsigned vect, struct hal_frame *f);
 
 
 #endif

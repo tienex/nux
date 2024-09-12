@@ -5,7 +5,7 @@ AC_CONFIG_MACRO_DIRS([m4])
 AC_MK_DIR([mk])
 AC_LIBEC_DIR([libec])
 AC_LIBNUX_DIR([.])
-AC_LIBFDT_DIR([libfdt])
+AC_LIBFDT_DIR([libfdt], [contrib/dtc/libfdt])
 
 AC_PREFIX_DEFAULT([${PWD}/build/])
 
@@ -75,7 +75,7 @@ AS_IF([test "x$enable_debug" != "xno"],
 	[debug=0])
 AC_SUBST(DEBUG, ${debug})
 
-plt_verbose = 0
+plt_verbose=0
 AC_ARG_ENABLE([plt_verbose],
 	AS_HELP_STRING([--enable-plt-verbose],[print extra information from the plt module]))
 AS_IF([test "x$enable_plt_verbose" != "xyes"],
@@ -91,10 +91,14 @@ AC_SUBST(INSTALLDIR, "$(pwd)"/dist)
 AC_SUBST(CONFIGURE_FLAGS, ["${optflags} ${wflags} -DNUX_MACHINE=${machine}"])
 
 AS_CASE([$hal],
-	[hal_x86], [extraconf=libhal_x86/hal.mk],
-	[hal_riscv], [extraconf=libhal_riscv/hal.mk])
+	[hal_x86], [halconf+=libhal_x86/hal.mk],
+	[hal_riscv], [halconf+=libhal_riscv/hal.mk])
 
-AC_CONFIG_FILES([include/config.h libnux/cfg.mk ${extraconf}])
+AS_CASE([$plt],
+	[plt_acpi], [pltconf+=libplt_acpi/plt.mk],
+	[plt_sbi], [pltconf+=libplt_sbi/plt.mk])
+
+AC_CONFIG_FILES([include/config.h libnux/cfg.mk ${halconf} ${pltconf}])
 AC_MK_CONFIG_FILES([
 	Makefile
 	libfdt/Makefile

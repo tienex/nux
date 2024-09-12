@@ -50,21 +50,64 @@ plt_hw_putc (int c)
   hal_putchar (c);
 }
 
-/*
-  Translate an external vector into an IRQ or entry type.
-*/
+
+#include "apic.h"
+
+struct hal_frame *
+plt_interrupt (unsigned vect, struct hal_frame *f)
+{
+  struct hal_frame *r;
+
+  if (vect >= APIC_VECT_MAX)
+    {
+      /* Something wrong here. */
+      warn ("HAL vector %d outside of bounds.", vect);
+      r = f;
+    }
+  else if (vect >= APIC_VECT_IPIBASE)
+    {
+      r = hal_entry_ipi (f);
+    }
+  else if (vect >= APIC_VECT_IRQBASE)
+    {
+      unsigned irq = vect - APIC_VECT_IRQBASE;
+      if (irq == pltacpi_hpet_irq)
+	{
+	  hpet_doirq ();
+	  printf ("1\n");
+	  r = hal_entry_timer (f);
+	  printf ("2\n");
+	  printf ("3\n");
+	}
+      else
+	{
+	  r = hal_entry_irq (f, irq, plt_irq_islevel (irq));
+	}
+    }
+  else
+    {
+      /* Something wrong here. */
+      warn ("HAL vector %d outside of bounds", vect);
+      r = f;
+    }
+
+  return r;
+}
 
 void
-plt_vect_translate (unsigned vect, struct plt_vect_desc *desc)
+plt_eoi_ipi (void)
 {
-  gsi_translate (vect, desc);
+  lapic_eoi ();
+}
 
-  if ((desc->type == PLT_VECT_IRQ) && (desc->no == pltacpi_hpet_irq))
-    {
-      /* Is an HPET IRQ. */
-      hpet_doirq ();
-      /* Make it a timer interrupt. */
-      desc->type = PLT_VECT_TMR;
-      desc->no = 0;
-    }
+void
+plt_eoi_irq (unsigned irq)
+{
+  lapic_eoi ();
+}
+
+void
+plt_eoi_timer (void)
+{
+  lapic_eoi ();
 }

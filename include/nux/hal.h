@@ -72,7 +72,17 @@ void *hal_cpu_getdata (void);
 
 
 /*
-  HAL CPU Interrupt Vector description. 
+  Allow reading from user mapped memory.
+ */
+void hal_useraccess_start (void);
+
+/*
+  Do not allow reading from user mapped memory.
+ */
+void hal_useraccess_end (void);
+
+/*
+  HAL CPU Interrupt Vector description.
  */
 
 /*
@@ -410,20 +420,16 @@ struct hal_frame *hal_entry_pf (struct hal_frame *, unsigned long,
  */
 struct hal_frame *hal_entry_xcpt (struct hal_frame *, unsigned);
 
-/*
-  Generic vector.
 
-  When a HAL cannot fully decode the vector to a specific IRQ or IPI,
-  it can pass the raw vector and let the platform decode it.
+/*
+  IRQ entry.
  */
-struct hal_frame *hal_entry_vect (struct hal_frame *f, unsigned vect);
+struct hal_frame *hal_entry_irq (struct hal_frame *f, unsigned irq,
+				 bool level);
 
 /*
   Timer.
-
-  Some architecture might define a specific timer interrupt in their
-  CPU spec. (!)
-*/
+ */
 struct hal_frame *hal_entry_timer (struct hal_frame *f);
 
 /*

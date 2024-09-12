@@ -10,7 +10,7 @@
 #define PENDING_IPI 2
 static uint8_t pending[HAL_MAXCPUS];
 
-bool
+static bool
 nmiemul_nmi_pending (void)
 {
   unsigned cpu = cpu_id ();
@@ -24,7 +24,7 @@ nmiemul_nmi_pending (void)
   return false;
 }
 
-void
+static void
 nmiemul_nmi_clear (void)
 {
   unsigned cpu = cpu_id ();
@@ -87,6 +87,17 @@ nmiemul_ipi_setall (void)
   for (unsigned i = 0; i < HAL_MAXCPUS; i++)
     __atomic_fetch_or (pending + i, PENDING_IPI, __ATOMIC_RELEASE);
 
+}
+
+struct hal_frame *
+nmiemul_entry (struct hal_frame *f)
+{
+  if (nmiemul_nmi_pending ())
+    {
+      nmiemul_nmi_clear ();
+      /* void */ hal_entry_nmi (f);
+    }
+  return f;
 }
 
 #endif /* HAVE_NMIEMUL */

@@ -210,18 +210,25 @@ void
 md_init (void)
 {
   uintptr_t ptr;
+  struct fdt_header *fdth;
 
   printf ("Booting from HART %lx\n", boothid);
   printf ("DTB Pointer at %lx\n", dtbptr);
 
-  if (fdt_check_header ((const void *) dtbptr) != 0)
+  fdth = (struct fdt_header *) dtbptr;
+  if (fdt_check_header (fdth) != 0)
     {
       printf ("Invalid DTB header.\n");
       exit (-1);
     }
 
+  printf ("Total size: %lx\n", fdt32_to_cpu (fdth->totalsize));
+
   printf ("Device Tree Memory Regions:\n");
   ramregion_foreach (add_ramregion, NULL);
+  /* Add DTB as busy. */
+  add_ramregion ((uint64_t) dtbptr,
+		 PAGE_ROUND (fdt32_to_cpu (fdth->totalsize)), true, NULL);
   printf ("\n");
 
   elf_kernel_payload = payload_get (0, &elf_kernel_payload_size);
@@ -278,8 +285,11 @@ md_getframebuffer (void)
 uint64_t
 md_maxpfn (void)
 {
-  /* Unfortunately, device tree do not have a sane or standard way to get the highest MMIO address used by the machine. Return a full 48-bit of address space. */
-  return (1L << 36);
+  /*
+     Scanning device memory usage in Device Tree is dependent from the
+     board. Return the higest RAM address.
+   */
+  return md_maxrampfn ();
 }
 
 struct apxh_pltdesc *

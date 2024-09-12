@@ -1,15 +1,18 @@
 #ifndef _NUX_NMIEMUL_H
 #define _NUX_NMIEMUL_H
 
+#include <nux/hal.h>
+
 /*
-  Some architecture do not have the ability to support NUX model: a
-  NMI to interrupt the kernel and an IPI to interrupt userspace.
-
+  Some architecture do not have the ability to support NUX model: a NMI to
+  interrupt the kernel and an IPI to interrupt userspace.
+ 
   This library emulates this.
-*/
+ */
 
-bool nmiemul_nmi_pending (void);
-void nmiemul_nmi_clear (void);
+struct hal_frame *nmiemul_entry (struct hal_frame *f);
+struct hal_frame *nmiemul_ipicheck (struct hal_frame *f);
+
 void nmiemul_nmi_set (unsigned cpu);
 void nmiemul_nmi_setall (void);
 

@@ -7,6 +7,7 @@
 
 #include <nux/hal.h>
 #include <nux/apxh.h>
+#include <nux/plt.h>
 #include <nux/nmiemul.h>
 #include "internal.h"
 #include "stree.h"
@@ -91,11 +92,13 @@ void
 hal_cpu_idle (void)
 {
   riscv_sie_user ();
+
+  /* If IPI is pending, manually enable SI. */
+  if (nmiemul_ipi_pending ())
+    asm volatile ("csrsi sip, %0"::"K" (SIP_SSIP));
+
   while (1)
     {
-      /* If IPI is pending, manually enable SI. */
-      if (nmiemul_ipi_pending ())
-	asm volatile ("csrsi sip, %0"::"K" (SIP_SSIP));
       asm volatile ("csrsi sstatus, 0x2; wfi;");
     }
 }
@@ -115,6 +118,18 @@ hal_cpu_tlbop (hal_tlbop_t tlbop)
     return;
 
   asm volatile ("sfence.vma x0, x0":::"memory");
+}
+
+void
+hal_useraccess_start (void)
+{
+  asm volatile ("csrs sstatus, %0"::"r" (SSTATUS_SUM):"memory");
+}
+
+void
+hal_useraccess_end (void)
+{
+  asm volatile ("csrc sstatus, %0"::"r" (SSTATUS_SUM):"memory");
 }
 
 vaddr_t
@@ -283,8 +298,10 @@ hal_pcpu_init (void)
 void
 hal_pcpu_add (unsigned pcpuid, struct hal_cpu *haldata)
 {
+  extern int stacktop[];
   assert (pcpuid < HAL_MAXCPUS);
 
+  haldata->kernsp = (uintptr_t) stacktop;
   pcpu_haldata[pcpuid] = haldata;
 }
 
@@ -391,18 +408,6 @@ do_pagefault (struct hal_frame *f)
 }
 
 struct hal_frame *
-do_software_interrupt (struct hal_frame *f)
-{
-  if (nmiemul_nmi_pending ())
-    {
-      nmiemul_nmi_clear ();
-      /* void */ hal_entry_nmi (f);
-    }
-
-  return f;
-}
-
-struct hal_frame *
 _hal_entry (struct hal_frame *f)
 {
   struct hal_frame *r;
@@ -424,37 +429,34 @@ _hal_entry (struct hal_frame *f)
   riscv_sie_kernel ();
   riscv_sstatus_sti ();
 
-
-  switch (f->scause)
+  if (f->scause & SCAUSE_INTR)
+    r = plt_interrupt (f->scause & ~SCAUSE_INTR, f);
+  else
     {
-    case SCAUSE_IPF:
-    case SCAUSE_LPF:
-    case SCAUSE_SPF:
-      r = do_pagefault (f);
-      break;
+      switch (f->scause)
+	{
+	case SCAUSE_SYSC:
+	  f->pc += 4;
+	  r = hal_entry_syscall (f, f->a0, f->a1, f->a2, f->a3, f->a4, f->a5);
+	  break;
 
-    case SCAUSE_STI:
-      r = hal_entry_timer (f);
-      break;
+	case SCAUSE_IPF:
+	case SCAUSE_LPF:
+	case SCAUSE_SPF:
+	  r = do_pagefault (f);
+	  break;
 
-    case SCAUSE_SEI:
-      r = hal_entry_vect (f, 0);
-      break;
-
-    case SCAUSE_SSI:
-      r = do_software_interrupt (f);
-      break;
-
-    default:
-      r = hal_entry_xcpt (f, f->scause);
-      break;
+	default:
+	  r = hal_entry_xcpt (f, f->scause);
+	  break;
+	}
     }
 
   /*
      If we are returning to an user or idle frame, check if IPI is
      pending. If so, re-enter.
    */
-  if ((r->sie == SIE_USER) && nmiemul_ipi_pending ())
+  while ((r->sie == SIE_USER) && nmiemul_ipi_pending ())
     {
       nmiemul_ipi_clear ();
       r = hal_entry_ipi (r);
@@ -462,5 +464,10 @@ _hal_entry (struct hal_frame *f)
 
   /* Return with interrupts off. */
   riscv_sstatus_cli ();
+  if (hal_frame_isuser (r))
+    {
+      asm volatile ("csrw sscratch, tp\n");
+      //asm volatile  ("ebreak\n");
+    }
   return r;
 }

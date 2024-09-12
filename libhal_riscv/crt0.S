@@ -59,6 +59,7 @@ _riscv64##_x : .dword _x 	;
 	_EXPORT_FAR_PTR(_pfncache_end)
 
 	.align 12
+	.globl stacktop
 stackbtm:
 	.skip 4096
 stacktop:

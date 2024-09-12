@@ -112,8 +112,6 @@ hal_entry_xcpt (struct hal_frame *f, unsigned xcpt)
 void
 hal_entry_nmi (struct hal_frame *f)
 {
-  printf ("NMI!\n");
-  hal_frame_print (f);
   if (__predict_false (nux_status () & NUXST_PANIC))
     {
       hal_cpu_halt ();
@@ -130,52 +128,21 @@ hal_entry_nmi (struct hal_frame *f)
 }
 
 struct hal_frame *
-hal_entry_vect (struct hal_frame *f, unsigned vect)
-{
-  uctxt_t *uctxt = uctxt_getuser (f);
-  struct plt_vect_desc d;;
-
-  plt_vect_translate (vect, &d);
-  switch (d.type)
-    {
-    case PLT_VECT_IRQ:
-      uctxt = entry_irq (uctxt, d.no, plt_irq_islevel (d.no));
-      plt_irq_eoi ();
-      break;
-    case PLT_VECT_TMR:
-      uctxt = entry_alarm (uctxt);
-      plt_irq_eoi ();
-      break;
-    case PLT_VECT_IPI:
-      uctxt = entry_ipi (uctxt);
-      plt_irq_eoi ();
-      break;
-    default:
-    case PLT_VECT_IGN:
-      warn ("Ignoring vector %d", vect);
-      /* UCTXT unchanged. */
-      break;
-    }
-
-  return uctxt_frame (uctxt);
-}
-
-struct hal_frame *
 hal_entry_timer (struct hal_frame *f)
 {
   uctxt_t *uctxt = uctxt_getuser (f);
   uctxt = entry_alarm (uctxt);
+  plt_eoi_timer ();
   return uctxt_frame (uctxt);
 }
 
 struct hal_frame *
-hal_entry_irq (struct hal_frame *f, unsigned irq)
+hal_entry_irq (struct hal_frame *f, unsigned irq, bool islevel)
 {
   uctxt_t *uctxt = uctxt_getuser (f);
 
-  uctxt = entry_irq (uctxt, irq, plt_irq_islevel (irq));
-  plt_irq_eoi ();
-
+  uctxt = entry_irq (uctxt, irq, islevel);
+  plt_eoi_irq (irq);
   return uctxt_frame (uctxt);
 }
 
@@ -184,6 +151,6 @@ hal_entry_ipi (struct hal_frame *f)
 {
   uctxt_t *uctxt = uctxt_getuser (f);
   uctxt = entry_ipi (uctxt);
-  plt_irq_eoi ();
+  plt_eoi_ipi ();
   return uctxt_frame (uctxt);
 }

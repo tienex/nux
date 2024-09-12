@@ -8,6 +8,10 @@ ifeq ($(HAL_MACHINE),amd64)
 ARCH_DIR=amd64
 endif
 
+ifeq ($(HAL_MACHINE),riscv64)
+ARCH_DIR=riscv64
+endif
+
 LIBRARY=nux_user
 CFLAGS+= -I. -I$(ARCH_DIR)
 SRCS+= syscalls.c

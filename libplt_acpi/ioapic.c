@@ -301,32 +301,3 @@ plt_irq_max (void)
 {
   return APIC_VECT_IRQMAX;
 }
-
-void
-gsi_translate (unsigned vect, struct plt_vect_desc *desc)
-{
-  if (vect >= APIC_VECT_MAX)
-    {
-      /* Something wrong here. */
-      warn ("HAL vector %d outside of bounds.", vect);
-      desc->type = PLT_VECT_IGN;
-      desc->no = vect;
-    }
-  else if (vect >= APIC_VECT_IPIBASE)
-    {
-      desc->type = PLT_VECT_IPI;
-      desc->no = vect - APIC_VECT_IPIBASE;
-    }
-  else if (vect >= APIC_VECT_IRQBASE)
-    {
-      desc->type = PLT_VECT_IRQ;
-      desc->no = vect - APIC_VECT_IRQBASE;
-    }
-  else
-    {
-      /* Something wrong here. */
-      warn ("HAL vector %d outside of bounds", vect);
-      desc->type = PLT_VECT_IGN;
-      desc->no = vect;
-    }
-}

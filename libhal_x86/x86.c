@@ -302,6 +302,18 @@ hal_cpu_tlbop (hal_tlbop_t tlbop)
     tlbflush_local ();
 }
 
+void
+hal_useraccess_start (void)
+{
+  /* TODO: SMEP */
+}
+
+void
+hal_useraccess_end (void)
+{
+  /* TODO: SMEP */
+}
+
 vaddr_t
 hal_virtmem_dmapbase (void)
 {

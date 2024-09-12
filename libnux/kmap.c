@@ -75,8 +75,7 @@ kmap_unmap (vaddr_t va)
   unsigned oldprot;
 
   l1e = hal_l1e_box (0, 0);
-  l1p = hal_kmap_getl1p (va, 0, &l1p);
-  if (l1p)
+  if (hal_kmap_getl1p (va, 0, &l1p))
     {
       oldl1e = hal_l1e_set (l1p, l1e);
       ktlbgen_markdirty (hal_l1e_tlbop (oldl1e, l1e));

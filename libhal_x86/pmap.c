@@ -46,7 +46,7 @@ hal_umap_getl1p (struct hal_umap *umap, unsigned long uaddr, bool alloc,
 {
   hal_l1p_t l1p;
 
-  if ((uaddr >= umap_maxaddr ()) && (uaddr < umap_minaddr ()))
+  if ((uaddr >= umap_maxaddr ()) || (uaddr < umap_minaddr ()))
     {
       if (l1popq != NULL)
 	*l1popq = L1P_INVALID;

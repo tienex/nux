@@ -466,6 +466,31 @@ va_stree (vaddr_t va, size64_t size)
 	}
     }
 
+  /* Clear in case of overlapping non-ram regions. */
+  for (i = 0; i < regions; i++)
+    {
+      unsigned j;
+
+      reg = md_getmemregion (i);
+
+      if (reg->type == BOOTINFO_REGION_RAM)
+	continue;
+
+
+      for (j = 0; j < reg->len; j++)
+	{
+	  unsigned frame = reg->pfn + j;
+
+	  if (frame > maxframe)
+	    {
+	      printf ("Maximum reached.\n");
+	      break;
+	    }
+
+	  stree_clrbit ((WORD_T *) 0, order, frame);
+	}
+    }
+
 
   /* We'll need to continue to update allocated pages. */
   req_stree_order = order;

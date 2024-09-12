@@ -16,6 +16,7 @@ extern unsigned pltacpi_hpet_irq;
 void lapic_init (uint64_t, unsigned);
 void lapic_add (uint16_t, uint16_t);
 void lapic_add_nmi (uint8_t, int);
+void lapic_eoi (void);
 
 void ioapic_init (unsigned no);
 void ioapic_add (unsigned num, uint64_t base, unsigned irqbase);
@@ -23,7 +24,6 @@ void ioapic_add (unsigned num, uint64_t base, unsigned irqbase);
 void gsi_init (void);
 void gsi_setup (unsigned i, unsigned irq, enum plt_irq_type mode);
 void gsi_start (void);
-void gsi_translate (unsigned vect, struct plt_vect_desc *desc);
 
 
 void acpi_init (paddr_t rdsp);

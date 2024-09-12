@@ -47,10 +47,12 @@ _early_intrentry:
 	SAVE_REG(33, t0)
 	csrr t0, stval
 	SAVE_REG(34, t0)
-	csrr t0, sstatus
+	csrr t0, sie
 	SAVE_REG(35, t0)
+	csrr t0, sstatus
+	SAVE_REG(36, t0)
 
-	addi sp, sp, -35*8
+	addi sp, sp, -36*8
 	mv a0, sp
 	j _hal_entry
 	

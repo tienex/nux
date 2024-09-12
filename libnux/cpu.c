@@ -489,14 +489,20 @@ cpu_tlbflush_broadcast (void)
   else
     {
       /*
-         PLT code might call kva_map() to map pages at startup.
-         When PLT starts the CPU subsystem hasn't started yet.
-         Flush only the local TLBs, but globally.
+       * PLT code might call kva_map() to map pages at startup.
+       * When PLT starts the CPU subsystem hasn't started yet.
+       * Flush only the local TLBs, but globally.
        */
       hal_cpu_tlbop (HAL_TLBOP_FLUSHALL);
     }
 }
 
+
+static void
+cpu_useraccess_start (void)
+{
+  hal_useraccess_start ();
+}
 
 static void
 cpu_useraccess_reset (void)
@@ -513,6 +519,7 @@ cpu_useraccess_end (void)
 {
   struct cpu_info *ci = cpu_curinfo ();
 
+  hal_useraccess_end ();
   ci->usrpgaddr = 0;
   ci->usrpginfo = 0;
   ci->usrpgfault = 0;
@@ -528,6 +535,7 @@ cpu_useraccess_copyfrom (void *dst, uaddr_t src, size_t size,
   if (!uaddr_validrange (src, size))
     return false;
 
+  cpu_useraccess_start ();
   ci->usrpgfault = 1;
   __insn_barrier ();
   if (setjmp (ci->usrpgfaultctx) != 0)
@@ -559,6 +567,7 @@ cpu_useraccess_copyto (uaddr_t dst, void *src, size_t size,
   if (!uaddr_validrange (dst, size))
     return false;
 
+  cpu_useraccess_start ();
   ci->usrpgfault = 1;
   __insn_barrier ();
   if (setjmp (ci->usrpgfaultctx) != 0)

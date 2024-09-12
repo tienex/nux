@@ -33,6 +33,7 @@
 #define SCAUSE_STI  (SCAUSE_INTR|5)
 #define SCAUSE_SEI  (SCAUSE_INTR|9)
 
+#define SCAUSE_SYSC  8
 #define SCAUSE_IPF  12
 #define SCAUSE_LPF  13
 #define SCAUSE_SPF  15
