@@ -44,14 +44,14 @@ static inline unsigned
 lsbit (unsigned long x)
 {
   assert (x != 0);
-  return ffs (x) - 1;
+  return __builtin_ffsl (x) - 1;
 }
 
 static inline unsigned
 msbit (unsigned long x)
 {
   assert (x != 0);
-  return fls (x) - 1;
+  return LONG_BIT - __builtin_clzl (x) - 1;
 }
 
 #define ORDMAX LONG_BIT
