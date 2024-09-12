@@ -24,4 +24,4 @@ clean_all:
 	(cd $(IBERTYSRCS); make clean)
 	(cd $(BFDSRCS); make clean)
 
-ALL_TARGET += $(ZLIBSRCS)/libz.a $(IBERTYSRCS)/libiberty.a $(BFDSRCS)/libbfd.a
+ALL_TARGET += $(ZLIBSRCS)/libz.a $(IBERTYSRCS)/libiberty.a $(BFDSRCS)/bfd.a

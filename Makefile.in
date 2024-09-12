@@ -5,4 +5,4 @@
 #  SPDX-License-Identifier:	GPL2.0+
 #
 
-SUBDIRS=apxh @HALDIR@ @PLTDIR@ libnux libnux_user tools example
+SUBDIRS=libfdt apxh @HALDIR@ @PLTDIR@ libnux libnux_user tools example

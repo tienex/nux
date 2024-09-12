@@ -36,8 +36,6 @@ GNUEFI_CFLAGS += $(GNUEFI_CFLAGS_INCS) -fno-stack-protector -fshort-wchar \
 GNUEFI_CFLAGS+= -I$(CONTRIBDIR)/include
 # Add libec this is called from multiple subdirectories so we have to do this.
 GNUEFI_CFLAGS+= -I$(NUXROOT)/libec #-I../$(GNUEFI_SRC)/../../libec -I../../$(GNUEFI_SRC)/../../libec
-#Confuse elfbind.h into doing the right thing.
-#GNUEFI_CFLAGS+= -U__STDC_VERSION__
 
 ifeq ($(ARCH),x86_64)
   CFLAGS += -DEFI_FUNCTION_WRAPPER -I.
