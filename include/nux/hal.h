@@ -72,30 +72,22 @@ void *hal_cpu_getdata (void);
 
 
 /*
-  HAL CPU Interrupt Vector description. 
+  Allow reading from user mapped memory.
+ */
+void hal_useraccess_start (void);
+
+/*
+  Do not allow reading from user mapped memory.
+ */
+void hal_useraccess_end (void);
+
+/*
+  HAL CPU Interrupt Vector description.
  */
 
 /*
-  Vector for first IRQ.
-  
-  This is used by the platform to program the interrupt controller.
-  
-  The platform interrupt controller will be programmed to send IRQ 'NUM'
-  at CPU vector 'hal_vect_irqbase() + NUM'. 
- */
-unsigned hal_vect_irqbase (void);
-
-/*
-  First vector available for IPIs.
-  
-  Vectors starting from this up until either hal_vect_irqbase() (if
-  greater) or hal_vect_max() are available to for custom IPIs. 
- */
-unsigned hal_vect_ipibase (void);
-
-/*
-  Number of vectors (IRQ + IPI) available. 
- */
+  Number of vectors available for platform interrupt controller use.
+*/
 unsigned hal_vect_max (void);
 
 
@@ -244,6 +236,8 @@ bool hal_umap_getl1p (struct hal_umap *umap, uaddr_t uaddr, bool alloc,
 /*
   Return the next UADDR whose L1P is non-zero.
 
+  if UMAP == NULL, the current CPU mappings are searched.
+
   If L1P is not NULL, save the L1P of UADDR.
   If L1E is not NULL, save the L1E pointed by the L1P.
  */
@@ -334,7 +328,7 @@ void hal_pcpu_add (unsigned pcpuid, struct hal_cpu *haldata);
 void hal_pcpu_enter (unsigned pcpuid);
 
 /*
-  Returns address where PCPU bootstrap code starts, or PADDR_INVLID is
+  Returns address where PCPU bootstrap code starts, or PADDR_INVALID if
   PCPU cannot boot.
  */
 paddr_t hal_pcpu_startaddr (unsigned pcpu);
@@ -426,10 +420,22 @@ struct hal_frame *hal_entry_pf (struct hal_frame *, unsigned long,
  */
 struct hal_frame *hal_entry_xcpt (struct hal_frame *, unsigned);
 
+
 /*
-  Interrupts: IPIs and IRQs
+  IRQ entry.
  */
-struct hal_frame *hal_entry_vect (struct hal_frame *f, unsigned irq);
+struct hal_frame *hal_entry_irq (struct hal_frame *f, unsigned irq,
+				 bool level);
+
+/*
+  Timer.
+ */
+struct hal_frame *hal_entry_timer (struct hal_frame *f);
+
+/*
+  IPIs
+*/
+struct hal_frame *hal_entry_ipi (struct hal_frame *f);
 
 /*
   System Call 
@@ -472,15 +478,8 @@ int hal_putchar (int c);
 /*
   Platform Information acquired from bootloader.
 
-  This should be a generic as possible, and should be extended to
-  support fields for every platform.
 */
-struct hal_pltinfo_desc
-{
-  uint64_t acpi_rsdp;
-};
-
-const struct hal_pltinfo_desc *hal_pltinfo (void);
+const struct apxh_pltdesc *hal_pltinfo (void);
 
 /*
   Stop all CPUs and panic.

@@ -238,5 +238,5 @@ kvainit (void)
   kvabase = hal_virtmem_kvabase ();
   kvasize = hal_virtmem_kvasize ();
   kva_free (kvabase, kvasize);
-  info ("KVA Area from %lx to %lx\n", kvabase, kvabase + kvasize);
+  info ("KVA Area from %lx to %lx", kvabase, kvabase + kvasize);
 }

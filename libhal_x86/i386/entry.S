@@ -31,7 +31,7 @@
 	.elseif \vct < 32
 	call _C_LABEL(do_xcpt)
 	.else
-	call _C_LABEL(do_intr)
+	call _C_LABEL(do_vect)
 	.endif
 	.endif
 

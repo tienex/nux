@@ -83,13 +83,11 @@ hpet_resume (void)
   hpet_write (REG_GENCFG, ENABLE_CNF | gencfg);
 }
 
-bool
+void
 hpet_doirq (void)
 {
   if (irqlvl)
     hpet_write (REG_GENISR, hpet_read (REG_GENISR) | 1);
-
-  return true;
 }
 
 bool
@@ -157,7 +155,7 @@ hpet_init (paddr_t hpetpa)
     }
 
   /* Register HPET irq no. */
-  pltacpi_hpet_vect = hal_vect_irqbase () + irqno;
+  pltacpi_hpet_irq = irqno;
 
   /* Start Time of Boot. */
   hpet_write (REG_COUNTER, 0);

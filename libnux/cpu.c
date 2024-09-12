@@ -296,47 +296,28 @@ cpu_nmi_broadcast (void)
   cpu_tlbflush_mask (cpu_activemask ());
 }
 
-/* NUXST: any */
-unsigned
-cpu_ipi_base (void)
-{
-  return hal_vect_ipibase ();
-}
-
-/* NUXST: any */
-unsigned
-cpu_ipi_avail (void)
-{
-  unsigned vectmax = hal_vect_max ();
-  unsigned ipibase = hal_vect_ipibase ();
-  unsigned irqbase = hal_vect_irqbase ();
-  unsigned ipilimit = ipibase < irqbase ? irqbase : vectmax;
-
-  return ipilimit - ipibase;
-}
-
 /* NUXST: OKCPU */
 void
-cpu_ipi (int cpu, uint8_t vct)
+cpu_ipi (int cpu)
 {
   struct cpu_info *ci = cpu_getinfo (cpu);
 
   if (ci != NULL)
-    plt_pcpu_ipi (ci->phys_id, vct);
+    plt_pcpu_ipi (ci->phys_id);
 }
 
 /* NUXST: OKCPU */
 void
-cpu_ipi_broadcast (uint8_t vct)
+cpu_ipi_broadcast (void)
 {
-  plt_pcpu_ipiall (vct);
+  plt_pcpu_ipiall ();
 }
 
 /* NUXST: OKCPU */
 void
-cpu_ipi_mask (cpumask_t map, uint8_t vct)
+cpu_ipi_mask (cpumask_t map)
 {
-  foreach_cpumask (map, cpu_ipi (i, vct));
+  foreach_cpumask (map, cpu_ipi (i));
 }
 
 /* NUXST: OKCPU */
@@ -518,6 +499,12 @@ cpu_tlbflush_broadcast (void)
 
 
 static void
+cpu_useraccess_start (void)
+{
+  hal_useraccess_start ();
+}
+
+static void
 cpu_useraccess_reset (void)
 {
   struct cpu_info *ci = cpu_curinfo ();
@@ -532,6 +519,7 @@ cpu_useraccess_end (void)
 {
   struct cpu_info *ci = cpu_curinfo ();
 
+  hal_useraccess_end ();
   ci->usrpgaddr = 0;
   ci->usrpginfo = 0;
   ci->usrpgfault = 0;
@@ -547,6 +535,7 @@ cpu_useraccess_copyfrom (void *dst, uaddr_t src, size_t size,
   if (!uaddr_validrange (src, size))
     return false;
 
+  cpu_useraccess_start ();
   ci->usrpgfault = 1;
   __insn_barrier ();
   if (setjmp (ci->usrpgfaultctx) != 0)
@@ -578,6 +567,7 @@ cpu_useraccess_copyto (uaddr_t dst, void *src, size_t size,
   if (!uaddr_validrange (dst, size))
     return false;
 
+  cpu_useraccess_start ();
   ci->usrpgfault = 1;
   __insn_barrier ();
   if (setjmp (ci->usrpgfaultctx) != 0)

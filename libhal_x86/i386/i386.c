@@ -183,18 +183,6 @@ hal_cpu_getdata (void)
 }
 
 unsigned
-hal_vect_ipibase (void)
-{
-  return VECT_IPI0;
-}
-
-unsigned
-hal_vect_irqbase (void)
-{
-  return VECT_IRQ0;
-}
-
-unsigned
 hal_vect_max (void)
 {
   return 255;

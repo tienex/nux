@@ -17,6 +17,7 @@
 #include <string.h>
 #include <setjmp.h>
 #include <nux/hal.h>
+#include <nux/plt.h>
 
 #include "i386.h"
 #include "../internal.h"
@@ -110,10 +111,9 @@ do_syscall (struct hal_frame *f)
 }
 
 struct hal_frame *
-do_intr (uint32_t vect, struct hal_frame *f)
+do_vect (uint32_t vect, struct hal_frame *f)
 {
-
-  return hal_entry_vect (f, vect);
+  return plt_interrupt (vect, f);
 }
 
 void

@@ -128,35 +128,29 @@ hal_entry_nmi (struct hal_frame *f)
 }
 
 struct hal_frame *
-hal_entry_vect (struct hal_frame *f, unsigned vect)
+hal_entry_timer (struct hal_frame *f)
+{
+  uctxt_t *uctxt = uctxt_getuser (f);
+  uctxt = entry_alarm (uctxt);
+  plt_eoi_timer ();
+  return uctxt_frame (uctxt);
+}
+
+struct hal_frame *
+hal_entry_irq (struct hal_frame *f, unsigned irq, bool islevel)
 {
   uctxt_t *uctxt = uctxt_getuser (f);
 
-  if (plt_vect_process (vect))
-    {
-      uctxt = entry_alarm (uctxt);
-    }
-  else
-    {
-      unsigned irqbase = hal_vect_irqbase ();
-      unsigned ipibase = hal_vect_ipibase ();
-      unsigned vectmax = hal_vect_max ();
-      unsigned irqlimit = irqbase < ipibase ? ipibase : vectmax;
-      unsigned ipilimit = ipibase < irqbase ? irqbase : vectmax;
+  uctxt = entry_irq (uctxt, irq, islevel);
+  plt_eoi_irq (irq);
+  return uctxt_frame (uctxt);
+}
 
-      if (vect >= irqbase && vect < irqlimit)
-	{
-	  unsigned irq = vect - irqbase;
-	  uctxt = entry_irq (uctxt, irq, plt_irq_islevel (irq));
-	}
-      else if (vect >= ipibase && vect < ipilimit)
-	{
-	  unsigned ipi = vect - ipibase;
-	  uctxt = entry_ipi (uctxt, ipi);
-	}
-#undef MIN
-    }
-  plt_irq_eoi ();
-
+struct hal_frame *
+hal_entry_ipi (struct hal_frame *f)
+{
+  uctxt_t *uctxt = uctxt_getuser (f);
+  uctxt = entry_ipi (uctxt);
+  plt_eoi_ipi ();
   return uctxt_frame (uctxt);
 }

@@ -15,10 +15,9 @@
 #define UCS 0x1b
 #define UDS 0x23
 
-#define VECT_IPI0 0xF0
-#define VECT_IRQ0 0x22
 #define VECT_SYSC 0x21
-#define MAXIRQS   (VECT_IPI0 - VECT_IRQ0)
+
+#define VECT_MAX 255
 
 #define GDTSIZE	(4 * MAXCPUS + 5)
 

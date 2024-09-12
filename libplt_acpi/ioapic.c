@@ -20,6 +20,7 @@
 #include <nux/nux.h>
 
 #include "internal.h"
+#include "apic.h"
 
 unsigned ioapics_no;
 
@@ -113,6 +114,15 @@ ioapic_irqs (void)
       if (lirq > maxirq)
 	maxirq = lirq;
     }
+
+  if (maxirq >= APIC_VECT_IRQMAX)
+    {
+      warn
+	("Maximum number of IRQs exceeded (%d >= %d).  Some IRQs will not be available.",
+	 maxirq, APIC_VECT_IRQMAX);
+      maxirq = APIC_VECT_IRQMAX;
+    }
+
   return maxirq;
 }
 
@@ -225,7 +235,7 @@ gsi_start (void)
 
   /* 1:1 map GSI <-> Kernel IRQ */
   for (i = 0; i < gsis_no; i++)
-    gsi_register (i, hal_vect_irqbase () + i);
+    gsi_register (i, APIC_VECT_IRQBASE + i);
 }
 
 void
@@ -284,4 +294,10 @@ plt_irq_disable (unsigned gsi)
   lo = ioapic_read (gsis[gsi].ioapic, IO_RED_LO (gsis[gsi].pin));
   lo |= 0x10000L;		/* MASK */
   ioapic_write (gsis[gsi].ioapic, IO_RED_LO (gsis[gsi].pin), lo);;
+}
+
+unsigned
+plt_irq_max (void)
+{
+  return APIC_VECT_IRQMAX;
 }

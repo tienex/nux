@@ -15,27 +15,28 @@
 #include <stddef.h>
 #include <nux/hal.h>
 #include <nux/nux.h>
+#include <nux/apxh.h>
 
 #include "internal.h"
 
-#define PLTACPI_INVALID_VECT ((unsigned)-1)
-unsigned pltacpi_hpet_vect = PLTACPI_INVALID_VECT;
+#define PLTACPI_INVALID_IRQ ((unsigned)-1)
+unsigned pltacpi_hpet_irq = PLTACPI_INVALID_IRQ;
 
 void
 plt_init (void)
 {
-  const struct hal_pltinfo_desc *desc;
+  const struct apxh_pltdesc *desc;
 
   desc = hal_pltinfo ();
   if (desc == NULL)
     fatal ("Invalid PLT Boot Table.");
 
-  if (desc->acpi_rsdp == 0)
+  if (desc->type != PLT_ACPI)
     fatal ("No ACPI RSDP found.");
 
-  printf ("RSDP: %llx\n", desc->acpi_rsdp);
+  printf ("RSDP: %llx\n", desc->pltptr);
 
-  acpi_init (desc->acpi_rsdp);
+  acpi_init (desc->pltptr);
   acpi_madt_scan ();
   gsi_start ();
 
@@ -49,17 +50,64 @@ plt_hw_putc (int c)
   hal_putchar (c);
 }
 
-/*
-  Process PLT IRQs
 
-  Returns 'true' if timer alarm expired. 'false' otherwhise.
-*/
-bool
-plt_vect_process (unsigned vect)
+#include "apic.h"
+
+struct hal_frame *
+plt_interrupt (unsigned vect, struct hal_frame *f)
 {
-  if (pltacpi_hpet_vect != PLTACPI_INVALID_VECT && vect == pltacpi_hpet_vect)
+  struct hal_frame *r;
+
+  if (vect >= APIC_VECT_MAX)
     {
-      return hpet_doirq ();
+      /* Something wrong here. */
+      warn ("HAL vector %d outside of bounds.", vect);
+      r = f;
     }
-  return false;
+  else if (vect >= APIC_VECT_IPIBASE)
+    {
+      r = hal_entry_ipi (f);
+    }
+  else if (vect >= APIC_VECT_IRQBASE)
+    {
+      unsigned irq = vect - APIC_VECT_IRQBASE;
+      if (irq == pltacpi_hpet_irq)
+	{
+	  hpet_doirq ();
+	  printf ("1\n");
+	  r = hal_entry_timer (f);
+	  printf ("2\n");
+	  printf ("3\n");
+	}
+      else
+	{
+	  r = hal_entry_irq (f, irq, plt_irq_islevel (irq));
+	}
+    }
+  else
+    {
+      /* Something wrong here. */
+      warn ("HAL vector %d outside of bounds", vect);
+      r = f;
+    }
+
+  return r;
+}
+
+void
+plt_eoi_ipi (void)
+{
+  lapic_eoi ();
+}
+
+void
+plt_eoi_irq (unsigned irq)
+{
+  lapic_eoi ();
+}
+
+void
+plt_eoi_timer (void)
+{
+  lapic_eoi ();
 }

@@ -41,7 +41,11 @@ enum plt_irq_type
 enum plt_irq_type plt_irq_type (unsigned irq);
 void plt_irq_enable (unsigned irq);
 void plt_irq_disable (unsigned irq);
-void plt_irq_eoi (void);
+
+/*
+  Number of IRQs supported by this platform.
+*/
+unsigned plt_irq_max (void);
 
 static inline bool
 plt_irq_islevel (unsigned irq)
@@ -51,22 +55,10 @@ plt_irq_islevel (unsigned irq)
   return t == PLT_IRQ_LVLHI || t == PLT_IRQ_LVLLO;
 }
 
-/*
-  plt_vect_process: Process PLT interrupt vector (called from HAL).
-
-  Platform might need to receive interrupts in case it implements
-  device drivers.
-
-  Returns 'true' if PLT timer alarm expired.
-
-  Called from HAL.
-*/
-bool plt_vect_process (unsigned vect);
-
 
 /*
-  PLT Physical CPU Interface.
-*/
+ * PLT Physical CPU Interface.
+ */
 
 #define PLT_PCPU_INVALID -1
 
@@ -82,17 +74,17 @@ int plt_pcpu_iterate (void);
  */
 void plt_pcpu_enter (void);
 
-/* Issue an NMI. */
+/* Issue a NMI. */
 void plt_pcpu_nmi (int pcpuid);
 
-/* Broadcast an NMI. */
+/* Broadcast a NMI. */
 void plt_pcpu_nmiall (void);
 
 /* Issue an IPI. */
-void plt_pcpu_ipi (int pcpuid, unsigned vct);
+void plt_pcpu_ipi (int pcpuid);
 
 /* Broadcast an IPI. */
-void plt_pcpu_ipiall (unsigned vct);
+void plt_pcpu_ipiall ();
 
 /* Get current pCPU ID. */
 unsigned plt_pcpu_id (void);
@@ -120,13 +112,18 @@ void plt_tmr_setalm (uint64_t alm);
 /* Disable timer alarm. */
 void plt_tmr_clralm (void);
 
+/*
+ * PLT End of Interrupts.
+ */
+void plt_eoi_timer (void);
+void plt_eoi_irq (unsigned irq);
+void plt_eoi_ipi (void);
 
 /*
  PLT System Entries.
 */
 
-/* System Entry for alarm timer. */
-struct hal_frame *hal_entry_alarm (struct hal_frame *);
+struct hal_frame *plt_interrupt (unsigned vect, struct hal_frame *f);
 
 
 #endif

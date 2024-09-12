@@ -11,11 +11,12 @@
 #include <stdint.h>
 #include <nux/plt.h>
 
-extern unsigned pltacpi_hpet_vect;
+extern unsigned pltacpi_hpet_irq;
 
 void lapic_init (uint64_t, unsigned);
 void lapic_add (uint16_t, uint16_t);
 void lapic_add_nmi (uint8_t, int);
+void lapic_eoi (void);
 
 void ioapic_init (unsigned no);
 void ioapic_add (unsigned num, uint64_t base, unsigned irqbase);
@@ -33,7 +34,7 @@ void hw_delay (void);
 void hw_reset_vector (uint32_t start);
 
 bool hpet_init (paddr_t hpetpa);
-bool hpet_doirq (void);
+void hpet_doirq (void);
 bool acpi_hpet_scan (void);
 
 #endif
