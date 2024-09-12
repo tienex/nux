@@ -18,7 +18,7 @@ AC_CONFIG_MACRO_DIRS([../m4])
 
 AC_MK_DIR([${nux_dir}/mk])
 AC_LIBEC_DIR([${libec_dir}])
-AC_LIBFDT_DIR([${nux_dir}/libfdt], ${nux_dir}/contrib/dtc/libfdt])
+AC_LIBFDT_DIR([${nux_dir}/libfdt], [${nux_dir}/contrib/dtc/libfdt])
 
 AC_ARG_VAR([ARCH], [The architecture to compile for: i386, amd64, or riscv64])
 if test x"${ARCH}" == x ; then
@@ -63,7 +63,7 @@ machine=${ARCH}
 AS_CASE([$machine],
 	[i386], [apxh_subdirs=multiboot],
 	[amd64], [apxh_subdirs="multiboot efi"]
-	[riscv64], [apxh_subdirs="sbi"])
+	[riscv64], [apxh_subdirs="sbi efi"])
 
 
 AC_ARG_ENABLE([opt],

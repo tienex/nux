@@ -1,4 +1,3 @@
-#undef __STDC_VERSION__		/* Confuse efibind.h into doing the right thing. */
 #include <efi.h>
 #include <efilib.h>
 
@@ -13,17 +12,16 @@ efi_allocate_maxaddr (unsigned long maxaddr)
   EFI_STATUS efi_status;
   void *addr;
 
-  addr = (void *) maxaddr;
-
   efi_status = uefi_call_wrapper (BS->AllocatePages, 4,
 				  AllocateMaxAddress,
-				  EfiLoaderData, 1, &addr);
+				  EfiLoaderData, 1, &maxaddr);
   if (EFI_ERROR (efi_status))
     {
-      Print (L"Allocate Pages Failed: %d\n", efi_status);
+      Print (L"Allocate Pages Failed: %r\n", efi_status);
       exit (-1);
     }
 
+  addr = (void *) maxaddr;
   memset (addr, 0, 4096);
   return (unsigned long) addr;
 }
@@ -51,7 +49,7 @@ efi_getframebuffer (void)
   rc = LibLocateProtocol (&GraphicsOutputProtocol, (void **) &gop);
   if (rc != EFI_SUCCESS)
     {
-      Print (L"Cannot locate Graphic Output Proto (%d)\n", rc);
+      Print (L"Cannot locate Graphic Output Proto (%r)\n", rc);
       return rc;
     }
 
@@ -159,10 +157,10 @@ efi_getpayload (CHAR16 * name, void **ptr, unsigned long *size)
 
   filepath = FileDevicePath (img->DeviceHandle, name);
 
-  rc = OpenSimpleReadFile (FALSE, NULL, 0, &filepath, &hdl, &rdhdl);
-  if (rc != EFI_SUCCESS)
+  rc = OpenSimpleReadFile (TRUE, NULL, 0, &filepath, &hdl, &rdhdl);
+  if (EFI_ERROR (rc))
     {
-      Print (L"OpenSimpleReadFile failed (%d)!\n", rc);
+      Print (L"OpenSimpleReadFile failed %r\n", rc);
       return rc;
     }
 
@@ -176,9 +174,9 @@ efi_getpayload (CHAR16 * name, void **ptr, unsigned long *size)
       rc = ReadSimpleReadFile (rdhdl, 0, size, *ptr);
     }
 
-  if (rc != EFI_SUCCESS)
+  if (EFI_ERROR (rc))
     {
-      Print (L"ReadSimpleReadFile failed (%d)!\n", rc);
+      Print (L"ReadSimpleReadFile failed: %r\n", rc);
       return rc;
     }
 
@@ -277,14 +275,16 @@ efi_main (EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE * SystemTable)
   InitializeLib (ImageHandle, SystemTable);
   image_handle = ImageHandle;
 
-  rc = uefi_call_wrapper (BS->OpenProtocol, 6, ImageHandle, &img_prot, &img,
+  rc = uefi_call_wrapper (BS->OpenProtocol, 6, ImageHandle, &img_prot, &ptr,
 			  ImageHandle, NULL,
 			  EFI_OPEN_PROTOCOL_BY_HANDLE_PROTOCOL);
   if (rc != EFI_SUCCESS)
     {
-      Print (L"Open Protocol failed (%d)!\n", rc);
+      Print (L"Open Protocol failed: %r\n", rc);
       return rc;
     }
+
+  img = ptr;
 
   /*
      Get payloads.
@@ -292,7 +292,7 @@ efi_main (EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE * SystemTable)
   rc = efi_getpayload (L"kernel.elf", &payload_start, &payload_size);
   if (rc != EFI_SUCCESS)
     {
-      Print (L"Could not load kernel.elf (%d)!\n", rc);
+      Print (L"Could not load kernel.elf: %r\n", rc);
       return rc;
     }
   apxhefi_add_kernel_payload (payload_start, payload_size);
@@ -340,11 +340,10 @@ efi_exitbs (void)
 
   md = LibMemoryMap (&num, &key, &descsize, &descver);
 
-  rc =
-    uefi_call_wrapper ((void *) BS->ExitBootServices, 2, image_handle, key);
+  rc = uefi_call_wrapper (BS->ExitBootServices, 2, image_handle, key);
   if (rc != EFI_SUCCESS)
     {
-      Print (L"EBS failed! (%d)\n", rc);
+      Print (L"EBS failed: %r\n", rc);
       /* XXX: efi_exit */
       return;
     }

@@ -1,25 +1,15 @@
 #include <stdio.h>
 
-#if 0
-int main()
+void
+putchar (int ch)
 {
-  printf("Hello!\n");
-  return 0;
-}
-#endif
-
-void putchar(int ch)
-{
-  asm ("mv a0, %0;"
-       "li a7, 1;"
-       "ecall;"
-       :: "r"(ch)
-       : "a0","a7");
+  asm volatile ("mv a0, %0\n" "li a7, 1\n" "ecall\n"::"r" (ch):"a0", "a7");
 }
 
-void exit(int status)
+void
+exit (int status)
 {
-  printf("Exit %d\n", exit);
+  printf ("Exit %d\n", exit);
   /* Should definitely tell SBI about this. */
   while (1);
 }

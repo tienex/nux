@@ -6,8 +6,20 @@ SRCS= $(tmpsrcs)
 
 FATOBJ=apxhefi
 
-SRCS+=../../src/main.c ../../src/elf.c ../../src/pae.c efi_md.c
-CFLAGS+= -I../../src/ -I../ -I$(SRCROOT)/include -fno-delete-null-pointer-checks -fPIC -mno-red-zone -fno-stack-protector
+ifeq (@MACHINE@,amd64)
+SRCS+= ../../src/pae.c
+endif
+
+ifeq (@MACHINE@,i386)
+SRCS+= ../../src/pae.c
+endif
+
+ifeq (@MACHINE@,riscv64)
+SRCS+= ../../src/rv64-sv.c
+endif
+
+SRCS+=../../src/main.c ../../src/elf.c efi_md.c
+CFLAGS+= -I../../src/ -I../ -I$(SRCROOT)/include -fno-delete-null-pointer-checks -fPIC -fno-stack-protector
 LDADD=-lgcc -nostdlib
 LDFLAGS=-Wl,--defsym=start_apxh=main
 

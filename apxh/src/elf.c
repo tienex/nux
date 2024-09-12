@@ -105,6 +105,7 @@ struct elf64hdr
 #define ET_EXEC		2
 #define EM_386		3
 #define EM_X86_64	62
+#define EM_RISCV	0xf3
 #define EV_CURRENT	1
 
 #define SHT_PROGBITS 	1
@@ -314,6 +315,9 @@ get_elf_arch (void *elfimg)
 
   if (hdr->mach == EM_X86_64)
     return ARCH_AMD64;
+
+  if (hdr->mach == EM_RISCV)
+    return ARCH_RISCV64;
 
   return ARCH_UNSUPPORTED;
 }

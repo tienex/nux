@@ -6,9 +6,12 @@ static void *elf_kernel_payload, *elf_user_payload;
 static size_t elf_kernel_payload_size, elf_user_payload_size;
 static unsigned long maxpfn;
 static unsigned long maxrampfn;
+static unsigned long minrampfn = -1;
 static unsigned numregions;
 static void *efi_rsdp;
 static struct fbdesc fbdesc = {.type = FB_INVALID, };
+
+static struct apxh_pltdesc pltdesc;
 
 static struct bootinfo_region memregions[BOOTINFO_REGIONS_MAX];
 
@@ -27,7 +30,8 @@ exit (int st)
 uintptr_t
 get_page (void)
 {
-  return (uintptr_t) efi_allocate_maxaddr ((unsigned long) BOOTMEM);
+  return (uintptr_t) efi_allocate_maxaddr ((minrampfn << PAGE_SHIFT) +
+					   (unsigned long) BOOTMEM);
 }
 
 void
@@ -36,11 +40,12 @@ md_init (void)
 }
 
 void
-md_verify (unsigned long va, uint64_t size)
+md_verify (vaddr_t va, uint64_t size)
 {
   /* Nothing to verify. */
 }
 
+#if EC_MACHINE_AMD64
 void
 md_entry (arch_t arch, vaddr_t pt, vaddr_t entry)
 {
@@ -79,20 +84,65 @@ md_entry (arch_t arch, vaddr_t pt, vaddr_t entry)
      "jmp *%%rax\n"::"m" (tramp_entry), "m" (entry), "m" (pt),
      "m" (trampcr3));
 }
+#elif EC_MACHINE_RISCV64
+void
+md_entry (arch_t arch, vaddr_t pt, vaddr_t entry)
+{
+  void *tramp_root;
+  unsigned long tramp_satp, satp;
+  extern char trampoline_start asm ("__rv64_tstart");
+  extern char trampoline_end asm ("__rv64_tend");
 
-unsigned long
+  assert (arch == ARCH_RISCV64);
+
+  printf ("Entry called.\n");
+
+  /* Setup trampoline. */
+  tramp_root = (void *) get_page ();
+  /* Map trampoline page */
+  sv48_directmap (tramp_root, (uintptr_t) & trampoline_start,
+		  (uintptr_t) & trampoline_start,
+		  (uintptr_t) (&trampoline_end - &trampoline_start),
+		  MEMTYPE_WB, 0, 1);
+  /* Map start page */
+  sv48_directmap (tramp_root, sv48_getphys (entry), entry, 4096, MEMTYPE_WB,
+		  0, 1);
+
+  tramp_satp = 0x9L << 60 | (uintptr_t) tramp_root >> PAGE_SHIFT;
+  satp = 0x9L << 60 | pt >> PAGE_SHIFT;
+
+  printf ("%lx %lx %lx\n", tramp_satp, entry, satp);
+
+  efi_exitbs ();
+
+  asm volatile
+    (".globl __rv64_tstart, __rv64_tend\n"
+     "mv t0, %0\n"
+     "mv t1, %1\n"
+     "mv a0, %2\n"
+     "csrci sstatus, 0x2\n"
+     "__rv64_tstart:\n"
+     "csrw satp, t0\n"
+     "sfence.vma x0, x0\n"
+     "jalr x0, t1, 0\n"
+     "__rv64_tend:\n"::"r" (tramp_satp), "r" (entry), "r" (satp):"t0", "t1",
+     "a0");
+}
+#endif
+
+uint64_t
 md_maxpfn (void)
 {
   return maxpfn;
 }
 
-unsigned long
+uint64_t
 md_minrampfn (void)
 {
-  return 0;
+  return minrampfn;
 }
 
-unsigned long
+uint64_t
 md_maxrampfn (void)
 {
   return maxrampfn;
@@ -119,10 +169,13 @@ md_getframebuffer (void)
   return &fbdesc;
 }
 
-unsigned long
-md_acpi_rsdp (void)
+struct apxh_pltdesc *
+md_getpltdesc (void)
 {
-  return (unsigned long) efi_rsdp;
+  /* Only ACPI supported. */
+  pltdesc.type = PLT_ACPI;
+  pltdesc.pltptr = (uint64_t) (uintptr_t) efi_rsdp;
+  return &pltdesc;
 }
 
 void *
@@ -213,6 +266,8 @@ apxhefi_add_memregion (int ram, int bsy, unsigned long pfn, unsigned len)
       memregions[cur].type = BOOTINFO_REGION_RAM;
       if (pfn + len > maxrampfn)
 	maxrampfn = pfn + len;
+      if (pfn < minrampfn)
+	minrampfn = pfn;
     }
   else if (ram && bsy)
     memregions[cur].type = BOOTINFO_REGION_BSY;
