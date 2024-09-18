@@ -37,16 +37,25 @@ get_cpumap_l4pfn (void)
 }
 
 static pte_t *
-get_cpumap_l4ptr (unsigned long va)
+get_cpumap_l4off (unsigned off)
 {
   pte_t *t;
 
   t = (pte_t *) pfn_get (get_cpumap_l4pfn ());
-  return t + L4OFF (va);
+
+  assert(off < 512);
+  return t + off;
+}
+
+static pte_t *
+get_cpumap_l4ptr (unsigned long va)
+{
+
+  return get_cpumap_l4off (L4OFF(va));
 }
 
 static void
-put_cpumap_l4ptr (unsigned long va, pte_t * pte)
+put_cpumap_l4ptr (unsigned long va /* REMOVE ME */, pte_t * pte)
 {
   pfn_put (get_cpumap_l4pfn (), pte);
 }
@@ -288,7 +297,10 @@ scan_l4 (struct hal_umap *umap, unsigned off, unsigned *l4off_out,
   pfn_t l3pfn;
   for (unsigned i = off; i < UMAP_L4PTES; i++)
     {
-      l4e = umap->l4[i];
+      if (umap == NULL)
+	l4e = *get_cpumap_l4off (off);
+      else
+	l4e = umap->l4[off];
       if (pte_valid_table (l4e))
 	{
 	  l3pfn = pte_pfn (l4e);
