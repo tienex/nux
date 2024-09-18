@@ -17,6 +17,8 @@ void __dead nux_panic (const char *message, struct hal_frame *f);
 
 void *pfn_get (pfn_t pfn);
 void pfn_put (pfn_t pfn, void *va);
+
+void nux_set_allocator(pfn_t (*alloc)(int), void (*free)(pfn_t));
 pfn_t pfn_alloc (int low);
 void pfn_free (pfn_t pfn);
 

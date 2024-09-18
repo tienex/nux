@@ -12,6 +12,7 @@
   SPDX-License-Identifier:	GPL2.0+
 */
 
+#include "internal.h"
 #include <string.h>
 #include <nux/hal.h>
 #include <nux/locks.h>
@@ -25,7 +26,7 @@ static WORD_T *stree;
 static unsigned order;
 
 void
-pfninit (void)
+stree_pfninit (void)
 {
   long first, last;
 
@@ -44,7 +45,7 @@ pfninit (void)
 
 
 pfn_t
-pfn_alloc (int low)
+stree_pfnalloc (int low)
 {
   long pg;
   void *va;
@@ -66,7 +67,7 @@ pfn_alloc (int low)
 }
 
 void
-pfn_free (pfn_t pfn)
+stree_pfnfree (pfn_t pfn)
 {
   assert (pfn != PFN_INVALID);
   assert (pfn < hal_physmem_maxpfn ());
@@ -74,3 +75,34 @@ pfn_free (pfn_t pfn)
   stree_setbit (stree, order, pfn);
   spinunlock (&pglock);
 }
+
+rwlock_t _nux_pfnalloc_lock;
+pfn_t (*_nux_pfnalloc)(int) = &stree_pfnalloc;
+void (*_nux_pfnfree)(pfn_t) = &stree_pfnfree;
+
+void nux_set_allocator(pfn_t (*alloc)(int), void (*free)(pfn_t))
+{
+  writelock(&_nux_pfnalloc_lock);
+  _nux_pfnalloc = alloc;
+  _nux_pfnfree = free;
+  writeunlock(&_nux_pfnalloc_lock);
+}
+
+pfn_t pfn_alloc(int low)
+{
+  pfn_t pfn;
+
+  readlock(&_nux_pfnalloc_lock);
+  pfn = _nux_pfnalloc(low);
+  readunlock(&_nux_pfnalloc_lock);
+
+  return pfn;
+}
+
+void pfn_free(pfn_t pfn)
+{
+  readlock(&_nux_pfnalloc_lock);
+  _nux_pfnfree(pfn);
+  readunlock(&_nux_pfnalloc_lock);
+}
+

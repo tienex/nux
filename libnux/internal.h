@@ -94,7 +94,7 @@ struct cpu_info
 };
 
 void _pfncache_bootstrap (void);
-void pfninit (void);
+void stree_pfninit (void);
 void kvainit (void);
 void kmeminit (void);
 void pfncacheinit (void);

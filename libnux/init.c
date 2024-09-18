@@ -57,7 +57,7 @@ init_mem (void)
      Initialise Page Allocator.
    */
   _pfncache_bootstrap ();
-  pfninit ();
+  stree_pfninit ();
 
   /*
      Initialise KMEM.
