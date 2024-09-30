@@ -1,0 +1,3 @@
+INCDIR=include/i386
+INCS=	ansi.h asm.h inttypes.h \
+	limits.h setjmp.h stdint.h 

@@ -1,4 +1,4 @@
-CPPFLAGS+= -I$(SRCROOT)/@NUXROOT@/libnux_user
+CPPFLAGS+= -I@NUXSRCROOT@/libnux_user
 MACHINE=@MACHINE@
 
 ifeq ($(MACHINE),i386)

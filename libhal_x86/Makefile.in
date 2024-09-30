@@ -19,8 +19,12 @@ ifeq ($(HAL_MACHINE),amd64)
 ARCH_DIR=amd64
 endif
 
+LIBDIR=lib
 LIBRARY=hal
 
 SRCS+= x86.c pmap.c vga_text.c serial.c
 
-include $(ARCH_DIR)/Makefile.inc
+include $(SRCDIR)/$(ARCH_DIR)/Makefile.inc
+
+INCDIR=include/nux
+INCS+=$(addprefix include/nux/,hal_config.h hal_config_amd64.h hal_config_i386.h)

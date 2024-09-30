@@ -5,6 +5,8 @@ HAL_MACHINE=@MACHINE@
 
 SRCS+= crt0.S riscv.c pmap.c sv48.c frame.c entry.S
 
+LIBDIR=lib
 LIBRARY=hal
 
-
+INCDIR=include/nux
+INCS+=$(addprefix include/nux/,hal_config.h)

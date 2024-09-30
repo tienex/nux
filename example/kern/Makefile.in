@@ -10,6 +10,7 @@
 @LINK_LIBEC@
 @LINK_LIBNUX@
 
+NOINST=y
 PROGRAM=example
 
 SRCS+= main.c

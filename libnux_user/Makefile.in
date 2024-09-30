@@ -12,6 +12,7 @@ ifeq ($(HAL_MACHINE),riscv64)
 ARCH_DIR=riscv64
 endif
 
+LIBDIR=lib
 LIBRARY=nux_user
-CFLAGS+= -I. -I$(ARCH_DIR)
+CFLAGS+= -I$(SRCDIR) -I$(SRCDIR)/$(ARCH_DIR)
 SRCS+= syscalls.c

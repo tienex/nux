@@ -31,4 +31,3 @@ EC_SRCS = 	crt0-common.c \
 		atexit.c \
 		ctype.c \
 		$(EC_ARCH_SRCS)
-

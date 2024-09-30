@@ -7,19 +7,19 @@ SRCS= $(tmpsrcs)
 FATOBJ=apxhefi
 
 ifeq (@MACHINE@,amd64)
-SRCS+= ../../src/pae.c
+SRCS+= $(SRCDIR)/../../src/pae.c
 endif
 
 ifeq (@MACHINE@,i386)
-SRCS+= ../../src/pae.c
+SRCS+= $(SRCDIR)/../../src/pae.c
 endif
 
 ifeq (@MACHINE@,riscv64)
-SRCS+= ../../src/rv64-sv.c
+SRCS+= $(SRCDIR)/../../src/rv64-sv.c
 endif
 
-SRCS+=../../src/main.c ../../src/elf.c efi_md.c
-CFLAGS+= -I../../src/ -I../ -I$(SRCROOT)/include -fno-delete-null-pointer-checks -fPIC -fno-stack-protector
+SRCS+=$(SRCDIR)/../../src/main.c $(SRCDIR)../../src/elf.c efi_md.c
+CFLAGS+= -I$(SRCDIR)/../../src/ -I$(SRCDIR)/../ -I$(SRCROOT)/include -fno-delete-null-pointer-checks -fPIC -fno-stack-protector
 LDADD=-lgcc -nostdlib
 LDFLAGS=-Wl,--defsym=start_apxh=main
 

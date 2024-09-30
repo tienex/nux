@@ -1,6 +1,6 @@
 @COMPILE_LIBNUXUSER@
 
-LDFLAGS+= -L$(SRCROOT)/@NUXROOT@/libnux_user
+LDFLAGS+= -L@NUXBUILDROOT@/libnux_user
 LDADD_END+= -lnux_user
 
-LIBDEPS+=$(SRCROOT)/@NUXROOT@/libnux_user/libnux_user.a
+LIBDEPS+=@NUXBUILDROOT@/libnux_user/libnux_user.a

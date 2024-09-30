@@ -86,7 +86,7 @@ AC_SUBST(PLT_VERBOSE, ${plt_verbose})
 AC_SUBST(MACHINE, ${machine})
 AC_SUBST(HALDIR, lib${hal})
 AC_SUBST(PLTDIR, lib${plt})
-AC_SUBST(INSTALLDIR, "$(pwd)"/dist)
+AC_SUBST(INSTALLDIR, ${prefix})
 
 AC_SUBST(CONFIGURE_FLAGS, ["${optflags} ${wflags} -DNUX_MACHINE=${machine}"])
 
@@ -101,6 +101,14 @@ AS_CASE([$plt],
 AC_CONFIG_FILES([include/config.h libnux/cfg.mk ${halconf} ${pltconf}])
 AC_MK_CONFIG_FILES([
 	Makefile
+	include/Makefile
+	include/nux/Makefile
+	libec/Makefile
+	libec/machine/Makefile
+	libec/sys/Makefile
+	libec/riscv64/Makefile
+	libec/amd64/Makefile
+	libec/i386/Makefile
 	libfdt/Makefile
 	lib${hal}/Makefile
 	lib${plt}/Makefile

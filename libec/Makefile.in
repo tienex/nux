@@ -1,0 +1,23 @@
+EC_DIR=@ECSRCDIR@
+
+INCSUBDIRS= sys machine i386 amd64 riscv64
+
+INCDIR=include
+INCS= \
+	assert.h \
+	cdefs.h \
+	cdefs_elf.h \
+	ctype.h \
+	errno.h \
+	inttypes.h \
+	limits.h \
+	queue.h \
+	rbtree.h \
+	setjmp.h \
+	stdarg.h \
+	stdbool.h \
+	stddef.h \
+	stdint.h \
+	stdio.h \
+	stdlib.h \
+	string.h

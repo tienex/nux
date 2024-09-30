@@ -7,8 +7,8 @@
 
 .PHONY: objdir_clean objs_clean
 
-vpath %.S $(dir $(SRCS))
-vpath %.c $(dir $(SRCS))
+vpath %.S $(dir $(addprefix $(SRCDIR),$(SRCS))) $(SRCDIR))
+vpath %.c $(dir $(addprefix $(SRCDIR),$(SRCS))) $(SRCDIR))
 
 CFLAGS+=-MMD
 

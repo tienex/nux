@@ -1,0 +1,3 @@
+INCDIR= include/sys
+INCS = 	bitops.h \
+	types.h

@@ -1,1 +1,1 @@
-@LINK_LIBFDT@
+LDADD+=$(NUXBUILDROOT)/libfdt/libfdt.a

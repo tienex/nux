@@ -7,6 +7,8 @@ HOST_CC=gcc
 CFLAGS= -I$(IBERTYSRCS) -I$(BFDSRCS) -I$(ZLIBSRCS)
 LDFLAGS= -L$(ZLIBSRCS) -L$(IBERTYSRCS) -L$(BFDSRCS) 
 
+vpath %.c $(SRCDIR)
+
 objappend: objappend.c
 	$(HOST_CC) $^ -o $@ $(CFLAGS) $(LDFLAGS) -lbfd -lz -liberty
 

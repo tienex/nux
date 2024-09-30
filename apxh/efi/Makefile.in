@@ -45,6 +45,7 @@ LDFLAGS         = -nostdlib -znocombreloc -T $(GNUEFI_LDS) -shared \
 		  -Bsymbolic -L $(GNUEFI_LIB)/${ARCH}/gnuefi -L $(GNUEFI_LIB)/${ARCH}/lib $(GNUEFI_CRT_OBJS)
 
 CFLAGS		= $(GNUEFI_CFLAGS)
+vpath efi-main.c $(SRCDIR)
 EFIOBJS 	= efi-main.o
 EFITARGET	= apxh.efi
 

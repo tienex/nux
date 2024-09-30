@@ -10,6 +10,7 @@
 
 CFLAGS+= -Wno-prio-ctor-dtor -Wno-stringop-overflow
 
+LIBDIR=lib
 LIBRARY=nux
 
 SRCS+= init.c ec.c pfnalloc.c kmem.c slab.c kmap.c kva.c uaddr.c uctxt.c cpu.c entry.c pfncache.c time.c framebuffer.c ktlbgen.c nmiemul.c

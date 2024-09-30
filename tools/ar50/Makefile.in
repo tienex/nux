@@ -1,11 +1,7 @@
-#IBERTYSRCS= $(SRCROOT)/contrib/binutils/libiberty
-#BFDSRCS= $(SRCROOT)/contrib/binutils/bfd
-#ZLIBSRCS= $(SRCROOT)/contrib/binutils/zlib
-
 HOST_CC=gcc
+CC=$(HOST_CC)
 
-#CFLAGS= -I$(IBERTYSRCS) -I$(BFDSRCS) -I$(ZLIBSRCS)
-#LDFLAGS= -L$(ZLIBSRCS) -L$(IBERTYSRCS) -L$(BFDSRCS) 
+vpath %.c $(SRCDIR)
 
 ar50: ar50.c squoze.c
 	$(HOST_CC) $^ -o $@ $(CFLAGS) $(LDFLAGS)

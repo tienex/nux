@@ -5,28 +5,46 @@
 #  SPDX-License-Identifier:	GPL2.0+
 #
 
-.PHONY: all includes incdir incs
+.PHONY: all includes incdir incs buildincs
 
 ifneq ($(INCDIR)z,z)
-ALL_TARGET+= incdir
+INSTALL_TARGET+= incdir
 incdir:
-	install -d ${INSTALLINCDIR}/${INCDIR}
+	install -d ${INSTALLDIR}/${INCDIR}
 else
 incdir:
+
 endif
 
+ifneq ($(BUILDINCS)z,z)
+INSTALL_TARGET+= buildincs
+buildincs:
+	install -m 0644 $(addprefix $(BUILDDIR), $(BUILDINCS)) ${INSTALLDIR}/${INCDIR}/
+else
+buildincs:
+
+endif
+
+$(info "SRCDIR is $(SRCDIR)")
+$(info "INCS is $(INCS)")
+$(info "addprefis is $(addprefix $(SRCDIR),$(INCS))")
+
 ifneq ($(INCS)z,z)
-ALL_TARGET+= incs
+INSTALL_TARGET+= incs
 incs:
-	install -m 0644 ${INCS} ${INSTALLINCDIR}/${INCDIR}/ 
+	echo srcdir is $(SRCDIR)
+	echo $(addprefix $(SRCDIR),$(INCS))
+	install -m 0644 $(addprefix $(SRCDIR),$(INCS)) ${INSTALLDIR}/${INCDIR}/ 
 else
 incs:
+
 endif
 
 ifneq ($(INCSUBDIRS)z,z)
-ALL_TARGET+= includes
+INSTALL_TARGET+= includes
 includes:
 	for dir in $(INCSUBDIRS); do $(MAKE) -C $$dir includes incdir incs; done
 else
 includes:
+
 endif

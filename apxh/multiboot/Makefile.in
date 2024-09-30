@@ -1,12 +1,13 @@
 ASFLAGS=-m32
 #-fno-delete-null-pointer-checks because 0 is a valid address.
-CFLAGS+= -I../src/ -I$(SRCROOT)/include -fno-delete-null-pointer-checks
-LDFLAGS+= -Tmultiboot.ld
+CFLAGS+= -I$(SRCDIR)../src/ -I$(SRCROOT)/include -fno-delete-null-pointer-checks
+LDFLAGS+= -T$(SRCDIR)/multiboot.ld
 LDADD_START+= crt0.o
 
 PROGRAM=apxh
 SRCS+= ../src/main.c ../src/elf.c ../src/payload.c ../src/pae.c
 SRCS+= ec.c mb.c rsdp.c
+
 
 CC=@TOOLCHAIN_32@-gcc
 

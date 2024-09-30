@@ -1,4 +1,5 @@
 LIBRARY=fdt
+LIBDIR=lib
 
 LIBFDTDIR= $(SRCROOT)/contrib/dtc/libfdt
 
@@ -7,10 +8,5 @@ LIBFDTDIR= $(SRCROOT)/contrib/dtc/libfdt
 SRCS= $(addprefix $(LIBFDTDIR)/, $(LIBFDT_SRCS))
 
 CFLAGS+= -I$(LIBFDTDIR)
-
-dbg:
-	echo $(SRCS)
-
-ALL_TARGET+=dbg
 
 @COMPILE_LIBEC@

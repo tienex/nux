@@ -12,6 +12,7 @@ ifeq ($(HAL_MACHINE),riscv64)
 ARCH_DIR=riscv64
 endif
 
+NOINST=y
 PROGRAM=exuser
 
 SRCS+= main.c

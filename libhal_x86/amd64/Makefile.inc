@@ -1,2 +1,1 @@
-VPATH+= amd64
-SRCS+= crt0.S entry.S amd64.c pae64.c frame.c
+SRCS+= amd64/crt0.S amd64/entry.S amd64/amd64.c amd64/pae64.c amd64/frame.c

@@ -1,0 +1,5 @@
+INCDIR=include
+INCS= elfpayload.h framebuffer.h stree.h
+BUILDINCS= config.h
+
+INCSUBDIRS= nux

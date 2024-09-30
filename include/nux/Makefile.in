@@ -1,0 +1,2 @@
+INCDIR=include/nux/
+INCS= apxh.h cache.h cpumask.h defs.h hal.h locks.h nmiemul.h nux.h plt.h slab.h slabinc.h types.h
