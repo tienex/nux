@@ -11,7 +11,19 @@ putchar (const char c)
 void
 exit (int status)
 {
-  syscall1 (0, status);
+  syscall1 (4097, status);
+}
+
+void
+test (void)
+{
+  syscall0 (0);
+  syscall1 (1, 1);
+  syscall2 (2, 1, 2);
+  syscall3 (3, 1, 2, 3);
+  syscall4 (4, 1, 2, 3, 4);
+  syscall5 (5, 1, 2, 3, 4, 5);
+  syscall6 (6, 1, 2, 3, 4, 5, 6);
 }
 
 int
@@ -29,6 +41,8 @@ int
 main (void)
 {
   puts ("Hello from userspace, NUX!\n");
+
+  test();
 
   return 42;
 }

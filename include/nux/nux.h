@@ -248,7 +248,8 @@ int main_ap (void);
 */
 uctxt_t *entry_sysc (uctxt_t * u,
 		     unsigned long a1, unsigned long a2, unsigned long a3,
-		     unsigned long a4, unsigned long a5, unsigned long a6);
+		     unsigned long a4, unsigned long a5, unsigned long a6,
+		     unsigned long a7);
 
 /*
   Entry for Page Fault

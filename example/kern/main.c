@@ -84,20 +84,65 @@ main_ap (void)
 uctxt_t *
 entry_sysc (uctxt_t * u,
 	    unsigned long a1, unsigned long a2, unsigned long a3,
-	    unsigned long a4, unsigned long a5, unsigned long a6)
+	    unsigned long a4, unsigned long a5, unsigned long a6,
+	    unsigned long a7)
 {
   switch (a1)
     {
+    case 0:
+      info("SYSC%ld test passed.", a1);
+      break;
+    case 1:
+      assert(a2 == 1);
+      info("SYSC%ld test passed.", a1);
+      break;
+    case 2:
+      assert(a2 == 1);
+      assert(a3 == 2);
+      info("SYSC%ld test passed.", a1);
+      break;
+    case 3:
+      assert(a2 == 1);
+      assert(a3 == 2);
+      assert(a4 == 3);
+      info("SYSC%ld test passed.", a1);
+      break;
+    case 4:
+      assert(a2 == 1);
+      assert(a3 == 2);
+      assert(a4 == 3);
+      assert(a5 == 4);
+      info("SYSC%ld test passed.", a1);
+      break;
+    case 5:
+      assert(a2 == 1);
+      assert(a3 == 2);
+      assert(a4 == 3);
+      assert(a5 == 4);
+      assert(a6 == 5);
+      info("SYSC%ld test passed.", a1);
+      break;
+    case 6:
+      assert(a2 == 1);
+      assert(a3 == 2);
+      assert(a4 == 3);
+      assert(a5 == 4);
+      assert(a6 == 5);
+      assert(a7 == 6);
+      info("SYSC%ld test passed.", a1);
+      break;
     case 4096:
       putchar (a2);
       break;
-    case 0:
+    case 4097:
       info ("User exited with error code: %ld", a2);
       hal_umap_load (NULL);
       hal_umap_free (&umap);
       return UCTXT_IDLE;
+
     default:
-      error ("Unknown syscall");
+      info ("Received unknown syscall %ld %ld %ld %ld %ld %ld %ld\n",
+	    a1, a2, a3, a4, a5, a6, a7);
       break;
     }
   return u;

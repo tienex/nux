@@ -21,7 +21,8 @@
 struct hal_frame *
 hal_entry_syscall (struct hal_frame *f,
 		   unsigned long a1, unsigned long a2, unsigned long a3,
-		   unsigned long a4, unsigned long a5, unsigned long a6)
+		   unsigned long a4, unsigned long a5, unsigned long a6,
+		   unsigned long a7)
 {
   uctxt_t *uctxt = uctxt_get (f);
   switch ((uintptr_t) uctxt)
@@ -36,7 +37,7 @@ hal_entry_syscall (struct hal_frame *f,
     }
 
   /* Process syscall */
-  uctxt = entry_sysc (uctxt, a1, a2, a3, a4, a5, a6);
+  uctxt = entry_sysc (uctxt, a1, a2, a3, a4, a5, a6, a7);
   return uctxt_frame (uctxt);
 }
 

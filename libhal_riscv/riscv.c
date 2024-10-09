@@ -437,7 +437,7 @@ _hal_entry (struct hal_frame *f)
 	{
 	case SCAUSE_SYSC:
 	  f->pc += 4;
-	  r = hal_entry_syscall (f, f->a0, f->a1, f->a2, f->a3, f->a4, f->a5);
+	  r = hal_entry_syscall (f, f->a0, f->a1, f->a2, f->a3, f->a4, f->a5, f->a6);
 	  break;
 
 	case SCAUSE_IPF:

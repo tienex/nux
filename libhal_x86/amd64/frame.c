@@ -31,7 +31,7 @@ struct hal_frame *
 do_syscall (struct hal_frame *f)
 {
   return hal_entry_syscall (f, f->intr.rax, f->intr.rdi, f->intr.rsi,
-			    f->intr.rdx, f->intr.rbx, f->intr.r8);
+			    f->intr.rdx, f->intr.rbx, f->intr.r8, f->intr.r9);
 }
 
 struct hal_frame *

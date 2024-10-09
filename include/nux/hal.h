@@ -443,7 +443,8 @@ struct hal_frame *hal_entry_ipi (struct hal_frame *f);
 struct hal_frame *hal_entry_syscall (struct hal_frame *,
 				     unsigned long, unsigned long,
 				     unsigned long, unsigned long,
-				     unsigned long, unsigned long);
+				     unsigned long, unsigned long,
+				     unsigned long);
 
 /*
   NMI: interrupt to CPU. (can be in kernel)

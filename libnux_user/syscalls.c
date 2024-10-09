@@ -49,3 +49,12 @@ syscall5 (unsigned long sys, unsigned long arg1, unsigned long arg2,
   __SYSCALL5 (sys, arg1, arg2, arg3, arg4, arg5);
   return sys;
 }
+
+int
+syscall6 (unsigned long sys, unsigned long arg1, unsigned long arg2,
+	  unsigned long arg3, unsigned long arg4, unsigned long arg5,
+	  unsigned long arg6)
+{
+  __SYSCALL6 (sys, arg1, arg2, arg3, arg4, arg5, arg6);
+  return sys;
+}

@@ -10,5 +10,8 @@ int syscall4 (unsigned sys, unsigned long arg1, unsigned long arg2,
 	      unsigned long arg3, unsigned long arg4);
 int syscall5 (unsigned sys, unsigned long arg1, unsigned long arg2,
 	      unsigned long arg3, unsigned long arg4, unsigned long arg5);
+int syscall6 (unsigned sys, unsigned long arg1, unsigned long arg2,
+	      unsigned long arg3, unsigned long arg4, unsigned long arg5,
+	      unsigned long arg6);
 
 #endif

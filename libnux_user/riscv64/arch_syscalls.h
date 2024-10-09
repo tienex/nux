@@ -80,3 +80,24 @@
 	       );					\
   __sys = ret;						\
   } while (0)
+
+#define __SYSCALL6(__sys, a1, a2, a3, a4, a5, a6)      	\
+  do {							\
+  register unsigned long ret __asm__("a0") = (__sys);	\
+  register unsigned long ra1 __asm__("a1") = (a1);	\
+  register unsigned long ra2 __asm__("a2") = (a2);	\
+  register unsigned long ra3 __asm__("a3") = (a3);	\
+  register unsigned long ra4 __asm__("a4") = (a4);	\
+  register unsigned long ra5 __asm__("a5") = (a5);	\
+  register unsigned long ra6 __asm__("a6") = (a6);	\
+  asm volatile("ecall"					\
+	       : "+r"(ret)				\
+	       : "r"(ra1),				\
+		 "r"(ra2),				\
+		 "r"(ra3),				\
+		 "r"(ra4),				\
+		 "r"(ra5),				\
+       		 "r"(ra6)				\
+	       );					\
+  __sys = ret;						\
+  } while (0)
