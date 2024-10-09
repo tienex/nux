@@ -101,6 +101,11 @@ unsigned hal_vect_max (void);
 unsigned long hal_physmem_maxpfn (void);
 
 /*
+  Maximum RAM Physical Page Number.
+*/
+unsigned long hal_physmem_maxrampfn (void);
+
+/*
   Maximum Number of Memory Regions.
 */
 unsigned hal_physmem_numregions (void);

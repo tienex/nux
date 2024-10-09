@@ -362,6 +362,12 @@ hal_physmem_maxpfn (void)
   return (unsigned long) bootinfo->maxpfn;
 }
 
+unsigned long
+hal_physmem_maxrampfn (void)
+{
+  return (unsigned long) bootinfo->maxrampfn;
+}
+
 unsigned
 hal_physmem_numregions (void)
 {
