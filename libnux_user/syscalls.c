@@ -1,13 +1,13 @@
 #include <arch_syscalls.h>
 
-int
+long
 syscall0 (unsigned long sys)
 {
   __SYSCALL0 (sys);
   return sys;
 }
 
-int
+long
 syscall1 (unsigned long sys, unsigned long arg1)
 {
 
@@ -15,7 +15,7 @@ syscall1 (unsigned long sys, unsigned long arg1)
   return sys;
 }
 
-int
+long
 syscall2 (unsigned long sys, unsigned long arg1, unsigned long arg2)
 {
 
@@ -23,7 +23,7 @@ syscall2 (unsigned long sys, unsigned long arg1, unsigned long arg2)
   return sys;
 }
 
-int
+long
 syscall3 (unsigned long sys, unsigned long arg1, unsigned long arg2,
 	  unsigned long arg3)
 {
@@ -32,7 +32,7 @@ syscall3 (unsigned long sys, unsigned long arg1, unsigned long arg2,
   return sys;
 }
 
-int
+long
 syscall4 (unsigned long sys, unsigned long arg1, unsigned long arg2,
 	  unsigned long arg3, unsigned long arg4)
 {
@@ -41,7 +41,7 @@ syscall4 (unsigned long sys, unsigned long arg1, unsigned long arg2,
   return sys;
 }
 
-int
+long
 syscall5 (unsigned long sys, unsigned long arg1, unsigned long arg2,
 	  unsigned long arg3, unsigned long arg4, unsigned long arg5)
 {
@@ -50,7 +50,7 @@ syscall5 (unsigned long sys, unsigned long arg1, unsigned long arg2,
   return sys;
 }
 
-int
+long
 syscall6 (unsigned long sys, unsigned long arg1, unsigned long arg2,
 	  unsigned long arg3, unsigned long arg4, unsigned long arg5,
 	  unsigned long arg6)
