@@ -49,6 +49,23 @@ _kmap_map (vaddr_t va, pfn_t pfn, unsigned prot, const int alloc)
 }
 
 pfn_t
+kmap_getpfn (vaddr_t va)
+{
+  pfn_t pfn;
+  unsigned flags;
+  hal_l1e_t l1e;
+  hal_l1p_t l1p;
+
+  if (!hal_kmap_getl1p (va, false, &l1p))
+    return PFN_INVALID;
+
+  l1e = hal_l1e_get (l1p);
+  hal_l1e_unbox (l1e, &pfn, &flags);
+
+  return flags & HAL_PTE_P ? pfn : PFN_INVALID;
+}
+
+pfn_t
 kmap_map (vaddr_t va, pfn_t pfn, unsigned prot)
 {
   return _kmap_map (va, pfn, prot, 1);

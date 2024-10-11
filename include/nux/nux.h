@@ -28,6 +28,7 @@ void *kva_map (pfn_t pfn, unsigned prot);
 void *kva_physmap (paddr_t paddr, size_t size, unsigned prot);
 void kva_unmap (void *va, size_t size);
 
+pfn_t kmap_getpfn (vaddr_t va);
 pfn_t kmap_map (vaddr_t va, pfn_t pfn, unsigned prot);
 pfn_t kmap_map_noalloc (vaddr_t va, pfn_t pfn, unsigned prot);
 pfn_t kmap_unmap (vaddr_t va);
