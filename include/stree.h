@@ -156,9 +156,8 @@
 static inline size_t
 stree_order (size_t n)
 {
-  int r = LONG_BIT - 1 - __builtin_clzl ((long) n);
-  printf ("%d -1 - __clzl(%d)[%d] = %d\n", WORD_BIT, n, __builtin_clzl (n),
-	  r);
+  long log2_n = (LONG_BIT - 1 - __builtin_clzl ((long) n));
+  long r = log2_n;
 
   /* Is the number a power of two? If not, add 1 */
   r += __builtin_popcount (n) > 1 ? 1 : 0;
@@ -276,13 +275,27 @@ stree_clrbit (WORD_T * stree, unsigned o, size_t bitaddr)
     }
 }
 
+#include <string.h>
+static inline void
+stree_setall (WORD_T * stree, unsigned o, unsigned long max)
+{
+  int l;
+
+  for (l = LOGWORD (o) - 1; l >= 0; l -= 1)
+    {
+      WORD_T *lmap = stree_lmap (stree, o, l);
+      size_t size = lmap_bitoff (l, max) >> WORDLOG2;
+      size_t bits = lmap_bitoff (l, max) & WORDMASK;
+      memset (lmap, -1, size * sizeof(WORD_T));
+      lmap[size] = bits == WORDSIZE - 1 ? (WORD_T)-1 : ((WORD_T)1 << (bits + 1)) - 1;
+    }
+}
+
 /*
   Find a set bit.
 
   LOW=1 will search the lowest address available,
   LOW=0 will search the highest address available.
-
-  CLEAR=1 will clear the bit as it is found.
 
   Return the bit address.
 */
