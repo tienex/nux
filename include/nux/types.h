@@ -73,13 +73,6 @@ typedef unsigned long tlbgen_t;
 #define _TG_GCNT(_t) ((_t) >> _TG_WSHIFT)
 
 
-/* 
-   umap_t
-
-   Opaque value for Virtual User mappings.
-*/
-typedef void umap_t;
-
 /*
   cpumask_t
 
@@ -104,5 +97,29 @@ typedef struct hal_frame uctxt_t;
   request the CPU to be put idle.
 */
 #define UCTXT_IDLE NULL
+
+
+/*
+  TLB Operations.
+*/
+typedef enum
+{
+  HAL_TLBOP_NONE = 0,		/* No TLB operation.  */
+  HAL_TLBOP_FLUSH = (1 << 0),	/* Normal TLB flush.  */
+  HAL_TLBOP_FLUSHALL = (1 << 1)	/* Global TLB flush.  */
+}
+hal_tlbop_t;
+
+
+/*
+  umap: User Mappings
+
+  This structure contains a set of user-space page tables.
+*/
+typedef struct umap {
+  cpumask_t cpumask;
+  hal_tlbop_t tlbop;
+  struct hal_umap hal;
+} umap_t;
 
 #endif

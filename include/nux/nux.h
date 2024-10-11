@@ -91,11 +91,19 @@ bool cpu_useraccess_memset (uaddr_t dst, int ch, size_t size,
 			    bool (*pf_handler) (uaddr_t va,
 						hal_pfinfo_t info));
 
+void cpu_umap_enter(struct umap *umap);
+umap_t *cpu_umap_exit(void);
 
 
 void timer_alarm (uint32_t time_ns);
 void timer_clear (void);
 uint64_t timer_gettime (void);
+
+void umap_bootstrap(struct umap *umap);
+void umap_init(struct umap *umap);
+bool umap_map(struct umap *umap, vaddr_t va, pfn_t pfn, unsigned prot, pfn_t *opfn);
+pfn_t umap_unmap(struct umap *umap, vaddr_t va);
+void umap_commit(struct umap *umap);
 
 bool uaddr_valid (uaddr_t);
 bool uaddr_validrange (uaddr_t a, size_t size);

@@ -50,14 +50,6 @@ void __dead hal_cpu_halt (void);
 /*
   Flush CPU's TLBs 
  */
-typedef enum
-{
-  HAL_TLBOP_NONE = 0,		/* No TLB operation.  */
-  HAL_TLBOP_FLUSH = (1 << 0),	/* Normal TLB flush.  */
-  HAL_TLBOP_FLUSHALL = (1 << 1)	/* Global TLB flush.  */
-}
-hal_tlbop_t;
-
 void hal_cpu_tlbop (hal_tlbop_t op);
 
 /*

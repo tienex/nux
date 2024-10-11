@@ -63,6 +63,8 @@ struct cpu_info
   unsigned phys_id;
   struct cpu_info *self;
 
+  struct umap *umap;
+
   /* Idle jmp_buf */
   jmp_buf idlejmp;
   bool idle;
