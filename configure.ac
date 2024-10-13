@@ -88,7 +88,7 @@ AC_SUBST(HALDIR, lib${hal})
 AC_SUBST(PLTDIR, lib${plt})
 AC_SUBST(INSTALLDIR, ${prefix})
 
-AC_SUBST(CONFIGURE_FLAGS, ["${optflags} ${wflags} -DNUX_MACHINE=${machine}"])
+AC_SUBST(CONFIGURE_FLAGS, ["${optflags} ${wflags} -DNUX_MACHINE=${machine} -I\$(SRCROOT)/include -I\$(BUILDROOT)/include"])
 
 AS_CASE([$hal],
 	[hal_x86], [halconf+=libhal_x86/hal.mk],
