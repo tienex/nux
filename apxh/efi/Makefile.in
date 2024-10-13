@@ -46,15 +46,21 @@ LDFLAGS         = -nostdlib -znocombreloc -T $(GNUEFI_LDS) -shared \
 
 CFLAGS		= $(GNUEFI_CFLAGS)
 vpath efi-main.c $(SRCDIR)
-EFIOBJS 	= efi-main.o
+EFIOBJS 	= $(OBJDIR)/efi-main.o
 EFITARGET	= apxh.efi
+
+$(OBJDIR):
+	mkdir -p $(OBJDIR)
+
+$(OBJDIR)/efi-%.o: efi-%.c $(OBJDIR)
+	$(CC) $(CFLAGS) -c $< -o $@
 
 .PHONY: gnu-efi
 gnu-efi:
 	$(MAKE) -C $(GNUEFI_SRC) OBJDIR=$(GNUEFI_SRC)/$(ARCH) ARCH=$(ARCH) CC=$(CC) CFLAGS='$(GNUEFI_CFLAGS)' AR=$(AR) LD=$(LD) OBJCOPY=$(OBJCOPY) gnuefi
 
 apxh.so: $(EFIOBJS)  subdirs
-	$(LD) $(LDFLAGS) --start-group $(EFIOBJS) apxhefi/apxhefi.apxh_main.o -lefi -lgnuefi --end-group -o $@
+	$(LD) $(LDFLAGS) --start-group $(EFIOBJS) apxhefi/$(OBJDIR)/apxhefi.apxh_main.o -lefi -lgnuefi --end-group -o $@
 
 
 %.efi: %.so

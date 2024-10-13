@@ -25,10 +25,6 @@ buildincs:
 
 endif
 
-$(info "SRCDIR is $(SRCDIR)")
-$(info "INCS is $(INCS)")
-$(info "addprefis is $(addprefix $(SRCDIR),$(INCS))")
-
 ifneq ($(INCS)z,z)
 INSTALL_TARGET+= incs
 incs:

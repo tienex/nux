@@ -6,13 +6,13 @@
 
 .PHONY: clean_lib$(FATOBJ)
 
-$(FATOBJ).o: $(OBJDIR) $(OBJS)
+$(OBJDIR)/$(FATOBJ).o: $(OBJDIR) $(OBJS)
 ifneq ($(OBJS)z,z)
 	$(CCLD) -r $(LDFLAGS) -o $@ $(OBJS) $(LDADD)
 endif
 
 clean_$(FATOBJ):
-	-rm $(FATOBJ).o
+	-rm $(OBJDIR)/$(FATOBJ).o
 
-ALL_TARGET+= $(FATOBJ).o
+ALL_TARGET+= $(OBJDIR)/$(FATOBJ).o
 CLEAN_TARGET+= clean_$(FATOBJ)

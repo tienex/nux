@@ -1,6 +1,6 @@
 @COMPILE_LIBNUXUSER@
 
-LDFLAGS+= -L@NUXBUILDROOT@/libnux_user
+LDFLAGS+= -L@NUXBUILDROOT@/libnux_user/$(OBJDIR)
 LDADD_END+= -lnux_user
 
-LIBDEPS+=@NUXBUILDROOT@/libnux_user/libnux_user.a
+LIBDEPS+=@NUXBUILDROOT@/libnux_user/$(OBJDIR)/libnux_user.a

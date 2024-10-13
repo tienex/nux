@@ -7,18 +7,18 @@ SRCS= $(tmpsrcs)
 FATOBJ=apxhefi
 
 ifeq (@MACHINE@,amd64)
-SRCS+= $(SRCDIR)/../../src/pae.c
+SRCS+= ../../src/pae.c
 endif
 
 ifeq (@MACHINE@,i386)
-SRCS+= $(SRCDIR)/../../src/pae.c
+SRCS+= ../../src/pae.c
 endif
 
 ifeq (@MACHINE@,riscv64)
-SRCS+= $(SRCDIR)/../../src/rv64-sv.c
+SRCS+= ../../src/rv64-sv.c
 endif
 
-SRCS+=$(SRCDIR)/../../src/main.c $(SRCDIR)../../src/elf.c efi_md.c
+SRCS+=../../src/main.c ../../src/elf.c efi_md.c
 CFLAGS+= -I$(SRCDIR)/../../src/ -I$(SRCDIR)/../ -I$(SRCROOT)/include -fno-delete-null-pointer-checks -fPIC -fno-stack-protector
 LDADD=-lgcc -nostdlib
 LDFLAGS=-Wl,--defsym=start_apxh=main
@@ -28,7 +28,7 @@ LDFLAGS=-Wl,--defsym=start_apxh=main
 
 .PHONY: clean_apxhefi.apxh_main.o
 clean_apxhefi.apxh_main.o:
-	-rm apxhefi.apxh_main.o
+	-rm $(OBJDIR)/apxhefi.apxh_main.o
 
-ALL_TARGET+= apxhefi.apxh_main.o
+ALL_TARGET+= $(OBJDIR)/apxhefi.apxh_main.o
 CLEAN_TARGET+= clean_apxhefi.apxh_main.o

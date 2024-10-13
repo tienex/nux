@@ -1,1 +1,1 @@
-LDADD+=$(NUXBUILDROOT)/libfdt/libfdt.a
+LDADD+=$(NUXBUILDROOT)/libfdt/$(OBJDIR)/libfdt.a

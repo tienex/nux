@@ -1,8 +1,8 @@
 #
 # EC - An embedded non standard C library
 #
-# To embed libec in your target, include this file,
-# and add $(EC_SRCS) to your sources.
+# To embed libec in your target, include this file.
+# $(EC_SRCS) will be added to your sources.
 #
 # SPDX-License-Identifier:	BSD-2-Clause
 #
@@ -17,18 +17,17 @@ EC_ARCH_DIR= $(EC_MACHINE)
 
 include $(EC_DIR)/ec_sources.mk
 
-# Used for crt* asm files
-%.o: $(EC_DIR)/$(EC_ARCH_DIR)/%.S
-	$(CC) -c $(CPPFLAGS) $(ASFLAGS) $< -o $@
-
-LDADD_START+= crti.o crtbegin.o
-LDADD_END+= crtn.o crtend.o
+LDADD_START+= $(OBJDIR)/crti.o $(OBJDIR)/crtbegin.o
+LDADD_END+= $(OBJDIR)/crtn.o $(OBJDIR)/crtend.o
 LDADD+= -lgcc
 
-SRCS+= $(addprefix $(EC_DIR)/,$(EC_SRCS))
-ALL_TARGET+= crti.o crtn.o crtbegin.o crtend.o
-CLEAN_FILES+= crti.o crtn.o crtbegin.o crtend.o
+vpath %.c $(dir $(addprefix $(EC_DIR)/,$(EC_SRCS))) $(EC_DIR)
+vpath %.S $(dir $(addprefix $(EC_DIR)/,$(EC_SRCS))) $(EC_DIR)
+SRCS+= $(EC_SRCS)
 
+#CUSTOBJS+ =$(OBJDIR)/crti.o $(OBJDIR)/ $(OBJDIR)/crtn.o $(OBJDIR)/crtbegin.o $(OBJDIR)/crtend.o
+OBJSRCS+= crti.S crtn.S crtbegin.S crtend.S
+#CUSTOBJS+= crti.o crtn.o crtbegin.o crtend.o
 
 #
 # Compile an executable with embedded libc.

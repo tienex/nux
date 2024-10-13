@@ -5,7 +5,8 @@ LIBFDTDIR= $(SRCROOT)/contrib/dtc/libfdt
 
 -include $(LIBFDTDIR)/Makefile.libfdt
 
-SRCS= $(addprefix $(LIBFDTDIR)/, $(LIBFDT_SRCS))
+vpath %.c $(dir $(addprefix $(LIBFDTDIR),$(LIBFDT_SRCS))) $(LIBFDTDIR)
+SRCS= $(LIBFDT_SRCS)
 
 CFLAGS+= -I$(LIBFDTDIR)
 

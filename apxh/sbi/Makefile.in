@@ -1,7 +1,7 @@
 PROGRAM=apxh
 
 CFLAGS+= -I$(SRCDIR)../src/ -I$(SRCROOT)/include
-SRCS+= $(SRCDIR)/../src/main.c $(SRCDIR)/../src/elf.c $(SRCDIR)/../src/payload.c $(SRCDIR)/../src/rv64-sv.c
+SRCS+= ../src/main.c ../src/elf.c ../src/payload.c ../src/rv64-sv.c
 SRCS+= ec.c md.c
 
 LDADD_START+= crt0.o

@@ -80,7 +80,7 @@ AS_IF([test "x$enable_relax" != "xno"],
 
 AC_SUBST(MACHINE, ${machine})
 AC_SUBST(TOOLCHAIN_32, ${tool_prefix_32})
-AC_SUBST(CONFIGURE_FLAGS, ["${optflags} ${wflags} -I\$(SRCROOT)../include"])
+AC_SUBST(CONFIGURE_FLAGS, ["${optflags} ${wflags} -I\$(SRCROOT)../include -I\$(BUILDROOT)../include"])
 AC_SUBST(APXH_SUBDIRS, [${apxh_subdirs}])
 AC_SUBST(INSTALLDIR, ${prefix})
 
