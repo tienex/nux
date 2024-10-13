@@ -56,7 +56,9 @@ $(OBJDIR)/efi-%.o: efi-%.c $(OBJDIR)
 	$(CC) $(CFLAGS) -c $< -o $@
 
 .PHONY: gnu-efi
-gnu-efi:
+gnu-efi: $(GNUEFI_LIB)/$(ARCH)/gnuefi/libgnuefi.a
+
+$(GNUEFI_LIB)/$(ARCH)/gnuefi/libgnuefi.a:
 	$(MAKE) -C $(GNUEFI_SRC) OBJDIR=$(GNUEFI_SRC)/$(ARCH) ARCH=$(ARCH) CC=$(CC) CFLAGS='$(GNUEFI_CFLAGS)' AR=$(AR) LD=$(LD) OBJCOPY=$(OBJCOPY) gnuefi
 
 apxh.so: $(EFIOBJS)  subdirs
