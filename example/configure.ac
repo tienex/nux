@@ -14,7 +14,8 @@ AC_ARG_WITH([libec],
 	[],[with_libec=${with_nux}/libec])
 libec_dir=${with_libec}
 
-AC_CONFIG_MACRO_DIRS([m4])
+# Change this with m4 in nux directory, and add yours if you include extra macros
+AC_CONFIG_MACRO_DIRS([../m4])
 
 AC_MK_DIR([${nux_dir}/mk])
 AC_LIBEC_DIR([${libec_dir}])
