@@ -3,9 +3,9 @@ AC_INIT([NUX],[0.0])
 AC_CONFIG_MACRO_DIRS([m4])
 
 AC_MK_DIR([mk])
+AC_NUXROOT_DIR([.])
 AC_LIBEC_DIR([libec])
-AC_LIBNUX_DIR([.])
-AC_LIBFDT_DIR([libfdt], [contrib/dtc/libfdt])
+AC_CONTRIBLIB_DIR([libfdt],[libfdt],[contrib/dtc/libfdt])
 
 AC_PREFIX_DEFAULT([${PWD}/build/])
 

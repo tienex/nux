@@ -11,12 +11,11 @@ ifeq (z$(EC_MACHINE),z)
 EC_MACHINE=@MACHINE@
 endif
 
-EC_DIR=@ECSRCDIR@
+EC_DIR=@LIBEC_SRCDIR@
 
 EC_ARCH_DIR= $(EC_MACHINE)
 
 include $(EC_DIR)/ec_sources.mk
 
 SRCS+= $(addprefix $(EC_DIR)/,$(EC_SRCS))
-
 

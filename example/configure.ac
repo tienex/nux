@@ -14,12 +14,13 @@ AC_ARG_WITH([libec],
 	[],[with_libec=${with_nux}/libec])
 libec_dir=${with_libec}
 
-# Change this with m4 in nux directory, and add yours if you include extra macros
+# Change this with m4 in nux directory, and add a new directory if you include extra macros
 AC_CONFIG_MACRO_DIRS([../m4])
 
 AC_MK_DIR([${nux_dir}/mk])
+AC_NUXROOT_DIR([${nux_dir}])
 AC_LIBEC_DIR([${libec_dir}])
-AC_LIBNUX_DIR([${nux_dir}])
+
 
 AC_ARG_VAR([ARCH], [The architecture to compile for: i386 or amd64])
 

@@ -18,7 +18,7 @@ AC_CONFIG_MACRO_DIRS([../m4])
 
 AC_MK_DIR([${nux_dir}/mk])
 AC_LIBEC_DIR([${libec_dir}])
-AC_LIBFDT_DIR([${nux_dir}/libfdt], [${nux_dir}/contrib/dtc/libfdt])
+AC_CONTRIBLIB_DIR([libfdt],[${nux_dir}/libfdt],[${nux_dir}/contrib/dtc/libfdt])
 
 AC_ARG_VAR([ARCH], [The architecture to compile for: i386, amd64, or riscv64])
 if test x"${ARCH}" == x ; then

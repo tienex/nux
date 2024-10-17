@@ -11,8 +11,7 @@ ifeq (z$(EC_MACHINE),z)
 EC_MACHINE=@MACHINE@
 endif
 
-EC_DIR=@ECSRCDIR@
-
+EC_DIR=@LIBEC_SRCDIR@
 EC_ARCH_DIR= $(EC_MACHINE)
 
 include $(EC_DIR)/ec_sources.mk
@@ -25,20 +24,5 @@ vpath %.c $(dir $(addprefix $(EC_DIR)/,$(EC_SRCS))) $(EC_DIR)
 vpath %.S $(dir $(addprefix $(EC_DIR)/,$(EC_SRCS))) $(EC_DIR)
 SRCS+= $(EC_SRCS)
 
-#CUSTOBJS+ =$(OBJDIR)/crti.o $(OBJDIR)/ $(OBJDIR)/crtn.o $(OBJDIR)/crtbegin.o $(OBJDIR)/crtend.o
 OBJSRCS+= crti.S crtn.S crtbegin.S crtend.S
-#CUSTOBJS+= crti.o crtn.o crtbegin.o crtend.o
 
-#
-# Compile an executable with embedded libc.
-#
-# To use this rule you need to first create libPROGNAME, and then
-# define a PROGNAME$(EXEEXT) target.
-# You also need to create a target-specific crt0.o
-#
-%$(EXEEXT): lib%.a crt0.o crti.o crtbegin.o crtend.o crtn.o
-	$(CC) crt0.o crti.o crtbegin.o \
-	$(AM_LDFLAGS) $(EC_LDFLAGS) $(LDFLAGS) \
-	-Wl,--start-group $< $(AM_LDADD) -lgcc -Wl,--end-group \
-	crtend.o crtn.o \
-	-o $@
