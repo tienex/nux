@@ -13,8 +13,27 @@
 #include <nux/types.h>
 #include <nux/locks.h>
 
+/*
+  Stop all CPUs and panic.
+ */
 void __dead nux_panic (const char *message, struct hal_frame *f);
 
+
+/*
+  Temporary PFN access.
+
+  Obtain a temporary pointer to a physical page. This is used for
+  accessing physical pages for a short period of time, on a single
+  CPU.
+
+  Every pointer obtained with a `pfn_get()` call should be released
+  with a `pfn_put()` call.
+
+  If the page falls in the direct physical map of the HAL, a pointer
+  to the directmap will be returned. Otherwhise a mapping will be
+  created in the kernel address space, and this mapping will be cached
+  to help in short, frequent mappings of the same page.
+*/
 void *pfn_get (pfn_t pfn);
 void pfn_put (pfn_t pfn, void *va);
 
@@ -119,12 +138,32 @@ bool uaddr_memset (uaddr_t dst, int ch, size_t size,
   Get the uctxt of the boot-time user process. Returns false if not present.
 */
 bool uctxt_bootstrap (uctxt_t * uctxt);
-void uctxt_init (uctxt_t * uctxt, vaddr_t ip, vaddr_t sp);
-void uctxt_setip (uctxt_t * uctxt, vaddr_t ip);
-vaddr_t uctxt_getip (uctxt_t * uctxt);
-void uctxt_setsp (uctxt_t * uctxt, vaddr_t sp);
-vaddr_t uctxt_getsp (uctxt_t * uctxt);
 
+/*
+  Initialize a user context specifying instruction and stack
+  pointer.
+*/
+void uctxt_init (uctxt_t * uctxt, vaddr_t ip, vaddr_t sp);
+
+/*
+  Set the instruction pointer of a user context.
+*/
+void uctxt_setip (uctxt_t * uctxt, vaddr_t ip);
+
+/*
+  Get the instruction pointer of a user context.
+*/
+vaddr_t uctxt_getip (uctxt_t * uctxt);
+
+/*
+  Set the stack pointer of a user context.
+*/
+void uctxt_setsp (uctxt_t * uctxt, vaddr_t sp);
+
+/*
+  Get the stack pointer of a user context.
+*/
+vaddr_t uctxt_getsp (uctxt_t * uctxt);
 
 void uctxt_setret (uctxt_t * uctxt, unsigned long ret);
 void uctxt_seta0 (uctxt_t * uctxt, unsigned long a0);
