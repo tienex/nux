@@ -8,3 +8,9 @@
 INCSUBDIRS=include libec
 
 SUBDIRS=libfdt apxh @HALDIR@ @PLTDIR@ libnux libnux_user tools example
+
+apxh: libfdt
+
+libnux: apxh @HALDIR@ @PLTDIR@
+
+example: tools libnux libnux_user

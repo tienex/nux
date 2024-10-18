@@ -1,1 +1,3 @@
 SUBDIRS= libbfd ar50 objappend
+
+objappend: libbfd
