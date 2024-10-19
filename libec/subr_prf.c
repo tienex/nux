@@ -49,6 +49,7 @@ typedef unsigned long u_long;
 typedef long long longlong_t;
 typedef unsigned long long u_longlong_t;
 
+#define LIBSA_PRINTF_LONGLONG_SUPPORT 1
 #define LIBSA_PRINTF_WIDTH_SUPPORT 1
 #define LIBSA_PRINTF_PRECISION_SUPPORT 1
 
