@@ -81,7 +81,12 @@ hal_pcpu_init (void)
      The following is trampoline dependent code, and configures the
      trampoline to use the page just selected as bootstrap page.
    */
-  extern char _ap_gdtreg, _ap_ljmp;
+  extern char _ap_gdtreg, _ap_ljmp, _ap_cr3;
+  extern uint32_t _bsp_cr3;
+
+  /* Copy BSP CR3 into AP */
+  ptr = start + ((void *) &_ap_cr3 - (void *) &_ap_start);
+  *(uint32_t *) ptr = _bsp_cr3;
 
   /* Setup temporary GDT register. */
   ptr = start + ((void *) &_ap_gdtreg - (void *) &_ap_start);

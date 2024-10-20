@@ -36,7 +36,7 @@ _start:
 
 	// Save CR3 for future AP boots.
 	mov %cr3, %eax
-	mov %eax, _ap_cr3
+	mov %eax, _bsp_cr3
 
 	/* init hal */
 	call _C_LABEL(x86_init)
@@ -342,8 +342,10 @@ print:
 	ret
 
 	.data
-	.globl _gdtr, _gdt, _idtr, _idt
+	.globl _bsp_cr3, _gdtr, _gdt, _idtr, _idt
 
+_bsp_cr3:
+	.long 0
 
 	.align 64
 	.globl _gdtr, _gdt
