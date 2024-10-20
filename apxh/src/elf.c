@@ -158,6 +158,26 @@ ph_uload (void *elfimg, uint32_t type, uint32_t flags,
 		     !!(flags & PHF_W), !!(flags & PHF_X));
 	}
       break;
+    case PHT_TLS:
+      /* User Thread Local Storage. */
+      if (msize != 0)
+	{
+	  printf ("USER TLS area at %08" PRIx64 " (initsize: %" PRId64 " size: %" PRId64 ").\n",
+		  va, fsize, msize);
+
+	  if (va + msize < va)
+	    {
+	      printf ("size of PH too big.");
+	      exit (-1);
+	    }
+
+	  if (fsize != 0)
+	    {
+	      va_copy (va, ELFOFF (off), fsize, 0,
+		       !!(flags & PHF_W), !!(flags & PHF_X));
+	    }
+	  va_utls (va, fsize, msize);
+	}
     default:
       printf ("Ignored segment type %08lx.\n", type);
       break;
@@ -196,6 +216,26 @@ ph_kload (void *elfimg, uint32_t type, uint32_t flags,
 		     !!(flags & PHF_W), !!(flags & PHF_X));
 	}
       break;
+    case PHT_TLS:
+      /* Thread Local Storage. */
+      if (msize != 0)
+	{
+	  printf ("TLS area at %08" PRIx64 " (initsize: %" PRId64 " size: %"
+		  PRId64 ").\n", va, fsize, msize);
+	  if (va + msize < va)
+	    {
+	      printf ("size of PH too big.");
+	      exit (-1);
+	    }
+	  if (fsize != 0)
+	    {
+	      va_copy (va, ELFOFF (off), fsize, 0,
+		       !!(flags & PHF_W), !!(flags & PHF_X));
+	    }
+	  va_ktls (va, fsize, msize);
+	}
+      break;
+
     case PHT_APXH_INFO:
       /* Boot Information segment. */
       printf ("Boot Information area at %" PRIx64 " (size: %" PRId64 "d).\n",

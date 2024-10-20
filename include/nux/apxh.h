@@ -20,6 +20,13 @@ struct apxh_pltdesc
   uint64_t pltptr;		/* ACPI or DTB root */
 } __attribute__((packed));
 
+struct apxh_tlsinfo
+{
+  uint64_t initvaddr; /* Prototype Initialized Data Address. */
+  uint64_t initsize; /* Prototype Initialized Data Size. */
+  uint64_t size; /* Total Size, including per-thread BSS. */
+};
+
 struct apxh_bootinfo
 {
 #define APXH_BOOTINFO_MAGIC 0xAF10B007
@@ -30,6 +37,8 @@ struct apxh_bootinfo
   uint64_t uentry;
   struct fbdesc fbdesc;
   struct apxh_pltdesc pltdesc;
+  struct apxh_tlsinfo ktls;
+  struct apxh_tlsinfo utls;
 } __attribute__((packed));
 
 struct apxh_stree

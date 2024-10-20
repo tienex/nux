@@ -124,6 +124,8 @@ void va_topptalloc (vaddr_t va, size64_t size);
 void va_ptalloc (vaddr_t va, size64_t size);
 void va_framebuf (vaddr_t va, size64_t size, enum memory_type);
 void va_regions (vaddr_t va, size64_t size);
+void va_ktls (vaddr_t va, size64_t initsize, size64_t size);
+void va_utls (vaddr_t va, size64_t initsize, size64_t size);
 void va_entry (vaddr_t entry);
 
 void pae_init (void);

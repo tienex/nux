@@ -18,9 +18,10 @@
 static arch_t elf_arch;
 static uint8_t boot_pagemap[PAGEMAP_SZ (BOOTMEM)]
   __attribute__((aligned (4096)));
-static vaddr_t req_pfnmap_va, req_info_va, req_stree_va, req_region_va;
+static vaddr_t req_pfnmap_va, req_info_va, req_stree_va, req_region_va,
+  ktls_va, utls_va;
 static size64_t req_pfnmap_size, req_info_size, req_stree_size,
-  req_region_size;
+  req_region_size, ktls_initsize, ktls_size, utls_initsize, utls_size;
 static unsigned req_stree_order, req_region_num;
 static bool stop_payload_allocation = false;
 static uint64_t minramaddr = 0;
@@ -393,6 +394,14 @@ va_info_copy (uint64_t uentry, uint64_t num_regions)
   else
     i.fbdesc.type = FB_INVALID;
 
+  i.ktls.initvaddr = ktls_va;
+  i.ktls.initsize = ktls_initsize;
+  i.ktls.size = ktls_size;
+
+  i.utls.initvaddr = utls_va;
+  i.utls.initsize = utls_initsize;
+  i.utls.size = utls_size;
+
   va_copy (va, &i, MIN (size, sizeof (struct apxh_bootinfo)), 0, 0, 0);
 #undef MIN
 }
@@ -671,6 +680,22 @@ va_pfnmap_copy (void)
 	}
     }
 #undef MIN
+}
+
+void
+va_ktls (vaddr_t va, size64_t initsize, size64_t size)
+{
+  ktls_va = va;
+  ktls_initsize = initsize;
+  ktls_size = size;
+}
+
+void
+va_utls (vaddr_t va, size64_t initsize, size64_t size)
+{
+  utls_va = va;
+  utls_initsize = initsize;
+  utls_size = size;
 }
 
 void
