@@ -6,7 +6,11 @@
 
 .PHONY: program_clean
 
-$(PROGRAM): $(OBJS) $(LIBDEPS)
+ifneq (z$(LINKERSCRIPT),z)
+LDFLAGS+=-T$(LINKERSCRIPT)
+endif
+
+$(PROGRAM): $(OBJS) $(LIBDEPS) $(LINKERSCRIPT)
 	$(CC) $(LDADD_START) $(LDFLAGS) \
 	-Wl,--start-group $(OBJS) $(LDADD) -Wl,--end-group \
 	$(LDADD_END) -o $@
