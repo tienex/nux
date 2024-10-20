@@ -11,6 +11,7 @@
 #include <assert.h>
 #include <stdio.h>
 #include <stdint.h>
+#include <inttypes.h>
 #include <string.h>
 #include <stdbool.h>
 #include <framebuffer.h>

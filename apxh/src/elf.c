@@ -198,44 +198,50 @@ ph_kload (void *elfimg, uint32_t type, uint32_t flags,
       break;
     case PHT_APXH_INFO:
       /* Boot Information segment. */
-      printf ("Boot Information area at %08llx (size: %lld).\n", va, msize);
+      printf ("Boot Information area at %" PRIx64 " (size: %" PRId64 "d).\n",
+	      va, msize);
       va_info (va, msize);
       break;
     case PHT_APXH_PHYSMAP:
       /* Direct 1:1 PA mapping. */
-      printf ("Physmap VA area at %08llx (size: %lld).\n", va, msize);
+      printf ("Physmap VA area at %" PRIx64 " (size: %" PRId64 ").\n", va,
+	      msize);
       va_physmap (va, msize, MEMTYPE_WB);
       break;
     case PHT_APXH_EMPTY:
-      printf ("Empty VA area at %08llx (size: %lld).\n", va, msize);
+      printf ("Empty VA area at %" PRIx64 " (size: %" PRId64 ").\n", va,
+	      msize);
       /* Just VA allocation. Leave it. */
       break;
     case PHT_APXH_PTALLOC:
-      printf ("PT Alloc VA area at %08llx (size: %lld).\n", va, msize);
+      printf ("PT Alloc VA area at %" PRIx64 " (size: %" PRId64 ").\n", va,
+	      msize);
       va_ptalloc (va, msize);
       break;
     case PHT_APXH_PFNMAP:
-      printf ("PFN Map at %08llx (size: %lld).\n", va, msize);
+      printf ("PFN Map at %" PRIx64 " (size: %" PRId64 ").\n", va, msize);
       va_pfnmap (va, msize);
       break;
     case PHT_APXH_STREE:
-      printf ("S-Tree at %08llx (size: %lld).\n", va, msize);
+      printf ("S-Tree at %" PRIx64 " (size: %" PRId64 ").\n", va, msize);
       va_stree (va, msize);
       break;
     case PHT_APXH_LINEAR:
-      printf ("Linear Map at %08llx (size: %lld).\n", va, msize);
+      printf ("Linear Map at %" PRIx64 " (size: %" PRId64 ").\n", va, msize);
       va_linear (va, msize);
       break;
     case PHT_APXH_FRAMEBUF:
-      printf ("Framebuffer Map at %08llx (size: %lld).\n", va, msize);
+      printf ("Framebuffer Map at %" PRIx64 " (size: %" PRId64 ").\n", va,
+	      msize);
       va_framebuf (va, msize, MEMTYPE_WC);
       break;
     case PHT_APXH_REGIONS:
-      printf ("Region Map at %08llx (size: %lld).\n", va, msize);
+      printf ("Region Map at %" PRIx64 " (size: %" PRId64 ").\n", va, msize);
       va_regions (va, msize);
       break;
     case PHT_APXH_TOPPTALLOC:
-      printf ("TOP PT Alloc VA area at %08llx (size: %lld).\n", va, msize);
+      printf ("TOP PT Alloc VA area at %" PRIx64 " (size: %" PRId64 ").\n",
+	      va, msize);
       va_topptalloc (va, msize);
       break;
     default:
