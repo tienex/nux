@@ -8,7 +8,6 @@ SECTIONS
        *(.text)
        *(.text.*)
    } : text
-      _ecode = .;	
 
    .init :
    {
@@ -36,33 +35,30 @@ SECTIONS
       *(.rodata.*)
    } : rodata
 
-   .data ALIGN (4096) :
-   {
-
-      *(.data);
-      *(.data.*);
-   } : data
-  .preinit_array    :
+  .preinit_array (READONLY) :
   {
     PROVIDE_HIDDEN (__preinit_array_start = .);
     KEEP (*(.preinit_array))
     PROVIDE_HIDDEN (__preinit_array_end = .);
-  }
-  .init_array    :
+  } : rodata
+
+  .init_array (READONLY) :
   {
     PROVIDE_HIDDEN (__init_array_start = .);
     KEEP (*(SORT_BY_INIT_PRIORITY(.init_array.*) SORT_BY_INIT_PRIORITY(.ctors.*)))
     KEEP (*(.init_array EXCLUDE_FILE (*crtbegin.o *crtbegin?.o *crtend.o *crtend?.o ) .ctors))
     PROVIDE_HIDDEN (__init_array_end = .);
-  }
-  .fini_array    :
+  } : rodata
+
+  .fini_array (READONLY) :
   {
     PROVIDE_HIDDEN (__fini_array_start = .);
     KEEP (*(SORT_BY_INIT_PRIORITY(.fini_array.*) SORT_BY_INIT_PRIORITY(.dtors.*)))
     KEEP (*(.fini_array EXCLUDE_FILE (*crtbegin.o *crtbegin?.o *crtend.o *crtend?.o ) .dtors))
     PROVIDE_HIDDEN (__fini_array_end = .);
-  }
-   .ctors :
+  } : rodata
+
+  .ctors (READONLY) :
    {
       KEEP (*crtbegin.o(.ctors))
       KEEP (*crtbegin?.o(.ctors))
@@ -70,15 +66,22 @@ SECTIONS
       KEEP (*(EXCLUDE_FILE (*crtend.o *crtend?.o ) .ctors))
       KEEP (*(SORT(.ctors.*)))
       KEEP (*(.ctors))
-    } : data
+    } : rodata
 
-   .dtors :
+   .dtors (READONLY) :
    { 
       KEEP (*crtbegin.o(.dtors))
       KEEP (*crtbegin?.o(.dtors))
       KEEP (*(EXCLUDE_FILE (*crtend.o *crtend?.o ) .dtors))
       KEEP (*(SORT(.dtors.*)))
       KEEP (*(.dtors))
+   } : rodata
+
+   .data ALIGN (4096) :
+   {
+
+      *(.data);
+      *(.data.*);
    } : data
 
    .bss :
@@ -97,25 +100,6 @@ SECTIONS
    } : kstack1
 
    . += 4096;
-
-   .kstack_ist1 ALIGN(4096) :
-   {
-	*(.kstack_ist1)
-   } : kstack2
-
-   . += 4096;
-
-   .kstack_ist2 ALIGN(4096) :
-   {
-	*(.kstack_ist2)
-   } : kstack3
-
-   . += 4096;
-
-   .kstack_ist3 ALIGN(4096) :
-   {
-	*(.kstack_ist3)
-   } : kstack4
 
    .info ALIGN(4096) :
    {
@@ -186,9 +170,6 @@ PHDRS
     rodata  PT_LOAD;
     data    PT_LOAD;
     kstack1  PT_LOAD;
-    kstack2  PT_LOAD;
-    kstack3  PT_LOAD;
-    kstack4  PT_LOAD;
     info    0xAF100000; /* PHT_APXH_INFO */
     kmem    0xAF100008; /* PHT_APXH_TOPPTALLOC */
     kva     0xAF100008; /* PHT_APXH_TOPPTALLOC */

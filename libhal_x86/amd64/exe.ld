@@ -8,7 +8,6 @@ SECTIONS
        *(.text)
        *(.text.*)
    } : text
-      _ecode = .;	
 
    .init :
    {
@@ -18,7 +17,7 @@ SECTIONS
       KEEP (*(EXCLUDE_FILE (*crtn.o *crtn?.o ) .init))
       KEEP (*(SORT(.init.*)))
       KEEP (*(.init))
-   } :text
+   } : text
 
    .fini :
    {
@@ -28,7 +27,7 @@ SECTIONS
       KEEP (*(EXCLUDE_FILE (*crtn.o *crtn?.o ) .fini))
       KEEP (*(SORT(.fini.*)))
       KEEP (*(.fini))
-   } :text
+   } : text
 
    .rodata ALIGN(4096) :
    {
@@ -36,34 +35,30 @@ SECTIONS
       *(.rodata.*)
    } : rodata
 
-   .data ALIGN (4096) :
-   {
-
-      *(.data);
-      *(.data.*);
-   } : data
-
-  .preinit_array    :
-  {
-    PROVIDE_HIDDEN (__preinit_array_start = .);
-    KEEP (*(.preinit_array))
-    PROVIDE_HIDDEN (__preinit_array_end = .);
-  }
-  .init_array    :
+  .init_array (READONLY) :
   {
     PROVIDE_HIDDEN (__init_array_start = .);
     KEEP (*(SORT_BY_INIT_PRIORITY(.init_array.*) SORT_BY_INIT_PRIORITY(.ctors.*)))
     KEEP (*(.init_array EXCLUDE_FILE (*crtbegin.o *crtbegin?.o *crtend.o *crtend?.o ) .ctors))
     PROVIDE_HIDDEN (__init_array_end = .);
-  }
-  .fini_array    :
+  } : rodata
+
+  .fini_array (READONLY) :
   {
     PROVIDE_HIDDEN (__fini_array_start = .);
     KEEP (*(SORT_BY_INIT_PRIORITY(.fini_array.*) SORT_BY_INIT_PRIORITY(.dtors.*)))
     KEEP (*(.fini_array EXCLUDE_FILE (*crtbegin.o *crtbegin?.o *crtend.o *crtend?.o ) .dtors))
     PROVIDE_HIDDEN (__fini_array_end = .);
-  }
-   .ctors :
+  } : rodata
+
+  .preinit_array (READONLY) :
+  {
+    PROVIDE_HIDDEN (__preinit_array_start = .);
+    KEEP (*(.preinit_array))
+    PROVIDE_HIDDEN (__preinit_array_end = .);
+  } : rodata
+
+  .ctors (READONLY) :
    {
       KEEP (*crtbegin.o(.ctors))
       KEEP (*crtbegin?.o(.ctors))
@@ -71,15 +66,22 @@ SECTIONS
       KEEP (*(EXCLUDE_FILE (*crtend.o *crtend?.o ) .ctors))
       KEEP (*(SORT(.ctors.*)))
       KEEP (*(.ctors))
-    } : data
+    } : rodata
 
-   .dtors :
+   .dtors (READONLY) :
    { 
       KEEP (*crtbegin.o(.dtors))
       KEEP (*crtbegin?.o(.dtors))
       KEEP (*(EXCLUDE_FILE (*crtend.o *crtend?.o ) .dtors))
       KEEP (*(SORT(.dtors.*)))
       KEEP (*(.dtors))
+   } : rodata
+
+   .data ALIGN (4096) :
+   {
+
+      *(.data);
+      *(.data.*);
    } : data
 
    .bss :

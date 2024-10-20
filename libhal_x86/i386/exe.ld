@@ -9,28 +9,36 @@ SECTIONS
       *(.text)
    } : text
 
-  .preinit_array    :
+   .rodata ALIGN(4096) :
+   {
+      *(.rodata.str?.*);
+      *(.rodata);
+   } : rodata
+
+  .preinit_array (READONLY) :
   {
     PROVIDE_HIDDEN (__preinit_array_start = .);
     KEEP (*(.preinit_array))
     PROVIDE_HIDDEN (__preinit_array_end = .);
-  }
-  .init_array    :
+  } : rodata
+
+  .init_array (READONLY) :
   {
     PROVIDE_HIDDEN (__init_array_start = .);
     KEEP (*(SORT_BY_INIT_PRIORITY(.init_array.*) SORT_BY_INIT_PRIORITY(.ctors.*)))
     KEEP (*(.init_array EXCLUDE_FILE (*crtbegin.o *crtbegin?.o *crtend.o *crtend?.o ) .ctors))
     PROVIDE_HIDDEN (__init_array_end = .);
-  }
-  .fini_array    :
+  } : rodata
+
+  .fini_array (READONLY) :
   {
     PROVIDE_HIDDEN (__fini_array_start = .);
     KEEP (*(SORT_BY_INIT_PRIORITY(.fini_array.*) SORT_BY_INIT_PRIORITY(.dtors.*)))
     KEEP (*(.fini_array EXCLUDE_FILE (*crtbegin.o *crtbegin?.o *crtend.o *crtend?.o ) .dtors))
     PROVIDE_HIDDEN (__fini_array_end = .);
-  }
+  } : rodata
 
-   .ctors :
+   .ctors (READONLY) :
    {
       KEEP (*crtbegin.o(.ctors))
       KEEP (*crtbegin?.o(.ctors))
@@ -38,24 +46,16 @@ SECTIONS
       KEEP (*(EXCLUDE_FILE (*crtend.o *crtend?.o ) .ctors))
       KEEP (*(SORT(.ctors.*)))
       KEEP (*(.ctors))
-    } : text
+    } : rodata
 
-   .dtors :
+   .dtors (READONLY) :
    { 
       KEEP (*crtbegin.o(.dtors))
       KEEP (*crtbegin?.o(.dtors))
       KEEP (*(EXCLUDE_FILE (*crtend.o *crtend?.o ) .dtors))
       KEEP (*(SORT(.dtors.*)))
       KEEP (*(.dtors))
-   } : text
-   _ecode = .;
-
-   .rodata ALIGN(4096) :
-   {
-      *(.rodata.str?.*);
-      *(.rodata);       
    } : rodata
-
 
    .data ALIGN (4096) :
    {
