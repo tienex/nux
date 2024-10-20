@@ -304,10 +304,10 @@ hal_pcpu_init (void)
 void
 hal_pcpu_add (unsigned pcpuid, struct hal_cpu *haldata)
 {
-  extern int stacktop[];
+  extern int _bsp_stacktop[];
   assert (pcpuid < HAL_MAXCPUS);
 
-  haldata->kernsp = (uintptr_t) stacktop;
+  haldata->kernsp = (uintptr_t) _bsp_stacktop;
   pcpu_haldata[pcpuid] = haldata;
 }
 

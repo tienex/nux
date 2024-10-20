@@ -17,7 +17,7 @@ _start:
 	.option norelax
 	la gp, __global_pointer$
 	.option pop
-	la sp, stacktop
+	la sp, _bsp_stacktop
 
 	la t0, _sbss
 	la t1, _ebss
@@ -58,8 +58,10 @@ _riscv64##_x : .dword _x 	;
 	_EXPORT_FAR_PTR(_pfncache_start)
 	_EXPORT_FAR_PTR(_pfncache_end)
 
-	.align 12
-	.globl stacktop
-stackbtm:
-	.skip 4096
-stacktop:
+
+	.section .kstack_bsp, "aw"
+	.align 4096
+_stackbtm:
+	.zero 64*1024
+	.globl _bsp_stacktop
+_bsp_stacktop:
