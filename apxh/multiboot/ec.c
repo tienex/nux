@@ -14,6 +14,23 @@
 
 #include "project.h"
 
+#define SERIAL_PORT 0x3f8
+
+int
+inb (int port)
+{
+  int ret;
+
+  asm volatile ("xor %%eax, %%eax; inb %%dx, %%al":"=a" (ret):"d" (port));
+  return ret;
+}
+
+void
+outb (int port, int val)
+{
+  asm volatile ("outb %%al, %%dx"::"d" (port), "a" (val));
+}
+
 void
 putchar (int c)
 {
@@ -27,8 +44,20 @@ putchar (int c)
       int i;
       for (i = 0; i < 80 * 25; i++)
 	*(unsigned char *) (vptr + i * 2) = 0;
+
+      outb (SERIAL_PORT + 1, 0);
+      outb (SERIAL_PORT + 3, 0x80);
+      outb (SERIAL_PORT + 0, 3);
+      outb (SERIAL_PORT + 1, 0);
+      outb (SERIAL_PORT + 3, 3);
+      outb (SERIAL_PORT + 2, 0xc7);
+      outb (SERIAL_PORT + 4, 0xb);
+
       init = 1;
     }
+
+  while (!(inb (SERIAL_PORT + 5) & 0x20));
+  outb (SERIAL_PORT, c);
 
   if (c == '\n')
     {
