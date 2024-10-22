@@ -5,11 +5,11 @@
 #
 
 .PHONY: all install clean
-CC=@CC@
-CCLD=@CC@
-LD=@LD@
-AR=@AR@
-OBJCOPY=@OBJCOPY@
+CC=@TARGET_CC@
+CCLD=@TARGET_CC@
+LD=@TARGET_LD@
+AR=@TARGET_AR@
+OBJCOPY=@TARGET_OBJCOPY@
 OBJDIR=@builddir@/@MACHINE@
 SRCDIR=@srcdir@/
 SRCROOT=@top_srcdir@/

@@ -2,7 +2,7 @@ IBERTYSRCS= $(SRCROOT)/contrib/binutils/libiberty
 BFDSRCS= $(SRCROOT)/contrib/binutils/bfd
 ZLIBSRCS= $(SRCROOT)/contrib/binutils/zlib
 
-HOST_CC=gcc
+HOST_CC=@CC@
 
 CFLAGS= -I$(IBERTYSRCS) -I$(BFDSRCS) -I$(ZLIBSRCS)
 LDFLAGS= -L$(ZLIBSRCS) -L$(IBERTYSRCS) -L$(BFDSRCS) 

@@ -1,5 +1,4 @@
-HOST_CC=gcc
-CC=$(HOST_CC)
+HOST_CC=@CC@
 
 vpath %.c $(SRCDIR)
 

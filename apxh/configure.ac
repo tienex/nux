@@ -41,20 +41,20 @@ if test x"${TOOLCHAIN32}" != x ; then
    tool_prefix_32="${TOOLCHAIN32}"
 fi
 
-AC_CHECK_TOOL(CC, ${tool_prefix}-gcc, :)
-if test x"${CC}" = 'x:' ; then
+AC_CHECK_TOOL(TARGET_CC, ${tool_prefix}-gcc, :)
+if test x"${TARGET_CC}" = 'x:' ; then
   AC_MSG_ERROR([${tool_prefix}-gcc not found])
 fi
-AC_CHECK_TOOL(LD, ${tool_prefix}-ld, :)
-if test x"${LD}" = 'x:' ; then
+AC_CHECK_TOOL(TARGET_LD, ${tool_prefix}-ld, :)
+if test x"${TARGET_LD}" = 'x:' ; then
   AC_MSG_ERROR([${tool_prefix}-ld not found])
 fi
-AC_CHECK_TOOL(AR, ${tool_prefix}-ar, :)
-if test x"${AR}" = 'x:' ; then
+AC_CHECK_TOOL(TARGET_AR, ${tool_prefix}-ar, :)
+if test x"${TARGET_AR}" = 'x:' ; then
   AC_MSG_ERROR([${tool_prefix}-ar not found])
 fi
-AC_CHECK_TOOL(OBJCOPY, ${tool_prefix}-objcopy, :)
-if test x"${OBJCOPY}" = 'x:' ; then
+AC_CHECK_TOOL(TARGET_OBJCOPY, ${tool_prefix}-objcopy, :)
+if test x"${TARGET_OBJCOPY}" = 'x:' ; then
   AC_MSG_ERROR([${tool_prefix}-objcopy not found])
 fi
 
