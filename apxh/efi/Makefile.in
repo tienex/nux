@@ -3,7 +3,7 @@ SUBDIRS+= apxhefi
 ifeq (@MACHINE@,amd64)
 ARCH=x86_64
 GNUEFI_CFLAGS += -mno-red-zone
-LDFLAGS += --target efi-app-$(ARCH)
+OBJCOPY_FLAGS += --target efi-app-$(ARCH)
 endif
 
 ifeq (@MACHINE@,i386)
