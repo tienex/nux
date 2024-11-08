@@ -658,5 +658,6 @@ cpu_umap_exit(void)
     return NULL;
   __atomic_clear(&cpu_curinfo()->umap, __ATOMIC_RELEASE);
   atomic_cpumask_clear (&curumap->cpumask, cpu_id());
+  cpu_curinfo()->umap = NULL;
   return curumap;
 }
