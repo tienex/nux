@@ -388,6 +388,13 @@ void hal_frame_seta2 (struct hal_frame *f, unsigned long a2);
 */
 void hal_frame_setret (struct hal_frame *f, unsigned long r);
 
+
+/*
+  Set TLS pointer.
+*/
+void hal_frame_settls (struct hal_frame *f, unsigned long r);
+
+
 /* Print frame information to log. */
 void hal_frame_print (struct hal_frame *);
 

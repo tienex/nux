@@ -199,6 +199,13 @@ hal_frame_setret (struct hal_frame *f, unsigned long r)
 }
 
 void
+hal_frame_settls (struct hal_frame *f, unsigned long tls)
+{
+  printf("Setting fbase to %lx\n", tls);
+  f->intr.fsbase = tls;
+}
+
+void
 hal_frame_print (struct hal_frame *f)
 {
   hallog ("RAX: %016lx RBX: %016lx\nRCX: %016lx RDX: %016lx",
@@ -209,7 +216,7 @@ hal_frame_print (struct hal_frame *f)
 	  f->intr.r8, f->intr.r9, f->intr.r10, f->intr.r11);
   hallog ("R12: %016lx R13: %016lx\nR14: %016lx R15: %016lx",
 	  f->intr.r12, f->intr.r13, f->intr.r14, f->intr.r15);
-  hallog ("GSBASE: %016lx\n", f->intr.gsbase);
+  hallog ("GS:  %016lx FS:  %016lx", f->intr.gsbase, f->intr.fsbase);
   hallog (" CS: %04x     RIP: %016lx RFL: %016lx",
 	  (int) f->intr.cs, f->intr.rip, f->intr.rflags);
   hallog (" SS: %04x     RSP: %016lx", (int) f->intr.ss, f->intr.rsp);

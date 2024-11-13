@@ -38,8 +38,15 @@ _syscall_frame_entry:
 	push %rax
 
 	swapgs
-	/* Save GS BASE. There are better ways. */
+	/* Save GSBASE. There are better ways. */
 	mov $MSR_IA32_GS_BASE, %rcx
+	rdmsr
+	shl $32, %rdx
+	or %rdx, %rax
+	push %rax
+
+	/* Save FSBASE. There are better ways. */
+	mov $MSR_IA32_FS_BASE, %rcx
 	rdmsr
 	shl $32, %rdx
 	or %rdx, %rax
@@ -64,6 +71,13 @@ _syscall_frame_entry:
 	je _intr_frame_return
 
 	add $8, %rsp /* Skip frame type: syscall frame */
+
+	/* Restore FSBASE */
+	popq %rax
+	mov %rax, %rdx
+	shr $32, %rdx
+	mov $MSR_IA32_FS_BASE, %rcx
+	wrmsr
 
 	/* Restore GSBASE */
 	popq %rax
@@ -128,6 +142,12 @@ _syscall_frame_entry:
 	or %rdx, %rax
 	push %rax
 
+	mov $MSR_IA32_FS_BASE, %rcx
+	rdmsr
+	shl $32, %rdx
+	or %rdx, %rax
+	push %rax
+
 	pushq $FRAMETYPE_INTR
 	
 	mov %rsp, %rdi
@@ -147,6 +167,13 @@ _syscall_frame_entry:
 _intr_frame_return:
 
 	add $8, %rsp /* Skip frame type: interrupt frame */
+
+	/* Restore FSBASE */
+	popq %rax
+	mov %rax, %rdx
+	shr $32, %rdx
+	mov $MSR_IA32_FS_BASE, %rcx
+	wrmsr
 
 	/* Restore GSBASE */
 	popq %rax

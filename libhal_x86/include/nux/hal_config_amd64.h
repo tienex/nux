@@ -94,6 +94,7 @@ struct hal_frame
   {
     struct amd64_intr_frame
     {
+      uint64_t fsbase;
       uint64_t gsbase;
 
       uint64_t cr2;

@@ -154,6 +154,14 @@ uctxt_seta2 (uctxt_t * uctxt, unsigned long a2)
 }
 
 void
+uctxt_settls (uctxt_t * uctxt, unsigned long tls)
+{
+  struct hal_frame *f = uctxt_frame_pointer (uctxt);
+  assert (f);
+  hal_frame_settls (f, tls);
+}
+
+void
 uctxt_print (uctxt_t * uctxt)
 {
   struct hal_frame *f = uctxt_frame_pointer (uctxt);
