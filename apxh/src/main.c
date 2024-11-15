@@ -145,8 +145,10 @@ va_copy (vaddr_t va, void *addr, size64_t size, int u, int w, int x)
   md_verify (va, size);
   va_verify (va, size);
 
+#if 0
   printf ("Copying %08llx <- %p (u: %d, w:%d, x:%d, %d bytes)\n", va, addr, u,
 	  w, x, size);
+#endif
   va_populate (va, size, u, w, x);
 
   while (len > 0)
@@ -585,7 +587,9 @@ va_regions_copy (void)
       apxhreg.type = reg->type;
       apxhreg.pfn = reg->pfn;
       apxhreg.len = reg->len;
+#if 0
       printf ("Copying %d %d %d\n", apxhreg.type, apxhreg.pfn, apxhreg.len);
+#endif
       va_copy (va + i * sizeof (struct apxh_region), &apxhreg,
 	       sizeof (struct apxh_region), 0, 0, 0);
     }

@@ -69,7 +69,9 @@ pte_mergeflags (uint64_t fl1, uint64_t fl2)
   // Executable must be OR'd.
   newf |= (fl1 | fl2) & PTE_X;
 
+#if 0
   printf ("Merging: %llx (+) %llx = %llx\n", fl1, fl2, newf);
+#endif
   return newf;
 }
 

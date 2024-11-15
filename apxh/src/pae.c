@@ -289,7 +289,9 @@ pte_mergeflags (uint64_t fl1, uint64_t fl2)
   // NX must be AND'd.
   newf |= fl1 & fl2 & PTE_NX;
 
+#if 0
   printf ("Merging: %llx (+) %llx = %llx\n", fl1, fl2, newf);
+#endif
   return newf;
 }
 
