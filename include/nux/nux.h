@@ -40,6 +40,16 @@ void pfn_put (pfn_t pfn, void *va);
 void nux_set_allocator(pfn_t (*alloc)(int), void (*free)(pfn_t));
 pfn_t pfn_alloc (int low);
 void pfn_free (pfn_t pfn);
+unsigned long pfn_avail(void);
+
+/*
+  The S-tree page allocator.
+
+  Used by default by pfn_alloc and pfn_free, can be changed via
+  'nux_set_allocator()'.
+*/
+pfn_t stree_pfnalloc (int low);
+void stree_pfnfree (pfn_t pfn);
 
 vaddr_t kva_alloc (size_t size);
 void kva_free (vaddr_t va, size_t size);

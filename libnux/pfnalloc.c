@@ -24,6 +24,7 @@
 static lock_t pglock;
 static WORD_T *stree;
 static unsigned order;
+static unsigned long free_pages;
 
 void
 stree_pfninit (void)
@@ -35,10 +36,12 @@ stree_pfninit (void)
 
   first = stree_bitsearch (stree, order, 1);
   last = stree_bitsearch (stree, order, 0);
+  free_pages = stree_count (stree, order);
   assert (first >= 0);
   assert (last >= 0);
   printf ("Lowest physical page free:  %08lx.\n", first);
   printf ("Highest physical page free: %08lx.\n", last);
+  printf ("Memory available: %ld Kb.\n", free_pages * PAGE_SIZE/1024);
 
   spinlock_init (&pglock);
 }
@@ -53,7 +56,11 @@ stree_pfnalloc (int low)
   spinlock (&pglock);
   pg = stree_bitsearch (stree, order, low);
   if (pg >= 0)
-    stree_clrbit (stree, order, pg);
+    {
+        assert (free_pages != 0);
+	free_pages--;
+	stree_clrbit (stree, order, pg);
+    }
   spinunlock (&pglock);
 
   if (pg < 0)
@@ -103,6 +110,11 @@ void pfn_free(pfn_t pfn)
 {
   readlock(&_nux_pfnalloc_lock);
   _nux_pfnfree(pfn);
+  free_pages++;
   readunlock(&_nux_pfnalloc_lock);
 }
 
+unsigned long pfn_avail(void)
+{
+  return free_pages;
+}
