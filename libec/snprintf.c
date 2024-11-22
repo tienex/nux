@@ -1,4 +1,5 @@
-				     /* *INDENT-OFF* *//* Imported from NetBSD -- MHDIFFIGNORE */
+/**INDENT-OFF**/
+/* Imported from NetBSD -- MHDIFFIGNORE */
 /*	$NetBSD: snprintf.c,v 1.5 2011/07/17 20:54:52 joerg Exp $	*/
 
 /*-
@@ -48,12 +49,10 @@
 #include "namespace.h"
 
 #ifdef __weak_alias
-__weak_alias(vsnprintf,_vsnprintf)
-__weak_alias(vsnprintf_l,_vsnprintf_l)
-__weak_alias(snprintf,_snprintf)
-__weak_alias(snprintf_l,_snprintf_l)
+__weak_alias (vsnprintf, _vsnprintf)
+__weak_alias (vsnprintf_l, _vsnprintf_l)
+__weak_alias (snprintf, _snprintf) __weak_alias (snprintf_l, _snprintf_l)
 #endif
-
 #else
 #include "stand.h"
 #endif
@@ -61,13 +60,13 @@ __weak_alias(snprintf_l,_snprintf_l)
 
 
 int
-snprintf(char *buf, size_t size, const char *fmt, ...)
+snprintf (char *buf, size_t size, const char *fmt, ...)
 {
-	va_list ap;
-	int len;
+  va_list ap;
+  int len;
 
-	va_start(ap, fmt);
-	len = vsnprintf(buf, size, fmt, ap);
-	va_end(ap);
-	return len;
+  va_start (ap, fmt);
+  len = vsnprintf (buf, size, fmt, ap);
+  va_end (ap);
+  return len;
 }

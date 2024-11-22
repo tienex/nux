@@ -162,8 +162,8 @@ ph_uload (void *elfimg, uint32_t type, uint32_t flags,
       /* User Thread Local Storage. */
       if (msize != 0)
 	{
-	  printf ("USER TLS area at %08" PRIx64 " (initsize: %" PRId64 " size: %" PRId64 ").\n",
-		  va, fsize, msize);
+	  printf ("USER TLS area at %08" PRIx64 " (initsize: %" PRId64
+		  " size: %" PRId64 ").\n", va, fsize, msize);
 
 	  if (va + msize < va)
 	    {

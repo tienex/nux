@@ -90,46 +90,46 @@ entry_sysc (uctxt_t * u,
   switch (a1)
     {
     case 0:
-      info("SYSC%ld test passed.", a1);
+      info ("SYSC%ld test passed.", a1);
       break;
     case 1:
-      assert(a2 == 1);
-      info("SYSC%ld test passed.", a1);
+      assert (a2 == 1);
+      info ("SYSC%ld test passed.", a1);
       break;
     case 2:
-      assert(a2 == 1);
-      assert(a3 == 2);
-      info("SYSC%ld test passed.", a1);
+      assert (a2 == 1);
+      assert (a3 == 2);
+      info ("SYSC%ld test passed.", a1);
       break;
     case 3:
-      assert(a2 == 1);
-      assert(a3 == 2);
-      assert(a4 == 3);
-      info("SYSC%ld test passed.", a1);
+      assert (a2 == 1);
+      assert (a3 == 2);
+      assert (a4 == 3);
+      info ("SYSC%ld test passed.", a1);
       break;
     case 4:
-      assert(a2 == 1);
-      assert(a3 == 2);
-      assert(a4 == 3);
-      assert(a5 == 4);
-      info("SYSC%ld test passed.", a1);
+      assert (a2 == 1);
+      assert (a3 == 2);
+      assert (a4 == 3);
+      assert (a5 == 4);
+      info ("SYSC%ld test passed.", a1);
       break;
     case 5:
-      assert(a2 == 1);
-      assert(a3 == 2);
-      assert(a4 == 3);
-      assert(a5 == 4);
-      assert(a6 == 5);
-      info("SYSC%ld test passed.", a1);
+      assert (a2 == 1);
+      assert (a3 == 2);
+      assert (a4 == 3);
+      assert (a5 == 4);
+      assert (a6 == 5);
+      info ("SYSC%ld test passed.", a1);
       break;
     case 6:
-      assert(a2 == 1);
-      assert(a3 == 2);
-      assert(a4 == 3);
-      assert(a5 == 4);
-      assert(a6 == 5);
-      assert(a7 == 6);
-      info("SYSC%ld test passed.", a1);
+      assert (a2 == 1);
+      assert (a3 == 2);
+      assert (a4 == 3);
+      assert (a5 == 4);
+      assert (a6 == 5);
+      assert (a7 == 6);
+      info ("SYSC%ld test passed.", a1);
       break;
     case 4096:
       putchar (a2);

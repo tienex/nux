@@ -637,27 +637,27 @@ cpu_useraccess_checkpf (uaddr_t addr, hal_pfinfo_t info)
 }
 
 void
-cpu_umap_enter(struct umap *umap)
+cpu_umap_enter (struct umap *umap)
 {
-  cpu_umap_exit();
+  cpu_umap_exit ();
 
-  assert (cpu_curinfo()->umap == NULL);
-  __atomic_store(&cpu_curinfo()->umap, &umap, __ATOMIC_RELEASE);
-  atomic_cpumask_set (&umap->cpumask, cpu_id());
-  hal_umap_load(&umap->hal);
+  assert (cpu_curinfo ()->umap == NULL);
+  __atomic_store (&cpu_curinfo ()->umap, &umap, __ATOMIC_RELEASE);
+  atomic_cpumask_set (&umap->cpumask, cpu_id ());
+  hal_umap_load (&umap->hal);
 }
 
 struct umap *
-cpu_umap_exit(void)
+cpu_umap_exit (void)
 {
   struct umap *curumap;
 
-  hal_umap_load(NULL);
-  curumap = cpu_curinfo()->umap;
+  hal_umap_load (NULL);
+  curumap = cpu_curinfo ()->umap;
   if (curumap == NULL)
     return NULL;
-  __atomic_clear(&cpu_curinfo()->umap, __ATOMIC_RELEASE);
-  atomic_cpumask_clear (&curumap->cpumask, cpu_id());
-  cpu_curinfo()->umap = NULL;
+  __atomic_clear (&cpu_curinfo ()->umap, __ATOMIC_RELEASE);
+  atomic_cpumask_clear (&curumap->cpumask, cpu_id ());
+  cpu_curinfo ()->umap = NULL;
   return curumap;
 }

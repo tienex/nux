@@ -244,7 +244,7 @@ stree_getbit (WORD_T * stree, unsigned o, size_t bitaddr)
 {
   WORD_T *lmap = stree_lmap (stree, o, 0);
 
-  return get_bit(lmap, lmap_bitoff (0, bitaddr));
+  return get_bit (lmap, lmap_bitoff (0, bitaddr));
 }
 
 static inline void
@@ -294,8 +294,9 @@ stree_setall (WORD_T * stree, unsigned o, unsigned long max)
       WORD_T *lmap = stree_lmap (stree, o, l);
       size_t size = lmap_bitoff (l, max) >> WORDLOG2;
       size_t bits = lmap_bitoff (l, max) & WORDMASK;
-      memset (lmap, -1, size * sizeof(WORD_T));
-      lmap[size] = bits == WORDSIZE - 1 ? (WORD_T)-1 : ((WORD_T)1 << (bits + 1)) - 1;
+      memset (lmap, -1, size * sizeof (WORD_T));
+      lmap[size] =
+	bits == WORDSIZE - 1 ? (WORD_T) - 1 : ((WORD_T) 1 << (bits + 1)) - 1;
     }
 }
 
@@ -310,7 +311,7 @@ stree_count (WORD_T * stree, unsigned o)
 
   for (int i = 0; i < (1LL << o); i += (1 << WORDLOG2))
     {
-      size += __builtin_popcountl(lmap[i >> WORDLOG2]);
+      size += __builtin_popcountl (lmap[i >> WORDLOG2]);
     }
 
   return size;

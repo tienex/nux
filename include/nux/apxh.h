@@ -22,9 +22,9 @@ struct apxh_pltdesc
 
 struct apxh_tlsinfo
 {
-  uint64_t initvaddr; /* Prototype Initialized Data Address. */
-  uint64_t initsize; /* Prototype Initialized Data Size. */
-  uint64_t size; /* Total Size, including per-thread BSS. */
+  uint64_t initvaddr;		/* Prototype Initialized Data Address. */
+  uint64_t initsize;		/* Prototype Initialized Data Size. */
+  uint64_t size;		/* Total Size, including per-thread BSS. */
 };
 
 struct apxh_bootinfo

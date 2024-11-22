@@ -204,7 +204,7 @@ hal_frame_setret (struct hal_frame *f, unsigned long r)
 void
 hal_frame_settls (struct hal_frame *f, unsigned long tls)
 {
-  printf("Setting fbase to %lx\n", tls);
+  printf ("Setting fbase to %lx\n", tls);
   f->intr.fsbase = tls;
 }
 

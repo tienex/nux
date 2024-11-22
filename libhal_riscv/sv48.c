@@ -43,7 +43,7 @@ get_cpumap_l4off (unsigned off)
 
   t = (pte_t *) pfn_get (get_cpumap_l4pfn ());
 
-  assert(off < 512);
+  assert (off < 512);
   return t + off;
 }
 
@@ -51,11 +51,11 @@ static pte_t *
 get_cpumap_l4ptr (unsigned long va)
 {
 
-  return get_cpumap_l4off (L4OFF(va));
+  return get_cpumap_l4off (L4OFF (va));
 }
 
 static void
-put_cpumap_l4ptr (unsigned long va /* REMOVE ME */, pte_t * pte)
+put_cpumap_l4ptr (unsigned long va /* REMOVE ME */ , pte_t * pte)
 {
   pfn_put (get_cpumap_l4pfn (), pte);
 }

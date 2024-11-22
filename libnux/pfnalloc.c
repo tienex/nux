@@ -41,7 +41,7 @@ stree_pfninit (void)
   assert (last >= 0);
   printf ("Lowest physical page free:  %08lx.\n", first);
   printf ("Highest physical page free: %08lx.\n", last);
-  printf ("Memory available: %ld Kb.\n", free_pages * PAGE_SIZE/1024);
+  printf ("Memory available: %ld Kb.\n", free_pages * PAGE_SIZE / 1024);
 
   spinlock_init (&pglock);
 }
@@ -57,9 +57,9 @@ stree_pfnalloc (int low)
   pg = stree_bitsearch (stree, order, low);
   if (pg >= 0)
     {
-        assert (free_pages != 0);
-	free_pages--;
-	stree_clrbit (stree, order, pg);
+      assert (free_pages != 0);
+      free_pages--;
+      stree_clrbit (stree, order, pg);
     }
   spinunlock (&pglock);
 
@@ -84,37 +84,41 @@ stree_pfnfree (pfn_t pfn)
 }
 
 rwlock_t _nux_pfnalloc_lock;
-pfn_t (*_nux_pfnalloc)(int) = &stree_pfnalloc;
-void (*_nux_pfnfree)(pfn_t) = &stree_pfnfree;
+pfn_t (*_nux_pfnalloc) (int) = &stree_pfnalloc;
+void (*_nux_pfnfree) (pfn_t) = &stree_pfnfree;
 
-void nux_set_allocator(pfn_t (*alloc)(int), void (*free)(pfn_t))
+void
+nux_set_allocator (pfn_t (*alloc) (int), void (*free) (pfn_t))
 {
-  writelock(&_nux_pfnalloc_lock);
+  writelock (&_nux_pfnalloc_lock);
   _nux_pfnalloc = alloc;
   _nux_pfnfree = free;
-  writeunlock(&_nux_pfnalloc_lock);
+  writeunlock (&_nux_pfnalloc_lock);
 }
 
-pfn_t pfn_alloc(int low)
+pfn_t
+pfn_alloc (int low)
 {
   pfn_t pfn;
 
-  readlock(&_nux_pfnalloc_lock);
-  pfn = _nux_pfnalloc(low);
-  readunlock(&_nux_pfnalloc_lock);
+  readlock (&_nux_pfnalloc_lock);
+  pfn = _nux_pfnalloc (low);
+  readunlock (&_nux_pfnalloc_lock);
 
   return pfn;
 }
 
-void pfn_free(pfn_t pfn)
+void
+pfn_free (pfn_t pfn)
 {
-  readlock(&_nux_pfnalloc_lock);
-  _nux_pfnfree(pfn);
+  readlock (&_nux_pfnalloc_lock);
+  _nux_pfnfree (pfn);
   free_pages++;
-  readunlock(&_nux_pfnalloc_lock);
+  readunlock (&_nux_pfnalloc_lock);
 }
 
-unsigned long pfn_avail(void)
+unsigned long
+pfn_avail (void)
 {
   return free_pages;
 }

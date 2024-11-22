@@ -54,8 +54,8 @@ _get_cells (const void *fdt, int noff, unsigned *addr, unsigned *size)
 }
 
 static bool
-_get_reg (const void *fdt, int noff, unsigned idx, uint64_t *base,
-	  uint64_t *length)
+_get_reg (const void *fdt, int noff, unsigned idx, uint64_t * base,
+	  uint64_t * length)
 {
   int len;
   const void *prop;

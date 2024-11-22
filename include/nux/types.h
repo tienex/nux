@@ -116,7 +116,8 @@ hal_tlbop_t;
 
   This structure contains a set of user-space page tables.
 */
-typedef struct umap {
+typedef struct umap
+{
   cpumask_t cpumask;
   hal_tlbop_t tlbop;
   struct hal_umap hal;

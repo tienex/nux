@@ -18,17 +18,18 @@
 #undef SPIN_LOCK_FREE
 
 void
-slab_register (struct slab * sc, const char *name, size_t objsize,
+slab_register (struct slab *sc, const char *name, size_t objsize,
 	       void (*ctr) (void *, void *, int), int cachealign);
-void slab_deregister (struct slab * sc);
-int slab_shrink (struct slab * sc);
-void *slab_alloc_opq (struct slab * sc, void *opq);
+void slab_deregister (struct slab *sc);
+int slab_shrink (struct slab *sc);
+void *slab_alloc_opq (struct slab *sc, void *opq);
 void slab_free (void *ptr);
 void slab_printstats (void);
 
-static inline void *slab_alloc(struct slab *sc)
+static inline void *
+slab_alloc (struct slab *sc)
 {
-  return slab_alloc_opq(sc, NULL);
+  return slab_alloc_opq (sc, NULL);
 }
 
 #endif

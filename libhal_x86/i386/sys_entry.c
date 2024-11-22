@@ -109,7 +109,9 @@ do_syscall (struct hal_frame *f)
 
   assert (f->cs == UCS);
 
-  rf = hal_entry_syscall (f, f->eax, f->edi, f->esi, f->ecx, f->edx, f->ebx, f->ebp);
+  rf =
+    hal_entry_syscall (f, f->eax, f->edi, f->esi, f->ecx, f->edx, f->ebx,
+		       f->ebp);
   return rf;
 }
 

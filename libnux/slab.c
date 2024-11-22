@@ -4,7 +4,7 @@
 #include <nux/nux.h>
 #include <nux/slab.h>
 
-#define SLAB_LOG2SZ 1 /* Must be power of 2 for alignment */
+#define SLAB_LOG2SZ 1		/* Must be power of 2 for alignment */
 #define SLAB_SIZE ((1L << SLAB_LOG2SZ) * PAGE_SIZE)
 
 #define SLABMAGIC 0x80763141
@@ -19,7 +19,7 @@ static const size_t
 ___slabobjs (const size_t size)
 {
 
-  return (___slabsize () -2 * sizeof (struct slabhdr)) / size;
+  return (___slabsize () - 2 * sizeof (struct slabhdr)) / size;
 }
 
 static struct slabhdr *
@@ -31,23 +31,23 @@ ___slaballoc (struct objhdr **ohptr)
   kva_una_end = kva_una + 2 * SLAB_SIZE - PAGE_SIZE;
 
   if (kva_una % SLAB_SIZE)
-    kva_start = (kva_una + SLAB_SIZE -1) & ~((vaddr_t)SLAB_SIZE - 1);
+    kva_start = (kva_una + SLAB_SIZE - 1) & ~((vaddr_t) SLAB_SIZE - 1);
   else
     kva_start = kva_una;
   kva_end = kva_start + SLAB_SIZE;
 
   if (kva_una < kva_start)
     {
-      kva_free(kva_una, kva_start - kva_una);
+      kva_free (kva_una, kva_start - kva_una);
     }
 
   if (kva_end < kva_una_end)
     {
-      kva_free(kva_end, kva_una_end - kva_end);
+      kva_free (kva_end, kva_una_end - kva_end);
     }
 
-  assert(!kmap_ensure_range(kva_start, SLAB_SIZE, HAL_PTE_W|HAL_PTE_P));
-  kmap_commit();
+  assert (!kmap_ensure_range (kva_start, SLAB_SIZE, HAL_PTE_W | HAL_PTE_P));
+  kmap_commit ();
 
   *ohptr = (struct objhdr *) (kva_start + sizeof (struct slabhdr));
   return (struct slabhdr *) kva_start;
@@ -68,9 +68,9 @@ ___slabgethdr (void *obj)
 static void
 ___slabfree (void *ptr)
 {
-  kmap_ensure_range((vaddr_t)ptr, SLAB_SIZE, 0);
+  kmap_ensure_range ((vaddr_t) ptr, SLAB_SIZE, 0);
   kmap_commit ();
-  kva_free((vaddr_t)ptr, SLAB_SIZE);
+  kva_free ((vaddr_t) ptr, SLAB_SIZE);
 }
 
 #define DECLARE_SPIN_LOCK(_x) lock_t _x
@@ -80,4 +80,3 @@ ___slabfree (void *ptr)
 #define SPIN_LOCK_FREE(_x)
 
 #include "slabinc.c"
-
