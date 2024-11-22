@@ -398,6 +398,9 @@ do_pagefault (struct hal_frame *f)
   if (f->scause == SCAUSE_SPF)
     pfinfo |= HAL_PF_INFO_WRITE;
 
+  if (f->scause == SCAUSE_IPF)
+    pfinfo |= HAL_PF_INFO_EXE;
+
   l1p = cpumap_get_l1p (f->stval, false);
   if (l1p == L1P_INVALID)
     pfinfo |= HAL_PF_REASON_NOTP;

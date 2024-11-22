@@ -410,6 +410,7 @@ void hal_frame_print (struct hal_frame *);
 #define HAL_PF_REASON_MASK 1
 #define HAL_PF_INFO_WRITE (1 << 4)
 #define HAL_PF_INFO_USER  (1 << 5)
+#define HAL_PF_INFO_EXE   (1 << 6)
 
 typedef unsigned hal_pfinfo_t;
 

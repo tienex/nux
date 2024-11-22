@@ -90,6 +90,9 @@ do_xcpt (uint32_t vect, struct hal_frame *f)
       if (f->err & 4)
 	xcpterr |= HAL_PF_INFO_USER;
 
+      if (f->err & 16)
+	xcpterr |= HAL_PF_INFO_EXE;
+
       rf = hal_entry_pf (f, f->cr2, xcpterr);
     }
   else
