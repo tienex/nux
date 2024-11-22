@@ -148,11 +148,11 @@ SECTIONS
 	_stree_end = .;
    } : stree
 
-   /* 32Mb Framebuffer. */
+   /* 64Mb Framebuffer. */
    .fbuffer ALIGN (4096) : AT(0)
    {
 	_fbuf_start = .;
-	. += 32 * 1024 * 1024;
+	. += 64 * 1024 * 1024;
 	_fbuf_end = .;
    } : fbuf
 
