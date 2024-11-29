@@ -31,4 +31,6 @@
 #define __BEGIN_DECLS
 #define __END_DECLS
 
+#define BUILD_ASSERT(_c) ((void)sizeof(char[1 - 2*!(_c)]))
+
 #endif /* EC_CDEFS_H */

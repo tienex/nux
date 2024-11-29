@@ -79,7 +79,7 @@ uctxt_frame (uctxt_t * uctxt)
 }
 
 void
-uctxt_init (uctxt_t * uctxt, vaddr_t ip, vaddr_t sp)
+uctxt_init (uctxt_t * uctxt, vaddr_t ip, vaddr_t sp, vaddr_t gp)
 {
   struct hal_frame *f = uctxt_frame_pointer (uctxt);
   assert (f);
@@ -87,6 +87,7 @@ uctxt_init (uctxt_t * uctxt, vaddr_t ip, vaddr_t sp)
   hal_frame_init (f);
   hal_frame_setip (f, ip);
   hal_frame_setsp (f, sp);
+  hal_frame_setgp (f, gp);
 }
 
 vaddr_t
@@ -119,6 +120,22 @@ uctxt_setsp (uctxt_t * uctxt, vaddr_t sp)
   struct hal_frame *f = uctxt_frame_pointer (uctxt);
   assert (f);
   hal_frame_setsp (f, sp);
+}
+
+vaddr_t
+uctxt_getgp (uctxt_t * uctxt)
+{
+  struct hal_frame *f = uctxt_frame_pointer (uctxt);
+  assert (f);
+  return hal_frame_getgp (f);
+}
+
+void
+uctxt_setgp (uctxt_t * uctxt, vaddr_t gp)
+{
+  struct hal_frame *f = uctxt_frame_pointer (uctxt);
+  assert (f);
+  hal_frame_setgp (f, gp);
 }
 
 void
@@ -187,6 +204,6 @@ uctxt_bootstrap (uctxt_t * uctxt)
       return false;
     }
 
-  uctxt_init (uctxt, uentry, 0);
+  uctxt_init (uctxt, uentry, 0, 0);
   return true;
 }

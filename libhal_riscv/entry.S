@@ -91,6 +91,7 @@ _intr_entry:
 	csrr x1, sscratch
 	SAVE_REG(4, x1) /* TP */
 	mv x1, x0
+	csrrw x0, sscratch, x0
 
 2:
 	SAVE_REG(5, x5)

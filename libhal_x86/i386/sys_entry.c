@@ -168,6 +168,18 @@ hal_frame_setsp (struct hal_frame *f, vaddr_t sp)
   f->esp = sp;
 }
 
+vaddr_t
+hal_frame_getgp (struct hal_frame *f)
+{
+  return 0;
+}
+
+void
+hal_frame_setgp (struct hal_frame *f, unsigned long gp)
+{
+  /* Do nothing. */
+}
+
 void
 hal_frame_seta0 (struct hal_frame *f, unsigned long a0)
 {

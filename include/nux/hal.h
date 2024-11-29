@@ -370,6 +370,21 @@ void hal_frame_setsp (struct hal_frame *f, unsigned long sp);
 unsigned long hal_frame_getsp (struct hal_frame *f);
 
 /*
+  Set frame global pointer
+
+  RISCV-64 defines this in their ABI. Other architectures return zero.
+*/
+void hal_frame_setgp (struct hal_frame *f, unsigned long gp);
+
+/*
+  Get frame global pointer
+
+  RISCV-64 defines this in their ABI. Other architectures return zero.
+*/
+unsigned long hal_frame_getgp (struct hal_frame *f);
+
+
+/*
   Set frame argument registers
 
   We define here three HAL-dependent registers, a0, a1, a2, that can be used

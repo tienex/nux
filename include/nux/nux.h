@@ -154,7 +154,7 @@ bool uctxt_bootstrap (uctxt_t * uctxt);
   Initialize a user context specifying instruction and stack
   pointer.
 */
-void uctxt_init (uctxt_t * uctxt, vaddr_t ip, vaddr_t sp);
+void uctxt_init (uctxt_t * uctxt, vaddr_t ip, vaddr_t sp, vaddr_t gp);
 
 /*
   Set the instruction pointer of a user context.
@@ -175,6 +175,16 @@ void uctxt_setsp (uctxt_t * uctxt, vaddr_t sp);
   Get the stack pointer of a user context.
 */
 vaddr_t uctxt_getsp (uctxt_t * uctxt);
+
+/*
+  Set the global pointer of a user context.
+*/
+void uctxt_setgp (uctxt_t * uctxt, vaddr_t gp);
+
+/*
+  Get the global pointer of a user context.
+*/
+vaddr_t uctxt_getgp (uctxt_t * uctxt);
 
 void uctxt_setret (uctxt_t * uctxt, unsigned long ret);
 void uctxt_seta0 (uctxt_t * uctxt, unsigned long a0);

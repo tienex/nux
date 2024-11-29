@@ -27,6 +27,18 @@ hal_frame_setsp (struct hal_frame *f, unsigned long sp)
   f->sp = sp;
 }
 
+void
+hal_frame_setgp (struct hal_frame *f, unsigned long gp)
+{
+  f->gp = gp;
+}
+
+vaddr_t
+hal_frame_getgp (struct hal_frame *f)
+{
+  return f->gp;
+}
+
 unsigned long
 hal_frame_getip (struct hal_frame *f)
 {
@@ -61,6 +73,12 @@ void
 hal_frame_setret (struct hal_frame *f, unsigned long ret)
 {
   f->a0 = ret;
+}
+
+void
+hal_frame_settls (struct hal_frame *f, unsigned long ret)
+{
+  f->tp = ret;
 }
 
 void
