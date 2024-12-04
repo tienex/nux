@@ -91,10 +91,6 @@ print_version (void)
 {
   printf ("%s %s\n", PROGNAME, VERSION);
   printf ("Copyright (C) 2015-2023 Gianluca Guida.\n");
-  printf ("\
-This program is free software; you may redistribute it under the terms of\n\
-the GNU General Public License version 3 or (at your option) any later version.\n\
-This program has absolutely no warranty.\n");
   exit (0);
 }
 

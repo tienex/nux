@@ -1,3 +1,9 @@
+/*
+  NUX: A kernel Library.
+  Copyright (C) 2019 Gianluca Guida <glguida@tlbflush.org>
+
+  SPDX-License-Identifier:	BSD-2-Clause
+*/
 
 /* Do not include this file directly. Must be always included indirectly. */
 #ifndef SLABINC_H

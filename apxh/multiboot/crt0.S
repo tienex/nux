@@ -1,3 +1,10 @@
+/*
+  APXH: An ELF boot-loader.
+  Copyright (C) 2019 Gianluca Guida, glguida@tlbflush.org
+
+  SPDX-License-Identifier:	BSD-2-Clause
+*/
+
 #include <machine/asm.h>
 	
 #define MULTIBOOT_HDRSIGN 0x1badb002 

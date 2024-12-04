@@ -1,3 +1,10 @@
+/*
+  NUX: A kernel Library.
+  Copyright (C) 2019 Gianluca Guida, glguida@tlbflush.org
+
+  SPDX-License-Identifier:	BSD-2-Clause
+*/
+
 #include "internal.h"
 #include <nux/hal_config.h>	/* For HAL_NMIEMUL */
 #include <nux/nmiemul.h>

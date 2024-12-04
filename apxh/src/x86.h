@@ -1,12 +1,12 @@
-#ifndef _APXH_X86_H
-#define _APXH_X86_H
-
 /*
   APXH: An ELF boot-loader.
   Copyright (C) 2019 Gianluca Guida <glguida@tlbflush.org>
 
-  SPDX-License-Identifier:	GPL2.0+
+  SPDX-License-Identifier:	BSD-2-Clause
 */
+
+#ifndef _APXH_X86_H
+#define _APXH_X86_H
 
 #define MSR_IA32_MISC_ENABLE 0x000001a0
 #define _MSR_IA32_MISC_ENABLE_XD_DISABLE (1LL << 34)

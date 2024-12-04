@@ -2,14 +2,7 @@
   NUX: A kernel Library.
   Copyright (C) 2019 Gianluca Guida, glguida@tlbflush.org
 
-  This program is free software; you can redistribute it and/or
-  modify it under the terms of the GNU General Public License
-  as published by the Free Software Foundation; either version 2
-  of the License, or (at your option) any later version.
-
-  See COPYING file for the full license.
-
-  SPDX-License-Identifier:	GPL2.0+
+  SPDX-License-Identifier:	BSD-2-Clause
 */
 
 #include <stdio.h>
@@ -107,18 +100,7 @@ static void
 banner (void)
 {
   printf ("%s (%s) %s\n", PACKAGE, PACKAGE_NAME, VERSION);
-
-  printf ("\
-Copyright (C) %d Gianluca Guida\n\
-\n\
-This program is free software; you can redistribute it and/or modify\n\
-it under the terms of the GNU General Public License as published by\n\
-the Free Software Foundation; either version 2 of the License, or (at\n\
-your option) any later version.\n\
-\n\
-This program is distributed in the hope that it will be useful, but\n\
-WITHOUT ANY WARRANTY; see the GNU General Public License for more\n\
-details.\n\n", COPYRIGHT_YEAR);
+  printf ("Copyright (C) %d Gianluca Guida\n\n", COPYRIGHT_YEAR);
 }
 
 void klog_start (void);

@@ -1,7 +1,7 @@
 #
 # lib.mk
 # Copyright (C) 2019 Gianluca Guida <glguida@tlbflush.org>
-#  SPDX-License-Identifier:	GPL2.0+
+#  SPDX-License-Identifier:	BSD-2-Clause
 #
 
 .PHONY: clean_lib$(LIBRARY) install_lib$(LIBRARY)

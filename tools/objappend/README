@@ -7,3 +7,5 @@ is that in the ELF case the program header is also updated.
 
 The file is added in a section at the highest addresses (both VMA and
 LMA), thus effectively _appending_ the data to the image.
+
+Released under GPL, as it links to libbfd.
