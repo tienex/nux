@@ -26,6 +26,7 @@ EC_SRCS = 	crt0-common.c \
 		rb.c \
 		strtoul.c \
 		strcspn.c \
+		strncpy.c \
 		strlcpy.c \
 		strnlen.c \
 		atexit.c \

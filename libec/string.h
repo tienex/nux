@@ -17,6 +17,7 @@ char *strchr (const char *p, int ch);
 char *strrchr (const char *p, int ch);
 size_t strcspn (const char *s, const char *charset);
 size_t strlcpy (char *dst, const char *src, size_t siz);
+char * strncpy(char *dst, const char *src, size_t n);
 int strncmp (const char *s1, const char *s2, size_t n);
 
 void *memset (void *b, int c, size_t len);
