@@ -48,10 +48,12 @@ _start:
 	/* init hal */
 	call _C_LABEL(x86_init)
 
-	push $zippostring
+	push $_init_string
 	call ___start
-	jmp zippo
-
+loop:
+	cli
+	hlt
+	jmp loop
 
 _clear_bss:
 	push %edi
@@ -328,16 +330,6 @@ apsetup:
 	jmp 1b
 
 
-zippo:
-	lea zippostring, %esi
-	call print
-	jmp loop
-
-loop:
-	cli
-	hlt
-	jmp loop
-
 print:
 	movl $0x1000, %ecx
 	movb $0x87, %ah
@@ -378,10 +370,10 @@ _tss:
 	.skip 102
 	.hword 104 // IOMAP over the edge.
 
-zippostring:
-	.asciz "Zippo."
+_init_string:
+	.asciz "_start_arg"
 	
-
+	.section .kstack_bsp, "aw"
 	.align 4096
 stackbtm:
 	.skip 4096

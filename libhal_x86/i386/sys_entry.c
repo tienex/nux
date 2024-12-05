@@ -174,6 +174,18 @@ hal_frame_setgp (struct hal_frame *f, unsigned long gp)
 }
 
 void
+hal_frame_settls (struct hal_frame *f, unsigned long tls)
+{
+  /*
+    i386 TLS requires setting a LDT for each process and it is in
+    general very different to what modern architectures do.
+
+    It is possible to add TLS support to the i386 HAL. For now, we
+    just ignore the call.
+  */
+}
+
+void
 hal_frame_seta0 (struct hal_frame *f, unsigned long a0)
 {
   f->eax = a0;

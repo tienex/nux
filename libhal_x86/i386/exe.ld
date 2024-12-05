@@ -76,7 +76,16 @@ SECTIONS
      PROVIDE_HIDDEN (__tdata_start = .);
      *(.tdata .tdata.* .gnu.linkonce.td.*)
    } : tdata
-  .tbss : { *(.tbss .tbss.* .gnu.linkonce.tb.*) *(.tcommon) } : tdata
+   .tbss : { *(.tbss .tbss.* .gnu.linkonce.tb.*) *(.tcommon) } : tdata
+
+   . += 4096;
+
+   .kstack_bsp ALIGN(4096) :
+   {
+	*(.kstack)
+   } : kstack1
+
+   . += 4096;
 
    /* First megabyte needed by HAL. */
    .physmap ALIGN(4096) : AT(0)
@@ -157,6 +166,7 @@ PHDRS
     rodata  PT_LOAD;
     data    PT_LOAD;
     tdata   PT_TLS;
+    kstack1 PT_LOAD;
     info    0xAF100000; /* PHT_APXH_INFO */
     kmem    0xAF100008; /* PHT_APXH_TOPPTALLOC */
     kva     0xAF100008; /* PHT_APXH_TOPPTALLOC */
