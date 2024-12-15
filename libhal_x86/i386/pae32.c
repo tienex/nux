@@ -295,13 +295,13 @@ umap_get_l1p (struct hal_umap *umap, unsigned long va, bool alloc)
 }
 
 unsigned long
-umap_minaddr (void)
+pt_umap_minaddr (void)
 {
   return 0;
 }
 
 unsigned long
-umap_maxaddr (void)
+pt_umap_maxaddr (void)
 {
   return 3L << L3_SHIFT;
 }
@@ -464,8 +464,8 @@ scan_l3 (struct hal_umap *umap, unsigned off,
 }
 
 uaddr_t
-umap_next (struct hal_umap *umap, uaddr_t uaddr, hal_l1p_t * l1p_out,
-	   hal_l1e_t * l1e_out)
+pt_umap_next (struct hal_umap *umap, uaddr_t uaddr, hal_l1p_t * l1p_out,
+	       hal_l1e_t * l1e_out)
 {
 
   unsigned l3off = L3OFF (uaddr);
@@ -499,7 +499,7 @@ umap_next (struct hal_umap *umap, uaddr_t uaddr, hal_l1p_t * l1p_out,
 }
 
 void
-umap_free (struct hal_umap *umap)
+pt_umap_free (struct hal_umap *umap)
 {
   pfn_t l2pfn, l1pfn;
   pte_t l3e, *l2ptr, l2e;

@@ -159,13 +159,13 @@ hal_virtmem_pfn$size (void)
 const vaddr_t
 hal_virtmem_userbase (void)
 {
-  return umap_minaddr ();
+  return pt_umap_minaddr ();
 }
 
 const size_t
 hal_virtmem_usersize (void)
 {
-  return umap_maxaddr ();
+  return pt_umap_maxaddr ();
 }
 
 const vaddr_t

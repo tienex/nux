@@ -7,7 +7,7 @@ hal_kmap_getl1p (unsigned long va, bool alloc, hal_l1p_t * l1popq)
 {
   hal_l1p_t l1p;
 
-  if (va < umap_maxaddr ())
+  if (va < pt_umap_maxaddr ())
     {
       if (l1popq != NULL)
 	*l1popq = L1P_INVALID;
@@ -28,7 +28,7 @@ hal_umap_getl1p (struct hal_umap *umap, unsigned long uaddr, bool alloc,
 {
   hal_l1p_t l1p;
 
-  if ((uaddr >= umap_maxaddr ()) && (uaddr < umap_minaddr ()))
+  if ((uaddr >= pt_umap_maxaddr ()) && (uaddr < pt_umap_minaddr ()))
     {
       if (l1popq != NULL)
 	*l1popq = L1P_INVALID;
@@ -126,11 +126,11 @@ hal_umap_next (struct hal_umap *umap, uaddr_t uaddr, hal_l1p_t * l1p,
   if (uaddr < hal_virtmem_userbase ())
     uaddr = hal_virtmem_userbase ();
 
-  return umap_next (umap, uaddr, l1p, l1e);
+  return pt_umap_next (umap, uaddr, l1p, l1e);
 }
 
 void
 hal_umap_free (struct hal_umap *umap)
 {
-  return umap_free (umap);
+  return pt_umap_free (umap);
 }

@@ -385,13 +385,13 @@ umap_get_l1p (struct hal_umap *umap, unsigned long va, bool alloc)
 }
 
 unsigned long
-umap_minaddr (void)
+pt_umap_minaddr (void)
 {
   return 0;
 }
 
 unsigned long
-umap_maxaddr (void)
+pt_umap_maxaddr (void)
 {
   return 1L << (39 + UMAP_LOG2_L4PTES);
 }
@@ -575,8 +575,8 @@ scan_l4 (struct hal_umap *umap, unsigned off, unsigned *l4off_out,
 }
 
 uaddr_t
-umap_next (struct hal_umap *umap, uaddr_t uaddr, hal_l1p_t * l1p_out,
-	   hal_l1e_t * l1e_out)
+pt_umap_next (struct hal_umap *umap, uaddr_t uaddr, hal_l1p_t * l1p_out,
+	      hal_l1e_t * l1e_out)
 {
 
   unsigned l4off = L4OFF (uaddr);
@@ -622,7 +622,7 @@ umap_next (struct hal_umap *umap, uaddr_t uaddr, hal_l1p_t * l1p_out,
 }
 
 void
-umap_free (struct hal_umap *umap)
+pt_umap_free (struct hal_umap *umap)
 {
   pte_t l4e;
   pfn_t l3pfn;
@@ -651,16 +651,13 @@ umap_free (struct hal_umap *umap)
 		      if (pte_present (l2e))
 			{
 			  l1pfn = pte_pfn (l2e);
-			  printf ("Freeing L1 %lx\n", l1pfn);
 			  pfn_free (l1pfn);
 			}
 		    }
-		  printf ("Freeing L2 %lx\n", l2pfn);
 		  pfn_put (l2pfn, l2ptr);
 		  pfn_free (l2pfn);
 		}
 	    }
-	  printf ("Freeing L3 %lx\n", l3pfn);
 	  pfn_put (l3pfn, l3ptr);
 	  pfn_free (l3pfn);
 	}

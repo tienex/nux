@@ -90,6 +90,13 @@ umap_bootstrap (struct umap *umap)
 }
 
 void
+umap_free (struct umap *umap)
+{
+  assert (umap->cpumask == 0);
+  hal_umap_free (&umap->hal);
+}
+
+void
 umap_init (struct umap *umap)
 {
   umap->tlbop = 0;

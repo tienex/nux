@@ -218,11 +218,11 @@ riscv_gettp (void)
 
 hal_l1p_t cpumap_get_l1p (unsigned long va, int alloc);
 hal_l1p_t umap_get_l1p (struct hal_umap *umap, unsigned long va, bool alloc);
-uaddr_t umap_next (struct hal_umap *umap, uaddr_t uaddr, hal_l1p_t * l1p_out,
+uaddr_t pt_umap_next (struct hal_umap *umap, uaddr_t uaddr, hal_l1p_t * l1p_out,
 		   hal_l1e_t * l1e_out);
-void umap_free (struct hal_umap *umap);
-unsigned long umap_minaddr (void);
-unsigned long umap_maxaddr (void);
+void pt_umap_free (struct hal_umap *umap);
+unsigned long pt_umap_minaddr (void);
+unsigned long pt_umap_maxaddr (void);
 #endif /* _ASSEMBLER */
 
 #endif /* _HAL_INTERNAL_H */

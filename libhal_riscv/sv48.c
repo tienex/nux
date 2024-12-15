@@ -316,7 +316,7 @@ scan_l4 (struct hal_umap *umap, unsigned off, unsigned *l4off_out,
 }
 
 uaddr_t
-umap_next (struct hal_umap *umap, uaddr_t uaddr, hal_l1p_t * l1p_out,
+pt_umap_next (struct hal_umap *umap, uaddr_t uaddr, hal_l1p_t * l1p_out,
 	   hal_l1e_t * l1e_out)
 {
 
@@ -380,7 +380,7 @@ _next_exit:
 }
 
 void
-umap_free (struct hal_umap *umap)
+pt_umap_free (struct hal_umap *umap)
 {
   pte_t l4e;
   pfn_t l3pfn;
@@ -430,13 +430,13 @@ umap_free (struct hal_umap *umap)
 }
 
 unsigned long
-umap_minaddr (void)
+pt_umap_minaddr (void)
 {
   return 0;
 }
 
 unsigned long
-umap_maxaddr (void)
+pt_umap_maxaddr (void)
 {
   return 1L << (39 + UMAP_LOG2_L4PTES);
 }
