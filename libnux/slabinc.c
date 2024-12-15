@@ -103,7 +103,6 @@ void *SLABFUNC (alloc_opq) (struct slab * sc, void *opq)
   struct objhdr *oh;
   struct slabhdr *sh = NULL;
 
-
   SPIN_LOCK (sc->lock);
 
 retry:
@@ -167,7 +166,7 @@ void SLABFUNC (free) (void *ptr)
   if (!sh)
     return;
   sc = sh->cache;
-  max_objs = (__slabinc_size - sizeof (struct slabhdr)) / sc->objsize;
+  max_objs = ___slabobjs (sc->objsize);
 
   if (sc->ctr)
     sc->ctr (ptr, NULL, 1);
