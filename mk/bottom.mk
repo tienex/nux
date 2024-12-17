@@ -4,6 +4,10 @@
 #  SPDX-License-Identifier:	BSD-2-Clause
 #
 
+ifneq (z$(NUX_KERNEL),z)
+include $(MKDIR)/nuxexe.mk
+endif
+
 ifneq (z$(SUBDIRS),z)
 include $(MKDIR)/subdir.mk
 endif

@@ -19,16 +19,16 @@ DEPS+= $(addprefix $(OBJDIR)/,$(addsuffix .d, $(basename $(notdir $(OBJSRCS)))))
 
 -include $(DEPS)
 
-$(OBJDIR)/%.S.o: %.S
+$(OBJDIR)/%.S.o: %.S $(OBJDIR)
 	$(CC) -c $(CPPFLAGS) $(ASFLAGS) -o $@ $<
 
-$(OBJDIR)/%.o: %.S
+$(OBJDIR)/%.o: %.S $(OBJDIR)
 	$(CC) -c $(CPPFLAGS) $(ASFLAGS) -o $@ $<
 
-$(OBJDIR)/%.c.o: %.c
+$(OBJDIR)/%.c.o: %.c $(OBJDIR)
 	$(CC) -c $(CPPFLAGS) $(CFLAGS) -o $@ $<
 
-$(OBJDIR)/%.o: %.c
+$(OBJDIR)/%.o: %.c $(OBJDIR)
 	$(CC) -c $(CPPFLAGS) $(CFLAGS) -o $@ $<
 
 $(OBJDIR):

@@ -5,12 +5,13 @@
 #  SPDX-License-Identifier:	BSD-2-Clause
 #
 
-@COMPILE_LIBEC@
-@COMPILE_LIBNUX@
-@LINK_LIBEC@
-@LINK_LIBNUX@
-
 NOINST=y
-PROGRAM=example
+NUX_KERNEL=example
 
 SRCS+= main.c
+
+
+@COMPILE_LIBNUX@
+@COMPILE_LIBEC@
+@LINK_LIBEC@
+@LINK_LIBNUX@

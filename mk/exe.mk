@@ -10,7 +10,7 @@ ifneq (z$(LINKERSCRIPT),z)
 LDFLAGS+=-T$(LINKERSCRIPT)
 endif
 
-$(PROGRAM): $(OBJS) $(LIBDEPS) $(LINKERSCRIPT)
+$(PROGRAM): $(OBJS) $(LIBDEPS) $(LINKERSCRIPT) $(CUSTOBJS)
 	$(CC) $(LDADD_START) $(LDFLAGS) \
 	-Wl,--start-group $(OBJS) $(LDADD) -Wl,--end-group \
 	$(LDADD_END) -o $@
