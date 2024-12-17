@@ -11,8 +11,9 @@ SECTIONS
 
    .rodata ALIGN(4096) :
    {
-      *(.rodata.str?.*);
-      *(.rodata);
+      *(EXCLUDE_FILE (*__nux_syms.o) .rodata)
+      *(EXCLUDE_FILE (*__nux_syms.o) .rodata.str?.*)
+      *(EXCLUDE_FILE (*__nux_syms.o) .rodata.*)
    } : rodata
 
   .preinit_array (READONLY) :
@@ -146,6 +147,15 @@ SECTIONS
 	_fbuf_end = .;
    } : fbuf
 
+   .ksyms ALIGN(4096) : AT(0)
+   {
+	_ksym_start = .;
+	__nux_syms.o*(*.rodata);
+	__nux_syms.o*(*.rodata.str?.*);
+	__nux_syms.o*(*.rodata.*);
+	_ksym_end = .;
+   } : ksyms
+
    .linear ALIGN(8 * 1024 * 1024) : AT (0)
    {
 	_linear_start = .;
@@ -167,6 +177,7 @@ PHDRS
     data    PT_LOAD;
     tdata   PT_TLS;
     kstack1 PT_LOAD;
+    ksyms   PT_LOAD;
     info    0xAF100000; /* PHT_APXH_INFO */
     kmem    0xAF100008; /* PHT_APXH_TOPPTALLOC */
     kva     0xAF100008; /* PHT_APXH_TOPPTALLOC */

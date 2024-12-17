@@ -75,6 +75,7 @@ hal_l1p_t umap_get_l1p (struct hal_umap *umap, unsigned long va, int alloc);
 uaddr_t pt_umap_next (struct hal_umap *umap, uaddr_t uaddr, hal_l1p_t * l1p_out,
 		   hal_l1e_t * l1e_out);
 void pt_umap_free (struct hal_umap *umap);
+void pt_umap_debugwalk (struct hal_umap *umap, unsigned long va);
 unsigned long pt_umap_minaddr (void);
 unsigned long pt_umap_maxaddr (void);
 
@@ -92,6 +93,9 @@ unsigned long read_cr4 (void);
 void write_cr4 (unsigned long r);
 unsigned long read_cr3 (void);
 void write_cr3 (unsigned long r);
+
+unsigned long frame_bp(struct hal_frame *f);
+unsigned long frame_cr2(struct hal_frame *f);
 
 #endif
 

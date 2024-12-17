@@ -223,3 +223,15 @@ hal_frame_print (struct hal_frame *f)
 	  f->ds, f->es, f->fs, f->gs);
   hallog ("CR3: %08x CR2: %08x err: %08x", f->cr3, f->cr2, f->err);
 }
+
+unsigned long
+frame_bp (struct hal_frame *f)
+{
+  return f->ebp;
+}
+
+unsigned long
+frame_cr2 (struct hal_frame *f)
+{
+  return f->cr2;
+}

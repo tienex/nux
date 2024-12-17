@@ -295,6 +295,8 @@ get_umap_l2pfn (struct hal_umap *umap, unsigned long va, bool alloc)
   pte_t l3e;
 
   l3p = get_umap_l3p (umap, va, alloc);
+  if (l3p == PTEP_INVALID)
+    return PFN_INVALID;
   l3e = get_pte (l3p);
 
   if (!pte_present (l3e))
@@ -342,6 +344,8 @@ get_umap_l1pfn (struct hal_umap *umap, unsigned long va, bool alloc)
   pte_t l2e;
 
   l2p = get_umap_l2p (umap, va, alloc);
+  if (l2p == PTEP_INVALID)
+    return PFN_INVALID;
   l2e = get_pte (l2p);
 
   if (!pte_present (l2e))
@@ -401,6 +405,74 @@ hal_l1p_t
 kmap_get_l1p (unsigned long va, int alloc)
 {
   return (hal_l1p_t) linmap_get_l1p (va, alloc, false /* !user */ );
+}
+
+void
+pt_umap_debugwalk (struct hal_umap *umap, unsigned long va)
+{
+  unsigned i;
+  pte_t pte;
+  ptep_t ptep;
+
+  i = 4;
+  ptep = linmap_get_l4p (va);
+  printf ("    L%d -", i);
+  if (ptep == PTEP_INVALID)
+    {
+      printf (" <PTE PTR INVALID>\n\n");
+      return;
+    }
+  pte = get_pte (ptep);
+  printf (" <%lx>\n", pte);
+  if (!pte_present(pte))
+    {
+      printf("\n");
+      return;
+    }
+
+  i = 3;
+  ptep = linmap_get_l3p (va, false, false);
+  printf ("    L%d -", i);
+  if (ptep == PTEP_INVALID)
+    {
+      printf (" <PTE PTR INVALID>\n\n");
+      return;
+    }
+  pte = get_pte (ptep);
+  printf (" <%lx>\n", pte);
+  if (!pte_present(pte))
+    {
+      printf("\n");
+      return;
+    }
+
+  i = 2;
+  ptep = linmap_get_l2p (va, false, false);
+  printf ("    L%d -", i);
+  if (ptep == PTEP_INVALID)
+    {
+      printf (" <PTE PTR INVALID>\n\n");
+      return;
+    }
+  pte = get_pte (ptep);
+  printf (" <%lx>\n", pte);
+  if (!pte_present(pte))
+    {
+      printf("\n");
+      return;
+    }
+
+  i = 1;
+  ptep = linmap_get_l1p (va, false, false);
+  printf ("    L%d -", i);
+  if (ptep == PTEP_INVALID)
+    {
+      printf (" <PTE PTR INVALID>\n\n");
+      return;
+    }
+  pte = get_pte (ptep);
+  printf (" <%lx>\n", pte);
+  return;
 }
 
 void

@@ -380,6 +380,58 @@ hal_umap_load (struct hal_umap *umap)
   return tlbop;
 }
 
+void
+pt_umap_debugwalk (struct hal_umap *umap, unsigned long va)
+{
+  unsigned i;
+  pte_t pte;
+  ptep_t ptep;
+
+  i = 3;
+  ptep = linmap_get_l3p (va);
+  printf ("    L%d -", i);
+  if (ptep == PTEP_INVALID)
+    {
+      printf (" <PTE PTR INVALID>\n\n");
+      return;
+    }
+  pte = get_pte (ptep);
+  printf (" <%lx>\n", pte);
+  if (!pte_present(pte))
+    {
+      printf("\n");
+      return;
+    }
+
+  i = 2;
+  ptep = linmap_get_l2p (va, false, false);
+  printf ("    L%d -", i);
+  if (ptep == PTEP_INVALID)
+    {
+      printf (" <PTE PTR INVALID>\n\n");
+      return;
+    }
+  pte = get_pte (ptep);
+  printf (" <%lx>\n", pte);
+  if (!pte_present(pte))
+    {
+      printf("\n");
+      return;
+    }
+
+  i = 1;
+  ptep = linmap_get_l1p (va, false, false);
+  printf ("    L%d -", i);
+  if (ptep == PTEP_INVALID)
+    {
+      printf (" <PTE PTR INVALID>\n\n");
+      return;
+    }
+  pte = get_pte (ptep);
+  printf (" <%lx>\n", pte);
+  return;
+}
+
 static bool
 scan_l1 (pfn_t l1pfn, unsigned off, unsigned *l1off_out, hal_l1p_t * l1p_out,
 	 hal_l1e_t * l1e_out)

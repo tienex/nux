@@ -230,3 +230,15 @@ hal_frame_print (struct hal_frame *f)
   hallog (" SS: %04x     RSP: %016lx", (int) f->intr.ss, f->intr.rsp);
   hallog ("CR2: %016lx err: %08lx", f->intr.cr2, f->intr.err);
 }
+
+unsigned long
+frame_bp (struct hal_frame *f)
+{
+  return f->intr.rbp;
+}
+
+unsigned long
+frame_cr2 (struct hal_frame *f)
+{
+  return f->intr.cr2;
+}

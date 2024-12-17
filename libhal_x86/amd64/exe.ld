@@ -31,8 +31,9 @@ SECTIONS
 
    .rodata ALIGN(4096) :
    {
-      *(.rodata);
-      *(.rodata.*)
+      *(EXCLUDE_FILE (*__nux_syms.o) .rodata)
+      *(EXCLUDE_FILE (*__nux_syms.o) .rodata.str?.*)
+      *(EXCLUDE_FILE (*__nux_syms.o) .rodata.*)
    } : rodata
 
   .init_array (READONLY) :
@@ -156,6 +157,17 @@ SECTIONS
 	_fbuf_end = .;
    } : fbuf
 
+   . += 4096;
+
+   .ksyms ALIGN(4096) : AT(0)
+   {
+	_ksym_start = .;
+	__nux_syms.o*(*.rodata);
+	__nux_syms.o*(*.rodata.str?.*);
+	__nux_syms.o*(*.rodata.*);
+	_ksym_end = .;
+   } : ksyms
+
    /* 512GB KMEM, 4k aligned. */
    .kmem ALIGN(4096) : AT (0)
    {
@@ -205,10 +217,11 @@ PHDRS
     rodata  PT_LOAD;
     data    PT_LOAD;
     tdata   PT_TLS;
-    kstack1  PT_LOAD;
-    kstack2  PT_LOAD;
-    kstack3  PT_LOAD;
-    kstack4  PT_LOAD;
+    kstack1 PT_LOAD;
+    kstack2 PT_LOAD;
+    kstack3 PT_LOAD;
+    kstack4 PT_LOAD;
+    ksyms   PT_LOAD;
     info    0xAF100000; /* PHT_APXH_INFO */
     kmem    0xAF100008; /* PHT_APXH_TOPPTALLOC */
     kva     0xAF100008; /* PHT_APXH_TOPPTALLOC */

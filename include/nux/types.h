@@ -123,4 +123,16 @@ typedef struct umap
   struct hal_umap hal;
 } umap_t;
 
+/*
+  Nux Symbols.
+
+  An array of this type is generated on compilation for symbol resolution.
+*/
+
+struct nux_ksym
+{
+  unsigned long addr;
+  const char *name;
+};
+
 #endif

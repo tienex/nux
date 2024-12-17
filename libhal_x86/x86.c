@@ -13,6 +13,7 @@
 
 #include <nux/hal.h>
 #include <nux/apxh.h>
+#include <nux/symbol.h>
 
 #include "internal.h"
 #include "stree.h"
@@ -508,6 +509,27 @@ hal_init_done (void)
   nux_initialized = 1;
 }
 
+struct stackframe {
+  struct stackframe *rbp;
+  unsigned long ra;
+};
+
+void
+stackframe (unsigned long rbp)
+{
+  struct stackframe *sf = (struct stackframe *)rbp;
+  unsigned i = 1;
+
+  while (sf != NULL && i < 32 && ((unsigned long)sf % (sizeof(void *)) == 0))
+    {
+      printf ("    [%d]: %lx <%s>\n", i, sf->ra, nux_symresolve(sf->ra));
+
+      if (sf->rbp <= sf)
+	break;
+      sf = sf->rbp;
+      i++;
+    }
+}
 
 __dead void
 hal_panic (unsigned cpu, const char *error, struct hal_frame *f)
@@ -529,7 +551,17 @@ hal_panic (unsigned cpu, const char *error, struct hal_frame *f)
     {
       hal_frame_print (f);
     }
+  printf ("\n");
+  printf ("Stack Trace:\n\n");
+  printf ("    [0]: %lx <%s>\n", hal_frame_getip(f), nux_symresolve(hal_frame_getip(f)));
+  stackframe (frame_bp(f));
+  printf ("\n");
+  printf ("PTE Walk for CR2 [%lx]\n", frame_cr2(f));
+  printf ("\n");
+  pt_umap_debugwalk (NULL, frame_cr2(f));
+  printf ("\n");
   printf ("----------------------------------------"
 	  "---------------------------------------\n");
+
   __halt ();
 }

@@ -16,3 +16,4 @@ include @NUXBUILDROOT@/$(HALDIR)/hal.mk
 include @NUXBUILDROOT@/$(PLTDIR)/plt.mk
 
 CPPFLAGS+= -I@NUXSRCROOT@/include -I@NUXSRCROOT@/$(HALDIR)/include
+LDFLAGS+= -fno-omit-frame-pointer
