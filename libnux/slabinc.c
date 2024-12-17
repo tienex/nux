@@ -198,6 +198,7 @@ void
 SLABFUNC (register) (struct slab * sc, const char *name, size_t objsize,
 		     void (*ctr) (void *, void *, int), int cachealign)
 {
+#define MAX(_a,_b) ((_a) >= (_b) ? (_a) :  (_b))
 
   if (__slabinc_initialized == 0)
     {
@@ -217,6 +218,8 @@ SLABFUNC (register) (struct slab * sc, const char *name, size_t objsize,
     {
       sc->objsize = objsize;
     }
+  sc->objsize = MAX (sc->objsize, sizeof(struct objhdr));
+
   sc->ctr = ctr;
 
   sc->emptycnt = 0;
