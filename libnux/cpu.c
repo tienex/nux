@@ -637,9 +637,14 @@ cpu_umap_current (void)
 void
 cpu_umap_enter (struct umap *umap)
 {
-  cpu_umap_exit ();
+  struct umap *curumap = cpu_curinfo ()->umap;
 
-  assert (cpu_curinfo ()->umap == NULL);
+  if (umap == curumap)
+    return;
+
+  if (curumap != NULL)
+    atomic_cpumask_clear (&curumap->cpumask, cpu_id ());
+
   __atomic_store (&cpu_curinfo ()->umap, &umap, __ATOMIC_RELEASE);
   atomic_cpumask_set (&umap->cpumask, cpu_id ());
   hal_cpu_tlbop (hal_umap_load (&umap->hal));
