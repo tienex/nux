@@ -24,8 +24,10 @@ _umap_setl1e (struct umap *umap, vaddr_t va, hal_l1e_t l1e, bool alloc,
   hal_l1e_t oldl1e;
   pfn_t oldpfn;
   unsigned oldprot;
+  struct hal_umap *hal;
 
-  if (!hal_umap_getl1p (&umap->hal, va, alloc, &l1p))
+  hal = (umap == cpu_umap_current ()) ? NULL : &umap->hal;
+  if (!hal_umap_getl1p (hal, va, alloc, &l1p))
     {
       if (opfn)
 	*opfn = PFN_INVALID;

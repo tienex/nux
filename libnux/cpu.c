@@ -628,6 +628,12 @@ cpu_useraccess_checkpf (uaddr_t addr, hal_pfinfo_t info)
     }
 }
 
+struct umap *
+cpu_umap_current (void)
+{
+  return cpu_curinfo ()->umap;
+}
+
 void
 cpu_umap_enter (struct umap *umap)
 {
@@ -636,7 +642,7 @@ cpu_umap_enter (struct umap *umap)
   assert (cpu_curinfo ()->umap == NULL);
   __atomic_store (&cpu_curinfo ()->umap, &umap, __ATOMIC_RELEASE);
   atomic_cpumask_set (&umap->cpumask, cpu_id ());
-  hal_umap_load (&umap->hal);
+  hal_cpu_tlbop (hal_umap_load (&umap->hal));
 }
 
 struct umap *
@@ -644,7 +650,7 @@ cpu_umap_exit (void)
 {
   struct umap *curumap;
 
-  hal_umap_load (NULL);
+  hal_cpu_tlbop (hal_umap_load (NULL));
   curumap = cpu_curinfo ()->umap;
   if (curumap == NULL)
     return NULL;

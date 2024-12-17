@@ -121,6 +121,7 @@ bool cpu_useraccess_memset (uaddr_t dst, int ch, size_t size,
 			    bool (*pf_handler) (uaddr_t va,
 						hal_pfinfo_t info));
 
+umap_t *cpu_umap_current (void);
 void cpu_umap_enter (struct umap *umap);
 umap_t *cpu_umap_exit (void);
 
