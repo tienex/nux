@@ -446,7 +446,7 @@ hal_umap_init (struct hal_umap *umap)
 {
   for (int i = 0; i < UMAP_L4PTES; i++)
     {
-      umap->l4[i] = 0;
+      umap->l4[i] = alloc_table ();
     }
 }
 
