@@ -17,6 +17,7 @@ hal_entry_syscall (struct hal_frame *f,
 		   unsigned long a4, unsigned long a5, unsigned long a6,
 		   unsigned long a7)
 {
+  nuxperf_inc (&pnux_entry_syscall);
   uctxt_t *uctxt = uctxt_get (f);
   switch ((uintptr_t) uctxt)
     {
@@ -37,6 +38,7 @@ hal_entry_syscall (struct hal_frame *f,
 struct hal_frame *
 hal_entry_pf (struct hal_frame *f, unsigned long va, hal_pfinfo_t info)
 {
+  nuxperf_inc (&pnux_entry_pagefault);
   if (!nux_status_okcpu ())
     {
       nux_panic ("Early Kernel Page Fault", f);
@@ -80,6 +82,7 @@ hal_entry_debug (struct hal_frame *f, unsigned xcpt)
 struct hal_frame *
 hal_entry_xcpt (struct hal_frame *f, unsigned xcpt)
 {
+  nuxperf_inc (&pnux_entry_exception);
   if (!nux_status_okcpu ())
     {
       nux_panic ("Early Kernel Exception", f);
@@ -106,6 +109,7 @@ hal_entry_xcpt (struct hal_frame *f, unsigned xcpt)
 void
 hal_entry_nmi (struct hal_frame *f)
 {
+  nuxperf_inc (&pnux_entry_nmi);
   if (__predict_false (nux_status () & NUXST_PANIC))
     {
       hal_cpu_halt ();
@@ -124,6 +128,7 @@ hal_entry_nmi (struct hal_frame *f)
 struct hal_frame *
 hal_entry_timer (struct hal_frame *f)
 {
+  nuxperf_inc (&pnux_entry_timer);
   uctxt_t *uctxt = uctxt_getuser (f);
   uctxt = entry_alarm (uctxt);
   plt_eoi_timer ();
@@ -135,6 +140,7 @@ hal_entry_irq (struct hal_frame *f, unsigned irq, bool islevel)
 {
   uctxt_t *uctxt = uctxt_getuser (f);
 
+  nuxperf_inc (&pnux_entry_irq);
   uctxt = entry_irq (uctxt, irq, islevel);
   plt_eoi_irq (irq);
   return uctxt_frame (uctxt);
@@ -144,6 +150,8 @@ struct hal_frame *
 hal_entry_ipi (struct hal_frame *f)
 {
   uctxt_t *uctxt = uctxt_getuser (f);
+
+  nuxperf_inc (&pnux_entry_ipi);
   uctxt = entry_ipi (uctxt);
   plt_eoi_ipi ();
   return uctxt_frame (uctxt);

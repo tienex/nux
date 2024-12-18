@@ -144,10 +144,10 @@ hal_main_ap (void)
   cpu_enter ();
   __atomic_sub_fetch (&_nux_apbooting, 1, __ATOMIC_ACQ_REL);
   exit (main_ap ());
-
-#if 0
-  mmap_enter ();
-  cpu_enter ();
-  exit (main_ap ());
-#endif
 }
+
+#include <nux/nuxperf.h>
+#undef NUXPERF
+#undef NUXPERF_DECLARE
+#define NUXPERF_DEFINE
+#include "perf.h"

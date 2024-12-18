@@ -79,9 +79,12 @@ SECTIONS
 
    .data ALIGN (4096) :
    {
-
       *(.data);
       *(.data.*);
+      . = ALIGN (16);
+      _nuxperf_start = .;
+      *(.perfctr);
+      _nuxperf_end = .;
    } : data
 
    .bss :

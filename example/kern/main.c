@@ -8,6 +8,7 @@
 #include <assert.h>
 #include <stdio.h>
 #include <nux/nux.h>
+#include <nux/nuxperf.h>
 
 #include <nux/hal.h>
 
@@ -148,12 +149,21 @@ entry_ipi (uctxt_t * uctxt)
   return &u_init;
 }
 
+static void
+_print_perfctr (void *unused, nuxperf_t *ctr)
+{
+  printf ("ctr: %-20s\t%20ld\n", ctr->name, ctr->val);
+}
+
 uctxt_t *
 entry_alarm (uctxt_t * uctxt)
 {
   timer_alarm (1 * 1000 * 1000 * 1000);
   info ("TMR: %" PRIu64 " us", timer_gettime ());
   uctxt_print (uctxt);
+
+  nuxperf_foreach (_print_perfctr, NULL);
+
   return uctxt;
 }
 
