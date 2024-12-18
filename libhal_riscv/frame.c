@@ -7,6 +7,7 @@ hal_frame_init (struct hal_frame *f)
 {
   memset (f, 0, sizeof (*f));
   f->sstatus = SSTATUS_SPIE;
+  f->sie = SIE_USER;
 }
 
 bool
