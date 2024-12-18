@@ -67,10 +67,7 @@ plt_interrupt (unsigned vect, struct hal_frame *f)
       if (irq == pltacpi_hpet_irq)
 	{
 	  hpet_doirq ();
-	  printf ("1\n");
 	  r = hal_entry_timer (f);
-	  printf ("2\n");
-	  printf ("3\n");
 	}
       else
 	{
