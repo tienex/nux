@@ -1,5 +1,5 @@
 # NUX
-* _nux, nicis : .gen. plur. nucerum for nucum, f. etym. dub., a nut._
+* _nux, nucis : .gen. plur. nucerum for nucum, f. etym. dub., a nut._
 
 ## What it is
 NUX is a framework to prototype kernels and related userspace programs that run on real, modern hardware.
