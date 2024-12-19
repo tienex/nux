@@ -28,26 +28,36 @@ spinlock_init (lock_t * l)
   memset (l, 0, sizeof (*l));
 }
 
-static inline uint64_t
+static inline void
 spinlock (lock_t * l)
 {
-  unsigned long waits = 0;
   while (__sync_lock_test_and_set (&l->lock, 1))
-    {
-      waits++;
-      hal_cpu_relax ();
-    }
-
-  l->lockcy = hal_cpu_cycles();
-  return waits;
+    hal_cpu_relax ();
 }
 
 static inline uint64_t
+spinlock_msr (lock_t * l)
+{
+  unsigned long start = hal_cpu_cycles();
+
+  while (__sync_lock_test_and_set (&l->lock, 1))
+    hal_cpu_relax ();
+
+  l->lockcy = hal_cpu_cycles();
+  return l->lockcy - start;
+}
+
+static inline void
 spinunlock (lock_t * l)
 {
-  uint64_t heldcy = hal_cpu_cycles() - l->lockcy;
   __sync_lock_release (&l->lock);
-  return heldcy;
+}
+
+static inline uint64_t
+spinunlock_msr (lock_t * l)
+{
+  __sync_lock_release (&l->lock);
+  return  hal_cpu_cycles() - l->lockcy;
 }
 
 static inline void

@@ -183,7 +183,7 @@ spinlock_measured (lock_t *lock, lock_measure_t *lm)
   /*
     Measure the number of wait cycles.
   */
-  nuxmeasure_add (lm->waits, spinlock(lock));
+  nuxmeasure_add (lm->waits, spinlock_msr(lock));
 }
 
 static inline void spinunlock_measured (lock_t *lock, lock_measure_t *lm)
@@ -191,7 +191,7 @@ static inline void spinunlock_measured (lock_t *lock, lock_measure_t *lm)
   /*
     Measure the number of cycles spent holding the lock.
   */
-  nuxmeasure_add (lm->heldcy, spinunlock(lock));
+  nuxmeasure_add (lm->heldcy, spinunlock_msr(lock));
 }
 
 #define DECLARE_LOCK_MEASURE(_lock)		\
