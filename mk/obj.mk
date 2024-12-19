@@ -43,5 +43,5 @@ objs_clean:
 objdir_clean:
 	rm $(OBJDIRSTAMP)
 
-ALL_TARGET+=$(OBJDIR) $(OBJS) $(CUSTOBJS)
+ALL_TARGET+= $(OBJS) $(CUSTOBJS)
 CLEAN_TARGET+=objs_clean objdir_clean

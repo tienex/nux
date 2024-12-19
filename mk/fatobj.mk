@@ -6,7 +6,7 @@
 
 .PHONY: clean_lib$(FATOBJ)
 
-$(OBJDIR)/$(FATOBJ).o: $(OBJDIR) $(OBJS)
+$(OBJDIR)/$(FATOBJ).o: $(OBJS)
 ifneq ($(OBJS)z,z)
 	$(CCLD) -r $(LDFLAGS) -o $@ $(OBJS) $(LDADD)
 endif
