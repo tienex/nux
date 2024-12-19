@@ -151,7 +151,7 @@ ___freeptr (struct vme *vme, uintptr_t opq)
 
 #include "alloc.h"
 
-static lock_t vmap_lock = 0;
+static lock_t vmap_lock;
 static struct zone vmap_zone;
 
 vaddr_t
@@ -238,7 +238,7 @@ kvainit (void)
 {
   rb_tree_init (&vmap_rbtree, &vmap_tree_ops);
   zone_init (&vmap_zone, 0);
-  vmap_lock = 0;
+  spinlock_init (&vmap_lock);
   vmap_size = 0;
 
   kvabase = hal_virtmem_kvabase ();

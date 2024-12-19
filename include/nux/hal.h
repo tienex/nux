@@ -38,6 +38,11 @@ void hal_cpu_relax (void);
 void hal_cpu_trap (void);
 
 /*
+  Return CPU's current cycle counter.
+*/
+uint64_t hal_cpu_cycles (void);
+
+/*
   Set CPU in idle mode 
  */
 void __dead hal_cpu_idle (void);

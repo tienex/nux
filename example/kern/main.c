@@ -15,6 +15,9 @@
 uctxt_t u_init;
 struct hal_umap umap;
 
+DEFINE_MEASURE (syscalls_cycles);
+DEFINE_MEASURE (syscalls_nsecs);
+
 int
 main (int argc, char *argv[])
 {
@@ -81,6 +84,9 @@ entry_sysc (uctxt_t * u,
 	    unsigned long a4, unsigned long a5, unsigned long a6,
 	    unsigned long a7)
 {
+  uint64_t startcy = hal_cpu_cycles ();
+  uint64_t startnsecs = timer_gettime ();
+
   switch (a1)
     {
     case 0:
@@ -139,6 +145,8 @@ entry_sysc (uctxt_t * u,
 	    a1, a2, a3, a4, a5, a6, a7);
       break;
     }
+  nuxmeasure_add (&syscalls_nsecs, timer_gettime() - startnsecs);
+  nuxmeasure_add (&syscalls_cycles, hal_cpu_cycles() - startcy);
   return u;
 }
 
@@ -163,6 +171,7 @@ entry_alarm (uctxt_t * uctxt)
   uctxt_print (uctxt);
 
   nuxperf_foreach (_print_perfctr, NULL);
+  nuxmeasure_print ();
 
   return uctxt;
 }

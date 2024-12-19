@@ -268,6 +268,14 @@ hal_cpu_trap (void)
   asm volatile ("ud2");
 }
 
+uint64_t
+hal_cpu_cycles (void)
+{
+  uint32_t hi, lo;
+  asm volatile ("rdtsc" : "=a"(lo), "=d"(hi));
+  return ((uint64_t)hi << 32) | lo;
+}
+
 void __dead
 hal_cpu_idle (void)
 {

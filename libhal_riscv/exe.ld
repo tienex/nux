@@ -87,6 +87,13 @@ SECTIONS
       _nuxperf_end = .;
    } : data
 
+   .measure ALIGN (16) :
+   {
+      _nuxmeasure_start = .;
+      *(.measure);
+      _nuxmeasure_end = .;
+   } : data
+
    .bss :
    {
       _sbss = .;

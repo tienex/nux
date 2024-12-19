@@ -81,7 +81,7 @@ ___slabfree (void *ptr)
 }
 
 #define DECLARE_SPIN_LOCK(_x) lock_t _x
-#define SPIN_LOCK_INIT(_x) do { _x = 0; } while (0)
+#define SPIN_LOCK_INIT(_x) spinlock_init(&_x)
 #define SPIN_LOCK(_x) spinlock(&_x)
 #define SPIN_UNLOCK(_x) spinunlock(&_x)
 #define SPIN_LOCK_FREE(_x)

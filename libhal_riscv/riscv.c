@@ -111,6 +111,14 @@ hal_cpu_halt (void)
 
 }
 
+uint64_t
+hal_cpu_cycles (void)
+{
+  uint64_t cycles;
+  asm volatile ("rdcycle %0;" : "=r" (cycles));
+  return cycles;
+}
+
 void
 hal_cpu_tlbop (hal_tlbop_t tlbop)
 {

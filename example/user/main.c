@@ -1,11 +1,10 @@
-
 #include <nux/syscalls.h>
+#include <stdio.h>
 
-int
-putchar (const char c)
+void
+putchar (int c)
 {
   (void) syscall1 (4096, c);
-  return 0;
 }
 
 void
