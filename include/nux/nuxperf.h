@@ -41,6 +41,20 @@ nuxperf_foreach (void (*fn)(void *opq, nuxperf_t *ctr), void *opq)
 }
 
 static inline void
+nuxperf_print (void)
+{
+  extern nuxperf_t _nuxperf_start[];
+  extern nuxperf_t _nuxperf_end[];
+  nuxperf_t *ptr = _nuxperf_start;
+
+  while (ptr < _nuxperf_end)
+    {
+      printf ("ctr: %-20s\t%16ld\n", ptr->name, ptr->val);
+      ptr++;
+    }
+}
+
+static inline void
 nuxperf_reset (void)
 {
   extern nuxperf_t _nuxperf_start[];
@@ -139,12 +153,8 @@ nuxmeasure_print (void)
       while (__sync_lock_test_and_set (&ptr->lock, 1))
 	hal_cpu_relax ();
 
-      printf ("Measure \"%s\":\n  ", ptr->name);
-      printf ("min %-16d ", ptr->min);
-      printf ("avg %-16d ", ptr->avg);
-      printf ("max %-16d ", ptr->max);
-      printf ("cnt %-16d\n", ptr->count);
-
+      printf ("msr: %-20s\t%16" PRId64 "\n    min/avg/max [ %" PRId64" / %" PRId64" / %" PRId64 " ]\n",
+	      ptr->name, ptr->count, ptr->min, ptr->avg, ptr->max);
       __sync_lock_release (&ptr->lock);
       ptr++;
     }
@@ -173,7 +183,7 @@ nuxmeasure_print (void)
 */
 
 typedef struct {
-  nuxmeasure_t *waits;
+  nuxmeasure_t *waitcy;
   nuxmeasure_t *heldcy;
 } lock_measure_t;
 
@@ -183,7 +193,7 @@ spinlock_measured (lock_t *lock, lock_measure_t *lm)
   /*
     Measure the number of wait cycles.
   */
-  nuxmeasure_add (lm->waits, spinlock_msr(lock));
+  nuxmeasure_add (lm->waitcy, spinlock_msr(lock));
 }
 
 static inline void spinunlock_measured (lock_t *lock, lock_measure_t *lm)
@@ -198,8 +208,8 @@ static inline void spinunlock_measured (lock_t *lock, lock_measure_t *lm)
   extern lock_measure_t _lock
 
 #define DEFINE_LOCK_MEASURE(_lock)		\
-  nuxmeasure_t __measure _lock##_waits = {	\
-    .name = #_lock "_waits",			\
+  nuxmeasure_t __measure _lock##_waitcy = {	\
+    .name = #_lock "_waitcy",			\
     .lock = 0,					\
     .min = -1,					\
     .max = 0,					\
@@ -215,7 +225,7 @@ static inline void spinunlock_measured (lock_t *lock, lock_measure_t *lm)
     .count = 0,					\
   };						\
   lock_measure_t _lock = {			\
-    .waits = & _lock##_waits,			\
+    .waitcy = & _lock##_waitcy,			\
     .heldcy = & _lock##_heldcy,			\
   }
 

@@ -157,11 +157,6 @@ entry_ipi (uctxt_t * uctxt)
   return &u_init;
 }
 
-static void
-_print_perfctr (void *unused, nuxperf_t *ctr)
-{
-  printf ("ctr: %-20s\t%20ld\n", ctr->name, ctr->val);
-}
 
 uctxt_t *
 entry_alarm (uctxt_t * uctxt)
@@ -170,7 +165,7 @@ entry_alarm (uctxt_t * uctxt)
   info ("TMR: %" PRIu64 " us", timer_gettime ());
   uctxt_print (uctxt);
 
-  nuxperf_foreach (_print_perfctr, NULL);
+  nuxperf_print ();
   nuxmeasure_print ();
 
   return uctxt;
