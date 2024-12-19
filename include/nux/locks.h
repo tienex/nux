@@ -31,8 +31,15 @@ spinlock_init (lock_t * l)
 static inline void
 spinlock (lock_t * l)
 {
-  while (__sync_lock_test_and_set (&l->lock, 1))
-    hal_cpu_relax ();
+  while (1)
+    {
+      while (__atomic_load_n(&l->lock, __ATOMIC_RELAXED))
+	hal_cpu_relax ();
+
+      int expected = 0;
+      if (__atomic_compare_exchange_n(&l->lock, &expected, 1, true, __ATOMIC_ACQUIRE, __ATOMIC_RELAXED))
+	break;
+    }
 }
 
 static inline uint64_t
@@ -40,8 +47,7 @@ spinlock_msr (lock_t * l)
 {
   unsigned long start = hal_cpu_cycles();
 
-  while (__sync_lock_test_and_set (&l->lock, 1))
-    hal_cpu_relax ();
+  spinlock (l);
 
   l->lockcy = hal_cpu_cycles();
   return l->lockcy - start;
@@ -50,13 +56,13 @@ spinlock_msr (lock_t * l)
 static inline void
 spinunlock (lock_t * l)
 {
-  __sync_lock_release (&l->lock);
+  __atomic_store_n(&l->lock, 0, __ATOMIC_RELEASE);
 }
 
 static inline uint64_t
 spinunlock_msr (lock_t * l)
 {
-  __sync_lock_release (&l->lock);
+  spinunlock (l);
   return  hal_cpu_cycles() - l->lockcy;
 }
 
