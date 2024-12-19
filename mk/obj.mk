@@ -6,6 +6,8 @@
 
 .PHONY: objdir_clean objs_clean
 
+OBJDIRSTAMP=$(OBJDIR)/.stamp
+
 vpath %.S $(dir $(addprefix $(SRCDIR),$(SRCS))) $(SRCDIR)
 vpath %.c $(dir $(addprefix $(SRCDIR),$(SRCS))) $(SRCDIR)
 
@@ -19,26 +21,27 @@ DEPS+= $(addprefix $(OBJDIR)/,$(addsuffix .d, $(basename $(notdir $(OBJSRCS)))))
 
 -include $(DEPS)
 
-$(OBJDIR)/%.S.o: %.S
+$(OBJDIR)/%.S.o: %.S $(OBJDIRSTAMP)
 	$(CC) -c $(CPPFLAGS) $(ASFLAGS) -o $@ $<
 
-$(OBJDIR)/%.o: %.S
+$(OBJDIR)/%.o: %.S $(OBJDIRSTAMP)
 	$(CC) -c $(CPPFLAGS) $(ASFLAGS) -o $@ $<
 
-$(OBJDIR)/%.c.o: %.c
+$(OBJDIR)/%.c.o: %.c $(OBJDIRSTAMP)
 	$(CC) -c $(CPPFLAGS) $(CFLAGS) -o $@ $<
 
-$(OBJDIR)/%.o: %.c
+$(OBJDIR)/%.o: %.c $(OBJDIRSTAMP)
 	$(CC) -c $(CPPFLAGS) $(CFLAGS) -o $@ $<
 
-$(OBJDIR):
-	mkdir -p $(OBJDIR)
+$(OBJDIRSTAMP):
+	-mkdir -p $(OBJDIR)
+	touch $(OBJDIRSTAMP)
 
 objs_clean:
 	-rm $(OBJS) $(DEPS) $(CUSTOBJS)
 
 objdir_clean:
-	-rmdir $(OBJDIR)
+	rm $(OBJDIRSTAMP)
 
 ALL_TARGET+=$(OBJDIR) $(OBJS) $(CUSTOBJS)
 CLEAN_TARGET+=objs_clean objdir_clean
