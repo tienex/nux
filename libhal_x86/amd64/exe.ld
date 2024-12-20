@@ -82,17 +82,32 @@ SECTIONS
    {
       *(.data);
       *(.data.*);
+
+      /* Performance Counters. */
       . = ALIGN (16);
       _nuxperf_start = .;
       *(.perfctr);
       _nuxperf_end = .;
-   } : data
 
-   .measure ALIGN (16) :
-   {
+      /* Performance Measures. */
+      . = ALIGN (16);
       _nuxmeasure_start = .;
       *(.measure);
       _nuxmeasure_end = .;
+
+      /*
+	Custom data structures for projects using NUX.
+      */
+      . = ALIGN (16);
+      _data_ext0_start = .;
+      KEEP (*(.data_ext0));
+      _data_ext0_end = .;
+
+      . = ALIGN (16);
+      _data_ext1_start = .;
+      KEEP (*(.data_ext1));
+      _data_ext1_end = .;
+
    } : data
 
    .bss :
