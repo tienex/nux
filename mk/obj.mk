@@ -13,8 +13,8 @@ vpath %.c $(dir $(addprefix $(SRCDIR),$(SRCS))) $(SRCDIR)
 
 CFLAGS+=-MMD
 
-OBJS= $(addprefix $(OBJDIR)/,$(addsuffix .o, $(basename $(notdir $(SRCS)))))
-DEPS= $(addprefix $(OBJDIR)/,$(addsuffix .d, $(basename $(notdir $(SRCS)))))
+OBJS+= $(addprefix $(OBJDIR)/,$(addsuffix .o, $(basename $(notdir $(SRCS)))))
+DEPS+= $(addprefix $(OBJDIR)/,$(addsuffix .d, $(basename $(notdir $(SRCS)))))
 
 CUSTOBJS= $(addprefix $(OBJDIR)/,$(addsuffix .o, $(basename $(notdir $(OBJSRCS)))))
 DEPS+= $(addprefix $(OBJDIR)/,$(addsuffix .d, $(basename $(notdir $(OBJSRCS)))))
