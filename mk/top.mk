@@ -13,6 +13,7 @@ OBJCOPY=@TARGET_OBJCOPY@
 OBJDIR=@builddir@/@MACHINE@
 SRCDIR=@srcdir@/
 SRCROOT=@top_srcdir@/
+BUILDDIR=@builddir@
 BUILDROOT=@top_builddir@/
 MKDIR=$(SRCROOT)/@mk_dir@
 INSTALLDIR=@INSTALLDIR@

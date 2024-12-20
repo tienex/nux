@@ -12,12 +12,8 @@ ifneq (z$(SUBDIRS),z)
 include $(MKDIR)/subdir.mk
 endif
 
-ifneq (z$(SRCS),z)
+ifneq (z$(SRCS)$(OBJSRCS),z)
 include $(MKDIR)/obj.mk
-else
-ifneq (z$(CUSTOBJS),z)
-include $(MKDIR)/obj.mk
-endif
 endif
 
 ifneq (z$(LIBRARY),z)
