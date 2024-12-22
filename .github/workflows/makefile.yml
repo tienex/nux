@@ -34,7 +34,7 @@ jobs:
         path: toolchain
 
     - name: Save toolchain cache
-      if: steps.cache-restore.outputs.cache-hit != 'true'
+      if: steps.cache-check.outputs.cache-hit != 'true'
       uses: actions/cache/save@v3
       with:
         path: toolchain
@@ -53,6 +53,9 @@ jobs:
         chmod -R +x $TOOLCHAIN_PATH/bin/
         chmod -R +x $TOOLCHAIN_PATH/lib/gcc
         chmod -R +x $TOOLCHAIN_PATH/libexec/gcc
+	which i686-unknown-elf-gcc
+	which amd64-unknown-elf-gcc
+	which riscv64-unknown-elf-gcc
 
     - name: Submodules fetch
       run: |
