@@ -1,10 +1,11 @@
+BINUTILSSRCS= $(SRCROOT)/contrib/binutils
 IBERTYSRCS= $(SRCROOT)/contrib/binutils/libiberty
 BFDSRCS= $(SRCROOT)/contrib/binutils/bfd
 ZLIBSRCS= $(SRCROOT)/contrib/binutils/zlib
 
 HOST_CC=@CC@
 
-CFLAGS= -I$(IBERTYSRCS) -I$(BFDSRCS) -I$(ZLIBSRCS) -I$(BFDSRCS)/include
+CFLAGS= -I$(IBERTYSRCS) -I$(BFDSRCS) -I$(ZLIBSRCS) -I$(BINUTILSSRCS)/include
 LDFLAGS= -L$(ZLIBSRCS) -L$(IBERTYSRCS) -L$(BFDSRCS) 
 
 vpath %.c $(SRCDIR)
