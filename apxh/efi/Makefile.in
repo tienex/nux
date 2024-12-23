@@ -61,7 +61,7 @@ gnu-efi: $(GNUEFI_LIB)/$(ARCH)/gnuefi/libgnuefi.a
 $(GNUEFI_LIB)/$(ARCH)/gnuefi/libgnuefi.a:
 	$(MAKE) -C $(GNUEFI_SRC) OBJDIR=$(GNUEFI_SRC)/$(ARCH) ARCH=$(ARCH) CC=$(CC) CFLAGS='$(GNUEFI_CFLAGS)' AR=$(AR) LD=$(LD) OBJCOPY=$(OBJCOPY) gnuefi
 
-apxh.so: $(EFIOBJS)  subdirs
+apxh.so: $(EFIOBJS)  subdirs $(GNUEFI_LIB)/$(ARCH)/gnuefi/libgnuefi.a
 	$(LD) $(LDFLAGS) --start-group $(EFIOBJS) apxhefi/$(OBJDIR)/apxhefi.apxh_main.o -lefi -lgnuefi --end-group -o $@
 
 
