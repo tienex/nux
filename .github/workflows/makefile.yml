@@ -14,59 +14,36 @@ jobs:
     steps:
     - uses: actions/checkout@v3
 
-    - name: Cache Toolchain
-      id: cache-check
-      uses: actions/cache@v3
-      with:
-        path: toolchain
-        key: gcc-toolchain-${{ runner.os }}
-        restore-keys: |
-          gcc-toolchain-
-
     - name: Download GCC Toolchain
       if: steps.cache-check.outputs.cache-hit != 'true'
       uses: dawidd6/action-download-artifact@v6
       with:
         github_token: ${{ github.token }}
         workflow: makefile.yml
-        name: cross-toolchains
+        name: gcc-toolchain
         repo: glguida/gcc_toolchain_build
-        path: toolchain
 
-    - name: Save toolchain cache
-      if: steps.cache-check.outputs.cache-hit != 'true'
-      uses: actions/cache/save@v3
-      with:
-        path: toolchain
-        key: gcc-toolchain-${{ runner.os }}
-
-    - name: Setup environment
+    - name: Untar Toolchain
       run: |
-        TOOLCHAIN_PATH="${{ github.workspace }}/toolchain"
-        echo "$TOOLCHAIN_PATH/bin" >> $GITHUB_PATH
-        echo "$TOOLCHAIN_PATH/lib/gcc/amd64-unknown-elf/13.2.0" >> $GITHUB_PATH
-        echo "$TOOLCHAIN_PATH/libexec/gcc/amd64-unknown-elf/13.2.0" >> $GITHUB_PATH
-        echo "$TOOLCHAIN_PATH/lib/gcc/riscv64-unknown-elf/13.2.0" >> $GITHUB_PATH
-        echo "$TOOLCHAIN_PATH/libexec/gcc/riscv64-unknown-elf/13.2.0" >> $GITHUB_PATH
-        # Make binaries executable, but only in our toolchain path
-        ls -la $TOOLCHAIN_PATH/bin/
-        chmod -R +x $TOOLCHAIN_PATH/bin/
-        chmod -R +x $TOOLCHAIN_PATH/lib/gcc
-        chmod -R +x $TOOLCHAIN_PATH/libexec/gcc
-	which i686-unknown-elf-gcc
-	which amd64-unknown-elf-gcc
-	which riscv64-unknown-elf-gcc
+        tar xfvJ gcc_toolchain.tar.xz
+        TOOLCHAIN_PATH=${{ github.workspace }}/gcc_toolchain_install
+        echo "$TOOLCHAIN_PATH/bin" >> "$GITHUB_PATH"
 
     - name: Submodules fetch
       run: |
         git submodule update --init --recursive
+
+    - name: Build RISCV64
+      run: |
+        ./configure ARCH=riscv64
+        make -j$(nproc)
 
     - name: Build AMD64
       run: |
         ./configure ARCH=amd64
         make -j$(nproc)
 
-    - name: Build RISCV64
+    - name: Build I386
       run: |
-        ./configure ARCH=riscv64
+        ./configure ARCH=i386
         make -j$(nproc)
