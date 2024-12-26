@@ -93,17 +93,20 @@ hal_vect_max (void)
   return VECT_MAX;
 }
 
+#define CANARY_SIZE PAGE_SIZE
+#define STACK_SIZE (64 * 1024) /* 64kb Stack. */
+
 static uint64_t
 alloc_stackpage (void)
 {
-  pfn_t pfn;
-  void *va;
+  vaddr_t kaddr;
 
-  pfn = pfn_alloc (1);
-  assert (pfn != PFN_INVALID);
-  va = kva_map (pfn, HAL_PTE_W | HAL_PTE_P);
-  assert (va != NULL);
-  return (uint64_t) (uintptr_t) va;
+  /* Leave a canary page at beginning and end of kernel stack. */
+  kaddr = kva_alloc (STACK_SIZE + 2 * CANARY_SIZE);
+  assert (kaddr != VADDR_INVALID);
+  assert (!kmap_ensure_range (kaddr + CANARY_SIZE, STACK_SIZE, HAL_PTE_W | HAL_PTE_P));
+
+  return kaddr + CANARY_SIZE + STACK_SIZE;
 }
 
 void
@@ -130,7 +133,7 @@ hal_pcpu_add (unsigned pcpuid, struct hal_cpu *haldata)
   else
     {
       /* Adding secondary CPU: Allocate one PCPU kernel stack. */
-      pcpu_kstack[pcpu_kstackno++] = alloc_stackpage () + PAGE_SIZE;
+      pcpu_kstack[pcpu_kstackno++] = alloc_stackpage ();
     }
 }
 
@@ -245,9 +248,9 @@ amd64_init_ap (uintptr_t esp)
   wrmsr (MSR_IA32_STAR, ((uint64_t) KCS << 32) | ((uint64_t) UCS32 << 48));
 
   haldata->kstack = esp;
-  haldata->tss.ist[0] = alloc_stackpage () + PAGE_SIZE;
-  haldata->tss.ist[1] = alloc_stackpage () + PAGE_SIZE;
-  haldata->tss.ist[2] = alloc_stackpage () + PAGE_SIZE;
+  haldata->tss.ist[0] = alloc_stackpage ();
+  haldata->tss.ist[1] = alloc_stackpage ();
+  haldata->tss.ist[2] = alloc_stackpage ();
   haldata->tss.rsp0 = esp;
   haldata->tss.iomap = 108;
 
