@@ -1,6 +1,8 @@
 # NUX
 * _nux, nucis : .gen. plur. nucerum for nucum, f. etym. dub., a nut._
 
+For a high-level introduction on NUX and its motivation, check [this article](https://nux.tlbflush.org/post/2024_12_24_notes_nux/).
+
 ## What it is
 NUX is a framework to prototype kernels and related userspace programs that run on real, modern hardware.
 Currently supported architectures are x86_64, riscv64 and i386.
