@@ -75,6 +75,10 @@ hal_l1e_box (unsigned long pfn, unsigned prot)
     l1e |= PTE_U;
   if (prot & HAL_PTE_GLOBAL)
     l1e |= PTE_GLOBAL;
+  if (prot & HAL_PTE_A)
+    l1e |= PTE_A;
+  if (prot & HAL_PTE_D)
+    l1e |= PTE_D;
   if (prot & HAL_PTE_AVL0)
     l1e |= PTE_AVL0;
   if (prot & HAL_PTE_AVL1)
@@ -100,6 +104,10 @@ hal_l1e_unbox (hal_l1e_t l1e, unsigned long *pfnp, unsigned *protp)
 	prot |= HAL_PTE_U;
       if (l1e & PTE_GLOBAL)
 	prot |= HAL_PTE_GLOBAL;
+      if (l1e & PTE_A)
+	prot |= HAL_PTE_A;
+      if (l1e & PTE_D)
+	prot |= HAL_PTE_D;
       if (l1e & PTE_AVL0)
 	prot |= HAL_PTE_AVL0;
       if (l1e & PTE_AVL1)

@@ -96,6 +96,8 @@ typedef uintptr_t ptep_t;
 #define PTE_FLAGS (PTE_V | PTE_R | PTE_W | PTE_X)
 #define PTE_U (1 << 4)
 #define PTE_GLOBAL (1 << 5)
+#define PTE_A (1 << 6)
+#define PTE_D (1 << 7)
 #define PTE_AVL0 (1 << 8)
 #define PTE_AVL1 (1 << 9)
 
