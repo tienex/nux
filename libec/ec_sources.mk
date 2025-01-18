@@ -19,6 +19,11 @@ EC_ARCH_SRCS=	riscv64/_setjmp.S \
 		memchr.c strchr.c strrchr.c
 endif
 
+EC_INTRINSICS_SRCS+= \
+	intrinsics/popcountdi2.c \
+	intrinsics/popcountsi2.c \
+	intrinsics/udivmoddi4.c
+
 EC_SRCS = 	crt0-common.c \
 		printf.c \
 		snprintf.c \
@@ -31,4 +36,5 @@ EC_SRCS = 	crt0-common.c \
 		strnlen.c \
 		atexit.c \
 		ctype.c \
-		$(EC_ARCH_SRCS)
+		$(EC_ARCH_SRCS) \
+		$(EC_INTRINSICS_SRCS)

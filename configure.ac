@@ -15,8 +15,8 @@ if test x"${ARCH}" == x ; then
 fi
 
 AS_CASE([${ARCH}],
-	[i386], [tool_prefix=i686-unknown-elf],
-	[amd64], [tool_prefix=amd64-unknown-elf],
+	[i386], [tool_prefix=$(basename "$(command -v {i386,i686}{-unknown,-linux,}-elf-gcc)" | sed -e 's@-gcc$@@')],
+	[amd64], [tool_prefix=$(basename "$(command -v {amd64,x86_64}{-unknown,-linux,}-elf-gcc)" | sed -e 's@-gcc$@@')],
 	[riscv64], [tool_prefix=riscv64-unknown-elf],
 
 	[*], [AC_MSG_ERROR([Supported Architectures: i386, amd64, riscv64])])

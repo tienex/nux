@@ -55,6 +55,6 @@ EC_SRCS = 	$(EC_DIR)/crt0-common.c \
 %$(EXEEXT): lib%.a crt0.o crti.o crtbegin.o crtend.o crtn.o
 	$(CC) crt0.o crti.o crtbegin.o \
 	$(AM_LDFLAGS) $(EC_LDFLAGS) $(LDFLAGS) \
-	-Wl,--start-group $< $(AM_LDADD) -lgcc -Wl,--end-group \
+	-Wl,--start-group $< $(AM_LDADD) -Wl,--end-group \
 	crtend.o crtn.o \
 	-o $@

@@ -2,6 +2,8 @@
 # EC - An embedded non standard C library
 #
 
+CFLAGS += -D_STANDALONE
+
 EXTRA_DIST= amd64/crti.S amd64/crtn.S
 EXTRA_DIST+= i386/crti.S i386/crtn.S i386/crtbegin.S i386/crtend.S
 

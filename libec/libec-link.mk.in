@@ -18,7 +18,6 @@ include $(EC_DIR)/ec_sources.mk
 
 LDADD_START+= $(OBJDIR)/crti.o $(OBJDIR)/crtbegin.o
 LDADD_END+= $(OBJDIR)/crtn.o $(OBJDIR)/crtend.o
-LDADD+= -lgcc
 
 vpath %.c $(dir $(addprefix $(EC_DIR)/,$(EC_SRCS))) $(EC_DIR)
 vpath %.S $(dir $(addprefix $(EC_DIR)/,$(EC_SRCS))) $(EC_DIR)
