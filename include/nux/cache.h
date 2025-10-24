@@ -1,189 +1,386 @@
-/*
-  cache.h: a simple cache implementation.
-  Copyright (C) 2019 Gianluca Guida, glguida@tlbflush.org
+/** @file
+  NUX Generic Cache Implementation
 
-  SPDX-License-Identifier:	BSD-2-Clause
-*/
+  Provides a simple, efficient cache implementation using red-black trees
+  for fast lookups and LRU (Least Recently Used) eviction policy.
+
+  This is a template-style implementation that requires the user to define
+  a fill callback function for cache misses.
+
+  Copyright (C) 2019 Gianluca Guida <glguida@tlbflush.org>
+
+  SPDX-License-Identifier: BSD-2-Clause
+**/
 
 #ifndef _CACHE_H
 #define _CACHE_H
-
-/*
-  Define:
-
-  CACHE_SLOTS: The number of slots in the cache.
-
-  void ___cache_fill (uintptr_t slot, uintptr_t oldaddr, uintptr_t newaddr);
-
-  The above function will evict from slot SLOT the entry at OLDADDR,
-  and fill it with the new at NEWADDR.
-
-*/
 
 #include <assert.h>
 #include <stdint.h>
 #include <rbtree.h>
 
-struct slot
-{
-  rb_node_t rbn;		/* Must be first. */
-    TAILQ_ENTRY (slot) lru_entry;
+//
+// Cache Slot Structure
+//
 
-  uintptr_t addr;
-  struct
-  {
-    uint32_t valid:1;
-    uint32_t ref:31;
+/**
+  Cache Slot
+
+  Represents a single cache entry with LRU tracking and reference counting.
+  Uses red-black tree node for fast lookups by address.
+**/
+struct slot {
+  rb_node_t           RbNode;     ///< Red-black tree node (must be first)
+  TAILQ_ENTRY (slot)  LruEntry;   ///< LRU queue entry
+
+  uintptr_t  Address;             ///< Cached address
+  struct {
+    uint32_t  Valid:1;            ///< Entry is valid
+    uint32_t  RefCount:31;        ///< Reference count
   };
-
 };
 
-struct cache
-{
-  rb_tree_t map;		/* Must be First. */
-    TAILQ_HEAD (, slot) freelist;
-  lock_t lock;
+//
+// Cache Structure
+//
 
-  void (*fill) (unsigned, uintptr_t, uintptr_t);
+/**
+  Cache
 
-  unsigned numslots;
-  struct slot *slots;
+  Main cache structure managing a fixed number of slots with LRU eviction.
+  Uses red-black tree for O(log n) lookups and TAILQ for LRU ordering.
+**/
+struct cache {
+  rb_tree_t           Map;        ///< Red-black tree for address lookup (must be first)
+  TAILQ_HEAD (, slot) FreeList;   ///< LRU free list
+  lock_t              Lock;       ///< Protects cache structure
+
+  /**
+    Fill callback function.
+
+    Called when a cache miss occurs to populate the slot with new data.
+
+    @param[in] SlotNumber  Slot number being filled (0 to NumSlots-1).
+    @param[in] OldAddress  Address of entry being evicted.
+    @param[in] NewAddress  Address of entry being loaded.
+  **/
+  VOID (*Fill)(UINTN SlotNumber, uintptr_t OldAddress, uintptr_t NewAddress);
+
+  UINTN        NumSlots;          ///< Total number of cache slots
+  struct slot  *Slots;            ///< Array of cache slots
 };
 
-static int
-_slotcmp (void *ctx, const void *a, const void *b)
-{
-  const struct slot *slot1 = (const struct slot *) a;
-  const struct slot *slot2 = (const struct slot *) b;
+//
+// Internal Comparison Functions
+//
 
-  if (slot1->addr < slot2->addr)
+/**
+  Compare two cache slots by address.
+
+  Used by red-black tree for slot ordering.
+
+  @param[in] Context  Unused context pointer.
+  @param[in] pSlotA   First slot to compare.
+  @param[in] pSlotB   Second slot to compare.
+
+  @return -1 if A < B, 0 if A == B, 1 if A > B.
+**/
+static
+INT32
+CacheSlotCompare (
+  IN VOID        *Context,
+  IN CONST VOID  *pSlotA,
+  IN CONST VOID  *pSlotB
+  )
+{
+  CONST struct slot  *Slot1;
+  CONST struct slot  *Slot2;
+
+  Slot1 = (CONST struct slot *)pSlotA;
+  Slot2 = (CONST struct slot *)pSlotB;
+
+  if (Slot1->Address < Slot2->Address) {
     return -1;
-  if (slot1->addr > slot2->addr)
+  }
+
+  if (Slot1->Address > Slot2->Address) {
     return 1;
+  }
+
   return 0;
 }
 
-static int
-_slot_keycmp (void *ctx, const void *a, const void *b)
-{
-  const struct slot *slot = (const struct slot *) a;
-  const uintptr_t addr = (uintptr_t) b;
+/**
+  Compare cache slot address with a key address.
 
-  if (slot->addr < addr)
+  Used by red-black tree for address lookups.
+
+  @param[in] Context  Unused context pointer.
+  @param[in] pSlot    Slot to compare.
+  @param[in] pKey     Key address to compare.
+
+  @return -1 if slot address < key, 0 if equal, 1 if slot address > key.
+**/
+static
+INT32
+CacheSlotKeyCompare (
+  IN VOID        *Context,
+  IN CONST VOID  *pSlot,
+  IN CONST VOID  *pKey
+  )
+{
+  CONST struct slot  *Slot;
+  uintptr_t          KeyAddress;
+
+  Slot       = (CONST struct slot *)pSlot;
+  KeyAddress = (uintptr_t)pKey;
+
+  if (Slot->Address < KeyAddress) {
     return -1;
-  if (slot->addr > addr)
+  }
+
+  if (Slot->Address > KeyAddress) {
     return 1;
+  }
+
   return 0;
 }
 
-static const rb_tree_ops_t cacheops = {
-  _slotcmp,
-  _slot_keycmp,
+//
+// Red-Black Tree Operations
+//
+
+static const rb_tree_ops_t CacheOps = {
+  CacheSlotCompare,
+  CacheSlotKeyCompare,
   0,
   NULL
 };
 
-static inline unsigned
-cache_getslotno (struct cache *c, struct slot *s)
+//
+// Cache Helper Functions
+//
+
+/**
+  Get slot number from slot pointer.
+
+  Calculates the slot index from the slot pointer relative to the
+  slot array base.
+
+  @param[in] pCache  Pointer to the cache structure.
+  @param[in] pSlot   Pointer to the slot.
+
+  @return Slot number (0 to NumSlots-1).
+**/
+static inline
+UINTN
+CacheGetSlotNumber (
+  IN struct cache  *pCache,
+  IN struct slot   *pSlot
+  )
 {
-  return ((uintptr_t) s - (uintptr_t) (c->slots)) / sizeof (struct slot);
+  return ((uintptr_t)pSlot - (uintptr_t)(pCache->Slots)) / sizeof (struct slot);
 }
 
-static inline void
-cache_init (struct cache *c, struct slot *slots, unsigned numslots,
-	    /* Arguments passed to fill:
-	       1. Slot allocated
-	       2. Old Entry
-	       3. New Entry
-	     */
-	    void (*fill) (unsigned, uintptr_t, uintptr_t))
-{
-  uintptr_t i;
+/**
+  Initialize a cache.
 
-  spinlock_init (&c->lock);
-  rb_tree_init (&c->map, &cacheops);
-  TAILQ_INIT (&c->freelist);
-  c->numslots = numslots;
-  c->slots = slots;
-  c->fill = fill;
-  for (i = 0; i < numslots; i++)
-    {
-      slots[i].valid = 0;
-      slots[i].ref = 0;
-      TAILQ_INSERT_TAIL (&c->freelist, slots + i, lru_entry);
+  Sets up the cache structure with the specified number of slots and
+  fill callback function.
+
+  @param[out] pCache    Pointer to cache structure to initialize.
+  @param[out] pSlots    Array of cache slots.
+  @param[in]  NumSlots  Number of slots in the array.
+  @param[in]  FillFunc  Fill callback function for cache misses.
+**/
+static inline
+VOID
+CacheInitialize (
+  OUT struct cache  *pCache,
+  OUT struct slot   *pSlots,
+  IN  UINTN         NumSlots,
+  IN  VOID          (*FillFunc)(UINTN, uintptr_t, uintptr_t)
+  )
+{
+  UINTN  i;
+
+  spinlock_init (&pCache->Lock);
+  rb_tree_init (&pCache->Map, &CacheOps);
+  TAILQ_INIT (&pCache->FreeList);
+
+  pCache->NumSlots = NumSlots;
+  pCache->Slots    = pSlots;
+  pCache->Fill     = FillFunc;
+
+  //
+  // Initialize all slots to free state
+  //
+  for (i = 0; i < NumSlots; i++) {
+    pSlots[i].Valid    = 0;
+    pSlots[i].RefCount = 0;
+    TAILQ_INSERT_TAIL (&pCache->FreeList, pSlots + i, LruEntry);
+  }
+}
+
+/**
+  Get a cache slot for the specified address.
+
+  Looks up the address in the cache. If found, increments the reference
+  count. If not found, evicts an LRU entry and calls the fill callback.
+
+  @param[in,out] pCache  Pointer to the cache structure.
+  @param[in]     Address Address to cache.
+
+  @return Slot number, or (UINTN)-1 if cache is full and all slots are in use.
+**/
+static inline
+UINTN
+CacheGet (
+  IN OUT struct cache  *pCache,
+  IN     uintptr_t     Address
+  )
+{
+  struct slot  *Slot;
+  UINTN        SlotNumber;
+
+  spinlock (&pCache->Lock);
+
+  //
+  // Look up address in red-black tree
+  //
+  Slot = (struct slot *)rb_tree_find_node (&pCache->Map, (CONST VOID *)Address);
+
+  if (Slot != NULL) {
+    assert (Slot->Valid);
+
+    if (Slot->RefCount > 0) {
+      //
+      // Already present and in use - increment reference count
+      //
+      Slot->RefCount++;
+      assert (Slot->RefCount != 0);
+      goto Exit;
+    } else {
+      //
+      // Currently cached but unused - remove from free list and increment ref
+      //
+      TAILQ_REMOVE (&pCache->FreeList, Slot, LruEntry);
+      Slot->RefCount = 1;
+      goto Exit;
     }
+  }
+
+  //
+  // Not present in cache - evict from free list
+  //
+  Slot = TAILQ_FIRST (&pCache->FreeList);
+
+  if (Slot != NULL) {
+    UINTN  SlotNo;
+
+    SlotNo = CacheGetSlotNumber (pCache, Slot);
+
+    TAILQ_REMOVE (&pCache->FreeList, Slot, LruEntry);
+    assert (Slot->RefCount == 0);
+
+    //
+    // Call fill callback to populate the slot
+    //
+    pCache->Fill (SlotNo, Slot->Address, Address);
+
+    Slot->Address  = Address;
+    Slot->RefCount = 1;
+    Slot->Valid    = 1;
+
+    rb_tree_insert_node (&pCache->Map, Slot);
+    goto Exit;
+  }
+
+Exit:
+  if (Slot != NULL) {
+    SlotNumber = CacheGetSlotNumber (pCache, Slot);
+  } else {
+    SlotNumber = (UINTN)-1;
+  }
+
+  spinunlock (&pCache->Lock);
+
+  return SlotNumber;
 }
 
-static inline unsigned
-cache_get (struct cache *c, uintptr_t addr)
+/**
+  Release a cache slot.
+
+  Decrements the reference count on the slot. When the count reaches zero,
+  the slot is added to the LRU free list for potential eviction.
+
+  @param[in,out] pCache     Pointer to the cache structure.
+  @param[in]     SlotNumber Slot number to release.
+**/
+static
+VOID
+CachePut (
+  IN OUT struct cache  *pCache,
+  IN     UINTN         SlotNumber
+  )
 {
-  struct slot *slot;
-  unsigned slotno;
+  struct slot  *Slot;
 
-  spinlock (&c->lock);
-  slot = (struct slot *) rb_tree_find_node (&c->map, (const void *) addr);
-  if (slot != NULL)
-    {
-      assert (slot->valid);
-      if (slot->ref > 0)
-	{
-	  /* Already present and used, inc refcount and return. */
-	  slot->ref++;
-	  assert (slot->ref != 0);
-	  goto out;
-	}
-      else
-	{
-	  /* Currently in cache but unused. inc refcount and return. */
-	  TAILQ_REMOVE (&c->freelist, slot, lru_entry);
-	  slot->ref = 1;
-	  goto out;
-	}
-    }
+  spinlock (&pCache->Lock);
 
-  /* Not present in the cache. Evict from free list. */
-  slot = TAILQ_FIRST (&c->freelist);
-  if (slot != NULL)
-    {
-      unsigned n = cache_getslotno (c, slot);
+  assert (SlotNumber < pCache->NumSlots);
+  Slot = pCache->Slots + SlotNumber;
 
-      TAILQ_REMOVE (&c->freelist, slot, lru_entry);
-      assert (slot->ref == 0);
-      c->fill (n, slot->addr, addr);
-      slot->addr = addr;
-      slot->ref = 1;
-      slot->valid = 1;
-      rb_tree_insert_node (&c->map, slot);
-      goto out;
-    }
+  assert (Slot->RefCount > 0);
+  Slot->RefCount--;
 
-out:
+  if (Slot->RefCount == 0) {
+    //
+    // No more references - add to LRU free list for potential eviction
+    //
+    TAILQ_INSERT_TAIL (&pCache->FreeList, Slot, LruEntry);
+  }
 
-  if (slot != NULL)
-    slotno = cache_getslotno (c, slot);
-  else
-    slotno = (unsigned) -1;
-
-  spinunlock (&c->lock);
-
-  return slotno;
+  spinunlock (&pCache->Lock);
 }
 
-static void
-cache_put (struct cache *c, uintptr_t slotno)
-{
-  struct slot *slot;
+//
+// Legacy Function Aliases (for backward compatibility)
+//
 
-  spinlock (&c->lock);
-  assert (slotno < c->numslots);
-  slot = c->slots + slotno;
-
-  assert (slot->ref > 0);
-  slot->ref--;
-  if (slot->ref == 0)
-    TAILQ_INSERT_TAIL (&c->freelist, slot, lru_entry);
-
-  spinunlock (&c->lock);
+/** @deprecated Use CacheGetSlotNumber instead **/
+static inline unsigned cache_getslotno (struct cache *c, struct slot *s) {
+  return CacheGetSlotNumber (c, s);
 }
 
-#endif /* _CACHE_H */
+/** @deprecated Use CacheInitialize instead **/
+static inline void cache_init (
+  struct cache *c,
+  struct slot *slots,
+  unsigned numslots,
+  void (*fill)(unsigned, uintptr_t, uintptr_t)
+) {
+  CacheInitialize (c, slots, numslots, fill);
+}
+
+/** @deprecated Use CacheGet instead **/
+static inline unsigned cache_get (struct cache *c, uintptr_t addr) {
+  return CacheGet (c, addr);
+}
+
+/** @deprecated Use CachePut instead **/
+static inline void cache_put (struct cache *c, uintptr_t slotno) {
+  CachePut (c, slotno);
+}
+
+/** @deprecated Internal function, use CacheSlotCompare instead **/
+static inline int _slotcmp (void *ctx, const void *a, const void *b) {
+  return CacheSlotCompare (ctx, a, b);
+}
+
+/** @deprecated Internal function, use CacheSlotKeyCompare instead **/
+static inline int _slot_keycmp (void *ctx, const void *a, const void *b) {
+  return CacheSlotKeyCompare (ctx, a, b);
+}
+
+#endif // _CACHE_H

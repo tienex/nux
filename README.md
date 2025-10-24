@@ -3,6 +3,52 @@
 
 For a high-level introduction on NUX and its motivation, check [this article](https://nux.tlbflush.org/post/2024_12_24_notes_nux/).
 
+## COM-Style Architecture
+
+**This branch features a comprehensive transformation to COM-style architecture with NT coding conventions and UEFI documentation.**
+
+### Key Changes
+
+- **COM Infrastructure**: Complete IUnknown-based interface system with vtables
+- **NT Coding Style**: PascalCase naming, Hungarian notation, proper parameter annotations
+- **UEFI Documentation**: Professional Doxygen-style comments throughout
+- **Backward Compatibility**: All legacy APIs preserved via inline wrappers
+
+### New Features
+
+- **Interface Segregation**: Clean separation of HAL/PLT subsystems into focused interfaces
+- **Extensibility**: QueryInterface support for runtime interface discovery
+- **Binary Compatibility**: Stable vtable-based ABI
+- **Standard Error Handling**: Industry-standard HRESULT return values
+
+### Documentation
+
+See [TRANSFORMATION_GUIDE.md](TRANSFORMATION_GUIDE.md) for complete details on:
+- Transformation rationale and benefits
+- COM architecture overview
+- Migration guide for developers
+- NT coding style conventions
+- UEFI commenting standards
+
+### Transformed Files
+
+**Core Infrastructure:**
+- `include/nux/combase.h` - COM base types and IUnknown interface
+- `include/nux/types.h` - NT-style type definitions
+- `include/nux/hal.h` - COM-style HAL interfaces (IHal, IHalCpu, etc.)
+- `include/nux/plt.h` - COM-style PLT interfaces (IPlt, IPltIrq, etc.)
+
+**Utility Headers:**
+- `include/nux/defs.h` - Page size and alignment macros
+- `include/nux/locks.h` - Spinlock and RW-lock primitives
+- `include/nux/slab.h` - Slab allocator interface
+- `include/nux/cpumask.h` - CPU mask operations
+- `include/nux/cache.h` - Generic cache implementation
+
+All files maintain backward compatibility through legacy function wrappers.
+
+---
+
 ## What it is
 NUX is a framework to prototype kernels and related userspace programs that run on real, modern hardware.
 Currently supported architectures are x86_64, riscv64 and i386.
@@ -104,4 +150,3 @@ If you are _not_ using the toolchain built with `gcc_toolchain_build`, this will
 
 If you still intend to use another toolchain, then you have to edit apxh/Makefile.in,
 removing 'efi' from the list of `SUBDIRS`.
-
