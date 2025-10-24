@@ -1,3 +1,15 @@
+/** @file
+  RISC-V SBI Platform Support
+
+  Provides Supervisor Binary Interface (SBI) platform initialization
+  for RISC-V systems. Implements device tree parsing, PLIC discovery,
+  timer management, and inter-processor interrupts.
+
+  Copyright (C) 2019 Gianluca Guida, glguida@tlbflush.org
+
+  SPDX-License-Identifier: BSD-2-Clause
+**/
+
 #include <nux/plt.h>
 #include <nux/nmiemul.h>
 #include <nux/apxh.h>
@@ -6,176 +18,231 @@
 #include <libfdt.h>
 #include <string.h>
 
-static uint64_t timebase_frequency = 0;
+static UINT64 gTimebaseFrequency = 0;
+static UINT64 gTmrOffset = 0;
 
 #if 0
-static struct plt_cpu
+typedef struct plt_cpu
 {
-  unsigned plic_ctx;		/* S-mode PLIC context. */
-} pltcpus[HAL_MAXCPUS];
+  UINT32 PlicCtx;  /* S-mode PLIC context. */
+} PLT_CPU;
+
+static PLT_CPU gPltCpus[HAL_MAXCPUS];
 #endif
 
-static void
-_get_cells (const void *fdt, int noff, unsigned *addr, unsigned *size)
+/**
+  Get device tree cell sizes.
+
+  Retrieves #address-cells and #size-cells properties from parent node.
+
+  @param[in]  pFdt       Pointer to device tree.
+  @param[in]  NodeOff    Node offset.
+  @param[out] pAddrCells Number of address cells.
+  @param[out] pSizeCells Number of size cells.
+**/
+static VOID
+GetCells (
+  IN CONST VOID  *pFdt,
+  IN INT32       NodeOff,
+  OUT UINT32     *pAddrCells,
+  OUT UINT32     *pSizeCells
+  )
 {
-  unsigned a, s;
-  int len;
-  const void *prop;
+  UINT32 AddrCells, SizeCells;
+  INT32 Len;
+  CONST VOID *pProp;
 
   /* Initialise to spec default. */
-  a = 2, s = 1;
+  AddrCells = 2;
+  SizeCells = 1;
 
-  noff = fdt_parent_offset (fdt, noff);
+  NodeOff = fdt_parent_offset (pFdt, NodeOff);
 
-  prop = fdt_getprop (fdt, noff, "#address-cells", &len);
-  if (prop && len == sizeof (uint32_t))
+  pProp = fdt_getprop (pFdt, NodeOff, "#address-cells", &Len);
+  if (pProp && Len == sizeof (UINT32))
     {
-      a = fdt32_to_cpu (*(uint32_t *) prop);
+      AddrCells = fdt32_to_cpu (*(UINT32 *) pProp);
     }
   else
     {
-      warn ("DT: warning: using default #address-cells %d for node %s\n", a,
-	    fdt_get_name (fdt, noff, NULL));
+      warn ("DT: warning: using default #address-cells %d for node %s\n", AddrCells,
+	    fdt_get_name (pFdt, NodeOff, NULL));
     }
 
-  prop = fdt_getprop (fdt, noff, "#size-cells", &len);
-  if (prop && len == sizeof (uint32_t))
+  pProp = fdt_getprop (pFdt, NodeOff, "#size-cells", &Len);
+  if (pProp && Len == sizeof (UINT32))
     {
-      s = fdt32_to_cpu (*(uint32_t *) prop);
+      SizeCells = fdt32_to_cpu (*(UINT32 *) pProp);
     }
   else
     {
-      warn ("DT: warning: using default #size-cells %d for node %s\n", s,
-	    fdt_get_name (fdt, noff, NULL));
+      warn ("DT: warning: using default #size-cells %d for node %s\n", SizeCells,
+	    fdt_get_name (pFdt, NodeOff, NULL));
     }
 
-  *addr = a;
-  *size = s;
+  *pAddrCells = AddrCells;
+  *pSizeCells = SizeCells;
 }
 
-static bool
-_get_reg (const void *fdt, int noff, unsigned idx, uint64_t * base,
-	  uint64_t * length)
+/**
+  Get device tree register property.
+
+  Extracts base address and length from 'reg' property.
+
+  @param[in]  pFdt    Pointer to device tree.
+  @param[in]  NodeOff Node offset.
+  @param[in]  Index   Register index.
+  @param[out] pBase   Base address (optional).
+  @param[out] pLength Length (optional).
+
+  @retval TRUE   Register property found.
+  @retval FALSE  Register property not found.
+**/
+static BOOLEAN
+GetReg (
+  IN CONST VOID     *pFdt,
+  IN INT32          NodeOff,
+  IN UINT32         Index,
+  OUT OPTIONAL UINT64  *pBase,
+  OUT OPTIONAL UINT64  *pLength
+  )
 {
-  int len;
-  const void *prop;
-  unsigned addrsz, sizesz, regsz;
-  uint64_t b, l;
+  INT32 Len;
+  CONST VOID *pProp;
+  UINT32 AddrSz, SizeSz, RegSz;
+  UINT64 Base, Length;
 
-  _get_cells (fdt, noff, &addrsz, &sizesz);
-  regsz = addrsz + sizesz;;
+  GetCells (pFdt, NodeOff, &AddrSz, &SizeSz);
+  RegSz = AddrSz + SizeSz;
 
-  prop = fdt_getprop (fdt, noff, "reg", &len);
-  if (!prop)
-    return false;
+  pProp = fdt_getprop (pFdt, NodeOff, "reg", &Len);
+  if (!pProp)
+    return FALSE;
 
-  if (len < (idx + 1) * regsz * sizeof (uint32_t))
-    return false;
+  if (Len < (Index + 1) * RegSz * sizeof (UINT32))
+    return FALSE;
 
-  prop += idx * regsz * sizeof (uint32_t);
+  pProp += Index * RegSz * sizeof (UINT32);
 
-  b = 0;
-  for (unsigned i = 0; i < addrsz; i++)
+  Base = 0;
+  for (UINT32 i = 0; i < AddrSz; i++)
     {
-      b = (b << 32) | fdt32_to_cpu (*(uint32_t *) prop);
-      prop += sizeof (uint32_t);
+      Base = (Base << 32) | fdt32_to_cpu (*(UINT32 *) pProp);
+      pProp += sizeof (UINT32);
     }
 
-  l = 0;
-  for (unsigned i = 0; i < sizesz; i++)
+  Length = 0;
+  for (UINT32 i = 0; i < SizeSz; i++)
     {
-      l = (l << 32) | fdt32_to_cpu (*(uint32_t *) prop);
-      prop += sizeof (uint32_t);
+      Length = (Length << 32) | fdt32_to_cpu (*(UINT32 *) pProp);
+      pProp += sizeof (UINT32);
     }
 
-  if (base)
-    *base = b;
-  if (length)
-    *length = l;
-  return true;
+  if (pBase)
+    *pBase = Base;
+  if (pLength)
+    *pLength = Length;
+  return TRUE;
 }
 
-static void
-plic_init (const void *fdt, int noff)
-{
-  int len;
-  const void *prop;
-  uint64_t base, length;
+/**
+  Initialize PLIC from device tree.
 
-  if (!_get_reg (fdt, noff, 0, &base, &length))
+  Discovers PLIC base address and context mappings from device tree.
+
+  @param[in] pFdt    Pointer to device tree.
+  @param[in] NodeOff PLIC node offset.
+**/
+static VOID
+PlicInitialize (
+  IN CONST VOID  *pFdt,
+  IN INT32       NodeOff
+  )
+{
+  INT32 Len;
+  CONST VOID *pProp;
+  UINT64 Base, Length;
+
+  if (!GetReg (pFdt, NodeOff, 0, &Base, &Length))
     return;
   printf ("PLIC: %s [%016" PRIx64 ":%016" PRIx64 "]\n",
-	  fdt_get_name (fdt, noff, NULL), base, base + length);
+	  fdt_get_name (pFdt, NodeOff, NULL), Base, Base + Length);
 
-  prop = fdt_getprop (fdt, noff, "interrupts-extended", &len);
+  pProp = fdt_getprop (pFdt, NodeOff, "interrupts-extended", &Len);
 
   printf ("PLIC: External Interrupts Contexts: ");
-  for (int i = 0; i < len; i += sizeof (uint32_t) * 2)
+  for (INT32 i = 0; i < Len; i += sizeof (UINT32) * 2)
     {
-      uint32_t phandle, intr;
-      phandle = fdt32_to_cpu (*(uint32_t *) (prop + i));
-      intr = fdt32_to_cpu (*((uint32_t *) (prop + i) + 1));
+      UINT32 PHandle, Intr;
+      PHandle = fdt32_to_cpu (*(UINT32 *) (pProp + i));
+      Intr = fdt32_to_cpu (*((UINT32 *) (pProp + i) + 1));
 
       /*
        * External Interrupts for S-mode. The bit we're interested
        * about.
        */
-      if (intr == 9)
+      if (Intr == 9)
 	{
-	  uint64_t cpu;
-	  int hoff, poff;
+	  UINT64 Cpu;
+	  INT32 HartOff, ParentOff;
 
-	  hoff = fdt_node_offset_by_phandle (fdt, phandle);
-	  if (hoff < 0)
+	  HartOff = fdt_node_offset_by_phandle (pFdt, PHandle);
+	  if (HartOff < 0)
 	    continue;
-	  poff = fdt_parent_offset (fdt, hoff);
-	  if (poff < 0)
+	  ParentOff = fdt_parent_offset (pFdt, HartOff);
+	  if (ParentOff < 0)
 	    continue;
-	  if (!_get_reg (fdt, poff, 0, &cpu, NULL))
+	  if (!GetReg (pFdt, ParentOff, 0, &Cpu, NULL))
 	    continue;
 
-	  printf ("%" PRId64 "[%d] ", cpu, i / (sizeof (uint32_t) * 2));
+	  printf ("%" PRId64 "[%d] ", Cpu, i / (sizeof (UINT32) * 2));
 	}
     }
   printf ("\n");
 }
 
-void
-plt_init (void)
-{
-  const struct apxh_pltdesc *desc;
-  struct fdt_header *fdth;
-  const void *fdt, *prop;
-  int len, cpus_off;
-  uint32_t size;
+/**
+  Initialize platform.
 
-  desc = hal_pltinfo ();
-  if (desc == NULL)
+  Parses device tree to discover CPUs, PLIC, and timebase frequency.
+**/
+VOID
+PltInitialize (
+  VOID
+  )
+{
+  CONST struct apxh_pltdesc *pDesc;
+  struct fdt_header *pFdtHeader;
+  CONST VOID *pFdt, *pProp;
+  INT32 Len, CpusOff;
+  UINT32 Size;
+
+  pDesc = hal_pltinfo ();
+  if (pDesc == NULL)
     fatal ("Invalid PLT Boot Table.");
 
-  if (desc->type != PLT_DTB)
+  if (pDesc->type != PLT_DTB)
     fatal ("No Device Tree Found.");
 
-  info ("DT: DTB at %016" PRIx64, desc->pltptr);
+  info ("DT: DTB at %016" PRIx64, pDesc->pltptr);
 
-  fdth =
-    (struct fdt_header *) kva_physmap (desc->pltptr, sizeof (*fdth),
+  pFdtHeader = (struct fdt_header *) KvaMapPhysical (pDesc->pltptr, sizeof (*pFdtHeader),
 				       HAL_PTE_P);
-  if (fdt_check_header (fdth) != 0)
+  if (fdt_check_header (pFdtHeader) != 0)
     fatal ("Invalid DTB Header.");
 
-  size = fdt32_to_cpu (fdth->totalsize);
+  Size = fdt32_to_cpu (pFdtHeader->totalsize);
 
-  kva_unmap (fdth, sizeof (*fdth));
+  KvaUnmap (pFdtHeader, sizeof (*pFdtHeader));
 
-  fdt = (const void *) kva_physmap (desc->pltptr, size, HAL_PTE_P);
+  pFdt = (CONST VOID *) KvaMapPhysical (pDesc->pltptr, Size, HAL_PTE_P);
 
   /*
    * Scan the /cpus node, gathering information about HARTs, timer and
    * interrupts.
    */
-  cpus_off = fdt_path_offset (fdt, "/cpus");
-  if (cpus_off < 0)
+  CpusOff = fdt_path_offset (pFdt, "/cpus");
+  if (CpusOff < 0)
     {
       fatal ("Device tree does not contain '/cpus' node.");
     }
@@ -185,283 +252,627 @@ plt_init (void)
    * 'timebase-frequency' should be a property of a single CPU node.
    * Practically in RV this is often found in /cpus.
    */
-  prop = fdt_getprop (fdt, cpus_off, "timebase-frequency", &len);
-  if (prop != NULL)
+  pProp = fdt_getprop (pFdt, CpusOff, "timebase-frequency", &Len);
+  if (pProp != NULL)
     {
-      if (len == sizeof (uint32_t))
+      if (Len == sizeof (UINT32))
 	{
-	  timebase_frequency = fdt32_to_cpu (*(uint32_t *) prop);
+	  gTimebaseFrequency = fdt32_to_cpu (*(UINT32 *) pProp);
 	}
-      else if (len == sizeof (uint64_t))
+      else if (Len == sizeof (UINT64))
 	{
-	  timebase_frequency = fdt32_to_cpu (*(uint64_t *) prop);
+	  gTimebaseFrequency = fdt32_to_cpu (*(UINT64 *) pProp);
 	}
       else
 	{
-	  warn ("Unexpected length %d in %s/timebase-frequency\n", len,
-		fdt_get_name (fdt, cpus_off, NULL));
+	  warn ("Unexpected length %d in %s/timebase-frequency\n", Len,
+		fdt_get_name (pFdt, CpusOff, NULL));
 	}
     }
 
   printf ("DT: ");
 
-  for (int _cpu_off = fdt_first_subnode (fdt, cpus_off);
-       _cpu_off >= 0; _cpu_off = fdt_next_subnode (fdt, _cpu_off))
+  for (INT32 CpuOff = fdt_first_subnode (pFdt, CpusOff);
+       CpuOff >= 0; CpuOff = fdt_next_subnode (pFdt, CpuOff))
     {
-      const char *name;
-      name = fdt_get_name (fdt, _cpu_off, NULL);
-      if (name == NULL)
+      CONST CHAR8 *pName;
+      pName = fdt_get_name (pFdt, CpuOff, NULL);
+      if (pName == NULL)
 	continue;
 
-      if (strncmp (name, "cpu@", 4) != 0)
+      if (strncmp (pName, "cpu@", 4) != 0)
 	continue;
 
-      printf ("%s ", name);
+      printf ("%s ", pName);
 
-      prop = fdt_getprop (fdt, cpus_off, "timebase-frequency", &len);
-      if (prop != NULL)
+      pProp = fdt_getprop (pFdt, CpusOff, "timebase-frequency", &Len);
+      if (pProp != NULL)
 	{
-	  uint64_t freq;
-	  if (len == sizeof (uint32_t))
+	  UINT64 Freq;
+	  if (Len == sizeof (UINT32))
 	    {
-	      freq = fdt32_to_cpu (*(uint32_t *) prop);
+	      Freq = fdt32_to_cpu (*(UINT32 *) pProp);
 	    }
-	  else if (len == sizeof (uint64_t))
+	  else if (Len == sizeof (UINT64))
 	    {
-	      freq = fdt32_to_cpu (*(uint64_t *) prop);
+	      Freq = fdt32_to_cpu (*(UINT64 *) pProp);
 	    }
 	  else
-	    continue;		/* Let's ignore an invalid
-				 * value. Should be fatal? */
+	    continue;		/* Let's ignore an invalid value. Should be fatal? */
 
-	  if (timebase_frequency == 0)
-	    timebase_frequency = freq;
-	  else if (timebase_frequency != freq)
-	    fatal
-	      ("Inconsistent timebase frequencies: previous %lx, found %lx\n",
-	       timebase_frequency, freq);
+	  if (gTimebaseFrequency == 0)
+	    gTimebaseFrequency = Freq;
+	  else if (gTimebaseFrequency != Freq)
+	    fatal ("Inconsistent timebase frequencies: previous %lx, found %lx\n",
+	       gTimebaseFrequency, Freq);
 	}
     }
 
   printf ("\n");
 
-  printf ("DT: timebase-frequency: %ld\n", timebase_frequency);
+  printf ("DT: timebase-frequency: %ld\n", gTimebaseFrequency);
 
 
   /* Search for PLIC. */
-  for (int noff = fdt_next_node (fdt, -1, NULL);
-       noff >= 0; noff = fdt_next_node (fdt, noff, NULL))
+  for (INT32 NodeOff = fdt_next_node (pFdt, -1, NULL);
+       NodeOff >= 0; NodeOff = fdt_next_node (pFdt, NodeOff, NULL))
     {
-      int pos = 0;
-      prop = fdt_getprop (fdt, noff, "compatible", &len);
-      if (prop)
+      INT32 Pos = 0;
+      pProp = fdt_getprop (pFdt, NodeOff, "compatible", &Len);
+      if (pProp)
 	{
-	  while (pos < len)
+	  while (Pos < Len)
 	    {
-	      if (!strncmp ((char *) prop + pos, "sifive,plic-1.0.0", 17))
+	      if (!strncmp ((CHAR8 *) pProp + Pos, "sifive,plic-1.0.0", 17))
 		{
-		  plic_init (fdt, noff);
+		  PlicInitialize (pFdt, NodeOff);
 		}
-	      pos += strlen ((char *) prop + pos) + 1;
+	      Pos += strlen ((CHAR8 *) pProp + Pos) + 1;
 	    }
 	}
     }
 
-  kva_unmap ((void *) fdt, size);
+  KvaUnmap ((VOID *) pFdt, Size);
 }
 
-void
-plt_pcpu_enter (void)
+/**
+  Enter processor.
+
+  Per-CPU platform initialization.
+**/
+VOID
+PltPcpuEnter (
+  VOID
+  )
 {
   /* TODO */
 }
 
-int
-plt_pcpu_iterate (void)
+/**
+  Iterate through processors.
+
+  Returns the next processor ID in sequence.
+
+  @return Physical CPU ID, or PLT_PCPU_INVALID.
+**/
+INT32
+PltPcpuIterate (
+  VOID
+  )
 {
-  static int next_pcpu = 0;
+  static INT32 NextPcpu = 0;
 
   /* TODO */
 
-  if (next_pcpu++ == 0)
+  if (NextPcpu++ == 0)
     return 0;
   else
     return PLT_PCPU_INVALID;
 }
 
-void
-riscv_ipi (unsigned long mask)
+/**
+  Send RISC-V IPI.
+
+  Issues SBI IPI ecall to send inter-processor interrupt.
+
+  @param[in] Mask  CPU mask for IPI targets.
+**/
+VOID
+RiscvIpi (
+  IN UINT64  Mask
+  )
 {
   asm volatile ("mv a0, %0\n"
-		"li a7, 4\n" "ecall\n"::"r" (&mask):"a0", "a1", "a7");
+		"li a7, 4\n" "ecall\n"::"r" (&Mask):"a0", "a1", "a7");
 }
 
-void
-plt_pcpu_ipiall (void)
+/**
+  Broadcast IPI to all processors.
+
+  Sends inter-processor interrupt to all processors except self.
+**/
+VOID
+PltPcpuIpiAll (
+  VOID
+  )
 {
-  nmiemul_ipi_setall ();
+  NmiEmulIpiSetAll ();
   asm volatile ("csrsi sip, 2\n");
-  riscv_ipi (-1);
+  RiscvIpi (-1);
 }
 
-void
-plt_pcpu_ipi (int cpu)
+/**
+  Send IPI to processor.
+
+  Sends inter-processor interrupt to specified processor.
+
+  @param[in] Cpu  Target CPU ID.
+**/
+VOID
+PltPcpuIpi (
+  IN INT32  Cpu
+  )
 {
-  nmiemul_ipi_set (cpu);
-  if (cpu == cpu_id ())
+  NmiEmulIpiSet (Cpu);
+  if (Cpu == CpuGetId ())
     asm volatile ("csrsi sip, 2\n");
   else
-  riscv_ipi (1L << cpu);
+    RiscvIpi (1L << Cpu);
 }
 
-void
-plt_pcpu_nmiall (void)
+/**
+  Broadcast NMI to all processors.
+
+  Sends Non-Maskable Interrupt to all processors except self.
+**/
+VOID
+PltPcpuNmiAll (
+  VOID
+  )
 {
-  nmiemul_nmi_setall ();
+  NmiEmulNmiSetAll ();
   asm volatile ("csrsi sip, 2\n");
-  riscv_ipi (-1);
+  RiscvIpi (-1);
 }
 
-void
-plt_pcpu_nmi (int cpu)
+/**
+  Send NMI to processor.
+
+  Sends Non-Maskable Interrupt to specified processor.
+
+  @param[in] Cpu  Target CPU ID.
+**/
+VOID
+PltPcpuNmi (
+  IN INT32  Cpu
+  )
 {
-  nmiemul_nmi_set (cpu);
-  if (cpu == cpu_id ())
+  NmiEmulNmiSet (Cpu);
+  if (Cpu == CpuGetId ())
     asm volatile ("csrsi sip, 2\n");
   else
-  riscv_ipi (1L << cpu);
+    RiscvIpi (1L << Cpu);
 }
 
-void
-plt_pcpu_start (unsigned cpu, unsigned long startaddr)
+/**
+  Start processor.
+
+  Starts the specified processor at the given address.
+
+  @param[in] Cpu        Target CPU ID.
+  @param[in] StartAddr  Start address.
+**/
+VOID
+PltPcpuStart (
+  IN UINT32  Cpu,
+  IN UINT64  StartAddr
+  )
 {
   /* TODO */
 }
 
-unsigned
-plt_pcpu_id (void)
+/**
+  Get current processor ID.
+
+  Returns the physical ID of the current processor.
+
+  @return Physical CPU ID.
+**/
+UINT32
+PltPcpuId (
+  VOID
+  )
 {
   return 0;
 }
 
-bool
-plt_vect_process (unsigned vect)
+/**
+  Process interrupt vector.
+
+  Platform-specific vector processing.
+
+  @param[in] Vect  Interrupt vector.
+
+  @retval TRUE   Vector processed.
+  @retval FALSE  Vector not handled.
+**/
+BOOLEAN
+PltVectProcess (
+  IN UINT32  Vect
+  )
 {
   /* TODO */
-  return false;
+  return FALSE;
 }
 
+/**
+  Get IRQ type.
+
+  Returns the interrupt trigger mode for an IRQ.
+
+  @param[in] Irq  IRQ number.
+
+  @return Interrupt type, or PLT_IRQ_INVALID.
+**/
 enum plt_irq_type
-plt_irq_type (unsigned irq)
+PltIrqGetType (
+  IN UINT32  Irq
+  )
 {
   /* TODO */
   return PLT_IRQ_INVALID;
 }
 
-void
-plt_irq_enable (unsigned irq)
+/**
+  Enable IRQ.
+
+  Unmasks the specified interrupt.
+
+  @param[in] Irq  IRQ number.
+**/
+VOID
+PltIrqEnable (
+  IN UINT32  Irq
+  )
 {
   /* TODO */
 }
 
-void
-plt_irq_disable (unsigned irq)
+/**
+  Disable IRQ.
+
+  Masks the specified interrupt.
+
+  @param[in] Irq  IRQ number.
+**/
+VOID
+PltIrqDisable (
+  IN UINT32  Irq
+  )
 {
   /* TODO */
 }
 
-unsigned
-plt_irq_max (void)
+/**
+  Get maximum IRQ number.
+
+  Returns the maximum IRQ number supported by the platform.
+
+  @return Maximum IRQ number.
+**/
+UINT32
+PltIrqGetMax (
+  VOID
+  )
 {
   /* TODO */
   return 0;
 }
 
-void
-plt_eoi_ipi (void)
+/**
+  Send End of Interrupt for IPI.
+
+  Acknowledges IPI interrupt completion.
+**/
+VOID
+PltEoiIpi (
+  VOID
+  )
 {
   /* Nothing. */
 }
 
-void
-plt_eoi_irq (unsigned irq)
+/**
+  Send End of Interrupt for IRQ.
+
+  Acknowledges IRQ interrupt completion.
+
+  @param[in] Irq  IRQ number.
+**/
+VOID
+PltEoiIrq (
+  IN UINT32  Irq
+  )
 {
   /* TODO. */
 }
 
-void
-plt_eoi_timer (void)
+/**
+  Send End of Interrupt for timer.
+
+  Acknowledges timer interrupt completion.
+**/
+VOID
+PltEoiTimer (
+  VOID
+  )
 {
   /* Nothing. */
 }
 
-struct hal_frame *
-plt_interrupt (unsigned vect, struct hal_frame *f)
-{
-  struct hal_frame *r;
+/**
+  Platform interrupt handler.
 
-  switch (vect)
+  Routes interrupts to appropriate handlers based on vector.
+
+  @param[in] Vect  Interrupt vector.
+  @param[in] pFrame HAL frame at entry.
+
+  @return Frame to return to.
+**/
+struct hal_frame *
+PltInterrupt (
+  IN UINT32            Vect,
+  IN struct hal_frame  *pFrame
+  )
+{
+  struct hal_frame *pResult;
+
+  switch (Vect)
     {
     case 1:			/* Supervisor Software Interrupt. */
-      r = nmiemul_entry (f);
+      pResult = NmiEmulEntry (pFrame);
       break;
 
     case 5:			/* Supervisor Timer Interrupt. */
-      plt_tmr_clralm ();
-      r = hal_entry_timer (f);
+      PltTmrClearAlarm ();
+      pResult = hal_entry_timer (pFrame);
       break;
 
     case 9:			/* Supervisor External Interrupt. */
       /* TODO: External interrupts. */
-      r = f;
+      pResult = pFrame;
       break;
 
     default:
-      r = f;
+      pResult = pFrame;
     }
 
-  return r;
+  return pResult;
 }
 
-uint64_t tmr_offset = 0;
+/**
+  Get platform timer counter.
 
-uint64_t
-plt_tmr_ctr (void)
+  Reads RISC-V time CSR and applies offset.
+
+  @return Counter value.
+**/
+UINT64
+PltTmrGetCounter (
+  VOID
+  )
 {
-  uint64_t time;
+  UINT64 Time;
 
-  asm volatile ("rdtime %0\n":"=r" (time));
-  return time + tmr_offset;
+  asm volatile ("rdtime %0\n":"=r" (Time));
+  return Time + gTmrOffset;
 }
 
-void
-plt_tmr_setctr (uint64_t alm)
-{
-  uint64_t time;
+/**
+  Set platform timer counter.
 
-  asm volatile ("rdtime %0\n":"=r" (time));
-  tmr_offset = alm - time;
+  Adjusts timer offset to set virtual counter value.
+
+  @param[in] Counter  Counter value to set.
+**/
+VOID
+PltTmrSetCounter (
+  IN UINT64  Counter
+  )
+{
+  UINT64 Time;
+
+  asm volatile ("rdtime %0\n":"=r" (Time));
+  gTmrOffset = Counter - Time;
 }
 
-void
-plt_tmr_setalm (uint64_t alm)
+/**
+  Set platform timer alarm.
+
+  Programs timer comparator via SBI call.
+
+  @param[in] Alarm  Number of ticks until alarm.
+**/
+VOID
+PltTmrSetAlarm (
+  IN UINT64  Alarm
+  )
 {
-  alm += plt_tmr_ctr ();
+  Alarm += PltTmrGetCounter ();
   asm volatile ("mv a0, %0\n"
 		"mv a6, x0\n"
-		"mv a7, x0\n" "ecall\n"::"r" (alm):"a0", "a6", "a7");
+		"mv a7, x0\n" "ecall\n"::"r" (Alarm):"a0", "a6", "a7");
 }
 
+/**
+  Get platform timer period.
 
-uint64_t
-plt_tmr_period (void)
+  Returns timer period in femtoseconds based on timebase frequency.
+
+  @return Timer period in femtoseconds.
+**/
+UINT64
+PltTmrPeriod (
+  VOID
+  )
 {
-  return 1000000000000000L / timebase_frequency;
+  return 1000000000000000L / gTimebaseFrequency;
 }
 
-void
-plt_tmr_clralm (void)
+/**
+  Clear platform timer alarm.
+
+  Disables timer interrupt via SBI call.
+**/
+VOID
+PltTmrClearAlarm (
+  VOID
+  )
 {
   asm volatile ("li a0, -1\n"
 		"mv a6, x0\n" "mv a7, x0\n" "ecall\n":::"a0", "a6", "a7");
 }
+
+//
+// Legacy Function Wrappers (for backward compatibility)
+//
+
+/** @deprecated Use GetCells instead **/
+static void _get_cells (const void *fdt, int noff, unsigned *addr, unsigned *size) {
+  GetCells (fdt, noff, addr, size);
+}
+
+/** @deprecated Use GetReg instead **/
+static bool _get_reg (const void *fdt, int noff, unsigned idx, uint64_t *base, uint64_t *length) {
+  return GetReg (fdt, noff, idx, base, length);
+}
+
+/** @deprecated Use PlicInitialize instead **/
+static void plic_init (const void *fdt, int noff) {
+  PlicInitialize (fdt, noff);
+}
+
+/** @deprecated Use PltInitialize instead **/
+void plt_init (void) {
+  PltInitialize ();
+}
+
+/** @deprecated Use PltPcpuEnter instead **/
+void plt_pcpu_enter (void) {
+  PltPcpuEnter ();
+}
+
+/** @deprecated Use PltPcpuIterate instead **/
+int plt_pcpu_iterate (void) {
+  return PltPcpuIterate ();
+}
+
+/** @deprecated Use RiscvIpi instead **/
+void riscv_ipi (unsigned long mask) {
+  RiscvIpi (mask);
+}
+
+/** @deprecated Use PltPcpuIpiAll instead **/
+void plt_pcpu_ipiall (void) {
+  PltPcpuIpiAll ();
+}
+
+/** @deprecated Use PltPcpuIpi instead **/
+void plt_pcpu_ipi (int cpu) {
+  PltPcpuIpi (cpu);
+}
+
+/** @deprecated Use PltPcpuNmiAll instead **/
+void plt_pcpu_nmiall (void) {
+  PltPcpuNmiAll ();
+}
+
+/** @deprecated Use PltPcpuNmi instead **/
+void plt_pcpu_nmi (int cpu) {
+  PltPcpuNmi (cpu);
+}
+
+/** @deprecated Use PltPcpuStart instead **/
+void plt_pcpu_start (unsigned cpu, unsigned long startaddr) {
+  PltPcpuStart (cpu, startaddr);
+}
+
+/** @deprecated Use PltPcpuId instead **/
+unsigned plt_pcpu_id (void) {
+  return PltPcpuId ();
+}
+
+/** @deprecated Use PltVectProcess instead **/
+bool plt_vect_process (unsigned vect) {
+  return PltVectProcess (vect);
+}
+
+/** @deprecated Use PltIrqGetType instead **/
+enum plt_irq_type plt_irq_type (unsigned irq) {
+  return PltIrqGetType (irq);
+}
+
+/** @deprecated Use PltIrqEnable instead **/
+void plt_irq_enable (unsigned irq) {
+  PltIrqEnable (irq);
+}
+
+/** @deprecated Use PltIrqDisable instead **/
+void plt_irq_disable (unsigned irq) {
+  PltIrqDisable (irq);
+}
+
+/** @deprecated Use PltIrqGetMax instead **/
+unsigned plt_irq_max (void) {
+  return PltIrqGetMax ();
+}
+
+/** @deprecated Use PltEoiIpi instead **/
+void plt_eoi_ipi (void) {
+  PltEoiIpi ();
+}
+
+/** @deprecated Use PltEoiIrq instead **/
+void plt_eoi_irq (unsigned irq) {
+  PltEoiIrq (irq);
+}
+
+/** @deprecated Use PltEoiTimer instead **/
+void plt_eoi_timer (void) {
+  PltEoiTimer ();
+}
+
+/** @deprecated Use PltInterrupt instead **/
+struct hal_frame *plt_interrupt (unsigned vect, struct hal_frame *f) {
+  return PltInterrupt (vect, f);
+}
+
+/** @deprecated Use PltTmrGetCounter instead **/
+uint64_t plt_tmr_ctr (void) {
+  return PltTmrGetCounter ();
+}
+
+/** @deprecated Use PltTmrSetCounter instead **/
+void plt_tmr_setctr (uint64_t ctr) {
+  PltTmrSetCounter (ctr);
+}
+
+/** @deprecated Use PltTmrSetAlarm instead **/
+void plt_tmr_setalm (uint64_t alm) {
+  PltTmrSetAlarm (alm);
+}
+
+/** @deprecated Use PltTmrPeriod instead **/
+uint64_t plt_tmr_period (void) {
+  return PltTmrPeriod ();
+}
+
+/** @deprecated Use PltTmrClearAlarm instead **/
+void plt_tmr_clralm (void) {
+  PltTmrClearAlarm ();
+}
+
+// Legacy global variable aliases
+static uint64_t timebase_frequency __attribute__((alias("gTimebaseFrequency")));
+static uint64_t tmr_offset __attribute__((alias("gTmrOffset")));
