@@ -5,7 +5,8 @@ LDFLAGS+= -T$(SRCDIR)/multiboot.ld
 LDADD_START+= crt0.o
 
 PROGRAM=apxh
-SRCS+= ../src/main.c ../src/elf.c ../src/payload.c ../src/pae.c
+SRCS+= ../src/main.c ../src/elf.c ../src/payload.c
+SRCS+= ../src/pae_common.c ../src/pae32.c ../src/pae64.c
 SRCS+= ec.c mb.c rsdp.c
 
 
