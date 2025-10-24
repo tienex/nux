@@ -1,5 +1,7 @@
 INCDIR=include
-INCS= elfpayload.h framebuffer.h stree.h
 BUILDINCS= config.h
 
-INCSUBDIRS= nux
+# Note: Library-specific headers have been relocated to:
+# - nux/libs/*/include/public/  (public headers)
+# - nux/libs/*/include/private/ (private headers)
+# - apxh/include/public/apxh/   (APXH headers)
