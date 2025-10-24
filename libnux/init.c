@@ -1,9 +1,13 @@
-/*
-  NUX: A kernel Library.
+/** @file
+  NUX Kernel Library Initialization
+
+  Provides system initialization, memory subsystem setup, platform
+  initialization, CPU discovery and startup, and system status management.
+
   Copyright (C) 2019 Gianluca Guida, glguida@tlbflush.org
 
-  SPDX-License-Identifier:	BSD-2-Clause
-*/
+  SPDX-License-Identifier: BSD-2-Clause
+**/
 
 #include <stdio.h>
 #include <nux/plt.h>
@@ -11,41 +15,70 @@
 
 #include "internal.h"
 
-/* Set and cleared by HAL. If this is on, we're still in initialisation mode. */
-volatile uint32_t _nux_apbooting = 0;
+/** Set and cleared by HAL. If this is on, we're still in initialisation mode. **/
+volatile UINT32 gNuxApBooting = 0;
 
-volatile uint8_t _nux_stflags = 0;
+volatile UINT8 gNuxStFlags = 0;
 
-uint8_t
-nux_status (void)
+/**
+  Get current NUX system status flags.
+
+  @return Current status flags (NUXST_*).
+**/
+UINT8
+NuxStatus (
+  VOID
+  )
 {
-  uint8_t st;
-  __atomic_load (&_nux_stflags, &st, __ATOMIC_ACQUIRE);
-  return st;
+  UINT8 St;
+
+  __atomic_load (&gNuxStFlags, &St, __ATOMIC_ACQUIRE);
+  return St;
 }
 
-uint8_t
-nux_status_setfl (uint8_t flags)
+/**
+  Set NUX system status flags atomically.
+
+  @param[in] Flags  Status flags to set (NUXST_*).
+
+  @return Previous status flags value.
+**/
+UINT8
+NuxStatusSetFlags (
+  IN UINT8  Flags
+  )
 {
-  return __atomic_fetch_or (&_nux_stflags, flags, __ATOMIC_ACQ_REL);
+  return __atomic_fetch_or (&gNuxStFlags, Flags, __ATOMIC_ACQ_REL);
 }
 
-bool
-nux_status_okcpu (void)
+/**
+  Check if CPU operations are safe to use.
+
+  @retval TRUE   CPU operations are ready.
+  @retval FALSE  Still in initialization, CPU operations not ready.
+**/
+BOOLEAN
+NuxStatusOkCpu (
+  VOID
+  )
 {
-  if (__predict_false (!(nux_status () & NUXST_OKCPU))
-      || __predict_false (_nux_apbooting))
-    return false;
+  if (__predict_false (!(NuxStatus () & NUXST_OKCPU))
+      || __predict_false (gNuxApBooting))
+    return FALSE;
   else
-    return true;
-
+    return TRUE;
 }
 
+/**
+  Initialize memory management subsystems.
 
-static void
-init_mem (void)
+  Initializes page frame allocator, KMEM, KVA allocator, and PFN cache.
+**/
+static VOID
+InitializeMemory (
+  VOID
+  )
 {
-
   /*
      Initialise Page Allocator.
    */
@@ -62,7 +95,6 @@ init_mem (void)
    */
   kvainit ();
 
-
   /*
      Initialise PFN Cache.
    */
@@ -74,77 +106,127 @@ init_mem (void)
    */
   fmap_init ();
 
-
   pginit ();
-
 
   /*
      Step 3: Enable heap.
    */
   heap_init ();
 
-
   /*
-     Step 4: Initialise Slab Allocator. 
+     Step 4: Initialise Slab Allocator.
    */
   slab_init ();
 #endif
 }
 
-#define PACKAGE "NUX library"
-#define PACKAGE_NAME "nux"
-#define VERSION "0.0"
+#define PACKAGE        "NUX library"
+#define PACKAGE_NAME   "nux"
+#define VERSION        "0.0"
 #define COPYRIGHT_YEAR 2019
 
-static void
-banner (void)
+/**
+  Print system banner with version and copyright information.
+**/
+static VOID
+PrintBanner (
+  VOID
+  )
 {
   printf ("%s (%s) %s\n", PACKAGE, PACKAGE_NAME, VERSION);
   printf ("Copyright (C) %d Gianluca Guida\n\n", COPYRIGHT_YEAR);
 }
 
-void klog_start (void);
+VOID klog_start (VOID);
 
-void __attribute__((constructor (0))) _nux_sysinit (void)
+/**
+  System initialization entry point.
+
+  Called as a constructor function during early system startup.
+  Initializes memory, platform support, CPUs, and waits for all
+  Application Processors to boot before completing initialization.
+**/
+VOID __attribute__((constructor (0))) _nux_sysinit (VOID)
 {
-  banner ();
+  PrintBanner ();
 
   /* Initialise memory management */
-  init_mem ();
+  InitializeMemory ();
 
   /* Start the platform. This will discover CPUs and set up interrupt
      controllers. */
   plt_init ();
 
-  nux_status_setfl (NUXST_OKPLT);
+  NuxStatusSetFlags (NUXST_OKPLT);
 
   /* Init CPUs operations */
   cpu_init ();
 
   /* Now safe to use CPU operations. */
-  nux_status_setfl (NUXST_OKCPU);
+  NuxStatusSetFlags (NUXST_OKCPU);
 
   /* Start all CPUs. */
   cpu_startall ();
 
   printf ("Waiting for APs to boot..");
-  while (_nux_apbooting)
+  while (gNuxApBooting)
     hal_cpu_relax ();
   printf ("done.\n");
 
   /* Signal HAL that we're done initialising. */
   hal_init_done ();
 
-  nux_status_setfl (NUXST_RUNNING);
+  NuxStatusSetFlags (NUXST_RUNNING);
 }
 
-void
-hal_main_ap (void)
+/**
+  Application Processor main entry point.
+
+  Called by HAL when an Application Processor has completed low-level
+  initialization and is ready to enter the system.
+**/
+VOID
+hal_main_ap (
+  VOID
+  )
 {
   cpu_enter ();
-  __atomic_sub_fetch (&_nux_apbooting, 1, __ATOMIC_ACQ_REL);
+  __atomic_sub_fetch (&gNuxApBooting, 1, __ATOMIC_ACQ_REL);
   exit (main_ap ());
 }
+
+//
+// Legacy Function Wrappers (for backward compatibility)
+//
+
+/** @deprecated Use NuxStatus instead **/
+uint8_t nux_status (void) {
+  return NuxStatus ();
+}
+
+/** @deprecated Use NuxStatusSetFlags instead **/
+uint8_t nux_status_setfl (uint8_t flags) {
+  return NuxStatusSetFlags (flags);
+}
+
+/** @deprecated Use NuxStatusOkCpu instead **/
+bool nux_status_okcpu (void) {
+  return NuxStatusOkCpu ();
+}
+
+/** @deprecated Use InitializeMemory instead **/
+static void init_mem (void) {
+  InitializeMemory ();
+}
+
+/** @deprecated Use PrintBanner instead **/
+static void banner (void) {
+  PrintBanner ();
+}
+
+// Legacy global variable aliases
+volatile uint32_t _nux_apbooting __attribute__((alias("gNuxApBooting")));
+volatile uint8_t _nux_stflags __attribute__((alias("gNuxStFlags")));
 
 #include <nux/nuxperf.h>
 #undef NUXPERF
