@@ -10,7 +10,7 @@
   SPDX-License-Identifier: BSD-2-Clause
 **/
 
-#include "pae.h"
+#include "apxh/x86/pae.h"
 
 /* 1 Gb direct map in the Payload Page Table. */
 #define PAE_DIRECTMAP_START 0

@@ -1,5 +1,5 @@
 #include <machine/asm.h>
-#include "riscv.h"
+#include "hal/arch/riscv64/riscv.h"
 
 	.globl _start
 	.align 8

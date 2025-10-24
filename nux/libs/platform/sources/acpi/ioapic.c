@@ -17,8 +17,8 @@
 #include <nux/plt.h>
 #include <nux/nux.h>
 
-#include "internal.h"
-#include "apic.h"
+#include "platform/acpi/internal.h"
+#include "platform/acpi/apic.h"
 
 static UINT32 gIoapicsNo;
 

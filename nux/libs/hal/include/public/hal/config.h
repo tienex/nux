@@ -26,11 +26,15 @@ hal_debug (void)
 #endif
 
 #ifdef __i386__
-#include "hal_config_i386.h"
+#include "arch/i386/config.h"
 #endif
 
 #ifdef __amd64__
-#include "hal_config_amd64.h"
+#include "arch/amd64/config.h"
+#endif
+
+#ifdef __riscv
+#include "arch/riscv64/config.h"
 #endif
 
 #endif

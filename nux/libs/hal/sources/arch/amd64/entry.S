@@ -6,8 +6,8 @@
 */
 
 #include <machine/asm.h>
-#include <nux/hal_config_amd64.h>
-#include "amd64.h"
+#include <hal/arch/amd64/config.h>
+#include "hal/arch/amd64/amd64.h"
 #include "../internal.h"
 
 	.globl _syscall_frame_entry

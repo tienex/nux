@@ -14,7 +14,7 @@
 #include <nux/nux.h>
 #include <nux/apxh.h>
 
-#include "internal.h"
+#include "platform/acpi/internal.h"
 
 #define PLTACPI_INVALID_IRQ ((UINT32)-1)
 UINT32 gPltAcpiHpetIrq = PLTACPI_INVALID_IRQ;

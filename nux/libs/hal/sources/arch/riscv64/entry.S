@@ -1,4 +1,4 @@
-#include <nux/hal_config.h>
+#include <hal/config.h>
 #include "internal.h"
 
 #define SAVE_REG(_i, _r) sd _r , -((_i) * 8)(sp)

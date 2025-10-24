@@ -13,7 +13,7 @@
 #include "project.h"
 
 #include "x86.h"
-#include "multiboot.h"
+#include "apxh/multiboot.h"
 
 /*
   Physical Layout of boot memory structure.

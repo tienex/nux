@@ -7,7 +7,7 @@
 
 #include <machine/asm.h>
 #include "../internal.h"
-#include "i386.h"
+#include "hal/arch/i386/i386.h"
 
 	.text
 	.globl _start

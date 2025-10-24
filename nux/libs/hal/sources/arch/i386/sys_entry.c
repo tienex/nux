@@ -17,7 +17,7 @@
 #include <nux/hal.h>
 #include <nux/plt.h>
 
-#include "i386.h"
+#include "hal/arch/i386/i386.h"
 #include "../internal.h"
 
 #if 0

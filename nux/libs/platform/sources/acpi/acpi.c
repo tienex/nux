@@ -15,8 +15,8 @@
 #include <nux/types.h>
 #include <nux/nux.h>
 
-#include "acpitbl.h"
-#include "internal.h"
+#include "platform/acpi/tables.h"
+#include "platform/acpi/internal.h"
 
 #define ACPI_MAX_TBL (16 << 12)
 

@@ -10,7 +10,7 @@
   SPDX-License-Identifier: BSD-2-Clause
 **/
 
-#include "font.h"
+#include "nux/framebuffer/font.h"
 
 #if FBFONT == O_FONT
 uint8_t fontdata[] = {

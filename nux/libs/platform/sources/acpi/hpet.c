@@ -11,7 +11,7 @@
 
 #include <string.h>
 
-#include "internal.h"
+#include "platform/acpi/internal.h"
 #include <nux/nux.h>
 
 #define HPET_SIZE 0x1000

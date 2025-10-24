@@ -22,7 +22,7 @@
 // HAL module specific definitions
 //
 
-#include <nux/hal_config.h>
+#include <hal/config.h>
 
 //
 // HAL Interface GUID

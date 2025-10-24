@@ -16,7 +16,7 @@
 #include <nux/hal.h>
 #include <nux/plt.h>
 
-#include "amd64.h"
+#include "hal/arch/amd64/amd64.h"
 #include "../internal.h"
 
 /**

@@ -6,7 +6,7 @@
 */
 
 #include <machine/asm.h>
-#include "amd64.h"
+#include "hal/arch/amd64/amd64.h"
 #include "../internal.h"
 
 	.altmacro

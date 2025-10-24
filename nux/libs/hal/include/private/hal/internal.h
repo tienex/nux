@@ -11,7 +11,7 @@
 #ifndef _HAL_INTERNAL_H
 #define _HAL_INTERNAL_H
 
-#include <nux/hal_config.h>
+#include <hal/config.h>
 
 #define MAXCPUS	        HAL_MAXCPUS
 

@@ -10,7 +10,7 @@
   SPDX-License-Identifier: BSD-2-Clause
 **/
 
-#include "pae.h"
+#include "apxh/x86/pae.h"
 
 bool gNxEnabled;
 

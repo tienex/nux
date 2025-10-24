@@ -3,11 +3,11 @@
 
 #ifndef _ASSEMBLER
 #include <nux/nux.h>
-#include <nux/hal_config.h>
+#include <hal/config.h>
 #endif
 
 
-#include "riscv.h"
+#include "hal/arch/riscv64/riscv.h"
 
 /*
   HAL interrupt levels.
