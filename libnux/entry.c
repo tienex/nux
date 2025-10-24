@@ -1,9 +1,14 @@
-/*
-  NUX: A kernel Library.
+/** @file
+  NUX HAL Entry Points
+
+  Provides Hardware Abstraction Layer entry points for system calls,
+  exceptions, page faults, interrupts (timer, IRQ, IPI), and NMI.
+  Routes hardware events to appropriate user context handlers.
+
   Copyright (C) 2019 Gianluca Guida, glguida@tlbflush.org
 
-  SPDX-License-Identifier:	BSD-2-Clause
-*/
+  SPDX-License-Identifier: BSD-2-Clause
+**/
 
 #include <stdio.h>
 #include <nux/nux.h>
@@ -11,148 +16,280 @@
 #include <nux/plt.h>
 #include "internal.h"
 
+/**
+  Handle system call entry from HAL.
+
+  Routes system call to user context handler. Panics if called
+  from kernel context.
+
+  @param[in] pFrame  Exception frame.
+  @param[in] A1      First system call argument.
+  @param[in] A2      Second system call argument.
+  @param[in] A3      Third system call argument.
+  @param[in] A4      Fourth system call argument.
+  @param[in] A5      Fifth system call argument.
+  @param[in] A6      Sixth system call argument.
+  @param[in] A7      Seventh system call argument.
+
+  @return Modified frame pointer after system call processing.
+**/
 struct hal_frame *
-hal_entry_syscall (struct hal_frame *f,
-		   unsigned long a1, unsigned long a2, unsigned long a3,
-		   unsigned long a4, unsigned long a5, unsigned long a6,
-		   unsigned long a7)
+hal_entry_syscall (
+  IN struct hal_frame  *pFrame,
+  IN UINTN             A1,
+  IN UINTN             A2,
+  IN UINTN             A3,
+  IN UINTN             A4,
+  IN UINTN             A5,
+  IN UINTN             A6,
+  IN UINTN             A7
+  )
 {
+  uctxt_t *pUctxt;
+
   nuxperf_inc (&pnux_entry_syscall);
-  uctxt_t *uctxt = uctxt_get (f);
-  switch ((uintptr_t) uctxt)
+  pUctxt = uctxt_get (pFrame);
+
+  switch ((uintptr_t) pUctxt)
     {
     case (uintptr_t) UCTXT_INVALID:
     case (uintptr_t) UCTXT_IDLE:
       /* Syscall in kernel? */
-      nux_panic ("Unexpected Kernel Exception -- Syscall(!)", f);
+      nux_panic ("Unexpected Kernel Exception -- Syscall(!)", pFrame);
       /* Unreached. */
     default:
       break;
     }
 
   /* Process syscall */
-  uctxt = entry_sysc (uctxt, a1, a2, a3, a4, a5, a6, a7);
-  return uctxt_frame (uctxt);
+  pUctxt = entry_sysc (pUctxt, A1, A2, A3, A4, A5, A6, A7);
+  return uctxt_frame (pUctxt);
 }
 
+/**
+  Handle page fault entry from HAL.
+
+  Routes page fault to user context handler. Handles kernel user access
+  faults via longjmp. Panics on unexpected kernel page faults or early
+  kernel faults.
+
+  @param[in] pFrame  Exception frame.
+  @param[in] Va      Faulting virtual address.
+  @param[in] Info    Page fault information flags.
+
+  @return Modified frame pointer after page fault processing.
+**/
 struct hal_frame *
-hal_entry_pf (struct hal_frame *f, unsigned long va, hal_pfinfo_t info)
+hal_entry_pf (
+  IN struct hal_frame  *pFrame,
+  IN UINTN             Va,
+  IN hal_pfinfo_t      Info
+  )
 {
+  uctxt_t *pUctxt;
+
   nuxperf_inc (&pnux_entry_pagefault);
-  if (!nux_status_okcpu ())
+
+  if (!NuxStatusOkCpu ())
     {
-      nux_panic ("Early Kernel Page Fault", f);
+      nux_panic ("Early Kernel Page Fault", pFrame);
       /* Unreachable */
     }
 
-  uctxt_t *uctxt = uctxt_get (f);
-  switch ((uintptr_t) uctxt)
+  pUctxt = uctxt_get (pFrame);
+
+  switch ((uintptr_t) pUctxt)
     {
     case (uintptr_t) UCTXT_INVALID:
-      if (uaddr_valid (va))
-	{
-	  /*
-	     This could be a PF due to kernel user access.
+      if (uaddr_valid (Va))
+        {
+          /*
+             This could be a PF due to kernel user access.
 
-	     In this case we would longjmp to the user pagefault jmp_buf and
-	     the next function won't return.
-	   */
-	  cpu_useraccess_checkpf (va, info);
-	}
+             In this case we would longjmp to the user pagefault jmp_buf and
+             the next function won't return.
+           */
+          CpuUserAccessCheckPageFault (Va, Info);
+        }
+
       /* PASS-THROUGH */
     case (uintptr_t) UCTXT_IDLE:
-      nux_panic ("Unexpected Kernel Page Fault", f);
+      nux_panic ("Unexpected Kernel Page Fault", pFrame);
       /* Unreached. */
     default:
       break;
     }
 
   /* User page fault. */
-  uctxt = entry_pf (uctxt, va, info);
-  return uctxt_frame (uctxt);
+  pUctxt = entry_pf (pUctxt, Va, Info);
+  return uctxt_frame (pUctxt);
 }
 
+/**
+  Handle debug exception entry from HAL.
+
+  Currently triggers kernel panic on any debug exception.
+
+  @param[in] pFrame  Exception frame.
+  @param[in] Xcpt    Exception number.
+
+  @return Does not return (panic).
+**/
 struct hal_frame *
-hal_entry_debug (struct hal_frame *f, unsigned xcpt)
+hal_entry_debug (
+  IN struct hal_frame  *pFrame,
+  IN UINT32            Xcpt
+  )
 {
-  nux_panic ("Kernel Panic", f);
+  nux_panic ("Kernel Panic", pFrame);
   /* Unreachable */
 }
 
+/**
+  Handle general exception entry from HAL.
+
+  Routes exception to user context handler. Panics on kernel exceptions
+  or early boot exceptions.
+
+  @param[in] pFrame  Exception frame.
+  @param[in] Xcpt    Exception number.
+
+  @return Modified frame pointer after exception processing.
+**/
 struct hal_frame *
-hal_entry_xcpt (struct hal_frame *f, unsigned xcpt)
+hal_entry_xcpt (
+  IN struct hal_frame  *pFrame,
+  IN UINT32            Xcpt
+  )
 {
+  uctxt_t *pUctxt;
+
   nuxperf_inc (&pnux_entry_exception);
-  if (!nux_status_okcpu ())
+
+  if (!NuxStatusOkCpu ())
     {
-      nux_panic ("Early Kernel Exception", f);
+      nux_panic ("Early Kernel Exception", pFrame);
       /* Unreachable */
     }
 
-  uctxt_t *uctxt = uctxt_get (f);
-  switch ((uintptr_t) uctxt)
+  pUctxt = uctxt_get (pFrame);
+
+  switch ((uintptr_t) pUctxt)
     {
     case (uintptr_t) UCTXT_INVALID:
     case (uintptr_t) UCTXT_IDLE:
       /* Kernel exception. */
-      nux_panic ("Unexpected Kernel Exception", f);
+      nux_panic ("Unexpected Kernel Exception", pFrame);
       /* Unreached. */
     default:
       break;
     }
 
   /* User exception. */
-  uctxt = entry_ex (uctxt, xcpt);
-  return uctxt_frame (uctxt);
+  pUctxt = entry_ex (pUctxt, Xcpt);
+  return uctxt_frame (pUctxt);
 }
 
-void
-hal_entry_nmi (struct hal_frame *f)
+/**
+  Handle Non-Maskable Interrupt (NMI) entry from HAL.
+
+  Processes NMI operations for CPU coordination. Halts CPU if system
+  is in panic state. Ignored during early boot.
+
+  @param[in] pFrame  Exception frame.
+**/
+VOID
+hal_entry_nmi (
+  IN struct hal_frame  *pFrame
+  )
 {
   nuxperf_inc (&pnux_entry_nmi);
-  if (__predict_false (nux_status () & NUXST_PANIC))
+
+  if (__predict_false (NuxStatus () & NUXST_PANIC))
     {
       hal_cpu_halt ();
       /* Unreachable */
     }
 
-  if (!nux_status_okcpu ())
+  if (!NuxStatusOkCpu ())
     {
       return;
     }
 
   /* NMI are handled internally in NUX. */
-  cpu_nmiop ();
+  CpuNmiOperation ();
 }
 
+/**
+  Handle timer interrupt entry from HAL.
+
+  Routes timer event to user context handler and sends End-Of-Interrupt
+  to platform.
+
+  @param[in] pFrame  Exception frame.
+
+  @return Modified frame pointer after timer processing.
+**/
 struct hal_frame *
-hal_entry_timer (struct hal_frame *f)
+hal_entry_timer (
+  IN struct hal_frame  *pFrame
+  )
 {
+  uctxt_t *pUctxt;
+
   nuxperf_inc (&pnux_entry_timer);
-  uctxt_t *uctxt = uctxt_getuser (f);
-  uctxt = entry_alarm (uctxt);
+  pUctxt = uctxt_getuser (pFrame);
+  pUctxt = entry_alarm (pUctxt);
   plt_eoi_timer ();
-  return uctxt_frame (uctxt);
+  return uctxt_frame (pUctxt);
 }
 
+/**
+  Handle IRQ entry from HAL.
+
+  Routes IRQ to user context handler and sends End-Of-Interrupt to platform.
+
+  @param[in] pFrame    Exception frame.
+  @param[in] Irq       IRQ number.
+  @param[in] IsLevel   TRUE if level-triggered, FALSE if edge-triggered.
+
+  @return Modified frame pointer after IRQ processing.
+**/
 struct hal_frame *
-hal_entry_irq (struct hal_frame *f, unsigned irq, bool islevel)
+hal_entry_irq (
+  IN struct hal_frame  *pFrame,
+  IN UINT32            Irq,
+  IN BOOLEAN           IsLevel
+  )
 {
-  uctxt_t *uctxt = uctxt_getuser (f);
+  uctxt_t *pUctxt;
 
   nuxperf_inc (&pnux_entry_irq);
-  uctxt = entry_irq (uctxt, irq, islevel);
-  plt_eoi_irq (irq);
-  return uctxt_frame (uctxt);
+  pUctxt = uctxt_getuser (pFrame);
+  pUctxt = entry_irq (pUctxt, Irq, IsLevel);
+  plt_eoi_irq (Irq);
+  return uctxt_frame (pUctxt);
 }
 
+/**
+  Handle Inter-Processor Interrupt (IPI) entry from HAL.
+
+  Routes IPI to user context handler and sends End-Of-Interrupt to platform.
+
+  @param[in] pFrame  Exception frame.
+
+  @return Modified frame pointer after IPI processing.
+**/
 struct hal_frame *
-hal_entry_ipi (struct hal_frame *f)
+hal_entry_ipi (
+  IN struct hal_frame  *pFrame
+  )
 {
-  uctxt_t *uctxt = uctxt_getuser (f);
+  uctxt_t *pUctxt;
 
   nuxperf_inc (&pnux_entry_ipi);
-  uctxt = entry_ipi (uctxt);
+  pUctxt = uctxt_getuser (pFrame);
+  pUctxt = entry_ipi (pUctxt);
   plt_eoi_ipi ();
-  return uctxt_frame (uctxt);
+  return uctxt_frame (pUctxt);
 }
