@@ -1,9 +1,14 @@
-/*
-  NUX: A kernel Library.
+/** @file
+  NUX Framebuffer Graphics
+
+  Provides software-rendered framebuffer graphics with text output,
+  color bitmap blitting, and embedded font support. Implements
+  multi-column scrolling text display.
+
   Copyright (C) 2019 Gianluca Guida, glguida@tlbflush.org
 
-  SPDX-License-Identifier:	BSD-2-Clause
-*/
+  SPDX-License-Identifier: BSD-2-Clause
+**/
 
 #include "internal.h"
 #include <assert.h>
@@ -11,101 +16,153 @@
 #include <nux/locks.h>
 #include <framebuffer.h>
 
-static struct fbdesc *fbdesc;
-static lock_t fblock;
+static struct fbdesc *gFbDesc;
+static lock_t gFbLock;
 
-int
-framebuffer_init (struct fbdesc *desc)
+/**
+  Initialize framebuffer.
+
+  Sets up framebuffer descriptor and clears display. Only RGB
+  framebuffers are supported.
+
+  @param[in] pDesc  Framebuffer descriptor.
+
+  @retval 1  Framebuffer initialized successfully.
+  @retval 0  Invalid framebuffer type.
+**/
+INT32
+FramebufferInitialize (
+  IN struct fbdesc  *pDesc
+  )
 {
-  if (desc->type == FB_INVALID)
+  if (pDesc->type == FB_INVALID)
     return 0;
 
-  assert (desc->type == FB_RGB);
-  fbdesc = desc;
-  memset ((void *) (uintptr_t) fbdesc->addr, 0, fbdesc->size);
-  framebuffer_reset ();
+  assert (pDesc->type == FB_RGB);
+  gFbDesc = pDesc;
+  memset ((void *) (UINTN) gFbDesc->addr, 0, gFbDesc->size);
+  FramebufferReset ();
   return 1;
 }
 
-uint32_t
-framebuffer_color (unsigned r, unsigned g, unsigned b)
+/**
+  Convert RGB to framebuffer color.
+
+  Converts RGB color components to framebuffer pixel format.
+  Currently returns white (0xffffff) regardless of input.
+
+  @param[in] Red    Red component.
+  @param[in] Green  Green component.
+  @param[in] Blue   Blue component.
+
+  @return Framebuffer color value.
+**/
+UINT32
+FramebufferColor (
+  IN UINT32  Red,
+  IN UINT32  Green,
+  IN UINT32  Blue
+  )
 {
   /* XXX: Use rgb masks. */
   return 0xffffff;
 }
 
-/*
+/**
+  Blit bitmap to framebuffer.
+
+  Draws a monochrome bitmap to framebuffer at specified location
+  with given color. Each bit in the bitmap data represents one
+  pixel (1=colored, 0=black).
+
   Possibly the slowest software blitter.
 
   XXX: Doesn't check boundaries.
   XXX: COMPLETE REWRITE CLEARLY NEEDED.
-*/
-void
-framebuffer_blt (unsigned x, unsigned y, uint32_t color,
-		 void *data, size_t width, size_t height)
-{
-  unsigned bypp = fbdesc->bpp / 8;
-  size_t hrem;
 
-  if (fbdesc->type == FB_INVALID)
+  @param[in] X       X coordinate in pixels.
+  @param[in] Y       Y coordinate in pixels.
+  @param[in] Color   Foreground color.
+  @param[in] pData   Bitmap data (1 bit per pixel).
+  @param[in] Width   Bitmap width in pixels.
+  @param[in] Height  Bitmap height in pixels.
+**/
+VOID
+FramebufferBlt (
+  IN UINT32  X,
+  IN UINT32  Y,
+  IN UINT32  Color,
+  IN VOID    *pData,
+  IN size_t  Width,
+  IN size_t  Height
+  )
+{
+  UINT32 BytesPerPixel = gFbDesc->bpp / 8;
+  size_t HeightRemaining;
+
+  if (gFbDesc->type == FB_INVALID)
     return;
 
-  hrem = height;
-  while (hrem)
+  HeightRemaining = Height;
+  while (HeightRemaining)
     {
-      size_t off = y * fbdesc->pitch + x * bypp;
-      size_t wremby = (width + 7) / 8;
-      size_t wrem = width;
+      size_t Offset = Y * gFbDesc->pitch + X * BytesPerPixel;
+      size_t WidthRemainingBytes = (Width + 7) / 8;
+      size_t WidthRemaining = Width;
 
-      while (wremby)
+      while (WidthRemainingBytes)
 	{
-	  uint8_t byte = *(uint8_t *) data++;
-	  size_t bits = wrem < 8 ? wrem : 8;
+	  UINT8 Byte = *(UINT8 *) pData++;
+	  size_t BitsRemaining = WidthRemaining < 8 ? WidthRemaining : 8;
 
-	  while (bits)
+	  while (BitsRemaining)
 	    {
-	      if (byte & 0x80)
-		*(volatile uint32_t *) (uintptr_t) (fbdesc->addr + off) =
-		  color;
+	      if (Byte & 0x80)
+		*(volatile UINT32 *) (UINTN) (gFbDesc->addr + Offset) =
+		  Color;
 	      else
-		*(volatile uint32_t *) (uintptr_t) (fbdesc->addr + off) = 0;
+		*(volatile UINT32 *) (UINTN) (gFbDesc->addr + Offset) = 0;
 
-	      off += bypp;
-	      byte <<= 1;
-	      bits--;
-	      wrem--;
+	      Offset += BytesPerPixel;
+	      Byte <<= 1;
+	      BitsRemaining--;
+	      WidthRemaining--;
 	    }
 
-	  wremby--;
+	  WidthRemainingBytes--;
 	}
-      y += 1;
-      hrem--;
+      Y += 1;
+      HeightRemaining--;
     }
 }
 
 
-/*
-  Framebuffer character handling.
-*/
-static volatile int fb_sc = 0;
-static volatile int fb_x = 0;
-static volatile int fb_y = 0;
+/**
+  Framebuffer character handling state.
+**/
+static volatile INT32 gFbScreenColumn = 0;
+static volatile INT32 gFbX = 0;
+static volatile INT32 gFbY = 0;
 
 #define FB_ROWCHARS 79
-static int fb_scrcols;		/* Split screen in different columns. */
-static int fb_scrrows;		/* How many rows per screen column. */
+static INT32 gFbScreenCols;		/* Split screen in different columns. */
+static INT32 gFbScreenRows;		/* How many rows per screen column. */
 
+/**
+  Reset framebuffer text display state.
 
-/*
-  This unlocks the framebuffer if present.
-*/
-void
-framebuffer_reset (void)
+  Initializes framebuffer lock and calculates screen layout
+  based on framebuffer dimensions.
+**/
+VOID
+FramebufferReset (
+  VOID
+  )
 {
-  spinlock_init (&fblock);
-  fb_scrcols = (fbdesc->width / 8) / (FB_ROWCHARS + 1);
-  fb_scrcols = fb_scrcols == 0 ? 1 : fb_scrcols;
-  fb_scrrows = fbdesc->height / 16;
+  spinlock_init (&gFbLock);
+  gFbScreenCols = (gFbDesc->width / 8) / (FB_ROWCHARS + 1);
+  gFbScreenCols = gFbScreenCols == 0 ? 1 : gFbScreenCols;
+  gFbScreenRows = gFbDesc->height / 16;
 }
 
 
@@ -117,96 +174,163 @@ framebuffer_reset (void)
 static uint8_t fontdata[];
 
 
-void
-framebuffer_putc_xy (unsigned x, unsigned y, uint32_t color, unsigned char c)
-{
-  void *data = fontdata + c * 16;
+/**
+  Draw character at specific position.
 
-  framebuffer_blt (x, y, color, data, 8, 16);
+  Renders a character at the specified pixel coordinates using
+  the embedded font.
+
+  @param[in] X      X coordinate in pixels.
+  @param[in] Y      Y coordinate in pixels.
+  @param[in] Color  Character color.
+  @param[in] Char   Character to draw.
+**/
+VOID
+FramebufferPutCharXY (
+  IN UINT32  X,
+  IN UINT32  Y,
+  IN UINT32  Color,
+  IN UINT8   Char
+  )
+{
+  VOID *pData = fontdata + Char * 16;
+
+  FramebufferBlt (X, Y, Color, pData, 8, 16);
 }
 
-static void
-blank_line (unsigned c, unsigned x, unsigned y, unsigned chars)
-{
-  unsigned i;
+/**
+  Blank a line of text.
 
-  for (i = 0; i < chars; i++)
+  Clears a row of characters by drawing null characters.
+
+  @param[in] Column     Screen column.
+  @param[in] X          Starting character position in row.
+  @param[in] Y          Row number.
+  @param[in] CharCount  Number of characters to blank.
+**/
+static VOID
+BlankLine (
+  IN UINT32  Column,
+  IN UINT32  X,
+  IN UINT32  Y,
+  IN UINT32  CharCount
+  )
+{
+  UINT32 i;
+
+  for (i = 0; i < CharCount; i++)
     {
-      framebuffer_putc_xy (8 * (c * (FB_ROWCHARS + 1) + x + i), 16 * y, 0,
+      FramebufferPutCharXY (8 * (Column * (FB_ROWCHARS + 1) + X + i), 16 * Y, 0,
 			   '\0');
     }
 }
 
-static void
-newline (void)
-{
-  int sc, x, y;
+/**
+  Advance to new line.
 
-  spinlock (&fblock);
-  fb_x = 0;
-  fb_y += 1;
-  if (fb_y >= fb_scrrows)
+  Moves cursor to beginning of next line, scrolling to next
+  column if needed.
+**/
+static VOID
+Newline (
+  VOID
+  )
+{
+  INT32 ScreenColumn, X, Y;
+
+  spinlock (&gFbLock);
+  gFbX = 0;
+  gFbY += 1;
+  if (gFbY >= gFbScreenRows)
     {
-      fb_y = 0;
-      fb_sc = (fb_sc + 1) % fb_scrcols;
+      gFbY = 0;
+      gFbScreenColumn = (gFbScreenColumn + 1) % gFbScreenCols;
     }
 
-  x = fb_x;
-  y = fb_y;
-  sc = fb_sc;
-  spinunlock (&fblock);
+  X = gFbX;
+  Y = gFbY;
+  ScreenColumn = gFbScreenColumn;
+  spinunlock (&gFbLock);
 
-  blank_line (sc, x, y, FB_ROWCHARS);
+  BlankLine (ScreenColumn, X, Y, FB_ROWCHARS);
 }
 
-static void
-allocchar (int *scp, int *xp, int *yp)
-{
-  int sc, x, y;
+/**
+  Allocate next character position.
 
-  spinlock (&fblock);
-  if (fb_x >= FB_ROWCHARS)
+  Returns the screen position for the next character to be
+  drawn and advances the cursor.
+
+  @param[out] pScreenColumn  Pointer to receive screen column.
+  @param[out] pX             Pointer to receive X position.
+  @param[out] pY             Pointer to receive Y position.
+**/
+static VOID
+AllocateCharacter (
+  OUT INT32  *pScreenColumn,
+  OUT INT32  *pX,
+  OUT INT32  *pY
+  )
+{
+  INT32 ScreenColumn, X, Y;
+
+  spinlock (&gFbLock);
+  if (gFbX >= FB_ROWCHARS)
     {
-      fb_x = 0;
-      fb_y += 1;
-      if (fb_y >= fb_scrrows)
+      gFbX = 0;
+      gFbY += 1;
+      if (gFbY >= gFbScreenRows)
 	{
-	  fb_y = 0;
-	  fb_sc = (fb_sc + 1) % fb_scrcols;
+	  gFbY = 0;
+	  gFbScreenColumn = (gFbScreenColumn + 1) % gFbScreenCols;
 	}
-      blank_line (fb_sc, fb_x, fb_y, FB_ROWCHARS);
+      BlankLine (gFbScreenColumn, gFbX, gFbY, FB_ROWCHARS);
     }
-  sc = fb_sc;
-  x = fb_x;
-  y = fb_y;
-  fb_x++;
-  spinunlock (&fblock);
+  ScreenColumn = gFbScreenColumn;
+  X = gFbX;
+  Y = gFbY;
+  gFbX++;
+  spinunlock (&gFbLock);
 
-  *scp = sc;
-  *xp = x;
-  *yp = y;
+  *pScreenColumn = ScreenColumn;
+  *pX = X;
+  *pY = Y;
 }
 
-int
-framebuffer_putc (int ch, uint32_t color)
+/**
+  Output character to framebuffer.
+
+  Draws a character at the current cursor position with
+  specified color and advances cursor. Handles newlines.
+
+  @param[in] Char   Character to output.
+  @param[in] Color  Character color.
+
+  @return The character output.
+**/
+INT32
+FramebufferPutChar (
+  IN INT32   Char,
+  IN UINT32  Color
+  )
 {
-  int x, y, sc;
-  unsigned px, py;
-  unsigned char c = (unsigned char) ch;
+  INT32 X, Y, ScreenColumn;
+  UINT32 PixelX, PixelY;
+  UINT8 CharByte = (UINT8) Char;
 
 
-  if (c == '\n')
+  if (CharByte == '\n')
     {
-      newline ();
-      return ch;
+      Newline ();
+      return Char;
     }
 
-  allocchar (&sc, &x, &y);
+  AllocateCharacter (&ScreenColumn, &X, &Y);
 
-  px = 8 * (sc * (FB_ROWCHARS + 1) + x);
-  py = y * 16;
-  framebuffer_putc_xy (px, py, color, c);
-  return ch;
+  PixelX = 8 * (ScreenColumn * (FB_ROWCHARS + 1) + X);
+  PixelY = Y * 16;
+  FramebufferPutCharXY (PixelX, PixelY, Color, CharByte);
+  return Char;
 }
 
 #if FBFONT == O_FONT
@@ -2112,3 +2236,47 @@ static uint8_t fontdata[] = {
   0x00, 0x00, 0x00,
 };
 #endif
+
+//
+// Legacy Function Wrappers (for backward compatibility)
+//
+
+/** @deprecated Use FramebufferInitialize instead **/
+int framebuffer_init (struct fbdesc *desc) {
+  return FramebufferInitialize (desc);
+}
+
+/** @deprecated Use FramebufferColor instead **/
+uint32_t framebuffer_color (unsigned r, unsigned g, unsigned b) {
+  return FramebufferColor (r, g, b);
+}
+
+/** @deprecated Use FramebufferBlt instead **/
+void framebuffer_blt (unsigned x, unsigned y, uint32_t color,
+		 void *data, size_t width, size_t height) {
+  FramebufferBlt (x, y, color, data, width, height);
+}
+
+/** @deprecated Use FramebufferReset instead **/
+void framebuffer_reset (void) {
+  FramebufferReset ();
+}
+
+/** @deprecated Use FramebufferPutCharXY instead **/
+void framebuffer_putc_xy (unsigned x, unsigned y, uint32_t color, unsigned char c) {
+  FramebufferPutCharXY (x, y, color, c);
+}
+
+/** @deprecated Use FramebufferPutChar instead **/
+int framebuffer_putc (int ch, uint32_t color) {
+  return FramebufferPutChar (ch, color);
+}
+
+// Legacy global variable aliases
+static struct fbdesc *fbdesc __attribute__((alias("gFbDesc")));
+static lock_t fblock __attribute__((alias("gFbLock")));
+static volatile int fb_sc __attribute__((alias("gFbScreenColumn")));
+static volatile int fb_x __attribute__((alias("gFbX")));
+static volatile int fb_y __attribute__((alias("gFbY")));
+static int fb_scrcols __attribute__((alias("gFbScreenCols")));
+static int fb_scrrows __attribute__((alias("gFbScreenRows")));
