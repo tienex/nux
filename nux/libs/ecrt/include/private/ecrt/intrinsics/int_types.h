@@ -16,7 +16,7 @@
 #ifndef INT_TYPES_H
 #define INT_TYPES_H
 
-#include "int_endianness.h"
+#include <ecrt/intrinsics/int_endianness.h>
 
 // si_int is defined in Linux sysroot's asm-generic/siginfo.h
 #ifdef si_int

@@ -15,7 +15,7 @@
 #include <string.h>
 #include <nux/nux.h>
 #include <nux/types.h>
-#include "../internal.h"
+#include <hal/internal.h>
 
 #define L1_SHIFT PAGE_SHIFT
 #define L2_SHIFT (9 + PAGE_SHIFT)

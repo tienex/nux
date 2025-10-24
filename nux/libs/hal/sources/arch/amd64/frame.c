@@ -16,8 +16,8 @@
 #include <hal/hal.h>
 #include <platform/platform.h>
 
-#include "hal/arch/amd64/amd64.h"
-#include "../internal.h"
+#include <hal/arch/amd64/amd64.h>
+#include <hal/internal.h>
 
 /**
   Check if address is canonical (valid for AMD64).

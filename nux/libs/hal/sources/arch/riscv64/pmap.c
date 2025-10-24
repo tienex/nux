@@ -9,7 +9,7 @@
   SPDX-License-Identifier: BSD-2-Clause
 **/
 
-#include "internal.h"
+#include <hal/internal.h>
 #include <hal/hal.h>
 #include <nux/nux.h>
 

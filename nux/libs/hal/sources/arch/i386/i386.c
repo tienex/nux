@@ -18,8 +18,8 @@
 #include <hal/hal.h>
 #include <platform/platform.h>
 
-#include "hal/arch/i386/i386.h"
-#include "../internal.h"
+#include <hal/arch/i386/i386.h>
+#include <hal/internal.h>
 
 paddr_t gPcpuPstart;
 vaddr_t gPcpuHalData[MAXCPUS];

@@ -9,7 +9,7 @@
   SPDX-License-Identifier: BSD-2-Clause
 **/
 
-#include "internal.h"
+#include <drivers/internal.h>
 
 #include <string.h>
 

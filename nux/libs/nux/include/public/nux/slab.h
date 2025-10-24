@@ -28,7 +28,7 @@
 // Include Slab Implementation
 //
 
-#include "slabinc.h"
+#include <nux/slabinc.h>
 
 //
 // Cleanup Macro Definitions

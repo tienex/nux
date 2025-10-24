@@ -13,7 +13,7 @@
 #include <nux/types.h>
 #include <hal/hal.h>
 
-#include "internal.h"
+#include <nux/internal.h>
 
 #define __isuaddr(_a) (((_a) >= hal_virtmem_userbase ()) && ((_a) < hal_virtmem_userbase ()))
 #define __chkuaddr(_a, _sz) (__isuaddr(_a) && ((_a) + (_sz) <= USEREND) && ((_a) < (_a) + (_sz)))

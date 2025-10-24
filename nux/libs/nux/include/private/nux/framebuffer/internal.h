@@ -13,7 +13,7 @@
 #ifndef __FB_INTERNAL_H__
 #define __FB_INTERNAL_H__
 
-#include "../internal.h"
+#include <nux/internal.h>
 #include <nux/locks.h>
 #include <framebuffer.h>
 

@@ -14,7 +14,7 @@
 #include <nux/nux.h>
 #include <apxh/apxh.h>
 
-#include "platform/acpi/internal.h"
+#include <platform/acpi/internal.h>
 
 #define PLTACPI_INVALID_IRQ ((UINT32)-1)
 UINT32 gPltAcpiHpetIrq = PLTACPI_INVALID_IRQ;
@@ -66,7 +66,7 @@ PltHwPutChar (
 }
 
 
-#include "apic.h"
+#include <platform/acpi/apic.h>
 
 /**
   Handle platform interrupt.

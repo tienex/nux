@@ -13,8 +13,8 @@
 #ifndef NUX_TYPES_H
 #define NUX_TYPES_H
 
-#include "defs.h"
-#include "combase.h"
+#include <nux/defs.h>
+#include <nux/combase.h>
 
 #include <stdbool.h>
 #include <stdint.h>

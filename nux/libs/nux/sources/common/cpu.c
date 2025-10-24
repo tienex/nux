@@ -19,7 +19,7 @@
 #include <nux/nux.h>
 #include <nux/cpumask.h>
 
-#include "internal.h"
+#include <nux/internal.h>
 
 static UINT32 gNumberCpus = 0;
 static UINT32 gCpuPhysToId[HAL_MAXCPUS] = { -1, };

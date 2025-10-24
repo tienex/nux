@@ -12,7 +12,7 @@
 
 #include <nux/nux.h>
 #include <platform/platform.h>
-#include "internal.h"
+#include <nux/internal.h>
 
 /**
   Set timer alarm.

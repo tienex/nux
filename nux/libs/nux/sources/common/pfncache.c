@@ -15,7 +15,7 @@
 #include <stdio.h>
 #include <nux/nux.h>
 #include <nux/cache.h>
-#include "internal.h"
+#include <nux/internal.h>
 
 vaddr_t gPfnCacheBase;
 

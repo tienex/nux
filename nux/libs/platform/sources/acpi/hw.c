@@ -14,7 +14,7 @@
 #include <hal/hal.h>
 #include <nux/nux.h>
 
-#include "platform/acpi/internal.h"
+#include <platform/acpi/internal.h>
 
 /**
   Write to CMOS register.

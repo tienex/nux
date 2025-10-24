@@ -98,10 +98,10 @@
 #endif
 
 // Include the commonly used internal type definitions.
-#include "int_types.h"
+#include <ecrt/intrinsics/int_types.h>
 
 // Include internal utility function declarations.
-#include "int_util.h"
+#include <ecrt/intrinsics/int_util.h>
 
 COMPILER_RT_ABI int __paritysi2(si_int a);
 COMPILER_RT_ABI int __paritydi2(di_int a);

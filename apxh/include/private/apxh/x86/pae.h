@@ -12,8 +12,8 @@
 #ifndef __PAE_H__
 #define __PAE_H__
 
-#include "project.h"
-#include "x86.h"
+#include <apxh/project.h>
+#include <apxh/x86.h>
 
 //
 // Type Definitions

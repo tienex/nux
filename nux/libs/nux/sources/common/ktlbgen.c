@@ -14,7 +14,7 @@
 #include <nux/types.h>
 #include <nux/nux.h>
 
-#include "internal.h"
+#include <nux/internal.h>
 
 static volatile struct ktlb gKtlb;
 

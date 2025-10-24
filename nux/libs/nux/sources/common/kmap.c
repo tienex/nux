@@ -14,7 +14,7 @@
 #include <hal/hal.h>
 #include <nux/nux.h>
 
-#include "internal.h"
+#include <nux/internal.h>
 
 /*
   Low level routines to handle kernel mappings.

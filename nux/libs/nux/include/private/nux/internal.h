@@ -141,6 +141,6 @@ struct hal_frame *uctxt_frame_pointer (uctxt_t * uctxt);
 
 #include <nux/nuxperf.h>
 #define NUXPERF_DECLARE
-#include "perf.h"
+#include <nux/perf.h>
 
 #endif

@@ -78,7 +78,7 @@ __weak_alias(rb_tree_depths, _rb_tree_depths)
 #include <rbtree.h>
 #else
 #ifdef RBTEST
-#include "rbtree.h"
+#include <rbtree.h>
 #else
 #include <sys/rbtree.h>
 #endif

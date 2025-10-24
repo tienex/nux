@@ -14,8 +14,8 @@
 #include <string.h>
 #include <assert.h>
 
-#include "platform/acpi/internal.h"
-#include "platform/acpi/apic.h"
+#include <platform/acpi/internal.h>
+#include <platform/acpi/apic.h>
 
 #include <nux/nux.h>
 #include <platform/platform.h>

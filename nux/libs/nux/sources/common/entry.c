@@ -14,7 +14,7 @@
 #include <nux/nux.h>
 #include <hal/hal.h>
 #include <platform/platform.h>
-#include "internal.h"
+#include <nux/internal.h>
 
 /**
   Handle system call entry from HAL.

@@ -9,7 +9,7 @@
   SPDX-License-Identifier: BSD-2-Clause
 **/
 
-#include "nux/framebuffer/font.h"
+#include <nux/framebuffer/font.h>
 
 #if FBFONT == SCRAWL_FONT
 uint8_t fontdata[] = {

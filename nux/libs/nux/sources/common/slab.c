@@ -153,7 +153,7 @@ SlabFreeInternal (
 #define SPIN_UNLOCK(_x) spinunlock(&_x)
 #define SPIN_LOCK_FREE(_x)
 
-#include "slabinc.c"
+#include <nux/slabinc.c>
 
 //
 // Legacy Function Wrappers (for backward compatibility)

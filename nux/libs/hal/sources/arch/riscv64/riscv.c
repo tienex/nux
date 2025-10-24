@@ -20,8 +20,8 @@
 #include <apxh/apxh.h>
 #include <platform/platform.h>
 #include <nux/nmiemul.h>
-#include "internal.h"
-#include "stree.h"
+#include <hal/internal.h>
+#include <nux/stree.h>
 
 extern int _info_start;
 

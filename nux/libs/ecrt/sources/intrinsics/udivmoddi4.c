@@ -10,7 +10,7 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "int_lib.h"
+#include <ecrt/intrinsics/int_lib.h>
 
 // Effects: if rem != 0, *rem = a % b
 // Returns: a / b

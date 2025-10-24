@@ -9,8 +9,8 @@
   SPDX-License-Identifier: BSD-2-Clause
 **/
 
-#include "fb_internal.h"
-#include "fonts/font.h"
+#include <nux/framebuffer/internal.h>
+#include <nux/framebuffer/font.h>
 
 /**
   Draw character at specific position.

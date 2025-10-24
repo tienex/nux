@@ -14,7 +14,7 @@
 #include <assert.h>
 #include <nux/nux.h>
 
-#include "internal.h"
+#include <nux/internal.h>
 
 /**
   Get user context from HAL frame.

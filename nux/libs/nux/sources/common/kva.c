@@ -14,7 +14,7 @@
 #include <rbtree.h>
 #include <assert.h>
 
-#include "internal.h"
+#include <nux/internal.h>
 #include <nux/nux.h>
 
 /*
@@ -252,7 +252,7 @@ ___freeptr (
   VmapRemove (pVme);
 }
 
-#include "alloc.h"
+#include <nux/alloc.h>
 
 static lock_t gVmapLock;
 static struct zone gVmapZone;

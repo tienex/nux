@@ -10,7 +10,7 @@
   SPDX-License-Identifier: BSD-2-Clause
 **/
 
-#include "apxh/x86/pae.h"
+#include <apxh/x86/pae.h>
 
 #define PAE64_DIRECTMAP_START 0
 #define PAE64_DIRECTMAP_END   (1LL << 30)

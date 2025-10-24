@@ -11,7 +11,7 @@
 **/
 
 #include <stdio.h>
-#include "internal.h"
+#include <hal/internal.h>
 #include <string.h>
 
 /**

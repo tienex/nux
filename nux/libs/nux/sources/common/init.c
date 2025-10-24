@@ -13,7 +13,7 @@
 #include <platform/platform.h>
 #include <nux/nux.h>
 
-#include "internal.h"
+#include <nux/internal.h>
 
 /** Set and cleared by HAL. If this is on, we're still in initialisation mode. **/
 volatile UINT32 gNuxApBooting = 0;
@@ -232,4 +232,4 @@ volatile uint8_t _nux_stflags __attribute__((alias("gNuxStFlags")));
 #undef NUXPERF
 #undef NUXPERF_DECLARE
 #define NUXPERF_DEFINE
-#include "perf.h"
+#include <nux/perf.h>

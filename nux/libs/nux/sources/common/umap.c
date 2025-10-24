@@ -11,7 +11,7 @@
   SPDX-License-Identifier: BSD-2-Clause
 **/
 
-#include "internal.h"
+#include <nux/internal.h>
 #include <assert.h>
 #include <nux/nux.h>
 

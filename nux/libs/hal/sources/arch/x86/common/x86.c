@@ -19,8 +19,8 @@
 #include <apxh/apxh.h>
 #include <nux/symbol.h>
 
-#include "internal.h"
-#include "stree.h"
+#include <hal/internal.h>
+#include <nux/stree.h>
 
 
 extern int _info_start;

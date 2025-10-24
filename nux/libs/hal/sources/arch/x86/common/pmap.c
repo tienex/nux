@@ -13,7 +13,7 @@
 #include <stdbool.h>
 #include <hal/hal.h>
 #include <nux/nux.h>
-#include "internal.h"
+#include <hal/internal.h>
 
 UINT64 gPteNx = 0;
 

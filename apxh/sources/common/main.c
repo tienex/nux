@@ -10,7 +10,7 @@
   SPDX-License-Identifier:	BSD-2-Clause
 **/
 
-#include "project.h"
+#include <apxh/project.h>
 
 static arch_t gElfArch;
 static UINT8 gBootPagemap[PAGEMAP_SZ (BOOTMEM)]

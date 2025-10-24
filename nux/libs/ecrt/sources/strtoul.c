@@ -61,4 +61,4 @@ __RCSID ("$NetBSD: strtoul.c,v 1.3 2008/08/20 19:58:34 oster Exp $");
 #define	__UINT		unsigned long int
 #define	__UINT_MAX	ULONG_MAX
 
-#include "_strtoul.h"
+#include <_strtoul.h>

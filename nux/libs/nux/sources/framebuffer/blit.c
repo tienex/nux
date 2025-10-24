@@ -9,7 +9,7 @@
   SPDX-License-Identifier: BSD-2-Clause
 **/
 
-#include "fb_internal.h"
+#include <nux/framebuffer/internal.h>
 
 /**
   Blit bitmap to framebuffer.

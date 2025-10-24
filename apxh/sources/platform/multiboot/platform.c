@@ -10,10 +10,10 @@
   SPDX-License-Identifier:	BSD-2-Clause
 **/
 
-#include "project.h"
+#include <apxh/project.h>
 
-#include "x86.h"
-#include "apxh/multiboot.h"
+#include <apxh/x86.h>
+#include <apxh/multiboot.h>
 
 /*
   Physical Layout of boot memory structure.

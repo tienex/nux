@@ -14,8 +14,8 @@
 #include <string.h>
 #include <hal/hal.h>
 #include <platform/platform.h>
-#include "hal/arch/amd64/amd64.h"
-#include "../internal.h"
+#include <hal/arch/amd64/amd64.h>
+#include <hal/internal.h>
 
 extern uint64_t _gdt[];
 extern int _physmap_start;

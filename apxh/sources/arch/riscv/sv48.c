@@ -10,7 +10,7 @@
   SPDX-License-Identifier: BSD-2-Clause
 **/
 
-#include "project.h"
+#include <apxh/project.h>
 
 #define PTE_V (1LL << 0)
 #define PTE_R (1LL << 1)

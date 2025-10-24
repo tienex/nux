@@ -13,7 +13,7 @@
 #include <efi.h>
 #include <efilib.h>
 
-#include "internal.h"
+#include <apxh/uefi/internal.h>
 
 static EFI_HANDLE gImageHandle;
 static EFI_LOADED_IMAGE *gpImg = NULL;

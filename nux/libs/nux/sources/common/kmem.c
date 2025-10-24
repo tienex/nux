@@ -13,7 +13,7 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "internal.h"
+#include <nux/internal.h>
 #include <nux/nux.h>
 
 #define LO 0
@@ -465,7 +465,7 @@ check_next:
   *pNh = pH;
 }
 
-#include "alloc.h"
+#include <nux/alloc.h>
 
 static lock_t gLockZ[2];
 static struct zone gKmemZ[2];

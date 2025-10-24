@@ -9,7 +9,7 @@
   SPDX-License-Identifier:	BSD-2-Clause
 **/
 
-#include "project.h"
+#include <apxh/project.h>
 
 #define RSDP_SIGN "RSD PTR "
 

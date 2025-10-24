@@ -9,7 +9,7 @@
   SPDX-License-Identifier: BSD-2-Clause
 **/
 
-#include "internal.h"
+#include <nux/internal.h>
 #include <hal/config.h>	/* For HAL_NMIEMUL */
 #include <nux/nmiemul.h>
 #include <nux/nux.h>

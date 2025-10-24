@@ -7,7 +7,7 @@
 #endif
 
 
-#include "hal/arch/riscv64/riscv.h"
+#include <hal/arch/riscv64/riscv.h>
 
 /*
   HAL interrupt levels.

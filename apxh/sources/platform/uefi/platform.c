@@ -10,7 +10,7 @@
   SPDX-License-Identifier:	BSD-2-Clause
 **/
 
-#include "project.h"
+#include <apxh/project.h>
 
 #define BOOTINFO_REGIONS_MAX 1024
 
@@ -27,7 +27,7 @@ static struct apxh_pltdesc gPltDesc;
 
 static struct bootinfo_region gMemRegions[BOOTINFO_REGIONS_MAX];
 
-#include "internal.h"
+#include <apxh/uefi/internal.h>
 
 /**
   Exit bootloader.

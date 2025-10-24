@@ -17,8 +17,8 @@
 #include <platform/platform.h>
 #include <nux/nux.h>
 
-#include "platform/acpi/internal.h"
-#include "platform/acpi/apic.h"
+#include <platform/acpi/internal.h>
+#include <platform/acpi/apic.h>
 
 static UINT32 gIoapicsNo;
 

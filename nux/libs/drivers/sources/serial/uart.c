@@ -9,7 +9,7 @@
   SPDX-License-Identifier: BSD-2-Clause
 **/
 
-#include "internal.h"
+#include <drivers/internal.h>
 
 #define SERIAL_PORT  0x3F8  ///< COM1 base I/O port
 

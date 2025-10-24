@@ -11,7 +11,7 @@
 **/
 
 #include <assert.h>
-#include "internal.h"
+#include <hal/internal.h>
 
 #define SATP_PFN_MASK ((1L << 44) - 1)
 
