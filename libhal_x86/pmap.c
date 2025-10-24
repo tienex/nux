@@ -1,9 +1,13 @@
-/*
-  NUX: A kernel Library.
+/** @file
+  x86 Page Mapping Operations
+
+  Provides page table entry manipulation, L1 page mapping operations,
+  and page table initialization for x86/AMD64 architectures.
+
   Copyright (C) 2019 Gianluca Guida, glguida@tlbflush.org
 
-  SPDX-License-Identifier:	BSD-2-Clause
-*/
+  SPDX-License-Identifier: BSD-2-Clause
+**/
 
 #include <assert.h>
 #include <stdbool.h>
@@ -11,139 +15,221 @@
 #include <nux/nux.h>
 #include "internal.h"
 
-uint64_t pte_nx = 0;
+UINT64 gPteNx = 0;
 
-bool
-hal_kmap_getl1p (unsigned long va, bool alloc, hal_l1p_t * l1popq)
+/**
+  Get L1 page table pointer for kernel virtual address.
+
+  @param[in]  Va      Virtual address.
+  @param[in]  Alloc   TRUE to allocate page tables if needed.
+  @param[out] pL1p    Pointer to receive L1 page table pointer.
+
+  @retval TRUE   L1 page table pointer obtained successfully.
+  @retval FALSE  Address is not in kernel range or allocation failed.
+**/
+BOOLEAN
+HalKmapGetL1p (
+  IN  UINTN      Va,
+  IN  BOOLEAN    Alloc,
+  OUT hal_l1p_t  *pL1p OPTIONAL
+  )
 {
   hal_l1p_t l1p;
 
-  if (va < pt_umap_maxaddr ())
+  if (Va < PtUmapMaxAddr ())
     {
-      if (l1popq != NULL)
-	*l1popq = L1P_INVALID;
-      return false;
+      if (pL1p != NULL)
+	*pL1p = L1P_INVALID;
+      return FALSE;
     }
 
-  l1p = kmap_get_l1p (va, alloc);
+  l1p = KmapGetL1p (Va, Alloc);
 
-  if (l1popq != NULL)
-    *l1popq = l1p;
+  if (pL1p != NULL)
+    *pL1p = l1p;
 
   return l1p != L1P_INVALID;
 }
 
-bool
-hal_umap_getl1p (struct hal_umap *umap, unsigned long uaddr, bool alloc,
-		 hal_l1p_t * l1popq)
+/**
+  Get L1 page table pointer for user virtual address.
+
+  @param[in]  pUmap   User address space map.
+  @param[in]  Uaddr   User virtual address.
+  @param[in]  Alloc   TRUE to allocate page tables if needed.
+  @param[out] pL1p    Pointer to receive L1 page table pointer.
+
+  @retval TRUE   L1 page table pointer obtained successfully.
+  @retval FALSE  Address is out of range or allocation failed.
+**/
+BOOLEAN
+HalUmapGetL1p (
+  IN  struct hal_umap  *pUmap,
+  IN  UINTN            Uaddr,
+  IN  BOOLEAN          Alloc,
+  OUT hal_l1p_t        *pL1p OPTIONAL
+  )
 {
   hal_l1p_t l1p;
 
-  if ((uaddr >= pt_umap_maxaddr ()) || (uaddr < pt_umap_minaddr ()))
+  if ((Uaddr >= PtUmapMaxAddr ()) || (Uaddr < PtUmapMinAddr ()))
     {
-      if (l1popq != NULL)
-	*l1popq = L1P_INVALID;
-      return false;
+      if (pL1p != NULL)
+	*pL1p = L1P_INVALID;
+      return FALSE;
     }
 
-  l1p = umap_get_l1p (umap, uaddr, alloc);
-  if (l1popq != NULL)
-    *l1popq = l1p;
+  l1p = UmapGetL1p (pUmap, Uaddr, Alloc);
+  if (pL1p != NULL)
+    *pL1p = l1p;
 
   return l1p != L1P_INVALID;
 }
 
+/**
+  Get L1 page table entry.
+
+  @param[in] L1p  L1 page table pointer.
+
+  @return L1 page table entry value.
+**/
 hal_l1e_t
-hal_l1e_get (hal_l1p_t l1popq)
+HalL1eGet (
+  IN hal_l1p_t  L1p
+  )
 {
-  return (hal_l1e_t) get_pte (l1popq);
+  return (hal_l1e_t) GetPte (L1p);
 }
 
-hal_l1e_t
-hal_l1e_set (hal_l1p_t l1popq, hal_l1e_t l1e)
-{
-  hal_l1e_t ol1e;
+/**
+  Set L1 page table entry.
 
-  ol1e = set_pte ((ptep_t) l1popq, (pte_t) l1e);
-  return ol1e;
+  @param[in] L1p  L1 page table pointer.
+  @param[in] L1e  L1 page table entry value to set.
+
+  @return Previous L1 page table entry value.
+**/
+hal_l1e_t
+HalL1eSet (
+  IN hal_l1p_t  L1p,
+  IN hal_l1e_t  L1e
+  )
+{
+  hal_l1e_t OldL1e;
+
+  OldL1e = SetPte ((PTEP) L1p, (PTE) L1e);
+  return OldL1e;
 }
 
+/**
+  Create L1 page table entry from PFN and protection flags.
+
+  @param[in] Pfn   Page frame number.
+  @param[in] Prot  Protection flags (HAL_PTE_*).
+
+  @return Constructed L1 page table entry.
+**/
 hal_l1e_t
-hal_l1e_box (unsigned long pfn, unsigned prot)
+HalL1eBox (
+  IN UINTN   Pfn,
+  IN UINT32  Prot
+  )
 {
   hal_l1e_t l1e;
 
-  l1e = (uint64_t) pfn << HAL_PAGE_SHIFT;
+  l1e = (UINT64) Pfn << HAL_PAGE_SHIFT;
 
-  if (prot & HAL_PTE_P)
+  if (Prot & HAL_PTE_P)
     l1e |= PTE_P;
-  if (prot & HAL_PTE_W)
+  if (Prot & HAL_PTE_W)
     l1e |= PTE_W;
-  if (!(prot & HAL_PTE_X) && (prot & HAL_PTE_P))
-    l1e |= pte_nx;
-  if (prot & HAL_PTE_U)
+  if (!(Prot & HAL_PTE_X) && (Prot & HAL_PTE_P))
+    l1e |= gPteNx;
+  if (Prot & HAL_PTE_U)
     l1e |= PTE_U;
-  if (prot & HAL_PTE_GLOBAL)
+  if (Prot & HAL_PTE_GLOBAL)
     l1e |= PTE_G;
-  if (prot & HAL_PTE_A)
+  if (Prot & HAL_PTE_A)
     l1e |= PTE_A;
-  if (prot & HAL_PTE_D)
+  if (Prot & HAL_PTE_D)
     l1e |= PTE_D;
-  if (prot & HAL_PTE_AVL0)
+  if (Prot & HAL_PTE_AVL0)
     l1e |= PTE_AVAIL0;
-  if (prot & HAL_PTE_AVL1)
+  if (Prot & HAL_PTE_AVL1)
     l1e |= PTE_AVAIL1;
-  if (prot & HAL_PTE_AVL2)
+  if (Prot & HAL_PTE_AVL2)
     l1e |= PTE_AVAIL2;
 
   return l1e;
 }
 
-void
-hal_l1e_unbox (hal_l1e_t l1e, unsigned long *pfnp, unsigned *protp)
+/**
+  Extract PFN and protection flags from L1 page table entry.
+
+  @param[in]  L1e    L1 page table entry.
+  @param[out] pPfn   Pointer to receive page frame number.
+  @param[out] pProt  Pointer to receive protection flags.
+**/
+VOID
+HalL1eUnbox (
+  IN  hal_l1e_t  L1e,
+  OUT UINTN      *pPfn OPTIONAL,
+  OUT UINT32     *pProt OPTIONAL
+  )
 {
-  unsigned prot = 0;
+  UINT32 Prot = 0;
 
-  if (l1e & PTE_P)
-    prot |= HAL_PTE_P;
-  if (l1e & PTE_W)
-    prot |= HAL_PTE_W;
-  if (!(l1e & PTE_NX) && (l1e & PTE_P))
-    prot |= HAL_PTE_X;
-  if (l1e & PTE_U)
-    prot |= HAL_PTE_U;
-  if (l1e & PTE_G)
-    prot |= HAL_PTE_GLOBAL;
-  if (l1e & PTE_A)
-    prot |= HAL_PTE_A;
-  if (l1e & PTE_D)
-    prot |= HAL_PTE_D;
-  if (l1e & PTE_AVAIL0)
-    prot |= HAL_PTE_AVL0;
-  if (l1e & PTE_AVAIL1)
-    prot |= HAL_PTE_AVL1;
-  if (l1e & PTE_AVAIL2)
-    prot |= HAL_PTE_AVL2;
+  if (L1e & PTE_P)
+    Prot |= HAL_PTE_P;
+  if (L1e & PTE_W)
+    Prot |= HAL_PTE_W;
+  if (!(L1e & PTE_NX) && (L1e & PTE_P))
+    Prot |= HAL_PTE_X;
+  if (L1e & PTE_U)
+    Prot |= HAL_PTE_U;
+  if (L1e & PTE_G)
+    Prot |= HAL_PTE_GLOBAL;
+  if (L1e & PTE_A)
+    Prot |= HAL_PTE_A;
+  if (L1e & PTE_D)
+    Prot |= HAL_PTE_D;
+  if (L1e & PTE_AVAIL0)
+    Prot |= HAL_PTE_AVL0;
+  if (L1e & PTE_AVAIL1)
+    Prot |= HAL_PTE_AVL1;
+  if (L1e & PTE_AVAIL2)
+    Prot |= HAL_PTE_AVL2;
 
-  if (pfnp)
-    *pfnp = l1epfn (l1e);
-  if (protp)
-    *protp = prot;
+  if (pPfn)
+    *pPfn = l1epfn (L1e);
+  if (pProt)
+    *pProt = Prot;
 }
 
+/**
+  Determine TLB operation required when changing page table entry.
+
+  @param[in] Old  Old L1 page table entry value.
+  @param[in] New  New L1 page table entry value.
+
+  @return Required TLB operation (HAL_TLBOP_*).
+**/
 hal_tlbop_t
-hal_l1e_tlbop (hal_l1e_t old, hal_l1e_t new)
+HalL1eTlbOp (
+  IN hal_l1e_t  Old,
+  IN hal_l1e_t  New
+  )
 {
 #define restricts_permissions(_o, _n) 1
 
   /* Previous not present. Don't flush. */
-  if (!(l1eflags (old) & PTE_P))
+  if (!(l1eflags (Old) & PTE_P))
     return 0;
 
   /* Mapping a different page. Flush. */
-  if ((l1epfn (old) != l1epfn (new)) || restricts_permissions (old, new))
+  if ((l1epfn (Old) != l1epfn (New)) || restricts_permissions (Old, New))
     {
-      if ((l1eflags (old) & PTE_G) || (l1eflags (new) & PTE_G))
+      if ((l1eflags (Old) & PTE_G) || (l1eflags (New) & PTE_G))
 	{
 	  return HAL_TLBOP_FLUSHALL;
 	}
@@ -156,43 +242,143 @@ hal_l1e_tlbop (hal_l1e_t old, hal_l1e_t new)
   return HAL_TLBOP_NONE;
 }
 
+/**
+  Get next mapped user address and page table information.
+
+  @param[in]  pUmap  User address space map.
+  @param[in]  Uaddr  Starting user address.
+  @param[out] pL1p   Pointer to receive L1 page table pointer.
+  @param[out] pL1e   Pointer to receive L1 page table entry.
+
+  @return Next mapped user address, or UADDR_INVALID if none.
+**/
 uaddr_t
-hal_umap_next (struct hal_umap *umap, uaddr_t uaddr, hal_l1p_t * l1p,
-	       hal_l1e_t * l1e)
+HalUmapNext (
+  IN  struct hal_umap  *pUmap,
+  IN  uaddr_t          Uaddr,
+  OUT hal_l1p_t        *pL1p OPTIONAL,
+  OUT hal_l1e_t        *pL1e OPTIONAL
+  )
 {
-  if (uaddr < hal_virtmem_userbase ())
-    uaddr = hal_virtmem_userbase ();
+  if (Uaddr < hal_virtmem_userbase ())
+    Uaddr = hal_virtmem_userbase ();
 
-  return pt_umap_next (umap, uaddr, l1p, l1e);
+  return PtUmapNext (pUmap, Uaddr, pL1p, pL1e);
 }
 
-void
-hal_umap_free (struct hal_umap *umap)
+/**
+  Free user address space page tables.
+
+  @param[in] pUmap  User address space map to free.
+**/
+VOID
+HalUmapFree (
+  IN struct hal_umap  *pUmap
+  )
 {
-  return pt_umap_free (umap);
+  return PtUmapFree (pUmap);
 }
 
-static bool
-cpu_supports_nx (void)
-{
-  uint64_t efer;
+/**
+  Check if CPU supports NX (No Execute) bit.
 
-  efer = rdmsr (MSR_IA32_EFER);
-  return !!(efer & _MSR_IA32_EFER_NXE);
+  @retval TRUE   CPU supports NX bit.
+  @retval FALSE  CPU does not support NX bit.
+**/
+static BOOLEAN
+CpuSupportsNx (
+  VOID
+  )
+{
+  UINT64 Efer;
+
+  Efer = ReadMsr (MSR_IA32_EFER);
+  return !!(Efer & _MSR_IA32_EFER_NXE);
 }
 
-void
-pmap_init (void)
+/**
+  Initialize page mapping subsystem.
+
+  Detects NX support and initializes architecture-specific page tables.
+**/
+VOID
+PmapInitialize (
+  VOID
+  )
 {
-  if (cpu_supports_nx ())
-    pte_nx = PTE_NX;
+  if (CpuSupportsNx ())
+    gPteNx = PTE_NX;
   else
     printf ("CPU does not support NX.\n");
 
 #ifdef __i386__
-  pae32_init ();
+  Pae32Initialize ();
 #endif
 #ifdef __amd64__
-  pae64_init ();
+  Pae64Initialize ();
 #endif
 }
+
+//
+// Legacy Function Wrappers (for backward compatibility)
+//
+
+/** @deprecated Use HalKmapGetL1p instead **/
+bool hal_kmap_getl1p (unsigned long va, bool alloc, hal_l1p_t * l1popq) {
+  return HalKmapGetL1p (va, alloc, l1popq);
+}
+
+/** @deprecated Use HalUmapGetL1p instead **/
+bool hal_umap_getl1p (struct hal_umap *umap, unsigned long uaddr, bool alloc,
+		 hal_l1p_t * l1popq) {
+  return HalUmapGetL1p (umap, uaddr, alloc, l1popq);
+}
+
+/** @deprecated Use HalL1eGet instead **/
+hal_l1e_t hal_l1e_get (hal_l1p_t l1popq) {
+  return HalL1eGet (l1popq);
+}
+
+/** @deprecated Use HalL1eSet instead **/
+hal_l1e_t hal_l1e_set (hal_l1p_t l1popq, hal_l1e_t l1e) {
+  return HalL1eSet (l1popq, l1e);
+}
+
+/** @deprecated Use HalL1eBox instead **/
+hal_l1e_t hal_l1e_box (unsigned long pfn, unsigned prot) {
+  return HalL1eBox (pfn, prot);
+}
+
+/** @deprecated Use HalL1eUnbox instead **/
+void hal_l1e_unbox (hal_l1e_t l1e, unsigned long *pfnp, unsigned *protp) {
+  HalL1eUnbox (l1e, pfnp, protp);
+}
+
+/** @deprecated Use HalL1eTlbOp instead **/
+hal_tlbop_t hal_l1e_tlbop (hal_l1e_t old, hal_l1e_t new) {
+  return HalL1eTlbOp (old, new);
+}
+
+/** @deprecated Use HalUmapNext instead **/
+uaddr_t hal_umap_next (struct hal_umap *umap, uaddr_t uaddr, hal_l1p_t * l1p,
+	       hal_l1e_t * l1e) {
+  return HalUmapNext (umap, uaddr, l1p, l1e);
+}
+
+/** @deprecated Use HalUmapFree instead **/
+void hal_umap_free (struct hal_umap *umap) {
+  HalUmapFree (umap);
+}
+
+/** @deprecated Use PmapInitialize instead **/
+void pmap_init (void) {
+  PmapInitialize ();
+}
+
+/** @deprecated Use CpuSupportsNx instead **/
+static bool cpu_supports_nx (void) {
+  return CpuSupportsNx ();
+}
+
+// Legacy global variable alias
+uint64_t pte_nx = 0;
