@@ -1,9 +1,15 @@
-/*
-  NUX: A kernel Library.
+/** @file
+  AMD64 PAE64 4-Level Page Table Implementation
+
+  Implements 4-level page table walking, manipulation, and scanning for
+  AMD64 architecture using PAE (Physical Address Extension) with 48-bit
+  virtual addresses. Manages both kernel linear mappings and user address
+  space mappings.
+
   Copyright (C) 2019 Gianluca Guida, glguida@tlbflush.org
 
-  SPDX-License-Identifier:	BSD-2-Clause
-*/
+  SPDX-License-Identifier: BSD-2-Clause
+**/
 
 #include <assert.h>
 #include <stdint.h>
@@ -60,585 +66,912 @@ static pte_t *linaddr_l2;
 static pte_t *linaddr_l3;
 static pte_t *linaddr_l4;
 
+/**
+  Construct canonical virtual address from page table offsets.
+
+  @param[in] L4off  L4 page table offset.
+  @param[in] L3off  L3 page table offset.
+  @param[in] L2off  L2 page table offset.
+  @param[in] L1off  L1 page table offset.
+
+  @return Canonical virtual address.
+**/
 uint64_t
-mkaddr (uint64_t l4off, uint64_t l3off, uint64_t l2off, uint64_t l1off)
+MakeAddress (
+  IN uint64_t  L4off,
+  IN uint64_t  L3off,
+  IN uint64_t  L2off,
+  IN uint64_t  L1off
+  )
 {
   return
-    MKCANON (((l4off << L4_SHIFT) | (l3off << L3_SHIFT) | (l2off << L2_SHIFT)
-	      | (l1off << L1_SHIFT)));
+    MKCANON (((L4off << L4_SHIFT) | (L3off << L3_SHIFT) | (L2off << L2_SHIFT)
+	      | (L1off << L1_SHIFT)));
 }
 
+/**
+  Get page table entry value.
+
+  @param[in] Ptep  Page table entry pointer.
+
+  @return Page table entry value.
+**/
 pte_t
-get_pte (ptep_t ptep)
+GetPte (
+  IN ptep_t  Ptep
+  )
 {
-  if (ptep_is_foreign (ptep))
+  if (ptep_is_foreign (Ptep))
     {
-      pte_t *t, pte;
-      pfn_t pfn;
-      unsigned offset;
+      pte_t *pT, Pte;
+      pfn_t Pfn;
+      unsigned Offset;
 
-      pfn = ptep >> PAGE_SHIFT;
-      offset = ptep >> 3 & 0x1ff;
+      Pfn = Ptep >> PAGE_SHIFT;
+      Offset = Ptep >> 3 & 0x1ff;
 
-      t = (pte_t *) pfn_get (pfn);
-      pte = t[offset];
-      pfn_put (pfn, t);
+      pT = (pte_t *) pfn_get (Pfn);
+      Pte = pT[Offset];
+      pfn_put (Pfn, pT);
 
-      return pte;
+      return Pte;
     }
   else
     {
-      return *(pte_t *) (uintptr_t) ptep;
+      return *(pte_t *) (uintptr_t) Ptep;
     }
 
 }
 
+/**
+  Set page table entry value.
+
+  @param[in] Ptep  Page table entry pointer.
+  @param[in] Pte   New page table entry value.
+
+  @return Previous page table entry value.
+**/
 pte_t
-set_pte (ptep_t ptep, pte_t pte)
+SetPte (
+  IN ptep_t  Ptep,
+  IN pte_t   Pte
+  )
 {
-  pte_t old;
+  pte_t Old;
 
-  if (ptep_is_foreign (ptep))
+  if (ptep_is_foreign (Ptep))
     {
-      pte_t *t;
-      pfn_t pfn;
-      unsigned offset;
+      pte_t *pT;
+      pfn_t Pfn;
+      unsigned Offset;
 
-      pfn = ptep >> PAGE_SHIFT;
-      offset = ptep >> 3 & 0x1ff;
+      Pfn = Ptep >> PAGE_SHIFT;
+      Offset = Ptep >> 3 & 0x1ff;
 
-      t = (pte_t *) pfn_get (pfn);
-      old = t[offset];
-      t[offset] = pte;
-      pfn_put (pfn, t);
+      pT = (pte_t *) pfn_get (Pfn);
+      Old = pT[Offset];
+      pT[Offset] = Pte;
+      pfn_put (Pfn, pT);
     }
   else
     {
-      old = *(pte_t *) ptep;
-      *(pte_t *) ptep = pte;
+      Old = *(pte_t *) Ptep;
+      *(pte_t *) Ptep = Pte;
     }
 
-  return old;
+  return Old;
 }
 
+/**
+  Allocate page table.
+
+  @param[in] User  TRUE if user-accessible page table.
+
+  @return Page table entry pointing to new table, or PTE_INVALID.
+**/
 static pte_t
-alloc_table (bool user)
+AllocTable (
+  IN bool  User
+  )
 {
-  pfn_t pfn;
+  pfn_t Pfn;
 
-  pfn = pfn_alloc (0);
-  if (pfn == PFN_INVALID)
+  Pfn = pfn_alloc (0);
+  if (Pfn == PFN_INVALID)
     return PTE_INVALID;
 
-  return mkpte (pfn, PTE_P | PTE_W | (user ? PTE_U : 0));
+  return mkpte (Pfn, PTE_P | PTE_W | (User ? PTE_U : 0));
 }
 
+/**
+  Get L4 page table entry pointer for linear-mapped virtual address.
+
+  @param[in] Va  Virtual address.
+
+  @return L4 page table entry pointer.
+**/
 static ptep_t
-linmap_get_l4p (unsigned long va)
+LinMapGetL4p (
+  IN unsigned long  Va
+  )
 {
-  return mkptep_cur (linaddr_l4 + (UNCANON (va) >> L4_SHIFT));
+  return mkptep_cur (linaddr_l4 + (UNCANON (Va) >> L4_SHIFT));
 }
 
+/**
+  Get L4 page table entry for linear-mapped virtual address.
+
+  @param[in] Va  Virtual address.
+
+  @return L4 page table entry value.
+**/
 static pte_t
-linmap_get_l4e (unsigned long va)
+LinMapGetL4e (
+  IN unsigned long  Va
+  )
 {
-  return *(pte_t *) (linaddr_l4 + (UNCANON (va) >> L4_SHIFT));
+  return *(pte_t *) (linaddr_l4 + (UNCANON (Va) >> L4_SHIFT));
 }
 
+/**
+  Get L3 page table entry pointer for linear-mapped virtual address.
+
+  @param[in] Va     Virtual address.
+  @param[in] Alloc  TRUE to allocate missing tables.
+  @param[in] User   TRUE if user-accessible table.
+
+  @return L3 page table entry pointer, or PTEP_INVALID.
+**/
 static ptep_t
-linmap_get_l3p (unsigned long va, bool alloc, bool user)
+LinMapGetL3p (
+  IN unsigned long  Va,
+  IN bool           Alloc,
+  IN bool           User
+  )
 {
-  ptep_t l4p;
-  pte_t l4e;
+  ptep_t L4p;
+  pte_t L4e;
 
-  l4p = linmap_get_l4p (va);
-  l4e = get_pte (l4p);
+  L4p = LinMapGetL4p (Va);
+  L4e = GetPte (L4p);
 
-  if (!pte_present (l4e))
+  if (!pte_present (L4e))
     {
-      if (!alloc)
+      if (!Alloc)
 	return PTEP_INVALID;
-      l4e = alloc_table (user);
-      if (l4e == PTE_INVALID)
+      L4e = AllocTable (User);
+      if (L4e == PTE_INVALID)
 	return PTEP_INVALID;
-      set_pte (l4p, l4e);
+      SetPte (L4p, L4e);
       /* Not present, no TLB flush necessary. */
     }
 
-  assert (!l4e_reserved (l4e) && "Invalid L4E.");
+  assert (!l4e_reserved (L4e) && "Invalid L4E.");
 
-  return mkptep_cur (linaddr_l3 + (UNCANON (va) >> L3_SHIFT));
+  return mkptep_cur (linaddr_l3 + (UNCANON (Va) >> L3_SHIFT));
 }
 
+/**
+  Get L2 page table entry pointer for linear-mapped virtual address.
+
+  @param[in] Va     Virtual address.
+  @param[in] Alloc  TRUE to allocate missing tables.
+  @param[in] User   TRUE if user-accessible table.
+
+  @return L2 page table entry pointer, or PTEP_INVALID.
+**/
 static ptep_t
-linmap_get_l2p (unsigned long va, bool alloc, bool user)
+LinMapGetL2p (
+  IN unsigned long  Va,
+  IN bool           Alloc,
+  IN bool           User
+  )
 {
-  ptep_t l3p;
-  pte_t l3e;
+  ptep_t L3p;
+  pte_t L3e;
 
-  l3p = linmap_get_l3p (va, alloc, user);
-  if (l3p == PTEP_INVALID)
-    return l3p;
-  l3e = get_pte (l3p);
+  L3p = LinMapGetL3p (Va, Alloc, User);
+  if (L3p == PTEP_INVALID)
+    return L3p;
+  L3e = GetPte (L3p);
 
-  if (!pte_present (l3e))
+  if (!pte_present (L3e))
     {
-      if (!alloc)
+      if (!Alloc)
 	return PTEP_INVALID;
-      l3e = alloc_table (user);
-      if (l3e == PTE_INVALID)
+      L3e = AllocTable (User);
+      if (L3e == PTE_INVALID)
 	return PTEP_INVALID;
-      set_pte (l3p, l3e);
+      SetPte (L3p, L3e);
       /* Not present, no TLB flush necessary. */
     }
 
-  assert (!l3e_reserved (l3e) && "Invalid L3E.");
-  assert (!l3e_bigpage (l3e) && "Invalid page size.");
+  assert (!l3e_reserved (L3e) && "Invalid L3E.");
+  assert (!l3e_bigpage (L3e) && "Invalid page size.");
 
-  return mkptep_cur (linaddr_l2 + (UNCANON (va) >> L2_SHIFT));
+  return mkptep_cur (linaddr_l2 + (UNCANON (Va) >> L2_SHIFT));
 }
 
+/**
+  Get L1 page table entry pointer for linear-mapped virtual address.
+
+  @param[in] Va     Virtual address.
+  @param[in] Alloc  TRUE to allocate missing tables.
+  @param[in] User   TRUE if user-accessible table.
+
+  @return L1 page table entry pointer, or PTEP_INVALID.
+**/
 static ptep_t
-linmap_get_l1p (unsigned long va, bool alloc, bool user)
+LinMapGetL1p (
+  IN unsigned long  Va,
+  IN bool           Alloc,
+  IN bool           User
+  )
 {
-  ptep_t l2p;
-  pte_t l2e;
+  ptep_t L2p;
+  pte_t L2e;
 
-  l2p = linmap_get_l2p (va, alloc, user);
-  if (l2p == PTEP_INVALID)
-    return l2p;
-  l2e = get_pte (l2p);
+  L2p = LinMapGetL2p (Va, Alloc, User);
+  if (L2p == PTEP_INVALID)
+    return L2p;
+  L2e = GetPte (L2p);
 
-  if (!pte_present (l2e))
+  if (!pte_present (L2e))
     {
-      if (!alloc)
+      if (!Alloc)
 	return PTEP_INVALID;
-      l2e = alloc_table (user);
-      if (l2e == PTE_INVALID)
+      L2e = AllocTable (User);
+      if (L2e == PTE_INVALID)
 	return PTEP_INVALID;
-      set_pte (l2p, l2e);
+      SetPte (L2p, L2e);
       /* Not present, no TLB flush necessary. */
     }
 
-  assert (!l2e_reserved (l2e) && "Invalid L2E.");
-  assert (!l2e_bigpage (l2e) && "Invalid page size.");
+  assert (!l2e_reserved (L2e) && "Invalid L2E.");
+  assert (!l2e_bigpage (L2e) && "Invalid page size.");
 
-  return mkptep_cur (linaddr + (UNCANON (va) >> L1_SHIFT));
+  return mkptep_cur (linaddr + (UNCANON (Va) >> L1_SHIFT));
 }
 
-static ptep_t
-get_umap_l4p (struct hal_umap *umap, unsigned long va)
-{
-  assert (L4OFF (va) < UMAP_L4PTES);
+/**
+  Get L4 page table entry pointer for user virtual address.
 
-  if (umap == NULL)
+  @param[in] pUmap  User address space map (NULL for current).
+  @param[in] Va     Virtual address.
+
+  @return L4 page table entry pointer.
+**/
+static ptep_t
+GetUmapL4p (
+  IN struct hal_umap  *pUmap,
+  IN unsigned long    Va
+  )
+{
+  assert (L4OFF (Va) < UMAP_L4PTES);
+
+  if (pUmap == NULL)
     {
       /* Use LINMAP if current. */
-      assert (L4OFF (va) < UMAP_L4PTES);
-      return linmap_get_l4p (va);
+      assert (L4OFF (Va) < UMAP_L4PTES);
+      return LinMapGetL4p (Va);
     }
 
-  return mkptep_cur (umap->l4 + L4OFF (va));
+  return mkptep_cur (pUmap->l4 + L4OFF (Va));
 }
 
 
+/**
+  Get L3 page frame number for user virtual address.
+
+  @param[in] pUmap  User address space map (NULL for current).
+  @param[in] Va     Virtual address.
+  @param[in] Alloc  TRUE to allocate missing tables.
+
+  @return L3 page frame number, or PFN_INVALID.
+**/
 static pfn_t
-get_umap_l3pfn (struct hal_umap *umap, unsigned long va, bool alloc)
+GetUmapL3Pfn (
+  IN struct hal_umap  *pUmap,
+  IN unsigned long    Va,
+  IN bool             Alloc
+  )
 {
-  ptep_t l4p;
-  pte_t l4e;
+  ptep_t L4p;
+  pte_t L4e;
 
-  l4p = get_umap_l4p (umap, va);
-  l4e = get_pte (l4p);
+  L4p = GetUmapL4p (pUmap, Va);
+  L4e = GetPte (L4p);
 
-  if (!pte_present (l4e))
+  if (!pte_present (L4e))
     {
-      if (!alloc)
+      if (!Alloc)
 	return PFN_INVALID;
-      l4e = alloc_table (true /* user */ );
-      if (l4e == PTE_INVALID)
+      L4e = AllocTable (true /* user */ );
+      if (L4e == PTE_INVALID)
 	return PFN_INVALID;
-      set_pte (l4p, l4e);
+      SetPte (L4p, L4e);
       /* Not present, no TLB flush necessary. */
     }
 
-  assert (!l4e_reserved (l4e) && "Invalid L4E.");
+  assert (!l4e_reserved (L4e) && "Invalid L4E.");
 
-  return pte_pfn (l4e);
+  return pte_pfn (L4e);
 }
 
-static ptep_t
-get_umap_l3p (struct hal_umap *umap, unsigned long va, bool alloc)
-{
-  pfn_t l3pfn;
+/**
+  Get L3 page table entry pointer for user virtual address.
 
-  if (umap == NULL)
+  @param[in] pUmap  User address space map (NULL for current).
+  @param[in] Va     Virtual address.
+  @param[in] Alloc  TRUE to allocate missing tables.
+
+  @return L3 page table entry pointer, or PTEP_INVALID.
+**/
+static ptep_t
+GetUmapL3p (
+  IN struct hal_umap  *pUmap,
+  IN unsigned long    Va,
+  IN bool             Alloc
+  )
+{
+  pfn_t L3Pfn;
+
+  if (pUmap == NULL)
     {
       /* Use LINMAP if current. */
-      assert (L4OFF (va) < UMAP_L4PTES);
-      return linmap_get_l3p (va, alloc, true /* user */ );
+      assert (L4OFF (Va) < UMAP_L4PTES);
+      return LinMapGetL3p (Va, Alloc, true /* user */ );
     }
 
-  l3pfn = get_umap_l3pfn (umap, va, alloc);
-  if (l3pfn == PFN_INVALID)
+  L3Pfn = GetUmapL3Pfn (pUmap, Va, Alloc);
+  if (L3Pfn == PFN_INVALID)
     {
       return PTEP_INVALID;
     }
 
-  return mkptep_fgn ((l3pfn << PAGE_SHIFT) + (L3OFF (va) << 3));
+  return mkptep_fgn ((L3Pfn << PAGE_SHIFT) + (L3OFF (Va) << 3));
 }
 
+/**
+  Get L2 page frame number for user virtual address.
+
+  @param[in] pUmap  User address space map (NULL for current).
+  @param[in] Va     Virtual address.
+  @param[in] Alloc  TRUE to allocate missing tables.
+
+  @return L2 page frame number, or PFN_INVALID.
+**/
 static pfn_t
-get_umap_l2pfn (struct hal_umap *umap, unsigned long va, bool alloc)
+GetUmapL2Pfn (
+  IN struct hal_umap  *pUmap,
+  IN unsigned long    Va,
+  IN bool             Alloc
+  )
 {
-  ptep_t l3p;
-  pte_t l3e;
+  ptep_t L3p;
+  pte_t L3e;
 
-  l3p = get_umap_l3p (umap, va, alloc);
-  if (l3p == PTEP_INVALID)
+  L3p = GetUmapL3p (pUmap, Va, Alloc);
+  if (L3p == PTEP_INVALID)
     return PFN_INVALID;
-  l3e = get_pte (l3p);
+  L3e = GetPte (L3p);
 
-  if (!pte_present (l3e))
+  if (!pte_present (L3e))
     {
-      if (!alloc)
+      if (!Alloc)
 	return PFN_INVALID;
-      l3e = alloc_table (true /* user */ );
-      if (l3e == PTE_INVALID)
+      L3e = AllocTable (true /* user */ );
+      if (L3e == PTE_INVALID)
 	return PFN_INVALID;
-      set_pte (l3p, l3e);
+      SetPte (L3p, L3e);
       /* Not present, no TLB flush necessary. */
     }
 
-  assert (!l3e_reserved (l3e) && "Invalid L3E.");
-  assert (!l3e_bigpage (l3e) && "Invalid page size.");
+  assert (!l3e_reserved (L3e) && "Invalid L3E.");
+  assert (!l3e_bigpage (L3e) && "Invalid page size.");
 
-  return pte_pfn (l3e);
+  return pte_pfn (L3e);
 }
 
-static ptep_t
-get_umap_l2p (struct hal_umap *umap, unsigned long va, bool alloc)
-{
-  pfn_t l2pfn;
+/**
+  Get L2 page table entry pointer for user virtual address.
 
-  if (umap == NULL)
+  @param[in] pUmap  User address space map (NULL for current).
+  @param[in] Va     Virtual address.
+  @param[in] Alloc  TRUE to allocate missing tables.
+
+  @return L2 page table entry pointer, or PTEP_INVALID.
+**/
+static ptep_t
+GetUmapL2p (
+  IN struct hal_umap  *pUmap,
+  IN unsigned long    Va,
+  IN bool             Alloc
+  )
+{
+  pfn_t L2Pfn;
+
+  if (pUmap == NULL)
     {
       /* Use LINMAP if current. */
-      assert (L4OFF (va) < UMAP_L4PTES);
-      return linmap_get_l2p (va, alloc, true /* user */ );
+      assert (L4OFF (Va) < UMAP_L4PTES);
+      return LinMapGetL2p (Va, Alloc, true /* user */ );
     }
 
-  l2pfn = get_umap_l2pfn (umap, va, alloc);
-  if (l2pfn == PFN_INVALID)
+  L2Pfn = GetUmapL2Pfn (pUmap, Va, Alloc);
+  if (L2Pfn == PFN_INVALID)
     {
       return PTEP_INVALID;
     }
 
-  return mkptep_fgn ((l2pfn << PAGE_SHIFT) + (L2OFF (va) << 3));
+  return mkptep_fgn ((L2Pfn << PAGE_SHIFT) + (L2OFF (Va) << 3));
 }
 
+/**
+  Get L1 page frame number for user virtual address.
+
+  @param[in] pUmap  User address space map (NULL for current).
+  @param[in] Va     Virtual address.
+  @param[in] Alloc  TRUE to allocate missing tables.
+
+  @return L1 page frame number, or PFN_INVALID.
+**/
 static pfn_t
-get_umap_l1pfn (struct hal_umap *umap, unsigned long va, bool alloc)
+GetUmapL1Pfn (
+  IN struct hal_umap  *pUmap,
+  IN unsigned long    Va,
+  IN bool             Alloc
+  )
 {
-  ptep_t l2p;
-  pte_t l2e;
+  ptep_t L2p;
+  pte_t L2e;
 
-  l2p = get_umap_l2p (umap, va, alloc);
-  if (l2p == PTEP_INVALID)
+  L2p = GetUmapL2p (pUmap, Va, Alloc);
+  if (L2p == PTEP_INVALID)
     return PFN_INVALID;
-  l2e = get_pte (l2p);
+  L2e = GetPte (L2p);
 
-  if (!pte_present (l2e))
+  if (!pte_present (L2e))
     {
-      if (!alloc)
+      if (!Alloc)
 	return PFN_INVALID;
-      l2e = alloc_table (true /* user */ );
-      if (l2e == PTE_INVALID)
+      L2e = AllocTable (true /* user */ );
+      if (L2e == PTE_INVALID)
 	return PFN_INVALID;
-      set_pte (l2p, l2e);
+      SetPte (L2p, L2e);
       /* Not present, no TLB flush necessary. */
     }
 
 
-  assert (!l2e_reserved (l2e) && "Invalid L2E.");
-  assert (!l2e_bigpage (l2e) && "Invalid page size.");
+  assert (!l2e_reserved (L2e) && "Invalid L2E.");
+  assert (!l2e_bigpage (L2e) && "Invalid page size.");
 
-  return pte_pfn (l2e);
+  return pte_pfn (L2e);
 }
 
 
 
+/**
+  Get L1 page table entry pointer for user virtual address.
+
+  @param[in] pUmap  User address space map (NULL for current).
+  @param[in] Va     Virtual address.
+  @param[in] Alloc  TRUE to allocate missing tables.
+
+  @return L1 page table entry pointer, or PTEP_INVALID.
+**/
 ptep_t
-umap_get_l1p (struct hal_umap *umap, unsigned long va, bool alloc)
+UmapGetL1p (
+  IN struct hal_umap  *pUmap,
+  IN unsigned long    Va,
+  IN bool             Alloc
+  )
 {
-  pfn_t l1pfn;
+  pfn_t L1Pfn;
 
-  if (umap == NULL)
+  if (pUmap == NULL)
     {
       /* Use LINMAP if current. */
-      assert (L4OFF (va) < UMAP_L4PTES);
-      return linmap_get_l1p (va, alloc, true /* user */ );
+      assert (L4OFF (Va) < UMAP_L4PTES);
+      return LinMapGetL1p (Va, Alloc, true /* user */ );
     }
 
-  l1pfn = get_umap_l1pfn (umap, va, alloc);
-  if (l1pfn == PFN_INVALID)
+  L1Pfn = GetUmapL1Pfn (pUmap, Va, Alloc);
+  if (L1Pfn == PFN_INVALID)
     {
       return PTEP_INVALID;
     }
-  return mkptep_fgn ((l1pfn << PAGE_SHIFT) + (L1OFF (va) << 3));
+  return mkptep_fgn ((L1Pfn << PAGE_SHIFT) + (L1OFF (Va) << 3));
 }
 
+/**
+  Get minimum user virtual address.
+
+  @return Minimum user virtual address.
+**/
 unsigned long
-pt_umap_minaddr (void)
+PtUmapMinAddr (
+  VOID
+  )
 {
   return 0;
 }
 
+/**
+  Get maximum user virtual address.
+
+  @return Maximum user virtual address.
+**/
 unsigned long
-pt_umap_maxaddr (void)
+PtUmapMaxAddr (
+  VOID
+  )
 {
   return 1L << (39 + UMAP_LOG2_L4PTES);
 }
 
-/* Note: this does not check for va being user. */
+/**
+  Get L1 page table entry pointer for kernel virtual address.
+
+  Note: This does not check for va being in user range.
+
+  @param[in] Va     Virtual address.
+  @param[in] Alloc  Non-zero to allocate missing tables.
+
+  @return L1 page table entry pointer, or L1P_INVALID.
+**/
 hal_l1p_t
-kmap_get_l1p (unsigned long va, int alloc)
+KmapGetL1p (
+  IN unsigned long  Va,
+  IN int            Alloc
+  )
 {
-  return (hal_l1p_t) linmap_get_l1p (va, alloc, false /* !user */ );
+  return (hal_l1p_t) LinMapGetL1p (Va, Alloc, false /* !user */ );
 }
 
-void
-pt_umap_debugwalk (struct hal_umap *umap, unsigned long va)
+/**
+  Debug walk page tables and print entries.
+
+  @param[in] pUmap  User address space map.
+  @param[in] Va     Virtual address to walk.
+**/
+VOID
+PtUmapDebugWalk (
+  IN struct hal_umap  *pUmap,
+  IN unsigned long    Va
+  )
 {
   unsigned i;
-  pte_t pte;
-  ptep_t ptep;
+  pte_t Pte;
+  ptep_t Ptep;
 
   i = 4;
-  ptep = linmap_get_l4p (va);
+  Ptep = LinMapGetL4p (Va);
   printf ("    L%d -", i);
-  if (ptep == PTEP_INVALID)
+  if (Ptep == PTEP_INVALID)
     {
       printf (" <PTE PTR INVALID>\n\n");
       return;
     }
-  pte = get_pte (ptep);
-  printf (" <%lx>\n", pte);
-  if (!pte_present(pte))
+  Pte = GetPte (Ptep);
+  printf (" <%lx>\n", Pte);
+  if (!pte_present(Pte))
     {
       printf("\n");
       return;
     }
 
   i = 3;
-  ptep = linmap_get_l3p (va, false, false);
+  Ptep = LinMapGetL3p (Va, false, false);
   printf ("    L%d -", i);
-  if (ptep == PTEP_INVALID)
+  if (Ptep == PTEP_INVALID)
     {
       printf (" <PTE PTR INVALID>\n\n");
       return;
     }
-  pte = get_pte (ptep);
-  printf (" <%lx>\n", pte);
-  if (!pte_present(pte))
+  Pte = GetPte (Ptep);
+  printf (" <%lx>\n", Pte);
+  if (!pte_present(Pte))
     {
       printf("\n");
       return;
     }
 
   i = 2;
-  ptep = linmap_get_l2p (va, false, false);
+  Ptep = LinMapGetL2p (Va, false, false);
   printf ("    L%d -", i);
-  if (ptep == PTEP_INVALID)
+  if (Ptep == PTEP_INVALID)
     {
       printf (" <PTE PTR INVALID>\n\n");
       return;
     }
-  pte = get_pte (ptep);
-  printf (" <%lx>\n", pte);
-  if (!pte_present(pte))
+  Pte = GetPte (Ptep);
+  printf (" <%lx>\n", Pte);
+  if (!pte_present(Pte))
     {
       printf("\n");
       return;
     }
 
   i = 1;
-  ptep = linmap_get_l1p (va, false, false);
+  Ptep = LinMapGetL1p (Va, false, false);
   printf ("    L%d -", i);
-  if (ptep == PTEP_INVALID)
+  if (Ptep == PTEP_INVALID)
     {
       printf (" <PTE PTR INVALID>\n\n");
       return;
     }
-  pte = get_pte (ptep);
-  printf (" <%lx>\n", pte);
+  Pte = GetPte (Ptep);
+  printf (" <%lx>\n", Pte);
   return;
 }
 
-void
-hal_umap_init (struct hal_umap *umap)
+/**
+  Initialize user address space map.
+
+  @param[in] pUmap  User address space map to initialize.
+**/
+VOID
+HalUmapInit (
+  IN struct hal_umap  *pUmap
+  )
 {
   for (int i = 0; i < UMAP_L4PTES; i++)
     {
-      umap->l4[i] = alloc_table (true);;
+      pUmap->l4[i] = AllocTable (true);;
     }
 }
 
-void
-hal_umap_bootstrap (struct hal_umap *umap)
+/**
+  Bootstrap user address space map from current page tables.
+
+  @param[in] pUmap  User address space map to bootstrap.
+**/
+VOID
+HalUmapBootstrap (
+  IN struct hal_umap  *pUmap
+  )
 {
-  vaddr_t va = hal_virtmem_userbase ();
+  vaddr_t Va = hal_virtmem_userbase ();
   int i;
 
-  for (i = 0; i < UMAP_L4PTES; i++, va += (1L << L4_SHIFT))
+  for (i = 0; i < UMAP_L4PTES; i++, Va += (1L << L4_SHIFT))
     {
-      ptep_t l4p;
-      pte_t l4e;
+      ptep_t L4p;
+      pte_t L4e;
 
-      l4p = linmap_get_l4p (va);
-      l4e = get_pte (l4p);
+      L4p = LinMapGetL4p (Va);
+      L4e = GetPte (L4p);
 
-      if (!pte_present (l4e))
+      if (!pte_present (L4e))
 	{
-	  l4e = alloc_table (true);
+	  L4e = AllocTable (true);
 	  /* We're in bootstrap. Can assert. */
-	  assert (l4e != PTE_INVALID);
-	  set_pte (l4p, l4e);
+	  assert (L4e != PTE_INVALID);
+	  SetPte (L4p, L4e);
 	  /* Not present, no TLB flush necessary. */
 	}
-      umap->l4[i] = l4e;
+      pUmap->l4[i] = L4e;
     }
 
   /* Panic if the boot user mapping doesn't fit in a UMAP. */
-  for (; i < 256; i++, va += (1L << L4_SHIFT))
-    if (pte_present (linmap_get_l4e (va)))
+  for (; i < 256; i++, Va += (1L << L4_SHIFT))
+    if (pte_present (LinMapGetL4e (Va)))
       {
 	halfatal ("Boot user mapping do not fit into UMAP");
       }
 }
 
+/**
+  Load user address space map into current page tables.
+
+  @param[in] pUmap  User address space map to load (NULL for none).
+
+  @return Required TLB operation.
+**/
 hal_tlbop_t
-hal_umap_load (struct hal_umap *umap)
+HalUmapLoad (
+  IN struct hal_umap  *pUmap
+  )
 {
-  vaddr_t va = hal_virtmem_userbase ();
-  hal_tlbop_t tlbop = HAL_TLBOP_NONE;
+  vaddr_t Va = hal_virtmem_userbase ();
+  hal_tlbop_t TlbOp = HAL_TLBOP_NONE;
   int i;
 
-  for (i = 0; i < UMAP_L4PTES; i++, va += (1L << L4_SHIFT))
+  for (i = 0; i < UMAP_L4PTES; i++, Va += (1L << L4_SHIFT))
     {
-      ptep_t l4p;
-      pte_t oldl4e, newl4e;
+      ptep_t L4p;
+      pte_t OldL4e, NewL4e;
 
-      if (umap != NULL)
-	newl4e = umap->l4[i];
+      if (pUmap != NULL)
+	NewL4e = pUmap->l4[i];
       else
-	newl4e = 0;
+	NewL4e = 0;
 
-      l4p = linmap_get_l4p (va);
-      oldl4e = set_pte (l4p, newl4e);
-      tlbop |= hal_l1e_tlbop (oldl4e, newl4e);
+      L4p = LinMapGetL4p (Va);
+      OldL4e = SetPte (L4p, NewL4e);
+      TlbOp |= hal_l1e_tlbop (OldL4e, NewL4e);
     }
-  return tlbop;
+  return TlbOp;
 }
 
-static bool
-scan_l1 (pfn_t l1pfn, unsigned off, unsigned *l1off_out, hal_l1p_t * l1p_out,
-	 hal_l1e_t * l1e_out)
-{
-  pte_t *l1ptr, l1e;
+/**
+  Scan L1 page table for next mapped entry.
 
-  l1ptr = pfn_get (l1pfn);
-  for (unsigned i = off; i < 512; i++)
+  @param[in]  L1Pfn     L1 page frame number.
+  @param[in]  Off       Starting offset.
+  @param[out] pL1OffOut Pointer to receive L1 offset.
+  @param[out] pL1pOut   Pointer to receive L1 entry pointer.
+  @param[out] pL1eOut   Pointer to receive L1 entry value.
+
+  @retval TRUE   Found mapped entry.
+  @retval FALSE  No mapped entry found.
+**/
+static bool
+ScanL1 (
+  IN  pfn_t       L1Pfn,
+  IN  unsigned    Off,
+  OUT unsigned   *pL1OffOut,
+  OUT hal_l1p_t  *pL1pOut OPTIONAL,
+  OUT hal_l1e_t  *pL1eOut OPTIONAL
+  )
+{
+  pte_t *pL1Ptr, L1e;
+
+  pL1Ptr = pfn_get (L1Pfn);
+  for (unsigned i = Off; i < 512; i++)
     {
-      l1e = l1ptr[i];
-      if (l1e != 0)
+      L1e = pL1Ptr[i];
+      if (L1e != 0)
 	{
-	  if (l1p_out != NULL)
-	    *l1p_out = mkptep_fgn ((l1pfn << PAGE_SHIFT) + (i << 3));
-	  if (l1e_out != NULL)
-	    *l1e_out = l1e;
-	  *l1off_out = i;
-	  pfn_put (l1pfn, l1ptr);
+	  if (pL1pOut != NULL)
+	    *pL1pOut = mkptep_fgn ((L1Pfn << PAGE_SHIFT) + (i << 3));
+	  if (pL1eOut != NULL)
+	    *pL1eOut = L1e;
+	  *pL1OffOut = i;
+	  pfn_put (L1Pfn, pL1Ptr);
 	  return true;
 	}
     }
-  pfn_put (l1pfn, l1ptr);
+  pfn_put (L1Pfn, pL1Ptr);
   return false;
 }
 
-static bool
-scan_l2 (pfn_t l2pfn, unsigned off, unsigned *l2off_out, unsigned *l1off_out,
-	 hal_l1p_t * l1p_out, hal_l1e_t * l1e_out)
-{
-  pte_t *l2ptr, l2e;
-  pfn_t l1pfn;
+/**
+  Scan L2 page table for next mapped entry.
 
-  l2ptr = pfn_get (l2pfn);
-  for (unsigned i = off; i < 512; i++)
+  @param[in]  L2Pfn     L2 page frame number.
+  @param[in]  Off       Starting offset.
+  @param[out] pL2OffOut Pointer to receive L2 offset.
+  @param[out] pL1OffOut Pointer to receive L1 offset.
+  @param[out] pL1pOut   Pointer to receive L1 entry pointer.
+  @param[out] pL1eOut   Pointer to receive L1 entry value.
+
+  @retval TRUE   Found mapped entry.
+  @retval FALSE  No mapped entry found.
+**/
+static bool
+ScanL2 (
+  IN  pfn_t       L2Pfn,
+  IN  unsigned    Off,
+  OUT unsigned   *pL2OffOut,
+  OUT unsigned   *pL1OffOut,
+  OUT hal_l1p_t  *pL1pOut OPTIONAL,
+  OUT hal_l1e_t  *pL1eOut OPTIONAL
+  )
+{
+  pte_t *pL2Ptr, L2e;
+  pfn_t L1Pfn;
+
+  pL2Ptr = pfn_get (L2Pfn);
+  for (unsigned i = Off; i < 512; i++)
     {
-      l2e = l2ptr[i];
-      if (pte_present (l2e))
+      L2e = pL2Ptr[i];
+      if (pte_present (L2e))
 	{
-	  l1pfn = pte_pfn (l2e);
-	  if (scan_l1 (l1pfn, 0, l1off_out, l1p_out, l1e_out))
+	  L1Pfn = pte_pfn (L2e);
+	  if (ScanL1 (L1Pfn, 0, pL1OffOut, pL1pOut, pL1eOut))
 	    {
-	      *l2off_out = i;
-	      pfn_put (l2pfn, l2ptr);
+	      *pL2OffOut = i;
+	      pfn_put (L2Pfn, pL2Ptr);
 	      return true;
 	    }
 	}
     }
-  pfn_put (l2pfn, l2ptr);
+  pfn_put (L2Pfn, pL2Ptr);
   return false;
 }
 
-static bool
-scan_l3 (pfn_t l3pfn, unsigned off, unsigned *l3off_out, unsigned *l2off_out,
-	 unsigned *l1off_out, hal_l1p_t * l1p_out, hal_l1e_t * l1e_out)
-{
-  pte_t *l3ptr, l3e;
-  pfn_t l2pfn;
+/**
+  Scan L3 page table for next mapped entry.
 
-  l3ptr = pfn_get (l3pfn);
-  for (unsigned i = off; i < 512; i++)
+  @param[in]  L3Pfn     L3 page frame number.
+  @param[in]  Off       Starting offset.
+  @param[out] pL3OffOut Pointer to receive L3 offset.
+  @param[out] pL2OffOut Pointer to receive L2 offset.
+  @param[out] pL1OffOut Pointer to receive L1 offset.
+  @param[out] pL1pOut   Pointer to receive L1 entry pointer.
+  @param[out] pL1eOut   Pointer to receive L1 entry value.
+
+  @retval TRUE   Found mapped entry.
+  @retval FALSE  No mapped entry found.
+**/
+static bool
+ScanL3 (
+  IN  pfn_t       L3Pfn,
+  IN  unsigned    Off,
+  OUT unsigned   *pL3OffOut,
+  OUT unsigned   *pL2OffOut,
+  OUT unsigned   *pL1OffOut,
+  OUT hal_l1p_t  *pL1pOut OPTIONAL,
+  OUT hal_l1e_t  *pL1eOut OPTIONAL
+  )
+{
+  pte_t *pL3Ptr, L3e;
+  pfn_t L2Pfn;
+
+  pL3Ptr = pfn_get (L3Pfn);
+  for (unsigned i = Off; i < 512; i++)
     {
-      l3e = l3ptr[i];
-      if (pte_present (l3e))
+      L3e = pL3Ptr[i];
+      if (pte_present (L3e))
 	{
-	  l2pfn = pte_pfn (l3e);
-	  if (scan_l2 (l2pfn, 0, l2off_out, l1off_out, l1p_out, l1e_out))
+	  L2Pfn = pte_pfn (L3e);
+	  if (ScanL2 (L2Pfn, 0, pL2OffOut, pL1OffOut, pL1pOut, pL1eOut))
 	    {
-	      *l3off_out = i;
-	      pfn_put (l3pfn, l3ptr);
+	      *pL3OffOut = i;
+	      pfn_put (L3Pfn, pL3Ptr);
 	      return true;
 	    }
 	}
     }
-  pfn_put (l3pfn, l3ptr);
+  pfn_put (L3Pfn, pL3Ptr);
   return false;
 }
 
+/**
+  Scan L4 page table for next mapped entry.
+
+  @param[in]  pUmap     User address space map.
+  @param[in]  Off       Starting offset.
+  @param[out] pL4OffOut Pointer to receive L4 offset.
+  @param[out] pL3OffOut Pointer to receive L3 offset.
+  @param[out] pL2OffOut Pointer to receive L2 offset.
+  @param[out] pL1OffOut Pointer to receive L1 offset.
+  @param[out] pL1pOut   Pointer to receive L1 entry pointer.
+  @param[out] pL1eOut   Pointer to receive L1 entry value.
+
+  @retval TRUE   Found mapped entry.
+  @retval FALSE  No mapped entry found.
+**/
 static bool
-scan_l4 (struct hal_umap *umap, unsigned off, unsigned *l4off_out,
-	 unsigned *l3off_out, unsigned *l2off_out, unsigned *l1off_out,
-	 hal_l1p_t * l1p_out, hal_l1e_t * l1e_out)
+ScanL4 (
+  IN  struct hal_umap  *pUmap,
+  IN  unsigned         Off,
+  OUT unsigned        *pL4OffOut,
+  OUT unsigned        *pL3OffOut,
+  OUT unsigned        *pL2OffOut,
+  OUT unsigned        *pL1OffOut,
+  OUT hal_l1p_t       *pL1pOut OPTIONAL,
+  OUT hal_l1e_t       *pL1eOut OPTIONAL
+  )
 {
-  pte_t l4e;
-  pfn_t l3pfn;
-  for (unsigned i = off; i < UMAP_L4PTES; i++)
+  pte_t L4e;
+  pfn_t L3Pfn;
+  for (unsigned i = Off; i < UMAP_L4PTES; i++)
     {
-      if (umap != NULL)
-	l4e = umap->l4[i];
+      if (pUmap != NULL)
+	L4e = pUmap->l4[i];
       else
-	l4e = linmap_get_l4e (mkaddr (i, 0, 0, 0));
+	L4e = LinMapGetL4e (MakeAddress (i, 0, 0, 0));
 
-      if (pte_present (l4e))
+      if (pte_present (L4e))
 	{
-	  l3pfn = pte_pfn (l4e);
-	  if (scan_l3
-	      (l3pfn, 0, l3off_out, l2off_out, l1off_out, l1p_out, l1e_out))
+	  L3Pfn = pte_pfn (L4e);
+	  if (ScanL3
+	      (L3Pfn, 0, pL3OffOut, pL2OffOut, pL1OffOut, pL1pOut, pL1eOut))
 	    {
-	      *l4off_out = i;
+	      *pL4OffOut = i;
 	      return true;
 	    }
 	}
@@ -646,125 +979,327 @@ scan_l4 (struct hal_umap *umap, unsigned off, unsigned *l4off_out,
   return false;
 }
 
+/**
+  Get next mapped user address.
+
+  @param[in]  pUmap   User address space map.
+  @param[in]  Uaddr   Starting user address.
+  @param[out] pL1pOut Pointer to receive L1 entry pointer.
+  @param[out] pL1eOut Pointer to receive L1 entry value.
+
+  @return Next mapped user address, or UADDR_INVALID.
+**/
 uaddr_t
-pt_umap_next (struct hal_umap *umap, uaddr_t uaddr, hal_l1p_t * l1p_out,
-	      hal_l1e_t * l1e_out)
+PtUmapNext (
+  IN  struct hal_umap  *pUmap,
+  IN  uaddr_t          Uaddr,
+  OUT hal_l1p_t        *pL1pOut OPTIONAL,
+  OUT hal_l1e_t        *pL1eOut OPTIONAL
+  )
 {
 
-  unsigned l4off = L4OFF (uaddr);
-  unsigned l3off = L3OFF (uaddr);
-  unsigned l2off = L2OFF (uaddr);
-  unsigned l1off = L1OFF (uaddr);
-  pfn_t l1pfn, l2pfn, l3pfn;
-  unsigned l4next, l3next, l2next, l1next;
+  unsigned L4Off = L4OFF (Uaddr);
+  unsigned L3Off = L3OFF (Uaddr);
+  unsigned L2Off = L2OFF (Uaddr);
+  unsigned L1Off = L1OFF (Uaddr);
+  pfn_t L1Pfn, L2Pfn, L3Pfn;
+  unsigned L4Next, L3Next, L2Next, L1Next;
 
   /* Check till end of current l1. */
-  l1pfn = get_umap_l1pfn (umap, uaddr, false);
-  if (l1pfn != PFN_INVALID
-      && scan_l1 (l1pfn, l1off + 1, &l1next, l1p_out, l1e_out))
+  L1Pfn = GetUmapL1Pfn (pUmap, Uaddr, false);
+  if (L1Pfn != PFN_INVALID
+      && ScanL1 (L1Pfn, L1Off + 1, &L1Next, pL1pOut, pL1eOut))
     {
-      return mkaddr (l4off, l3off, l2off, l1next);
+      return MakeAddress (L4Off, L3Off, L2Off, L1Next);
     }
 
   /* Check till end of current l2. */
-  l2pfn = get_umap_l2pfn (umap, uaddr, false);
-  if (l2pfn != PFN_INVALID
-      && scan_l2 (l2pfn, l2off + 1, &l2next, &l1next, l1p_out, l1e_out))
+  L2Pfn = GetUmapL2Pfn (pUmap, Uaddr, false);
+  if (L2Pfn != PFN_INVALID
+      && ScanL2 (L2Pfn, L2Off + 1, &L2Next, &L1Next, pL1pOut, pL1eOut))
     {
-      return mkaddr (l4off, l3off, l2next, l1next);
+      return MakeAddress (L4Off, L3Off, L2Next, L1Next);
     }
 
   /* Check till end of current l3. */
-  l3pfn = get_umap_l3pfn (umap, uaddr, false);
-  if (l3pfn != PFN_INVALID
-      && scan_l3 (l3pfn, l3off + 1, &l3next, &l2next, &l1next, l1p_out,
-		  l1e_out))
+  L3Pfn = GetUmapL3Pfn (pUmap, Uaddr, false);
+  if (L3Pfn != PFN_INVALID
+      && ScanL3 (L3Pfn, L3Off + 1, &L3Next, &L2Next, &L1Next, pL1pOut,
+		  pL1eOut))
     {
-      return mkaddr (l4off, l3next, l2next, l1next);
+      return MakeAddress (L4Off, L3Next, L2Next, L1Next);
     }
 
   /* Scan L4 until end of UMAP area. */
-  if (scan_l4
-      (umap, l4off + 1, &l4next, &l3next, &l2next, &l1next, l1p_out, l1e_out))
+  if (ScanL4
+      (pUmap, L4Off + 1, &L4Next, &L3Next, &L2Next, &L1Next, pL1pOut, pL1eOut))
     {
-      return mkaddr (l4next, l3next, l2next, l1next);
+      return MakeAddress (L4Next, L3Next, L2Next, L1Next);
     }
 
   return UADDR_INVALID;
 }
 
-void
-pt_umap_free (struct hal_umap *umap)
+/**
+  Free user address space page tables.
+
+  @param[in] pUmap  User address space map to free.
+**/
+VOID
+PtUmapFree (
+  IN struct hal_umap  *pUmap
+  )
 {
-  pte_t l4e;
-  pfn_t l3pfn;
-  pte_t *l3ptr, l3e;
-  pfn_t l2pfn;
-  pte_t *l2ptr, l2e;
-  pfn_t l1pfn;
+  pte_t L4e;
+  pfn_t L3Pfn;
+  pte_t *pL3Ptr, L3e;
+  pfn_t L2Pfn;
+  pte_t *pL2Ptr, L2e;
+  pfn_t L1Pfn;
 
   for (unsigned i = 0; i < UMAP_L4PTES; i++)
     {
-      l4e = umap->l4[i];
-      if (pte_present (l4e))
+      L4e = pUmap->l4[i];
+      if (pte_present (L4e))
 	{
-	  l3pfn = pte_pfn (l4e);
-	  l3ptr = pfn_get (l3pfn);
+	  L3Pfn = pte_pfn (L4e);
+	  pL3Ptr = pfn_get (L3Pfn);
 	  for (unsigned i = 0; i < 512; i++)
 	    {
-	      l3e = l3ptr[i];
-	      if (pte_present (l3e))
+	      L3e = pL3Ptr[i];
+	      if (pte_present (L3e))
 		{
-		  l2pfn = pte_pfn (l3e);
-		  l2ptr = pfn_get (l2pfn);
+		  L2Pfn = pte_pfn (L3e);
+		  pL2Ptr = pfn_get (L2Pfn);
 		  for (unsigned i = 0; i < 512; i++)
 		    {
-		      l2e = l2ptr[i];
-		      if (pte_present (l2e))
+		      L2e = pL2Ptr[i];
+		      if (pte_present (L2e))
 			{
-			  l1pfn = pte_pfn (l2e);
-			  pfn_free (l1pfn);
+			  L1Pfn = pte_pfn (L2e);
+			  pfn_free (L1Pfn);
 			}
 		    }
-		  pfn_put (l2pfn, l2ptr);
-		  pfn_free (l2pfn);
+		  pfn_put (L2Pfn, pL2Ptr);
+		  pfn_free (L2Pfn);
 		}
 	    }
-	  pfn_put (l3pfn, l3ptr);
-	  pfn_free (l3pfn);
+	  pfn_put (L3Pfn, pL3Ptr);
+	  pfn_free (L3Pfn);
 	}
-      umap->l4[i] = PTE_INVALID;
+      pUmap->l4[i] = PTE_INVALID;
     }
 }
 
-void
-pae64_init_ap (void)
+/**
+  Initialize PAE64 page tables for Application Processor.
+
+  Creates a new CR3 with kernel mappings copied from BSP.
+
+  @param[in] Esp  Stack pointer (unused).
+**/
+VOID
+Pae64InitializeAp (
+  VOID
+  )
 {
-  unsigned long linoff = L4OFF ((unsigned long) linaddr);
-  pte_t *va, *cr3va;
-  pfn_t pfn, cr3pfn;
+  unsigned long LinOff = L4OFF ((unsigned long) linaddr);
+  pte_t *pVa, *pCr3Va;
+  pfn_t Pfn, Cr3Pfn;
 
 
-  pfn = pfn_alloc (0);
-  assert (pfn != PFN_INVALID);
-  cr3pfn = btop (read_cr3 ());
+  Pfn = pfn_alloc (0);
+  assert (Pfn != PFN_INVALID);
+  Cr3Pfn = btop (read_cr3 ());
 
   /* Copy the kernel mappings. */
-  va = kva_physmap (ptob (pfn), PAGE_SIZE, HAL_PTE_W | HAL_PTE_P);
-  cr3va = kva_physmap (ptob (cr3pfn), PAGE_SIZE, HAL_PTE_P);
-  memcpy (va, cr3va, PAGE_SIZE);
-  va[linoff] = mkpte (pfn, PTE_P | PTE_W);	/* Point the linaddr back at itself. */
-  kva_unmap (va, PAGE_SIZE / 2);
-  kva_unmap (cr3va, PAGE_SIZE / 2);
+  pVa = kva_physmap (ptob (Pfn), PAGE_SIZE, HAL_PTE_W | HAL_PTE_P);
+  pCr3Va = kva_physmap (ptob (Cr3Pfn), PAGE_SIZE, HAL_PTE_P);
+  memcpy (pVa, pCr3Va, PAGE_SIZE);
+  pVa[LinOff] = mkpte (Pfn, PTE_P | PTE_W);	/* Point the linaddr back at itself. */
+  kva_unmap (pVa, PAGE_SIZE / 2);
+  kva_unmap (pCr3Va, PAGE_SIZE / 2);
 
-  write_cr3 (ptob (pfn));
+  write_cr3 (ptob (Pfn));
 }
 
-void
-pae64_init (void)
+/**
+  Initialize PAE64 page table subsystem.
+
+  Sets up linear mapping addresses for all levels.
+**/
+VOID
+Pae64Initialize (
+  VOID
+  )
 {
-  unsigned long linoff = L4OFF ((unsigned long) linaddr);
-  linaddr_l2 = (pte_t *) mkaddr (linoff, linoff, 0, 0);
-  linaddr_l3 = (pte_t *) mkaddr (linoff, linoff, linoff, 0);
-  linaddr_l4 = (pte_t *) mkaddr (linoff, linoff, linoff, linoff);
+  unsigned long LinOff = L4OFF ((unsigned long) linaddr);
+  linaddr_l2 = (pte_t *) MakeAddress (LinOff, LinOff, 0, 0);
+  linaddr_l3 = (pte_t *) MakeAddress (LinOff, LinOff, LinOff, 0);
+  linaddr_l4 = (pte_t *) MakeAddress (LinOff, LinOff, LinOff, LinOff);
+}
+
+//
+// Legacy Function Wrappers (for backward compatibility)
+//
+
+/** @deprecated Use MakeAddress instead **/
+uint64_t mkaddr (uint64_t l4off, uint64_t l3off, uint64_t l2off, uint64_t l1off) {
+  return MakeAddress (l4off, l3off, l2off, l1off);
+}
+
+/** @deprecated Use GetPte instead **/
+pte_t get_pte (ptep_t ptep) {
+  return GetPte (ptep);
+}
+
+/** @deprecated Use SetPte instead **/
+pte_t set_pte (ptep_t ptep, pte_t pte) {
+  return SetPte (ptep, pte);
+}
+
+/** @deprecated Use AllocTable instead **/
+static pte_t alloc_table (bool user) {
+  return AllocTable (user);
+}
+
+/** @deprecated Use LinMapGetL4p instead **/
+static ptep_t linmap_get_l4p (unsigned long va) {
+  return LinMapGetL4p (va);
+}
+
+/** @deprecated Use LinMapGetL4e instead **/
+static pte_t linmap_get_l4e (unsigned long va) {
+  return LinMapGetL4e (va);
+}
+
+/** @deprecated Use LinMapGetL3p instead **/
+static ptep_t linmap_get_l3p (unsigned long va, bool alloc, bool user) {
+  return LinMapGetL3p (va, alloc, user);
+}
+
+/** @deprecated Use LinMapGetL2p instead **/
+static ptep_t linmap_get_l2p (unsigned long va, bool alloc, bool user) {
+  return LinMapGetL2p (va, alloc, user);
+}
+
+/** @deprecated Use LinMapGetL1p instead **/
+static ptep_t linmap_get_l1p (unsigned long va, bool alloc, bool user) {
+  return LinMapGetL1p (va, alloc, user);
+}
+
+/** @deprecated Use GetUmapL4p instead **/
+static ptep_t get_umap_l4p (struct hal_umap *umap, unsigned long va) {
+  return GetUmapL4p (umap, va);
+}
+
+/** @deprecated Use GetUmapL3Pfn instead **/
+static pfn_t get_umap_l3pfn (struct hal_umap *umap, unsigned long va, bool alloc) {
+  return GetUmapL3Pfn (umap, va, alloc);
+}
+
+/** @deprecated Use GetUmapL3p instead **/
+static ptep_t get_umap_l3p (struct hal_umap *umap, unsigned long va, bool alloc) {
+  return GetUmapL3p (umap, va, alloc);
+}
+
+/** @deprecated Use GetUmapL2Pfn instead **/
+static pfn_t get_umap_l2pfn (struct hal_umap *umap, unsigned long va, bool alloc) {
+  return GetUmapL2Pfn (umap, va, alloc);
+}
+
+/** @deprecated Use GetUmapL2p instead **/
+static ptep_t get_umap_l2p (struct hal_umap *umap, unsigned long va, bool alloc) {
+  return GetUmapL2p (umap, va, alloc);
+}
+
+/** @deprecated Use GetUmapL1Pfn instead **/
+static pfn_t get_umap_l1pfn (struct hal_umap *umap, unsigned long va, bool alloc) {
+  return GetUmapL1Pfn (umap, va, alloc);
+}
+
+/** @deprecated Use UmapGetL1p instead **/
+ptep_t umap_get_l1p (struct hal_umap *umap, unsigned long va, bool alloc) {
+  return UmapGetL1p (umap, va, alloc);
+}
+
+/** @deprecated Use PtUmapMinAddr instead **/
+unsigned long pt_umap_minaddr (void) {
+  return PtUmapMinAddr ();
+}
+
+/** @deprecated Use PtUmapMaxAddr instead **/
+unsigned long pt_umap_maxaddr (void) {
+  return PtUmapMaxAddr ();
+}
+
+/** @deprecated Use KmapGetL1p instead **/
+hal_l1p_t kmap_get_l1p (unsigned long va, int alloc) {
+  return KmapGetL1p (va, alloc);
+}
+
+/** @deprecated Use PtUmapDebugWalk instead **/
+void pt_umap_debugwalk (struct hal_umap *umap, unsigned long va) {
+  PtUmapDebugWalk (umap, va);
+}
+
+/** @deprecated Use HalUmapInit instead **/
+void hal_umap_init (struct hal_umap *umap) {
+  HalUmapInit (umap);
+}
+
+/** @deprecated Use HalUmapBootstrap instead **/
+void hal_umap_bootstrap (struct hal_umap *umap) {
+  HalUmapBootstrap (umap);
+}
+
+/** @deprecated Use HalUmapLoad instead **/
+hal_tlbop_t hal_umap_load (struct hal_umap *umap) {
+  return HalUmapLoad (umap);
+}
+
+/** @deprecated Use ScanL1 instead **/
+static bool scan_l1 (pfn_t l1pfn, unsigned off, unsigned *l1off_out, hal_l1p_t * l1p_out,
+	 hal_l1e_t * l1e_out) {
+  return ScanL1 (l1pfn, off, l1off_out, l1p_out, l1e_out);
+}
+
+/** @deprecated Use ScanL2 instead **/
+static bool scan_l2 (pfn_t l2pfn, unsigned off, unsigned *l2off_out, unsigned *l1off_out,
+	 hal_l1p_t * l1p_out, hal_l1e_t * l1e_out) {
+  return ScanL2 (l2pfn, off, l2off_out, l1off_out, l1p_out, l1e_out);
+}
+
+/** @deprecated Use ScanL3 instead **/
+static bool scan_l3 (pfn_t l3pfn, unsigned off, unsigned *l3off_out, unsigned *l2off_out,
+	 unsigned *l1off_out, hal_l1p_t * l1p_out, hal_l1e_t * l1e_out) {
+  return ScanL3 (l3pfn, off, l3off_out, l2off_out, l1off_out, l1p_out, l1e_out);
+}
+
+/** @deprecated Use ScanL4 instead **/
+static bool scan_l4 (struct hal_umap *umap, unsigned off, unsigned *l4off_out,
+	 unsigned *l3off_out, unsigned *l2off_out, unsigned *l1off_out,
+	 hal_l1p_t * l1p_out, hal_l1e_t * l1e_out) {
+  return ScanL4 (umap, off, l4off_out, l3off_out, l2off_out, l1off_out, l1p_out, l1e_out);
+}
+
+/** @deprecated Use PtUmapNext instead **/
+uaddr_t pt_umap_next (struct hal_umap *umap, uaddr_t uaddr, hal_l1p_t * l1p_out,
+	      hal_l1e_t * l1e_out) {
+  return PtUmapNext (umap, uaddr, l1p_out, l1e_out);
+}
+
+/** @deprecated Use PtUmapFree instead **/
+void pt_umap_free (struct hal_umap *umap) {
+  PtUmapFree (umap);
+}
+
+/** @deprecated Use Pae64InitializeAp instead **/
+void pae64_init_ap (void) {
+  Pae64InitializeAp ();
+}
+
+/** @deprecated Use Pae64Initialize instead **/
+void pae64_init (void) {
+  Pae64Initialize ();
 }
