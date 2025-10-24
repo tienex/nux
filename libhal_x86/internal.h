@@ -1,9 +1,12 @@
-/*
-  NUX: A kernel Library.
+/** @file
+  x86 HAL Internal Definitions
+
+  Internal definitions and declarations for the x86 HAL implementation.
+
   Copyright (C) 2019 Gianluca Guida <glguida@tlbflush.org>
 
-  SPDX-License-Identifier:	BSD-2-Clause
-*/
+  SPDX-License-Identifier: BSD-2-Clause
+**/
 
 #ifndef _HAL_INTERNAL_H
 #define _HAL_INTERNAL_H
@@ -49,6 +52,74 @@
 #define hallog(...) info(__VA_ARGS__)
 #define halwarn(...) warn(__VA_ARGS__)
 #define halfatal(...) fatal(__VA_ARGS__)
+
+//
+// NT-Style Global Variables
+//
+
+extern INT32 gNuxInitialized;
+
+//
+// NT-Style Function Declarations
+//
+
+VOID X86Initialize (VOID);
+VOID Amd64Initialize (VOID);
+VOID Pae32Initialize (VOID);
+VOID Pae32InitializeAp (VOID);
+VOID Pae64Initialize (VOID);
+VOID Pae64InitializeAp (VOID);
+VOID PmapInitialize (VOID);
+VOID I386InitializeDone (VOID);
+VOID Amd64InitializeDone (VOID);
+
+INT32 InB (IN INT32 Port);
+INT32 InW (IN UINT32 Port);
+INT32 InL (IN UINT32 Port);
+VOID OutB (IN INT32 Port, IN INT32 Val);
+VOID OutW (IN UINT32 Port, IN INT32 Val);
+VOID OutL (IN UINT32 Port, IN INT32 Val);
+
+typedef UINT64 PTE;
+typedef UINTN PTEP;
+
+PTE GetPte (IN PTEP Ptep);
+PTE SetPte (IN PTEP Ptep, IN PTE Pte);
+hal_l1p_t KmapGetL1p (IN UINTN Va, IN INT32 Alloc);
+hal_l1p_t UmapGetL1p (IN struct hal_umap *pUmap, IN UINTN Va, IN INT32 Alloc);
+uaddr_t PtUmapNext (
+  IN struct hal_umap *pUmap,
+  IN uaddr_t Uaddr,
+  OUT hal_l1p_t *pL1p OPTIONAL,
+  OUT hal_l1e_t *pL1e OPTIONAL
+  );
+VOID PtUmapFree (IN struct hal_umap *pUmap);
+VOID PtUmapDebugWalk (IN struct hal_umap *pUmap OPTIONAL, IN UINTN Va);
+UINTN PtUmapMinAddr (VOID);
+UINTN PtUmapMaxAddr (VOID);
+
+VOID TlbFlushGlobal (VOID);
+VOID TlbFlushLocal (VOID);
+
+VOID SerialInitialize (VOID);
+VOID SerialPutChar (IN INT32 Ch);
+
+INT32 VgaPutChar (IN INT32 Ch);
+
+UINT64 ReadMsr (IN UINT32 Ecx);
+VOID WriteMsr (IN UINT32 Ecx, IN UINT64 Val);
+
+UINTN ReadCr4 (VOID);
+VOID WriteCr4 (IN UINTN r);
+UINTN ReadCr3 (VOID);
+VOID WriteCr3 (IN UINTN r);
+
+UINTN FrameBp (IN struct hal_frame *pFrame);
+UINTN FrameCr2 (IN struct hal_frame *pFrame);
+
+//
+// Legacy Function Declarations (for backward compatibility)
+//
 
 extern int nux_initialized;
 
