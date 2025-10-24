@@ -7,8 +7,8 @@
 
 #include <machine/asm.h>
 #include <hal/arch/amd64/config.h>
-#include "hal/arch/amd64/amd64.h"
-#include "../internal.h"
+#include <hal/arch/amd64/amd64.h>
+#include <hal/internal.h>
 
 	.globl _syscall_frame_entry
 _syscall_frame_entry:

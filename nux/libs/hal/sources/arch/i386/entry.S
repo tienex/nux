@@ -6,7 +6,7 @@
 */
 
 #include <machine/asm.h>
-#include "hal/arch/i386/i386.h"
+#include <hal/arch/i386/i386.h>
 
 	.altmacro
 .macro _do_entry vct

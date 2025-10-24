@@ -6,8 +6,8 @@
 */
 
 #include <machine/asm.h>
-#include "../internal.h"
-#include "hal/arch/i386/i386.h"
+#include <hal/internal.h>
+#include <hal/arch/i386/i386.h>
 
 	.text
 	.globl _start
