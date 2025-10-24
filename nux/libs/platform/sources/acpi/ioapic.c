@@ -12,10 +12,10 @@
 
 #include <inttypes.h>
 #include <assert.h>
-#include <nux.h>
-#include <hal.h>
-#include <platform.h>
-#include <nux.h>
+#include <nux/nux.h>
+#include <hal/hal.h>
+#include <platform/platform.h>
+#include <nux/nux.h>
 
 #include "platform/acpi/internal.h"
 #include "platform/acpi/apic.h"

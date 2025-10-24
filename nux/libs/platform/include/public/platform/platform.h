@@ -14,7 +14,7 @@
 #define PLATFORM_H
 
 #include <stdbool.h>
-#include <types.h>
+#include <nux/types.h>
 
 //
 // PLT Interface GUID

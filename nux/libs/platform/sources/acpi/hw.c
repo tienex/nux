@@ -10,9 +10,9 @@
 
 #define halerror printf
 #include <stdint.h>
-#include <types.h>
-#include <hal.h>
-#include <nux.h>
+#include <nux/types.h>
+#include <hal/hal.h>
+#include <nux/nux.h>
 
 #include "platform/acpi/internal.h"
 

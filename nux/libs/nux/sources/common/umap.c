@@ -13,7 +13,7 @@
 
 #include "internal.h"
 #include <assert.h>
-#include <nux.h>
+#include <nux/nux.h>
 
 /**
   Set L1 page table entry for user mapping.

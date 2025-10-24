@@ -9,7 +9,7 @@
 #define PLTACPI_INTERNAL_H
 
 #include <stdint.h>
-#include <platform.h>
+#include <platform/platform.h>
 
 extern unsigned pltacpi_hpet_irq;
 

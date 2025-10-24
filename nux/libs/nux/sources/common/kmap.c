@@ -11,8 +11,8 @@
 **/
 
 #include <assert.h>
-#include <hal.h>
-#include <nux.h>
+#include <hal/hal.h>
+#include <nux/nux.h>
 
 #include "internal.h"
 

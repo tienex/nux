@@ -13,11 +13,11 @@
 #include <assert.h>
 #include <string.h>
 
-#include <types.h>
-#include <hal.h>
-#include <platform.h>
-#include <nux.h>
-#include <cpumask.h>
+#include <nux/types.h>
+#include <hal/hal.h>
+#include <platform/platform.h>
+#include <nux/nux.h>
+#include <nux/cpumask.h>
 
 #include "internal.h"
 

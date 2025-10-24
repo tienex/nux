@@ -13,8 +13,8 @@
 #include <assert.h>
 #include <stdint.h>
 #include <string.h>
-#include <hal.h>
-#include <platform.h>
+#include <hal/hal.h>
+#include <platform/platform.h>
 
 #include "hal/arch/amd64/amd64.h"
 #include "../internal.h"

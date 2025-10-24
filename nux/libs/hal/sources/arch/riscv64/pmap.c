@@ -10,8 +10,8 @@
 **/
 
 #include "internal.h"
-#include <hal.h>
-#include <nux.h>
+#include <hal/hal.h>
+#include <nux/nux.h>
 
 /**
   Get L1 page table pointer for kernel virtual address.

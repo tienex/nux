@@ -10,9 +10,9 @@
 **/
 
 #include "internal.h"
-#include <config.h>	/* For HAL_NMIEMUL */
-#include <nmiemul.h>
-#include <nux.h>
+#include <hal/config.h>	/* For HAL_NMIEMUL */
+#include <nux/nmiemul.h>
+#include <nux/nux.h>
 #include <assert.h>
 
 #ifdef HAL_NMIEMUL

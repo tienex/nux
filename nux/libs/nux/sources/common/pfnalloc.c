@@ -13,10 +13,10 @@
 
 #include "internal.h"
 #include <string.h>
-#include <hal.h>
-#include <locks.h>
-#include <types.h>
-#include <nux.h>
+#include <hal/hal.h>
+#include <nux/locks.h>
+#include <nux/types.h>
+#include <nux/nux.h>
 #include <stree.h>
 #include <assert.h>
 

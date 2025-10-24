@@ -14,8 +14,8 @@
 #include <assert.h>
 #include <stdint.h>
 #include <string.h>
-#include <nux.h>
-#include <types.h>
+#include <nux/nux.h>
+#include <nux/types.h>
 #include "../internal.h"
 
 #define L1_SHIFT PAGE_SHIFT

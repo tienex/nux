@@ -13,8 +13,8 @@
 
 #include <assert.h>
 #include <stdio.h>
-#include <nux.h>
-#include <cache.h>
+#include <nux/nux.h>
+#include <nux/cache.h>
 #include "internal.h"
 
 vaddr_t gPfnCacheBase;

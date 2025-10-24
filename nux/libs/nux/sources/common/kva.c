@@ -15,7 +15,7 @@
 #include <assert.h>
 
 #include "internal.h"
-#include <nux.h>
+#include <nux/nux.h>
 
 /*
  * VM allocator

@@ -11,8 +11,8 @@
 
 #include <assert.h>
 #include <stdbool.h>
-#include <hal.h>
-#include <nux.h>
+#include <hal/hal.h>
+#include <nux/nux.h>
 #include "internal.h"
 
 UINT64 gPteNx = 0;

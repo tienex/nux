@@ -14,7 +14,7 @@
 #define __FB_INTERNAL_H__
 
 #include "../internal.h"
-#include <locks.h>
+#include <nux/locks.h>
 #include <framebuffer.h>
 
 //

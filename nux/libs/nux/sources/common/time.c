@@ -10,8 +10,8 @@
   SPDX-License-Identifier: BSD-2-Clause
 **/
 
-#include <nux.h>
-#include <platform.h>
+#include <nux/nux.h>
+#include <platform/platform.h>
 #include "internal.h"
 
 /**

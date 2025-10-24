@@ -11,9 +11,9 @@
 **/
 
 #include <string.h>
-#include <defs.h>
-#include <types.h>
-#include <nux.h>
+#include <nux/defs.h>
+#include <nux/types.h>
+#include <nux/nux.h>
 
 #include "platform/acpi/tables.h"
 #include "platform/acpi/internal.h"

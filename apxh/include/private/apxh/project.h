@@ -15,7 +15,7 @@
 #include <string.h>
 #include <stdbool.h>
 #include <framebuffer.h>
-#include <apxh.h>
+#include <apxh/apxh.h>
 
 #define BOOTMEM MB(512)		/* We won't be using more than 512Mb to boot. Promise. */
 

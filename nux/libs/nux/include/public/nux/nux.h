@@ -25,9 +25,9 @@
 #define _NUX_H
 
 #include <config.h>
-#include <defs.h>
-#include <types.h>
-#include <locks.h>
+#include <nux/defs.h>
+#include <nux/types.h>
+#include <nux/locks.h>
 
 //
 // NUX Interface GUIDs
