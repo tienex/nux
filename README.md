@@ -30,22 +30,36 @@ See [TRANSFORMATION_GUIDE.md](TRANSFORMATION_GUIDE.md) for complete details on:
 - NT coding style conventions
 - UEFI commenting standards
 
-### Transformed Files
+### Transformed Files (15 Headers - Complete Public API)
 
 **Core Infrastructure:**
 - `include/nux/combase.h` - COM base types and IUnknown interface
 - `include/nux/types.h` - NT-style type definitions
-- `include/nux/hal.h` - COM-style HAL interfaces (IHal, IHalCpu, etc.)
-- `include/nux/plt.h` - COM-style PLT interfaces (IPlt, IPltIrq, etc.)
 
-**Utility Headers:**
+**Interface Layers (22 COM Interfaces Total):**
+- `include/nux/hal.h` - Hardware Abstraction Layer (7 COM interfaces)
+- `include/nux/plt.h` - Platform Layer (5 COM interfaces)
+- `include/nux/nux.h` - Main Kernel API (10 COM interfaces)
+
+**Utilities and Services:**
 - `include/nux/defs.h` - Page size and alignment macros
 - `include/nux/locks.h` - Spinlock and RW-lock primitives
-- `include/nux/slab.h` - Slab allocator interface
+- `include/nux/slab.h` - Slab allocator API
+- `include/nux/slabinc.h` - Slab allocator internal structures
 - `include/nux/cpumask.h` - CPU mask operations
-- `include/nux/cache.h` - Generic cache implementation
+- `include/nux/cache.h` - Generic cache with LRU eviction
 
-All files maintain backward compatibility through legacy function wrappers.
+**Boot and Platform:**
+- `include/nux/apxh.h` - APXH boot protocol structures
+
+**Performance and Debugging:**
+- `include/nux/nuxperf.h` - Performance counters and measures
+- `include/nux/symbol.h` - Symbol resolution utilities
+
+**Architecture Support:**
+- `include/nux/nmiemul.h` - NMI emulation layer
+
+All files maintain 100% backward compatibility through legacy function wrappers and type aliases.
 
 ---
 
