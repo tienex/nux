@@ -15,5 +15,5 @@ include @LIBNUX_BUILDDIR@/cfg.mk
 include @NUXBUILDROOT@/libs/hal/hal.mk
 include @NUXBUILDROOT@/libs/platform/plt.mk
 
-CPPFLAGS+= -I@NUXSRCROOT@/libs/nux/include/public -I@NUXSRCROOT@/libs/hal/include/public -I@NUXSRCROOT@/libs/platform/include/public -I@NUXSRCROOT@/libs/hal/include/private -I@NUXSRCROOT@/libs/platform/include/private -I@NUXSRCROOT@/libs/nux/include/private
+CPPFLAGS+= -I@NUXSRCROOT@/libs/nux/include/public -I@NUXSRCROOT@/libs/hal/include/public -I@NUXSRCROOT@/libs/platform/include/public -I@NUXSRCROOT@/apxh/include/public -I@NUXSRCROOT@/libs/ecrt/include/public -I@NUXSRCROOT@/libs/hal/include/private -I@NUXSRCROOT@/libs/platform/include/private -I@NUXSRCROOT@/libs/nux/include/private
 LDFLAGS+= -fno-omit-frame-pointer
