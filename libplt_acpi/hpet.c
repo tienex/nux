@@ -1,9 +1,13 @@
-/*
-  NUX: A kernel Library.
+/** @file
+  HPET (High Precision Event Timer) Support
+
+  Provides HPET timer initialization and management for ACPI platforms.
+  Implements platform timer interface using HPET hardware.
+
   Copyright (C) 2019 Gianluca Guida, glguida@tlbflush.org
 
-  SPDX-License-Identifier:	BSD-2-Clause
-*/
+  SPDX-License-Identifier: BSD-2-Clause
+**/
 
 #include <string.h>
 
@@ -30,171 +34,317 @@
 
 #define TMR 0
 
-static volatile void *hpet_base;
-static uint64_t period = 0;
-static uint64_t gencfg;
-static uint64_t tmrcfg;
+static volatile VOID *gHpetBase;
+static UINT64 gPeriod = 0;
+static UINT64 gGenCfg;
+static UINT64 gTmrCfg;
 
-static int irqlvl = 0;
-static int irqno;
+static INT32 gIrqLevel = 0;
+static INT32 gIrqNo;
 
-static uint64_t
-hpet_read (uint16_t offset)
+/**
+  Read HPET register.
+
+  Performs atomic 64-bit read from HPET MMIO register.
+
+  @param[in] Offset  Register offset.
+
+  @return 64-bit register value.
+**/
+static UINT64
+HpetRead (
+  IN UINT16  Offset
+  )
 {
-  uint32_t hi1, hi2, lo;
-  volatile uint32_t *ptr = hpet_base + offset;
+  UINT32 Hi1, Hi2, Lo;
+  volatile UINT32 *pPtr = gHpetBase + Offset;
 
   do
     {
-      hi1 = *(ptr + 1);
-      lo = *ptr;
-      hi2 = *(ptr + 1);
+      Hi1 = *(pPtr + 1);
+      Lo = *pPtr;
+      Hi2 = *(pPtr + 1);
     }
-  while (hi1 != hi2);
+  while (Hi1 != Hi2);
 
-  return (uint64_t) hi1 << 32 | lo;
+  return (UINT64) Hi1 << 32 | Lo;
 }
 
-static void
-hpet_write (uint16_t offset, uint64_t val)
+/**
+  Write HPET register.
+
+  Performs 64-bit write to HPET MMIO register.
+
+  @param[in] Offset  Register offset.
+  @param[in] Value   Value to write.
+**/
+static VOID
+HpetWrite (
+  IN UINT16  Offset,
+  IN UINT64  Value
+  )
 {
-  volatile uint32_t *ptr = hpet_base + offset;
-  *(ptr + 1) = val >> 32;
-  *ptr = (uint32_t) val;
+  volatile UINT32 *pPtr = gHpetBase + Offset;
+  *(pPtr + 1) = Value >> 32;
+  *pPtr = (UINT32) Value;
 }
 
-static void
-hpet_pause (void)
+/**
+  Pause HPET counter.
+
+  Stops HPET main counter by clearing enable bit.
+**/
+static VOID
+HpetPause (
+  VOID
+  )
 {
-  hpet_write (REG_GENCFG, gencfg);
+  HpetWrite (REG_GENCFG, gGenCfg);
 }
 
-static void
-hpet_resume (void)
+/**
+  Resume HPET counter.
+
+  Starts HPET main counter by setting enable bit.
+**/
+static VOID
+HpetResume (
+  VOID
+  )
 {
-  hpet_write (REG_GENCFG, ENABLE_CNF | gencfg);
+  HpetWrite (REG_GENCFG, ENABLE_CNF | gGenCfg);
 }
 
-void
-hpet_doirq (void)
+/**
+  Handle HPET IRQ.
+
+  Acknowledges HPET interrupt for level-triggered mode.
+**/
+VOID
+HpetDoIrq (
+  VOID
+  )
 {
-  if (irqlvl)
-    hpet_write (REG_GENISR, hpet_read (REG_GENISR) | 1);
+  if (gIrqLevel)
+    HpetWrite (REG_GENISR, HpetRead (REG_GENISR) | 1);
 }
 
-bool
-hpet_init (paddr_t hpetpa)
+/**
+  Initialize HPET timer.
+
+  Maps HPET registers, configures timer, and enables interrupts.
+
+  @param[in] HpetPhysAddr  Physical address of HPET base registers.
+
+  @retval TRUE   HPET initialized successfully.
+  @retval FALSE  HPET initialization failed.
+**/
+BOOLEAN
+HpetInitialize (
+  IN paddr_t  HpetPhysAddr
+  )
 {
-  uint64_t freq;
-  uint32_t period_femto;
-  uint64_t gencap;
-  int num;
+  UINT64 Freq;
+  UINT32 PeriodFemto;
+  UINT64 GenCap;
+  INT32 Num;
 
-  hpet_base = kva_physmap (hpetpa, HPET_SIZE, HAL_PTE_P | HAL_PTE_W);
-  gencap = hpet_read (REG_GENCAP);
-  gencfg = 0;
-  period_femto = gencap >> 32;
-  num = 1 + ((gencap >> 8) & 0xf);
+  gHpetBase = KvaMapPhysical (HpetPhysAddr, HPET_SIZE, HAL_PTE_P | HAL_PTE_W);
+  GenCap = HpetRead (REG_GENCAP);
+  gGenCfg = 0;
+  PeriodFemto = GenCap >> 32;
+  Num = 1 + ((GenCap >> 8) & 0xf);
 
-  info ("HPET Found at %" PRIx64 ", mapped at %p", hpetpa, hpet_base);
-  info ("HPET period: %" PRIx32 "x, counters: %d", period_femto, num);
+  info ("HPET Found at %" PRIx64 ", mapped at %p", HpetPhysAddr, gHpetBase);
+  info ("HPET period: %" PRIx32 "x, counters: %d", PeriodFemto, Num);
 
-  if (period_femto == 0)
+  if (PeriodFemto == 0)
     {
       error ("HPET period invalid.");
-      return false;
+      return FALSE;
     }
-  freq = (1000000000000000LL / period_femto);
-  info ("HPET counter frequency: %" PRId64 " Hz", freq);
-  period = period_femto;
+  Freq = (1000000000000000LL / PeriodFemto);
+  info ("HPET counter frequency: %" PRId64 " Hz", Freq);
+  gPeriod = PeriodFemto;
 
-  hpet_pause ();		/* Stop, in case it's running */
+  HpetPause ();		/* Stop, in case it's running */
 
   /* Find IRQ of first counter. */
-  if (gencap & LEG_RT_CAP && (TMR < 2))
+  if (GenCap & LEG_RT_CAP && (TMR < 2))
     {
       debug ("Using Legacy Routing.\n");
-      gencfg |= LEG_RT_CNF;
+      gGenCfg |= LEG_RT_CNF;
       if (TMR == 0)
 	{
-	  irqno = 2;
+	  gIrqNo = 2;
 	}
       else
 	{
-	  irqno = 8;
+	  gIrqNo = 8;
 	}
     }
   else
     {
-      uint32_t irqcap = hpet_read (REG_TMRCAP (TMR)) >> 32;
-      if (irqcap == 0)
+      UINT32 IrqCap = HpetRead (REG_TMRCAP (TMR)) >> 32;
+      if (IrqCap == 0)
 	{
 	  error ("No IRQ available, can't use counter %d", TMR);
-	  return false;
+	  return FALSE;
 	}
-      irqno = ffs (irqcap) - 1;
-      tmrcfg |= (irqno << 9);
-      debug ("Using Interrupt Routing (%d - %x).\n", irqno, irqcap);
+      gIrqNo = ffs (IrqCap) - 1;
+      gTmrCfg |= (gIrqNo << 9);
+      debug ("Using Interrupt Routing (%d - %x).\n", gIrqNo, IrqCap);
     }
 
-  if (plt_irq_islevel (irqno))
+  if (PltIrqIsLevel (gIrqNo))
     {
       debug ("Using Level Interrupt");
       /* Reset ISR just in case. */
-      hpet_write (REG_GENISR, hpet_read (REG_GENISR) | 1);
-      irqlvl = 1;
-      tmrcfg |= INT_TYPE_CNF;
+      HpetWrite (REG_GENISR, HpetRead (REG_GENISR) | 1);
+      gIrqLevel = 1;
+      gTmrCfg |= INT_TYPE_CNF;
     }
 
   /* Register HPET irq no. */
-  pltacpi_hpet_irq = irqno;
+  gPltAcpiHpetIrq = gIrqNo;
 
   /* Start Time of Boot. */
-  hpet_write (REG_COUNTER, 0);
+  HpetWrite (REG_COUNTER, 0);
 
   /* Setup Counter 0 */
-  hpet_write (REG_TMRCAP (TMR), tmrcfg);
+  HpetWrite (REG_TMRCAP (TMR), gTmrCfg);
 
   /* Enable HPET */
-  hpet_resume ();
+  HpetResume ();
 
-  plt_irq_enable (irqno);
-  return true;
+  PltIrqEnable (gIrqNo);
+  return TRUE;
 }
 
-uint64_t
-plt_tmr_ctr (void)
+/**
+  Get platform timer counter.
+
+  Returns current HPET main counter value.
+
+  @return Counter value.
+**/
+UINT64
+PltTmrGetCounter (
+  VOID
+  )
 {
-  return hpet_read (0xf0);
+  return HpetRead (0xf0);
 }
 
-void
-plt_tmr_setctr (uint64_t ctr)
+/**
+  Set platform timer counter.
+
+  Sets HPET main counter to specified value.
+
+  @param[in] Counter  Counter value to set.
+**/
+VOID
+PltTmrSetCounter (
+  IN UINT64  Counter
+  )
 {
-  hpet_pause ();
-  hpet_write (0xf0, ctr);
-  hpet_resume ();
+  HpetPause ();
+  HpetWrite (0xf0, Counter);
+  HpetResume ();
 }
 
-uint64_t
-plt_tmr_period (void)
+/**
+  Get platform timer period.
+
+  Returns HPET timer period in femtoseconds.
+
+  @return Timer period in femtoseconds.
+**/
+UINT64
+PltTmrPeriod (
+  VOID
+  )
 {
-  return period;
+  return gPeriod;
 }
 
-void
-plt_tmr_setalm (uint64_t alm)
+/**
+  Set platform timer alarm.
+
+  Programs HPET comparator for timer interrupt after specified
+  number of ticks.
+
+  @param[in] Alarm  Number of ticks until alarm.
+**/
+VOID
+PltTmrSetAlarm (
+  IN UINT64  Alarm
+  )
 {
-  if (alm == 0)
-    alm = 1;
-  hpet_pause ();
-  hpet_write (REG_TMRCMP (TMR), plt_tmr_ctr () + alm);
-  hpet_write (REG_TMRCAP (TMR), tmrcfg | INT_ENB_CNF);
-  hpet_resume ();
+  if (Alarm == 0)
+    Alarm = 1;
+  HpetPause ();
+  HpetWrite (REG_TMRCMP (TMR), PltTmrGetCounter () + Alarm);
+  HpetWrite (REG_TMRCAP (TMR), gTmrCfg | INT_ENB_CNF);
+  HpetResume ();
 }
 
-void
-plt_tmr_clralm (void)
+/**
+  Clear platform timer alarm.
+
+  Disables HPET timer interrupt.
+**/
+VOID
+PltTmrClearAlarm (
+  VOID
+  )
 {
-  hpet_write (REG_TMRCAP (TMR), tmrcfg & ~INT_ENB_CNF);
+  HpetWrite (REG_TMRCAP (TMR), gTmrCfg & ~INT_ENB_CNF);
 }
+
+//
+// Legacy Function Wrappers (for backward compatibility)
+//
+
+/** @deprecated Use HpetDoIrq instead **/
+void hpet_doirq (void) {
+  HpetDoIrq ();
+}
+
+/** @deprecated Use HpetInitialize instead **/
+bool hpet_init (paddr_t hpetpa) {
+  return HpetInitialize (hpetpa);
+}
+
+/** @deprecated Use PltTmrGetCounter instead **/
+uint64_t plt_tmr_ctr (void) {
+  return PltTmrGetCounter ();
+}
+
+/** @deprecated Use PltTmrSetCounter instead **/
+void plt_tmr_setctr (uint64_t ctr) {
+  PltTmrSetCounter (ctr);
+}
+
+/** @deprecated Use PltTmrPeriod instead **/
+uint64_t plt_tmr_period (void) {
+  return PltTmrPeriod ();
+}
+
+/** @deprecated Use PltTmrSetAlarm instead **/
+void plt_tmr_setalm (uint64_t alm) {
+  PltTmrSetAlarm (alm);
+}
+
+/** @deprecated Use PltTmrClearAlarm instead **/
+void plt_tmr_clralm (void) {
+  PltTmrClearAlarm ();
+}
+
+// Legacy global variable aliases
+static volatile void *hpet_base __attribute__((alias("gHpetBase")));
+static uint64_t period __attribute__((alias("gPeriod")));
+static uint64_t gencfg __attribute__((alias("gGenCfg")));
+static uint64_t tmrcfg __attribute__((alias("gTmrCfg")));
+static int irqlvl __attribute__((alias("gIrqLevel")));
+static int irqno __attribute__((alias("gIrqNo")));
