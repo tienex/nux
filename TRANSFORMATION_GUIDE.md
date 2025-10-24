@@ -10,10 +10,11 @@ This document describes the comprehensive transformation of the NUX kernel libra
 2025-10-24
 
 ### Scope
-- **Files Transformed**: Core public API headers (combase.h, types.h, hal.h, plt.h)
+- **Files Transformed**: 10 core public API headers (combase.h, types.h, hal.h, plt.h, nux.h, defs.h, locks.h, slab.h, cpumask.h, cache.h)
 - **Coding Style**: NT (Windows NT) coding conventions
 - **Commenting Style**: UEFI/Doxygen documentation format
 - **Architecture Pattern**: COM-based interfaces with vtables
+- **Total COM Interfaces**: 22 interfaces (7 HAL + 5 PLT + 10 NUX)
 
 ## Major Changes
 
@@ -182,6 +183,87 @@ HRESULT (*GetTimerInterface)(IN IPlt *This, OUT IPltTimer **ppTimer);
 - Period retrieval (GetPeriod)
 - Alarm management (SetAlarm, ClearAlarm)
 - EOI handling (EndOfInterrupt)
+
+### 5. Main Kernel API (nux.h)
+
+Transformed the main NUX kernel library API into a comprehensive COM-based interface hierarchy with 10 interfaces:
+
+#### INux - Main Aggregator Interface
+Primary interface that provides access to all NUX subsystems through interface getters:
+
+```c
+HRESULT (*GetMemoryInterface)(IN INux *This, OUT INuxMemory **ppMemory);
+HRESULT (*GetKvaInterface)(IN INux *This, OUT INuxKva **ppKva);
+HRESULT (*GetKmapInterface)(IN INux *This, OUT INuxKmap **ppKmap);
+HRESULT (*GetKmemInterface)(IN INux *This, OUT INuxKmem **ppKmem);
+HRESULT (*GetCpuInterface)(IN INux *This, OUT INuxCpu **ppCpu);
+HRESULT (*GetTimerInterface)(IN INux *This, OUT INuxTimer **ppTimer);
+HRESULT (*GetUmapInterface)(IN INux *This, OUT INuxUmap **ppUmap);
+HRESULT (*GetUaddrInterface)(IN INux *This, OUT INuxUaddr **ppUaddr);
+HRESULT (*GetUctxtInterface)(IN INux *This, OUT INuxUctxt **ppUctxt);
+```
+
+#### INuxMemory - Physical Memory Operations
+- Temporary page access (PfnGet, PfnPut)
+- Physical frame allocation (PfnAllocate, PfnFree)
+- Memory availability tracking (PfnAvailable)
+- Custom allocator support (SetAllocator)
+
+#### INuxKva - Kernel Virtual Address Operations
+- Virtual address allocation (Allocate, Free)
+- Single page mapping (Map)
+- Physical range mapping (PhysMap)
+- Virtual address unmapping (Unmap)
+
+#### INuxKmap - Kernel Mapping Operations
+- PFN query (GetPfn)
+- Page mapping (Map, MapNoAlloc, Unmap)
+- Mapping validation (IsMapped, IsMappedRange)
+- Permission validation (Ensure, EnsureRange)
+- TLB generation tracking (GetTlbGen, GetTlbGenGlobal)
+- TLB commit (Commit)
+
+#### INuxKmem - Kernel Memory Allocation
+- Break management (Brk, Sbrk, BrkGrow, BrkShrink)
+- Memory allocation (Allocate, Free)
+- Memory trimming (SetTrimMode, TrimOne)
+
+#### INuxCpu - CPU Management and Operations
+- CPU initialization (StartAll)
+- CPU identification (GetId, GetNum, GetActiveMask)
+- CPU-local data (SetData, GetData)
+- Idle state (Idle)
+- NMI operations (SendNmi, SendNmiMask, BroadcastNmiAllButSelf, BroadcastNmi)
+- IPI operations (SendIpi, SendIpiMask, BroadcastIpi)
+- TLB flush operations (FlushTlb, FlushTlbMask, BroadcastFlushTlb, BroadcastFlushTlbSync)
+- Kernel TLB management (UpdateKernelTlb, ReachKernelTlb)
+- CPU stop operations (Stop, StopMask, BroadcastStop)
+- User space access (UserAccessCopyFrom, UserAccessCopyTo, UserAccessMemset)
+- User mapping management (GetCurrentUmap, EnterUmap, ExitUmap)
+
+#### INuxTimer - Timer Operations
+- Alarm management (SetAlarm, ClearAlarm)
+- Time retrieval (GetTime)
+
+#### INuxUmap - User Address Space Mapping
+- User mapping lifecycle (Bootstrap, Init, Free)
+- Page mapping (Map, Unmap)
+- Protection flags (ChangeFlags)
+- TLB commit (Commit)
+
+#### INuxUaddr - User Address Validation and Copy
+- Address validation (Valid, ValidRange)
+- Data transfer (CopyFrom, CopyTo, Memset)
+
+#### INuxUctxt - User Context Manipulation
+- Context lifecycle (Bootstrap, Init)
+- Instruction pointer (SetIp, GetIp)
+- Stack pointer (SetSp, GetSp)
+- Global pointer (SetGp, GetGp)
+- Return value (SetRet)
+- Argument registers (SetA0, SetA1, SetA2)
+- TLS pointer (SetTls)
+- Debugging (Print)
 
 ## Coding Style Changes
 
@@ -359,10 +441,12 @@ include/nux/
 ├── types.h         # Core type definitions (NT-style)
 ├── hal.h           # Hardware Abstraction Layer (COM interfaces)
 ├── plt.h           # Platform Layer (COM interfaces)
+├── nux.h           # Main Kernel API (COM interfaces)
 ├── defs.h          # Basic definitions (macros, constants)
 ├── locks.h         # Synchronization primitives
 ├── slab.h          # Memory allocator
 ├── cpumask.h       # CPU mask operations
+├── cache.h         # Generic cache with LRU eviction
 └── ...             # Other headers
 ```
 
@@ -395,15 +479,29 @@ include/nux/
    - Test COM interface usage
    - Validate UEFI documentation generation
 
+### Completed Header Transformations
+
+The following header files have been transformed to COM-style with NT coding conventions:
+
+1. **combase.h** - COM infrastructure (IUnknown, GUID, HRESULT)
+2. **types.h** - Core type definitions (NT-style)
+3. **hal.h** - Hardware Abstraction Layer (7 COM interfaces)
+4. **plt.h** - Platform Layer (5 COM interfaces)
+5. **nux.h** - Main Kernel API (10 COM interfaces)
+6. **defs.h** - Basic definitions (macros, constants)
+7. **locks.h** - Synchronization primitives
+8. **slab.h** - Memory allocator
+9. **cpumask.h** - CPU mask operations
+10. **cache.h** - Generic cache with LRU eviction
+
 ### Remaining Work
 
 The following components still need transformation:
 
 1. Implementation files (libnux/*.c, libhal_*/*.c, libplt_*/*.c)
-2. Additional header files (nux.h, locks.h, slab.h, etc.)
-3. Architecture-specific code (amd64, i386, riscv64)
-4. Example kernel and applications
-5. Documentation updates
+2. Architecture-specific code (amd64, i386, riscv64)
+3. Example kernel and applications
+4. Additional utility headers if any
 
 ## Conclusion
 
