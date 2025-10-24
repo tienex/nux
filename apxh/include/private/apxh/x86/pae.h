@@ -12,7 +12,7 @@
 #ifndef __PAE_H__
 #define __PAE_H__
 
-#include <apxh/project.h>
+#include <apxh/internal.h>
 #include <apxh/x86.h>
 
 //

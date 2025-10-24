@@ -10,7 +10,7 @@
   SPDX-License-Identifier:	BSD-2-Clause
 **/
 
-#include <apxh/project.h>
+#include <apxh/internal.h>
 
 #include <apxh/x86.h>
 #include <apxh/multiboot.h>

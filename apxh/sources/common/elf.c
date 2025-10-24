@@ -11,7 +11,7 @@
   SPDX-License-Identifier: BSD-2-Clause
 **/
 
-#include <apxh/project.h>
+#include <apxh/internal.h>
 
 typedef struct elf32ph
 {

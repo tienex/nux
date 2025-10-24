@@ -9,7 +9,7 @@
   SPDX-License-Identifier:	BSD-2-Clause
 **/
 
-#include <apxh/project.h>
+#include <apxh/internal.h>
 
 #define SERIAL_PORT 0x3f8
 

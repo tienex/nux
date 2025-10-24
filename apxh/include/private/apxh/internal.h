@@ -5,8 +5,8 @@
   SPDX-License-Identifier:	BSD-2-Clause
 */
 
-#ifndef _PROJECT_H
-#define _PROJECT_H
+#ifndef _APXH_INTERNAL_H
+#define _APXH_INTERNAL_H
 
 #include <assert.h>
 #include <stdio.h>

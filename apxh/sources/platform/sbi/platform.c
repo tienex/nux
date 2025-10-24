@@ -10,7 +10,7 @@
   SPDX-License-Identifier:	BSD-2-Clause
 **/
 
-#include <apxh/project.h>
+#include <apxh/internal.h>
 #include <string.h>
 #include <libfdt.h>
 #include <inttypes.h>
