@@ -1,9 +1,13 @@
-/*
-  NUX: A kernel Library.
+/** @file
+  i386 Architecture-Specific Initialization
+
+  Provides i386-specific CPU initialization, per-CPU data management,
+  TSS/FS segment setup, SMP bootstrap code configuration.
+
   Copyright (C) 2019 Gianluca Guida, glguida@tlbflush.org
 
-  SPDX-License-Identifier:	BSD-2-Clause
-*/
+  SPDX-License-Identifier: BSD-2-Clause
+**/
 
 #include <cdefs.h>
 #include <assert.h>
@@ -17,58 +21,73 @@
 #include "i386.h"
 #include "../internal.h"
 
-paddr_t pcpu_pstart;
-vaddr_t pcpu_haldata[MAXCPUS];
+paddr_t gPcpuPstart;
+vaddr_t gPcpuHalData[MAXCPUS];
 
 /*
   CPU kernel stack allocation:
 
    CPUs at boot allocate a stack by incrementing (with a spinlock)
-   'kstackno' and using the page pointed at 'pcpu_kstack'.
+   'gPcpuKStackNo' and using the page pointed at 'gPcpuKStack'.
 
-   Importantly, pcpu_kstack[pcpu_id] doesn't mean is the stack of PCPU ID.
+   Importantly, gPcpuKStack[pcpu_id] doesn't mean is the stack of PCPU ID.
 */
-uint64_t pcpu_kstackno = 0;
-uint64_t pcpu_kstackcnt = 0;
-uint64_t pcpu_kstack[MAXCPUS];
+uint64_t gPcpuKStackNo = 0;
+uint64_t gPcpuKStackCnt = 0;
+uint64_t gPcpuKStack[MAXCPUS];
 
-static int bsp_enter_called = 0;
-static unsigned bsp_pcpuid;
+static int gBspEnterCalled = 0;
+static unsigned gBspPcpuId;
 
-static vaddr_t smp_oldva;
-static hal_l1e_t smp_oldl1e;
+static vaddr_t gSmpOldVa;
+static hal_l1e_t gSmpOldL1e;
 
+/**
+  Get FS segment selector for current CPU.
+
+  @return FS segment selector value.
+**/
 uint16_t
-_i386_fs (void)
+I386GetFsSelector (
+  VOID
+  )
 {
-  if (bsp_enter_called)
+  if (gBspEnterCalled)
     return (5 + 4 * plt_pcpu_id () + 1) << 3;
   else
     return 0;
 }
 
-void
-hal_pcpu_init (void)
+/**
+  Initialize per-CPU bootstrap code.
+
+  Sets up SMP bootstrap code page at low memory and configures
+  reset vector for AP startup.
+**/
+VOID
+HalPcpuInit (
+  VOID
+  )
 {
-  pfn_t pfn;
-  void *start, *ptr;
-  hal_l1p_t l1p;
-  paddr_t pstart;
-  volatile uint16_t *reset;
+  pfn_t Pfn;
+  void *pStart, *pPtr;
+  hal_l1p_t L1p;
+  paddr_t PStart;
+  volatile uint16_t *pReset;
   extern char *_ap_start, *_ap_end;
 
   /* Allocate PCPU bootstrap code. Use KVA. *//* TODO: USE KVA? Not needed, not a long term mapping. */
-  pfn = pfn_alloc (1);
-  assert (pfn != PFN_INVALID);
+  Pfn = pfn_alloc (1);
+  assert (Pfn != PFN_INVALID);
   /* This is tricky. The hope is that is low enough to be addressed by 16 bit. */
-  assert (pfn < (1 << 8) && "Can't allocate Memory below 1MB!");
+  assert (Pfn < (1 << 8) && "Can't allocate Memory below 1MB!");
 
   /* Map and prepare the bootstrap code page. */
-  start = pfn_get (pfn);
-  size_t apbootsz = (size_t) ((void *) &_ap_end - (void *) &_ap_start);
-  assert (apbootsz <= PAGE_SIZE);
-  memcpy (start, &_ap_start, apbootsz);
-  pstart = (paddr_t) pfn << PAGE_SHIFT;
+  pStart = pfn_get (Pfn);
+  size_t ApBootSz = (size_t) ((void *) &_ap_end - (void *) &_ap_start);
+  assert (ApBootSz <= PAGE_SIZE);
+  memcpy (pStart, &_ap_start, ApBootSz);
+  PStart = (paddr_t) Pfn << PAGE_SHIFT;
 
   /*
      The following is trampoline dependent code, and configures the
@@ -78,143 +97,278 @@ hal_pcpu_init (void)
   extern uint32_t _bsp_cr3;
 
   /* Copy BSP CR3 into AP */
-  ptr = start + ((void *) &_ap_cr3 - (void *) &_ap_start);
-  *(uint32_t *) ptr = _bsp_cr3;
+  pPtr = pStart + ((void *) &_ap_cr3 - (void *) &_ap_start);
+  *(uint32_t *) pPtr = _bsp_cr3;
 
   /* Setup temporary GDT register. */
-  ptr = start + ((void *) &_ap_gdtreg - (void *) &_ap_start);
-  *(uint32_t *) (ptr + 2) += (uint32_t) pstart;
+  pPtr = pStart + ((void *) &_ap_gdtreg - (void *) &_ap_start);
+  *(uint32_t *) (pPtr + 2) += (uint32_t) PStart;
 
   /* Setup trampoline 1 */
-  ptr = start + ((void *) &_ap_ljmp - (void *) &_ap_start);
-  *(uint32_t *) ptr += (uint32_t) pstart;
+  pPtr = pStart + ((void *) &_ap_ljmp - (void *) &_ap_start);
+  *(uint32_t *) pPtr += (uint32_t) PStart;
 
-  pfn_put (pfn, start);
+  pfn_put (Pfn, pStart);
 
   /* Set reset vector */
-  reset = kva_physmap (0x467, 2, HAL_PTE_P | HAL_PTE_W | HAL_PTE_X);
-  *reset = pstart & 0xf;
-  *(reset + 1) = pstart >> 4;
-  kva_unmap ((void *) reset, 2);
+  pReset = kva_physmap (0x467, 2, HAL_PTE_P | HAL_PTE_W | HAL_PTE_X);
+  *pReset = PStart & 0xf;
+  *(pReset + 1) = PStart >> 4;
+  kva_unmap ((void *) pReset, 2);
 
-  /* pstart is in user address space: use kmap_ instead of hal_kmap */
-  l1p = umap_get_l1p (NULL, pstart, true);
-  assert (l1p != L1P_INVALID);
+  /* PStart is in user address space: use kmap_ instead of hal_kmap */
+  L1p = umap_get_l1p (NULL, PStart, true);
+  assert (L1p != L1P_INVALID);
   /* Save the l1e we're abou to overwrite. We'll restore it after init is done. */
-  smp_oldl1e = hal_l1e_get (l1p);
-  smp_oldva = pstart;
-  hal_l1e_set (l1p, (pstart & ~PAGE_MASK) | PTE_P | PTE_W);
-  pcpu_pstart = pstart;
+  gSmpOldL1e = hal_l1e_get (L1p);
+  gSmpOldVa = PStart;
+  hal_l1e_set (L1p, (PStart & ~PAGE_MASK) | PTE_P | PTE_W);
+  gPcpuPstart = PStart;
 
-  bsp_pcpuid = plt_pcpu_id ();
+  gBspPcpuId = plt_pcpu_id ();
 }
 
-void
-hal_pcpu_add (unsigned pcpuid, struct hal_cpu *haldata)
+/**
+  Add per-CPU data structure.
+
+  @param[in] PcpuId   Per-CPU ID.
+  @param[in] pHalData Pointer to HAL CPU data structure.
+**/
+VOID
+HalPcpuAdd (
+  IN unsigned          PcpuId,
+  IN struct hal_cpu   *pHalData
+  )
 {
-  pfn_t pfn;
-  void *va;
+  pfn_t Pfn;
+  void *pVa;
   void _set_tss (unsigned, void *);
   void _set_fs (unsigned, void *);
 
-  assert (pcpuid < MAXCPUS);
+  assert (PcpuId < MAXCPUS);
 
-  if (pcpuid == bsp_pcpuid)
+  if (PcpuId == gBspPcpuId)
     {
       /* Adding the BSP PCPU: Initialize TSS */
       extern char _bsp_stacktop;
-      haldata->tss.ss0 = KDS;
-      haldata->tss.esp0 = (uintptr_t) & _bsp_stacktop;
-      haldata->tss.iomap = 108;
+      pHalData->tss.ss0 = KDS;
+      pHalData->tss.esp0 = (uintptr_t) & _bsp_stacktop;
+      pHalData->tss.iomap = 108;
     }
   else
     {
       /* Adding secondary CPU: Allocate one PCPU kernel stack. */
-      pfn = pfn_alloc (1);
-      assert (pfn != PFN_INVALID);
-      va = kva_map (pfn, HAL_PTE_W | HAL_PTE_P);
-      assert (va != NULL);
-      pcpu_kstack[pcpu_kstackno++] = (uint64_t) (uintptr_t) va + PAGE_SIZE;
+      Pfn = pfn_alloc (1);
+      assert (Pfn != PFN_INVALID);
+      pVa = kva_map (Pfn, HAL_PTE_W | HAL_PTE_P);
+      assert (pVa != NULL);
+      gPcpuKStack[gPcpuKStackNo++] = (uint64_t) (uintptr_t) pVa + PAGE_SIZE;
     }
-  _set_tss (pcpuid, &haldata->tss);
-  _set_fs (pcpuid, &haldata->data);
+  _set_tss (PcpuId, &pHalData->tss);
+  _set_fs (PcpuId, &pHalData->data);
 
-  pcpu_haldata[pcpuid] = (vaddr_t) (uintptr_t) haldata;
+  gPcpuHalData[PcpuId] = (vaddr_t) (uintptr_t) pHalData;
 }
 
+/**
+  Get physical start address for per-CPU bootstrap.
+
+  @param[in] Pcpu  Per-CPU ID.
+
+  @return Physical address of bootstrap code, or PADDR_INVALID.
+**/
 uint64_t
-hal_pcpu_startaddr (unsigned pcpu)
+HalPcpuStartAddr (
+  IN unsigned  Pcpu
+  )
 {
-  if (pcpu >= MAXCPUS)
+  if (Pcpu >= MAXCPUS)
     return PADDR_INVALID;
 
-  return pcpu_pstart;
+  return gPcpuPstart;
 }
 
-void
-hal_pcpu_enter (unsigned pcpuid)
+/**
+  Enter per-CPU context.
+
+  @param[in] PcpuId  Per-CPU ID to enter.
+**/
+VOID
+HalPcpuEnter (
+  IN unsigned  PcpuId
+  )
 {
-  uint16_t tss = (5 + 4 * pcpuid) << 3;
-  uint16_t fs = (5 + 4 * pcpuid + 1) << 3;
+  uint16_t Tss = (5 + 4 * PcpuId) << 3;
+  uint16_t Fs = (5 + 4 * PcpuId + 1) << 3;
 
-  assert (pcpuid < MAXCPUS);
+  assert (PcpuId < MAXCPUS);
 
-  asm volatile ("ltr %%ax"::"a" (tss));
-  asm volatile ("mov %%ax, %%fs"::"a" (fs));
+  asm volatile ("ltr %%ax"::"a" (Tss));
+  asm volatile ("mov %%ax, %%fs"::"a" (Fs));
 
-  bsp_enter_called = 1;
+  gBspEnterCalled = 1;
 }
 
-void
-hal_cpu_setdata (void *data)
+/**
+  Set per-CPU data pointer.
+
+  @param[in] pData  Pointer to per-CPU data.
+**/
+VOID
+HalCpuSetData (
+  IN VOID  *pData
+  )
 {
-  asm volatile ("movl %0, %%fs:0\n"::"r" (data));
+  asm volatile ("movl %0, %%fs:0\n"::"r" (pData));
 }
 
-void *
-hal_cpu_getdata (void)
+/**
+  Get per-CPU data pointer.
+
+  @return Pointer to per-CPU data.
+**/
+VOID *
+HalCpuGetData (
+  VOID
+  )
 {
-  void *data;
+  void *pData;
 
-  asm volatile ("movl %%fs:0, %0\n":"=r" (data));
-  return data;
+  asm volatile ("movl %%fs:0, %0\n":"=r" (pData));
+  return pData;
 }
 
+/**
+  Get maximum interrupt vector number.
+
+  @return Maximum vector number supported.
+**/
 unsigned
-hal_vect_max (void)
+HalVectMax (
+  VOID
+  )
 {
   return 255;
 }
 
-void
-i386_init_ap (uintptr_t esp)
-{
-  unsigned pcpu = plt_pcpu_id ();
-  struct hal_cpu *haldata = (struct hal_cpu *) (uintptr_t) pcpu_haldata[pcpu];
+/**
+  Initialize i386 architecture (AP).
 
-  haldata->tss.ss0 = KDS;
-  haldata->tss.esp0 = esp;
-  haldata->tss.iomap = 108;
+  Sets up TSS for Application Processor.
+
+  @param[in] Esp  Stack pointer for this AP.
+**/
+VOID
+I386InitializeAp (
+  IN uintptr_t  Esp
+  )
+{
+  unsigned Pcpu = plt_pcpu_id ();
+  struct hal_cpu *pHalData = (struct hal_cpu *) (uintptr_t) gPcpuHalData[Pcpu];
+
+  pHalData->tss.ss0 = KDS;
+  pHalData->tss.esp0 = Esp;
+  pHalData->tss.iomap = 108;
 
   pae32_init_ap ();
 
   hal_main_ap ();
 }
 
-static void
-remove_bootmappings (void)
+/**
+  Remove bootstrap mappings.
+
+  Restores the page table entry that was overwritten during SMP init.
+**/
+static VOID
+RemoveBootMappings (
+  VOID
+  )
 {
-  hal_l1p_t l1p;
+  hal_l1p_t L1p;
 
   /* Restore the mapping created for boostrapping secondary CPUS. */
-  l1p = umap_get_l1p (NULL, smp_oldva, false);
-  assert (l1p != L1P_INVALID);
-  hal_l1e_set (l1p, smp_oldl1e);
+  L1p = umap_get_l1p (NULL, gSmpOldVa, false);
+  assert (L1p != L1P_INVALID);
+  hal_l1e_set (L1p, gSmpOldL1e);
 }
 
-void
-i386_init_done (void)
+/**
+  Finalize i386 initialization.
+
+  Cleans up temporary bootstrap mappings.
+**/
+VOID
+I386InitializeDone (
+  VOID
+  )
 {
 
-  remove_bootmappings ();
+  RemoveBootMappings ();
 }
+
+//
+// Legacy Function Wrappers (for backward compatibility)
+//
+
+/** @deprecated Use I386GetFsSelector instead **/
+uint16_t _i386_fs (void) {
+  return I386GetFsSelector ();
+}
+
+/** @deprecated Use HalPcpuInit instead **/
+void hal_pcpu_init (void) {
+  HalPcpuInit ();
+}
+
+/** @deprecated Use HalPcpuAdd instead **/
+void hal_pcpu_add (unsigned pcpuid, struct hal_cpu *haldata) {
+  HalPcpuAdd (pcpuid, haldata);
+}
+
+/** @deprecated Use HalPcpuStartAddr instead **/
+uint64_t hal_pcpu_startaddr (unsigned pcpu) {
+  return HalPcpuStartAddr (pcpu);
+}
+
+/** @deprecated Use HalPcpuEnter instead **/
+void hal_pcpu_enter (unsigned pcpuid) {
+  HalPcpuEnter (pcpuid);
+}
+
+/** @deprecated Use HalCpuSetData instead **/
+void hal_cpu_setdata (void *data) {
+  HalCpuSetData (data);
+}
+
+/** @deprecated Use HalCpuGetData instead **/
+void * hal_cpu_getdata (void) {
+  return HalCpuGetData ();
+}
+
+/** @deprecated Use HalVectMax instead **/
+unsigned hal_vect_max (void) {
+  return HalVectMax ();
+}
+
+/** @deprecated Use I386InitializeAp instead **/
+void i386_init_ap (uintptr_t esp) {
+  I386InitializeAp (esp);
+}
+
+/** @deprecated Use RemoveBootMappings instead **/
+static void remove_bootmappings (void) {
+  RemoveBootMappings ();
+}
+
+/** @deprecated Use I386InitializeDone instead **/
+void i386_init_done (void) {
+  I386InitializeDone ();
+}
+
+// Legacy global variable aliases
+paddr_t pcpu_pstart = 0;
+vaddr_t pcpu_haldata[MAXCPUS] = {0};
+uint64_t pcpu_kstackno = 0;
+uint64_t pcpu_kstackcnt = 0;
+uint64_t pcpu_kstack[MAXCPUS] = {0};
