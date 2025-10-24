@@ -1,9 +1,14 @@
-/*
-  NUX: A kernel Library.
+/** @file
+  NUX Kernel Mapping (KMAP) Operations
+
+  Provides low-level kernel virtual address to physical page mapping
+  operations. These functions are unlocked and do not flush TLBs
+  automatically - use with care and call kmap_commit() to flush.
+
   Copyright (C) 2019 Gianluca Guida, glguida@tlbflush.org
 
-  SPDX-License-Identifier:	BSD-2-Clause
-*/
+  SPDX-License-Identifier: BSD-2-Clause
+**/
 
 #include <assert.h>
 #include <nux/hal.h>
@@ -17,191 +22,385 @@
   Unlocked, unflushing, use with care.
 */
 
-void
-kmapinit (void)
+/**
+  Initialize kernel mapping subsystem.
+
+  Currently a no-op placeholder for future initialization needs.
+**/
+VOID
+KmapInitialize (
+  VOID
+  )
 {
 }
 
+/**
+  Internal kernel map operation with allocation control.
+
+  Maps or remaps a kernel virtual address to a physical page frame.
+
+  @param[in] Va     Virtual address to map.
+  @param[in] Pfn    Page frame number to map.
+  @param[in] Prot   Protection flags (HAL_PTE_*).
+  @param[in] Alloc  TRUE to allow page table allocation, FALSE otherwise.
+
+  @return Previous PFN if page was present, or PFN_INVALID if not mapped.
+**/
 static pfn_t
-_kmap_map (vaddr_t va, pfn_t pfn, unsigned prot, const int alloc)
+KmapMapInternal (
+  IN vaddr_t  Va,
+  IN pfn_t    Pfn,
+  IN UINT32   Prot,
+  IN CONST INT32  Alloc
+  )
 {
-  hal_l1p_t l1p;
-  hal_l1e_t l1e, oldl1e;
-  pfn_t oldpfn;
-  unsigned oldprot;
+  hal_l1p_t L1p;
+  hal_l1e_t L1e, OldL1e;
+  pfn_t OldPfn;
+  UINT32 OldProt;
 
-  l1e = hal_l1e_box (pfn, prot);
+  L1e = hal_l1e_box (Pfn, Prot);
 
-  assert (hal_kmap_getl1p (va, alloc, &l1p));
-  oldl1e = hal_l1e_set (l1p, l1e);
-  ktlbgen_markdirty (hal_l1e_tlbop (oldl1e, l1e));
+  assert (hal_kmap_getl1p (Va, Alloc, &L1p));
+  OldL1e = hal_l1e_set (L1p, L1e);
+  ktlbgen_markdirty (hal_l1e_tlbop (OldL1e, L1e));
 
-  hal_l1e_unbox (oldl1e, &oldpfn, &oldprot);
+  hal_l1e_unbox (OldL1e, &OldPfn, &OldProt);
 
-  return oldprot & HAL_PTE_P ? oldpfn : PFN_INVALID;
+  return OldProt & HAL_PTE_P ? OldPfn : PFN_INVALID;
 }
 
-pfn_t
-kmap_getpfn (vaddr_t va)
-{
-  pfn_t pfn;
-  unsigned flags;
-  hal_l1e_t l1e;
-  hal_l1p_t l1p;
+/**
+  Get physical page frame number for kernel virtual address.
 
-  if (!hal_kmap_getl1p (va, false, &l1p))
+  @param[in] Va  Virtual address to query.
+
+  @return Page frame number if mapped, or PFN_INVALID if not present.
+**/
+pfn_t
+KmapGetPfn (
+  IN vaddr_t  Va
+  )
+{
+  pfn_t Pfn;
+  UINT32 Flags;
+  hal_l1e_t L1e;
+  hal_l1p_t L1p;
+
+  if (!hal_kmap_getl1p (Va, FALSE, &L1p))
     return PFN_INVALID;
 
-  l1e = hal_l1e_get (l1p);
-  hal_l1e_unbox (l1e, &pfn, &flags);
+  L1e = hal_l1e_get (L1p);
+  hal_l1e_unbox (L1e, &Pfn, &Flags);
 
-  return flags & HAL_PTE_P ? pfn : PFN_INVALID;
+  return Flags & HAL_PTE_P ? Pfn : PFN_INVALID;
 }
 
+/**
+  Map kernel virtual address to physical page frame.
+
+  Allocates page tables as needed. Does not flush TLB - call
+  KmapCommit() to synchronize changes across CPUs.
+
+  @param[in] Va    Virtual address to map.
+  @param[in] Pfn   Page frame number to map.
+  @param[in] Prot  Protection flags (HAL_PTE_*).
+
+  @return Previous PFN if page was present, or PFN_INVALID if not mapped.
+**/
 pfn_t
-kmap_map (vaddr_t va, pfn_t pfn, unsigned prot)
+KmapMap (
+  IN vaddr_t  Va,
+  IN pfn_t    Pfn,
+  IN UINT32   Prot
+  )
 {
-  return _kmap_map (va, pfn, prot, 1);
+  return KmapMapInternal (Va, Pfn, Prot, 1);
 }
 
-/*
-  Only map a VA if no pagetable allocations are needed.
-*/
+/**
+  Map kernel virtual address without allocating page tables.
+
+  Only maps if page table structures already exist. Does not flush TLB -
+  call KmapCommit() to synchronize.
+
+  @param[in] Va    Virtual address to map.
+  @param[in] Pfn   Page frame number to map.
+  @param[in] Prot  Protection flags (HAL_PTE_*).
+
+  @return Previous PFN if page was present, or PFN_INVALID if not mapped.
+**/
 pfn_t
-kmap_map_noalloc (vaddr_t va, pfn_t pfn, unsigned prot)
+KmapMapNoAlloc (
+  IN vaddr_t  Va,
+  IN pfn_t    Pfn,
+  IN UINT32   Prot
+  )
 {
-  return _kmap_map (va, pfn, prot, 0);
+  return KmapMapInternal (Va, Pfn, Prot, 0);
 }
 
-/*
-  Unmap a page previously mapped with kmap_map.
-*/
-pfn_t
-kmap_unmap (vaddr_t va)
-{
-  hal_l1p_t l1p;
-  hal_l1e_t l1e, oldl1e;
-  pfn_t oldpfn;
-  unsigned oldprot;
+/**
+  Unmap kernel virtual address.
 
-  l1e = hal_l1e_box (0, 0);
-  if (hal_kmap_getl1p (va, 0, &l1p))
+  Removes mapping for specified virtual address. Does not flush TLB -
+  call KmapCommit() to synchronize.
+
+  @param[in] Va  Virtual address to unmap.
+
+  @return Previous PFN if page was present, or PFN_INVALID if not mapped.
+**/
+pfn_t
+KmapUnmap (
+  IN vaddr_t  Va
+  )
+{
+  hal_l1p_t L1p;
+  hal_l1e_t L1e, OldL1e;
+  pfn_t OldPfn;
+  UINT32 OldProt;
+
+  L1e = hal_l1e_box (0, 0);
+  if (hal_kmap_getl1p (Va, 0, &L1p))
     {
-      oldl1e = hal_l1e_set (l1p, l1e);
-      ktlbgen_markdirty (hal_l1e_tlbop (oldl1e, l1e));
+      OldL1e = hal_l1e_set (L1p, L1e);
+      ktlbgen_markdirty (hal_l1e_tlbop (OldL1e, L1e));
 
-      hal_l1e_unbox (oldl1e, &oldpfn, &oldprot);
+      hal_l1e_unbox (OldL1e, &OldPfn, &OldProt);
 
-      return oldprot & HAL_PTE_P ? oldpfn : PFN_INVALID;
+      return OldProt & HAL_PTE_P ? OldPfn : PFN_INVALID;
     }
 
   return PFN_INVALID;
 }
 
+/**
+  Check if kernel virtual address is mapped.
 
-/*
-  Check if va is mapped.
-*/
-int
-kmap_mapped (vaddr_t va)
+  @param[in] Va  Virtual address to check.
+
+  @retval TRUE   Address is mapped.
+  @retval FALSE  Address is not mapped.
+**/
+INT32
+KmapIsMapped (
+  IN vaddr_t  Va
+  )
 {
-
-  return hal_kmap_getl1p (va, 0, NULL);
+  return hal_kmap_getl1p (Va, 0, NULL);
 }
 
-int
-kmap_mapped_range (vaddr_t va, size_t size)
+/**
+  Check if kernel virtual address range is mapped.
+
+  Verifies that all pages in specified range have valid mappings.
+
+  @param[in] Va    Starting virtual address.
+  @param[in] Size  Size of range in bytes.
+
+  @retval TRUE   Entire range is mapped.
+  @retval FALSE  At least one page in range is not mapped.
+**/
+INT32
+KmapIsMappedRange (
+  IN vaddr_t  Va,
+  IN size_t   Size
+  )
 {
-  vaddr_t i, s, e;
+  vaddr_t i, S, E;
 
-  s = trunc_page (va);
-  e = va + size;
+  S = trunc_page (Va);
+  E = Va + Size;
 
-  for (i = s; i < e; i += PAGE_SIZE)
-    if (!kmap_mapped (i))
+  for (i = S; i < E; i += PAGE_SIZE)
+    if (!KmapIsMapped (i))
       return 0;
 
   return 1;
 }
 
-int
-kmap_ensure (vaddr_t va, unsigned reqprot)
-{
-  int ret = -1;
-  hal_l1p_t l1p = L1P_INVALID;
-  hal_l1e_t oldl1e, l1e;
-  pfn_t pfn;
-  unsigned prot;
+/**
+  Ensure kernel virtual address has required protection.
 
-  if (hal_kmap_getl1p (va, 0, &l1p))
+  Allocates or frees physical pages as needed to match required protection.
+  If mapping must transition from unmapped to mapped, allocates a page.
+  If transitioning from mapped to unmapped, frees the page.
+
+  @param[in] Va       Virtual address to ensure.
+  @param[in] ReqProt  Required protection flags (HAL_PTE_*).
+
+  @retval 0   Success.
+  @retval -1  Failure (e.g., page allocation failed).
+**/
+INT32
+KmapEnsure (
+  IN vaddr_t  Va,
+  IN UINT32   ReqProt
+  )
+{
+  INT32 Ret = -1;
+  hal_l1p_t L1p = L1P_INVALID;
+  hal_l1e_t OldL1e, L1e;
+  pfn_t Pfn;
+  UINT32 Prot;
+
+  if (hal_kmap_getl1p (Va, 0, &L1p))
     {
-      l1e = hal_l1e_get (l1p);
-      hal_l1e_unbox (l1e, &pfn, &prot);
+      L1e = hal_l1e_get (L1p);
+      hal_l1e_unbox (L1e, &Pfn, &Prot);
     }
   else
     {
-      pfn = PFN_INVALID;
-      prot = 0;
+      Pfn = PFN_INVALID;
+      Prot = 0;
     }
 
-  if (!(reqprot ^ prot))
+  if (!(ReqProt ^ Prot))
     {
       /* same, exit */
-      ret = 0;
+      Ret = 0;
       goto out;
     }
 
   /* Check present bit. If we are adding a P bit allocate, if we are
      removing it free the page. */
-  if ((reqprot & HAL_PTE_P) != (prot & HAL_PTE_P))
+  if ((ReqProt & HAL_PTE_P) != (Prot & HAL_PTE_P))
     {
-      if (reqprot & HAL_PTE_P)
-	{
-	  /* Ensure pagetable populated. */
-	  if (l1p == L1P_INVALID)
-	    assert (hal_kmap_getl1p (va, 1, &l1p));
-	  /* Populate page. */
-	  pfn = pfn_alloc (0);
-	  if (pfn == PFN_INVALID)
-	    goto out;
-	}
+      if (ReqProt & HAL_PTE_P)
+        {
+          /* Ensure pagetable populated. */
+          if (L1p == L1P_INVALID)
+            assert (hal_kmap_getl1p (Va, 1, &L1p));
+          /* Populate page. */
+          Pfn = pfn_alloc (0);
+          if (Pfn == PFN_INVALID)
+            goto out;
+        }
       else
-	{
-	  /* Freeing page. */
-	  pfn_free (pfn);
-	  pfn = PFN_INVALID;
-	}
+        {
+          /* Freeing page. */
+          pfn_free (Pfn);
+          Pfn = PFN_INVALID;
+        }
     }
-  l1e = hal_l1e_box (pfn, reqprot);
-  oldl1e = hal_l1e_set (l1p, l1e);
-  ktlbgen_markdirty (hal_l1e_tlbop (oldl1e, l1e));
-  ret = 0;
+
+  L1e = hal_l1e_box (Pfn, ReqProt);
+  OldL1e = hal_l1e_set (L1p, L1e);
+  ktlbgen_markdirty (hal_l1e_tlbop (OldL1e, L1e));
+  Ret = 0;
 
 out:
-  return ret;
+  return Ret;
 }
 
-int
-kmap_ensure_range (vaddr_t va, size_t size, unsigned reqprot)
+/**
+  Ensure kernel virtual address range has required protection.
+
+  Applies KmapEnsure() to all pages in specified range.
+
+  @param[in] Va       Starting virtual address.
+  @param[in] Size     Size of range in bytes.
+  @param[in] ReqProt  Required protection flags (HAL_PTE_*).
+
+  @retval 0   Success.
+  @retval -1  Failure on any page in range.
+**/
+INT32
+KmapEnsureRange (
+  IN vaddr_t  Va,
+  IN size_t   Size,
+  IN UINT32   ReqProt
+  )
 {
-  vaddr_t i, s, e;
+  vaddr_t i, S, E;
 
-  s = trunc_page (va);
-  e = va + size;
+  S = trunc_page (Va);
+  E = Va + Size;
 
-  for (i = s; i < e; i += PAGE_SIZE)
-    if (kmap_ensure (i, reqprot))
+  for (i = S; i < E; i += PAGE_SIZE)
+    if (KmapEnsure (i, ReqProt))
       return -1;
 
   return 0;
 }
 
-void
-kmap_commit (void)
+/**
+  Commit kernel mapping changes.
+
+  Broadcasts kernel map update to all CPUs, causing them to flush
+  their TLBs to synchronize with kernel mapping changes. This is
+  extremely slow but guarantees KMAP consistency across all CPUs.
+
+  Must be called after any kmap_map/kmap_unmap operations to
+  ensure changes are visible on all processors.
+**/
+VOID
+KmapCommit (
+  VOID
+  )
 {
-  /* 
+  /*
      This is extremely slow, but guarantees KMAP to be aligned in all
      CPUs.
    */
-  cpu_kmapupdate_broadcast ();
+  CpuKernelMapUpdateBroadcast ();
+}
+
+//
+// Legacy Function Wrappers (for backward compatibility)
+//
+
+/** @deprecated Use KmapInitialize instead **/
+void kmapinit (void) {
+  KmapInitialize ();
+}
+
+/** @deprecated Use KmapMapInternal instead **/
+static pfn_t _kmap_map (vaddr_t va, pfn_t pfn, unsigned prot, const int alloc) {
+  return KmapMapInternal (va, pfn, prot, alloc);
+}
+
+/** @deprecated Use KmapGetPfn instead **/
+pfn_t kmap_getpfn (vaddr_t va) {
+  return KmapGetPfn (va);
+}
+
+/** @deprecated Use KmapMap instead **/
+pfn_t kmap_map (vaddr_t va, pfn_t pfn, unsigned prot) {
+  return KmapMap (va, pfn, prot);
+}
+
+/** @deprecated Use KmapMapNoAlloc instead **/
+pfn_t kmap_map_noalloc (vaddr_t va, pfn_t pfn, unsigned prot) {
+  return KmapMapNoAlloc (va, pfn, prot);
+}
+
+/** @deprecated Use KmapUnmap instead **/
+pfn_t kmap_unmap (vaddr_t va) {
+  return KmapUnmap (va);
+}
+
+/** @deprecated Use KmapIsMapped instead **/
+int kmap_mapped (vaddr_t va) {
+  return KmapIsMapped (va);
+}
+
+/** @deprecated Use KmapIsMappedRange instead **/
+int kmap_mapped_range (vaddr_t va, size_t size) {
+  return KmapIsMappedRange (va, size);
+}
+
+/** @deprecated Use KmapEnsure instead **/
+int kmap_ensure (vaddr_t va, unsigned reqprot) {
+  return KmapEnsure (va, reqprot);
+}
+
+/** @deprecated Use KmapEnsureRange instead **/
+int kmap_ensure_range (vaddr_t va, size_t size, unsigned reqprot) {
+  return KmapEnsureRange (va, size, reqprot);
+}
+
+/** @deprecated Use KmapCommit instead **/
+void kmap_commit (void) {
+  KmapCommit ();
 }
