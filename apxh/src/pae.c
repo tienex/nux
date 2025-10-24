@@ -1,9 +1,14 @@
-/*
-  APXH: An ELF boot-loader.
+/** @file
+  APXH x86 PAE Paging Support
+
+  Implements Physical Address Extension (PAE) paging for both 32-bit
+  (PAE) and 64-bit (PAE64/AMD64) x86 architectures. Provides page table
+  management, CPU feature detection, and memory mapping operations.
+
   Copyright (C) 2019 Gianluca Guida, glguida@tlbflush.org
 
   SPDX-License-Identifier:	BSD-2-Clause
-*/
+**/
 
 #include "project.h"
 #include "x86.h"
@@ -16,70 +21,101 @@
 #define PTE_PAT_4K (1L << 7)	/* This is for 4k leaf */
 #define PTE_PS (1L << 7)	/* This is for non-leaf */
 #define PTE_PAT_BIG (1 << 12)
-#define PTE_NX (nx_enabled ? 1LL << 63 : 0)
+#define PTE_NX (gNxEnabled ? 1LL << 63 : 0)
 
 #define PAT_UC 3
 #define PAT_WB 0
 #define PAT_WC 7
 
-static void
-scan_pat_table (void)
+/**
+  Scan PAT (Page Attribute Table).
+
+  Examines the current PAT configuration and displays entries for
+  Uncacheable (UC), Write-Combining (WC), and Write-Back (WB) memory
+  types.
+**/
+static VOID
+ScanPatTable (
+  VOID
+  )
 {
-  bool wb_set = false;
-  bool wc_set = false;
-  bool uc_set = false;
-  uint64_t pat = rdmsr (MSR_IA32_PAT);
+  bool WbSet = false;
+  bool WcSet = false;
+  bool UcSet = false;
+  uint64_t Pat = rdmsr (MSR_IA32_PAT);
 
   for (int i = 0; i < 8; i++)
     {
-      switch (pat & 0x7)
+      switch (Pat & 0x7)
 	{
 	case _MSR_IA32_PAT_UC:
-	  if (!uc_set)
+	  if (!UcSet)
 	    {
 	      printf ("PAT Table: UC Entry at %d\n", i);
-	      uc_set = true;
+	      UcSet = true;
 	    }
 	  break;
 	case _MSR_IA32_PAT_WC:
-	  if (!wc_set)
+	  if (!WcSet)
 	    {
 	      printf ("PAT Table: WC Entry at %d\n", i);
-	      wc_set = true;
+	      WcSet = true;
 	    }
 	  break;
 	case _MSR_IA32_PAT_WB:
-	  if (!wb_set)
+	  if (!WbSet)
 	    {
 	      printf ("PAT TABLE: WB Entry at %d\n", i);
-	      wb_set = true;
+	      WbSet = true;
 	    }
 	  break;
 	}
-      pat >>= 8;
+      Pat >>= 8;
     }
 }
 
-static void
-setup_pat_table (void)
+/**
+  Configure PAT table.
+
+  Sets up the Page Attribute Table with default entries plus
+  Write-Combining at entry 7.
+**/
+static VOID
+SetupPatTable (
+  VOID
+  )
 {
   /*
      Default PAT table, with added WC at 7 */
   wrmsr (MSR_IA32_PAT, 0x0100040600070406LL);
 
-  scan_pat_table ();
+  ScanPatTable ();
 }
 
-static unsigned
-memtype_to_flags (enum memory_type mt, bool small)
-{
-  unsigned pat = small ? PTE_PAT_4K : PTE_PAT_BIG;
+/**
+  Convert memory type to PTE flags.
 
-  switch (mt)
+  Translates memory type enumeration to appropriate PAT, PCD, and PWT
+  flags for page table entries.
+
+  @param[in] Mt     Memory type (WC, WB, or UC).
+  @param[in] Small  TRUE for 4KB pages, FALSE for 2MB/1GB pages.
+
+  @return PTE flags for specified memory type.
+**/
+static unsigned
+MemtypeToFlags (
+  IN enum memory_type  Mt,
+  IN bool              Small
+  )
+{
+  unsigned Pat = Small ? PTE_PAT_4K : PTE_PAT_BIG;
+
+  switch (Mt)
     {
     case MEMTYPE_WC:
       /* WC is 7 */
-      return pat | PTE_PCD | PTE_PWT;
+      return Pat | PTE_PCD | PTE_PWT;
       break;
     case MEMTYPE_WB:
       /* WB is 0 */
@@ -93,17 +129,27 @@ memtype_to_flags (enum memory_type mt, bool small)
 }
 
 
-bool
-cpu_is_intel ()
-{
-  uint32_t eax, ebx, ecx, edx;
+/**
+  Check if CPU is Intel.
 
-  eax = 0;
-  ecx = 0;
-  cpuid (&eax, &ebx, &ecx, &edx);
+  Uses CPUID to determine if the processor is manufactured by Intel.
+
+  @retval TRUE   CPU is Intel.
+  @retval FALSE  CPU is not Intel.
+**/
+bool
+CpuIsIntel (
+  VOID
+  )
+{
+  uint32_t Eax, Ebx, Ecx, Edx;
+
+  Eax = 0;
+  Ecx = 0;
+  cpuid (&Eax, &Ebx, &Ecx, &Edx);
 
   // GenuineIntel?
-  if (ebx == 0x756e6547 && ecx == 0x6c65746e && edx == 0x49656e69)
+  if (Ebx == 0x756e6547 && Ecx == 0x6c65746e && Edx == 0x49656e69)
     return true;
   else
     return false;
@@ -111,118 +157,178 @@ cpu_is_intel ()
   return 1;
 }
 
+/**
+  Get Intel CPU family.
+
+  Retrieves the processor family value from CPUID.
+
+  @return CPU family number.
+**/
 unsigned
-intel_cpu_family (void)
+IntelCpuFamily (
+  VOID
+  )
 {
-  unsigned family;
-  uint32_t eax, ebx, ecx, edx;
+  unsigned Family;
+  uint32_t Eax, Ebx, Ecx, Edx;
 
-  eax = 1;
-  ecx = 0;
-  cpuid (&eax, &ebx, &ecx, &edx);
+  Eax = 1;
+  Ecx = 0;
+  cpuid (&Eax, &Ebx, &Ecx, &Edx);
 
-  family = (eax & 0xf00) >> 8;
-  family |= (eax & 0xf00000 >> 20);
+  Family = (Eax & 0xf00) >> 8;
+  Family |= (Eax & 0xf00000 >> 20);
 
-  return family;
+  return Family;
 }
 
+/**
+  Get Intel CPU model.
+
+  Retrieves the processor model value from CPUID.
+
+  @return CPU model number.
+**/
 unsigned
-intel_cpu_model (void)
+IntelCpuModel (
+  VOID
+  )
 {
-  unsigned model;
-  uint32_t eax, ebx, ecx, edx;
+  unsigned Model;
+  uint32_t Eax, Ebx, Ecx, Edx;
 
-  eax = 1;
-  ecx = 0;
-  cpuid (&eax, &ebx, &ecx, &edx);
+  Eax = 1;
+  Ecx = 0;
+  cpuid (&Eax, &Ebx, &Ecx, &Edx);
 
-  model = (eax & 0xf0) >> 4;
-  model |= (eax & 0xf0000) >> 16;
+  Model = (Eax & 0xf0) >> 4;
+  Model |= (Eax & 0xf0000) >> 16;
 
-  return model;
+  return Model;
 }
 
+/**
+  Check if CPU supports PAE.
+
+  Uses CPUID to determine if Physical Address Extension is supported.
+
+  @retval TRUE   PAE is supported.
+  @retval FALSE  PAE is not supported.
+**/
 bool
-cpu_supports_pae (void)
+CpuSupportsPae (
+  VOID
+  )
 {
-  uint32_t eax, ebx, ecx, edx;
+  uint32_t Eax, Ebx, Ecx, Edx;
 
-  eax = 1;
-  ecx = 0;
-  cpuid (&eax, &ebx, &ecx, &edx);
+  Eax = 1;
+  Ecx = 0;
+  cpuid (&Eax, &Ebx, &Ecx, &Edx);
 
-  return !!(edx & (1 << 6));
+  return !!(Edx & (1 << 6));
 }
 
+/**
+  Check if CPU supports long mode.
+
+  Uses CPUID to determine if 64-bit long mode (AMD64) is supported.
+
+  @retval TRUE   Long mode is supported.
+  @retval FALSE  Long mode is not supported.
+**/
 bool
-cpu_supports_longmode (void)
+CpuSupportsLongmode (
+  VOID
+  )
 {
-  uint32_t eax, ebx, ecx, edx;
+  uint32_t Eax, Ebx, Ecx, Edx;
 
-  eax = 0x80000001;
-  ecx = 0;
-  cpuid (&eax, &ebx, &ecx, &edx);
+  Eax = 0x80000001;
+  Ecx = 0;
+  cpuid (&Eax, &Ebx, &Ecx, &Edx);
 
-  return !!(edx & (1 << 29));
+  return !!(Edx & (1 << 29));
 }
 
+/**
+  Check if CPU supports 1GB pages.
+
+  Uses CPUID to determine if 1GB page support is available.
+
+  @retval TRUE   1GB pages are supported.
+  @retval FALSE  1GB pages are not supported.
+**/
 bool
-cpu_supports_1gbpages (void)
+CpuSupports1gbPages (
+  VOID
+  )
 {
-  uint32_t eax, ebx, ecx, edx;
+  uint32_t Eax, Ebx, Ecx, Edx;
 
-  eax = 0x80000001;
-  ecx = 0;
-  cpuid (&eax, &ebx, &ecx, &edx);
+  Eax = 0x80000001;
+  Ecx = 0;
+  cpuid (&Eax, &Ebx, &Ecx, &Edx);
 
-  return !!(edx & (1 << 26));
+  return !!(Edx & (1 << 26));
 }
 
+/**
+  Check if CPU supports NX bit and enable it.
+
+  Uses CPUID to check for NX (No-Execute) support and enables it
+  via IA32_EFER MSR. On Intel CPUs, may need to clear XD disable
+  bit in IA32_MISC_ENABLE MSR first.
+
+  @retval TRUE   NX is supported and enabled.
+  @retval FALSE  NX is not supported.
+**/
 bool
-cpu_supports_nx (void)
+CpuSupportsNx (
+  VOID
+  )
 {
-  bool nx_supported;
-  uint64_t efer;
-  uint32_t eax, ebx, ecx, edx;
+  bool NxSupported;
+  uint64_t Efer;
+  uint32_t Eax, Ebx, Ecx, Edx;
 
   /* Intel CPUs might have disabled this in MSR. */
-  if (cpu_is_intel ())
+  if (CpuIsIntel ())
     {
-      unsigned family = intel_cpu_family ();
-      unsigned model = intel_cpu_model ();
+      unsigned Family = IntelCpuFamily ();
+      unsigned Model = IntelCpuModel ();
 
-      if ((family >= 6) && (family > 6 || model > 0xd))
+      if ((Family >= 6) && (Family > 6 || Model > 0xd))
 	{
-	  uint64_t misc_enable;
+	  uint64_t MiscEnable;
 
-	  misc_enable = rdmsr (MSR_IA32_MISC_ENABLE);
-	  if (misc_enable & _MSR_IA32_MISC_ENABLE_XD_DISABLE)
+	  MiscEnable = rdmsr (MSR_IA32_MISC_ENABLE);
+	  if (MiscEnable & _MSR_IA32_MISC_ENABLE_XD_DISABLE)
 	    {
-	      misc_enable &= ~_MSR_IA32_MISC_ENABLE_XD_DISABLE;
-	      wrmsr (MSR_IA32_MISC_ENABLE, misc_enable);
+	      MiscEnable &= ~_MSR_IA32_MISC_ENABLE_XD_DISABLE;
+	      wrmsr (MSR_IA32_MISC_ENABLE, MiscEnable);
 	    }
 	}
     }
-  eax = 0x80000001;
-  ecx = 0;
-  cpuid (&eax, &ebx, &ecx, &edx);
+  Eax = 0x80000001;
+  Ecx = 0;
+  cpuid (&Eax, &Ebx, &Ecx, &Edx);
 
-  nx_supported = !!(edx & (1 << 20));
-  if (!nx_supported)
+  NxSupported = !!(Edx & (1 << 20));
+  if (!NxSupported)
     return false;
 
-  efer = rdmsr (MSR_IA32_EFER);
-  wrmsr (MSR_IA32_EFER, efer | _MSR_IA32_EFER_NXE);
-  efer = rdmsr (MSR_IA32_EFER);
+  Efer = rdmsr (MSR_IA32_EFER);
+  wrmsr (MSR_IA32_EFER, Efer | _MSR_IA32_EFER_NXE);
+  Efer = rdmsr (MSR_IA32_EFER);
 
-  return !!(efer & _MSR_IA32_EFER_NXE);
+  return !!(Efer & _MSR_IA32_EFER_NXE);
 }
 
 
 typedef uint64_t pte_t;
 
-static bool nx_enabled;
+static bool gNxEnabled;
 
 /* 1 Gb direct map in the Payload Page Table. */
 #define PAE_DIRECTMAP_START 0
@@ -232,312 +338,562 @@ static bool nx_enabled;
 #define L2OFF(_va) (((_va) >> 21) & 0x1ff)
 #define L1OFF(_va) (((_va) >> 12) & 0x1ff)
 
-static pte_t *pae_cr3;
-static pte_t *l2s[4];
+static pte_t *gPaeCr3;
+static pte_t *gL2s[4];
 
-static void
-set_pte (pte_t * ptep, uint64_t pfn, uint64_t flags)
+/**
+  Set PTE value.
+
+  Writes a page table entry with the specified page frame number
+  and flags.
+
+  @param[out] pPtep  Pointer to PTE.
+  @param[in]  Pfn    Page frame number.
+  @param[in]  Flags  PTE flags.
+**/
+static VOID
+SetPte (
+  OUT pte_t   *pPtep,
+  IN  UINT64  Pfn,
+  IN  UINT64  Flags
+  )
 {
-  *ptep = (pfn << PAGE_SHIFT) | flags;
+  *pPtep = (Pfn << PAGE_SHIFT) | Flags;
 }
 
-/* Beware: this returns va, not valid in 32 where va space is 32 and PAE is bigger. */
-static void *
-pte_getaddr (pte_t * ptep)
-{
-  pte_t pte = *ptep;
+/**
+  Get physical address from PTE.
 
-  if (!(pte & PTE_P))
+  Extracts the physical address from a page table entry.
+  Returns NULL if PTE is not present.
+
+  @param[in] pPtep  Pointer to PTE.
+
+  @return Physical address from PTE, or NULL if not present.
+**/
+static VOID *
+PteGetAddr (
+  IN pte_t  *pPtep
+  )
+{
+  pte_t Pte = *pPtep;
+
+  if (!(Pte & PTE_P))
     return NULL;
 
-  return (void *) (uintptr_t) (pte & 0x7ffffffffffff000LL);
+  return (VOID *) (uintptr_t) (Pte & 0x7ffffffffffff000LL);
 }
 
-static uint64_t
-pte_getflags (pte_t * ptep)
-{
-  pte_t pte = *ptep;
+/**
+  Get flags from PTE.
 
-  return pte & ~0x7ffffffffffff000LL;
+  Extracts the flag bits from a page table entry.
+
+  @param[in] pPtep  Pointer to PTE.
+
+  @return PTE flags.
+**/
+static UINT64
+PteGetFlags (
+  IN pte_t  *pPtep
+  )
+{
+  pte_t Pte = *pPtep;
+
+  return Pte & ~0x7ffffffffffff000LL;
 }
 
-static uint64_t
-pte_mergeflags (uint64_t fl1, uint64_t fl2)
+/**
+  Merge two PTE flag sets.
+
+  Combines flags from two PTEs with proper handling of Present,
+  User, Write, and NX bits. Ensures consistent user/kernel mode
+  and computes most permissive flags.
+
+  @param[in] Fl1  First flag set.
+  @param[in] Fl2  Second flag set.
+
+  @return Merged flags.
+**/
+static UINT64
+PteMergeFlags (
+  IN UINT64  Fl1,
+  IN UINT64  Fl2
+  )
 {
-  uint64_t newf;
+  UINT64 NewF;
 
 
   //PTE_P always present
-  assert (fl1 & fl2 & PTE_P);
-  newf = PTE_P;
+  assert (Fl1 & Fl2 & PTE_P);
+  NewF = PTE_P;
 
   //PTE_U is either present on both or absent on both
-  if ((fl1 & PTE_U) != (fl2 & PTE_U))
+  if ((Fl1 & PTE_U) != (Fl2 & PTE_U))
     fatal ("Mixed user/kernel addresses not allowed.");
-  newf |= fl1 & PTE_U;
+  NewF |= Fl1 & PTE_U;
 
   // Write must be OR'd.
-  newf |= (fl1 | fl2) & PTE_W;
+  NewF |= (Fl1 | Fl2) & PTE_W;
 
   // NX must be AND'd.
-  newf |= fl1 & fl2 & PTE_NX;
+  NewF |= Fl1 & Fl2 & PTE_NX;
 
 #if 0
-  printf ("Merging: %llx (+) %llx = %llx\n", fl1, fl2, newf);
+  printf ("Merging: %llx (+) %llx = %llx\n", Fl1, Fl2, NewF);
 #endif
-  return newf;
+  return NewF;
 }
 
-void
-pae_verify (vaddr_t va, size64_t size)
+/**
+  Verify PAE address range.
+
+  Validates that a virtual address range is suitable for PAE paging.
+  Currently performs no checks.
+
+  @param[in] Va    Virtual address.
+  @param[in] Size  Size of region.
+**/
+VOID
+PaeVerify (
+  IN vaddr_t   Va,
+  IN size64_t  Size
+  )
 {
   /* Nothing to check. */
 }
 
-void
-pae_init (void)
+/**
+  Initialize PAE paging.
+
+  Sets up PAE (Physical Address Extension) paging with 3-level page
+  tables. Allocates CR3 and 4 L2 page directory tables. Enables NX
+  if supported and configures PAT table.
+**/
+VOID
+PaeInitialize (
+  VOID
+  )
 {
   int i;
 
   /* Enable NX */
-  assert (cpu_supports_pae ());
+  assert (CpuSupportsPae ());
 
-  nx_enabled = cpu_supports_nx ();
+  gNxEnabled = CpuSupportsNx ();
 
   /* In PAE is only 64 bytes, but we allocate a full page for it. */
-  pae_cr3 = (pte_t *) get_payload_page ();
+  gPaeCr3 = (pte_t *) get_payload_page ();
 
   /* Set PDPTEs */
   for (i = 0; i < 4; i++)
     {
-      uintptr_t l2page = get_payload_page ();
+      uintptr_t L2Page = get_payload_page ();
 
-      set_pte (pae_cr3 + i, l2page >> PAGE_SHIFT, PTE_P);
-      l2s[i] = (pte_t *) l2page;
+      SetPte (gPaeCr3 + i, L2Page >> PAGE_SHIFT, PTE_P);
+      gL2s[i] = (pte_t *) L2Page;
     }
 
-  setup_pat_table ();
+  SetupPatTable ();
 
-  printf ("Using PAE paging (CR3: %08lx, NX: %d).\n", pae_cr3, nx_enabled);
+  printf ("Using PAE paging (CR3: %08lx, NX: %d).\n", gPaeCr3, gNxEnabled);
 }
 
+/**
+  Get L2 page directory entry pointer (PAE).
+
+  Walks PAE page tables to L2 level, allocating missing levels.
+
+  @param[in] pCr3     Page table root.
+  @param[in] Va       Virtual address.
+  @param[in] Payload  TRUE to allocate from payload pages.
+
+  @return Pointer to L2 PTE.
+**/
 static pte_t *
-pae_get_l2p (pte_t * cr3, vaddr_t va, int payload)
+PaeGetL2p (
+  IN pte_t    *pCr3,
+  IN vaddr_t  Va,
+  IN int      Payload
+  )
 {
-  pte_t *l3p, *l2p;
-  unsigned l3off = L3OFF (va);
-  unsigned l2off = L2OFF (va);
+  pte_t *pL3p, *pL2p;
+  unsigned L3Off = L3OFF (Va);
+  unsigned L2Off = L2OFF (Va);
 
-  l3p = cr3 + l3off;
+  pL3p = pCr3 + L3Off;
 
-  l2p = (pte_t *) pte_getaddr (l3p);
-  if (l2p == NULL)
+  pL2p = (pte_t *) PteGetAddr (pL3p);
+  if (pL2p == NULL)
     {
-      uintptr_t l2page;
+      uintptr_t L2Page;
 
       /* Populating L2. */
-      l2page = payload ? get_payload_page () : get_page ();
+      L2Page = Payload ? get_payload_page () : get_page ();
 
-      set_pte (l3p, l2page >> PAGE_SHIFT, PTE_P);
-      l2p = (pte_t *) l2page;
+      SetPte (pL3p, L2Page >> PAGE_SHIFT, PTE_P);
+      pL2p = (pte_t *) L2Page;
     }
 
-  return l2p + l2off;
+  return pL2p + L2Off;
 }
 
+/**
+  Get L1 page table entry pointer (PAE).
+
+  Walks PAE page tables to L1 level, allocating missing levels.
+
+  @param[in] pCr3     Page table root.
+  @param[in] Va       Virtual address.
+  @param[in] Payload  TRUE to allocate from payload pages.
+
+  @return Pointer to L1 PTE.
+**/
 static pte_t *
-pae_get_l1p (pte_t * cr3, vaddr_t va, int payload)
+PaeGetL1p (
+  IN pte_t    *pCr3,
+  IN vaddr_t  Va,
+  IN int      Payload
+  )
 {
-  pte_t *l2p, *l1p;
-  unsigned l1off = L1OFF (va);
+  pte_t *pL2p, *pL1p;
+  unsigned L1Off = L1OFF (Va);
 
-  l2p = pae_get_l2p (cr3, va, payload);
+  pL2p = PaeGetL2p (pCr3, Va, Payload);
 
-  l1p = (pte_t *) pte_getaddr (l2p);
-  if (l1p == NULL)
+  pL1p = (pte_t *) PteGetAddr (pL2p);
+  if (pL1p == NULL)
     {
-      uintptr_t l1page;
+      uintptr_t L1Page;
 
       /* Populating L1. */
-      l1page = payload ? get_payload_page () : get_page ();
+      L1Page = Payload ? get_payload_page () : get_page ();
 
-      set_pte (l2p, l1page >> PAGE_SHIFT, PTE_U | PTE_W | PTE_P);
-      l1p = (pte_t *) l1page;
+      SetPte (pL2p, L1Page >> PAGE_SHIFT, PTE_U | PTE_W | PTE_P);
+      pL1p = (pte_t *) L1Page;
     }
 
-  return l1p + l1off;
+  return pL1p + L1Off;
 }
 
-void
-pae_map_page (void *pt, vaddr_t va, uintptr_t pa, int payload, int w, int x)
+/**
+  Map page with PAE.
+
+  Creates a page mapping with specified permissions.
+
+  @param[in] pPt      Page table root.
+  @param[in] Va       Virtual address.
+  @param[in] Pa       Physical address.
+  @param[in] Payload  TRUE to allocate from payload pages.
+  @param[in] W        TRUE for writable.
+  @param[in] X        TRUE for executable.
+**/
+VOID
+PaeMapPage (
+  IN VOID      *pPt,
+  IN vaddr_t   Va,
+  IN uintptr_t Pa,
+  IN int       Payload,
+  IN int       W,
+  IN int       X
+  )
 {
-  pte_t *l1p, *cr3;
-  uint64_t l1f;
-  uintptr_t page;
+  pte_t *pL1p, *pCr3;
+  UINT64 L1F;
+  uintptr_t Page;
 
-  cr3 = (pte_t *) pt;
+  pCr3 = (pte_t *) pPt;
 
-  l1p = pae_get_l1p (cr3, va, payload);
-  l1f = (w ? PTE_W : 0) | (x ? 0 : PTE_NX) | PTE_P;
+  pL1p = PaeGetL1p (pCr3, Va, Payload);
+  L1F = (W ? PTE_W : 0) | (X ? 0 : PTE_NX) | PTE_P;
 
-  page = (uintptr_t) pte_getaddr (l1p);
-  assert (page == 0);
-  page = pa >> PAGE_SHIFT;
-  set_pte (l1p, page, l1f);
+  Page = (uintptr_t) PteGetAddr (pL1p);
+  assert (Page == 0);
+  Page = Pa >> PAGE_SHIFT;
+  SetPte (pL1p, Page, L1F);
 }
 
+/**
+  Populate page with PAE.
+
+  Allocates and maps a page with specified permissions, or updates
+  flags if page already exists.
+
+  @param[in] Va  Virtual address.
+  @param[in] U   TRUE for user-accessible.
+  @param[in] W   TRUE for writable.
+  @param[in] X   TRUE for executable.
+
+  @return Physical address of page.
+**/
 static uintptr_t
-pae_populate_page (vaddr_t va, int u, int w, int x)
+PaePopulatePage (
+  IN vaddr_t  Va,
+  IN int      U,
+  IN int      W,
+  IN int      X
+  )
 {
-  pte_t *l1p;
-  uint64_t l1f;
-  uintptr_t page;
+  pte_t *pL1p;
+  UINT64 L1F;
+  uintptr_t Page;
 
-  l1p = pae_get_l1p (pae_cr3, va, 1);
+  pL1p = PaeGetL1p (gPaeCr3, Va, 1);
 
-  l1f = (u ? PTE_U : 0) | (w ? PTE_W : 0) | (x ? 0 : PTE_NX) | PTE_P;
+  L1F = (U ? PTE_U : 0) | (W ? PTE_W : 0) | (X ? 0 : PTE_NX) | PTE_P;
 
-  page = (uintptr_t) pte_getaddr (l1p);
-  if (pte_getaddr (l1p) == NULL)
+  Page = (uintptr_t) PteGetAddr (pL1p);
+  if (PteGetAddr (pL1p) == NULL)
     {
-      page = get_payload_page ();
-      set_pte (l1p, page >> PAGE_SHIFT, l1f);
+      Page = get_payload_page ();
+      SetPte (pL1p, Page >> PAGE_SHIFT, L1F);
     }
   else
     {
-      uint64_t newf;
-      uint64_t oldf = pte_getflags (l1p);
+      UINT64 NewF;
+      UINT64 OldF = PteGetFlags (pL1p);
 
-      newf = pte_mergeflags (l1f, oldf);
-      if (newf != oldf)
+      NewF = PteMergeFlags (L1F, OldF);
+      if (NewF != OldF)
 	{
-	  printf ("Flags changed from %llx to %llx\n", oldf, newf);
-	  set_pte (l1p, page >> PAGE_SHIFT, newf);
+	  printf ("Flags changed from %llx to %llx\n", OldF, NewF);
+	  SetPte (pL1p, Page >> PAGE_SHIFT, NewF);
 	}
     }
 
-  return page;
+  return Page;
 }
 
+/**
+  Get physical address (PAE).
+
+  Translates virtual address to physical address using current
+  PAE page tables.
+
+  @param[in] Va  Virtual address.
+
+  @return Physical address.
+**/
 uintptr_t
-pae_getphys (vaddr_t va)
+PaeGetPhys (
+  IN vaddr_t  Va
+  )
 {
-  uintptr_t page;
-  pte_t *l2e, *l1, *l1e;
-  unsigned l3off = L3OFF (va);
-  unsigned l2off = L2OFF (va);
-  unsigned l1off = L1OFF (va);
+  uintptr_t Page;
+  pte_t *pL2e, *pL1, *pL1e;
+  unsigned L3Off = L3OFF (Va);
+  unsigned L2Off = L2OFF (Va);
+  unsigned L1Off = L1OFF (Va);
 
-  l2e = l2s[l3off] + l2off;
+  pL2e = gL2s[L3Off] + L2Off;
 
-  l1 = (pte_t *) pte_getaddr (l2e);
-  assert (l1 != NULL);
+  pL1 = (pte_t *) PteGetAddr (pL2e);
+  assert (pL1 != NULL);
 
-  l1e = l1 + l1off;
+  pL1e = pL1 + L1Off;
 
-  page = (uintptr_t) pte_getaddr (l1e);
-  assert (page != 0);
+  Page = (uintptr_t) PteGetAddr (pL1e);
+  assert (Page != 0);
 
-  return page | (va & ~(PAGE_MASK));
+  return Page | (Va & ~(PAGE_MASK));
 }
 
-void
-pae_directmap (void *pt, uint64_t pa, vaddr_t va, size64_t size,
-	       enum memory_type mt, int payload, int x)
-{
-  uint64_t papfn = pa >> PAGE_SHIFT;
-  unsigned i, n;
-  pte_t *pte;
+/**
+  Direct map memory region (PAE).
 
-  n = size >> PAGE_SHIFT;
+  Creates direct 1:1 mapping of physical memory with specified type
+  and permissions using 4KB pages.
+
+  @param[in] pPt      Page table root.
+  @param[in] Pa       Physical address base.
+  @param[in] Va       Virtual address base.
+  @param[in] Size     Size of region.
+  @param[in] Mt       Memory type (WC, WB, UC).
+  @param[in] Payload  TRUE to allocate from payload pages.
+  @param[in] X        TRUE for executable.
+**/
+VOID
+PaeDirectMap (
+  IN VOID              *pPt,
+  IN UINT64            Pa,
+  IN vaddr_t           Va,
+  IN size64_t          Size,
+  IN enum memory_type  Mt,
+  IN int               Payload,
+  IN int               X
+  )
+{
+  UINT64 PaPfn = Pa >> PAGE_SHIFT;
+  unsigned i, n;
+  pte_t *pPte;
+
+  n = Size >> PAGE_SHIFT;
 
   for (i = 0; i < n; i++)
     {
-      pte = pae_get_l1p (pt, va + (i << PAGE_SHIFT), payload);
-      set_pte (pte, papfn + i,
-	       memtype_to_flags (mt, true /*4k */ ) | PTE_P | PTE_W | (x ? 0 :
+      pPte = PaeGetL1p (pPt, Va + (i << PAGE_SHIFT), Payload);
+      SetPte (pPte, PaPfn + i,
+	       MemtypeToFlags (Mt, true /*4k */ ) | PTE_P | PTE_W | (X ? 0 :
 								       PTE_NX));
     }
 }
 
-void
-pae_physmap (vaddr_t va, size64_t size, uint64_t pa, enum memory_type mt)
+/**
+  Map physical memory (PAE).
+
+  Creates mapping of physical memory region using current PAE root.
+
+  @param[in] Va    Virtual address.
+  @param[in] Size  Size of region.
+  @param[in] Pa    Physical address.
+  @param[in] Mt    Memory type.
+**/
+VOID
+PaePhysmap (
+  IN vaddr_t           Va,
+  IN size64_t          Size,
+  IN UINT64            Pa,
+  IN enum memory_type  Mt
+  )
 {
-  pae_directmap (pae_cr3, pa, va, size, mt, 1, 0);
+  PaeDirectMap (gPaeCr3, Pa, Va, Size, Mt, 1, 0);
 }
 
-void
-pae_topptalloc (vaddr_t va, size64_t size)
+/**
+  Allocate top-level page tables (PAE).
+
+  Pre-allocates page table structures for address range.
+  In PAE, equivalent to PTALLOC since there's no L4 level.
+
+  @param[in] Va    Virtual address.
+  @param[in] Size  Size of region.
+**/
+VOID
+PaeTopPtAlloc (
+  IN vaddr_t   Va,
+  IN size64_t  Size
+  )
 {
   /* In PAE, TOPPTALLOC is equivalent to PTALLOC. */
 
-  pae_ptalloc (va, size);
+  PaePtAlloc (Va, Size);
 }
 
-void
-pae_ptalloc (vaddr_t va, size64_t size)
+/**
+  Allocate page tables (PAE).
+
+  Pre-allocates L1 page tables for address range.
+
+  @param[in] Va    Virtual address.
+  @param[in] Size  Size of region.
+**/
+VOID
+PaePtAlloc (
+  IN vaddr_t   Va,
+  IN size64_t  Size
+  )
 {
   unsigned i, n;
 
-  n = size >> PAGE_SHIFT;
+  n = Size >> PAGE_SHIFT;
 
   for (i = 0; i < n; i++)
-    (void) pae_get_l1p (pae_cr3, va + (i << PAGE_SHIFT), 1);
+    (void) PaeGetL1p (gPaeCr3, Va + (i << PAGE_SHIFT), 1);
 }
 
 #define PAE_LINEAR_SHIFT (PAGE_SHIFT + 9 + 2)
 #define PAE_LINEAR_SIZE (1L << PAE_LINEAR_SHIFT)
 #define PAE_LINEAR_ALIGN (PAE_LINEAR_SIZE - 1)
 
-void
-pae_linear (vaddr_t va, size64_t size)
+/**
+  Set up linear (recursive) mapping (PAE).
+
+  Creates recursive page table mapping allowing page tables to be
+  accessed as regular memory. Requires specific alignment.
+
+  @param[in] Va    Virtual address for linear mapping.
+  @param[in] Size  Size of region (must be >= PAE_LINEAR_SIZE).
+**/
+VOID
+PaeLinear (
+  IN vaddr_t   Va,
+  IN size64_t  Size
+  )
 {
   int i;
-  unsigned l3off = L3OFF (va);
-  unsigned l2off = L2OFF (va);
+  unsigned L3Off = L3OFF (Va);
+  unsigned L2Off = L2OFF (Va);
 
-  if (va & PAE_LINEAR_ALIGN)
+  if (Va & PAE_LINEAR_ALIGN)
     {
-      printf ("PAE Linear VA %llx not aligned (align mask: %lx).\n", va,
+      printf ("PAE Linear VA %llx not aligned (align mask: %lx).\n", Va,
 	      PAE_LINEAR_ALIGN);
       exit (-1);
     }
 
-  if (size < PAE_LINEAR_SIZE)
+  if (Size < PAE_LINEAR_SIZE)
     {
-      printf ("PAE Linear size %llx too small.\n", size);
+      printf ("PAE Linear size %llx too small.\n", Size);
       exit (-1);
     }
 
   for (i = 0; i < 4; i++)
     {
-      pte_t *l2p;
+      pte_t *pL2p;
 
-      l2p = l2s[l3off] + l2off + i;
-      set_pte (l2p, (uint64_t) (uintptr_t) l2s[i] >> PAGE_SHIFT,
+      pL2p = gL2s[L3Off] + L2Off + i;
+      SetPte (pL2p, (UINT64) (uintptr_t) gL2s[i] >> PAGE_SHIFT,
 	       PTE_NX | PTE_W | PTE_P);
     }
 }
 
-void
-pae_populate (vaddr_t va, size64_t size, int u, int w, int x)
+/**
+  Populate memory region (PAE).
+
+  Allocates and maps pages for entire region with specified
+  permissions.
+
+  @param[in] Va    Virtual address.
+  @param[in] Size  Size of region.
+  @param[in] U     TRUE for user-accessible.
+  @param[in] W     TRUE for writable.
+  @param[in] X     TRUE for executable.
+**/
+VOID
+PaePopulate (
+  IN vaddr_t   Va,
+  IN size64_t  Size,
+  IN int       U,
+  IN int       W,
+  IN int       X
+  )
 {
-  ssize64_t len = size;
+  ssize64_t Len = Size;
 
-  while (len > 0)
+  while (Len > 0)
     {
-      pae_populate_page (va, u, w, x);
+      PaePopulatePage (Va, U, W, X);
 
-      len -= PAGE_CEILING (va) - va;
-      va += PAGE_CEILING (va) - va;
+      Len -= PAGE_CEILING (Va) - Va;
+      Va += PAGE_CEILING (Va) - Va;
 
     }
 }
 
-void
-pae_entry (vaddr_t entry)
+/**
+  Transfer control to PAE kernel.
+
+  Prepares final environment and transfers control to kernel entry
+  point using PAE paging mode.
+
+  @param[in] Entry  Kernel entry point address.
+**/
+VOID
+PaeEntry (
+  IN vaddr_t  Entry
+  )
 {
-  md_entry (ARCH_386, (vaddr_t) (uintptr_t) pae_cr3, entry);
+  md_entry (ARCH_386, (vaddr_t) (uintptr_t) gPaeCr3, Entry);
 }
 
 
@@ -553,319 +909,765 @@ pae_entry (vaddr_t entry)
 #define L2OFF64(_va) (((_va) >> 21) & 0x1ff)
 #define L1OFF64(_va) (((_va) >> 12) & 0x1ff)
 
-static pte_t *pae64_cr3;
+static pte_t *gPae64Cr3;
 
+/**
+  Get L3 page directory pointer entry (PAE64).
+
+  Walks PAE64 (AMD64) page tables to L3 level, allocating missing
+  levels.
+
+  @param[in] pCr3     Page table root.
+  @param[in] Va       Virtual address.
+  @param[in] Payload  TRUE to allocate from payload pages.
+
+  @return Pointer to L3 PTE.
+**/
 static pte_t *
-pae64_get_l3p (pte_t * cr3, vaddr_t va, int payload)
+Pae64GetL3p (
+  IN pte_t    *pCr3,
+  IN vaddr_t  Va,
+  IN int      Payload
+  )
 {
-  pte_t *l4p, *l3p;
-  unsigned l4off = L4OFF64 (va);
-  unsigned l3off = L3OFF64 (va);
+  pte_t *pL4p, *pL3p;
+  unsigned L4Off = L4OFF64 (Va);
+  unsigned L3Off = L3OFF64 (Va);
 
-  l4p = cr3 + l4off;
+  pL4p = pCr3 + L4Off;
 
-  l3p = (pte_t *) pte_getaddr (l4p);
-  if (l3p == NULL)
+  pL3p = (pte_t *) PteGetAddr (pL4p);
+  if (pL3p == NULL)
     {
-      uintptr_t l3page;
+      uintptr_t L3Page;
 
       /* Populating L3. */
-      l3page = payload ? get_payload_page () : get_page ();
+      L3Page = Payload ? get_payload_page () : get_page ();
 
-      set_pte (l4p, l3page >> PAGE_SHIFT, PTE_U | PTE_W | PTE_P);
-      l3p = (pte_t *) l3page;
+      SetPte (pL4p, L3Page >> PAGE_SHIFT, PTE_U | PTE_W | PTE_P);
+      pL3p = (pte_t *) L3Page;
     }
 
-  return l3p + l3off;
+  return pL3p + L3Off;
 }
 
+/**
+  Get L2 page directory entry (PAE64).
+
+  Walks PAE64 (AMD64) page tables to L2 level, allocating missing
+  levels.
+
+  @param[in] pCr3     Page table root.
+  @param[in] Va       Virtual address.
+  @param[in] Payload  TRUE to allocate from payload pages.
+
+  @return Pointer to L2 PTE.
+**/
 static pte_t *
-pae64_get_l2p (pte_t * cr3, vaddr_t va, int payload)
+Pae64GetL2p (
+  IN pte_t    *pCr3,
+  IN vaddr_t  Va,
+  IN int      Payload
+  )
 {
-  pte_t *l3p, *l2p;
+  pte_t *pL3p, *pL2p;
 
-  unsigned l2off = L2OFF64 (va);
+  unsigned L2Off = L2OFF64 (Va);
 
-  l3p = pae64_get_l3p (cr3, va, payload);
+  pL3p = Pae64GetL3p (pCr3, Va, Payload);
 
-  l2p = (pte_t *) pte_getaddr (l3p);
-  if (l2p == NULL)
+  pL2p = (pte_t *) PteGetAddr (pL3p);
+  if (pL2p == NULL)
     {
-      uintptr_t l2page;
+      uintptr_t L2Page;
 
       /* Populating L2. */
-      l2page = payload ? get_payload_page () : get_page ();
+      L2Page = Payload ? get_payload_page () : get_page ();
 
-      set_pte (l3p, l2page >> PAGE_SHIFT, PTE_U | PTE_W | PTE_P);
-      l2p = (pte_t *) l2page;
+      SetPte (pL3p, L2Page >> PAGE_SHIFT, PTE_U | PTE_W | PTE_P);
+      pL2p = (pte_t *) L2Page;
     }
 
-  return l2p + l2off;
+  return pL2p + L2Off;
 }
 
+/**
+  Get L1 page table entry (PAE64).
+
+  Walks PAE64 (AMD64) page tables to L1 level, allocating missing
+  levels.
+
+  @param[in] pCr3     Page table root.
+  @param[in] Va       Virtual address.
+  @param[in] Payload  TRUE to allocate from payload pages.
+
+  @return Pointer to L1 PTE.
+**/
 static pte_t *
-pae64_get_l1p (pte_t * cr3, vaddr_t va, int payload)
+Pae64GetL1p (
+  IN pte_t    *pCr3,
+  IN vaddr_t  Va,
+  IN int      Payload
+  )
 {
-  pte_t *l2p, *l1p;
-  unsigned l1off = L1OFF64 (va);
+  pte_t *pL2p, *pL1p;
+  unsigned L1Off = L1OFF64 (Va);
 
-  l2p = pae64_get_l2p (cr3, va, payload);
+  pL2p = Pae64GetL2p (pCr3, Va, Payload);
 
-  l1p = (pte_t *) pte_getaddr (l2p);
-  if (l1p == NULL)
+  pL1p = (pte_t *) PteGetAddr (pL2p);
+  if (pL1p == NULL)
     {
-      uintptr_t l1page;
+      uintptr_t L1Page;
 
       /* Populating L1. */
-      l1page = payload ? get_payload_page () : get_page ();
+      L1Page = Payload ? get_payload_page () : get_page ();
 
-      set_pte (l2p, l1page >> PAGE_SHIFT, PTE_U | PTE_W | PTE_P);
-      l1p = (pte_t *) l1page;
+      SetPte (pL2p, L1Page >> PAGE_SHIFT, PTE_U | PTE_W | PTE_P);
+      pL1p = (pte_t *) L1Page;
     }
 
-  return l1p + l1off;
+  return pL1p + L1Off;
 }
 
-void
-pae64_verify (vaddr_t va, size64_t size)
+/**
+  Verify PAE64 address range.
+
+  Validates that a virtual address range is suitable for PAE64
+  paging. Currently performs no checks.
+
+  @param[in] Va    Virtual address.
+  @param[in] Size  Size of region.
+**/
+VOID
+Pae64Verify (
+  IN vaddr_t   Va,
+  IN size64_t  Size
+  )
 {
   /* Nothing to check. */
 }
 
-void
-pae64_init (void)
+/**
+  Initialize PAE64 paging.
+
+  Sets up PAE64 (AMD64) paging with 4-level page tables. Enables
+  NX if supported and configures PAT table.
+**/
+VOID
+Pae64Initialize (
+  VOID
+  )
 {
-  assert (cpu_supports_longmode ());
+  assert (CpuSupportsLongmode ());
 
-  nx_enabled = cpu_supports_nx ();
+  gNxEnabled = CpuSupportsNx ();
 
-  setup_pat_table ();
+  SetupPatTable ();
 
-  pae64_cr3 = (pte_t *) get_payload_page ();
+  gPae64Cr3 = (pte_t *) get_payload_page ();
 
-  printf ("Using PAE64 paging (CR3: %08lx, NX: %d).\n", pae64_cr3,
-	  nx_enabled);
+  printf ("Using PAE64 paging (CR3: %08lx, NX: %d).\n", gPae64Cr3,
+	  gNxEnabled);
 }
 
-void
-pae64_map_page (void *pt, vaddr_t va, uintptr_t pa, int payload, int w, int x)
+/**
+  Map page with PAE64.
+
+  Creates a page mapping with specified permissions.
+
+  @param[in] pPt      Page table root.
+  @param[in] Va       Virtual address.
+  @param[in] Pa       Physical address.
+  @param[in] Payload  TRUE to allocate from payload pages.
+  @param[in] W        TRUE for writable.
+  @param[in] X        TRUE for executable.
+**/
+VOID
+Pae64MapPage (
+  IN VOID      *pPt,
+  IN vaddr_t   Va,
+  IN uintptr_t Pa,
+  IN int       Payload,
+  IN int       W,
+  IN int       X
+  )
 {
-  pte_t *l1p, *cr3;
-  uint64_t l1f;
-  uintptr_t page;
+  pte_t *pL1p, *pCr3;
+  UINT64 L1F;
+  uintptr_t Page;
 
-  cr3 = (pte_t *) pt;
+  pCr3 = (pte_t *) pPt;
 
-  printf ("Mapping at va %llx PA %lx (p:%d, w:%d, x:%d)\n", va, pa, payload,
-	  w, x);
+  printf ("Mapping at va %llx PA %lx (p:%d, w:%d, x:%d)\n", Va, Pa, Payload,
+	  W, X);
 
-  l1p = pae64_get_l1p (cr3, va, payload);
-  l1f = (w ? PTE_W : 0) | (x ? 0 : PTE_NX) | PTE_P;
+  pL1p = Pae64GetL1p (pCr3, Va, Payload);
+  L1F = (W ? PTE_W : 0) | (X ? 0 : PTE_NX) | PTE_P;
 
-  page = (uintptr_t) pte_getaddr (l1p);
-  assert (page == 0);
-  page = pa >> PAGE_SHIFT;
-  set_pte (l1p, page, l1f);
+  Page = (uintptr_t) PteGetAddr (pL1p);
+  assert (Page == 0);
+  Page = Pa >> PAGE_SHIFT;
+  SetPte (pL1p, Page, L1F);
 }
 
+/**
+  Populate page with PAE64.
+
+  Allocates and maps a page with specified permissions, or updates
+  flags if page already exists.
+
+  @param[in] pCr3     Page table root.
+  @param[in] Va       Virtual address.
+  @param[in] U        TRUE for user-accessible.
+  @param[in] W        TRUE for writable.
+  @param[in] X        TRUE for executable.
+  @param[in] Payload  TRUE to allocate from payload pages.
+
+  @return Physical address of page.
+**/
 static uintptr_t
-pae64_populate_page (pte_t * cr3, vaddr_t va, int u, int w, int x,
-		     int payload)
+Pae64PopulatePage (
+  IN pte_t    *pCr3,
+  IN vaddr_t  Va,
+  IN int      U,
+  IN int      W,
+  IN int      X,
+  IN int      Payload
+  )
 {
-  pte_t *l1p;
-  uint64_t l1f;
-  uintptr_t page;
+  pte_t *pL1p;
+  UINT64 L1F;
+  uintptr_t Page;
 
-  l1p = pae64_get_l1p (cr3, va, payload);
-  l1f = (u ? PTE_U : 0) | (w ? PTE_W : 0) | (x ? 0 : PTE_NX) | PTE_P;
+  pL1p = Pae64GetL1p (pCr3, Va, Payload);
+  L1F = (U ? PTE_U : 0) | (W ? PTE_W : 0) | (X ? 0 : PTE_NX) | PTE_P;
 
-  page = (uintptr_t) pte_getaddr (l1p);
-  if (page == 0)
+  Page = (uintptr_t) PteGetAddr (pL1p);
+  if (Page == 0)
     {
-      page = payload ? get_payload_page () : get_page ();
-      set_pte (l1p, page >> PAGE_SHIFT, l1f);
+      Page = Payload ? get_payload_page () : get_page ();
+      SetPte (pL1p, Page >> PAGE_SHIFT, L1F);
     }
   else
     {
-      uint64_t newf;
-      uint64_t oldf = pte_getflags (l1p);
+      UINT64 NewF;
+      UINT64 OldF = PteGetFlags (pL1p);
 
-      newf = pte_mergeflags (l1f, oldf);
-      if (newf != oldf)
+      NewF = PteMergeFlags (L1F, OldF);
+      if (NewF != OldF)
 	{
-	  printf ("Flags changed from %llx to %llx\n", oldf, newf);
-	  set_pte (l1p, page >> PAGE_SHIFT, newf);
+	  printf ("Flags changed from %llx to %llx\n", OldF, NewF);
+	  SetPte (pL1p, Page >> PAGE_SHIFT, NewF);
 	}
     }
 
-  return page;
+  return Page;
 }
 
+/**
+  Get physical address (PAE64).
+
+  Translates virtual address to physical address using current
+  PAE64 page tables.
+
+  @param[in] Va  Virtual address.
+
+  @return Physical address.
+**/
 uintptr_t
-pae64_getphys (vaddr_t va)
+Pae64GetPhys (
+  IN vaddr_t  Va
+  )
 {
-  uintptr_t page;
-  pte_t *l4p, *l3p, *l2p, *l1p;
-  unsigned l4off = L4OFF64 (va);
-  unsigned l3off = L3OFF64 (va);
-  unsigned l2off = L2OFF64 (va);
-  unsigned l1off = L1OFF64 (va);
+  uintptr_t Page;
+  pte_t *pL4p, *pL3p, *pL2p, *pL1p;
+  unsigned L4Off = L4OFF64 (Va);
+  unsigned L3Off = L3OFF64 (Va);
+  unsigned L2Off = L2OFF64 (Va);
+  unsigned L1Off = L1OFF64 (Va);
 
-  l4p = pae64_cr3 + l4off;
+  pL4p = gPae64Cr3 + L4Off;
 
-  l3p = (pte_t *) pte_getaddr (l4p);
-  assert (l3p != NULL);
-  l3p += l3off;
+  pL3p = (pte_t *) PteGetAddr (pL4p);
+  assert (pL3p != NULL);
+  pL3p += L3Off;
 
-  l2p = (pte_t *) pte_getaddr (l3p);
-  assert (l2p != NULL);
-  l2p += l2off;
+  pL2p = (pte_t *) PteGetAddr (pL3p);
+  assert (pL2p != NULL);
+  pL2p += L2Off;
 
-  l1p = (pte_t *) pte_getaddr (l2p);
-  assert (l1p != NULL);
-  l1p += l1off;
+  pL1p = (pte_t *) PteGetAddr (pL2p);
+  assert (pL1p != NULL);
+  pL1p += L1Off;
 
-  page = (uintptr_t) pte_getaddr (l1p);
-  assert (page != 0);
+  Page = (uintptr_t) PteGetAddr (pL1p);
+  assert (Page != 0);
 
-  return page |= (va & ~(PAGE_MASK));
+  return Page |= (Va & ~(PAGE_MASK));
 }
 
-void
-pae64_directmap (void *pt, uint64_t pabase, vaddr_t va, size64_t size,
-		 enum memory_type mt, int payload, int x)
+/**
+  Direct map memory region (PAE64).
+
+  Creates direct 1:1 mapping of physical memory with specified type
+  and permissions. Uses 1GB, 2MB, or 4KB pages depending on
+  alignment and size.
+
+  @param[in] pPt      Page table root.
+  @param[in] PaBase   Physical address base.
+  @param[in] Va       Virtual address base.
+  @param[in] Size     Size of region.
+  @param[in] Mt       Memory type (WC, WB, UC).
+  @param[in] Payload  TRUE to allocate from payload pages.
+  @param[in] X        TRUE for executable.
+**/
+VOID
+Pae64DirectMap (
+  IN VOID              *pPt,
+  IN UINT64            PaBase,
+  IN vaddr_t           Va,
+  IN size64_t          Size,
+  IN enum memory_type  Mt,
+  IN int               Payload,
+  IN int               X
+  )
 {
-  ssize64_t len;
-  uint64_t pa;
-  pte_t *cr3 = (pte_t *) pt;
-  int p1g = cpu_supports_1gbpages ();
-  unsigned long l3cnt = 0, l2cnt = 0, l1cnt = 0;
+  ssize64_t Len;
+  UINT64 Pa;
+  pte_t *pCr3 = (pte_t *) pPt;
+  int P1G = CpuSupports1gbPages ();
+  unsigned long L3Cnt = 0, L2Cnt = 0, L1Cnt = 0;
 
 #define GB1ALIGNED(_a) (((_a) & ((1L << 30) - 1)) == 0)
 #define MB2ALIGNED(_a) (((_a) & ((1L << 21) - 1)) == 0)
 
 
   /* Signed to unsigned: no one will ask us a 1<<64 bytes physmap. */
-  len = (ssize64_t) size;
-  pa = pabase;
+  Len = (ssize64_t) Size;
+  Pa = PaBase;
 
-  while (len > 0)
+  while (Len > 0)
     {
 
-      if (p1g && GB1ALIGNED (pa) && GB1ALIGNED (va) && len >= (1L << 30))
+      if (P1G && GB1ALIGNED (Pa) && GB1ALIGNED (Va) && Len >= (1L << 30))
 	{
-	  pte_t *l3p = pae64_get_l3p (cr3, va, payload);
+	  pte_t *pL3p = Pae64GetL3p (pCr3, Va, Payload);
 
-	  set_pte (l3p, pa >> PAGE_SHIFT,
-		   memtype_to_flags (mt, false /*1GB */ ) |
-		   PTE_PS | PTE_W | PTE_P | (x ? 0 : PTE_NX));
-	  va += (1L << 30);
-	  pa += (1L << 30);
-	  len -= (1L << 30);
-	  l3cnt++;
+	  SetPte (pL3p, Pa >> PAGE_SHIFT,
+		   MemtypeToFlags (Mt, false /*1GB */ ) |
+		   PTE_PS | PTE_W | PTE_P | (X ? 0 : PTE_NX));
+	  Va += (1L << 30);
+	  Pa += (1L << 30);
+	  Len -= (1L << 30);
+	  L3Cnt++;
 	}
-      else if (MB2ALIGNED (pa) && MB2ALIGNED (va) && len >= (1 << 21))
+      else if (MB2ALIGNED (Pa) && MB2ALIGNED (Va) && Len >= (1 << 21))
 	{
-	  pte_t *l2p = pae64_get_l2p (cr3, va, payload);
+	  pte_t *pL2p = Pae64GetL2p (pCr3, Va, Payload);
 
-	  set_pte (l2p, pa >> PAGE_SHIFT,
-		   memtype_to_flags (mt, false /* 2MB */ ) |
-		   PTE_PS | PTE_W | PTE_P | (x ? 0 : PTE_NX));
-	  va += (1L << 21);
-	  pa += (1L << 21);
-	  len -= (1L << 21);
-	  l2cnt++;
+	  SetPte (pL2p, Pa >> PAGE_SHIFT,
+		   MemtypeToFlags (Mt, false /* 2MB */ ) |
+		   PTE_PS | PTE_W | PTE_P | (X ? 0 : PTE_NX));
+	  Va += (1L << 21);
+	  Pa += (1L << 21);
+	  Len -= (1L << 21);
+	  L2Cnt++;
 	}
       else
 	{
-	  pte_t *l1p = pae64_get_l1p (cr3, va, payload);
+	  pte_t *pL1p = Pae64GetL1p (pCr3, Va, Payload);
 
-	  set_pte (l1p, pa >> PAGE_SHIFT,
-		   memtype_to_flags (mt,
-				     true /*4kB */ ) | PTE_W | PTE_P | (x ? 0
+	  SetPte (pL1p, Pa >> PAGE_SHIFT,
+		   MemtypeToFlags (Mt,
+				     true /*4kB */ ) | PTE_W | PTE_P | (X ? 0
 									:
 									PTE_NX));
-	  va += (1L << PAGE_SHIFT);
-	  pa += (1L << PAGE_SHIFT);
-	  len -= (1L << PAGE_SHIFT);
-	  l1cnt++;
+	  Va += (1L << PAGE_SHIFT);
+	  Pa += (1L << PAGE_SHIFT);
+	  Len -= (1L << PAGE_SHIFT);
+	  L1Cnt++;
 	}
     }
 }
 
-void
-pae64_physmap (vaddr_t va, size64_t size, uint64_t pa, enum memory_type mt)
+/**
+  Map physical memory (PAE64).
+
+  Creates mapping of physical memory region using current PAE64 root.
+
+  @param[in] Va    Virtual address.
+  @param[in] Size  Size of region.
+  @param[in] Pa    Physical address.
+  @param[in] Mt    Memory type.
+**/
+VOID
+Pae64Physmap (
+  IN vaddr_t           Va,
+  IN size64_t          Size,
+  IN UINT64            Pa,
+  IN enum memory_type  Mt
+  )
 {
-  pae64_directmap (pae64_cr3, pa, va, size, mt, 1, 0);
+  Pae64DirectMap (gPae64Cr3, Pa, Va, Size, Mt, 1, 0);
 }
 
-void
-pae64_topptalloc (vaddr_t va, size64_t size)
+/**
+  Allocate top-level page tables (PAE64).
+
+  Pre-allocates L3 page directory pointer tables for address range.
+
+  @param[in] Va    Virtual address.
+  @param[in] Size  Size of region.
+**/
+VOID
+Pae64TopPtAlloc (
+  IN vaddr_t   Va,
+  IN size64_t  Size
+  )
 {
   unsigned i, n;
 
-  n = (size + (1 << 30) - 1) >> 30;
+  n = (Size + (1 << 30) - 1) >> 30;
 
   for (i = 0; i < n; i++)
-    (void) pae64_get_l3p (pae64_cr3, va + (i << PAGE_SHIFT), 1);
+    (void) Pae64GetL3p (gPae64Cr3, Va + (i << PAGE_SHIFT), 1);
 }
 
-void
-pae64_ptalloc (vaddr_t va, size64_t size)
+/**
+  Allocate page tables (PAE64).
+
+  Pre-allocates L1 page tables for address range.
+
+  @param[in] Va    Virtual address.
+  @param[in] Size  Size of region.
+**/
+VOID
+Pae64PtAlloc (
+  IN vaddr_t   Va,
+  IN size64_t  Size
+  )
 {
   unsigned i, n;
 
-  n = size >> PAGE_SHIFT;
+  n = Size >> PAGE_SHIFT;
 
   for (i = 0; i < n; i++)
-    (void) pae64_get_l1p (pae64_cr3, va + (i << PAGE_SHIFT), 1);
+    (void) Pae64GetL1p (gPae64Cr3, Va + (i << PAGE_SHIFT), 1);
 }
 
 #define PAE64_LINEAR_SHIFT (PAGE_SHIFT + 9 + 9 + 9)
 #define PAE64_LINEAR_SIZE  (1LL << PAE64_LINEAR_SHIFT)
 #define PAE64_LINEAR_ALIGN (PAE64_LINEAR_SIZE - 1)
 
-void
-pae64_linear (vaddr_t va, size64_t size)
-{
-  unsigned l4off = L4OFF64 (va);
-  pte_t *l4p;
+/**
+  Set up linear (recursive) mapping (PAE64).
 
-  if (va & PAE64_LINEAR_ALIGN)
+  Creates recursive page table mapping allowing page tables to be
+  accessed as regular memory. Requires specific alignment.
+
+  @param[in] Va    Virtual address for linear mapping.
+  @param[in] Size  Size of region (must be >= PAE64_LINEAR_SIZE).
+**/
+VOID
+Pae64Linear (
+  IN vaddr_t   Va,
+  IN size64_t  Size
+  )
+{
+  unsigned L4Off = L4OFF64 (Va);
+  pte_t *pL4p;
+
+  if (Va & PAE64_LINEAR_ALIGN)
     {
       printf ("PAE Linear VA %llx not aligned (align mask: %llx).\n",
-	      va, PAE64_LINEAR_ALIGN);
+	      Va, PAE64_LINEAR_ALIGN);
       exit (-1);
     }
 
-  if (size < PAE64_LINEAR_SIZE)
+  if (Size < PAE64_LINEAR_SIZE)
     {
-      printf ("PAE Linear size %llx too small.\n", size);
+      printf ("PAE Linear size %llx too small.\n", Size);
       exit (-1);
     }
 
-  l4p = pae64_cr3 + l4off;
-  set_pte (l4p, (uintptr_t) pae64_cr3 >> PAGE_SHIFT, PTE_W | PTE_P);
-  printf ("Wrote %llx at %p\n", *l4p, l4p);
+  pL4p = gPae64Cr3 + L4Off;
+  SetPte (pL4p, (uintptr_t) gPae64Cr3 >> PAGE_SHIFT, PTE_W | PTE_P);
+  printf ("Wrote %llx at %p\n", *pL4p, pL4p);
 }
 
-void
-pae64_populate (vaddr_t va, size64_t size, int u, int w, int x)
+/**
+  Populate memory region (PAE64).
+
+  Allocates and maps pages for entire region with specified
+  permissions.
+
+  @param[in] Va    Virtual address.
+  @param[in] Size  Size of region.
+  @param[in] U     TRUE for user-accessible.
+  @param[in] W     TRUE for writable.
+  @param[in] X     TRUE for executable.
+**/
+VOID
+Pae64Populate (
+  IN vaddr_t   Va,
+  IN size64_t  Size,
+  IN int       U,
+  IN int       W,
+  IN int       X
+  )
 {
-  ssize64_t len = size;
+  ssize64_t Len = Size;
 
-  while (len > 0)
+  while (Len > 0)
     {
-      pae64_populate_page (pae64_cr3, va, u, w, x, 1);
+      Pae64PopulatePage (gPae64Cr3, Va, U, W, X, 1);
 
-      len -= PAGE_CEILING (va) - va;
-      va += PAGE_CEILING (va) - va;
+      Len -= PAGE_CEILING (Va) - Va;
+      Va += PAGE_CEILING (Va) - Va;
 
     }
 }
 
-void
-pae64_entry (vaddr_t entry)
+/**
+  Transfer control to PAE64 kernel.
+
+  Prepares final environment and transfers control to kernel entry
+  point using PAE64 (AMD64) long mode paging.
+
+  @param[in] Entry  Kernel entry point address.
+**/
+VOID
+Pae64Entry (
+  IN vaddr_t  Entry
+  )
 {
-  md_entry (ARCH_AMD64, (vaddr_t) (uintptr_t) pae64_cr3, entry);
+  md_entry (ARCH_AMD64, (vaddr_t) (uintptr_t) gPae64Cr3, Entry);
 }
+
+//
+// Legacy Function Wrappers (for backward compatibility)
+//
+
+/** @deprecated Use ScanPatTable instead **/
+static void scan_pat_table (void) {
+  ScanPatTable ();
+}
+
+/** @deprecated Use SetupPatTable instead **/
+static void setup_pat_table (void) {
+  SetupPatTable ();
+}
+
+/** @deprecated Use MemtypeToFlags instead **/
+static unsigned memtype_to_flags (enum memory_type mt, bool small) {
+  return MemtypeToFlags (mt, small);
+}
+
+/** @deprecated Use CpuIsIntel instead **/
+bool cpu_is_intel (void) {
+  return CpuIsIntel ();
+}
+
+/** @deprecated Use IntelCpuFamily instead **/
+unsigned intel_cpu_family (void) {
+  return IntelCpuFamily ();
+}
+
+/** @deprecated Use IntelCpuModel instead **/
+unsigned intel_cpu_model (void) {
+  return IntelCpuModel ();
+}
+
+/** @deprecated Use CpuSupportsPae instead **/
+bool cpu_supports_pae (void) {
+  return CpuSupportsPae ();
+}
+
+/** @deprecated Use CpuSupportsLongmode instead **/
+bool cpu_supports_longmode (void) {
+  return CpuSupportsLongmode ();
+}
+
+/** @deprecated Use CpuSupports1gbPages instead **/
+bool cpu_supports_1gbpages (void) {
+  return CpuSupports1gbPages ();
+}
+
+/** @deprecated Use CpuSupportsNx instead **/
+bool cpu_supports_nx (void) {
+  return CpuSupportsNx ();
+}
+
+/** @deprecated Use SetPte instead **/
+static void set_pte (pte_t *ptep, uint64_t pfn, uint64_t flags) {
+  SetPte (ptep, pfn, flags);
+}
+
+/** @deprecated Use PteGetAddr instead **/
+static void *pte_getaddr (pte_t *ptep) {
+  return PteGetAddr (ptep);
+}
+
+/** @deprecated Use PteGetFlags instead **/
+static uint64_t pte_getflags (pte_t *ptep) {
+  return PteGetFlags (ptep);
+}
+
+/** @deprecated Use PteMergeFlags instead **/
+static uint64_t pte_mergeflags (uint64_t fl1, uint64_t fl2) {
+  return PteMergeFlags (fl1, fl2);
+}
+
+/** @deprecated Use PaeVerify instead **/
+void pae_verify (vaddr_t va, size64_t size) {
+  PaeVerify (va, size);
+}
+
+/** @deprecated Use PaeInitialize instead **/
+void pae_init (void) {
+  PaeInitialize ();
+}
+
+/** @deprecated Use PaeGetL2p instead **/
+static pte_t *pae_get_l2p (pte_t *cr3, vaddr_t va, int payload) {
+  return PaeGetL2p (cr3, va, payload);
+}
+
+/** @deprecated Use PaeGetL1p instead **/
+static pte_t *pae_get_l1p (pte_t *cr3, vaddr_t va, int payload) {
+  return PaeGetL1p (cr3, va, payload);
+}
+
+/** @deprecated Use PaeMapPage instead **/
+void pae_map_page (void *pt, vaddr_t va, uintptr_t pa, int payload, int w, int x) {
+  PaeMapPage (pt, va, pa, payload, w, x);
+}
+
+/** @deprecated Use PaePopulatePage instead **/
+static uintptr_t pae_populate_page (vaddr_t va, int u, int w, int x) {
+  return PaePopulatePage (va, u, w, x);
+}
+
+/** @deprecated Use PaeGetPhys instead **/
+uintptr_t pae_getphys (vaddr_t va) {
+  return PaeGetPhys (va);
+}
+
+/** @deprecated Use PaeDirectMap instead **/
+void pae_directmap (void *pt, uint64_t pa, vaddr_t va, size64_t size,
+		    enum memory_type mt, int payload, int x) {
+  PaeDirectMap (pt, pa, va, size, mt, payload, x);
+}
+
+/** @deprecated Use PaePhysmap instead **/
+void pae_physmap (vaddr_t va, size64_t size, uint64_t pa, enum memory_type mt) {
+  PaePhysmap (va, size, pa, mt);
+}
+
+/** @deprecated Use PaeTopPtAlloc instead **/
+void pae_topptalloc (vaddr_t va, size64_t size) {
+  PaeTopPtAlloc (va, size);
+}
+
+/** @deprecated Use PaePtAlloc instead **/
+void pae_ptalloc (vaddr_t va, size64_t size) {
+  PaePtAlloc (va, size);
+}
+
+/** @deprecated Use PaeLinear instead **/
+void pae_linear (vaddr_t va, size64_t size) {
+  PaeLinear (va, size);
+}
+
+/** @deprecated Use PaePopulate instead **/
+void pae_populate (vaddr_t va, size64_t size, int u, int w, int x) {
+  PaePopulate (va, size, u, w, x);
+}
+
+/** @deprecated Use PaeEntry instead **/
+void pae_entry (vaddr_t entry) {
+  PaeEntry (entry);
+}
+
+/** @deprecated Use Pae64GetL3p instead **/
+static pte_t *pae64_get_l3p (pte_t *cr3, vaddr_t va, int payload) {
+  return Pae64GetL3p (cr3, va, payload);
+}
+
+/** @deprecated Use Pae64GetL2p instead **/
+static pte_t *pae64_get_l2p (pte_t *cr3, vaddr_t va, int payload) {
+  return Pae64GetL2p (cr3, va, payload);
+}
+
+/** @deprecated Use Pae64GetL1p instead **/
+static pte_t *pae64_get_l1p (pte_t *cr3, vaddr_t va, int payload) {
+  return Pae64GetL1p (cr3, va, payload);
+}
+
+/** @deprecated Use Pae64Verify instead **/
+void pae64_verify (vaddr_t va, size64_t size) {
+  Pae64Verify (va, size);
+}
+
+/** @deprecated Use Pae64Initialize instead **/
+void pae64_init (void) {
+  Pae64Initialize ();
+}
+
+/** @deprecated Use Pae64MapPage instead **/
+void pae64_map_page (void *pt, vaddr_t va, uintptr_t pa, int payload, int w, int x) {
+  Pae64MapPage (pt, va, pa, payload, w, x);
+}
+
+/** @deprecated Use Pae64PopulatePage instead **/
+static uintptr_t pae64_populate_page (pte_t *cr3, vaddr_t va, int u, int w, int x, int payload) {
+  return Pae64PopulatePage (cr3, va, u, w, x, payload);
+}
+
+/** @deprecated Use Pae64GetPhys instead **/
+uintptr_t pae64_getphys (vaddr_t va) {
+  return Pae64GetPhys (va);
+}
+
+/** @deprecated Use Pae64DirectMap instead **/
+void pae64_directmap (void *pt, uint64_t pabase, vaddr_t va, size64_t size,
+		      enum memory_type mt, int payload, int x) {
+  Pae64DirectMap (pt, pabase, va, size, mt, payload, x);
+}
+
+/** @deprecated Use Pae64Physmap instead **/
+void pae64_physmap (vaddr_t va, size64_t size, uint64_t pa, enum memory_type mt) {
+  Pae64Physmap (va, size, pa, mt);
+}
+
+/** @deprecated Use Pae64TopPtAlloc instead **/
+void pae64_topptalloc (vaddr_t va, size64_t size) {
+  Pae64TopPtAlloc (va, size);
+}
+
+/** @deprecated Use Pae64PtAlloc instead **/
+void pae64_ptalloc (vaddr_t va, size64_t size) {
+  Pae64PtAlloc (va, size);
+}
+
+/** @deprecated Use Pae64Linear instead **/
+void pae64_linear (vaddr_t va, size64_t size) {
+  Pae64Linear (va, size);
+}
+
+/** @deprecated Use Pae64Populate instead **/
+void pae64_populate (vaddr_t va, size64_t size, int u, int w, int x) {
+  Pae64Populate (va, size, u, w, x);
+}
+
+/** @deprecated Use Pae64Entry instead **/
+void pae64_entry (vaddr_t entry) {
+  Pae64Entry (entry);
+}
+
+// Legacy global variable aliases
+static bool nx_enabled __attribute__((alias("gNxEnabled")));
+static pte_t *pae_cr3 __attribute__((alias("gPaeCr3")));
+static pte_t *l2s[4] __attribute__((alias("gL2s")));
+static pte_t *pae64_cr3 __attribute__((alias("gPae64Cr3")));
