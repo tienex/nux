@@ -13,4 +13,6 @@ CFLAGS+= -Wno-prio-ctor-dtor -Wno-stringop-overflow
 LIBDIR=lib
 LIBRARY=nux
 
-SRCS+= init.c ec.c pfnalloc.c kmem.c slab.c kmap.c kva.c uaddr.c uctxt.c cpu.c entry.c pfncache.c time.c framebuffer.c ktlbgen.c nmiemul.c umap.c symbol.c
+SRCS+= init.c ec.c pfnalloc.c kmem.c slab.c kmap.c kva.c uaddr.c uctxt.c cpu.c entry.c pfncache.c time.c ktlbgen.c nmiemul.c umap.c symbol.c
+SRCS+= fb/fb_core.c fb/fb_blit.c fb/fb_text.c fb/fb_console.c
+SRCS+= fb/fonts/font_8x16.c fb/fonts/font_8x14.c fb/fonts/font_8x8.c fb/fonts/font_scrawl.c
