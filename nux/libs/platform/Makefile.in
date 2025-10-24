@@ -12,3 +12,6 @@ LIBDIR=lib
 LIBRARY=plt
 
 SRCS+= plt.c lapic.c ioapic.c hpet.c hw.c acpi.c
+
+INCDIR=include/public/platform
+INCS+=$(addprefix include/public/platform/,platform.h)

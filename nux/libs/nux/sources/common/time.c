@@ -11,7 +11,7 @@
 **/
 
 #include <nux/nux.h>
-#include <nux/plt.h>
+#include <platform/platform.h>
 #include "internal.h"
 
 /**

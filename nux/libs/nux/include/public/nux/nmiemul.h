@@ -19,7 +19,7 @@
 #ifndef _NUX_NMIEMUL_H
 #define _NUX_NMIEMUL_H
 
-#include <nux/hal.h>
+#include <hal/hal.h>
 
 //
 // NMI Emulation Entry Points

@@ -10,8 +10,8 @@
   SPDX-License-Identifier: BSD-2-Clause
 **/
 
-#ifndef PLT_H
-#define PLT_H
+#ifndef PLATFORM_H
+#define PLATFORM_H
 
 #include <stdbool.h>
 #include <nux/types.h>
@@ -543,4 +543,4 @@ static inline struct hal_frame *plt_interrupt (unsigned vect, struct hal_frame *
   return gpPlt->lpVtbl->Interrupt(gpPlt, vect, f);
 }
 
-#endif // PLT_H
+#endif // PLATFORM_H

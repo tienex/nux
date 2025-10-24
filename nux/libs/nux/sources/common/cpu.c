@@ -14,8 +14,8 @@
 #include <string.h>
 
 #include <nux/types.h>
-#include <nux/hal.h>
-#include <nux/plt.h>
+#include <hal/hal.h>
+#include <platform/platform.h>
 #include <nux/nux.h>
 #include <nux/cpumask.h>
 

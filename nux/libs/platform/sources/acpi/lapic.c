@@ -18,7 +18,7 @@
 #include "platform/acpi/apic.h"
 
 #include <nux/nux.h>
-#include <nux/plt.h>
+#include <platform/platform.h>
 
 #define MAXCPUS 256
 

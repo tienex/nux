@@ -15,8 +15,8 @@
 #include <string.h>
 #include <framebuffer.h>
 
-#include <nux/hal.h>
-#include <nux/apxh.h>
+#include <hal/hal.h>
+#include <apxh/apxh.h>
 #include <nux/symbol.h>
 
 #include "internal.h"

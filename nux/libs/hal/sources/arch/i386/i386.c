@@ -15,8 +15,8 @@
 #include <stdbool.h>
 #include <string.h>
 
-#include <nux/hal.h>
-#include <nux/plt.h>
+#include <hal/hal.h>
+#include <platform/platform.h>
 
 #include "hal/arch/i386/i386.h"
 #include "../internal.h"

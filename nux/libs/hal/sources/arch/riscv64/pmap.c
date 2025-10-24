@@ -10,7 +10,7 @@
 **/
 
 #include "internal.h"
-#include <nux/hal.h>
+#include <hal/hal.h>
 #include <nux/nux.h>
 
 /**

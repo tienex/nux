@@ -13,7 +13,7 @@
 
 #include "internal.h"
 #include <string.h>
-#include <nux/hal.h>
+#include <hal/hal.h>
 #include <nux/locks.h>
 #include <nux/types.h>
 #include <nux/nux.h>

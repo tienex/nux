@@ -13,7 +13,7 @@
 #define NUX_LOCKS_H
 
 #include <string.h>
-#include <nux/hal.h>
+#include <hal/hal.h>
 
 //
 // Spinlock Structure

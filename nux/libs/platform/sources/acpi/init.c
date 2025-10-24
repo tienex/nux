@@ -10,9 +10,9 @@
 **/
 
 #include <stddef.h>
-#include <nux/hal.h>
+#include <hal/hal.h>
 #include <nux/nux.h>
-#include <nux/apxh.h>
+#include <apxh/apxh.h>
 
 #include "platform/acpi/internal.h"
 

@@ -26,5 +26,6 @@ SRCS+= x86.c pmap.c vga_text.c serial.c
 
 include $(SRCDIR)/$(ARCH_DIR)/Makefile.inc
 
-INCDIR=include/nux
-INCS+=$(addprefix include/nux/,hal_config.h hal_config_amd64.h hal_config_i386.h)
+INCDIR=include/public/hal
+INCS+=$(addprefix include/public/hal/,config.h hal.h)
+INCS+=$(addprefix include/public/hal/arch/,amd64/config.h i386/config.h riscv64/config.h)

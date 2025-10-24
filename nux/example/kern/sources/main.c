@@ -16,7 +16,7 @@
 #include <nux/nux.h>
 #include <nux/nuxperf.h>
 
-#include <nux/hal.h>
+#include <hal/hal.h>
 
 uctxt_t gUserInit;
 struct hal_umap gUserMap;

@@ -16,9 +16,9 @@
 #include <assert.h>
 #include <framebuffer.h>
 
-#include <nux/hal.h>
-#include <nux/apxh.h>
-#include <nux/plt.h>
+#include <hal/hal.h>
+#include <apxh/apxh.h>
+#include <platform/platform.h>
 #include <nux/nmiemul.h>
 #include "internal.h"
 #include "stree.h"

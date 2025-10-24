@@ -10,7 +10,7 @@
 **/
 
 #include <stdio.h>
-#include <nux/plt.h>
+#include <platform/platform.h>
 #include <nux/nux.h>
 
 #include "internal.h"
