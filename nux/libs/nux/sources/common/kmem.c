@@ -14,7 +14,7 @@
 #include <string.h>
 
 #include "internal.h"
-#include <nux/nux.h>
+#include <nux.h>
 
 #define LO 0
 #define HI 1

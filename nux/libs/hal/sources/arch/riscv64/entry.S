@@ -1,5 +1,5 @@
-#include <hal/config.h>
-#include <hal/arch/riscv64/internal.h>
+#include <config.h>
+#include <arch/riscv64/internal.h>
 
 #define SAVE_REG(_i, _r) sd _r , -((_i) * 8)(sp)
 #define RESTORE_REG(_i, _r) ld _r, -((_i) * 8)(a0)

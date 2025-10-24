@@ -11,8 +11,8 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <hal/hal.h>
-#include <nux/nux.h>
+#include <hal.h>
+#include <nux.h>
 
 #include "internal.h"
 

@@ -10,7 +10,7 @@
   SPDX-License-Identifier: BSD-2-Clause
 **/
 
-#include <nux/syscalls.h>
+#include <syscalls.h>
 #include <stdio.h>
 
 /**

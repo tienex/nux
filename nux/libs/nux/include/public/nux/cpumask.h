@@ -12,8 +12,8 @@
 #ifndef NUX_CPUMASK_H
 #define NUX_CPUMASK_H
 
-#include <nux/types.h>
-#include <nux/nux.h>
+#include <types.h>
+#include <nux.h>
 
 //
 // Atomic CPU Mask Operations

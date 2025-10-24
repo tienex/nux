@@ -14,7 +14,7 @@
 #include <string.h>
 #include <libfdt.h>
 #include <inttypes.h>
-#include <apxh/apxh.h>
+#include <apxh.h>
 
 extern long boothid;
 extern void *dtbptr;

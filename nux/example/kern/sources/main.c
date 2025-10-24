@@ -13,10 +13,10 @@
 
 #include <assert.h>
 #include <stdio.h>
-#include <nux/nux.h>
-#include <nux/nuxperf.h>
+#include <nux.h>
+#include <nuxperf.h>
 
-#include <hal/hal.h>
+#include <hal.h>
 
 uctxt_t gUserInit;
 struct hal_umap gUserMap;

@@ -11,8 +11,8 @@
 **/
 
 #include <assert.h>
-#include <nux/types.h>
-#include <nux/nux.h>
+#include <types.h>
+#include <nux.h>
 
 #include "internal.h"
 

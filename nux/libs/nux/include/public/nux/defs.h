@@ -12,7 +12,7 @@
 #ifndef NUX_DEFS_H
 #define NUX_DEFS_H
 
-#include <hal/config.h>
+#include <config.h>
 
 //
 // Page Size Definitions

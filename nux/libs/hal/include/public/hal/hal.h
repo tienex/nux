@@ -13,7 +13,7 @@
 #ifndef _HAL_H
 #define _HAL_H
 
-#include <nux/types.h>
+#include <types.h>
 #include <stddef.h>
 #include <stdbool.h>
 #include <inttypes.h>
@@ -22,7 +22,7 @@
 // HAL module specific definitions
 //
 
-#include <hal/config.h>
+#include <config.h>
 
 //
 // HAL Interface GUID

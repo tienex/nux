@@ -10,7 +10,7 @@
  */
 /* *INDENT-OFF* */
 
-#include <nux/slabinc.h>
+#include <slabinc.h>
 #include <string.h>
 
 #ifndef SLABFUNC_NAME

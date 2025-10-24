@@ -6,9 +6,9 @@
 */
 
 #include <machine/asm.h>
-#include <hal/arch/amd64/config.h>
-#include <hal/arch/amd64/amd64.h>
-#include <hal/internal.h>
+#include <arch/amd64/config.h>
+#include <arch/amd64/amd64.h>
+#include <internal.h>
 
 	.globl _syscall_frame_entry
 _syscall_frame_entry:

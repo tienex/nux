@@ -10,8 +10,8 @@
 **/
 
 #include <stdio.h>
-#include <platform/platform.h>
-#include <nux/nux.h>
+#include <platform.h>
+#include <nux.h>
 
 #include "internal.h"
 
@@ -228,7 +228,7 @@ static void banner (void) {
 volatile uint32_t _nux_apbooting __attribute__((alias("gNuxApBooting")));
 volatile uint8_t _nux_stflags __attribute__((alias("gNuxStFlags")));
 
-#include <nux/nuxperf.h>
+#include <nuxperf.h>
 #undef NUXPERF
 #undef NUXPERF_DECLARE
 #define NUXPERF_DEFINE

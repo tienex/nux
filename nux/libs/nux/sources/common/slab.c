@@ -13,8 +13,8 @@
 #include <assert.h>
 #include <string.h>
 #include <stdlib.h>
-#include <nux/nux.h>
-#include <nux/slab.h>
+#include <nux.h>
+#include <slab.h>
 
 #define SLAB_LOG2SZ 1		/* Must be power of 2 for alignment */
 #define SLAB_SIZE ((1L << SLAB_LOG2SZ) * PAGE_SIZE)

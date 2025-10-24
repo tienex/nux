@@ -12,7 +12,7 @@
 **/
 
 #include <assert.h>
-#include <nux/nux.h>
+#include <nux.h>
 
 #include "internal.h"
 

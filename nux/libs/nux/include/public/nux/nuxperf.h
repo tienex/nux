@@ -20,7 +20,7 @@
 #define NUX_NUXPERF_H
 
 #include <string.h>
-#include <nux/locks.h>
+#include <locks.h>
 
 //
 // Section Attributes

@@ -9,8 +9,8 @@
 #define LIBNUX_INTERNAL_H
 
 #include <setjmp.h>
-#include <nux/types.h>
-#include <hal/hal.h>
+#include <types.h>
+#include <hal.h>
 
 /*
   NUX 'status' flags.
@@ -139,7 +139,7 @@ struct hal_frame *uctxt_frame (uctxt_t * uctxt);
 /* Transform a user context to a HAL frame. Or return NULL. */
 struct hal_frame *uctxt_frame_pointer (uctxt_t * uctxt);
 
-#include <nux/nuxperf.h>
+#include <nuxperf.h>
 #define NUXPERF_DECLARE
 #include "perf.h"
 

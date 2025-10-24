@@ -6,8 +6,8 @@
 */
 
 #include <machine/asm.h>
-#include <hal/arch/amd64/amd64.h>
-#include <hal/internal.h>
+#include <arch/amd64/amd64.h>
+#include <internal.h>
 
 	.altmacro
 .macro repeat macro from to

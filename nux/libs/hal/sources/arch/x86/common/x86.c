@@ -15,9 +15,9 @@
 #include <string.h>
 #include <framebuffer.h>
 
-#include <hal/hal.h>
-#include <apxh/apxh.h>
-#include <nux/symbol.h>
+#include <hal.h>
+#include <apxh.h>
+#include <symbol.h>
 
 #include "internal.h"
 #include "stree.h"

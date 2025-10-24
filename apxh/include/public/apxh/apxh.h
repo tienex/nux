@@ -20,7 +20,7 @@
 #define _APXH_H
 
 #include <stdint.h>
-#include <nux/framebuffer.h>
+#include <framebuffer.h>
 
 //
 // Platform Type Constants

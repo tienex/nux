@@ -12,7 +12,7 @@
 #ifndef NUX_SLAB_H
 #define NUX_SLAB_H
 
-#include <nux/locks.h>
+#include <locks.h>
 
 //
 // Spinlock Macro Definitions for Slab Implementation

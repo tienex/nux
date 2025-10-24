@@ -16,10 +16,10 @@
 #include <assert.h>
 #include <framebuffer.h>
 
-#include <hal/hal.h>
-#include <apxh/apxh.h>
-#include <platform/platform.h>
-#include <nux/nmiemul.h>
+#include <hal.h>
+#include <apxh.h>
+#include <platform.h>
+#include <nmiemul.h>
 #include "internal.h"
 #include "stree.h"
 

@@ -11,9 +11,9 @@
 **/
 
 #include <stdio.h>
-#include <nux/nux.h>
-#include <hal/hal.h>
-#include <platform/platform.h>
+#include <nux.h>
+#include <hal.h>
+#include <platform.h>
 #include "internal.h"
 
 /**

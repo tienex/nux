@@ -2,8 +2,8 @@
 #define _HAL_INTERNAL_H
 
 #ifndef _ASSEMBLER
-#include <nux/nux.h>
-#include <hal/config.h>
+#include <nux.h>
+#include <config.h>
 #endif
 
 

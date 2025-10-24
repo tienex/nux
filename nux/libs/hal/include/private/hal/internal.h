@@ -11,7 +11,7 @@
 #ifndef _HAL_INTERNAL_H
 #define _HAL_INTERNAL_H
 
-#include <hal/config.h>
+#include <config.h>
 
 #define MAXCPUS	        HAL_MAXCPUS
 
@@ -46,7 +46,7 @@
 
 #ifndef _ASSEMBLER
 
-#include <nux/nux.h>
+#include <nux.h>
 
 #define haldebug(...) debug(__VA_ARGS__)
 #define hallog(...) info(__VA_ARGS__)
