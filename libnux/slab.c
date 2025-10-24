@@ -1,9 +1,14 @@
-/*
-  NUX: A kernel Library.
+/** @file
+  NUX Slab Allocator
+
+  Provides kernel slab allocator for efficient fixed-size object
+  allocation. Uses generic slabinc.c implementation with kernel-
+  specific memory management integration.
+
   Copyright (C) 2019 Gianluca Guida, glguida@tlbflush.org
 
-  SPDX-License-Identifier:	BSD-2-Clause
-*/
+  SPDX-License-Identifier: BSD-2-Clause
+**/
 
 #include <assert.h>
 #include <string.h>
@@ -16,69 +21,131 @@
 
 #define SLABMAGIC 0x80763141
 #define SLABFUNC_NAME "slab cache"
-#define SLABFUNC(_s) slab_##_s
+#define SLABFUNC(_s) Slab##_s
 #define SLABPRINT(...) info(__VA_ARGS__)
 #define SLABFATAL(...) fatal(__VA_ARGS__)
 
-#define ___slabsize() SLAB_SIZE
+/**
+  Get slab size in bytes.
 
-static const size_t
-___slabobjs (const size_t size)
+  @return Slab size (SLAB_SIZE).
+**/
+static CONST size_t
+SlabSize (
+  VOID
+  )
 {
-
-  return (___slabsize () - 2 * sizeof (struct slabhdr)) / size;
+  return SLAB_SIZE;
 }
 
-static struct slabhdr *
-___slaballoc (struct objhdr **ohptr)
+/**
+  Calculate number of objects per slab.
+
+  @param[in] ObjectSize  Size of each object in bytes.
+
+  @return Number of objects that fit in a slab.
+**/
+static CONST size_t
+SlabObjectCount (
+  IN CONST size_t  ObjectSize
+  )
 {
-  vaddr_t kva_una, kva_una_end, kva_start, kva_end;
+  return (SlabSize () - 2 * sizeof (struct slabhdr)) / ObjectSize;
+}
 
-  kva_una = kva_alloc (2 * SLAB_SIZE - PAGE_SIZE);
-  kva_una_end = kva_una + 2 * SLAB_SIZE - PAGE_SIZE;
+/**
+  Allocate aligned slab.
 
-  if (kva_una % SLAB_SIZE)
-    kva_start = (kva_una + SLAB_SIZE - 1) & ~((vaddr_t) SLAB_SIZE - 1);
+  Allocates virtual address space for a new slab, ensuring
+  SLAB_SIZE alignment. Maps physical pages for the slab.
+
+  @param[out] ppObjectHeader  Pointer to receive first object header.
+
+  @return Pointer to slab header, or NULL on failure.
+**/
+static struct slabhdr *
+SlabAllocate (
+  OUT struct objhdr  **ppObjectHeader
+  )
+{
+  vaddr_t KvaUnaligned, KvaUnalignedEnd, KvaStart, KvaEnd;
+
+  KvaUnaligned = KvaAllocate (2 * SLAB_SIZE - PAGE_SIZE);
+  KvaUnalignedEnd = KvaUnaligned + 2 * SLAB_SIZE - PAGE_SIZE;
+
+  if (KvaUnaligned % SLAB_SIZE)
+    KvaStart = (KvaUnaligned + SLAB_SIZE - 1) & ~((vaddr_t) SLAB_SIZE - 1);
   else
-    kva_start = kva_una;
-  kva_end = kva_start + SLAB_SIZE;
+    KvaStart = KvaUnaligned;
+  KvaEnd = KvaStart + SLAB_SIZE;
 
-  if (kva_una < kva_start)
+  if (KvaUnaligned < KvaStart)
     {
-      kva_free (kva_una, kva_start - kva_una);
+      KvaFree (KvaUnaligned, KvaStart - KvaUnaligned);
     }
 
-  if (kva_end < kva_una_end)
+  if (KvaEnd < KvaUnalignedEnd)
     {
-      kva_free (kva_end, kva_una_end - kva_end);
+      KvaFree (KvaEnd, KvaUnalignedEnd - KvaEnd);
     }
 
-  assert (!kmap_ensure_range (kva_start, SLAB_SIZE, HAL_PTE_W | HAL_PTE_P));
-  kmap_commit ();
+  assert (!KmapEnsureRange (KvaStart, SLAB_SIZE, HAL_PTE_W | HAL_PTE_P));
+  KmapCommit ();
 
-  *ohptr = (struct objhdr *) (kva_start + sizeof (struct slabhdr));
-  return (struct slabhdr *) kva_start;
+  *ppObjectHeader = (struct objhdr *) (KvaStart + sizeof (struct slabhdr));
+  return (struct slabhdr *) KvaStart;
 }
 
+/**
+  Get slab header from object pointer.
+
+  Finds the slab header for a given object by masking the
+  address to the slab boundary.
+
+  @param[in] pObject  Pointer to object.
+
+  @return Pointer to slab header, or NULL if magic check fails.
+**/
 static struct slabhdr *
-___slabgethdr (void *obj)
+SlabGetHeader (
+  IN VOID  *pObject
+  )
 {
-  struct slabhdr *sh;
-  uintptr_t addr = (uintptr_t) obj;
+  struct slabhdr *pSlabHeader;
+  UINTN Addr = (UINTN) pObject;
 
-  sh = (struct slabhdr *) (addr & ~((uintptr_t) ___slabsize () - 1));
-  if (sh->magic != SLABMAGIC)
+  pSlabHeader = (struct slabhdr *) (Addr & ~((UINTN) SlabSize () - 1));
+  if (pSlabHeader->magic != SLABMAGIC)
     return NULL;
-  return sh;
+  return pSlabHeader;
 }
 
-static void
-___slabfree (void *ptr)
+/**
+  Free slab.
+
+  Unmaps and frees the virtual address space for a slab.
+
+  @param[in] pPtr  Pointer to slab header.
+**/
+static VOID
+SlabFreeInternal (
+  IN VOID  *pPtr
+  )
 {
-  kmap_ensure_range ((vaddr_t) ptr, SLAB_SIZE, 0);
-  kmap_commit ();
-  kva_free ((vaddr_t) ptr, SLAB_SIZE);
+  KmapEnsureRange ((vaddr_t) pPtr, SLAB_SIZE, 0);
+  KmapCommit ();
+  KvaFree ((vaddr_t) pPtr, SLAB_SIZE);
 }
+
+//
+// Define compatibility macros for slabinc.c
+//
+
+#define ___slabsize() SlabSize()
+#define ___slabobjs(_sz) SlabObjectCount(_sz)
+#define ___slaballoc(_ohptr) SlabAllocate(_ohptr)
+#define ___slabgethdr(_obj) SlabGetHeader(_obj)
+#define ___slabfree(_ptr) SlabFreeInternal(_ptr)
 
 #define DECLARE_SPIN_LOCK(_x) lock_t _x
 #define SPIN_LOCK_INIT(_x) spinlock_init(&_x)
@@ -87,3 +154,15 @@ ___slabfree (void *ptr)
 #define SPIN_LOCK_FREE(_x)
 
 #include "slabinc.c"
+
+//
+// Legacy Function Wrappers (for backward compatibility)
+//
+
+#define slab_grow SlabGrow
+#define slab_shrink SlabShrink
+#define slab_alloc_opq SlabAllocOpq
+#define slab_free SlabFree
+#define slab_register SlabRegister
+#define slab_deregister SlabDeregister
+#define slab_printstats SlabPrintStats
