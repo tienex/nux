@@ -1,9 +1,25 @@
-/*
-  NUX: A kernel Library.
+/** @file
+  NUX Kernel Library Main API
+
+  Provides the main COM-style kernel API including memory management,
+  CPU operations, user context management, and kernel entry points.
+
+  This header defines multiple COM interfaces for different subsystems:
+  - INuxMemory: Physical memory and PFN operations
+  - INuxKva: Kernel virtual address operations
+  - INuxKmap: Kernel mapping operations
+  - INuxKmem: Kernel memory allocation
+  - INuxCpu: CPU management and IPI operations
+  - INuxTimer: Timer operations
+  - INuxUmap: User address space mapping
+  - INuxUaddr: User address validation and copy
+  - INuxUctxt: User context manipulation
+  - INux: Main aggregator interface
+
   Copyright (C) 2019 Gianluca Guida <glguida@tlbflush.org>
 
-  SPDX-License-Identifier:	BSD-2-Clause
-*/
+  SPDX-License-Identifier: BSD-2-Clause
+**/
 
 #ifndef _NUX_H
 #define _NUX_H
@@ -13,50 +29,1491 @@
 #include <nux/types.h>
 #include <nux/locks.h>
 
-/*
+//
+// NUX Interface GUIDs
+//
+
+#define IID_INUX \
+  { 0x7F8E2A3B, 0x94C6, 0x4D5E, { 0xB7, 0x4F, 0xA1, 0x9D, 0x6E, 0x8C, 0x3B, 0x2A } }
+
+#define IID_INUX_MEMORY \
+  { 0x9A1B2C3D, 0x4E5F, 0x6708, { 0x90, 0xA1, 0xB2, 0xC3, 0xD4, 0xE5, 0xF6, 0x07 } }
+
+#define IID_INUX_KVA \
+  { 0x1C2D3E4F, 0x5A6B, 0x7C8D, { 0x9E, 0x0F, 0x1A, 0x2B, 0x3C, 0x4D, 0x5E, 0x6F } }
+
+#define IID_INUX_KMAP \
+  { 0x2B3C4D5E, 0x6F7A, 0x8B9C, { 0xAD, 0xBE, 0xCF, 0xD0, 0xE1, 0xF2, 0x03, 0x14 } }
+
+#define IID_INUX_KMEM \
+  { 0x3C4D5E6F, 0x7A8B, 0x9CAD, { 0xBE, 0xCF, 0xD0, 0xE1, 0xF2, 0x03, 0x14, 0x25 } }
+
+#define IID_INUX_CPU \
+  { 0x4D5E6F7A, 0x8B9C, 0xADBE, { 0xCF, 0xD0, 0xE1, 0xF2, 0x03, 0x14, 0x25, 0x36 } }
+
+#define IID_INUX_TIMER \
+  { 0x5E6F7A8B, 0x9CAD, 0xBECF, { 0xD0, 0xE1, 0xF2, 0x03, 0x14, 0x25, 0x36, 0x47 } }
+
+#define IID_INUX_UMAP \
+  { 0x6F7A8B9C, 0xADBE, 0xCFD0, { 0xE1, 0xF2, 0x03, 0x14, 0x25, 0x36, 0x47, 0x58 } }
+
+#define IID_INUX_UADDR \
+  { 0x7A8B9CAD, 0xBECF, 0xD0E1, { 0xF2, 0x03, 0x14, 0x25, 0x36, 0x47, 0x58, 0x69 } }
+
+#define IID_INUX_UCTXT \
+  { 0x8B9CADBE, 0xCFD0, 0xE1F2, { 0x03, 0x14, 0x25, 0x36, 0x47, 0x58, 0x69, 0x7A } }
+
+//
+// Forward Declarations
+//
+
+INTERFACE_DECL (INux)
+INTERFACE_DECL (INuxMemory)
+INTERFACE_DECL (INuxKva)
+INTERFACE_DECL (INuxKmap)
+INTERFACE_DECL (INuxKmem)
+INTERFACE_DECL (INuxCpu)
+INTERFACE_DECL (INuxTimer)
+INTERFACE_DECL (INuxUmap)
+INTERFACE_DECL (INuxUaddr)
+INTERFACE_DECL (INuxUctxt)
+
+//
+// Kernel Memory Trim Modes
+//
+
+#define TRIM_NONE  0  ///< No trimming
+#define TRIM_BRK   1  ///< Trim break allocation
+#define TRIM_HEAP  2  ///< Trim heap allocation
+
+//
+// Log Levels
+//
+
+#define LOGL_DEBUG  -1  ///< Debug messages
+#define LOGL_INFO    0  ///< Informational messages
+#define LOGL_WARN    1  ///< Warning messages
+#define LOGL_ERROR   2  ///< Error messages
+#define LOGL_FATAL   3  ///< Fatal error messages
+
+//
+// Exit Values
+//
+
+#define EXIT_HALT  0  ///< Halt the current CPU
+#define EXIT_IDLE  1  ///< Set the current CPU to idle
+
+//
+// Page Fault Handler Callback Type
+//
+
+typedef BOOLEAN (*PF_HANDLER)(USER_ADDRESS Va, hal_pfinfo_t Info);
+
+//
+// INuxMemory Interface - Physical Memory Operations
+//
+
+struct _INuxMemoryVtbl {
+  //
+  // IUnknown Methods
+  //
+  HRESULT (*QueryInterface)(IN INuxMemory *This, IN IID *riid, OUT VOID **ppvObject);
+  ULONG   (*AddRef)(IN INuxMemory *This);
+  ULONG   (*Release)(IN INuxMemory *This);
+
+  //
+  // INuxMemory Methods
+  //
+
+  /**
+    Get temporary access to a physical page.
+
+    Obtains a virtual address mapping for a physical page frame for
+    temporary access. If the page is in the direct map, returns the
+    direct map address. Otherwise, creates a temporary mapping in the
+    PFN cache.
+
+    @param[in]  This  Pointer to the INuxMemory instance.
+    @param[in]  Pfn   Physical frame number to access.
+
+    @return Virtual address pointer to the physical page.
+  **/
+  VOID *(*PfnGet)(IN INuxMemory *This, IN PFN Pfn);
+
+  /**
+    Release temporary access to a physical page.
+
+    Releases a mapping obtained with PfnGet. The virtual address
+    pointer must not be used after this call.
+
+    @param[in]  This  Pointer to the INuxMemory instance.
+    @param[in]  Pfn   Physical frame number.
+    @param[in]  pVa   Virtual address pointer from PfnGet.
+  **/
+  VOID (*PfnPut)(IN INuxMemory *This, IN PFN Pfn, IN VOID *pVa);
+
+  /**
+    Allocate a physical page frame.
+
+    Allocates a physical page frame from the system allocator.
+
+    @param[in]  This  Pointer to the INuxMemory instance.
+    @param[in]  Low   If non-zero, allocate from low memory.
+
+    @return Physical frame number, or PFN_INVALID on failure.
+  **/
+  PFN (*PfnAllocate)(IN INuxMemory *This, IN INT32 Low);
+
+  /**
+    Free a physical page frame.
+
+    Returns a physical page frame to the system allocator.
+
+    @param[in]  This  Pointer to the INuxMemory instance.
+    @param[in]  Pfn   Physical frame number to free.
+  **/
+  VOID (*PfnFree)(IN INuxMemory *This, IN PFN Pfn);
+
+  /**
+    Get count of available physical pages.
+
+    @param[in]  This  Pointer to the INuxMemory instance.
+
+    @return Number of available physical page frames.
+  **/
+  UINTN (*PfnAvailable)(IN INuxMemory *This);
+
+  /**
+    Set custom allocator functions.
+
+    Replaces the default S-tree allocator with custom functions.
+
+    @param[in]  This      Pointer to the INuxMemory instance.
+    @param[in]  AllocFn   Custom allocation function.
+    @param[in]  FreeFn    Custom free function.
+  **/
+  VOID (*SetAllocator)(
+    IN INuxMemory  *This,
+    IN PFN         (*AllocFn)(INT32 Low),
+    IN VOID        (*FreeFn)(PFN Pfn)
+    );
+};
+
+INTERFACE_INHERIT_IUNKNOWN (INuxMemory)
+
+//
+// INuxKva Interface - Kernel Virtual Address Operations
+//
+
+struct _INuxKvaVtbl {
+  //
+  // IUnknown Methods
+  //
+  HRESULT (*QueryInterface)(IN INuxKva *This, IN IID *riid, OUT VOID **ppvObject);
+  ULONG   (*AddRef)(IN INuxKva *This);
+  ULONG   (*Release)(IN INuxKva *This);
+
+  //
+  // INuxKva Methods
+  //
+
+  /**
+    Allocate kernel virtual address space.
+
+    Reserves a range of kernel virtual addresses without mapping them.
+
+    @param[in]  This  Pointer to the INuxKva instance.
+    @param[in]  Size  Size in bytes to allocate.
+
+    @return Virtual address, or VADDR_INVALID on failure.
+  **/
+  VIRTUAL_ADDRESS (*Allocate)(IN INuxKva *This, IN UINTN Size);
+
+  /**
+    Free kernel virtual address space.
+
+    Releases a previously allocated range of kernel virtual addresses.
+
+    @param[in]  This  Pointer to the INuxKva instance.
+    @param[in]  Va    Virtual address to free.
+    @param[in]  Size  Size in bytes.
+  **/
+  VOID (*Free)(IN INuxKva *This, IN VIRTUAL_ADDRESS Va, IN UINTN Size);
+
+  /**
+    Map a physical page into kernel virtual space.
+
+    Allocates KVA and maps a single physical page.
+
+    @param[in]  This  Pointer to the INuxKva instance.
+    @param[in]  Pfn   Physical frame number to map.
+    @param[in]  Prot  Protection flags (HAL_PTE_*).
+
+    @return Virtual address pointer, or NULL on failure.
+  **/
+  VOID *(*Map)(IN INuxKva *This, IN PFN Pfn, IN UINTN Prot);
+
+  /**
+    Map physical address range into kernel virtual space.
+
+    Allocates KVA and maps a range of physical addresses.
+
+    @param[in]  This   Pointer to the INuxKva instance.
+    @param[in]  Paddr  Physical address to map.
+    @param[in]  Size   Size in bytes.
+    @param[in]  Prot   Protection flags (HAL_PTE_*).
+
+    @return Virtual address pointer, or NULL on failure.
+  **/
+  VOID *(*PhysMap)(IN INuxKva *This, IN PHYSICAL_ADDRESS Paddr, IN UINTN Size, IN UINTN Prot);
+
+  /**
+    Unmap and free kernel virtual address space.
+
+    Unmaps the pages and frees the virtual address range.
+
+    @param[in]  This  Pointer to the INuxKva instance.
+    @param[in]  pVa   Virtual address pointer.
+    @param[in]  Size  Size in bytes.
+  **/
+  VOID (*Unmap)(IN INuxKva *This, IN VOID *pVa, IN UINTN Size);
+};
+
+INTERFACE_INHERIT_IUNKNOWN (INuxKva)
+
+//
+// INuxKmap Interface - Kernel Mapping Operations
+//
+
+struct _INuxKmapVtbl {
+  //
+  // IUnknown Methods
+  //
+  HRESULT (*QueryInterface)(IN INuxKmap *This, IN IID *riid, OUT VOID **ppvObject);
+  ULONG   (*AddRef)(IN INuxKmap *This);
+  ULONG   (*Release)(IN INuxKmap *This);
+
+  //
+  // INuxKmap Methods
+  //
+
+  /**
+    Get PFN mapped at virtual address.
+
+    @param[in]  This  Pointer to the INuxKmap instance.
+    @param[in]  Va    Virtual address to query.
+
+    @return Physical frame number, or PFN_INVALID if not mapped.
+  **/
+  PFN (*GetPfn)(IN INuxKmap *This, IN VIRTUAL_ADDRESS Va);
+
+  /**
+    Map a physical page at virtual address.
+
+    Maps a PFN at the specified virtual address, allocating page
+    tables as needed.
+
+    @param[in]  This  Pointer to the INuxKmap instance.
+    @param[in]  Va    Virtual address.
+    @param[in]  Pfn   Physical frame number.
+    @param[in]  Prot  Protection flags (HAL_PTE_*).
+
+    @return Previous PFN at that address, or PFN_INVALID.
+  **/
+  PFN (*Map)(IN INuxKmap *This, IN VIRTUAL_ADDRESS Va, IN PFN Pfn, IN UINTN Prot);
+
+  /**
+    Map a physical page without allocating page tables.
+
+    Like Map, but fails if page tables don't exist.
+
+    @param[in]  This  Pointer to the INuxKmap instance.
+    @param[in]  Va    Virtual address.
+    @param[in]  Pfn   Physical frame number.
+    @param[in]  Prot  Protection flags (HAL_PTE_*).
+
+    @return Previous PFN at that address, or PFN_INVALID on failure.
+  **/
+  PFN (*MapNoAlloc)(IN INuxKmap *This, IN VIRTUAL_ADDRESS Va, IN PFN Pfn, IN UINTN Prot);
+
+  /**
+    Unmap a virtual address.
+
+    @param[in]  This  Pointer to the INuxKmap instance.
+    @param[in]  Va    Virtual address to unmap.
+
+    @return PFN that was unmapped, or PFN_INVALID.
+  **/
+  PFN (*Unmap)(IN INuxKmap *This, IN VIRTUAL_ADDRESS Va);
+
+  /**
+    Check if virtual address is mapped.
+
+    @param[in]  This  Pointer to the INuxKmap instance.
+    @param[in]  Va    Virtual address to check.
+
+    @retval TRUE   Address is mapped.
+    @retval FALSE  Address is not mapped.
+  **/
+  BOOLEAN (*IsMapped)(IN INuxKmap *This, IN VIRTUAL_ADDRESS Va);
+
+  /**
+    Check if address range is mapped.
+
+    @param[in]  This  Pointer to the INuxKmap instance.
+    @param[in]  Va    Starting virtual address.
+    @param[in]  Size  Size in bytes.
+
+    @retval TRUE   Entire range is mapped.
+    @retval FALSE  Range contains unmapped addresses.
+  **/
+  BOOLEAN (*IsMappedRange)(IN INuxKmap *This, IN VIRTUAL_ADDRESS Va, IN UINTN Size);
+
+  /**
+    Ensure virtual address has required permissions.
+
+    @param[in]  This     Pointer to the INuxKmap instance.
+    @param[in]  Va       Virtual address.
+    @param[in]  ReqProt  Required protection flags.
+
+    @retval TRUE   Address has required permissions.
+    @retval FALSE  Address lacks required permissions.
+  **/
+  BOOLEAN (*Ensure)(IN INuxKmap *This, IN VIRTUAL_ADDRESS Va, IN UINTN ReqProt);
+
+  /**
+    Ensure address range has required permissions.
+
+    @param[in]  This     Pointer to the INuxKmap instance.
+    @param[in]  Va       Starting virtual address.
+    @param[in]  Size     Size in bytes.
+    @param[in]  ReqProt  Required protection flags.
+
+    @retval TRUE   Range has required permissions.
+    @retval FALSE  Range lacks required permissions.
+  **/
+  BOOLEAN (*EnsureRange)(IN INuxKmap *This, IN VIRTUAL_ADDRESS Va, IN UINTN Size, IN UINTN ReqProt);
+
+  /**
+    Get current TLB generation.
+
+    @param[in]  This  Pointer to the INuxKmap instance.
+
+    @return Current TLB generation number.
+  **/
+  TLB_GENERATION (*GetTlbGen)(IN INuxKmap *This);
+
+  /**
+    Get global TLB generation.
+
+    @param[in]  This  Pointer to the INuxKmap instance.
+
+    @return Global TLB generation number.
+  **/
+  TLB_GENERATION (*GetTlbGenGlobal)(IN INuxKmap *This);
+
+  /**
+    Commit pending TLB operations.
+
+    Flushes TLB entries for pages modified since last commit.
+
+    @param[in]  This  Pointer to the INuxKmap instance.
+  **/
+  VOID (*Commit)(IN INuxKmap *This);
+};
+
+INTERFACE_INHERIT_IUNKNOWN (INuxKmap)
+
+//
+// INuxKmem Interface - Kernel Memory Allocation
+//
+
+struct _INuxKmemVtbl {
+  //
+  // IUnknown Methods
+  //
+  HRESULT (*QueryInterface)(IN INuxKmem *This, IN IID *riid, OUT VOID **ppvObject);
+  ULONG   (*AddRef)(IN INuxKmem *This);
+  ULONG   (*Release)(IN INuxKmem *This);
+
+  //
+  // INuxKmem Methods
+  //
+
+  /**
+    Set break address.
+
+    Sets the end of the kernel heap to the specified address.
+
+    @param[in]  This   Pointer to the INuxKmem instance.
+    @param[in]  Low    Memory region (0 or 1).
+    @param[in]  Vaddr  New break address.
+
+    @retval 0   Success.
+    @retval -1  Failure.
+  **/
+  INT32 (*Brk)(IN INuxKmem *This, IN INT32 Low, IN VIRTUAL_ADDRESS Vaddr);
+
+  /**
+    Adjust break address by increment.
+
+    @param[in]  This  Pointer to the INuxKmem instance.
+    @param[in]  Low   Memory region (0 or 1).
+    @param[in]  Inc   Increment (can be negative).
+
+    @return New break address, or VADDR_INVALID on failure.
+  **/
+  VIRTUAL_ADDRESS (*Sbrk)(IN INuxKmem *This, IN INT32 Low, IN INTN Inc);
+
+  /**
+    Grow break allocation by size.
+
+    @param[in]  This  Pointer to the INuxKmem instance.
+    @param[in]  Low   Memory region (0 or 1).
+    @param[in]  Size  Size to grow in bytes.
+
+    @return New break address, or VADDR_INVALID on failure.
+  **/
+  VIRTUAL_ADDRESS (*BrkGrow)(IN INuxKmem *This, IN INT32 Low, IN UINTN Size);
+
+  /**
+    Shrink break allocation by size.
+
+    @param[in]  This  Pointer to the INuxKmem instance.
+    @param[in]  Low   Memory region (0 or 1).
+    @param[in]  Size  Size to shrink in bytes.
+
+    @retval 0   Success.
+    @retval -1  Failure.
+  **/
+  INT32 (*BrkShrink)(IN INuxKmem *This, IN INT32 Low, IN UINTN Size);
+
+  /**
+    Allocate kernel memory.
+
+    Allocates memory from the kernel heap.
+
+    @param[in]  This  Pointer to the INuxKmem instance.
+    @param[in]  Low   Memory region (0 or 1).
+    @param[in]  Size  Size in bytes.
+
+    @return Virtual address, or VADDR_INVALID on failure.
+  **/
+  VIRTUAL_ADDRESS (*Allocate)(IN INuxKmem *This, IN INT32 Low, IN UINTN Size);
+
+  /**
+    Free kernel memory.
+
+    @param[in]  This   Pointer to the INuxKmem instance.
+    @param[in]  Low    Memory region (0 or 1).
+    @param[in]  Vaddr  Address to free.
+    @param[in]  Size   Size in bytes.
+  **/
+  VOID (*Free)(IN INuxKmem *This, IN INT32 Low, IN VIRTUAL_ADDRESS Vaddr, IN UINTN Size);
+
+  /**
+    Set memory trim mode.
+
+    @param[in]  This      Pointer to the INuxKmem instance.
+    @param[in]  TrimMode  Trim mode (TRIM_*).
+  **/
+  VOID (*SetTrimMode)(IN INuxKmem *This, IN UINTN TrimMode);
+
+  /**
+    Trim memory once.
+
+    Attempts to free unused memory based on trim mode.
+
+    @param[in]  This      Pointer to the INuxKmem instance.
+    @param[in]  TrimMode  Trim mode (TRIM_*).
+  **/
+  VOID (*TrimOne)(IN INuxKmem *This, IN UINTN TrimMode);
+};
+
+INTERFACE_INHERIT_IUNKNOWN (INuxKmem)
+
+//
+// INuxCpu Interface - CPU Management and Operations
+//
+
+struct _INuxCpuVtbl {
+  //
+  // IUnknown Methods
+  //
+  HRESULT (*QueryInterface)(IN INuxCpu *This, IN IID *riid, OUT VOID **ppvObject);
+  ULONG   (*AddRef)(IN INuxCpu *This);
+  ULONG   (*Release)(IN INuxCpu *This);
+
+  //
+  // INuxCpu Methods
+  //
+
+  /**
+    Start all secondary CPUs.
+
+    @param[in]  This  Pointer to the INuxCpu instance.
+  **/
+  VOID (*StartAll)(IN INuxCpu *This);
+
+  /**
+    Get current CPU ID.
+
+    @param[in]  This  Pointer to the INuxCpu instance.
+
+    @return Current CPU identifier.
+  **/
+  UINTN (*GetId)(IN INuxCpu *This);
+
+  /**
+    Get total number of CPUs.
+
+    @param[in]  This  Pointer to the INuxCpu instance.
+
+    @return Number of CPUs in the system.
+  **/
+  UINTN (*GetNum)(IN INuxCpu *This);
+
+  /**
+    Get active CPU mask.
+
+    @param[in]  This  Pointer to the INuxCpu instance.
+
+    @return Bitmask of active CPUs.
+  **/
+  CPU_MASK (*GetActiveMask)(IN INuxCpu *This);
+
+  /**
+    Set CPU-local data pointer.
+
+    @param[in]  This  Pointer to the INuxCpu instance.
+    @param[in]  pPtr  CPU-local data pointer.
+  **/
+  VOID (*SetData)(IN INuxCpu *This, IN VOID *pPtr);
+
+  /**
+    Get CPU-local data pointer.
+
+    @param[in]  This  Pointer to the INuxCpu instance.
+
+    @return CPU-local data pointer.
+  **/
+  VOID *(*GetData)(IN INuxCpu *This);
+
+  /**
+    Idle the current CPU.
+
+    @param[in]  This  Pointer to the INuxCpu instance.
+  **/
+  VOID (*Idle)(IN INuxCpu *This);
+
+  /**
+    Send NMI to a specific CPU.
+
+    @param[in]  This   Pointer to the INuxCpu instance.
+    @param[in]  CpuId  Target CPU identifier.
+  **/
+  VOID (*SendNmi)(IN INuxCpu *This, IN UINTN CpuId);
+
+  /**
+    Send NMI to CPUs in mask.
+
+    @param[in]  This     Pointer to the INuxCpu instance.
+    @param[in]  CpuMask  Bitmask of target CPUs.
+  **/
+  VOID (*SendNmiMask)(IN INuxCpu *This, IN CPU_MASK CpuMask);
+
+  /**
+    Broadcast NMI to all CPUs except current.
+
+    @param[in]  This  Pointer to the INuxCpu instance.
+  **/
+  VOID (*BroadcastNmiAllButSelf)(IN INuxCpu *This);
+
+  /**
+    Broadcast NMI to all CPUs.
+
+    @param[in]  This  Pointer to the INuxCpu instance.
+  **/
+  VOID (*BroadcastNmi)(IN INuxCpu *This);
+
+  /**
+    Send IPI to a specific CPU.
+
+    @param[in]  This   Pointer to the INuxCpu instance.
+    @param[in]  CpuId  Target CPU identifier.
+  **/
+  VOID (*SendIpi)(IN INuxCpu *This, IN UINTN CpuId);
+
+  /**
+    Send IPI to CPUs in mask.
+
+    @param[in]  This     Pointer to the INuxCpu instance.
+    @param[in]  CpuMask  Bitmask of target CPUs.
+  **/
+  VOID (*SendIpiMask)(IN INuxCpu *This, IN CPU_MASK CpuMask);
+
+  /**
+    Broadcast IPI to all CPUs.
+
+    @param[in]  This  Pointer to the INuxCpu instance.
+  **/
+  VOID (*BroadcastIpi)(IN INuxCpu *This);
+
+  /**
+    Flush TLB on a specific CPU.
+
+    @param[in]  This   Pointer to the INuxCpu instance.
+    @param[in]  CpuId  Target CPU identifier.
+  **/
+  VOID (*FlushTlb)(IN INuxCpu *This, IN UINTN CpuId);
+
+  /**
+    Flush TLB on CPUs in mask.
+
+    @param[in]  This     Pointer to the INuxCpu instance.
+    @param[in]  CpuMask  Bitmask of target CPUs.
+  **/
+  VOID (*FlushTlbMask)(IN INuxCpu *This, IN CPU_MASK CpuMask);
+
+  /**
+    Broadcast TLB flush to all CPUs.
+
+    @param[in]  This  Pointer to the INuxCpu instance.
+  **/
+  VOID (*BroadcastFlushTlb)(IN INuxCpu *This);
+
+  /**
+    Broadcast TLB flush and wait for completion.
+
+    @param[in]  This  Pointer to the INuxCpu instance.
+  **/
+  VOID (*BroadcastFlushTlbSync)(IN INuxCpu *This);
+
+  /**
+    Update kernel TLB on current CPU.
+
+    @param[in]  This  Pointer to the INuxCpu instance.
+  **/
+  VOID (*UpdateKernelTlb)(IN INuxCpu *This);
+
+  /**
+    Reach target TLB generation.
+
+    @param[in]  This    Pointer to the INuxCpu instance.
+    @param[in]  Target  Target TLB generation.
+  **/
+  VOID (*ReachKernelTlb)(IN INuxCpu *This, IN TLB_GENERATION Target);
+
+  /**
+    Stop a specific CPU.
+
+    @param[in]  This   Pointer to the INuxCpu instance.
+    @param[in]  CpuId  Target CPU identifier.
+  **/
+  VOID (*Stop)(IN INuxCpu *This, IN UINTN CpuId);
+
+  /**
+    Stop CPUs in mask.
+
+    @param[in]  This     Pointer to the INuxCpu instance.
+    @param[in]  CpuMask  Bitmask of target CPUs.
+  **/
+  VOID (*StopMask)(IN INuxCpu *This, IN CPU_MASK CpuMask);
+
+  /**
+    Broadcast stop to all CPUs.
+
+    @param[in]  This  Pointer to the INuxCpu instance.
+  **/
+  VOID (*BroadcastStop)(IN INuxCpu *This);
+
+  /**
+    Copy from user address space.
+
+    @param[in]  This       Pointer to the INuxCpu instance.
+    @param[out] pDst       Kernel destination buffer.
+    @param[in]  Src        User source address.
+    @param[in]  Size       Number of bytes to copy.
+    @param[in]  PfHandler  Page fault handler callback.
+
+    @retval TRUE   Copy succeeded.
+    @retval FALSE  Copy failed (page fault or invalid address).
+  **/
+  BOOLEAN (*UserAccessCopyFrom)(
+    IN  INuxCpu        *This,
+    OUT VOID           *pDst,
+    IN  USER_ADDRESS   Src,
+    IN  UINTN          Size,
+    IN  PF_HANDLER     PfHandler
+    );
+
+  /**
+    Copy to user address space.
+
+    @param[in]  This       Pointer to the INuxCpu instance.
+    @param[in]  Dst        User destination address.
+    @param[in]  pSrc       Kernel source buffer.
+    @param[in]  Size       Number of bytes to copy.
+    @param[in]  PfHandler  Page fault handler callback.
+
+    @retval TRUE   Copy succeeded.
+    @retval FALSE  Copy failed (page fault or invalid address).
+  **/
+  BOOLEAN (*UserAccessCopyTo)(
+    IN INuxCpu        *This,
+    IN USER_ADDRESS   Dst,
+    IN VOID           *pSrc,
+    IN UINTN          Size,
+    IN PF_HANDLER     PfHandler
+    );
+
+  /**
+    Set memory in user address space.
+
+    @param[in]  This       Pointer to the INuxCpu instance.
+    @param[in]  Dst        User destination address.
+    @param[in]  Ch         Byte value to set.
+    @param[in]  Size       Number of bytes to set.
+    @param[in]  PfHandler  Page fault handler callback.
+
+    @retval TRUE   Operation succeeded.
+    @retval FALSE  Operation failed (page fault or invalid address).
+  **/
+  BOOLEAN (*UserAccessMemset)(
+    IN INuxCpu        *This,
+    IN USER_ADDRESS   Dst,
+    IN INT32          Ch,
+    IN UINTN          Size,
+    IN PF_HANDLER     PfHandler
+    );
+
+  /**
+    Get current user address space mapping.
+
+    @param[in]  This  Pointer to the INuxCpu instance.
+
+    @return Pointer to current UMAP, or NULL if none.
+  **/
+  UMAP *(*GetCurrentUmap)(IN INuxCpu *This);
+
+  /**
+    Enter user address space mapping.
+
+    @param[in]  This   Pointer to the INuxCpu instance.
+    @param[in]  pUmap  User mapping to activate.
+  **/
+  VOID (*EnterUmap)(IN INuxCpu *This, IN UMAP *pUmap);
+
+  /**
+    Exit current user address space mapping.
+
+    @param[in]  This  Pointer to the INuxCpu instance.
+
+    @return Pointer to previous UMAP, or NULL.
+  **/
+  UMAP *(*ExitUmap)(IN INuxCpu *This);
+};
+
+INTERFACE_INHERIT_IUNKNOWN (INuxCpu)
+
+//
+// INuxTimer Interface - Timer Operations
+//
+
+struct _INuxTimerVtbl {
+  //
+  // IUnknown Methods
+  //
+  HRESULT (*QueryInterface)(IN INuxTimer *This, IN IID *riid, OUT VOID **ppvObject);
+  ULONG   (*AddRef)(IN INuxTimer *This);
+  ULONG   (*Release)(IN INuxTimer *This);
+
+  //
+  // INuxTimer Methods
+  //
+
+  /**
+    Set timer alarm.
+
+    @param[in]  This    Pointer to the INuxTimer instance.
+    @param[in]  TimeNs  Time in nanoseconds until alarm.
+  **/
+  VOID (*SetAlarm)(IN INuxTimer *This, IN UINT32 TimeNs);
+
+  /**
+    Clear timer alarm.
+
+    @param[in]  This  Pointer to the INuxTimer instance.
+  **/
+  VOID (*ClearAlarm)(IN INuxTimer *This);
+
+  /**
+    Get current time.
+
+    @param[in]  This  Pointer to the INuxTimer instance.
+
+    @return Current time value in nanoseconds.
+  **/
+  UINT64 (*GetTime)(IN INuxTimer *This);
+};
+
+INTERFACE_INHERIT_IUNKNOWN (INuxTimer)
+
+//
+// INuxUmap Interface - User Address Space Mapping
+//
+
+struct _INuxUmapVtbl {
+  //
+  // IUnknown Methods
+  //
+  HRESULT (*QueryInterface)(IN INuxUmap *This, IN IID *riid, OUT VOID **ppvObject);
+  ULONG   (*AddRef)(IN INuxUmap *This);
+  ULONG   (*Release)(IN INuxUmap *This);
+
+  //
+  // INuxUmap Methods
+  //
+
+  /**
+    Bootstrap a user mapping.
+
+    Initializes a user mapping structure for the bootstrap process.
+
+    @param[in,out] pUserMap  User mapping structure to bootstrap.
+  **/
+  VOID (*Bootstrap)(IN OUT UMAP *pUserMap);
+
+  /**
+    Initialize a user mapping.
+
+    @param[in,out] pUserMap  User mapping structure to initialize.
+  **/
+  VOID (*Init)(IN OUT UMAP *pUserMap);
+
+  /**
+    Free a user mapping.
+
+    @param[in,out] pUserMap  User mapping structure to free.
+  **/
+  VOID (*Free)(IN OUT UMAP *pUserMap);
+
+  /**
+    Map a physical page in user address space.
+
+    @param[in,out] pUserMap  User mapping structure.
+    @param[in]     Va        Virtual address.
+    @param[in]     Pfn       Physical frame number.
+    @param[in]     Prot      Protection flags.
+    @param[out]    pOldPfn   Previous PFN at that address, or NULL.
+
+    @retval TRUE   Mapping succeeded.
+    @retval FALSE  Mapping failed.
+  **/
+  BOOLEAN (*Map)(
+    IN OUT UMAP              *pUserMap,
+    IN     VIRTUAL_ADDRESS   Va,
+    IN     PFN               Pfn,
+    IN     UINTN             Prot,
+    OUT    PFN               *pOldPfn OPTIONAL
+    );
+
+  /**
+    Change protection flags.
+
+    @param[in,out] pUserMap  User mapping structure.
+    @param[in]     Va        Virtual address.
+    @param[in]     ProtSet   Protection flags to set.
+    @param[in]     ProtClr   Protection flags to clear.
+
+    @return Previous protection flags.
+  **/
+  UINTN (*ChangeFlags)(
+    IN OUT UMAP              *pUserMap,
+    IN     VIRTUAL_ADDRESS   Va,
+    IN     UINTN             ProtSet,
+    IN     UINTN             ProtClr
+    );
+
+  /**
+    Unmap a virtual address.
+
+    @param[in,out] pUserMap  User mapping structure.
+    @param[in]     Va        Virtual address to unmap.
+
+    @return PFN that was unmapped, or PFN_INVALID.
+  **/
+  PFN (*Unmap)(IN OUT UMAP *pUserMap, IN VIRTUAL_ADDRESS Va);
+
+  /**
+    Commit pending TLB operations.
+
+    @param[in,out] pUserMap  User mapping structure.
+  **/
+  VOID (*Commit)(IN OUT UMAP *pUserMap);
+};
+
+INTERFACE_INHERIT_IUNKNOWN (INuxUmap)
+
+//
+// INuxUaddr Interface - User Address Validation and Copy
+//
+
+struct _INuxUaddrVtbl {
+  //
+  // IUnknown Methods
+  //
+  HRESULT (*QueryInterface)(IN INuxUaddr *This, IN IID *riid, OUT VOID **ppvObject);
+  ULONG   (*AddRef)(IN INuxUaddr *This);
+  ULONG   (*Release)(IN INuxUaddr *This);
+
+  //
+  // INuxUaddr Methods
+  //
+
+  /**
+    Validate user address.
+
+    @param[in]  This  Pointer to the INuxUaddr instance.
+    @param[in]  Addr  User address to validate.
+
+    @retval TRUE   Address is valid.
+    @retval FALSE  Address is invalid.
+  **/
+  BOOLEAN (*Valid)(IN INuxUaddr *This, IN USER_ADDRESS Addr);
+
+  /**
+    Validate user address range.
+
+    @param[in]  This  Pointer to the INuxUaddr instance.
+    @param[in]  Addr  Starting user address.
+    @param[in]  Size  Size in bytes.
+
+    @retval TRUE   Range is valid.
+    @retval FALSE  Range is invalid.
+  **/
+  BOOLEAN (*ValidRange)(IN INuxUaddr *This, IN USER_ADDRESS Addr, IN UINTN Size);
+
+  /**
+    Copy from user address space.
+
+    @param[in]  This       Pointer to the INuxUaddr instance.
+    @param[out] pDst       Kernel destination buffer.
+    @param[in]  Src        User source address.
+    @param[in]  Size       Number of bytes to copy.
+    @param[in]  PfHandler  Page fault handler callback.
+
+    @retval TRUE   Copy succeeded.
+    @retval FALSE  Copy failed.
+  **/
+  BOOLEAN (*CopyFrom)(
+    IN  INuxUaddr      *This,
+    OUT VOID           *pDst,
+    IN  USER_ADDRESS   Src,
+    IN  UINTN          Size,
+    IN  PF_HANDLER     PfHandler
+    );
+
+  /**
+    Copy to user address space.
+
+    @param[in]  This       Pointer to the INuxUaddr instance.
+    @param[in]  Dst        User destination address.
+    @param[in]  pSrc       Kernel source buffer.
+    @param[in]  Size       Number of bytes to copy.
+    @param[in]  PfHandler  Page fault handler callback.
+
+    @retval TRUE   Copy succeeded.
+    @retval FALSE  Copy failed.
+  **/
+  BOOLEAN (*CopyTo)(
+    IN INuxUaddr      *This,
+    IN USER_ADDRESS   Dst,
+    IN VOID           *pSrc,
+    IN UINTN          Size,
+    IN PF_HANDLER     PfHandler
+    );
+
+  /**
+    Set memory in user address space.
+
+    @param[in]  This       Pointer to the INuxUaddr instance.
+    @param[in]  Dst        User destination address.
+    @param[in]  Ch         Byte value to set.
+    @param[in]  Size       Number of bytes to set.
+    @param[in]  PfHandler  Page fault handler callback.
+
+    @retval TRUE   Operation succeeded.
+    @retval FALSE  Operation failed.
+  **/
+  BOOLEAN (*Memset)(
+    IN INuxUaddr      *This,
+    IN USER_ADDRESS   Dst,
+    IN INT32          Ch,
+    IN UINTN          Size,
+    IN PF_HANDLER     PfHandler
+    );
+};
+
+INTERFACE_INHERIT_IUNKNOWN (INuxUaddr)
+
+//
+// INuxUctxt Interface - User Context Manipulation
+//
+
+struct _INuxUctxtVtbl {
+  //
+  // IUnknown Methods
+  //
+  HRESULT (*QueryInterface)(IN INuxUctxt *This, IN IID *riid, OUT VOID **ppvObject);
+  ULONG   (*AddRef)(IN INuxUctxt *This);
+  ULONG   (*Release)(IN INuxUctxt *This);
+
+  //
+  // INuxUctxt Methods
+  //
+
+  /**
+    Bootstrap a user context.
+
+    @param[in,out] pUctxt  User context to bootstrap.
+
+    @retval TRUE   Bootstrap succeeded.
+    @retval FALSE  Bootstrap failed.
+  **/
+  BOOLEAN (*Bootstrap)(IN OUT UCTXT *pUctxt);
+
+  /**
+    Initialize a user context.
+
+    @param[in,out] pUctxt  User context to initialize.
+    @param[in]     Ip      Initial instruction pointer.
+    @param[in]     Sp      Initial stack pointer.
+    @param[in]     Gp      Initial global pointer.
+  **/
+  VOID (*Init)(
+    IN OUT UCTXT             *pUctxt,
+    IN     VIRTUAL_ADDRESS   Ip,
+    IN     VIRTUAL_ADDRESS   Sp,
+    IN     VIRTUAL_ADDRESS   Gp
+    );
+
+  /**
+    Set instruction pointer.
+
+    @param[in,out] pUctxt  User context.
+    @param[in]     Ip      New instruction pointer.
+  **/
+  VOID (*SetIp)(IN OUT UCTXT *pUctxt, IN VIRTUAL_ADDRESS Ip);
+
+  /**
+    Get instruction pointer.
+
+    @param[in] pUctxt  User context.
+
+    @return Current instruction pointer.
+  **/
+  VIRTUAL_ADDRESS (*GetIp)(IN UCTXT *pUctxt);
+
+  /**
+    Set stack pointer.
+
+    @param[in,out] pUctxt  User context.
+    @param[in]     Sp      New stack pointer.
+  **/
+  VOID (*SetSp)(IN OUT UCTXT *pUctxt, IN VIRTUAL_ADDRESS Sp);
+
+  /**
+    Get stack pointer.
+
+    @param[in] pUctxt  User context.
+
+    @return Current stack pointer.
+  **/
+  VIRTUAL_ADDRESS (*GetSp)(IN UCTXT *pUctxt);
+
+  /**
+    Set global pointer.
+
+    @param[in,out] pUctxt  User context.
+    @param[in]     Gp      New global pointer.
+  **/
+  VOID (*SetGp)(IN OUT UCTXT *pUctxt, IN VIRTUAL_ADDRESS Gp);
+
+  /**
+    Get global pointer.
+
+    @param[in] pUctxt  User context.
+
+    @return Current global pointer.
+  **/
+  VIRTUAL_ADDRESS (*GetGp)(IN UCTXT *pUctxt);
+
+  /**
+    Set return value.
+
+    @param[in,out] pUctxt  User context.
+    @param[in]     Ret     Return value.
+  **/
+  VOID (*SetRet)(IN OUT UCTXT *pUctxt, IN UINTN Ret);
+
+  /**
+    Set argument register A0.
+
+    @param[in,out] pUctxt  User context.
+    @param[in]     A0      Argument value.
+  **/
+  VOID (*SetA0)(IN OUT UCTXT *pUctxt, IN UINTN A0);
+
+  /**
+    Set argument register A1.
+
+    @param[in,out] pUctxt  User context.
+    @param[in]     A1      Argument value.
+  **/
+  VOID (*SetA1)(IN OUT UCTXT *pUctxt, IN UINTN A1);
+
+  /**
+    Set argument register A2.
+
+    @param[in,out] pUctxt  User context.
+    @param[in]     A2      Argument value.
+  **/
+  VOID (*SetA2)(IN OUT UCTXT *pUctxt, IN UINTN A2);
+
+  /**
+    Set TLS pointer.
+
+    @param[in,out] pUctxt  User context.
+    @param[in]     Tls     TLS pointer value.
+  **/
+  VOID (*SetTls)(IN OUT UCTXT *pUctxt, IN UINTN Tls);
+
+  /**
+    Print user context for debugging.
+
+    @param[in] pUctxt  User context to print.
+  **/
+  VOID (*Print)(IN UCTXT *pUctxt);
+};
+
+INTERFACE_INHERIT_IUNKNOWN (INuxUctxt)
+
+//
+// INux Interface - Main Aggregator Interface
+//
+
+struct _INuxVtbl {
+  //
+  // IUnknown Methods
+  //
+  HRESULT (*QueryInterface)(IN INux *This, IN IID *riid, OUT VOID **ppvObject);
+  ULONG   (*AddRef)(IN INux *This);
+  ULONG   (*Release)(IN INux *This);
+
+  //
+  // INux Methods
+  //
+
+  /**
+    Get memory management interface.
+
+    @param[in]  This      Pointer to the INux instance.
+    @param[out] ppMemory  Receives INuxMemory interface pointer.
+
+    @retval S_OK  Success.
+  **/
+  HRESULT (*GetMemoryInterface)(IN INux *This, OUT INuxMemory **ppMemory);
+
+  /**
+    Get kernel virtual address interface.
+
+    @param[in]  This   Pointer to the INux instance.
+    @param[out] ppKva  Receives INuxKva interface pointer.
+
+    @retval S_OK  Success.
+  **/
+  HRESULT (*GetKvaInterface)(IN INux *This, OUT INuxKva **ppKva);
+
+  /**
+    Get kernel mapping interface.
+
+    @param[in]  This    Pointer to the INux instance.
+    @param[out] ppKmap  Receives INuxKmap interface pointer.
+
+    @retval S_OK  Success.
+  **/
+  HRESULT (*GetKmapInterface)(IN INux *This, OUT INuxKmap **ppKmap);
+
+  /**
+    Get kernel memory allocation interface.
+
+    @param[in]  This    Pointer to the INux instance.
+    @param[out] ppKmem  Receives INuxKmem interface pointer.
+
+    @retval S_OK  Success.
+  **/
+  HRESULT (*GetKmemInterface)(IN INux *This, OUT INuxKmem **ppKmem);
+
+  /**
+    Get CPU management interface.
+
+    @param[in]  This   Pointer to the INux instance.
+    @param[out] ppCpu  Receives INuxCpu interface pointer.
+
+    @retval S_OK  Success.
+  **/
+  HRESULT (*GetCpuInterface)(IN INux *This, OUT INuxCpu **ppCpu);
+
+  /**
+    Get timer interface.
+
+    @param[in]  This     Pointer to the INux instance.
+    @param[out] ppTimer  Receives INuxTimer interface pointer.
+
+    @retval S_OK  Success.
+  **/
+  HRESULT (*GetTimerInterface)(IN INux *This, OUT INuxTimer **ppTimer);
+
+  /**
+    Get user mapping interface.
+
+    @param[in]  This    Pointer to the INux instance.
+    @param[out] ppUmap  Receives INuxUmap interface pointer.
+
+    @retval S_OK  Success.
+  **/
+  HRESULT (*GetUmapInterface)(IN INux *This, OUT INuxUmap **ppUmap);
+
+  /**
+    Get user address interface.
+
+    @param[in]  This     Pointer to the INux instance.
+    @param[out] ppUaddr  Receives INuxUaddr interface pointer.
+
+    @retval S_OK  Success.
+  **/
+  HRESULT (*GetUaddrInterface)(IN INux *This, OUT INuxUaddr **ppUaddr);
+
+  /**
+    Get user context interface.
+
+    @param[in]  This     Pointer to the INux instance.
+    @param[out] ppUctxt  Receives INuxUctxt interface pointer.
+
+    @retval S_OK  Success.
+  **/
+  HRESULT (*GetUctxtInterface)(IN INux *This, OUT INuxUctxt **ppUctxt);
+};
+
+INTERFACE_INHERIT_IUNKNOWN (INux)
+
+//
+// Global NUX Interface Pointer
+//
+
+extern INux *gpNux;
+
+#include <stdarg.h>
+#include <stdlib.h>
+#include <stdio.h>
+
+//
+// Logging Helper Function
+//
+
+static inline
+VOID
+__printflike (2, 3)
+__log (
+  IN CONST INT32  Level,
+  IN CONST CHAR8  *Format,
+  ...
+  )
+{
+  va_list  Args;
+
+  if (Level == LOGL_WARN) {
+    printf ("Warning: ");
+  } else if (Level == LOGL_FATAL) {
+    printf ("Fatal: ");
+  } else if (Level == LOGL_ERROR) {
+    printf ("ERROR: ");
+  }
+
+  va_start (Args, Format);
+  vprintf (Format, Args);
+  va_end (Args);
+
+  putchar ('\n');
+
+  if (Level == LOGL_FATAL) {
+    exit (-1);
+  }
+}
+
+//
+// Logging Macros
+//
+
+#ifdef DEBUG
+#define debug(...)  __log(LOGL_DEBUG, __VA_ARGS__)
+#else
+#define debug(...)
+#endif
+
+#define info(...)   __log(LOGL_INFO, __VA_ARGS__)
+#define warn(...)   __log(LOGL_WARN, __VA_ARGS__)
+#define error(...)  __log(LOGL_ERROR, __VA_ARGS__)
+#define fatal(...)  __log(LOGL_FATAL, __VA_ARGS__)
+
+//
+// System Panic
+//
+
+/**
   Stop all CPUs and panic.
- */
-void __dead nux_panic (const char *message, struct hal_frame *f);
 
+  @param[in] pMessage  Error message.
+  @param[in] pFrame    CPU frame at time of panic, or NULL.
+**/
+VOID __dead NuxPanic (IN CONST CHAR8 *pMessage, IN struct hal_frame *pFrame);
 
-/*
-  Temporary PFN access.
+//
+// Main Entry Points
+//
 
-  Obtain a temporary pointer to a physical page. This is used for
-  accessing physical pages for a short period of time, on a single
-  CPU.
+/**
+  Primary CPU initialization entry point.
 
-  Every pointer obtained with a `pfn_get()` call should be released
-  with a `pfn_put()` call.
+  Called at startup after HAL and PLT have been initialized.
 
-  If the page falls in the direct physical map of the HAL, a pointer
-  to the directmap will be returned. Otherwhise a mapping will be
-  created in the kernel address space, and this mapping will be cached
-  to help in short, frequent mappings of the same page.
-*/
+  @param[in] argc  Argument count.
+  @param[in] argv  Argument vector.
+
+  @return Exit code (EXIT_HALT or EXIT_IDLE).
+**/
+INT32 main (IN INT32 argc, IN CHAR8 *argv[]);
+
+/**
+  Secondary CPU initialization entry point.
+
+  Called when a secondary processor starts.
+
+  @return Exit code (EXIT_HALT or EXIT_IDLE).
+**/
+INT32 main_ap (VOID);
+
+//
+// Kernel Entry Points (Event Handlers)
+//
+
+/**
+  System call entry point.
+
+  @param[in] pUctxt  User context, or NULL if CPU was idle.
+  @param[in] Arg1-7  System call arguments.
+
+  @return User context to restore, or NULL to idle CPU.
+**/
+UCTXT *entry_sysc (
+  IN UCTXT        *pUctxt OPTIONAL,
+  IN UINTN        Arg1,
+  IN UINTN        Arg2,
+  IN UINTN        Arg3,
+  IN UINTN        Arg4,
+  IN UINTN        Arg5,
+  IN UINTN        Arg6,
+  IN UINTN        Arg7
+  );
+
+/**
+  Page fault entry point.
+
+  @param[in] pUctxt  User context, or NULL if CPU was idle.
+  @param[in] Va      Faulting virtual address.
+  @param[in] PfInfo  Page fault information.
+
+  @return User context to restore, or NULL to idle CPU.
+**/
+UCTXT *entry_pf (
+  IN UCTXT              *pUctxt OPTIONAL,
+  IN VIRTUAL_ADDRESS    Va,
+  IN hal_pfinfo_t       PfInfo
+  );
+
+/**
+  Generic exception entry point.
+
+  @param[in] pUctxt  User context, or NULL if CPU was idle.
+  @param[in] ExNum   Exception number.
+
+  @return User context to restore, or NULL to idle CPU.
+**/
+UCTXT *entry_ex (
+  IN UCTXT  *pUctxt OPTIONAL,
+  IN UINTN  ExNum
+  );
+
+/**
+  Timer alarm entry point.
+
+  @param[in] pUctxt  User context, or NULL if CPU was idle.
+
+  @return User context to restore, or NULL to idle CPU.
+**/
+UCTXT *entry_alarm (
+  IN UCTXT  *pUctxt OPTIONAL
+  );
+
+/**
+  Inter-processor interrupt entry point.
+
+  @param[in] pUctxt  User context, or NULL if CPU was idle.
+
+  @return User context to restore, or NULL to idle CPU.
+**/
+UCTXT *entry_ipi (
+  IN UCTXT  *pUctxt OPTIONAL
+  );
+
+/**
+  IRQ entry point.
+
+  @param[in] pUctxt  User context, or NULL if CPU was idle.
+  @param[in] IrqNum  IRQ number.
+  @param[in] Level   TRUE if level-triggered, FALSE if edge-triggered.
+
+  @return User context to restore, or NULL to idle CPU.
+**/
+UCTXT *entry_irq (
+  IN UCTXT    *pUctxt OPTIONAL,
+  IN UINTN    IrqNum,
+  IN BOOLEAN  Level
+  );
+
+//
+// Legacy Function Declarations (for backward compatibility)
+//
+
+// Physical memory operations
 void *pfn_get (pfn_t pfn);
 void pfn_put (pfn_t pfn, void *va);
-
 void nux_set_allocator (pfn_t (*alloc) (int), void (*free) (pfn_t));
 pfn_t pfn_alloc (int low);
 void pfn_free (pfn_t pfn);
 unsigned long pfn_avail (void);
-
-/*
-  The S-tree page allocator.
-
-  Used by default by pfn_alloc and pfn_free, can be changed via
-  'nux_set_allocator()'.
-*/
 pfn_t stree_pfnalloc (int low);
 void stree_pfnfree (pfn_t pfn);
 
+// Kernel virtual address operations
 vaddr_t kva_alloc (size_t size);
 void kva_free (vaddr_t va, size_t size);
 void *kva_map (pfn_t pfn, unsigned prot);
 void *kva_physmap (paddr_t paddr, size_t size, unsigned prot);
 void kva_unmap (void *va, size_t size);
 
+// Kernel mapping operations
 pfn_t kmap_getpfn (vaddr_t va);
 pfn_t kmap_map (vaddr_t va, pfn_t pfn, unsigned prot);
 pfn_t kmap_map_noalloc (vaddr_t va, pfn_t pfn, unsigned prot);
@@ -69,293 +1526,91 @@ volatile tlbgen_t kmap_tlbgen (void);
 volatile tlbgen_t kmap_tlbgen_global (void);
 void kmap_commit (void);
 
+// Kernel memory operations
 int kmem_brk (int low, vaddr_t vaddr);
 vaddr_t kmem_sbrk (int low, long inc);
 vaddr_t kmem_brkgrow (int low, unsigned size);
 int kmem_brkshrink (int low, unsigned size);
 vaddr_t kmem_alloc (int low, size_t size);
 void kmem_free (int low, vaddr_t vaddr, size_t size);
-#define TRIM_NONE 0
-#define TRIM_BRK  1
-#define TRIM_HEAP 2
 void kmem_trim_setmode (unsigned trim_mode);
 void kmem_trim_one (unsigned trim_mode);
 
+// CPU operations
 void cpu_startall (void);
 unsigned cpu_id (void);
 unsigned cpu_num (void);
 cpumask_t cpu_activemask (void);
 void cpu_setdata (void *ptr);
 void *cpu_getdata (void);
-
 void cpu_idle (void);
-
 void cpu_nmi (int cpu);
 void cpu_nmi_mask (cpumask_t map);
 void cpu_nmi_allbutself (void);
 void cpu_nmi_broadcast (void);
-
 void cpu_ipi (int cpu);
 void cpu_ipi_mask (cpumask_t map);
 void cpu_ipi_broadcast (void);
-
 void cpu_tlbflush (int cpu);
 void cpu_tlbflush_mask (cpumask_t mask);
 void cpu_tlbflush_broadcast (void);
 void cpu_tlbflush_broadcast_sync (void);
-
 void cpu_ktlb_update (void);
 void cpu_ktlb_reach (tlbgen_t target);
-
 void cpu_stop (int cpu);
 void cpu_stop_mask (cpumask_t mask);
 void cpu_stop_broadcast (void);
-
-bool cpu_useraccess_copyfrom (void *dst, uaddr_t src, size_t size,
-			      bool (*pf_handler) (uaddr_t va,
-						  hal_pfinfo_t info));
-bool cpu_useraccess_copyto (uaddr_t dst, void *src, size_t size,
-			    bool (*pf_handler) (uaddr_t va,
-						hal_pfinfo_t info));
-bool cpu_useraccess_memset (uaddr_t dst, int ch, size_t size,
-			    bool (*pf_handler) (uaddr_t va,
-						hal_pfinfo_t info));
-
+bool cpu_useraccess_copyfrom (void *dst, uaddr_t src, size_t size, bool (*pf_handler)(uaddr_t va, hal_pfinfo_t info));
+bool cpu_useraccess_copyto (uaddr_t dst, void *src, size_t size, bool (*pf_handler)(uaddr_t va, hal_pfinfo_t info));
+bool cpu_useraccess_memset (uaddr_t dst, int ch, size_t size, bool (*pf_handler)(uaddr_t va, hal_pfinfo_t info));
 umap_t *cpu_umap_current (void);
 void cpu_umap_enter (struct umap *umap);
 umap_t *cpu_umap_exit (void);
 
-
+// Timer operations
 void timer_alarm (uint32_t time_ns);
 void timer_clear (void);
 uint64_t timer_gettime (void);
 
+// User mapping operations
 void umap_bootstrap (struct umap *umap);
 void umap_init (struct umap *umap);
 void umap_free (struct umap *umap);
-bool umap_map (struct umap *umap, vaddr_t va, pfn_t pfn, unsigned prot,
-	       pfn_t * opfn);
-unsigned umap_chflags (struct umap *umap, vaddr_t va,
-		   unsigned prot_set, unsigned prot_clr);
+bool umap_map (struct umap *umap, vaddr_t va, pfn_t pfn, unsigned prot, pfn_t *opfn);
+unsigned umap_chflags (struct umap *umap, vaddr_t va, unsigned prot_set, unsigned prot_clr);
 pfn_t umap_unmap (struct umap *umap, vaddr_t va);
 void umap_commit (struct umap *umap);
 
-bool uaddr_valid (uaddr_t);
-bool uaddr_validrange (uaddr_t a, size_t size);
-bool uaddr_copyfrom (void *dst, uaddr_t src, size_t size,
-		     bool (*pf_handler) (uaddr_t va, hal_pfinfo_t info));
-bool uaddr_copyto (uaddr_t dst, void *src, size_t size,
-		   bool (*pf_handler) (uaddr_t va, hal_pfinfo_t info));
-bool uaddr_memset (uaddr_t dst, int ch, size_t size,
-		   bool (*pf_handler) (uaddr_t va, hal_pfinfo_t info));
+// User address operations
+bool uaddr_valid (uaddr_t addr);
+bool uaddr_validrange (uaddr_t addr, size_t size);
+bool uaddr_copyfrom (void *dst, uaddr_t src, size_t size, bool (*pf_handler)(uaddr_t va, hal_pfinfo_t info));
+bool uaddr_copyto (uaddr_t dst, void *src, size_t size, bool (*pf_handler)(uaddr_t va, hal_pfinfo_t info));
+bool uaddr_memset (uaddr_t dst, int ch, size_t size, bool (*pf_handler)(uaddr_t va, hal_pfinfo_t info));
 
-/*
-  Get the uctxt of the boot-time user process. Returns false if not present.
-*/
-bool uctxt_bootstrap (uctxt_t * uctxt);
+// User context operations
+bool uctxt_bootstrap (uctxt_t *uctxt);
+void uctxt_init (uctxt_t *uctxt, vaddr_t ip, vaddr_t sp, vaddr_t gp);
+void uctxt_setip (uctxt_t *uctxt, vaddr_t ip);
+vaddr_t uctxt_getip (uctxt_t *uctxt);
+void uctxt_setsp (uctxt_t *uctxt, vaddr_t sp);
+vaddr_t uctxt_getsp (uctxt_t *uctxt);
+void uctxt_setgp (uctxt_t *uctxt, vaddr_t gp);
+vaddr_t uctxt_getgp (uctxt_t *uctxt);
+void uctxt_setret (uctxt_t *uctxt, unsigned long ret);
+void uctxt_seta0 (uctxt_t *uctxt, unsigned long a0);
+void uctxt_seta1 (uctxt_t *uctxt, unsigned long a1);
+void uctxt_seta2 (uctxt_t *uctxt, unsigned long a2);
+void uctxt_settls (uctxt_t *uctxt, unsigned long tls);
+void uctxt_print (uctxt_t *uctxt);
 
-/*
-  Initialize a user context specifying instruction and stack
-  pointer.
-*/
-void uctxt_init (uctxt_t * uctxt, vaddr_t ip, vaddr_t sp, vaddr_t gp);
+//
+// Legacy Wrapper Functions
+//
 
-/*
-  Set the instruction pointer of a user context.
-*/
-void uctxt_setip (uctxt_t * uctxt, vaddr_t ip);
-
-/*
-  Get the instruction pointer of a user context.
-*/
-vaddr_t uctxt_getip (uctxt_t * uctxt);
-
-/*
-  Set the stack pointer of a user context.
-*/
-void uctxt_setsp (uctxt_t * uctxt, vaddr_t sp);
-
-/*
-  Get the stack pointer of a user context.
-*/
-vaddr_t uctxt_getsp (uctxt_t * uctxt);
-
-/*
-  Set the global pointer of a user context.
-*/
-void uctxt_setgp (uctxt_t * uctxt, vaddr_t gp);
-
-/*
-  Get the global pointer of a user context.
-*/
-vaddr_t uctxt_getgp (uctxt_t * uctxt);
-
-void uctxt_setret (uctxt_t * uctxt, unsigned long ret);
-void uctxt_seta0 (uctxt_t * uctxt, unsigned long a0);
-void uctxt_seta1 (uctxt_t * uctxt, unsigned long a1);
-void uctxt_seta2 (uctxt_t * uctxt, unsigned long a2);
-void uctxt_settls (uctxt_t * uctxt, unsigned long tls);
-void uctxt_print (uctxt_t * uctxt);
-
-#define LOGL_DEBUG -1
-#define LOGL_INFO  0
-#define LOGL_WARN  1
-#define LOGL_ERROR 2
-#define LOGL_FATAL 3
-
-#include <stdarg.h>
-#include <stdlib.h>
-#include <stdio.h>
-
-static inline void
-__printflike (2, 3)
-__log (const int level, const char *fmt, ...)
-{
-  va_list ap;
-
-  if (level == LOGL_WARN)
-    printf ("Warning: ");
-  else if (level == LOGL_FATAL)
-    printf ("Fatal: ");
-  else if (level == LOGL_ERROR)
-    printf ("ERROR: ");
-
-  va_start (ap, fmt);
-  vprintf (fmt, ap);
-  va_end (ap);
-
-  putchar ('\n');
-
-  if (level == LOGL_FATAL)
-    exit (-1);
+/** @deprecated Use NuxPanic instead **/
+static inline void __dead nux_panic (const char *message, struct hal_frame *f) {
+  NuxPanic (message, f);
 }
 
-#ifdef DEBUG
-#define debug(...) __log(LOGL_DEBUG, __VA_ARGS__)
-#else
-#define debug(...)
-#endif
-#define info(...) __log(LOGL_INFO, __VA_ARGS__)
-#define warn(...) __log(LOGL_WARN, __VA_ARGS__)
-#define error(...) __log(LOGL_ERROR, __VA_ARGS__)
-#define fatal(...) __log(LOGL_FATAL, __VA_ARGS__)
-
-/*
-  External Interface of NUX.
-
-  This is the interface that has to be implemented by the main program
-  in order to use NUX.
-*/
-
-/*
-  NUX Exit Values
-
-  The libec call exit () will halt the system except for the exit
- values listed below.
-*/
-
-/* Halt the current cpu. */
-#define EXIT_HALT 0
-
-/* Set the current cpu to idle. */
-#define EXIT_IDLE 1
-
-/*
-  NUX Kernel main functions.
-
-  A NUX kernel has two main functions:
-
-  1. main: this is the function called at initialisation by the
-     primary processor. When main starts, no other processor is
-     running. Its role is to initialise the whole kernel, start
-     secondary processors (if desired) and exit.
-
-  2 main_ap: this is the function called when a secondary processor
-    start. At this time it is safe to assume that all other processors
-    are running, with the primary being fully initialised. The role of
-    this function is to initialise cpu-specific kernel state, and exit.
-
-  The return value of these functions is important because it gets
-  passed to the exit() call. See Exit Values.
-*/
-
-/*
-  The main program entry.
-
-  This will be called at startup, after HAL and PLT have been
-  initialised.
-*/
-int main (int argc, char *argv[]);
-
-/*
-  Entry for Secondary Processors.
-
-  If the primary CPU, running the main program, starts secondary
-  processors, after initialization is complete will call this
-  function.
-*/
-int main_ap (void);
-
-/*
-  NUX kernel entries.
-
-  The following functions are entries in the system. These are the events
-  to which a kernel has to react.
-
-  A NUX kernel is essentially an event based system, and the following are
-  the events a NUX kernel will have to respond to.
-
-  Every entry function takes a uctxt in input and returns a
-  uctxt. The two uctxt doesn't have to be the same.
-
-  The uctxt in input contains the user context of the interrupted
-  process, and will be NULL if the entry was generated while the CPU
-  was idle.
-
-  The uctxt returned contains the user context of the process that
-  will be restored on re-entry. If NULL, the CPU will be put in
-  idle mode.
-*/
-
-/*
-  Entry for Syscall
-*/
-uctxt_t *entry_sysc (uctxt_t * u,
-		     unsigned long a1, unsigned long a2, unsigned long a3,
-		     unsigned long a4, unsigned long a5, unsigned long a6,
-		     unsigned long a7);
-
-/*
-  Entry for Page Fault
-*/
-uctxt_t *entry_pf (uctxt_t * u, vaddr_t va, hal_pfinfo_t pfi);
-
-/*
-  Entry for Generic Exception
-*/
-uctxt_t *entry_ex (uctxt_t * u, unsigned ex);
-
-/*
-  Entry for Platform Alarm.
-
-  This function will be called whenever the platform alarm is fired.
-*/
-uctxt_t *entry_alarm (uctxt_t * f);
-
-/*
-  Entry for IPI.
-
-  This function will be called on IPI.
-*/
-uctxt_t *entry_ipi (uctxt_t * f);
-
-/*
- Entry for IRQ.
-
- This function will be called on IRQ.
-*/
-uctxt_t *entry_irq (uctxt_t * f, unsigned irq, bool lvl);
-
-
-
-#endif
+#endif // _NUX_H
