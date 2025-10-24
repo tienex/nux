@@ -8,8 +8,8 @@
   SPDX-License-Identifier: BSD-2-Clause
 **/
 
-#ifndef _SQUOZE_H_
-#define _SQUOZE_H_
+#ifndef __squoze_h__
+#define __squoze_h__
 
 #include <stdint.h>
 

@@ -11,8 +11,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef INT_LIB_H
-#define INT_LIB_H
+#ifndef __ecrt_intrinsics_int_lib_h__
+#define __ecrt_intrinsics_int_lib_h__
 
 // Assumption: Signed integral is 2's complement.
 // Assumption: Right shift of signed negative is arithmetic shift.

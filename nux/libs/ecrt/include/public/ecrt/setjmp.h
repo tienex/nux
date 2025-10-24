@@ -4,8 +4,8 @@
   SPDX-License-Identifier:	BSD-2-Clause
 */
 
-#ifndef EC_SETJMP_H
-#define EC_SETJMP_H
+#ifndef __ecrt_setjmp_h__
+#define __ecrt_setjmp_h__
 
 #include <cdefs.h>
 #include <machine/setjmp.h>

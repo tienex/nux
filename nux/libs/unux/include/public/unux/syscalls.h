@@ -1,5 +1,5 @@
-#ifndef __NUX_SYSCALLS_H
-#define __NUX_SYSCALLS_H
+#ifndef __unux_syscalls_h__
+#define __unux_syscalls_h__
 
 long syscall0 (unsigned long sys);
 long syscall1 (unsigned long sys, unsigned long arg1);

@@ -1,5 +1,5 @@
-#ifndef EC_SYS_TYPES_H
-#define EC_SYS_TYPES_H
+#ifndef __ecrt_sys_types_h__
+#define __ecrt_sys_types_h__
 
 #include <machine/ansi.h>
 

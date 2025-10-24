@@ -41,7 +41,7 @@
  *      __UINT_MAX : upper limit of the return type
  */
 
-#ifndef _EC_SOURCE
+#ifndef __ecrt__strtoul_h__
 
 #if defined(_KERNEL) || defined(_STANDALONE) || \
     defined(HAVE_NBTOOL_CONFIG_H) || defined(BCS_ONLY)
@@ -83,7 +83,7 @@ _FUNCNAME (const char *nptr, char **endptr, int base)
   /* check base value */
   if (base && (base < 2 || base > 36))
     {
-#ifndef _EC_SOURCE
+#ifndef __ecrt__strtoul_h__
 #if !defined(_KERNEL) && !defined(_STANDALONE)
       errno = EINVAL;
       if (endptr != NULL)
@@ -107,7 +107,7 @@ _FUNCNAME (const char *nptr, char **endptr, int base)
    * assume decimal; if base is already 16, allow 0x.
    */
   s = nptr;
-#ifndef _EC_SOURCE
+#ifndef __ecrt__strtoul_h__
 #if defined(_KERNEL) || defined(_STANDALONE) || \
     defined(HAVE_NBTOOL_CONFIG_H) || defined(BCS_ONLY)
   do
@@ -185,7 +185,7 @@ _FUNCNAME (const char *nptr, char **endptr, int base)
       if (acc > cutoff || (acc == cutoff && i > cutlim))
 	{
 	  acc = __UINT_MAX;
-#ifndef _EC_SOURCE
+#ifndef __ecrt__strtoul_h__
 #if !defined(_KERNEL) && !defined(_STANDALONE)
 	  any = -1;
 	  errno = ERANGE;
@@ -213,7 +213,7 @@ _FUNCNAME (const char *nptr, char **endptr, int base)
   return (acc);
 }
 
-#ifndef _EC_SOURCE
+#ifndef __ecrt__strtoul_h__
 #if !defined(_KERNEL) && !defined(_STANDALONE) && \
     !defined(HAVE_NBTOOL_CONFIG_H) && !defined(BCS_ONLY)
 __UINT

@@ -29,8 +29,8 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef _SYS_EXEC_ELF_H_
-#define _SYS_EXEC_ELF_H_
+#ifndef __elf_h__
+#define __elf_h__
 
 /*
  * The current ELF ABI specification is available at:

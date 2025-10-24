@@ -5,8 +5,8 @@
   SPDX-License-Identifier:	BSD-2-Clause
 */
 
-#ifndef EC_AMD64_STDINT_H
-#define EC_AMD64_STDINT_H
+#ifndef __ecrt_arch_amd64_stdint_h__
+#define __ecrt_arch_amd64_stdint_h__
 
 typedef char int8_t;
 typedef unsigned char uint8_t;

@@ -9,8 +9,8 @@
   SPDX-License-Identifier: BSD-2-Clause
 **/
 
-#ifndef NUX_CPUMASK_H
-#define NUX_CPUMASK_H
+#ifndef __nux_cpumask_h__
+#define __nux_cpumask_h__
 
 #include <nux/types.h>
 #include <nux/nux.h>

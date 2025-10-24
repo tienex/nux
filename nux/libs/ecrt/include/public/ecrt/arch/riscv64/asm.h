@@ -5,8 +5,8 @@
   SPDX-License-Identifier:	BSD-2-Clause
 */
 
-#ifndef RV64_ASM_H
-#define RV64_ASM_H
+#ifndef __ecrt_arch_riscv64_asm_h__
+#define __ecrt_arch_riscv64_asm_h__
 
 #define _ALIGN_TEXT     .align 8
 #define _C_LABEL(x)	x

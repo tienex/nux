@@ -10,8 +10,8 @@
   SPDX-License-Identifier: BSD-2-Clause
 **/
 
-#ifndef __FB_INTERNAL_H__
-#define __FB_INTERNAL_H__
+#ifndef __nux_framebuffer_internal_h__
+#define __nux_framebuffer_internal_h__
 
 #include <nux/internal.h>
 #include <nux/locks.h>

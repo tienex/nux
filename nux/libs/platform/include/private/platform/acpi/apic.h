@@ -5,8 +5,8 @@
   SPDX-License-Identifier:	BSD-2-Clause
 */
 
-#ifndef PLTACPI_APIC_H
-#define PLTACPI_APIC_H
+#ifndef __platform_acpi_apic_h__
+#define __platform_acpi_apic_h__
 
 /*
   This is the main apic gsi/ipi to interrupt vector configuration.

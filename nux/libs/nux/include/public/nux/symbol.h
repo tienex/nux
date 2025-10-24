@@ -10,8 +10,8 @@
   SPDX-License-Identifier: BSD-2-Clause
 **/
 
-#ifndef _SYMBOL_H
-#define _SYMBOL_H
+#ifndef __nux_symbol_h__
+#define __nux_symbol_h__
 
 /**
   Resolve an address to a symbol name.

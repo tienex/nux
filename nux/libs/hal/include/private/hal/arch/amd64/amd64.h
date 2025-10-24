@@ -5,8 +5,8 @@
   SPDX-License-Identifier:	BSD-2-Clause
 */
 
-#ifndef _AMD64_INTERNAL
-#define _AMD64_INTERNAL
+#ifndef __hal_arch_amd64_amd64_h__
+#define __hal_arch_amd64_amd64_h__
 
 #define TSS_GDTIDX(_i) (6 + (_i) * 2)
 

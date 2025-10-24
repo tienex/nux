@@ -5,8 +5,8 @@
   SPDX-License-Identifier:	BSD-2-Clause
 */
 
-#ifndef _HAL_I386_CONFIG
-#define _HAL_I386_CONFIG
+#ifndef __hal_arch_i386_config_h__
+#define __hal_arch_i386_config_h__
 
 #include <cdefs.h>
 

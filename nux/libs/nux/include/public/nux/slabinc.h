@@ -14,8 +14,8 @@
   SPDX-License-Identifier: BSD-2-Clause
 **/
 
-#ifndef SLABINC_H
-#define SLABINC_H
+#ifndef __nux_slabinc_h__
+#define __nux_slabinc_h__
 
 #include <queue.h>
 #include <stddef.h>

@@ -5,8 +5,8 @@
   SPDX-License-Identifier:	BSD-2-Clause
 */
 
-#ifndef LIBNUX_INTERNAL_H
-#define LIBNUX_INTERNAL_H
+#ifndef __nux_internal_h__
+#define __nux_internal_h__
 
 #include <setjmp.h>
 #include <nux/types.h>

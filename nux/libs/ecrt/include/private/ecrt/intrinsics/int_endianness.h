@@ -11,8 +11,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef INT_ENDIANNESS_H
-#define INT_ENDIANNESS_H
+#ifndef __ecrt_intrinsics_int_endianness_h__
+#define __ecrt_intrinsics_int_endianness_h__
 
 #if defined(__BYTE_ORDER__) && defined(__ORDER_BIG_ENDIAN__) &&                \
     defined(__ORDER_LITTLE_ENDIAN__)

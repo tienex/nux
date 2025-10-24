@@ -12,8 +12,8 @@
   SPDX-License-Identifier: BSD-2-Clause
 **/
 
-#ifndef _CACHE_H
-#define _CACHE_H
+#ifndef __nux_cache_h__
+#define __nux_cache_h__
 
 #include <assert.h>
 #include <stdint.h>

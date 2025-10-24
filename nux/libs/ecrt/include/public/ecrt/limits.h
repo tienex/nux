@@ -5,8 +5,8 @@
   SPDX-License-Identifier:	BSD-2-Clause
 */
 
-#ifndef EC_LIMITS_H
-#define EC_LIMITS_H
+#ifndef __ecrt_limits_h__
+#define __ecrt_limits_h__
 
 #include <machine/limits.h>
 

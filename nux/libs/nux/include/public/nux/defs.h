@@ -9,8 +9,8 @@
   SPDX-License-Identifier: BSD-2-Clause
 **/
 
-#ifndef NUX_DEFS_H
-#define NUX_DEFS_H
+#ifndef __nux_defs_h__
+#define __nux_defs_h__
 
 #include <hal/config.h>
 

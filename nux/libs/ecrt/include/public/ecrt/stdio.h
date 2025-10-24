@@ -4,8 +4,8 @@
   SPDX-License-Identifier:	BSD-2-Clause
 */
 
-#ifndef EC_STDIO_H
-#define EC_STDIO_H
+#ifndef __ecrt_stdio_h__
+#define __ecrt_stdio_h__
 
 #include <cdefs.h>
 #include <stddef.h>

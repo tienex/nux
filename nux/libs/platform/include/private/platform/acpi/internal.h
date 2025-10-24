@@ -5,8 +5,8 @@
   SPDX-License-Identifier:	BSD-2-Clause
 */
 
-#ifndef PLTACPI_INTERNAL_H
-#define PLTACPI_INTERNAL_H
+#ifndef __platform_acpi_internal_h__
+#define __platform_acpi_internal_h__
 
 #include <stdint.h>
 #include <platform/platform.h>

@@ -5,8 +5,8 @@
   SPDX-License-Identifier:	BSD-2-Clause
 */
 
-#ifndef EC_STDARG_H
-#define EC_STDARG_H
+#ifndef __ecrt_stdarg_h__
+#define __ecrt_stdarg_h__
 
 typedef __builtin_va_list va_list;
 #define va_start(ap, last) __builtin_va_start((ap), (last))

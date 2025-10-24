@@ -1,5 +1,5 @@
-#ifndef EC_CTYPE_H
-#define EC_CTYPE_H
+#ifndef __ecrt_ctype_h__
+#define __ecrt_ctype_h__
 
 int isspace (int);
 

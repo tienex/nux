@@ -9,8 +9,8 @@
   SPDX-License-Identifier:	BSD-2-Clause
 **/
 
-#ifndef _PLATFORM_UEFI_INTERNAL_H
-#define _PLATFORM_UEFI_INTERNAL_H
+#ifndef __platform_uefi_internal_h__
+#define __platform_uefi_internal_h__
 
 void efi_exit (int st);
 void efi_exitbs (void);

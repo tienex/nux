@@ -5,8 +5,8 @@
   SPDX-License-Identifier:	BSD-2-Clause
 */
 
-#ifndef RV64_ANSI_H
-#define RV64_ANSI_H
+#ifndef __ecrt_arch_riscv64_ansi_h__
+#define __ecrt_arch_riscv64_ansi_h__
 
 typedef long ptrdiff_t;
 typedef unsigned long size_t;

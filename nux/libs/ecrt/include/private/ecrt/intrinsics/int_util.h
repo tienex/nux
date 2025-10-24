@@ -14,8 +14,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef INT_UTIL_H
-#define INT_UTIL_H
+#ifndef __ecrt_intrinsics_int_util_h__
+#define __ecrt_intrinsics_int_util_h__
 
 /// \brief Trigger a program abort (or panic for kernel code).
 #define compilerrt_abort() __compilerrt_abort_impl(__FILE__, __LINE__, __func__)

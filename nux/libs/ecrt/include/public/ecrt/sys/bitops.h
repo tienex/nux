@@ -28,8 +28,8 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
-#ifndef _SYS_BITOPS_H_
-#define _SYS_BITOPS_H_
+#ifndef __ecrt_sys_bitops_h__
+#define __ecrt_sys_bitops_h__
 
 #include <stdint.h>
 

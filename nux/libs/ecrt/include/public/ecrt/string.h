@@ -5,8 +5,8 @@
   SPDX-License-Identifier:	BSD-2-Clause
 */
 
-#ifndef EC_STRING_H
-#define EC_STRING_H
+#ifndef __ecrt_string_h__
+#define __ecrt_string_h__
 
 #include <stddef.h>
 

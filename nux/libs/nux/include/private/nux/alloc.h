@@ -5,8 +5,8 @@
   SPDX-License-Identifier:	BSD-2-Clause
 */
 
-#ifndef _ALLOC_H
-#define _ALLOC_H
+#ifndef __nux_alloc_h__
+#define __nux_alloc_h__
 
 #include <limits.h>
 #include <stdint.h>

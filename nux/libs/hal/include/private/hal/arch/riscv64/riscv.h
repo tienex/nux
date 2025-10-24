@@ -1,5 +1,5 @@
-#ifndef HAL_RISCV_RISCV_H
-#define HAL_RISCV_RISCV_H
+#ifndef __hal_arch_riscv64_riscv_h__
+#define __hal_arch_riscv64_riscv_h__
 
 #define SSTATUS_SIE  (1L << 1)
 #define SSTATUS_SPIE (1L << 5)

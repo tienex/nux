@@ -4,8 +4,8 @@
   SPDX-License-Identifier:	BSD-2-Clause
 */
 
-#ifndef EC_I386_TYPES_H
-#define EC_I386_TYPES_H
+#ifndef __ecrt_arch_i386_setjmp_h__
+#define __ecrt_arch_i386_setjmp_h__
 
 #define _JB_PC 0
 #define _JB_EBX 1

@@ -8,8 +8,8 @@
   SPDX-License-Identifier: BSD-2-Clause
 **/
 
-#ifndef _HAL_INTERNAL_H
-#define _HAL_INTERNAL_H
+#ifndef __hal_internal_h__
+#define __hal_internal_h__
 
 #include <hal/config.h>
 

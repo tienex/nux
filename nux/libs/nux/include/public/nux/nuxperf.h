@@ -16,8 +16,8 @@
   SPDX-License-Identifier: BSD-2-Clause
 **/
 
-#ifndef NUX_NUXPERF_H
-#define NUX_NUXPERF_H
+#ifndef __nux_nuxperf_h__
+#define __nux_nuxperf_h__
 
 #include <string.h>
 #include <nux/locks.h>

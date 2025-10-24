@@ -4,8 +4,8 @@
   SPDX-License-Identifier:	BSD-2-Clause
 */
 
-#ifndef I386_ASM_H
-#define I386_ASM_H
+#ifndef __ecrt_arch_i386_asm_h__
+#define __ecrt_arch_i386_asm_h__
 
 #define _ALIGN_TEXT     .align 16
 #define _C_LABEL(x)	x

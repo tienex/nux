@@ -5,8 +5,8 @@
   SPDX-License-Identifier:	BSD-2-Clause
 */
 
-#ifndef EC_ERRNO_H
-#define EC_ERRNO_H
+#ifndef __ecrt_errno_h__
+#define __ecrt_errno_h__
 
 #define	EPERM		1	/* Operation not permitted */
 #define	ENOENT		2	/* No such device */

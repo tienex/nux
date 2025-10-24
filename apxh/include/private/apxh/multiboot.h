@@ -26,15 +26,15 @@
  *  IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#ifndef MULTIBOOT_HEADER
-#define MULTIBOOT_HEADER 1
+#ifndef __apxh_multiboot_h__
+#define __apxh_multiboot_h__ 1
 
 /* How many bytes from the start of the file we search for the header. */
 #define MULTIBOOT_SEARCH                        8192
-#define MULTIBOOT_HEADER_ALIGN                  4
+#define __apxh_multiboot_h___ALIGN                  4
 
 /* The magic field should contain this. */
-#define MULTIBOOT_HEADER_MAGIC                  0x1BADB002
+#define __apxh_multiboot_h___MAGIC                  0x1BADB002
 
 /* This should be in %eax. */
 #define MULTIBOOT_BOOTLOADER_MAGIC              0x2BADB002

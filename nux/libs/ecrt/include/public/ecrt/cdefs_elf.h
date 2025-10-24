@@ -4,8 +4,8 @@
   SPDX-License-Identifier:	BSD-2-Clause
 */
 
-#ifndef EC_CDEFS_ELF_H
-#define EC_CDEFS_ELF_H
+#ifndef __ecrt_cdefs_elf_h__
+#define __ecrt_cdefs_elf_h__
 
 #include <machine/asm.h>
 

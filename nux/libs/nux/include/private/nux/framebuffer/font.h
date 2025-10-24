@@ -9,8 +9,8 @@
   SPDX-License-Identifier: BSD-2-Clause
 **/
 
-#ifndef __FONT_H__
-#define __FONT_H__
+#ifndef __nux_framebuffer_font_h__
+#define __nux_framebuffer_font_h__
 
 #include <stdint.h>
 

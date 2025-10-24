@@ -4,8 +4,8 @@
   SPDX-License-Identifier:	BSD-2-Clause
 */
 
-#ifndef EC_STDBOOL_H
-#define EC_STDBOOL_H
+#ifndef __ecrt_stdbool_h__
+#define __ecrt_stdbool_h__
 
 typedef int bool;
 

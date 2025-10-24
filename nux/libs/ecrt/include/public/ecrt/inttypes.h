@@ -4,8 +4,8 @@
   SPDX-License-Identifier:	BSD-2-Clause
 */
 
-#ifndef EC_INTTYPES_H
-#define EC_INTTYPES_H
+#ifndef __ecrt_inttypes_h__
+#define __ecrt_inttypes_h__
 
 #include <stdint.h>
 

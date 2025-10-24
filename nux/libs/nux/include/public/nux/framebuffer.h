@@ -1,5 +1,5 @@
-#ifndef _FRAMEBUFFER_H
-#define _FRAMEBUFFER_H
+#ifndef __nux_framebuffer_h__
+#define __nux_framebuffer_h__
 
 #include <stdint.h>
 

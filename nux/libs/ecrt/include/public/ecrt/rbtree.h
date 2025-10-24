@@ -31,7 +31,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef _SYS_RBTREE_H_
+#ifndef __ecrt_rbtree_h__
 #define	_SYS_RBTREE_H_
 
 #if defined(_EC_SOURCE)

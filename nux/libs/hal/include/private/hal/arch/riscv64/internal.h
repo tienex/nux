@@ -1,5 +1,5 @@
-#ifndef _HAL_INTERNAL_H
-#define _HAL_INTERNAL_H
+#ifndef __hal_arch_riscv64_internal_h__
+#define __hal_arch_riscv64_internal_h__
 
 #ifndef _ASSEMBLER
 #include <nux/nux.h>

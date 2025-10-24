@@ -10,8 +10,8 @@
   SPDX-License-Identifier: BSD-2-Clause
 **/
 
-#ifndef PLATFORM_H
-#define PLATFORM_H
+#ifndef __platform_platform_h__
+#define __platform_platform_h__
 
 #include <stdbool.h>
 #include <nux/types.h>

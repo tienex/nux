@@ -9,8 +9,8 @@
   SPDX-License-Identifier: BSD-2-Clause
 **/
 
-#ifndef NUX_COMBASE_H
-#define NUX_COMBASE_H
+#ifndef __nux_combase_h__
+#define __nux_combase_h__
 
 #include <stdint.h>
 #include <stdbool.h>

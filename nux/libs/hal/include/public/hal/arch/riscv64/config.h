@@ -1,5 +1,5 @@
-#ifndef _HAL_RISCV_CONFIG
-#define _HAL_RISCV_CONFIG
+#ifndef __hal_arch_riscv64_config_h__
+#define __hal_arch_riscv64_config_h__
 
 #ifndef _ASSEMBLER
 

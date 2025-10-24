@@ -5,7 +5,7 @@
   SPDX-License-Identifier:	BSD-2-Clause
 */
 
-#ifndef HAL_X86_I386_H
+#ifndef __hal_arch_i386_i386_h__
 #define HAL_X86_I386_h
 
 #define KERNBASE 0xc0000000

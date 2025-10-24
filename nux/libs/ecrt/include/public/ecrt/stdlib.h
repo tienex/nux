@@ -4,8 +4,8 @@
   SPDX-License-Identifier:	BSD-2-Clause
 */
 
-#ifndef EC_STDLIB_H
-#define EC_STDLIB_H
+#ifndef __ecrt_stdlib_h__
+#define __ecrt_stdlib_h__
 
 #include <cdefs.h>
 

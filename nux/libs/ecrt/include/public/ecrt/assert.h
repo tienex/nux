@@ -4,8 +4,8 @@
   SPDX-License-Identifier:	BSD-2-Clause
 */
 
-#ifndef EC_ASSERT_H
-#define EC_ASSERT_H
+#ifndef __ecrt_assert_h__
+#define __ecrt_assert_h__
 
 #include <cdefs.h>
 #include <stdlib.h>

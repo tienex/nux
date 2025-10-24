@@ -21,8 +21,8 @@
   SPDX-License-Identifier: BSD-2-Clause
 **/
 
-#ifndef _NUX_H
-#define _NUX_H
+#ifndef __nux_nux_h__
+#define __nux_nux_h__
 
 #include <config.h>
 #include <nux/defs.h>

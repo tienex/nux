@@ -4,8 +4,8 @@
   SPDX-License-Identifier:	BSD-2-Clause
 */
 
-#ifndef EC_I386_STDINT_H
-#define EC_I386_STDINT_H
+#ifndef __ecrt_arch_i386_stdint_h__
+#define __ecrt_arch_i386_stdint_h__
 
 typedef char int8_t;
 typedef unsigned char uint8_t;

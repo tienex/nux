@@ -13,8 +13,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef INT_TYPES_H
-#define INT_TYPES_H
+#ifndef __ecrt_intrinsics_int_types_h__
+#define __ecrt_intrinsics_int_types_h__
 
 #include <ecrt/intrinsics/int_endianness.h>
 

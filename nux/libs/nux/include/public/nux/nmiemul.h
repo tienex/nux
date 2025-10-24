@@ -16,8 +16,8 @@
   SPDX-License-Identifier: BSD-2-Clause
 **/
 
-#ifndef _NUX_NMIEMUL_H
-#define _NUX_NMIEMUL_H
+#ifndef __nux_nmiemul_h__
+#define __nux_nmiemul_h__
 
 #include <hal/hal.h>
 

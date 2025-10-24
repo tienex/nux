@@ -5,8 +5,8 @@
   SPDX-License-Identifier:	BSD-2-Clause
 */
 
-#ifndef EC_AMD64_LIMITS_H
-#define EC_AMD64_LIMITS_H
+#ifndef __ecrt_arch_amd64_limits_h__
+#define __ecrt_arch_amd64_limits_h__
 
 #define CHAR_BIT 8
 #define WORD_BIT 32

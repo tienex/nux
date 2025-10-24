@@ -4,8 +4,8 @@
   SPDX-License-Identifier:	BSD-2-Clause
 */
 
-#ifndef EC_STDINT_H
-#define EC_STDINT_H
+#ifndef __ecrt_stdint_h__
+#define __ecrt_stdint_h__
 
 #include <machine/stdint.h>
 

@@ -4,8 +4,8 @@
   SPDX-License-Identifier:	BSD-2-Clause
 */
 
-#ifndef EC_STDDEF_H
-#define EC_STDDEF_H
+#ifndef __ecrt_stddef_h__
+#define __ecrt_stddef_h__
 
 #define NULL ((void *)0)
 

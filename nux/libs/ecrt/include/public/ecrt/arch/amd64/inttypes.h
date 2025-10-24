@@ -5,8 +5,8 @@
   SPDX-License-Identifier:	BSD-2-Clause
 */
 
-#ifndef EC_AMD64_INTTYPES_H
-#define EC_AMD64_INTTYPES_H
+#ifndef __ecrt_arch_amd64_inttypes_h__
+#define __ecrt_arch_amd64_inttypes_h__
 
 #define PRIx32 "x"
 #define PRId32 "d"

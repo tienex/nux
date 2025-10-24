@@ -10,8 +10,8 @@
   SPDX-License-Identifier: BSD-2-Clause
 **/
 
-#ifndef NUX_TYPES_H
-#define NUX_TYPES_H
+#ifndef __nux_types_h__
+#define __nux_types_h__
 
 #include <nux/defs.h>
 #include <nux/combase.h>
