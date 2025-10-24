@@ -1,99 +1,105 @@
-/*
-  APXH: An ELF boot-loader.
+/** @file
+  APXH ELF Loader
+
+  Provides ELF (Executable and Linkable Format) parsing and loading
+  for 32-bit and 64-bit executables. Handles program headers for
+  kernel and user-space segments, including LOAD, TLS, and custom
+  APXH segment types.
+
   Copyright (C) 2019 Gianluca Guida, glguida@tlbflush.org
 
-  SPDX-License-Identifier:	BSD-2-Clause
-*/
+  SPDX-License-Identifier: BSD-2-Clause
+**/
 
 #include "project.h"
 
-struct elf32ph
+typedef struct elf32ph
 {
-  uint32_t type;
-  uint32_t off;
-  uint32_t va;
-  uint32_t pa;
-  uint32_t fsize;
-  uint32_t msize;
-  uint32_t flags;
-  uint32_t align;
-};
+  UINT32 type;
+  UINT32 off;
+  UINT32 va;
+  UINT32 pa;
+  UINT32 fsize;
+  UINT32 msize;
+  UINT32 flags;
+  UINT32 align;
+} ELF32_PH;
 
-struct elf64ph
+typedef struct elf64ph
 {
-  uint32_t type;
-  uint32_t flags;
-  uint64_t off;
-  uint64_t va;
-  uint64_t pa;
-  uint64_t fsize;
-  uint64_t msize;
-  uint64_t align;
-};
+  UINT32 type;
+  UINT32 flags;
+  UINT64 off;
+  UINT64 va;
+  UINT64 pa;
+  UINT64 fsize;
+  UINT64 msize;
+  UINT64 align;
+} ELF64_PH;
 
-struct elf32sh
+typedef struct elf32sh
 {
-  uint32_t name;
-  uint32_t type;
-  uint32_t flags;
-  uint32_t addr;
-  uint32_t off;
-  uint32_t size;
-  uint32_t lnk;
-  uint32_t info;
-  uint32_t align;
-  uint32_t shent_size;
-};
+  UINT32 name;
+  UINT32 type;
+  UINT32 flags;
+  UINT32 addr;
+  UINT32 off;
+  UINT32 size;
+  UINT32 lnk;
+  UINT32 info;
+  UINT32 align;
+  UINT32 shent_size;
+} ELF32_SH;
 
-struct elf64sh
+typedef struct elf64sh
 {
-  uint32_t name;
-  uint32_t type;
-  uint64_t flags;
-  uint64_t addr;
-  uint64_t off;
-  uint64_t size;
-  uint32_t lnk;
-  uint32_t info;
-  uint64_t align;
-  uint64_t shent_size;
-};
+  UINT32 name;
+  UINT32 type;
+  UINT64 flags;
+  UINT64 addr;
+  UINT64 off;
+  UINT64 size;
+  UINT32 lnk;
+  UINT32 info;
+  UINT64 align;
+  UINT64 shent_size;
+} ELF64_SH;
 
-struct elf32hdr
+typedef struct elf32hdr
 {
-  uint8_t id[16];
-  uint16_t type;
-  uint16_t mach;
-  uint32_t ver;
-  uint32_t entry;
-  uint32_t phoff;
-  uint32_t shoff;
-  uint32_t flags;
-  uint16_t eh_size;
-  uint16_t phent_size;
-  uint16_t phs;
-  uint16_t shent_size;
-  uint16_t shs;
-  uint16_t shstrndx;
-} __packed;
+  UINT8  id[16];
+  UINT16 type;
+  UINT16 mach;
+  UINT32 ver;
+  UINT32 entry;
+  UINT32 phoff;
+  UINT32 shoff;
+  UINT32 flags;
+  UINT16 eh_size;
+  UINT16 phent_size;
+  UINT16 phs;
+  UINT16 shent_size;
+  UINT16 shs;
+  UINT16 shstrndx;
+} __packed ELF32_HDR;
 
-struct elf64hdr
+typedef struct elf64hdr
 {
-  uint8_t id[16];
-  uint16_t type;
-  uint16_t mach;
-  uint32_t ver;
-  uint64_t entry;
-  uint64_t phoff;
-  uint64_t shoff;
-  uint32_t flags;
-  uint16_t eh_size;
-  uint16_t phent_size;
-  uint16_t phs;
-  uint16_t shent_size;
-  uint16_t shs;
-  uint16_t shstrndx;
-} __packed;
+  UINT8  id[16];
+  UINT16 type;
+  UINT16 mach;
+  UINT32 ver;
+  UINT64 entry;
+  UINT64 phoff;
+  UINT64 shoff;
+  UINT32 flags;
+  UINT16 eh_size;
+  UINT16 phent_size;
+  UINT16 phs;
+  UINT16 shent_size;
+  UINT16 shs;
+  UINT16 shstrndx;
+} __packed ELF64_HDR;
 
 #define ET_EXEC		2
 #define EM_386		3
@@ -117,246 +123,357 @@ struct elf64hdr
 #define PHF_W		2
 #define PHF_R		4
 
-#define ELFOFF(_o) ((void *)(uintptr_t)(elfimg + (_o)))
+#define ELFOFF(_o) ((VOID *)(UINTN)(pElfImg + (_o)))
 
-void
-ph_uload (void *elfimg, uint32_t type, uint32_t flags,
-	  uint64_t va, uint64_t msize, uint64_t off, uint64_t fsize)
+/**
+  Load user-space program header.
+
+  Processes ELF program header for user-space segments (LOAD, TLS).
+  Copies or zeros memory as needed and sets up virtual address mappings.
+
+  @param[in] pElfImg  Pointer to ELF image.
+  @param[in] Type     Program header type.
+  @param[in] Flags    Program header flags (PHF_R/PHF_W/PHF_X).
+  @param[in] Va       Virtual address.
+  @param[in] MSize    Memory size.
+  @param[in] Off      File offset.
+  @param[in] FSize    File size.
+**/
+VOID
+PhUload (
+  IN VOID    *pElfImg,
+  IN UINT32  Type,
+  IN UINT32  Flags,
+  IN UINT64  Va,
+  IN UINT64  MSize,
+  IN UINT64  Off,
+  IN UINT64  FSize
+  )
 {
-  switch (type)
+  switch (Type)
     {
     case PHT_LOAD:
       /* Normal load segment. */
-      if (va + msize < va)
+      if (Va + MSize < Va)
 	{
 	  printf ("size of PH too big.");
 	  exit (-1);
 	}
 
-      if (fsize)
+      if (FSize)
 	{
 	  /*
 	     memcpy() to user and populate on fault.
 	   */
-	  va_copy (va, ELFOFF (off), fsize, 1,
-		   !!(flags & PHF_W), !!(flags & PHF_X));
+	  VaCopy (Va, ELFOFF (Off), FSize, 1,
+		   !!(Flags & PHF_W), !!(Flags & PHF_X));
 	}
 
-      if (msize - fsize > 0)
+      if (MSize - FSize > 0)
 	{
 	  /*
 	     memset() to user and populate on fault.
 	   */
-	  va_memset (va + fsize, 0, msize - fsize, 1,
-		     !!(flags & PHF_W), !!(flags & PHF_X));
+	  VaMemset (Va + FSize, 0, MSize - FSize, 1,
+		     !!(Flags & PHF_W), !!(Flags & PHF_X));
 	}
       break;
     case PHT_TLS:
       /* User Thread Local Storage. */
-      if (msize != 0)
+      if (MSize != 0)
 	{
 	  printf ("USER TLS area at %08" PRIx64 " (initsize: %" PRId64
-		  " size: %" PRId64 ").\n", va, fsize, msize);
+		  " size: %" PRId64 ").\n", Va, FSize, MSize);
 
-	  if (va + msize < va)
+	  if (Va + MSize < Va)
 	    {
 	      printf ("size of PH too big.");
 	      exit (-1);
 	    }
 
-	  if (fsize != 0)
+	  if (FSize != 0)
 	    {
-	      va_copy (va, ELFOFF (off), fsize, 0,
-		       !!(flags & PHF_W), !!(flags & PHF_X));
+	      VaCopy (Va, ELFOFF (Off), FSize, 0,
+		       !!(Flags & PHF_W), !!(Flags & PHF_X));
 	    }
-	  va_utls (va, fsize, msize);
+	  VaUtls (Va, FSize, MSize);
 	}
     default:
-      printf ("Ignored segment type %08lx.\n", type);
+      printf ("Ignored segment type %08lx.\n", Type);
       break;
     }
 }
 
-void
-ph_kload (void *elfimg, uint32_t type, uint32_t flags,
-	  uint64_t va, uint64_t msize, uint64_t off, uint64_t fsize)
+/**
+  Load kernel program header.
+
+  Processes ELF program header for kernel segments (LOAD, TLS, and
+  custom APXH types for boot information, physical mappings, etc).
+
+  @param[in] pElfImg  Pointer to ELF image.
+  @param[in] Type     Program header type.
+  @param[in] Flags    Program header flags (PHF_R/PHF_W/PHF_X).
+  @param[in] Va       Virtual address.
+  @param[in] MSize    Memory size.
+  @param[in] Off      File offset.
+  @param[in] FSize    File size.
+**/
+VOID
+PhKload (
+  IN VOID    *pElfImg,
+  IN UINT32  Type,
+  IN UINT32  Flags,
+  IN UINT64  Va,
+  IN UINT64  MSize,
+  IN UINT64  Off,
+  IN UINT64  FSize
+  )
 {
-  switch (type)
+  switch (Type)
     {
     case PHT_LOAD:
       /* Normal load segment. */
-      if (va + msize < va)
+      if (Va + MSize < Va)
 	{
 	  printf ("size of PH too big.");
 	  exit (-1);
 	}
 
-      if (fsize)
+      if (FSize)
 	{
 	  /*
 	     memcpy() to user and populate on fault.
 	   */
-	  va_copy (va, ELFOFF (off), fsize, 0,
-		   !!(flags & PHF_W), !!(flags & PHF_X));
+	  VaCopy (Va, ELFOFF (Off), FSize, 0,
+		   !!(Flags & PHF_W), !!(Flags & PHF_X));
 	}
 
-      if (msize - fsize > 0)
+      if (MSize - FSize > 0)
 	{
 	  /*
 	     memset() to user and populate on fault.
 	   */
-	  va_memset (va + fsize, 0, msize - fsize, 0,
-		     !!(flags & PHF_W), !!(flags & PHF_X));
+	  VaMemset (Va + FSize, 0, MSize - FSize, 0,
+		     !!(Flags & PHF_W), !!(Flags & PHF_X));
 	}
       break;
     case PHT_TLS:
       /* Thread Local Storage. */
-      if (msize != 0)
+      if (MSize != 0)
 	{
 	  printf ("TLS area at %08" PRIx64 " (initsize: %" PRId64 " size: %"
-		  PRId64 ").\n", va, fsize, msize);
-	  if (va + msize < va)
+		  PRId64 ").\n", Va, FSize, MSize);
+	  if (Va + MSize < Va)
 	    {
 	      printf ("size of PH too big.");
 	      exit (-1);
 	    }
-	  if (fsize != 0)
+	  if (FSize != 0)
 	    {
-	      va_copy (va, ELFOFF (off), fsize, 0,
-		       !!(flags & PHF_W), !!(flags & PHF_X));
+	      VaCopy (Va, ELFOFF (Off), FSize, 0,
+		       !!(Flags & PHF_W), !!(Flags & PHF_X));
 	    }
-	  va_ktls (va, fsize, msize);
+	  VaKtls (Va, FSize, MSize);
 	}
       break;
 
     case PHT_APXH_INFO:
       /* Boot Information segment. */
       printf ("Boot Information area at %" PRIx64 " (size: %" PRId64 "d).\n",
-	      va, msize);
-      va_info (va, msize);
+	      Va, MSize);
+      VaInfo (Va, MSize);
       break;
     case PHT_APXH_PHYSMAP:
       /* Direct 1:1 PA mapping. */
-      printf ("Physmap VA area at %" PRIx64 " (size: %" PRId64 ").\n", va,
-	      msize);
-      va_physmap (va, msize, MEMTYPE_WB);
+      printf ("Physmap VA area at %" PRIx64 " (size: %" PRId64 ").\n", Va,
+	      MSize);
+      VaPhysmap (Va, MSize, MEMTYPE_WB);
       break;
     case PHT_APXH_EMPTY:
-      printf ("Empty VA area at %" PRIx64 " (size: %" PRId64 ").\n", va,
-	      msize);
+      printf ("Empty VA area at %" PRIx64 " (size: %" PRId64 ").\n", Va,
+	      MSize);
       /* Just VA allocation. Leave it. */
       break;
     case PHT_APXH_PTALLOC:
-      printf ("PT Alloc VA area at %" PRIx64 " (size: %" PRId64 ").\n", va,
-	      msize);
-      va_ptalloc (va, msize);
+      printf ("PT Alloc VA area at %" PRIx64 " (size: %" PRId64 ").\n", Va,
+	      MSize);
+      VaPtalloc (Va, MSize);
       break;
     case PHT_APXH_PFNMAP:
-      printf ("PFN Map at %" PRIx64 " (size: %" PRId64 ").\n", va, msize);
-      va_pfnmap (va, msize);
+      printf ("PFN Map at %" PRIx64 " (size: %" PRId64 ").\n", Va, MSize);
+      VaPfnmap (Va, MSize);
       break;
     case PHT_APXH_STREE:
-      printf ("S-Tree at %" PRIx64 " (size: %" PRId64 ").\n", va, msize);
-      va_stree (va, msize);
+      printf ("S-Tree at %" PRIx64 " (size: %" PRId64 ").\n", Va, MSize);
+      VaStree (Va, MSize);
       break;
     case PHT_APXH_LINEAR:
-      printf ("Linear Map at %" PRIx64 " (size: %" PRId64 ").\n", va, msize);
-      va_linear (va, msize);
+      printf ("Linear Map at %" PRIx64 " (size: %" PRId64 ").\n", Va, MSize);
+      VaLinear (Va, MSize);
       break;
     case PHT_APXH_FRAMEBUF:
-      printf ("Framebuffer Map at %" PRIx64 " (size: %" PRId64 ").\n", va,
-	      msize);
-      va_framebuf (va, msize, MEMTYPE_WC);
+      printf ("Framebuffer Map at %" PRIx64 " (size: %" PRId64 ").\n", Va,
+	      MSize);
+      VaFramebuf (Va, MSize, MEMTYPE_WC);
       break;
     case PHT_APXH_REGIONS:
-      printf ("Region Map at %" PRIx64 " (size: %" PRId64 ").\n", va, msize);
-      va_regions (va, msize);
+      printf ("Region Map at %" PRIx64 " (size: %" PRId64 ").\n", Va, MSize);
+      VaRegions (Va, MSize);
       break;
     case PHT_APXH_TOPPTALLOC:
       printf ("TOP PT Alloc VA area at %" PRIx64 " (size: %" PRId64 ").\n",
-	      va, msize);
-      va_topptalloc (va, msize);
+	      Va, MSize);
+      VaTopptalloc (Va, MSize);
       break;
     default:
-      printf ("Ignored segment type %08lx.\n", type);
+      printf ("Ignored segment type %08lx.\n", Type);
       break;
     }
 }
 
+/**
+  Load 32-bit ELF image.
+
+  Parses and loads a 32-bit ELF executable, processing all program
+  headers for kernel or user-space.
+
+  @param[in] pElfImg  Pointer to ELF image.
+  @param[in] User     TRUE for user-space, FALSE for kernel.
+
+  @return Entry point virtual address, or -1 on error.
+**/
 vaddr_t
-load_elf32 (void *elfimg, int u)
+LoadElf32 (
+  IN VOID    *pElfImg,
+  IN INT32   User
+  )
 {
-  int i;
+  INT32 i;
 
-  char elfid[] = { 0x7f, 'E', 'L', 'F', };
-  struct elf32hdr *hdr = (struct elf32hdr *) elfimg;
-  struct elf32ph *ph = (struct elf32ph *) ELFOFF (hdr->phoff);
+  CHAR8 ElfId[] = { 0x7f, 'E', 'L', 'F', };
+  ELF32_HDR *pHdr = (ELF32_HDR *) pElfImg;
+  ELF32_PH *pPh = (ELF32_PH *) ELFOFF (pHdr->phoff);
 
-  if (memcmp (hdr->id, elfid, 4) != 0)
-    return (uintptr_t) - 1;
+  if (memcmp (pHdr->id, ElfId, 4) != 0)
+    return (UINTN) - 1;
 
-  if (hdr->type != ET_EXEC || hdr->ver != EV_CURRENT)
-    return (uintptr_t) - 1;
+  if (pHdr->type != ET_EXEC || pHdr->ver != EV_CURRENT)
+    return (UINTN) - 1;
 
-  for (i = 0; i < hdr->phs; i++, ph++)
+  for (i = 0; i < pHdr->phs; i++, pPh++)
     {
-      if (u)
-	ph_uload (elfimg, ph->type, ph->flags, ph->va, ph->msize, ph->off,
-		  ph->fsize);
+      if (User)
+	PhUload (pElfImg, pPh->type, pPh->flags, pPh->va, pPh->msize, pPh->off,
+		  pPh->fsize);
       else
-	ph_kload (elfimg, ph->type, ph->flags, ph->va, ph->msize, ph->off,
-		  ph->fsize);
+	PhKload (pElfImg, pPh->type, pPh->flags, pPh->va, pPh->msize, pPh->off,
+		  pPh->fsize);
     }
 
-  return (vaddr_t) hdr->entry;
+  return (vaddr_t) pHdr->entry;
 }
 
+/**
+  Load 64-bit ELF image.
+
+  Parses and loads a 64-bit ELF executable, processing all program
+  headers for kernel or user-space.
+
+  @param[in] pElfImg  Pointer to ELF image.
+  @param[in] User     TRUE for user-space, FALSE for kernel.
+
+  @return Entry point virtual address, or -1 on error.
+**/
 vaddr_t
-load_elf64 (void *elfimg, int u)
+LoadElf64 (
+  IN VOID    *pElfImg,
+  IN INT32   User
+  )
 {
-  int i;
+  INT32 i;
 
-  char elfid[] = { 0x7f, 'E', 'L', 'F', };
-  struct elf64hdr *hdr = (struct elf64hdr *) elfimg;
-  struct elf64ph *ph = (struct elf64ph *) ELFOFF (hdr->phoff);
+  CHAR8 ElfId[] = { 0x7f, 'E', 'L', 'F', };
+  ELF64_HDR *pHdr = (ELF64_HDR *) pElfImg;
+  ELF64_PH *pPh = (ELF64_PH *) ELFOFF (pHdr->phoff);
 
-  if (memcmp (hdr->id, elfid, 4) != 0)
-    return (uintptr_t) - 1;
+  if (memcmp (pHdr->id, ElfId, 4) != 0)
+    return (UINTN) - 1;
 
-  if (hdr->type != ET_EXEC || hdr->ver != EV_CURRENT)
-    return (uintptr_t) - 1;
+  if (pHdr->type != ET_EXEC || pHdr->ver != EV_CURRENT)
+    return (UINTN) - 1;
 
-  for (i = 0; i < hdr->phs; i++, ph++)
+  for (i = 0; i < pHdr->phs; i++, pPh++)
     {
-      if (u)
-	ph_uload (elfimg, ph->type, ph->flags, ph->va, ph->msize, ph->off,
-		  ph->fsize);
+      if (User)
+	PhUload (pElfImg, pPh->type, pPh->flags, pPh->va, pPh->msize, pPh->off,
+		  pPh->fsize);
       else
-	ph_kload (elfimg, ph->type, ph->flags, ph->va, ph->msize, ph->off,
-		  ph->fsize);
+	PhKload (pElfImg, pPh->type, pPh->flags, pPh->va, pPh->msize, pPh->off,
+		  pPh->fsize);
     }
 
-  return (vaddr_t) hdr->entry;
+  return (vaddr_t) pHdr->entry;
 }
 
+/**
+  Get ELF architecture.
 
+  Determines the target architecture from ELF machine type.
+
+  @param[in] pElfImg  Pointer to ELF image.
+
+  @return Architecture type, or ARCH_INVALID/ARCH_UNSUPPORTED.
+**/
 arch_t
-get_elf_arch (void *elfimg)
+GetElfArch (
+  IN VOID  *pElfImg
+  )
 {
-  char elfid[] = { 0x7f, 'E', 'L', 'F', };
-  struct elf32hdr *hdr = (struct elf32hdr *) elfimg;
+  CHAR8 ElfId[] = { 0x7f, 'E', 'L', 'F', };
+  ELF32_HDR *pHdr = (ELF32_HDR *) pElfImg;
 
-  if (memcmp (hdr->id, elfid, 4) != 0)
+  if (memcmp (pHdr->id, ElfId, 4) != 0)
     return ARCH_INVALID;
 
-  if (hdr->mach == EM_386)
+  if (pHdr->mach == EM_386)
     return ARCH_386;
 
-  if (hdr->mach == EM_X86_64)
+  if (pHdr->mach == EM_X86_64)
     return ARCH_AMD64;
 
-  if (hdr->mach == EM_RISCV)
+  if (pHdr->mach == EM_RISCV)
     return ARCH_RISCV64;
 
   return ARCH_UNSUPPORTED;
+}
+
+//
+// Legacy Function Wrappers (for backward compatibility)
+//
+
+/** @deprecated Use PhUload instead **/
+void ph_uload (void *elfimg, uint32_t type, uint32_t flags,
+	       uint64_t va, uint64_t msize, uint64_t off, uint64_t fsize) {
+  PhUload (elfimg, type, flags, va, msize, off, fsize);
+}
+
+/** @deprecated Use PhKload instead **/
+void ph_kload (void *elfimg, uint32_t type, uint32_t flags,
+	       uint64_t va, uint64_t msize, uint64_t off, uint64_t fsize) {
+  PhKload (elfimg, type, flags, va, msize, off, fsize);
+}
+
+/** @deprecated Use LoadElf32 instead **/
+vaddr_t load_elf32 (void *elfimg, int u) {
+  return LoadElf32 (elfimg, u);
+}
+
+/** @deprecated Use LoadElf64 instead **/
+vaddr_t load_elf64 (void *elfimg, int u) {
+  return LoadElf64 (elfimg, u);
+}
+
+/** @deprecated Use GetElfArch instead **/
+arch_t get_elf_arch (void *elfimg) {
+  return GetElfArch (elfimg);
 }
