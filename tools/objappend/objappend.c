@@ -1,3 +1,18 @@
+/** @file
+  Object File Payload Appender
+
+  Utility for appending payload files to ELF object files and executables
+  using the BFD (Binary File Descriptor) library. Creates a new section
+  named ".objappend" containing the payload data and updates program headers.
+
+  Used by NUX bootloader to embed kernel/user ELF images into bootloader
+  binaries.
+
+  Copyright (C) 2015-2023 Gianluca Guida
+
+  SPDX-License-Identifier: GPL-3.0-or-later
+**/
+
 #include "config.h"
 
 #include <string.h>
@@ -17,366 +32,537 @@
 #define VERSION "0.0"
 #define PAYLOAD_SECTNAME ".objappend"
 
-static asymbol **isym, **osym;
+static asymbol **gpIsym, **gpOsym;
 
+/**
+  Report error message.
+
+  Internal helper for formatting error messages to stderr.
+
+  @param[in] pFormat  Printf-style format string.
+  @param[in] Args     Variable argument list.
+**/
 void
-report (const char *format, va_list args)
+Report (
+  const char  *pFormat,
+  va_list      Args
+  )
 {
   fflush (stdout);
   fprintf (stderr, PROGNAME ": ");
-  vfprintf (stderr, format, args);
+  vfprintf (stderr, pFormat, Args);
   putc ('\n', stderr);
 }
 
-void
-non_fatal (const char *format, ...)
-{
-  va_list args;
+/**
+  Report non-fatal error.
 
-  va_start (args, format);
-  report (format, args);
-  va_end (args);
+  Prints error message to stderr but continues execution.
+
+  @param[in] pFormat  Printf-style format string.
+  @param[in] ...      Variable arguments.
+**/
+void
+NonFatal (
+  const char  *pFormat,
+  ...
+  )
+{
+  va_list Args;
+
+  va_start (Args, pFormat);
+  Report (pFormat, Args);
+  va_end (Args);
 }
 
-void
-fatal (const char *format, ...)
-{
-  va_list args;
+/**
+  Report fatal error and exit.
 
-  va_start (args, format);
-  report (format, args);
-  va_end (args);
+  Prints error message to stderr and terminates program with exit code -1.
+
+  @param[in] pFormat  Printf-style format string.
+  @param[in] ...      Variable arguments.
+**/
+void
+Fatal (
+  const char  *pFormat,
+  ...
+  )
+{
+  va_list Args;
+
+  va_start (Args, pFormat);
+  Report (pFormat, Args);
+  va_end (Args);
   exit (-1);
 }
 
-void
-bfd_nonfatal (const char *string)
-{
-  const char *errmsg;
+/**
+  Report non-fatal BFD error.
 
-  errmsg = bfd_errmsg (bfd_get_error ());
+  Retrieves and displays BFD library error message.
+
+  @param[in] pString  Context string (optional, may be NULL).
+**/
+void
+BfdNonFatal (
+  const char  *pString
+  )
+{
+  const char *pErrMsg;
+
+  pErrMsg = bfd_errmsg (bfd_get_error ());
   fflush (stdout);
-  if (string)
-    fprintf (stderr, "%s: %s: %s\n", PROGNAME, string, errmsg);
+  if (pString)
+    fprintf (stderr, "%s: %s: %s\n", PROGNAME, pString, pErrMsg);
   else
-    fprintf (stderr, "%s: %s\n", PROGNAME, errmsg);
+    fprintf (stderr, "%s: %s\n", PROGNAME, pErrMsg);
 }
 
+/**
+  Report fatal BFD error and exit.
+
+  Retrieves BFD error, displays message, and terminates program.
+
+  @param[in] pString  Context string (optional, may be NULL).
+**/
 void
-bfd_fatal (const char *string)
+BfdFatal (
+  const char  *pString
+  )
 {
-  bfd_nonfatal (string);
+  BfdNonFatal (pString);
   exit (1);
 }
 
+/**
+  Copy section header.
+
+  BFD section iterator callback that creates output section with same
+  properties as input section (flags, size, VMA, LMA, alignment).
+
+  @param[in] pIBfd    Input BFD.
+  @param[in] pISection  Input section.
+  @param[in] pOBfdArg   Output BFD (passed as void*).
+**/
 static void
-_copyhdr_section (bfd * ibfd, asection * isection, void *obfdarg)
+CopyHdrSection (
+  bfd       *pIBfd,
+  asection  *pISection,
+  void      *pOBfdArg
+  )
 {
-  bfd *obfd = (bfd *) obfdarg;
-  bfd_size_type size;
-  sec_ptr osection;
+  bfd *pOBfd = (bfd *) pOBfdArg;
+  bfd_size_type Size;
+  sec_ptr pOSection;
 
-  osection = bfd_make_section_anyway_with_flags (obfd,
-						 bfd_section_name (ibfd,
-								   isection),
-						 bfd_get_section_flags (ibfd,
-									isection));
-  if (osection == NULL)
-    bfd_fatal ("failed to create section");
+  pOSection = bfd_make_section_anyway_with_flags (pOBfd,
+						 bfd_section_name (pIBfd,
+								   pISection),
+						 bfd_get_section_flags (pIBfd,
+									pISection));
+  if (pOSection == NULL)
+    BfdFatal ("failed to create section");
 
-  size = bfd_section_size (ibfd, isection);
-  size = bfd_convert_section_size (ibfd, isection, obfd, size);
-  if (!bfd_set_section_size (obfd, osection, size))
-    bfd_fatal ("failed to set section size");
+  Size = bfd_section_size (pIBfd, pISection);
+  Size = bfd_convert_section_size (pIBfd, pISection, pOBfd, Size);
+  if (!bfd_set_section_size (pOBfd, pOSection, Size))
+    BfdFatal ("failed to set section size");
 
-  if (!bfd_set_section_vma (obfd, osection, bfd_section_vma (ibfd, isection)))
-    bfd_fatal ("failed to set section vma");
+  if (!bfd_set_section_vma (pOBfd, pOSection, bfd_section_vma (pIBfd, pISection)))
+    BfdFatal ("failed to set section vma");
 
-  osection->lma = isection->lma;
+  pOSection->lma = pISection->lma;
 
-  if (!bfd_set_section_alignment (obfd,
-				  osection,
-				  bfd_section_alignment (ibfd, isection)))
-    bfd_fatal ("failed to set section alignment");
+  if (!bfd_set_section_alignment (pOBfd,
+				  pOSection,
+				  bfd_section_alignment (pIBfd, pISection)))
+    BfdFatal ("failed to set section alignment");
 
-  osection->entsize = isection->entsize;
+  pOSection->entsize = pISection->entsize;
 
-  osection->compress_status = isection->compress_status;
+  pOSection->compress_status = pISection->compress_status;
 
   /* Set a link between input and output section for successive deeper
      copies. */
-  isection->output_section = osection;
-  isection->output_offset = 0;
+  pISection->output_section = pOSection;
+  pISection->output_offset = 0;
 
-  if ((isection->flags & SEC_GROUP) != 0)
-    fatal ("SEC_GROUP not supported");
+  if ((pISection->flags & SEC_GROUP) != 0)
+    Fatal ("SEC_GROUP not supported");
 
-  if (!bfd_copy_private_section_data (ibfd, isection, obfd, osection))
-    bfd_fatal ("failed to copy private data");
+  if (!bfd_copy_private_section_data (pIBfd, pISection, pOBfd, pOSection))
+    BfdFatal ("failed to copy private data");
 
 }
 
-static void
-_setreloc_section (bfd * ibfd, asection * isection, void *obfdarg)
-{
-  bfd *obfd = (bfd *) obfdarg;
-  asection *osection = isection->output_section;
-  long relsize;
-  arelent **rel;
-  long relcount;
+/**
+  Set section relocations.
 
-  if (osection == NULL)
+  BFD section iterator callback that copies relocations from input to
+  output section. Canonicalizes relocations and sets them in output.
+
+  @param[in] pIBfd      Input BFD.
+  @param[in] pISection  Input section.
+  @param[in] pOBfdArg   Output BFD (passed as void*).
+**/
+static void
+SetRelocSection (
+  bfd       *pIBfd,
+  asection  *pISection,
+  void      *pOBfdArg
+  )
+{
+  bfd *pOBfd = (bfd *) pOBfdArg;
+  asection *pOSection = pISection->output_section;
+  long RelSize;
+  arelent **ppRel;
+  long RelCount;
+
+  if (pOSection == NULL)
     return;
 
-  if ((ibfd->flags & SEC_GROUP) != 0)
-    fatal ("WTF");
+  if ((pIBfd->flags & SEC_GROUP) != 0)
+    Fatal ("WTF");
 
-  if (relsize == 0)
-    bfd_set_reloc (obfd, osection, NULL, 0);
+  if (RelSize == 0)
+    bfd_set_reloc (pOBfd, pOSection, NULL, 0);
 
-  relsize = bfd_get_reloc_upper_bound (ibfd, isection);
-  if (relsize < 0)
+  RelSize = bfd_get_reloc_upper_bound (pIBfd, pISection);
+  if (RelSize < 0)
     {
       /* Do not complain if the target does not support relocations.  */
-      if (relsize == -1 && bfd_get_error () == bfd_error_invalid_operation)
-	relsize = 0;
+      if (RelSize == -1 && bfd_get_error () == bfd_error_invalid_operation)
+	RelSize = 0;
       else
-	bfd_fatal (NULL);
+	BfdFatal (NULL);
     }
-  if (relsize == 0)
+  if (RelSize == 0)
     {
-      bfd_set_reloc (obfd, osection, NULL, 0);
-      osection->flags &= ~SEC_RELOC;
+      bfd_set_reloc (pOBfd, pOSection, NULL, 0);
+      pOSection->flags &= ~SEC_RELOC;
     }
   else
     {
-      rel = (arelent **) malloc (relsize);
-      if (rel == NULL)
-	fatal ("out of memory");
+      ppRel = (arelent **) malloc (RelSize);
+      if (ppRel == NULL)
+	Fatal ("out of memory");
 
-      relcount = bfd_canonicalize_reloc (ibfd, isection, rel, isym);
-      if (relcount < 0)
-	bfd_fatal ("relocation count is negative");
+      RelCount = bfd_canonicalize_reloc (pIBfd, pISection, ppRel, gpIsym);
+      if (RelCount < 0)
+	BfdFatal ("relocation count is negative");
 
-      bfd_set_reloc (obfd, osection, relcount == 0 ? NULL : rel, relcount);
-      if (relcount == 0)
+      bfd_set_reloc (pOBfd, pOSection, RelCount == 0 ? NULL : ppRel, RelCount);
+      if (RelCount == 0)
 	{
-	  osection->flags &= ~SEC_RELOC;
-	  free (rel);
+	  pOSection->flags &= ~SEC_RELOC;
+	  free (ppRel);
 	}
     }
 }
 
-static void
-_setcontent_section (bfd * ibfd, asection * isection, void *obfdarg)
-{
-  bfd *obfd = (bfd *) obfdarg;
-  asection *osection = isection->output_section;
-  struct section_list *p;
-  bfd_size_type size = bfd_get_section_size (isection);
+/**
+  Set section contents.
 
-  if (osection == NULL)
+  BFD section iterator callback that copies section data from input to
+  output. Handles sections with contents (code/data sections).
+
+  @param[in] pIBfd      Input BFD.
+  @param[in] pISection  Input section.
+  @param[in] pOBfdArg   Output BFD (passed as void*).
+**/
+static void
+SetContentSection (
+  bfd       *pIBfd,
+  asection  *pISection,
+  void      *pOBfdArg
+  )
+{
+  bfd *pOBfd = (bfd *) pOBfdArg;
+  asection *pOSection = pISection->output_section;
+  struct section_list *pP;
+  bfd_size_type Size = bfd_get_section_size (pISection);
+
+  if (pOSection == NULL)
     return;
 
-  if (bfd_get_section_flags (ibfd, isection) & SEC_HAS_CONTENTS
-      && bfd_get_section_flags (obfd, osection) & SEC_HAS_CONTENTS)
+  if (bfd_get_section_flags (pIBfd, pISection) & SEC_HAS_CONTENTS
+      && bfd_get_section_flags (pOBfd, pOSection) & SEC_HAS_CONTENTS)
     {
-      bfd_byte *memhunk = NULL;
+      bfd_byte *pMemHunk = NULL;
 
-      if (!bfd_get_full_section_contents (ibfd, isection, &memhunk)
-	  || !bfd_convert_section_contents (ibfd, isection, obfd,
-					    &memhunk, &size))
-	bfd_fatal (NULL);
+      if (!bfd_get_full_section_contents (pIBfd, pISection, &pMemHunk)
+	  || !bfd_convert_section_contents (pIBfd, pISection, pOBfd,
+					    &pMemHunk, &Size))
+	BfdFatal (NULL);
 
-      if (!bfd_set_section_contents (obfd, osection, memhunk, 0, size))
-	bfd_fatal (NULL);
+      if (!bfd_set_section_contents (pOBfd, pOSection, pMemHunk, 0, Size))
+	BfdFatal (NULL);
 
-      free (memhunk);
+      free (pMemHunk);
     }
 }
 
-static void
-_get_max_vma (bfd * ibfd, asection * isection, void *ptr)
-{
-  unsigned long vma, *maxvma = (unsigned long *) ptr;
+/**
+  Get maximum VMA.
 
-  if (!(bfd_get_section_flags (ibfd, isection) & SEC_ALLOC))
+  BFD section iterator callback that tracks highest virtual address + size
+  across all allocated sections.
+
+  @param[in] pIBfd      Input BFD.
+  @param[in] pISection  Input section.
+  @param[in] pPtr       Pointer to unsigned long for max VMA result.
+**/
+static void
+GetMaxVma (
+  bfd       *pIBfd,
+  asection  *pISection,
+  void      *pPtr
+  )
+{
+  unsigned long Vma, *pMaxVma = (unsigned long *) pPtr;
+
+  if (!(bfd_get_section_flags (pIBfd, pISection) & SEC_ALLOC))
     return;
 
-  vma =
-    bfd_get_section_vma (ibfd, isection) + bfd_section_size (ibfd, isection);
-  if (vma > *maxvma)
-    *maxvma = vma;
+  Vma =
+    bfd_get_section_vma (pIBfd, pISection) + bfd_section_size (pIBfd, pISection);
+  if (Vma > *pMaxVma)
+    *pMaxVma = Vma;
 }
 
-static void
-_get_max_lma (bfd * ibfd, asection * isection, void *ptr)
-{
-  unsigned long lma, *maxlma = (unsigned long *) ptr;
+/**
+  Get maximum LMA.
 
-  if (!(bfd_get_section_flags (ibfd, isection) & SEC_ALLOC))
+  BFD section iterator callback that tracks highest load address + size
+  across all allocated sections.
+
+  @param[in] pIBfd      Input BFD.
+  @param[in] pISection  Input section.
+  @param[in] pPtr       Pointer to unsigned long for max LMA result.
+**/
+static void
+GetMaxLma (
+  bfd       *pIBfd,
+  asection  *pISection,
+  void      *pPtr
+  )
+{
+  unsigned long Lma, *pMaxLma = (unsigned long *) pPtr;
+
+  if (!(bfd_get_section_flags (pIBfd, pISection) & SEC_ALLOC))
     return;
 
-  lma = isection->lma + bfd_section_size (ibfd, isection);
-  if (lma > *maxlma)
-    *maxlma = lma;
+  Lma = pISection->lma + bfd_section_size (pIBfd, pISection);
+  if (Lma > *pMaxLma)
+    *pMaxLma = Lma;
 }
 
+/**
+  Get payload addresses.
+
+  Determines where to place payload by finding maximum VMA and LMA across
+  all allocated sections in input BFD.
+
+  @param[in]  pIBfd  Input BFD.
+  @param[out] pLma   Pointer to receive maximum LMA.
+  @param[out] pVma   Pointer to receive maximum VMA.
+**/
 void
-get_payload_addresses (bfd * ibfd, unsigned long *lma, unsigned long *vma)
+GetPayloadAddresses (
+  bfd            *pIBfd,
+  unsigned long  *pLma,
+  unsigned long  *pVma
+  )
 {
-  *lma = 0;
-  *vma = 0;
-  bfd_map_over_sections (ibfd, _get_max_lma, (void *) lma);
-  bfd_map_over_sections (ibfd, _get_max_vma, (void *) vma);
+  *pLma = 0;
+  *pVma = 0;
+  bfd_map_over_sections (pIBfd, GetMaxLma, (void *) pLma);
+  bfd_map_over_sections (pIBfd, GetMaxVma, (void *) pVma);
 }
 
+/**
+  Create payload section.
+
+  Creates a new section in output BFD to hold payload file. Section is
+  allocated, loadable, read-only data positioned after all existing sections.
+
+  @param[in] pOBfd      Output BFD.
+  @param[in] pFilename  Payload filename (for size determination).
+  @param[in] Lma        Load memory address.
+  @param[in] Vma        Virtual memory address.
+
+  @return Pointer to created section.
+**/
 asection *
-create_payload_section (bfd * obfd, char *filename,
-			unsigned long lma, unsigned long vma)
+CreatePayloadSection (
+  bfd            *pOBfd,
+  char          *pFilename,
+  unsigned long  Lma,
+  unsigned long  Vma
+  )
 {
-  asection *s;
-  flagword flags;
-  struct stat st;
+  asection *pS;
+  flagword Flags;
+  struct stat St;
 
-  flags = SEC_ALLOC | SEC_LOAD | SEC_HAS_CONTENTS
+  Flags = SEC_ALLOC | SEC_LOAD | SEC_HAS_CONTENTS
     | SEC_READONLY | SEC_DATA | SEC_LINKER_CREATED;
-  s = bfd_make_section_anyway_with_flags (obfd, PAYLOAD_SECTNAME, flags);
-  if (s == NULL)
-    fatal ("can't add payload section");
+  pS = bfd_make_section_anyway_with_flags (pOBfd, PAYLOAD_SECTNAME, Flags);
+  if (pS == NULL)
+    Fatal ("can't add payload section");
 
-  if (lstat (filename, &st) < 0)
-    fatal ("can't stat %s", filename);
+  if (lstat (pFilename, &St) < 0)
+    Fatal ("can't stat %s", pFilename);
 
-  if (!bfd_set_section_size (obfd, s, (size_t) st.st_size))
-    fatal ("can't set payload section initial size");
+  if (!bfd_set_section_size (pOBfd, pS, (size_t) St.st_size))
+    Fatal ("can't set payload section initial size");
 
-  if (!bfd_set_section_alignment (obfd, s, 0))
-    fatal ("can't set payload section alignment");
+  if (!bfd_set_section_alignment (pOBfd, pS, 0))
+    Fatal ("can't set payload section alignment");
 
-  if (!bfd_set_section_vma (obfd, s, vma))
-    bfd_fatal ("failed to set section vma");
+  if (!bfd_set_section_vma (pOBfd, pS, Vma))
+    BfdFatal ("failed to set section vma");
 
-  s->lma = lma;
+  pS->lma = Lma;
 
   /*
      Set output_section to NULL, to differentiate this new payload in
      next section walks. We have in fact no input equivalent.
    */
-  s->output_section = NULL;
+  pS->output_section = NULL;
 
-  return s;
+  return pS;
 }
 
+/**
+  Fill payload section.
+
+  Reads payload file and writes contents to payload section.
+
+  @param[in] pOBfd      Output BFD.
+  @param[in] pS         Payload section.
+  @param[in] pFilename  Payload filename.
+**/
 void
-fill_payload_section (bfd * obfd, asection * s, char *filename)
+FillPayloadSection (
+  bfd       *pOBfd,
+  asection  *pS,
+  char     *pFilename
+  )
 {
-  int r;
-  bfd_byte *buf;
-  FILE *f;
-  struct stat st;
-  size_t size;
+  int R;
+  bfd_byte *pBuf;
+  FILE *pF;
+  struct stat St;
+  size_t Size;
 
-  f = fopen (filename, "r");
-  if (f == NULL)
-    fatal ("%s: %s", filename, strerror (errno));
+  pF = fopen (pFilename, "r");
+  if (pF == NULL)
+    Fatal ("%s: %s", pFilename, strerror (errno));
 
-  r = lstat (filename, &st);
-  if (r < 0)
-    fatal ("%s: stat failed: %s", filename, strerror (errno));
+  R = lstat (pFilename, &St);
+  if (R < 0)
+    Fatal ("%s: stat failed: %s", pFilename, strerror (errno));
 
-  size = st.st_size;
-  buf = calloc (1, size);
-  if (buf == NULL)
-    fatal ("calloc failed");
+  Size = St.st_size;
+  pBuf = calloc (1, Size);
+  if (pBuf == NULL)
+    Fatal ("calloc failed");
 
-  if (fread (buf, 1, size, f) == 0 || ferror (f))
-    fatal ("%s: fread failed", filename);
-  fclose (f);
+  if (fread (pBuf, 1, Size, pF) == 0 || ferror (pF))
+    Fatal ("%s: fread failed", pFilename);
+  fclose (pF);
 
-  if (!bfd_set_section_contents (obfd, s, buf, 0, size))
-    bfd_fatal ("setting payload contents");
-  free (buf);
+  if (!bfd_set_section_contents (pOBfd, pS, pBuf, 0, Size))
+    BfdFatal ("setting payload contents");
+  free (pBuf);
 }
 
-/*
-  Poor man's objcopy.
+/**
+  Copy BFD with payload.
 
-  This copies a read-only bfd into a writable bfd, modifying it while
-  creating it.
+  Poor man's objcopy implementation. Copies input BFD to output BFD,
+  optionally adding a payload section. BFD library does not support
+  read-modify-write, so copying is necessary to modify binaries.
 
-  Bfd does not support read-modify-write, so this is the only way to
-  modify a binary. Historically, this has been made in binutils by
-  objcopy (that shares code with strip).
-
-  In here we simplify by copying to the same architecture.
-*/
+  @param[in] pIBfd      Input BFD.
+  @param[in] pOBfd      Output BFD.
+  @param[in] pAddFile   Payload filename to add (NULL if none).
+  @param[in] AddLma     Payload load address.
+  @param[in] AddVma     Payload virtual address.
+**/
 void
-copy_bfd (bfd * ibfd, bfd * obfd,
-	  char *add_file, unsigned long add_lma, unsigned long add_vma)
+CopyBfd (
+  bfd            *pIBfd,
+  bfd            *pOBfd,
+  char          *pAddFile,
+  unsigned long  AddLma,
+  unsigned long  AddVma
+  )
 {
-  long symcount;
-  long symsize;
-  flagword flags;
-  asection *psec;
+  long SymCount;
+  long SymSize;
+  flagword Flags;
+  asection *pPSec;
 
   /*
      Set format.
    */
-  if (!bfd_set_format (obfd, bfd_get_format (ibfd)))
-    bfd_fatal (NULL);
+  if (!bfd_set_format (pOBfd, bfd_get_format (pIBfd)))
+    BfdFatal (NULL);
 
   /*
      Check sections.
    */
-  if (ibfd->sections == NULL)
-    fatal ("file has no sections");
+  if (pIBfd->sections == NULL)
+    Fatal ("file has no sections");
 
 
   /*
      Set start and flags.
    */
-  flags = bfd_get_file_flags (ibfd);
-  flags &= bfd_applicable_file_flags (obfd);
-  if (!bfd_set_start_address (obfd, bfd_get_start_address (ibfd))
-      || !bfd_set_file_flags (obfd, flags))
-    bfd_fatal (NULL);
+  Flags = bfd_get_file_flags (pIBfd);
+  Flags &= bfd_applicable_file_flags (pOBfd);
+  if (!bfd_set_start_address (pOBfd, bfd_get_start_address (pIBfd))
+      || !bfd_set_file_flags (pOBfd, Flags))
+    BfdFatal (NULL);
 
 
   /*
      Set arch and mach.
    */
-  if (bfd_get_arch (ibfd) == bfd_arch_unknown)
-    fatal ("unable to recognise the format of the input file");
-  if (!bfd_set_arch_mach (obfd, bfd_get_arch (ibfd), bfd_get_mach (ibfd)))
-    bfd_fatal (NULL);
+  if (bfd_get_arch (pIBfd) == bfd_arch_unknown)
+    Fatal ("unable to recognise the format of the input file");
+  if (!bfd_set_arch_mach (pOBfd, bfd_get_arch (pIBfd), bfd_get_mach (pIBfd)))
+    BfdFatal (NULL);
 
-  if (!bfd_set_format (obfd, bfd_get_format (ibfd)))
-    bfd_fatal (NULL);
+  if (!bfd_set_format (pOBfd, bfd_get_format (pIBfd)))
+    BfdFatal (NULL);
 
 
   /*
      Copy symbols.
    */
-  isym = NULL;
-  osym = NULL;
+  gpIsym = NULL;
+  gpOsym = NULL;
 
-  symsize = bfd_get_symtab_upper_bound (ibfd);
-  if (symsize < 0)
-    bfd_fatal (NULL);
+  SymSize = bfd_get_symtab_upper_bound (pIBfd);
+  if (SymSize < 0)
+    BfdFatal (NULL);
 
-  osym = isym = (asymbol **) malloc (symsize);
-  if (isym == NULL)
-    fatal ("out of memory");
+  gpOsym = gpIsym = (asymbol **) malloc (SymSize);
+  if (gpIsym == NULL)
+    Fatal ("out of memory");
 
-  symcount = bfd_canonicalize_symtab (ibfd, isym);
-  if (symcount < 0)
-    bfd_fatal (NULL);
+  SymCount = bfd_canonicalize_symtab (pIBfd, gpIsym);
+  if (SymCount < 0)
+    BfdFatal (NULL);
 
-  if (symcount == 0)
+  if (SymCount == 0)
     {
-      free (isym);
-      osym = isym = NULL;
+      free (gpIsym);
+      gpOsym = gpIsym = NULL;
     }
 
 
@@ -385,82 +571,112 @@ copy_bfd (bfd * ibfd, bfd * obfd,
    */
 
   /* Step 1: add sections. */
-  bfd_map_over_sections (ibfd, _copyhdr_section, obfd);
+  bfd_map_over_sections (pIBfd, CopyHdrSection, pOBfd);
 
   /* Step 3: add new payload section */
-  if (add_file != NULL)
-    psec = create_payload_section (obfd, add_file, add_lma, add_vma);
+  if (pAddFile != NULL)
+    pPSec = CreatePayloadSection (pOBfd, pAddFile, AddLma, AddVma);
 
   /* Step 2: copy header data. */
-  if (!bfd_copy_private_header_data (ibfd, obfd))
-    bfd_fatal ("error in private header data");
+  if (!bfd_copy_private_header_data (pIBfd, pOBfd))
+    BfdFatal ("error in private header data");
 
   /* Step 4: set symbols. */
-  bfd_set_symtab (obfd, osym, symcount);
+  bfd_set_symtab (pOBfd, gpOsym, SymCount);
 
-  bfd_record_phdr (obfd, 1, false, 0, false, 0, false, false, 1, &psec);
+  bfd_record_phdr (pOBfd, 1, false, 0, false, 0, false, false, 1, &pPSec);
 
   /* Step 5: copy relocations. */
-  bfd_map_over_sections (ibfd, _setreloc_section, obfd);
+  bfd_map_over_sections (pIBfd, SetRelocSection, pOBfd);
 
   /* Step 6: copy contents. */
-  bfd_map_over_sections (ibfd, _setcontent_section, obfd);
+  bfd_map_over_sections (pIBfd, SetContentSection, pOBfd);
 
   /* Step 7: set payload contents */
-  if (add_file != NULL)
-    fill_payload_section (obfd, psec, add_file);
+  if (pAddFile != NULL)
+    FillPayloadSection (pOBfd, pPSec, pAddFile);
 
-  if (!bfd_copy_private_bfd_data (ibfd, obfd))
-    bfd_fatal ("error copying private data");
+  if (!bfd_copy_private_bfd_data (pIBfd, pOBfd))
+    BfdFatal ("error copying private data");
 }
 
+/**
+  Add payloads to executable.
+
+  Main operation: iterates through payload file list, opening executable,
+  adding each payload, and writing back to same file.
+
+  @param[in] pFilename  Executable filename.
+  @param[in] ppList     NULL-terminated array of payload filenames.
+**/
 static void
-do_add (char *filename, char *const list[])
+DoAdd (
+  char         *pFilename,
+  char *const  ppList[]
+  )
 {
-  char *n;
+  char *pN;
 
   bfd_init ();
 
-  while ((n = *(list++)))
+  while ((pN = *(ppList++)))
     {
-      bfd *ibfd, *obfd;
-      unsigned long lma, vma;
-      char **obj_matching;
+      bfd *pIBfd, *pOBfd;
+      unsigned long Lma, Vma;
+      char **ppObjMatching;
 
-      ibfd = bfd_openr (filename, NULL);
-      if (ibfd == NULL)
-	fatal ("%s: %s", filename, bfd_errmsg (bfd_get_error ()));
+      pIBfd = bfd_openr (pFilename, NULL);
+      if (pIBfd == NULL)
+	Fatal ("%s: %s", pFilename, bfd_errmsg (bfd_get_error ()));
 
-      if (!bfd_check_format_matches (ibfd, bfd_object, &obj_matching))
-	fatal ("%s: Not an object or executable", filename);
+      if (!bfd_check_format_matches (pIBfd, bfd_object, &ppObjMatching))
+	Fatal ("%s: Not an object or executable", pFilename);
 
-      obfd = bfd_openw (filename, bfd_get_target (ibfd));
-      if (obfd == NULL)
-	fatal ("%s: %s", n, bfd_errmsg (bfd_get_error ()));
+      pOBfd = bfd_openw (pFilename, bfd_get_target (pIBfd));
+      if (pOBfd == NULL)
+	Fatal ("%s: %s", pN, bfd_errmsg (bfd_get_error ()));
 
-      get_payload_addresses (ibfd, &lma, &vma);
+      GetPayloadAddresses (pIBfd, &Lma, &Vma);
 
-      copy_bfd (ibfd, obfd, n, lma, vma);
+      CopyBfd (pIBfd, pOBfd, pN, Lma, Vma);
 
-      if (!bfd_close (obfd))
-	bfd_fatal ("bfd_close");
+      if (!bfd_close (pOBfd))
+	BfdFatal ("bfd_close");
     }
 }
 
+/**
+  Print usage information.
+
+  Displays command-line usage and available options.
+
+  @param[in] pF      Output file stream (stdout or stderr).
+  @param[in] Status  Exit status code.
+**/
 static void
-usage (FILE * f, int status)
+Usage (
+  FILE  *pF,
+  int   Status
+  )
 {
-  fprintf (f, "Usage: %s [command]\n", PROGNAME);
-  fprintf (f, " Command is one of the following:\n\
+  fprintf (pF, "Usage: %s [command]\n", PROGNAME);
+  fprintf (pF, " Command is one of the following:\n\
   {-a|--add} exec [<file>...]  Append files to EXEC\n\
   {-h|--help}                  Display this information\n\
   {-V|--version}               Display this program's version number\n \
 \n");
-  exit (status);
+  exit (Status);
 }
 
+/**
+  Print version information.
+
+  Displays program name, version, copyright, and license.
+**/
 static void
-print_version (void)
+PrintVersion (
+  void
+  )
 {
   printf ("%s %s\n", PROGNAME, VERSION);
   printf ("Copyright (C) 2015-2023 Gianluca Guida.\n");
@@ -471,7 +687,7 @@ This program has absolutely no warranty.\n");
   exit (0);
 }
 
-const struct option long_options[] = {
+const struct option gLongOptions[] = {
   {"add", 1, NULL, 'a'},
   {"help", no_argument, NULL, 'h'},
   {"version", no_argument, NULL, 'V'},
@@ -479,66 +695,173 @@ const struct option long_options[] = {
 };
 
 
-int
-main (int argc, char *const argv[])
-{
-  int c;
-  unsigned cmdseen;
-  char *filename;
-  bool rdonly;
-  bool add, show_version;
+/**
+  Main entry point.
 
-  cmdseen = 0;
-  show_version = false;
-  while ((c = getopt_long (argc, argv, "ahV", long_options, NULL)) != EOF)
+  Parses command-line arguments and dispatches to add operation.
+
+  @param[in] Argc  Argument count.
+  @param[in] Argv  Argument vector.
+
+  @return Exit status (0 on success, 1 on error).
+**/
+int
+main (int Argc, char *const Argv[])
+{
+  int C;
+  unsigned CmdSeen;
+  char *pFilename;
+  bool RdOnly;
+  bool Add, ShowVersion;
+
+  CmdSeen = 0;
+  ShowVersion = false;
+  while ((C = getopt_long (Argc, Argv, "ahV", gLongOptions, NULL)) != EOF)
     {
-      switch (c)
+      switch (C)
 	{
 	case 'a':
-	  add = true;
-	  cmdseen++;
+	  Add = true;
+	  CmdSeen++;
 	  break;
 	case 'V':
-	  cmdseen++;
-	  show_version = true;
+	  CmdSeen++;
+	  ShowVersion = true;
 	  break;
 	case 'h':
-	  usage (stdout, 0);
+	  Usage (stdout, 0);
 	  break;
 	default:
-	  usage (stderr, 1);
+	  Usage (stderr, 1);
 	}
     }
 
-  if (cmdseen != 1)
-    usage (stderr, 1);
+  if (CmdSeen != 1)
+    Usage (stderr, 1);
 
-  argc -= optind;
-  argv += optind;
+  Argc -= optind;
+  Argv += optind;
 
-  if (show_version)
+  if (ShowVersion)
     {
-      if (argc != 0)
+      if (Argc != 0)
 	{
-	  usage (stderr, 1);
+	  Usage (stderr, 1);
 	}
-      print_version ();
+      PrintVersion ();
     }
 
-  if (argc < 1)
-    usage (stderr, 1);
+  if (Argc < 1)
+    Usage (stderr, 1);
 
-  filename = argv[0];
-  argc -= 1;
-  argv += 1;
+  pFilename = Argv[0];
+  Argc -= 1;
+  Argv += 1;
 
 
-  if (add)
+  if (Add)
     {
-      if (argc == 0)
+      if (Argc == 0)
 	{
-	  usage (stderr, 1);
+	  Usage (stderr, 1);
 	}
-      do_add (filename, argv);
+      DoAdd (pFilename, Argv);
     }
+}
+
+//
+// Legacy Function Wrappers (for backward compatibility)
+//
+
+/** @deprecated Use Report instead **/
+void report (const char *format, va_list args) {
+  Report (format, args);
+}
+
+/** @deprecated Use NonFatal instead **/
+void non_fatal (const char *format, ...) {
+  va_list args;
+  va_start (args, format);
+  NonFatal (format, args);
+  va_end (args);
+}
+
+/** @deprecated Use Fatal instead **/
+void fatal (const char *format, ...) {
+  va_list args;
+  va_start (args, format);
+  Fatal (format, args);
+  va_end (args);
+}
+
+/** @deprecated Use BfdNonFatal instead **/
+void bfd_nonfatal (const char *string) {
+  BfdNonFatal (string);
+}
+
+/** @deprecated Use BfdFatal instead **/
+void bfd_fatal (const char *string) {
+  BfdFatal (string);
+}
+
+/** @deprecated Use CopyHdrSection instead **/
+static void _copyhdr_section (bfd *ibfd, asection *isection, void *obfdarg) {
+  CopyHdrSection (ibfd, isection, obfdarg);
+}
+
+/** @deprecated Use SetRelocSection instead **/
+static void _setreloc_section (bfd *ibfd, asection *isection, void *obfdarg) {
+  SetRelocSection (ibfd, isection, obfdarg);
+}
+
+/** @deprecated Use SetContentSection instead **/
+static void _setcontent_section (bfd *ibfd, asection *isection, void *obfdarg) {
+  SetContentSection (ibfd, isection, obfdarg);
+}
+
+/** @deprecated Use GetMaxVma instead **/
+static void _get_max_vma (bfd *ibfd, asection *isection, void *ptr) {
+  GetMaxVma (ibfd, isection, ptr);
+}
+
+/** @deprecated Use GetMaxLma instead **/
+static void _get_max_lma (bfd *ibfd, asection *isection, void *ptr) {
+  GetMaxLma (ibfd, isection, ptr);
+}
+
+/** @deprecated Use GetPayloadAddresses instead **/
+void get_payload_addresses (bfd *ibfd, unsigned long *lma, unsigned long *vma) {
+  GetPayloadAddresses (ibfd, lma, vma);
+}
+
+/** @deprecated Use CreatePayloadSection instead **/
+asection *create_payload_section (bfd *obfd, char *filename,
+				  unsigned long lma, unsigned long vma) {
+  return CreatePayloadSection (obfd, filename, lma, vma);
+}
+
+/** @deprecated Use FillPayloadSection instead **/
+void fill_payload_section (bfd *obfd, asection *s, char *filename) {
+  FillPayloadSection (obfd, s, filename);
+}
+
+/** @deprecated Use CopyBfd instead **/
+void copy_bfd (bfd *ibfd, bfd *obfd,
+	      char *add_file, unsigned long add_lma, unsigned long add_vma) {
+  CopyBfd (ibfd, obfd, add_file, add_lma, add_vma);
+}
+
+/** @deprecated Use DoAdd instead **/
+static void do_add (char *filename, char *const list[]) {
+  DoAdd (filename, list);
+}
+
+/** @deprecated Use Usage instead **/
+static void usage (FILE *f, int status) {
+  Usage (f, status);
+}
+
+/** @deprecated Use PrintVersion instead **/
+static void print_version (void) {
+  PrintVersion ();
 }
