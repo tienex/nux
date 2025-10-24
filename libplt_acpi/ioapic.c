@@ -1,9 +1,14 @@
-/*
-  NUX: A kernel Library.
+/** @file
+  I/O APIC Support
+
+  Provides I/O Advanced Programmable Interrupt Controller (I/O APIC)
+  initialization, configuration, and Global System Interrupt (GSI) routing
+  for ACPI platforms.
+
   Copyright (C) 2019 Gianluca Guida, glguida@tlbflush.org
 
-  SPDX-License-Identifier:	BSD-2-Clause
-*/
+  SPDX-License-Identifier: BSD-2-Clause
+**/
 
 #include <inttypes.h>
 #include <assert.h>
@@ -15,23 +20,27 @@
 #include "internal.h"
 #include "apic.h"
 
-unsigned ioapics_no;
+static UINT32 gIoapicsNo;
 
-struct ioapic_desc
+typedef struct ioapic_desc
 {
-  void *base;
-  unsigned irq;
-  unsigned pins;
-} *ioapics;
-unsigned gsis_no;
+  VOID *Base;
+  UINT32 Irq;
+  UINT32 Pins;
+} IOAPIC_DESC;
 
-struct gsi_desc
+static IOAPIC_DESC *gIoapics;
+static UINT32 gGsisNo;
+
+typedef struct gsi_desc
 {
-  unsigned irq;
-  unsigned ioapic;
-  unsigned pin;
-  enum plt_irq_type mode;
-} *gsis;
+  UINT32 Irq;
+  UINT32 Ioapic;
+  UINT32 Pin;
+  enum plt_irq_type Mode;
+} GSI_DESC;
+
+static GSI_DESC *gGsis;
 
 #define IOAPIC_SIZE 0x20
 
@@ -46,251 +55,531 @@ struct gsi_desc
 #define IO_RED_LO(x)   (0x10 + 2*(x))
 #define IO_RED_HI(x)   (0x11 + 2*(x))
 
-void
-ioapic_init (unsigned no)
-{
+/**
+  Initialize I/O APIC array.
 
-  ioapics =
-    (struct ioapic_desc *) kmem_brkgrow (1,
-					 (sizeof (struct ioapic_desc) * no));
-  ioapics_no = no;
+  Allocates memory for I/O APIC descriptors.
+
+  @param[in] No  Number of I/O APICs.
+**/
+VOID
+IoapicInitialize (
+  IN UINT32  No
+  )
+{
+  gIoapics = (IOAPIC_DESC *) KmemBrkGrow (1, sizeof (IOAPIC_DESC) * No);
+  gIoapicsNo = No;
 }
 
-static void
-ioapic_write (unsigned i, uint8_t reg, uint32_t val)
-{
-  volatile uint32_t *regsel = (uint32_t *) (ioapics[i].base + IO_REGSEL);
-  volatile uint32_t *win = (uint32_t *) (ioapics[i].base + IO_WIN);
+/**
+  Write I/O APIC register.
 
-  *regsel = reg;
-  *win = val;
+  Writes to an I/O register via indirect addressing.
+
+  @param[in] Index  I/O APIC index.
+  @param[in] Reg    Register number.
+  @param[in] Val    Value to write.
+**/
+static VOID
+IoapicWrite (
+  IN UINT32  Index,
+  IN UINT8   Reg,
+  IN UINT32  Val
+  )
+{
+  volatile UINT32 *pRegSel = (UINT32 *) (gIoapics[Index].Base + IO_REGSEL);
+  volatile UINT32 *pWin = (UINT32 *) (gIoapics[Index].Base + IO_WIN);
+
+  *pRegSel = Reg;
+  *pWin = Val;
 }
 
-static uint32_t
-ioapic_read (unsigned i, uint8_t reg)
-{
-  volatile uint32_t *regsel = (uint32_t *) (ioapics[i].base + IO_REGSEL);
-  volatile uint32_t *win = (uint32_t *) (ioapics[i].base + IO_WIN);
+/**
+  Read I/O APIC register.
 
-  *regsel = reg;
-  return *win;
+  Reads from an I/O register via indirect addressing.
+
+  @param[in] Index  I/O APIC index.
+  @param[in] Reg    Register number.
+
+  @return Register value.
+**/
+static UINT32
+IoapicRead (
+  IN UINT32  Index,
+  IN UINT8   Reg
+  )
+{
+  volatile UINT32 *pRegSel = (UINT32 *) (gIoapics[Index].Base + IO_REGSEL);
+  volatile UINT32 *pWin = (UINT32 *) (gIoapics[Index].Base + IO_WIN);
+
+  *pRegSel = Reg;
+  return *pWin;
 }
 
-void
-ioapic_add (unsigned num, uint64_t base, unsigned irqbase)
-{
-  unsigned i;
+/**
+  Add I/O APIC to array.
 
-  ioapics[num].base = kva_physmap (base, IOAPIC_SIZE, HAL_PTE_P | HAL_PTE_W);
-  ioapics[num].irq = irqbase;
-  ioapics[num].pins = 1 + ((ioapic_read (num, IO_VER) >> 16) & 0xff);
+  Maps the I/O APIC registers, determines pin count, and masks
+  all interrupts.
+
+  @param[in] Num      I/O APIC index.
+  @param[in] Base     Physical base address.
+  @param[in] IrqBase  Base GSI number.
+**/
+VOID
+IoapicAdd (
+  IN UINT32  Num,
+  IN UINT64  Base,
+  IN UINT32  IrqBase
+  )
+{
+  UINT32 i;
+
+  gIoapics[Num].Base = KvaMapPhysical (Base, IOAPIC_SIZE, HAL_PTE_P | HAL_PTE_W);
+  gIoapics[Num].Irq = IrqBase;
+  gIoapics[Num].Pins = 1 + ((IoapicRead (Num, IO_VER) >> 16) & 0xff);
 
   /* Mask all interrupts */
-  for (i = 0; i < ioapics[num].pins; i++)
+  for (i = 0; i < gIoapics[Num].Pins; i++)
     {
-      ioapic_write (num, IO_RED_LO (i), 0x00010000);
-      ioapic_write (num, IO_RED_HI (i), 0x00000000);
+      IoapicWrite (Num, IO_RED_LO (i), 0x00010000);
+      IoapicWrite (Num, IO_RED_HI (i), 0x00000000);
     }
   info ("IOAPIC: %02d PA: %08" PRIx64 " VA: %p IRQ:%02d PINS: %02d",
-	num, base, ioapics[num].base, irqbase, ioapics[num].pins);
+	Num, Base, gIoapics[Num].Base, IrqBase, gIoapics[Num].Pins);
 }
 
-unsigned
-ioapic_irqs (void)
+/**
+  Get maximum IRQ number.
+
+  Calculates the maximum GSI number based on all I/O APICs.
+
+  @return Maximum IRQ number.
+**/
+UINT32
+IoapicGetMaxIrq (
+  VOID
+  )
 {
-  unsigned i;
-  unsigned lirq, maxirq = 0;
+  UINT32 i;
+  UINT32 LastIrq, MaxIrq = 0;
 
-  for (i = 0; i < ioapics_no; i++)
+  for (i = 0; i < gIoapicsNo; i++)
     {
-      lirq = ioapics[i].irq + ioapics[i].pins;
-      if (lirq > maxirq)
-	maxirq = lirq;
+      LastIrq = gIoapics[i].Irq + gIoapics[i].Pins;
+      if (LastIrq > MaxIrq)
+	MaxIrq = LastIrq;
     }
 
-  if (maxirq >= APIC_VECT_IRQMAX)
+  if (MaxIrq >= APIC_VECT_IRQMAX)
     {
-      warn
-	("Maximum number of IRQs exceeded (%d >= %d).  Some IRQs will not be available.",
-	 maxirq, APIC_VECT_IRQMAX);
-      maxirq = APIC_VECT_IRQMAX;
+      warn ("Maximum number of IRQs exceeded (%d >= %d). Some IRQs will not be available.",
+	    MaxIrq, APIC_VECT_IRQMAX);
+      MaxIrq = APIC_VECT_IRQMAX;
     }
 
-  return maxirq;
+  return MaxIrq;
 }
 
-void
-gsi_init (void)
+/**
+  Initialize GSI table.
+
+  Allocates and initializes Global System Interrupt descriptors
+  with default identity mapping and ISA edge-triggered modes.
+**/
+VOID
+GsiInitialize (
+  VOID
+  )
 {
-  unsigned i, irqs = ioapic_irqs ();
-  gsis_no = irqs;
-  gsis =
-    (struct gsi_desc *) kmem_brkgrow (1, sizeof (struct gsi_desc) * irqs);
+  UINT32 i, Irqs = IoapicGetMaxIrq ();
+  gGsisNo = Irqs;
+  gGsis = (GSI_DESC *) KmemBrkGrow (1, sizeof (GSI_DESC) * Irqs);
 
   /* Setup identity map, edge triggered (this is ISA) */
   for (i = 0; i < 16; i++)
     {
-      gsis[i].mode = PLT_IRQ_EDGE;
-      gsis[i].irq = i;
+      gGsis[i].Mode = PLT_IRQ_EDGE;
+      gGsis[i].Irq = i;
     }
 
-  for (; i < gsis_no; i++)
+  for (; i < gGsisNo; i++)
     {
-      gsis[i].mode = PLT_IRQ_LVLLO;
-      gsis[i].irq = i;
+      gGsis[i].Mode = PLT_IRQ_LVLLO;
+      gGsis[i].Irq = i;
     }
 }
 
-void
-gsi_setup (unsigned i, unsigned irq, enum plt_irq_type mode)
+/**
+  Set up GSI override.
+
+  Overrides the default GSI to IRQ mapping and interrupt mode
+  based on ACPI MADT interrupt source override entries.
+
+  @param[in] Index  GSI number.
+  @param[in] Irq    IRQ to map to.
+  @param[in] Mode   Interrupt trigger mode.
+**/
+VOID
+GsiSetup (
+  IN UINT32              Index,
+  IN UINT32              Irq,
+  IN enum plt_irq_type   Mode
+  )
 {
-  if (i >= gsis_no)
+  if (Index >= gGsisNo)
     {
-      warn ("Warning: GSI %d bigger than existing I/O APIC GSIs", i);
+      warn ("Warning: GSI %d bigger than existing I/O APIC GSIs", Index);
       return;
     }
-  gsis[i].irq = irq;
-  gsis[i].mode = mode;
+  gGsis[Index].Irq = Irq;
+  gGsis[Index].Mode = Mode;
 }
 
-static bool
-irqresolve (unsigned gsi)
+/**
+  Resolve GSI to I/O APIC and pin.
+
+  Finds which I/O APIC and pin correspond to a GSI number.
+
+  @param[in] Gsi  GSI number.
+
+  @retval TRUE   GSI resolved successfully.
+  @retval FALSE  GSI not found in any I/O APIC.
+**/
+static BOOLEAN
+IrqResolve (
+  IN UINT32  Gsi
+  )
 {
-  unsigned i, start, end;
+  UINT32 i, Start, End;
 
-  for (i = 0; i < ioapics_no; i++)
+  for (i = 0; i < gIoapicsNo; i++)
     {
-      start = ioapics[i].irq;
-      end = start + ioapics[i].pins;
+      Start = gIoapics[i].Irq;
+      End = Start + gIoapics[i].Pins;
 
-      if ((gsi >= start) && (gsi < end))
+      if ((Gsi >= Start) && (Gsi < End))
 	{
-	  gsis[gsi].ioapic = i;
-	  gsis[gsi].pin = gsi - start;
-	  return true;
+	  gGsis[Gsi].Ioapic = i;
+	  gGsis[Gsi].Pin = Gsi - Start;
+	  return TRUE;
 	}
     }
-  warn ("GSI not found in IOAPIC: %d", gsi);
-  return false;
+  warn ("GSI not found in IOAPIC: %d", Gsi);
+  return FALSE;
 }
 
-static void
-gsi_set_irqtype (unsigned irq, enum plt_irq_type mode)
+/**
+  Set GSI interrupt type.
+
+  Configures the redirection entry trigger mode for a GSI.
+
+  @param[in] Irq   IRQ number.
+  @param[in] Mode  Interrupt trigger mode.
+**/
+static VOID
+GsiSetIrqType (
+  IN UINT32              Irq,
+  IN enum plt_irq_type   Mode
+  )
 {
-  uint32_t lo;
+  UINT32 Lo;
 
-  lo = ioapic_read (gsis[irq].ioapic, IO_RED_LO (gsis[irq].pin));
-  lo &= ~((1L << 13) | (1L << 15));
+  Lo = IoapicRead (gGsis[Irq].Ioapic, IO_RED_LO (gGsis[Irq].Pin));
+  Lo &= ~((1L << 13) | (1L << 15));
 
-  gsis[irq].mode = mode;
+  gGsis[Irq].Mode = Mode;
 
   /* Setup Masked IOAPIC entry with no vector information */
-  switch (gsis[irq].mode)
+  switch (gGsis[Irq].Mode)
     {
     default:
-      warn ("Warning: GSI table corrupted. " "Setting GSI %d to EDGE", irq);
+      warn ("Warning: GSI table corrupted. Setting GSI %d to EDGE", Irq);
     case PLT_IRQ_EDGE:
       break;
     case PLT_IRQ_LVLHI:
-      lo |= (1L << 15);
+      Lo |= (1L << 15);
       break;
     case PLT_IRQ_LVLLO:
-      lo |= ((1L << 15) | (1L << 13));
+      Lo |= ((1L << 15) | (1L << 13));
       break;
     }
 
-  ioapic_write (gsis[irq].ioapic, IO_RED_LO (gsis[irq].pin), lo);
+  IoapicWrite (gGsis[Irq].Ioapic, IO_RED_LO (gGsis[Irq].Pin), Lo);
 }
 
-static void
-gsi_register (unsigned gsi, unsigned vect)
+/**
+  Register vector for GSI.
+
+  Programs the interrupt vector in the redirection entry.
+
+  @param[in] Gsi   GSI number.
+  @param[in] Vect  Interrupt vector.
+**/
+static VOID
+GsiRegister (
+  IN UINT32  Gsi,
+  IN UINT32  Vect
+  )
 {
-  uint32_t lo;
+  UINT32 Lo;
 
-  assert (gsi < gsis_no);
-  assert (vect < 256);
+  assert (Gsi < gGsisNo);
+  assert (Vect < 256);
 
-  lo = ioapic_read (gsis[gsi].ioapic, IO_RED_LO (gsis[gsi].pin));
-  ioapic_write (gsis[gsi].ioapic, IO_RED_LO (gsis[gsi].pin), lo | vect);
+  Lo = IoapicRead (gGsis[Gsi].Ioapic, IO_RED_LO (gGsis[Gsi].Pin));
+  IoapicWrite (gGsis[Gsi].Ioapic, IO_RED_LO (gGsis[Gsi].Pin), Lo | Vect);
 }
 
-void
-gsi_start (void)
+/**
+  Start GSI routing.
+
+  Resolves all GSIs to I/O APIC pins and programs redirection
+  entries with interrupt vectors.
+**/
+VOID
+GsiStart (
+  VOID
+  )
 {
-  unsigned i;
-  for (i = 0; i < gsis_no; i++)
+  UINT32 i;
+  for (i = 0; i < gGsisNo; i++)
     {
       /* Now that we have the proper GSI to IRQ mapping, resolve the
        * IOAPIC/PIN of the GSI. */
-      if (irqresolve (i))
-	gsi_set_irqtype (i, gsis[i].mode);
+      if (IrqResolve (i))
+	GsiSetIrqType (i, gGsis[i].Mode);
     }
 
   /* 1:1 map GSI <-> Kernel IRQ */
-  for (i = 0; i < gsis_no; i++)
-    gsi_register (i, APIC_VECT_IRQBASE + i);
+  for (i = 0; i < gGsisNo; i++)
+    GsiRegister (i, APIC_VECT_IRQBASE + i);
 }
 
-void
-gsi_dump (void)
-{
-  unsigned i;
+/**
+  Dump GSI table.
 
-  for (i = 0; i < gsis_no; i++)
+  Prints all GSI mappings for debugging.
+**/
+VOID
+GsiDump (
+  VOID
+  )
+{
+  UINT32 i;
+
+  for (i = 0; i < gGsisNo; i++)
     {
       info ("GSI: %02d IRQ: %02d MODE: %5s APIC: %02d PIN: %02d", i,
-	    gsis[i].irq,
-	    gsis[i].mode == PLT_IRQ_EDGE ? "EDGE" : gsis[i].mode ==
-	    PLT_IRQ_LVLHI ? "LVLHI" : "LVLLO", gsis[i].ioapic, gsis[i].pin);
+	    gGsis[i].Irq,
+	    gGsis[i].Mode == PLT_IRQ_EDGE ? "EDGE" : gGsis[i].Mode ==
+	    PLT_IRQ_LVLHI ? "LVLHI" : "LVLLO", gGsis[i].Ioapic, gGsis[i].Pin);
     }
 }
 
-unsigned
-plt_irq_no (void)
+/**
+  Get number of IRQs.
+
+  Returns the total number of Global System Interrupts.
+
+  @return Number of GSIs.
+**/
+UINT32
+PltIrqGetNo (
+  VOID
+  )
 {
-  return gsis_no;
+  return gGsisNo;
 }
 
-void
-plt_irq_setvector (unsigned gsi, unsigned vect)
+/**
+  Set interrupt vector for GSI.
+
+  Programs the interrupt vector in the I/O APIC redirection entry.
+
+  @param[in] Gsi   GSI number.
+  @param[in] Vect  Interrupt vector.
+**/
+VOID
+PltIrqSetVector (
+  IN UINT32  Gsi,
+  IN UINT32  Vect
+  )
 {
-  if (gsi < gsis_no)
-    gsi_register (gsi, vect);
+  if (Gsi < gGsisNo)
+    GsiRegister (Gsi, Vect);
   else
-    warn ("gsi requested non existent: %d", gsi);
+    warn ("gsi requested non existent: %d", Gsi);
 }
 
+/**
+  Get IRQ type.
+
+  Returns the interrupt trigger mode for a GSI.
+
+  @param[in] Gsi  GSI number.
+
+  @return Interrupt type, or PLT_IRQ_INVALID if GSI invalid.
+**/
 enum plt_irq_type
-plt_irq_type (unsigned gsi)
+PltIrqGetType (
+  IN UINT32  Gsi
+  )
 {
-  if (gsi < gsis_no)
-    return gsis[gsi].mode;
+  if (Gsi < gGsisNo)
+    return gGsis[Gsi].Mode;
   else
     return PLT_IRQ_INVALID;
 }
 
-void
-plt_irq_enable (unsigned gsi)
-{
-  uint32_t lo;
+/**
+  Enable IRQ.
 
-  lo = ioapic_read (gsis[gsi].ioapic, IO_RED_LO (gsis[gsi].pin));
-  lo &= ~0x10000L;		/* UNMASK */
-  ioapic_write (gsis[gsi].ioapic, IO_RED_LO (gsis[gsi].pin), lo);;
+  Unmasks the interrupt in the I/O APIC redirection entry.
+
+  @param[in] Gsi  GSI number.
+**/
+VOID
+PltIrqEnable (
+  IN UINT32  Gsi
+  )
+{
+  UINT32 Lo;
+
+  Lo = IoapicRead (gGsis[Gsi].Ioapic, IO_RED_LO (gGsis[Gsi].Pin));
+  Lo &= ~0x10000L;		/* UNMASK */
+  IoapicWrite (gGsis[Gsi].Ioapic, IO_RED_LO (gGsis[Gsi].Pin), Lo);
 }
 
-void
-plt_irq_disable (unsigned gsi)
-{
-  uint32_t lo;
+/**
+  Disable IRQ.
 
-  lo = ioapic_read (gsis[gsi].ioapic, IO_RED_LO (gsis[gsi].pin));
-  lo |= 0x10000L;		/* MASK */
-  ioapic_write (gsis[gsi].ioapic, IO_RED_LO (gsis[gsi].pin), lo);;
+  Masks the interrupt in the I/O APIC redirection entry.
+
+  @param[in] Gsi  GSI number.
+**/
+VOID
+PltIrqDisable (
+  IN UINT32  Gsi
+  )
+{
+  UINT32 Lo;
+
+  Lo = IoapicRead (gGsis[Gsi].Ioapic, IO_RED_LO (gGsis[Gsi].Pin));
+  Lo |= 0x10000L;		/* MASK */
+  IoapicWrite (gGsis[Gsi].Ioapic, IO_RED_LO (gGsis[Gsi].Pin), Lo);
 }
 
-unsigned
-plt_irq_max (void)
+/**
+  Get maximum IRQ number.
+
+  Returns the maximum IRQ number supported by the platform.
+
+  @return Maximum IRQ number.
+**/
+UINT32
+PltIrqGetMax (
+  VOID
+  )
 {
   return APIC_VECT_IRQMAX;
 }
+
+//
+// Legacy Function Wrappers (for backward compatibility)
+//
+
+/** @deprecated Use IoapicInitialize instead **/
+void ioapic_init (unsigned no) {
+  IoapicInitialize (no);
+}
+
+/** @deprecated Use IoapicWrite instead **/
+static void ioapic_write (unsigned i, uint8_t reg, uint32_t val) {
+  IoapicWrite (i, reg, val);
+}
+
+/** @deprecated Use IoapicRead instead **/
+static uint32_t ioapic_read (unsigned i, uint8_t reg) {
+  return IoapicRead (i, reg);
+}
+
+/** @deprecated Use IoapicAdd instead **/
+void ioapic_add (unsigned num, uint64_t base, unsigned irqbase) {
+  IoapicAdd (num, base, irqbase);
+}
+
+/** @deprecated Use IoapicGetMaxIrq instead **/
+unsigned ioapic_irqs (void) {
+  return IoapicGetMaxIrq ();
+}
+
+/** @deprecated Use GsiInitialize instead **/
+void gsi_init (void) {
+  GsiInitialize ();
+}
+
+/** @deprecated Use GsiSetup instead **/
+void gsi_setup (unsigned i, unsigned irq, enum plt_irq_type mode) {
+  GsiSetup (i, irq, mode);
+}
+
+/** @deprecated Use IrqResolve instead **/
+static bool irqresolve (unsigned gsi) {
+  return IrqResolve (gsi);
+}
+
+/** @deprecated Use GsiSetIrqType instead **/
+static void gsi_set_irqtype (unsigned irq, enum plt_irq_type mode) {
+  GsiSetIrqType (irq, mode);
+}
+
+/** @deprecated Use GsiRegister instead **/
+static void gsi_register (unsigned gsi, unsigned vect) {
+  GsiRegister (gsi, vect);
+}
+
+/** @deprecated Use GsiStart instead **/
+void gsi_start (void) {
+  GsiStart ();
+}
+
+/** @deprecated Use GsiDump instead **/
+void gsi_dump (void) {
+  GsiDump ();
+}
+
+/** @deprecated Use PltIrqGetNo instead **/
+unsigned plt_irq_no (void) {
+  return PltIrqGetNo ();
+}
+
+/** @deprecated Use PltIrqSetVector instead **/
+void plt_irq_setvector (unsigned gsi, unsigned vect) {
+  PltIrqSetVector (gsi, vect);
+}
+
+/** @deprecated Use PltIrqGetType instead **/
+enum plt_irq_type plt_irq_type (unsigned gsi) {
+  return PltIrqGetType (gsi);
+}
+
+/** @deprecated Use PltIrqEnable instead **/
+void plt_irq_enable (unsigned gsi) {
+  PltIrqEnable (gsi);
+}
+
+/** @deprecated Use PltIrqDisable instead **/
+void plt_irq_disable (unsigned gsi) {
+  PltIrqDisable (gsi);
+}
+
+/** @deprecated Use PltIrqGetMax instead **/
+unsigned plt_irq_max (void) {
+  return PltIrqGetMax ();
+}
+
+// Legacy global variable aliases
+static unsigned ioapics_no __attribute__((alias("gIoapicsNo")));
+static unsigned gsis_no __attribute__((alias("gGsisNo")));

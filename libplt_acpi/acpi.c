@@ -1,10 +1,14 @@
-/*
-  NUX: A kernel Library.
+/** @file
+  ACPI Table Support
+
+  Provides ACPI (Advanced Configuration and Power Interface) table
+  parsing and initialization. Discovers and processes MADT (APIC),
+  HPET, and other system description tables.
+
   Copyright (C) 2019 Gianluca Guida, glguida@tlbflush.org
 
-  SPDX-License-Identifier:	BSD-2-Clause
-*/
-
+  SPDX-License-Identifier: BSD-2-Clause
+**/
 
 #include <string.h>
 #include <nux/defs.h>
@@ -16,211 +20,256 @@
 
 #define ACPI_MAX_TBL (16 << 12)
 
-static paddr_t pa_root_table;
-static paddr_t pa_apic_table;
-static paddr_t pa_hpet_table;
+static paddr_t gPaRootTable;
+static paddr_t gPaApicTable;
+static paddr_t gPaHpetTable;
 
-static void *
-load_table (paddr_t pa)
+/**
+  Load ACPI table.
+
+  Maps and validates an ACPI table, checking signature and checksum.
+
+  @param[in] Pa  Physical address of table.
+
+  @return Pointer to mapped table, or NULL if invalid.
+**/
+static VOID *
+LoadTable (
+  IN paddr_t  Pa
+  )
 {
-  int i;
-  uint8_t sum, *ptr;
-  struct acpi_thdr *tbl;
+  INT32 i;
+  UINT8 Sum, *pPtr;
+  struct acpi_thdr *pTbl;
 
-  tbl = (struct acpi_thdr *) kva_physmap (pa, ACPI_MAX_TBL, HAL_PTE_P);
+  pTbl = (struct acpi_thdr *) KvaMapPhysical (Pa, ACPI_MAX_TBL, HAL_PTE_P);
 
-  if (tbl->length >= ACPI_MAX_TBL)
+  if (pTbl->length >= ACPI_MAX_TBL)
     {
-      error
-	("Table %4.4s [%6.6s %8.8s rev%d] size %d > ACPI_MAX_TBL. Skipping checks.",
-	 tbl->signature, tbl->oemid, tbl->oemtableid, tbl->oemrevision,
-	 tbl->length);
-      return tbl;
+      error ("Table %4.4s [%6.6s %8.8s rev%d] size %d > ACPI_MAX_TBL. Skipping checks.",
+	     pTbl->signature, pTbl->oemid, pTbl->oemtableid, pTbl->oemrevision,
+	     pTbl->length);
+      return pTbl;
     }
 
-  sum = 0;
-  ptr = (uint8_t *) tbl;
+  Sum = 0;
+  pPtr = (UINT8 *) pTbl;
 
-  for (i = 0; i < tbl->length; i++)
+  for (i = 0; i < pTbl->length; i++)
     {
-      sum += ptr[i];
+      Sum += pPtr[i];
     }
-  if (sum != 0)
+  if (Sum != 0)
     {
-      warn ("Wrong checksum %d != 0 for ACPI table", sum);
-      kva_unmap (tbl, ACPI_MAX_TBL);
+      warn ("Wrong checksum %d != 0 for ACPI table", Sum);
+      KvaUnmap (pTbl, ACPI_MAX_TBL);
       return NULL;
     }
 
-  debug ("loaded table '%4.4s' [%6.6s %8.8s rev%d]", tbl->signature,
-	 tbl->oemid, tbl->oemtableid, tbl->oemrevision);
-  return tbl;
+  debug ("loaded table '%4.4s' [%6.6s %8.8s rev%d]", pTbl->signature,
+	 pTbl->oemid, pTbl->oemtableid, pTbl->oemrevision);
+  return pTbl;
 }
 
-static void
-unload_table (void *tbl)
+/**
+  Unload ACPI table.
+
+  Unmaps a previously loaded ACPI table.
+
+  @param[in] pTbl  Pointer to mapped table.
+**/
+static VOID
+UnloadTable (
+  IN VOID  *pTbl
+  )
 {
-  kva_unmap (tbl, ACPI_MAX_TBL);
+  KvaUnmap (pTbl, ACPI_MAX_TBL);
 }
 
-static void
-print_table (struct acpi_thdr *tbl)
+/**
+  Print ACPI table info.
+
+  Logs table signature and OEM information.
+
+  @param[in] pTbl  Pointer to table header.
+**/
+static VOID
+PrintTable (
+  IN struct acpi_thdr  *pTbl
+  )
 {
-  info ("TABLE '%4.4s' [%6.6s %8.8s rev%d]", tbl->signature, tbl->oemid,
-	tbl->oemtableid, tbl->oemrevision);
+  info ("TABLE '%4.4s' [%6.6s %8.8s rev%d]", pTbl->signature, pTbl->oemid,
+	pTbl->oemtableid, pTbl->oemrevision);
 }
 
-void
-acpi_init (paddr_t root)
+/**
+  Initialize ACPI.
+
+  Parses RSDP and root system description table (RSDT/XSDT),
+  discovering and cataloging system tables.
+
+  @param[in] Root  Physical address of RSDP.
+**/
+VOID
+AcpiInitialize (
+  IN paddr_t  Root
+  )
 {
-  void *ptr;
-  size_t entrylen;
-  int64_t length;
-  paddr_t pasdt;
-  struct acpi_rsdp_thdr *rsdp;
-  struct acpi_thdr *roottable, *sdtable;
+  VOID *pPtr;
+  size_t EntryLen;
+  INT64 Length;
+  paddr_t PaSdt;
+  struct acpi_rsdp_thdr *pRsdp;
+  struct acpi_thdr *pRootTable, *pSdTable;
 
-  rsdp =
-    (struct acpi_rsdp_thdr *) kva_physmap (root, ACPI_MAX_TBL, HAL_PTE_P);
+  pRsdp = (struct acpi_rsdp_thdr *) KvaMapPhysical (Root, ACPI_MAX_TBL, HAL_PTE_P);
 
-  info ("TABLE: '%8.8s' [%6.6s] rev: %d", rsdp->signature, rsdp->oemid,
-	rsdp->revision);
+  info ("TABLE: '%8.8s' [%6.6s] rev: %d", pRsdp->signature, pRsdp->oemid,
+	pRsdp->revision);
 
-  if (rsdp->revision == 0)
+  if (pRsdp->revision == 0)
     {
-      pasdt = rsdp->rsdt;
-      debug ("SDT found at addr %" PRIx64, pasdt);
-      entrylen = 4;
+      PaSdt = pRsdp->rsdt;
+      debug ("SDT found at addr %" PRIx64, PaSdt);
+      EntryLen = 4;
     }
   else
     {
-      pasdt = rsdp->xsdt;
-      debug ("XSDT found at addr %" PRIx64, pasdt);
-      entrylen = 8;
+      PaSdt = pRsdp->xsdt;
+      debug ("XSDT found at addr %" PRIx64, PaSdt);
+      EntryLen = 8;
     }
 
-  kva_unmap (rsdp, ACPI_MAX_TBL);
+  KvaUnmap (pRsdp, ACPI_MAX_TBL);
 
-  pa_root_table = pasdt;
-  roottable = load_table (pasdt);
+  gPaRootTable = PaSdt;
+  pRootTable = LoadTable (PaSdt);
 
   /* Iterate through ACPI tables. */
-  ptr = (void *) (roottable + 1);
-  length = (int64_t) roottable->length - sizeof (*roottable);
-  while (length > 0)
+  pPtr = (VOID *) (pRootTable + 1);
+  Length = (INT64) pRootTable->length - sizeof (*pRootTable);
+  while (Length > 0)
     {
-      pasdt = entrylen == 8 ? *(uint64_t *) ptr : *(uint32_t *) ptr;
-      sdtable = load_table (pasdt);
+      PaSdt = EntryLen == 8 ? *(UINT64 *) pPtr : *(UINT32 *) pPtr;
+      pSdTable = LoadTable (PaSdt);
 
-      print_table (sdtable);
+      PrintTable (pSdTable);
 
-      if (!memcmp (sdtable->signature, "APIC", 4))
-	pa_apic_table = pasdt;
-      else if (!memcmp (sdtable->signature, "HPET", 4))
-	pa_hpet_table = pasdt;
+      if (!memcmp (pSdTable->signature, "APIC", 4))
+	gPaApicTable = PaSdt;
+      else if (!memcmp (pSdTable->signature, "HPET", 4))
+	gPaHpetTable = PaSdt;
 
-      unload_table (sdtable);
-      length -= entrylen;
-      ptr += entrylen;
+      UnloadTable (pSdTable);
+      Length -= EntryLen;
+      pPtr += EntryLen;
     }
 
-  unload_table (roottable);
+  UnloadTable (pRootTable);
 
-  debug ("RDST table at pa %" PRIx64, pa_root_table);
-  debug ("APIC table at pa %" PRIx64, pa_apic_table);
-  debug ("HPET table at pa %" PRIx64, pa_hpet_table);
+  debug ("RDST table at pa %" PRIx64, gPaRootTable);
+  debug ("APIC table at pa %" PRIx64, gPaApicTable);
+  debug ("HPET table at pa %" PRIx64, gPaHpetTable);
 }
 
-void
-acpi_madt_scan (void)
+/**
+  Scan MADT table.
+
+  Parses Multiple APIC Description Table to discover Local APICs,
+  I/O APICs, interrupt overrides, and NMI configurations.
+**/
+VOID
+AcpiMadtScan (
+  VOID
+  )
 {
-  int len;
-  unsigned flags, nlapic = 0, nioapic = 0;
-  uint8_t type;
-  paddr_t lapic_addr;
-  struct acpi_madt *acpi_madt;
+  INT32 Len;
+  UINT32 Flags, NumLapic = 0, NumIoapic = 0;
+  UINT8 Type;
+  paddr_t LapicAddr;
+  struct acpi_madt *pAcpiMadt;
 
   union
   {
-    uint8_t *ptr;
-    struct acpi_madt_lapic *lapic;
-    struct acpi_madt_ioapic *ioapic;
-    struct acpi_madt_lapicoverride *lavr;
-    struct acpi_madt_lapicnmi *lanmi;
-    struct acpi_madt_intoverride *intovr;
+    UINT8 *pPtr;
+    struct acpi_madt_lapic *pLapic;
+    struct acpi_madt_ioapic *pIoapic;
+    struct acpi_madt_lapicoverride *pLapicOvr;
+    struct acpi_madt_lapicnmi *pLapicNmi;
+    struct acpi_madt_intoverride *pIntOvr;
   } _;
 
 #define madt_foreach(_cases)						\
 	do {								\
-		len = acpi_madt->hdr.length - sizeof(*acpi_madt);	\
-		_.ptr = (uint8_t *) acpi_madt + sizeof(*acpi_madt);	\
-		while (len > 0) {					\
-			type = *_.ptr;					\
-			switch (type) {					\
+		Len = pAcpiMadt->hdr.length - sizeof(*pAcpiMadt);	\
+		_.pPtr = (UINT8 *) pAcpiMadt + sizeof(*pAcpiMadt);	\
+		while (Len > 0) {					\
+			Type = *_.pPtr;					\
+			switch (Type) {					\
 				_cases;					\
 			}						\
-			len -= *(_.ptr + 1);				\
-			_.ptr += *(_.ptr + 1);				\
+			Len -= *(_.pPtr + 1);				\
+			_.pPtr += *(_.pPtr + 1);			\
 		}							\
 	} while (0)
 
-  acpi_madt = load_table (pa_apic_table);
-  if (acpi_madt == NULL)
+  pAcpiMadt = LoadTable (gPaApicTable);
+  if (pAcpiMadt == NULL)
     {
       error ("Could not load ACPI MADT Table.");
       return;
     }
 
-  lapic_addr = acpi_madt->lapic;
+  LapicAddr = pAcpiMadt->lapic;
 
   /* Search for APICs. Output of this stage is number of Local
      and I/O APICs and Lapic address. */
   /* *INDENT-OFF* */
   madt_foreach({
       case ACPI_MADT_TYPE_LAPICOVERRIDE:
-	info("ACPI MADT LAPICOVR %"PRIx64, _.lavr->address);
-	lapic_addr = _.lavr->address;
+	info("ACPI MADT LAPICOVR %"PRIx64, _.pLapicOvr->address);
+	LapicAddr = _.pLapicOvr->address;
 	break;
       case ACPI_MADT_TYPE_LAPIC:
-	if (_.lapic->flags & ACPI_MADT_LAPIC_ENABLED)
+	if (_.pLapic->flags & ACPI_MADT_LAPIC_ENABLED)
 	  {
 	    info("ACPI MADT LAPIC %02d %02d %08x",
-		 _.lapic->lapicid, _.lapic->acpiid, _.lapic->flags);
-	    nlapic++;
+		 _.pLapic->lapicid, _.pLapic->acpiid, _.pLapic->flags);
+	    NumLapic++;
 	  }
 	break;
       case ACPI_MADT_TYPE_IOAPIC:
 	info("ACPI MADT IOAPIC %02d %08x %02d",
-	       _.ioapic->ioapicid, _.ioapic->address, _.ioapic->gsibase);
-	nioapic++;
+	       _.pIoapic->ioapicid, _.pIoapic->address, _.pIoapic->gsibase);
+	NumIoapic++;
 	break;
       case ACPI_MADT_TYPE_LSAPIC:
 	{
-	  static int warn = 0;
-	  if (!warn)
+	  static INT32 Warn = 0;
+	  if (!Warn)
 	    {
 	      info("Warning: LSAPIC ENTRIES IGNORED");
-	      warn = 1;
+	      Warn = 1;
 	    }
 	  break;
 	}
       case ACPI_MADT_TYPE_LX2APIC:
 	{
-	  static int warn = 0;
-	  if (!warn)
+	  static INT32 Warn = 0;
+	  if (!Warn)
 	    {
 	      info("Warning: X2APIC ENTRY IGNORED");
-	      warn = 1;
+	      Warn = 1;
 	    }
 	}
 	break;
       case ACPI_MADT_TYPE_IOSAPIC:
 	{
-	  static int warn = 0;
-	  if (!warn)
+	  static INT32 Warn = 0;
+	  if (!Warn)
 	    {
 	      info("Warning: IOSAPIC ENTRY IGNORED");
-	      warn = 1;
+	      Warn = 1;
 	    }
 	  break;
 	}
@@ -228,71 +277,71 @@ acpi_madt_scan (void)
 	break;
     });
   /* *INDENT-ON* */
-  if (nlapic == 0)
+  if (NumLapic == 0)
     {
       info ("Warning: NO LOCAL APICS, ACPI SAYS");
-      nlapic = 1;
+      NumLapic = 1;
     }
 
-  lapic_init (lapic_addr, nlapic);
-  ioapic_init (nioapic);
+  LapicInitialize (LapicAddr, NumLapic);
+  IoapicInitialize (NumIoapic);
 
   /* Add APICs. Local and I/O APICs existence is notified to the
    * kernel after this. */
-  nioapic = 0;
+  NumIoapic = 0;
   /* *INDENT-OFF* */
   madt_foreach({
       case ACPI_MADT_TYPE_LAPIC:
-	if (_.lapic->flags & ACPI_MADT_LAPIC_ENABLED)
-	  lapic_add(_.lapic->lapicid, _.lapic->acpiid);
+	if (_.pLapic->flags & ACPI_MADT_LAPIC_ENABLED)
+	  LapicAdd(_.pLapic->lapicid, _.pLapic->acpiid);
 	break;
       case ACPI_MADT_TYPE_IOAPIC:
-	ioapic_add(nioapic, _.ioapic->address, _.ioapic->gsibase);
-	nioapic++;
+	IoapicAdd(NumIoapic, _.pIoapic->address, _.pIoapic->gsibase);
+	NumIoapic++;
 	break;
       default:
 	break;
     });
   /* *INDENT-ON* */
 
-  gsi_init ();
+  GsiInitialize ();
   /* *INDENT-OFF* */
   madt_foreach({
       case ACPI_MADT_TYPE_LAPICNMI:
 	info ("ACPI MADT LAPICNMI LINT%01d FL:%04x PROC:%02d",
-	       _.lanmi->lint, _.lanmi->flags, _.lanmi->acpiid);
+	       _.pLapicNmi->lint, _.pLapicNmi->flags, _.pLapicNmi->acpiid);
 	/* Ignore IntiFlags as NMI vectors ignore
 	 * polarity and trigger */
-	lapic_add_nmi(_.lanmi->acpiid, _.lanmi->lint);
+	LapicAddNmi(_.pLapicNmi->acpiid, _.pLapicNmi->lint);
 	break;
       case ACPI_MADT_TYPE_LX2APICNMI:
 	warn ("LX2APICNMI ENTRY IGNORED");
 	break;
       case ACPI_MADT_TYPE_INTOVERRIDE:
 	info ("ACPI MADT INTOVR BUS %02d IRQ: %02d GSI: %02d FL: %04x",
-	       _.intovr->bus, _.intovr->irq, _.intovr->gsi, _.intovr->flags);
-	flags = _.intovr->flags;
-	switch (flags & ACPI_MADT_TRIGGER_MASK) {
+	       _.pIntOvr->bus, _.pIntOvr->irq, _.pIntOvr->gsi, _.pIntOvr->flags);
+	Flags = _.pIntOvr->flags;
+	switch (Flags & ACPI_MADT_TRIGGER_MASK) {
 	case ACPI_MADT_TRIGGER_RESERVED:
 	  warn ("reserved trigger value");
 	  /* Passtrhough to edge. */
 	case ACPI_MADT_TRIGGER_CONFORMS:
 	  /* ISA is EDGE */
 	case ACPI_MADT_TRIGGER_EDGE:
-	  gsi_setup(_.intovr->gsi, _.intovr->irq, PLT_IRQ_EDGE);
+	  GsiSetup(_.pIntOvr->gsi, _.pIntOvr->irq, PLT_IRQ_EDGE);
 	  break;
 	case ACPI_MADT_TRIGGER_LEVEL:
-	  switch(flags &ACPI_MADT_POLARITY_MASK) {
+	  switch(Flags & ACPI_MADT_POLARITY_MASK) {
 	  case ACPI_MADT_POLARITY_RESERVED:
 	    warn ("Warning: reserved polarity value");
 	    /* Passthrough to Level Low */
 	  case ACPI_MADT_POLARITY_CONFORMS:
 	    /* Default for EISA is LOW */
 	  case ACPI_MADT_POLARITY_ACTIVE_LOW:
-	    gsi_setup(_.intovr->gsi, _.intovr->irq, PLT_IRQ_LVLLO);
+	    GsiSetup(_.pIntOvr->gsi, _.pIntOvr->irq, PLT_IRQ_LVLLO);
 	    break;
 	  case ACPI_MADT_POLARITY_ACTIVE_HIGH:
-	    gsi_setup(_.intovr->gsi, _.intovr->irq, PLT_IRQ_LVLHI);
+	    GsiSetup(_.pIntOvr->gsi, _.pIntOvr->irq, PLT_IRQ_LVLHI);
 	    break;
 	  }
 	  break;
@@ -303,32 +352,80 @@ acpi_madt_scan (void)
     });
   /* *INDENT-ON* */
 
-  unload_table (acpi_madt);
+  UnloadTable (pAcpiMadt);
 }
 
-bool
-acpi_hpet_scan (void)
-{
-  bool rc;
-  struct acpi_hpet *hpet;
+/**
+  Scan for HPET.
 
-  if (pa_hpet_table == 0)
+  Locates and initializes High Precision Event Timer from ACPI table.
+
+  @retval TRUE   HPET found and initialized.
+  @retval FALSE  HPET not found or initialization failed.
+**/
+BOOLEAN
+AcpiHpetScan (
+  VOID
+  )
+{
+  BOOLEAN Rc;
+  struct acpi_hpet *pHpet;
+
+  if (gPaHpetTable == 0)
     {
       warn ("No HPET found");
-      return false;
+      return FALSE;
     }
 
-  hpet = load_table (pa_hpet_table);
-  if (hpet == NULL)
+  pHpet = LoadTable (gPaHpetTable);
+  if (pHpet == NULL)
     {
       error ("Error loading HPET table");
-      return false;
+      return FALSE;
     }
 
-  rc = hpet_init (hpet->address.address);
+  Rc = HpetInitialize (pHpet->address.address);
 
-  unload_table (hpet);
+  UnloadTable (pHpet);
 
-
-  return rc;
+  return Rc;
 }
+
+//
+// Legacy Function Wrappers (for backward compatibility)
+//
+
+/** @deprecated Use LoadTable instead **/
+static void *load_table (paddr_t pa) {
+  return LoadTable (pa);
+}
+
+/** @deprecated Use UnloadTable instead **/
+static void unload_table (void *tbl) {
+  UnloadTable (tbl);
+}
+
+/** @deprecated Use PrintTable instead **/
+static void print_table (struct acpi_thdr *tbl) {
+  PrintTable (tbl);
+}
+
+/** @deprecated Use AcpiInitialize instead **/
+void acpi_init (paddr_t root) {
+  AcpiInitialize (root);
+}
+
+/** @deprecated Use AcpiMadtScan instead **/
+void acpi_madt_scan (void) {
+  AcpiMadtScan ();
+}
+
+/** @deprecated Use AcpiHpetScan instead **/
+bool acpi_hpet_scan (void) {
+  return AcpiHpetScan ();
+}
+
+// Legacy global variable aliases
+static paddr_t pa_root_table __attribute__((alias("gPaRootTable")));
+static paddr_t pa_apic_table __attribute__((alias("gPaApicTable")));
+static paddr_t pa_hpet_table __attribute__((alias("gPaHpetTable")));
