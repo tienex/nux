@@ -20,7 +20,7 @@
 #include <nux/symbol.h>
 
 #include <hal/internal.h>
-#include <nux/stree.h>
+#include <nux/batree.h>
 
 
 extern int _info_start;
