@@ -15,11 +15,11 @@
 static ARCH gElfArch;
 static UINT8 gBootPagemap[PAGEMAP_SZ (BOOTMEM)]
   __attribute__((aligned (4096)));
-static VIRTUAL_ADDRESS gReqPfnmapVa, gReqInfoVa, gReqStreeVa, gReqRegionVa,
+static VIRTUAL_ADDRESS gReqPfnmapVa, gReqInfoVa, gReqBatreeVa, gReqRegionVa,
   gKtlsVa, gUtlsVa;
-static SIZE64 gReqPfnmapSize, gReqInfoSize, gReqStreeSize,
+static SIZE64 gReqPfnmapSize, gReqInfoSize, gReqBatreeSize,
   gReqRegionSize, gKtlsInitsize, gKtlsSize, gUtlsInitsize, gUtlsSize;
-static UINT32 gReqStreeOrder, gReqRegionNum;
+static UINT32 gReqBatreeOrder, gReqRegionNum;
 static bool gStopPayloadAllocation = false;
 static UINT64 gMinRamAddr = 0;
 
@@ -597,30 +597,30 @@ VaInfoCopy (
 }
 
 
-#define OR_WORD(p, x) ((*(UINT64 *)VaGetPhys(gReqStreeVa + (VIRTUAL_ADDRESS)(UINTN)(p))) |= (x))
-#define MASK_WORD(p,x) ((*(UINT64 *)VaGetPhys(gReqStreeVa + (VIRTUAL_ADDRESS)(UINTN)(p))) &= (x))
-#define GET_WORD(p) (*(UINT64 *)VaGetPhys(gReqStreeVa + (VIRTUAL_ADDRESS)(UINTN)(p)))
-#define SET_WORD(p,x) (*(UINT64 *)VaGetPhys(gReqStreeVa + (VIRTUAL_ADDRESS)(UINTN)(p)) = x)
+#define OR_WORD(p, x) ((*(UINT64 *)VaGetPhys(gReqBatreeVa + (VIRTUAL_ADDRESS)(UINTN)(p))) |= (x))
+#define MASK_WORD(p,x) ((*(UINT64 *)VaGetPhys(gReqBatreeVa + (VIRTUAL_ADDRESS)(UINTN)(p))) &= (x))
+#define GET_WORD(p) (*(UINT64 *)VaGetPhys(gReqBatreeVa + (VIRTUAL_ADDRESS)(UINTN)(p)))
+#define SET_WORD(p,x) (*(UINT64 *)VaGetPhys(gReqBatreeVa + (VIRTUAL_ADDRESS)(UINTN)(p)) = x)
 #include <nux/batree.h>
 
 /**
-  Set up S-tree structure.
+  Set up BAtree structure.
 
-  Creates buddy allocator S-tree for tracking free page frames.
+  Creates buddy allocator BAtree for tracking free page frames.
   Marks all RAM regions as free and non-RAM regions as busy.
 
   @param[in] Va    Virtual address.
   @param[in] Size  Size of region.
 **/
 VOID
-VaStree (
+VaBatree (
   IN VIRTUAL_ADDRESS   Va,
   IN SIZE64  Size
   )
 {
   SIZE64 s;
 INT32 i, Order;
-  APXH_STREE Hdr;
+  APXH_BATREE Hdr;
   BOOTINFO_REGION *Reg;
   UINT32 Regions = MdMemRegions ();
   UINT32 MaxFrame = MdMaxRamPfn ();
@@ -630,7 +630,7 @@ INT32 i, Order;
 
   Order = BatreeOrder (MaxFrame);
   s = 8 * BATREE_SIZE (Order);
-  s += sizeof (APXH_STREE);
+  s += sizeof (APXH_BATREE);
 
   if (s > Size)
     {
@@ -643,15 +643,15 @@ INT32 i, Order;
   VaPopulate (Va, Size, 0, 1, 0);
 
   /* Copy the header. */
-  Hdr.magic = APXH_STREE_MAGIC;
-  Hdr.version = APXH_STREE_VERSION;
+  Hdr.magic = APXH_BATREE_MAGIC;
+  Hdr.version = APXH_BATREE_VERSION;
   Hdr.order = Order;
   Hdr.offset = sizeof (Hdr);
   Hdr.size = 8 * BATREE_SIZE (Order);
   VaCopy (Va, &Hdr, sizeof (Hdr), 0, 1, 0);
 
   /* Fill the S-Tree with all RAM regions. */
-  gReqStreeVa = Va + sizeof (Hdr);
+  gReqBatreeVa = Va + sizeof (Hdr);
 
   for (i = 0; i < Regions; i++)
     {
@@ -704,22 +704,22 @@ INT32 i, Order;
 
 
   /* We'll need to continue to update allocated pages. */
-  gReqStreeOrder = Order;
-  gReqStreeSize = Size;
+  gReqBatreeOrder = Order;
+  gReqBatreeSize = Size;
 }
 
 /**
-  Update S-tree with allocations.
+  Update BAtree with allocations.
 
-  Marks all pages allocated by bootloader as busy in the S-tree.
+  Marks all pages allocated by bootloader as busy in the BAtree.
 **/
 VOID
-VaStreeCopy (
+VaBatreeCopy (
   VOID
   )
 {
-  VIRTUAL_ADDRESS Va = gReqStreeVa;
-  UINT32 Order = gReqStreeOrder;
+  VIRTUAL_ADDRESS Va = gReqBatreeVa;
+  UINT32 Order = gReqBatreeOrder;
   UINT64 Pa;
   VIRTUAL_ADDRESS MaxFrame;
 
@@ -1181,7 +1181,7 @@ main (
   gStopPayloadAllocation = true;
   VaInfoCopy (UEntry, gReqRegionNum);
   VaPfnmapCopy ();
-  VaStreeCopy ();
+  VaBatreeCopy ();
   VaRegionsCopy ();
 
   VaEntry (KEntry);

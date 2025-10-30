@@ -4,7 +4,7 @@
 
   SPDX-License-Identifier:	BSD-2-Clause
 */
-
+#pragma once
 #ifndef __apxh_internal_h__
 #define __apxh_internal_h__
 
@@ -64,7 +64,7 @@ typedef enum _MEMORY_TYPE
 #define PHT_APXH_EMPTY      0xAF100001	/* Empty (no page tables). */
 #define PHT_APXH_PHYSMAP    0xAF100002	/* 1:1 Memory Map. */
 #define PHT_APXH_PFNMAP     0xAF100003	/* PFN Map. */
-#define PHT_APXH_STREE      0xAF100004	/* Allocated Pages Bitmap. */
+#define PHT_APXH_BATREE      0xAF100004	/* Allocated Pages Bitmap. */
 #define PHT_APXH_PTALLOC    0xAF100005	/* Empty (alloc all page tables). */
 #define PHT_APXH_FRAMEBUF   0xAF100006	/* Frame Buffer. */
 #define PHT_APXH_REGIONS    0xAF100007	/* Region List. */
@@ -136,7 +136,7 @@ VOID VaPhysmap (IN VIRTUAL_ADDRESS Va, IN SIZE64 Size, IN MEMORY_TYPE Type);
 VOID VaLinear (IN VIRTUAL_ADDRESS Va, IN SIZE64 Size);
 VOID VaInfo (IN VIRTUAL_ADDRESS Va, IN SIZE64 Size);
 VOID VaPfnmap (IN VIRTUAL_ADDRESS Va, IN SIZE64 Size);
-VOID VaStree (IN VIRTUAL_ADDRESS Va, IN SIZE64 Size);
+VOID VaBatree (IN VIRTUAL_ADDRESS Va, IN SIZE64 Size);
 VOID VaTopPtAlloc (IN VIRTUAL_ADDRESS Va, IN SIZE64 Size);
 VOID VaPtAlloc (IN VIRTUAL_ADDRESS Va, IN SIZE64 Size);
 VOID VaFramebuf (IN VIRTUAL_ADDRESS Va, IN SIZE64 Size, IN MEMORY_TYPE Type);
@@ -199,4 +199,3 @@ VOID Sv48MapPage (IN VOID *Pt, IN VIRTUAL_ADDRESS Va, IN UINTN Pa, IN INT32 Payl
 #define warn(...) do { printf ("Warning: "); printf (__VA_ARGS__); putchar('\n'); } while (0)
 #define fatal(...) do { printf ("Fatal: "); printf (__VA_ARGS__); putchar('\n'); exit(-1); } while (0)
 
-#endif

@@ -188,4 +188,3 @@ PteMergeFlags (
   IN UINT64  Flags
   );
 
-#endif // __PAE_H__

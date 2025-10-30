@@ -4,7 +4,7 @@
 
   SPDX-License-Identifier:	BSD-2-Clause
 */
-
+#pragma once
 #ifndef __apxh_x86_h__
 #define __apxh_x86_h__
 
@@ -103,4 +103,3 @@ Lgdt (UINTN ptr)
   asm volatile ("lgdtl (%0)\n"::"r" (ptr));
 }
 
-#endif

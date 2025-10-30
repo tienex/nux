@@ -4,6 +4,7 @@
 
   SPDX-License-Identifier:	BSD-2-Clause
 */
+#pragma once
 
 /* multiboot.h - Multiboot header file. */
 /* Copyright (C) 1999,2003,2007,2008,2009,2010  Free Software Foundation, Inc.
@@ -25,7 +26,6 @@
  *  WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR
  *  IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-
 #ifndef __apxh_multiboot_h__
 #define __apxh_multiboot_h__ 1
 
@@ -279,4 +279,3 @@ struct multiboot_apm_info
 
 #endif /* ! ASM_FILE */
 
-#endif /* ! MULTIBOOT_HEADER */

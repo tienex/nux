@@ -9,7 +9,7 @@
   - Platform firmware information (ACPI, Device Tree)
   - Framebuffer configuration
   - Thread-local storage (TLS) information
-  - Initial S-tree allocator state
+  - Initial BAtree allocator state
 
   Copyright (C) 2019 Gianluca Guida <glguida@tlbflush.org>
 
@@ -35,13 +35,13 @@
 //
 
 #define APXH_BOOTINFO_MAGIC  0xAF10B007  ///< Boot info structure magic
-#define APXH_STREE_MAGIC     0xAF1057EE  ///< S-tree allocator magic
+#define APXH_BATREE_MAGIC     0xAF1057EE  ///< BAtree allocator magic
 
 //
-// APXH S-tree Version
+// APXH BAtree Version
 //
 
-#define APXH_STREE_VERSION  0  ///< Current S-tree version
+#define APXH_BATREE_VERSION  0  ///< Current BAtree version
 
 //
 // Memory Region Types
@@ -152,36 +152,36 @@ typedef struct _APXH_BOOT_INFO {
 } APXH_BOOT_INFO;
 
 //
-// APXH_STREE - S-tree Allocator State
+// APXH_BATREE - BAtree Allocator State
 //
 
-typedef struct _APXH_STREE {
+typedef struct _APXH_BATREE {
   ///
-  /// Magic number (APXH_STREE_MAGIC = 0xAF1057EE).
-  /// Used to validate the S-tree structure.
+  /// Magic number (APXH_BATREE_MAGIC = 0xAF1057EE).
+  /// Used to validate the BAtree structure.
   ///
   UINT64  Magic;
 
   ///
-  /// S-tree version (APXH_STREE_VERSION = 0).
+  /// BAtree version (APXH_BATREE_VERSION = 0).
   ///
   UINT8   Version;
 
   ///
-  /// S-tree order (power of 2 for tree height).
+  /// BAtree order (power of 2 for tree height).
   ///
   UINT8   Order;
 
   ///
-  /// Offset to S-tree data.
+  /// Offset to BAtree data.
   ///
   UINT16  Offset;
 
   ///
-  /// Size of S-tree data in bytes.
+  /// Size of BAtree data in bytes.
   ///
   UINT32  Size;
-} APXH_STREE;
+} APXH_BATREE;
 
 //
 // APXH_REGION - Memory Region Descriptor
@@ -208,4 +208,3 @@ typedef struct _APXH_REGION {
 
 #pragma pack(pop)
 
-#endif // _APXH_H

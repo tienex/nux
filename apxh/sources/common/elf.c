@@ -303,9 +303,9 @@ PhKload (
       printf ("PFN Map at %" PRIx64 " (size: %" PRId64 ").\n", Va, MSize);
       VaPfnmap (Va, MSize);
       break;
-    case PHT_APXH_STREE:
+    case PHT_APXH_BATREE:
       printf ("S-Tree at %" PRIx64 " (size: %" PRId64 ").\n", Va, MSize);
-      VaStree (Va, MSize);
+      VaBatree (Va, MSize);
       break;
     case PHT_APXH_LINEAR:
       printf ("Linear Map at %" PRIx64 " (size: %" PRId64 ").\n", Va, MSize);

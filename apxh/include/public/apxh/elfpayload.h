@@ -4,7 +4,7 @@
 
   SPDX-License-Identifier:	BSD-2-Clause
 */
-
+#pragma once
 #ifndef __apxh_elfpayload_h__
 #define __apxh_elfpayload_h__
 
@@ -49,4 +49,3 @@ typedef struct _PAYLOAD_HDR
 
 
 
-#endif
