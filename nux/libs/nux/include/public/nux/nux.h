@@ -148,9 +148,9 @@ struct _INuxMemoryVtbl {
 
     @param[in]  This  Pointer to the INuxMemory instance.
     @param[in]  Pfn   Physical frame number.
-    @param[in]  pVa   Virtual address pointer from PfnGet.
+    @param[in]  Va   Virtual address pointer from PfnGet.
   **/
-  VOID (*PfnPut)(IN INuxMemory *This, IN PFN Pfn, IN VOID *pVa);
+  VOID (*PfnPut)(IN INuxMemory *This, IN PFN Pfn, IN VOID *Va);
 
   /**
     Allocate a physical page frame.
@@ -273,10 +273,10 @@ struct _INuxKvaVtbl {
     Unmaps the pages and frees the virtual address range.
 
     @param[in]  This  Pointer to the INuxKva instance.
-    @param[in]  pVa   Virtual address pointer.
+    @param[in]  Va   Virtual address pointer.
     @param[in]  Size  Size in bytes.
   **/
-  VOID (*Unmap)(IN INuxKva *This, IN VOID *pVa, IN UINTN Size);
+  VOID (*Unmap)(IN INuxKva *This, IN VOID *Va, IN UINTN Size);
 };
 
 INTERFACE_INHERIT_IUNKNOWN (INuxKva)
@@ -586,9 +586,9 @@ struct _INuxCpuVtbl {
     Set CPU-local data pointer.
 
     @param[in]  This  Pointer to the INuxCpu instance.
-    @param[in]  pPtr  CPU-local data pointer.
+    @param[in]  Ptr  CPU-local data pointer.
   **/
-  VOID (*SetData)(IN INuxCpu *This, IN VOID *pPtr);
+  VOID (*SetData)(IN INuxCpu *This, IN VOID *Ptr);
 
   /**
     Get CPU-local data pointer.
@@ -731,7 +731,7 @@ struct _INuxCpuVtbl {
     Copy from user address space.
 
     @param[in]  This       Pointer to the INuxCpu instance.
-    @param[out] pDst       Kernel destination buffer.
+    @param[out] Dst       Kernel destination buffer.
     @param[in]  Src        User source address.
     @param[in]  Size       Number of bytes to copy.
     @param[in]  PfHandler  Page fault handler callback.
@@ -741,7 +741,7 @@ struct _INuxCpuVtbl {
   **/
   BOOLEAN (*UserAccessCopyFrom)(
     IN  INuxCpu        *This,
-    OUT VOID           *pDst,
+    OUT VOID           *Dst,
     IN  USER_ADDRESS   Src,
     IN  UINTN          Size,
     IN  PF_HANDLER     PfHandler
@@ -752,7 +752,7 @@ struct _INuxCpuVtbl {
 
     @param[in]  This       Pointer to the INuxCpu instance.
     @param[in]  Dst        User destination address.
-    @param[in]  pSrc       Kernel source buffer.
+    @param[in]  Src       Kernel source buffer.
     @param[in]  Size       Number of bytes to copy.
     @param[in]  PfHandler  Page fault handler callback.
 
@@ -762,7 +762,7 @@ struct _INuxCpuVtbl {
   BOOLEAN (*UserAccessCopyTo)(
     IN INuxCpu        *This,
     IN USER_ADDRESS   Dst,
-    IN VOID           *pSrc,
+    IN VOID           *Src,
     IN UINTN          Size,
     IN PF_HANDLER     PfHandler
     );
@@ -800,9 +800,9 @@ struct _INuxCpuVtbl {
     Enter user address space mapping.
 
     @param[in]  This   Pointer to the INuxCpu instance.
-    @param[in]  pUmap  User mapping to activate.
+    @param[in]  Umap  User mapping to activate.
   **/
-  VOID (*EnterUmap)(IN INuxCpu *This, IN UMAP *pUmap);
+  VOID (*EnterUmap)(IN INuxCpu *This, IN UMAP *Umap);
 
   /**
     Exit current user address space mapping.
@@ -880,48 +880,48 @@ struct _INuxUmapVtbl {
 
     Initializes a user mapping structure for the bootstrap process.
 
-    @param[in,out] pUserMap  User mapping structure to bootstrap.
+    @param[in,out] UserMap  User mapping structure to bootstrap.
   **/
-  VOID (*Bootstrap)(IN OUT UMAP *pUserMap);
+  VOID (*Bootstrap)(IN OUT UMAP *UserMap);
 
   /**
     Initialize a user mapping.
 
-    @param[in,out] pUserMap  User mapping structure to initialize.
+    @param[in,out] UserMap  User mapping structure to initialize.
   **/
-  VOID (*Init)(IN OUT UMAP *pUserMap);
+  VOID (*Init)(IN OUT UMAP *UserMap);
 
   /**
     Free a user mapping.
 
-    @param[in,out] pUserMap  User mapping structure to free.
+    @param[in,out] UserMap  User mapping structure to free.
   **/
-  VOID (*Free)(IN OUT UMAP *pUserMap);
+  VOID (*Free)(IN OUT UMAP *UserMap);
 
   /**
     Map a physical page in user address space.
 
-    @param[in,out] pUserMap  User mapping structure.
+    @param[in,out] UserMap  User mapping structure.
     @param[in]     Va        Virtual address.
     @param[in]     Pfn       Physical frame number.
     @param[in]     Prot      Protection flags.
-    @param[out]    pOldPfn   Previous PFN at that address, or NULL.
+    @param[out]    OldPfn   Previous PFN at that address, or NULL.
 
     @retval TRUE   Mapping succeeded.
     @retval FALSE  Mapping failed.
   **/
   BOOLEAN (*Map)(
-    IN OUT UMAP              *pUserMap,
+    IN OUT UMAP              *UserMap,
     IN     VIRTUAL_ADDRESS   Va,
     IN     PFN               Pfn,
     IN     UINTN             Prot,
-    OUT    PFN               *pOldPfn OPTIONAL
+    OUT    PFN               *OldPfn OPTIONAL
     );
 
   /**
     Change protection flags.
 
-    @param[in,out] pUserMap  User mapping structure.
+    @param[in,out] UserMap  User mapping structure.
     @param[in]     Va        Virtual address.
     @param[in]     ProtSet   Protection flags to set.
     @param[in]     ProtClr   Protection flags to clear.
@@ -929,7 +929,7 @@ struct _INuxUmapVtbl {
     @return Previous protection flags.
   **/
   UINTN (*ChangeFlags)(
-    IN OUT UMAP              *pUserMap,
+    IN OUT UMAP              *UserMap,
     IN     VIRTUAL_ADDRESS   Va,
     IN     UINTN             ProtSet,
     IN     UINTN             ProtClr
@@ -938,19 +938,19 @@ struct _INuxUmapVtbl {
   /**
     Unmap a virtual address.
 
-    @param[in,out] pUserMap  User mapping structure.
+    @param[in,out] UserMap  User mapping structure.
     @param[in]     Va        Virtual address to unmap.
 
     @return PFN that was unmapped, or PFN_INVALID.
   **/
-  PFN (*Unmap)(IN OUT UMAP *pUserMap, IN VIRTUAL_ADDRESS Va);
+  PFN (*Unmap)(IN OUT UMAP *UserMap, IN VIRTUAL_ADDRESS Va);
 
   /**
     Commit pending TLB operations.
 
-    @param[in,out] pUserMap  User mapping structure.
+    @param[in,out] UserMap  User mapping structure.
   **/
-  VOID (*Commit)(IN OUT UMAP *pUserMap);
+  VOID (*Commit)(IN OUT UMAP *UserMap);
 };
 
 INTERFACE_INHERIT_IUNKNOWN (INuxUmap)
@@ -998,7 +998,7 @@ struct _INuxUaddrVtbl {
     Copy from user address space.
 
     @param[in]  This       Pointer to the INuxUaddr instance.
-    @param[out] pDst       Kernel destination buffer.
+    @param[out] Dst       Kernel destination buffer.
     @param[in]  Src        User source address.
     @param[in]  Size       Number of bytes to copy.
     @param[in]  PfHandler  Page fault handler callback.
@@ -1008,7 +1008,7 @@ struct _INuxUaddrVtbl {
   **/
   BOOLEAN (*CopyFrom)(
     IN  INuxUaddr      *This,
-    OUT VOID           *pDst,
+    OUT VOID           *Dst,
     IN  USER_ADDRESS   Src,
     IN  UINTN          Size,
     IN  PF_HANDLER     PfHandler
@@ -1019,7 +1019,7 @@ struct _INuxUaddrVtbl {
 
     @param[in]  This       Pointer to the INuxUaddr instance.
     @param[in]  Dst        User destination address.
-    @param[in]  pSrc       Kernel source buffer.
+    @param[in]  Src       Kernel source buffer.
     @param[in]  Size       Number of bytes to copy.
     @param[in]  PfHandler  Page fault handler callback.
 
@@ -1029,7 +1029,7 @@ struct _INuxUaddrVtbl {
   BOOLEAN (*CopyTo)(
     IN INuxUaddr      *This,
     IN USER_ADDRESS   Dst,
-    IN VOID           *pSrc,
+    IN VOID           *Src,
     IN UINTN          Size,
     IN PF_HANDLER     PfHandler
     );
@@ -1076,23 +1076,23 @@ struct _INuxUctxtVtbl {
   /**
     Bootstrap a user context.
 
-    @param[in,out] pUctxt  User context to bootstrap.
+    @param[in,out] Uctxt  User context to bootstrap.
 
     @retval TRUE   Bootstrap succeeded.
     @retval FALSE  Bootstrap failed.
   **/
-  BOOLEAN (*Bootstrap)(IN OUT UCTXT *pUctxt);
+  BOOLEAN (*Bootstrap)(IN OUT UCTXT *Uctxt);
 
   /**
     Initialize a user context.
 
-    @param[in,out] pUctxt  User context to initialize.
+    @param[in,out] Uctxt  User context to initialize.
     @param[in]     Ip      Initial instruction pointer.
     @param[in]     Sp      Initial stack pointer.
     @param[in]     Gp      Initial global pointer.
   **/
   VOID (*Init)(
-    IN OUT UCTXT             *pUctxt,
+    IN OUT UCTXT             *Uctxt,
     IN     VIRTUAL_ADDRESS   Ip,
     IN     VIRTUAL_ADDRESS   Sp,
     IN     VIRTUAL_ADDRESS   Gp
@@ -1101,100 +1101,100 @@ struct _INuxUctxtVtbl {
   /**
     Set instruction pointer.
 
-    @param[in,out] pUctxt  User context.
+    @param[in,out] Uctxt  User context.
     @param[in]     Ip      New instruction pointer.
   **/
-  VOID (*SetIp)(IN OUT UCTXT *pUctxt, IN VIRTUAL_ADDRESS Ip);
+  VOID (*SetIp)(IN OUT UCTXT *Uctxt, IN VIRTUAL_ADDRESS Ip);
 
   /**
     Get instruction pointer.
 
-    @param[in] pUctxt  User context.
+    @param[in] Uctxt  User context.
 
     @return Current instruction pointer.
   **/
-  VIRTUAL_ADDRESS (*GetIp)(IN UCTXT *pUctxt);
+  VIRTUAL_ADDRESS (*GetIp)(IN UCTXT *Uctxt);
 
   /**
     Set stack pointer.
 
-    @param[in,out] pUctxt  User context.
+    @param[in,out] Uctxt  User context.
     @param[in]     Sp      New stack pointer.
   **/
-  VOID (*SetSp)(IN OUT UCTXT *pUctxt, IN VIRTUAL_ADDRESS Sp);
+  VOID (*SetSp)(IN OUT UCTXT *Uctxt, IN VIRTUAL_ADDRESS Sp);
 
   /**
     Get stack pointer.
 
-    @param[in] pUctxt  User context.
+    @param[in] Uctxt  User context.
 
     @return Current stack pointer.
   **/
-  VIRTUAL_ADDRESS (*GetSp)(IN UCTXT *pUctxt);
+  VIRTUAL_ADDRESS (*GetSp)(IN UCTXT *Uctxt);
 
   /**
     Set global pointer.
 
-    @param[in,out] pUctxt  User context.
+    @param[in,out] Uctxt  User context.
     @param[in]     Gp      New global pointer.
   **/
-  VOID (*SetGp)(IN OUT UCTXT *pUctxt, IN VIRTUAL_ADDRESS Gp);
+  VOID (*SetGp)(IN OUT UCTXT *Uctxt, IN VIRTUAL_ADDRESS Gp);
 
   /**
     Get global pointer.
 
-    @param[in] pUctxt  User context.
+    @param[in] Uctxt  User context.
 
     @return Current global pointer.
   **/
-  VIRTUAL_ADDRESS (*GetGp)(IN UCTXT *pUctxt);
+  VIRTUAL_ADDRESS (*GetGp)(IN UCTXT *Uctxt);
 
   /**
     Set return value.
 
-    @param[in,out] pUctxt  User context.
+    @param[in,out] Uctxt  User context.
     @param[in]     Ret     Return value.
   **/
-  VOID (*SetRet)(IN OUT UCTXT *pUctxt, IN UINTN Ret);
+  VOID (*SetRet)(IN OUT UCTXT *Uctxt, IN UINTN Ret);
 
   /**
     Set argument register A0.
 
-    @param[in,out] pUctxt  User context.
+    @param[in,out] Uctxt  User context.
     @param[in]     A0      Argument value.
   **/
-  VOID (*SetA0)(IN OUT UCTXT *pUctxt, IN UINTN A0);
+  VOID (*SetA0)(IN OUT UCTXT *Uctxt, IN UINTN A0);
 
   /**
     Set argument register A1.
 
-    @param[in,out] pUctxt  User context.
+    @param[in,out] Uctxt  User context.
     @param[in]     A1      Argument value.
   **/
-  VOID (*SetA1)(IN OUT UCTXT *pUctxt, IN UINTN A1);
+  VOID (*SetA1)(IN OUT UCTXT *Uctxt, IN UINTN A1);
 
   /**
     Set argument register A2.
 
-    @param[in,out] pUctxt  User context.
+    @param[in,out] Uctxt  User context.
     @param[in]     A2      Argument value.
   **/
-  VOID (*SetA2)(IN OUT UCTXT *pUctxt, IN UINTN A2);
+  VOID (*SetA2)(IN OUT UCTXT *Uctxt, IN UINTN A2);
 
   /**
     Set TLS pointer.
 
-    @param[in,out] pUctxt  User context.
+    @param[in,out] Uctxt  User context.
     @param[in]     Tls     TLS pointer value.
   **/
-  VOID (*SetTls)(IN OUT UCTXT *pUctxt, IN UINTN Tls);
+  VOID (*SetTls)(IN OUT UCTXT *Uctxt, IN UINTN Tls);
 
   /**
     Print user context for debugging.
 
-    @param[in] pUctxt  User context to print.
+    @param[in] Uctxt  User context to print.
   **/
-  VOID (*Print)(IN UCTXT *pUctxt);
+  VOID (*Print)(IN UCTXT *Uctxt);
 };
 
 INTERFACE_INHERIT_IUNKNOWN (INuxUctxt)
@@ -1374,10 +1374,10 @@ __log (
 /**
   Stop all CPUs and panic.
 
-  @param[in] pMessage  Error message.
-  @param[in] pFrame    CPU frame at time of panic, or NULL.
+  @param[in] Message  Error message.
+  @param[in] Frame    CPU frame at time of panic, or NULL.
 **/
-VOID __dead NuxPanic (IN CONST CHAR8 *pMessage, IN struct hal_frame *pFrame);
+VOID __dead NuxPanic (IN CONST CHAR8 *Message, IN struct hal_frame *Frame);
 
 //
 // Main Entry Points
@@ -1411,13 +1411,13 @@ INT32 main_ap (VOID);
 /**
   System call entry point.
 
-  @param[in] pUctxt  User context, or NULL if CPU was idle.
+  @param[in] Uctxt  User context, or NULL if CPU was idle.
   @param[in] Arg1-7  System call arguments.
 
   @return User context to restore, or NULL to idle CPU.
 **/
 UCTXT *entry_sysc (
-  IN UCTXT        *pUctxt OPTIONAL,
+  IN UCTXT        *Uctxt OPTIONAL,
   IN UINTN        Arg1,
   IN UINTN        Arg2,
   IN UINTN        Arg3,
@@ -1430,14 +1430,14 @@ UCTXT *entry_sysc (
 /**
   Page fault entry point.
 
-  @param[in] pUctxt  User context, or NULL if CPU was idle.
+  @param[in] Uctxt  User context, or NULL if CPU was idle.
   @param[in] Va      Faulting virtual address.
   @param[in] PfInfo  Page fault information.
 
   @return User context to restore, or NULL to idle CPU.
 **/
 UCTXT *entry_pf (
-  IN UCTXT              *pUctxt OPTIONAL,
+  IN UCTXT              *Uctxt OPTIONAL,
   IN VIRTUAL_ADDRESS    Va,
   IN hal_pfinfo_t       PfInfo
   );
@@ -1445,49 +1445,49 @@ UCTXT *entry_pf (
 /**
   Generic exception entry point.
 
-  @param[in] pUctxt  User context, or NULL if CPU was idle.
+  @param[in] Uctxt  User context, or NULL if CPU was idle.
   @param[in] ExNum   Exception number.
 
   @return User context to restore, or NULL to idle CPU.
 **/
 UCTXT *entry_ex (
-  IN UCTXT  *pUctxt OPTIONAL,
+  IN UCTXT  *Uctxt OPTIONAL,
   IN UINTN  ExNum
   );
 
 /**
   Timer alarm entry point.
 
-  @param[in] pUctxt  User context, or NULL if CPU was idle.
+  @param[in] Uctxt  User context, or NULL if CPU was idle.
 
   @return User context to restore, or NULL to idle CPU.
 **/
 UCTXT *entry_alarm (
-  IN UCTXT  *pUctxt OPTIONAL
+  IN UCTXT  *Uctxt OPTIONAL
   );
 
 /**
   Inter-processor interrupt entry point.
 
-  @param[in] pUctxt  User context, or NULL if CPU was idle.
+  @param[in] Uctxt  User context, or NULL if CPU was idle.
 
   @return User context to restore, or NULL to idle CPU.
 **/
 UCTXT *entry_ipi (
-  IN UCTXT  *pUctxt OPTIONAL
+  IN UCTXT  *Uctxt OPTIONAL
   );
 
 /**
   IRQ entry point.
 
-  @param[in] pUctxt  User context, or NULL if CPU was idle.
+  @param[in] Uctxt  User context, or NULL if CPU was idle.
   @param[in] IrqNum  IRQ number.
   @param[in] Level   TRUE if level-triggered, FALSE if edge-triggered.
 
   @return User context to restore, or NULL to idle CPU.
 **/
 UCTXT *entry_irq (
-  IN UCTXT    *pUctxt OPTIONAL,
+  IN UCTXT    *Uctxt OPTIONAL,
   IN UINTN    IrqNum,
   IN BOOLEAN  Level
   );

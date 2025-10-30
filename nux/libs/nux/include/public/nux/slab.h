@@ -50,16 +50,16 @@
   Creates and registers a new slab cache for allocating objects of a
   fixed size. Optionally allows specifying a constructor and cache alignment.
 
-  @param[in,out] pSlab       Pointer to slab structure to initialize.
-  @param[in]     pName       Name of the slab cache for debugging.
+  @param[in,out] Slab       Pointer to slab structure to initialize.
+  @param[in]     Name       Name of the slab cache for debugging.
   @param[in]     ObjectSize  Size of each object in bytes.
   @param[in]     Constructor Optional constructor function called on new objects.
   @param[in]     CacheAlign  If non-zero, align objects to cache line boundaries.
 **/
 VOID
 SlabRegister (
-  IN OUT struct slab  *pSlab,
-  IN     CONST CHAR8  *pName,
+  IN OUT struct slab  *Slab,
+  IN     CONST CHAR8  *Name,
   IN     UINTN        ObjectSize,
   IN     VOID         (*Constructor)(VOID *, VOID *, INT32) OPTIONAL,
   IN     INT32        CacheAlign
@@ -71,11 +71,11 @@ SlabRegister (
   Frees all resources associated with the slab cache and removes it
   from the system. All objects must be freed before calling this function.
 
-  @param[in,out] pSlab  Pointer to the slab structure to deregister.
+  @param[in,out] Slab  Pointer to the slab structure to deregister.
 **/
 VOID
 SlabDeregister (
-  IN OUT struct slab  *pSlab
+  IN OUT struct slab  *Slab
   );
 
 /**
@@ -83,13 +83,13 @@ SlabDeregister (
 
   Attempts to free empty slabs to reduce memory usage.
 
-  @param[in,out] pSlab  Pointer to the slab structure to shrink.
+  @param[in,out] Slab  Pointer to the slab structure to shrink.
 
   @return Number of slabs freed.
 **/
 INT32
 SlabShrink (
-  IN OUT struct slab  *pSlab
+  IN OUT struct slab  *Slab
   );
 
 /**
@@ -98,14 +98,14 @@ SlabShrink (
   Allocates an object from the slab cache, passing optional data to the
   constructor if one is defined.
 
-  @param[in,out] pSlab           Pointer to the slab cache.
+  @param[in,out] Slab           Pointer to the slab cache.
   @param[in]     ConstructorData Optional data passed to constructor, or NULL.
 
   @return Pointer to allocated object, or NULL on failure.
 **/
 VOID *
 SlabAllocateOpaque (
-  IN OUT struct slab  *pSlab,
+  IN OUT struct slab  *Slab,
   IN     VOID         *ConstructorData OPTIONAL
   );
 
@@ -114,11 +114,11 @@ SlabAllocateOpaque (
 
   Returns the object to the slab cache it was allocated from.
 
-  @param[in] pObject  Pointer to the object to free.
+  @param[in] Object  Pointer to the object to free.
 **/
 VOID
 SlabFree (
-  IN VOID  *pObject
+  IN VOID  *Object
   );
 
 /**
@@ -138,17 +138,17 @@ SlabPrintStatistics (
   Convenience function that allocates an object without passing constructor
   data to the constructor.
 
-  @param[in,out] pSlab  Pointer to the slab cache.
+  @param[in,out] Slab  Pointer to the slab cache.
 
   @return Pointer to allocated object, or NULL on failure.
 **/
 static inline
 VOID *
 SlabAllocate (
-  IN OUT struct slab  *pSlab
+  IN OUT struct slab  *Slab
   )
 {
-  return SlabAllocateOpaque (pSlab, NULL);
+  return SlabAllocateOpaque (Slab, NULL);
 }
 
 #endif // NUX_SLAB_H

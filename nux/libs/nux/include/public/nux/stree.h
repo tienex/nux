@@ -160,7 +160,7 @@ BatreeOrder (size_t N)
 }
 
 static inline size_t
-BatreeLmapOff (unsigned O, unsigned L)
+BatreeLmapOff (UINT32 O, UINT32 L)
 {
   /*
      This mysterious code is the result of this sum:
@@ -177,7 +177,7 @@ BatreeLmapOff (unsigned O, unsigned L)
      particular returns the bit offset, which is why we divide by
      WORDLOG2 before returning.
    */
-  unsigned Y = L - 1;
+  UINT32 Y = L - 1;
   size_t C = 1 << (O - WORDLOG2 * Y);
   size_t R = C * ((1 << WORDLOG2 * L) - 1) / (WORDSIZE - 1);
   return R >> WORDLOG2;
@@ -185,14 +185,14 @@ BatreeLmapOff (unsigned O, unsigned L)
 
 /** Get level L bitmap of the search tree. **/
 static inline WORD_T *
-BatreeLmap (WORD_T *Batree, unsigned O, unsigned L)
+BatreeLmap (WORD_T *Batree, UINT32 O, UINT32 L)
 {
   return Batree + BatreeLmapOff (O, L);
 }
 
 /** Get bit offset of an lmap of level L for address A. **/
 static inline size_t
-LmapBitOff (unsigned L, unsigned A)
+LmapBitOff (UINT32 L, UINT32 A)
 {
   return ((size_t) A >> WORDLOG2 * L);
 }
@@ -233,7 +233,7 @@ GetBit (WORD_T *Map, size_t BitAddr)
 }
 
 static inline int
-BatreeGetBit (WORD_T *Batree, unsigned O, size_t BitAddr)
+BatreeGetBit (WORD_T *Batree, UINT32 O, size_t BitAddr)
 {
   WORD_T *Lmap = BatreeLmap (Batree, O, 0);
 
@@ -241,9 +241,9 @@ BatreeGetBit (WORD_T *Batree, unsigned O, size_t BitAddr)
 }
 
 static inline void
-BatreeSetBit (WORD_T *Batree, unsigned O, size_t BitAddr)
+BatreeSetBit (WORD_T *Batree, UINT32 O, size_t BitAddr)
 {
-  int L;
+  INT32 L;
 
   for (L = 0; L <= LOGWORD (O) - 1; L++)
     {
@@ -259,9 +259,9 @@ BatreeSetBit (WORD_T *Batree, unsigned O, size_t BitAddr)
 }
 
 static inline void
-BatreeClrBit (WORD_T *Batree, unsigned O, size_t BitAddr)
+BatreeClrBit (WORD_T *Batree, UINT32 O, size_t BitAddr)
 {
-  int L;
+  INT32 L;
 
   for (L = 0; L <= LOGWORD (O) - 1; L++)
     {
@@ -278,9 +278,9 @@ BatreeClrBit (WORD_T *Batree, unsigned O, size_t BitAddr)
 
 #include <string.h>
 static inline void
-BatreeSetAll (WORD_T *Batree, unsigned O, unsigned long Max)
+BatreeSetAll (WORD_T *Batree, UINT32 O, UINT32 long Max)
 {
-  int L;
+  INT32 L;
 
   for (L = LOGWORD (O) - 1; L >= 0; L -= 1)
     {
@@ -301,13 +301,13 @@ BatreeSetAll (WORD_T *Batree, unsigned O, unsigned long Max)
 
   @return Number of set bits.
 **/
-static inline unsigned long
-BatreeCount (WORD_T *Batree, unsigned O)
+static inline UINT32 long
+BatreeCount (WORD_T *Batree, UINT32 O)
 {
-  unsigned long Size = 0;
+  UINT32 long Size = 0;
   WORD_T *Lmap = BatreeLmap (Batree, O, 0);
 
-  for (int i = 0; i < (1LL << O); i += (1 << WORDLOG2))
+  for (INT32 i = 0; i < (1LL << O); i += (1 << WORDLOG2))
     {
       Size += __builtin_popcountl (Lmap[i >> WORDLOG2]);
     }
@@ -328,9 +328,9 @@ BatreeCount (WORD_T *Batree, unsigned O)
   @return Bit address or -1 if not found.
 **/
 static inline long
-BatreeBitSearch (WORD_T *Batree, unsigned O, int Low)
+BatreeBitSearch (WORD_T *Batree, UINT32 O, INT32 Low)
 {
-  int L;
+  INT32 L;
   size_t Laddr;
 
   Laddr = 0;
@@ -339,11 +339,11 @@ BatreeBitSearch (WORD_T *Batree, unsigned O, int Low)
       WORD_T *Lmap = BatreeLmap (Batree, O, L);
       size_t Loff = LmapBitOff (L, Laddr) >> WORDLOG2;
       WORD_T Word = GET_WORD (Lmap + Loff);
-      unsigned Bit;
+      UINT32 Bit;
 
 #if 0
       printf ("W=%d,l=%d,w=%llx,a=%lx\n", WORDSIZE, L, Word, Laddr);
-      for (int i = 0; i < (1LL << O); i += (1 << (WORDLOG2 * (L))))
+      for (INT32 i = 0; i < (1LL << O); i += (1 << (WORDLOG2 * (L))))
 	{
 	  long Off = LmapBitOff (L, i);
 	  printf ("%x", GetBit (Lmap, Off));	//lbitmap[Off >> WORDLOG2] & (Off & 0x3f));

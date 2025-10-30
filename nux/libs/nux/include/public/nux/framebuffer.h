@@ -1,7 +1,7 @@
 #ifndef __nux_framebuffer_h__
 #define __nux_framebuffer_h__
 
-#include <stdint.h>
+#include <nux/types.h>
 
 /**
   Framebuffer Type
@@ -19,23 +19,23 @@ typedef enum _FRAMEBUFFER_TYPE {
 
   NOTE: This struct must look the same when compiled both
   in 32 and 64 bit. Which is why it is packed and uses
-  only fixed-bits fields.
+  only fixed-width UEFI types.
 **/
 typedef struct _FRAMEBUFFER_DESC
 {
-  int16_t type;
-  uint16_t bpp;
+  INT16 type;
+  UINT16 bpp;
 
-  uint32_t pitch;
-  uint32_t width;
-  uint32_t height;
+  UINT32 pitch;
+  UINT32 width;
+  UINT32 height;
 
-  uint64_t addr;
-  uint64_t size;
+  UINT64 addr;
+  UINT64 size;
 
-  uint32_t r_mask;
-  uint32_t g_mask;
-  uint32_t b_mask;
+  UINT32 r_mask;
+  UINT32 g_mask;
+  UINT32 b_mask;
 } __packed FRAMEBUFFER_DESC, *PFRAMEBUFFER_DESC, *PCFRAMEBUFFER_DESC;
 
 INT32 FramebufferInit (IN FRAMEBUFFER_DESC *Desc);

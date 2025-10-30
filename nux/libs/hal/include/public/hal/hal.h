@@ -262,11 +262,11 @@ struct _IHalPhysMemVtbl {
     Get the S-tree allocation bitmap.
 
     @param[in]  This   Pointer to the IHalPhysMem instance.
-    @param[out] pOrder Receives the order (log2 size) of the bitmap.
+    @param[out] Order Receives the order (log2 size) of the bitmap.
 
     @return Pointer to the S-tree bitmap.
   **/
-  VOID *(*GetStree)(IN IHalPhysMem *This, OUT UINTN *pOrder);
+  VOID *(*GetStree)(IN IHalPhysMem *This, OUT UINTN *Order);
 };
 
 INTERFACE_INHERIT_IUNKNOWN (IHalPhysMem)
@@ -422,33 +422,33 @@ struct _IHalMapVtbl {
     Initialize an empty user mapping.
 
     @param[in]  This  Pointer to the IHalMap instance.
-    @param[out] pUmap Pointer to UMAP structure to initialize.
+    @param[out] Umap Pointer to UMAP structure to initialize.
   **/
-  VOID (*UmapInit)(IN IHalMap *This, OUT struct hal_umap *pUmap);
+  VOID (*UmapInit)(IN IHalMap *This, OUT struct hal_umap *Umap);
 
   /**
     Save current user mappings (called at boot).
 
     @param[in]  This  Pointer to the IHalMap instance.
-    @param[out] pUmap Pointer to UMAP structure to receive mappings.
+    @param[out] Umap Pointer to UMAP structure to receive mappings.
   **/
-  VOID (*UmapBootstrap)(IN IHalMap *This, OUT struct hal_umap *pUmap);
+  VOID (*UmapBootstrap)(IN IHalMap *This, OUT struct hal_umap *Umap);
 
   /**
     Load user mappings into current CPU.
 
     @param[in]  This  Pointer to the IHalMap instance.
-    @param[in]  pUmap Pointer to UMAP to load, or NULL to unmap user space.
+    @param[in]  Umap Pointer to UMAP to load, or NULL to unmap user space.
 
     @return Required TLB operation.
   **/
-  HAL_TLBOP (*UmapLoad)(IN IHalMap *This, IN struct hal_umap *pUmap OPTIONAL);
+  HAL_TLBOP (*UmapLoad)(IN IHalMap *This, IN struct hal_umap *Umap OPTIONAL);
 
   /**
     Get Level 1 page table pointer for user mapping.
 
     @param[in]  This   Pointer to the IHalMap instance.
-    @param[in]  pUmap  Pointer to UMAP, or NULL for current CPU mappings.
+    @param[in]  Umap  Pointer to UMAP, or NULL for current CPU mappings.
     @param[in]  Uaddr  User address.
     @param[in]  Alloc  If TRUE, allocate page tables as needed.
     @param[out] pL1p   Receives the L1 page table pointer.
@@ -456,21 +456,21 @@ struct _IHalMapVtbl {
     @retval TRUE   L1P was found or allocated.
     @retval FALSE  L1P not found or allocation failed.
   **/
-  BOOLEAN (*UmapGetL1p)(IN IHalMap *This, IN struct hal_umap *pUmap OPTIONAL,
+  BOOLEAN (*UmapGetL1p)(IN IHalMap *This, IN struct hal_umap *Umap OPTIONAL,
                         IN USER_ADDRESS Uaddr, IN BOOLEAN Alloc, OUT hal_l1p_t *pL1p);
 
   /**
     Find next mapped user address.
 
     @param[in]  This   Pointer to the IHalMap instance.
-    @param[in]  pUmap  Pointer to UMAP, or NULL for current CPU mappings.
+    @param[in]  Umap  Pointer to UMAP, or NULL for current CPU mappings.
     @param[in]  Uaddr  Starting user address.
     @param[out] pL1p   Optional, receives L1P for the address.
     @param[out] pL1e   Optional, receives L1E for the address.
 
     @return Next mapped user address, or UADDR_INVALID if none.
   **/
-  USER_ADDRESS (*UmapNext)(IN IHalMap *This, IN struct hal_umap *pUmap OPTIONAL,
+  USER_ADDRESS (*UmapNext)(IN IHalMap *This, IN struct hal_umap *Umap OPTIONAL,
                            IN USER_ADDRESS Uaddr, OUT hal_l1p_t *pL1p OPTIONAL,
                            OUT hal_l1e_t *pL1e OPTIONAL);
 
@@ -478,9 +478,9 @@ struct _IHalMapVtbl {
     Free all memory associated with user mapping.
 
     @param[in]  This  Pointer to the IHalMap instance.
-    @param[in]  pUmap Pointer to UMAP to free.
+    @param[in]  Umap Pointer to UMAP to free.
   **/
-  VOID (*UmapFree)(IN IHalMap *This, IN struct hal_umap *pUmap);
+  VOID (*UmapFree)(IN IHalMap *This, IN struct hal_umap *Umap);
 
   /**
     Create a page table entry.
@@ -498,10 +498,10 @@ struct _IHalMapVtbl {
 
     @param[in]  This  Pointer to the IHalMap instance.
     @param[in]  L1e   Page table entry to decode.
-    @param[out] pPfn  Receives the physical frame number.
-    @param[out] pProt Receives the protection flags.
+    @param[out] Pfn  Receives the physical frame number.
+    @param[out] Prot Receives the protection flags.
   **/
-  VOID (*L1eUnbox)(IN IHalMap *This, IN hal_l1e_t L1e, OUT UINTN *pPfn, OUT UINTN *pProt);
+  VOID (*L1eUnbox)(IN IHalMap *This, IN hal_l1e_t L1e, OUT UINTN *Pfn, OUT UINTN *Prot);
 
   /**
     Determine required TLB operation for page table change.
@@ -566,9 +566,9 @@ struct _IHalPcpuVtbl {
 
     @param[in]  This     Pointer to the IHalPcpu instance.
     @param[in]  PcpuId   Physical CPU identifier.
-    @param[in]  pHalData HAL-specific CPU data structure.
+    @param[in]  HalData HAL-specific CPU data structure.
   **/
-  VOID (*Add)(IN IHalPcpu *This, IN UINTN PcpuId, IN struct hal_cpu *pHalData);
+  VOID (*Add)(IN IHalPcpu *This, IN UINTN PcpuId, IN struct hal_cpu *HalData);
 
   /**
     Load HAL-specific state for current CPU.
@@ -611,130 +611,130 @@ struct _IHalFrameVtbl {
     Initialize a HAL frame.
 
     @param[in]  This   Pointer to the IHalFrame instance.
-    @param[out] pFrame Frame structure to initialize.
+    @param[out] Frame Frame structure to initialize.
   **/
-  VOID (*Init)(IN IHalFrame *This, OUT struct hal_frame *pFrame);
+  VOID (*Init)(IN IHalFrame *This, OUT struct hal_frame *Frame);
 
   /**
     Check if frame originated from user space.
 
     @param[in]  This   Pointer to the IHalFrame instance.
-    @param[in]  pFrame Frame to check.
+    @param[in]  Frame Frame to check.
 
     @retval TRUE   Frame is from user mode.
     @retval FALSE  Frame is from kernel mode.
   **/
-  BOOLEAN (*IsUser)(IN IHalFrame *This, IN struct hal_frame *pFrame);
+  BOOLEAN (*IsUser)(IN IHalFrame *This, IN struct hal_frame *Frame);
 
   /**
     Set instruction pointer in frame.
 
     @param[in]  This   Pointer to the IHalFrame instance.
-    @param[in]  pFrame Frame to modify.
+    @param[in]  Frame Frame to modify.
     @param[in]  Ip     New instruction pointer value.
   **/
-  VOID (*SetIp)(IN IHalFrame *This, IN struct hal_frame *pFrame, IN UINTN Ip);
+  VOID (*SetIp)(IN IHalFrame *This, IN struct hal_frame *Frame, IN UINTN Ip);
 
   /**
     Get instruction pointer from frame.
 
     @param[in]  This   Pointer to the IHalFrame instance.
-    @param[in]  pFrame Frame to read.
+    @param[in]  Frame Frame to read.
 
     @return Instruction pointer value.
   **/
-  UINTN (*GetIp)(IN IHalFrame *This, IN struct hal_frame *pFrame);
+  UINTN (*GetIp)(IN IHalFrame *This, IN struct hal_frame *Frame);
 
   /**
     Set stack pointer in frame.
 
     @param[in]  This   Pointer to the IHalFrame instance.
-    @param[in]  pFrame Frame to modify.
+    @param[in]  Frame Frame to modify.
     @param[in]  Sp     New stack pointer value.
   **/
-  VOID (*SetSp)(IN IHalFrame *This, IN struct hal_frame *pFrame, IN UINTN Sp);
+  VOID (*SetSp)(IN IHalFrame *This, IN struct hal_frame *Frame, IN UINTN Sp);
 
   /**
     Get stack pointer from frame.
 
     @param[in]  This   Pointer to the IHalFrame instance.
-    @param[in]  pFrame Frame to read.
+    @param[in]  Frame Frame to read.
 
     @return Stack pointer value.
   **/
-  UINTN (*GetSp)(IN IHalFrame *This, IN struct hal_frame *pFrame);
+  UINTN (*GetSp)(IN IHalFrame *This, IN struct hal_frame *Frame);
 
   /**
     Set global pointer in frame (RISC-V specific).
 
     @param[in]  This   Pointer to the IHalFrame instance.
-    @param[in]  pFrame Frame to modify.
+    @param[in]  Frame Frame to modify.
     @param[in]  Gp     New global pointer value.
   **/
-  VOID (*SetGp)(IN IHalFrame *This, IN struct hal_frame *pFrame, IN UINTN Gp);
+  VOID (*SetGp)(IN IHalFrame *This, IN struct hal_frame *Frame, IN UINTN Gp);
 
   /**
     Get global pointer from frame (RISC-V specific).
 
     @param[in]  This   Pointer to the IHalFrame instance.
-    @param[in]  pFrame Frame to read.
+    @param[in]  Frame Frame to read.
 
     @return Global pointer value.
   **/
-  UINTN (*GetGp)(IN IHalFrame *This, IN struct hal_frame *pFrame);
+  UINTN (*GetGp)(IN IHalFrame *This, IN struct hal_frame *Frame);
 
   /**
     Set argument register A0 in frame.
 
     @param[in]  This   Pointer to the IHalFrame instance.
-    @param[in]  pFrame Frame to modify.
+    @param[in]  Frame Frame to modify.
     @param[in]  A0     New A0 value.
   **/
-  VOID (*SetA0)(IN IHalFrame *This, IN struct hal_frame *pFrame, IN UINTN A0);
+  VOID (*SetA0)(IN IHalFrame *This, IN struct hal_frame *Frame, IN UINTN A0);
 
   /**
     Set argument register A1 in frame.
 
     @param[in]  This   Pointer to the IHalFrame instance.
-    @param[in]  pFrame Frame to modify.
+    @param[in]  Frame Frame to modify.
     @param[in]  A1     New A1 value.
   **/
-  VOID (*SetA1)(IN IHalFrame *This, IN struct hal_frame *pFrame, IN UINTN A1);
+  VOID (*SetA1)(IN IHalFrame *This, IN struct hal_frame *Frame, IN UINTN A1);
 
   /**
     Set argument register A2 in frame.
 
     @param[in]  This   Pointer to the IHalFrame instance.
-    @param[in]  pFrame Frame to modify.
+    @param[in]  Frame Frame to modify.
     @param[in]  A2     New A2 value.
   **/
-  VOID (*SetA2)(IN IHalFrame *This, IN struct hal_frame *pFrame, IN UINTN A2);
+  VOID (*SetA2)(IN IHalFrame *This, IN struct hal_frame *Frame, IN UINTN A2);
 
   /**
     Set return value register in frame.
 
     @param[in]  This   Pointer to the IHalFrame instance.
-    @param[in]  pFrame Frame to modify.
+    @param[in]  Frame Frame to modify.
     @param[in]  Ret    New return value.
   **/
-  VOID (*SetRet)(IN IHalFrame *This, IN struct hal_frame *pFrame, IN UINTN Ret);
+  VOID (*SetRet)(IN IHalFrame *This, IN struct hal_frame *Frame, IN UINTN Ret);
 
   /**
     Set TLS pointer in frame.
 
     @param[in]  This   Pointer to the IHalFrame instance.
-    @param[in]  pFrame Frame to modify.
+    @param[in]  Frame Frame to modify.
     @param[in]  Tls    New TLS pointer value.
   **/
-  VOID (*SetTls)(IN IHalFrame *This, IN struct hal_frame *pFrame, IN UINTN Tls);
+  VOID (*SetTls)(IN IHalFrame *This, IN struct hal_frame *Frame, IN UINTN Tls);
 
   /**
     Print frame information to log.
 
     @param[in]  This   Pointer to the IHalFrame instance.
-    @param[in]  pFrame Frame to print.
+    @param[in]  Frame Frame to print.
   **/
-  VOID (*Print)(IN IHalFrame *This, IN struct hal_frame *pFrame);
+  VOID (*Print)(IN IHalFrame *This, IN struct hal_frame *Frame);
 };
 
 INTERFACE_INHERIT_IUNKNOWN (IHalFrame)
@@ -852,11 +852,11 @@ struct _IHalVtbl {
 
     @param[in]  This   Pointer to the IHal instance.
     @param[in]  Cpu    CPU number initiating panic.
-    @param[in]  pError Error message.
-    @param[in]  pFrame Frame at time of panic, or NULL.
+    @param[in]  Error Error message.
+    @param[in]  Frame Frame at time of panic, or NULL.
   **/
-  VOID (*Panic)(IN IHal *This, IN UINTN Cpu, IN CONST CHAR8 *pError,
-                IN struct hal_frame *pFrame OPTIONAL);
+  VOID (*Panic)(IN IHal *This, IN UINTN Cpu, IN CONST CHAR8 *Error,
+                IN struct hal_frame *Frame OPTIONAL);
 };
 
 INTERFACE_INHERIT_IUNKNOWN (IHal)
@@ -1095,73 +1095,73 @@ static inline paddr_t hal_pcpu_startaddr (unsigned pcpu) {
 }
 
 static inline void hal_frame_init (struct hal_frame *f) {
-  IHalFrame *pFrame; gpHal->lpVtbl->GetFrameInterface(gpHal, &pFrame);
-  pFrame->lpVtbl->Init(pFrame, f);
+  IHalFrame *Frame; gpHal->lpVtbl->GetFrameInterface(gpHal, &Frame);
+  Frame->lpVtbl->Init(Frame, f);
 }
 
 static inline bool hal_frame_isuser (struct hal_frame *f) {
-  IHalFrame *pFrame; gpHal->lpVtbl->GetFrameInterface(gpHal, &pFrame);
-  return pFrame->lpVtbl->IsUser(pFrame, f);
+  IHalFrame *Frame; gpHal->lpVtbl->GetFrameInterface(gpHal, &Frame);
+  return Frame->lpVtbl->IsUser(Frame, f);
 }
 
 static inline void hal_frame_setip (struct hal_frame *f, unsigned long ip) {
-  IHalFrame *pFrame; gpHal->lpVtbl->GetFrameInterface(gpHal, &pFrame);
-  pFrame->lpVtbl->SetIp(pFrame, f, ip);
+  IHalFrame *Frame; gpHal->lpVtbl->GetFrameInterface(gpHal, &Frame);
+  Frame->lpVtbl->SetIp(Frame, f, ip);
 }
 
 static inline unsigned long hal_frame_getip (struct hal_frame *f) {
-  IHalFrame *pFrame; gpHal->lpVtbl->GetFrameInterface(gpHal, &pFrame);
-  return pFrame->lpVtbl->GetIp(pFrame, f);
+  IHalFrame *Frame; gpHal->lpVtbl->GetFrameInterface(gpHal, &Frame);
+  return Frame->lpVtbl->GetIp(Frame, f);
 }
 
 static inline void hal_frame_setsp (struct hal_frame *f, unsigned long sp) {
-  IHalFrame *pFrame; gpHal->lpVtbl->GetFrameInterface(gpHal, &pFrame);
-  pFrame->lpVtbl->SetSp(pFrame, f, sp);
+  IHalFrame *Frame; gpHal->lpVtbl->GetFrameInterface(gpHal, &Frame);
+  Frame->lpVtbl->SetSp(Frame, f, sp);
 }
 
 static inline unsigned long hal_frame_getsp (struct hal_frame *f) {
-  IHalFrame *pFrame; gpHal->lpVtbl->GetFrameInterface(gpHal, &pFrame);
-  return pFrame->lpVtbl->GetSp(pFrame, f);
+  IHalFrame *Frame; gpHal->lpVtbl->GetFrameInterface(gpHal, &Frame);
+  return Frame->lpVtbl->GetSp(Frame, f);
 }
 
 static inline void hal_frame_setgp (struct hal_frame *f, unsigned long gp) {
-  IHalFrame *pFrame; gpHal->lpVtbl->GetFrameInterface(gpHal, &pFrame);
-  pFrame->lpVtbl->SetGp(pFrame, f, gp);
+  IHalFrame *Frame; gpHal->lpVtbl->GetFrameInterface(gpHal, &Frame);
+  Frame->lpVtbl->SetGp(Frame, f, gp);
 }
 
 static inline unsigned long hal_frame_getgp (struct hal_frame *f) {
-  IHalFrame *pFrame; gpHal->lpVtbl->GetFrameInterface(gpHal, &pFrame);
-  return pFrame->lpVtbl->GetGp(pFrame, f);
+  IHalFrame *Frame; gpHal->lpVtbl->GetFrameInterface(gpHal, &Frame);
+  return Frame->lpVtbl->GetGp(Frame, f);
 }
 
 static inline void hal_frame_seta0 (struct hal_frame *f, unsigned long a0) {
-  IHalFrame *pFrame; gpHal->lpVtbl->GetFrameInterface(gpHal, &pFrame);
-  pFrame->lpVtbl->SetA0(pFrame, f, a0);
+  IHalFrame *Frame; gpHal->lpVtbl->GetFrameInterface(gpHal, &Frame);
+  Frame->lpVtbl->SetA0(Frame, f, a0);
 }
 
 static inline void hal_frame_seta1 (struct hal_frame *f, unsigned long a1) {
-  IHalFrame *pFrame; gpHal->lpVtbl->GetFrameInterface(gpHal, &pFrame);
-  pFrame->lpVtbl->SetA1(pFrame, f, a1);
+  IHalFrame *Frame; gpHal->lpVtbl->GetFrameInterface(gpHal, &Frame);
+  Frame->lpVtbl->SetA1(Frame, f, a1);
 }
 
 static inline void hal_frame_seta2 (struct hal_frame *f, unsigned long a2) {
-  IHalFrame *pFrame; gpHal->lpVtbl->GetFrameInterface(gpHal, &pFrame);
-  pFrame->lpVtbl->SetA2(pFrame, f, a2);
+  IHalFrame *Frame; gpHal->lpVtbl->GetFrameInterface(gpHal, &Frame);
+  Frame->lpVtbl->SetA2(Frame, f, a2);
 }
 
 static inline void hal_frame_setret (struct hal_frame *f, unsigned long r) {
-  IHalFrame *pFrame; gpHal->lpVtbl->GetFrameInterface(gpHal, &pFrame);
-  pFrame->lpVtbl->SetRet(pFrame, f, r);
+  IHalFrame *Frame; gpHal->lpVtbl->GetFrameInterface(gpHal, &Frame);
+  Frame->lpVtbl->SetRet(Frame, f, r);
 }
 
 static inline void hal_frame_settls (struct hal_frame *f, unsigned long r) {
-  IHalFrame *pFrame; gpHal->lpVtbl->GetFrameInterface(gpHal, &pFrame);
-  pFrame->lpVtbl->SetTls(pFrame, f, r);
+  IHalFrame *Frame; gpHal->lpVtbl->GetFrameInterface(gpHal, &Frame);
+  Frame->lpVtbl->SetTls(Frame, f, r);
 }
 
 static inline void hal_frame_print (struct hal_frame *f) {
-  IHalFrame *pFrame; gpHal->lpVtbl->GetFrameInterface(gpHal, &pFrame);
-  pFrame->lpVtbl->Print(pFrame, f);
+  IHalFrame *Frame; gpHal->lpVtbl->GetFrameInterface(gpHal, &Frame);
+  Frame->lpVtbl->Print(Frame, f);
 }
 
 static inline void hal_init_done (void) {

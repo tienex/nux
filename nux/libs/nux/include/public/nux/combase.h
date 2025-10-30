@@ -204,23 +204,23 @@ CompareGuid (
 /**
   Copy a GUID.
 
-  @param[out] pDestGuid  Pointer to the destination GUID.
-  @param[in]  pSrcGuid   Pointer to the source GUID.
+  @param[out] DestGuid  Pointer to the destination GUID.
+  @param[in]  SrcGuid   Pointer to the source GUID.
 **/
 static inline VOID
 CopyGuid (
-  OUT GUID        *pDestGuid,
-  IN  CONST GUID  *pSrcGuid
+  OUT GUID        *DestGuid,
+  IN  CONST GUID  *SrcGuid
   )
 {
-  UINT64  *pDest;
-  UINT64  *pSrc;
+  UINT64  *Dest;
+  UINT64  *Src;
 
-  pDest = (UINT64 *)pDestGuid;
-  pSrc  = (UINT64 *)pSrcGuid;
+  Dest = (UINT64 *)DestGuid;
+  Src  = (UINT64 *)SrcGuid;
 
-  pDest[0] = pSrc[0];
-  pDest[1] = pSrc[1];
+  Dest[0] = Src[0];
+  Dest[1] = Src[1];
 }
 
 //

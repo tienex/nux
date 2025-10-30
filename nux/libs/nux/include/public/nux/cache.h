@@ -16,8 +16,9 @@
 #define __nux_cache_h__
 
 #include <assert.h>
-#include <stdint.h>
 #include <rbtree.h>
+#include <nux/types.h>
+#include <nux/locks.h>
 
 //
 // Cache Slot Structure
@@ -34,10 +35,10 @@ typedef struct _SLOT
   rb_node_t           RbNode;     ///< Red-black tree node (must be first)
   TAILQ_ENTRY (_SLOT) LruEntry;   ///< LRU queue entry
 
-  uintptr_t  Address;             ///< Cached address
+  UINTN  Address;                 ///< Cached address
   struct {
-    uint32_t  Valid:1;            ///< Entry is valid
-    uint32_t  RefCount:31;        ///< Reference count
+    UINT32  Valid:1;              ///< Entry is valid
+    UINT32  RefCount:31;          ///< Reference count
   };
 } SLOT, *PSLOT, *PCSLOT;
 
@@ -55,7 +56,7 @@ typedef struct _CACHE
 {
   rb_tree_t           Map;        ///< Red-black tree for address lookup (must be first)
   TAILQ_HEAD (, _SLOT) FreeList;  ///< LRU free list
-  lock_t              Lock;       ///< Protects cache structure
+  SPINLOCK            Lock;       ///< Protects cache structure
 
   /**
     Fill callback function.
@@ -66,7 +67,7 @@ typedef struct _CACHE
     @param[in] OldAddress  Address of entry being evicted.
     @param[in] NewAddress  Address of entry being loaded.
   **/
-  VOID (*Fill)(UINTN SlotNumber, uintptr_t OldAddress, uintptr_t NewAddress);
+  VOID (*Fill)(UINTN SlotNumber, UINTN OldAddress, UINTN NewAddress);
 
   UINTN  NumSlots;                ///< Total number of cache slots
   SLOT   *Slots;                  ///< Array of cache slots
@@ -132,10 +133,10 @@ CacheSlotKeyCompare (
   )
 {
   CONST SLOT  *Slot;
-  uintptr_t   KeyAddress;
+  UINTN   KeyAddress;
 
   Slot       = (CONST SLOT *)SlotPtr;
-  KeyAddress = (uintptr_t)Key;
+  KeyAddress = (UINTN)Key;
 
   if (Slot->Address < KeyAddress) {
     return -1;
@@ -181,7 +182,7 @@ CacheGetSlotNumber (
   IN SLOT *Slot
   )
 {
-  return ((uintptr_t)Slot - (uintptr_t)(Cache->Slots)) / sizeof (SLOT);
+  return ((UINTN)Slot - (UINTN)(Cache->Slots)) / sizeof (SLOT);
 }
 
 /**
@@ -201,12 +202,12 @@ CacheInitialize (
   OUT CACHE *Cache,
   OUT SLOT *Slots,
   IN  UINTN         NumSlots,
-  IN  VOID          (*FillFunc)(UINTN, uintptr_t, uintptr_t)
+  IN  VOID          (*FillFunc)(UINTN, UINTN, UINTN)
   )
 {
   UINTN  i;
 
-  spinlock_init (&Cache->Lock);
+  SpinLockInitialize (&Cache->Lock);
   rb_tree_init (&Cache->Map, &CacheOps);
   TAILQ_INIT (&Cache->FreeList);
 
@@ -239,13 +240,13 @@ static inline
 UINTN
 CacheGet (
   IN OUT CACHE *Cache,
-  IN     uintptr_t     Address
+  IN     UINTN     Address
   )
 {
   SLOT *Slot;
   UINTN        SlotNumber;
 
-  spinlock (&Cache->Lock);
+  SpinLockAcquire (&Cache->Lock);
 
   //
   // Look up address in red-black tree
@@ -305,7 +306,7 @@ Exit:
     SlotNumber = (UINTN)-1;
   }
 
-  spinunlock (&Cache->Lock);
+  SpinLockRelease (&Cache->Lock);
 
   return SlotNumber;
 }
@@ -328,7 +329,7 @@ CachePut (
 {
   SLOT *Slot;
 
-  spinlock (&Cache->Lock);
+  SpinLockAcquire (&Cache->Lock);
 
   assert (SlotNumber < Cache->NumSlots);
   Slot = Cache->Slots + SlotNumber;
@@ -343,7 +344,7 @@ CachePut (
     TAILQ_INSERT_TAIL (&Cache->FreeList, Slot, LruEntry);
   }
 
-  spinunlock (&Cache->Lock);
+  SpinLockRelease (&Cache->Lock);
 }
 
 #endif // _CACHE_H

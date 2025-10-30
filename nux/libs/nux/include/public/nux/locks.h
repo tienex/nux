@@ -55,15 +55,15 @@ typedef struct _RWLOCK {
 
   Initializes the spinlock to the unlocked state.
 
-  @param[out] pLock  Pointer to the spinlock to initialize.
+  @param[out] Lock  Pointer to the spinlock to initialize.
 **/
 static inline
 VOID
 SpinLockInitialize (
-  OUT SPINLOCK  *pLock
+  OUT SPINLOCK  *Lock
   )
 {
-  memset (pLock, 0, sizeof (*pLock));
+  memset (Lock, 0, sizeof (*Lock));
 }
 
 /**
@@ -72,19 +72,19 @@ SpinLockInitialize (
   Spins until the lock is acquired. Uses atomic compare-exchange
   with relaxed memory ordering on failure and acquire ordering on success.
 
-  @param[in,out] pLock  Pointer to the spinlock to acquire.
+  @param[in,out] Lock  Pointer to the spinlock to acquire.
 **/
 static inline
 VOID
 SpinLockAcquire (
-  IN OUT SPINLOCK  *pLock
+  IN OUT SPINLOCK  *Lock
   )
 {
   while (1) {
     //
     // Spin while lock is held
     //
-    while (__atomic_load_n (&pLock->Lock, __ATOMIC_RELAXED)) {
+    while (__atomic_load_n (&Lock->Lock, __ATOMIC_RELAXED)) {
       hal_cpu_relax ();
     }
 
@@ -93,7 +93,7 @@ SpinLockAcquire (
     //
     INT32 Expected = 0;
     if (__atomic_compare_exchange_n (
-          &pLock->Lock,
+          &Lock->Lock,
           &Expected,
           1,
           TRUE,
@@ -112,23 +112,23 @@ SpinLockAcquire (
   Acquires the spinlock and records the cycle count at acquisition time.
   Returns the number of cycles spent waiting for the lock.
 
-  @param[in,out] pLock  Pointer to the spinlock to acquire.
+  @param[in,out] Lock  Pointer to the spinlock to acquire.
 
   @return Number of CPU cycles spent waiting for the lock.
 **/
 static inline
 UINT64
 SpinLockAcquireMeasured (
-  IN OUT SPINLOCK  *pLock
+  IN OUT SPINLOCK  *Lock
   )
 {
   UINT64  StartCycles;
 
   StartCycles = hal_cpu_cycles ();
-  SpinLockAcquire (pLock);
-  pLock->LockCy = hal_cpu_cycles ();
+  SpinLockAcquire (Lock);
+  Lock->LockCy = hal_cpu_cycles ();
 
-  return pLock->LockCy - StartCycles;
+  return Lock->LockCy - StartCycles;
 }
 
 /**
@@ -136,15 +136,15 @@ SpinLockAcquireMeasured (
 
   Releases the lock using atomic store with release memory ordering.
 
-  @param[in,out] pLock  Pointer to the spinlock to release.
+  @param[in,out] Lock  Pointer to the spinlock to release.
 **/
 static inline
 VOID
 SpinLockRelease (
-  IN OUT SPINLOCK  *pLock
+  IN OUT SPINLOCK  *Lock
   )
 {
-  __atomic_store_n (&pLock->Lock, 0, __ATOMIC_RELEASE);
+  __atomic_store_n (&Lock->Lock, 0, __ATOMIC_RELEASE);
 }
 
 /**
@@ -152,20 +152,20 @@ SpinLockRelease (
 
   Releases the lock and returns the number of cycles the lock was held.
 
-  @param[in,out] pLock  Pointer to the spinlock to release.
+  @param[in,out] Lock  Pointer to the spinlock to release.
 
   @return Number of CPU cycles the lock was held.
 **/
 static inline
 UINT64
 SpinLockReleaseMeasured (
-  IN OUT SPINLOCK  *pLock
+  IN OUT SPINLOCK  *Lock
   )
 {
   UINT64  HoldCycles;
 
-  HoldCycles = hal_cpu_cycles () - pLock->LockCy;
-  SpinLockRelease (pLock);
+  HoldCycles = hal_cpu_cycles () - Lock->LockCy;
+  SpinLockRelease (Lock);
 
   return HoldCycles;
 }
@@ -179,17 +179,17 @@ SpinLockReleaseMeasured (
 
   Initializes the lock to the unlocked state with no readers.
 
-  @param[out] pRwLock  Pointer to the reader-writer lock to initialize.
+  @param[out] RwLock  Pointer to the reader-writer lock to initialize.
 **/
 static inline
 VOID
 RwLockInitialize (
-  OUT RWLOCK  *pRwLock
+  OUT RWLOCK  *RwLock
   )
 {
-  pRwLock->ReaderCount = 0;
-  SpinLockInitialize (&pRwLock->ReaderLock);
-  SpinLockInitialize (&pRwLock->GlobalLock);
+  RwLock->ReaderCount = 0;
+  SpinLockInitialize (&RwLock->ReaderLock);
+  SpinLockInitialize (&RwLock->GlobalLock);
 }
 
 /**
@@ -198,24 +198,24 @@ RwLockInitialize (
   Allows multiple concurrent readers. The first reader acquires the
   global lock to block writers.
 
-  @param[in,out] pRwLock  Pointer to the reader-writer lock.
+  @param[in,out] RwLock  Pointer to the reader-writer lock.
 **/
 static inline
 VOID
 RwLockAcquireRead (
-  IN OUT RWLOCK  *pRwLock
+  IN OUT RWLOCK  *RwLock
   )
 {
-  SpinLockAcquire (&pRwLock->ReaderLock);
+  SpinLockAcquire (&RwLock->ReaderLock);
 
-  if (pRwLock->ReaderCount++ == 0) {
+  if (RwLock->ReaderCount++ == 0) {
     //
     // First reader acquires global lock to block writers
     //
-    SpinLockAcquire (&pRwLock->GlobalLock);
+    SpinLockAcquire (&RwLock->GlobalLock);
   }
 
-  SpinLockRelease (&pRwLock->ReaderLock);
+  SpinLockRelease (&RwLock->ReaderLock);
 }
 
 /**
@@ -224,24 +224,24 @@ RwLockAcquireRead (
   Decrements reader count. The last reader releases the global lock
   to allow writers.
 
-  @param[in,out] pRwLock  Pointer to the reader-writer lock.
+  @param[in,out] RwLock  Pointer to the reader-writer lock.
 **/
 static inline
 VOID
 RwLockReleaseRead (
-  IN OUT RWLOCK  *pRwLock
+  IN OUT RWLOCK  *RwLock
   )
 {
-  SpinLockAcquire (&pRwLock->ReaderLock);
+  SpinLockAcquire (&RwLock->ReaderLock);
 
-  if (--pRwLock->ReaderCount == 0) {
+  if (--RwLock->ReaderCount == 0) {
     //
     // Last reader releases global lock for writers
     //
-    SpinLockRelease (&pRwLock->GlobalLock);
+    SpinLockRelease (&RwLock->GlobalLock);
   }
 
-  SpinLockRelease (&pRwLock->ReaderLock);
+  SpinLockRelease (&RwLock->ReaderLock);
 }
 
 /**
@@ -250,15 +250,15 @@ RwLockReleaseRead (
   Provides exclusive access by acquiring the global lock.
   Blocks all readers and other writers.
 
-  @param[in,out] pRwLock  Pointer to the reader-writer lock.
+  @param[in,out] RwLock  Pointer to the reader-writer lock.
 **/
 static inline
 VOID
 RwLockAcquireWrite (
-  IN OUT RWLOCK  *pRwLock
+  IN OUT RWLOCK  *RwLock
   )
 {
-  SpinLockAcquire (&pRwLock->GlobalLock);
+  SpinLockAcquire (&RwLock->GlobalLock);
 }
 
 /**
@@ -266,15 +266,15 @@ RwLockAcquireWrite (
 
   Releases exclusive access by releasing the global lock.
 
-  @param[in,out] pRwLock  Pointer to the reader-writer lock.
+  @param[in,out] RwLock  Pointer to the reader-writer lock.
 **/
 static inline
 VOID
 RwLockReleaseWrite (
-  IN OUT RWLOCK  *pRwLock
+  IN OUT RWLOCK  *RwLock
   )
 {
-  SpinLockRelease (&pRwLock->GlobalLock);
+  SpinLockRelease (&RwLock->GlobalLock);
 }
 
 #endif // NUX_LOCKS_H
