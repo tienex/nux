@@ -19,16 +19,16 @@
 struct acpi_rsdp_thdr
 {
   char signature[8];
-  uint8_t checksum;
+  UINT8 checksum;
   char oemid[6];
-  uint8_t revision;
-  uint32_t rsdt;
+  UINT8 revision;
+  UINT32 rsdt;
 
   /* ACPI >= 2.0 (revision != 0) */
-  uint32_t length;
-  uint64_t xsdt;
-  uint8_t xchecksum;
-  uint8_t reserved[3];
+  UINT32 length;
+  UINT64 xsdt;
+  UINT8 xchecksum;
+  UINT8 reserved[3];
 } __packed;
 
 
@@ -133,7 +133,7 @@ BiosFindRsdp (
 
   /* Method 1: Search EBDA's first kb. */
   UINT16 EbdaSeg = *(UINT16 *) (MemStart + EBDA_PTRADDR);
-  PAddr = ((uintptr_t) EbdaSeg << 4);
+  PAddr = ((UINTN) EbdaSeg << 4);
 
   if (PAddr <= (1 << 10))
     {
@@ -179,7 +179,7 @@ RsdpFind (
     return 0;
 
   info ("RSDP found at %p", Rsdp);
-  return (UINT64) (uintptr_t) Rsdp;
+  return (UINT64) (UINTN) Rsdp;
 }
 
 //
@@ -202,6 +202,6 @@ static void *bios_find_rsdp (void) {
 }
 
 /** @deprecated Use RsdpFind instead **/
-uint64_t rsdp_find (void) {
+UINT64 rsdp_find (void) {
   return RsdpFind ();
 }

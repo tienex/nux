@@ -342,7 +342,7 @@ PhKload (
 
   @return Entry point virtual address, or -1 on error.
 **/
-vaddr_t
+VIRTUAL_ADDRESS
 LoadElf32 (
   IN VOID    *ElfImg,
   IN INT32   User
@@ -370,7 +370,7 @@ LoadElf32 (
 		  Ph->fsize);
     }
 
-  return (vaddr_t) Hdr->entry;
+  return (VIRTUAL_ADDRESS) Hdr->entry;
 }
 
 /**
@@ -384,7 +384,7 @@ LoadElf32 (
 
   @return Entry point virtual address, or -1 on error.
 **/
-vaddr_t
+VIRTUAL_ADDRESS
 LoadElf64 (
   IN VOID    *ElfImg,
   IN INT32   User
@@ -412,7 +412,7 @@ LoadElf64 (
 		  Ph->fsize);
     }
 
-  return (vaddr_t) Hdr->entry;
+  return (VIRTUAL_ADDRESS) Hdr->entry;
 }
 
 /**
@@ -452,24 +452,24 @@ GetElfArch (
 //
 
 /** @deprecated Use PhUload instead **/
-void ph_uload (void *elfimg, uint32_t type, uint32_t flags,
-	       uint64_t va, uint64_t msize, uint64_t off, uint64_t fsize) {
+void ph_uload (void *elfimg, UINT32 type, UINT32 flags,
+	       UINT64 va, UINT64 msize, UINT64 off, UINT64 fsize) {
   PhUload (elfimg, type, flags, va, msize, off, fsize);
 }
 
 /** @deprecated Use PhKload instead **/
-void ph_kload (void *elfimg, uint32_t type, uint32_t flags,
-	       uint64_t va, uint64_t msize, uint64_t off, uint64_t fsize) {
+void ph_kload (void *elfimg, UINT32 type, UINT32 flags,
+	       UINT64 va, UINT64 msize, UINT64 off, UINT64 fsize) {
   PhKload (elfimg, type, flags, va, msize, off, fsize);
 }
 
 /** @deprecated Use LoadElf32 instead **/
-vaddr_t load_elf32 (void *elfimg, int u) {
+VIRTUAL_ADDRESS load_elf32 (void *elfimg, int u) {
   return LoadElf32 (elfimg, u);
 }
 
 /** @deprecated Use LoadElf64 instead **/
-vaddr_t load_elf64 (void *elfimg, int u) {
+VIRTUAL_ADDRESS load_elf64 (void *elfimg, int u) {
   return LoadElf64 (elfimg, u);
 }
 

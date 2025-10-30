@@ -19,9 +19,9 @@
 
 #define BOOTMEM MB(512)		/* We won't be using more than 512Mb to boot. Promise. */
 
-typedef int64_t ssize64_t;
-typedef uint64_t size64_t;
-typedef uint64_t vaddr_t;
+typedef INT64 ssize64_t;
+typedef UINT64 size64_t;
+typedef UINT64 VIRTUAL_ADDRESS;
 
 /**
   Boot Info Region Type
@@ -114,8 +114,8 @@ unsigned MdMemRegions (VOID);
 BOOTINFO_REGION *MdGetMemRegion (unsigned i);
 FRAMEBUFFER_DESC *MdGetFramebuffer (VOID);
 APXH_PLATFORM_DESCRIPTOR *MdGetPlatformDesc (VOID);
-VOID MdVerify (vaddr_t Va, size64_t Size);
-VOID MdEntry (arch_t Arch, vaddr_t Pt, vaddr_t Entry);
+VOID MdVerify (VIRTUAL_ADDRESS Va, size64_t Size);
+VOID MdEntry (arch_t Arch, VIRTUAL_ADDRESS Pt, VIRTUAL_ADDRESS Entry);
 
 VOID *PayloadGet (unsigned i, size_t *Size);
 
@@ -147,30 +147,30 @@ VOID *GetPayloadStart (int Argc, char *Argv[], PAYLOAD_ID Id);
 size_t GetPayloadSize (PAYLOAD_ID Id);
 
 arch_t GetElfArch (VOID *Elf);
-vaddr_t LoadElf32 (VOID *Elf, int U);
-vaddr_t LoadElf64 (VOID *Elf, int U);
+VIRTUAL_ADDRESS LoadElf32 (VOID *Elf, int U);
+VIRTUAL_ADDRESS LoadElf64 (VOID *Elf, int U);
 
-uintptr_t GetPage (VOID);
-uintptr_t GetPayloadPage (VOID);
+UINTN GetPage (VOID);
+UINTN GetPayloadPage (VOID);
 
 VOID VaInit (VOID);
-uintptr_t VaGetPhys (vaddr_t Va);
-VOID VaVerify (vaddr_t Va, size64_t Size);
-VOID VaPopulate (vaddr_t Va, size64_t Size, int U, int W, int X);
-VOID VaCopy (vaddr_t Va, VOID *Addr, size64_t Size, int U, int W, int X);
-VOID VaMemset (vaddr_t Va, int C, size64_t Size, int U, int W, int X);
-VOID VaPhysmap (vaddr_t Va, size64_t Size, MEMORY_TYPE Type);
-VOID VaLinear (vaddr_t Va, size64_t Size);
-VOID VaInfo (vaddr_t Va, size64_t Size);
-VOID VaPfnmap (vaddr_t Va, size64_t Size);
-VOID VaStree (vaddr_t Va, size64_t Size);
-VOID VaTopPtAlloc (vaddr_t Va, size64_t Size);
-VOID VaPtAlloc (vaddr_t Va, size64_t Size);
-VOID VaFramebuf (vaddr_t Va, size64_t Size, MEMORY_TYPE Type);
-VOID VaRegions (vaddr_t Va, size64_t Size);
-VOID VaKtls (vaddr_t Va, size64_t InitSize, size64_t Size);
-VOID VaUtls (vaddr_t Va, size64_t InitSize, size64_t Size);
-VOID VaEntry (vaddr_t Entry);
+UINTN VaGetPhys (VIRTUAL_ADDRESS Va);
+VOID VaVerify (VIRTUAL_ADDRESS Va, size64_t Size);
+VOID VaPopulate (VIRTUAL_ADDRESS Va, size64_t Size, int U, int W, int X);
+VOID VaCopy (VIRTUAL_ADDRESS Va, VOID *Addr, size64_t Size, int U, int W, int X);
+VOID VaMemset (VIRTUAL_ADDRESS Va, int C, size64_t Size, int U, int W, int X);
+VOID VaPhysmap (VIRTUAL_ADDRESS Va, size64_t Size, MEMORY_TYPE Type);
+VOID VaLinear (VIRTUAL_ADDRESS Va, size64_t Size);
+VOID VaInfo (VIRTUAL_ADDRESS Va, size64_t Size);
+VOID VaPfnmap (VIRTUAL_ADDRESS Va, size64_t Size);
+VOID VaStree (VIRTUAL_ADDRESS Va, size64_t Size);
+VOID VaTopPtAlloc (VIRTUAL_ADDRESS Va, size64_t Size);
+VOID VaPtAlloc (VIRTUAL_ADDRESS Va, size64_t Size);
+VOID VaFramebuf (VIRTUAL_ADDRESS Va, size64_t Size, MEMORY_TYPE Type);
+VOID VaRegions (VIRTUAL_ADDRESS Va, size64_t Size);
+VOID VaKtls (VIRTUAL_ADDRESS Va, size64_t InitSize, size64_t Size);
+VOID VaUtls (VIRTUAL_ADDRESS Va, size64_t InitSize, size64_t Size);
+VOID VaEntry (VIRTUAL_ADDRESS Entry);
 
 /** Legacy compatibility **/
 #define get_payload_start GetPayloadStart
@@ -200,51 +200,51 @@ VOID VaEntry (vaddr_t Entry);
 #define va_entry VaEntry
 
 VOID PaeInit (VOID);
-uintptr_t PaeGetPhys (vaddr_t Va);
-VOID PaeVerify (vaddr_t Va, size64_t Size);
-VOID PaePopulate (vaddr_t Va, size64_t Size, int U, int W, int X);
-VOID PaePhysmap (vaddr_t Va, size64_t Size, uint64_t Pa, MEMORY_TYPE Type);
-VOID PaePtAlloc (vaddr_t Va, size64_t Size);
-VOID PaeTopPtAlloc (vaddr_t Va, size64_t Size);
-VOID PaeLinear (vaddr_t Va, size64_t Size);
-VOID PaeEntry (vaddr_t Entry);
+UINTN PaeGetPhys (VIRTUAL_ADDRESS Va);
+VOID PaeVerify (VIRTUAL_ADDRESS Va, size64_t Size);
+VOID PaePopulate (VIRTUAL_ADDRESS Va, size64_t Size, int U, int W, int X);
+VOID PaePhysmap (VIRTUAL_ADDRESS Va, size64_t Size, UINT64 Pa, MEMORY_TYPE Type);
+VOID PaePtAlloc (VIRTUAL_ADDRESS Va, size64_t Size);
+VOID PaeTopPtAlloc (VIRTUAL_ADDRESS Va, size64_t Size);
+VOID PaeLinear (VIRTUAL_ADDRESS Va, size64_t Size);
+VOID PaeEntry (VIRTUAL_ADDRESS Entry);
 
 /* Internal PAE functions. */
-VOID PaeDirectMap (VOID *Pt, uint64_t Pa, vaddr_t Va, size64_t Size,
+VOID PaeDirectMap (VOID *Pt, UINT64 Pa, VIRTUAL_ADDRESS Va, size64_t Size,
 		    MEMORY_TYPE Type, int Payload, int X);
-VOID PaeMapPage (VOID *Pt, vaddr_t Va, uintptr_t Pa, int Payload, int W,
+VOID PaeMapPage (VOID *Pt, VIRTUAL_ADDRESS Va, UINTN Pa, int Payload, int W,
 		   int X);
 
 VOID Pae64Init (VOID);
-uintptr_t Pae64GetPhys (vaddr_t Va);
-VOID Pae64Verify (vaddr_t Va, size64_t Size);
-VOID Pae64Populate (vaddr_t Va, size64_t Size, int U, int W, int X);
-VOID Pae64Physmap (vaddr_t Va, size64_t Size, uint64_t Pa, MEMORY_TYPE Type);
-VOID Pae64PtAlloc (vaddr_t Va, size64_t Size);
-VOID Pae64TopPtAlloc (vaddr_t Va, size64_t Size);
-VOID Pae64Linear (vaddr_t Va, size64_t Size);
-VOID Pae64Entry (vaddr_t Entry);
+UINTN Pae64GetPhys (VIRTUAL_ADDRESS Va);
+VOID Pae64Verify (VIRTUAL_ADDRESS Va, size64_t Size);
+VOID Pae64Populate (VIRTUAL_ADDRESS Va, size64_t Size, int U, int W, int X);
+VOID Pae64Physmap (VIRTUAL_ADDRESS Va, size64_t Size, UINT64 Pa, MEMORY_TYPE Type);
+VOID Pae64PtAlloc (VIRTUAL_ADDRESS Va, size64_t Size);
+VOID Pae64TopPtAlloc (VIRTUAL_ADDRESS Va, size64_t Size);
+VOID Pae64Linear (VIRTUAL_ADDRESS Va, size64_t Size);
+VOID Pae64Entry (VIRTUAL_ADDRESS Entry);
 
 /* Internal PAE64 functions. */
-VOID Pae64DirectMap (VOID *Pt, uint64_t Pa, vaddr_t Va, size64_t Size,
+VOID Pae64DirectMap (VOID *Pt, UINT64 Pa, VIRTUAL_ADDRESS Va, size64_t Size,
 		      MEMORY_TYPE Type, int Payload, int X);
-VOID Pae64MapPage (VOID *Pt, vaddr_t Va, uintptr_t Pa, int Payload, int W,
+VOID Pae64MapPage (VOID *Pt, VIRTUAL_ADDRESS Va, UINTN Pa, int Payload, int W,
 		     int X);
 
 VOID Sv48Init (VOID);
-uintptr_t Sv48GetPhys (vaddr_t Va);
-VOID Sv48Verify (vaddr_t Va, size64_t Size);
-VOID Sv48Populate (vaddr_t Va, size64_t Size, int U, int W, int X);
-VOID Sv48Physmap (vaddr_t Va, size64_t Size, uint64_t Pa, MEMORY_TYPE Type);
-VOID Sv48PtAlloc (vaddr_t Va, size64_t Size);
-VOID Sv48TopPtAlloc (vaddr_t Va, size64_t Size);
-VOID Sv48Linear (vaddr_t Va, size64_t Size);
-VOID Sv48Entry (vaddr_t Entry);
+UINTN Sv48GetPhys (VIRTUAL_ADDRESS Va);
+VOID Sv48Verify (VIRTUAL_ADDRESS Va, size64_t Size);
+VOID Sv48Populate (VIRTUAL_ADDRESS Va, size64_t Size, int U, int W, int X);
+VOID Sv48Physmap (VIRTUAL_ADDRESS Va, size64_t Size, UINT64 Pa, MEMORY_TYPE Type);
+VOID Sv48PtAlloc (VIRTUAL_ADDRESS Va, size64_t Size);
+VOID Sv48TopPtAlloc (VIRTUAL_ADDRESS Va, size64_t Size);
+VOID Sv48Linear (VIRTUAL_ADDRESS Va, size64_t Size);
+VOID Sv48Entry (VIRTUAL_ADDRESS Entry);
 
 /* Internal SV48 functions. */
-VOID Sv48DirectMap (VOID *Pt, uint64_t Pa, vaddr_t Va, size64_t Size,
+VOID Sv48DirectMap (VOID *Pt, UINT64 Pa, VIRTUAL_ADDRESS Va, size64_t Size,
 		     MEMORY_TYPE Type, int Payload, int X);
-VOID Sv48MapPage (VOID *Pt, vaddr_t Va, uintptr_t Pa, int Payload, int W,
+VOID Sv48MapPage (VOID *Pt, VIRTUAL_ADDRESS Va, UINTN Pa, int Payload, int W,
 		    int X);
 
 /** Legacy compatibility **/

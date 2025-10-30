@@ -149,7 +149,7 @@ PteMergeFlags (
 static pte_t *
 Sv48GetL3p (
   IN pte_t   *Root,
-  IN vaddr_t  Va,
+  IN VIRTUAL_ADDRESS  Va,
   IN INT32    Payload
   )
 {
@@ -188,7 +188,7 @@ Sv48GetL3p (
 static pte_t *
 Sv48GetL2p (
   IN pte_t   *Root,
-  IN vaddr_t  Va,
+  IN VIRTUAL_ADDRESS  Va,
   IN INT32    Payload
   )
 {
@@ -227,7 +227,7 @@ Sv48GetL2p (
 static pte_t *
 Sv48GetL1p (
   IN pte_t   *Root,
-  IN vaddr_t  Va,
+  IN VIRTUAL_ADDRESS  Va,
   IN INT32    Payload
   )
 {
@@ -261,7 +261,7 @@ Sv48GetL1p (
 **/
 VOID
 Sv48Verify (
-  IN vaddr_t   Va,
+  IN VIRTUAL_ADDRESS   Va,
   IN size64_t  Size
   )
 {
@@ -298,7 +298,7 @@ Sv48Initialize (
 VOID
 Sv48MapPage (
   IN VOID     *Pt,
-  IN vaddr_t  Va,
+  IN VIRTUAL_ADDRESS  Va,
   IN UINTN    Pa,
   IN INT32    Payload,
   IN INT32    W,
@@ -341,7 +341,7 @@ Sv48MapPage (
 static UINTN
 Sv48PopulatePage (
   IN pte_t   *Root,
-  IN vaddr_t  Va,
+  IN VIRTUAL_ADDRESS  Va,
   IN INT32    U,
   IN INT32    W,
   IN INT32    X,
@@ -388,7 +388,7 @@ Sv48PopulatePage (
 **/
 UINTN
 Sv48GetPhys (
-  IN vaddr_t  Va
+  IN VIRTUAL_ADDRESS  Va
   )
 {
   UINTN Page;
@@ -436,7 +436,7 @@ VOID
 Sv48DirectMap (
   IN VOID              *Pt,
   IN UINT64            PaBase,
-  IN vaddr_t           Va,
+  IN VIRTUAL_ADDRESS           Va,
   IN size64_t          Size,
   IN enum memory_type  Mt,
   IN INT32             Payload,
@@ -506,7 +506,7 @@ Sv48DirectMap (
 **/
 VOID
 Sv48Physmap (
-  IN vaddr_t           Va,
+  IN VIRTUAL_ADDRESS           Va,
   IN size64_t          Size,
   IN UINT64            Pa,
   IN enum memory_type  Mt
@@ -525,7 +525,7 @@ Sv48Physmap (
 **/
 VOID
 Sv48TopPtAlloc (
-  IN vaddr_t   Va,
+  IN VIRTUAL_ADDRESS   Va,
   IN size64_t  Size
   )
 {
@@ -547,7 +547,7 @@ Sv48TopPtAlloc (
 **/
 VOID
 Sv48PtAlloc (
-  IN vaddr_t   Va,
+  IN VIRTUAL_ADDRESS   Va,
   IN size64_t  Size
   )
 {
@@ -573,7 +573,7 @@ Sv48PtAlloc (
 **/
 VOID
 Sv48Linear (
-  IN vaddr_t   Va,
+  IN VIRTUAL_ADDRESS   Va,
   IN size64_t  Size
   )
 {
@@ -612,7 +612,7 @@ Sv48Linear (
 **/
 VOID
 Sv48Populate (
-  IN vaddr_t   Va,
+  IN VIRTUAL_ADDRESS   Va,
   IN size64_t  Size,
   IN INT32     U,
   IN INT32     W,
@@ -640,10 +640,10 @@ Sv48Populate (
 **/
 VOID
 Sv48Entry (
-  IN vaddr_t  Entry
+  IN VIRTUAL_ADDRESS  Entry
   )
 {
-  MdEntry (ARCH_RISCV64, (vaddr_t) (UINTN) gSv48Root, Entry);
+  MdEntry (ARCH_RISCV64, (VIRTUAL_ADDRESS) (UINTN) gSv48Root, Entry);
 }
 
 //
@@ -651,7 +651,7 @@ Sv48Entry (
 //
 
 /** @deprecated Use SetPte instead **/
-static void set_pte (pte_t *ptep, uint64_t pfn, uint64_t flags) {
+static void set_pte (pte_t *ptep, UINT64 pfn, UINT64 flags) {
   SetPte (ptep, pfn, flags);
 }
 
@@ -661,32 +661,32 @@ static void *pte_getaddr (pte_t *ptep) {
 }
 
 /** @deprecated Use PteGetFlags instead **/
-static uint64_t pte_getflags (pte_t *ptep) {
+static UINT64 pte_getflags (pte_t *ptep) {
   return PteGetFlags (ptep);
 }
 
 /** @deprecated Use PteMergeFlags instead **/
-static uint64_t pte_mergeflags (uint64_t fl1, uint64_t fl2) {
+static UINT64 pte_mergeflags (UINT64 fl1, UINT64 fl2) {
   return PteMergeFlags (fl1, fl2);
 }
 
 /** @deprecated Use Sv48GetL3p instead **/
-static pte_t *sv48_get_l3p (pte_t *root, vaddr_t va, int payload) {
+static pte_t *sv48_get_l3p (pte_t *root, VIRTUAL_ADDRESS va, int payload) {
   return Sv48GetL3p (root, va, payload);
 }
 
 /** @deprecated Use Sv48GetL2p instead **/
-static pte_t *sv48_get_l2p (pte_t *root, vaddr_t va, int payload) {
+static pte_t *sv48_get_l2p (pte_t *root, VIRTUAL_ADDRESS va, int payload) {
   return Sv48GetL2p (root, va, payload);
 }
 
 /** @deprecated Use Sv48GetL1p instead **/
-static pte_t *sv48_get_l1p (pte_t *root, vaddr_t va, int payload) {
+static pte_t *sv48_get_l1p (pte_t *root, VIRTUAL_ADDRESS va, int payload) {
   return Sv48GetL1p (root, va, payload);
 }
 
 /** @deprecated Use Sv48Verify instead **/
-void sv48_verify (vaddr_t va, size64_t size) {
+void sv48_verify (VIRTUAL_ADDRESS va, size64_t size) {
   Sv48Verify (va, size);
 }
 
@@ -696,53 +696,53 @@ void sv48_init (void) {
 }
 
 /** @deprecated Use Sv48MapPage instead **/
-void sv48_map_page (void *pt, vaddr_t va, uintptr_t pa, int payload, int w, int x) {
+void sv48_map_page (void *pt, VIRTUAL_ADDRESS va, UINTN pa, int payload, int w, int x) {
   Sv48MapPage (pt, va, pa, payload, w, x);
 }
 
 /** @deprecated Use Sv48PopulatePage instead **/
-static uintptr_t sv48_populate_page (pte_t *root, vaddr_t va, int u, int w, int x, int payload) {
+static UINTN sv48_populate_page (pte_t *root, VIRTUAL_ADDRESS va, int u, int w, int x, int payload) {
   return Sv48PopulatePage (root, va, u, w, x, payload);
 }
 
 /** @deprecated Use Sv48GetPhys instead **/
-uintptr_t sv48_getphys (vaddr_t va) {
+UINTN sv48_getphys (VIRTUAL_ADDRESS va) {
   return Sv48GetPhys (va);
 }
 
 /** @deprecated Use Sv48DirectMap instead **/
-void sv48_directmap (void *pt, uint64_t pabase, vaddr_t va, size64_t size,
+void sv48_directmap (void *pt, UINT64 pabase, VIRTUAL_ADDRESS va, size64_t size,
 		     enum memory_type mt, int payload, int x) {
   Sv48DirectMap (pt, pabase, va, size, mt, payload, x);
 }
 
 /** @deprecated Use Sv48Physmap instead **/
-void sv48_physmap (vaddr_t va, size64_t size, uint64_t pa, enum memory_type mt) {
+void sv48_physmap (VIRTUAL_ADDRESS va, size64_t size, UINT64 pa, enum memory_type mt) {
   Sv48Physmap (va, size, pa, mt);
 }
 
 /** @deprecated Use Sv48TopPtAlloc instead **/
-void sv48_topptalloc (vaddr_t va, size64_t size) {
+void sv48_topptalloc (VIRTUAL_ADDRESS va, size64_t size) {
   Sv48TopPtAlloc (va, size);
 }
 
 /** @deprecated Use Sv48PtAlloc instead **/
-void sv48_ptalloc (vaddr_t va, size64_t size) {
+void sv48_ptalloc (VIRTUAL_ADDRESS va, size64_t size) {
   Sv48PtAlloc (va, size);
 }
 
 /** @deprecated Use Sv48Linear instead **/
-void sv48_linear (vaddr_t va, size64_t size) {
+void sv48_linear (VIRTUAL_ADDRESS va, size64_t size) {
   Sv48Linear (va, size);
 }
 
 /** @deprecated Use Sv48Populate instead **/
-void sv48_populate (vaddr_t va, size64_t size, int u, int w, int x) {
+void sv48_populate (VIRTUAL_ADDRESS va, size64_t size, int u, int w, int x) {
   Sv48Populate (va, size, u, w, x);
 }
 
 /** @deprecated Use Sv48Entry instead **/
-void sv48_entry (vaddr_t entry) {
+void sv48_entry (VIRTUAL_ADDRESS entry) {
   Sv48Entry (entry);
 }
 

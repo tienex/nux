@@ -29,7 +29,7 @@ ScanPatTable (
   bool WbSet = false;
   bool WcSet = false;
   bool UcSet = false;
-  uint64_t Pat = rdmsr (MSR_IA32_PAT);
+  UINT64 Pat = rdmsr (MSR_IA32_PAT);
 
   for (int i = 0; i < 8; i++)
     {
@@ -129,7 +129,7 @@ CpuIsIntel (
   VOID
   )
 {
-  uint32_t Eax, Ebx, Ecx, Edx;
+  UINT32 Eax, Ebx, Ecx, Edx;
 
   Eax = 0;
   Ecx = 0;
@@ -157,7 +157,7 @@ IntelCpuFamily (
   )
 {
   unsigned Family;
-  uint32_t Eax, Ebx, Ecx, Edx;
+  UINT32 Eax, Ebx, Ecx, Edx;
 
   Eax = 1;
   Ecx = 0;
@@ -182,7 +182,7 @@ IntelCpuModel (
   )
 {
   unsigned Model;
-  uint32_t Eax, Ebx, Ecx, Edx;
+  UINT32 Eax, Ebx, Ecx, Edx;
 
   Eax = 1;
   Ecx = 0;
@@ -207,7 +207,7 @@ CpuSupportsPae (
   VOID
   )
 {
-  uint32_t Eax, Ebx, Ecx, Edx;
+  UINT32 Eax, Ebx, Ecx, Edx;
 
   Eax = 1;
   Ecx = 0;
@@ -229,7 +229,7 @@ CpuSupportsLongmode (
   VOID
   )
 {
-  uint32_t Eax, Ebx, Ecx, Edx;
+  UINT32 Eax, Ebx, Ecx, Edx;
 
   Eax = 0x80000001;
   Ecx = 0;
@@ -251,7 +251,7 @@ CpuSupports1gbPages (
   VOID
   )
 {
-  uint32_t Eax, Ebx, Ecx, Edx;
+  UINT32 Eax, Ebx, Ecx, Edx;
 
   Eax = 0x80000001;
   Ecx = 0;
@@ -276,8 +276,8 @@ CpuSupportsNx (
   )
 {
   bool NxSupported;
-  uint64_t Efer;
-  uint32_t Eax, Ebx, Ecx, Edx;
+  UINT64 Efer;
+  UINT32 Eax, Ebx, Ecx, Edx;
 
   /* Intel CPUs might have disabled this in MSR. */
   if (CpuIsIntel ())
@@ -287,7 +287,7 @@ CpuSupportsNx (
 
       if ((Family >= 6) && (Family > 6 || Model > 0xd))
 	{
-	  uint64_t MiscEnable;
+	  UINT64 MiscEnable;
 
 	  MiscEnable = rdmsr (MSR_IA32_MISC_ENABLE);
 	  if (MiscEnable & _MSR_IA32_MISC_ENABLE_XD_DISABLE)

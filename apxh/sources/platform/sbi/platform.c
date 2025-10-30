@@ -28,7 +28,7 @@ struct bootinfo_region gRamRegions[SBI_MAX_RAM_REGIONS] = { 0, };
 static VOID *gpElfKernelPayload, *gpElfUserPayload;
 static size_t gElfKernelPayloadSize, gElfUserPayloadSize;
 
-static uintptr_t gBrk;
+static UINTN gBrk;
 
 static struct apxh_platformdesc gPlatformDesc;
 
@@ -239,12 +239,12 @@ GetPayloadSize (
 
   @return Physical address of allocated page.
 **/
-uintptr_t
+UINTN
 GetPage (
   VOID
   )
 {
-  uintptr_t m;
+  UINTN m;
 
   m = PAGE_ROUND (gBrk);
 
@@ -308,7 +308,7 @@ MdInitialize (
   VOID
   )
 {
-  uintptr_t Ptr;
+  UINTN Ptr;
   struct fdt_header *FdtH;
 
   printf ("Booting from HART %lx\n", boothid);
@@ -331,11 +331,11 @@ MdInitialize (
   printf ("\n");
 
   gpElfKernelPayload = payload_get (0, &gElfKernelPayloadSize);
-  Ptr = (uintptr_t) gpElfKernelPayload + gElfKernelPayloadSize;
+  Ptr = (UINTN) gpElfKernelPayload + gElfKernelPayloadSize;
   gBrk = PAGE_ROUND (Ptr);
 
   gpElfUserPayload = payload_get (1, &gElfUserPayloadSize);
-  Ptr = (uintptr_t) gpElfUserPayload + gElfUserPayloadSize;
+  Ptr = (UINTN) gpElfUserPayload + gElfUserPayloadSize;
   gBrk = PAGE_ROUND (Ptr);
 
   printf ("OpenSBI (device tree) boot initialised: brk at %08x\n", gBrk);
@@ -352,7 +352,7 @@ MdInitialize (
 **/
 VOID
 MdVerify (
-  IN vaddr_t   Va,
+  IN VIRTUAL_ADDRESS   Va,
   IN size64_t  Size
   )
 {
@@ -474,7 +474,7 @@ MdGetPlatformDesc (
 {
   /* Only DTB supported. */
   gPlatformDesc.type = PLATFORM_DTB;
-  gPlatformDesc.PlatformPointer = (UINT64) (uintptr_t) dtbptr;
+  gPlatformDesc.PlatformPointer = (UINT64) (UINTN) dtbptr;
   return &gPlatformDesc;
 }
 
@@ -491,8 +491,8 @@ MdGetPlatformDesc (
 VOID
 MdEntry (
   IN arch_t   Arch,
-  IN vaddr_t  Pt,
-  IN vaddr_t  Entry
+  IN VIRTUAL_ADDRESS  Pt,
+  IN VIRTUAL_ADDRESS  Entry
   )
 {
   VOID *TrampRoot;
@@ -507,15 +507,15 @@ MdEntry (
   /* Setup trampoline. */
   TrampRoot = (VOID *) GetPage ();
   /* Map trampoline page */
-  sv48_directmap (TrampRoot, (uintptr_t) & trampoline_start,
-		  (uintptr_t) & trampoline_start,
-		  (uintptr_t) (&trampoline_end - &trampoline_start),
+  sv48_directmap (TrampRoot, (UINTN) & trampoline_start,
+		  (UINTN) & trampoline_start,
+		  (UINTN) (&trampoline_end - &trampoline_start),
 		  MEMTYPE_WB, 0, 1);
   /* Map start page */
   sv48_directmap (TrampRoot, sv48_getphys (Entry), Entry, 4096, MEMTYPE_WB,
 		  0, 1);
 
-  TrampSatp = 0x9L << 60 | (uintptr_t) TrampRoot >> PAGE_SHIFT;
+  TrampSatp = 0x9L << 60 | (UINTN) TrampRoot >> PAGE_SHIFT;
   Satp = 0x9L << 60 | Pt >> PAGE_SHIFT;
 
   asm volatile
@@ -537,12 +537,12 @@ MdEntry (
 //
 
 /** @deprecated Use DtbAddrSize instead **/
-static void dtb_addrsize (const void *fdt, int noff, uint32_t *addrsz, uint32_t *sizesz) {
+static void dtb_addrsize (const void *fdt, int noff, UINT32 *addrsz, UINT32 *sizesz) {
   DtbAddrSize (fdt, noff, addrsz, sizesz);
 }
 
 /** @deprecated Use RamRegionForeach instead **/
-static void ramregion_foreach (void (*_f) (uint64_t, uint64_t, bool, void *), void *opq) {
+static void ramregion_foreach (void (*_f) (UINT64, UINT64, bool, void *), void *opq) {
   RamRegionForeach (_f, opq);
 }
 
@@ -557,12 +557,12 @@ size_t get_payload_size (plid_t id) {
 }
 
 /** @deprecated Use GetPage instead **/
-uintptr_t get_page (void) {
+UINTN get_page (void) {
   return GetPage ();
 }
 
 /** @deprecated Use AddRamRegion instead **/
-static void add_ramregion (uint64_t base, uint64_t len, bool busy, void *opq) {
+static void add_ramregion (UINT64 base, UINT64 len, bool busy, void *opq) {
   AddRamRegion (base, len, busy, opq);
 }
 
@@ -572,7 +572,7 @@ void md_init (void) {
 }
 
 /** @deprecated Use MdVerify instead **/
-void md_verify (vaddr_t va, size64_t size) {
+void md_verify (VIRTUAL_ADDRESS va, size64_t size) {
   MdVerify (va, size);
 }
 
@@ -587,12 +587,12 @@ struct bootinfo_region *md_getmemregion (unsigned i) {
 }
 
 /** @deprecated Use MdMinRamPfn instead **/
-uint64_t md_minrampfn (void) {
+UINT64 md_minrampfn (void) {
   return MdMinRamPfn ();
 }
 
 /** @deprecated Use MdMaxRamPfn instead **/
-uint64_t md_maxrampfn (void) {
+UINT64 md_maxrampfn (void) {
   return MdMaxRamPfn ();
 }
 
@@ -602,7 +602,7 @@ struct fbdesc *md_getframebuffer (void) {
 }
 
 /** @deprecated Use MdMaxPfn instead **/
-uint64_t md_maxpfn (void) {
+UINT64 md_maxpfn (void) {
   return MdMaxPfn ();
 }
 
@@ -612,18 +612,18 @@ struct apxh_platformdesc *md_getplatformdesc (void) {
 }
 
 /** @deprecated Use MdEntry instead **/
-void md_entry (arch_t arch, vaddr_t pt, vaddr_t entry) {
+void md_entry (arch_t arch, VIRTUAL_ADDRESS pt, VIRTUAL_ADDRESS entry) {
   MdEntry (arch, pt, entry);
 }
 
 // Legacy global variable aliases
-static uint64_t minaddr __attribute__((alias("gMinAddr")));
-static uint64_t maxaddr __attribute__((alias("gMaxAddr")));
+static UINT64 minaddr __attribute__((alias("gMinAddr")));
+static UINT64 maxaddr __attribute__((alias("gMaxAddr")));
 static unsigned regions __attribute__((alias("gRegions")));
 static struct bootinfo_region ram_regions[SBI_MAX_RAM_REGIONS] __attribute__((alias("gRamRegions")));
 static void *elf_kernel_payload __attribute__((alias("gpElfKernelPayload")));
 static void *elf_user_payload __attribute__((alias("gpElfUserPayload")));
 static size_t elf_kernel_payload_size __attribute__((alias("gElfKernelPayloadSize")));
 static size_t elf_user_payload_size __attribute__((alias("gElfUserPayloadSize")));
-static uintptr_t brk __attribute__((alias("gBrk")));
+static UINTN brk __attribute__((alias("gBrk")));
 static struct apxh_platformdesc platformdesc __attribute__((alias("gPlatformDesc")));

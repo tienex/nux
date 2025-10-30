@@ -37,7 +37,7 @@ static pte_t *gPae64Cr3;
 static pte_t *
 Pae64GetL3p (
   IN pte_t    *pCr3,
-  IN vaddr_t  Va,
+  IN VIRTUAL_ADDRESS  Va,
   IN int      Payload
   )
 {
@@ -50,7 +50,7 @@ Pae64GetL3p (
   pL3p = (pte_t *) PteGetAddr (pL4p);
   if (pL3p == NULL)
     {
-      uintptr_t L3Page;
+      UINTN L3Page;
 
       /* Populating L3. */
       L3Page = Payload ? get_payload_page () : get_page ();
@@ -77,7 +77,7 @@ Pae64GetL3p (
 static pte_t *
 Pae64GetL2p (
   IN pte_t    *pCr3,
-  IN vaddr_t  Va,
+  IN VIRTUAL_ADDRESS  Va,
   IN int      Payload
   )
 {
@@ -90,7 +90,7 @@ Pae64GetL2p (
   pL2p = (pte_t *) PteGetAddr (pL3p);
   if (pL2p == NULL)
     {
-      uintptr_t L2Page;
+      UINTN L2Page;
 
       /* Populating L2. */
       L2Page = Payload ? get_payload_page () : get_page ();
@@ -117,7 +117,7 @@ Pae64GetL2p (
 static pte_t *
 Pae64GetL1p (
   IN pte_t    *pCr3,
-  IN vaddr_t  Va,
+  IN VIRTUAL_ADDRESS  Va,
   IN int      Payload
   )
 {
@@ -129,7 +129,7 @@ Pae64GetL1p (
   pL1p = (pte_t *) PteGetAddr (pL2p);
   if (pL1p == NULL)
     {
-      uintptr_t L1Page;
+      UINTN L1Page;
 
       /* Populating L1. */
       L1Page = Payload ? get_payload_page () : get_page ();
@@ -152,7 +152,7 @@ Pae64GetL1p (
 **/
 VOID
 Pae64Verify (
-  IN vaddr_t   Va,
+  IN VIRTUAL_ADDRESS   Va,
   IN size64_t  Size
   )
 {
@@ -197,8 +197,8 @@ Pae64Initialize (
 VOID
 Pae64MapPage (
   IN VOID      *Pt,
-  IN vaddr_t   Va,
-  IN uintptr_t Pa,
+  IN VIRTUAL_ADDRESS   Va,
+  IN UINTN Pa,
   IN int       Payload,
   IN int       W,
   IN int       X
@@ -206,7 +206,7 @@ Pae64MapPage (
 {
   pte_t *pL1p, *pCr3;
   UINT64 L1F;
-  uintptr_t Page;
+  UINTN Page;
 
   pCr3 = (pte_t *) Pt;
 
@@ -216,7 +216,7 @@ Pae64MapPage (
   pL1p = Pae64GetL1p (pCr3, Va, Payload);
   L1F = (W ? PTE_W : 0) | (X ? 0 : PTE_NX) | PTE_P;
 
-  Page = (uintptr_t) PteGetAddr (pL1p);
+  Page = (UINTN) PteGetAddr (pL1p);
   assert (Page == 0);
   Page = Pa >> PAGE_SHIFT;
   SetPte (pL1p, Page, L1F);
@@ -237,10 +237,10 @@ Pae64MapPage (
 
   @return Physical address of page.
 **/
-static uintptr_t
+static UINTN
 Pae64PopulatePage (
   IN pte_t    *pCr3,
-  IN vaddr_t  Va,
+  IN VIRTUAL_ADDRESS  Va,
   IN int      U,
   IN int      W,
   IN int      X,
@@ -249,12 +249,12 @@ Pae64PopulatePage (
 {
   pte_t *pL1p;
   UINT64 L1F;
-  uintptr_t Page;
+  UINTN Page;
 
   pL1p = Pae64GetL1p (pCr3, Va, Payload);
   L1F = (U ? PTE_U : 0) | (W ? PTE_W : 0) | (X ? 0 : PTE_NX) | PTE_P;
 
-  Page = (uintptr_t) PteGetAddr (pL1p);
+  Page = (UINTN) PteGetAddr (pL1p);
   if (Page == 0)
     {
       Page = Payload ? get_payload_page () : get_page ();
@@ -286,12 +286,12 @@ Pae64PopulatePage (
 
   @return Physical address.
 **/
-uintptr_t
+UINTN
 Pae64GetPhys (
-  IN vaddr_t  Va
+  IN VIRTUAL_ADDRESS  Va
   )
 {
-  uintptr_t Page;
+  UINTN Page;
   pte_t *pL4p, *pL3p, *pL2p, *pL1p;
   unsigned L4Off = L4OFF64 (Va);
   unsigned L3Off = L3OFF64 (Va);
@@ -312,7 +312,7 @@ Pae64GetPhys (
   assert (pL1p != NULL);
   pL1p += L1Off;
 
-  Page = (uintptr_t) PteGetAddr (pL1p);
+  Page = (UINTN) PteGetAddr (pL1p);
   assert (Page != 0);
 
   return Page |= (Va & ~(PAGE_MASK));
@@ -337,7 +337,7 @@ VOID
 Pae64DirectMap (
   IN VOID              *Pt,
   IN UINT64            PaBase,
-  IN vaddr_t           Va,
+  IN VIRTUAL_ADDRESS           Va,
   IN size64_t          Size,
   IN enum memory_type  Mt,
   IN int               Payload,
@@ -414,7 +414,7 @@ Pae64DirectMap (
 **/
 VOID
 Pae64Physmap (
-  IN vaddr_t           Va,
+  IN VIRTUAL_ADDRESS           Va,
   IN size64_t          Size,
   IN UINT64            Pa,
   IN enum memory_type  Mt
@@ -433,7 +433,7 @@ Pae64Physmap (
 **/
 VOID
 Pae64TopPtAlloc (
-  IN vaddr_t   Va,
+  IN VIRTUAL_ADDRESS   Va,
   IN size64_t  Size
   )
 {
@@ -455,7 +455,7 @@ Pae64TopPtAlloc (
 **/
 VOID
 Pae64PtAlloc (
-  IN vaddr_t   Va,
+  IN VIRTUAL_ADDRESS   Va,
   IN size64_t  Size
   )
 {
@@ -482,7 +482,7 @@ Pae64PtAlloc (
 **/
 VOID
 Pae64Linear (
-  IN vaddr_t   Va,
+  IN VIRTUAL_ADDRESS   Va,
   IN size64_t  Size
   )
 {
@@ -503,7 +503,7 @@ Pae64Linear (
     }
 
   pL4p = gPae64Cr3 + L4Off;
-  SetPte (pL4p, (uintptr_t) gPae64Cr3 >> PAGE_SHIFT, PTE_W | PTE_P);
+  SetPte (pL4p, (UINTN) gPae64Cr3 >> PAGE_SHIFT, PTE_W | PTE_P);
   printf ("Wrote %llx at %p\n", *pL4p, pL4p);
 }
 
@@ -521,7 +521,7 @@ Pae64Linear (
 **/
 VOID
 Pae64Populate (
-  IN vaddr_t   Va,
+  IN VIRTUAL_ADDRESS   Va,
   IN size64_t  Size,
   IN int       U,
   IN int       W,
@@ -550,10 +550,10 @@ Pae64Populate (
 **/
 VOID
 Pae64Entry (
-  IN vaddr_t  Entry
+  IN VIRTUAL_ADDRESS  Entry
   )
 {
-  md_entry (ARCH_AMD64, (vaddr_t) (uintptr_t) gPae64Cr3, Entry);
+  md_entry (ARCH_AMD64, (VIRTUAL_ADDRESS) (UINTN) gPae64Cr3, Entry);
 }
 
 //
@@ -611,7 +611,7 @@ bool cpu_supports_nx (void) {
 }
 
 /** @deprecated Use SetPte instead **/
-static void set_pte (pte_t *ptep, uint64_t pfn, uint64_t flags) {
+static void set_pte (pte_t *ptep, UINT64 pfn, UINT64 flags) {
   SetPte (ptep, pfn, flags);
 }
 
@@ -621,17 +621,17 @@ static void *pte_getaddr (pte_t *ptep) {
 }
 
 /** @deprecated Use PteGetFlags instead **/
-static uint64_t pte_getflags (pte_t *ptep) {
+static UINT64 pte_getflags (pte_t *ptep) {
   return PteGetFlags (ptep);
 }
 
 /** @deprecated Use PteMergeFlags instead **/
-static uint64_t pte_mergeflags (uint64_t fl1, uint64_t fl2) {
+static UINT64 pte_mergeflags (UINT64 fl1, UINT64 fl2) {
   return PteMergeFlags (fl1, fl2);
 }
 
 /** @deprecated Use PaeVerify instead **/
-void pae_verify (vaddr_t va, size64_t size) {
+void pae_verify (VIRTUAL_ADDRESS va, size64_t size) {
   PaeVerify (va, size);
 }
 
@@ -641,83 +641,83 @@ void pae_init (void) {
 }
 
 /** @deprecated Use PaeGetL2p instead **/
-static pte_t *pae_get_l2p (pte_t *cr3, vaddr_t va, int payload) {
+static pte_t *pae_get_l2p (pte_t *cr3, VIRTUAL_ADDRESS va, int payload) {
   return PaeGetL2p (cr3, va, payload);
 }
 
 /** @deprecated Use PaeGetL1p instead **/
-static pte_t *pae_get_l1p (pte_t *cr3, vaddr_t va, int payload) {
+static pte_t *pae_get_l1p (pte_t *cr3, VIRTUAL_ADDRESS va, int payload) {
   return PaeGetL1p (cr3, va, payload);
 }
 
 /** @deprecated Use PaeMapPage instead **/
-void pae_map_page (void *pt, vaddr_t va, uintptr_t pa, int payload, int w, int x) {
+void pae_map_page (void *pt, VIRTUAL_ADDRESS va, UINTN pa, int payload, int w, int x) {
   PaeMapPage (pt, va, pa, payload, w, x);
 }
 
 /** @deprecated Use PaePopulatePage instead **/
-static uintptr_t pae_populate_page (vaddr_t va, int u, int w, int x) {
+static UINTN pae_populate_page (VIRTUAL_ADDRESS va, int u, int w, int x) {
   return PaePopulatePage (va, u, w, x);
 }
 
 /** @deprecated Use PaeGetPhys instead **/
-uintptr_t pae_getphys (vaddr_t va) {
+UINTN pae_getphys (VIRTUAL_ADDRESS va) {
   return PaeGetPhys (va);
 }
 
 /** @deprecated Use PaeDirectMap instead **/
-void pae_directmap (void *pt, uint64_t pa, vaddr_t va, size64_t size,
+void pae_directmap (void *pt, UINT64 pa, VIRTUAL_ADDRESS va, size64_t size,
 		    enum memory_type mt, int payload, int x) {
   PaeDirectMap (pt, pa, va, size, mt, payload, x);
 }
 
 /** @deprecated Use PaePhysmap instead **/
-void pae_physmap (vaddr_t va, size64_t size, uint64_t pa, enum memory_type mt) {
+void pae_physmap (VIRTUAL_ADDRESS va, size64_t size, UINT64 pa, enum memory_type mt) {
   PaePhysmap (va, size, pa, mt);
 }
 
 /** @deprecated Use PaeTopPtAlloc instead **/
-void pae_topptalloc (vaddr_t va, size64_t size) {
+void pae_topptalloc (VIRTUAL_ADDRESS va, size64_t size) {
   PaeTopPtAlloc (va, size);
 }
 
 /** @deprecated Use PaePtAlloc instead **/
-void pae_ptalloc (vaddr_t va, size64_t size) {
+void pae_ptalloc (VIRTUAL_ADDRESS va, size64_t size) {
   PaePtAlloc (va, size);
 }
 
 /** @deprecated Use PaeLinear instead **/
-void pae_linear (vaddr_t va, size64_t size) {
+void pae_linear (VIRTUAL_ADDRESS va, size64_t size) {
   PaeLinear (va, size);
 }
 
 /** @deprecated Use PaePopulate instead **/
-void pae_populate (vaddr_t va, size64_t size, int u, int w, int x) {
+void pae_populate (VIRTUAL_ADDRESS va, size64_t size, int u, int w, int x) {
   PaePopulate (va, size, u, w, x);
 }
 
 /** @deprecated Use PaeEntry instead **/
-void pae_entry (vaddr_t entry) {
+void pae_entry (VIRTUAL_ADDRESS entry) {
   PaeEntry (entry);
 }
 
 /** @deprecated Use Pae64GetL3p instead **/
-static pte_t *pae64_get_l3p (pte_t *cr3, vaddr_t va, int payload) {
+static pte_t *pae64_get_l3p (pte_t *cr3, VIRTUAL_ADDRESS va, int payload) {
   return Pae64GetL3p (cr3, va, payload);
 }
 
 /** @deprecated Use Pae64GetL2p instead **/
-static pte_t *pae64_get_l2p (pte_t *cr3, vaddr_t va, int payload) {
+static pte_t *pae64_get_l2p (pte_t *cr3, VIRTUAL_ADDRESS va, int payload) {
   return Pae64GetL2p (cr3, va, payload);
 }
 
 /** @deprecated Use Pae64GetL1p instead **/
-static pte_t *pae64_get_l1p (pte_t *cr3, vaddr_t va, int payload) {
+static pte_t *pae64_get_l1p (pte_t *cr3, VIRTUAL_ADDRESS va, int payload) {
   return Pae64GetL1p (cr3, va, payload);
 }
 
 /** @deprecated Use Pae64Verify instead **/
-void pae64_verify (vaddr_t va, size64_t size) {
+void pae64_verify (VIRTUAL_ADDRESS va, size64_t size) {
   Pae64Verify (va, size);
 }
 
@@ -727,53 +727,53 @@ void pae64_init (void) {
 }
 
 /** @deprecated Use Pae64MapPage instead **/
-void pae64_map_page (void *pt, vaddr_t va, uintptr_t pa, int payload, int w, int x) {
+void pae64_map_page (void *pt, VIRTUAL_ADDRESS va, UINTN pa, int payload, int w, int x) {
   Pae64MapPage (pt, va, pa, payload, w, x);
 }
 
 /** @deprecated Use Pae64PopulatePage instead **/
-static uintptr_t pae64_populate_page (pte_t *cr3, vaddr_t va, int u, int w, int x, int payload) {
+static UINTN pae64_populate_page (pte_t *cr3, VIRTUAL_ADDRESS va, int u, int w, int x, int payload) {
   return Pae64PopulatePage (cr3, va, u, w, x, payload);
 }
 
 /** @deprecated Use Pae64GetPhys instead **/
-uintptr_t pae64_getphys (vaddr_t va) {
+UINTN pae64_getphys (VIRTUAL_ADDRESS va) {
   return Pae64GetPhys (va);
 }
 
 /** @deprecated Use Pae64DirectMap instead **/
-void pae64_directmap (void *pt, uint64_t pabase, vaddr_t va, size64_t size,
+void pae64_directmap (void *pt, UINT64 pabase, VIRTUAL_ADDRESS va, size64_t size,
 		      enum memory_type mt, int payload, int x) {
   Pae64DirectMap (pt, pabase, va, size, mt, payload, x);
 }
 
 /** @deprecated Use Pae64Physmap instead **/
-void pae64_physmap (vaddr_t va, size64_t size, uint64_t pa, enum memory_type mt) {
+void pae64_physmap (VIRTUAL_ADDRESS va, size64_t size, UINT64 pa, enum memory_type mt) {
   Pae64Physmap (va, size, pa, mt);
 }
 
 /** @deprecated Use Pae64TopPtAlloc instead **/
-void pae64_topptalloc (vaddr_t va, size64_t size) {
+void pae64_topptalloc (VIRTUAL_ADDRESS va, size64_t size) {
   Pae64TopPtAlloc (va, size);
 }
 
 /** @deprecated Use Pae64PtAlloc instead **/
-void pae64_ptalloc (vaddr_t va, size64_t size) {
+void pae64_ptalloc (VIRTUAL_ADDRESS va, size64_t size) {
   Pae64PtAlloc (va, size);
 }
 
 /** @deprecated Use Pae64Linear instead **/
-void pae64_linear (vaddr_t va, size64_t size) {
+void pae64_linear (VIRTUAL_ADDRESS va, size64_t size) {
   Pae64Linear (va, size);
 }
 
 /** @deprecated Use Pae64Populate instead **/
-void pae64_populate (vaddr_t va, size64_t size, int u, int w, int x) {
+void pae64_populate (VIRTUAL_ADDRESS va, size64_t size, int u, int w, int x) {
   Pae64Populate (va, size, u, w, x);
 }
 
 /** @deprecated Use Pae64Entry instead **/
-void pae64_entry (vaddr_t entry) {
+void pae64_entry (VIRTUAL_ADDRESS entry) {
   Pae64Entry (entry);
 }
 

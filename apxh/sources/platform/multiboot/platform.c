@@ -24,7 +24,7 @@
 static VOID *gpElfKernelPayload, *gpElfUserPayload;
 static size_t gElfKernelPayloadSize, gElfUserPayloadSize;
 
-static uintptr_t gBrk;
+static UINTN gBrk;
 static unsigned gBootinfoRegions;
 static UINT64 gBootinfoMaxPfn;
 static UINT64 gBootinfoMaxRamPfn;
@@ -126,7 +126,7 @@ ParseMultibootMmap (
      the kernel offset and the beginning of virtual memory: we can
      dereference multiboot pointers safely.
    */
-  memmove ((VOID *) BOOTMEM_MMAP, (VOID *) (uintptr_t) Info->mmap_addr,
+  memmove ((VOID *) BOOTMEM_MMAP, (VOID *) (UINTN) Info->mmap_addr,
 	   MmapLength);
   /* Unsafe to use multiboot info after this. */
 
@@ -288,12 +288,12 @@ GetPayloadSize (
 
   @return Physical address of allocated page.
 **/
-uintptr_t
+UINTN
 GetPage (
   VOID
   )
 {
-  uintptr_t m;
+  UINTN m;
 
   m = PAGE_ROUND (gBrk);
 
@@ -314,14 +314,14 @@ MdInitialize (
   VOID
   )
 {
-  uintptr_t Ptr;
+  UINTN Ptr;
 
   gpElfKernelPayload = payload_get (0, &gElfKernelPayloadSize);
-  Ptr = (uintptr_t) gpElfKernelPayload + gElfKernelPayloadSize;
+  Ptr = (UINTN) gpElfKernelPayload + gElfKernelPayloadSize;
   gBrk = PAGE_ROUND (Ptr);
 
   gpElfUserPayload = payload_get (1, &gElfUserPayloadSize);
-  Ptr = (uintptr_t) gpElfUserPayload + gElfUserPayloadSize;
+  Ptr = (UINTN) gpElfUserPayload + gElfUserPayloadSize;
   gBrk = PAGE_ROUND (Ptr);
 
   printf ("multiboot initialised: brk at %08x\n", gBrk);
@@ -452,7 +452,7 @@ MdGetPlatformDesc (
 **/
 VOID
 MdVerify (
-  IN vaddr_t   Va,
+  IN VIRTUAL_ADDRESS   Va,
   IN size64_t  Size
   )
 {
@@ -493,8 +493,8 @@ static struct gdtreg
 **/
 VOID
 MbAmd64Entry (
-  IN vaddr_t  Pt,
-  IN vaddr_t  Entry
+  IN VIRTUAL_ADDRESS  Pt,
+  IN VIRTUAL_ADDRESS  Entry
   )
 {
   VOID *pTrampCr3;
@@ -502,7 +502,7 @@ MbAmd64Entry (
   UINT16 TrampCode = 0xe7ff;	/* jmp *%rdi */
   unsigned long Cr0, Cr3, Cr4;
   UINT64 Efer;
-  vaddr_t TrampEntry;
+  VIRTUAL_ADDRESS TrampEntry;
 
   /* Allocate trampoline pagetable. */
   pTrampCr3 = (VOID *) GetPage ();
@@ -510,7 +510,7 @@ MbAmd64Entry (
   /* Setup trampoline. */
   Tramp = (VOID *) GetPage ();
   *(UINT16 *) Tramp = TrampCode;
-  TrampEntry = (vaddr_t) (uintptr_t) Tramp;
+  TrampEntry = (VIRTUAL_ADDRESS) (UINTN) Tramp;
 
   printf ("tramp is %lx (%x)\n", Tramp, *(UINT64 *) Tramp);
 
@@ -518,7 +518,7 @@ MbAmd64Entry (
   pae64_directmap (pTrampCr3, 0, 0, 1L << 30, MEMTYPE_WB, 0, 1);
 
   /* Map Entry page in transitional pagetable VA. */
-  pae64_map_page (pTrampCr3, (vaddr_t) Entry, pae64_getphys (Entry), 0, 0, 1);
+  pae64_map_page (pTrampCr3, (VIRTUAL_ADDRESS) Entry, pae64_getphys (Entry), 0, 0, 1);
   printf ("mapping in %lx %llx at %lx\n", pTrampCr3, Entry,
 	  pae64_getphys (Entry));
 
@@ -538,8 +538,8 @@ MbAmd64Entry (
   write_cr0 (Cr0 | CR0_PG | CR0_WP);
   printf ("CR0: %08lx -> %08lx.\n", Cr0, read_cr0 ());
 
-  gGdtReg.Base = (UINT32) ((uintptr_t) & gPae64Gdt & 0xffffffff),
-    lgdt ((uintptr_t) & gGdtReg);
+  gGdtReg.Base = (UINT32) ((UINTN) & gPae64Gdt & 0xffffffff),
+    lgdt ((UINTN) & gGdtReg);
 
   asm volatile
     ("ljmp $8,$1f\n"
@@ -564,13 +564,13 @@ MbAmd64Entry (
 **/
 VOID
 Mb386Entry (
-  IN vaddr_t  Pt,
-  IN vaddr_t  Entry
+  IN VIRTUAL_ADDRESS  Pt,
+  IN VIRTUAL_ADDRESS  Entry
   )
 {
   VOID *pTrampCr3;
   VOID *Tramp;
-  vaddr_t TrampEntry;
+  VIRTUAL_ADDRESS TrampEntry;
   UINT16 TrampCode = 0xe7ff;	/* jmp *%edi */
   unsigned long Cr4 = read_cr4 ();
   unsigned long Cr3 = read_cr3 ();
@@ -582,7 +582,7 @@ Mb386Entry (
   /* Setup trampoline. */
   Tramp = (VOID *) GetPage ();
   *(UINT16 *) Tramp = TrampCode;
-  TrampEntry = (vaddr_t) (uintptr_t) Tramp;
+  TrampEntry = (VIRTUAL_ADDRESS) (UINTN) Tramp;
 
   printf ("tramp is %lx (%x)\n", Tramp, *(UINT64 *) Tramp);
 
@@ -590,7 +590,7 @@ Mb386Entry (
   pae_directmap (pTrampCr3, 0, 0, 1L << 30, MEMTYPE_WB, 0, 1);
 
   /* Map Entry page in transitional pagetable VA. */
-  pae_map_page (pTrampCr3, (vaddr_t) Entry, pae_getphys (Entry), 0, 0, 1);
+  pae_map_page (pTrampCr3, (VIRTUAL_ADDRESS) Entry, pae_getphys (Entry), 0, 0, 1);
   printf ("mapping in %lx %llx at %lx\n", pTrampCr3, Entry,
 	  pae_getphys (Entry));
 
@@ -622,8 +622,8 @@ Mb386Entry (
 VOID
 MdEntry (
   IN arch_t   Arch,
-  IN vaddr_t  Pt,
-  IN vaddr_t  Entry
+  IN VIRTUAL_ADDRESS  Pt,
+  IN VIRTUAL_ADDRESS  Entry
   )
 {
   switch (Arch)
@@ -671,7 +671,7 @@ size_t get_payload_size (plid_t id) {
 }
 
 /** @deprecated Use GetPage instead **/
-uintptr_t get_page (void) {
+UINTN get_page (void) {
   return GetPage ();
 }
 
@@ -681,17 +681,17 @@ void md_init (void) {
 }
 
 /** @deprecated Use MdMaxPfn instead **/
-uint64_t md_maxpfn (void) {
+UINT64 md_maxpfn (void) {
   return MdMaxPfn ();
 }
 
 /** @deprecated Use MdMinRamPfn instead **/
-uint64_t md_minrampfn (void) {
+UINT64 md_minrampfn (void) {
   return MdMinRamPfn ();
 }
 
 /** @deprecated Use MdMaxRamPfn instead **/
-uint64_t md_maxrampfn (void) {
+UINT64 md_maxrampfn (void) {
   return MdMaxRamPfn ();
 }
 
@@ -716,22 +716,22 @@ struct apxh_platformdesc *md_getplatformdesc (void) {
 }
 
 /** @deprecated Use MdVerify instead **/
-void md_verify (vaddr_t va, size64_t size) {
+void md_verify (VIRTUAL_ADDRESS va, size64_t size) {
   MdVerify (va, size);
 }
 
 /** @deprecated Use MbAmd64Entry instead **/
-void mb_amd64_entry (vaddr_t pt, vaddr_t entry) {
+void mb_amd64_entry (VIRTUAL_ADDRESS pt, VIRTUAL_ADDRESS entry) {
   MbAmd64Entry (pt, entry);
 }
 
 /** @deprecated Use Mb386Entry instead **/
-void mb_386_entry (vaddr_t pt, vaddr_t entry) {
+void mb_386_entry (VIRTUAL_ADDRESS pt, VIRTUAL_ADDRESS entry) {
   Mb386Entry (pt, entry);
 }
 
 /** @deprecated Use MdEntry instead **/
-void md_entry (arch_t arch, vaddr_t pt, vaddr_t entry) {
+void md_entry (arch_t arch, VIRTUAL_ADDRESS pt, VIRTUAL_ADDRESS entry) {
   MdEntry (arch, pt, entry);
 }
 
@@ -740,11 +740,11 @@ static void *elf_kernel_payload __attribute__((alias("gpElfKernelPayload")));
 static void *elf_user_payload __attribute__((alias("gpElfUserPayload")));
 static size_t elf_kernel_payload_size __attribute__((alias("gElfKernelPayloadSize")));
 static size_t elf_user_payload_size __attribute__((alias("gElfUserPayloadSize")));
-static uintptr_t brk __attribute__((alias("gBrk")));
+static UINTN brk __attribute__((alias("gBrk")));
 static unsigned bootinfo_regions __attribute__((alias("gBootinfoRegions")));
-static uint64_t bootinfo_maxpfn __attribute__((alias("gBootinfoMaxPfn")));
-static uint64_t bootinfo_maxrampfn __attribute__((alias("gBootinfoMaxRamPfn")));
+static UINT64 bootinfo_maxpfn __attribute__((alias("gBootinfoMaxPfn")));
+static UINT64 bootinfo_maxrampfn __attribute__((alias("gBootinfoMaxRamPfn")));
 static struct fbdesc fbdesc __attribute__((alias("gFbDesc")));
 static struct apxh_platformdesc platformdesc __attribute__((alias("gPlatformDesc")));
-static uint64_t pae64_gdt[3] __attribute__((alias("gPae64Gdt")));
+static UINT64 pae64_gdt[3] __attribute__((alias("gPae64Gdt")));
 static struct gdtreg gdtreg __attribute__((alias("gGdtReg")));

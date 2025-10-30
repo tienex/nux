@@ -71,34 +71,34 @@ write_cr0 (unsigned long reg)
 }
 
 static inline void
-cpuid (uint32_t * eax, uint32_t * ebx, uint32_t * ecx, uint32_t * edx)
+cpuid (UINT32 * eax, UINT32 * ebx, UINT32 * ecx, UINT32 * edx)
 {
   asm volatile ("cpuid\n":"+a" (*eax), "=b" (*ebx), "+c" (*ecx), "=d" (*edx));
 }
 
-static inline uint64_t
-rdmsr (uint32_t ecx)
+static inline UINT64
+rdmsr (UINT32 ecx)
 {
-  uint32_t edx, eax;
+  UINT32 edx, eax;
 
   asm volatile ("rdmsr\n":"=d" (edx), "=a" (eax):"c" (ecx));
 
-  return ((uint64_t) edx << 32) | eax;
+  return ((UINT64) edx << 32) | eax;
 }
 
 static inline void
-wrmsr (uint32_t ecx, uint64_t msr)
+wrmsr (UINT32 ecx, UINT64 msr)
 {
-  uint32_t edx, eax;
+  UINT32 edx, eax;
 
-  eax = (uint32_t) msr;
+  eax = (UINT32) msr;
   edx = msr >> 32;
 
   asm volatile ("wrmsr\n"::"c" (ecx), "d" (edx), "a" (eax));
 }
 
 static inline void
-lgdt (uintptr_t ptr)
+lgdt (UINTN ptr)
 {
   asm volatile ("lgdtl (%0)\n"::"r" (ptr));
 }

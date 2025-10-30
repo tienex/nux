@@ -55,12 +55,12 @@ Exit (
 
   @return Physical address of allocated page.
 **/
-uintptr_t
+UINTN
 GetPage (
   VOID
   )
 {
-  return (uintptr_t) efi_allocate_maxaddr ((gMinRamPfn << PAGE_SHIFT) +
+  return (UINTN) efi_allocate_maxaddr ((gMinRamPfn << PAGE_SHIFT) +
 					   (unsigned long) BOOTMEM);
 }
 
@@ -88,7 +88,7 @@ MdInitialize (
 **/
 VOID
 MdVerify (
-  IN vaddr_t  Va,
+  IN VIRTUAL_ADDRESS  Va,
   IN UINT64   Size
   )
 {
@@ -110,13 +110,13 @@ MdVerify (
 VOID
 MdEntry (
   IN arch_t   Arch,
-  IN vaddr_t  Pt,
-  IN vaddr_t  Entry
+  IN VIRTUAL_ADDRESS  Pt,
+  IN VIRTUAL_ADDRESS  Entry
   )
 {
   VOID *pTrampCr3;
   VOID *Tramp;
-  vaddr_t TrampEntry;
+  VIRTUAL_ADDRESS TrampEntry;
   UINT64 TrampCode = 0xe7ffd9220fL;	/* mov %rcx, %cr3; jmp *%rdi */
 
   assert (Arch == ARCH_AMD64);
@@ -129,13 +129,13 @@ MdEntry (
   /* Setup trampoline. */
   Tramp = (VOID *) GetPage ();
   *(UINT64 *) Tramp = TrampCode;
-  TrampEntry = (vaddr_t) (uintptr_t) Tramp;
+  TrampEntry = (VIRTUAL_ADDRESS) (UINTN) Tramp;
 
   /* Setup Direct map at 0->1Gb */
   pae64_directmap (pTrampCr3, 0, 0, 64L << 30, MEMTYPE_WB, 0, 1);
 
   /* Map Entry page in transitional pagetable VA. */
-  pae64_map_page (pTrampCr3, (vaddr_t) Entry, pae64_getphys (Entry), 0, 0, 1);
+  pae64_map_page (pTrampCr3, (VIRTUAL_ADDRESS) Entry, pae64_getphys (Entry), 0, 0, 1);
 
   efi_exitbs ();
 
@@ -164,8 +164,8 @@ MdEntry (
 VOID
 MdEntry (
   IN arch_t   Arch,
-  IN vaddr_t  Pt,
-  IN vaddr_t  Entry
+  IN VIRTUAL_ADDRESS  Pt,
+  IN VIRTUAL_ADDRESS  Entry
   )
 {
   VOID *TrampRoot;
@@ -180,15 +180,15 @@ MdEntry (
   /* Setup trampoline. */
   TrampRoot = (VOID *) GetPage ();
   /* Map trampoline page */
-  sv48_directmap (TrampRoot, (uintptr_t) & trampoline_start,
-		  (uintptr_t) & trampoline_start,
-		  (uintptr_t) (&trampoline_end - &trampoline_start),
+  sv48_directmap (TrampRoot, (UINTN) & trampoline_start,
+		  (UINTN) & trampoline_start,
+		  (UINTN) (&trampoline_end - &trampoline_start),
 		  MEMTYPE_WB, 0, 1);
   /* Map start page */
   sv48_directmap (TrampRoot, sv48_getphys (Entry), Entry, 4096, MEMTYPE_WB,
 		  0, 1);
 
-  TrampSatp = 0x9L << 60 | (uintptr_t) TrampRoot >> PAGE_SHIFT;
+  TrampSatp = 0x9L << 60 | (UINTN) TrampRoot >> PAGE_SHIFT;
   Satp = 0x9L << 60 | Pt >> PAGE_SHIFT;
 
   printf ("%lx %lx %lx\n", TrampSatp, Entry, Satp);
@@ -319,7 +319,7 @@ MdGetPlatformDesc (
 {
   /* Only ACPI supported. */
   gPlatformDesc.type = PLATFORM_ACPI;
-  gPlatformDesc.PlatformPointer = (UINT64) (uintptr_t) gpEfiRsdp;
+  gPlatformDesc.PlatformPointer = (UINT64) (UINTN) gpEfiRsdp;
   return &gPlatformDesc;
 }
 
@@ -549,7 +549,7 @@ void __dead exit (int st) {
 }
 
 /** @deprecated Use GetPage instead **/
-uintptr_t get_page (void) {
+UINTN get_page (void) {
   return GetPage ();
 }
 
@@ -559,27 +559,27 @@ void md_init (void) {
 }
 
 /** @deprecated Use MdVerify instead **/
-void md_verify (vaddr_t va, uint64_t size) {
+void md_verify (VIRTUAL_ADDRESS va, UINT64 size) {
   MdVerify (va, size);
 }
 
 /** @deprecated Use MdEntry instead **/
-void md_entry (arch_t arch, vaddr_t pt, vaddr_t entry) {
+void md_entry (arch_t arch, VIRTUAL_ADDRESS pt, VIRTUAL_ADDRESS entry) {
   MdEntry (arch, pt, entry);
 }
 
 /** @deprecated Use MdMaxPfn instead **/
-uint64_t md_maxpfn (void) {
+UINT64 md_maxpfn (void) {
   return MdMaxPfn ();
 }
 
 /** @deprecated Use MdMinRamPfn instead **/
-uint64_t md_minrampfn (void) {
+UINT64 md_minrampfn (void) {
   return MdMinRamPfn ();
 }
 
 /** @deprecated Use MdMaxRamPfn instead **/
-uint64_t md_maxrampfn (void) {
+UINT64 md_maxrampfn (void) {
   return MdMaxRamPfn ();
 }
 
@@ -614,10 +614,10 @@ unsigned long get_payload_size (plid_t id) {
 }
 
 /** @deprecated Use ApxhEfiAddFramebuffer instead **/
-void apxhefi_add_framebuffer (uint64_t addr, uint64_t size,
-			      uint32_t width, uint32_t height,
-			      uint32_t pitch, uint32_t bpp,
-			      uint32_t rm, uint32_t gm, uint32_t bm) {
+void apxhefi_add_framebuffer (UINT64 addr, UINT64 size,
+			      UINT32 width, UINT32 height,
+			      UINT32 pitch, UINT32 bpp,
+			      UINT32 rm, UINT32 gm, UINT32 bm) {
   ApxhEfiAddFramebuffer (addr, size, width, height, pitch, bpp, rm, gm, bm);
 }
 

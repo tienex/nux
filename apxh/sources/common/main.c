@@ -15,7 +15,7 @@
 static arch_t gElfArch;
 static UINT8 gBootPagemap[PAGEMAP_SZ (BOOTMEM)]
   __attribute__((aligned (4096)));
-static vaddr_t gReqPfnmapVa, gReqInfoVa, gReqStreeVa, gReqRegionVa,
+static VIRTUAL_ADDRESS gReqPfnmapVa, gReqInfoVa, gReqStreeVa, gReqRegionVa,
   gKtlsVa, gUtlsVa;
 static size64_t gReqPfnmapSize, gReqInfoSize, gReqStreeSize,
   gReqRegionSize, gKtlsInitsize, gKtlsSize, gUtlsInitsize, gUtlsSize;
@@ -32,14 +32,14 @@ static UINT64 gMinRamAddr = 0;
 
   @return Physical address of allocated page.
 **/
-uintptr_t
+UINTN
 GetPayloadPage (
   VOID
   )
 {
   unsigned Pfn;
-  uintptr_t Page;
-  uintptr_t Base = gMinRamAddr;
+  UINTN Page;
+  UINTN Base = gMinRamAddr;
 
   assert (!gStopPayloadAllocation);
 
@@ -169,7 +169,7 @@ VaInitialize (
 **/
 VOID
 VaPopulate (
-  IN vaddr_t   Va,
+  IN VIRTUAL_ADDRESS   Va,
   IN size64_t  Size,
   IN int       U,
   IN int       W,
@@ -215,7 +215,7 @@ VaPopulate (
 **/
 VOID
 VaCopy (
-  IN vaddr_t   Va,
+  IN VIRTUAL_ADDRESS   Va,
   IN VOID      *Addr,
   IN size64_t  Size,
   IN int       U,
@@ -236,7 +236,7 @@ VaCopy (
 
   while (Len > 0)
     {
-      uintptr_t PAddr;
+      UINTN PAddr;
       size64_t CLen = PAGE_CEILING (Va) - Va;
 
       if (CLen > Len)
@@ -267,7 +267,7 @@ VaCopy (
 **/
 VOID
 VaMemset (
-  IN vaddr_t   Va,
+  IN VIRTUAL_ADDRESS   Va,
   IN int       C,
   IN size64_t  Size,
   IN int       U,
@@ -286,7 +286,7 @@ VaMemset (
 
   while (Len > 0)
     {
-      uintptr_t PAddr;
+      UINTN PAddr;
       size64_t CLen = PAGE_CEILING (Va) - Va;
 
       PAddr = VaGetPhys (Va);
@@ -309,7 +309,7 @@ VaMemset (
 **/
 VOID
 VaPhysmap (
-  IN vaddr_t           Va,
+  IN VIRTUAL_ADDRESS           Va,
   IN size64_t          Size,
   IN enum memory_type  Mt
   )
@@ -350,7 +350,7 @@ VaPhysmap (
 **/
 VOID
 VaFramebuf (
-  IN vaddr_t           Va,
+  IN VIRTUAL_ADDRESS           Va,
   IN size64_t          Size,
   IN enum memory_type  Mt
   )
@@ -407,7 +407,7 @@ VaFramebuf (
 **/
 VOID
 VaLinear (
-  IN vaddr_t   Va,
+  IN VIRTUAL_ADDRESS   Va,
   IN size64_t  Size
   )
 {
@@ -445,7 +445,7 @@ VaLinear (
 **/
 VOID
 VaTopPtAlloc (
-  IN vaddr_t   Va,
+  IN VIRTUAL_ADDRESS   Va,
   IN size64_t  Size
   )
 {
@@ -483,7 +483,7 @@ VaTopPtAlloc (
 **/
 VOID
 VaPtAlloc (
-  IN vaddr_t   Va,
+  IN VIRTUAL_ADDRESS   Va,
   IN size64_t  Size
   )
 {
@@ -522,7 +522,7 @@ VaPtAlloc (
 **/
 VOID
 VaInfo (
-  IN vaddr_t   Va,
+  IN VIRTUAL_ADDRESS   Va,
   IN size64_t  Size
   )
 {
@@ -552,7 +552,7 @@ VaInfoCopy (
   IN UINT64   NumRegions
   )
 {
-  vaddr_t Va = gReqInfoVa;
+  VIRTUAL_ADDRESS Va = gReqInfoVa;
   size64_t Size = gReqInfoSize;
 #define MIN(x,y) ((x < y) ? x : y)
   struct apxh_bootinfo i;
@@ -597,10 +597,10 @@ VaInfoCopy (
 }
 
 
-#define OR_WORD(p, x) ((*(uint64_t *)VaGetPhys(gReqStreeVa + (vaddr_t)(uintptr_t)(p))) |= (x))
-#define MASK_WORD(p,x) ((*(uint64_t *)VaGetPhys(gReqStreeVa + (vaddr_t)(uintptr_t)(p))) &= (x))
-#define GET_WORD(p) (*(uint64_t *)VaGetPhys(gReqStreeVa + (vaddr_t)(uintptr_t)(p)))
-#define SET_WORD(p,x) (*(uint64_t *)VaGetPhys(gReqStreeVa + (vaddr_t)(uintptr_t)(p)) = x)
+#define OR_WORD(p, x) ((*(UINT64 *)VaGetPhys(gReqStreeVa + (VIRTUAL_ADDRESS)(UINTN)(p))) |= (x))
+#define MASK_WORD(p,x) ((*(UINT64 *)VaGetPhys(gReqStreeVa + (VIRTUAL_ADDRESS)(UINTN)(p))) &= (x))
+#define GET_WORD(p) (*(UINT64 *)VaGetPhys(gReqStreeVa + (VIRTUAL_ADDRESS)(UINTN)(p)))
+#define SET_WORD(p,x) (*(UINT64 *)VaGetPhys(gReqStreeVa + (VIRTUAL_ADDRESS)(UINTN)(p)) = x)
 #include <stree.h>
 
 /**
@@ -614,7 +614,7 @@ VaInfoCopy (
 **/
 VOID
 VaStree (
-  IN vaddr_t   Va,
+  IN VIRTUAL_ADDRESS   Va,
   IN size64_t  Size
   )
 {
@@ -718,10 +718,10 @@ VaStreeCopy (
   VOID
   )
 {
-  vaddr_t Va = gReqStreeVa;
+  VIRTUAL_ADDRESS Va = gReqStreeVa;
   unsigned Order = gReqStreeOrder;
   UINT64 Pa;
-  vaddr_t MaxFrame;
+  VIRTUAL_ADDRESS MaxFrame;
 
   if (Va == 0)
     {
@@ -757,7 +757,7 @@ VaStreeCopy (
 **/
 VOID
 VaRegions (
-  IN vaddr_t   Va,
+  IN VIRTUAL_ADDRESS   Va,
   IN size64_t  Size
   )
 {
@@ -793,7 +793,7 @@ VaRegionsCopy (
   VOID
   )
 {
-  vaddr_t Va = gReqRegionVa;
+  VIRTUAL_ADDRESS Va = gReqRegionVa;
   unsigned long Size = gReqRegionSize;
   unsigned i, Regions;
   struct apxh_region ApxhReg;
@@ -831,7 +831,7 @@ VaRegionsCopy (
 **/
 VOID
 VaPfnmap (
-  IN vaddr_t   Va,
+  IN VIRTUAL_ADDRESS   Va,
   IN size64_t  Size
   )
 {
@@ -897,7 +897,7 @@ VaPfnmapCopy (
   VOID
   )
 {
-  vaddr_t Va = gReqPfnmapVa;
+  VIRTUAL_ADDRESS Va = gReqPfnmapVa;
   unsigned long Size = gReqPfnmapSize;
   unsigned MaxFrame = Size / PFNMAP_ENTRY_SIZE;
 #define MIN(x,y) ((x < y) ? x : y)
@@ -941,7 +941,7 @@ VaPfnmapCopy (
 **/
 VOID
 VaKtls (
-  IN vaddr_t   Va,
+  IN VIRTUAL_ADDRESS   Va,
   IN size64_t  InitSize,
   IN size64_t  Size
   )
@@ -962,7 +962,7 @@ VaKtls (
 **/
 VOID
 VaUtls (
-  IN vaddr_t   Va,
+  IN VIRTUAL_ADDRESS   Va,
   IN size64_t  InitSize,
   IN size64_t  Size
   )
@@ -983,7 +983,7 @@ VaUtls (
 **/
 VOID
 VaVerify (
-  IN vaddr_t   Va,
+  IN VIRTUAL_ADDRESS   Va,
   IN size64_t  Size
   )
 {
@@ -1018,9 +1018,9 @@ VaVerify (
 
   @return Physical address.
 **/
-uintptr_t
+UINTN
 VaGetPhys (
-  IN vaddr_t  Va
+  IN VIRTUAL_ADDRESS  Va
   )
 {
   switch (gElfArch)
@@ -1054,7 +1054,7 @@ VaGetPhys (
 **/
 VOID
 VaEntry (
-  IN vaddr_t  Entry
+  IN VIRTUAL_ADDRESS  Entry
   )
 {
   switch (gElfArch)
@@ -1193,7 +1193,7 @@ main (
 //
 
 /** @deprecated Use GetPayloadPage instead **/
-uintptr_t get_payload_page (void) {
+UINTN get_payload_page (void) {
   return GetPayloadPage ();
 }
 
@@ -1218,57 +1218,57 @@ void va_init (void) {
 }
 
 /** @deprecated Use VaPopulate instead **/
-void va_populate (vaddr_t va, size64_t size, int u, int w, int x) {
+void va_populate (VIRTUAL_ADDRESS va, size64_t size, int u, int w, int x) {
   VaPopulate (va, size, u, w, x);
 }
 
 /** @deprecated Use VaCopy instead **/
-void va_copy (vaddr_t va, void *addr, size64_t size, int u, int w, int x) {
+void va_copy (VIRTUAL_ADDRESS va, void *addr, size64_t size, int u, int w, int x) {
   VaCopy (va, addr, size, u, w, x);
 }
 
 /** @deprecated Use VaMemset instead **/
-void va_memset (vaddr_t va, int c, size64_t size, int u, int w, int x) {
+void va_memset (VIRTUAL_ADDRESS va, int c, size64_t size, int u, int w, int x) {
   VaMemset (va, c, size, u, w, x);
 }
 
 /** @deprecated Use VaPhysmap instead **/
-void va_physmap (vaddr_t va, size64_t size, enum memory_type mt) {
+void va_physmap (VIRTUAL_ADDRESS va, size64_t size, enum memory_type mt) {
   VaPhysmap (va, size, mt);
 }
 
 /** @deprecated Use VaFramebuf instead **/
-void va_framebuf (vaddr_t va, size64_t size, enum memory_type mt) {
+void va_framebuf (VIRTUAL_ADDRESS va, size64_t size, enum memory_type mt) {
   VaFramebuf (va, size, mt);
 }
 
 /** @deprecated Use VaLinear instead **/
-void va_linear (vaddr_t va, size64_t size) {
+void va_linear (VIRTUAL_ADDRESS va, size64_t size) {
   VaLinear (va, size);
 }
 
 /** @deprecated Use VaTopPtAlloc instead **/
-void va_topptalloc (vaddr_t va, size64_t size) {
+void va_topptalloc (VIRTUAL_ADDRESS va, size64_t size) {
   VaTopPtAlloc (va, size);
 }
 
 /** @deprecated Use VaPtAlloc instead **/
-void va_ptalloc (vaddr_t va, size64_t size) {
+void va_ptalloc (VIRTUAL_ADDRESS va, size64_t size) {
   VaPtAlloc (va, size);
 }
 
 /** @deprecated Use VaInfo instead **/
-void va_info (vaddr_t va, size64_t size) {
+void va_info (VIRTUAL_ADDRESS va, size64_t size) {
   VaInfo (va, size);
 }
 
 /** @deprecated Use VaInfoCopy instead **/
-static void va_info_copy (uint64_t uentry, uint64_t num_regions) {
+static void va_info_copy (UINT64 uentry, UINT64 num_regions) {
   VaInfoCopy (uentry, num_regions);
 }
 
 /** @deprecated Use VaStree instead **/
-void va_stree (vaddr_t va, size64_t size) {
+void va_stree (VIRTUAL_ADDRESS va, size64_t size) {
   VaStree (va, size);
 }
 
@@ -1278,7 +1278,7 @@ void va_stree_copy (void) {
 }
 
 /** @deprecated Use VaRegions instead **/
-void va_regions (vaddr_t va, size64_t size) {
+void va_regions (VIRTUAL_ADDRESS va, size64_t size) {
   VaRegions (va, size);
 }
 
@@ -1288,7 +1288,7 @@ static void va_regions_copy (void) {
 }
 
 /** @deprecated Use VaPfnmap instead **/
-void va_pfnmap (vaddr_t va, size64_t size) {
+void va_pfnmap (VIRTUAL_ADDRESS va, size64_t size) {
   VaPfnmap (va, size);
 }
 
@@ -1298,40 +1298,40 @@ static void va_pfnmap_copy (void) {
 }
 
 /** @deprecated Use VaKtls instead **/
-void va_ktls (vaddr_t va, size64_t initsize, size64_t size) {
+void va_ktls (VIRTUAL_ADDRESS va, size64_t initsize, size64_t size) {
   VaKtls (va, initsize, size);
 }
 
 /** @deprecated Use VaUtls instead **/
-void va_utls (vaddr_t va, size64_t initsize, size64_t size) {
+void va_utls (VIRTUAL_ADDRESS va, size64_t initsize, size64_t size) {
   VaUtls (va, initsize, size);
 }
 
 /** @deprecated Use VaVerify instead **/
-void va_verify (vaddr_t va, size64_t size) {
+void va_verify (VIRTUAL_ADDRESS va, size64_t size) {
   VaVerify (va, size);
 }
 
 /** @deprecated Use VaGetPhys instead **/
-uintptr_t va_getphys (vaddr_t va) {
+UINTN va_getphys (VIRTUAL_ADDRESS va) {
   return VaGetPhys (va);
 }
 
 /** @deprecated Use VaEntry instead **/
-void va_entry (vaddr_t entry) {
+void va_entry (VIRTUAL_ADDRESS entry) {
   VaEntry (entry);
 }
 
 // Legacy global variable aliases
 static arch_t elf_arch __attribute__((alias("gElfArch")));
-static uint8_t boot_pagemap[PAGEMAP_SZ (BOOTMEM)]
+static UINT8 boot_pagemap[PAGEMAP_SZ (BOOTMEM)]
   __attribute__((alias("gBootPagemap")));
-static vaddr_t req_pfnmap_va __attribute__((alias("gReqPfnmapVa")));
-static vaddr_t req_info_va __attribute__((alias("gReqInfoVa")));
-static vaddr_t req_stree_va __attribute__((alias("gReqStreeVa")));
-static vaddr_t req_region_va __attribute__((alias("gReqRegionVa")));
-static vaddr_t ktls_va __attribute__((alias("gKtlsVa")));
-static vaddr_t utls_va __attribute__((alias("gUtlsVa")));
+static VIRTUAL_ADDRESS req_pfnmap_va __attribute__((alias("gReqPfnmapVa")));
+static VIRTUAL_ADDRESS req_info_va __attribute__((alias("gReqInfoVa")));
+static VIRTUAL_ADDRESS req_stree_va __attribute__((alias("gReqStreeVa")));
+static VIRTUAL_ADDRESS req_region_va __attribute__((alias("gReqRegionVa")));
+static VIRTUAL_ADDRESS ktls_va __attribute__((alias("gKtlsVa")));
+static VIRTUAL_ADDRESS utls_va __attribute__((alias("gUtlsVa")));
 static size64_t req_pfnmap_size __attribute__((alias("gReqPfnmapSize")));
 static size64_t req_info_size __attribute__((alias("gReqInfoSize")));
 static size64_t req_stree_size __attribute__((alias("gReqStreeSize")));
@@ -1343,4 +1343,4 @@ static size64_t utls_size __attribute__((alias("gUtlsSize")));
 static unsigned req_stree_order __attribute__((alias("gReqStreeOrder")));
 static unsigned req_region_num __attribute__((alias("gReqRegionNum")));
 static bool stop_payload_allocation __attribute__((alias("gStopPayloadAllocation")));
-static uint64_t minramaddr __attribute__((alias("gMinRamAddr")));
+static UINT64 minramaddr __attribute__((alias("gMinRamAddr")));

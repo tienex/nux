@@ -39,9 +39,9 @@ void *payload_get (unsigned i, size_t *size);
 **/
 typedef struct _PAYLOAD_HDR
 {
-  uint64_t magic;
-  uint64_t filename;
-  uint32_t size;
+  UINT64 magic;
+  UINT64 filename;
+  UINT32 size;
 } __attribute__((packed)) PAYLOAD_HDR, *PPAYLOAD_HDR, *PCPAYLOAD_HDR;
 
 /** Legacy compatibility **/
