@@ -40,14 +40,14 @@ typedef __ZADDR_T zaddr_t;
 
 */
 
-static inline unsigned
+static INLINE unsigned
 lsbit (unsigned long x)
 {
   assert (x != 0);
   return __builtin_ffsl (x) - 1;
 }
 
-static inline unsigned
+static INLINE unsigned
 msbit (unsigned long x)
 {
   assert (x != 0);
@@ -76,7 +76,7 @@ typedef struct _ZONE
 /** Legacy type alias for compatibility **/
 #define zone ZONE
 
-static inline void
+static INLINE void
 _zone_detachentry (struct zone *z, struct __ZENTRY *ze)
 {
   UINT32 msb;
@@ -94,7 +94,7 @@ _zone_detachentry (struct zone *z, struct __ZENTRY *ze)
   dbgprintf ("D<%p>(%lx,%lx)", ze, ze->addr, ze->size);
 }
 
-static inline void
+static INLINE void
 _zone_attachentry (struct zone *z, struct __ZENTRY *ze)
 {
   UINT32 msb;
@@ -114,7 +114,7 @@ _zone_attachentry (struct zone *z, struct __ZENTRY *ze)
   dbgprintf ("A<%p>(%lx,%lx)", ze, ze->addr, ze->size);
 }
 
-static inline struct __ZENTRY *
+static INLINE struct __ZENTRY *
 _zone_findfree (struct zone *zn, size_t size)
 {
   unsigned long tmp;
@@ -142,14 +142,14 @@ _zone_findfree (struct zone *zn, size_t size)
   return ze;
 }
 
-static inline void
+static INLINE void
 zone_remove (struct zone *z, struct __ZENTRY *ze)
 {
   _zone_detachentry (z, ze);
   ___freeptr (ze, z->Opq);
 }
 
-static inline void
+static INLINE void
 zone_create (struct zone *z, zaddr_t zaddr, size_t size)
 {
   struct __ZENTRY *ze, *pze = NULL, *nze = NULL;
@@ -175,7 +175,7 @@ zone_create (struct zone *z, zaddr_t zaddr, size_t size)
 }
 
 
-static inline void
+static INLINE void
 zone_free (struct zone *z, zaddr_t zaddr, size_t size)
 {
 
@@ -184,7 +184,7 @@ zone_free (struct zone *z, zaddr_t zaddr, size_t size)
   zone_create (z, zaddr, size);
 }
 
-static inline zaddr_t
+static INLINE zaddr_t
 zone_alloc (struct zone *z, size_t size)
 {
   struct __ZENTRY *ze;
@@ -209,7 +209,7 @@ out:
   return addr;
 }
 
-static inline void
+static INLINE void
 zone_init (struct zone *z, UINTN opq)
 {
   int i;

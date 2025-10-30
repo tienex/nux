@@ -395,141 +395,141 @@ INTERFACE_INHERIT_IUNKNOWN (IPlatform)
 
 extern IPlatform *gpPlatform;
 
-static inline VOID PlatformInit (VOID) {
+static INLINE VOID PlatformInit (VOID) {
   gpPlatform->lpVtbl->Init(gpPlatform);
 }
 
-static inline VOID PlatformHwPutc (INT32 C) {
+static INLINE VOID PlatformHwPutc (INT32 C) {
   IPlatformHardware *Hw;
   gpPlatform->lpVtbl->GetHardwareInterface(gpPlatform, &Hw);
   Hw->lpVtbl->PutChar(Hw, C);
 }
 
-static inline PLATFORM_IRQ_TYPE PlatformIrqType (IN UINTN Irq) {
+static INLINE PLATFORM_IRQ_TYPE PlatformIrqType (IN UINTN Irq) {
   IPlatformIrq *IrqInterface;
   gpPlatform->lpVtbl->GetIrqInterface(gpPlatform, &IrqInterface);
   return IrqInterface->lpVtbl->GetType(IrqInterface, Irq);
 }
 
-static inline VOID PlatformIrqEnable (IN UINTN Irq) {
+static INLINE VOID PlatformIrqEnable (IN UINTN Irq) {
   IPlatformIrq *IrqInterface;
   gpPlatform->lpVtbl->GetIrqInterface(gpPlatform, &IrqInterface);
   IrqInterface->lpVtbl->Enable(IrqInterface, Irq);
 }
 
-static inline VOID PlatformIrqDisable (IN UINTN Irq) {
+static INLINE VOID PlatformIrqDisable (IN UINTN Irq) {
   IPlatformIrq *IrqInterface;
   gpPlatform->lpVtbl->GetIrqInterface(gpPlatform, &IrqInterface);
   IrqInterface->lpVtbl->Disable(IrqInterface, Irq);
 }
 
-static inline UINTN PlatformIrqMax (VOID) {
+static INLINE UINTN PlatformIrqMax (VOID) {
   IPlatformIrq *IrqInterface;
   gpPlatform->lpVtbl->GetIrqInterface(gpPlatform, &IrqInterface);
   return IrqInterface->lpVtbl->GetMaxIrq(IrqInterface);
 }
 
-static inline BOOLEAN PlatformIrqIsLevel (IN UINTN Irq) {
+static INLINE BOOLEAN PlatformIrqIsLevel (IN UINTN Irq) {
   IPlatformIrq *IrqInterface;
   gpPlatform->lpVtbl->GetIrqInterface(gpPlatform, &IrqInterface);
   return IrqInterface->lpVtbl->IsLevel(IrqInterface, Irq);
 }
 
-static inline INTN PlatformPcpuIterate (VOID) {
+static INLINE INTN PlatformPcpuIterate (VOID) {
   IPlatformPcpu *PcpuInterface;
   gpPlatform->lpVtbl->GetPcpuInterface(gpPlatform, &PcpuInterface);
   return PcpuInterface->lpVtbl->Iterate(PcpuInterface);
 }
 
-static inline VOID PlatformPcpuEnter (VOID) {
+static INLINE VOID PlatformPcpuEnter (VOID) {
   IPlatformPcpu *PcpuInterface;
   gpPlatform->lpVtbl->GetPcpuInterface(gpPlatform, &PcpuInterface);
   PcpuInterface->lpVtbl->Enter(PcpuInterface);
 }
 
-static inline VOID PlatformPcpuNmi (INTN PcpuId) {
+static INLINE VOID PlatformPcpuNmi (INTN PcpuId) {
   IPlatformPcpu *PcpuInterface;
   gpPlatform->lpVtbl->GetPcpuInterface(gpPlatform, &PcpuInterface);
   PcpuInterface->lpVtbl->SendNmi(PcpuInterface, PcpuId);
 }
 
-static inline VOID PlatformPcpuNmiAll (VOID) {
+static INLINE VOID PlatformPcpuNmiAll (VOID) {
   IPlatformPcpu *PcpuInterface;
   gpPlatform->lpVtbl->GetPcpuInterface(gpPlatform, &PcpuInterface);
   PcpuInterface->lpVtbl->BroadcastNmi(PcpuInterface);
 }
 
-static inline VOID PlatformPcpuIpi (INTN PcpuId) {
+static INLINE VOID PlatformPcpuIpi (INTN PcpuId) {
   IPlatformPcpu *PcpuInterface;
   gpPlatform->lpVtbl->GetPcpuInterface(gpPlatform, &PcpuInterface);
   PcpuInterface->lpVtbl->SendIpi(PcpuInterface, PcpuId);
 }
 
-static inline VOID PlatformPcpuIpiAll (VOID) {
+static INLINE VOID PlatformPcpuIpiAll (VOID) {
   IPlatformPcpu *PcpuInterface;
   gpPlatform->lpVtbl->GetPcpuInterface(gpPlatform, &PcpuInterface);
   PcpuInterface->lpVtbl->BroadcastIpi(PcpuInterface);
 }
 
-static inline UINTN PlatformPcpuId (VOID) {
+static INLINE UINTN PlatformPcpuId (VOID) {
   IPlatformPcpu *PcpuInterface;
   gpPlatform->lpVtbl->GetPcpuInterface(gpPlatform, &PcpuInterface);
   return PcpuInterface->lpVtbl->GetId(PcpuInterface);
 }
 
-static inline VOID PlatformPcpuStart (IN UINTN PcpuId, IN PHYSICAL_ADDRESS Start) {
+static INLINE VOID PlatformPcpuStart (IN UINTN PcpuId, IN PHYSICAL_ADDRESS Start) {
   IPlatformPcpu *PcpuInterface;
   gpPlatform->lpVtbl->GetPcpuInterface(gpPlatform, &PcpuInterface);
   PcpuInterface->lpVtbl->Start(PcpuInterface, PcpuId, Start);
 }
 
-static inline UINT64 PlatformTmrGetCounter (VOID) {
+static INLINE UINT64 PlatformTmrGetCounter (VOID) {
   IPlatformTimer *TimerInterface;
   gpPlatform->lpVtbl->GetTimerInterface(gpPlatform, &TimerInterface);
   return TimerInterface->lpVtbl->GetCounter(TimerInterface);
 }
 
-static inline VOID PlatformTmrSetCounter (IN UINT64 Counter) {
+static INLINE VOID PlatformTmrSetCounter (IN UINT64 Counter) {
   IPlatformTimer *TimerInterface;
   gpPlatform->lpVtbl->GetTimerInterface(gpPlatform, &TimerInterface);
   TimerInterface->lpVtbl->SetCounter(TimerInterface, Counter);
 }
 
-static inline UINT64 PlatformTmrPeriod (VOID) {
+static INLINE UINT64 PlatformTmrPeriod (VOID) {
   IPlatformTimer *TimerInterface;
   gpPlatform->lpVtbl->GetTimerInterface(gpPlatform, &TimerInterface);
   return TimerInterface->lpVtbl->GetPeriod(TimerInterface);
 }
 
-static inline VOID PlatformTmrSetAlarm (IN UINT64 Ticks) {
+static INLINE VOID PlatformTmrSetAlarm (IN UINT64 Ticks) {
   IPlatformTimer *TimerInterface;
   gpPlatform->lpVtbl->GetTimerInterface(gpPlatform, &TimerInterface);
   TimerInterface->lpVtbl->SetAlarm(TimerInterface, Ticks);
 }
 
-static inline VOID PlatformTmrClearAlarm (VOID) {
+static INLINE VOID PlatformTmrClearAlarm (VOID) {
   IPlatformTimer *TimerInterface;
   gpPlatform->lpVtbl->GetTimerInterface(gpPlatform, &TimerInterface);
   TimerInterface->lpVtbl->ClearAlarm(TimerInterface);
 }
 
-static inline VOID PlatformEoiTimer (VOID) {
+static INLINE VOID PlatformEoiTimer (VOID) {
   IPlatformTimer *TimerInterface;
   gpPlatform->lpVtbl->GetTimerInterface(gpPlatform, &TimerInterface);
   TimerInterface->lpVtbl->EndOfInterrupt(TimerInterface);
 }
 
-static inline VOID PlatformEoiIrq (IN UINTN Irq) {
+static INLINE VOID PlatformEoiIrq (IN UINTN Irq) {
   IPlatformIrq *IrqInterface;
   gpPlatform->lpVtbl->GetIrqInterface(gpPlatform, &IrqInterface);
   IrqInterface->lpVtbl->EndOfInterrupt(IrqInterface, Irq);
 }
 
-static inline VOID PlatformEoiIpi (VOID) {
+static INLINE VOID PlatformEoiIpi (VOID) {
   gpPlatform->lpVtbl->EndOfInterruptIpi(gpPlatform);
 }
 
-static inline struct hal_frame *PlatformInterrupt (IN UINTN Vect, IN struct hal_frame *Frame) {
+static INLINE struct hal_frame *PlatformInterrupt (IN UINTN Vect, IN struct hal_frame *Frame) {
   return gpPlatform->lpVtbl->Interrupt(gpPlatform, Vect, Frame);
 }
 

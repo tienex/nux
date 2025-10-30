@@ -57,7 +57,7 @@ typedef struct _RWLOCK {
 
   @param[out] Lock  Pointer to the spinlock to initialize.
 **/
-static inline
+static INLINE
 VOID
 SpinLockInitialize (
   OUT SPINLOCK  *Lock
@@ -74,7 +74,7 @@ SpinLockInitialize (
 
   @param[in,out] Lock  Pointer to the spinlock to acquire.
 **/
-static inline
+static INLINE
 VOID
 SpinLockAcquire (
   IN OUT SPINLOCK  *Lock
@@ -116,7 +116,7 @@ SpinLockAcquire (
 
   @return Number of CPU cycles spent waiting for the lock.
 **/
-static inline
+static INLINE
 UINT64
 SpinLockAcquireMeasured (
   IN OUT SPINLOCK  *Lock
@@ -138,7 +138,7 @@ SpinLockAcquireMeasured (
 
   @param[in,out] Lock  Pointer to the spinlock to release.
 **/
-static inline
+static INLINE
 VOID
 SpinLockRelease (
   IN OUT SPINLOCK  *Lock
@@ -156,7 +156,7 @@ SpinLockRelease (
 
   @return Number of CPU cycles the lock was held.
 **/
-static inline
+static INLINE
 UINT64
 SpinLockReleaseMeasured (
   IN OUT SPINLOCK  *Lock
@@ -181,7 +181,7 @@ SpinLockReleaseMeasured (
 
   @param[out] RwLock  Pointer to the reader-writer lock to initialize.
 **/
-static inline
+static INLINE
 VOID
 RwLockInitialize (
   OUT RWLOCK  *RwLock
@@ -200,7 +200,7 @@ RwLockInitialize (
 
   @param[in,out] RwLock  Pointer to the reader-writer lock.
 **/
-static inline
+static INLINE
 VOID
 RwLockAcquireRead (
   IN OUT RWLOCK  *RwLock
@@ -226,7 +226,7 @@ RwLockAcquireRead (
 
   @param[in,out] RwLock  Pointer to the reader-writer lock.
 **/
-static inline
+static INLINE
 VOID
 RwLockReleaseRead (
   IN OUT RWLOCK  *RwLock
@@ -252,7 +252,7 @@ RwLockReleaseRead (
 
   @param[in,out] RwLock  Pointer to the reader-writer lock.
 **/
-static inline
+static INLINE
 VOID
 RwLockAcquireWrite (
   IN OUT RWLOCK  *RwLock
@@ -268,7 +268,7 @@ RwLockAcquireWrite (
 
   @param[in,out] RwLock  Pointer to the reader-writer lock.
 **/
-static inline
+static INLINE
 VOID
 RwLockReleaseWrite (
   IN OUT RWLOCK  *RwLock

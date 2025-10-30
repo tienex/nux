@@ -142,7 +142,7 @@ SlabPrintStatistics (
 
   @return Pointer to allocated object, or NULL on failure.
 **/
-static inline
+static INLINE
 VOID *
 SlabAllocate (
   IN OUT struct slab  *Slab

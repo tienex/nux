@@ -1322,7 +1322,7 @@ extern INux *gpNux;
 // Logging Helper Function
 //
 
-static inline
+static INLINE
 VOID
 __printflike (2, 3)
 __log (

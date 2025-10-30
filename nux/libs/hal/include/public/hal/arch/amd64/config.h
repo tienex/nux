@@ -49,7 +49,7 @@ struct hal_umap
 };
 
 #include <stdio.h>
-static inline void
+static INLINE void
 hal_umap_debug (struct hal_umap *umap)
 {
   printf ("hal_umap %p:", umap);

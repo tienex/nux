@@ -27,7 +27,7 @@
   @param[in,out] CpuMask  Pointer to the CPU mask.
   @param[in]     CpuId     CPU number to set in the mask.
 **/
-static inline
+static INLINE
 VOID
 AtomicCpuMaskSet (
   IN OUT CPU_MASK  *CpuMask,
@@ -45,7 +45,7 @@ AtomicCpuMaskSet (
   @param[in,out] CpuMask  Pointer to the CPU mask.
   @param[in]     Mask      Mask value to AND with the CPU mask.
 **/
-static inline
+static INLINE
 VOID
 AtomicCpuMaskAnd (
   IN OUT CPU_MASK  *CpuMask,
@@ -63,7 +63,7 @@ AtomicCpuMaskAnd (
   @param[in,out] CpuMask  Pointer to the CPU mask.
   @param[in]     CpuId     CPU number to clear from the mask.
 **/
-static inline
+static INLINE
 VOID
 AtomicCpuMaskClear (
   IN OUT CPU_MASK  *CpuMask,
@@ -85,7 +85,7 @@ AtomicCpuMaskClear (
 
   @return Current CPU mask value.
 **/
-static inline
+static INLINE
 CPU_MASK
 AtomicCpuMaskRead (
   IN CPU_MASK  *CpuMask
@@ -104,7 +104,7 @@ AtomicCpuMaskRead (
   @param[in,out] CpuMask  Pointer to the CPU mask.
   @param[in]     CpuId     CPU number to set in the mask.
 **/
-static inline
+static INLINE
 VOID
 CpuMaskSet (
   IN OUT CPU_MASK  *CpuMask,
@@ -120,7 +120,7 @@ CpuMaskSet (
   @param[in,out] CpuMask  Pointer to the CPU mask.
   @param[in]     CpuId     CPU number to clear from the mask.
 **/
-static inline
+static INLINE
 VOID
 CpuMaskClear (
   IN OUT CPU_MASK  *CpuMask,

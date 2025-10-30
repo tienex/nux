@@ -186,7 +186,7 @@ struct _IUnknown {
   @retval TRUE   GUIDs are equal.
   @retval FALSE  GUIDs are not equal.
 **/
-static inline BOOLEAN
+static INLINE BOOLEAN
 CompareGuid (
   IN CONST GUID   *Guid1,
   IN CONST GUID   *Guid2
@@ -207,7 +207,7 @@ CompareGuid (
   @param[out] DestGuid  Pointer to the destination GUID.
   @param[in]  SrcGuid   Pointer to the source GUID.
 **/
-static inline VOID
+static INLINE VOID
 CopyGuid (
   OUT GUID        *DestGuid,
   IN  CONST GUID  *SrcGuid
@@ -224,12 +224,15 @@ CopyGuid (
 }
 
 //
-// Standard Calling Conventions
+// Standard Calling Conventions and Qualifiers
 //
 
 #define IN
 #define OUT
 #define OPTIONAL
-#define CONST   const
+#define CONST       const
+#define VOLATILE    volatile
+#define INLINE      inline
+#define RESTRICT    __restrict
 
 #endif // NUX_COMBASE_H

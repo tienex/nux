@@ -10,7 +10,7 @@
 typedef uintptr_t hal_l1p_t;
 typedef uint64_t hal_l1e_t;
 
-static inline void
+static INLINE void
 hal_debug (void)
 {
   asm volatile ("ebreak\n");
@@ -60,7 +60,7 @@ struct hal_umap
 };
 
 #include <stdio.h>
-static inline void
+static INLINE void
 hal_umap_debug (struct hal_umap *umap)
 {
   printf ("hal_umap %p:", umap);

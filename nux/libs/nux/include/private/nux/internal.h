@@ -36,7 +36,7 @@ struct ktlb
 /*
   Return <0 if a < b. 0 if a == b, >0 if a > b or wrapcounts differ.
 */
-static inline INT32
+static INLINE INT32
 TlbGenCompare (TLB_GENERATION A, TLB_GENERATION B)
 {
   if (_TG_WRAP (A) == _TG_WRAP (B))

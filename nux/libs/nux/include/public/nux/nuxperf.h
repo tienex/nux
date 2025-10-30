@@ -126,7 +126,7 @@ typedef struct _NUXPERF_LOCK_MEASURE {
 
   @param[in,out] Counter  Pointer to the performance counter.
 **/
-static inline
+static INLINE
 VOID
 NuxPerfCounterIncrement (
   IN OUT NUXPERF_COUNTER  *Counter
@@ -144,7 +144,7 @@ NuxPerfCounterIncrement (
   @param[in] CallbackFn  Callback function to invoke for each counter.
   @param[in] Context    Opaque context pointer passed to callback.
 **/
-static inline
+static INLINE
 VOID
 NuxPerfCounterForEach (
   IN VOID  (*CallbackFn)(VOID *Context, NUXPERF_COUNTER *Counter),
@@ -165,7 +165,7 @@ NuxPerfCounterForEach (
 
   Displays all registered performance counters and their values.
 **/
-static inline
+static INLINE
 VOID
 NuxPerfCounterPrint (
   VOID
@@ -184,7 +184,7 @@ NuxPerfCounterPrint (
 /**
   Reset all performance counters to zero.
 **/
-static inline
+static INLINE
 VOID
 NuxPerfCounterReset (
   VOID
@@ -212,7 +212,7 @@ NuxPerfCounterReset (
   @param[in,out] Measure  Pointer to the performance measure.
   @param[in]     Data      Sample value to add.
 **/
-static inline
+static INLINE
 VOID
 NuxPerfMeasureAdd (
   IN OUT NUXPERF_MEASURE  *Measure,
@@ -239,7 +239,7 @@ NuxPerfMeasureAdd (
   @param[in] CallbackFn  Callback function to invoke for each measure.
   @param[in] Context    Opaque context pointer passed to callback.
 **/
-static inline
+static INLINE
 VOID
 NuxPerfMeasureForEach (
   IN VOID  (*CallbackFn)(VOID *Context, NUXPERF_MEASURE *Measure),
@@ -265,7 +265,7 @@ NuxPerfMeasureForEach (
 
   Resets min/avg/max/count to initial values for all registered measures.
 **/
-static inline
+static INLINE
 VOID
 NuxPerfMeasureReset (
   VOID
@@ -298,7 +298,7 @@ NuxPerfMeasureReset (
 
   Displays all registered performance measures with their statistics.
 **/
-static inline
+static INLINE
 VOID
 NuxPerfMeasurePrint (
   VOID
@@ -332,7 +332,7 @@ NuxPerfMeasurePrint (
   @param[in,out] Lock          Pointer to the spinlock.
   @param[in,out] LockMeasure   Pointer to the lock measurement structure.
 **/
-static inline
+static INLINE
 VOID
 SpinLockMeasured (
   IN OUT SPINLOCK                *Lock,
@@ -353,7 +353,7 @@ SpinLockMeasured (
   @param[in,out] Lock          Pointer to the spinlock.
   @param[in,out] LockMeasure   Pointer to the lock measurement structure.
 **/
-static inline
+static INLINE
 VOID
 SpinUnlockMeasured (
   IN OUT SPINLOCK                *Lock,

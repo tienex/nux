@@ -175,7 +175,7 @@ static const rb_tree_ops_t CacheOps = {
 
   @return Slot number (0 to NumSlots-1).
 **/
-static inline
+static INLINE
 UINTN
 CacheGetSlotNumber (
   IN CACHE *Cache,
@@ -196,7 +196,7 @@ CacheGetSlotNumber (
   @param[in]  NumSlots  Number of slots in the array.
   @param[in]  FillFunc  Fill callback function for cache misses.
 **/
-static inline
+static INLINE
 VOID
 CacheInitialize (
   OUT CACHE *Cache,
@@ -236,7 +236,7 @@ CacheInitialize (
 
   @return Slot number, or (UINTN)-1 if cache is full and all slots are in use.
 **/
-static inline
+static INLINE
 UINTN
 CacheGet (
   IN OUT CACHE *Cache,

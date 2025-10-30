@@ -147,7 +147,7 @@
 
   @return BATREE order needed.
 **/
-static inline size_t
+static INLINE size_t
 BatreeOrder (size_t N)
 {
   long Log2N = (LONG_BIT - 1 - __builtin_clzl ((long) N));
@@ -159,7 +159,7 @@ BatreeOrder (size_t N)
   return R;
 }
 
-static inline size_t
+static INLINE size_t
 BatreeLmapOff (UINT32 O, UINT32 L)
 {
   /*
@@ -184,20 +184,20 @@ BatreeLmapOff (UINT32 O, UINT32 L)
 }
 
 /** Get level L bitmap of the search tree. **/
-static inline WORD_T *
+static INLINE WORD_T *
 BatreeLmap (WORD_T *Batree, UINT32 O, UINT32 L)
 {
   return Batree + BatreeLmapOff (O, L);
 }
 
 /** Get bit offset of an lmap of level L for address A. **/
-static inline size_t
+static INLINE size_t
 LmapBitOff (UINT32 L, UINT32 A)
 {
   return ((size_t) A >> WORDLOG2 * L);
 }
 
-static inline bool
+static INLINE bool
 SetBit (WORD_T *Map, size_t BitAddr)
 {
   WORD_T Old;
@@ -211,7 +211,7 @@ SetBit (WORD_T *Map, size_t BitAddr)
   return !!Old;
 }
 
-static inline bool
+static INLINE bool
 ClrBit (WORD_T *Map, size_t BitAddr)
 {
   size_t Off = BitAddr >> WORDLOG2;
@@ -223,7 +223,7 @@ ClrBit (WORD_T *Map, size_t BitAddr)
   return !!GET_WORD (Map + Off);
 }
 
-static inline int
+static INLINE int
 GetBit (WORD_T *Map, size_t BitAddr)
 {
   size_t Off = BitAddr >> WORDLOG2;
@@ -232,7 +232,7 @@ GetBit (WORD_T *Map, size_t BitAddr)
   return !!(GET_WORD (Map + Off) & ((WORD_T) 1 << Bit));
 }
 
-static inline int
+static INLINE int
 BatreeGetBit (WORD_T *Batree, UINT32 O, size_t BitAddr)
 {
   WORD_T *Lmap = BatreeLmap (Batree, O, 0);
@@ -240,7 +240,7 @@ BatreeGetBit (WORD_T *Batree, UINT32 O, size_t BitAddr)
   return GetBit (Lmap, LmapBitOff (0, BitAddr));
 }
 
-static inline void
+static INLINE void
 BatreeSetBit (WORD_T *Batree, UINT32 O, size_t BitAddr)
 {
   INT32 L;
@@ -258,7 +258,7 @@ BatreeSetBit (WORD_T *Batree, UINT32 O, size_t BitAddr)
     }
 }
 
-static inline void
+static INLINE void
 BatreeClrBit (WORD_T *Batree, UINT32 O, size_t BitAddr)
 {
   INT32 L;
@@ -277,7 +277,7 @@ BatreeClrBit (WORD_T *Batree, UINT32 O, size_t BitAddr)
 }
 
 #include <string.h>
-static inline void
+static INLINE void
 BatreeSetAll (WORD_T *Batree, UINT32 O, UINT32 long Max)
 {
   INT32 L;
@@ -301,7 +301,7 @@ BatreeSetAll (WORD_T *Batree, UINT32 O, UINT32 long Max)
 
   @return Number of set bits.
 **/
-static inline UINT32 long
+static INLINE UINT32 long
 BatreeCount (WORD_T *Batree, UINT32 O)
 {
   UINT32 long Size = 0;
@@ -327,7 +327,7 @@ BatreeCount (WORD_T *Batree, UINT32 O)
 
   @return Bit address or -1 if not found.
 **/
-static inline long
+static INLINE long
 BatreeBitSearch (WORD_T *Batree, UINT32 O, INT32 Low)
 {
   INT32 L;
