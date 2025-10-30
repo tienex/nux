@@ -18,7 +18,7 @@
 
 #include <hal/hal.h>
 
-uctxt_t gUserInit;
+UCTXT gUserInit;
 struct hal_umap gUserMap;
 
 DEFINE_MEASURE (syscalls_cycles);
@@ -49,7 +49,7 @@ main (
 
   for (int i = 0; i < 2; i++)
     {
-      uintptr_t X1, Y1, X2, Y2;
+      UINTN X1, Y1, X2, Y2;
 
       X1 = kmem_alloc (0, 61234);
       Y1 = kmem_alloc (1, 5123);
@@ -79,9 +79,9 @@ main (
   hal_umap_bootstrap (&gUserMap);
   uctxt_print (&gUserInit);
 
-  for (uint64_t i = 0;; i += (1 << 12))
+  for (UINT64 i = 0;; i += (1 << 12))
     {
-      uint64_t X = hal_umap_next (&gUserMap, i, &L1p, &L1e);
+      UINT64 X = hal_umap_next (&gUserMap, i, &L1p, &L1e);
       if (X == UADDR_INVALID)
 	break;
       printf ("%lx - %lx(%lx)\n", X, L1p, L1e);
@@ -113,7 +113,7 @@ main_ap (
   Handles system calls from user space. Implements test syscalls (0-6),
   putchar (4096), and exit (4097). Measures syscall performance.
 
-  @param[in] pU   User context.
+  @param[in] U   User context.
   @param[in] A1   System call number.
   @param[in] A2   Argument 1.
   @param[in] A3   Argument 2.
@@ -124,9 +124,9 @@ main_ap (
 
   @return Updated user context, or UCTXT_IDLE if user process exits.
 **/
-uctxt_t *
+UCTXT *
 entry_sysc (
-  uctxt_t        *pU,
+  UCTXT        *U,
   unsigned long  A1,
   unsigned long  A2,
   unsigned long  A3,
@@ -136,8 +136,8 @@ entry_sysc (
   unsigned long  A7
   )
 {
-  uint64_t StartCy = hal_cpu_cycles ();
-  uint64_t StartNsecs = timer_gettime ();
+  UINT64 StartCy = hal_cpu_cycles ();
+  UINT64 StartNsecs = timer_gettime ();
 
   switch (A1)
     {
@@ -199,7 +199,7 @@ entry_sysc (
     }
   nuxmeasure_add (&syscalls_nsecs, timer_gettime() - StartNsecs);
   nuxmeasure_add (&syscalls_cycles, hal_cpu_cycles() - StartCy);
-  return pU;
+  return U;
 }
 
 /**
@@ -207,13 +207,13 @@ entry_sysc (
 
   Handles IPI (inter-processor interrupt) and returns initial user context.
 
-  @param[in] pUctxt  Current user context.
+  @param[in] Uctxt  Current user context.
 
   @return Initial user context.
 **/
-uctxt_t *
+UCTXT *
 entry_ipi (
-  uctxt_t  *pUctxt
+  UCTXT  *Uctxt
   )
 {
   info ("IPI!");
@@ -227,23 +227,23 @@ entry_ipi (
   Handles timer alarms, sets next alarm, prints current time and context,
   and displays performance measurements.
 
-  @param[in] pUctxt  Current user context.
+  @param[in] Uctxt  Current user context.
 
   @return Same user context.
 **/
-uctxt_t *
+UCTXT *
 entry_alarm (
-  uctxt_t  *pUctxt
+  UCTXT  *Uctxt
   )
 {
   timer_alarm (1 * 1000 * 1000 * 1000);
   info ("TMR: %" PRIu64 " us", timer_gettime ());
-  uctxt_print (pUctxt);
+  uctxt_print (Uctxt);
 
   nuxperf_print ();
   nuxmeasure_print ();
 
-  return pUctxt;
+  return Uctxt;
 }
 
 /**
@@ -251,19 +251,19 @@ entry_alarm (
 
   Handles CPU exceptions, prints exception number and context.
 
-  @param[in] pUctxt  Current user context.
+  @param[in] Uctxt  Current user context.
   @param[in] Ex      Exception number.
 
   @return UCTXT_IDLE to indicate idle state.
 **/
-uctxt_t *
+UCTXT *
 entry_ex (
-  uctxt_t   *pUctxt,
+  UCTXT   *Uctxt,
   unsigned  Ex
   )
 {
   info ("Exception %d", Ex);
-  uctxt_print (pUctxt);
+  uctxt_print (Uctxt);
   return UCTXT_IDLE;
 }
 
@@ -272,21 +272,21 @@ entry_ex (
 
   Handles page faults, prints faulting address and page fault info.
 
-  @param[in] pUctxt  Current user context.
+  @param[in] Uctxt  Current user context.
   @param[in] Va      Faulting virtual address.
   @param[in] Pfi     Page fault information.
 
   @return UCTXT_IDLE to indicate idle state.
 **/
-uctxt_t *
+UCTXT *
 entry_pf (
-  uctxt_t       *pUctxt,
-  vaddr_t       Va,
+  UCTXT       *Uctxt,
+  VIRTUAL_ADDRESS       Va,
   hal_pfinfo_t  Pfi
   )
 {
   info ("CPU #%d Pagefault at %08lx (%d)", cpu_id (), Va, Pfi);
-  uctxt_print (pUctxt);
+  uctxt_print (Uctxt);
   return UCTXT_IDLE;
 }
 
@@ -295,20 +295,20 @@ entry_pf (
 
   Handles hardware interrupts, prints IRQ number.
 
-  @param[in] pUctxt  Current user context.
+  @param[in] Uctxt  Current user context.
   @param[in] Irq     Interrupt request number.
   @param[in] Lvl     Level-triggered flag.
 
   @return Same user context.
 **/
-uctxt_t *
+UCTXT *
 entry_irq (
-  uctxt_t   *pUctxt,
+  UCTXT   *Uctxt,
   unsigned  Irq,
   bool      Lvl
   )
 {
   info ("IRQ %d", Irq);
-  return pUctxt;
+  return Uctxt;
 
 }

@@ -959,7 +959,7 @@ static inline void *hal_physmem_stree (unsigned *order) {
   return pPhysMem->lpVtbl->GetStree(pPhysMem, order);
 }
 
-static inline vaddr_t hal_virtmem_userbase (void) {
+static inline VIRTUAL_ADDRESS hal_virtmem_userbase (void) {
   IHalVirtMem *pVirtMem; gpHal->lpVtbl->GetVirtMemInterface(gpHal, &pVirtMem);
   return pVirtMem->lpVtbl->GetUserBase(pVirtMem);
 }
@@ -969,7 +969,7 @@ static inline const size_t hal_virtmem_usersize (void) {
   return pVirtMem->lpVtbl->GetUserSize(pVirtMem);
 }
 
-static inline vaddr_t hal_virtmem_dmapbase (void) {
+static inline VIRTUAL_ADDRESS hal_virtmem_dmapbase (void) {
   IHalVirtMem *pVirtMem; gpHal->lpVtbl->GetVirtMemInterface(gpHal, &pVirtMem);
   return pVirtMem->lpVtbl->GetDmapBase(pVirtMem);
 }
@@ -979,7 +979,7 @@ static inline const size_t hal_virtmem_dmapsize (void) {
   return pVirtMem->lpVtbl->GetDmapSize(pVirtMem);
 }
 
-static inline vaddr_t hal_virtmem_pfn$base (void) {
+static inline VIRTUAL_ADDRESS hal_virtmem_pfn$base (void) {
   IHalVirtMem *pVirtMem; gpHal->lpVtbl->GetVirtMemInterface(gpHal, &pVirtMem);
   return pVirtMem->lpVtbl->GetPfnCacheBase(pVirtMem);
 }
@@ -989,7 +989,7 @@ static inline const size_t hal_virtmem_pfn$size (void) {
   return pVirtMem->lpVtbl->GetPfnCacheSize(pVirtMem);
 }
 
-static inline vaddr_t hal_virtmem_kvabase (void) {
+static inline VIRTUAL_ADDRESS hal_virtmem_kvabase (void) {
   IHalVirtMem *pVirtMem; gpHal->lpVtbl->GetVirtMemInterface(gpHal, &pVirtMem);
   return pVirtMem->lpVtbl->GetKvaBase(pVirtMem);
 }
@@ -999,7 +999,7 @@ static inline const size_t hal_virtmem_kvasize (void) {
   return pVirtMem->lpVtbl->GetKvaSize(pVirtMem);
 }
 
-static inline vaddr_t hal_virtmem_kmembase (void) {
+static inline VIRTUAL_ADDRESS hal_virtmem_kmembase (void) {
   IHalVirtMem *pVirtMem; gpHal->lpVtbl->GetVirtMemInterface(gpHal, &pVirtMem);
   return pVirtMem->lpVtbl->GetKmemBase(pVirtMem);
 }
@@ -1009,7 +1009,7 @@ static inline const size_t hal_virtmem_kmemsize (void) {
   return pVirtMem->lpVtbl->GetKmemSize(pVirtMem);
 }
 
-static inline const vaddr_t hal_virtmem_userentry (void) {
+static inline CONST VIRTUAL_ADDRESS hal_virtmem_userentry (void) {
   IHalVirtMem *pVirtMem; gpHal->lpVtbl->GetVirtMemInterface(gpHal, &pVirtMem);
   return pVirtMem->lpVtbl->GetUserEntry(pVirtMem);
 }
@@ -1039,7 +1039,7 @@ static inline bool hal_umap_getl1p (struct hal_umap *umap, uaddr_t uaddr, bool a
   return pMap->lpVtbl->UmapGetL1p(pMap, umap, uaddr, alloc, l1p);
 }
 
-static inline uaddr_t hal_umap_next (struct hal_umap *umap, uaddr_t uaddr, hal_l1p_t *l1p, hal_l1e_t *l1e) {
+static inline USER_ADDRESS hal_umap_next (struct hal_umap *umap, uaddr_t uaddr, hal_l1p_t *l1p, hal_l1e_t *l1e) {
   IHalMap *pMap; gpHal->lpVtbl->GetMapInterface(gpHal, &pMap);
   return pMap->lpVtbl->UmapNext(pMap, umap, uaddr, l1p, l1e);
 }
@@ -1089,7 +1089,7 @@ static inline void hal_pcpu_enter (unsigned pcpuid) {
   pPcpu->lpVtbl->Enter(pPcpu, pcpuid);
 }
 
-static inline paddr_t hal_pcpu_startaddr (unsigned pcpu) {
+static inline PHYSICAL_ADDRESS hal_pcpu_startaddr (unsigned pcpu) {
   IHalPcpu *pPcpu; gpHal->lpVtbl->GetPcpuInterface(gpHal, &pPcpu);
   return pPcpu->lpVtbl->GetStartAddr(pPcpu, pcpu);
 }
