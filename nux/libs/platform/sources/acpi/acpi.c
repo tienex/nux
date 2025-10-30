@@ -227,20 +227,20 @@ AcpiMadtScan (
   /* *INDENT-OFF* */
   madt_foreach({
       case ACPI_MADT_TYPE_LAPICOVERRIDE:
-	info("ACPI MADT LAPICOVR %"PRIx64, _.pLapicOvr->address);
-	LapicAddr = _.pLapicOvr->address;
+	info("ACPI MADT LAPICOVR %"PRIx64, _.LapicOvr->address);
+	LapicAddr = _.LapicOvr->address;
 	break;
       case ACPI_MADT_TYPE_LAPIC:
-	if (_.pLapic->flags & ACPI_MADT_LAPIC_ENABLED)
+	if (_.Lapic->flags & ACPI_MADT_LAPIC_ENABLED)
 	  {
 	    info("ACPI MADT LAPIC %02d %02d %08x",
-		 _.pLapic->lapicid, _.pLapic->acpiid, _.pLapic->flags);
+		 _.Lapic->lapicid, _.Lapic->acpiid, _.Lapic->flags);
 	    NumLapic++;
 	  }
 	break;
       case ACPI_MADT_TYPE_IOAPIC:
 	info("ACPI MADT IOAPIC %02d %08x %02d",
-	       _.pIoapic->ioapicid, _.pIoapic->address, _.pIoapic->gsibase);
+	       _.Ioapic->ioapicid, _.Ioapic->address, _.Ioapic->gsibase);
 	NumIoapic++;
 	break;
       case ACPI_MADT_TYPE_LSAPIC:
@@ -292,11 +292,11 @@ AcpiMadtScan (
   /* *INDENT-OFF* */
   madt_foreach({
       case ACPI_MADT_TYPE_LAPIC:
-	if (_.pLapic->flags & ACPI_MADT_LAPIC_ENABLED)
-	  LapicAdd(_.pLapic->lapicid, _.pLapic->acpiid);
+	if (_.Lapic->flags & ACPI_MADT_LAPIC_ENABLED)
+	  LapicAdd(_.Lapic->lapicid, _.Lapic->acpiid);
 	break;
       case ACPI_MADT_TYPE_IOAPIC:
-	IoapicAdd(NumIoapic, _.pIoapic->address, _.pIoapic->gsibase);
+	IoapicAdd(NumIoapic, _.Ioapic->address, _.Ioapic->gsibase);
 	NumIoapic++;
 	break;
       default:
@@ -309,18 +309,18 @@ AcpiMadtScan (
   madt_foreach({
       case ACPI_MADT_TYPE_LAPICNMI:
 	info ("ACPI MADT LAPICNMI LINT%01d FL:%04x PROC:%02d",
-	       _.pLapicNmi->lint, _.pLapicNmi->flags, _.pLapicNmi->acpiid);
+	       _.LapicNmi->lint, _.LapicNmi->flags, _.LapicNmi->acpiid);
 	/* Ignore IntiFlags as NMI vectors ignore
 	 * polarity and trigger */
-	LapicAddNmi(_.pLapicNmi->acpiid, _.pLapicNmi->lint);
+	LapicAddNmi(_.LapicNmi->acpiid, _.LapicNmi->lint);
 	break;
       case ACPI_MADT_TYPE_LX2APICNMI:
 	warn ("LX2APICNMI ENTRY IGNORED");
 	break;
       case ACPI_MADT_TYPE_INTOVERRIDE:
 	info ("ACPI MADT INTOVR BUS %02d IRQ: %02d GSI: %02d FL: %04x",
-	       _.pIntOvr->bus, _.pIntOvr->irq, _.pIntOvr->gsi, _.pIntOvr->flags);
-	Flags = _.pIntOvr->flags;
+	       _.IntOvr->bus, _.IntOvr->irq, _.IntOvr->gsi, _.IntOvr->flags);
+	Flags = _.IntOvr->flags;
 	switch (Flags & ACPI_MADT_TRIGGER_MASK) {
 	case ACPI_MADT_TRIGGER_RESERVED:
 	  warn ("reserved trigger value");
@@ -328,7 +328,7 @@ AcpiMadtScan (
 	case ACPI_MADT_TRIGGER_CONFORMS:
 	  /* ISA is EDGE */
 	case ACPI_MADT_TRIGGER_EDGE:
-	  GsiSetup(_.pIntOvr->gsi, _.pIntOvr->irq, PLATFORM_IRQ_EDGE);
+	  GsiSetup(_.IntOvr->gsi, _.IntOvr->irq, PLATFORM_IRQ_EDGE);
 	  break;
 	case ACPI_MADT_TRIGGER_LEVEL:
 	  switch(Flags & ACPI_MADT_POLARITY_MASK) {
@@ -338,10 +338,10 @@ AcpiMadtScan (
 	  case ACPI_MADT_POLARITY_CONFORMS:
 	    /* Default for EISA is LOW */
 	  case ACPI_MADT_POLARITY_ACTIVE_LOW:
-	    GsiSetup(_.pIntOvr->gsi, _.pIntOvr->irq, PLATFORM_IRQ_LVLLO);
+	    GsiSetup(_.IntOvr->gsi, _.IntOvr->irq, PLATFORM_IRQ_LVLLO);
 	    break;
 	  case ACPI_MADT_POLARITY_ACTIVE_HIGH:
-	    GsiSetup(_.pIntOvr->gsi, _.pIntOvr->irq, PLATFORM_IRQ_LVLHI);
+	    GsiSetup(_.IntOvr->gsi, _.IntOvr->irq, PLATFORM_IRQ_LVLHI);
 	    break;
 	  }
 	  break;
