@@ -398,180 +398,206 @@ struct _IPlatformVtbl {
 INTERFACE_INHERIT_IUNKNOWN (IPlatform)
 
 //
-// Legacy C Function Wrappers (for backward compatibility)
+// C Function Wrappers for Platform Interface
 //
 
 extern IPlatform *gpPlatform;
 
-static inline void platform_init (void) {
+static inline VOID PlatformInit (VOID) {
   gpPlatform->lpVtbl->Init(gpPlatform);
 }
 
-static inline void platform_hw_putc (int c) {
+static inline VOID PlatformHwPutc (INT32 C) {
   IPlatformHardware *pHw;
   gpPlatform->lpVtbl->GetHardwareInterface(gpPlatform, &pHw);
-  pHw->lpVtbl->PutChar(pHw, c);
+  pHw->lpVtbl->PutChar(pHw, C);
 }
 
-static inline enum platform_irq_type platform_irq_type (unsigned irq) {
-  IPlatformIrq *pIrq;
-  PLATFORM_IRQ_TYPE type;
-  gpPlatform->lpVtbl->GetIrqInterface(gpPlatform, &pIrq);
-  type = pIrq->lpVtbl->GetType(pIrq, irq);
-  return (enum platform_irq_type)type;
-}
-
-static inline void platform_irq_enable (unsigned irq) {
+static inline PLATFORM_IRQ_TYPE PlatformIrqType (unsigned Irq) {
   IPlatformIrq *pIrq;
   gpPlatform->lpVtbl->GetIrqInterface(gpPlatform, &pIrq);
-  pIrq->lpVtbl->Enable(pIrq, irq);
+  return pIrq->lpVtbl->GetType(pIrq, Irq);
 }
 
-static inline void platform_irq_disable (unsigned irq) {
+static inline VOID PlatformIrqEnable (unsigned Irq) {
   IPlatformIrq *pIrq;
   gpPlatform->lpVtbl->GetIrqInterface(gpPlatform, &pIrq);
-  pIrq->lpVtbl->Disable(pIrq, irq);
+  pIrq->lpVtbl->Enable(pIrq, Irq);
 }
 
-static inline unsigned platform_irq_max (void) {
+static inline VOID PlatformIrqDisable (unsigned Irq) {
+  IPlatformIrq *pIrq;
+  gpPlatform->lpVtbl->GetIrqInterface(gpPlatform, &pIrq);
+  pIrq->lpVtbl->Disable(pIrq, Irq);
+}
+
+static inline unsigned PlatformIrqMax (VOID) {
   IPlatformIrq *pIrq;
   gpPlatform->lpVtbl->GetIrqInterface(gpPlatform, &pIrq);
   return pIrq->lpVtbl->GetMaxIrq(pIrq);
 }
 
-static inline bool platform_irq_islevel (unsigned irq) {
+static inline BOOLEAN PlatformIrqIsLevel (unsigned Irq) {
   IPlatformIrq *pIrq;
   gpPlatform->lpVtbl->GetIrqInterface(gpPlatform, &pIrq);
-  return pIrq->lpVtbl->IsLevel(pIrq, irq);
+  return pIrq->lpVtbl->IsLevel(pIrq, Irq);
 }
 
-static inline int platform_pcpu_iterate (void) {
+/** Legacy compatibility **/
+#define platform_init PlatformInit
+#define platform_hw_putc PlatformHwPutc
+#define platform_irq_type PlatformIrqType
+#define platform_irq_enable PlatformIrqEnable
+#define platform_irq_disable PlatformIrqDisable
+#define platform_irq_max PlatformIrqMax
+#define platform_irq_islevel PlatformIrqIsLevel
+
+static inline INTN PlatformPcpuIterate (VOID) {
   IPlatformPcpu *pPcpu;
   gpPlatform->lpVtbl->GetPcpuInterface(gpPlatform, &pPcpu);
   return pPcpu->lpVtbl->Iterate(pPcpu);
 }
 
-static inline void platform_pcpu_enter (void) {
+static inline VOID PlatformPcpuEnter (VOID) {
   IPlatformPcpu *pPcpu;
   gpPlatform->lpVtbl->GetPcpuInterface(gpPlatform, &pPcpu);
   pPcpu->lpVtbl->Enter(pPcpu);
 }
 
-static inline void platform_pcpu_nmi (int pcpuid) {
+static inline VOID PlatformPcpuNmi (INTN PcpuId) {
   IPlatformPcpu *pPcpu;
   gpPlatform->lpVtbl->GetPcpuInterface(gpPlatform, &pPcpu);
-  pPcpu->lpVtbl->SendNmi(pPcpu, pcpuid);
+  pPcpu->lpVtbl->SendNmi(pPcpu, PcpuId);
 }
 
-static inline void platform_pcpu_nmiall (void) {
+static inline VOID PlatformPcpuNmiAll (VOID) {
   IPlatformPcpu *pPcpu;
   gpPlatform->lpVtbl->GetPcpuInterface(gpPlatform, &pPcpu);
   pPcpu->lpVtbl->BroadcastNmi(pPcpu);
 }
 
-static inline void platform_pcpu_ipi (int pcpuid) {
+static inline VOID PlatformPcpuIpi (INTN PcpuId) {
   IPlatformPcpu *pPcpu;
   gpPlatform->lpVtbl->GetPcpuInterface(gpPlatform, &pPcpu);
-  pPcpu->lpVtbl->SendIpi(pPcpu, pcpuid);
+  pPcpu->lpVtbl->SendIpi(pPcpu, PcpuId);
 }
 
-static inline void platform_pcpu_ipiall (void) {
+static inline VOID PlatformPcpuIpiAll (VOID) {
   IPlatformPcpu *pPcpu;
   gpPlatform->lpVtbl->GetPcpuInterface(gpPlatform, &pPcpu);
   pPcpu->lpVtbl->BroadcastIpi(pPcpu);
 }
 
-static inline unsigned platform_pcpu_id (void) {
+static inline UINTN PlatformPcpuId (VOID) {
   IPlatformPcpu *pPcpu;
   gpPlatform->lpVtbl->GetPcpuInterface(gpPlatform, &pPcpu);
   return pPcpu->lpVtbl->GetId(pPcpu);
 }
 
-static inline void platform_pcpu_start (unsigned pcpuid, paddr_t start) {
+static inline VOID PlatformPcpuStart (UINTN PcpuId, paddr_t Start) {
   IPlatformPcpu *pPcpu;
   gpPlatform->lpVtbl->GetPcpuInterface(gpPlatform, &pPcpu);
-  pPcpu->lpVtbl->Start(pPcpu, pcpuid, start);
+  pPcpu->lpVtbl->Start(pPcpu, PcpuId, Start);
 }
 
-static inline uint64_t platform_tmr_ctr (void) {
+static inline UINT64 PlatformTmrGetCounter (VOID) {
   IPlatformTimer *pTimer;
   gpPlatform->lpVtbl->GetTimerInterface(gpPlatform, &pTimer);
   return pTimer->lpVtbl->GetCounter(pTimer);
 }
 
-static inline void platform_tmr_setctr (uint64_t ctr) {
+static inline VOID PlatformTmrSetCounter (UINT64 Counter) {
   IPlatformTimer *pTimer;
   gpPlatform->lpVtbl->GetTimerInterface(gpPlatform, &pTimer);
-  pTimer->lpVtbl->SetCounter(pTimer, ctr);
+  pTimer->lpVtbl->SetCounter(pTimer, Counter);
 }
 
-static inline uint64_t platform_tmr_period (void) {
+static inline UINT64 PlatformTmrPeriod (VOID) {
   IPlatformTimer *pTimer;
   gpPlatform->lpVtbl->GetTimerInterface(gpPlatform, &pTimer);
   return pTimer->lpVtbl->GetPeriod(pTimer);
 }
 
-static inline void platform_tmr_setalm (uint64_t alm) {
+static inline VOID PlatformTmrSetAlarm (UINT64 Ticks) {
   IPlatformTimer *pTimer;
   gpPlatform->lpVtbl->GetTimerInterface(gpPlatform, &pTimer);
-  pTimer->lpVtbl->SetAlarm(pTimer, alm);
+  pTimer->lpVtbl->SetAlarm(pTimer, Ticks);
 }
 
-static inline void platform_tmr_clralm (void) {
+static inline VOID PlatformTmrClearAlarm (VOID) {
   IPlatformTimer *pTimer;
   gpPlatform->lpVtbl->GetTimerInterface(gpPlatform, &pTimer);
   pTimer->lpVtbl->ClearAlarm(pTimer);
 }
 
-static inline void platform_eoi_timer (void) {
+static inline VOID PlatformEoiTimer (VOID) {
   IPlatformTimer *pTimer;
   gpPlatform->lpVtbl->GetTimerInterface(gpPlatform, &pTimer);
   pTimer->lpVtbl->EndOfInterrupt(pTimer);
 }
 
-static inline void platform_eoi_irq (unsigned irq) {
+static inline VOID PlatformEoiIrq (unsigned Irq) {
   IPlatformIrq *pIrq;
   gpPlatform->lpVtbl->GetIrqInterface(gpPlatform, &pIrq);
-  pIrq->lpVtbl->EndOfInterrupt(pIrq, irq);
+  pIrq->lpVtbl->EndOfInterrupt(pIrq, Irq);
 }
 
-static inline void platform_eoi_ipi (void) {
+static inline VOID PlatformEoiIpi (VOID) {
   gpPlatform->lpVtbl->EndOfInterruptIpi(gpPlatform);
 }
 
-static inline struct hal_frame *platform_interrupt (unsigned vect, struct hal_frame *f) {
-  return gpPlatform->lpVtbl->Interrupt(gpPlatform, vect, f);
+static inline struct hal_frame *PlatformInterrupt (unsigned Vect, struct hal_frame *Frame) {
+  return gpPlatform->lpVtbl->Interrupt(gpPlatform, Vect, Frame);
 }
+
+/** Legacy compatibility **/
+#define platform_pcpu_iterate PlatformPcpuIterate
+#define platform_pcpu_enter PlatformPcpuEnter
+#define platform_pcpu_nmi PlatformPcpuNmi
+#define platform_pcpu_nmiall PlatformPcpuNmiAll
+#define platform_pcpu_ipi PlatformPcpuIpi
+#define platform_pcpu_ipiall PlatformPcpuIpiAll
+#define platform_pcpu_id PlatformPcpuId
+#define platform_pcpu_start PlatformPcpuStart
+#define platform_tmr_ctr PlatformTmrGetCounter
+#define platform_tmr_setctr PlatformTmrSetCounter
+#define platform_tmr_period PlatformTmrPeriod
+#define platform_tmr_setalm PlatformTmrSetAlarm
+#define platform_tmr_clralm PlatformTmrClearAlarm
+#define platform_eoi_timer PlatformEoiTimer
+#define platform_eoi_irq PlatformEoiIrq
+#define platform_eoi_ipi PlatformEoiIpi
+#define platform_interrupt PlatformInterrupt
 
 //
 // Deprecated aliases for old plt_* names (for backward compatibility)
 //
 
 #define gpPlt gpPlatform
-#define plt_init platform_init
-#define plt_hw_putc platform_hw_putc
-#define plt_irq_type platform_irq_type
-#define plt_irq_enable platform_irq_enable
-#define plt_irq_disable platform_irq_disable
-#define plt_irq_max platform_irq_max
-#define plt_irq_islevel platform_irq_islevel
-#define plt_pcpu_iterate platform_pcpu_iterate
-#define plt_pcpu_enter platform_pcpu_enter
-#define plt_pcpu_nmi platform_pcpu_nmi
-#define plt_pcpu_nmiall platform_pcpu_nmiall
-#define plt_pcpu_ipi platform_pcpu_ipi
-#define plt_pcpu_ipiall platform_pcpu_ipiall
-#define plt_pcpu_id platform_pcpu_id
-#define plt_pcpu_start platform_pcpu_start
-#define plt_tmr_ctr platform_tmr_ctr
-#define plt_tmr_setctr platform_tmr_setctr
-#define plt_tmr_period platform_tmr_period
-#define plt_tmr_setalm platform_tmr_setalm
-#define plt_tmr_clralm platform_tmr_clralm
-#define plt_eoi_timer platform_eoi_timer
-#define plt_eoi_irq platform_eoi_irq
-#define plt_eoi_ipi platform_eoi_ipi
-#define plt_interrupt platform_interrupt
+#define plt_init PlatformInit
+#define plt_hw_putc PlatformHwPutc
+#define plt_irq_type PlatformIrqType
+#define plt_irq_enable PlatformIrqEnable
+#define plt_irq_disable PlatformIrqDisable
+#define plt_irq_max PlatformIrqMax
+#define plt_irq_islevel PlatformIrqIsLevel
+#define plt_pcpu_iterate PlatformPcpuIterate
+#define plt_pcpu_enter PlatformPcpuEnter
+#define plt_pcpu_nmi PlatformPcpuNmi
+#define plt_pcpu_nmiall PlatformPcpuNmiAll
+#define plt_pcpu_ipi PlatformPcpuIpi
+#define plt_pcpu_ipiall PlatformPcpuIpiAll
+#define plt_pcpu_id PlatformPcpuId
+#define plt_pcpu_start PlatformPcpuStart
+#define plt_tmr_ctr PlatformTmrGetCounter
+#define plt_tmr_setctr PlatformTmrSetCounter
+#define plt_tmr_period PlatformTmrPeriod
+#define plt_tmr_setalm PlatformTmrSetAlarm
+#define plt_tmr_clralm PlatformTmrClearAlarm
+#define plt_eoi_timer PlatformEoiTimer
+#define plt_eoi_irq PlatformEoiIrq
+#define plt_eoi_ipi PlatformEoiIpi
+#define plt_interrupt PlatformInterrupt
 
 #define PLT_PCPU_INVALID PLATFORM_PCPU_INVALID
 #define PLT_IRQ_EDGE PLATFORM_IRQ_EDGE
