@@ -41,9 +41,6 @@ typedef struct _SLOT
   };
 } SLOT, *PSLOT, *PCSLOT;
 
-/** Legacy type alias for compatibility **/
-#define slot SLOT
-
 //
 // Cache Structure
 //
@@ -74,9 +71,6 @@ typedef struct _CACHE
   UINTN  NumSlots;                ///< Total number of cache slots
   SLOT   *Slots;                  ///< Array of cache slots
 } CACHE, *PCACHE, *PCCACHE;
-
-/** Legacy type alias for compatibility **/
-#define cache CACHE
 
 //
 // Internal Comparison Functions
@@ -350,45 +344,6 @@ CachePut (
   }
 
   spinunlock (&Cache->Lock);
-}
-
-//
-// Legacy Function Aliases (for backward compatibility)
-//
-
-/** @deprecated Use CacheGetSlotNumber instead **/
-static inline UINTN cache_getslotno (CACHE *c, SLOT *s) {
-  return CacheGetSlotNumber (c, s);
-}
-
-/** @deprecated Use CacheInitialize instead **/
-static inline void cache_init (
-  CACHE *c,
-  SLOT *slots,
-  UINTN numslots,
-  void (*fill)(UINTN, uintptr_t, uintptr_t)
-) {
-  CacheInitialize (c, slots, numslots, fill);
-}
-
-/** @deprecated Use CacheGet instead **/
-static inline UINTN cache_get (CACHE *c, uintptr_t addr) {
-  return CacheGet (c, addr);
-}
-
-/** @deprecated Use CachePut instead **/
-static inline void cache_put (CACHE *c, uintptr_t slotno) {
-  CachePut (c, slotno);
-}
-
-/** @deprecated Internal function, use CacheSlotCompare instead **/
-static inline INT32 _slotcmp (void *ctx, CONST VOID *a, CONST VOID *b) {
-  return CacheSlotCompare (ctx, a, b);
-}
-
-/** @deprecated Internal function, use CacheSlotKeyCompare instead **/
-static inline INT32 _slot_keycmp (void *ctx, CONST VOID *a, CONST VOID *b) {
-  return CacheSlotKeyCompare (ctx, a, b);
 }
 
 #endif // _CACHE_H

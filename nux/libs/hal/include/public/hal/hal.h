@@ -867,71 +867,71 @@ INTERFACE_INHERIT_IUNKNOWN (IHal)
 
 extern IHal *gpHal;
 
-static inline unsigned long hal_cpu_in (uint8_t size, uint32_t port) {
-  IHalCpu *pCpu; gpHal->lpVtbl->GetCpuInterface(gpHal, &pCpu);
-  return pCpu->lpVtbl->IoIn(pCpu, size, port);
+static inline UINTN hal_cpu_in (UINT8 size, UINT32 port) {
+  IHalCpu *Cpu; gpHal->lpVtbl->GetCpuInterface(gpHal, &Cpu);
+  return Cpu->lpVtbl->IoIn(Cpu, size, port);
 }
 
-static inline void hal_cpu_out (uint8_t size, uint32_t port, unsigned long val) {
-  IHalCpu *pCpu; gpHal->lpVtbl->GetCpuInterface(gpHal, &pCpu);
-  pCpu->lpVtbl->IoOut(pCpu, size, port, val);
+static inline void hal_cpu_out (UINT8 size, UINT32 port, UINTN val) {
+  IHalCpu *Cpu; gpHal->lpVtbl->GetCpuInterface(gpHal, &Cpu);
+  Cpu->lpVtbl->IoOut(Cpu, size, port, val);
 }
 
 static inline void hal_cpu_relax (void) {
-  IHalCpu *pCpu; gpHal->lpVtbl->GetCpuInterface(gpHal, &pCpu);
-  pCpu->lpVtbl->Relax(pCpu);
+  IHalCpu *Cpu; gpHal->lpVtbl->GetCpuInterface(gpHal, &Cpu);
+  Cpu->lpVtbl->Relax(Cpu);
 }
 
 static inline void hal_cpu_trap (void) {
-  IHalCpu *pCpu; gpHal->lpVtbl->GetCpuInterface(gpHal, &pCpu);
-  pCpu->lpVtbl->Trap(pCpu);
+  IHalCpu *Cpu; gpHal->lpVtbl->GetCpuInterface(gpHal, &Cpu);
+  Cpu->lpVtbl->Trap(Cpu);
 }
 
-static inline uint64_t hal_cpu_cycles (void) {
-  IHalCpu *pCpu; gpHal->lpVtbl->GetCpuInterface(gpHal, &pCpu);
-  return pCpu->lpVtbl->GetCycles(pCpu);
+static inline UINT64 hal_cpu_cycles (void) {
+  IHalCpu *Cpu; gpHal->lpVtbl->GetCpuInterface(gpHal, &Cpu);
+  return Cpu->lpVtbl->GetCycles(Cpu);
 }
 
 static inline void __dead hal_cpu_idle (void) {
-  IHalCpu *pCpu; gpHal->lpVtbl->GetCpuInterface(gpHal, &pCpu);
-  pCpu->lpVtbl->Idle(pCpu);
+  IHalCpu *Cpu; gpHal->lpVtbl->GetCpuInterface(gpHal, &Cpu);
+  Cpu->lpVtbl->Idle(Cpu);
   __builtin_unreachable();
 }
 
 static inline void __dead hal_cpu_halt (void) {
-  IHalCpu *pCpu; gpHal->lpVtbl->GetCpuInterface(gpHal, &pCpu);
-  pCpu->lpVtbl->Halt(pCpu);
+  IHalCpu *Cpu; gpHal->lpVtbl->GetCpuInterface(gpHal, &Cpu);
+  Cpu->lpVtbl->Halt(Cpu);
   __builtin_unreachable();
 }
 
 static inline void hal_cpu_tlbop (hal_tlbop_t op) {
-  IHalCpu *pCpu; gpHal->lpVtbl->GetCpuInterface(gpHal, &pCpu);
-  pCpu->lpVtbl->TlbOp(pCpu, op);
+  IHalCpu *Cpu; gpHal->lpVtbl->GetCpuInterface(gpHal, &Cpu);
+  Cpu->lpVtbl->TlbOp(Cpu, op);
 }
 
 static inline void hal_cpu_setdata (void *data) {
-  IHalCpu *pCpu; gpHal->lpVtbl->GetCpuInterface(gpHal, &pCpu);
-  pCpu->lpVtbl->SetData(pCpu, data);
+  IHalCpu *Cpu; gpHal->lpVtbl->GetCpuInterface(gpHal, &Cpu);
+  Cpu->lpVtbl->SetData(Cpu, data);
 }
 
 static inline void *hal_cpu_getdata (void) {
-  IHalCpu *pCpu; gpHal->lpVtbl->GetCpuInterface(gpHal, &pCpu);
-  return pCpu->lpVtbl->GetData(pCpu);
+  IHalCpu *Cpu; gpHal->lpVtbl->GetCpuInterface(gpHal, &Cpu);
+  return Cpu->lpVtbl->GetData(Cpu);
 }
 
 static inline void hal_useraccess_start (void) {
-  IHalCpu *pCpu; gpHal->lpVtbl->GetCpuInterface(gpHal, &pCpu);
-  pCpu->lpVtbl->UserAccessStart(pCpu);
+  IHalCpu *Cpu; gpHal->lpVtbl->GetCpuInterface(gpHal, &Cpu);
+  Cpu->lpVtbl->UserAccessStart(Cpu);
 }
 
 static inline void hal_useraccess_end (void) {
-  IHalCpu *pCpu; gpHal->lpVtbl->GetCpuInterface(gpHal, &pCpu);
-  pCpu->lpVtbl->UserAccessEnd(pCpu);
+  IHalCpu *Cpu; gpHal->lpVtbl->GetCpuInterface(gpHal, &Cpu);
+  Cpu->lpVtbl->UserAccessEnd(Cpu);
 }
 
-static inline unsigned hal_vect_max (void) {
-  IHalCpu *pCpu; gpHal->lpVtbl->GetCpuInterface(gpHal, &pCpu);
-  return pCpu->lpVtbl->GetMaxVector(pCpu);
+static inline UINTN hal_vect_max (void) {
+  IHalCpu *Cpu; gpHal->lpVtbl->GetCpuInterface(gpHal, &Cpu);
+  return Cpu->lpVtbl->GetMaxVector(Cpu);
 }
 
 static inline unsigned long hal_physmem_maxpfn (void) {

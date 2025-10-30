@@ -50,14 +50,6 @@ typedef enum {
   PlatformIrqInvalid = 3   ///< Invalid IRQ type
 } PLATFORM_IRQ_TYPE;
 
-/** Legacy type alias for compatibility **/
-enum platform_irq_type {
-  PLATFORM_IRQ_EDGE,
-  PLATFORM_IRQ_LVLLO,
-  PLATFORM_IRQ_LVLHI,
-  PLATFORM_IRQ_INVALID,
-};
-
 //
 // IPlatformHardware Interface - Standard Hardware Operations
 //
@@ -443,15 +435,6 @@ static inline BOOLEAN PlatformIrqIsLevel (IN UINTN Irq) {
   return IrqInterface->lpVtbl->IsLevel(IrqInterface, Irq);
 }
 
-/** Legacy compatibility **/
-#define platform_init PlatformInit
-#define platform_hw_putc PlatformHwPutc
-#define platform_irq_type PlatformIrqType
-#define platform_irq_enable PlatformIrqEnable
-#define platform_irq_disable PlatformIrqDisable
-#define platform_irq_max PlatformIrqMax
-#define platform_irq_islevel PlatformIrqIsLevel
-
 static inline INTN PlatformPcpuIterate (VOID) {
   IPlatformPcpu *PcpuInterface;
   gpPlatform->lpVtbl->GetPcpuInterface(gpPlatform, &PcpuInterface);
@@ -549,60 +532,5 @@ static inline VOID PlatformEoiIpi (VOID) {
 static inline struct hal_frame *PlatformInterrupt (IN UINTN Vect, IN struct hal_frame *Frame) {
   return gpPlatform->lpVtbl->Interrupt(gpPlatform, Vect, Frame);
 }
-
-/** Legacy compatibility **/
-#define platform_pcpu_iterate PlatformPcpuIterate
-#define platform_pcpu_enter PlatformPcpuEnter
-#define platform_pcpu_nmi PlatformPcpuNmi
-#define platform_pcpu_nmiall PlatformPcpuNmiAll
-#define platform_pcpu_ipi PlatformPcpuIpi
-#define platform_pcpu_ipiall PlatformPcpuIpiAll
-#define platform_pcpu_id PlatformPcpuId
-#define platform_pcpu_start PlatformPcpuStart
-#define platform_tmr_ctr PlatformTmrGetCounter
-#define platform_tmr_setctr PlatformTmrSetCounter
-#define platform_tmr_period PlatformTmrPeriod
-#define platform_tmr_setalm PlatformTmrSetAlarm
-#define platform_tmr_clralm PlatformTmrClearAlarm
-#define platform_eoi_timer PlatformEoiTimer
-#define platform_eoi_irq PlatformEoiIrq
-#define platform_eoi_ipi PlatformEoiIpi
-#define platform_interrupt PlatformInterrupt
-
-//
-// Deprecated aliases for old plt_* names (for backward compatibility)
-//
-
-#define gpPlt gpPlatform
-#define plt_init PlatformInit
-#define plt_hw_putc PlatformHwPutc
-#define plt_irq_type PlatformIrqType
-#define plt_irq_enable PlatformIrqEnable
-#define plt_irq_disable PlatformIrqDisable
-#define plt_irq_max PlatformIrqMax
-#define plt_irq_islevel PlatformIrqIsLevel
-#define plt_pcpu_iterate PlatformPcpuIterate
-#define plt_pcpu_enter PlatformPcpuEnter
-#define plt_pcpu_nmi PlatformPcpuNmi
-#define plt_pcpu_nmiall PlatformPcpuNmiAll
-#define plt_pcpu_ipi PlatformPcpuIpi
-#define plt_pcpu_ipiall PlatformPcpuIpiAll
-#define plt_pcpu_id PlatformPcpuId
-#define plt_pcpu_start PlatformPcpuStart
-#define plt_tmr_ctr PlatformTmrGetCounter
-#define plt_tmr_setctr PlatformTmrSetCounter
-#define plt_tmr_period PlatformTmrPeriod
-#define plt_tmr_setalm PlatformTmrSetAlarm
-#define plt_tmr_clralm PlatformTmrClearAlarm
-#define plt_eoi_timer PlatformEoiTimer
-#define plt_eoi_irq PlatformEoiIrq
-#define plt_eoi_ipi PlatformEoiIpi
-#define plt_interrupt PlatformInterrupt
-
-#define PLT_PCPU_INVALID PLATFORM_PCPU_INVALID
-#define PLT_IRQ_EDGE PLATFORM_IRQ_EDGE
-#define PLT_IRQ_LVLLO PLATFORM_IRQ_LVLLO
-#define PLT_IRQ_LVLHI PLATFORM_IRQ_LVLHI
-#define PLT_IRQ_INVALID PLATFORM_IRQ_INVALID
 
 #endif // PLATFORM_H

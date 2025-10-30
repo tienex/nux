@@ -184,47 +184,4 @@ CpuMaskClear (
     } while (m != 0);                                             \
   } while (0)
 
-//
-// Legacy Function and Macro Aliases (for backward compatibility)
-//
-
-/** @deprecated Use AtomicCpuMaskSet instead **/
-static inline void atomic_cpumask_set (cpumask_t *cpumask, UINTN cpu) {
-  AtomicCpuMaskSet (cpumask, cpu);
-}
-
-/** @deprecated Use AtomicCpuMaskAnd instead **/
-static inline void atomic_cpumask_and (cpumask_t *cpumask, cpumask_t mask) {
-  AtomicCpuMaskAnd (cpumask, mask);
-}
-
-/** @deprecated Use AtomicCpuMaskClear instead **/
-static inline void atomic_cpumask_clear (cpumask_t *cpumask, UINTN cpu) {
-  AtomicCpuMaskClear (cpumask, cpu);
-}
-
-/** @deprecated Use AtomicCpuMaskRead instead **/
-static inline cpumask_t atomic_cpumask (cpumask_t *cpumask) {
-  return AtomicCpuMaskRead (cpumask);
-}
-
-/** @deprecated Use CpuMaskSet instead **/
-static inline void cpumask_set (cpumask_t *cpumask, UINTN cpu) {
-  CpuMaskSet (cpumask, cpu);
-}
-
-/** @deprecated Use CpuMaskClear instead **/
-static inline void cpumask_clear (cpumask_t *cpumask, UINTN cpu) {
-  CpuMaskClear (cpumask, cpu);
-}
-
-/** @deprecated Use ONCE_CPUMASK instead **/
-#define once_cpumask(mask, op)  ONCE_CPUMASK(mask, op)
-
-/** @deprecated Use FOREACH_CPUMASK instead **/
-#define foreach_cpumask(mask, op)  FOREACH_CPUMASK(mask, op)
-
-/** @deprecated Internal macro, use FOREACH_CPUMASK instead **/
-#define _foreach_cpumask(mask, op, label)  FOREACH_CPUMASK(mask, op)
-
 #endif // NUX_CPUMASK_H

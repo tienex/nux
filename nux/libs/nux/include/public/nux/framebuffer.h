@@ -11,10 +11,6 @@ typedef enum _FRAMEBUFFER_TYPE {
   FramebufferRgb     = 0    ///< RGB framebuffer
 } FRAMEBUFFER_TYPE;
 
-/** Legacy compatibility **/
-#define FB_INVALID FramebufferInvalid
-#define FB_RGB     FramebufferRgb
-
 /**
   Framebuffer Descriptor
 
@@ -42,9 +38,6 @@ typedef struct _FRAMEBUFFER_DESC
   uint32_t b_mask;
 } __packed FRAMEBUFFER_DESC, *PFRAMEBUFFER_DESC, *PCFRAMEBUFFER_DESC;
 
-/** Legacy compatibility **/
-#define fbdesc FRAMEBUFFER_DESC
-
 INT32 FramebufferInit (IN FRAMEBUFFER_DESC *Desc);
 UINT32 FramebufferColor (IN UINT32 R, IN UINT32 G, IN UINT32 B);
 VOID FramebufferBlt (IN UINT32 X, IN UINT32 Y, IN UINT32 Color,
@@ -54,13 +47,5 @@ VOID FramebufferPutcXy (IN UINT32 X, IN UINT32 Y, IN UINT32 Color,
 			  IN UINT8 C);
 
 VOID FramebufferReset (VOID);
-
-/** Legacy compatibility **/
-#define framebuffer_init FramebufferInit
-#define framebuffer_color FramebufferColor
-#define framebuffer_blt FramebufferBlt
-#define framebuffer_putc FramebufferPutc
-#define framebuffer_putc_xy FramebufferPutcXy
-#define framebuffer_reset FramebufferReset
 
 #endif

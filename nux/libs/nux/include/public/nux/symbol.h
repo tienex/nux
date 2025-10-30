@@ -30,13 +30,4 @@ CONST CHAR8 *NuxSymbolResolve (
   IN UINTN  Address
   );
 
-//
-// Legacy Function Wrapper (for backward compatibility)
-//
-
-/** @deprecated Use NuxSymbolResolve instead **/
-static inline CONST CHAR8 *nux_symresolve (UINTN addr) {
-  return NuxSymbolResolve (addr);
-}
-
 #endif // _SYMBOL_H

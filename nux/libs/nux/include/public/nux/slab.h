@@ -151,49 +151,4 @@ SlabAllocate (
   return SlabAllocateOpaque (pSlab, NULL);
 }
 
-//
-// Legacy Function Aliases (for backward compatibility)
-//
-
-/** @deprecated Use SlabRegister instead **/
-static inline void slab_register (
-  struct slab *sc,
-  CONST CHAR8 *name,
-  UINTN objsize,
-  void (*ctr)(void *, void *, INT32),
-  INT32 cachealign
-) {
-  SlabRegister (sc, name, objsize, ctr, cachealign);
-}
-
-/** @deprecated Use SlabDeregister instead **/
-static inline void slab_deregister (struct slab *sc) {
-  SlabDeregister (sc);
-}
-
-/** @deprecated Use SlabShrink instead **/
-static inline INT32 slab_shrink (struct slab *sc) {
-  return SlabShrink (sc);
-}
-
-/** @deprecated Use SlabAllocateOpaque instead **/
-static inline void *slab_alloc_opq (struct slab *sc, void *opq) {
-  return SlabAllocateOpaque (sc, opq);
-}
-
-/** @deprecated Use SlabFree instead **/
-static inline void slab_free (void *ptr) {
-  SlabFree (ptr);
-}
-
-/** @deprecated Use SlabPrintStatistics instead **/
-static inline void slab_printstats (void) {
-  SlabPrintStatistics ();
-}
-
-/** @deprecated Use SlabAllocate instead **/
-static inline void *slab_alloc (struct slab *sc) {
-  return SlabAllocate (sc);
-}
-
 #endif // NUX_SLAB_H

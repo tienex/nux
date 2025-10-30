@@ -30,9 +30,6 @@ typedef struct _SPINLOCK {
   UINT64          LockCy;  ///< Cycle count when lock was acquired
 } SPINLOCK;
 
-/** Legacy type alias for compatibility **/
-typedef SPINLOCK lock_t;
-
 //
 // Reader-Writer Lock Structure
 //
@@ -48,9 +45,6 @@ typedef struct _RWLOCK {
   SPINLOCK  ReaderLock;    ///< Protects reader count
   SPINLOCK  GlobalLock;    ///< Global lock for writer exclusion
 } RWLOCK;
-
-/** Legacy type alias for compatibility **/
-typedef RWLOCK rwlock_t;
 
 //
 // Spinlock Operations
@@ -281,60 +275,6 @@ RwLockReleaseWrite (
   )
 {
   SpinLockRelease (&pRwLock->GlobalLock);
-}
-
-//
-// Legacy Function Aliases (for backward compatibility)
-//
-
-/** @deprecated Use SpinLockInitialize instead **/
-static inline void spinlock_init (lock_t *l) {
-  SpinLockInitialize (l);
-}
-
-/** @deprecated Use SpinLockAcquire instead **/
-static inline void spinlock (lock_t *l) {
-  SpinLockAcquire (l);
-}
-
-/** @deprecated Use SpinLockAcquireMeasured instead **/
-static inline UINT64 spinlock_msr (lock_t *l) {
-  return SpinLockAcquireMeasured (l);
-}
-
-/** @deprecated Use SpinLockRelease instead **/
-static inline void spinunlock (lock_t *l) {
-  SpinLockRelease (l);
-}
-
-/** @deprecated Use SpinLockReleaseMeasured instead **/
-static inline UINT64 spinunlock_msr (lock_t *l) {
-  return SpinLockReleaseMeasured (l);
-}
-
-/** @deprecated Use RwLockInitialize instead **/
-static inline void rwlock_init (rwlock_t *rw) {
-  RwLockInitialize (rw);
-}
-
-/** @deprecated Use RwLockAcquireRead instead **/
-static inline void readlock (rwlock_t *rw) {
-  RwLockAcquireRead (rw);
-}
-
-/** @deprecated Use RwLockReleaseRead instead **/
-static inline void readunlock (rwlock_t *rw) {
-  RwLockReleaseRead (rw);
-}
-
-/** @deprecated Use RwLockAcquireWrite instead **/
-static inline void writelock (rwlock_t *rw) {
-  RwLockAcquireWrite (rw);
-}
-
-/** @deprecated Use RwLockReleaseWrite instead **/
-static inline void writeunlock (rwlock_t *rw) {
-  RwLockReleaseWrite (rw);
 }
 
 #endif // NUX_LOCKS_H

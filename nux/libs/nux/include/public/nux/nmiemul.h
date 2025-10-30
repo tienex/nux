@@ -118,48 +118,4 @@ VOID NmiEmulIpiSetAll (
   VOID
   );
 
-//
-// Legacy Function Wrappers (for backward compatibility)
-//
-
-/** @deprecated Use NmiEmulEntry instead **/
-static inline struct hal_frame *nmiemul_entry (struct hal_frame *f) {
-  return NmiEmulEntry (f);
-}
-
-/** @deprecated Use NmiEmulIpiCheck instead **/
-static inline struct hal_frame *nmiemul_ipicheck (struct hal_frame *f) {
-  return NmiEmulIpiCheck (f);
-}
-
-/** @deprecated Use NmiEmulNmiSet instead **/
-static inline void nmiemul_nmi_set (UINTN cpu) {
-  NmiEmulNmiSet (cpu);
-}
-
-/** @deprecated Use NmiEmulNmiSetAll instead **/
-static inline void nmiemul_nmi_setall (void) {
-  NmiEmulNmiSetAll ();
-}
-
-/** @deprecated Use NmiEmulIpiPending instead **/
-static inline BOOLEAN nmiemul_ipi_pending (void) {
-  return NmiEmulIpiPending ();
-}
-
-/** @deprecated Use NmiEmulIpiClear instead **/
-static inline void nmiemul_ipi_clear (void) {
-  NmiEmulIpiClear ();
-}
-
-/** @deprecated Use NmiEmulIpiSet instead **/
-static inline void nmiemul_ipi_set (UINTN cpu) {
-  NmiEmulIpiSet (cpu);
-}
-
-/** @deprecated Use NmiEmulIpiSetAll instead **/
-static inline void nmiemul_ipi_setall (void) {
-  NmiEmulIpiSetAll ();
-}
-
 #endif // _NUX_NMIEMUL_H
