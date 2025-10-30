@@ -68,26 +68,4 @@ BOOLEAN HpetInit (IN PHYSICAL_ADDRESS HpetPa);
 VOID HpetDoIrq (VOID);
 BOOLEAN AcpiHpetScan (VOID);
 
-//
-// Legacy lowercase wrappers (for compatibility)
-//
-
-#define lapic_init LapicInit
-#define lapic_add LapicAdd
-#define lapic_add_nmi LapicAddNmi
-#define lapic_eoi LapicEoi
-#define ioapic_init IoapicInit
-#define ioapic_add IoapicAdd
-#define gsi_init GsiInit
-#define gsi_setup GsiSetup
-#define gsi_start GsiStart
-#define acpi_init AcpiInitialize
-#define acpi_madt_scan AcpiMadtScan
-#define hw_cmos_write HwCmosWrite
-#define hw_delay HwDelay
-#define hw_reset_vector HwResetVector
-#define hpet_init HpetInit
-#define hpet_doirq HpetDoIrq
-#define acpi_hpet_scan AcpiHpetScan
-
 #endif
