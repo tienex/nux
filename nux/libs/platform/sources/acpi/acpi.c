@@ -115,57 +115,57 @@ AcpiInitialize (
   IN paddr_t  Root
   )
 {
-  VOID *pPtr;
+  VOID *Ptr;
   size_t EntryLen;
   INT64 Length;
   paddr_t PaSdt;
-  struct acpi_rsdp_thdr *pRsdp;
-  struct acpi_thdr *pRootTable, *pSdTable;
+  struct acpi_rsdp_thdr *Rsdp;
+  struct acpi_thdr *RootTable, *SdTable;
 
-  pRsdp = (struct acpi_rsdp_thdr *) KvaMapPhysical (Root, ACPI_MAX_TBL, HAL_PTE_P);
+  Rsdp = (struct acpi_rsdp_thdr *) KvaMapPhysical (Root, ACPI_MAX_TBL, HAL_PTE_P);
 
-  info ("TABLE: '%8.8s' [%6.6s] rev: %d", pRsdp->signature, pRsdp->oemid,
-	pRsdp->revision);
+  info ("TABLE: '%8.8s' [%6.6s] rev: %d", Rsdp->signature, Rsdp->oemid,
+	Rsdp->revision);
 
-  if (pRsdp->revision == 0)
+  if (Rsdp->revision == 0)
     {
-      PaSdt = pRsdp->rsdt;
+      PaSdt = Rsdp->rsdt;
       debug ("SDT found at addr %" PRIx64, PaSdt);
       EntryLen = 4;
     }
   else
     {
-      PaSdt = pRsdp->xsdt;
+      PaSdt = Rsdp->xsdt;
       debug ("XSDT found at addr %" PRIx64, PaSdt);
       EntryLen = 8;
     }
 
-  KvaUnmap (pRsdp, ACPI_MAX_TBL);
+  KvaUnmap (Rsdp, ACPI_MAX_TBL);
 
   gPaRootTable = PaSdt;
-  pRootTable = LoadTable (PaSdt);
+  RootTable = LoadTable (PaSdt);
 
   /* Iterate through ACPI tables. */
-  pPtr = (VOID *) (pRootTable + 1);
-  Length = (INT64) pRootTable->length - sizeof (*pRootTable);
+  Ptr = (VOID *) (RootTable + 1);
+  Length = (INT64) RootTable->length - sizeof (*RootTable);
   while (Length > 0)
     {
-      PaSdt = EntryLen == 8 ? *(UINT64 *) pPtr : *(UINT32 *) pPtr;
-      pSdTable = LoadTable (PaSdt);
+      PaSdt = EntryLen == 8 ? *(UINT64 *) Ptr : *(UINT32 *) Ptr;
+      SdTable = LoadTable (PaSdt);
 
-      PrintTable (pSdTable);
+      PrintTable (SdTable);
 
-      if (!memcmp (pSdTable->signature, "APIC", 4))
+      if (!memcmp (SdTable->signature, "APIC", 4))
 	gPaApicTable = PaSdt;
-      else if (!memcmp (pSdTable->signature, "HPET", 4))
+      else if (!memcmp (SdTable->signature, "HPET", 4))
 	gPaHpetTable = PaSdt;
 
-      UnloadTable (pSdTable);
+      UnloadTable (SdTable);
       Length -= EntryLen;
-      pPtr += EntryLen;
+      Ptr += EntryLen;
     }
 
-  UnloadTable (pRootTable);
+  UnloadTable (RootTable);
 
   debug ("RDST table at pa %" PRIx64, gPaRootTable);
   debug ("APIC table at pa %" PRIx64, gPaApicTable);
@@ -187,40 +187,40 @@ AcpiMadtScan (
   UINT32 Flags, NumLapic = 0, NumIoapic = 0;
   UINT8 Type;
   paddr_t LapicAddr;
-  struct acpi_madt *pAcpiMadt;
+  struct acpi_madt *AcpiMadt;
 
   union
   {
-    UINT8 *pPtr;
-    struct acpi_madt_lapic *pLapic;
-    struct acpi_madt_ioapic *pIoapic;
-    struct acpi_madt_lapicoverride *pLapicOvr;
-    struct acpi_madt_lapicnmi *pLapicNmi;
-    struct acpi_madt_intoverride *pIntOvr;
+    UINT8 *Ptr;
+    struct acpi_madt_lapic *Lapic;
+    struct acpi_madt_ioapic *Ioapic;
+    struct acpi_madt_lapicoverride *LapicOvr;
+    struct acpi_madt_lapicnmi *LapicNmi;
+    struct acpi_madt_intoverride *IntOvr;
   } _;
 
 #define madt_foreach(_cases)						\
 	do {								\
-		Len = pAcpiMadt->hdr.length - sizeof(*pAcpiMadt);	\
-		_.pPtr = (UINT8 *) pAcpiMadt + sizeof(*pAcpiMadt);	\
+		Len = AcpiMadt->hdr.length - sizeof(*AcpiMadt);	\
+		_.Ptr = (UINT8 *) AcpiMadt + sizeof(*AcpiMadt);	\
 		while (Len > 0) {					\
-			Type = *_.pPtr;					\
+			Type = *_.Ptr;					\
 			switch (Type) {					\
 				_cases;					\
 			}						\
-			Len -= *(_.pPtr + 1);				\
-			_.pPtr += *(_.pPtr + 1);			\
+			Len -= *(_.Ptr + 1);				\
+			_.Ptr += *(_.Ptr + 1);			\
 		}							\
 	} while (0)
 
-  pAcpiMadt = LoadTable (gPaApicTable);
-  if (pAcpiMadt == NULL)
+  AcpiMadt = LoadTable (gPaApicTable);
+  if (AcpiMadt == NULL)
     {
       error ("Could not load ACPI MADT Table.");
       return;
     }
 
-  LapicAddr = pAcpiMadt->lapic;
+  LapicAddr = AcpiMadt->lapic;
 
   /* Search for APICs. Output of this stage is number of Local
      and I/O APICs and Lapic address. */
@@ -352,7 +352,7 @@ AcpiMadtScan (
     });
   /* *INDENT-ON* */
 
-  UnloadTable (pAcpiMadt);
+  UnloadTable (AcpiMadt);
 }
 
 /**
@@ -369,7 +369,7 @@ AcpiHpetScan (
   )
 {
   BOOLEAN Rc;
-  struct acpi_hpet *pHpet;
+  struct acpi_hpet *Hpet;
 
   if (gPaHpetTable == 0)
     {
@@ -377,16 +377,16 @@ AcpiHpetScan (
       return FALSE;
     }
 
-  pHpet = LoadTable (gPaHpetTable);
-  if (pHpet == NULL)
+  Hpet = LoadTable (gPaHpetTable);
+  if (Hpet == NULL)
     {
       error ("Error loading HPET table");
       return FALSE;
     }
 
-  Rc = HpetInitialize (pHpet->address.address);
+  Rc = HpetInitialize (Hpet->address.address);
 
-  UnloadTable (pHpet);
+  UnloadTable (Hpet);
 
   return Rc;
 }

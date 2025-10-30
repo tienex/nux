@@ -87,11 +87,11 @@ IoapicWrite (
   IN UINT32  Val
   )
 {
-  volatile UINT32 *pRegSel = (UINT32 *) (gIoapics[Index].Base + IO_REGSEL);
-  volatile UINT32 *pWin = (UINT32 *) (gIoapics[Index].Base + IO_WIN);
+  volatile UINT32 *RegSel = (UINT32 *) (gIoapics[Index].Base + IO_REGSEL);
+  volatile UINT32 *Win = (UINT32 *) (gIoapics[Index].Base + IO_WIN);
 
-  *pRegSel = Reg;
-  *pWin = Val;
+  *RegSel = Reg;
+  *Win = Val;
 }
 
 /**
@@ -110,11 +110,11 @@ IoapicRead (
   IN UINT8   Reg
   )
 {
-  volatile UINT32 *pRegSel = (UINT32 *) (gIoapics[Index].Base + IO_REGSEL);
-  volatile UINT32 *pWin = (UINT32 *) (gIoapics[Index].Base + IO_WIN);
+  volatile UINT32 *RegSel = (UINT32 *) (gIoapics[Index].Base + IO_REGSEL);
+  volatile UINT32 *Win = (UINT32 *) (gIoapics[Index].Base + IO_WIN);
 
-  *pRegSel = Reg;
-  return *pWin;
+  *RegSel = Reg;
+  return *Win;
 }
 
 /**

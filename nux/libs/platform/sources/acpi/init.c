@@ -75,27 +75,27 @@ PlatformHwPutChar (
   Handles IPIs, IRQs, and HPET timer interrupts.
 
   @param[in] Vector  Interrupt vector number.
-  @param[in] pFrame  HAL frame at interrupt.
+  @param[in] Frame  HAL frame at interrupt.
 
   @return Updated frame pointer.
 **/
 struct hal_frame *
 PlatformInterrupt (
   IN UINT32            Vector,
-  IN struct hal_frame  *pFrame
+  IN struct hal_frame  *Frame
   )
 {
-  struct hal_frame *pResult;
+  struct hal_frame *Result;
 
   if (Vector >= APIC_VECT_MAX)
     {
       /* Something wrong here. */
       warn ("HAL vector %d outside of bounds.", Vector);
-      pResult = pFrame;
+      Result = Frame;
     }
   else if (Vector >= APIC_VECT_IPIBASE)
     {
-      pResult = hal_entry_ipi (pFrame);
+      Result = hal_entry_ipi (Frame);
     }
   else if (Vector >= APIC_VECT_IRQBASE)
     {
@@ -103,21 +103,21 @@ PlatformInterrupt (
       if (Irq == gPlatformAcpiHpetIrq)
 	{
 	  HpetDoIrq ();
-	  pResult = hal_entry_timer (pFrame);
+	  Result = hal_entry_timer (Frame);
 	}
       else
 	{
-	  pResult = hal_entry_irq (pFrame, Irq, PlatformIrqIsLevel (Irq));
+	  Result = hal_entry_irq (Frame, Irq, PlatformIrqIsLevel (Irq));
 	}
     }
   else
     {
       /* Something wrong here. */
       warn ("HAL vector %d outside of bounds", Vector);
-      pResult = pFrame;
+      Result = Frame;
     }
 
-  return pResult;
+  return Result;
 }
 
 /**

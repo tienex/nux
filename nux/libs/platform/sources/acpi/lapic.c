@@ -140,22 +140,22 @@ LapicConfigure (
   )
 {
   UINT32 i, PhysId = LapicGetCurrent ();
-  LAPIC_DESC *pDesc = NULL;
+  LAPIC_DESC *Desc = NULL;
 
   for (i = 0; i < gLapicsNo; i++)
     {
       if (gLapics[i].PhysId == PhysId)
-	pDesc = gLapics + i;
+	Desc = gLapics + i;
     }
-  if (pDesc == NULL)
+  if (Desc == NULL)
     {
       warn ("Current CPU not in Platform Tables!");
       /* Try to continue, ignore the NMI configuration */
     }
   else
     {
-      LapicWrite (L_LVT_LINT (0), pDesc->Lint[0]);
-      LapicWrite (L_LVT_LINT (1), pDesc->Lint[1]);
+      LapicWrite (L_LVT_LINT (0), Desc->Lint[0]);
+      LapicWrite (L_LVT_LINT (1), Desc->Lint[1]);
     }
   /* Enable LAPIC */
   LapicWrite (L_MISC, LapicRead (L_MISC) | 0x100);
