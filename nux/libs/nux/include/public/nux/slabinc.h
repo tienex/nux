@@ -45,47 +45,48 @@
 // Forward Declarations
 //
 
-struct slab;
-struct objhdr;
+typedef struct _SLAB SLAB;
+typedef struct _OBJHDR OBJHDR;
 
 //
 // SLAB_HEADER - Slab Page Header
 //
 
 /**
-  Slab page header structure.
+  Slab Page Header
 
   Each slab page begins with this header which tracks the page's metadata
   including the owning cache, free object count, and free object list.
   The structure is sized to fit within a cache line (64 bytes).
 **/
-struct slabhdr {
+typedef struct _SLABHDR
+{
   union {
     struct {
       ///
       /// Magic number for validation.
       ///
-      UINTN          Magic;
+      UINTN  Magic;
 
       ///
       /// Pointer to owning slab cache.
       ///
-      struct slab    *pCache;
+      SLAB   *Cache;
 
       ///
       /// Number of free objects in this slab.
       ///
-      UINTN          FreeCount;
+      UINTN  FreeCount;
 
       ///
       /// SLIST of free objects.
       ///
-      SLIST_HEAD (, objhdr) FreeQueue;
+      SLIST_HEAD (, _OBJHDR) FreeQueue;
 
       ///
       /// LIST entry for linking slabs in cache queues.
       ///
-      LIST_ENTRY (slabhdr) ListEntry;
+      LIST_ENTRY (_SLABHDR) ListEntry;
     };
 
     ///
@@ -93,14 +94,14 @@ struct slabhdr {
     ///
     CHAR8  CacheLine[64];
   };
-};
+} SLABHDR, *PSLABHDR, *PCSLABHDR;
 
 //
 // SLAB - Slab Cache
 //
 
 /**
-  Slab cache structure.
+  Slab Cache
 
   Manages a pool of fixed-size objects with optional constructor callback.
   Objects are organized into slab pages that are linked into three queues:
@@ -110,7 +111,8 @@ struct slabhdr {
 
   The cache optionally includes a spinlock for thread-safe operation.
 **/
-struct slab {
+typedef struct _SLAB
+{
 #ifdef DECLARE_SPIN_LOCK
   ///
   /// Spinlock for thread-safe access (if DECLARE_SPIN_LOCK is defined).
@@ -121,7 +123,7 @@ struct slab {
   ///
   /// Cache name (for debugging/statistics).
   ///
-  CONST CHAR8  *pName;
+  CONST CHAR8  *Name;
 
   ///
   /// Size of each object in bytes.
@@ -130,9 +132,9 @@ struct slab {
 
   ///
   /// Optional constructor/destructor callback.
-  /// Called with (object, opaque, deconstruct_flag).
+  /// Called with (object, constructor_data, deconstruct_flag).
   ///
-  VOID         (*Constructor)(VOID *pObject, VOID *pOpaque, INT32 Deconstruct);
+  VOID         (*Constructor)(VOID *Object, VOID *ConstructorData, INT32 Deconstruct);
 
   ///
   /// Number of empty slabs.
@@ -152,22 +154,22 @@ struct slab {
   ///
   /// LIST of empty slabs (all objects free).
   ///
-  LIST_HEAD (, slabhdr) EmptyQueue;
+  LIST_HEAD (, _SLABHDR) EmptyQueue;
 
   ///
   /// LIST of partially free slabs (some objects allocated).
   ///
-  LIST_HEAD (, slabhdr) FreeQueue;
+  LIST_HEAD (, _SLABHDR) FreeQueue;
 
   ///
   /// LIST of full slabs (all objects allocated).
   ///
-  LIST_HEAD (, slabhdr) FullQueue;
+  LIST_HEAD (, _SLABHDR) FullQueue;
 
   ///
   /// LIST entry for linking caches together.
   ///
-  LIST_ENTRY (slab) ListEntry;
-};
+  LIST_ENTRY (_SLAB) ListEntry;
+} SLAB, *PSLAB, *PCSLAB;
 
 #endif // SLABINC_H

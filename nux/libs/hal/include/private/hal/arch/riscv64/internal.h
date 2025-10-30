@@ -40,40 +40,40 @@
 #define SIE_USER   (SIE_SSIE|SIE_STIE|SIE_SEIE)
 
 #ifndef _ASSEMBLER
-static inline unsigned long
-riscv_sstatus_cli (void)
+static INLINE unsigned long
+riscv_sstatus_cli (VOID)
 {
-  unsigned long old;
+  unsigned INTN old;
   asm volatile ("csrrci %0, sstatus, %1\n":"=r" (old):"K" (SSTATUS_SIE));
   return old;
 }
 
-static inline unsigned long
-riscv_sstatus_sti (void)
+static INLINE unsigned long
+riscv_sstatus_sti (VOID)
 {
-  unsigned long old;
+  unsigned INTN old;
   asm volatile ("csrrsi %0, sstatus, %1\n":"=r" (old):"K" (SSTATUS_SIE));
   return old;
 }
 
-static inline unsigned long
-riscv_sie_kernel (void)
+static INLINE unsigned long
+riscv_sie_kernel (VOID)
 {
-  unsigned long old;
+  unsigned INTN old;
   asm volatile ("csrrw %0, sie, %1\n":"=r" (old):"r" (SIE_KERNEL));
   return old;
 }
 
-static inline unsigned long
-riscv_sie_user (void)
+static INLINE unsigned long
+riscv_sie_user (VOID)
 {
-  unsigned long old;
+  unsigned INTN old;
   asm volatile ("csrrw %0, sie, %1\n":"=r" (old):"r" (SIE_USER));
   return old;
 }
 
-static inline void
-riscv_sip_siclear (void)
+static INLINE VOID
+riscv_sip_siclear (VOID)
 {
   asm volatile ("csrci sip, %0\n"::"K" (SIP_SSIP));
 }
@@ -85,8 +85,8 @@ riscv_sip_siclear (void)
 */
 
 #ifndef _ASSEMBLER
-typedef uint64_t pte_t;
-typedef uintptr_t ptep_t;
+typedef UINT64 pte_t;
+typedef UINTN ptep_t;
 #endif
 
 #define PTE_V (1 << 0)
@@ -104,51 +104,51 @@ typedef uintptr_t ptep_t;
 
 #define PTE_PFN_SHIFT 10
 
-#define PTE_INVALID ((uint64_t)0)
+#define PTE_INVALID ((UINT64)0)
 
 #ifndef _ASSEMBLER
-static inline ptep_t
-mkptep (pfn_t pfn, unsigned offset)
+static INLINE ptep_t
+mkptep (PFN pfn, UINT32 offset)
 {
   return (pfn << PAGE_SHIFT) | (offset << 3);
 }
 
-static inline pte_t
-mkpte (pfn_t pfn, unsigned flags)
+static INLINE pte_t
+mkpte (PFN pfn, UINT32 flags)
 {
   return (pte_t) ((pfn << PTE_PFN_SHIFT) | flags);
 }
 
-static inline pfn_t
+static INLINE PFN
 pte_pfn (pte_t pte)
 {
-  return (pfn_t) (pte >> PTE_PFN_SHIFT);
+  return (PFN) (pte >> PTE_PFN_SHIFT);
 }
 
-static inline bool
+static INLINE BOOLEAN
 pte_valid_table (pte_t pte)
 {
   return ((pte & PTE_FLAGS) == PTE_V);
 }
 
-static inline bool
+static INLINE BOOLEAN
 pte_valid_leaf (pte_t pte)
 {
   return ((pte & (PTE_V | PTE_R)) == (PTE_V | PTE_R));
 }
 
-static inline bool
+static INLINE BOOLEAN
 pte_valid (pte_t pte)
 {
   return pte & PTE_V;
 }
 
-static inline pte_t
+static INLINE pte_t
 get_pte (ptep_t ptep)
 {
   pte_t *t, pte;
-  pfn_t pfn;
-  unsigned offset;
+  PFN pfn;
+  UINT32 offset;
 
   pfn = ptep >> PAGE_SHIFT;
   offset = (ptep >> 3) & 0x1ff;
@@ -159,12 +159,12 @@ get_pte (ptep_t ptep)
   return pte;
 }
 
-static inline pte_t
+static INLINE pte_t
 set_pte (ptep_t ptep, pte_t pte)
 {
   pte_t *t, old;
-  pfn_t pfn;
-  unsigned offset;
+  PFN pfn;
+  UINT32 offset;
 
   pfn = ptep >> PAGE_SHIFT;
   offset = (ptep >> 3) & 0x1ff;
@@ -177,10 +177,10 @@ set_pte (ptep_t ptep, pte_t pte)
   return old;
 }
 
-static inline pte_t
-alloc_table (void)
+static INLINE pte_t
+alloc_table (VOID)
 {
-  pfn_t pfn;
+  PFN pfn;
 
   pfn = pfn_alloc (0);
   if (pfn == PFN_INVALID)
@@ -189,42 +189,42 @@ alloc_table (void)
   return mkpte (pfn, PTE_V);
 }
 
-static inline unsigned long
-riscv_satp (void)
+static INLINE unsigned long
+riscv_satp (VOID)
 {
-  unsigned long satp;
+  unsigned INTN satp;
 
   asm volatile ("csrr %0, satp\n":"=r" (satp));
   return satp;
 }
 
-static inline void
-riscv_invlpg (unsigned long va, bool no_svvptc_only)
+static INLINE VOID
+riscv_invlpg (unsigned INTN va, BOOLEAN no_svvptc_only)
 {
   asm volatile ("sfence.vma x0, %0\n"::"r" (va));
 }
 
-static inline void
-riscv_settp (unsigned long data)
+static INLINE VOID
+riscv_settp (unsigned INTN data)
 {
   asm volatile ("mv tp, %0\n"::"r" (data));
 }
 
-static inline unsigned long
-riscv_gettp (void)
+static INLINE unsigned long
+riscv_gettp (VOID)
 {
-  unsigned long data;
+  unsigned INTN data;
   asm volatile ("mv %0, tp\n":"=r" (data));
   return data;
 }
 
-hal_l1p_t cpumap_get_l1p (unsigned long va, int alloc);
-hal_l1p_t umap_get_l1p (struct hal_umap *umap, unsigned long va, bool alloc);
-uaddr_t pt_umap_next (struct hal_umap *umap, uaddr_t uaddr, hal_l1p_t * l1p_out,
+hal_l1p_t cpumap_get_l1p (unsigned INTN va, INT32 alloc);
+hal_l1p_t umap_get_l1p (struct hal_umap *umap, unsigned INTN va, BOOLEAN alloc);
+USER_ADDRESS pt_umap_next (struct hal_umap *umap, USER_ADDRESS uaddr, hal_l1p_t * l1p_out,
 		   hal_l1e_t * l1e_out);
-void pt_umap_free (struct hal_umap *umap);
-unsigned long pt_umap_minaddr (void);
-unsigned long pt_umap_maxaddr (void);
+VOID pt_umap_free (struct hal_umap *umap);
+unsigned long pt_umap_minaddr (VOID);
+unsigned long pt_umap_maxaddr (VOID);
 #endif /* _ASSEMBLER */
 
 #endif /* _HAL_INTERNAL_H */

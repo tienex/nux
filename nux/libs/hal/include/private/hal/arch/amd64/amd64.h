@@ -2,7 +2,7 @@
   NUX: A kernel Library.
   Copyright (C) 2019 Gianluca Guida <glguida@tlbflush.org>
 
-  SPDX-License-Identifier:	BSD-2-Clause
+  SPDX-License-Identifier: BSD-2-Clause
 */
 
 #ifndef __hal_arch_amd64_amd64_h__

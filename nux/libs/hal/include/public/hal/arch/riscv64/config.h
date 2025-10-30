@@ -8,10 +8,10 @@
 #define L1P_INVALID ((uintptr_t)0)
 
 typedef uintptr_t hal_l1p_t;
-typedef uint64_t hal_l1e_t;
+typedef UINT64 hal_l1e_t;
 
-static inline void
-hal_debug (void)
+static INLINE VOID
+hal_debug (VOID)
 {
   asm volatile ("ebreak\n");
 }
@@ -56,11 +56,11 @@ hal_debug (void)
 
 struct hal_umap
 {
-  uint64_t l4[UMAP_L4PTES];
+  UINT64 l4[UMAP_L4PTES];
 };
 
 #include <stdio.h>
-static inline void
+static INLINE VOID
 hal_umap_debug (struct hal_umap *umap)
 {
   printf ("hal_umap %p:", umap);
@@ -71,50 +71,50 @@ hal_umap_debug (struct hal_umap *umap)
 struct hal_cpu
 {
   /* Entry handler. */
-  unsigned long intrsp;
-  unsigned long kernsp;
+  unsigned INTN intrsp;
+  unsigned INTN kernsp;
   /* NUX per-cpu data. */
-  void *data;
+  VOID *data;
 };
 
 struct hal_frame
 {
-  unsigned long sstatus;
-  unsigned long sie;
-  unsigned long stval;
-  unsigned long scause;
-  unsigned long pc;
-  unsigned long t6;
-  unsigned long t5;
-  unsigned long t4;
-  unsigned long t3;
-  unsigned long s11;
-  unsigned long s10;
-  unsigned long s9;
-  unsigned long s8;
-  unsigned long s7;
-  unsigned long s6;
-  unsigned long s5;
-  unsigned long s4;
-  unsigned long s3;
-  unsigned long s2;
-  unsigned long a7;
-  unsigned long a6;
-  unsigned long a5;
-  unsigned long a4;
-  unsigned long a3;
-  unsigned long a2;
-  unsigned long a1;
-  unsigned long a0;
-  unsigned long s1;
-  unsigned long fp;
-  unsigned long t2;
-  unsigned long t1;
-  unsigned long t0;
-  unsigned long tp;
-  unsigned long gp;
-  unsigned long sp;
-  unsigned long ra;
+  unsigned INTN sstatus;
+  unsigned INTN sie;
+  unsigned INTN stval;
+  unsigned INTN scause;
+  unsigned INTN pc;
+  unsigned INTN t6;
+  unsigned INTN t5;
+  unsigned INTN t4;
+  unsigned INTN t3;
+  unsigned INTN s11;
+  unsigned INTN s10;
+  unsigned INTN s9;
+  unsigned INTN s8;
+  unsigned INTN s7;
+  unsigned INTN s6;
+  unsigned INTN s5;
+  unsigned INTN s4;
+  unsigned INTN s3;
+  unsigned INTN s2;
+  unsigned INTN a7;
+  unsigned INTN a6;
+  unsigned INTN a5;
+  unsigned INTN a4;
+  unsigned INTN a3;
+  unsigned INTN a2;
+  unsigned INTN a1;
+  unsigned INTN a0;
+  unsigned INTN s1;
+  unsigned INTN fp;
+  unsigned INTN t2;
+  unsigned INTN t1;
+  unsigned INTN t0;
+  unsigned INTN tp;
+  unsigned INTN gp;
+  unsigned INTN sp;
+  unsigned INTN ra;
 } __packed;
 
 

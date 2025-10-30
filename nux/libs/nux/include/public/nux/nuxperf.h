@@ -43,7 +43,7 @@ typedef struct _NUXPERF_COUNTER {
   ///
   /// Counter name (for display purposes).
   ///
-  CONST CHAR8  *pName;
+  CONST CHAR8  *Name;
 
   ///
   /// Counter value (atomically incremented).
@@ -65,12 +65,12 @@ typedef struct _NUXPERF_MEASURE {
   ///
   /// Measure name (for display purposes).
   ///
-  CONST CHAR8     *pName;
+  CONST CHAR8     *Name;
 
   ///
   /// Spinlock for updating statistics.
   ///
-  volatile UINTN  Lock;
+  VOLATILE UINTN  Lock;
 
   ///
   /// Minimum value observed.
@@ -107,12 +107,12 @@ typedef struct _NUXPERF_LOCK_MEASURE {
   ///
   /// Measure for wait cycles (time acquiring lock).
   ///
-  NUXPERF_MEASURE  *pWaitCycles;
+  NUXPERF_MEASURE  *WaitCycles;
 
   ///
   /// Measure for held cycles (time holding lock).
   ///
-  NUXPERF_MEASURE  *pHeldCycles;
+  NUXPERF_MEASURE  *HeldCycles;
 } NUXPERF_LOCK_MEASURE;
 
 //
@@ -124,15 +124,15 @@ typedef struct _NUXPERF_LOCK_MEASURE {
 
   Atomically increments the counter value.
 
-  @param[in,out] pCounter  Pointer to the performance counter.
+  @param[in,out] Counter  Pointer to the performance counter.
 **/
-static inline
+static INLINE
 VOID
 NuxPerfCounterIncrement (
-  IN OUT NUXPERF_COUNTER  *pCounter
+  IN OUT NUXPERF_COUNTER  *Counter
   )
 {
-  __atomic_fetch_add (&pCounter->Value, 1, __ATOMIC_RELAXED);
+  __atomic_fetch_add (&Counter->Value, 1, __ATOMIC_RELAXED);
 }
 
 /**
@@ -142,21 +142,21 @@ NuxPerfCounterIncrement (
   registered in the .perfctr section.
 
   @param[in] CallbackFn  Callback function to invoke for each counter.
-  @param[in] pContext    Opaque context pointer passed to callback.
+  @param[in] Context    Opaque context pointer passed to callback.
 **/
-static inline
+static INLINE
 VOID
 NuxPerfCounterForEach (
-  IN VOID  (*CallbackFn)(VOID *pContext, NUXPERF_COUNTER *pCounter),
-  IN VOID  *pContext
+  IN VOID  (*CallbackFn)(VOID *Context, NUXPERF_COUNTER *Counter),
+  IN VOID  *Context
   )
 {
   extern NUXPERF_COUNTER _nuxperf_start[];
   extern NUXPERF_COUNTER _nuxperf_end[];
-  NUXPERF_COUNTER *pPtr = _nuxperf_start;
+  NUXPERF_COUNTER *Ptr = _nuxperf_start;
 
-  while (pPtr < _nuxperf_end) {
-    CallbackFn (pContext, pPtr++);
+  while (Ptr < _nuxperf_end) {
+    CallbackFn (Context, Ptr++);
   }
 }
 
@@ -165,7 +165,7 @@ NuxPerfCounterForEach (
 
   Displays all registered performance counters and their values.
 **/
-static inline
+static INLINE
 VOID
 NuxPerfCounterPrint (
   VOID
@@ -173,18 +173,18 @@ NuxPerfCounterPrint (
 {
   extern NUXPERF_COUNTER _nuxperf_start[];
   extern NUXPERF_COUNTER _nuxperf_end[];
-  NUXPERF_COUNTER *pPtr = _nuxperf_start;
+  NUXPERF_COUNTER *Ptr = _nuxperf_start;
 
-  while (pPtr < _nuxperf_end) {
-    printf ("ctr: %-20s\t%16ld\n", pPtr->pName, pPtr->Value);
-    pPtr++;
+  while (Ptr < _nuxperf_end) {
+    printf ("ctr: %-20s\t%16ld\n", Ptr->Name, Ptr->Value);
+    Ptr++;
   }
 }
 
 /**
   Reset all performance counters to zero.
 **/
-static inline
+static INLINE
 VOID
 NuxPerfCounterReset (
   VOID
@@ -192,11 +192,11 @@ NuxPerfCounterReset (
 {
   extern NUXPERF_COUNTER _nuxperf_start[];
   extern NUXPERF_COUNTER _nuxperf_end[];
-  NUXPERF_COUNTER *pPtr = _nuxperf_start;
+  NUXPERF_COUNTER *Ptr = _nuxperf_start;
 
-  while (pPtr < _nuxperf_end) {
-    *(volatile UINTN *)&pPtr->Value = 0;
-    pPtr++;
+  while (Ptr < _nuxperf_end) {
+    *(VOLATILE UINTN *)&Ptr->Value = 0;
+    Ptr++;
   }
 }
 
@@ -209,24 +209,24 @@ NuxPerfCounterReset (
 
   Updates the min, max, average, and count statistics with the new sample.
 
-  @param[in,out] pMeasure  Pointer to the performance measure.
+  @param[in,out] Measure  Pointer to the performance measure.
   @param[in]     Data      Sample value to add.
 **/
-static inline
+static INLINE
 VOID
 NuxPerfMeasureAdd (
-  IN OUT NUXPERF_MEASURE  *pMeasure,
+  IN OUT NUXPERF_MEASURE  *Measure,
   IN     UINT64           Data
   )
 {
-  while (__sync_lock_test_and_set (&pMeasure->Lock, 1)) {
+  while (__sync_lock_test_and_set (&Measure->Lock, 1)) {
     hal_cpu_relax ();
   }
-  pMeasure->Max = Data > pMeasure->Max ? Data : pMeasure->Max;
-  pMeasure->Min = Data < pMeasure->Min ? Data : pMeasure->Min;
-  pMeasure->Count++;
-  pMeasure->Average = (pMeasure->Average * (pMeasure->Count - 1) + Data) / pMeasure->Count;
-  __sync_lock_release (&pMeasure->Lock);
+  Measure->Max = Data > Measure->Max ? Data : Measure->Max;
+  Measure->Min = Data < Measure->Min ? Data : Measure->Min;
+  Measure->Count++;
+  Measure->Average = (Measure->Average * (Measure->Count - 1) + Data) / Measure->Count;
+  __sync_lock_release (&Measure->Lock);
 }
 
 /**
@@ -237,26 +237,26 @@ NuxPerfMeasureAdd (
   the callback to ensure consistent reads.
 
   @param[in] CallbackFn  Callback function to invoke for each measure.
-  @param[in] pContext    Opaque context pointer passed to callback.
+  @param[in] Context    Opaque context pointer passed to callback.
 **/
-static inline
+static INLINE
 VOID
 NuxPerfMeasureForEach (
-  IN VOID  (*CallbackFn)(VOID *pContext, NUXPERF_MEASURE *pMeasure),
-  IN VOID  *pContext
+  IN VOID  (*CallbackFn)(VOID *Context, NUXPERF_MEASURE *Measure),
+  IN VOID  *Context
   )
 {
   extern NUXPERF_MEASURE _nuxmeasure_start[];
   extern NUXPERF_MEASURE _nuxmeasure_end[];
-  NUXPERF_MEASURE *pPtr = _nuxmeasure_start;
+  NUXPERF_MEASURE *Ptr = _nuxmeasure_start;
 
-  while (pPtr < _nuxmeasure_end) {
-    while (__sync_lock_test_and_set (&pPtr->Lock, 1)) {
+  while (Ptr < _nuxmeasure_end) {
+    while (__sync_lock_test_and_set (&Ptr->Lock, 1)) {
       hal_cpu_relax ();
     }
-    CallbackFn (pContext, pPtr);
-    __sync_lock_release (&pPtr->Lock);
-    pPtr++;
+    CallbackFn (Context, Ptr);
+    __sync_lock_release (&Ptr->Lock);
+    Ptr++;
   }
 }
 
@@ -265,7 +265,7 @@ NuxPerfMeasureForEach (
 
   Resets min/avg/max/count to initial values for all registered measures.
 **/
-static inline
+static INLINE
 VOID
 NuxPerfMeasureReset (
   VOID
@@ -273,23 +273,23 @@ NuxPerfMeasureReset (
 {
   extern NUXPERF_MEASURE _nuxmeasure_start[];
   extern NUXPERF_MEASURE _nuxmeasure_end[];
-  NUXPERF_MEASURE *pPtr = _nuxmeasure_start;
+  NUXPERF_MEASURE *Ptr = _nuxmeasure_start;
 
   //
   // Note: This proceeds unlocked. Use with caution.
   //
-  while (pPtr < _nuxmeasure_end) {
-    while (__sync_lock_test_and_set (&pPtr->Lock, 1)) {
+  while (Ptr < _nuxmeasure_end) {
+    while (__sync_lock_test_and_set (&Ptr->Lock, 1)) {
       hal_cpu_relax ();
     }
 
-    pPtr->Min = (UINT64)-1;
-    pPtr->Average = 0;
-    pPtr->Max = 0;
-    pPtr->Count = 0;
+    Ptr->Min = (UINT64)-1;
+    Ptr->Average = 0;
+    Ptr->Max = 0;
+    Ptr->Count = 0;
 
-    __sync_lock_release (&pPtr->Lock);
-    pPtr++;
+    __sync_lock_release (&Ptr->Lock);
+    Ptr++;
   }
 }
 
@@ -298,7 +298,7 @@ NuxPerfMeasureReset (
 
   Displays all registered performance measures with their statistics.
 **/
-static inline
+static INLINE
 VOID
 NuxPerfMeasurePrint (
   VOID
@@ -306,17 +306,17 @@ NuxPerfMeasurePrint (
 {
   extern NUXPERF_MEASURE _nuxmeasure_start[];
   extern NUXPERF_MEASURE _nuxmeasure_end[];
-  NUXPERF_MEASURE *pPtr = _nuxmeasure_start;
+  NUXPERF_MEASURE *Ptr = _nuxmeasure_start;
 
-  while (pPtr < _nuxmeasure_end) {
-    while (__sync_lock_test_and_set (&pPtr->Lock, 1)) {
+  while (Ptr < _nuxmeasure_end) {
+    while (__sync_lock_test_and_set (&Ptr->Lock, 1)) {
       hal_cpu_relax ();
     }
 
     printf ("msr: %-20s\t%16" PRId64 "\n    min/avg/max [ %" PRId64" / %" PRId64" / %" PRId64 " ]\n",
-            pPtr->pName, pPtr->Count, pPtr->Min, pPtr->Average, pPtr->Max);
-    __sync_lock_release (&pPtr->Lock);
-    pPtr++;
+            Ptr->Name, Ptr->Count, Ptr->Min, Ptr->Average, Ptr->Max);
+    __sync_lock_release (&Ptr->Lock);
+    Ptr++;
   }
 }
 
@@ -329,20 +329,20 @@ NuxPerfMeasurePrint (
 
   Measures the number of cycles spent waiting to acquire the lock.
 
-  @param[in,out] pLock          Pointer to the spinlock.
-  @param[in,out] pLockMeasure   Pointer to the lock measurement structure.
+  @param[in,out] Lock          Pointer to the spinlock.
+  @param[in,out] LockMeasure   Pointer to the lock measurement structure.
 **/
-static inline
+static INLINE
 VOID
 SpinLockMeasured (
-  IN OUT SPINLOCK                *pLock,
-  IN OUT NUXPERF_LOCK_MEASURE    *pLockMeasure
+  IN OUT SPINLOCK                *Lock,
+  IN OUT NUXPERF_LOCK_MEASURE    *LockMeasure
   )
 {
   //
   // Measure the number of wait cycles.
   //
-  NuxPerfMeasureAdd (pLockMeasure->pWaitCycles, spinlock_msr(pLock));
+  NuxPerfMeasureAdd (LockMeasure->WaitCycles, spinlock_msr(Lock));
 }
 
 /**
@@ -350,20 +350,20 @@ SpinLockMeasured (
 
   Measures the number of cycles the lock was held.
 
-  @param[in,out] pLock          Pointer to the spinlock.
-  @param[in,out] pLockMeasure   Pointer to the lock measurement structure.
+  @param[in,out] Lock          Pointer to the spinlock.
+  @param[in,out] LockMeasure   Pointer to the lock measurement structure.
 **/
-static inline
+static INLINE
 VOID
 SpinUnlockMeasured (
-  IN OUT SPINLOCK                *pLock,
-  IN OUT NUXPERF_LOCK_MEASURE    *pLockMeasure
+  IN OUT SPINLOCK                *Lock,
+  IN OUT NUXPERF_LOCK_MEASURE    *LockMeasure
   )
 {
   //
   // Measure the number of cycles spent holding the lock.
   //
-  NuxPerfMeasureAdd (pLockMeasure->pHeldCycles, spinunlock_msr(pLock));
+  NuxPerfMeasureAdd (LockMeasure->HeldCycles, spinunlock_msr(Lock));
 }
 
 //
@@ -387,7 +387,7 @@ SpinUnlockMeasured (
 **/
 #define DEFINE_MEASURE(MeasureName)   \
   __measure NUXPERF_MEASURE MeasureName = {  \
-    .pName = #MeasureName,            \
+    .Name = #MeasureName,            \
     .Lock = 0,                        \
     .Min = (UINT64)-1,                \
     .Max = 0,                         \
@@ -413,7 +413,7 @@ SpinUnlockMeasured (
 **/
 #define DEFINE_LOCK_MEASURE(LockName)        \
   NUXPERF_MEASURE __measure LockName##_waitcy = {  \
-    .pName = #LockName "_waitcy",            \
+    .Name = #LockName "_waitcy",            \
     .Lock = 0,                               \
     .Min = (UINT64)-1,                       \
     .Max = 0,                                \
@@ -421,7 +421,7 @@ SpinUnlockMeasured (
     .Count = 0,                              \
   };                                         \
   NUXPERF_MEASURE __measure LockName##_heldcy = {  \
-    .pName = #LockName "_heldcy",            \
+    .Name = #LockName "_heldcy",            \
     .Lock = 0,                               \
     .Min = (UINT64)-1,                       \
     .Max = 0,                                \
@@ -429,75 +429,8 @@ SpinUnlockMeasured (
     .Count = 0,                              \
   };                                         \
   NUXPERF_LOCK_MEASURE LockName = {         \
-    .pWaitCycles = &LockName##_waitcy,       \
-    .pHeldCycles = &LockName##_heldcy,       \
+    .WaitCycles = &LockName##_waitcy,       \
+    .HeldCycles = &LockName##_heldcy,       \
   }
-
-//
-// Legacy Type Aliases (for backward compatibility)
-//
-
-/** @deprecated Use NUXPERF_COUNTER instead **/
-typedef NUXPERF_COUNTER nuxperf_t;
-
-/** @deprecated Use NUXPERF_MEASURE instead **/
-typedef NUXPERF_MEASURE nuxmeasure_t;
-
-/** @deprecated Use NUXPERF_LOCK_MEASURE instead **/
-typedef NUXPERF_LOCK_MEASURE lock_measure_t;
-
-//
-// Legacy Function Wrappers
-//
-
-/** @deprecated Use NuxPerfCounterIncrement instead **/
-static inline void nuxperf_inc(nuxperf_t *ctr) {
-  NuxPerfCounterIncrement (ctr);
-}
-
-/** @deprecated Use NuxPerfCounterForEach instead **/
-static inline void nuxperf_foreach (void (*fn)(void *opq, nuxperf_t *ctr), void *opq) {
-  NuxPerfCounterForEach (fn, opq);
-}
-
-/** @deprecated Use NuxPerfCounterPrint instead **/
-static inline void nuxperf_print (void) {
-  NuxPerfCounterPrint ();
-}
-
-/** @deprecated Use NuxPerfCounterReset instead **/
-static inline void nuxperf_reset (void) {
-  NuxPerfCounterReset ();
-}
-
-/** @deprecated Use NuxPerfMeasureAdd instead **/
-static inline void nuxmeasure_add (nuxmeasure_t *msr, uint64_t data) {
-  NuxPerfMeasureAdd (msr, data);
-}
-
-/** @deprecated Use NuxPerfMeasureForEach instead **/
-static inline void nuxmeasure_foreach (void (*fn)(void *opq, nuxmeasure_t *msr), void *opq) {
-  NuxPerfMeasureForEach (fn, opq);
-}
-
-/** @deprecated Use NuxPerfMeasureReset instead **/
-static inline void nuxmeasure_reset (void) {
-  NuxPerfMeasureReset ();
-}
-
-/** @deprecated Use NuxPerfMeasurePrint instead **/
-static inline void nuxmeasure_print (void) {
-  NuxPerfMeasurePrint ();
-}
-
-/** @deprecated Use SpinLockMeasured instead **/
-static inline void spinlock_measured (lock_t *lock, lock_measure_t *lm) {
-  SpinLockMeasured (lock, lm);
-}
-
-/** @deprecated Use SpinUnlockMeasured instead **/
-static inline void spinunlock_measured (lock_t *lock, lock_measure_t *lm) {
-  SpinUnlockMeasured (lock, lm);
-}
 
 #endif // NUX_NUXPERF_H

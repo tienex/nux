@@ -2,7 +2,7 @@
   NUX: A kernel Library.
   Copyright (C) 2019 Gianluca Guida <glguida@tlbflush.org>
 
-  SPDX-License-Identifier:	BSD-2-Clause
+  SPDX-License-Identifier: BSD-2-Clause
 */
 
 #ifndef __hal_arch_i386_config_h__
@@ -27,7 +27,7 @@
 
 #include <stdint.h>
 
-typedef uint64_t hal_l1e_t;
+typedef UINT64 hal_l1e_t;
 
 
 /*
@@ -41,11 +41,11 @@ typedef uint64_t hal_l1e_t;
 
 struct hal_umap
 {
-  uint64_t l3[UMAP_L3PTES];
+  UINT64 l3[UMAP_L3PTES];
 };
 
 #include <stdio.h>
-static inline void
+static INLINE VOID
 hal_umap_debug (struct hal_umap *umap)
 {
   printf ("hal_umap: %p:", umap);
@@ -60,37 +60,37 @@ hal_umap_debug (struct hal_umap *umap)
 
 struct i386_tss
 {
-  uint16_t ptl, tmp0;
-  uint32_t esp0;
-  uint16_t ss0, tmp1;
-  uint32_t esp1;
-  uint16_t ss1, tmp2;
-  uint32_t esp2;
-  uint16_t ss2, tmp3;
-  uint32_t cr3;
-  uint32_t eip;
-  uint32_t eflags;
-  uint32_t eax;
-  uint32_t ecx;
-  uint32_t edx;
-  uint32_t ebx;
-  uint32_t esp;
-  uint32_t ebp;
-  uint32_t esi;
-  uint32_t edi;
-  uint16_t es, tmp4;
-  uint16_t cs, tmp5;
-  uint16_t ss, tmp6;
-  uint16_t ds, tmp7;
-  uint16_t fs, tmp8;
-  uint16_t gs, tmp9;
-  uint16_t ldt, tmpA;
-  uint16_t t_flag, iomap;
+  UINT16 ptl, tmp0;
+  UINT32 esp0;
+  UINT16 ss0, tmp1;
+  UINT32 esp1;
+  UINT16 ss1, tmp2;
+  UINT32 esp2;
+  UINT16 ss2, tmp3;
+  UINT32 cr3;
+  UINT32 eip;
+  UINT32 eflags;
+  UINT32 eax;
+  UINT32 ecx;
+  UINT32 edx;
+  UINT32 ebx;
+  UINT32 esp;
+  UINT32 ebp;
+  UINT32 esi;
+  UINT32 edi;
+  UINT16 es, tmp4;
+  UINT16 cs, tmp5;
+  UINT16 ss, tmp6;
+  UINT16 ds, tmp7;
+  UINT16 fs, tmp8;
+  UINT16 gs, tmp9;
+  UINT16 ldt, tmpA;
+  UINT16 t_flag, iomap;
 } __packed;
 
 struct hal_cpu
 {
-  void *data;
+  VOID *data;
   struct i386_tss tss;
 };
 
@@ -102,32 +102,32 @@ struct hal_cpu
 struct hal_frame
 {
   /* segments */
-  uint16_t ds;
-  uint16_t es;
-  uint16_t fs;
-  uint16_t gs;
+  UINT16 ds;
+  UINT16 es;
+  UINT16 fs;
+  UINT16 gs;
   /* CRs    */
-  uint32_t cr2;
-  uint32_t cr3;
+  UINT32 cr2;
+  UINT32 cr3;
   /* pushal */
-  uint32_t edi;
-  uint32_t esi;
-  uint32_t ebp;
-  uint32_t espx;
-  uint32_t ebx;
+  UINT32 edi;
+  UINT32 esi;
+  UINT32 ebp;
+  UINT32 espx;
+  UINT32 ebx;
 #define HAL_REG_A1 edx
-  uint32_t edx;
+  UINT32 edx;
 #define HAL_REG_A2 ecx
-  uint32_t ecx;
+  UINT32 ecx;
 #define HAL_REG_A0 eax
-  uint32_t eax;
+  UINT32 eax;
   /* exception stack */
-  uint32_t err;
-  uint32_t eip;
-  uint32_t cs;
-  uint32_t eflags;
-  uint32_t esp;
-  uint32_t ss;
+  UINT32 err;
+  UINT32 eip;
+  UINT32 cs;
+  UINT32 eflags;
+  UINT32 esp;
+  UINT32 ss;
 } __packed;
 
 

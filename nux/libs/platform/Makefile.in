@@ -2,16 +2,16 @@
 # NUX: A kernel Library.
 # Copyright (C) 2019 Gianluca Guida <glguida@tlbflush.org>
 #
-#  SPDX-License-Identifier:	BSD-2-Clause
+#  SPDX-License-Identifier: BSD-2-Clause
 #
 
 @COMPILE_LIBEC@
 @COMPILE_LIBNUX@
 
 LIBDIR=lib
-LIBRARY=plt
+LIBRARY=platform
 
-SRCS+= plt.c lapic.c ioapic.c hpet.c hw.c acpi.c
+SRCS+= init.c lapic.c ioapic.c hpet.c hw.c acpi.c
 
 INCDIR=include/public/platform
 INCS+=$(addprefix include/public/platform/,platform.h)

@@ -32,9 +32,10 @@ typedef int32_t         INT32;
 typedef int64_t         INT64;
 typedef unsigned long   UINTN;
 typedef long            INTN;
-typedef bool            BOOLEAN;
+typedef BOOLEAN            BOOLEAN;
 typedef char            CHAR8;
 typedef char            *PCHAR8;
+typedef CONST char      *PCCHAR8;
 
 #ifndef TRUE
 #define TRUE  ((BOOLEAN)1)
@@ -186,7 +187,7 @@ struct _IUnknown {
   @retval TRUE   GUIDs are equal.
   @retval FALSE  GUIDs are not equal.
 **/
-static inline BOOLEAN
+static INLINE BOOLEAN
 CompareGuid (
   IN CONST GUID   *Guid1,
   IN CONST GUID   *Guid2
@@ -204,32 +205,35 @@ CompareGuid (
 /**
   Copy a GUID.
 
-  @param[out] pDestGuid  Pointer to the destination GUID.
-  @param[in]  pSrcGuid   Pointer to the source GUID.
+  @param[out] DestGuid  Pointer to the destination GUID.
+  @param[in]  SrcGuid   Pointer to the source GUID.
 **/
-static inline VOID
+static INLINE VOID
 CopyGuid (
-  OUT GUID        *pDestGuid,
-  IN  CONST GUID  *pSrcGuid
+  OUT GUID        *DestGuid,
+  IN  CONST GUID  *SrcGuid
   )
 {
-  UINT64  *pDest;
-  UINT64  *pSrc;
+  UINT64  *Dest;
+  UINT64  *Src;
 
-  pDest = (UINT64 *)pDestGuid;
-  pSrc  = (UINT64 *)pSrcGuid;
+  Dest = (UINT64 *)DestGuid;
+  Src  = (UINT64 *)SrcGuid;
 
-  pDest[0] = pSrc[0];
-  pDest[1] = pSrc[1];
+  Dest[0] = Src[0];
+  Dest[1] = Src[1];
 }
 
 //
-// Standard Calling Conventions
+// Standard Calling Conventions and Qualifiers
 //
 
 #define IN
 #define OUT
 #define OPTIONAL
-#define CONST   const
+#define CONST       CONST
+#define VOLATILE    volatile
+#define INLINE      inline
+#define RESTRICT    __restrict
 
 #endif // NUX_COMBASE_H

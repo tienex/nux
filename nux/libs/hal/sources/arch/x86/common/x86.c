@@ -20,57 +20,53 @@
 #include <nux/symbol.h>
 
 #include <hal/internal.h>
-#include <nux/stree.h>
+#include <nux/batree.h>
 
 
-extern int _info_start;
+extern INT32 _info_start;
 
-extern int _physmap_start;
-extern int _physmap_end;
+extern INT32 _physmap_start;
+extern INT32 _physmap_end;
 
-extern int _pfncache_start;
-extern int _pfncache_end;
+extern INT32 _pfncache_start;
+extern INT32 _pfncache_end;
 
-extern int _kva_start;
-extern int _kva_end;
+extern INT32 _kva_start;
+extern INT32 _kva_end;
 
-extern int _kmem_start;
-extern int _kmem_end;
+extern INT32 _kmem_start;
+extern INT32 _kmem_end;
 
-extern int _stree_start[];
-extern int _stree_end[];
+extern INT32 _stree_start[];
+extern INT32 _stree_end[];
 
-extern int _fbuf_start;
-extern int _fbuf_end;
+extern INT32 _fbuf_start;
+extern INT32 _fbuf_end;
 
-extern int _memregs_start;
-extern int _memregs_end;
+extern INT32 _memregs_start;
+extern INT32 _memregs_end;
 
-/*
-  Pin areas of memory to a fixed memory region type.
-*/
+//
+// Pin areas of memory to a fixed memory region type.
+//
 struct apxh_region _memregs_pinned[] = {
-  /*
-     Remove me after getting ACPI pointer from kernel .
-   */
+  // Remove me after getting ACPI pointer from kernel.
   {.type = APXH_REGION_MMIO,.pfn = 0,.len = 1,},
-  /*
-
-     Mark the whole 0xA0000-0x100000 area as MMIO. */
+  // Mark the whole 0xA0000-0x100000 area as MMIO.
   {.type = APXH_REGION_MMIO,.pfn = 0xa0,.len = 96,},
 };
 
 #define PINNED_MEMREGS (sizeof(_memregs_pinned)/sizeof(struct apxh_region))
 
-const struct apxh_bootinfo *bootinfo = (struct apxh_bootinfo *) &_info_start;
+CONST struct apxh_bootinfo *bootinfo = (struct apxh_bootinfo *) &_info_start;
 
-struct fbdesc fbdesc;
-struct apxh_pltdesc pltdesc;
+FRAMEBUFFER_DESC fbdesc;
+struct apxh_platformdesc pltdesc;
 
-void *hal_stree_ptr;
-unsigned hal_stree_order;
+VOID *gHalStreePtr;
+UINT32 gHalStreeOrder;
 
-int use_fb;
+int gUseFb;
 INT32 gNuxInitialized = 0;
 
 /**
@@ -78,7 +74,7 @@ INT32 gNuxInitialized = 0;
 
   Disables interrupts and halts the processor in an infinite loop.
 **/
-static inline __dead VOID
+static INLINE __dead VOID
 Halt (
   VOID
   )
@@ -327,7 +323,7 @@ hal_putchar (
   )
 {
 
-  if (use_fb)
+  if (gUseFb)
     framebuffer_putc (c, 0xe0e0e0);
   else
     vga_putchar (c);
@@ -464,39 +460,39 @@ hal_useraccess_end (
   /* TODO: SMEP */
 }
 
-vaddr_t
+VIRTUAL_ADDRESS
 hal_virtmem_dmapbase (
   VOID
   )
 {
-  return (UINT64) (uintptr_t) & _physmap_start;
+  return (UINT64) (UINTN) & _physmap_start;
 }
 
-const size_t
+CONST UINTN
 hal_virtmem_dmapsize (
   VOID
   )
 {
-  return (size_t) ((void *) &_physmap_end - (void *) &_physmap_start);
+  return (UINTN) ((VOID *) &_physmap_end - (VOID *) &_physmap_start);
 }
 
-vaddr_t
+VIRTUAL_ADDRESS
 hal_virtmem_pfn$base (
   VOID
   )
 {
-  return (UINT64) (uintptr_t) & _pfncache_start;
+  return (UINT64) (UINTN) & _pfncache_start;
 }
 
-const size_t
+CONST UINTN
 hal_virtmem_pfn$size (
   VOID
   )
 {
-  return (size_t) ((void *) &_pfncache_end - (void *) &_pfncache_start);
+  return (UINTN) ((VOID *) &_pfncache_end - (VOID *) &_pfncache_start);
 }
 
-const vaddr_t
+CONST VIRTUAL_ADDRESS
 hal_virtmem_userbase (
   VOID
   )
@@ -504,7 +500,7 @@ hal_virtmem_userbase (
   return pt_umap_minaddr ();
 }
 
-const size_t
+CONST UINTN
 hal_virtmem_usersize (
   VOID
   )
@@ -512,12 +508,12 @@ hal_virtmem_usersize (
   return pt_umap_maxaddr ();
 }
 
-const vaddr_t
+CONST VIRTUAL_ADDRESS
 hal_virtmem_userentry (
   VOID
   )
 {
-  return (const vaddr_t) bootinfo->uentry;
+  return (CONST VIRTUAL_ADDRESS) bootinfo->uentry;
 }
 
 UINTN
@@ -570,63 +566,63 @@ hal_physmem_region (
 
 VOID *
 hal_physmem_stree (
-  OUT UINT32  *pOrder OPTIONAL
+  OUT UINT32  *Order OPTIONAL
   )
 {
-  if (pOrder)
-    *pOrder = hal_stree_order;
-  return hal_stree_ptr;
+  if (Order)
+    *Order = gHalStreeOrder;
+  return gHalStreePtr;
 }
 
-vaddr_t
+VIRTUAL_ADDRESS
 hal_virtmem_kvabase (
   VOID
   )
 {
-  return (vaddr_t) & _kva_start;
+  return (VIRTUAL_ADDRESS) & _kva_start;
 }
 
-const size_t
+CONST UINTN
 hal_virtmem_kvasize (
   VOID
   )
 {
-  return (size_t) ((void *) &_kva_end - (void *) &_kva_start);
+  return (UINTN) ((VOID *) &_kva_end - (VOID *) &_kva_start);
 }
 
-vaddr_t
+VIRTUAL_ADDRESS
 hal_virtmem_kmembase (
   VOID
   )
 {
-  return (vaddr_t) & _kmem_start;
+  return (VIRTUAL_ADDRESS) & _kmem_start;
 }
 
-const size_t
+CONST UINTN
 hal_virtmem_kmemsize (
   VOID
   )
 {
-  return (size_t) ((void *) &_kmem_end - (void *) &_kmem_start);
+  return (UINTN) ((VOID *) &_kmem_end - (VOID *) &_kmem_start);
 }
 
 /**
   Print a string during early boot.
 
-  @param[in] pStr  String to print.
+  @param[in] Str  String to print.
 **/
 static VOID
 EarlyPrint (
-  IN CONST CHAR8  *pStr
+  IN CONST CHAR8  *Str
   )
 {
-  size_t i;
-  size_t len = strlen (pStr);
+  UINTN i;
+  UINTN len = strlen (Str);
   for (i = 0; i < len; i++)
-    hal_putchar (pStr[i]);
+    hal_putchar (Str[i]);
 }
 
-const struct apxh_pltdesc *
+CONST struct apxh_platformdesc *
 hal_pltinfo (
   VOID
   )
@@ -645,8 +641,8 @@ X86Initialize (
   VOID
   )
 {
-  size_t stree_memsize;
-  struct apxh_stree *stree_hdr;
+  UINTN StreeMemsize;
+  struct apxh_stree *StreeHdr;
 
   if (bootinfo->magic != APXH_BOOTINFO_MAGIC)
     {
@@ -657,29 +653,29 @@ X86Initialize (
   SerialInitialize ();
 
   fbdesc = bootinfo->fbdesc;
-  fbdesc.addr = (UINT64) (uintptr_t) & _fbuf_start;
-  use_fb = framebuffer_init (&fbdesc);
+  fbdesc.addr = (UINT64) (UINTN) & _fbuf_start;
+  gUseFb = framebuffer_init (&fbdesc);
 
   /* Check  APXH stree. */
-  stree_hdr = (struct apxh_stree *) _stree_start;
-  if (stree_hdr->magic != APXH_STREE_MAGIC)
+  StreeHdr = (struct apxh_stree *) _stree_start;
+  if (StreeHdr->magic != APXH_STREE_MAGIC)
     {
       EarlyPrint ("ERROR: Unrecognised stree magic!");
       hal_cpu_halt ();
     }
-  if (stree_hdr->size != 8 * STREE_SIZE (stree_hdr->order))
+  if (StreeHdr->size != 8 * STREE_SIZE (StreeHdr->order))
     {
       EarlyPrint ("ERROR: stree size doesn't match!");
       hal_cpu_halt ();
     }
-  stree_memsize = (size_t) ((void *) _stree_end - (void *) _stree_start);
-  if (stree_hdr->size + stree_hdr->offset > stree_memsize)
+  StreeMemsize = (UINTN) ((VOID *) _stree_end - (VOID *) _stree_start);
+  if (StreeHdr->size + StreeHdr->offset > StreeMemsize)
     {
       EarlyPrint ("ERROR: stree doesn't fit in allocated memory!");
       hal_cpu_halt ();
     }
-  hal_stree_order = stree_hdr->order;
-  hal_stree_ptr = (UINT8 *) stree_hdr + stree_hdr->offset;
+  gHalStreeOrder = StreeHdr->order;
+  gHalStreePtr = (UINT8 *) StreeHdr + StreeHdr->offset;
 
   /* Do not allow allocation in non-RAM pinned memory regions. */
   for (INT32 i = 0; i < PINNED_MEMREGS; i++)
@@ -687,7 +683,7 @@ X86Initialize (
       struct apxh_region *r = _memregs_pinned + i;
       if (r->type != APXH_REGION_RAM)
 	for (INT32 j = 0; j < r->len; j++)
-	  stree_clrbit (hal_stree_ptr, hal_stree_order, r->pfn + j);
+	  stree_clrbit (gHalStreePtr, gHalStreeOrder, r->pfn + j);
     }
 
   pltdesc = bootinfo->pltdesc;
@@ -718,12 +714,19 @@ hal_init_done (
 }
 
 /**
-  Stack frame structure for stack trace.
+  Stack Frame Structure
+
+  Represents a call stack frame for stack unwinding and tracing.
+  Contains frame pointer and return address.
 **/
-struct stackframe {
-  struct stackframe *rbp;
-  UINTN ra;
-};
+typedef struct _STACKFRAME
+{
+  struct _STACKFRAME  *Rbp;   ///< Frame pointer (base pointer)
+  UINTN               Ra;     ///< Return address
+} STACKFRAME, *PSTACKFRAME, *PCSTACKFRAME;
+
+/** Legacy type alias for compatibility **/
+#define stackframe STACKFRAME
 
 /**
   Print stack trace.
@@ -735,16 +738,16 @@ StackFrame (
   IN UINTN  Rbp
   )
 {
-  struct stackframe *sf = (struct stackframe *)Rbp;
+  STACKFRAME *Sf = (STACKFRAME *)Rbp;
   UINT32 i = 1;
 
   while (sf != NULL && i < 32 && ((UINTN)sf % (sizeof(VOID *)) == 0))
     {
-      printf ("    [%d]: %lx <%s>\n", i, sf->ra, NuxSymbolResolve(sf->ra));
+      printf ("    [%d]: %lx <%s>\n", i, Sf->Ra, NuxSymbolResolve(Sf->Ra));
 
-      if (sf->rbp <= sf)
+      if (Sf->Rbp <= sf)
 	break;
-      sf = sf->rbp;
+      Sf = Sf->Rbp;
       i++;
     }
 }
@@ -752,11 +755,11 @@ StackFrame (
 __dead VOID
 hal_panic (
   IN UINT32            cpu,
-  IN CONST CHAR8       *pError,
-  IN struct hal_frame  *pFrame
+  IN CONST CHAR8       *Error,
+  IN struct hal_frame  *Frame
   )
 {
-  if (use_fb)
+  if (gUseFb)
     {
       /*
          Reset frame buffer. This will unlock in case any CPU was
@@ -768,19 +771,19 @@ hal_panic (
   printf ("\n"
 	  "----------------------------------------"
 	  "---------------------------------------\n"
-	  "Fatal error on CPU%d: %s\n", cpu, pError);
-  if (pFrame != NULL)
+	  "Fatal error on CPU%d: %s\n", cpu, Error);
+  if (Frame != NULL)
     {
-      hal_frame_print (pFrame);
+      hal_frame_print (Frame);
     }
   printf ("\n");
   printf ("Stack Trace:\n\n");
-  printf ("    [0]: %lx <%s>\n", hal_frame_getip(pFrame), NuxSymbolResolve(hal_frame_getip(pFrame)));
-  StackFrame (frame_bp(pFrame));
+  printf ("    [0]: %lx <%s>\n", hal_frame_getip(Frame), NuxSymbolResolve(hal_frame_getip(Frame)));
+  StackFrame (frame_bp(Frame));
   printf ("\n");
-  printf ("PTE Walk for CR2 [%lx]\n", frame_cr2(pFrame));
+  printf ("PTE Walk for CR2 [%lx]\n", frame_cr2(Frame));
   printf ("\n");
-  pt_umap_debugwalk (NULL, frame_cr2(pFrame));
+  pt_umap_debugwalk (NULL, frame_cr2(Frame));
   printf ("\n");
   printf ("----------------------------------------"
 	  "---------------------------------------\n");
@@ -793,82 +796,82 @@ hal_panic (
 //
 
 /** @deprecated Use ReadMsr instead **/
-uint64_t rdmsr (uint32_t ecx) {
+UINT64 rdmsr (UINT32 ecx) {
   return ReadMsr (ecx);
 }
 
 /** @deprecated Use WriteMsr instead **/
-void wrmsr (uint32_t ecx, uint64_t val) {
+VOID wrmsr (UINT32 ecx, UINT64 val) {
   WriteMsr (ecx, val);
 }
 
 /** @deprecated Use ReadCr4 instead **/
-unsigned long read_cr4 (void) {
+unsigned long read_cr4 (VOID) {
   return ReadCr4 ();
 }
 
 /** @deprecated Use WriteCr4 instead **/
-void write_cr4 (unsigned long r) {
+VOID write_cr4 (unsigned INTN r) {
   WriteCr4 (r);
 }
 
 /** @deprecated Use ReadCr3 instead **/
-unsigned long read_cr3 (void) {
+unsigned long read_cr3 (VOID) {
   return ReadCr3 ();
 }
 
 /** @deprecated Use WriteCr3 instead **/
-void write_cr3 (unsigned long r) {
+VOID write_cr3 (unsigned INTN r) {
   WriteCr3 (r);
 }
 
 /** @deprecated Use InB instead **/
-int inb (int port) {
+int inb (INT32 port) {
   return InB (port);
 }
 
 /** @deprecated Use InW instead **/
-int inw (unsigned port) {
+int inw (UINT32 port) {
   return InW (port);
 }
 
 /** @deprecated Use InL instead **/
-int inl (unsigned port) {
+int inl (UINT32 port) {
   return InL (port);
 }
 
 /** @deprecated Use OutB instead **/
-void outb (int port, int val) {
+VOID outb (INT32 port, INT32 val) {
   OutB (port, val);
 }
 
 /** @deprecated Use OutW instead **/
-void outw (unsigned port, int val) {
+VOID outw (UINT32 port, INT32 val) {
   OutW (port, val);
 }
 
 /** @deprecated Use OutL instead **/
-void outl (unsigned port, int val) {
+VOID outl (UINT32 port, INT32 val) {
   OutL (port, val);
 }
 
 /** @deprecated Use TlbFlushGlobal instead **/
-void tlbflush_global (void) {
+VOID tlbflush_global (VOID) {
   TlbFlushGlobal ();
 }
 
 /** @deprecated Use TlbFlushLocal instead **/
-void tlbflush_local (void) {
+VOID tlbflush_local (VOID) {
   TlbFlushLocal ();
 }
 
 /** @deprecated Use X86Initialize instead **/
-void x86_init (void) {
+VOID x86_init (VOID) {
   X86Initialize ();
 }
 
 /** @deprecated Use StackFrame instead **/
-void stackframe (unsigned long rbp) {
+VOID stackframe (unsigned INTN rbp) {
   StackFrame (rbp);
 }
 

@@ -19,10 +19,10 @@
 #define LO 0
 #define HI 1
 
-static lock_t gBrkLock;
-static vaddr_t gBase[2];
-static vaddr_t gBrk[2];
-static vaddr_t gMaxBrk[2];
+static SPINLOCK gBrkLock;
+static VIRTUAL_ADDRESS gBase[2];
+static VIRTUAL_ADDRESS gBrk[2];
+static VIRTUAL_ADDRESS gMaxBrk[2];
 #ifdef HAL_PAGED
 static INT32 gKmemTrim = TRIM_NONE;
 #endif
@@ -48,8 +48,8 @@ static INT32 gKmemTrim = TRIM_NONE;
 **/
 static INT32
 Compare (
-  IN vaddr_t  A,
-  IN vaddr_t  B
+  IN VIRTUAL_ADDRESS  A,
+  IN VIRTUAL_ADDRESS  B
   )
 {
   if (A > B)
@@ -74,12 +74,12 @@ Compare (
 **/
 static INT32
 EnsureRange (
-  IN vaddr_t  V1,
-  IN vaddr_t  V2,
+  IN VIRTUAL_ADDRESS  V1,
+  IN VIRTUAL_ADDRESS  V2,
   IN INT32    Mapped
   )
 {
-  vaddr_t S, E;
+  VIRTUAL_ADDRESS S, E;
   UINT32 Prot;
 
   S = MIN (V1, V2);
@@ -89,7 +89,7 @@ EnsureRange (
   if (kmap_ensure_range (S, E - S, Prot))
     return -1;
 
-  kmap_commit ();
+  KmapCommit ();
   return 0;
 }
 
@@ -104,8 +104,8 @@ EnsureRange (
 **/
 static INT32
 EnsureRangeMapped (
-  IN vaddr_t  V1,
-  IN vaddr_t  V2
+  IN VIRTUAL_ADDRESS  V1,
+  IN VIRTUAL_ADDRESS  V2
   )
 {
   return EnsureRange (V1, V2, 1);
@@ -122,8 +122,8 @@ EnsureRangeMapped (
 **/
 static INT32
 EnsureRangeUnmapped (
-  IN vaddr_t  V1,
-  IN vaddr_t  V2
+  IN VIRTUAL_ADDRESS  V1,
+  IN VIRTUAL_ADDRESS  V2
   )
 {
   return EnsureRange (V1, V2, 0);
@@ -144,7 +144,7 @@ EnsureRangeUnmapped (
 INT32
 KmemBreak (
   IN INT32    Low,
-  IN vaddr_t  Vaddr
+  IN VIRTUAL_ADDRESS  Vaddr
   )
 {
   INT32 Ret = -1;
@@ -183,7 +183,7 @@ out:
 
   @return Previous break point value, or VADDR_INVALID on failure.
 **/
-vaddr_t
+VIRTUAL_ADDRESS
 KmemSbrk (
   IN INT32  Low,
   IN INT64  Inc
@@ -191,8 +191,8 @@ KmemSbrk (
 {
   CONST INT32 This = Low ? LO : HI;
   CONST INT32 Other = Low ? HI : LO;
-  vaddr_t Ret = VADDR_INVALID;
-  vaddr_t Vaddr;
+  VIRTUAL_ADDRESS Ret = VADDR_INVALID;
+  VIRTUAL_ADDRESS Vaddr;
 
   spinlock (&gBrkLock);
   if (Inc == 0)
@@ -235,13 +235,13 @@ out:
 
   @return Allocated address, or VADDR_INVALID on failure.
 **/
-vaddr_t
+VIRTUAL_ADDRESS
 KmemBrkGrow (
   IN INT32   Low,
   IN UINT32  Size
   )
 {
-  vaddr_t Ret;
+  VIRTUAL_ADDRESS Ret;
 
   if (Low)
     Ret = KmemSbrk (Low, Size);
@@ -271,7 +271,7 @@ KmemBrkShrink (
   IN UINT32  Size
   )
 {
-  vaddr_t Va;
+  VIRTUAL_ADDRESS Va;
   INT64 Inc;
 
   Inc = Low ? -Size : Size;
@@ -287,7 +287,7 @@ KmemBrkShrink (
   KMEM area.
 */
 
-typedef unsigned long zaddr_t;
+typedef unsigned INTN zaddr_t;
 #define v_to_z(_v) ((_v) >> 6)
 #define z_to_v(_z) ((_z) << 6)
 #define zsize(_size) (v_to_z((_size) + 63))
@@ -298,10 +298,10 @@ typedef unsigned long zaddr_t;
 **/
 struct kmem_head
 {
-  unsigned long magic;           ///< Magic number for validation
+  unsigned INTN magic;           ///< Magic number for validation
   LIST_ENTRY (kmem_head) list;   ///< List entry
-  vaddr_t addr;                  ///< Starting address
-  size_t size;                   ///< Allocation size
+  VIRTUAL_ADDRESS addr;                  ///< Starting address
+  UINTN size;                   ///< Allocation size
 };
 
 /**
@@ -309,8 +309,8 @@ struct kmem_head
 **/
 struct kmem_tail
 {
-  size_t offset;                 ///< Offset to header
-  unsigned long magic;           ///< Magic number for validation
+  UINTN offset;                 ///< Offset to header
+  unsigned INTN magic;           ///< Magic number for validation
 };
 
 //#define kmdbg_printf(...) printf(__VA_ARGS__)
@@ -333,48 +333,48 @@ struct kmem_tail
 static struct kmem_head *
 ___mkptr (
   IN zaddr_t    Zaddr,
-  IN size_t     Size,
+  IN UINTN     Size,
   IN uintptr_t  Opq
   )
 {
-  struct kmem_head *pPtr;
-  struct kmem_tail *pTail;
-  vaddr_t Addr = z_to_v (Zaddr);
+  struct kmem_head *Ptr;
+  struct kmem_tail *Tail;
+  VIRTUAL_ADDRESS Addr = z_to_v (Zaddr);
 
-  pPtr = (struct kmem_head *) Addr;
-  pPtr->magic = ZONE_HEAD_MAGIC;
-  pPtr->addr = Zaddr;
-  pPtr->size = Size;
+  Ptr = (struct kmem_head *) Addr;
+  Ptr->magic = ZONE_HEAD_MAGIC;
+  Ptr->addr = Zaddr;
+  Ptr->size = Size;
 
-  pTail =
-    (struct kmem_tail *) ((VOID *) pPtr + Size - sizeof (struct kmem_tail));
-  pTail->magic = ZONE_TAIL_MAGIC;
-  pTail->offset = Size - sizeof (struct kmem_tail);
+  Tail =
+    (struct kmem_tail *) ((VOID *) Ptr + Size - sizeof (struct kmem_tail));
+  Tail->magic = ZONE_TAIL_MAGIC;
+  Tail->offset = Size - sizeof (struct kmem_tail);
 
   /* XXX: UNPAGE FREE PAGES IN THE MIDDLE. */
 
-  return pPtr;
+  return Ptr;
 }
 
 /**
   Free allocation header and tail.
 
-  @param[in] pPtr  Pointer to allocation header.
+  @param[in] Ptr  Pointer to allocation header.
   @param[in] Opq   Opaque value (unused).
 **/
 static VOID
 ___freeptr (
-  IN struct kmem_head  *pPtr,
+  IN struct kmem_head  *Ptr,
   IN uintptr_t         Opq
   )
 {
-  struct kmem_tail *pTail;
+  struct kmem_tail *Tail;
 
-  pTail =
-    (struct kmem_tail *) ((VOID *) pPtr + pPtr->size -
+  Tail =
+    (struct kmem_tail *) ((VOID *) Ptr + Ptr->size -
                           sizeof (struct kmem_tail));
-  memset (pPtr, 0, sizeof (*pPtr));
-  memset (pTail, 0, sizeof (*pTail));
+  memset (Ptr, 0, sizeof (*Ptr));
+  memset (Tail, 0, sizeof (*Tail));
 
   /* XXX: ENSURE SECTION IS POPULATED. */
 }
@@ -384,25 +384,25 @@ ___freeptr (
 
   @param[in]  Zaddr  Zone address.
   @param[in]  Size   Allocation size.
-  @param[out] pPh    Pointer to receive previous allocation header.
-  @param[out] pNh    Pointer to receive next allocation header.
+  @param[out] Ph    Pointer to receive previous allocation header.
+  @param[out] Nh    Pointer to receive next allocation header.
   @param[in]  Opq    Opaque value (Low flag).
 **/
 static VOID
 ___get_neighbors (
   IN  zaddr_t           Zaddr,
-  IN  size_t            Size,
-  OUT struct kmem_head  **pPh,
-  OUT struct kmem_head  **pNh,
+  IN  UINTN            Size,
+  OUT struct kmem_head  **Ph,
+  OUT struct kmem_head  **Nh,
   IN  uintptr_t         Opq
   )
 {
   INT32 Low = Opq;
-  vaddr_t Vaddr;
-  vaddr_t Ptail;
-  vaddr_t Nhead;
-  struct kmem_head *pH;
-  struct kmem_tail *pT;
+  VIRTUAL_ADDRESS Vaddr;
+  VIRTUAL_ADDRESS Ptail;
+  VIRTUAL_ADDRESS Nhead;
+  struct kmem_head *H;
+  struct kmem_tail *T;
 
   Vaddr = z_to_v (Zaddr);
   Ptail = Vaddr - sizeof (struct kmem_tail);
@@ -428,46 +428,46 @@ ___get_neighbors (
   if (Ptail == VADDR_INVALID)
     goto check_next;
 
-  pT = (struct kmem_tail *) Ptail;
+  T = (struct kmem_tail *) Ptail;
 #ifdef HAL_PAGED
-  if (!kmap_mapped_range ((vaddr_t) pT, sizeof (struct kmem_tail)))
+  if (!kmap_mapped_range ((VIRTUAL_ADDRESS) T, sizeof (struct kmem_tail)))
     goto check_next;
 #endif
 
-  if (pT->magic != ZONE_TAIL_MAGIC)
+  if (T->magic != ZONE_TAIL_MAGIC)
     goto check_next;
 
-  pH = (struct kmem_head *) (Ptail - pT->offset);
+  H = (struct kmem_head *) (Ptail - T->offset);
 #ifdef HAL_PAGED
-  if (!kmap_mapped_range ((vaddr_t) pH, sizeof (struct kmem_head)))
+  if (!kmap_mapped_range ((VIRTUAL_ADDRESS) H, sizeof (struct kmem_head)))
     goto check_next;
 #endif
 
-  if (pH->magic != ZONE_HEAD_MAGIC)
+  if (H->magic != ZONE_HEAD_MAGIC)
     goto check_next;
 
-  *pPh = pH;
+  *Ph = H;
 
 check_next:
 
   if (Nhead == VADDR_INVALID)
     return;
 
-  pH = (struct kmem_head *) Nhead;
+  H = (struct kmem_head *) Nhead;
 #ifdef HAL_PAGED
-  if (!kmap_mapped_range ((vaddr_t) pH, sizeof (struct kmem_head)))
+  if (!kmap_mapped_range ((VIRTUAL_ADDRESS) H, sizeof (struct kmem_head)))
     return;
 #endif
 
-  if (pH->magic != ZONE_HEAD_MAGIC)
+  if (H->magic != ZONE_HEAD_MAGIC)
     return;
 
-  *pNh = pH;
+  *Nh = H;
 }
 
 #include <nux/alloc.h>
 
-static lock_t gLockZ[2];
+static SPINLOCK gLockZ[2];
 static struct zone gKmemZ[2];
 
 /**
@@ -480,26 +480,26 @@ static struct zone gKmemZ[2];
 
   @return Allocated virtual address, or error indicator.
 **/
-vaddr_t
+VIRTUAL_ADDRESS
 KmemAllocate (
   IN INT32   Low,
-  IN size_t  Size
+  IN UINTN  Size
   )
 {
   zaddr_t Zr;
-  vaddr_t R;
-  lock_t *pL;
-  struct zone *pZ;
-  size_t Size64b;
+  VIRTUAL_ADDRESS R;
+  SPINLOCK *L;
+  struct zone *Z;
+  UINTN Size64b;
 
   Size64b = size_zalign (Size);
 
-  pZ = Low ? gKmemZ + LO : gKmemZ + HI;
-  pL = Low ? gLockZ + LO : gLockZ + HI;
+  Z = Low ? gKmemZ + LO : gKmemZ + HI;
+  L = Low ? gLockZ + LO : gLockZ + HI;
 
-  spinlock (pL);
-  Zr = zone_alloc (pZ, zsize (Size64b));
-  spinunlock (pL);
+  spinlock (L);
+  Zr = zone_alloc (Z, zsize (Size64b));
+  spinunlock (L);
   if (Zr != (zaddr_t) - 1)
     return z_to_v (Zr);
 
@@ -519,16 +519,16 @@ KmemAllocate (
 VOID
 KmemFree (
   IN INT32    Low,
-  IN vaddr_t  Vaddr,
-  IN size_t   Size
+  IN VIRTUAL_ADDRESS  Vaddr,
+  IN UINTN   Size
   )
 {
   UINT32 This;
-  vaddr_t Base;
-  vaddr_t Limit;
-  struct zone *pZ;
-  lock_t *pL;
-  size_t Size64b;
+  VIRTUAL_ADDRESS Base;
+  VIRTUAL_ADDRESS Limit;
+  struct zone *Z;
+  SPINLOCK *L;
+  UINTN Size64b;
 
   Size64b = size_zalign (Size);
 
@@ -551,8 +551,8 @@ KmemFree (
           /*
              If in TRIM mode, unmap and free unneeded pages.
            */
-          vaddr_t V1 = Low ? round_page (Base) : trunc_page (Base);
-          vaddr_t V2 = Low ? round_page (Limit) : trunc_page (Limit);
+          VIRTUAL_ADDRESS V1 = Low ? round_page (Base) : trunc_page (Base);
+          VIRTUAL_ADDRESS V2 = Low ? round_page (Limit) : trunc_page (Limit);
 
           kmdbg_printf ("Unmapping from [%lx-%lx] ", V1, V2);
           EnsureRangeUnmapped (V1, V2);
@@ -566,11 +566,11 @@ KmemFree (
   /*
      Free using allocator.
    */
-  pZ = gKmemZ + This;
-  pL = gLockZ + This;
-  spinlock (pL);
-  zone_free (pZ, v_to_z (Vaddr), zsize (Size64b));
-  spinunlock (pL);
+  Z = gKmemZ + This;
+  L = gLockZ + This;
+  spinlock (L);
+  zone_free (Z, v_to_z (Vaddr), zsize (Size64b));
+  spinunlock (L);
 
 out:
   return;
@@ -654,79 +654,79 @@ KmemInitialize (
 //
 
 /** @deprecated Use Compare instead **/
-static int cmp (vaddr_t a, vaddr_t b) {
+static int cmp (VIRTUAL_ADDRESS a, VIRTUAL_ADDRESS b) {
   return Compare (a, b);
 }
 
 #ifdef HAL_PAGED
 /** @deprecated Use EnsureRange instead **/
-static int _ensure_range (vaddr_t v1, vaddr_t v2, int mapped) {
+static int _ensure_range (VIRTUAL_ADDRESS v1, VIRTUAL_ADDRESS v2, INT32 mapped) {
   return EnsureRange (v1, v2, mapped);
 }
 
 /** @deprecated Use EnsureRangeMapped instead **/
-static int _ensure_range_mapped (vaddr_t v1, vaddr_t v2) {
+static int _ensure_range_mapped (VIRTUAL_ADDRESS v1, VIRTUAL_ADDRESS v2) {
   return EnsureRangeMapped (v1, v2);
 }
 
 /** @deprecated Use EnsureRangeUnmapped instead **/
-static int _ensure_range_unmapped (vaddr_t v1, vaddr_t v2) {
+static int _ensure_range_unmapped (VIRTUAL_ADDRESS v1, VIRTUAL_ADDRESS v2) {
   return EnsureRangeUnmapped (v1, v2);
 }
 #endif
 
 /** @deprecated Use KmemBreak instead **/
-int kmem_brk (int low, vaddr_t vaddr) {
+int KmemBrk (INT32 low, VIRTUAL_ADDRESS vaddr) {
   return KmemBreak (low, vaddr);
 }
 
 /** @deprecated Use KmemSbrk instead **/
-vaddr_t kmem_sbrk (int low, long inc) {
+VIRTUAL_ADDRESS KmemSbrk (INT32 low, INTN inc) {
   return KmemSbrk (low, inc);
 }
 
 /** @deprecated Use KmemBrkGrow instead **/
-vaddr_t kmem_brkgrow (int low, unsigned size) {
+VIRTUAL_ADDRESS KmemBrkGrow (INT32 low, UINT32 size) {
   return KmemBrkGrow (low, size);
 }
 
 /** @deprecated Use KmemBrkShrink instead **/
-int kmem_brkshrink (int low, unsigned size) {
+int KmemBrkShrink (INT32 low, UINT32 size) {
   return KmemBrkShrink (low, size);
 }
 
 /** @deprecated Use KmemAllocate instead **/
-vaddr_t kmem_alloc (int low, size_t size) {
+VIRTUAL_ADDRESS KmemAlloc (INT32 low, UINTN size) {
   return KmemAllocate (low, size);
 }
 
 /** @deprecated Use KmemFree instead **/
-void kmem_free (int low, vaddr_t vaddr, size_t size) {
+VOID KmemFree (INT32 low, VIRTUAL_ADDRESS vaddr, UINTN size) {
   KmemFree (low, vaddr, size);
 }
 
 /** @deprecated Use KmemTrimOnce instead **/
-void kmem_trim_one (unsigned trim_mode) {
+VOID kmem_trim_one (UINT32 trim_mode) {
   KmemTrimOnce (trim_mode);
 }
 
 /** @deprecated Use KmemTrimSetMode instead **/
-void kmem_trim_setmode (unsigned trim_mode) {
+VOID kmem_trim_setmode (UINT32 trim_mode) {
   KmemTrimSetMode (trim_mode);
 }
 
 /** @deprecated Use KmemInitialize instead **/
-void kmeminit (void) {
+VOID kmeminit (VOID) {
   KmemInitialize ();
 }
 
 // Legacy global variable aliases
-static lock_t brklock __attribute__((alias("gBrkLock")));
-static vaddr_t base[2] __attribute__((alias("gBase")));
-static vaddr_t brk[2] __attribute__((alias("gBrk")));
-static vaddr_t maxbrk[2] __attribute__((alias("gMaxBrk")));
+static SPINLOCK brklock __attribute__((alias("gBrkLock")));
+static VIRTUAL_ADDRESS base[2] __attribute__((alias("gBase")));
+static VIRTUAL_ADDRESS brk[2] __attribute__((alias("gBrk")));
+static VIRTUAL_ADDRESS maxbrk[2] __attribute__((alias("gMaxBrk")));
 #ifdef HAL_PAGED
 static int kmem_trim __attribute__((alias("gKmemTrim")));
 #endif
-static lock_t lockz[2] __attribute__((alias("gLockZ")));
+static SPINLOCK lockz[2] __attribute__((alias("gLockZ")));
 static struct zone kmemz[2] __attribute__((alias("gKmemZ")));

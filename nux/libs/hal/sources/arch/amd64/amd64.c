@@ -17,16 +17,16 @@
 #include <hal/arch/amd64/amd64.h>
 #include <hal/internal.h>
 
-extern uint64_t _gdt[];
-extern int _physmap_start;
-extern int _physmap_end;
+extern UINT64 _gdt[];
+extern INT32 _physmap_start;
+extern INT32 _physmap_end;
 
-paddr_t gPcpuPstart;
-vaddr_t gPcpuHalData[MAXCPUS];
+PHYSICAL_ADDRESS gPcpuPstart;
+VIRTUAL_ADDRESS gPcpuHalData[MAXCPUS];
 
-static unsigned gBspPcpuId;
+static UINT32 gBspPcpuId;
 
-static vaddr_t gSmpOldVa;
+static VIRTUAL_ADDRESS gSmpOldVa;
 static hal_l1e_t gSmpOldL1e;
 
 /*
@@ -37,32 +37,32 @@ static hal_l1e_t gSmpOldL1e;
 
    Importantly, gPcpuKStack[pcpu_id] doesn't mean is the stack of PCPU ID.
 */
-uint64_t gPcpuKStackNo = 0;
-uint64_t gPcpuKStackCnt = 0;
-uint64_t gPcpuKStack[MAXCPUS];
+UINT64 gPcpuKStackNo = 0;
+UINT64 gPcpuKStackCnt = 0;
+UINT64 gPcpuKStack[MAXCPUS];
 
 /**
   Set Task State Segment (TSS) in Global Descriptor Table (GDT).
 
   @param[in] PcpuId  Per-CPU ID.
-  @param[in] pTss    Pointer to TSS structure.
+  @param[in] Tss    Pointer to TSS structure.
 **/
 VOID
 GdtSetTss (
   IN unsigned           PcpuId,
-  IN struct amd64_tss  *pTss
+  IN struct amd64_tss  *Tss
   )
 {
-  uintptr_t Ptr = (uintptr_t) pTss;
-  uint16_t Lo16 = (uint16_t) Ptr;
-  uint8_t Ml8 = (uint8_t) (Ptr >> 16);
-  uint8_t Mh8 = (uint8_t) (Ptr >> 24);
-  uint32_t Hi32 = (uint32_t) (Ptr >> 32);
-  uint16_t Limit = sizeof (*pTss);
-  uint32_t *pPtr32 = (uint32_t *) (_gdt + TSS_GDTIDX (PcpuId));
+  UINTN Ptr = (UINTN) Tss;
+  UINT16 Lo16 = (UINT16) Ptr;
+  UINT8 Ml8 = (UINT8) (Ptr >> 16);
+  UINT8 Mh8 = (UINT8) (Ptr >> 24);
+  UINT32 Hi32 = (UINT32) (Ptr >> 32);
+  UINT16 Limit = sizeof (*Tss);
+  UINT32 *pPtr32 = (UINT32 *) (_gdt + TSS_GDTIDX (PcpuId));
 
-  pPtr32[0] = Limit | ((uint32_t) Lo16 << 16);
-  pPtr32[1] = Ml8 | (0x0089 << 8) | ((uint32_t) Mh8 << 24);
+  pPtr32[0] = Limit | ((UINT32) Lo16 << 16);
+  pPtr32[1] = Ml8 | (0x0089 << 8) | ((UINT32) Mh8 << 24);
   pPtr32[2] = Hi32;
   pPtr32[3] = 0;
 }
@@ -98,7 +98,7 @@ SetGsBase (
 
   @return Current GS base address.
 **/
-uint64_t
+UINT64
 GetGsBase (
   VOID
   )
@@ -109,14 +109,14 @@ GetGsBase (
 /**
   Set per-CPU data pointer.
 
-  @param[in] pData  Pointer to per-CPU data.
+  @param[in] Data  Pointer to per-CPU data.
 **/
 VOID
 HalCpuSetData (
-  IN VOID  *pData
+  IN VOID  *Data
   )
 {
-  asm volatile ("movq %0, %%gs:0\n"::"r" (pData));
+  asm volatile ("movq %0, %%gs:0\n"::"r" (Data));
 }
 
 /**
@@ -129,10 +129,10 @@ HalCpuGetData (
   VOID
   )
 {
-  void *pData;
+  VOID *Data;
 
-  asm volatile ("movq %%gs:0, %0\n":"=r" (pData));
-  return pData;
+  asm volatile ("movq %%gs:0, %0\n":"=r" (Data));
+  return Data;
 }
 
 /**
@@ -156,12 +156,12 @@ HalVectMax (
 
   @return Virtual address of top of allocated stack.
 **/
-static uint64_t
+static UINT64
 AllocStackPage (
   VOID
   )
 {
-  vaddr_t KAddr;
+  VIRTUAL_ADDRESS KAddr;
 
   /* Leave a canary page at beginning and end of kernel stack. */
   KAddr = kva_alloc (STACK_SIZE + 2 * CANARY_SIZE);
@@ -175,31 +175,31 @@ AllocStackPage (
   Add per-CPU data structure.
 
   @param[in] PcpuId   Per-CPU ID.
-  @param[in] pHalData Pointer to HAL CPU data structure.
+  @param[in] HalData Pointer to HAL CPU data structure.
 **/
 VOID
 HalPcpuAdd (
   IN unsigned          PcpuId,
-  IN struct hal_cpu   *pHalData
+  IN struct hal_cpu   *HalData
   )
 {
 
   assert (PcpuId < MAXCPUS);
 
-  gPcpuHalData[PcpuId] = (vaddr_t) (uintptr_t) pHalData;
-  GdtSetTss (PcpuId, &pHalData->tss);
+  gPcpuHalData[PcpuId] = (VIRTUAL_ADDRESS) (UINTN) HalData;
+  GdtSetTss (PcpuId, &HalData->tss);
 
   if (PcpuId == gBspPcpuId)
     {
       /* Adding the BSP PCPU: Initialize TSS */
-      extern char _bsp_stacktop, _ist1_stacktop, _ist1_stacktop,
+      extern UINT8 _bsp_stacktop, _ist1_stacktop, _ist1_stacktop,
 	_ist2_stacktop, _ist3_stacktop;
-      pHalData->kstack = (uintptr_t) & _bsp_stacktop;
-      pHalData->tss.ist[0] = (uintptr_t) & _ist1_stacktop;
-      pHalData->tss.ist[1] = (uintptr_t) & _ist2_stacktop;
-      pHalData->tss.ist[2] = (uintptr_t) & _ist3_stacktop;
-      pHalData->tss.rsp0 = (uintptr_t) & _bsp_stacktop;
-      pHalData->tss.iomap = 108;
+      HalData->kstack = (UINTN) & _bsp_stacktop;
+      HalData->tss.ist[0] = (UINTN) & _ist1_stacktop;
+      HalData->tss.ist[1] = (UINTN) & _ist2_stacktop;
+      HalData->tss.ist[2] = (UINTN) & _ist3_stacktop;
+      HalData->tss.rsp0 = (UINTN) & _bsp_stacktop;
+      HalData->tss.iomap = 108;
     }
   else
     {
@@ -219,13 +219,13 @@ HalPcpuInit (
   VOID
   )
 {
-  void *pVa;
-  pfn_t Pfn;
-  void *pStart, *pPtr;
+  VOID *Va;
+  PFN Pfn;
+  VOID *Start, *Ptr;
   hal_l1p_t L1p;
-  paddr_t PStart;
-  volatile uint16_t *pReset;
-  extern char *_ap_start, *_ap_end;
+  PHYSICAL_ADDRESS PStart;
+  VOLATILE UINT16 *Reset;
+  extern CHAR8 *_ap_start, *_ap_end;
 
   /* Allocate PCPU bootstrap code page. */
   Pfn = pfn_alloc (1);
@@ -234,46 +234,46 @@ HalPcpuInit (
   assert (Pfn < (1 << 8) && "Can't allocate Memory below 1MB!");
 
   /* Map and prepare the bootstrap code page. */
-  pVa = kva_map (Pfn, HAL_PTE_W | HAL_PTE_P);
-  assert (pVa != NULL);
-  pStart = pVa;
-  size_t ApBootSz = (size_t) ((void *) &_ap_end - (void *) &_ap_start);
+  Va = kva_map (Pfn, HAL_PTE_W | HAL_PTE_P);
+  assert (Va != NULL);
+  Start = Va;
+  UINTN ApBootSz = (UINTN) ((VOID *) &_ap_end - (VOID *) &_ap_start);
   assert (ApBootSz <= PAGE_SIZE);
-  memcpy (pStart, &_ap_start, ApBootSz);
+  memcpy (Start, &_ap_start, ApBootSz);
 
-  PStart = (paddr_t) Pfn << PAGE_SHIFT;
+  PStart = (PHYSICAL_ADDRESS) Pfn << PAGE_SHIFT;
 
   /*
      The following is trampoline dependent code, and configures the
      trampoline to use the page just selected as bootstrap page.
    */
-  extern char _ap_gdtreg, _ap_ljmp1, _ap_ljmp2, _ap_cr3;
-  extern uint64_t _bsp_cr3;
+  extern UINT8 _ap_gdtreg, _ap_ljmp1, _ap_ljmp2, _ap_cr3;
+  extern UINT64 _bsp_cr3;
 
   /* Copy BSP CR3 into AP */
-  pPtr = pStart + ((void *) &_ap_cr3 - (void *) &_ap_start);
-  *(uint64_t *) pPtr = _bsp_cr3;
+  Ptr = Start + ((VOID *) &_ap_cr3 - (VOID *) &_ap_start);
+  *(UINT64 *) Ptr = _bsp_cr3;
 
   /* Setup temporary GDT register. */
-  pPtr = pStart + ((void *) &_ap_gdtreg - (void *) &_ap_start);
-  *(uint32_t *) (pPtr + 2) += (uint32_t) PStart;
+  Ptr = Start + ((VOID *) &_ap_gdtreg - (VOID *) &_ap_start);
+  *(UINT32 *) (Ptr + 2) += (UINT32) PStart;
 
   /* Setup trampoline 1 */
-  pPtr = pStart + ((void *) &_ap_ljmp1 - (void *) &_ap_start);
-  *(uint32_t *) pPtr += (uint32_t) PStart;
+  Ptr = Start + ((VOID *) &_ap_ljmp1 - (VOID *) &_ap_start);
+  *(UINT32 *) Ptr += (UINT32) PStart;
 
   /* Setup trampoline 2 */
-  pPtr = pStart + ((void *) &_ap_ljmp2 - (void *) &_ap_start);
-  *(uint32_t *) pPtr += (uint32_t) PStart;
+  Ptr = Start + ((VOID *) &_ap_ljmp2 - (VOID *) &_ap_start);
+  *(UINT32 *) Ptr += (UINT32) PStart;
 
   /* Set reset vector */
-  pReset = kva_physmap (0x467, 2, HAL_PTE_P | HAL_PTE_W | HAL_PTE_X);
-  *pReset = PStart & 0xf;
-  *(pReset + 1) = PStart >> 4;
-  kva_unmap ((void *) pReset, 2);
+  Reset = kva_physmap (0x467, 2, HAL_PTE_P | HAL_PTE_W | HAL_PTE_X);
+  *Reset = PStart & 0xf;
+  *(Reset + 1) = PStart >> 4;
+  kva_unmap ((VOID *) Reset, 2);
 
   /* PStart is in user address space: use kmap_ instead of hal_kmap */
-  L1p = umap_get_l1p (NULL, PStart, true);
+  L1p = umap_get_l1p (NULL, PStart, TRUE);
   assert (L1p != L1P_INVALID);
   /* Save the l1e we're abou to overwrite. We'll restore it after init is done. */
   gSmpOldL1e = hal_l1e_get (L1p);
@@ -291,7 +291,7 @@ HalPcpuInit (
 
   @return Physical address of bootstrap code, or PADDR_INVALID.
 **/
-paddr_t
+PHYSICAL_ADDRESS
 HalPcpuStartAddr (
   IN unsigned  Pcpu
   )
@@ -330,11 +330,11 @@ Amd64Initialize (
   VOID
   )
 {
-  extern char _syscall_frame_entry;
+  extern UINT8 _syscall_frame_entry;
   wrmsr (MSR_IA32_EFER, rdmsr (MSR_IA32_EFER) | _MSR_IA32_EFER_SCE);
-  wrmsr (MSR_IA32_LSTAR, (uintptr_t) & _syscall_frame_entry);
+  wrmsr (MSR_IA32_LSTAR, (UINTN) & _syscall_frame_entry);
   wrmsr (MSR_IA32_FMASK, 0xfffffffd);
-  wrmsr (MSR_IA32_STAR, ((uint64_t) KCS << 32) | ((uint64_t) UCS32 << 48));
+  wrmsr (MSR_IA32_STAR, ((UINT64) KCS << 32) | ((UINT64) UCS32 << 48));
 }
 
 /**
@@ -346,24 +346,24 @@ Amd64Initialize (
 **/
 VOID
 Amd64InitializeAp (
-  IN uintptr_t  Esp
+  IN UINTN  Esp
   )
 {
-  extern char _syscall_frame_entry;
+  extern UINT8 _syscall_frame_entry;
   unsigned Pcpu = plt_pcpu_id ();
-  struct hal_cpu *pHalData = (struct hal_cpu *) (uintptr_t) gPcpuHalData[Pcpu];
+  struct hal_cpu *HalData = (struct hal_cpu *) (UINTN) gPcpuHalData[Pcpu];
 
   wrmsr (MSR_IA32_EFER, rdmsr (MSR_IA32_EFER) | _MSR_IA32_EFER_SCE);
-  wrmsr (MSR_IA32_LSTAR, (uintptr_t) & _syscall_frame_entry);
+  wrmsr (MSR_IA32_LSTAR, (UINTN) & _syscall_frame_entry);
   wrmsr (MSR_IA32_FMASK, 0xfffffffd);
-  wrmsr (MSR_IA32_STAR, ((uint64_t) KCS << 32) | ((uint64_t) UCS32 << 48));
+  wrmsr (MSR_IA32_STAR, ((UINT64) KCS << 32) | ((UINT64) UCS32 << 48));
 
-  pHalData->kstack = Esp;
-  pHalData->tss.ist[0] = AllocStackPage ();
-  pHalData->tss.ist[1] = AllocStackPage ();
-  pHalData->tss.ist[2] = AllocStackPage ();
-  pHalData->tss.rsp0 = Esp;
-  pHalData->tss.iomap = 108;
+  HalData->kstack = Esp;
+  HalData->tss.ist[0] = AllocStackPage ();
+  HalData->tss.ist[1] = AllocStackPage ();
+  HalData->tss.ist[2] = AllocStackPage ();
+  HalData->tss.rsp0 = Esp;
+  HalData->tss.iomap = 108;
 
   pae64_init_ap ();
 
@@ -386,7 +386,7 @@ RemoveBootMappings (
      Restore the mapping created for boostrapping secondary CPUS.
      Use UMAP, as it is in the user address space.
    */
-  L1p = umap_get_l1p (NULL, gSmpOldVa, false);
+  L1p = umap_get_l1p (NULL, gSmpOldVa, FALSE);
   assert (L1p != L1P_INVALID);
   hal_l1e_set (L1p, gSmpOldL1e);
 }
@@ -410,88 +410,88 @@ Amd64InitializeDone (
 //
 
 /** @deprecated Use GdtSetTss instead **/
-void gdt_settss (unsigned pcpuid, struct amd64_tss *tss) {
+VOID gdt_settss (UINT32 pcpuid, struct amd64_tss *tss) {
   GdtSetTss (pcpuid, tss);
 }
 
 /** @deprecated Use SetKernelGsBase instead **/
-void set_kernel_gsbase (unsigned long gsbase) {
+VOID set_kernel_gsbase (unsigned INTN gsbase) {
   SetKernelGsBase (gsbase);
 }
 
 /** @deprecated Use SetGsBase instead **/
-void set_gsbase (unsigned long gsbase) {
+VOID set_gsbase (unsigned INTN gsbase) {
   SetGsBase (gsbase);
 }
 
 /** @deprecated Use GetGsBase instead **/
-uint64_t get_gsbase (void) {
+UINT64 get_gsbase (VOID) {
   return GetGsBase ();
 }
 
 /** @deprecated Use HalCpuSetData instead **/
-void hal_cpu_setdata (void *data) {
+VOID hal_cpu_setdata (VOID *data) {
   HalCpuSetData (data);
 }
 
 /** @deprecated Use HalCpuGetData instead **/
-void * hal_cpu_getdata (void) {
+VOID * hal_cpu_getdata (VOID) {
   return HalCpuGetData ();
 }
 
 /** @deprecated Use HalVectMax instead **/
-unsigned hal_vect_max (void) {
+UINT32 hal_vect_max (VOID) {
   return HalVectMax ();
 }
 
 /** @deprecated Use AllocStackPage instead **/
-static uint64_t alloc_stackpage (void) {
+static UINT64 alloc_stackpage (VOID) {
   return AllocStackPage ();
 }
 
 /** @deprecated Use HalPcpuAdd instead **/
-void hal_pcpu_add (unsigned pcpuid, struct hal_cpu *haldata) {
+VOID hal_pcpu_add (UINT32 pcpuid, struct hal_cpu *haldata) {
   HalPcpuAdd (pcpuid, haldata);
 }
 
 /** @deprecated Use HalPcpuInit instead **/
-void hal_pcpu_init (void) {
+VOID hal_pcpu_init (VOID) {
   HalPcpuInit ();
 }
 
 /** @deprecated Use HalPcpuStartAddr instead **/
-paddr_t hal_pcpu_startaddr (unsigned pcpu) {
+PHYSICAL_ADDRESS hal_pcpu_startaddr (UINT32 pcpu) {
   return HalPcpuStartAddr (pcpu);
 }
 
 /** @deprecated Use HalPcpuEnter instead **/
-void hal_pcpu_enter (unsigned pcpuid) {
+VOID hal_pcpu_enter (UINT32 pcpuid) {
   HalPcpuEnter (pcpuid);
 }
 
 /** @deprecated Use Amd64Initialize instead **/
-void amd64_init (void) {
+VOID amd64_init (VOID) {
   Amd64Initialize ();
 }
 
 /** @deprecated Use Amd64InitializeAp instead **/
-void amd64_init_ap (uintptr_t esp) {
+VOID amd64_init_ap (UINTN esp) {
   Amd64InitializeAp (esp);
 }
 
 /** @deprecated Use RemoveBootMappings instead **/
-static void remove_bootmappings (void) {
+static VOID remove_bootmappings (VOID) {
   RemoveBootMappings ();
 }
 
 /** @deprecated Use Amd64InitializeDone instead **/
-void amd64_init_done (void) {
+VOID amd64_init_done (VOID) {
   Amd64InitializeDone ();
 }
 
 // Legacy global variable aliases
-paddr_t pcpu_pstart = 0;
-vaddr_t pcpu_haldata[MAXCPUS] = {0};
-uint64_t pcpu_kstackno = 0;
-uint64_t pcpu_kstackcnt = 0;
-uint64_t pcpu_kstack[MAXCPUS] = {0};
+PHYSICAL_ADDRESS pcpu_pstart = 0;
+VIRTUAL_ADDRESS pcpu_haldata[MAXCPUS] = {0};
+UINT64 pcpu_kstackno = 0;
+UINT64 pcpu_kstackcnt = 0;
+UINT64 pcpu_kstack[MAXCPUS] = {0};

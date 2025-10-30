@@ -74,15 +74,15 @@ Newline (
   Returns the screen position for the next character to be
   drawn and advances the cursor.
 
-  @param[out] pScreenColumn  Pointer to receive screen column.
-  @param[out] pX             Pointer to receive X position.
-  @param[out] pY             Pointer to receive Y position.
+  @param[out] ScreenColumn  Pointer to receive screen column.
+  @param[out] X             Pointer to receive X position.
+  @param[out] Y             Pointer to receive Y position.
 **/
 static VOID
 AllocateCharacter (
-  OUT INT32  *pScreenColumn,
-  OUT INT32  *pX,
-  OUT INT32  *pY
+  OUT INT32  *ScreenColumn,
+  OUT INT32  *X,
+  OUT INT32  *Y
   )
 {
   INT32 ScreenColumn, X, Y;
@@ -105,9 +105,9 @@ AllocateCharacter (
   gFbX++;
   spinunlock (&gFbLock);
 
-  *pScreenColumn = ScreenColumn;
-  *pX = X;
-  *pY = Y;
+  *ScreenColumn = ScreenColumn;
+  *X = X;
+  *Y = Y;
 }
 
 /**
@@ -151,6 +151,6 @@ FramebufferPutChar (
 //
 
 /** @deprecated Use FramebufferPutChar instead **/
-int framebuffer_putc (int ch, uint32_t color) {
+int framebuffer_putc (INT32 ch, UINT32 color) {
   return FramebufferPutChar (ch, color);
 }

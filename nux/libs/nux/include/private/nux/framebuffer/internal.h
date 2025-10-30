@@ -20,16 +20,16 @@
 //
 // Global framebuffer state
 //
-extern struct fbdesc *gFbDesc;
-extern lock_t gFbLock;
+extern FRAMEBUFFER_DESC *gFbDesc;
+extern SPINLOCK gFbLock;
 
 //
 // Console state
 //
 #define FB_ROWCHARS 79
-extern volatile INT32 gFbScreenColumn;
-extern volatile INT32 gFbX;
-extern volatile INT32 gFbY;
+extern VOLATILE INT32 gFbScreenColumn;
+extern VOLATILE INT32 gFbX;
+extern VOLATILE INT32 gFbY;
 extern INT32 gFbScreenCols;
 extern INT32 gFbScreenRows;
 

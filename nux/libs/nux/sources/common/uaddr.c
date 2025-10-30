@@ -31,11 +31,11 @@
 **/
 BOOLEAN
 UaddrValid (
-  IN uaddr_t  Uaddr
+  IN USER_ADDRESS  Uaddr
   )
 {
-  uaddr_t Min = (uaddr_t) hal_virtmem_userbase ();
-  uaddr_t Max = Min + hal_virtmem_usersize ();
+  USER_ADDRESS Min = (USER_ADDRESS) hal_virtmem_userbase ();
+  USER_ADDRESS Max = Min + hal_virtmem_usersize ();
 
   return ((Uaddr >= Min) && (Uaddr < Max));
 }
@@ -55,8 +55,8 @@ UaddrValid (
 **/
 BOOLEAN
 UaddrValidRange (
-  IN uaddr_t  Uaddr,
-  IN size_t   Size
+  IN USER_ADDRESS  Uaddr,
+  IN UINTN   Size
   )
 {
   return UaddrValid (Uaddr) && UaddrValid (Uaddr + Size) && (Uaddr < (Uaddr + Size));
@@ -67,11 +67,11 @@ UaddrValidRange (
 //
 
 /** @deprecated Use UaddrValid instead **/
-bool uaddr_valid (uaddr_t a) {
+BOOLEAN UaddrValid (USER_ADDRESS a) {
   return UaddrValid (a);
 }
 
 /** @deprecated Use UaddrValidRange instead **/
-bool uaddr_validrange (uaddr_t a, size_t size) {
+BOOLEAN UaddrValidRange (USER_ADDRESS a, UINTN size) {
   return UaddrValidRange (a, size);
 }

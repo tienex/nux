@@ -16,7 +16,7 @@
 
 #include <nux/internal.h>
 
-static volatile struct ktlb gKtlb;
+static VOLATILE KTLB gKtlb;
 
 /**
   Mark kernel TLB as dirty based on operation type.
@@ -35,10 +35,10 @@ KtlbGenMarkDirty (
   switch (Op)
     {
     case HAL_TLBOP_FLUSHALL:
-      __atomic_add_fetch (&gKtlb.global, 1, __ATOMIC_RELEASE);
+      __atomic_add_fetch (&gKtlb.Global, 1, __ATOMIC_RELEASE);
       break;
     case HAL_TLBOP_FLUSH:
-      __atomic_add_fetch (&gKtlb.normal, 1, __ATOMIC_RELEASE);
+      __atomic_add_fetch (&gKtlb.Normal, 1, __ATOMIC_RELEASE);
       break;
     default:
       break;
@@ -53,13 +53,13 @@ KtlbGenMarkDirty (
 
   @return Current global TLB generation value.
 **/
-tlbgen_t
+TLB_GENERATION
 KtlbGenGlobal (
   VOID
   )
 {
-  tlbgen_t Ret;
-  __atomic_load (&gKtlb.global, &Ret, __ATOMIC_ACQUIRE);
+  TLB_GENERATION Ret;
+  __atomic_load (&gKtlb.Global, &Ret, __ATOMIC_ACQUIRE);
   return Ret;
 }
 
@@ -71,13 +71,13 @@ KtlbGenGlobal (
 
   @return Current normal TLB generation value.
 **/
-tlbgen_t
+TLB_GENERATION
 KtlbGenNormal (
   VOID
   )
 {
-  tlbgen_t Ret;
-  __atomic_load (&gKtlb.normal, &Ret, __ATOMIC_ACQUIRE);
+  TLB_GENERATION Ret;
+  __atomic_load (&gKtlb.Normal, &Ret, __ATOMIC_ACQUIRE);
   return Ret;
 }
 
@@ -86,19 +86,19 @@ KtlbGenNormal (
 //
 
 /** @deprecated Use KtlbGenMarkDirty instead **/
-void ktlbgen_markdirty (hal_tlbop_t op) {
+VOID KtlbGenMarkDirty (hal_tlbop_t op) {
   KtlbGenMarkDirty (op);
 }
 
 /** @deprecated Use KtlbGenGlobal instead **/
-tlbgen_t ktlbgen_global (void) {
+TLB_GENERATION KtlbGenGlobal (VOID) {
   return KtlbGenGlobal ();
 }
 
 /** @deprecated Use KtlbGenNormal instead **/
-tlbgen_t ktlbgen_normal (void) {
+TLB_GENERATION KtlbGenNormal (VOID) {
   return KtlbGenNormal ();
 }
 
 // Legacy global variable alias
-static volatile struct ktlb ktlb __attribute__((alias("gKtlb")));
+static VOLATILE KTLB ktlb __attribute__((alias("gKtlb")));

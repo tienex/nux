@@ -16,15 +16,15 @@
 //
 // Global framebuffer state
 //
-struct fbdesc *gFbDesc;
-lock_t gFbLock;
+FRAMEBUFFER_DESC *gFbDesc;
+SPINLOCK gFbLock;
 
 //
 // Console state
 //
-volatile INT32 gFbScreenColumn = 0;
-volatile INT32 gFbX = 0;
-volatile INT32 gFbY = 0;
+VOLATILE INT32 gFbScreenColumn = 0;
+VOLATILE INT32 gFbX = 0;
+VOLATILE INT32 gFbY = 0;
 INT32 gFbScreenCols;
 INT32 gFbScreenRows;
 
@@ -34,22 +34,22 @@ INT32 gFbScreenRows;
   Sets up framebuffer descriptor and clears display. Only RGB
   framebuffers are supported.
 
-  @param[in] pDesc  Framebuffer descriptor.
+  @param[in] Desc  Framebuffer descriptor.
 
   @retval 1  Framebuffer initialized successfully.
   @retval 0  Invalid framebuffer type.
 **/
 INT32
 FramebufferInitialize (
-  IN struct fbdesc  *pDesc
+  IN FRAMEBUFFER_DESC  *Desc
   )
 {
-  if (pDesc->type == FB_INVALID)
+  if (Desc->Type == FB_INVALID)
     return 0;
 
-  assert (pDesc->type == FB_RGB);
-  gFbDesc = pDesc;
-  memset ((void *) (UINTN) gFbDesc->addr, 0, gFbDesc->size);
+  assert (Desc->Type == FB_RGB);
+  gFbDesc = Desc;
+  memset ((VOID *) (UINTN) gFbDesc->Addr, 0, gFbDesc->Size);
   FramebufferReset ();
   return 1;
 }
@@ -89,35 +89,7 @@ FramebufferReset (
   )
 {
   spinlock_init (&gFbLock);
-  gFbScreenCols = (gFbDesc->width / 8) / (FB_ROWCHARS + 1);
+  gFbScreenCols = (gFbDesc->Width / 8) / (FB_ROWCHARS + 1);
   gFbScreenCols = gFbScreenCols == 0 ? 1 : gFbScreenCols;
-  gFbScreenRows = gFbDesc->height / 16;
+  gFbScreenRows = gFbDesc->Height / 16;
 }
-
-//
-// Legacy Function Wrappers (for backward compatibility)
-//
-
-/** @deprecated Use FramebufferInitialize instead **/
-int framebuffer_init (struct fbdesc *desc) {
-  return FramebufferInitialize (desc);
-}
-
-/** @deprecated Use FramebufferColor instead **/
-uint32_t framebuffer_color (unsigned r, unsigned g, unsigned b) {
-  return FramebufferColor (r, g, b);
-}
-
-/** @deprecated Use FramebufferReset instead **/
-void framebuffer_reset (void) {
-  FramebufferReset ();
-}
-
-// Legacy global variable aliases
-static struct fbdesc *fbdesc __attribute__((alias("gFbDesc")));
-static lock_t fblock __attribute__((alias("gFbLock")));
-static volatile int fb_sc __attribute__((alias("gFbScreenColumn")));
-static volatile int fb_x __attribute__((alias("gFbX")));
-static volatile int fb_y __attribute__((alias("gFbY")));
-static int fb_scrcols __attribute__((alias("gFbScreenCols")));
-static int fb_scrrows __attribute__((alias("gFbScreenRows")));

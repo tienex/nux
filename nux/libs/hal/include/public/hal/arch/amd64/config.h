@@ -2,7 +2,7 @@
   NUX: A kernel Library.
   Copyright (C) 2019 Gianluca Guida <glguida@tlbflush.org>
 
-  SPDX-License-Identifier:	BSD-2-Clause
+  SPDX-License-Identifier: BSD-2-Clause
 */
 
 #ifndef __hal_arch_amd64_config_h__
@@ -45,11 +45,11 @@
 
 struct hal_umap
 {
-  uint64_t l4[UMAP_L4PTES];
+  UINT64 l4[UMAP_L4PTES];
 };
 
 #include <stdio.h>
-static inline void
+static INLINE VOID
 hal_umap_debug (struct hal_umap *umap)
 {
   printf ("hal_umap %p:", umap);
@@ -64,22 +64,22 @@ hal_umap_debug (struct hal_umap *umap)
 
 struct amd64_tss
 {
-  uint32_t res0;
-  uint64_t rsp0;
-  uint64_t rsp1;
-  uint64_t rsp2;
-  uint64_t res1;
-  uint64_t ist[7];
-  uint64_t res2;
-  uint16_t res3;
-  uint16_t iomap;
+  UINT32 res0;
+  UINT64 rsp0;
+  UINT64 rsp1;
+  UINT64 rsp2;
+  UINT64 res1;
+  UINT64 ist[7];
+  UINT64 res2;
+  UINT16 res3;
+  UINT16 iomap;
 } __packed;
 
 struct hal_cpu
 {
-  void *data;			/* Must be at %gs:0 */
-  uint64_t kstack;		/* syscall kstack. Must be at %gs:8 */
-  uint64_t scratch;		/* syscall scratch. Must be at %gs:16 */
+  VOID *data;			/* Must be at %gs:0 */
+  UINT64 kstack;		/* syscall kstack. Must be at %gs:8 */
+  UINT64 scratch;		/* syscall scratch. Must be at %gs:16 */
   struct amd64_tss tss;
 } __packed;
 
@@ -89,41 +89,41 @@ struct hal_cpu
 
 struct hal_frame
 {
-  uint64_t type;
+  UINT64 type;
   union
   {
     struct amd64_intr_frame
     {
-      uint64_t fsbase;
-      uint64_t gsbase;
+      UINT64 fsbase;
+      UINT64 gsbase;
 
-      uint64_t cr2;
+      UINT64 cr2;
 
-      uint64_t rax;
-      uint64_t rbx;
-      uint64_t rcx;
-      uint64_t rdx;
-      uint64_t rbp;
-      uint64_t rsi;
-      uint64_t rdi;
-      uint64_t r8;
-      uint64_t r9;
-      uint64_t r10;
-      uint64_t r11;
-      uint64_t r12;
-      uint64_t r13;
-      uint64_t r14;
-      uint64_t r15;
+      UINT64 rax;
+      UINT64 rbx;
+      UINT64 rcx;
+      UINT64 rdx;
+      UINT64 rbp;
+      UINT64 rsi;
+      UINT64 rdi;
+      UINT64 r8;
+      UINT64 r9;
+      UINT64 r10;
+      UINT64 r11;
+      UINT64 r12;
+      UINT64 r13;
+      UINT64 r14;
+      UINT64 r15;
 
-      uint64_t vect;
+      UINT64 vect;
 
       /* exception stack */
-      uint64_t err;
-      uint64_t rip;
-      uint64_t cs;
-      uint64_t rflags;
-      uint64_t rsp;
-      uint64_t ss;
+      UINT64 err;
+      UINT64 rip;
+      UINT64 cs;
+      UINT64 rflags;
+      UINT64 rsp;
+      UINT64 ss;
     } intr;
   };
 };

@@ -87,9 +87,9 @@ PTE GetPte (IN PTEP Ptep);
 PTE SetPte (IN PTEP Ptep, IN PTE Pte);
 hal_l1p_t KmapGetL1p (IN UINTN Va, IN INT32 Alloc);
 hal_l1p_t UmapGetL1p (IN struct hal_umap *pUmap, IN UINTN Va, IN INT32 Alloc);
-uaddr_t PtUmapNext (
+USER_ADDRESS PtUmapNext (
   IN struct hal_umap *pUmap,
-  IN uaddr_t Uaddr,
+  IN USER_ADDRESS Uaddr,
   OUT hal_l1p_t *pL1p OPTIONAL,
   OUT hal_l1e_t *pL1e OPTIONAL
   );
@@ -121,49 +121,49 @@ UINTN FrameCr2 (IN struct hal_frame *pFrame);
 // Legacy Function Declarations (for backward compatibility)
 //
 
-extern int nux_initialized;
+extern INT32 nux_initialized;
 
-void x86_init (void);
-void amd64_init (void);
-void pae32_init (void);
-void pae32_init_ap (void);
-void pae64_init (void);
-void pae64_init_ap (void);
-void pmap_init (void);
-void i386_init_done (void);
-void amd64_init_done (void);
+VOID x86_init (VOID);
+VOID amd64_init (VOID);
+VOID pae32_init (VOID);
+VOID pae32_init_ap (VOID);
+VOID pae64_init (VOID);
+VOID pae64_init_ap (VOID);
+VOID pmap_init (VOID);
+VOID i386_init_done (VOID);
+VOID amd64_init_done (VOID);
 
-int inb (int port);
-void outb (int port, int val);
+INT32 inb (INT32 port);
+VOID outb (INT32 port, INT32 val);
 
-typedef uint64_t pte_t;
-typedef uintptr_t ptep_t;
+typedef UINT64 pte_t;
+typedef UINTN ptep_t;
 
 pte_t get_pte (ptep_t ptep);
 pte_t set_pte (ptep_t ptep, pte_t pte);
-hal_l1p_t kmap_get_l1p (unsigned long va, int alloc);
-hal_l1p_t umap_get_l1p (struct hal_umap *umap, unsigned long va, int alloc);
-uaddr_t pt_umap_next (struct hal_umap *umap, uaddr_t uaddr, hal_l1p_t * l1p_out,
+hal_l1p_t kmap_get_l1p (unsigned INTN va, INT32 alloc);
+hal_l1p_t umap_get_l1p (struct hal_umap *umap, unsigned INTN va, INT32 alloc);
+USER_ADDRESS pt_umap_next (struct hal_umap *umap, USER_ADDRESS uaddr, hal_l1p_t * l1p_out,
 		   hal_l1e_t * l1e_out);
-void pt_umap_free (struct hal_umap *umap);
-void pt_umap_debugwalk (struct hal_umap *umap, unsigned long va);
-unsigned long pt_umap_minaddr (void);
-unsigned long pt_umap_maxaddr (void);
+VOID pt_umap_free (struct hal_umap *umap);
+VOID pt_umap_debugwalk (struct hal_umap *umap, unsigned INTN va);
+UINTN pt_umap_minaddr (VOID);
+UINTN pt_umap_maxaddr (VOID);
 
-void tlbflush_global (void);
+VOID tlbflush_global (VOID);
 
-void serial_init (void);
-void serial_putchar (int c);
+VOID serial_init (VOID);
+VOID serial_putchar (INT32 c);
 
-int vga_putchar (int c);
+INT32 vga_putchar (INT32 c);
 
-uint64_t rdmsr (uint32_t ecx);
-void wrmsr (uint32_t ecx, uint64_t val);
+UINT64 rdmsr (UINT32 ecx);
+VOID wrmsr (UINT32 ecx, UINT64 val);
 
-unsigned long read_cr4 (void);
-void write_cr4 (unsigned long r);
-unsigned long read_cr3 (void);
-void write_cr3 (unsigned long r);
+unsigned long read_cr4 (VOID);
+VOID write_cr4 (unsigned INTN r);
+unsigned long read_cr3 (VOID);
+VOID write_cr3 (unsigned INTN r);
 
 unsigned long frame_bp(struct hal_frame *f);
 unsigned long frame_cr2(struct hal_frame *f);

@@ -30,7 +30,7 @@
 
   @return Slab size (SLAB_SIZE).
 **/
-static CONST size_t
+static CONST UINTN
 SlabSize (
   VOID
   )
@@ -45,9 +45,9 @@ SlabSize (
 
   @return Number of objects that fit in a slab.
 **/
-static CONST size_t
+static CONST UINTN
 SlabObjectCount (
-  IN CONST size_t  ObjectSize
+  IN CONST UINTN  ObjectSize
   )
 {
   return (SlabSize () - 2 * sizeof (struct slabhdr)) / ObjectSize;
@@ -68,13 +68,13 @@ SlabAllocate (
   OUT struct objhdr  **ppObjectHeader
   )
 {
-  vaddr_t KvaUnaligned, KvaUnalignedEnd, KvaStart, KvaEnd;
+  VIRTUAL_ADDRESS KvaUnaligned, KvaUnalignedEnd, KvaStart, KvaEnd;
 
   KvaUnaligned = KvaAllocate (2 * SLAB_SIZE - PAGE_SIZE);
   KvaUnalignedEnd = KvaUnaligned + 2 * SLAB_SIZE - PAGE_SIZE;
 
   if (KvaUnaligned % SLAB_SIZE)
-    KvaStart = (KvaUnaligned + SLAB_SIZE - 1) & ~((vaddr_t) SLAB_SIZE - 1);
+    KvaStart = (KvaUnaligned + SLAB_SIZE - 1) & ~((VIRTUAL_ADDRESS) SLAB_SIZE - 1);
   else
     KvaStart = KvaUnaligned;
   KvaEnd = KvaStart + SLAB_SIZE;
@@ -102,22 +102,22 @@ SlabAllocate (
   Finds the slab header for a given object by masking the
   address to the slab boundary.
 
-  @param[in] pObject  Pointer to object.
+  @param[in] Object  Pointer to object.
 
   @return Pointer to slab header, or NULL if magic check fails.
 **/
 static struct slabhdr *
 SlabGetHeader (
-  IN VOID  *pObject
+  IN VOID  *Object
   )
 {
-  struct slabhdr *pSlabHeader;
-  UINTN Addr = (UINTN) pObject;
+  struct slabhdr *SlabHeader;
+  UINTN Addr = (UINTN) Object;
 
-  pSlabHeader = (struct slabhdr *) (Addr & ~((UINTN) SlabSize () - 1));
-  if (pSlabHeader->magic != SLABMAGIC)
+  SlabHeader = (struct slabhdr *) (Addr & ~((UINTN) SlabSize () - 1));
+  if (SlabHeader->magic != SLABMAGIC)
     return NULL;
-  return pSlabHeader;
+  return SlabHeader;
 }
 
 /**
@@ -125,16 +125,16 @@ SlabGetHeader (
 
   Unmaps and frees the virtual address space for a slab.
 
-  @param[in] pPtr  Pointer to slab header.
+  @param[in] Ptr  Pointer to slab header.
 **/
 static VOID
 SlabFreeInternal (
-  IN VOID  *pPtr
+  IN VOID  *Ptr
   )
 {
-  KmapEnsureRange ((vaddr_t) pPtr, SLAB_SIZE, 0);
+  KmapEnsureRange ((VIRTUAL_ADDRESS) Ptr, SLAB_SIZE, 0);
   KmapCommit ();
-  KvaFree ((vaddr_t) pPtr, SLAB_SIZE);
+  KvaFree ((VIRTUAL_ADDRESS) Ptr, SLAB_SIZE);
 }
 
 //
@@ -147,7 +147,7 @@ SlabFreeInternal (
 #define ___slabgethdr(_obj) SlabGetHeader(_obj)
 #define ___slabfree(_ptr) SlabFreeInternal(_ptr)
 
-#define DECLARE_SPIN_LOCK(_x) lock_t _x
+#define DECLARE_SPIN_LOCK(_x) SPINLOCK _x
 #define SPIN_LOCK_INIT(_x) spinlock_init(&_x)
 #define SPIN_LOCK(_x) spinlock(&_x)
 #define SPIN_UNLOCK(_x) spinunlock(&_x)

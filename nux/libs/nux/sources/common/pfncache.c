@@ -17,14 +17,14 @@
 #include <nux/cache.h>
 #include <nux/internal.h>
 
-vaddr_t gPfnCacheBase;
+VIRTUAL_ADDRESS gPfnCacheBase;
 
-static pfn_t gMaxDmapPfn;
+static PFN gMaxDmapPfn;
 
-static struct cache gCache;
-static struct slot *gSlots;
+static CACHE gCache;
+static SLOT *gSlots;
 
-static volatile tlbgen_t gPfncTlbGen = 0;
+static VOLATILE TLB_GENERATION gPfncTlbGen = 0;
 
 /**
   Fill PFN cache slot with new mapping.
@@ -44,8 +44,8 @@ PfnCacheFill (
   IN UINTN     New
   )
 {
-  tlbgen_t TlbGen;
-  vaddr_t Va = (vaddr_t) gPfnCacheBase + ((vaddr_t) Slot << PAGE_SHIFT);
+  TLB_GENERATION TlbGen;
+  VIRTUAL_ADDRESS Va = (VIRTUAL_ADDRESS) gPfnCacheBase + ((VIRTUAL_ADDRESS) Slot << PAGE_SHIFT);
 
   /*
      NEVER allocate pagetables while mapping PFN Cache.
@@ -77,22 +77,22 @@ PfnCacheFill (
 **/
 VOID *
 PfnGet (
-  IN pfn_t  Pfn
+  IN PFN  Pfn
   )
 {
   UINTN Slot;
-  tlbgen_t Target;
+  TLB_GENERATION Target;
 
   assert (Pfn != PFN_INVALID);
 
   if (Pfn < gMaxDmapPfn)
     return (VOID *) (hal_virtmem_dmapbase () + (Pfn << PAGE_SHIFT));
 
-  Slot = cache_get (&gCache, Pfn);
+  Slot = CacheGet (&gCache, Pfn);
 
   /* Update tlb if we have stale entries in our PFN cache. */
   __atomic_load (&gPfncTlbGen, &Target, __ATOMIC_ACQUIRE);
-  CpuKernelTlbReach (Target);
+  CpuKtlbReach (Target);
   return (VOID *) gPfnCacheBase + (Slot << PAGE_SHIFT);
 }
 
@@ -103,12 +103,12 @@ PfnGet (
   PFNs in the direct map region.
 
   @param[in] Pfn  Page frame number being released.
-  @param[in] pVa  Virtual address that was returned by PfnGet.
+  @param[in] Va   Virtual address that was returned by PfnGet.
 **/
 VOID
 PfnPut (
-  IN pfn_t  Pfn,
-  IN VOID   *pVa
+  IN PFN   Pfn,
+  IN VOID  *Va
   )
 {
   UINTN Slot;
@@ -118,8 +118,8 @@ PfnPut (
   if (Pfn < gMaxDmapPfn)
     return;
 
-  Slot = ((UINTN) pVa - (UINTN) gPfnCacheBase) >> PAGE_SHIFT;
-  cache_put (&gCache, (UINTN) Slot);
+  Slot = ((UINTN) Va - (UINTN) gPfnCacheBase) >> PAGE_SHIFT;
+  CachePut (&gCache, (UINTN) Slot);
 }
 
 /**
@@ -140,9 +140,9 @@ PfnCacheInitialize (
 	  gPfnCacheBase, gPfnCacheBase + PfnCacheSize, NumSlots);
   assert (NumSlots != 0);
 
-  gSlots = (struct slot *) KmemBrkGrow (1, sizeof (struct slot) * NumSlots);
+  gSlots = (SLOT *) KmemBrkGrow (1, sizeof (SLOT) * NumSlots);
 
-  cache_init (&gCache, gSlots, 256, PfnCacheFill);
+  CacheInitialize (&gCache, gSlots, 256, PfnCacheFill);
 }
 
 /*
@@ -157,7 +157,7 @@ PfnCacheInitialize (
   reserve the required amount of slots and start the real, full size
   cache.
 */
-static struct slot gBootSlot;
+static SLOT gBootSlot;
 
 /**
   Bootstrap PFN cache with minimal resources.
@@ -175,42 +175,5 @@ PfnCacheBootstrap (
   gPfnCacheBase = hal_virtmem_pfn$base ();
 
   printf ("Initializing PFN boot cache.\n");
-  cache_init (&gCache, &gBootSlot, 1, PfnCacheFill);
+  CacheInitialize (&gCache, &gBootSlot, 1, PfnCacheFill);
 }
-
-//
-// Legacy Function Wrappers (for backward compatibility)
-//
-
-/** @deprecated Use PfnCacheFill instead **/
-static void _pfncache_fill (unsigned slot, uintptr_t old, uintptr_t new) {
-  PfnCacheFill (slot, old, new);
-}
-
-/** @deprecated Use PfnGet instead **/
-void *pfn_get (pfn_t pfn) {
-  return PfnGet (pfn);
-}
-
-/** @deprecated Use PfnPut instead **/
-void pfn_put (pfn_t pfn, void *va) {
-  PfnPut (pfn, va);
-}
-
-/** @deprecated Use PfnCacheInitialize instead **/
-void pfncacheinit (void) {
-  PfnCacheInitialize ();
-}
-
-/** @deprecated Use PfnCacheBootstrap instead **/
-void _pfncache_bootstrap (void) {
-  PfnCacheBootstrap ();
-}
-
-// Legacy global variable aliases
-vaddr_t pfncache_base __attribute__((alias("gPfnCacheBase")));
-static pfn_t max_dmap_pfn __attribute__((alias("gMaxDmapPfn")));
-static struct cache cache __attribute__((alias("gCache")));
-static struct slot *slots __attribute__((alias("gSlots")));
-static volatile tlbgen_t pfnc_tlbgen __attribute__((alias("gPfncTlbGen")));
-static struct slot boot_slot __attribute__((alias("gBootSlot")));

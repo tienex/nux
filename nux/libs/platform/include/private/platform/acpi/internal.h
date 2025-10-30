@@ -1,9 +1,13 @@
-/*
-  NUX: A kernel Library.
+/** @file
+  Platform ACPI Internal Definitions
+
+  Internal function declarations and definitions for ACPI platform
+  layer including LAPIC, IOAPIC, GSI, HPET, and hardware control.
+
   Copyright (C) 2019 Gianluca Guida <glguida@tlbflush.org>
 
-  SPDX-License-Identifier:	BSD-2-Clause
-*/
+  SPDX-License-Identifier: BSD-2-Clause
+**/
 
 #ifndef __platform_acpi_internal_h__
 #define __platform_acpi_internal_h__
@@ -11,30 +15,57 @@
 #include <stdint.h>
 #include <platform/platform.h>
 
-extern unsigned pltacpi_hpet_irq;
+// Platform ACPI HPET IRQ
+extern UINT32 gPlatformAcpiHpetIrq;
 
-void lapic_init (uint64_t, unsigned);
-void lapic_add (uint16_t, uint16_t);
-void lapic_add_nmi (uint8_t, int);
-void lapic_eoi (void);
+// Legacy compatibility alias
+extern UINT32 pltacpi_hpet_irq;
 
-void ioapic_init (unsigned no);
-void ioapic_add (unsigned num, uint64_t base, unsigned irqbase);
+//
+// LAPIC (Local APIC) Functions
+//
 
-void gsi_init (void);
-void gsi_setup (unsigned i, unsigned irq, enum plt_irq_type mode);
-void gsi_start (void);
+VOID LapicInit (IN UINT64 Base, IN UINT32 Count);
+VOID LapicAdd (IN UINT16 PlatformId, IN UINT16 PhysId);
+VOID LapicAddNmi (IN UINT8 Cpu, IN INT32 Lint);
+VOID LapicEoi (VOID);
 
+//
+// IOAPIC Functions
+//
 
-void acpi_init (paddr_t rdsp);
-void acpi_madt_scan (void);
+VOID IoapicInit (IN UINT32 Count);
+VOID IoapicAdd (IN UINT32 Num, IN UINT64 Base, IN UINT32 IrqBase);
 
-void hw_cmos_write (uint8_t addr, uint8_t val);
-void hw_delay (void);
-void hw_reset_vector (uint32_t start);
+//
+// GSI (Global System Interrupt) Functions
+//
 
-bool hpet_init (paddr_t hpetpa);
-void hpet_doirq (void);
-bool acpi_hpet_scan (void);
+VOID GsiInit (VOID);
+VOID GsiSetup (IN UINT32 Gsi, IN UINT32 Irq, IN PLATFORM_IRQ_TYPE Mode);
+VOID GsiStart (VOID);
+
+//
+// ACPI Functions
+//
+
+VOID AcpiInitialize (IN PHYSICAL_ADDRESS Rsdp);
+VOID AcpiMadtScan (VOID);
+
+//
+// Hardware Control Functions
+//
+
+VOID HwCmosWrite (IN UINT8 Addr, IN UINT8 Val);
+VOID HwDelay (VOID);
+VOID HwResetVector (IN UINT32 Start);
+
+//
+// HPET Functions
+//
+
+BOOLEAN HpetInit (IN PHYSICAL_ADDRESS HpetPa);
+VOID HpetDoIrq (VOID);
+BOOLEAN AcpiHpetScan (VOID);
 
 #endif

@@ -29,13 +29,13 @@ static EFI_LOADED_IMAGE *gpImg = NULL;
 
   @return Physical address of allocated page.
 **/
-unsigned long
+UINTN
 EfiAllocateMaxAddr (
-  IN unsigned long  MaxAddr
+  IN UINTN  MaxAddr
   )
 {
   EFI_STATUS efi_status;
-  VOID *pAddr;
+  VOID *Addr;
 
   efi_status = uefi_call_wrapper (BS->AllocatePages, 4,
 				  AllocateMaxAddress,
@@ -46,9 +46,9 @@ EfiAllocateMaxAddr (
       exit (-1);
     }
 
-  pAddr = (VOID *) MaxAddr;
-  memset (pAddr, 0, 4096);
-  return (unsigned long) pAddr;
+  Addr = (VOID *) MaxAddr;
+  memset (Addr, 0, 4096);
+  return (UINTN) Addr;
 }
 
 /**
@@ -69,7 +69,7 @@ Putchar (
 }
 
 static VOID *gpPayloadStart;
-static unsigned long gPayloadSize;
+static UINTN gPayloadSize;
 
 /**
   Get framebuffer from Graphics Output Protocol.
@@ -89,19 +89,19 @@ EfiGetFramebuffer (
   extern EFI_GUID GraphicsOutputProtocol;
   EFI_STATUS Rc;
   UINTN InfoSize;
-  EFI_GRAPHICS_OUTPUT_MODE_INFORMATION *pInfo;
-  EFI_GRAPHICS_OUTPUT_PROTOCOL *pGop;
+  EFI_GRAPHICS_OUTPUT_MODE_INFORMATION *Info;
+  EFI_GRAPHICS_OUTPUT_PROTOCOL *Gop;
   UINT32 RMask, GMask, BMask, Bpp, Pitch, Width, Height;
   UINT64 Addr, Size;
 
-  Rc = LibLocateProtocol (&GraphicsOutputProtocol, (void **) &pGop);
+  Rc = LibLocateProtocol (&GraphicsOutputProtocol, (void **) &Gop);
   if (Rc != EFI_SUCCESS)
     {
       Print (L"Cannot locate Graphic Output Proto (%r)\n", Rc);
       return Rc;
     }
 
-  if (pGop->Mode == NULL)
+  if (Gop->Mode == NULL)
     {
       Print (L"Mode not found in GOP.\n");
       return EFI_SUCCESS;
@@ -110,39 +110,39 @@ EfiGetFramebuffer (
   UINTN i;
   UINTN MMax = 0;
   UINTN RMax = 0;
-  UINTN IMax = pGop->Mode->MaxMode;
+  UINTN IMax = Gop->Mode->MaxMode;
 
   /* Search for highest (horizontal) resolution. */
   for (i = 0; i < IMax; i++)
     {
       UINTN InfoSz;
-      Rc = uefi_call_wrapper (pGop->QueryMode, 4, pGop, i, &InfoSz, &pInfo);
+      Rc = uefi_call_wrapper (Gop->QueryMode, 4, Gop, i, &InfoSz, &Info);
       if (Rc != EFI_SUCCESS)
 	continue;
 
       Print (L"EFI GFX Mode %d: %ldx%ld.\n",
-	     i, pInfo->HorizontalResolution, pInfo->VerticalResolution);
+	     i, Info->HorizontalResolution, Info->VerticalResolution);
 
-      if ((UINTN) pInfo->HorizontalResolution * pInfo->VerticalResolution >
+      if ((UINTN) Info->HorizontalResolution * Info->VerticalResolution >
 	  RMax)
 	{
 	  RMax =
-	    (UINTN) pInfo->HorizontalResolution * pInfo->VerticalResolution;
+	    (UINTN) Info->HorizontalResolution * Info->VerticalResolution;
 	  MMax = i;
 	}
     }
 
   Print (L"Setting mode %d\n", MMax);
-  Rc = uefi_call_wrapper (pGop->SetMode, 2, pGop, MMax);
+  Rc = uefi_call_wrapper (Gop->SetMode, 2, Gop, MMax);
 
-  pInfo = pGop->Mode->Info;
-  if (pInfo == NULL)
+  Info = Gop->Mode->Info;
+  if (Info == NULL)
     {
       Print (L"Info not found in GOP.\n");
       return EFI_SUCCESS;
     }
 
-  switch (pInfo->PixelFormat)
+  switch (Info->PixelFormat)
     {
     case PixelRedGreenBlueReserved8BitPerColor:
       RMask = 0x0000ff;
@@ -162,26 +162,26 @@ EfiGetFramebuffer (
       {
 	UINT32 Mask;
 
-	RMask = pInfo->PixelInformation.RedMask;
-	GMask = pInfo->PixelInformation.GreenMask;
-	BMask = pInfo->PixelInformation.BlueMask;
+	RMask = Info->PixelInformation.RedMask;
+	GMask = Info->PixelInformation.GreenMask;
+	BMask = Info->PixelInformation.BlueMask;
 
 	Mask = (RMask | GMask | BMask
-		| pInfo->PixelInformation.ReservedMask);
+		| Info->PixelInformation.ReservedMask);
 	Bpp = __builtin_popcountl ((long) Mask);
 	break;
       }
     case PixelBltOnly:
     default:
-      Print (L"No Framebuffer (pixel format is %d)\n", pInfo->PixelFormat);
+      Print (L"No Framebuffer (pixel format is %d)\n", Info->PixelFormat);
       return EFI_SUCCESS;
     }
 
-  Addr = pGop->Mode->FrameBufferBase;
-  Size = pGop->Mode->FrameBufferSize;
-  Pitch = (UINT32) ((UINT64) pInfo->PixelsPerScanLine * Bpp / 8);
-  Width = pInfo->HorizontalResolution;
-  Height = pInfo->VerticalResolution;
+  Addr = Gop->Mode->FrameBufferBase;
+  Size = Gop->Mode->FrameBufferSize;
+  Pitch = (UINT32) ((UINT64) Info->PixelsPerScanLine * Bpp / 8);
+  Width = Info->HorizontalResolution;
+  Height = Info->VerticalResolution;
 
   Print (L"Framebuffer found:\n"
 	 "        ADDR: %lx\n        SIZE: %lx\n"
@@ -201,28 +201,28 @@ EfiGetFramebuffer (
   Opens and reads ELF payload file from EFI filesystem using Simple File
   protocol. Grows buffer as needed to accommodate payload size.
 
-  @param[in]  pName  Wide-character filename (e.g., L"kernel.elf").
+  @param[in]  Name  Wide-character filename (e.g., L"kernel.elf").
   @param[out] ppPtr  Pointer to receive payload buffer address.
-  @param[out] pSize  Pointer to receive payload size.
+  @param[out] Size  Pointer to receive payload size.
 
   @retval EFI_SUCCESS  Payload loaded successfully.
   @retval other        File not found or read failed.
 **/
 EFI_STATUS
 EfiGetPayload (
-  IN CHAR16          *pName,
+  IN CHAR16          *Name,
   OUT VOID           **ppPtr,
-  OUT unsigned long  *pSize
+  OUT UINTN  *Size
   )
 {
   EFI_STATUS Rc;
   EFI_HANDLE Hdl;
   SIMPLE_READ_FILE RdHdl;
-  EFI_DEVICE_PATH *pFilePath;
+  EFI_DEVICE_PATH *FilePath;
 
-  pFilePath = FileDevicePath (gpImg->DeviceHandle, pName);
+  FilePath = FileDevicePath (gpImg->DeviceHandle, Name);
 
-  Rc = OpenSimpleReadFile (TRUE, NULL, 0, &pFilePath, &Hdl, &RdHdl);
+  Rc = OpenSimpleReadFile (TRUE, NULL, 0, &FilePath, &Hdl, &RdHdl);
   if (EFI_ERROR (Rc))
     {
       Print (L"OpenSimpleReadFile failed %r\n", Rc);
@@ -231,12 +231,12 @@ EfiGetPayload (
 
   Rc = EFI_SUCCESS;
   *ppPtr = NULL;
-  *pSize = 8 * 1024 * 1024;
+  *Size = 8 * 1024 * 1024;
 
-  while (GrowBuffer (&Rc, ppPtr, *pSize))
+  while (GrowBuffer (&Rc, ppPtr, *Size))
     {
       Print (L"GrowBuffer!\n");
-      Rc = ReadSimpleReadFile (RdHdl, 0, pSize, *ppPtr);
+      Rc = ReadSimpleReadFile (RdHdl, 0, Size, *ppPtr);
     }
 
   if (EFI_ERROR (Rc))
@@ -266,10 +266,10 @@ EfiGetMemoryMap (
   UINTN Key;
   UINTN DescSize;
   UINT32 DescVer;
-  EFI_MEMORY_DESCRIPTOR *pMd, *pPtr;
+  EFI_MEMORY_DESCRIPTOR *Md, *Ptr;
 
 
-  pMd = LibMemoryMap (&Num, &Key, &DescSize, &DescVer);
+  Md = LibMemoryMap (&Num, &Key, &DescSize, &DescVer);
 
   Print (L"Found %ld memory entries, Key: %ld, Size: %ld, Version: %d\n",
 	 Num, Key, DescSize, DescVer);
@@ -278,11 +278,11 @@ EfiGetMemoryMap (
     {
       int Ram, Bsy;
       unsigned Len;
-      unsigned long Pfn;
+      UINTN Pfn;
 
-      pPtr = (void *) pMd + i * DescSize;
+      Ptr = (void *) Md + i * DescSize;
 
-      switch (pPtr->Type)
+      switch (Ptr->Type)
 	{
 	case EfiReservedMemoryType:
 	case EfiUnusableMemory:
@@ -314,8 +314,8 @@ EfiGetMemoryMap (
 	  continue;
 	}
 
-      Pfn = pPtr->PhysicalStart >> 12;
-      Len = pPtr->NumberOfPages;
+      Pfn = Ptr->PhysicalStart >> 12;
+      Len = Ptr->NumberOfPages;
 
       apxhefi_add_memregion (Ram, Bsy, Pfn, Len);
     }
@@ -336,16 +336,16 @@ EfiGetRsdp (
 {
   EFI_GUID GuidRsdp20 = ACPI_20_TABLE_GUID;
   EFI_GUID GuidRsdp = ACPI_TABLE_GUID;
-  VOID *pRsdp;
+  VOID *Rsdp;
 
-  LibGetSystemConfigurationTable (&GuidRsdp20, &pRsdp);
-  if (pRsdp == NULL)
-    LibGetSystemConfigurationTable (&GuidRsdp, &pRsdp);
+  LibGetSystemConfigurationTable (&GuidRsdp20, &Rsdp);
+  if (Rsdp == NULL)
+    LibGetSystemConfigurationTable (&GuidRsdp, &Rsdp);
 
-  if (pRsdp == NULL)
+  if (Rsdp == NULL)
     Print (L"No RSDP found!\n");
 
-  apxhefi_add_rsdp (pRsdp);
+  apxhefi_add_rsdp (Rsdp);
 }
 
 
@@ -357,7 +357,7 @@ EfiGetRsdp (
   graphics info, then launches main bootloader.
 
   @param[in] ImageHandle   EFI image handle.
-  @param[in] pSystemTable  EFI system table pointer.
+  @param[in] SystemTable  EFI system table pointer.
 
   @retval EFI_SUCCESS  Bootloader launched successfully (does not return).
   @retval other        Initialization or payload loading failed.
@@ -365,17 +365,17 @@ EfiGetRsdp (
 EFI_STATUS EFIAPI
 EfiMain (
   IN EFI_HANDLE        ImageHandle,
-  IN EFI_SYSTEM_TABLE  *pSystemTable
+  IN EFI_SYSTEM_TABLE  *SystemTable
   )
 {
-  VOID *pPtr;
+  VOID *Ptr;
   EFI_STATUS Rc;
   EFI_GUID ImgProt = LOADED_IMAGE_PROTOCOL;
 
-  InitializeLib (ImageHandle, pSystemTable);
+  InitializeLib (ImageHandle, SystemTable);
   gImageHandle = ImageHandle;
 
-  Rc = uefi_call_wrapper (BS->OpenProtocol, 6, ImageHandle, &ImgProt, &pPtr,
+  Rc = uefi_call_wrapper (BS->OpenProtocol, 6, ImageHandle, &ImgProt, &Ptr,
 			  ImageHandle, NULL,
 			  EFI_OPEN_PROTOCOL_BY_HANDLE_PROTOCOL);
   if (Rc != EFI_SUCCESS)
@@ -384,7 +384,7 @@ EfiMain (
       return Rc;
     }
 
-  gpImg = pPtr;
+  gpImg = Ptr;
 
   /*
      Get payloads.
@@ -444,10 +444,10 @@ EfiExitBs (
   UINTN Key;
   UINTN DescSize;
   UINT32 DescVer;
-  EFI_MEMORY_DESCRIPTOR *pMd;
+  EFI_MEMORY_DESCRIPTOR *Md;
 
 
-  pMd = LibMemoryMap (&Num, &Key, &DescSize, &DescVer);
+  Md = LibMemoryMap (&Num, &Key, &DescSize, &DescVer);
 
   Rc = uefi_call_wrapper (BS->ExitBootServices, 2, gImageHandle, Key);
   if (Rc != EFI_SUCCESS)
@@ -478,7 +478,7 @@ EfiExit (
 //
 
 /** @deprecated Use EfiAllocateMaxAddr instead **/
-unsigned long efi_allocate_maxaddr (unsigned long maxaddr) {
+UINTN efi_allocate_maxaddr (UINTN maxaddr) {
   return EfiAllocateMaxAddr (maxaddr);
 }
 
@@ -493,7 +493,7 @@ EFI_STATUS efi_getframebuffer (void) {
 }
 
 /** @deprecated Use EfiGetPayload instead **/
-EFI_STATUS efi_getpayload (CHAR16 *name, void **ptr, unsigned long *size) {
+EFI_STATUS efi_getpayload (CHAR16 *name, void **ptr, UINTN *size) {
   return EfiGetPayload (name, ptr, size);
 }
 

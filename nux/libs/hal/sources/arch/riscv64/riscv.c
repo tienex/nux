@@ -21,42 +21,42 @@
 #include <platform/platform.h>
 #include <nux/nmiemul.h>
 #include <hal/internal.h>
-#include <nux/stree.h>
+#include <nux/batree.h>
 
-extern int _info_start;
+extern INT32 _info_start;
 
-extern int _stree_start[];
-extern int _stree_end[];
+extern INT32 _stree_start[];
+extern INT32 _stree_end[];
 
-extern int _fbuf_start;
-extern int _fbuf_end;
+extern INT32 _fbuf_start;
+extern INT32 _fbuf_end;
 
-extern int _memregs_start;
-extern int _memregs_end;
+extern INT32 _memregs_start;
+extern INT32 _memregs_end;
 
-extern uint64_t _riscv64_physmap_start;
-extern uint64_t _riscv64_physmap_end;
+extern UINT64 _riscv64_physmap_start;
+extern UINT64 _riscv64_physmap_end;
 
-extern uint64_t _riscv64_pfncache_start;
-extern uint64_t _riscv64_pfncache_end;
+extern UINT64 _riscv64_pfncache_start;
+extern UINT64 _riscv64_pfncache_end;
 
-extern uint64_t _riscv64_kva_start;
-extern uint64_t _riscv64_kva_end;
+extern UINT64 _riscv64_kva_start;
+extern UINT64 _riscv64_kva_end;
 
-extern uint64_t _riscv64_kmem_start;
-extern uint64_t _riscv64_kmem_end;
+extern UINT64 _riscv64_kmem_start;
+extern UINT64 _riscv64_kmem_end;
 
-void set_stvec_final ();
+VOID set_stvec_final ();
 
-const struct apxh_bootinfo *bootinfo = (struct apxh_bootinfo *) &_info_start;
+CONST struct apxh_bootinfo *bootinfo = (struct apxh_bootinfo *) &_info_start;
 
-struct fbdesc fbdesc;
-struct apxh_pltdesc pltdesc;
+FRAMEBUFFER_DESC fbdesc;
+struct apxh_platformdesc pltdesc;
 
-void *hal_stree_ptr;
-unsigned hal_stree_order;
+VOID *gHalStreePtr;
+UINT32 gHalStreeOrder;
 
-int use_fb;
+int gUseFb;
 INT32 gNuxInitialized = 0;
 
 struct hal_cpu *pcpu_haldata[HAL_MAXCPUS];
@@ -64,23 +64,22 @@ struct hal_cpu *pcpu_haldata[HAL_MAXCPUS];
 /**
   Print a string during early boot.
 
-  @param[in] pStr  String to print.
+  @param[in] Str  String to print.
 **/
 static VOID
 EarlyPrint (
-  IN CONST CHAR8  *pStr
+  IN CONST CHAR8  *Str
   )
 {
-  CHAR8 *ptr = (CHAR8 *) pStr;
+  CHAR8 *ptr = (CHAR8 *) Str;
 
   while (*ptr != '\0')
     hal_putchar (*ptr++);
 }
 
-
-/*
-  I/O ops aren't implemented in RISC-V.
-*/
+//
+// I/O ops aren't implemented in RISC-V.
+//
 
 UINTN
 hal_cpu_in (
@@ -181,7 +180,7 @@ hal_useraccess_end (
   asm volatile ("csrc sstatus, %0"::"r" (SSTATUS_SUM):"memory");
 }
 
-vaddr_t
+VIRTUAL_ADDRESS
 hal_virtmem_dmapbase (
   VOID
   )
@@ -189,15 +188,15 @@ hal_virtmem_dmapbase (
   return _riscv64_physmap_start;
 }
 
-const size_t
+CONST UINTN
 hal_virtmem_dmapsize (
   VOID
   )
 {
-  return (size_t) (_riscv64_physmap_end - _riscv64_physmap_start);
+  return (UINTN) (_riscv64_physmap_end - _riscv64_physmap_start);
 }
 
-vaddr_t
+VIRTUAL_ADDRESS
 hal_virtmem_pfn$base (
   VOID
   )
@@ -205,15 +204,15 @@ hal_virtmem_pfn$base (
   return _riscv64_pfncache_start;
 }
 
-const size_t
+CONST UINTN
 hal_virtmem_pfn$size (
   VOID
   )
 {
-  return (size_t) (_riscv64_pfncache_end - _riscv64_pfncache_start);
+  return (UINTN) (_riscv64_pfncache_end - _riscv64_pfncache_start);
 }
 
-const vaddr_t
+CONST VIRTUAL_ADDRESS
 hal_virtmem_userbase (
   VOID
   )
@@ -221,7 +220,7 @@ hal_virtmem_userbase (
   return pt_umap_minaddr ();
 }
 
-const size_t
+CONST UINTN
 hal_virtmem_usersize (
   VOID
   )
@@ -229,12 +228,12 @@ hal_virtmem_usersize (
   return pt_umap_maxaddr ();
 }
 
-const vaddr_t
+CONST VIRTUAL_ADDRESS
 hal_virtmem_userentry (
   VOID
   )
 {
-  return (const vaddr_t) bootinfo->uentry;
+  return (CONST VIRTUAL_ADDRESS) bootinfo->uentry;
 }
 
 UINTN
@@ -280,47 +279,47 @@ hal_physmem_region (
 
 VOID *
 hal_physmem_stree (
-  OUT UINT32  *pOrder OPTIONAL
+  OUT UINT32  *Order OPTIONAL
   )
 {
-  if (pOrder)
-    *pOrder = hal_stree_order;
-  return hal_stree_ptr;
+  if (Order)
+    *Order = gHalStreeOrder;
+  return gHalStreePtr;
 }
 
-vaddr_t
+VIRTUAL_ADDRESS
 hal_virtmem_kvabase (
   VOID
   )
 {
-  return (vaddr_t) _riscv64_kva_start;
+  return (VIRTUAL_ADDRESS) _riscv64_kva_start;
 }
 
-const size_t
+CONST UINTN
 hal_virtmem_kvasize (
   VOID
   )
 {
-  return (size_t) (_riscv64_kva_end - _riscv64_kva_start);
+  return (UINTN) (_riscv64_kva_end - _riscv64_kva_start);
 }
 
-vaddr_t
+VIRTUAL_ADDRESS
 hal_virtmem_kmembase (
   VOID
   )
 {
-  return (vaddr_t) _riscv64_kmem_start;
+  return (VIRTUAL_ADDRESS) _riscv64_kmem_start;
 }
 
-const size_t
+CONST UINTN
 hal_virtmem_kmemsize (
   VOID
   )
 {
-  return (size_t) (_riscv64_kmem_end - _riscv64_kmem_start);
+  return (UINTN) (_riscv64_kmem_end - _riscv64_kmem_start);
 }
 
-const struct apxh_pltdesc *
+CONST struct apxh_platformdesc *
 hal_pltinfo (
   VOID
   )
@@ -339,8 +338,8 @@ RiscvInitialize (
   VOID
   )
 {
-  size_t stree_memsize;
-  struct apxh_stree *stree_hdr;
+  UINTN StreeMemsize;
+  struct apxh_stree *StreeHdr;
 
   if (bootinfo->magic != APXH_BOOTINFO_MAGIC)
     {
@@ -349,29 +348,29 @@ RiscvInitialize (
     }
 
   fbdesc = bootinfo->fbdesc;
-  fbdesc.addr = (UINT64) (uintptr_t) & _fbuf_start;
-  use_fb = framebuffer_init (&fbdesc);
+  fbdesc.addr = (UINT64) (UINTN) & _fbuf_start;
+  gUseFb = framebuffer_init (&fbdesc);
 
   /* Check  APXH stree. */
-  stree_hdr = (struct apxh_stree *) _stree_start;
-  if (stree_hdr->magic != APXH_STREE_MAGIC)
+  StreeHdr = (struct apxh_stree *) _stree_start;
+  if (StreeHdr->magic != APXH_STREE_MAGIC)
     {
       EarlyPrint ("ERROR: Unrecognised stree magic!");
       hal_cpu_halt ();
     }
-  if (stree_hdr->size != 8 * STREE_SIZE (stree_hdr->order))
+  if (StreeHdr->size != 8 * STREE_SIZE (StreeHdr->order))
     {
       EarlyPrint ("ERROR: stree size doesn't match!");
       hal_cpu_halt ();
     }
-  stree_memsize = (size_t) ((void *) _stree_end - (void *) _stree_start);
-  if (stree_hdr->size + stree_hdr->offset > stree_memsize)
+  StreeMemsize = (UINTN) ((VOID *) _stree_end - (VOID *) _stree_start);
+  if (StreeHdr->size + StreeHdr->offset > StreeMemsize)
     {
       EarlyPrint ("ERROR: stree doesn't fit in allocated memory!");
       hal_cpu_halt ();
     }
-  hal_stree_order = stree_hdr->order;
-  hal_stree_ptr = (UINT8 *) stree_hdr + stree_hdr->offset;
+  gHalStreeOrder = StreeHdr->order;
+  gHalStreePtr = (UINT8 *) StreeHdr + StreeHdr->offset;
 
   pltdesc = bootinfo->pltdesc;
 
@@ -399,14 +398,14 @@ hal_pcpu_init (
 VOID
 hal_pcpu_add (
   IN UINT32           pcpuid,
-  IN struct hal_cpu   *pHalData
+  IN struct hal_cpu   *HalData
   )
 {
-  extern int _bsp_stacktop[];
+  extern INT32 _bsp_stacktop[];
   assert (pcpuid < HAL_MAXCPUS);
 
-  pHalData->kernsp = (uintptr_t) _bsp_stacktop;
-  pcpu_haldata[pcpuid] = pHalData;
+  HalData->kernsp = (UINTN) _bsp_stacktop;
+  pcpu_haldata[pcpuid] = HalData;
 }
 
 VOID
@@ -416,7 +415,7 @@ hal_pcpu_enter (
 {
   assert (pcpuid < HAL_MAXCPUS);
 
-  riscv_settp ((uintptr_t) pcpu_haldata[pcpuid]);
+  riscv_settp ((UINTN) pcpu_haldata[pcpuid]);
 
   /* CPU is up and running. Switch to full interrupt handler. */
   set_stvec_final ();
@@ -426,7 +425,7 @@ hal_pcpu_enter (
   riscv_sstatus_sti ();
 }
 
-paddr_t
+PHYSICAL_ADDRESS
 hal_pcpu_startaddr (
   IN UINT32  pcpuid
   )
@@ -437,10 +436,10 @@ hal_pcpu_startaddr (
 
 VOID
 hal_cpu_setdata (
-  IN VOID  *pData
+  IN VOID  *Data
   )
 {
-  ((struct hal_cpu *) __builtin_thread_pointer ())->data = pData;
+  ((struct hal_cpu *) __builtin_thread_pointer ())->data = Data;
 }
 
 VOID *
@@ -462,11 +461,11 @@ hal_init_done (
 __dead VOID
 hal_panic (
   IN UINT32            cpu,
-  IN CONST CHAR8       *pError,
-  IN struct hal_frame  *pFrame
+  IN CONST CHAR8       *Error,
+  IN struct hal_frame  *Frame
   )
 {
-  if (use_fb)
+  if (gUseFb)
     {
       /*
          Reset frame buffer. This will unlock in case any CPU was
@@ -478,10 +477,10 @@ hal_panic (
   printf ("\n"
 	  "----------------------------------------"
 	  "---------------------------------------\n"
-	  "Fatal error on CPU%d: %s\n", cpu, pError);
-  if (pFrame != NULL)
+	  "Fatal error on CPU%d: %s\n", cpu, Error);
+  if (Frame != NULL)
     {
-      hal_frame_print (pFrame);
+      hal_frame_print (Frame);
     }
   printf ("----------------------------------------"
 	  "---------------------------------------\n");
@@ -501,13 +500,13 @@ hal_vect_max (
 /**
   Handle page fault exception.
 
-  @param[in] pFrame  Exception frame.
+  @param[in] Frame  Exception frame.
 
   @return Modified frame pointer.
 **/
 struct hal_frame *
 DoPageFault (
-  IN struct hal_frame  *pFrame
+  IN struct hal_frame  *Frame
   )
 {
   hal_l1p_t l1p;
@@ -515,16 +514,16 @@ DoPageFault (
 
   /* In RISCV, we have to manually create the reasons for page fault. */
 
-  if (hal_frame_isuser (pFrame))
+  if (hal_frame_isuser (Frame))
     pfinfo |= HAL_PF_INFO_USER;
 
-  if (pFrame->scause == SCAUSE_SPF)
+  if (Frame->scause == SCAUSE_SPF)
     pfinfo |= HAL_PF_INFO_WRITE;
 
-  if (pFrame->scause == SCAUSE_IPF)
+  if (Frame->scause == SCAUSE_IPF)
     pfinfo |= HAL_PF_INFO_EXE;
 
-  l1p = cpumap_get_l1p (pFrame->stval, false);
+  l1p = cpumap_get_l1p (Frame->stval, FALSE);
   if (l1p == L1P_INVALID)
     pfinfo |= HAL_PF_REASON_NOTP;
   else
@@ -536,19 +535,19 @@ DoPageFault (
 	pfinfo |= HAL_PF_REASON_NOTP;
     }
 
-  return hal_entry_pf (pFrame, pFrame->stval, pfinfo);
+  return hal_entry_pf (Frame, Frame->stval, pfinfo);
 }
 
 /**
   Main HAL entry point for exceptions and interrupts.
 
-  @param[in] pFrame  Exception/interrupt frame.
+  @param[in] Frame  Exception/interrupt frame.
 
   @return Modified frame pointer.
 **/
 struct hal_frame *
 _hal_entry (
-  IN struct hal_frame  *pFrame
+  IN struct hal_frame  *Frame
   )
 {
   struct hal_frame *r;
@@ -561,7 +560,7 @@ _hal_entry (
      interrupts.
      Note: SI is the only interrupt enabled in kernel, for NMI emulation.
    */
-  if (pFrame->scause == SCAUSE_SSI)
+  if (Frame->scause == SCAUSE_SSI)
     riscv_sip_siclear ();
 
   /*
@@ -570,27 +569,27 @@ _hal_entry (
   riscv_sie_kernel ();
   riscv_sstatus_sti ();
 
-  if (pFrame->scause & SCAUSE_INTR)
-    r = plt_interrupt (pFrame->scause & ~SCAUSE_INTR, pFrame);
+  if (Frame->scause & SCAUSE_INTR)
+    r = plt_interrupt (Frame->scause & ~SCAUSE_INTR, Frame);
   else
     {
-      switch (pFrame->scause)
+      switch (Frame->scause)
 	{
 	case SCAUSE_SYSC:
-	  pFrame->pc += 4;
+	  Frame->pc += 4;
 	  r =
-	    hal_entry_syscall (pFrame, pFrame->a0, pFrame->a1, pFrame->a2, pFrame->a3, pFrame->a4, pFrame->a5,
-			       pFrame->a6);
+	    hal_entry_syscall (Frame, Frame->a0, Frame->a1, Frame->a2, Frame->a3, Frame->a4, Frame->a5,
+			       Frame->a6);
 	  break;
 
 	case SCAUSE_IPF:
 	case SCAUSE_LPF:
 	case SCAUSE_SPF:
-	  r = DoPageFault (pFrame);
+	  r = DoPageFault (Frame);
 	  break;
 
 	default:
-	  r = hal_entry_xcpt (pFrame, pFrame->scause);
+	  r = hal_entry_xcpt (Frame, Frame->scause);
 	  break;
 	}
     }
@@ -620,7 +619,7 @@ _hal_entry (
 //
 
 /** @deprecated Use RiscvInitialize instead **/
-void riscv_init (void) {
+VOID riscv_init (VOID) {
   RiscvInitialize ();
 }
 
@@ -630,7 +629,7 @@ struct hal_frame *do_pagefault (struct hal_frame *f) {
 }
 
 /** @deprecated Use EarlyPrint instead **/
-static void early_print (const char *s) {
+static VOID early_print (PCCHAR8s) {
   EarlyPrint (s);
 }
 

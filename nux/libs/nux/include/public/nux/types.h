@@ -29,9 +29,6 @@ typedef UINT64 PHYSICAL_ADDRESS;
 
 #define PADDR_INVALID ((PHYSICAL_ADDRESS)-1)
 
-/** Legacy type alias for compatibility **/
-typedef PHYSICAL_ADDRESS paddr_t;
-
 //
 // Virtual Address Types
 //
@@ -41,16 +38,10 @@ typedef UINTN VIRTUAL_ADDRESS;
 
 #define VADDR_INVALID ((VIRTUAL_ADDRESS)-1)
 
-/** Legacy type alias for compatibility **/
-typedef VIRTUAL_ADDRESS vaddr_t;
-
 /** User Virtual Address - user-space virtual address **/
 typedef UINTN USER_ADDRESS;
 
 #define UADDR_INVALID ((USER_ADDRESS)-1)
-
-/** Legacy type alias for compatibility **/
-typedef USER_ADDRESS uaddr_t;
 
 //
 // Page Frame Number Types
@@ -66,9 +57,6 @@ typedef UINTN PFN;
 
 #define PFN_INVALID ((PFN)-1)
 
-/** Legacy type alias for compatibility **/
-typedef PFN pfn_t;
-
 /**
   Virtual Frame Number
 
@@ -77,9 +65,6 @@ typedef PFN pfn_t;
 typedef UINTN VFN;
 
 #define VFN_INVALID ((VFN)-1)
-
-/** Legacy type alias for compatibility **/
-typedef VFN vfn_t;
 
 //
 // TLB Generation Counter
@@ -117,9 +102,6 @@ typedef UINTN TLB_GENERATION;
 #define TG_WRAP(_t)     ((_t) & ((1L << TG_WRAP_SHIFT) - 1))
 #define TG_GEN_COUNT(_t) ((_t) >> TG_WRAP_SHIFT)
 
-/** Legacy type alias for compatibility **/
-typedef TLB_GENERATION tlbgen_t;
-
 //
 // CPU Mask
 //
@@ -131,9 +113,6 @@ typedef TLB_GENERATION tlbgen_t;
   Bit N set indicates CPU N is included in the mask.
 **/
 typedef UINT64 CPU_MASK;
-
-/** Legacy type alias for compatibility **/
-typedef CPU_MASK cpumask_t;
 
 //
 // User Context
@@ -148,9 +127,6 @@ typedef CPU_MASK cpumask_t;
   The actual structure is architecture-specific (hal_frame).
 **/
 typedef struct hal_frame UCTXT;
-
-/** Legacy type alias for compatibility **/
-typedef UCTXT uctxt_t;
 
 /**
   Special UCTXT value indicating CPU idle state.
@@ -175,9 +151,6 @@ typedef enum {
   HalTlbOpFlushAll = (1 << 1)    ///< Global TLB flush (all entries)
 } HAL_TLBOP;
 
-/** Legacy type alias for compatibility **/
-typedef HAL_TLBOP hal_tlbop_t;
-
 //
 // User Mapping Structure
 //
@@ -194,9 +167,6 @@ typedef struct _UMAP {
   struct hal_umap Hal;        ///< HAL-specific mapping data
 } UMAP;
 
-/** Legacy type alias for compatibility **/
-typedef UMAP umap_t;
-
 //
 // Kernel Symbol Structure
 //
@@ -211,11 +181,5 @@ typedef struct _NUX_KSYM {
   UINTN       Address;    ///< Symbol address
   CONST CHAR8 *Name;      ///< Symbol name (null-terminated string)
 } NUX_KSYM;
-
-/** Legacy type alias for compatibility **/
-struct nux_ksym {
-  unsigned long addr;
-  const char    *name;
-};
 
 #endif // NUX_TYPES_H

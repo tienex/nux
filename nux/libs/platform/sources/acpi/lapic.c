@@ -25,29 +25,44 @@
 static VOID *gLapicBase = NULL;
 static UINT32 gLapicsNo;
 
-typedef struct lapic_desc
+typedef struct _LAPIC_DESC
 {
   UINT32 PhysId;
   UINT32 PlatformId;
   UINT32 Lint[2];
-} LAPIC_DESC;
+} LAPIC_DESC, *PLAPIC_DESC, *PCLAPIC_DESC;
 
 static LAPIC_DESC gLapics[MAXCPUS];
 
+//
+// Local APIC Delivery Modes
+//
 
-/*
- * Local APIC Delivery Modes and Registers
- */
+/**
+  APIC Delivery Mode
+**/
+typedef enum _APIC_DELIVERY_MODE {
+  ApicDeliveryFixed      = 0,  ///< Fixed delivery mode
+  ApicDeliveryPriority   = 1,  ///< Lowest priority delivery
+  ApicDeliverySmi        = 2,  ///< System Management Interrupt
+  ApicDeliveryNmi        = 4,  ///< Non-Maskable Interrupt
+  ApicDeliveryInit       = 5,  ///< INIT IPI
+  ApicDeliveryStartup    = 6,  ///< Startup IPI
+  ApicDeliveryExtInt     = 7   ///< External Interrupt
+} APIC_DELIVERY_MODE;
 
-#define APIC_DLVR_FIX   0
-#define APIC_DLVR_PRIO  1
-#define APIC_DLVR_SMI   2
-#define APIC_DLVR_NMI   4
-#define APIC_DLVR_INIT  5
-#define APIC_DLVR_START 6
-#define APIC_DLVR_EINT  7
+/** Legacy compatibility **/
+#define APIC_DLVR_FIX   ApicDeliveryFixed
+#define APIC_DLVR_PRIO  ApicDeliveryPriority
+#define APIC_DLVR_SMI   ApicDeliverySmi
+#define APIC_DLVR_NMI   ApicDeliveryNmi
+#define APIC_DLVR_INIT  ApicDeliveryInit
+#define APIC_DLVR_START ApicDeliveryStartup
+#define APIC_DLVR_EINT  ApicDeliveryExtInt
 
-/* LAPIC registers */
+//
+// LAPIC Registers
+//
 #define L_IDREG		0x20
 #define L_VER		0x30
 #define L_TSKPRIO	0x80
@@ -88,7 +103,7 @@ LapicRead (
   IN UINT32  Reg
   )
 {
-  return *((volatile UINT32 *) (gLapicBase + Reg));
+  return *((VOLATILE UINT32 *) (gLapicBase + Reg));
 }
 
 /**
@@ -105,7 +120,7 @@ LapicWrite (
   IN UINT32  Data
   )
 {
-  *((volatile UINT32 *) (gLapicBase + Reg)) = Data;
+  *((VOLATILE UINT32 *) (gLapicBase + Reg)) = Data;
 }
 
 /**
@@ -139,22 +154,22 @@ LapicConfigure (
   )
 {
   UINT32 i, PhysId = LapicGetCurrent ();
-  LAPIC_DESC *pDesc = NULL;
+  LAPIC_DESC *Desc = NULL;
 
   for (i = 0; i < gLapicsNo; i++)
     {
       if (gLapics[i].PhysId == PhysId)
-	pDesc = gLapics + i;
+	Desc = gLapics + i;
     }
-  if (pDesc == NULL)
+  if (Desc == NULL)
     {
       warn ("Current CPU not in Platform Tables!");
       /* Try to continue, ignore the NMI configuration */
     }
   else
     {
-      LapicWrite (L_LVT_LINT (0), pDesc->Lint[0]);
-      LapicWrite (L_LVT_LINT (1), pDesc->Lint[1]);
+      LapicWrite (L_LVT_LINT (0), Desc->Lint[0]);
+      LapicWrite (L_LVT_LINT (1), Desc->Lint[1]);
     }
   /* Enable LAPIC */
   LapicWrite (L_MISC, LapicRead (L_MISC) | 0x100);
@@ -325,21 +340,20 @@ LapicInitialize (
   debug ("LAPIC PA: %08" PRIx64 " VA: %p", Base, gLapicBase);
 }
 
-
-/*
- * PCPU module: Abstracted CPU operations
- */
+//
+// PCPU Module: Abstracted CPU Operations
+//
 
 /**
   Iterate through processors.
 
   Returns the physical ID of the next processor in sequence.
-  Returns PLT_PCPU_INVALID when iteration is complete.
+  Returns PLATFORM_PCPU_INVALID when iteration is complete.
 
-  @return Physical CPU ID, or PLT_PCPU_INVALID.
+  @return Physical CPU ID, or PLATFORM_PCPU_INVALID.
 **/
 INT32
-PltPcpuIterate (
+PlatformPcpuIterate (
   VOID
   )
 {
@@ -350,7 +364,7 @@ PltPcpuIterate (
   else
     {
       t = 0;
-      return PLT_PCPU_INVALID;
+      return PLATFORM_PCPU_INVALID;
     }
 }
 
@@ -360,7 +374,7 @@ PltPcpuIterate (
   Configures the Local APIC for the current processor.
 **/
 VOID
-PltPcpuEnter (
+PlatformPcpuEnter (
   VOID
   )
 {
@@ -375,7 +389,7 @@ PltPcpuEnter (
   @param[in] PcpuId  Physical CPU ID.
 **/
 VOID
-PltPcpuNmi (
+PlatformPcpuNmi (
   IN INT32  PcpuId
   )
 {
@@ -388,7 +402,7 @@ PltPcpuNmi (
   Sends a Non-Maskable Interrupt to all processors except self.
 **/
 VOID
-PltPcpuNmiAll (
+PlatformPcpuNmiAll (
   VOID
   )
 {
@@ -403,7 +417,7 @@ PltPcpuNmiAll (
   @param[in] PcpuId  Physical CPU ID.
 **/
 VOID
-PltPcpuIpi (
+PlatformPcpuIpi (
   IN INT32  PcpuId
   )
 {
@@ -416,7 +430,7 @@ PltPcpuIpi (
   Sends an inter-processor interrupt to all processors except self.
 **/
 VOID
-PltPcpuIpiAll (
+PlatformPcpuIpiAll (
   VOID
   )
 {
@@ -431,7 +445,7 @@ PltPcpuIpiAll (
   @return Physical CPU ID.
 **/
 UINT32
-PltPcpuId (
+PlatformPcpuId (
   VOID
   )
 {
@@ -448,9 +462,9 @@ PltPcpuId (
   @param[in] Start   Physical startup address.
 **/
 VOID
-PltPcpuStart (
+PlatformPcpuStart (
   IN UINT32   PcpuId,
-  IN paddr_t  Start
+  IN PHYSICAL_ADDRESS  Start
   )
 {
   if (PcpuId == LapicGetCurrent ())
@@ -464,106 +478,3 @@ PltPcpuStart (
   LapicIpi (PcpuId, APIC_DLVR_START, Start >> 12);
   HwDelay ();
 }
-
-//
-// Legacy Function Wrappers (for backward compatibility)
-//
-
-/** @deprecated Use LapicRead instead **/
-static uint32_t lapic_read (unsigned reg) {
-  return LapicRead (reg);
-}
-
-/** @deprecated Use LapicWrite instead **/
-static void lapic_write (unsigned reg, uint32_t data) {
-  LapicWrite (reg, data);
-}
-
-/** @deprecated Use LapicGetCurrent instead **/
-static unsigned lapic_getcurrent (void) {
-  return LapicGetCurrent ();
-}
-
-/** @deprecated Use LapicConfigure instead **/
-static void lapic_configure (void) {
-  LapicConfigure ();
-}
-
-/** @deprecated Use LapicIcrWrite instead **/
-static void lapic_icr_write (uint32_t lo, uint32_t hi) {
-  LapicIcrWrite (lo, hi);
-}
-
-/** @deprecated Use LapicIpi instead **/
-static void lapic_ipi (unsigned physid, uint8_t dlvr, uint8_t vct) {
-  LapicIpi (physid, dlvr, vct);
-}
-
-/** @deprecated Use LapicIpiBroadcast instead **/
-static void lapic_ipi_broadcast (uint8_t dlvr, uint8_t vct) {
-  LapicIpiBroadcast (dlvr, vct);
-}
-
-/** @deprecated Use LapicEoi instead **/
-void lapic_eoi (void) {
-  LapicEoi ();
-}
-
-/** @deprecated Use LapicAddNmi instead **/
-void lapic_add_nmi (uint8_t pid, int l) {
-  LapicAddNmi (pid, l);
-}
-
-/** @deprecated Use LapicAdd instead **/
-void lapic_add (uint16_t physid, uint16_t plid) {
-  LapicAdd (physid, plid);
-}
-
-/** @deprecated Use LapicInitialize instead **/
-void lapic_init (uint64_t base, unsigned no) {
-  LapicInitialize (base, no);
-}
-
-/** @deprecated Use PltPcpuIterate instead **/
-int plt_pcpu_iterate (void) {
-  return PltPcpuIterate ();
-}
-
-/** @deprecated Use PltPcpuEnter instead **/
-void plt_pcpu_enter (void) {
-  PltPcpuEnter ();
-}
-
-/** @deprecated Use PltPcpuNmi instead **/
-void plt_pcpu_nmi (int pcpuid) {
-  PltPcpuNmi (pcpuid);
-}
-
-/** @deprecated Use PltPcpuNmiAll instead **/
-void plt_pcpu_nmiall (void) {
-  PltPcpuNmiAll ();
-}
-
-/** @deprecated Use PltPcpuIpi instead **/
-void plt_pcpu_ipi (int pcpuid) {
-  PltPcpuIpi (pcpuid);
-}
-
-/** @deprecated Use PltPcpuIpiAll instead **/
-void plt_pcpu_ipiall (void) {
-  PltPcpuIpiAll ();
-}
-
-/** @deprecated Use PltPcpuId instead **/
-unsigned plt_pcpu_id (void) {
-  return PltPcpuId ();
-}
-
-/** @deprecated Use PltPcpuStart instead **/
-void plt_pcpu_start (unsigned pcpuid, paddr_t start) {
-  PltPcpuStart (pcpuid, start);
-}
-
-// Legacy global variable aliases
-static void *lapic_base __attribute__((alias("gLapicBase")));
-static unsigned lapics_no __attribute__((alias("gLapicsNo")));

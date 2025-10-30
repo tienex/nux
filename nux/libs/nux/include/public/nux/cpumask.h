@@ -24,17 +24,17 @@
 
   Uses atomic OR operation to set the bit for the specified CPU.
 
-  @param[in,out] pCpuMask  Pointer to the CPU mask.
+  @param[in,out] CpuMask  Pointer to the CPU mask.
   @param[in]     CpuId     CPU number to set in the mask.
 **/
-static inline
+static INLINE
 VOID
 AtomicCpuMaskSet (
-  IN OUT CPU_MASK  *pCpuMask,
+  IN OUT CPU_MASK  *CpuMask,
   IN     UINTN     CpuId
   )
 {
-  __sync_fetch_and_or (pCpuMask, (CPU_MASK)1 << CpuId);
+  __sync_fetch_and_or (CpuMask, (CPU_MASK)1 << CpuId);
 }
 
 /**
@@ -42,17 +42,17 @@ AtomicCpuMaskSet (
 
   Uses atomic AND operation to mask out specified CPUs.
 
-  @param[in,out] pCpuMask  Pointer to the CPU mask.
+  @param[in,out] CpuMask  Pointer to the CPU mask.
   @param[in]     Mask      Mask value to AND with the CPU mask.
 **/
-static inline
+static INLINE
 VOID
 AtomicCpuMaskAnd (
-  IN OUT CPU_MASK  *pCpuMask,
+  IN OUT CPU_MASK  *CpuMask,
   IN     CPU_MASK  Mask
   )
 {
-  __sync_fetch_and_and (pCpuMask, Mask);
+  __sync_fetch_and_and (CpuMask, Mask);
 }
 
 /**
@@ -60,20 +60,20 @@ AtomicCpuMaskAnd (
 
   Uses atomic AND operation with inverted bit to clear the specified CPU.
 
-  @param[in,out] pCpuMask  Pointer to the CPU mask.
+  @param[in,out] CpuMask  Pointer to the CPU mask.
   @param[in]     CpuId     CPU number to clear from the mask.
 **/
-static inline
+static INLINE
 VOID
 AtomicCpuMaskClear (
-  IN OUT CPU_MASK  *pCpuMask,
+  IN OUT CPU_MASK  *CpuMask,
   IN     UINTN     CpuId
   )
 {
   CPU_MASK  Mask;
 
   Mask = ~((CPU_MASK)1 << CpuId);
-  AtomicCpuMaskAnd (pCpuMask, Mask);
+  AtomicCpuMaskAnd (CpuMask, Mask);
 }
 
 /**
@@ -81,17 +81,17 @@ AtomicCpuMaskClear (
 
   Uses atomic add-and-fetch with zero to safely read the mask value.
 
-  @param[in] pCpuMask  Pointer to the CPU mask.
+  @param[in] CpuMask  Pointer to the CPU mask.
 
   @return Current CPU mask value.
 **/
-static inline
+static INLINE
 CPU_MASK
 AtomicCpuMaskRead (
-  IN CPU_MASK  *pCpuMask
+  IN CPU_MASK  *CpuMask
   )
 {
-  return __sync_add_and_fetch (pCpuMask, 0);
+  return __sync_add_and_fetch (CpuMask, 0);
 }
 
 //
@@ -101,33 +101,33 @@ AtomicCpuMaskRead (
 /**
   Set a CPU bit in the mask (non-atomic).
 
-  @param[in,out] pCpuMask  Pointer to the CPU mask.
+  @param[in,out] CpuMask  Pointer to the CPU mask.
   @param[in]     CpuId     CPU number to set in the mask.
 **/
-static inline
+static INLINE
 VOID
 CpuMaskSet (
-  IN OUT CPU_MASK  *pCpuMask,
+  IN OUT CPU_MASK  *CpuMask,
   IN     UINTN     CpuId
   )
 {
-  *pCpuMask |= (1 << CpuId);
+  *CpuMask |= (1 << CpuId);
 }
 
 /**
   Clear a CPU bit in the mask (non-atomic).
 
-  @param[in,out] pCpuMask  Pointer to the CPU mask.
+  @param[in,out] CpuMask  Pointer to the CPU mask.
   @param[in]     CpuId     CPU number to clear from the mask.
 **/
-static inline
+static INLINE
 VOID
 CpuMaskClear (
-  IN OUT CPU_MASK  *pCpuMask,
+  IN OUT CPU_MASK  *CpuMask,
   IN     UINTN     CpuId
   )
 {
-  *pCpuMask &= ~(1 << CpuId);
+  *CpuMask &= ~(1 << CpuId);
 }
 
 //
@@ -183,48 +183,5 @@ CpuMaskClear (
       i++;                                                        \
     } while (m != 0);                                             \
   } while (0)
-
-//
-// Legacy Function and Macro Aliases (for backward compatibility)
-//
-
-/** @deprecated Use AtomicCpuMaskSet instead **/
-static inline void atomic_cpumask_set (cpumask_t *cpumask, unsigned cpu) {
-  AtomicCpuMaskSet (cpumask, cpu);
-}
-
-/** @deprecated Use AtomicCpuMaskAnd instead **/
-static inline void atomic_cpumask_and (cpumask_t *cpumask, cpumask_t mask) {
-  AtomicCpuMaskAnd (cpumask, mask);
-}
-
-/** @deprecated Use AtomicCpuMaskClear instead **/
-static inline void atomic_cpumask_clear (cpumask_t *cpumask, unsigned cpu) {
-  AtomicCpuMaskClear (cpumask, cpu);
-}
-
-/** @deprecated Use AtomicCpuMaskRead instead **/
-static inline cpumask_t atomic_cpumask (cpumask_t *cpumask) {
-  return AtomicCpuMaskRead (cpumask);
-}
-
-/** @deprecated Use CpuMaskSet instead **/
-static inline void cpumask_set (cpumask_t *cpumask, unsigned cpu) {
-  CpuMaskSet (cpumask, cpu);
-}
-
-/** @deprecated Use CpuMaskClear instead **/
-static inline void cpumask_clear (cpumask_t *cpumask, unsigned cpu) {
-  CpuMaskClear (cpumask, cpu);
-}
-
-/** @deprecated Use ONCE_CPUMASK instead **/
-#define once_cpumask(mask, op)  ONCE_CPUMASK(mask, op)
-
-/** @deprecated Use FOREACH_CPUMASK instead **/
-#define foreach_cpumask(mask, op)  FOREACH_CPUMASK(mask, op)
-
-/** @deprecated Internal macro, use FOREACH_CPUMASK instead **/
-#define _foreach_cpumask(mask, op, label)  FOREACH_CPUMASK(mask, op)
 
 #endif // NUX_CPUMASK_H

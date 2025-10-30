@@ -31,16 +31,7 @@ FramebufferPutCharXY (
   IN UINT8   Char
   )
 {
-  VOID *pData = fontdata + Char * 16;
+  VOID *Data = fontdata + Char * 16;
 
-  FramebufferBlt (X, Y, Color, pData, 8, 16);
-}
-
-//
-// Legacy Function Wrappers (for backward compatibility)
-//
-
-/** @deprecated Use FramebufferPutCharXY instead **/
-void framebuffer_putc_xy (unsigned x, unsigned y, uint32_t color, unsigned char c) {
-  FramebufferPutCharXY (x, y, color, c);
+  FramebufferBlt (X, Y, Color, Data, 8, 16);
 }

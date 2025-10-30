@@ -2,7 +2,7 @@
   NUX: A kernel Library.
   Copyright (C) 2019 Gianluca Guida <glguida@tlbflush.org>
 
-  SPDX-License-Identifier:	BSD-2-Clause
+  SPDX-License-Identifier: BSD-2-Clause
 */
 
 #ifndef __nux_internal_h__
@@ -20,30 +20,30 @@
 #define NUXST_OKCPU   2		/* BSP is initialized and CPU operations are available. */
 #define NUXST_RUNNING 4		/* NUX is fully initialized. */
 #define NUXST_PANIC   128	/* NUX is in panic mode and shutting down. */
-uint8_t nux_status (void);
-uint8_t nux_status_setfl (uint8_t flags);
-bool nux_status_okcpu (void);
+UINT8 NuxStatus (VOID);
+UINT8 NuxStatusSetFlags (UINT8 Flags);
+BOOLEAN NuxStatusOkCpu (VOID);
 
 /*
   Kernel TLB status.
 */
-struct ktlb
+typedef struct _KTLB
 {
-  tlbgen_t global;		/* Global mappings. */
-  tlbgen_t normal;		/* Non-global mappings. */
-};
+  TLB_GENERATION Global;		/* Global mappings. */
+  TLB_GENERATION Normal;		/* Non-global mappings. */
+} KTLB, *PKTLB;
 
 /*
   Return <0 if a < b. 0 if a == b, >0 if a > b or wrapcounts differ.
 */
-static inline int
-tlbgen_cmp (tlbgen_t a, tlbgen_t b)
+static INLINE INT32
+TlbGenCompare (TLB_GENERATION A, TLB_GENERATION B)
 {
-  if (_TG_WRAP (a) == _TG_WRAP (b))
+  if (_TG_WRAP (A) == _TG_WRAP (B))
     {
-      if (a < b)
+      if (A < B)
 	return -1;
-      else if (a > b)
+      else if (A > B)
 	return 1;
       else
 	return 0;
@@ -57,70 +57,70 @@ tlbgen_cmp (tlbgen_t a, tlbgen_t b)
    CPU management
 */
 
-struct cpu_info
+typedef struct _CPU_INFO
 {
-  unsigned cpu_id;
-  unsigned phys_id;
-  struct cpu_info *self;
+  UINT32 CpuId;
+  UINT32 PhysId;
+  struct _CPU_INFO *Self;
 
-  struct umap *umap;
+  struct umap *Umap;
 
   /* Idle jmp_buf */
-  jmp_buf idlejmp;
-  bool idle;
+  jmp_buf IdleJmp;
+  BOOLEAN Idle;
 
 
   /* NMI operations. */
 #define NMIOP_KMAPUPDATE 1	/* Update kmap across all CPUs. */
 #define NMIOP_TLBFLUSH 2	/* Flush TLBs. */
-  unsigned nmiop;
+  UINT32 NmiOp;
 
   /* TLB status for current CPU. */
-  volatile struct ktlb ktlb;
+  VOLATILE KTLB Ktlb;
 
   /*
      User copy setjmp/longjmp for pagefaults.
    */
-  jmp_buf usrpgfaultctx;
-  unsigned usrpgfault;
-  uaddr_t usrpgaddr;
-  hal_pfinfo_t usrpginfo;
+  jmp_buf UsrPgFaultCtx;
+  UINT32 UsrPgFault;
+  USER_ADDRESS UsrPgAddr;
+  hal_pfinfo_t UsrPgInfo;
 
-  /* 
+  /*
      This pointer can be set by users of
      libnux to store their private data.
    */
-  void *data;
+  VOID *Data;
 
-  struct hal_cpu hal_cpu;
-};
+  struct hal_cpu HalCpu;
+} CPU_INFO, *PCPU_INFO;
 
-void _pfncache_bootstrap (void);
-void stree_pfninit (void);
-void kvainit (void);
-void kmeminit (void);
-void pfncacheinit (void);
+VOID PfnCacheBootstrap (VOID);
+VOID BatreePfnInitialize (VOID);
+VOID KvaInitialize (VOID);
+VOID KmemInitialize (VOID);
+VOID PfnCacheInitialize (VOID);
 
-void cpu_init (void);
-void cpu_enter (void);
-__dead void cpu_idle (void);
-bool cpu_wasidle (void);
-void cpu_clridle (void);
-void cpu_nmiop (void);
-void cpu_useraccess_checkpf (uaddr_t addr, hal_pfinfo_t info);
-unsigned cpu_try_id (void);
-void cpu_kmapupdate_broadcast (void);
+VOID CpuInitialize (VOID);
+VOID CpuEnter (VOID);
+__dead VOID CpuIdle (VOID);
+BOOLEAN CpuWasIdle (VOID);
+VOID CpuClearIdle (VOID);
+VOID CpuNmiOperation (VOID);
+VOID CpuUserAccessCheckPageFault (USER_ADDRESS Addr, hal_pfinfo_t Info);
+UINT32 CpuTryId (VOID);
+VOID CpuKmapUpdateBroadcast (VOID);
 
-void ktlbgen_markdirty (hal_tlbop_t op);
-tlbgen_t ktlbgen_global (void);
-tlbgen_t ktlbgen_normal (void);
+VOID KtlbGenMarkDirty (hal_tlbop_t Op);
+TLB_GENERATION KtlbGenGlobal (VOID);
+TLB_GENERATION KtlbGenNormal (VOID);
 
 /*
   User Context
 */
 
 /* Invalid User Context.  Frame was kernel non-idle originated.  */
-#define UCTXT_INVALID ((void *)-1)
+#define UCTXT_INVALID ((VOID *)-1)
 
 /*
   Get User context from HAL frame. May return UCTXT_INVALID.
@@ -128,16 +128,16 @@ tlbgen_t ktlbgen_normal (void);
   This function it's used at hal entries, and must be called only once
   as it clears the cpu idle status!
  */
-uctxt_t *uctxt_get (struct hal_frame *f);
+UCTXT *UctxtGet (struct hal_frame *Frame);
 
 /* Get user context from a HAL frame. Expected to be a valid user context. */
-uctxt_t *uctxt_getuser (struct hal_frame *f);
+UCTXT *UctxtGetUser (struct hal_frame *Frame);
 
 /* Transform a user context to a HAL frame. Or become idle. */
-struct hal_frame *uctxt_frame (uctxt_t * uctxt);
+struct hal_frame *UctxtFrame (UCTXT *Uctxt);
 
 /* Transform a user context to a HAL frame. Or return NULL. */
-struct hal_frame *uctxt_frame_pointer (uctxt_t * uctxt);
+struct hal_frame *UctxtFramePointer (UCTXT *Uctxt);
 
 #include <nux/nuxperf.h>
 #define NUXPERF_DECLARE

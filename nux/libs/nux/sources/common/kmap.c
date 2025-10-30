@@ -3,7 +3,7 @@
 
   Provides low-level kernel virtual address to physical page mapping
   operations. These functions are unlocked and do not flush TLBs
-  automatically - use with care and call kmap_commit() to flush.
+  automatically - use with care and call KmapCommit() to flush.
 
   Copyright (C) 2019 Gianluca Guida, glguida@tlbflush.org
 
@@ -16,11 +16,11 @@
 
 #include <nux/internal.h>
 
-/*
-  Low level routines to handle kernel mappings.
-
-  Unlocked, unflushing, use with care.
-*/
+//
+// Low level routines to handle kernel mappings.
+//
+// Unlocked, unflushing, use with care.
+//
 
 /**
   Initialize kernel mapping subsystem.
@@ -46,24 +46,24 @@ KmapInitialize (
 
   @return Previous PFN if page was present, or PFN_INVALID if not mapped.
 **/
-static pfn_t
+static PFN
 KmapMapInternal (
-  IN vaddr_t  Va,
-  IN pfn_t    Pfn,
+  IN VIRTUAL_ADDRESS  Va,
+  IN PFN    Pfn,
   IN UINT32   Prot,
   IN CONST INT32  Alloc
   )
 {
   hal_l1p_t L1p;
   hal_l1e_t L1e, OldL1e;
-  pfn_t OldPfn;
+  PFN OldPfn;
   UINT32 OldProt;
 
   L1e = hal_l1e_box (Pfn, Prot);
 
   assert (hal_kmap_getl1p (Va, Alloc, &L1p));
   OldL1e = hal_l1e_set (L1p, L1e);
-  ktlbgen_markdirty (hal_l1e_tlbop (OldL1e, L1e));
+  KtlbGenMarkDirty (hal_l1e_tlbop (OldL1e, L1e));
 
   hal_l1e_unbox (OldL1e, &OldPfn, &OldProt);
 
@@ -77,12 +77,12 @@ KmapMapInternal (
 
   @return Page frame number if mapped, or PFN_INVALID if not present.
 **/
-pfn_t
+PFN
 KmapGetPfn (
-  IN vaddr_t  Va
+  IN VIRTUAL_ADDRESS  Va
   )
 {
-  pfn_t Pfn;
+  PFN Pfn;
   UINT32 Flags;
   hal_l1e_t L1e;
   hal_l1p_t L1p;
@@ -108,10 +108,10 @@ KmapGetPfn (
 
   @return Previous PFN if page was present, or PFN_INVALID if not mapped.
 **/
-pfn_t
+PFN
 KmapMap (
-  IN vaddr_t  Va,
-  IN pfn_t    Pfn,
+  IN VIRTUAL_ADDRESS  Va,
+  IN PFN    Pfn,
   IN UINT32   Prot
   )
 {
@@ -130,10 +130,10 @@ KmapMap (
 
   @return Previous PFN if page was present, or PFN_INVALID if not mapped.
 **/
-pfn_t
+PFN
 KmapMapNoAlloc (
-  IN vaddr_t  Va,
-  IN pfn_t    Pfn,
+  IN VIRTUAL_ADDRESS  Va,
+  IN PFN    Pfn,
   IN UINT32   Prot
   )
 {
@@ -150,21 +150,21 @@ KmapMapNoAlloc (
 
   @return Previous PFN if page was present, or PFN_INVALID if not mapped.
 **/
-pfn_t
+PFN
 KmapUnmap (
-  IN vaddr_t  Va
+  IN VIRTUAL_ADDRESS  Va
   )
 {
   hal_l1p_t L1p;
   hal_l1e_t L1e, OldL1e;
-  pfn_t OldPfn;
+  PFN OldPfn;
   UINT32 OldProt;
 
   L1e = hal_l1e_box (0, 0);
   if (hal_kmap_getl1p (Va, 0, &L1p))
     {
       OldL1e = hal_l1e_set (L1p, L1e);
-      ktlbgen_markdirty (hal_l1e_tlbop (OldL1e, L1e));
+      KtlbGenMarkDirty (hal_l1e_tlbop (OldL1e, L1e));
 
       hal_l1e_unbox (OldL1e, &OldPfn, &OldProt);
 
@@ -184,7 +184,7 @@ KmapUnmap (
 **/
 INT32
 KmapIsMapped (
-  IN vaddr_t  Va
+  IN VIRTUAL_ADDRESS  Va
   )
 {
   return hal_kmap_getl1p (Va, 0, NULL);
@@ -203,11 +203,11 @@ KmapIsMapped (
 **/
 INT32
 KmapIsMappedRange (
-  IN vaddr_t  Va,
-  IN size_t   Size
+  IN VIRTUAL_ADDRESS  Va,
+  IN UINTN   Size
   )
 {
-  vaddr_t i, S, E;
+  VIRTUAL_ADDRESS i, S, E;
 
   S = trunc_page (Va);
   E = Va + Size;
@@ -234,14 +234,14 @@ KmapIsMappedRange (
 **/
 INT32
 KmapEnsure (
-  IN vaddr_t  Va,
+  IN VIRTUAL_ADDRESS  Va,
   IN UINT32   ReqProt
   )
 {
   INT32 Ret = -1;
   hal_l1p_t L1p = L1P_INVALID;
   hal_l1e_t OldL1e, L1e;
-  pfn_t Pfn;
+  PFN Pfn;
   UINT32 Prot;
 
   if (hal_kmap_getl1p (Va, 0, &L1p))
@@ -272,21 +272,21 @@ KmapEnsure (
           if (L1p == L1P_INVALID)
             assert (hal_kmap_getl1p (Va, 1, &L1p));
           /* Populate page. */
-          Pfn = pfn_alloc (0);
+          Pfn = PfnAlloc (0);
           if (Pfn == PFN_INVALID)
             goto out;
         }
       else
         {
           /* Freeing page. */
-          pfn_free (Pfn);
+          PfnFree (Pfn);
           Pfn = PFN_INVALID;
         }
     }
 
   L1e = hal_l1e_box (Pfn, ReqProt);
   OldL1e = hal_l1e_set (L1p, L1e);
-  ktlbgen_markdirty (hal_l1e_tlbop (OldL1e, L1e));
+  KtlbGenMarkDirty (hal_l1e_tlbop (OldL1e, L1e));
   Ret = 0;
 
 out:
@@ -307,12 +307,12 @@ out:
 **/
 INT32
 KmapEnsureRange (
-  IN vaddr_t  Va,
-  IN size_t   Size,
+  IN VIRTUAL_ADDRESS  Va,
+  IN UINTN   Size,
   IN UINT32   ReqProt
   )
 {
-  vaddr_t i, S, E;
+  VIRTUAL_ADDRESS i, S, E;
 
   S = trunc_page (Va);
   E = Va + Size;
@@ -331,7 +331,7 @@ KmapEnsureRange (
   their TLBs to synchronize with kernel mapping changes. This is
   extremely slow but guarantees KMAP consistency across all CPUs.
 
-  Must be called after any kmap_map/kmap_unmap operations to
+  Must be called after any KmapMap/KmapUnmap operations to
   ensure changes are visible on all processors.
 **/
 VOID
@@ -351,56 +351,56 @@ KmapCommit (
 //
 
 /** @deprecated Use KmapInitialize instead **/
-void kmapinit (void) {
+VOID kmapinit (VOID) {
   KmapInitialize ();
 }
 
 /** @deprecated Use KmapMapInternal instead **/
-static pfn_t _kmap_map (vaddr_t va, pfn_t pfn, unsigned prot, const int alloc) {
+static PFN _kmap_map (VIRTUAL_ADDRESS va, PFN pfn, UINT32 prot, CONST INT32 alloc) {
   return KmapMapInternal (va, pfn, prot, alloc);
 }
 
 /** @deprecated Use KmapGetPfn instead **/
-pfn_t kmap_getpfn (vaddr_t va) {
+PFN KmapGetPfn (VIRTUAL_ADDRESS va) {
   return KmapGetPfn (va);
 }
 
 /** @deprecated Use KmapMap instead **/
-pfn_t kmap_map (vaddr_t va, pfn_t pfn, unsigned prot) {
+PFN KmapMap (VIRTUAL_ADDRESS va, PFN pfn, UINT32 prot) {
   return KmapMap (va, pfn, prot);
 }
 
 /** @deprecated Use KmapMapNoAlloc instead **/
-pfn_t kmap_map_noalloc (vaddr_t va, pfn_t pfn, unsigned prot) {
+PFN KmapMapNoAlloc (VIRTUAL_ADDRESS va, PFN pfn, UINT32 prot) {
   return KmapMapNoAlloc (va, pfn, prot);
 }
 
 /** @deprecated Use KmapUnmap instead **/
-pfn_t kmap_unmap (vaddr_t va) {
+PFN KmapUnmap (VIRTUAL_ADDRESS va) {
   return KmapUnmap (va);
 }
 
 /** @deprecated Use KmapIsMapped instead **/
-int kmap_mapped (vaddr_t va) {
+int KmapMapped (VIRTUAL_ADDRESS va) {
   return KmapIsMapped (va);
 }
 
 /** @deprecated Use KmapIsMappedRange instead **/
-int kmap_mapped_range (vaddr_t va, size_t size) {
+int kmap_mapped_range (VIRTUAL_ADDRESS va, UINTN size) {
   return KmapIsMappedRange (va, size);
 }
 
 /** @deprecated Use KmapEnsure instead **/
-int kmap_ensure (vaddr_t va, unsigned reqprot) {
+int KmapEnsure (VIRTUAL_ADDRESS va, UINT32 reqprot) {
   return KmapEnsure (va, reqprot);
 }
 
 /** @deprecated Use KmapEnsureRange instead **/
-int kmap_ensure_range (vaddr_t va, size_t size, unsigned reqprot) {
+int kmap_ensure_range (VIRTUAL_ADDRESS va, UINTN size, UINT32 reqprot) {
   return KmapEnsureRange (va, size, reqprot);
 }
 
 /** @deprecated Use KmapCommit instead **/
-void kmap_commit (void) {
+VOID KmapCommit (VOID) {
   KmapCommit ();
 }

@@ -21,7 +21,7 @@
 #include <hal/internal.h>
 
 #if 0
-static char *exceptions[] = {
+static CHAR8 *exceptions[] = {
   "Divide by zero exception",
   "Debug exception",
   "NMI",
@@ -50,19 +50,19 @@ static char *exceptions[] = {
   Handle Non-Maskable Interrupt (NMI).
 
   @param[in] Vect    Exception vector number.
-  @param[in] pFrame  Exception frame.
+  @param[in] Frame  Exception frame.
 
   @return Frame pointer (unchanged).
 **/
 struct hal_frame *
 DoNmi (
-  IN uint32_t           Vect,
-  IN struct hal_frame  *pFrame
+  IN UINT32           Vect,
+  IN struct hal_frame  *Frame
   )
 {
 
-  hal_entry_nmi (pFrame);
-  return pFrame;
+  hal_entry_nmi (Frame);
+  return Frame;
 }
 
 /**
@@ -72,25 +72,25 @@ DoNmi (
   and page faults.
 
   @param[in] Vect    Exception vector number.
-  @param[in] pFrame  Exception frame.
+  @param[in] Frame  Exception frame.
 
   @return Modified frame pointer.
 **/
 struct hal_frame *
 DoException (
-  IN uint32_t           Vect,
-  IN struct hal_frame  *pFrame
+  IN UINT32           Vect,
+  IN struct hal_frame  *Frame
   )
 {
-  struct hal_frame *pRf;
+  struct hal_frame *Rf;
 
   if (Vect == 8)
     {
-      nux_panic ("DOUBLE FAULT EXCEPTION:\n", pFrame);
+      nux_panic ("DOUBLE FAULT EXCEPTION:\n", Frame);
     }
   else if (Vect == 18)
     {
-      nux_panic ("MACHINE CHECK EXCEPTION:\n", pFrame);
+      nux_panic ("MACHINE CHECK EXCEPTION:\n", Frame);
     }
   else if (Vect == 14)
     {
@@ -98,7 +98,7 @@ DoException (
 
       /* Page Fault. */
 
-      if (pFrame->err & 1)
+      if (Frame->err & 1)
 	{
 	  XcptErr = HAL_PF_REASON_PROT;
 	}
@@ -107,61 +107,61 @@ DoException (
 	  XcptErr = HAL_PF_REASON_NOTP;
 	}
 
-      if (pFrame->err & 2)
+      if (Frame->err & 2)
 	XcptErr |= HAL_PF_INFO_WRITE;
 
-      if (pFrame->err & 4)
+      if (Frame->err & 4)
 	XcptErr |= HAL_PF_INFO_USER;
 
-      if (pFrame->err & 16)
+      if (Frame->err & 16)
 	XcptErr |= HAL_PF_INFO_EXE;
 
-      pRf = hal_entry_pf (pFrame, pFrame->cr2, XcptErr);
+      Rf = hal_entry_pf (Frame, Frame->cr2, XcptErr);
     }
   else
     {
-      pRf = hal_entry_xcpt (pFrame, Vect);
+      Rf = hal_entry_xcpt (Frame, Vect);
     }
-  return pRf;
+  return Rf;
 }
 
 /**
   Handle system call.
 
-  @param[in] pFrame  Exception frame.
+  @param[in] Frame  Exception frame.
 
   @return Modified frame pointer.
 **/
 struct hal_frame *
 DoSyscall (
-  IN struct hal_frame  *pFrame
+  IN struct hal_frame  *Frame
   )
 {
-  struct hal_frame *pRf;
+  struct hal_frame *Rf;
 
-  assert (pFrame->cs == UCS);
+  assert (Frame->cs == UCS);
 
-  pRf =
-    hal_entry_syscall (pFrame, pFrame->eax, pFrame->edi, pFrame->esi, pFrame->ecx, pFrame->edx, pFrame->ebx,
-		       pFrame->ebp);
-  return pRf;
+  Rf =
+    hal_entry_syscall (Frame, Frame->eax, Frame->edi, Frame->esi, Frame->ecx, Frame->edx, Frame->ebx,
+		       Frame->ebp);
+  return Rf;
 }
 
 /**
   Handle hardware interrupt vector.
 
   @param[in] Vect    Interrupt vector number.
-  @param[in] pFrame  Exception frame.
+  @param[in] Frame  Exception frame.
 
   @return Modified frame pointer.
 **/
 struct hal_frame *
 DoVector (
-  IN uint32_t           Vect,
-  IN struct hal_frame  *pFrame
+  IN UINT32           Vect,
+  IN struct hal_frame  *Frame
   )
 {
-  return plt_interrupt (Vect, pFrame);
+  return plt_interrupt (Vect, Frame);
 }
 
 /**
@@ -169,101 +169,101 @@ DoVector (
 
   Sets up initial frame state for user mode with interrupts enabled.
 
-  @param[out] pFrame  Exception frame to initialize.
+  @param[out] Frame  Exception frame to initialize.
 **/
 VOID
 HalFrameInitialize (
-  OUT struct hal_frame  *pFrame
+  OUT struct hal_frame  *Frame
   )
 {
-  memset (pFrame, 0, sizeof (*pFrame));
-  pFrame->eip = 0;
-  pFrame->esp = 0;
+  memset (Frame, 0, sizeof (*Frame));
+  Frame->eip = 0;
+  Frame->esp = 0;
 
-  pFrame->cs = UCS;
-  pFrame->ds = UDS;
-  pFrame->es = UDS;
-  pFrame->fs = UDS;
-  pFrame->gs = UDS;
-  pFrame->ss = UDS;
+  Frame->cs = UCS;
+  Frame->ds = UDS;
+  Frame->es = UDS;
+  Frame->fs = UDS;
+  Frame->gs = UDS;
+  Frame->ss = UDS;
 
-  pFrame->eflags = 0x202;
+  Frame->eflags = 0x202;
 }
 
 /**
   Check if frame is from user mode.
 
-  @param[in] pFrame  Exception frame to check.
+  @param[in] Frame  Exception frame to check.
 
   @retval TRUE   Frame is from user mode.
   @retval FALSE  Frame is from supervisor mode.
 **/
 BOOLEAN
 HalFrameIsUser (
-  IN struct hal_frame  *pFrame
+  IN struct hal_frame  *Frame
   )
 {
-  return pFrame->cs == UCS;
+  return Frame->cs == UCS;
 }
 
 /**
   Get instruction pointer from frame.
 
-  @param[in] pFrame  Exception frame.
+  @param[in] Frame  Exception frame.
 
   @return Instruction pointer value.
 **/
-vaddr_t
+VIRTUAL_ADDRESS
 HalFrameGetIp (
-  IN struct hal_frame  *pFrame
+  IN struct hal_frame  *Frame
   )
 {
-  return pFrame->eip;
+  return Frame->eip;
 }
 
 /**
   Set instruction pointer in frame.
 
-  @param[in,out] pFrame  Exception frame.
+  @param[in,out] Frame  Exception frame.
   @param[in]     Ip      Instruction pointer value.
 **/
 VOID
 HalFrameSetIp (
-  IN OUT struct hal_frame  *pFrame,
-  IN     vaddr_t           Ip
+  IN OUT struct hal_frame  *Frame,
+  IN     VIRTUAL_ADDRESS           Ip
   )
 {
-  pFrame->eip = Ip;
+  Frame->eip = Ip;
 }
 
 /**
   Get stack pointer from frame.
 
-  @param[in] pFrame  Exception frame.
+  @param[in] Frame  Exception frame.
 
   @return Stack pointer value.
 **/
-vaddr_t
+VIRTUAL_ADDRESS
 HalFrameGetSp (
-  IN struct hal_frame  *pFrame
+  IN struct hal_frame  *Frame
   )
 {
-  return pFrame->esp;
+  return Frame->esp;
 }
 
 /**
   Set stack pointer in frame.
 
-  @param[in,out] pFrame  Exception frame.
+  @param[in,out] Frame  Exception frame.
   @param[in]     Sp      Stack pointer value.
 **/
 VOID
 HalFrameSetSp (
-  IN OUT struct hal_frame  *pFrame,
-  IN     vaddr_t           Sp
+  IN OUT struct hal_frame  *Frame,
+  IN     VIRTUAL_ADDRESS           Sp
   )
 {
-  pFrame->esp = Sp;
+  Frame->esp = Sp;
 }
 
 /**
@@ -271,13 +271,13 @@ HalFrameSetSp (
 
   i386 does not use a global pointer, returns 0.
 
-  @param[in] pFrame  Exception frame.
+  @param[in] Frame  Exception frame.
 
   @return Always returns 0.
 **/
-vaddr_t
+VIRTUAL_ADDRESS
 HalFrameGetGp (
-  IN struct hal_frame  *pFrame
+  IN struct hal_frame  *Frame
   )
 {
   return 0;
@@ -288,12 +288,12 @@ HalFrameGetGp (
 
   i386 does not use a global pointer, this is a no-op.
 
-  @param[in,out] pFrame  Exception frame.
+  @param[in,out] Frame  Exception frame.
   @param[in]     Gp      Global pointer value (ignored).
 **/
 VOID
 HalFrameSetGp (
-  IN OUT struct hal_frame  *pFrame,
+  IN OUT struct hal_frame  *Frame,
   IN     unsigned long     Gp
   )
 {
@@ -306,12 +306,12 @@ HalFrameSetGp (
   i386 TLS requires setting an LDT for each process and is very different
   from modern architectures. For now, this is a no-op.
 
-  @param[in,out] pFrame  Exception frame.
+  @param[in,out] Frame  Exception frame.
   @param[in]     Tls     TLS pointer value (ignored).
 **/
 VOID
 HalFrameSetTls (
-  IN OUT struct hal_frame  *pFrame,
+  IN OUT struct hal_frame  *Frame,
   IN     unsigned long     Tls
   )
 {
@@ -327,61 +327,61 @@ HalFrameSetTls (
 /**
   Set argument register A0 (EAX) in frame.
 
-  @param[in,out] pFrame  Exception frame.
+  @param[in,out] Frame  Exception frame.
   @param[in]     A0      Value for first argument.
 **/
 VOID
 HalFrameSetA0 (
-  IN OUT struct hal_frame  *pFrame,
+  IN OUT struct hal_frame  *Frame,
   IN     unsigned long     A0
   )
 {
-  pFrame->eax = A0;
+  Frame->eax = A0;
 }
 
 /**
   Set argument register A1 (EDX) in frame.
 
-  @param[in,out] pFrame  Exception frame.
+  @param[in,out] Frame  Exception frame.
   @param[in]     A1      Value for second argument.
 **/
 VOID
 HalFrameSetA1 (
-  IN OUT struct hal_frame  *pFrame,
+  IN OUT struct hal_frame  *Frame,
   IN     unsigned long     A1
   )
 {
-  pFrame->edx = A1;
+  Frame->edx = A1;
 }
 
 /**
   Set argument register A2 (ECX) in frame.
 
-  @param[in,out] pFrame  Exception frame.
+  @param[in,out] Frame  Exception frame.
   @param[in]     A2      Value for third argument.
 **/
 VOID
 HalFrameSetA2 (
-  IN OUT struct hal_frame  *pFrame,
+  IN OUT struct hal_frame  *Frame,
   IN     unsigned long     A2
   )
 {
-  pFrame->ecx = A2;
+  Frame->ecx = A2;
 }
 
 /**
   Set return value in frame.
 
-  @param[in,out] pFrame  Exception frame.
+  @param[in,out] Frame  Exception frame.
   @param[in]     Ret     Return value (stored in EAX).
 **/
 VOID
 HalFrameSetRet (
-  IN OUT struct hal_frame  *pFrame,
+  IN OUT struct hal_frame  *Frame,
   IN     unsigned long     Ret
   )
 {
-  pFrame->eax = Ret;
+  Frame->eax = Ret;
 }
 
 /**
@@ -389,53 +389,53 @@ HalFrameSetRet (
 
   Displays all register values from the exception frame for debugging.
 
-  @param[in] pFrame  Exception frame to print.
+  @param[in] Frame  Exception frame to print.
 **/
 VOID
 HalFramePrint (
-  IN struct hal_frame  *pFrame
+  IN struct hal_frame  *Frame
   )
 {
 
   hallog ("EAX: %08x EBX: %08x ECX: %08x EDX:%08x",
-	  pFrame->eax, pFrame->ebx, pFrame->ecx, pFrame->edx);
+	  Frame->eax, Frame->ebx, Frame->ecx, Frame->edx);
   hallog ("EDI: %08x ESI: %08x EBP: %08x ESP:%08x",
-	  pFrame->edi, pFrame->esi, pFrame->ebp, pFrame->esp);
+	  Frame->edi, Frame->esi, Frame->ebp, Frame->esp);
   hallog (" CS: %04x     EIP: %08x EFL: %08x",
-	  (int) pFrame->cs, pFrame->eip, pFrame->eflags);
+	  (int) Frame->cs, Frame->eip, Frame->eflags);
   hallog (" DS: %04x      ES: %04x     FS: %04x      GS: %04x",
-	  pFrame->ds, pFrame->es, pFrame->fs, pFrame->gs);
-  hallog ("CR3: %08x CR2: %08x err: %08x", pFrame->cr3, pFrame->cr2, pFrame->err);
+	  Frame->ds, Frame->es, Frame->fs, Frame->gs);
+  hallog ("CR3: %08x CR2: %08x err: %08x", Frame->cr3, Frame->cr2, Frame->err);
 }
 
 /**
   Get base pointer from frame.
 
-  @param[in] pFrame  Exception frame.
+  @param[in] Frame  Exception frame.
 
   @return Base pointer (EBP) value.
 **/
 unsigned long
 FrameBp (
-  IN struct hal_frame  *pFrame
+  IN struct hal_frame  *Frame
   )
 {
-  return pFrame->ebp;
+  return Frame->ebp;
 }
 
 /**
   Get CR2 (page fault address) from frame.
 
-  @param[in] pFrame  Exception frame.
+  @param[in] Frame  Exception frame.
 
   @return CR2 register value.
 **/
 unsigned long
 FrameCr2 (
-  IN struct hal_frame  *pFrame
+  IN struct hal_frame  *Frame
   )
 {
-  return pFrame->cr2;
+  return Frame->cr2;
 }
 
 //
@@ -443,12 +443,12 @@ FrameCr2 (
 //
 
 /** @deprecated Use DoNmi instead **/
-struct hal_frame * do_nmi (uint32_t vect, struct hal_frame *f) {
+struct hal_frame * do_nmi (UINT32 vect, struct hal_frame *f) {
   return DoNmi (vect, f);
 }
 
 /** @deprecated Use DoException instead **/
-struct hal_frame * do_xcpt (uint32_t vect, struct hal_frame *f) {
+struct hal_frame * do_xcpt (UINT32 vect, struct hal_frame *f) {
   return DoException (vect, f);
 }
 
@@ -458,77 +458,77 @@ struct hal_frame * do_syscall (struct hal_frame *f) {
 }
 
 /** @deprecated Use DoVector instead **/
-struct hal_frame * do_vect (uint32_t vect, struct hal_frame *f) {
+struct hal_frame * do_vect (UINT32 vect, struct hal_frame *f) {
   return DoVector (vect, f);
 }
 
 /** @deprecated Use HalFrameInitialize instead **/
-void hal_frame_init (struct hal_frame *f) {
+VOID hal_frame_init (struct hal_frame *f) {
   HalFrameInitialize (f);
 }
 
 /** @deprecated Use HalFrameIsUser instead **/
-bool hal_frame_isuser (struct hal_frame *f) {
+BOOLEAN hal_frame_isuser (struct hal_frame *f) {
   return HalFrameIsUser (f);
 }
 
 /** @deprecated Use HalFrameGetIp instead **/
-vaddr_t hal_frame_getip (struct hal_frame *f) {
+VIRTUAL_ADDRESS hal_frame_getip (struct hal_frame *f) {
   return HalFrameGetIp (f);
 }
 
 /** @deprecated Use HalFrameSetIp instead **/
-void hal_frame_setip (struct hal_frame *f, vaddr_t ip) {
+VOID hal_frame_setip (struct hal_frame *f, VIRTUAL_ADDRESS ip) {
   HalFrameSetIp (f, ip);
 }
 
 /** @deprecated Use HalFrameGetSp instead **/
-vaddr_t hal_frame_getsp (struct hal_frame *f) {
+VIRTUAL_ADDRESS hal_frame_getsp (struct hal_frame *f) {
   return HalFrameGetSp (f);
 }
 
 /** @deprecated Use HalFrameSetSp instead **/
-void hal_frame_setsp (struct hal_frame *f, vaddr_t sp) {
+VOID hal_frame_setsp (struct hal_frame *f, VIRTUAL_ADDRESS sp) {
   HalFrameSetSp (f, sp);
 }
 
 /** @deprecated Use HalFrameGetGp instead **/
-vaddr_t hal_frame_getgp (struct hal_frame *f) {
+VIRTUAL_ADDRESS hal_frame_getgp (struct hal_frame *f) {
   return HalFrameGetGp (f);
 }
 
 /** @deprecated Use HalFrameSetGp instead **/
-void hal_frame_setgp (struct hal_frame *f, unsigned long gp) {
+VOID hal_frame_setgp (struct hal_frame *f, unsigned INTN gp) {
   HalFrameSetGp (f, gp);
 }
 
 /** @deprecated Use HalFrameSetTls instead **/
-void hal_frame_settls (struct hal_frame *f, unsigned long tls) {
+VOID hal_frame_settls (struct hal_frame *f, unsigned INTN tls) {
   HalFrameSetTls (f, tls);
 }
 
 /** @deprecated Use HalFrameSetA0 instead **/
-void hal_frame_seta0 (struct hal_frame *f, unsigned long a0) {
+VOID hal_frame_seta0 (struct hal_frame *f, unsigned INTN a0) {
   HalFrameSetA0 (f, a0);
 }
 
 /** @deprecated Use HalFrameSetA1 instead **/
-void hal_frame_seta1 (struct hal_frame *f, unsigned long a1) {
+VOID hal_frame_seta1 (struct hal_frame *f, unsigned INTN a1) {
   HalFrameSetA1 (f, a1);
 }
 
 /** @deprecated Use HalFrameSetA2 instead **/
-void hal_frame_seta2 (struct hal_frame *f, unsigned long a2) {
+VOID hal_frame_seta2 (struct hal_frame *f, unsigned INTN a2) {
   HalFrameSetA2 (f, a2);
 }
 
 /** @deprecated Use HalFrameSetRet instead **/
-void hal_frame_setret (struct hal_frame *f, unsigned long r) {
+VOID hal_frame_setret (struct hal_frame *f, unsigned INTN r) {
   HalFrameSetRet (f, r);
 }
 
 /** @deprecated Use HalFramePrint instead **/
-void hal_frame_print (struct hal_frame *f) {
+VOID hal_frame_print (struct hal_frame *f) {
   HalFramePrint (f);
 }
 

@@ -16,9 +16,9 @@
 #include <nux/internal.h>
 
 /** Set and cleared by HAL. If this is on, we're still in initialisation mode. **/
-volatile UINT32 gNuxApBooting = 0;
+VOLATILE UINT32 gNuxApBooting = 0;
 
-volatile UINT8 gNuxStFlags = 0;
+VOLATILE UINT8 gNuxStFlags = 0;
 
 /**
   Get current NUX system status flags.
@@ -82,23 +82,23 @@ InitializeMemory (
   /*
      Initialise Page Allocator.
    */
-  _pfncache_bootstrap ();
-  stree_pfninit ();
+  PfnCacheBootstrap ();
+  BatreePfnInitialize ();
 
   /*
      Initialise KMEM.
    */
-  kmeminit ();
+  KmemInitialize ();
 
   /*
      Initialise KVA Allocator.
    */
-  kvainit ();
+  KvaInitialize ();
 
   /*
      Initialise PFN Cache.
    */
-  pfncacheinit ();
+  PfnCacheInitialize ();
 
 #if 0
   /*
@@ -155,18 +155,18 @@ VOID __attribute__((constructor (0))) _nux_sysinit (VOID)
 
   /* Start the platform. This will discover CPUs and set up interrupt
      controllers. */
-  plt_init ();
+  PlatformInit ();
 
   NuxStatusSetFlags (NUXST_OKPLT);
 
   /* Init CPUs operations */
-  cpu_init ();
+  CpuInitialize ();
 
   /* Now safe to use CPU operations. */
   NuxStatusSetFlags (NUXST_OKCPU);
 
   /* Start all CPUs. */
-  cpu_startall ();
+  CpuStartAll ();
 
   printf ("Waiting for APs to boot..");
   while (gNuxApBooting)
@@ -186,47 +186,14 @@ VOID __attribute__((constructor (0))) _nux_sysinit (VOID)
   initialization and is ready to enter the system.
 **/
 VOID
-hal_main_ap (
+HalMainAp (
   VOID
   )
 {
-  cpu_enter ();
+  CpuEnter ();
   __atomic_sub_fetch (&gNuxApBooting, 1, __ATOMIC_ACQ_REL);
   exit (main_ap ());
 }
-
-//
-// Legacy Function Wrappers (for backward compatibility)
-//
-
-/** @deprecated Use NuxStatus instead **/
-uint8_t nux_status (void) {
-  return NuxStatus ();
-}
-
-/** @deprecated Use NuxStatusSetFlags instead **/
-uint8_t nux_status_setfl (uint8_t flags) {
-  return NuxStatusSetFlags (flags);
-}
-
-/** @deprecated Use NuxStatusOkCpu instead **/
-bool nux_status_okcpu (void) {
-  return NuxStatusOkCpu ();
-}
-
-/** @deprecated Use InitializeMemory instead **/
-static void init_mem (void) {
-  InitializeMemory ();
-}
-
-/** @deprecated Use PrintBanner instead **/
-static void banner (void) {
-  PrintBanner ();
-}
-
-// Legacy global variable aliases
-volatile uint32_t _nux_apbooting __attribute__((alias("gNuxApBooting")));
-volatile uint8_t _nux_stflags __attribute__((alias("gNuxStFlags")));
 
 #include <nux/nuxperf.h>
 #undef NUXPERF

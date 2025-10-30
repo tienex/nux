@@ -22,25 +22,25 @@
 
 static UINT32 gIoapicsNo;
 
-typedef struct ioapic_desc
+typedef struct _IOAPIC_DESC
 {
   VOID *Base;
   UINT32 Irq;
   UINT32 Pins;
-} IOAPIC_DESC;
+} IOAPIC_DESC, *PIOAPIC_DESC, *PCIOAPIC_DESC;
 
-static IOAPIC_DESC *gIoapics;
+static PIOAPIC_DESC gIoapics;
 static UINT32 gGsisNo;
 
-typedef struct gsi_desc
+typedef struct _GSI_DESC
 {
   UINT32 Irq;
   UINT32 Ioapic;
   UINT32 Pin;
-  enum plt_irq_type Mode;
-} GSI_DESC;
+  PLATFORM_IRQ_TYPE Mode;
+} GSI_DESC, *PGSI_DESC, *PCGSI_DESC;
 
-static GSI_DESC *gGsis;
+static PGSI_DESC gGsis;
 
 #define IOAPIC_SIZE 0x20
 
@@ -87,11 +87,11 @@ IoapicWrite (
   IN UINT32  Val
   )
 {
-  volatile UINT32 *pRegSel = (UINT32 *) (gIoapics[Index].Base + IO_REGSEL);
-  volatile UINT32 *pWin = (UINT32 *) (gIoapics[Index].Base + IO_WIN);
+  VOLATILE UINT32 *RegSel = (UINT32 *) (gIoapics[Index].Base + IO_REGSEL);
+  VOLATILE UINT32 *Win = (UINT32 *) (gIoapics[Index].Base + IO_WIN);
 
-  *pRegSel = Reg;
-  *pWin = Val;
+  *RegSel = Reg;
+  *Win = Val;
 }
 
 /**
@@ -110,11 +110,11 @@ IoapicRead (
   IN UINT8   Reg
   )
 {
-  volatile UINT32 *pRegSel = (UINT32 *) (gIoapics[Index].Base + IO_REGSEL);
-  volatile UINT32 *pWin = (UINT32 *) (gIoapics[Index].Base + IO_WIN);
+  VOLATILE UINT32 *RegSel = (UINT32 *) (gIoapics[Index].Base + IO_REGSEL);
+  VOLATILE UINT32 *Win = (UINT32 *) (gIoapics[Index].Base + IO_WIN);
 
-  *pRegSel = Reg;
-  return *pWin;
+  *RegSel = Reg;
+  return *Win;
 }
 
 /**
@@ -225,7 +225,7 @@ VOID
 GsiSetup (
   IN UINT32              Index,
   IN UINT32              Irq,
-  IN enum plt_irq_type   Mode
+  IN enum platform_irq_type   Mode
   )
 {
   if (Index >= gGsisNo)
@@ -281,7 +281,7 @@ IrqResolve (
 static VOID
 GsiSetIrqType (
   IN UINT32              Irq,
-  IN enum plt_irq_type   Mode
+  IN enum platform_irq_type   Mode
   )
 {
   UINT32 Lo;
@@ -386,7 +386,7 @@ GsiDump (
   @return Number of GSIs.
 **/
 UINT32
-PltIrqGetNo (
+PlatformIrqGetNo (
   VOID
   )
 {
@@ -402,7 +402,7 @@ PltIrqGetNo (
   @param[in] Vect  Interrupt vector.
 **/
 VOID
-PltIrqSetVector (
+PlatformIrqSetVector (
   IN UINT32  Gsi,
   IN UINT32  Vect
   )
@@ -422,8 +422,8 @@ PltIrqSetVector (
 
   @return Interrupt type, or PLT_IRQ_INVALID if GSI invalid.
 **/
-enum plt_irq_type
-PltIrqGetType (
+enum platform_irq_type
+PlatformIrqGetType (
   IN UINT32  Gsi
   )
 {
@@ -441,7 +441,7 @@ PltIrqGetType (
   @param[in] Gsi  GSI number.
 **/
 VOID
-PltIrqEnable (
+PlatformIrqEnable (
   IN UINT32  Gsi
   )
 {
@@ -460,7 +460,7 @@ PltIrqEnable (
   @param[in] Gsi  GSI number.
 **/
 VOID
-PltIrqDisable (
+PlatformIrqDisable (
   IN UINT32  Gsi
   )
 {
@@ -479,107 +479,9 @@ PltIrqDisable (
   @return Maximum IRQ number.
 **/
 UINT32
-PltIrqGetMax (
+PlatformIrqGetMax (
   VOID
   )
 {
   return APIC_VECT_IRQMAX;
 }
-
-//
-// Legacy Function Wrappers (for backward compatibility)
-//
-
-/** @deprecated Use IoapicInitialize instead **/
-void ioapic_init (unsigned no) {
-  IoapicInitialize (no);
-}
-
-/** @deprecated Use IoapicWrite instead **/
-static void ioapic_write (unsigned i, uint8_t reg, uint32_t val) {
-  IoapicWrite (i, reg, val);
-}
-
-/** @deprecated Use IoapicRead instead **/
-static uint32_t ioapic_read (unsigned i, uint8_t reg) {
-  return IoapicRead (i, reg);
-}
-
-/** @deprecated Use IoapicAdd instead **/
-void ioapic_add (unsigned num, uint64_t base, unsigned irqbase) {
-  IoapicAdd (num, base, irqbase);
-}
-
-/** @deprecated Use IoapicGetMaxIrq instead **/
-unsigned ioapic_irqs (void) {
-  return IoapicGetMaxIrq ();
-}
-
-/** @deprecated Use GsiInitialize instead **/
-void gsi_init (void) {
-  GsiInitialize ();
-}
-
-/** @deprecated Use GsiSetup instead **/
-void gsi_setup (unsigned i, unsigned irq, enum plt_irq_type mode) {
-  GsiSetup (i, irq, mode);
-}
-
-/** @deprecated Use IrqResolve instead **/
-static bool irqresolve (unsigned gsi) {
-  return IrqResolve (gsi);
-}
-
-/** @deprecated Use GsiSetIrqType instead **/
-static void gsi_set_irqtype (unsigned irq, enum plt_irq_type mode) {
-  GsiSetIrqType (irq, mode);
-}
-
-/** @deprecated Use GsiRegister instead **/
-static void gsi_register (unsigned gsi, unsigned vect) {
-  GsiRegister (gsi, vect);
-}
-
-/** @deprecated Use GsiStart instead **/
-void gsi_start (void) {
-  GsiStart ();
-}
-
-/** @deprecated Use GsiDump instead **/
-void gsi_dump (void) {
-  GsiDump ();
-}
-
-/** @deprecated Use PltIrqGetNo instead **/
-unsigned plt_irq_no (void) {
-  return PltIrqGetNo ();
-}
-
-/** @deprecated Use PltIrqSetVector instead **/
-void plt_irq_setvector (unsigned gsi, unsigned vect) {
-  PltIrqSetVector (gsi, vect);
-}
-
-/** @deprecated Use PltIrqGetType instead **/
-enum plt_irq_type plt_irq_type (unsigned gsi) {
-  return PltIrqGetType (gsi);
-}
-
-/** @deprecated Use PltIrqEnable instead **/
-void plt_irq_enable (unsigned gsi) {
-  PltIrqEnable (gsi);
-}
-
-/** @deprecated Use PltIrqDisable instead **/
-void plt_irq_disable (unsigned gsi) {
-  PltIrqDisable (gsi);
-}
-
-/** @deprecated Use PltIrqGetMax instead **/
-unsigned plt_irq_max (void) {
-  return PltIrqGetMax ();
-}
-
-// Legacy global variable aliases
-static unsigned ioapics_no __attribute__((alias("gIoapicsNo")));
-static unsigned gsis_no __attribute__((alias("gGsisNo")));

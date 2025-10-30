@@ -26,7 +26,7 @@
   @param[in] X       X coordinate in pixels.
   @param[in] Y       Y coordinate in pixels.
   @param[in] Color   Foreground color.
-  @param[in] pData   Bitmap data (1 bit per pixel).
+  @param[in] Data   Bitmap data (1 bit per pixel).
   @param[in] Width   Bitmap width in pixels.
   @param[in] Height  Bitmap height in pixels.
 **/
@@ -35,36 +35,36 @@ FramebufferBlt (
   IN UINT32  X,
   IN UINT32  Y,
   IN UINT32  Color,
-  IN VOID    *pData,
-  IN size_t  Width,
-  IN size_t  Height
+  IN VOID    *Data,
+  IN UINTN  Width,
+  IN UINTN  Height
   )
 {
-  UINT32 BytesPerPixel = gFbDesc->bpp / 8;
-  size_t HeightRemaining;
+  UINT32 BytesPerPixel = gFbDesc->Bpp / 8;
+  UINTN HeightRemaining;
 
-  if (gFbDesc->type == FB_INVALID)
+  if (gFbDesc->Type == FB_INVALID)
     return;
 
   HeightRemaining = Height;
   while (HeightRemaining)
     {
-      size_t Offset = Y * gFbDesc->pitch + X * BytesPerPixel;
-      size_t WidthRemainingBytes = (Width + 7) / 8;
-      size_t WidthRemaining = Width;
+      UINTN Offset = Y * gFbDesc->Pitch + X * BytesPerPixel;
+      UINTN WidthRemainingBytes = (Width + 7) / 8;
+      UINTN WidthRemaining = Width;
 
       while (WidthRemainingBytes)
 	{
-	  UINT8 Byte = *(UINT8 *) pData++;
-	  size_t BitsRemaining = WidthRemaining < 8 ? WidthRemaining : 8;
+	  UINT8 Byte = *(UINT8 *) Data++;
+	  UINTN BitsRemaining = WidthRemaining < 8 ? WidthRemaining : 8;
 
 	  while (BitsRemaining)
 	    {
 	      if (Byte & 0x80)
-		*(volatile UINT32 *) (UINTN) (gFbDesc->addr + Offset) =
+		*(VOLATILE UINT32 *) (UINTN) (gFbDesc->Addr + Offset) =
 		  Color;
 	      else
-		*(volatile UINT32 *) (UINTN) (gFbDesc->addr + Offset) = 0;
+		*(VOLATILE UINT32 *) (UINTN) (gFbDesc->Addr + Offset) = 0;
 
 	      Offset += BytesPerPixel;
 	      Byte <<= 1;
@@ -77,14 +77,4 @@ FramebufferBlt (
       Y += 1;
       HeightRemaining--;
     }
-}
-
-//
-// Legacy Function Wrappers (for backward compatibility)
-//
-
-/** @deprecated Use FramebufferBlt instead **/
-void framebuffer_blt (unsigned x, unsigned y, uint32_t color,
-		 void *data, size_t width, size_t height) {
-  FramebufferBlt (x, y, color, data, width, height);
 }

@@ -29,18 +29,18 @@ static pte_t *gL2s[4];
   Writes a page table entry with the specified page frame number
   and flags.
 
-  @param[out] pPtep  Pointer to PTE.
+  @param[out] Ptep  Pointer to PTE.
   @param[in]  Pfn    Page frame number.
   @param[in]  Flags  PTE flags.
 **/
 static VOID
 SetPte (
-  OUT pte_t   *pPtep,
+  OUT pte_t   *Ptep,
   IN  UINT64  Pfn,
   IN  UINT64  Flags
   )
 {
-  *pPtep = (Pfn << PAGE_SHIFT) | Flags;
+  *Ptep = (Pfn << PAGE_SHIFT) | Flags;
 }
 
 /**
@@ -49,21 +49,21 @@ SetPte (
   Extracts the physical address from a page table entry.
   Returns NULL if PTE is not present.
 
-  @param[in] pPtep  Pointer to PTE.
+  @param[in] Ptep  Pointer to PTE.
 
   @return Physical address from PTE, or NULL if not present.
 **/
 static VOID *
 PteGetAddr (
-  IN pte_t  *pPtep
+  IN pte_t  *Ptep
   )
 {
-  pte_t Pte = *pPtep;
+  pte_t Pte = *Ptep;
 
   if (!(Pte & PTE_P))
     return NULL;
 
-  return (VOID *) (uintptr_t) (Pte & 0x7ffffffffffff000LL);
+  return (VOID *) (UINTN) (Pte & 0x7ffffffffffff000LL);
 }
 
 /**
@@ -71,16 +71,16 @@ PteGetAddr (
 
   Extracts the flag bits from a page table entry.
 
-  @param[in] pPtep  Pointer to PTE.
+  @param[in] Ptep  Pointer to PTE.
 
   @return PTE flags.
 **/
 static UINT64
 PteGetFlags (
-  IN pte_t  *pPtep
+  IN pte_t  *Ptep
   )
 {
-  pte_t Pte = *pPtep;
+  pte_t Pte = *Ptep;
 
   return Pte & ~0x7ffffffffffff000LL;
 }
@@ -138,7 +138,7 @@ PteMergeFlags (
 **/
 VOID
 PaeVerify (
-  IN vaddr_t   Va,
+  IN VIRTUAL_ADDRESS   Va,
   IN size64_t  Size
   )
 {
@@ -170,7 +170,7 @@ PaeInitialize (
   /* Set PDPTEs */
   for (i = 0; i < 4; i++)
     {
-      uintptr_t L2Page = get_payload_page ();
+      UINTN L2Page = get_payload_page ();
 
       SetPte (gPaeCr3 + i, L2Page >> PAGE_SHIFT, PTE_P);
       gL2s[i] = (pte_t *) L2Page;
@@ -195,7 +195,7 @@ PaeInitialize (
 static pte_t *
 PaeGetL2p (
   IN pte_t    *pCr3,
-  IN vaddr_t  Va,
+  IN VIRTUAL_ADDRESS  Va,
   IN int      Payload
   )
 {
@@ -208,7 +208,7 @@ PaeGetL2p (
   pL2p = (pte_t *) PteGetAddr (pL3p);
   if (pL2p == NULL)
     {
-      uintptr_t L2Page;
+      UINTN L2Page;
 
       /* Populating L2. */
       L2Page = Payload ? get_payload_page () : get_page ();
@@ -234,7 +234,7 @@ PaeGetL2p (
 static pte_t *
 PaeGetL1p (
   IN pte_t    *pCr3,
-  IN vaddr_t  Va,
+  IN VIRTUAL_ADDRESS  Va,
   IN int      Payload
   )
 {
@@ -246,7 +246,7 @@ PaeGetL1p (
   pL1p = (pte_t *) PteGetAddr (pL2p);
   if (pL1p == NULL)
     {
-      uintptr_t L1Page;
+      UINTN L1Page;
 
       /* Populating L1. */
       L1Page = Payload ? get_payload_page () : get_page ();
@@ -263,7 +263,7 @@ PaeGetL1p (
 
   Creates a page mapping with specified permissions.
 
-  @param[in] pPt      Page table root.
+  @param[in] Pt      Page table root.
   @param[in] Va       Virtual address.
   @param[in] Pa       Physical address.
   @param[in] Payload  TRUE to allocate from payload pages.
@@ -272,9 +272,9 @@ PaeGetL1p (
 **/
 VOID
 PaeMapPage (
-  IN VOID      *pPt,
-  IN vaddr_t   Va,
-  IN uintptr_t Pa,
+  IN VOID      *Pt,
+  IN VIRTUAL_ADDRESS   Va,
+  IN UINTN Pa,
   IN int       Payload,
   IN int       W,
   IN int       X
@@ -282,14 +282,14 @@ PaeMapPage (
 {
   pte_t *pL1p, *pCr3;
   UINT64 L1F;
-  uintptr_t Page;
+  UINTN Page;
 
-  pCr3 = (pte_t *) pPt;
+  pCr3 = (pte_t *) Pt;
 
   pL1p = PaeGetL1p (pCr3, Va, Payload);
   L1F = (W ? PTE_W : 0) | (X ? 0 : PTE_NX) | PTE_P;
 
-  Page = (uintptr_t) PteGetAddr (pL1p);
+  Page = (UINTN) PteGetAddr (pL1p);
   assert (Page == 0);
   Page = Pa >> PAGE_SHIFT;
   SetPte (pL1p, Page, L1F);
@@ -308,9 +308,9 @@ PaeMapPage (
 
   @return Physical address of page.
 **/
-static uintptr_t
+static UINTN
 PaePopulatePage (
-  IN vaddr_t  Va,
+  IN VIRTUAL_ADDRESS  Va,
   IN int      U,
   IN int      W,
   IN int      X
@@ -318,13 +318,13 @@ PaePopulatePage (
 {
   pte_t *pL1p;
   UINT64 L1F;
-  uintptr_t Page;
+  UINTN Page;
 
   pL1p = PaeGetL1p (gPaeCr3, Va, 1);
 
   L1F = (U ? PTE_U : 0) | (W ? PTE_W : 0) | (X ? 0 : PTE_NX) | PTE_P;
 
-  Page = (uintptr_t) PteGetAddr (pL1p);
+  Page = (UINTN) PteGetAddr (pL1p);
   if (PteGetAddr (pL1p) == NULL)
     {
       Page = get_payload_page ();
@@ -356,12 +356,12 @@ PaePopulatePage (
 
   @return Physical address.
 **/
-uintptr_t
+UINTN
 PaeGetPhys (
-  IN vaddr_t  Va
+  IN VIRTUAL_ADDRESS  Va
   )
 {
-  uintptr_t Page;
+  UINTN Page;
   pte_t *pL2e, *pL1, *pL1e;
   unsigned L3Off = L3OFF (Va);
   unsigned L2Off = L2OFF (Va);
@@ -374,7 +374,7 @@ PaeGetPhys (
 
   pL1e = pL1 + L1Off;
 
-  Page = (uintptr_t) PteGetAddr (pL1e);
+  Page = (UINTN) PteGetAddr (pL1e);
   assert (Page != 0);
 
   return Page | (Va & ~(PAGE_MASK));
@@ -386,7 +386,7 @@ PaeGetPhys (
   Creates direct 1:1 mapping of physical memory with specified type
   and permissions using 4KB pages.
 
-  @param[in] pPt      Page table root.
+  @param[in] Pt      Page table root.
   @param[in] Pa       Physical address base.
   @param[in] Va       Virtual address base.
   @param[in] Size     Size of region.
@@ -396,9 +396,9 @@ PaeGetPhys (
 **/
 VOID
 PaeDirectMap (
-  IN VOID              *pPt,
+  IN VOID              *Pt,
   IN UINT64            Pa,
-  IN vaddr_t           Va,
+  IN VIRTUAL_ADDRESS           Va,
   IN size64_t          Size,
   IN enum memory_type  Mt,
   IN int               Payload,
@@ -407,14 +407,14 @@ PaeDirectMap (
 {
   UINT64 PaPfn = Pa >> PAGE_SHIFT;
   unsigned i, n;
-  pte_t *pPte;
+  pte_t *Pte;
 
   n = Size >> PAGE_SHIFT;
 
   for (i = 0; i < n; i++)
     {
-      pPte = PaeGetL1p (pPt, Va + (i << PAGE_SHIFT), Payload);
-      SetPte (pPte, PaPfn + i,
+      Pte = PaeGetL1p (Pt, Va + (i << PAGE_SHIFT), Payload);
+      SetPte (Pte, PaPfn + i,
 	       MemtypeToFlags (Mt, true /*4k */ ) | PTE_P | PTE_W | (X ? 0 :
 								       PTE_NX));
     }
@@ -432,7 +432,7 @@ PaeDirectMap (
 **/
 VOID
 PaePhysmap (
-  IN vaddr_t           Va,
+  IN VIRTUAL_ADDRESS           Va,
   IN size64_t          Size,
   IN UINT64            Pa,
   IN enum memory_type  Mt
@@ -452,7 +452,7 @@ PaePhysmap (
 **/
 VOID
 PaeTopPtAlloc (
-  IN vaddr_t   Va,
+  IN VIRTUAL_ADDRESS   Va,
   IN size64_t  Size
   )
 {
@@ -471,7 +471,7 @@ PaeTopPtAlloc (
 **/
 VOID
 PaePtAlloc (
-  IN vaddr_t   Va,
+  IN VIRTUAL_ADDRESS   Va,
   IN size64_t  Size
   )
 {
@@ -498,7 +498,7 @@ PaePtAlloc (
 **/
 VOID
 PaeLinear (
-  IN vaddr_t   Va,
+  IN VIRTUAL_ADDRESS   Va,
   IN size64_t  Size
   )
 {
@@ -524,7 +524,7 @@ PaeLinear (
       pte_t *pL2p;
 
       pL2p = gL2s[L3Off] + L2Off + i;
-      SetPte (pL2p, (UINT64) (uintptr_t) gL2s[i] >> PAGE_SHIFT,
+      SetPte (pL2p, (UINT64) (UINTN) gL2s[i] >> PAGE_SHIFT,
 	       PTE_NX | PTE_W | PTE_P);
     }
 }
@@ -543,7 +543,7 @@ PaeLinear (
 **/
 VOID
 PaePopulate (
-  IN vaddr_t   Va,
+  IN VIRTUAL_ADDRESS   Va,
   IN size64_t  Size,
   IN int       U,
   IN int       W,
@@ -572,10 +572,10 @@ PaePopulate (
 **/
 VOID
 PaeEntry (
-  IN vaddr_t  Entry
+  IN VIRTUAL_ADDRESS  Entry
   )
 {
-  md_entry (ARCH_386, (vaddr_t) (uintptr_t) gPaeCr3, Entry);
+  md_entry (ARCH_386, (VIRTUAL_ADDRESS) (UINTN) gPaeCr3, Entry);
 }
 
 

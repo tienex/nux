@@ -25,80 +25,80 @@
 #define CR0_PG  (1 << 31)
 #define CR0_WP  (1 << 16)
 
-static inline unsigned long
+static INLINE UINTN
 read_cr4 (void)
 {
-  unsigned long reg;
+  UINTN reg;
 
   asm volatile ("mov %%cr4, %0\n":"=r" (reg));
   return reg;
 }
 
-static inline void
-write_cr4 (unsigned long reg)
+static INLINE void
+write_cr4 (UINTN reg)
 {
   asm volatile ("mov %0, %%cr4\n"::"r" (reg));
 }
 
-static inline unsigned long
+static INLINE UINTN
 read_cr3 (void)
 {
-  unsigned long reg;
+  UINTN reg;
 
   asm volatile ("mov %%cr3, %0\n":"=r" (reg));
   return reg;
 }
 
-static inline void
-write_cr3 (unsigned long reg)
+static INLINE void
+write_cr3 (UINTN reg)
 {
   asm volatile ("mov %0, %%cr3\n"::"r" (reg));
 }
 
-static inline unsigned long
+static INLINE UINTN
 read_cr0 (void)
 {
-  unsigned long reg;
+  UINTN reg;
 
   asm volatile ("mov %%cr0, %0\n":"=r" (reg));
   return reg;
 }
 
-static inline void
-write_cr0 (unsigned long reg)
+static INLINE void
+write_cr0 (UINTN reg)
 {
   asm volatile ("mov %0, %%cr0\n"::"r" (reg));
 }
 
-static inline void
-cpuid (uint32_t * eax, uint32_t * ebx, uint32_t * ecx, uint32_t * edx)
+static INLINE void
+cpuid (UINT32 * eax, UINT32 * ebx, UINT32 * ecx, UINT32 * edx)
 {
   asm volatile ("cpuid\n":"+a" (*eax), "=b" (*ebx), "+c" (*ecx), "=d" (*edx));
 }
 
-static inline uint64_t
-rdmsr (uint32_t ecx)
+static INLINE UINT64
+rdmsr (UINT32 ecx)
 {
-  uint32_t edx, eax;
+  UINT32 edx, eax;
 
   asm volatile ("rdmsr\n":"=d" (edx), "=a" (eax):"c" (ecx));
 
-  return ((uint64_t) edx << 32) | eax;
+  return ((UINT64) edx << 32) | eax;
 }
 
-static inline void
-wrmsr (uint32_t ecx, uint64_t msr)
+static INLINE void
+wrmsr (UINT32 ecx, UINT64 msr)
 {
-  uint32_t edx, eax;
+  UINT32 edx, eax;
 
-  eax = (uint32_t) msr;
+  eax = (UINT32) msr;
   edx = msr >> 32;
 
   asm volatile ("wrmsr\n"::"c" (ecx), "d" (edx), "a" (eax));
 }
 
-static inline void
-lgdt (uintptr_t ptr)
+static INLINE void
+lgdt (UINTN ptr)
 {
   asm volatile ("lgdtl (%0)\n"::"r" (ptr));
 }

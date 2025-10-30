@@ -123,7 +123,7 @@ typedef struct elf64hdr
 #define PHF_W		2
 #define PHF_R		4
 
-#define ELFOFF(_o) ((VOID *)(UINTN)(pElfImg + (_o)))
+#define ELFOFF(_o) ((VOID *)(UINTN)(ElfImg + (_o)))
 
 /**
   Load user-space program header.
@@ -131,7 +131,7 @@ typedef struct elf64hdr
   Processes ELF program header for user-space segments (LOAD, TLS).
   Copies or zeros memory as needed and sets up virtual address mappings.
 
-  @param[in] pElfImg  Pointer to ELF image.
+  @param[in] ElfImg  Pointer to ELF image.
   @param[in] Type     Program header type.
   @param[in] Flags    Program header flags (PHF_R/PHF_W/PHF_X).
   @param[in] Va       Virtual address.
@@ -141,7 +141,7 @@ typedef struct elf64hdr
 **/
 VOID
 PhUload (
-  IN VOID    *pElfImg,
+  IN VOID    *ElfImg,
   IN UINT32  Type,
   IN UINT32  Flags,
   IN UINT64  Va,
@@ -210,7 +210,7 @@ PhUload (
   Processes ELF program header for kernel segments (LOAD, TLS, and
   custom APXH types for boot information, physical mappings, etc).
 
-  @param[in] pElfImg  Pointer to ELF image.
+  @param[in] ElfImg  Pointer to ELF image.
   @param[in] Type     Program header type.
   @param[in] Flags    Program header flags (PHF_R/PHF_W/PHF_X).
   @param[in] Va       Virtual address.
@@ -220,7 +220,7 @@ PhUload (
 **/
 VOID
 PhKload (
-  IN VOID    *pElfImg,
+  IN VOID    *ElfImg,
   IN UINT32  Type,
   IN UINT32  Flags,
   IN UINT64  Va,
@@ -337,40 +337,40 @@ PhKload (
   Parses and loads a 32-bit ELF executable, processing all program
   headers for kernel or user-space.
 
-  @param[in] pElfImg  Pointer to ELF image.
+  @param[in] ElfImg  Pointer to ELF image.
   @param[in] User     TRUE for user-space, FALSE for kernel.
 
   @return Entry point virtual address, or -1 on error.
 **/
-vaddr_t
+VIRTUAL_ADDRESS
 LoadElf32 (
-  IN VOID    *pElfImg,
+  IN VOID    *ElfImg,
   IN INT32   User
   )
 {
   INT32 i;
 
   CHAR8 ElfId[] = { 0x7f, 'E', 'L', 'F', };
-  ELF32_HDR *pHdr = (ELF32_HDR *) pElfImg;
-  ELF32_PH *pPh = (ELF32_PH *) ELFOFF (pHdr->phoff);
+  ELF32_HDR *Hdr = (ELF32_HDR *) ElfImg;
+  ELF32_PH *Ph = (ELF32_PH *) ELFOFF (Hdr->phoff);
 
-  if (memcmp (pHdr->id, ElfId, 4) != 0)
+  if (memcmp (Hdr->id, ElfId, 4) != 0)
     return (UINTN) - 1;
 
-  if (pHdr->type != ET_EXEC || pHdr->ver != EV_CURRENT)
+  if (Hdr->type != ET_EXEC || Hdr->ver != EV_CURRENT)
     return (UINTN) - 1;
 
-  for (i = 0; i < pHdr->phs; i++, pPh++)
+  for (i = 0; i < Hdr->phs; i++, Ph++)
     {
       if (User)
-	PhUload (pElfImg, pPh->type, pPh->flags, pPh->va, pPh->msize, pPh->off,
-		  pPh->fsize);
+	PhUload (ElfImg, Ph->type, Ph->flags, Ph->va, Ph->msize, Ph->off,
+		  Ph->fsize);
       else
-	PhKload (pElfImg, pPh->type, pPh->flags, pPh->va, pPh->msize, pPh->off,
-		  pPh->fsize);
+	PhKload (ElfImg, Ph->type, Ph->flags, Ph->va, Ph->msize, Ph->off,
+		  Ph->fsize);
     }
 
-  return (vaddr_t) pHdr->entry;
+  return (VIRTUAL_ADDRESS) Hdr->entry;
 }
 
 /**
@@ -379,40 +379,40 @@ LoadElf32 (
   Parses and loads a 64-bit ELF executable, processing all program
   headers for kernel or user-space.
 
-  @param[in] pElfImg  Pointer to ELF image.
+  @param[in] ElfImg  Pointer to ELF image.
   @param[in] User     TRUE for user-space, FALSE for kernel.
 
   @return Entry point virtual address, or -1 on error.
 **/
-vaddr_t
+VIRTUAL_ADDRESS
 LoadElf64 (
-  IN VOID    *pElfImg,
+  IN VOID    *ElfImg,
   IN INT32   User
   )
 {
   INT32 i;
 
   CHAR8 ElfId[] = { 0x7f, 'E', 'L', 'F', };
-  ELF64_HDR *pHdr = (ELF64_HDR *) pElfImg;
-  ELF64_PH *pPh = (ELF64_PH *) ELFOFF (pHdr->phoff);
+  ELF64_HDR *Hdr = (ELF64_HDR *) ElfImg;
+  ELF64_PH *Ph = (ELF64_PH *) ELFOFF (Hdr->phoff);
 
-  if (memcmp (pHdr->id, ElfId, 4) != 0)
+  if (memcmp (Hdr->id, ElfId, 4) != 0)
     return (UINTN) - 1;
 
-  if (pHdr->type != ET_EXEC || pHdr->ver != EV_CURRENT)
+  if (Hdr->type != ET_EXEC || Hdr->ver != EV_CURRENT)
     return (UINTN) - 1;
 
-  for (i = 0; i < pHdr->phs; i++, pPh++)
+  for (i = 0; i < Hdr->phs; i++, Ph++)
     {
       if (User)
-	PhUload (pElfImg, pPh->type, pPh->flags, pPh->va, pPh->msize, pPh->off,
-		  pPh->fsize);
+	PhUload (ElfImg, Ph->type, Ph->flags, Ph->va, Ph->msize, Ph->off,
+		  Ph->fsize);
       else
-	PhKload (pElfImg, pPh->type, pPh->flags, pPh->va, pPh->msize, pPh->off,
-		  pPh->fsize);
+	PhKload (ElfImg, Ph->type, Ph->flags, Ph->va, Ph->msize, Ph->off,
+		  Ph->fsize);
     }
 
-  return (vaddr_t) pHdr->entry;
+  return (VIRTUAL_ADDRESS) Hdr->entry;
 }
 
 /**
@@ -420,28 +420,28 @@ LoadElf64 (
 
   Determines the target architecture from ELF machine type.
 
-  @param[in] pElfImg  Pointer to ELF image.
+  @param[in] ElfImg  Pointer to ELF image.
 
   @return Architecture type, or ARCH_INVALID/ARCH_UNSUPPORTED.
 **/
 arch_t
 GetElfArch (
-  IN VOID  *pElfImg
+  IN VOID  *ElfImg
   )
 {
   CHAR8 ElfId[] = { 0x7f, 'E', 'L', 'F', };
-  ELF32_HDR *pHdr = (ELF32_HDR *) pElfImg;
+  ELF32_HDR *Hdr = (ELF32_HDR *) ElfImg;
 
-  if (memcmp (pHdr->id, ElfId, 4) != 0)
+  if (memcmp (Hdr->id, ElfId, 4) != 0)
     return ARCH_INVALID;
 
-  if (pHdr->mach == EM_386)
+  if (Hdr->mach == EM_386)
     return ARCH_386;
 
-  if (pHdr->mach == EM_X86_64)
+  if (Hdr->mach == EM_X86_64)
     return ARCH_AMD64;
 
-  if (pHdr->mach == EM_RISCV)
+  if (Hdr->mach == EM_RISCV)
     return ARCH_RISCV64;
 
   return ARCH_UNSUPPORTED;
@@ -452,24 +452,24 @@ GetElfArch (
 //
 
 /** @deprecated Use PhUload instead **/
-void ph_uload (void *elfimg, uint32_t type, uint32_t flags,
-	       uint64_t va, uint64_t msize, uint64_t off, uint64_t fsize) {
+void ph_uload (void *elfimg, UINT32 type, UINT32 flags,
+	       UINT64 va, UINT64 msize, UINT64 off, UINT64 fsize) {
   PhUload (elfimg, type, flags, va, msize, off, fsize);
 }
 
 /** @deprecated Use PhKload instead **/
-void ph_kload (void *elfimg, uint32_t type, uint32_t flags,
-	       uint64_t va, uint64_t msize, uint64_t off, uint64_t fsize) {
+void ph_kload (void *elfimg, UINT32 type, UINT32 flags,
+	       UINT64 va, UINT64 msize, UINT64 off, UINT64 fsize) {
   PhKload (elfimg, type, flags, va, msize, off, fsize);
 }
 
 /** @deprecated Use LoadElf32 instead **/
-vaddr_t load_elf32 (void *elfimg, int u) {
+VIRTUAL_ADDRESS load_elf32 (void *elfimg, int u) {
   return LoadElf32 (elfimg, u);
 }
 
 /** @deprecated Use LoadElf64 instead **/
-vaddr_t load_elf64 (void *elfimg, int u) {
+VIRTUAL_ADDRESS load_elf64 (void *elfimg, int u) {
   return LoadElf64 (elfimg, u);
 }
 

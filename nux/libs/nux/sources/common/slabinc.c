@@ -2,12 +2,12 @@
   NUX: A kernel Library.
   Copyright (C) 2019 Gianluca Guida, glguida@tlbflush.org
 
-  SPDX-License-Identifier:	BSD-2-Clause
+  SPDX-License-Identifier: BSD-2-Clause
 */
 
-/*
- * Generic, simple and portable slab allocator.
- */
+//
+// Generic, simple and portable slab allocator.
+//
 /* *INDENT-OFF* */
 
 #include <nux/slabinc.h>
@@ -27,8 +27,8 @@
 #endif
 
 static int __slabinc_initialized = 0;
-static size_t __slabinc_size = 0;
-static unsigned __slabinc_slabs = 0;
+static UINTN __slabinc_size = 0;
+static UINT32 __slabinc_slabs = 0;
 static LIST_HEAD(slabqueue, slab) __slabinc_slabq;
 
 #ifndef SLABMAGIC
@@ -46,10 +46,10 @@ struct objhdr
 
 int SLABFUNC (grow) (struct slab * sc)
 {
-  int i;
+  INT32 i;
   struct objhdr *ptr;
   struct slabhdr *sh;
-  const unsigned long objs = ___slabobjs (sc->objsize);
+  CONST unsigned long objs = ___slabobjs (sc->objsize);
 
   sh = ___slaballoc (&ptr);
   if (sh == NULL)
@@ -63,7 +63,7 @@ int SLABFUNC (grow) (struct slab * sc)
   for (i = 0; i < objs; i++)
     {
       SLIST_INSERT_HEAD (&sh->freeq, ptr, list_entry);
-      ptr = (struct objhdr *) ((unsigned char *) ptr + sc->objsize);
+      ptr = (struct objhdr *) ((UINT8 *) ptr + sc->objsize);
     }
 
   SPIN_LOCK (sc->lock);
@@ -87,7 +87,7 @@ int SLABFUNC (shrink) (struct slab * sc)
       sc->emptycnt--;
 
       SPIN_UNLOCK (sc->lock);
-      ___slabfree ((void *) sh);
+      ___slabfree ((VOID *) sh);
       shrunk++;
       SPIN_LOCK (sc->lock);
     }
@@ -96,10 +96,10 @@ int SLABFUNC (shrink) (struct slab * sc)
   return shrunk;
 }
 
-void *SLABFUNC (alloc_opq) (struct slab * sc, void *opq)
+VOID *SLABFUNC (alloc_opq) (struct slab * sc, VOID *opq)
 {
   int tries = 0;
-  void *addr = NULL;
+  VOID *addr = NULL;
   struct objhdr *oh;
   struct slabhdr *sh = NULL;
 
@@ -146,7 +146,7 @@ retry:
 
   SPIN_UNLOCK (sc->lock);
 
-  addr = (void *) oh;
+  addr = (VOID *) oh;
   memset (addr, 0, sizeof (*oh));
 
   if (sc->ctr)
@@ -156,17 +156,17 @@ out:
   return addr;
 }
 
-void SLABFUNC (free) (void *ptr)
+VOID SLABFUNC (free) (VOID *ptr)
 {
   struct slab *sc;
   struct slabhdr *sh;
-  unsigned max_objs;
+  unsigned MaxObjs;
 
   sh = ___slabgethdr (ptr);
   if (!sh)
     return;
   sc = sh->cache;
-  max_objs = ___slabobjs (sc->objsize);
+  MaxObjs = ___slabobjs (sc->objsize);
 
   if (sc->ctr)
     sc->ctr (ptr, NULL, 1);
@@ -182,7 +182,7 @@ void SLABFUNC (free) (void *ptr)
       sc->fullcnt--;
       sc->freecnt++;
     }
-  else if (sh->freecnt == max_objs)
+  else if (sh->freecnt == MaxObjs)
     {
       LIST_REMOVE (sh, list_entry);
       LIST_INSERT_HEAD (&sc->emptyq, sh, list_entry);
@@ -194,9 +194,9 @@ void SLABFUNC (free) (void *ptr)
   return;
 }
 
-void
-SLABFUNC (register) (struct slab * sc, const char *name, size_t objsize,
-		     void (*ctr) (void *, void *, int), int cachealign)
+VOID
+SLABFUNC (register) (struct slab * sc, PCCHAR8name, UINTN objsize,
+		     VOID (*ctr) (VOID *, VOID *, INT32), INT32 cachealign)
 {
 #define MAX(_a,_b) ((_a) >= (_b) ? (_a) :  (_b))
 
@@ -237,7 +237,7 @@ SLABFUNC (register) (struct slab * sc, const char *name, size_t objsize,
   SPIN_UNLOCK (__slabinc_lock);
 }
 
-void SLABFUNC (deregister) (struct slab * sc)
+VOID SLABFUNC (deregister) (struct slab * sc)
 {
   struct slabhdr *sh;
 
@@ -246,21 +246,21 @@ void SLABFUNC (deregister) (struct slab * sc)
       sh = LIST_FIRST (&sc->emptyq);
       LIST_REMOVE (sh, list_entry);
 
-      ___slabfree ((void *) sh);
+      ___slabfree ((VOID *) sh);
     }
 
   while (!LIST_EMPTY (&sc->freeq))
     {
       sh = LIST_FIRST (&sc->freeq);
       LIST_REMOVE (sh, list_entry);
-      ___slabfree ((void *) sh);
+      ___slabfree ((VOID *) sh);
     }
 
   while (!LIST_EMPTY (&sc->fullq))
     {
       sh = LIST_FIRST (&sc->fullq);
       LIST_REMOVE (sh, list_entry);
-      ___slabfree ((void *) sh);
+      ___slabfree ((VOID *) sh);
     }
 
   SPIN_LOCK_FREE (sc->lock);
@@ -271,7 +271,7 @@ void SLABFUNC (deregister) (struct slab * sc)
   SPIN_UNLOCK (__slabinc_lock);
 }
 
-void SLABFUNC (printstats) (void)
+VOID SLABFUNC (printstats) (VOID)
 {
   struct slab *sc;
 

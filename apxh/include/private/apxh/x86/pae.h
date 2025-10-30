@@ -18,7 +18,7 @@
 //
 // Type Definitions
 //
-typedef uint64_t pte_t;
+typedef UINT64 pte_t;
 
 //
 // PTE (Page Table Entry) flags
@@ -146,7 +146,7 @@ CpuSupportsNx (
 VOID
 SetPte (
   IN UINT64   *pPte,
-  IN paddr_t  pAddr,
+  IN PHYSICAL_ADDRESS  pAddr,
   IN UINT64   Flags
   );
 
@@ -157,7 +157,7 @@ SetPte (
 
   @return Physical address.
 **/
-paddr_t
+PHYSICAL_ADDRESS
 PteGetAddr (
   IN UINT64  Pte
   );

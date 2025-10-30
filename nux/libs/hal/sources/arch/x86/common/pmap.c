@@ -54,7 +54,7 @@ HalKmapGetL1p (
 /**
   Get L1 page table pointer for user virtual address.
 
-  @param[in]  pUmap   User address space map.
+  @param[in]  Umap   User address space map.
   @param[in]  Uaddr   User virtual address.
   @param[in]  Alloc   TRUE to allocate page tables if needed.
   @param[out] pL1p    Pointer to receive L1 page table pointer.
@@ -64,7 +64,7 @@ HalKmapGetL1p (
 **/
 BOOLEAN
 HalUmapGetL1p (
-  IN  struct hal_umap  *pUmap,
+  IN  struct hal_umap  *Umap,
   IN  UINTN            Uaddr,
   IN  BOOLEAN          Alloc,
   OUT hal_l1p_t        *pL1p OPTIONAL
@@ -79,7 +79,7 @@ HalUmapGetL1p (
       return FALSE;
     }
 
-  l1p = UmapGetL1p (pUmap, Uaddr, Alloc);
+  l1p = UmapGetL1p (Umap, Uaddr, Alloc);
   if (pL1p != NULL)
     *pL1p = l1p;
 
@@ -167,14 +167,14 @@ HalL1eBox (
   Extract PFN and protection flags from L1 page table entry.
 
   @param[in]  L1e    L1 page table entry.
-  @param[out] pPfn   Pointer to receive page frame number.
-  @param[out] pProt  Pointer to receive protection flags.
+  @param[out] Pfn   Pointer to receive page frame number.
+  @param[out] Prot  Pointer to receive protection flags.
 **/
 VOID
 HalL1eUnbox (
   IN  hal_l1e_t  L1e,
-  OUT UINTN      *pPfn OPTIONAL,
-  OUT UINT32     *pProt OPTIONAL
+  OUT UINTN      *Pfn OPTIONAL,
+  OUT UINT32     *Prot OPTIONAL
   )
 {
   UINT32 Prot = 0;
@@ -200,10 +200,10 @@ HalL1eUnbox (
   if (L1e & PTE_AVAIL2)
     Prot |= HAL_PTE_AVL2;
 
-  if (pPfn)
-    *pPfn = l1epfn (L1e);
-  if (pProt)
-    *pProt = Prot;
+  if (Pfn)
+    *Pfn = l1epfn (L1e);
+  if (Prot)
+    *Prot = Prot;
 }
 
 /**
@@ -245,17 +245,17 @@ HalL1eTlbOp (
 /**
   Get next mapped user address and page table information.
 
-  @param[in]  pUmap  User address space map.
+  @param[in]  Umap  User address space map.
   @param[in]  Uaddr  Starting user address.
   @param[out] pL1p   Pointer to receive L1 page table pointer.
   @param[out] pL1e   Pointer to receive L1 page table entry.
 
   @return Next mapped user address, or UADDR_INVALID if none.
 **/
-uaddr_t
+USER_ADDRESS
 HalUmapNext (
-  IN  struct hal_umap  *pUmap,
-  IN  uaddr_t          Uaddr,
+  IN  struct hal_umap  *Umap,
+  IN  USER_ADDRESS          Uaddr,
   OUT hal_l1p_t        *pL1p OPTIONAL,
   OUT hal_l1e_t        *pL1e OPTIONAL
   )
@@ -263,20 +263,20 @@ HalUmapNext (
   if (Uaddr < hal_virtmem_userbase ())
     Uaddr = hal_virtmem_userbase ();
 
-  return PtUmapNext (pUmap, Uaddr, pL1p, pL1e);
+  return PtUmapNext (Umap, Uaddr, pL1p, pL1e);
 }
 
 /**
   Free user address space page tables.
 
-  @param[in] pUmap  User address space map to free.
+  @param[in] Umap  User address space map to free.
 **/
 VOID
 HalUmapFree (
-  IN struct hal_umap  *pUmap
+  IN struct hal_umap  *Umap
   )
 {
-  return PtUmapFree (pUmap);
+  return PtUmapFree (Umap);
 }
 
 /**
@@ -324,12 +324,12 @@ PmapInitialize (
 //
 
 /** @deprecated Use HalKmapGetL1p instead **/
-bool hal_kmap_getl1p (unsigned long va, bool alloc, hal_l1p_t * l1popq) {
+BOOLEAN hal_kmap_getl1p (unsigned INTN va, BOOLEAN alloc, hal_l1p_t * l1popq) {
   return HalKmapGetL1p (va, alloc, l1popq);
 }
 
 /** @deprecated Use HalUmapGetL1p instead **/
-bool hal_umap_getl1p (struct hal_umap *umap, unsigned long uaddr, bool alloc,
+BOOLEAN hal_umap_getl1p (struct hal_umap *umap, unsigned INTN uaddr, BOOLEAN alloc,
 		 hal_l1p_t * l1popq) {
   return HalUmapGetL1p (umap, uaddr, alloc, l1popq);
 }
@@ -345,12 +345,12 @@ hal_l1e_t hal_l1e_set (hal_l1p_t l1popq, hal_l1e_t l1e) {
 }
 
 /** @deprecated Use HalL1eBox instead **/
-hal_l1e_t hal_l1e_box (unsigned long pfn, unsigned prot) {
+hal_l1e_t hal_l1e_box (unsigned INTN pfn, UINT32 prot) {
   return HalL1eBox (pfn, prot);
 }
 
 /** @deprecated Use HalL1eUnbox instead **/
-void hal_l1e_unbox (hal_l1e_t l1e, unsigned long *pfnp, unsigned *protp) {
+VOID hal_l1e_unbox (hal_l1e_t l1e, unsigned long *pfnp, unsigned *protp) {
   HalL1eUnbox (l1e, pfnp, protp);
 }
 
@@ -360,25 +360,25 @@ hal_tlbop_t hal_l1e_tlbop (hal_l1e_t old, hal_l1e_t new) {
 }
 
 /** @deprecated Use HalUmapNext instead **/
-uaddr_t hal_umap_next (struct hal_umap *umap, uaddr_t uaddr, hal_l1p_t * l1p,
+USER_ADDRESS hal_umap_next (struct hal_umap *umap, USER_ADDRESS uaddr, hal_l1p_t * l1p,
 	       hal_l1e_t * l1e) {
   return HalUmapNext (umap, uaddr, l1p, l1e);
 }
 
 /** @deprecated Use HalUmapFree instead **/
-void hal_umap_free (struct hal_umap *umap) {
+VOID hal_umap_free (struct hal_umap *umap) {
   HalUmapFree (umap);
 }
 
 /** @deprecated Use PmapInitialize instead **/
-void pmap_init (void) {
+VOID pmap_init (VOID) {
   PmapInitialize ();
 }
 
 /** @deprecated Use CpuSupportsNx instead **/
-static bool cpu_supports_nx (void) {
+static BOOLEAN cpu_supports_nx (VOID) {
   return CpuSupportsNx ();
 }
 
 // Legacy global variable alias
-uint64_t pte_nx = 0;
+UINT64 pte_nx = 0;

@@ -25,7 +25,7 @@
 #define L2OFF(_va) (((_va) >> L2_SHIFT) & 0x1ff)
 #define L1OFF(_va) (((_va) >> L1_SHIFT) & 0x1ff)
 
-#define MKCANON(_va) ((int64_t)((_va) << 16) >> 16)
+#define MKCANON(_va) ((INT64)((_va) << 16) >> 16)
 #define UNCANON(_va) ((_va) & ((1LL << 48) - 1))
 
 #define PTE_INVALID ((UINT64)0)
@@ -110,15 +110,15 @@ GetCpuMapL4Ptr (
   Release L4 page table entry pointer.
 
   @param[in] Va   Virtual address (unused).
-  @param[in] pPte Pointer to L4 page table entry.
+  @param[in] Pte Pointer to L4 page table entry.
 **/
 static VOID
 PutCpuMapL4Ptr (
   IN UINTN  Va,
-  IN PTE    *pPte
+  IN PTE    *Pte
   )
 {
-  pfn_put (GetCpuMapL4Pfn (), pPte);
+  pfn_put (GetCpuMapL4Pfn (), Pte);
 }
 
 
@@ -343,7 +343,7 @@ cpumap_get_l1p (
 /**
   Get L1 page table pointer for user map virtual address.
 
-  @param[in] pUmap  User address space map.
+  @param[in] Umap  User address space map.
   @param[in] Va     Virtual address.
   @param[in] Alloc  TRUE to allocate missing tables.
 
@@ -351,7 +351,7 @@ cpumap_get_l1p (
 **/
 hal_l1p_t
 UmapGetL1p (
-  IN struct hal_umap  *pUmap,
+  IN struct hal_umap  *Umap,
   IN UINTN            Va,
   IN BOOLEAN          Alloc
   )
@@ -360,15 +360,15 @@ UmapGetL1p (
   PTEP L1p;
 
   assert (L4OFF (Va) < UMAP_L4PTES);
-  if (pUmap == NULL)
+  if (Umap == NULL)
     pL4Ptr = GetCpuMapL4Ptr (Va);
   else
-    pL4Ptr = pUmap->l4 + L4OFF (Va);
+    pL4Ptr = Umap->l4 + L4OFF (Va);
 
 
   L1p = WalkL1p (pL4Ptr, Va, Alloc);
 
-  if (pUmap == NULL)
+  if (Umap == NULL)
     PutCpuMapL4Ptr (Va, pL4Ptr);
 
   return L1p;
@@ -511,7 +511,7 @@ ScanL3 (
 /**
   Scan L4 page table for next mapped entry.
 
-  @param[in]  pUmap     User address space map.
+  @param[in]  Umap     User address space map.
   @param[in]  Off       Starting offset.
   @param[out] pL4Off    Pointer to receive L4 offset.
   @param[out] pL3Off    Pointer to receive L3 offset.
@@ -525,7 +525,7 @@ ScanL3 (
 **/
 static BOOLEAN
 ScanL4 (
-  IN  struct hal_umap  *pUmap,
+  IN  struct hal_umap  *Umap,
   IN  UINT32           Off,
   OUT UINT32           *pL4Off,
   OUT UINT32           *pL3Off,
@@ -539,10 +539,10 @@ ScanL4 (
   PFN L3Pfn;
   for (UINT32 i = Off; i < UMAP_L4PTES; i++)
     {
-      if (pUmap == NULL)
+      if (Umap == NULL)
 	L4e = *GetCpuMapL4Off (Off);
       else
-	L4e = pUmap->l4[Off];
+	L4e = Umap->l4[Off];
       if (pte_valid_table (L4e))
 	{
 	  L3Pfn = pte_pfn (L4e);
@@ -560,17 +560,17 @@ ScanL4 (
 /**
   Get next mapped user address and page table information.
 
-  @param[in]  pUmap  User address space map.
+  @param[in]  Umap  User address space map.
   @param[in]  Uaddr  Starting user address.
   @param[out] pL1p   Pointer to receive L1 page table pointer.
   @param[out] pL1e   Pointer to receive L1 page table entry.
 
   @return Next mapped user address, or UADDR_INVALID if none.
 **/
-uaddr_t
+USER_ADDRESS
 PtUmapNext (
-  IN  struct hal_umap  *pUmap,
-  IN  uaddr_t          Uaddr,
+  IN  struct hal_umap  *Umap,
+  IN  USER_ADDRESS          Uaddr,
   OUT hal_l1p_t        *pL1p OPTIONAL,
   OUT hal_l1e_t        *pL1e OPTIONAL
   )
@@ -583,15 +583,15 @@ PtUmapNext (
   PTE *pL4Ptr;
   PFN L1Pfn, L2Pfn, L3Pfn;
   UINT32 L4next, L3next, L2next, L1next;
-  uaddr_t ret;
+  USER_ADDRESS ret;
 
   ret = UADDR_INVALID;
 
   assert (L4OFF (Uaddr) < UMAP_L4PTES);
-  if (pUmap == NULL)
+  if (Umap == NULL)
     pL4Ptr = GetCpuMapL4Ptr (Uaddr);
   else
-    pL4Ptr = pUmap->l4 + L4OFF (Uaddr);
+    pL4Ptr = Umap->l4 + L4OFF (Uaddr);
 
   /* Check till end of current l1. */
   L1Pfn = WalkL1Pfn (pL4Ptr, Uaddr, FALSE);
@@ -623,14 +623,14 @@ PtUmapNext (
 
   /* Scan L4 until end of UMAP area. */
   if (ScanL4
-      (pUmap, L4off + 1, &L4next, &L3next, &L2next, &L1next, pL1p, pL1e))
+      (Umap, L4off + 1, &L4next, &L3next, &L2next, &L1next, pL1p, pL1e))
     {
       ret = MakeAddress (L4next, L3next, L2next, L1next);
       goto _next_exit;
     }
 
 _next_exit:
-  if (pUmap == NULL)
+  if (Umap == NULL)
     PutCpuMapL4Ptr (Uaddr, pL4Ptr);
   return ret;
 }
@@ -638,11 +638,11 @@ _next_exit:
 /**
   Free all page tables in user address space.
 
-  @param[in] pUmap  User address space map to free.
+  @param[in] Umap  User address space map to free.
 **/
 VOID
 PtUmapFree (
-  IN struct hal_umap  *pUmap
+  IN struct hal_umap  *Umap
   )
 {
   PTE L4e;
@@ -654,7 +654,7 @@ PtUmapFree (
 
   for (UINT32 i = 0; i < UMAP_L4PTES; i++)
     {
-      L4e = pUmap->l4[i];
+      L4e = Umap->l4[i];
       assert (!pte_valid_leaf (L4e));
       if (pte_valid_table (L4e))
 	{
@@ -688,7 +688,7 @@ PtUmapFree (
 	  pfn_put (L3Pfn, pL3Ptr);
 	  pfn_free (L3Pfn);
 	}
-      pUmap->l4[i] = PTE_INVALID;
+      Umap->l4[i] = PTE_INVALID;
     }
 }
 
@@ -721,30 +721,30 @@ PtUmapMaxAddr (
 /**
   Initialize user address space map.
 
-  @param[in] pUmap  User address space map to initialize.
+  @param[in] Umap  User address space map to initialize.
 **/
 VOID
 hal_umap_init (
-  IN struct hal_umap  *pUmap
+  IN struct hal_umap  *Umap
   )
 {
   for (INT32 i = 0; i < UMAP_L4PTES; i++)
     {
-      pUmap->l4[i] = alloc_table ();
+      Umap->l4[i] = alloc_table ();
     }
 }
 
 /**
   Bootstrap user address space from current mappings.
 
-  @param[in] pUmap  User address space map to bootstrap.
+  @param[in] Umap  User address space map to bootstrap.
 **/
 VOID
 hal_umap_bootstrap (
-  IN struct hal_umap  *pUmap
+  IN struct hal_umap  *Umap
   )
 {
-  vaddr_t Va = hal_virtmem_userbase ();
+  VIRTUAL_ADDRESS Va = hal_virtmem_userbase ();
   INT32 i;
 
   for (i = 0; i < UMAP_L4PTES; i++, Va += (1L << L4_SHIFT))
@@ -765,7 +765,7 @@ hal_umap_bootstrap (
 	  riscv_invlpg (Va, TRUE);
 	}
       PutCpuMapL4Ptr (Va, pL4Ptr);
-      pUmap->l4[i] = L4e;
+      Umap->l4[i] = L4e;
     }
 
   /* Panic if the boot user mapping doesn't fit in a UMAP. */
@@ -783,16 +783,16 @@ hal_umap_bootstrap (
 /**
   Load user address space into CPU.
 
-  @param[in] pUmap  User address space map to load (NULL for kernel-only).
+  @param[in] Umap  User address space map to load (NULL for kernel-only).
 
   @return Required TLB operation.
 **/
 hal_tlbop_t
 hal_umap_load (
-  IN struct hal_umap  *pUmap OPTIONAL
+  IN struct hal_umap  *Umap OPTIONAL
   )
 {
-  vaddr_t Va = hal_virtmem_userbase ();
+  VIRTUAL_ADDRESS Va = hal_virtmem_userbase ();
   hal_tlbop_t tlbop = HAL_TLBOP_NONE;
   INT32 i;
 
@@ -800,8 +800,8 @@ hal_umap_load (
     {
       PTE *pL4Ptr, OldL4e, NewL4e;
 
-      if (pUmap != NULL)
-	NewL4e = pUmap->l4[i];
+      if (Umap != NULL)
+	NewL4e = Umap->l4[i];
       else
 	NewL4e = 0;
 
@@ -819,107 +819,107 @@ hal_umap_load (
 //
 
 /** @deprecated Use MakeAddress instead **/
-static uint64_t mkaddr (uint64_t l4off, uint64_t l3off, uint64_t l2off, uint64_t l1off) {
+static UINT64 mkaddr (UINT64 l4off, UINT64 l3off, UINT64 l2off, UINT64 l1off) {
   return MakeAddress (l4off, l3off, l2off, l1off);
 }
 
 /** @deprecated Use GetCpuMapL4Pfn instead **/
-static pfn_t get_cpumap_l4pfn (void) {
+static PFN get_cpumap_l4pfn (VOID) {
   return GetCpuMapL4Pfn ();
 }
 
 /** @deprecated Use GetCpuMapL4Off instead **/
-static pte_t *get_cpumap_l4off (unsigned off) {
+static pte_t *get_cpumap_l4off (UINT32 off) {
   return GetCpuMapL4Off (off);
 }
 
 /** @deprecated Use GetCpuMapL4Ptr instead **/
-static pte_t *get_cpumap_l4ptr (unsigned long va) {
+static pte_t *get_cpumap_l4ptr (unsigned INTN va) {
   return GetCpuMapL4Ptr (va);
 }
 
 /** @deprecated Use PutCpuMapL4Ptr instead **/
-static void put_cpumap_l4ptr (unsigned long va, pte_t * pte) {
+static VOID put_cpumap_l4ptr (unsigned INTN va, pte_t * pte) {
   PutCpuMapL4Ptr (va, pte);
 }
 
 /** @deprecated Use WalkL3Pfn instead **/
-static pfn_t walk_l3pfn (pte_t * l4ptr, unsigned long va, bool alloc) {
+static PFN walk_l3pfn (pte_t * l4ptr, unsigned INTN va, BOOLEAN alloc) {
   return WalkL3Pfn (l4ptr, va, alloc);
 }
 
 /** @deprecated Use WalkL3p instead **/
-static ptep_t walk_l3p (pte_t * l4ptr, unsigned long va, bool alloc) {
+static ptep_t walk_l3p (pte_t * l4ptr, unsigned INTN va, BOOLEAN alloc) {
   return WalkL3p (l4ptr, va, alloc);
 }
 
 /** @deprecated Use WalkL2Pfn instead **/
-static pfn_t walk_l2pfn (pte_t * l4ptr, unsigned long va, bool alloc) {
+static PFN walk_l2pfn (pte_t * l4ptr, unsigned INTN va, BOOLEAN alloc) {
   return WalkL2Pfn (l4ptr, va, alloc);
 }
 
 /** @deprecated Use WalkL2p instead **/
-static ptep_t walk_l2p (pte_t * l4ptr, unsigned long va, bool alloc) {
+static ptep_t walk_l2p (pte_t * l4ptr, unsigned INTN va, BOOLEAN alloc) {
   return WalkL2p (l4ptr, va, alloc);
 }
 
 /** @deprecated Use WalkL1Pfn instead **/
-static pfn_t walk_l1pfn (pte_t * l4ptr, unsigned long va, bool alloc) {
+static PFN walk_l1pfn (pte_t * l4ptr, unsigned INTN va, BOOLEAN alloc) {
   return WalkL1Pfn (l4ptr, va, alloc);
 }
 
 /** @deprecated Use WalkL1p instead **/
-static ptep_t walk_l1p (pte_t * l4ptr, unsigned long va, bool alloc) {
+static ptep_t walk_l1p (pte_t * l4ptr, unsigned INTN va, BOOLEAN alloc) {
   return WalkL1p (l4ptr, va, alloc);
 }
 
 /** @deprecated Use UmapGetL1p instead **/
-hal_l1p_t umap_get_l1p (struct hal_umap *umap, unsigned long va, bool alloc) {
+hal_l1p_t umap_get_l1p (struct hal_umap *umap, unsigned INTN va, BOOLEAN alloc) {
   return UmapGetL1p (umap, va, alloc);
 }
 
 /** @deprecated Use ScanL1 instead **/
-static bool scan_l1 (pfn_t l1pfn, unsigned off, unsigned *l1off_out, hal_l1p_t * l1p_out,
+static BOOLEAN scan_l1 (PFN l1pfn, UINT32 off, unsigned *l1off_out, hal_l1p_t * l1p_out,
 	 hal_l1e_t * l1e_out) {
   return ScanL1 (l1pfn, off, l1off_out, l1p_out, l1e_out);
 }
 
 /** @deprecated Use ScanL2 instead **/
-static bool scan_l2 (pfn_t l2pfn, unsigned off, unsigned *l2off_out, unsigned *l1off_out,
+static BOOLEAN scan_l2 (PFN l2pfn, UINT32 off, unsigned *l2off_out, unsigned *l1off_out,
 	 hal_l1p_t * l1p_out, hal_l1e_t * l1e_out) {
   return ScanL2 (l2pfn, off, l2off_out, l1off_out, l1p_out, l1e_out);
 }
 
 /** @deprecated Use ScanL3 instead **/
-static bool scan_l3 (pfn_t l3pfn, unsigned off, unsigned *l3off_out, unsigned *l2off_out,
+static BOOLEAN scan_l3 (PFN l3pfn, UINT32 off, unsigned *l3off_out, unsigned *l2off_out,
 	 unsigned *l1off_out, hal_l1p_t * l1p_out, hal_l1e_t * l1e_out) {
   return ScanL3 (l3pfn, off, l3off_out, l2off_out, l1off_out, l1p_out, l1e_out);
 }
 
 /** @deprecated Use ScanL4 instead **/
-static bool scan_l4 (struct hal_umap *umap, unsigned off, unsigned *l4off_out,
+static BOOLEAN scan_l4 (struct hal_umap *umap, UINT32 off, unsigned *l4off_out,
 	 unsigned *l3off_out, unsigned *l2off_out, unsigned *l1off_out,
 	 hal_l1p_t * l1p_out, hal_l1e_t * l1e_out) {
   return ScanL4 (umap, off, l4off_out, l3off_out, l2off_out, l1off_out, l1p_out, l1e_out);
 }
 
 /** @deprecated Use PtUmapNext instead **/
-uaddr_t pt_umap_next (struct hal_umap *umap, uaddr_t uaddr, hal_l1p_t * l1p,
+USER_ADDRESS pt_umap_next (struct hal_umap *umap, USER_ADDRESS uaddr, hal_l1p_t * l1p,
 	   hal_l1e_t * l1e) {
   return PtUmapNext (umap, uaddr, l1p, l1e);
 }
 
 /** @deprecated Use PtUmapFree instead **/
-void pt_umap_free (struct hal_umap *umap) {
+VOID pt_umap_free (struct hal_umap *umap) {
   PtUmapFree (umap);
 }
 
 /** @deprecated Use PtUmapMinAddr instead **/
-unsigned long pt_umap_minaddr (void) {
+unsigned long pt_umap_minaddr (VOID) {
   return PtUmapMinAddr ();
 }
 
 /** @deprecated Use PtUmapMaxAddr instead **/
-unsigned long pt_umap_maxaddr (void) {
+unsigned long pt_umap_maxaddr (VOID) {
   return PtUmapMaxAddr ();
 }

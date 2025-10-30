@@ -1,20 +1,27 @@
-/*
-  NUX: A kernel Library.
+/** @file
+  Platform ACPI APIC Definitions
+
+  APIC interrupt vector configuration for GSI and IPI routing.
+  Defines the vector base addresses and maximum bounds for APIC
+  interrupt handling.
+
   Copyright (C) 2019 Gianluca Guida <glguida@tlbflush.org>
 
-  SPDX-License-Identifier:	BSD-2-Clause
-*/
+  SPDX-License-Identifier: BSD-2-Clause
+**/
 
 #ifndef __platform_acpi_apic_h__
 #define __platform_acpi_apic_h__
 
-/*
-  This is the main apic gsi/ipi to interrupt vector configuration.
-
-  Based on this parameters, the HAL will receive interrupt at vectors
-  in this range. The HAL does not need to understand the meaning of
-  the vectors, the platform library will translate that.
-*/
+//
+// APIC Vector Configuration
+//
+// This is the main APIC GSI/IPI to interrupt vector configuration.
+//
+// Based on these parameters, the HAL will receive interrupts at vectors
+// in this range. The HAL does not need to understand the meaning of the
+// vectors, the platform library will translate that.
+//
 
 #define APIC_VECT_MAX     hal_vect_max()
 #define APIC_VECT_IPIMAX  1

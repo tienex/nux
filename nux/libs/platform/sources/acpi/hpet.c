@@ -34,7 +34,7 @@
 
 #define TMR 0
 
-static volatile VOID *gHpetBase;
+static VOLATILE VOID *gHpetBase;
 static UINT64 gPeriod = 0;
 static UINT64 gGenCfg;
 static UINT64 gTmrCfg;
@@ -57,13 +57,13 @@ HpetRead (
   )
 {
   UINT32 Hi1, Hi2, Lo;
-  volatile UINT32 *pPtr = gHpetBase + Offset;
+  VOLATILE UINT32 *Ptr = gHpetBase + Offset;
 
   do
     {
-      Hi1 = *(pPtr + 1);
-      Lo = *pPtr;
-      Hi2 = *(pPtr + 1);
+      Hi1 = *(Ptr + 1);
+      Lo = *Ptr;
+      Hi2 = *(Ptr + 1);
     }
   while (Hi1 != Hi2);
 
@@ -84,9 +84,9 @@ HpetWrite (
   IN UINT64  Value
   )
 {
-  volatile UINT32 *pPtr = gHpetBase + Offset;
-  *(pPtr + 1) = Value >> 32;
-  *pPtr = (UINT32) Value;
+  VOLATILE UINT32 *Ptr = gHpetBase + Offset;
+  *(Ptr + 1) = Value >> 32;
+  *Ptr = (UINT32) Value;
 }
 
 /**
@@ -141,7 +141,7 @@ HpetDoIrq (
 **/
 BOOLEAN
 HpetInitialize (
-  IN paddr_t  HpetPhysAddr
+  IN PHYSICAL_ADDRESS  HpetPhysAddr
   )
 {
   UINT64 Freq;
@@ -196,7 +196,7 @@ HpetInitialize (
       debug ("Using Interrupt Routing (%d - %x).\n", gIrqNo, IrqCap);
     }
 
-  if (PltIrqIsLevel (gIrqNo))
+  if (PlatformIrqIsLevel (gIrqNo))
     {
       debug ("Using Level Interrupt");
       /* Reset ISR just in case. */
@@ -206,7 +206,7 @@ HpetInitialize (
     }
 
   /* Register HPET irq no. */
-  gPltAcpiHpetIrq = gIrqNo;
+  gPlatformAcpiHpetIrq = gIrqNo;
 
   /* Start Time of Boot. */
   HpetWrite (REG_COUNTER, 0);
@@ -217,7 +217,7 @@ HpetInitialize (
   /* Enable HPET */
   HpetResume ();
 
-  PltIrqEnable (gIrqNo);
+  PlatformIrqEnable (gIrqNo);
   return TRUE;
 }
 
@@ -229,7 +229,7 @@ HpetInitialize (
   @return Counter value.
 **/
 UINT64
-PltTmrGetCounter (
+PlatformTmrGetCounter (
   VOID
   )
 {
@@ -244,7 +244,7 @@ PltTmrGetCounter (
   @param[in] Counter  Counter value to set.
 **/
 VOID
-PltTmrSetCounter (
+PlatformTmrSetCounter (
   IN UINT64  Counter
   )
 {
@@ -261,7 +261,7 @@ PltTmrSetCounter (
   @return Timer period in femtoseconds.
 **/
 UINT64
-PltTmrPeriod (
+PlatformTmrPeriod (
   VOID
   )
 {
@@ -277,14 +277,14 @@ PltTmrPeriod (
   @param[in] Alarm  Number of ticks until alarm.
 **/
 VOID
-PltTmrSetAlarm (
+PlatformTmrSetAlarm (
   IN UINT64  Alarm
   )
 {
   if (Alarm == 0)
     Alarm = 1;
   HpetPause ();
-  HpetWrite (REG_TMRCMP (TMR), PltTmrGetCounter () + Alarm);
+  HpetWrite (REG_TMRCMP (TMR), PlatformTmrGetCounter () + Alarm);
   HpetWrite (REG_TMRCAP (TMR), gTmrCfg | INT_ENB_CNF);
   HpetResume ();
 }
@@ -295,56 +295,9 @@ PltTmrSetAlarm (
   Disables HPET timer interrupt.
 **/
 VOID
-PltTmrClearAlarm (
+PlatformTmrClearAlarm (
   VOID
   )
 {
   HpetWrite (REG_TMRCAP (TMR), gTmrCfg & ~INT_ENB_CNF);
 }
-
-//
-// Legacy Function Wrappers (for backward compatibility)
-//
-
-/** @deprecated Use HpetDoIrq instead **/
-void hpet_doirq (void) {
-  HpetDoIrq ();
-}
-
-/** @deprecated Use HpetInitialize instead **/
-bool hpet_init (paddr_t hpetpa) {
-  return HpetInitialize (hpetpa);
-}
-
-/** @deprecated Use PltTmrGetCounter instead **/
-uint64_t plt_tmr_ctr (void) {
-  return PltTmrGetCounter ();
-}
-
-/** @deprecated Use PltTmrSetCounter instead **/
-void plt_tmr_setctr (uint64_t ctr) {
-  PltTmrSetCounter (ctr);
-}
-
-/** @deprecated Use PltTmrPeriod instead **/
-uint64_t plt_tmr_period (void) {
-  return PltTmrPeriod ();
-}
-
-/** @deprecated Use PltTmrSetAlarm instead **/
-void plt_tmr_setalm (uint64_t alm) {
-  PltTmrSetAlarm (alm);
-}
-
-/** @deprecated Use PltTmrClearAlarm instead **/
-void plt_tmr_clralm (void) {
-  PltTmrClearAlarm ();
-}
-
-// Legacy global variable aliases
-static volatile void *hpet_base __attribute__((alias("gHpetBase")));
-static uint64_t period __attribute__((alias("gPeriod")));
-static uint64_t gencfg __attribute__((alias("gGenCfg")));
-static uint64_t tmrcfg __attribute__((alias("gTmrCfg")));
-static int irqlvl __attribute__((alias("gIrqLevel")));
-static int irqno __attribute__((alias("gIrqNo")));

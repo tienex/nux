@@ -15,7 +15,7 @@
 #define BOOTINFO_REGIONS_MAX 1024
 
 static VOID *gpElfKernelPayload, *gpElfUserPayload;
-static size_t gElfKernelPayloadSize, gElfUserPayloadSize;
+static UINTN gElfKernelPayloadSize, gElfUserPayloadSize;
 static unsigned long gMaxPfn;
 static unsigned long gMaxRamPfn;
 static unsigned long gMinRamPfn = -1;
@@ -23,7 +23,7 @@ static unsigned gNumRegions;
 static VOID *gpEfiRsdp;
 static struct fbdesc gFbDesc = {.type = FB_INVALID, };
 
-static struct apxh_pltdesc gPltDesc;
+static struct apxh_platformdesc gPlatformDesc;
 
 static struct bootinfo_region gMemRegions[BOOTINFO_REGIONS_MAX];
 
@@ -55,12 +55,12 @@ Exit (
 
   @return Physical address of allocated page.
 **/
-uintptr_t
+UINTN
 GetPage (
   VOID
   )
 {
-  return (uintptr_t) efi_allocate_maxaddr ((gMinRamPfn << PAGE_SHIFT) +
+  return (UINTN) efi_allocate_maxaddr ((gMinRamPfn << PAGE_SHIFT) +
 					   (unsigned long) BOOTMEM);
 }
 
@@ -88,7 +88,7 @@ MdInitialize (
 **/
 VOID
 MdVerify (
-  IN vaddr_t  Va,
+  IN VIRTUAL_ADDRESS  Va,
   IN UINT64   Size
   )
 {
@@ -110,13 +110,13 @@ MdVerify (
 VOID
 MdEntry (
   IN arch_t   Arch,
-  IN vaddr_t  Pt,
-  IN vaddr_t  Entry
+  IN VIRTUAL_ADDRESS  Pt,
+  IN VIRTUAL_ADDRESS  Entry
   )
 {
   VOID *pTrampCr3;
-  VOID *pTramp;
-  vaddr_t TrampEntry;
+  VOID *Tramp;
+  VIRTUAL_ADDRESS TrampEntry;
   UINT64 TrampCode = 0xe7ffd9220fL;	/* mov %rcx, %cr3; jmp *%rdi */
 
   assert (Arch == ARCH_AMD64);
@@ -127,15 +127,15 @@ MdEntry (
   pTrampCr3 = (VOID *) GetPage ();
 
   /* Setup trampoline. */
-  pTramp = (VOID *) GetPage ();
-  *(UINT64 *) pTramp = TrampCode;
-  TrampEntry = (vaddr_t) (uintptr_t) pTramp;
+  Tramp = (VOID *) GetPage ();
+  *(UINT64 *) Tramp = TrampCode;
+  TrampEntry = (VIRTUAL_ADDRESS) (UINTN) Tramp;
 
   /* Setup Direct map at 0->1Gb */
   pae64_directmap (pTrampCr3, 0, 0, 64L << 30, MEMTYPE_WB, 0, 1);
 
   /* Map Entry page in transitional pagetable VA. */
-  pae64_map_page (pTrampCr3, (vaddr_t) Entry, pae64_getphys (Entry), 0, 0, 1);
+  pae64_map_page (pTrampCr3, (VIRTUAL_ADDRESS) Entry, pae64_getphys (Entry), 0, 0, 1);
 
   efi_exitbs ();
 
@@ -164,11 +164,11 @@ MdEntry (
 VOID
 MdEntry (
   IN arch_t   Arch,
-  IN vaddr_t  Pt,
-  IN vaddr_t  Entry
+  IN VIRTUAL_ADDRESS  Pt,
+  IN VIRTUAL_ADDRESS  Entry
   )
 {
-  VOID *pTrampRoot;
+  VOID *TrampRoot;
   unsigned long TrampSatp, Satp;
   extern char trampoline_start asm ("__rv64_tstart");
   extern char trampoline_end asm ("__rv64_tend");
@@ -178,17 +178,17 @@ MdEntry (
   printf ("Entry called.\n");
 
   /* Setup trampoline. */
-  pTrampRoot = (VOID *) GetPage ();
+  TrampRoot = (VOID *) GetPage ();
   /* Map trampoline page */
-  sv48_directmap (pTrampRoot, (uintptr_t) & trampoline_start,
-		  (uintptr_t) & trampoline_start,
-		  (uintptr_t) (&trampoline_end - &trampoline_start),
+  sv48_directmap (TrampRoot, (UINTN) & trampoline_start,
+		  (UINTN) & trampoline_start,
+		  (UINTN) (&trampoline_end - &trampoline_start),
 		  MEMTYPE_WB, 0, 1);
   /* Map start page */
-  sv48_directmap (pTrampRoot, sv48_getphys (Entry), Entry, 4096, MEMTYPE_WB,
+  sv48_directmap (TrampRoot, sv48_getphys (Entry), Entry, 4096, MEMTYPE_WB,
 		  0, 1);
 
-  TrampSatp = 0x9L << 60 | (uintptr_t) pTrampRoot >> PAGE_SHIFT;
+  TrampSatp = 0x9L << 60 | (UINTN) TrampRoot >> PAGE_SHIFT;
   Satp = 0x9L << 60 | Pt >> PAGE_SHIFT;
 
   printf ("%lx %lx %lx\n", TrampSatp, Entry, Satp);
@@ -310,17 +310,17 @@ MdGetFramebuffer (
 
   Returns platform descriptor with ACPI RSDP pointer from EFI system table.
 
-  @return Pointer to apxh_pltdesc structure.
+  @return Pointer to apxh_platformdesc structure.
 **/
-struct apxh_pltdesc *
-MdGetPltDesc (
+struct apxh_platformdesc *
+MdGetPlatformDesc (
   VOID
   )
 {
   /* Only ACPI supported. */
-  gPltDesc.type = PLT_ACPI;
-  gPltDesc.pltptr = (UINT64) (uintptr_t) gpEfiRsdp;
-  return &gPltDesc;
+  gPlatformDesc.type = PLATFORM_ACPI;
+  gPlatformDesc.PlatformPointer = (UINT64) (UINTN) gpEfiRsdp;
+  return &gPlatformDesc;
 }
 
 /**
@@ -341,23 +341,23 @@ GetPayloadStart (
   IN plid_t  Id
   )
 {
-  VOID *pElfPayload;
+  VOID *ElfPayload;
 
   switch (Id)
     {
     case PAYLOAD_KERNEL:
-      pElfPayload = gpElfKernelPayload;
+      ElfPayload = gpElfKernelPayload;
       break;
     case PAYLOAD_USER:
-      pElfPayload = gpElfUserPayload;
+      ElfPayload = gpElfUserPayload;
       break;
     default:
       printf ("Unsupported payload ID %d\n", Id);
-      pElfPayload = NULL;
+      ElfPayload = NULL;
       break;
     }
 
-  return pElfPayload;
+  return ElfPayload;
 }
 
 /**
@@ -374,7 +374,7 @@ GetPayloadSize (
   IN plid_t  Id
   )
 {
-  size_t ElfPayloadSize;
+  UINTN ElfPayloadSize;
 
   switch (Id)
     {
@@ -492,16 +492,16 @@ ApxhEfiAddMemRegion (
 
   Stores pointer and size of kernel ELF payload loaded from EFI filesystem.
 
-  @param[in] pStart  Pointer to kernel ELF image.
+  @param[in] Start  Pointer to kernel ELF image.
   @param[in] Size    Size of kernel ELF image in bytes.
 **/
 VOID
 ApxhEfiAddKernelPayload (
-  IN VOID    *pStart,
-  IN size_t  Size
+  IN VOID    *Start,
+  IN UINTN  Size
   )
 {
-  gpElfKernelPayload = pStart;
+  gpElfKernelPayload = Start;
   gElfKernelPayloadSize = Size;
 }
 
@@ -511,16 +511,16 @@ ApxhEfiAddKernelPayload (
   Stores pointer and size of optional user ELF payload loaded from EFI
   filesystem.
 
-  @param[in] pStart  Pointer to user ELF image.
+  @param[in] Start  Pointer to user ELF image.
   @param[in] Size    Size of user ELF image in bytes.
 **/
 VOID
 ApxhEfiAddUserPayload (
-  IN VOID    *pStart,
-  IN size_t  Size
+  IN VOID    *Start,
+  IN UINTN  Size
   )
 {
-  gpElfUserPayload = pStart;
+  gpElfUserPayload = Start;
   gElfUserPayloadSize = Size;
 }
 
@@ -529,14 +529,14 @@ ApxhEfiAddUserPayload (
 
   Stores ACPI Root System Description Pointer from EFI system table.
 
-  @param[in] pRsdp  Pointer to ACPI RSDP structure.
+  @param[in] Rsdp  Pointer to ACPI RSDP structure.
 **/
 VOID
 ApxhEfiAddRsdp (
-  IN VOID  *pRsdp
+  IN VOID  *Rsdp
   )
 {
-  gpEfiRsdp = pRsdp;
+  gpEfiRsdp = Rsdp;
 }
 
 //
@@ -549,7 +549,7 @@ void __dead exit (int st) {
 }
 
 /** @deprecated Use GetPage instead **/
-uintptr_t get_page (void) {
+UINTN get_page (void) {
   return GetPage ();
 }
 
@@ -559,27 +559,27 @@ void md_init (void) {
 }
 
 /** @deprecated Use MdVerify instead **/
-void md_verify (vaddr_t va, uint64_t size) {
+void md_verify (VIRTUAL_ADDRESS va, UINT64 size) {
   MdVerify (va, size);
 }
 
 /** @deprecated Use MdEntry instead **/
-void md_entry (arch_t arch, vaddr_t pt, vaddr_t entry) {
+void md_entry (arch_t arch, VIRTUAL_ADDRESS pt, VIRTUAL_ADDRESS entry) {
   MdEntry (arch, pt, entry);
 }
 
 /** @deprecated Use MdMaxPfn instead **/
-uint64_t md_maxpfn (void) {
+UINT64 md_maxpfn (void) {
   return MdMaxPfn ();
 }
 
 /** @deprecated Use MdMinRamPfn instead **/
-uint64_t md_minrampfn (void) {
+UINT64 md_minrampfn (void) {
   return MdMinRamPfn ();
 }
 
 /** @deprecated Use MdMaxRamPfn instead **/
-uint64_t md_maxrampfn (void) {
+UINT64 md_maxrampfn (void) {
   return MdMaxRamPfn ();
 }
 
@@ -598,9 +598,9 @@ struct fbdesc *md_getframebuffer (void) {
   return MdGetFramebuffer ();
 }
 
-/** @deprecated Use MdGetPltDesc instead **/
-struct apxh_pltdesc *md_getpltdesc (void) {
-  return MdGetPltDesc ();
+/** @deprecated Use MdGetPlatformDesc instead **/
+struct apxh_platformdesc *md_getplatformdesc (void) {
+  return MdGetPlatformDesc ();
 }
 
 /** @deprecated Use GetPayloadStart instead **/
@@ -614,10 +614,10 @@ unsigned long get_payload_size (plid_t id) {
 }
 
 /** @deprecated Use ApxhEfiAddFramebuffer instead **/
-void apxhefi_add_framebuffer (uint64_t addr, uint64_t size,
-			      uint32_t width, uint32_t height,
-			      uint32_t pitch, uint32_t bpp,
-			      uint32_t rm, uint32_t gm, uint32_t bm) {
+void apxhefi_add_framebuffer (UINT64 addr, UINT64 size,
+			      UINT32 width, UINT32 height,
+			      UINT32 pitch, UINT32 bpp,
+			      UINT32 rm, UINT32 gm, UINT32 bm) {
   ApxhEfiAddFramebuffer (addr, size, width, height, pitch, bpp, rm, gm, bm);
 }
 
@@ -627,12 +627,12 @@ void apxhefi_add_memregion (int ram, int bsy, unsigned long pfn, unsigned len) {
 }
 
 /** @deprecated Use ApxhEfiAddKernelPayload instead **/
-void apxhefi_add_kernel_payload (void *start, size_t size) {
+void apxhefi_add_kernel_payload (void *start, UINTN size) {
   ApxhEfiAddKernelPayload (start, size);
 }
 
 /** @deprecated Use ApxhEfiAddUserPayload instead **/
-void apxhefi_add_user_payload (void *start, size_t size) {
+void apxhefi_add_user_payload (void *start, UINTN size) {
   ApxhEfiAddUserPayload (start, size);
 }
 

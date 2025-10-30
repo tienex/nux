@@ -20,14 +20,14 @@
 #include <stree.h>
 #include <assert.h>
 
-static lock_t gPgLock;
+static SPINLOCK gPgLock;
 static WORD_T *gStree;
 static UINT32 gOrder;
 static UINTN gFreePages;
 
 rwlock_t gNuxPfnAllocLock;
-pfn_t (*gNuxPfnAlloc) (INT32) = &StreePfnAllocate;
-VOID (*gNuxPfnFree) (pfn_t) = &StreePfnFree;
+PFN (*gNuxPfnAlloc) (INT32) = &StreePfnAllocate;
+VOID (*gNuxPfnFree) (PFN) = &StreePfnFree;
 
 /**
   Initialize page frame allocator from HAL.
@@ -68,13 +68,13 @@ StreePfnInitialize (
 
   @return Page frame number, or PFN_INVALID if no pages available.
 **/
-pfn_t
+PFN
 StreePfnAllocate (
   IN INT32  Low
   )
 {
   INTN Pg;
-  VOID *pVa;
+  VOID *Va;
 
   spinlock (&gPgLock);
   Pg = stree_bitsearch (gStree, gOrder, Low);
@@ -89,11 +89,11 @@ StreePfnAllocate (
   if (Pg < 0)
     return PFN_INVALID;
 
-  pVa = pfn_get (Pg);
-  memset (pVa, 0, PAGE_SIZE);
-  pfn_put (Pg, pVa);
+  Va = PfnGet (Pg);
+  memset (Va, 0, PAGE_SIZE);
+  PfnPut (Pg, Va);
 
-  return (pfn_t) Pg;
+  return (PFN) Pg;
 }
 
 /**
@@ -106,7 +106,7 @@ StreePfnAllocate (
 **/
 VOID
 StreePfnFree (
-  IN pfn_t  Pfn
+  IN PFN  Pfn
   )
 {
   assert (Pfn != PFN_INVALID);
@@ -123,18 +123,18 @@ StreePfnFree (
   to replace the default stree-based allocator. Protected by
   write lock to ensure atomic replacement.
 
-  @param[in] pAlloc  Pointer to custom allocation function.
-  @param[in] pFree   Pointer to custom free function.
+  @param[in] Alloc  Pointer to custom allocation function.
+  @param[in] Free   Pointer to custom free function.
 **/
 VOID
 NuxSetAllocator (
-  IN pfn_t (*pAlloc) (INT32),
-  IN VOID (*pFree) (pfn_t)
+  IN PFN (*Alloc) (INT32),
+  IN VOID (*Free) (PFN)
   )
 {
   writelock (&gNuxPfnAllocLock);
-  gNuxPfnAlloc = pAlloc;
-  gNuxPfnFree = pFree;
+  gNuxPfnAlloc = Alloc;
+  gNuxPfnFree = Free;
   writeunlock (&gNuxPfnAllocLock);
 }
 
@@ -148,12 +148,12 @@ NuxSetAllocator (
 
   @return Page frame number, or PFN_INVALID if no pages available.
 **/
-pfn_t
+PFN
 PfnAllocate (
   IN INT32  Low
   )
 {
-  pfn_t Pfn;
+  PFN Pfn;
 
   readlock (&gNuxPfnAllocLock);
   Pfn = gNuxPfnAlloc (Low);
@@ -172,7 +172,7 @@ PfnAllocate (
 **/
 VOID
 PfnFree (
-  IN pfn_t  Pfn
+  IN PFN  Pfn
   )
 {
   readlock (&gNuxPfnAllocLock);
@@ -201,45 +201,45 @@ PfnAvailable (
 //
 
 /** @deprecated Use StreePfnInitialize instead **/
-void stree_pfninit (void) {
+VOID BatreePfnInitialize (VOID) {
   StreePfnInitialize ();
 }
 
 /** @deprecated Use StreePfnAllocate instead **/
-pfn_t stree_pfnalloc (int low) {
+PFN BatreePfnAlloc (INT32 low) {
   return StreePfnAllocate (low);
 }
 
 /** @deprecated Use StreePfnFree instead **/
-void stree_pfnfree (pfn_t pfn) {
+VOID BatreePfnFree (PFN pfn) {
   StreePfnFree (pfn);
 }
 
 /** @deprecated Use NuxSetAllocator instead **/
-void nux_set_allocator (pfn_t (*alloc) (int), void (*free) (pfn_t)) {
+VOID nux_set_allocator (PFN (*alloc) (int), void (*free) (PFN)) {
   NuxSetAllocator (alloc, free);
 }
 
 /** @deprecated Use PfnAllocate instead **/
-pfn_t pfn_alloc (int low) {
+PFN PfnAlloc (INT32 low) {
   return PfnAllocate (low);
 }
 
 /** @deprecated Use PfnFree instead **/
-void pfn_free (pfn_t pfn) {
+VOID PfnFree (PFN pfn) {
   PfnFree (pfn);
 }
 
 /** @deprecated Use PfnAvailable instead **/
-unsigned long pfn_avail (void) {
+unsigned long PfnAvail (VOID) {
   return PfnAvailable ();
 }
 
 // Legacy global variable aliases
-static lock_t pglock __attribute__((alias("gPgLock")));
+static SPINLOCK pglock __attribute__((alias("gPgLock")));
 static WORD_T *stree __attribute__((alias("gStree")));
-static unsigned order __attribute__((alias("gOrder")));
+static UINT32 order __attribute__((alias("gOrder")));
 static unsigned long free_pages __attribute__((alias("gFreePages")));
 rwlock_t _nux_pfnalloc_lock __attribute__((alias("gNuxPfnAllocLock")));
-pfn_t (*_nux_pfnalloc) (int) __attribute__((alias("gNuxPfnAlloc")));
-void (*_nux_pfnfree) (pfn_t) __attribute__((alias("gNuxPfnFree")));
+PFN (*_nux_pfnalloc) (int) __attribute__((alias("gNuxPfnAlloc")));
+VOID (*_nux_pfnfree) (PFN) __attribute__((alias("gNuxPfnFree")));

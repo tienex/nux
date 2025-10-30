@@ -2,7 +2,7 @@
   NUX: A kernel Library.
   Copyright (C) 2019 Gianluca Guida <glguida@tlbflush.org>
 
-  SPDX-License-Identifier:	BSD-2-Clause
+  SPDX-License-Identifier: BSD-2-Clause
 */
 
 #ifndef __nux_alloc_h__
@@ -19,9 +19,9 @@
 #endif
 
 #ifdef ALLOCDEBUG
-#define dbgprintf(...) printf (__VA_ARGS__)
+#define DBGPRINTF(...) printf (__VA_ARGS__)
 #else
-#define dbgprintf(...)
+#define DBGPRINTF(...)
 #endif
 
 #ifndef __ZADDR_T
@@ -35,20 +35,20 @@ typedef __ZADDR_T zaddr_t;
    struct zentry {
        LIST_ENTRY(zentry) list;
        zaddr_t addr;
-       size_t size;
+       UINTN size;
    };
 
 */
 
-static inline unsigned
-lsbit (unsigned long x)
+static INLINE UINT32
+lsbit (unsigned INTN x)
 {
   assert (x != 0);
   return __builtin_ffsl (x) - 1;
 }
 
-static inline unsigned
-msbit (unsigned long x)
+static INLINE UINT32
+msbit (unsigned INTN x)
 {
   assert (x != 0);
   return LONG_BIT - __builtin_clzl (x) - 1;
@@ -58,57 +58,64 @@ msbit (unsigned long x)
 
 struct __ZENTRY;
 LIST_HEAD (zlist, __ZENTRY);
-struct zone
-{
-  uintptr_t opq;
-  unsigned long bmap;
-  struct zlist zlist[ORDMAX];
-  unsigned nfree;
-};
 
-static inline void
+/**
+  Zone Allocator
+
+  Manages a zone of memory with free list organized by size.
+  Uses bitmap to track available allocation sizes.
+**/
+typedef struct _ZONE
+{
+  UINTN      Opq;             ///< Opaque user data
+  unsigned long  Bmap;            ///< Bitmap of available sizes
+  struct zlist   Zlist[ORDMAX];  ///< Free lists by order
+  UINT32         Nfree;           ///< Number of free entries
+} ZONE, *PZONE, *PCZONE;
+
+static INLINE VOID
 _zone_detachentry (struct zone *z, struct __ZENTRY *ze)
 {
-  uint32_t msb;
+  UINT32 msb;
 
   assert (ze->size != 0);
   msb = msbit (ze->size);
   assert (msb < ORDMAX);
 
   LIST_REMOVE (ze, list);
-  dbgprintf ("LIST_REMOVE: %p (%lx ->", ze, z->bmap);
-  if (LIST_EMPTY (z->zlist + msb))
-    z->bmap &= ~(1UL << msb);
-  dbgprintf (" %lx)", z->bmap);
-  z->nfree -= ze->size;
-  dbgprintf ("D<%p>(%lx,%lx)", ze, ze->addr, ze->size);
+  DBGPRINTF ("LIST_REMOVE: %p (%lx ->", ze, z->Bmap);
+  if (LIST_EMPTY (z->Zlist + msb))
+    z->Bmap &= ~(1UL << msb);
+  DBGPRINTF (" %lx)", z->Bmap);
+  z->Nfree -= ze->size;
+  DBGPRINTF ("D<%p>(%lx,%lx)", ze, ze->addr, ze->size);
 }
 
-static inline void
+static INLINE VOID
 _zone_attachentry (struct zone *z, struct __ZENTRY *ze)
 {
-  uint32_t msb;
+  UINT32 msb;
 
   assert (ze->size != 0);
   msb = msbit (ze->size);
   assert (msb < ORDMAX);
 
-  dbgprintf ("LIST_INSERT(%p + %d, %p), bmap (%lx ->", z->zlist, msb,
-	     ze, z->bmap);
-  z->bmap |= (1UL << msb);
-  dbgprintf (" %lx", z->bmap);
+  DBGPRINTF ("LIST_INSERT(%p + %d, %p), bmap (%lx ->", z->Zlist, msb,
+	     ze, z->Bmap);
+  z->Bmap |= (1UL << msb);
+  DBGPRINTF (" %lx", z->Bmap);
 
 
-  LIST_INSERT_HEAD (z->zlist + msb, ze, list);
-  z->nfree += ze->size;
-  dbgprintf ("A<%p>(%lx,%lx)", ze, ze->addr, ze->size);
+  LIST_INSERT_HEAD (z->Zlist + msb, ze, list);
+  z->Nfree += ze->size;
+  DBGPRINTF ("A<%p>(%lx,%lx)", ze, ze->addr, ze->size);
 }
 
-static inline struct __ZENTRY *
-_zone_findfree (struct zone *zn, size_t size)
+static INLINE struct __ZENTRY *
+_zone_findfree (struct zone *zn, UINTN size)
 {
-  unsigned long tmp;
-  unsigned int minbit;
+  unsigned INTN tmp;
+  UINT32 minbit;
   struct __ZENTRY *ze = NULL;
 
   minbit = msbit (size);
@@ -122,64 +129,64 @@ _zone_findfree (struct zone *zn, size_t size)
       return NULL;
     }
 
-  tmp = zn->bmap >> minbit;
+  tmp = zn->Bmap >> minbit;
   if (tmp)
     {
       tmp = lsbit (tmp);
-      ze = LIST_FIRST (zn->zlist + minbit + tmp);
-      dbgprintf ("LIST_FIRST(%p + %d + %d) = %p", zn->zlist, minbit, tmp, ze);
+      ze = LIST_FIRST (zn->Zlist + minbit + tmp);
+      DBGPRINTF ("LIST_FIRST(%p + %d + %d) = %p", zn->Zlist, minbit, tmp, ze);
     }
   return ze;
 }
 
-static inline void
+static INLINE VOID
 zone_remove (struct zone *z, struct __ZENTRY *ze)
 {
   _zone_detachentry (z, ze);
-  ___freeptr (ze, z->opq);
+  ___freeptr (ze, z->Opq);
 }
 
-static inline void
-zone_create (struct zone *z, zaddr_t zaddr, size_t size)
+static INLINE VOID
+zone_create (struct zone *z, zaddr_t zaddr, UINTN size)
 {
   struct __ZENTRY *ze, *pze = NULL, *nze = NULL;
   zaddr_t fprev = zaddr, lnext = zaddr + size;
-  dbgprintf ("HHH");
-  ___get_neighbors (zaddr, size, &pze, &nze, z->opq);
-  dbgprintf ("HHH");
+  DBGPRINTF ("HHH");
+  ___get_neighbors (zaddr, size, &pze, &nze, z->Opq);
+  DBGPRINTF ("HHH");
   if (pze)
     {
       fprev = pze->addr;
       zone_remove (z, pze);
     }
-  dbgprintf ("HHH");
+  DBGPRINTF ("HHH");
   if (nze)
     {
       lnext = nze->addr + nze->size;
       zone_remove (z, nze);
     }
-  dbgprintf ("HHH");
-  ze = ___mkptr (fprev, lnext - fprev, z->opq);
-  dbgprintf ("MKPTR(%p): %lx,%lx", ze, ze->addr, ze->size);
+  DBGPRINTF ("HHH");
+  ze = ___mkptr (fprev, lnext - fprev, z->Opq);
+  DBGPRINTF ("MKPTR(%p): %lx,%lx", ze, ze->addr, ze->size);
   _zone_attachentry (z, ze);
 }
 
 
-static inline void
-zone_free (struct zone *z, zaddr_t zaddr, size_t size)
+static INLINE VOID
+zone_free (struct zone *z, zaddr_t zaddr, UINTN size)
 {
 
   assert (size != 0);
-  dbgprintf ("Freeing %lx", zaddr);
+  DBGPRINTF ("Freeing %lx", zaddr);
   zone_create (z, zaddr, size);
 }
 
-static inline zaddr_t
-zone_alloc (struct zone *z, size_t size)
+static INLINE zaddr_t
+zone_alloc (struct zone *z, UINTN size)
 {
   struct __ZENTRY *ze;
   zaddr_t addr = (zaddr_t) - 1;
-  long diff;
+  INTN diff;
 
   assert (size != 0);
 
@@ -195,20 +202,20 @@ zone_alloc (struct zone *z, size_t size)
     zone_create (z, addr + size, diff);
 
 out:
-  dbgprintf ("Allocating %lx", addr);
+  DBGPRINTF ("Allocating %lx", addr);
   return addr;
 }
 
-static inline void
-zone_init (struct zone *z, uintptr_t opq)
+static INLINE VOID
+zone_init (struct zone *z, UINTN opq)
 {
-  int i;
+  INT32 i;
 
-  z->bmap = 0;
-  z->nfree = 0;
-  z->opq = opq;
+  z->Bmap = 0;
+  z->Nfree = 0;
+  z->Opq = opq;
   for (i = 0; i < ORDMAX; i++)
-    LIST_INIT (z->zlist + i);
+    LIST_INIT (z->Zlist + i);
 }
 
 #endif

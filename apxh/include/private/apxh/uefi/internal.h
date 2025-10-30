@@ -8,8 +8,8 @@
 #ifndef __apxh_uefi_internal_h__
 #define __apxh_uefi_internal_h__
 
-void efi_exit (int st);
-void efi_exitbs (void);
-unsigned long efi_allocate_maxaddr (unsigned long maxaddr);
+VOID efi_exit (INT32 st);
+VOID efi_exitbs (VOID);
+UINTN efi_allocate_maxaddr (UINTN maxaddr);
 
 #endif

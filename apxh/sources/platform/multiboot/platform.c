@@ -22,16 +22,16 @@
 #define BOOTMEM_MMAPSIZE  0x30000	/* Memory map maximum size */
 
 static VOID *gpElfKernelPayload, *gpElfUserPayload;
-static size_t gElfKernelPayloadSize, gElfUserPayloadSize;
+static UINTN gElfKernelPayloadSize, gElfUserPayloadSize;
 
-static uintptr_t gBrk;
+static UINTN gBrk;
 static unsigned gBootinfoRegions;
 static UINT64 gBootinfoMaxPfn;
 static UINT64 gBootinfoMaxRamPfn;
 
 static struct fbdesc gFbDesc = {.type = FB_INVALID };
 
-static struct apxh_pltdesc gPltDesc;
+static struct apxh_platformdesc gPlatformDesc;
 
 UINT64 RsdpFind (VOID);
 
@@ -41,32 +41,32 @@ UINT64 RsdpFind (VOID);
   Extracts framebuffer descriptor from Multiboot info structure,
   supporting RGB and indexed modes.
 
-  @param[in] pInfo  Pointer to Multiboot info structure.
+  @param[in] Info  Pointer to Multiboot info structure.
 **/
 static VOID
 ParseMultibootFramebuffer (
-  IN struct multiboot_info  *pInfo
+  IN struct multiboot_info  *Info
   )
 {
-  if (pInfo->framebuffer_type == MULTIBOOT_FRAMEBUFFER_TYPE_RGB)
+  if (Info->framebuffer_type == MULTIBOOT_FRAMEBUFFER_TYPE_RGB)
     {
       gFbDesc.type = FB_RGB;
-      gFbDesc.addr = pInfo->framebuffer_addr;
+      gFbDesc.addr = Info->framebuffer_addr;
       gFbDesc.size =
-	(UINT64) pInfo->framebuffer_pitch * pInfo->framebuffer_height;
+	(UINT64) Info->framebuffer_pitch * Info->framebuffer_height;
 
-      gFbDesc.pitch = pInfo->framebuffer_pitch;
-      gFbDesc.width = pInfo->framebuffer_width;
-      gFbDesc.height = pInfo->framebuffer_height;
-      gFbDesc.bpp = pInfo->framebuffer_bpp;
+      gFbDesc.pitch = Info->framebuffer_pitch;
+      gFbDesc.width = Info->framebuffer_width;
+      gFbDesc.height = Info->framebuffer_height;
+      gFbDesc.bpp = Info->framebuffer_bpp;
 
 #define MB2MASK(_p, _s)  (((1 << (_s)) - 1) << (1 << (_p)))
-      gFbDesc.r_mask = MB2MASK (pInfo->rpos, pInfo->rsize);
-      gFbDesc.g_mask = MB2MASK (pInfo->gpos, pInfo->gsize);
-      gFbDesc.b_mask = MB2MASK (pInfo->bpos, pInfo->bsize);
+      gFbDesc.r_mask = MB2MASK (Info->rpos, Info->rsize);
+      gFbDesc.g_mask = MB2MASK (Info->gpos, Info->gsize);
+      gFbDesc.b_mask = MB2MASK (Info->bpos, Info->bsize);
 #undef MB2MASK
     }
-  else if (pInfo->framebuffer_type == MULTIBOOT_FRAMEBUFFER_TYPE_INDEXED)
+  else if (Info->framebuffer_type == MULTIBOOT_FRAMEBUFFER_TYPE_INDEXED)
     {
       /*
          Indexed Frame Buffer not supported!
@@ -75,14 +75,14 @@ ParseMultibootFramebuffer (
          to frame buffer and we have no way (yet!) to handle it.
        */
       gFbDesc.type = FB_RGB;
-      gFbDesc.addr = pInfo->framebuffer_addr;
+      gFbDesc.addr = Info->framebuffer_addr;
       gFbDesc.size =
-	(UINT64) pInfo->framebuffer_pitch * pInfo->framebuffer_height;
+	(UINT64) Info->framebuffer_pitch * Info->framebuffer_height;
 
-      gFbDesc.pitch = pInfo->framebuffer_pitch;
-      gFbDesc.width = pInfo->framebuffer_width;
-      gFbDesc.height = pInfo->framebuffer_height;
-      gFbDesc.bpp = pInfo->framebuffer_bpp;
+      gFbDesc.pitch = Info->framebuffer_pitch;
+      gFbDesc.width = Info->framebuffer_width;
+      gFbDesc.height = Info->framebuffer_height;
+      gFbDesc.bpp = Info->framebuffer_bpp;
 
       gFbDesc.r_mask = 0xff;
       gFbDesc.g_mask = 0xff;
@@ -101,16 +101,16 @@ ParseMultibootFramebuffer (
   Converts Multiboot memory map to APXH bootinfo_region format
   in-place. Tracks maximum PFN and maximum RAM PFN.
 
-  @param[in] pInfo  Pointer to Multiboot info structure.
+  @param[in] Info  Pointer to Multiboot info structure.
 **/
 static VOID
 ParseMultibootMmap (
-  IN struct multiboot_info  *pInfo
+  IN struct multiboot_info  *Info
   )
 {
-  size_t MmapLength;
+  UINTN MmapLength;
 
-  MmapLength = pInfo->mmap_length;
+  MmapLength = Info->mmap_length;
 
   /*
      Step 1: check that we'll fit in the area allocated for the memory
@@ -126,7 +126,7 @@ ParseMultibootMmap (
      the kernel offset and the beginning of virtual memory: we can
      dereference multiboot pointers safely.
    */
-  memmove ((VOID *) BOOTMEM_MMAP, (VOID *) (uintptr_t) pInfo->mmap_addr,
+  memmove ((VOID *) BOOTMEM_MMAP, (VOID *) (UINTN) Info->mmap_addr,
 	   MmapLength);
   /* Unsafe to use multiboot info after this. */
 
@@ -145,26 +145,26 @@ ParseMultibootMmap (
   UINT64 MaxPfn = 0;
   UINT64 MaxRamPfn = 0;
   unsigned Regions = 0;
-  size_t Cur;
-  volatile struct multiboot_mmap_entry *pMbPtr =
+  UINTN Cur;
+  VOLATILE struct multiboot_mmap_entry *MbPtr =
     (struct multiboot_mmap_entry *) BOOTMEM_MMAP;
-  volatile struct bootinfo_region *pHrPtr =
+  VOLATILE struct bootinfo_region *HrPtr =
     (struct bootinfo_region *) BOOTMEM_MMAP;
   printf ("Multiboot memory map:\n");
   for (Cur = 0; Cur < MmapLength;)
     {
-      size_t MbSize;
+      UINTN MbSize;
       struct bootinfo_region HReg;
 
-      printf ("%016llx:%016llx:%d\n", pMbPtr->addr, pMbPtr->len, pMbPtr->type);
-      if (pMbPtr->type == MULTIBOOT_MEMORY_AVAILABLE)
+      printf ("%016llx:%016llx:%d\n", MbPtr->addr, MbPtr->len, MbPtr->type);
+      if (MbPtr->type == MULTIBOOT_MEMORY_AVAILABLE)
 	HReg.type = BOOTINFO_REGION_RAM;
       else
 	HReg.type = BOOTINFO_REGION_OTHER;
 
-      HReg.pfn = pMbPtr->addr >> PAGE_SHIFT;
-      HReg.len = (pMbPtr->len + PAGE_SIZE - 1) >> PAGE_SHIFT;
-      MbSize = pMbPtr->size + sizeof (pMbPtr->size);
+      HReg.pfn = MbPtr->addr >> PAGE_SHIFT;
+      HReg.len = (MbPtr->len + PAGE_SIZE - 1) >> PAGE_SHIFT;
+      MbSize = MbPtr->size + sizeof (MbPtr->size);
 
       /* Count all memory as maxpfn */
       if (MaxPfn < HReg.pfn + HReg.len)
@@ -176,10 +176,10 @@ ParseMultibootMmap (
 	MaxRamPfn = HReg.pfn + HReg.len;
 
       /* We consumed this entry. Can write the hreg region. */
-      *pHrPtr = HReg;
+      *HrPtr = HReg;
 
-      pMbPtr = (VOID *) pMbPtr + MbSize;
-      pHrPtr++;
+      MbPtr = (VOID *) MbPtr + MbSize;
+      HrPtr++;
       Regions++;
       Cur += MbSize;
     }
@@ -196,18 +196,18 @@ ParseMultibootMmap (
   Extracts framebuffer and memory map information from Multiboot
   info structure passed by bootloader.
 
-  @param[in] pInfo  Pointer to Multiboot info structure.
+  @param[in] Info  Pointer to Multiboot info structure.
 **/
 VOID
 ParseMultiboot (
-  IN struct multiboot_info  *pInfo
+  IN struct multiboot_info  *Info
   )
 {
-  if (pInfo->flags & MULTIBOOT_INFO_FRAMEBUFFER_INFO)
-    ParseMultibootFramebuffer (pInfo);
+  if (Info->flags & MULTIBOOT_INFO_FRAMEBUFFER_INFO)
+    ParseMultibootFramebuffer (Info);
 
-  assert (pInfo->flags & MULTIBOOT_INFO_MEM_MAP);
-  ParseMultibootMmap (pInfo);
+  assert (Info->flags & MULTIBOOT_INFO_MEM_MAP);
+  ParseMultibootMmap (Info);
 }
 
 
@@ -229,23 +229,23 @@ GetPayloadStart (
   IN plid_t  Id
   )
 {
-  VOID *pElfPayload;
+  VOID *ElfPayload;
 
   switch (Id)
     {
     case PAYLOAD_KERNEL:
-      pElfPayload = gpElfKernelPayload;
+      ElfPayload = gpElfKernelPayload;
       break;
     case PAYLOAD_USER:
-      pElfPayload = gpElfUserPayload;
+      ElfPayload = gpElfUserPayload;
       break;
     default:
       printf ("Unsupported payload ID %d\n", Id);
-      pElfPayload = NULL;
+      ElfPayload = NULL;
       break;
     }
 
-  return pElfPayload;
+  return ElfPayload;
 }
 
 /**
@@ -257,12 +257,12 @@ GetPayloadStart (
 
   @return Size of payload in bytes, or 0 if not found.
 **/
-size_t
+UINTN
 GetPayloadSize (
   IN plid_t  Id
   )
 {
-  size_t ElfPayloadSize;
+  UINTN ElfPayloadSize;
 
   switch (Id)
     {
@@ -288,12 +288,12 @@ GetPayloadSize (
 
   @return Physical address of allocated page.
 **/
-uintptr_t
+UINTN
 GetPage (
   VOID
   )
 {
-  uintptr_t m;
+  UINTN m;
 
   m = PAGE_ROUND (gBrk);
 
@@ -314,14 +314,14 @@ MdInitialize (
   VOID
   )
 {
-  uintptr_t Ptr;
+  UINTN Ptr;
 
   gpElfKernelPayload = payload_get (0, &gElfKernelPayloadSize);
-  Ptr = (uintptr_t) gpElfKernelPayload + gElfKernelPayloadSize;
+  Ptr = (UINTN) gpElfKernelPayload + gElfKernelPayloadSize;
   gBrk = PAGE_ROUND (Ptr);
 
   gpElfUserPayload = payload_get (1, &gElfUserPayloadSize);
-  Ptr = (uintptr_t) gpElfUserPayload + gElfUserPayloadSize;
+  Ptr = (UINTN) gpElfUserPayload + gElfUserPayloadSize;
   gBrk = PAGE_ROUND (Ptr);
 
   printf ("multiboot initialised: brk at %08x\n", gBrk);
@@ -402,10 +402,10 @@ MdGetMemRegion (
   IN unsigned  Index
   )
 {
-  struct bootinfo_region *pHrPtr = (struct bootinfo_region *) BOOTMEM_MMAP;
+  struct bootinfo_region *HrPtr = (struct bootinfo_region *) BOOTMEM_MMAP;
 
   assert (Index < gBootinfoRegions);
-  return pHrPtr + Index;
+  return HrPtr + Index;
 }
 
 /**
@@ -430,15 +430,15 @@ MdGetFramebuffer (
 
   @return Pointer to platform descriptor.
 **/
-struct apxh_pltdesc *
-MdGetPltDesc (
+struct apxh_platformdesc *
+MdGetPlatformDesc (
   VOID
   )
 {
   /* Only ACPI supported. */
-  gPltDesc.type = PLT_ACPI;
-  gPltDesc.pltptr = RsdpFind ();
-  return &gPltDesc;
+  gPlatformDesc.type = PLATFORM_ACPI;
+  gPlatformDesc.PlatformPointer = RsdpFind ();
+  return &gPlatformDesc;
 }
 
 /**
@@ -452,7 +452,7 @@ MdGetPltDesc (
 **/
 VOID
 MdVerify (
-  IN vaddr_t   Va,
+  IN VIRTUAL_ADDRESS   Va,
   IN size64_t  Size
   )
 {
@@ -493,32 +493,32 @@ static struct gdtreg
 **/
 VOID
 MbAmd64Entry (
-  IN vaddr_t  Pt,
-  IN vaddr_t  Entry
+  IN VIRTUAL_ADDRESS  Pt,
+  IN VIRTUAL_ADDRESS  Entry
   )
 {
   VOID *pTrampCr3;
-  VOID *pTramp;
+  VOID *Tramp;
   UINT16 TrampCode = 0xe7ff;	/* jmp *%rdi */
-  unsigned long Cr0, Cr3, Cr4;
+  UINTN Cr0, Cr3, Cr4;
   UINT64 Efer;
-  vaddr_t TrampEntry;
+  VIRTUAL_ADDRESS TrampEntry;
 
   /* Allocate trampoline pagetable. */
   pTrampCr3 = (VOID *) GetPage ();
 
   /* Setup trampoline. */
-  pTramp = (VOID *) GetPage ();
-  *(UINT16 *) pTramp = TrampCode;
-  TrampEntry = (vaddr_t) (uintptr_t) pTramp;
+  Tramp = (VOID *) GetPage ();
+  *(UINT16 *) Tramp = TrampCode;
+  TrampEntry = (VIRTUAL_ADDRESS) (UINTN) Tramp;
 
-  printf ("tramp is %lx (%x)\n", pTramp, *(UINT64 *) pTramp);
+  printf ("tramp is %lx (%x)\n", Tramp, *(UINT64 *) Tramp);
 
   /* Setup Direct map at 0->1Gb */
   pae64_directmap (pTrampCr3, 0, 0, 1L << 30, MEMTYPE_WB, 0, 1);
 
   /* Map Entry page in transitional pagetable VA. */
-  pae64_map_page (pTrampCr3, (vaddr_t) Entry, pae64_getphys (Entry), 0, 0, 1);
+  pae64_map_page (pTrampCr3, (VIRTUAL_ADDRESS) Entry, pae64_getphys (Entry), 0, 0, 1);
   printf ("mapping in %lx %llx at %lx\n", pTrampCr3, Entry,
 	  pae64_getphys (Entry));
 
@@ -527,7 +527,7 @@ MbAmd64Entry (
   printf ("CR4: %08lx -> %08lx.\n", Cr4, read_cr4 ());
 
   Cr3 = read_cr3 ();
-  write_cr3 ((unsigned long) pTrampCr3);
+  write_cr3 ((UINTN) pTrampCr3);
   printf ("CR3: %08lx -> %08lx.\n", Cr3, read_cr3 ());
 
   Efer = rdmsr (MSR_IA32_EFER);
@@ -538,8 +538,8 @@ MbAmd64Entry (
   write_cr0 (Cr0 | CR0_PG | CR0_WP);
   printf ("CR0: %08lx -> %08lx.\n", Cr0, read_cr0 ());
 
-  gGdtReg.Base = (UINT32) ((uintptr_t) & gPae64Gdt & 0xffffffff),
-    lgdt ((uintptr_t) & gGdtReg);
+  gGdtReg.Base = (UINT32) ((UINTN) & gPae64Gdt & 0xffffffff),
+    lgdt ((UINTN) & gGdtReg);
 
   asm volatile
     ("ljmp $8,$1f\n"
@@ -564,40 +564,40 @@ MbAmd64Entry (
 **/
 VOID
 Mb386Entry (
-  IN vaddr_t  Pt,
-  IN vaddr_t  Entry
+  IN VIRTUAL_ADDRESS  Pt,
+  IN VIRTUAL_ADDRESS  Entry
   )
 {
   VOID *pTrampCr3;
-  VOID *pTramp;
-  vaddr_t TrampEntry;
+  VOID *Tramp;
+  VIRTUAL_ADDRESS TrampEntry;
   UINT16 TrampCode = 0xe7ff;	/* jmp *%edi */
-  unsigned long Cr4 = read_cr4 ();
-  unsigned long Cr3 = read_cr3 ();
-  unsigned long Cr0 = read_cr0 ();
+  UINTN Cr4 = read_cr4 ();
+  UINTN Cr3 = read_cr3 ();
+  UINTN Cr0 = read_cr0 ();
 
   /* Allocate trampoline pagetable. */
   pTrampCr3 = (VOID *) GetPage ();
 
   /* Setup trampoline. */
-  pTramp = (VOID *) GetPage ();
-  *(UINT16 *) pTramp = TrampCode;
-  TrampEntry = (vaddr_t) (uintptr_t) pTramp;
+  Tramp = (VOID *) GetPage ();
+  *(UINT16 *) Tramp = TrampCode;
+  TrampEntry = (VIRTUAL_ADDRESS) (UINTN) Tramp;
 
-  printf ("tramp is %lx (%x)\n", pTramp, *(UINT64 *) pTramp);
+  printf ("tramp is %lx (%x)\n", Tramp, *(UINT64 *) Tramp);
 
   /* Setup Direct map at 0->1Gb */
   pae_directmap (pTrampCr3, 0, 0, 1L << 30, MEMTYPE_WB, 0, 1);
 
   /* Map Entry page in transitional pagetable VA. */
-  pae_map_page (pTrampCr3, (vaddr_t) Entry, pae_getphys (Entry), 0, 0, 1);
+  pae_map_page (pTrampCr3, (VIRTUAL_ADDRESS) Entry, pae_getphys (Entry), 0, 0, 1);
   printf ("mapping in %lx %llx at %lx\n", pTrampCr3, Entry,
 	  pae_getphys (Entry));
 
   write_cr4 (Cr4 | CR4_PAE);
   printf ("CR4: %08lx -> %08lx.\n", Cr4, read_cr4 ());
 
-  write_cr3 ((unsigned long) pTrampCr3);
+  write_cr3 ((UINTN) pTrampCr3);
   printf ("CR3: %08lx -> %08lx.\n", Cr3, read_cr3 ());
 
   write_cr0 (Cr0 | CR0_PG | CR0_WP);
@@ -622,8 +622,8 @@ Mb386Entry (
 VOID
 MdEntry (
   IN arch_t   Arch,
-  IN vaddr_t  Pt,
-  IN vaddr_t  Entry
+  IN VIRTUAL_ADDRESS  Pt,
+  IN VIRTUAL_ADDRESS  Entry
   )
 {
   switch (Arch)
@@ -640,111 +640,3 @@ MdEntry (
       break;
     }
 }
-
-//
-// Legacy Function Wrappers (for backward compatibility)
-//
-
-/** @deprecated Use ParseMultibootFramebuffer instead **/
-static void parse_multiboot_framebuffer (struct multiboot_info *info) {
-  ParseMultibootFramebuffer (info);
-}
-
-/** @deprecated Use ParseMultibootMmap instead **/
-static void parse_multiboot_mmap (struct multiboot_info *info) {
-  ParseMultibootMmap (info);
-}
-
-/** @deprecated Use ParseMultiboot instead **/
-void parse_multiboot (struct multiboot_info *info) {
-  ParseMultiboot (info);
-}
-
-/** @deprecated Use GetPayloadStart instead **/
-void *get_payload_start (int argc, char *argv[], plid_t id) {
-  return GetPayloadStart (argc, argv, id);
-}
-
-/** @deprecated Use GetPayloadSize instead **/
-size_t get_payload_size (plid_t id) {
-  return GetPayloadSize (id);
-}
-
-/** @deprecated Use GetPage instead **/
-uintptr_t get_page (void) {
-  return GetPage ();
-}
-
-/** @deprecated Use MdInitialize instead **/
-void md_init (void) {
-  MdInitialize ();
-}
-
-/** @deprecated Use MdMaxPfn instead **/
-uint64_t md_maxpfn (void) {
-  return MdMaxPfn ();
-}
-
-/** @deprecated Use MdMinRamPfn instead **/
-uint64_t md_minrampfn (void) {
-  return MdMinRamPfn ();
-}
-
-/** @deprecated Use MdMaxRamPfn instead **/
-uint64_t md_maxrampfn (void) {
-  return MdMaxRamPfn ();
-}
-
-/** @deprecated Use MdMemRegions instead **/
-unsigned md_memregions (void) {
-  return MdMemRegions ();
-}
-
-/** @deprecated Use MdGetMemRegion instead **/
-struct bootinfo_region *md_getmemregion (unsigned i) {
-  return MdGetMemRegion (i);
-}
-
-/** @deprecated Use MdGetFramebuffer instead **/
-struct fbdesc *md_getframebuffer (void) {
-  return MdGetFramebuffer ();
-}
-
-/** @deprecated Use MdGetPltDesc instead **/
-struct apxh_pltdesc *md_getpltdesc (void) {
-  return MdGetPltDesc ();
-}
-
-/** @deprecated Use MdVerify instead **/
-void md_verify (vaddr_t va, size64_t size) {
-  MdVerify (va, size);
-}
-
-/** @deprecated Use MbAmd64Entry instead **/
-void mb_amd64_entry (vaddr_t pt, vaddr_t entry) {
-  MbAmd64Entry (pt, entry);
-}
-
-/** @deprecated Use Mb386Entry instead **/
-void mb_386_entry (vaddr_t pt, vaddr_t entry) {
-  Mb386Entry (pt, entry);
-}
-
-/** @deprecated Use MdEntry instead **/
-void md_entry (arch_t arch, vaddr_t pt, vaddr_t entry) {
-  MdEntry (arch, pt, entry);
-}
-
-// Legacy global variable aliases
-static void *elf_kernel_payload __attribute__((alias("gpElfKernelPayload")));
-static void *elf_user_payload __attribute__((alias("gpElfUserPayload")));
-static size_t elf_kernel_payload_size __attribute__((alias("gElfKernelPayloadSize")));
-static size_t elf_user_payload_size __attribute__((alias("gElfUserPayloadSize")));
-static uintptr_t brk __attribute__((alias("gBrk")));
-static unsigned bootinfo_regions __attribute__((alias("gBootinfoRegions")));
-static uint64_t bootinfo_maxpfn __attribute__((alias("gBootinfoMaxPfn")));
-static uint64_t bootinfo_maxrampfn __attribute__((alias("gBootinfoMaxRamPfn")));
-static struct fbdesc fbdesc __attribute__((alias("gFbDesc")));
-static struct apxh_pltdesc pltdesc __attribute__((alias("gPltDesc")));
-static uint64_t pae64_gdt[3] __attribute__((alias("gPae64Gdt")));
-static struct gdtreg gdtreg __attribute__((alias("gGdtReg")));

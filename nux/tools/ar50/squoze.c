@@ -178,16 +178,16 @@ static char chdec (int s40) {
 }
 
 /** @deprecated Use Squoze instead **/
-uint64_t squoze (char *string) {
+UINT64 squoze (char *string) {
   return Squoze (string);
 }
 
 /** @deprecated Use UnsquozeLen instead **/
-size_t unsquozelen (uint64_t enc, size_t len, char *string) {
+size_t unsquozelen (UINT64 enc, size_t len, char *string) {
   return UnsquozeLen (enc, len, string);
 }
 
 /** @deprecated Use Unsquoze instead **/
-char *unsquoze (uint64_t enc) {
+char *unsquoze (UINT64 enc) {
   return Unsquoze (enc);
 }

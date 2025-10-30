@@ -1,139 +1,169 @@
-/*
-  NUX: A kernel Library.
+/** @file
+  ACPI Table Structures
+
+  Definitions for ACPI table structures including RSDP, MADT,
+  and HPET table formats.
+
   Copyright (C) 2019 Gianluca Guida <glguida@tlbflush.org>
 
-  SPDX-License-Identifier:	BSD-2-Clause
-*/
+  SPDX-License-Identifier: BSD-2-Clause
+**/
 
 #ifndef __platform_acpi_tables_h__
-#define PLTACPI_ACPITLB_H
+#define __platform_acpi_tables_h__
 
 #include <cdefs.h>
 #include <stdint.h>
 
-#define ACPI_MADT_TYPE_LAPIC 0
-#define ACPI_MADT_TYPE_IOAPIC 1
-#define ACPI_MADT_TYPE_INTOVERRIDE 2
-#define ACPI_MADT_TYPE_NMISRC 3
-#define ACPI_MADT_TYPE_LAPICNMI 4
-#define ACPI_MADT_TYPE_LAPICOVERRIDE 5
-#define ACPI_MADT_TYPE_IOSAPIC 6
-#define ACPI_MADT_TYPE_LSAPIC 7
-#define ACPI_MADT_TYPE_INTSRC 8
-#define ACPI_MADT_TYPE_LX2APIC 9
-#define ACPI_MADT_TYPE_LX2APICNMI 10
-#define ACPI_MADT_TYPE_GENINT 11
-#define ACPI_MADT_TYPE_GENDISTR 12
+//
+// ACPI MADT Entry Types
+//
+typedef enum _ACPI_MADT_ENTRY_TYPE {
+  AcpiMadtTypeLapic         = 0,
+  AcpiMadtTypeIoapic        = 1,
+  AcpiMadtTypeIntOverride   = 2,
+  AcpiMadtTypeNmiSrc        = 3,
+  AcpiMadtTypeLapicNmi      = 4,
+  AcpiMadtTypeLapicOverride = 5,
+  AcpiMadtTypeIoSapic       = 6,
+  AcpiMadtTypeLSapic        = 7,
+  AcpiMadtTypeIntSrc        = 8,
+  AcpiMadtTypeLx2Apic       = 9,
+  AcpiMadtTypeLx2ApicNmi    = 10,
+  AcpiMadtTypeGenInt        = 11,
+  AcpiMadtTypeGenDistr      = 12
+} ACPI_MADT_ENTRY_TYPE;
 
-struct acpi_rsdp_thdr
+
+typedef struct _ACPI_THDR
 {
-  char signature[8];
-  uint8_t checksum;
-  char oemid[6];
-  uint8_t revision;
-  uint32_t rsdt;
+  CHAR8 Signature[4];
+  UINT32 Length;
+  UINT8 Revision;
+  UINT8 Checksum;
+  CHAR8 OemId[6];
+  CHAR8 OemTableId[8];
+  UINT32 OemRevision;
+  UINT32 CreatorId;
+  UINT32 CreatorRevision;
+} __packed ACPI_THDR;
 
-  /* ACPI >= 2.0 (revision != 0) */
-  uint32_t length;
-  uint64_t xsdt;
-  uint8_t xchecksum;
-  uint8_t reserved[3];
-} __packed;
+// Pointer type
+typedef ACPI_THDR *PACPI_THDR;
+typedef CONST ACPI_THDR *PCACPI_THDR;
 
-struct acpi_thdr
+
+typedef struct _ACPI_GENADDR
 {
-  char signature[4];
-  uint32_t length;
-  uint8_t revision;
-  uint8_t checksum;
-  char oemid[6];
-  char oemtableid[8];
-  uint32_t oemrevision;
-  uint32_t creatid;
-  uint32_t creatrev;
-} __packed;
+  UINT8 SpaceId;
+  UINT8 BitWidth;
+  UINT8 BitOffset;
+  UINT8 AccessWidth;
+  UINT64 Address;
+} __packed ACPI_GENADDR;
 
-struct acpi_genaddr
-{
-  uint8_t spaceid;
-  uint8_t bitwidth;
-  uint8_t bitoffset;
-  uint8_t accesswidth;
-  uint64_t address;
-} __packed;
+// Pointer type
+typedef ACPI_GENADDR *PACPI_GENADDR;
+typedef CONST ACPI_GENADDR *PCACPI_GENADDR;
 
-struct acpi_madt
+typedef struct _ACPI_MADT
 {
-  struct acpi_thdr hdr;
-  uint32_t lapic;
-  uint32_t flags;
-} __packed;
+  ACPI_THDR Hdr;
+  UINT32 Lapic;
+  UINT32 Flags;
+} __packed ACPI_MADT;
 
-struct acpi_madt_lapic
-{
-  uint8_t type;
-  uint8_t length;
-  uint8_t acpiid;
-  uint8_t lapicid;
-#define ACPI_MADT_LAPIC_ENABLED 1
-  uint32_t flags;
-} __packed;
+// Pointer type
+typedef ACPI_MADT *PACPI_MADT;
+typedef CONST ACPI_MADT *PCACPI_MADT;
 
-struct acpi_madt_ioapic
-{
-  uint8_t type;
-  uint8_t length;
-  uint8_t ioapicid;
-  uint8_t reserved;
-  uint32_t address;
-  uint32_t gsibase;
-} __packed;
 
-struct acpi_madt_lapicoverride
-{
-  uint8_t type;
-  uint8_t length;
-  uint16_t reserved;
-  uint64_t address;
-} __packed;
+//
+// ACPI MADT LAPIC Flags
+//
+typedef enum _ACPI_MADT_LAPIC_FLAGS {
+  AcpiMadtLapicEnabled = 0x01
+} ACPI_MADT_LAPIC_FLAGS;
 
-struct acpi_madt_lapicnmi
-{
-  uint8_t type;
-  uint8_t length;
-  uint8_t acpiid;
-  uint16_t flags;
-  uint8_t lint;
-} __packed;
 
-struct acpi_madt_intoverride
+typedef struct _ACPI_MADT_IOAPIC
 {
-  uint8_t type;
-  uint8_t length;
-  uint8_t bus;
-  uint8_t irq;
-  uint8_t gsi;
-#define ACPI_MADT_TRIGGER_MASK     0x0C
-#define ACPI_MADT_TRIGGER_CONFORMS 0x00
-#define ACPI_MADT_TRIGGER_EDGE     0x04
-#define ACPI_MADT_TRIGGER_RESERVED 0x08
-#define ACPI_MADT_TRIGGER_LEVEL    0x0C
-#define ACPI_MADT_POLARITY_MASK        0x03
-#define ACPI_MADT_POLARITY_CONFORMS    0x00
-#define ACPI_MADT_POLARITY_ACTIVE_HIGH 0x01
-#define ACPI_MADT_POLARITY_RESERVED    0x02
-#define ACPI_MADT_POLARITY_ACTIVE_LOW  0x03
-  uint16_t flags;
-} __packed;
+  UINT8 Type;
+  UINT8 Length;
+  UINT8 IoApicId;
+  UINT8 Reserved;
+  UINT32 Address;
+  UINT32 GsiBase;
+} __packed ACPI_MADT_IOAPIC;
 
-struct acpi_hpet
+// Pointer type
+typedef ACPI_MADT_IOAPIC *PACPI_MADT_IOAPIC;
+typedef CONST ACPI_MADT_IOAPIC *PCACPI_MADT_IOAPIC;
+
+
+typedef struct _ACPI_MADT_LAPICOVERRIDE
 {
-  struct acpi_thdr hdr;
-  uint32_t id;
-  struct acpi_genaddr address;
-  uint8_t sequence;
-  uint8_t mintick;
-  uint8_t flags;
-} __packed;
+  UINT8 Type;
+  UINT8 Length;
+  UINT16 Reserved;
+  UINT64 Address;
+} __packed ACPI_MADT_LAPICOVERRIDE;
+
+// Pointer type
+typedef ACPI_MADT_LAPICOVERRIDE *PACPI_MADT_LAPICOVERRIDE;
+typedef CONST ACPI_MADT_LAPICOVERRIDE *PCACPI_MADT_LAPICOVERRIDE;
+
+
+typedef struct _ACPI_MADT_LAPICNMI
+{
+  UINT8 Type;
+  UINT8 Length;
+  UINT8 AcpiId;
+  UINT16 Flags;
+  UINT8 Lint;
+} __packed ACPI_MADT_LAPICNMI;
+
+// Pointer type
+typedef ACPI_MADT_LAPICNMI *PACPI_MADT_LAPICNMI;
+typedef CONST ACPI_MADT_LAPICNMI *PCACPI_MADT_LAPICNMI;
+
+
+//
+// ACPI MADT Interrupt Override Trigger Modes
+//
+typedef enum _ACPI_MADT_TRIGGER_MODE {
+  AcpiMadtTriggerConforms = 0x00,
+  AcpiMadtTriggerEdge     = 0x04,
+  AcpiMadtTriggerReserved = 0x08,
+  AcpiMadtTriggerLevel    = 0x0C,
+  AcpiMadtTriggerMask     = 0x0C
+} ACPI_MADT_TRIGGER_MODE;
+
+//
+// ACPI MADT Interrupt Override Polarity
+//
+typedef enum _ACPI_MADT_POLARITY {
+  AcpiMadtPolarityConforms    = 0x00,
+  AcpiMadtPolarityActiveHigh  = 0x01,
+  AcpiMadtPolarityReserved    = 0x02,
+  AcpiMadtPolarityActiveLow   = 0x03,
+  AcpiMadtPolarityMask        = 0x03
+} ACPI_MADT_POLARITY;
+
+
+typedef struct _ACPI_HPET
+{
+  ACPI_THDR Hdr;
+  UINT32 Id;
+  ACPI_GENADDR Address;
+  UINT8 Sequence;
+  UINT8 MinTick;
+  UINT8 Flags;
+} __packed ACPI_HPET;
+
+// Pointer type
+typedef ACPI_HPET *PACPI_HPET;
+typedef CONST ACPI_HPET *PCACPI_HPET;
+
 
 #endif
