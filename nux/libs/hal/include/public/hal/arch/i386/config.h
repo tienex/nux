@@ -45,7 +45,7 @@ struct hal_umap
 };
 
 #include <stdio.h>
-static INLINE void
+static INLINE VOID
 hal_umap_debug (struct hal_umap *umap)
 {
   printf ("hal_umap: %p:", umap);
@@ -90,7 +90,7 @@ struct i386_tss
 
 struct hal_cpu
 {
-  void *data;
+  VOID *data;
   struct i386_tss tss;
 };
 

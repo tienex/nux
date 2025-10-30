@@ -201,7 +201,7 @@ PfnAvailable (
 //
 
 /** @deprecated Use StreePfnInitialize instead **/
-void BatreePfnInitialize (void) {
+VOID BatreePfnInitialize (VOID) {
   StreePfnInitialize ();
 }
 
@@ -211,12 +211,12 @@ PFN BatreePfnAlloc (INT32 low) {
 }
 
 /** @deprecated Use StreePfnFree instead **/
-void BatreePfnFree (PFN pfn) {
+VOID BatreePfnFree (PFN pfn) {
   StreePfnFree (pfn);
 }
 
 /** @deprecated Use NuxSetAllocator instead **/
-void nux_set_allocator (PFN (*alloc) (int), void (*free) (PFN)) {
+VOID nux_set_allocator (PFN (*alloc) (int), void (*free) (PFN)) {
   NuxSetAllocator (alloc, free);
 }
 
@@ -226,12 +226,12 @@ PFN PfnAlloc (INT32 low) {
 }
 
 /** @deprecated Use PfnFree instead **/
-void PfnFree (PFN pfn) {
+VOID PfnFree (PFN pfn) {
   PfnFree (pfn);
 }
 
 /** @deprecated Use PfnAvailable instead **/
-unsigned long PfnAvail (void) {
+unsigned long PfnAvail (VOID) {
   return PfnAvailable ();
 }
 
@@ -242,4 +242,4 @@ static UINT32 order __attribute__((alias("gOrder")));
 static unsigned long free_pages __attribute__((alias("gFreePages")));
 rwlock_t _nux_pfnalloc_lock __attribute__((alias("gNuxPfnAllocLock")));
 PFN (*_nux_pfnalloc) (int) __attribute__((alias("gNuxPfnAlloc")));
-void (*_nux_pfnfree) (PFN) __attribute__((alias("gNuxPfnFree")));
+VOID (*_nux_pfnfree) (PFN) __attribute__((alias("gNuxPfnFree")));

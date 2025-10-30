@@ -288,7 +288,7 @@ hal_l1e_t hal_l1e_box (unsigned INTN pfn, UINT32 prot) {
 }
 
 /** @deprecated Use HalL1eUnbox instead **/
-void hal_l1e_unbox (hal_l1e_t l1e, unsigned long *pfnp, unsigned *protp) {
+VOID hal_l1e_unbox (hal_l1e_t l1e, unsigned long *pfnp, unsigned *protp) {
   HalL1eUnbox (l1e, pfnp, protp);
 }
 
@@ -304,6 +304,6 @@ USER_ADDRESS hal_umap_next (struct hal_umap *umap, USER_ADDRESS uaddr, hal_l1p_t
 }
 
 /** @deprecated Use HalUmapFree instead **/
-void hal_umap_free (struct hal_umap *umap) {
+VOID hal_umap_free (struct hal_umap *umap) {
   HalUmapFree (umap);
 }

@@ -46,14 +46,14 @@ extern UINT64 _riscv64_kva_end;
 extern UINT64 _riscv64_kmem_start;
 extern UINT64 _riscv64_kmem_end;
 
-void set_stvec_final ();
+VOID set_stvec_final ();
 
 CONST struct apxh_bootinfo *bootinfo = (struct apxh_bootinfo *) &_info_start;
 
 FRAMEBUFFER_DESC fbdesc;
 struct apxh_platformdesc pltdesc;
 
-void *gHalStreePtr;
+VOID *gHalStreePtr;
 UINT32 gHalStreeOrder;
 
 int gUseFb;
@@ -363,7 +363,7 @@ RiscvInitialize (
       EarlyPrint ("ERROR: stree size doesn't match!");
       hal_cpu_halt ();
     }
-  StreeMemsize = (UINTN) ((void *) _stree_end - (void *) _stree_start);
+  StreeMemsize = (UINTN) ((VOID *) _stree_end - (VOID *) _stree_start);
   if (StreeHdr->size + StreeHdr->offset > StreeMemsize)
     {
       EarlyPrint ("ERROR: stree doesn't fit in allocated memory!");
@@ -619,7 +619,7 @@ _hal_entry (
 //
 
 /** @deprecated Use RiscvInitialize instead **/
-void riscv_init (void) {
+VOID riscv_init (VOID) {
   RiscvInitialize ();
 }
 
@@ -629,7 +629,7 @@ struct hal_frame *do_pagefault (struct hal_frame *f) {
 }
 
 /** @deprecated Use EarlyPrint instead **/
-static void early_print (PCCHAR8s) {
+static VOID early_print (PCCHAR8s) {
   EarlyPrint (s);
 }
 

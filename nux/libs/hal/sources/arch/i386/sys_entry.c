@@ -463,7 +463,7 @@ struct hal_frame * do_vect (UINT32 vect, struct hal_frame *f) {
 }
 
 /** @deprecated Use HalFrameInitialize instead **/
-void hal_frame_init (struct hal_frame *f) {
+VOID hal_frame_init (struct hal_frame *f) {
   HalFrameInitialize (f);
 }
 
@@ -478,7 +478,7 @@ VIRTUAL_ADDRESS hal_frame_getip (struct hal_frame *f) {
 }
 
 /** @deprecated Use HalFrameSetIp instead **/
-void hal_frame_setip (struct hal_frame *f, VIRTUAL_ADDRESS ip) {
+VOID hal_frame_setip (struct hal_frame *f, VIRTUAL_ADDRESS ip) {
   HalFrameSetIp (f, ip);
 }
 
@@ -488,7 +488,7 @@ VIRTUAL_ADDRESS hal_frame_getsp (struct hal_frame *f) {
 }
 
 /** @deprecated Use HalFrameSetSp instead **/
-void hal_frame_setsp (struct hal_frame *f, VIRTUAL_ADDRESS sp) {
+VOID hal_frame_setsp (struct hal_frame *f, VIRTUAL_ADDRESS sp) {
   HalFrameSetSp (f, sp);
 }
 
@@ -498,37 +498,37 @@ VIRTUAL_ADDRESS hal_frame_getgp (struct hal_frame *f) {
 }
 
 /** @deprecated Use HalFrameSetGp instead **/
-void hal_frame_setgp (struct hal_frame *f, unsigned INTN gp) {
+VOID hal_frame_setgp (struct hal_frame *f, unsigned INTN gp) {
   HalFrameSetGp (f, gp);
 }
 
 /** @deprecated Use HalFrameSetTls instead **/
-void hal_frame_settls (struct hal_frame *f, unsigned INTN tls) {
+VOID hal_frame_settls (struct hal_frame *f, unsigned INTN tls) {
   HalFrameSetTls (f, tls);
 }
 
 /** @deprecated Use HalFrameSetA0 instead **/
-void hal_frame_seta0 (struct hal_frame *f, unsigned INTN a0) {
+VOID hal_frame_seta0 (struct hal_frame *f, unsigned INTN a0) {
   HalFrameSetA0 (f, a0);
 }
 
 /** @deprecated Use HalFrameSetA1 instead **/
-void hal_frame_seta1 (struct hal_frame *f, unsigned INTN a1) {
+VOID hal_frame_seta1 (struct hal_frame *f, unsigned INTN a1) {
   HalFrameSetA1 (f, a1);
 }
 
 /** @deprecated Use HalFrameSetA2 instead **/
-void hal_frame_seta2 (struct hal_frame *f, unsigned INTN a2) {
+VOID hal_frame_seta2 (struct hal_frame *f, unsigned INTN a2) {
   HalFrameSetA2 (f, a2);
 }
 
 /** @deprecated Use HalFrameSetRet instead **/
-void hal_frame_setret (struct hal_frame *f, unsigned INTN r) {
+VOID hal_frame_setret (struct hal_frame *f, unsigned INTN r) {
   HalFrameSetRet (f, r);
 }
 
 /** @deprecated Use HalFramePrint instead **/
-void hal_frame_print (struct hal_frame *f) {
+VOID hal_frame_print (struct hal_frame *f) {
   HalFramePrint (f);
 }
 

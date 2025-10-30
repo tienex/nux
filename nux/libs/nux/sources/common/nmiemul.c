@@ -167,7 +167,7 @@ NmiEmulEntry (
   if (NmiEmulNmiPending ())
     {
       NmiEmulNmiClear ();
-      /* void */ hal_entry_nmi (Frame);
+      /* VOID */ hal_entry_nmi (Frame);
     }
   return Frame;
 }
@@ -177,42 +177,42 @@ NmiEmulEntry (
 //
 
 /** @deprecated Use NmiEmulNmiPending instead **/
-static BOOLEAN nmiemul_nmi_pending (void) {
+static BOOLEAN nmiemul_nmi_pending (VOID) {
   return NmiEmulNmiPending ();
 }
 
 /** @deprecated Use NmiEmulNmiClear instead **/
-static void nmiemul_nmi_clear (void) {
+static VOID nmiemul_nmi_clear (VOID) {
   NmiEmulNmiClear ();
 }
 
 /** @deprecated Use NmiEmulIpiPending instead **/
-BOOLEAN nmiemul_ipi_pending (void) {
+BOOLEAN nmiemul_ipi_pending (VOID) {
   return NmiEmulIpiPending ();
 }
 
 /** @deprecated Use NmiEmulIpiClear instead **/
-void nmiemul_ipi_clear (void) {
+VOID nmiemul_ipi_clear (VOID) {
   NmiEmulIpiClear ();
 }
 
 /** @deprecated Use NmiEmulNmiSet instead **/
-void nmiemul_nmi_set (UINT32 cpu) {
+VOID nmiemul_nmi_set (UINT32 cpu) {
   NmiEmulNmiSet (cpu);
 }
 
 /** @deprecated Use NmiEmulNmiSetAll instead **/
-void nmiemul_nmi_setall (void) {
+VOID nmiemul_nmi_setall (VOID) {
   NmiEmulNmiSetAll ();
 }
 
 /** @deprecated Use NmiEmulIpiSet instead **/
-void nmiemul_ipi_set (UINT32 cpu) {
+VOID nmiemul_ipi_set (UINT32 cpu) {
   NmiEmulIpiSet (cpu);
 }
 
 /** @deprecated Use NmiEmulIpiSetAll instead **/
-void nmiemul_ipi_setall (void) {
+VOID nmiemul_ipi_setall (VOID) {
   NmiEmulIpiSetAll ();
 }
 

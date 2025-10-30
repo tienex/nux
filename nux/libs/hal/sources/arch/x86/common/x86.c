@@ -63,7 +63,7 @@ CONST struct apxh_bootinfo *bootinfo = (struct apxh_bootinfo *) &_info_start;
 FRAMEBUFFER_DESC fbdesc;
 struct apxh_platformdesc pltdesc;
 
-void *gHalStreePtr;
+VOID *gHalStreePtr;
 UINT32 gHalStreeOrder;
 
 int gUseFb;
@@ -473,7 +473,7 @@ hal_virtmem_dmapsize (
   VOID
   )
 {
-  return (UINTN) ((void *) &_physmap_end - (void *) &_physmap_start);
+  return (UINTN) ((VOID *) &_physmap_end - (VOID *) &_physmap_start);
 }
 
 VIRTUAL_ADDRESS
@@ -489,7 +489,7 @@ hal_virtmem_pfn$size (
   VOID
   )
 {
-  return (UINTN) ((void *) &_pfncache_end - (void *) &_pfncache_start);
+  return (UINTN) ((VOID *) &_pfncache_end - (VOID *) &_pfncache_start);
 }
 
 CONST VIRTUAL_ADDRESS
@@ -587,7 +587,7 @@ hal_virtmem_kvasize (
   VOID
   )
 {
-  return (UINTN) ((void *) &_kva_end - (void *) &_kva_start);
+  return (UINTN) ((VOID *) &_kva_end - (VOID *) &_kva_start);
 }
 
 VIRTUAL_ADDRESS
@@ -603,7 +603,7 @@ hal_virtmem_kmemsize (
   VOID
   )
 {
-  return (UINTN) ((void *) &_kmem_end - (void *) &_kmem_start);
+  return (UINTN) ((VOID *) &_kmem_end - (VOID *) &_kmem_start);
 }
 
 /**
@@ -668,7 +668,7 @@ X86Initialize (
       EarlyPrint ("ERROR: stree size doesn't match!");
       hal_cpu_halt ();
     }
-  StreeMemsize = (UINTN) ((void *) _stree_end - (void *) _stree_start);
+  StreeMemsize = (UINTN) ((VOID *) _stree_end - (VOID *) _stree_start);
   if (StreeHdr->size + StreeHdr->offset > StreeMemsize)
     {
       EarlyPrint ("ERROR: stree doesn't fit in allocated memory!");
@@ -801,27 +801,27 @@ UINT64 rdmsr (UINT32 ecx) {
 }
 
 /** @deprecated Use WriteMsr instead **/
-void wrmsr (UINT32 ecx, UINT64 val) {
+VOID wrmsr (UINT32 ecx, UINT64 val) {
   WriteMsr (ecx, val);
 }
 
 /** @deprecated Use ReadCr4 instead **/
-unsigned long read_cr4 (void) {
+unsigned long read_cr4 (VOID) {
   return ReadCr4 ();
 }
 
 /** @deprecated Use WriteCr4 instead **/
-void write_cr4 (unsigned INTN r) {
+VOID write_cr4 (unsigned INTN r) {
   WriteCr4 (r);
 }
 
 /** @deprecated Use ReadCr3 instead **/
-unsigned long read_cr3 (void) {
+unsigned long read_cr3 (VOID) {
   return ReadCr3 ();
 }
 
 /** @deprecated Use WriteCr3 instead **/
-void write_cr3 (unsigned INTN r) {
+VOID write_cr3 (unsigned INTN r) {
   WriteCr3 (r);
 }
 
@@ -841,37 +841,37 @@ int inl (UINT32 port) {
 }
 
 /** @deprecated Use OutB instead **/
-void outb (INT32 port, INT32 val) {
+VOID outb (INT32 port, INT32 val) {
   OutB (port, val);
 }
 
 /** @deprecated Use OutW instead **/
-void outw (UINT32 port, INT32 val) {
+VOID outw (UINT32 port, INT32 val) {
   OutW (port, val);
 }
 
 /** @deprecated Use OutL instead **/
-void outl (UINT32 port, INT32 val) {
+VOID outl (UINT32 port, INT32 val) {
   OutL (port, val);
 }
 
 /** @deprecated Use TlbFlushGlobal instead **/
-void tlbflush_global (void) {
+VOID tlbflush_global (VOID) {
   TlbFlushGlobal ();
 }
 
 /** @deprecated Use TlbFlushLocal instead **/
-void tlbflush_local (void) {
+VOID tlbflush_local (VOID) {
   TlbFlushLocal ();
 }
 
 /** @deprecated Use X86Initialize instead **/
-void x86_init (void) {
+VOID x86_init (VOID) {
   X86Initialize ();
 }
 
 /** @deprecated Use StackFrame instead **/
-void stackframe (unsigned INTN rbp) {
+VOID stackframe (unsigned INTN rbp) {
   StackFrame (rbp);
 }
 

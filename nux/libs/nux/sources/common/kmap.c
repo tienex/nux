@@ -351,7 +351,7 @@ KmapCommit (
 //
 
 /** @deprecated Use KmapInitialize instead **/
-void kmapinit (void) {
+VOID kmapinit (VOID) {
   KmapInitialize ();
 }
 
@@ -401,6 +401,6 @@ int kmap_ensure_range (VIRTUAL_ADDRESS va, UINTN size, UINT32 reqprot) {
 }
 
 /** @deprecated Use KmapCommit instead **/
-void KmapCommit (void) {
+VOID KmapCommit (VOID) {
   KmapCommit ();
 }

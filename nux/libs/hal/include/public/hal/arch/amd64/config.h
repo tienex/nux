@@ -49,7 +49,7 @@ struct hal_umap
 };
 
 #include <stdio.h>
-static INLINE void
+static INLINE VOID
 hal_umap_debug (struct hal_umap *umap)
 {
   printf ("hal_umap %p:", umap);
@@ -77,7 +77,7 @@ struct amd64_tss
 
 struct hal_cpu
 {
-  void *data;			/* Must be at %gs:0 */
+  VOID *data;			/* Must be at %gs:0 */
   UINT64 kstack;		/* syscall kstack. Must be at %gs:8 */
   UINT64 scratch;		/* syscall scratch. Must be at %gs:16 */
   struct amd64_tss tss;

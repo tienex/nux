@@ -73,7 +73,7 @@ typedef struct _ZONE
   UINT32         Nfree;           ///< Number of free entries
 } ZONE, *PZONE, *PCZONE;
 
-static INLINE void
+static INLINE VOID
 _zone_detachentry (struct zone *z, struct __ZENTRY *ze)
 {
   UINT32 msb;
@@ -91,7 +91,7 @@ _zone_detachentry (struct zone *z, struct __ZENTRY *ze)
   DBGPRINTF ("D<%p>(%lx,%lx)", ze, ze->addr, ze->size);
 }
 
-static INLINE void
+static INLINE VOID
 _zone_attachentry (struct zone *z, struct __ZENTRY *ze)
 {
   UINT32 msb;
@@ -139,14 +139,14 @@ _zone_findfree (struct zone *zn, UINTN size)
   return ze;
 }
 
-static INLINE void
+static INLINE VOID
 zone_remove (struct zone *z, struct __ZENTRY *ze)
 {
   _zone_detachentry (z, ze);
   ___freeptr (ze, z->Opq);
 }
 
-static INLINE void
+static INLINE VOID
 zone_create (struct zone *z, zaddr_t zaddr, UINTN size)
 {
   struct __ZENTRY *ze, *pze = NULL, *nze = NULL;
@@ -172,7 +172,7 @@ zone_create (struct zone *z, zaddr_t zaddr, UINTN size)
 }
 
 
-static INLINE void
+static INLINE VOID
 zone_free (struct zone *z, zaddr_t zaddr, UINTN size)
 {
 
@@ -206,7 +206,7 @@ out:
   return addr;
 }
 
-static INLINE void
+static INLINE VOID
 zone_init (struct zone *z, UINTN opq)
 {
   INT32 i;

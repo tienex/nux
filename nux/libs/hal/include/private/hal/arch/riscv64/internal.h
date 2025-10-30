@@ -41,7 +41,7 @@
 
 #ifndef _ASSEMBLER
 static INLINE unsigned long
-riscv_sstatus_cli (void)
+riscv_sstatus_cli (VOID)
 {
   unsigned INTN old;
   asm volatile ("csrrci %0, sstatus, %1\n":"=r" (old):"K" (SSTATUS_SIE));
@@ -49,7 +49,7 @@ riscv_sstatus_cli (void)
 }
 
 static INLINE unsigned long
-riscv_sstatus_sti (void)
+riscv_sstatus_sti (VOID)
 {
   unsigned INTN old;
   asm volatile ("csrrsi %0, sstatus, %1\n":"=r" (old):"K" (SSTATUS_SIE));
@@ -57,7 +57,7 @@ riscv_sstatus_sti (void)
 }
 
 static INLINE unsigned long
-riscv_sie_kernel (void)
+riscv_sie_kernel (VOID)
 {
   unsigned INTN old;
   asm volatile ("csrrw %0, sie, %1\n":"=r" (old):"r" (SIE_KERNEL));
@@ -65,7 +65,7 @@ riscv_sie_kernel (void)
 }
 
 static INLINE unsigned long
-riscv_sie_user (void)
+riscv_sie_user (VOID)
 {
   unsigned INTN old;
   asm volatile ("csrrw %0, sie, %1\n":"=r" (old):"r" (SIE_USER));
@@ -73,7 +73,7 @@ riscv_sie_user (void)
 }
 
 static INLINE VOID
-riscv_sip_siclear (void)
+riscv_sip_siclear (VOID)
 {
   asm volatile ("csrci sip, %0\n"::"K" (SIP_SSIP));
 }
@@ -178,7 +178,7 @@ set_pte (ptep_t ptep, pte_t pte)
 }
 
 static INLINE pte_t
-alloc_table (void)
+alloc_table (VOID)
 {
   PFN pfn;
 
@@ -190,7 +190,7 @@ alloc_table (void)
 }
 
 static INLINE unsigned long
-riscv_satp (void)
+riscv_satp (VOID)
 {
   unsigned INTN satp;
 
@@ -211,7 +211,7 @@ riscv_settp (unsigned INTN data)
 }
 
 static INLINE unsigned long
-riscv_gettp (void)
+riscv_gettp (VOID)
 {
   unsigned INTN data;
   asm volatile ("mv %0, tp\n":"=r" (data));
@@ -222,9 +222,9 @@ hal_l1p_t cpumap_get_l1p (unsigned INTN va, INT32 alloc);
 hal_l1p_t umap_get_l1p (struct hal_umap *umap, unsigned INTN va, BOOLEAN alloc);
 USER_ADDRESS pt_umap_next (struct hal_umap *umap, USER_ADDRESS uaddr, hal_l1p_t * l1p_out,
 		   hal_l1e_t * l1e_out);
-void pt_umap_free (struct hal_umap *umap);
-unsigned long pt_umap_minaddr (void);
-unsigned long pt_umap_maxaddr (void);
+VOID pt_umap_free (struct hal_umap *umap);
+unsigned long pt_umap_minaddr (VOID);
+unsigned long pt_umap_maxaddr (VOID);
 #endif /* _ASSEMBLER */
 
 #endif /* _HAL_INTERNAL_H */

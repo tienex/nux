@@ -872,79 +872,79 @@ static INLINE UINTN hal_cpu_in (UINT8 size, UINT32 port) {
   return Cpu->lpVtbl->IoIn(Cpu, size, port);
 }
 
-static INLINE void hal_cpu_out (UINT8 size, UINT32 port, UINTN val) {
+static INLINE VOID hal_cpu_out (UINT8 size, UINT32 port, UINTN val) {
   IHalCpu *Cpu; gpHal->lpVtbl->GetCpuInterface(gpHal, &Cpu);
   Cpu->lpVtbl->IoOut(Cpu, size, port, val);
 }
 
-static INLINE void hal_cpu_relax (void) {
+static INLINE VOID hal_cpu_relax (VOID) {
   IHalCpu *Cpu; gpHal->lpVtbl->GetCpuInterface(gpHal, &Cpu);
   Cpu->lpVtbl->Relax(Cpu);
 }
 
-static INLINE void hal_cpu_trap (void) {
+static INLINE VOID hal_cpu_trap (VOID) {
   IHalCpu *Cpu; gpHal->lpVtbl->GetCpuInterface(gpHal, &Cpu);
   Cpu->lpVtbl->Trap(Cpu);
 }
 
-static INLINE UINT64 hal_cpu_cycles (void) {
+static INLINE UINT64 hal_cpu_cycles (VOID) {
   IHalCpu *Cpu; gpHal->lpVtbl->GetCpuInterface(gpHal, &Cpu);
   return Cpu->lpVtbl->GetCycles(Cpu);
 }
 
-static INLINE void __dead hal_cpu_idle (void) {
+static INLINE VOID __dead hal_cpu_idle (VOID) {
   IHalCpu *Cpu; gpHal->lpVtbl->GetCpuInterface(gpHal, &Cpu);
   Cpu->lpVtbl->Idle(Cpu);
   __builtin_unreachable();
 }
 
-static INLINE void __dead hal_cpu_halt (void) {
+static INLINE VOID __dead hal_cpu_halt (VOID) {
   IHalCpu *Cpu; gpHal->lpVtbl->GetCpuInterface(gpHal, &Cpu);
   Cpu->lpVtbl->Halt(Cpu);
   __builtin_unreachable();
 }
 
-static INLINE void hal_cpu_tlbop (hal_tlbop_t op) {
+static INLINE VOID hal_cpu_tlbop (hal_tlbop_t op) {
   IHalCpu *Cpu; gpHal->lpVtbl->GetCpuInterface(gpHal, &Cpu);
   Cpu->lpVtbl->TlbOp(Cpu, op);
 }
 
-static INLINE void hal_cpu_setdata (void *data) {
+static INLINE VOID hal_cpu_setdata (VOID *data) {
   IHalCpu *Cpu; gpHal->lpVtbl->GetCpuInterface(gpHal, &Cpu);
   Cpu->lpVtbl->SetData(Cpu, data);
 }
 
-static INLINE void *hal_cpu_getdata (void) {
+static INLINE VOID *hal_cpu_getdata (VOID) {
   IHalCpu *Cpu; gpHal->lpVtbl->GetCpuInterface(gpHal, &Cpu);
   return Cpu->lpVtbl->GetData(Cpu);
 }
 
-static INLINE void hal_useraccess_start (void) {
+static INLINE VOID hal_useraccess_start (VOID) {
   IHalCpu *Cpu; gpHal->lpVtbl->GetCpuInterface(gpHal, &Cpu);
   Cpu->lpVtbl->UserAccessStart(Cpu);
 }
 
-static INLINE void hal_useraccess_end (void) {
+static INLINE VOID hal_useraccess_end (VOID) {
   IHalCpu *Cpu; gpHal->lpVtbl->GetCpuInterface(gpHal, &Cpu);
   Cpu->lpVtbl->UserAccessEnd(Cpu);
 }
 
-static INLINE UINTN hal_vect_max (void) {
+static INLINE UINTN hal_vect_max (VOID) {
   IHalCpu *Cpu; gpHal->lpVtbl->GetCpuInterface(gpHal, &Cpu);
   return Cpu->lpVtbl->GetMaxVector(Cpu);
 }
 
-static INLINE unsigned long hal_physmem_maxpfn (void) {
+static INLINE unsigned long hal_physmem_maxpfn (VOID) {
   IHalPhysMem *pPhysMem; gpHal->lpVtbl->GetPhysMemInterface(gpHal, &pPhysMem);
   return pPhysMem->lpVtbl->GetMaxPfn(pPhysMem);
 }
 
-static INLINE unsigned long hal_physmem_maxrampfn (void) {
+static INLINE unsigned long hal_physmem_maxrampfn (VOID) {
   IHalPhysMem *pPhysMem; gpHal->lpVtbl->GetPhysMemInterface(gpHal, &pPhysMem);
   return pPhysMem->lpVtbl->GetMaxRamPfn(pPhysMem);
 }
 
-static INLINE UINT32 hal_physmem_numregions (void) {
+static INLINE UINT32 hal_physmem_numregions (VOID) {
   IHalPhysMem *pPhysMem; gpHal->lpVtbl->GetPhysMemInterface(gpHal, &pPhysMem);
   return pPhysMem->lpVtbl->GetNumRegions(pPhysMem);
 }
@@ -954,62 +954,62 @@ static INLINE struct apxh_region *hal_physmem_region (UINT32 i) {
   return pPhysMem->lpVtbl->GetRegion(pPhysMem, i);
 }
 
-static INLINE void *hal_physmem_stree (unsigned *order) {
+static INLINE VOID *hal_physmem_stree (unsigned *order) {
   IHalPhysMem *pPhysMem; gpHal->lpVtbl->GetPhysMemInterface(gpHal, &pPhysMem);
   return pPhysMem->lpVtbl->GetStree(pPhysMem, order);
 }
 
-static INLINE VIRTUAL_ADDRESS hal_virtmem_userbase (void) {
+static INLINE VIRTUAL_ADDRESS hal_virtmem_userbase (VOID) {
   IHalVirtMem *pVirtMem; gpHal->lpVtbl->GetVirtMemInterface(gpHal, &pVirtMem);
   return pVirtMem->lpVtbl->GetUserBase(pVirtMem);
 }
 
-static INLINE CONST UINTN hal_virtmem_usersize (void) {
+static INLINE CONST UINTN hal_virtmem_usersize (VOID) {
   IHalVirtMem *pVirtMem; gpHal->lpVtbl->GetVirtMemInterface(gpHal, &pVirtMem);
   return pVirtMem->lpVtbl->GetUserSize(pVirtMem);
 }
 
-static INLINE VIRTUAL_ADDRESS hal_virtmem_dmapbase (void) {
+static INLINE VIRTUAL_ADDRESS hal_virtmem_dmapbase (VOID) {
   IHalVirtMem *pVirtMem; gpHal->lpVtbl->GetVirtMemInterface(gpHal, &pVirtMem);
   return pVirtMem->lpVtbl->GetDmapBase(pVirtMem);
 }
 
-static INLINE CONST UINTN hal_virtmem_dmapsize (void) {
+static INLINE CONST UINTN hal_virtmem_dmapsize (VOID) {
   IHalVirtMem *pVirtMem; gpHal->lpVtbl->GetVirtMemInterface(gpHal, &pVirtMem);
   return pVirtMem->lpVtbl->GetDmapSize(pVirtMem);
 }
 
-static INLINE VIRTUAL_ADDRESS hal_virtmem_pfn$base (void) {
+static INLINE VIRTUAL_ADDRESS hal_virtmem_pfn$base (VOID) {
   IHalVirtMem *pVirtMem; gpHal->lpVtbl->GetVirtMemInterface(gpHal, &pVirtMem);
   return pVirtMem->lpVtbl->GetPfnCacheBase(pVirtMem);
 }
 
-static INLINE CONST UINTN hal_virtmem_pfn$size (void) {
+static INLINE CONST UINTN hal_virtmem_pfn$size (VOID) {
   IHalVirtMem *pVirtMem; gpHal->lpVtbl->GetVirtMemInterface(gpHal, &pVirtMem);
   return pVirtMem->lpVtbl->GetPfnCacheSize(pVirtMem);
 }
 
-static INLINE VIRTUAL_ADDRESS hal_virtmem_kvabase (void) {
+static INLINE VIRTUAL_ADDRESS hal_virtmem_kvabase (VOID) {
   IHalVirtMem *pVirtMem; gpHal->lpVtbl->GetVirtMemInterface(gpHal, &pVirtMem);
   return pVirtMem->lpVtbl->GetKvaBase(pVirtMem);
 }
 
-static INLINE CONST UINTN hal_virtmem_kvasize (void) {
+static INLINE CONST UINTN hal_virtmem_kvasize (VOID) {
   IHalVirtMem *pVirtMem; gpHal->lpVtbl->GetVirtMemInterface(gpHal, &pVirtMem);
   return pVirtMem->lpVtbl->GetKvaSize(pVirtMem);
 }
 
-static INLINE VIRTUAL_ADDRESS hal_virtmem_kmembase (void) {
+static INLINE VIRTUAL_ADDRESS hal_virtmem_kmembase (VOID) {
   IHalVirtMem *pVirtMem; gpHal->lpVtbl->GetVirtMemInterface(gpHal, &pVirtMem);
   return pVirtMem->lpVtbl->GetKmemBase(pVirtMem);
 }
 
-static INLINE CONST UINTN hal_virtmem_kmemsize (void) {
+static INLINE CONST UINTN hal_virtmem_kmemsize (VOID) {
   IHalVirtMem *pVirtMem; gpHal->lpVtbl->GetVirtMemInterface(gpHal, &pVirtMem);
   return pVirtMem->lpVtbl->GetKmemSize(pVirtMem);
 }
 
-static INLINE CONST VIRTUAL_ADDRESS hal_virtmem_userentry (void) {
+static INLINE CONST VIRTUAL_ADDRESS hal_virtmem_userentry (VOID) {
   IHalVirtMem *pVirtMem; gpHal->lpVtbl->GetVirtMemInterface(gpHal, &pVirtMem);
   return pVirtMem->lpVtbl->GetUserEntry(pVirtMem);
 }
@@ -1019,12 +1019,12 @@ static INLINE BOOLEAN hal_kmap_getl1p (unsigned INTN va, BOOLEAN alloc, hal_l1p_
   return pMap->lpVtbl->KmapGetL1p(pMap, va, alloc, l1p);
 }
 
-static INLINE void hal_umap_init (struct hal_umap *umap) {
+static INLINE VOID hal_umap_init (struct hal_umap *umap) {
   IHalMap *pMap; gpHal->lpVtbl->GetMapInterface(gpHal, &pMap);
   pMap->lpVtbl->UmapInit(pMap, umap);
 }
 
-static INLINE void hal_umap_bootstrap (struct hal_umap *umap) {
+static INLINE VOID hal_umap_bootstrap (struct hal_umap *umap) {
   IHalMap *pMap; gpHal->lpVtbl->GetMapInterface(gpHal, &pMap);
   pMap->lpVtbl->UmapBootstrap(pMap, umap);
 }
@@ -1044,7 +1044,7 @@ static INLINE USER_ADDRESS hal_umap_next (struct hal_umap *umap, USER_ADDRESS ua
   return pMap->lpVtbl->UmapNext(pMap, umap, uaddr, l1p, l1e);
 }
 
-static INLINE void hal_umap_free (struct hal_umap *umap) {
+static INLINE VOID hal_umap_free (struct hal_umap *umap) {
   IHalMap *pMap; gpHal->lpVtbl->GetMapInterface(gpHal, &pMap);
   pMap->lpVtbl->UmapFree(pMap, umap);
 }
@@ -1054,7 +1054,7 @@ static INLINE hal_l1e_t hal_l1e_box (unsigned INTN pfn, UINT32 flags) {
   return pMap->lpVtbl->L1eBox(pMap, pfn, flags);
 }
 
-static INLINE void hal_l1e_unbox (hal_l1e_t l1e, unsigned long *pfn, unsigned *prot) {
+static INLINE VOID hal_l1e_unbox (hal_l1e_t l1e, unsigned long *pfn, unsigned *prot) {
   IHalMap *pMap; gpHal->lpVtbl->GetMapInterface(gpHal, &pMap);
   pMap->lpVtbl->L1eUnbox(pMap, l1e, pfn, prot);
 }
@@ -1074,17 +1074,17 @@ static INLINE hal_l1e_t hal_l1e_set (hal_l1p_t l1p, hal_l1e_t new) {
   return pMap->lpVtbl->L1eSet(pMap, l1p, new);
 }
 
-static INLINE void hal_pcpu_init (void) {
+static INLINE VOID hal_pcpu_init (VOID) {
   IHalPcpu *pPcpu; gpHal->lpVtbl->GetPcpuInterface(gpHal, &pPcpu);
   pPcpu->lpVtbl->Init(pPcpu);
 }
 
-static INLINE void hal_pcpu_add (UINT32 pcpuid, struct hal_cpu *haldata) {
+static INLINE VOID hal_pcpu_add (UINT32 pcpuid, struct hal_cpu *haldata) {
   IHalPcpu *pPcpu; gpHal->lpVtbl->GetPcpuInterface(gpHal, &pPcpu);
   pPcpu->lpVtbl->Add(pPcpu, pcpuid, haldata);
 }
 
-static INLINE void hal_pcpu_enter (UINT32 pcpuid) {
+static INLINE VOID hal_pcpu_enter (UINT32 pcpuid) {
   IHalPcpu *pPcpu; gpHal->lpVtbl->GetPcpuInterface(gpHal, &pPcpu);
   pPcpu->lpVtbl->Enter(pPcpu, pcpuid);
 }
@@ -1094,7 +1094,7 @@ static INLINE PHYSICAL_ADDRESS hal_pcpu_startaddr (UINT32 pcpu) {
   return pPcpu->lpVtbl->GetStartAddr(pPcpu, pcpu);
 }
 
-static INLINE void hal_frame_init (struct hal_frame *f) {
+static INLINE VOID hal_frame_init (struct hal_frame *f) {
   IHalFrame *Frame; gpHal->lpVtbl->GetFrameInterface(gpHal, &Frame);
   Frame->lpVtbl->Init(Frame, f);
 }
@@ -1104,7 +1104,7 @@ static INLINE BOOLEAN hal_frame_isuser (struct hal_frame *f) {
   return Frame->lpVtbl->IsUser(Frame, f);
 }
 
-static INLINE void hal_frame_setip (struct hal_frame *f, unsigned INTN ip) {
+static INLINE VOID hal_frame_setip (struct hal_frame *f, unsigned INTN ip) {
   IHalFrame *Frame; gpHal->lpVtbl->GetFrameInterface(gpHal, &Frame);
   Frame->lpVtbl->SetIp(Frame, f, ip);
 }
@@ -1114,7 +1114,7 @@ static INLINE unsigned long hal_frame_getip (struct hal_frame *f) {
   return Frame->lpVtbl->GetIp(Frame, f);
 }
 
-static INLINE void hal_frame_setsp (struct hal_frame *f, unsigned INTN sp) {
+static INLINE VOID hal_frame_setsp (struct hal_frame *f, unsigned INTN sp) {
   IHalFrame *Frame; gpHal->lpVtbl->GetFrameInterface(gpHal, &Frame);
   Frame->lpVtbl->SetSp(Frame, f, sp);
 }
@@ -1124,7 +1124,7 @@ static INLINE unsigned long hal_frame_getsp (struct hal_frame *f) {
   return Frame->lpVtbl->GetSp(Frame, f);
 }
 
-static INLINE void hal_frame_setgp (struct hal_frame *f, unsigned INTN gp) {
+static INLINE VOID hal_frame_setgp (struct hal_frame *f, unsigned INTN gp) {
   IHalFrame *Frame; gpHal->lpVtbl->GetFrameInterface(gpHal, &Frame);
   Frame->lpVtbl->SetGp(Frame, f, gp);
 }
@@ -1134,37 +1134,37 @@ static INLINE unsigned long hal_frame_getgp (struct hal_frame *f) {
   return Frame->lpVtbl->GetGp(Frame, f);
 }
 
-static INLINE void hal_frame_seta0 (struct hal_frame *f, unsigned INTN a0) {
+static INLINE VOID hal_frame_seta0 (struct hal_frame *f, unsigned INTN a0) {
   IHalFrame *Frame; gpHal->lpVtbl->GetFrameInterface(gpHal, &Frame);
   Frame->lpVtbl->SetA0(Frame, f, a0);
 }
 
-static INLINE void hal_frame_seta1 (struct hal_frame *f, unsigned INTN a1) {
+static INLINE VOID hal_frame_seta1 (struct hal_frame *f, unsigned INTN a1) {
   IHalFrame *Frame; gpHal->lpVtbl->GetFrameInterface(gpHal, &Frame);
   Frame->lpVtbl->SetA1(Frame, f, a1);
 }
 
-static INLINE void hal_frame_seta2 (struct hal_frame *f, unsigned INTN a2) {
+static INLINE VOID hal_frame_seta2 (struct hal_frame *f, unsigned INTN a2) {
   IHalFrame *Frame; gpHal->lpVtbl->GetFrameInterface(gpHal, &Frame);
   Frame->lpVtbl->SetA2(Frame, f, a2);
 }
 
-static INLINE void hal_frame_setret (struct hal_frame *f, unsigned INTN r) {
+static INLINE VOID hal_frame_setret (struct hal_frame *f, unsigned INTN r) {
   IHalFrame *Frame; gpHal->lpVtbl->GetFrameInterface(gpHal, &Frame);
   Frame->lpVtbl->SetRet(Frame, f, r);
 }
 
-static INLINE void hal_frame_settls (struct hal_frame *f, unsigned INTN r) {
+static INLINE VOID hal_frame_settls (struct hal_frame *f, unsigned INTN r) {
   IHalFrame *Frame; gpHal->lpVtbl->GetFrameInterface(gpHal, &Frame);
   Frame->lpVtbl->SetTls(Frame, f, r);
 }
 
-static INLINE void hal_frame_print (struct hal_frame *f) {
+static INLINE VOID hal_frame_print (struct hal_frame *f) {
   IHalFrame *Frame; gpHal->lpVtbl->GetFrameInterface(gpHal, &Frame);
   Frame->lpVtbl->Print(Frame, f);
 }
 
-static INLINE void hal_init_done (void) {
+static INLINE VOID hal_init_done (VOID) {
   gpHal->lpVtbl->InitDone(gpHal);
 }
 
@@ -1172,11 +1172,11 @@ static INLINE int hal_putchar (INT32 c) {
   return gpHal->lpVtbl->PutChar(gpHal, c);
 }
 
-static INLINE CONST struct apxh_platformdesc *hal_pltinfo (void) {
+static INLINE CONST struct apxh_platformdesc *hal_pltinfo (VOID) {
   return gpHal->lpVtbl->GetPlatformInfo(gpHal);
 }
 
-static INLINE __dead void hal_panic (UINT32 cpu, PCCHAR8error, struct hal_frame *frame) {
+static INLINE __dead VOID hal_panic (UINT32 cpu, PCCHAR8error, struct hal_frame *frame) {
   gpHal->lpVtbl->Panic(gpHal, cpu, error, frame);
   __builtin_unreachable();
 }

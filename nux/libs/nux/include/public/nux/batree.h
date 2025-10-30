@@ -240,7 +240,7 @@ BatreeGetBit (WORD_T *Batree, UINT32 O, UINTN BitAddr)
   return GetBit (Lmap, LmapBitOff (0, BitAddr));
 }
 
-static INLINE void
+static INLINE VOID
 BatreeSetBit (WORD_T *Batree, UINT32 O, UINTN BitAddr)
 {
   INT32 L;
@@ -258,7 +258,7 @@ BatreeSetBit (WORD_T *Batree, UINT32 O, UINTN BitAddr)
     }
 }
 
-static INLINE void
+static INLINE VOID
 BatreeClrBit (WORD_T *Batree, UINT32 O, UINTN BitAddr)
 {
   INT32 L;
@@ -277,7 +277,7 @@ BatreeClrBit (WORD_T *Batree, UINT32 O, UINTN BitAddr)
 }
 
 #include <string.h>
-static INLINE void
+static INLINE VOID
 BatreeSetAll (WORD_T *Batree, UINT32 O, unsigned long Max)
 {
   INT32 L;

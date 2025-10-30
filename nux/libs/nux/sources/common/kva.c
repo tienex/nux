@@ -426,7 +426,7 @@ KvaInitialize (
 //
 
 /** @deprecated Use VmapRemove instead **/
-static void vmap_remove (struct vme *vme) {
+static VOID vmap_remove (struct vme *vme) {
   VmapRemove (vme);
 }
 
@@ -441,12 +441,12 @@ static struct vme *vmap_insert (VIRTUAL_ADDRESS start, UINTN len) {
 }
 
 /** @deprecated Use VmapCompareKey instead **/
-static int vmap_compare_key (void *ctx, CONST void *n, CONST void *key) {
+static int vmap_compare_key (VOID *ctx, CONST VOID *n, CONST VOID *key) {
   return VmapCompareKey (ctx, n, key);
 }
 
 /** @deprecated Use VmapCompareNodes instead **/
-static int vmap_compare_nodes (void *ctx, CONST void *n1, CONST void *n2) {
+static int vmap_compare_nodes (VOID *ctx, CONST VOID *n1, CONST VOID *n2) {
   return VmapCompareNodes (ctx, n1, n2);
 }
 
@@ -456,27 +456,27 @@ VIRTUAL_ADDRESS KvaAlloc (UINTN size) {
 }
 
 /** @deprecated Use KvaFree instead **/
-void KvaFree (VIRTUAL_ADDRESS va, UINTN size) {
+VOID KvaFree (VIRTUAL_ADDRESS va, UINTN size) {
   KvaFree (va, size);
 }
 
 /** @deprecated Use KvaMap instead **/
-void *KvaMap (PFN pfn, UINT32 prot) {
+VOID *KvaMap (PFN pfn, UINT32 prot) {
   return KvaMap (pfn, prot);
 }
 
 /** @deprecated Use KvaMapPhysical instead **/
-void *KvaPhysMap (PHYSICAL_ADDRESS paddr, UINTN size, UINT32 prot) {
+VOID *KvaPhysMap (PHYSICAL_ADDRESS paddr, UINTN size, UINT32 prot) {
   return KvaMapPhysical (paddr, size, prot);
 }
 
 /** @deprecated Use KvaUnmap instead **/
-void KvaUnmap (void *ptr, UINTN size) {
+VOID KvaUnmap (VOID *ptr, UINTN size) {
   KvaUnmap (ptr, size);
 }
 
 /** @deprecated Use KvaInitialize instead **/
-void kvainit (void) {
+VOID kvainit (VOID) {
   KvaInitialize ();
 }
 

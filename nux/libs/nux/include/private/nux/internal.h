@@ -120,7 +120,7 @@ TLB_GENERATION KtlbGenNormal (VOID);
 */
 
 /* Invalid User Context.  Frame was kernel non-idle originated.  */
-#define UCTXT_INVALID ((void *)-1)
+#define UCTXT_INVALID ((VOID *)-1)
 
 /*
   Get User context from HAL frame. May return UCTXT_INVALID.

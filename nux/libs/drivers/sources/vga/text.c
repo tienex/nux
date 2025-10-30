@@ -56,7 +56,7 @@ VgaPutChar (
   if (80 * Y + X >= 80 * 25)
     {
       INT32 i;
-      memmove ((void *) pVgaPtr, (void *) pVgaPtr + 80 * 2, 80 * 2 * (25 - 1));
+      memmove ((VOID *) pVgaPtr, (VOID *) pVgaPtr + 80 * 2, 80 * 2 * (25 - 1));
       for (i = 0; i < 80; i++)
 	*(UINT8 *) (pVgaPtr + 80 * 2 * (25 - 1) + i * 2) = 0;
       Y = 25 - 1;

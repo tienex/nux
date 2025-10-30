@@ -70,7 +70,7 @@ HalPcpuInit (
   )
 {
   PFN Pfn;
-  void *Start, *Ptr;
+  VOID *Start, *Ptr;
   hal_l1p_t L1p;
   PHYSICAL_ADDRESS PStart;
   VOLATILE UINT16 *Reset;
@@ -84,7 +84,7 @@ HalPcpuInit (
 
   /* Map and prepare the bootstrap code page. */
   Start = pfn_get (Pfn);
-  UINTN ApBootSz = (UINTN) ((void *) &_ap_end - (void *) &_ap_start);
+  UINTN ApBootSz = (UINTN) ((VOID *) &_ap_end - (VOID *) &_ap_start);
   assert (ApBootSz <= PAGE_SIZE);
   memcpy (Start, &_ap_start, ApBootSz);
   PStart = (PHYSICAL_ADDRESS) Pfn << PAGE_SHIFT;
@@ -97,15 +97,15 @@ HalPcpuInit (
   extern UINT32 _bsp_cr3;
 
   /* Copy BSP CR3 into AP */
-  Ptr = Start + ((void *) &_ap_cr3 - (void *) &_ap_start);
+  Ptr = Start + ((VOID *) &_ap_cr3 - (VOID *) &_ap_start);
   *(UINT32 *) Ptr = _bsp_cr3;
 
   /* Setup temporary GDT register. */
-  Ptr = Start + ((void *) &_ap_gdtreg - (void *) &_ap_start);
+  Ptr = Start + ((VOID *) &_ap_gdtreg - (VOID *) &_ap_start);
   *(UINT32 *) (Ptr + 2) += (UINT32) PStart;
 
   /* Setup trampoline 1 */
-  Ptr = Start + ((void *) &_ap_ljmp - (void *) &_ap_start);
+  Ptr = Start + ((VOID *) &_ap_ljmp - (VOID *) &_ap_start);
   *(UINT32 *) Ptr += (UINT32) PStart;
 
   pfn_put (Pfn, Start);
@@ -114,7 +114,7 @@ HalPcpuInit (
   Reset = kva_physmap (0x467, 2, HAL_PTE_P | HAL_PTE_W | HAL_PTE_X);
   *Reset = PStart & 0xf;
   *(Reset + 1) = PStart >> 4;
-  kva_unmap ((void *) Reset, 2);
+  kva_unmap ((VOID *) Reset, 2);
 
   /* PStart is in user address space: use kmap_ instead of hal_kmap */
   L1p = umap_get_l1p (NULL, PStart, TRUE);
@@ -141,9 +141,9 @@ HalPcpuAdd (
   )
 {
   PFN Pfn;
-  void *Va;
-  void _set_tss (unsigned, void *);
-  void _set_fs (unsigned, void *);
+  VOID *Va;
+  void _set_tss (unsigned, VOID *);
+  void _set_fs (unsigned, VOID *);
 
   assert (PcpuId < MAXCPUS);
 
@@ -232,7 +232,7 @@ HalCpuGetData (
   VOID
   )
 {
-  void *Data;
+  VOID *Data;
 
   asm volatile ("movl %%fs:0, %0\n":"=r" (Data));
   return Data;
@@ -312,17 +312,17 @@ I386InitializeDone (
 //
 
 /** @deprecated Use I386GetFsSelector instead **/
-UINT16 _i386_fs (void) {
+UINT16 _i386_fs (VOID) {
   return I386GetFsSelector ();
 }
 
 /** @deprecated Use HalPcpuInit instead **/
-void hal_pcpu_init (void) {
+VOID hal_pcpu_init (VOID) {
   HalPcpuInit ();
 }
 
 /** @deprecated Use HalPcpuAdd instead **/
-void hal_pcpu_add (UINT32 pcpuid, struct hal_cpu *haldata) {
+VOID hal_pcpu_add (UINT32 pcpuid, struct hal_cpu *haldata) {
   HalPcpuAdd (pcpuid, haldata);
 }
 
@@ -332,37 +332,37 @@ UINT64 hal_pcpu_startaddr (UINT32 pcpu) {
 }
 
 /** @deprecated Use HalPcpuEnter instead **/
-void hal_pcpu_enter (UINT32 pcpuid) {
+VOID hal_pcpu_enter (UINT32 pcpuid) {
   HalPcpuEnter (pcpuid);
 }
 
 /** @deprecated Use HalCpuSetData instead **/
-void hal_cpu_setdata (void *data) {
+VOID hal_cpu_setdata (VOID *data) {
   HalCpuSetData (data);
 }
 
 /** @deprecated Use HalCpuGetData instead **/
-void * hal_cpu_getdata (void) {
+VOID * hal_cpu_getdata (VOID) {
   return HalCpuGetData ();
 }
 
 /** @deprecated Use HalVectMax instead **/
-UINT32 hal_vect_max (void) {
+UINT32 hal_vect_max (VOID) {
   return HalVectMax ();
 }
 
 /** @deprecated Use I386InitializeAp instead **/
-void i386_init_ap (UINTN esp) {
+VOID i386_init_ap (UINTN esp) {
   I386InitializeAp (esp);
 }
 
 /** @deprecated Use RemoveBootMappings instead **/
-static void remove_bootmappings (void) {
+static VOID remove_bootmappings (VOID) {
   RemoveBootMappings ();
 }
 
 /** @deprecated Use I386InitializeDone instead **/
-void i386_init_done (void) {
+VOID i386_init_done (VOID) {
   I386InitializeDone ();
 }
 

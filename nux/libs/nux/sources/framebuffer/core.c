@@ -49,7 +49,7 @@ FramebufferInitialize (
 
   assert (Desc->type == FB_RGB);
   gFbDesc = Desc;
-  memset ((void *) (UINTN) gFbDesc->addr, 0, gFbDesc->size);
+  memset ((VOID *) (UINTN) gFbDesc->addr, 0, gFbDesc->size);
   FramebufferReset ();
   return 1;
 }

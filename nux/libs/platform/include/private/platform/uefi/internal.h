@@ -12,8 +12,8 @@
 #ifndef __platform_uefi_internal_h__
 #define __platform_uefi_internal_h__
 
-void efi_exit (INT32 st);
-void efi_exitbs (void);
+VOID efi_exit (INT32 st);
+VOID efi_exitbs (VOID);
 unsigned long efi_allocate_maxaddr (unsigned INTN maxaddr);
 
 #endif

@@ -1224,12 +1224,12 @@ ptep_t umap_get_l1p (struct hal_umap *umap, unsigned INTN va, BOOLEAN alloc) {
 }
 
 /** @deprecated Use PtUmapMinAddr instead **/
-unsigned long pt_umap_minaddr (void) {
+unsigned long pt_umap_minaddr (VOID) {
   return PtUmapMinAddr ();
 }
 
 /** @deprecated Use PtUmapMaxAddr instead **/
-unsigned long pt_umap_maxaddr (void) {
+unsigned long pt_umap_maxaddr (VOID) {
   return PtUmapMaxAddr ();
 }
 
@@ -1239,17 +1239,17 @@ hal_l1p_t kmap_get_l1p (unsigned INTN va, INT32 alloc) {
 }
 
 /** @deprecated Use PtUmapDebugWalk instead **/
-void pt_umap_debugwalk (struct hal_umap *umap, unsigned INTN va) {
+VOID pt_umap_debugwalk (struct hal_umap *umap, unsigned INTN va) {
   PtUmapDebugWalk (umap, va);
 }
 
 /** @deprecated Use HalUmapInit instead **/
-void hal_umap_init (struct hal_umap *umap) {
+VOID hal_umap_init (struct hal_umap *umap) {
   HalUmapInit (umap);
 }
 
 /** @deprecated Use HalUmapBootstrap instead **/
-void hal_umap_bootstrap (struct hal_umap *umap) {
+VOID hal_umap_bootstrap (struct hal_umap *umap) {
   HalUmapBootstrap (umap);
 }
 
@@ -1290,16 +1290,16 @@ USER_ADDRESS pt_umap_next (struct hal_umap *umap, USER_ADDRESS uaddr, hal_l1p_t 
 }
 
 /** @deprecated Use PtUmapFree instead **/
-void pt_umap_free (struct hal_umap *umap) {
+VOID pt_umap_free (struct hal_umap *umap) {
   PtUmapFree (umap);
 }
 
 /** @deprecated Use Pae64InitializeAp instead **/
-void pae64_init_ap (void) {
+VOID pae64_init_ap (VOID) {
   Pae64InitializeAp ();
 }
 
 /** @deprecated Use Pae64Initialize instead **/
-void pae64_init (void) {
+VOID pae64_init (VOID) {
   Pae64Initialize ();
 }

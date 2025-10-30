@@ -1035,7 +1035,7 @@ static int cpu_add (UINT16 physid) {
 }
 
 /** @deprecated Use CpuInitialize instead **/
-void cpu_init (void) {
+VOID cpu_init (VOID) {
   CpuInitialize ();
 }
 
@@ -1050,168 +1050,168 @@ static struct cpu_info *cpu_getinfo (UINT32 id) {
 }
 
 /** @deprecated Use CpuGetCurrentInfo instead **/
-static struct cpu_info *cpu_curinfo (void) {
+static struct cpu_info *cpu_curinfo (VOID) {
   return CpuGetCurrentInfo ();
 }
 
 /** @deprecated Use CpuEnter instead **/
-void cpu_enter (void) {
+VOID cpu_enter (VOID) {
   CpuEnter ();
 }
 
 /** @deprecated Use CpuWasIdle instead **/
-BOOLEAN CpuWasIdle (void) {
+BOOLEAN CpuWasIdle (VOID) {
   return CpuWasIdle ();
 }
 
 /** @deprecated Use CpuClearIdle instead **/
-void CpuClearIdle (void) {
+VOID CpuClearIdle (VOID) {
   CpuClearIdle ();
 }
 
 /** @deprecated Use CpuStartAll instead **/
-void cpu_startall (void) {
+VOID cpu_startall (VOID) {
   CpuStartAll ();
 }
 
 /** @deprecated Use CpuGetActiveMask instead **/
-CPU_MASK CpuActiveMask (void) {
+CPU_MASK CpuActiveMask (VOID) {
   return CpuGetActiveMask ();
 }
 
 /** @deprecated Use CpuGetId instead **/
-unsigned CpuId (void) {
+unsigned CpuId (VOID) {
   return CpuGetId ();
 }
 
 /** @deprecated Use CpuTryGetId instead **/
-unsigned CpuTryId (void) {
+unsigned CpuTryId (VOID) {
   return CpuTryGetId ();
 }
 
 /** @deprecated Use CpuSetData instead **/
-void CpuSetData (void *ptr) {
+VOID CpuSetData (VOID *ptr) {
   CpuSetData (ptr);
 }
 
 /** @deprecated Use CpuGetData instead **/
-void *CpuGetData (void) {
+VOID *CpuGetData (VOID) {
   return CpuGetData ();
 }
 
 /** @deprecated Use CpuGetNumber instead **/
-unsigned CpuNum (void) {
+unsigned CpuNum (VOID) {
   return CpuGetNumber ();
 }
 
 /** @deprecated Use CpuSendNmi instead **/
-void CpuNmi (INT32 cpu) {
+VOID CpuNmi (INT32 cpu) {
   CpuSendNmi (cpu);
 }
 
 /** @deprecated Use CpuSendNmiMask instead **/
-void cpu_nmi_mask (CPU_MASK map) {
+VOID cpu_nmi_mask (CPU_MASK map) {
   CpuSendNmiMask (map);
 }
 
 /** @deprecated Use CpuSendNmiAllButSelf instead **/
-void cpu_nmi_allbutself (void) {
+VOID cpu_nmi_allbutself (VOID) {
   CpuSendNmiAllButSelf ();
 }
 
 /** @deprecated Use CpuSendNmiBroadcast instead **/
-void cpu_nmi_broadcast (void) {
+VOID cpu_nmi_broadcast (VOID) {
   CpuSendNmiBroadcast ();
 }
 
 /** @deprecated Use CpuSendIpi instead **/
-void CpuIpi (INT32 cpu) {
+VOID CpuIpi (INT32 cpu) {
   CpuSendIpi (cpu);
 }
 
 /** @deprecated Use CpuSendIpiBroadcast instead **/
-void cpu_ipi_broadcast (void) {
+VOID cpu_ipi_broadcast (VOID) {
   CpuSendIpiBroadcast ();
 }
 
 /** @deprecated Use CpuSendIpiMask instead **/
-void cpu_ipi_mask (CPU_MASK map) {
+VOID cpu_ipi_mask (CPU_MASK map) {
   CpuSendIpiMask (map);
 }
 
 /** @deprecated Use CpuIdle instead **/
-void CpuIdle (void) {
+VOID CpuIdle (VOID) {
   CpuIdle ();
 }
 
 /** @deprecated Use CpuKernelTlbUpdate instead **/
-void cpu_ktlb_update (void) {
+VOID cpu_ktlb_update (VOID) {
   CpuKernelTlbUpdate ();
 }
 
 /** @deprecated Use CpuKernelTlbReach instead **/
-void cpu_ktlb_reach (TLB_GENERATION target) {
+VOID cpu_ktlb_reach (TLB_GENERATION target) {
   CpuKernelTlbReach (target);
 }
 
 /** @deprecated Use CpuTlbFlushLocal instead **/
-void cpu_tlbflush_local (void) {
+VOID cpu_tlbflush_local (VOID) {
   CpuTlbFlushLocal ();
 }
 
 /** @deprecated Use CpuNmiOperation instead **/
-void CpuNmiOperation (void) {
+VOID CpuNmiOperation (VOID) {
   CpuNmiOperation ();
 }
 
 /** @deprecated Use CpuKernelMapUpdate instead **/
-void cpu_kmapupdate (INT32 cpu) {
+VOID cpu_kmapupdate (INT32 cpu) {
   CpuKernelMapUpdate (cpu);
 }
 
 /** @deprecated Use CpuKernelMapUpdateBroadcast instead **/
-void CpuKmapUpdateBroadcast (void) {
+VOID CpuKmapUpdateBroadcast (VOID) {
   CpuKernelMapUpdateBroadcast ();
 }
 
 /** @deprecated Use CpuTlbFlush instead **/
-void cpu_tlbflush (INT32 cpu) {
+VOID cpu_tlbflush (INT32 cpu) {
   CpuTlbFlush (cpu);
 }
 
 /** @deprecated Use CpuTlbFlushMask instead **/
-void cpu_tlbflush_mask (CPU_MASK mask) {
+VOID cpu_tlbflush_mask (CPU_MASK mask) {
   CpuTlbFlushMask (mask);
 }
 
 /** @deprecated Use CpuTlbFlushBroadcast instead **/
-void cpu_tlbflush_broadcast (void) {
+VOID cpu_tlbflush_broadcast (VOID) {
   CpuTlbFlushBroadcast ();
 }
 
 /** @deprecated Use CpuUserAccessStart instead **/
-static void cpu_useraccess_start (void) {
+static VOID cpu_useraccess_start (VOID) {
   CpuUserAccessStart ();
 }
 
 /** @deprecated Use CpuUserAccessReset instead **/
-static void cpu_useraccess_reset (void) {
+static VOID cpu_useraccess_reset (VOID) {
   CpuUserAccessReset ();
 }
 
 /** @deprecated Use CpuUserAccessEnd instead **/
-static void cpu_useraccess_end (void) {
+static VOID cpu_useraccess_end (VOID) {
   CpuUserAccessEnd ();
 }
 
 /** @deprecated Use CpuUserAccessCopyFrom instead **/
-BOOLEAN cpu_useraccess_copyfrom (void *dst, USER_ADDRESS src, UINTN size,
+BOOLEAN cpu_useraccess_copyfrom (VOID *dst, USER_ADDRESS src, UINTN size,
                               BOOLEAN (*pf_handler) (USER_ADDRESS va, hal_pfinfo_t info)) {
   return CpuUserAccessCopyFrom (dst, src, size, pf_handler);
 }
 
 /** @deprecated Use CpuUserAccessCopyTo instead **/
-BOOLEAN cpu_useraccess_copyto (USER_ADDRESS dst, void *src, UINTN size,
+BOOLEAN cpu_useraccess_copyto (USER_ADDRESS dst, VOID *src, UINTN size,
                             BOOLEAN (*pf_handler) (USER_ADDRESS va, hal_pfinfo_t info)) {
   return CpuUserAccessCopyTo (dst, src, size, pf_handler);
 }
@@ -1223,22 +1223,22 @@ BOOLEAN cpu_useraccess_memset (USER_ADDRESS dst, INT32 ch, UINTN size,
 }
 
 /** @deprecated Use CpuUserAccessCheckPageFault instead **/
-void CpuUserAccessCheckPageFault (USER_ADDRESS addr, hal_pfinfo_t info) {
+VOID CpuUserAccessCheckPageFault (USER_ADDRESS addr, hal_pfinfo_t info) {
   CpuUserAccessCheckPageFault (addr, info);
 }
 
 /** @deprecated Use CpuGetCurrentUserMap instead **/
-struct umap *cpu_umap_current (void) {
+struct umap *cpu_umap_current (VOID) {
   return CpuGetCurrentUserMap ();
 }
 
 /** @deprecated Use CpuEnterUserMap instead **/
-void cpu_umap_enter (struct umap *umap) {
+VOID cpu_umap_enter (struct umap *umap) {
   CpuEnterUserMap (umap);
 }
 
 /** @deprecated Use CpuExitUserMap instead **/
-struct umap *cpu_umap_exit (void) {
+struct umap *cpu_umap_exit (VOID) {
   return CpuExitUserMap ();
 }
 

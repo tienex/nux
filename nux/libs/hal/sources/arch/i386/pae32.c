@@ -890,7 +890,7 @@ Pae32InitializeAp (
   for (int i = 0; i < 4; i++)
     {
       Va = kva_physmap (ptob (L2Pfn[i]), PAGE_SIZE, HAL_PTE_W | HAL_PTE_P);
-      memcpy (Va, (void *) (l2_linaddr + ((UINT32) i << 30 >> 18)),
+      memcpy (Va, (VOID *) (l2_linaddr + ((UINT32) i << 30 >> 18)),
 	      PAGE_SIZE);
       kva_unmap (Va, PAGE_SIZE);
     }
@@ -995,12 +995,12 @@ ptep_t umap_get_l1p (struct hal_umap *umap, unsigned INTN va, BOOLEAN alloc) {
 }
 
 /** @deprecated Use PtUmapMinAddr instead **/
-unsigned long pt_umap_minaddr (void) {
+unsigned long pt_umap_minaddr (VOID) {
   return PtUmapMinAddr ();
 }
 
 /** @deprecated Use PtUmapMaxAddr instead **/
-unsigned long pt_umap_maxaddr (void) {
+unsigned long pt_umap_maxaddr (VOID) {
   return PtUmapMaxAddr ();
 }
 
@@ -1010,12 +1010,12 @@ hal_l1p_t kmap_get_l1p (unsigned INTN va, BOOLEAN alloc) {
 }
 
 /** @deprecated Use HalUmapInit instead **/
-void hal_umap_init (struct hal_umap *umap) {
+VOID hal_umap_init (struct hal_umap *umap) {
   HalUmapInit (umap);
 }
 
 /** @deprecated Use HalUmapBootstrap instead **/
-void hal_umap_bootstrap (struct hal_umap *umap) {
+VOID hal_umap_bootstrap (struct hal_umap *umap) {
   HalUmapBootstrap (umap);
 }
 
@@ -1025,7 +1025,7 @@ hal_tlbop_t hal_umap_load (struct hal_umap *umap) {
 }
 
 /** @deprecated Use PtUmapDebugWalk instead **/
-void pt_umap_debugwalk (struct hal_umap *umap, unsigned INTN va) {
+VOID pt_umap_debugwalk (struct hal_umap *umap, unsigned INTN va) {
   PtUmapDebugWalk (umap, va);
 }
 
@@ -1055,16 +1055,16 @@ USER_ADDRESS pt_umap_next (struct hal_umap *umap, USER_ADDRESS uaddr, hal_l1p_t 
 }
 
 /** @deprecated Use PtUmapFree instead **/
-void pt_umap_free (struct hal_umap *umap) {
+VOID pt_umap_free (struct hal_umap *umap) {
   PtUmapFree (umap);
 }
 
 /** @deprecated Use Pae32InitializeAp instead **/
-void pae32_init_ap (void) {
+VOID pae32_init_ap (VOID) {
   Pae32InitializeAp ();
 }
 
 /** @deprecated Use Pae32Initialize instead **/
-void pae32_init (void) {
+VOID pae32_init (VOID) {
   Pae32Initialize ();
 }

@@ -268,21 +268,21 @@ PFN UmapUnmap (struct umap *umap, VIRTUAL_ADDRESS va) {
 }
 
 /** @deprecated Use UmapCommit instead **/
-void UmapCommit (struct umap *umap) {
+VOID UmapCommit (struct umap *umap) {
   UmapCommit (umap);
 }
 
 /** @deprecated Use UmapBootstrap instead **/
-void UmapBootstrap (struct umap *umap) {
+VOID UmapBootstrap (struct umap *umap) {
   UmapBootstrap (umap);
 }
 
 /** @deprecated Use UmapFree instead **/
-void UmapFree (struct umap *umap) {
+VOID UmapFree (struct umap *umap) {
   UmapFree (umap);
 }
 
 /** @deprecated Use UmapInitialize instead **/
-void UmapInit (struct umap *umap) {
+VOID UmapInit (struct umap *umap) {
   UmapInitialize (umap);
 }

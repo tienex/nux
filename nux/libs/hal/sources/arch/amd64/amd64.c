@@ -129,7 +129,7 @@ HalCpuGetData (
   VOID
   )
 {
-  void *Data;
+  VOID *Data;
 
   asm volatile ("movq %%gs:0, %0\n":"=r" (Data));
   return Data;
@@ -219,9 +219,9 @@ HalPcpuInit (
   VOID
   )
 {
-  void *Va;
+  VOID *Va;
   PFN Pfn;
-  void *Start, *Ptr;
+  VOID *Start, *Ptr;
   hal_l1p_t L1p;
   PHYSICAL_ADDRESS PStart;
   VOLATILE UINT16 *Reset;
@@ -237,7 +237,7 @@ HalPcpuInit (
   Va = kva_map (Pfn, HAL_PTE_W | HAL_PTE_P);
   assert (Va != NULL);
   Start = Va;
-  UINTN ApBootSz = (UINTN) ((void *) &_ap_end - (void *) &_ap_start);
+  UINTN ApBootSz = (UINTN) ((VOID *) &_ap_end - (VOID *) &_ap_start);
   assert (ApBootSz <= PAGE_SIZE);
   memcpy (Start, &_ap_start, ApBootSz);
 
@@ -251,26 +251,26 @@ HalPcpuInit (
   extern UINT64 _bsp_cr3;
 
   /* Copy BSP CR3 into AP */
-  Ptr = Start + ((void *) &_ap_cr3 - (void *) &_ap_start);
+  Ptr = Start + ((VOID *) &_ap_cr3 - (VOID *) &_ap_start);
   *(UINT64 *) Ptr = _bsp_cr3;
 
   /* Setup temporary GDT register. */
-  Ptr = Start + ((void *) &_ap_gdtreg - (void *) &_ap_start);
+  Ptr = Start + ((VOID *) &_ap_gdtreg - (VOID *) &_ap_start);
   *(UINT32 *) (Ptr + 2) += (UINT32) PStart;
 
   /* Setup trampoline 1 */
-  Ptr = Start + ((void *) &_ap_ljmp1 - (void *) &_ap_start);
+  Ptr = Start + ((VOID *) &_ap_ljmp1 - (VOID *) &_ap_start);
   *(UINT32 *) Ptr += (UINT32) PStart;
 
   /* Setup trampoline 2 */
-  Ptr = Start + ((void *) &_ap_ljmp2 - (void *) &_ap_start);
+  Ptr = Start + ((VOID *) &_ap_ljmp2 - (VOID *) &_ap_start);
   *(UINT32 *) Ptr += (UINT32) PStart;
 
   /* Set reset vector */
   Reset = kva_physmap (0x467, 2, HAL_PTE_P | HAL_PTE_W | HAL_PTE_X);
   *Reset = PStart & 0xf;
   *(Reset + 1) = PStart >> 4;
-  kva_unmap ((void *) Reset, 2);
+  kva_unmap ((VOID *) Reset, 2);
 
   /* PStart is in user address space: use kmap_ instead of hal_kmap */
   L1p = umap_get_l1p (NULL, PStart, TRUE);
@@ -410,52 +410,52 @@ Amd64InitializeDone (
 //
 
 /** @deprecated Use GdtSetTss instead **/
-void gdt_settss (UINT32 pcpuid, struct amd64_tss *tss) {
+VOID gdt_settss (UINT32 pcpuid, struct amd64_tss *tss) {
   GdtSetTss (pcpuid, tss);
 }
 
 /** @deprecated Use SetKernelGsBase instead **/
-void set_kernel_gsbase (unsigned INTN gsbase) {
+VOID set_kernel_gsbase (unsigned INTN gsbase) {
   SetKernelGsBase (gsbase);
 }
 
 /** @deprecated Use SetGsBase instead **/
-void set_gsbase (unsigned INTN gsbase) {
+VOID set_gsbase (unsigned INTN gsbase) {
   SetGsBase (gsbase);
 }
 
 /** @deprecated Use GetGsBase instead **/
-UINT64 get_gsbase (void) {
+UINT64 get_gsbase (VOID) {
   return GetGsBase ();
 }
 
 /** @deprecated Use HalCpuSetData instead **/
-void hal_cpu_setdata (void *data) {
+VOID hal_cpu_setdata (VOID *data) {
   HalCpuSetData (data);
 }
 
 /** @deprecated Use HalCpuGetData instead **/
-void * hal_cpu_getdata (void) {
+VOID * hal_cpu_getdata (VOID) {
   return HalCpuGetData ();
 }
 
 /** @deprecated Use HalVectMax instead **/
-UINT32 hal_vect_max (void) {
+UINT32 hal_vect_max (VOID) {
   return HalVectMax ();
 }
 
 /** @deprecated Use AllocStackPage instead **/
-static UINT64 alloc_stackpage (void) {
+static UINT64 alloc_stackpage (VOID) {
   return AllocStackPage ();
 }
 
 /** @deprecated Use HalPcpuAdd instead **/
-void hal_pcpu_add (UINT32 pcpuid, struct hal_cpu *haldata) {
+VOID hal_pcpu_add (UINT32 pcpuid, struct hal_cpu *haldata) {
   HalPcpuAdd (pcpuid, haldata);
 }
 
 /** @deprecated Use HalPcpuInit instead **/
-void hal_pcpu_init (void) {
+VOID hal_pcpu_init (VOID) {
   HalPcpuInit ();
 }
 
@@ -465,27 +465,27 @@ PHYSICAL_ADDRESS hal_pcpu_startaddr (UINT32 pcpu) {
 }
 
 /** @deprecated Use HalPcpuEnter instead **/
-void hal_pcpu_enter (UINT32 pcpuid) {
+VOID hal_pcpu_enter (UINT32 pcpuid) {
   HalPcpuEnter (pcpuid);
 }
 
 /** @deprecated Use Amd64Initialize instead **/
-void amd64_init (void) {
+VOID amd64_init (VOID) {
   Amd64Initialize ();
 }
 
 /** @deprecated Use Amd64InitializeAp instead **/
-void amd64_init_ap (UINTN esp) {
+VOID amd64_init_ap (UINTN esp) {
   Amd64InitializeAp (esp);
 }
 
 /** @deprecated Use RemoveBootMappings instead **/
-static void remove_bootmappings (void) {
+static VOID remove_bootmappings (VOID) {
   RemoveBootMappings ();
 }
 
 /** @deprecated Use Amd64InitializeDone instead **/
-void amd64_init_done (void) {
+VOID amd64_init_done (VOID) {
   Amd64InitializeDone ();
 }
 

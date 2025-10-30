@@ -123,15 +123,15 @@ UINTN FrameCr2 (IN struct hal_frame *pFrame);
 
 extern INT32 nux_initialized;
 
-void x86_init (void);
-void amd64_init (void);
-void pae32_init (void);
-void pae32_init_ap (void);
-void pae64_init (void);
-void pae64_init_ap (void);
+VOID x86_init (VOID);
+VOID amd64_init (VOID);
+VOID pae32_init (VOID);
+VOID pae32_init_ap (VOID);
+VOID pae64_init (VOID);
+VOID pae64_init_ap (VOID);
 VOID pmap_init (VOID);
-void i386_init_done (void);
-void amd64_init_done (void);
+VOID i386_init_done (VOID);
+VOID amd64_init_done (VOID);
 
 INT32 inb (INT32 port);
 VOID outb (INT32 port, INT32 val);
@@ -160,10 +160,10 @@ INT32 vga_putchar (INT32 c);
 UINT64 rdmsr (UINT32 ecx);
 VOID wrmsr (UINT32 ecx, UINT64 val);
 
-unsigned long read_cr4 (void);
-void write_cr4 (unsigned INTN r);
-unsigned long read_cr3 (void);
-void write_cr3 (unsigned INTN r);
+unsigned long read_cr4 (VOID);
+VOID write_cr4 (unsigned INTN r);
+unsigned long read_cr3 (VOID);
+VOID write_cr3 (unsigned INTN r);
 
 unsigned long frame_bp(struct hal_frame *f);
 unsigned long frame_cr2(struct hal_frame *f);

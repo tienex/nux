@@ -87,7 +87,7 @@ int SLABFUNC (shrink) (struct slab * sc)
       sc->emptycnt--;
 
       SPIN_UNLOCK (sc->lock);
-      ___slabfree ((void *) sh);
+      ___slabfree ((VOID *) sh);
       shrunk++;
       SPIN_LOCK (sc->lock);
     }
@@ -96,10 +96,10 @@ int SLABFUNC (shrink) (struct slab * sc)
   return shrunk;
 }
 
-void *SLABFUNC (alloc_opq) (struct slab * sc, void *opq)
+VOID *SLABFUNC (alloc_opq) (struct slab * sc, VOID *opq)
 {
   int tries = 0;
-  void *addr = NULL;
+  VOID *addr = NULL;
   struct objhdr *oh;
   struct slabhdr *sh = NULL;
 
@@ -146,7 +146,7 @@ retry:
 
   SPIN_UNLOCK (sc->lock);
 
-  addr = (void *) oh;
+  addr = (VOID *) oh;
   memset (addr, 0, sizeof (*oh));
 
   if (sc->ctr)
@@ -156,7 +156,7 @@ out:
   return addr;
 }
 
-void SLABFUNC (free) (void *ptr)
+VOID SLABFUNC (free) (VOID *ptr)
 {
   struct slab *sc;
   struct slabhdr *sh;
@@ -194,9 +194,9 @@ void SLABFUNC (free) (void *ptr)
   return;
 }
 
-void
+VOID
 SLABFUNC (register) (struct slab * sc, PCCHAR8name, UINTN objsize,
-		     void (*ctr) (void *, void *, int), INT32 cachealign)
+		     VOID (*ctr) (VOID *, VOID *, INT32), INT32 cachealign)
 {
 #define MAX(_a,_b) ((_a) >= (_b) ? (_a) :  (_b))
 
@@ -237,7 +237,7 @@ SLABFUNC (register) (struct slab * sc, PCCHAR8name, UINTN objsize,
   SPIN_UNLOCK (__slabinc_lock);
 }
 
-void SLABFUNC (deregister) (struct slab * sc)
+VOID SLABFUNC (deregister) (struct slab * sc)
 {
   struct slabhdr *sh;
 
@@ -246,21 +246,21 @@ void SLABFUNC (deregister) (struct slab * sc)
       sh = LIST_FIRST (&sc->emptyq);
       LIST_REMOVE (sh, list_entry);
 
-      ___slabfree ((void *) sh);
+      ___slabfree ((VOID *) sh);
     }
 
   while (!LIST_EMPTY (&sc->freeq))
     {
       sh = LIST_FIRST (&sc->freeq);
       LIST_REMOVE (sh, list_entry);
-      ___slabfree ((void *) sh);
+      ___slabfree ((VOID *) sh);
     }
 
   while (!LIST_EMPTY (&sc->fullq))
     {
       sh = LIST_FIRST (&sc->fullq);
       LIST_REMOVE (sh, list_entry);
-      ___slabfree ((void *) sh);
+      ___slabfree ((VOID *) sh);
     }
 
   SPIN_LOCK_FREE (sc->lock);
@@ -271,7 +271,7 @@ void SLABFUNC (deregister) (struct slab * sc)
   SPIN_UNLOCK (__slabinc_lock);
 }
 
-void SLABFUNC (printstats) (void)
+VOID SLABFUNC (printstats) (VOID)
 {
   struct slab *sc;
 

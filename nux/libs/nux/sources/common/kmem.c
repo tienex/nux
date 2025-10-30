@@ -701,22 +701,22 @@ VIRTUAL_ADDRESS KmemAlloc (INT32 low, UINTN size) {
 }
 
 /** @deprecated Use KmemFree instead **/
-void KmemFree (INT32 low, VIRTUAL_ADDRESS vaddr, UINTN size) {
+VOID KmemFree (INT32 low, VIRTUAL_ADDRESS vaddr, UINTN size) {
   KmemFree (low, vaddr, size);
 }
 
 /** @deprecated Use KmemTrimOnce instead **/
-void kmem_trim_one (UINT32 trim_mode) {
+VOID kmem_trim_one (UINT32 trim_mode) {
   KmemTrimOnce (trim_mode);
 }
 
 /** @deprecated Use KmemTrimSetMode instead **/
-void kmem_trim_setmode (UINT32 trim_mode) {
+VOID kmem_trim_setmode (UINT32 trim_mode) {
   KmemTrimSetMode (trim_mode);
 }
 
 /** @deprecated Use KmemInitialize instead **/
-void kmeminit (void) {
+VOID kmeminit (VOID) {
   KmemInitialize ();
 }
 

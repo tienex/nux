@@ -57,11 +57,11 @@ SerialPutChar (
 //
 
 /** @deprecated Use SerialInitialize instead **/
-void serial_init (void) {
+VOID serial_init (VOID) {
   SerialInitialize ();
 }
 
 /** @deprecated Use SerialPutChar instead **/
-void serial_putchar (INT32 c) {
+VOID serial_putchar (INT32 c) {
   SerialPutChar (c);
 }

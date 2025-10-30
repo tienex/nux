@@ -17,8 +17,8 @@
 typedef uintptr_t hal_l1p_t;
 typedef UINT64 hal_l1e_t;
 
-static INLINE void
-hal_debug (void)
+static INLINE VOID
+hal_debug (VOID)
 {
   asm volatile ("int3\n\t");
 }

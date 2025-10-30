@@ -418,7 +418,7 @@ struct hal_frame *UctxtFrame (UCTXT * uctxt) {
 }
 
 /** @deprecated Use UctxtInitialize instead **/
-void UctxtInit (UCTXT * uctxt, VIRTUAL_ADDRESS ip, VIRTUAL_ADDRESS sp, VIRTUAL_ADDRESS gp) {
+VOID UctxtInit (UCTXT * uctxt, VIRTUAL_ADDRESS ip, VIRTUAL_ADDRESS sp, VIRTUAL_ADDRESS gp) {
   UctxtInitialize (uctxt, ip, sp, gp);
 }
 
@@ -428,7 +428,7 @@ VIRTUAL_ADDRESS UctxtGetIp (UCTXT * uctxt) {
 }
 
 /** @deprecated Use UctxtSetIp instead **/
-void UctxtSetIp (UCTXT * uctxt, VIRTUAL_ADDRESS ip) {
+VOID UctxtSetIp (UCTXT * uctxt, VIRTUAL_ADDRESS ip) {
   UctxtSetIp (uctxt, ip);
 }
 
@@ -438,7 +438,7 @@ VIRTUAL_ADDRESS UctxtGetSp (UCTXT * uctxt) {
 }
 
 /** @deprecated Use UctxtSetSp instead **/
-void UctxtSetSp (UCTXT * uctxt, VIRTUAL_ADDRESS sp) {
+VOID UctxtSetSp (UCTXT * uctxt, VIRTUAL_ADDRESS sp) {
   UctxtSetSp (uctxt, sp);
 }
 
@@ -448,37 +448,37 @@ VIRTUAL_ADDRESS UctxtGetGp (UCTXT * uctxt) {
 }
 
 /** @deprecated Use UctxtSetGp instead **/
-void UctxtSetGp (UCTXT * uctxt, VIRTUAL_ADDRESS gp) {
+VOID UctxtSetGp (UCTXT * uctxt, VIRTUAL_ADDRESS gp) {
   UctxtSetGp (uctxt, gp);
 }
 
 /** @deprecated Use UctxtSetRet instead **/
-void UctxtSetRet (UCTXT * uctxt, unsigned INTN ret) {
+VOID UctxtSetRet (UCTXT * uctxt, unsigned INTN ret) {
   UctxtSetRet (uctxt, ret);
 }
 
 /** @deprecated Use UctxtSetA0 instead **/
-void UctxtSetA0 (UCTXT * uctxt, unsigned INTN a0) {
+VOID UctxtSetA0 (UCTXT * uctxt, unsigned INTN a0) {
   UctxtSetA0 (uctxt, a0);
 }
 
 /** @deprecated Use UctxtSetA1 instead **/
-void UctxtSetA1 (UCTXT * uctxt, unsigned INTN a1) {
+VOID UctxtSetA1 (UCTXT * uctxt, unsigned INTN a1) {
   UctxtSetA1 (uctxt, a1);
 }
 
 /** @deprecated Use UctxtSetA2 instead **/
-void UctxtSetA2 (UCTXT * uctxt, unsigned INTN a2) {
+VOID UctxtSetA2 (UCTXT * uctxt, unsigned INTN a2) {
   UctxtSetA2 (uctxt, a2);
 }
 
 /** @deprecated Use UctxtSetTls instead **/
-void UctxtSetTls (UCTXT * uctxt, unsigned INTN tls) {
+VOID UctxtSetTls (UCTXT * uctxt, unsigned INTN tls) {
   UctxtSetTls (uctxt, tls);
 }
 
 /** @deprecated Use UctxtPrint instead **/
-void UctxtPrint (UCTXT * uctxt) {
+VOID UctxtPrint (UCTXT * uctxt) {
   UctxtPrint (uctxt);
 }
 

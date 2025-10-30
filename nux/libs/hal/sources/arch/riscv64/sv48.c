@@ -824,7 +824,7 @@ static UINT64 mkaddr (UINT64 l4off, UINT64 l3off, UINT64 l2off, UINT64 l1off) {
 }
 
 /** @deprecated Use GetCpuMapL4Pfn instead **/
-static PFN get_cpumap_l4pfn (void) {
+static PFN get_cpumap_l4pfn (VOID) {
   return GetCpuMapL4Pfn ();
 }
 
@@ -839,7 +839,7 @@ static pte_t *get_cpumap_l4ptr (unsigned INTN va) {
 }
 
 /** @deprecated Use PutCpuMapL4Ptr instead **/
-static void put_cpumap_l4ptr (unsigned INTN va, pte_t * pte) {
+static VOID put_cpumap_l4ptr (unsigned INTN va, pte_t * pte) {
   PutCpuMapL4Ptr (va, pte);
 }
 
@@ -910,16 +910,16 @@ USER_ADDRESS pt_umap_next (struct hal_umap *umap, USER_ADDRESS uaddr, hal_l1p_t 
 }
 
 /** @deprecated Use PtUmapFree instead **/
-void pt_umap_free (struct hal_umap *umap) {
+VOID pt_umap_free (struct hal_umap *umap) {
   PtUmapFree (umap);
 }
 
 /** @deprecated Use PtUmapMinAddr instead **/
-unsigned long pt_umap_minaddr (void) {
+unsigned long pt_umap_minaddr (VOID) {
   return PtUmapMinAddr ();
 }
 
 /** @deprecated Use PtUmapMaxAddr instead **/
-unsigned long pt_umap_maxaddr (void) {
+unsigned long pt_umap_maxaddr (VOID) {
   return PtUmapMaxAddr ();
 }

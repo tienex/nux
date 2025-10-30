@@ -10,8 +10,8 @@
 typedef uintptr_t hal_l1p_t;
 typedef UINT64 hal_l1e_t;
 
-static INLINE void
-hal_debug (void)
+static INLINE VOID
+hal_debug (VOID)
 {
   asm volatile ("ebreak\n");
 }
@@ -60,7 +60,7 @@ struct hal_umap
 };
 
 #include <stdio.h>
-static INLINE void
+static INLINE VOID
 hal_umap_debug (struct hal_umap *umap)
 {
   printf ("hal_umap %p:", umap);
@@ -74,7 +74,7 @@ struct hal_cpu
   unsigned INTN intrsp;
   unsigned INTN kernsp;
   /* NUX per-cpu data. */
-  void *data;
+  VOID *data;
 };
 
 struct hal_frame
