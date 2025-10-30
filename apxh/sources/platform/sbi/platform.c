@@ -507,12 +507,12 @@ MdEntry (
   /* Setup trampoline. */
   TrampRoot = (VOID *) GetPage ();
   /* Map trampoline page */
-  sv48_directmap (TrampRoot, (UINTN) & trampoline_start,
+  Sv48DirectMap (TrampRoot, (UINTN) & trampoline_start,
 		  (UINTN) & trampoline_start,
 		  (UINTN) (&trampoline_end - &trampoline_start),
 		  MEMTYPE_WB, 0, 1);
   /* Map start page */
-  sv48_directmap (TrampRoot, sv48_getphys (Entry), Entry, 4096, MEMTYPE_WB,
+  Sv48DirectMap (TrampRoot, Sv48GetPhys (Entry), Entry, 4096, MEMTYPE_WB,
 		  0, 1);
 
   TrampSatp = 0x9L << 60 | (UINTN) TrampRoot >> PAGE_SHIFT;

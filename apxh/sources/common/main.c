@@ -381,12 +381,12 @@ VaFramebuf (
       PaePhysmap (Va, Size, Pa, Mt);
       break;
     case ARCH_AMD64:
-      pae64_physmap (Va, Size, Pa, Mt);
+      Pae64Physmap (Va, Size, Pa, Mt);
       break;
 #endif
 #if EC_MACHINE_RISCV64
     case ARCH_RISCV64:
-      sv48_physmap (Va, Size, Pa, Mt);
+      Sv48Physmap (Va, Size, Pa, Mt);
       break;
 #endif
     default:
@@ -555,7 +555,7 @@ VaInfoCopy (
   VIRTUAL_ADDRESS Va = gReqInfoVa;
   SIZE64 Size = gReqInfoSize;
 #define MIN(x,y) ((x < y) ? x : y)
-  struct apxh_bootinfo i;
+  APXH_BOOT_INFO i;
   FRAMEBUFFER_DESC *FbPtr;
   APXH_PLATFORM_DESCRIPTOR *PlatformDesc;
 
@@ -592,7 +592,7 @@ VaInfoCopy (
   i.utls.initsize = gUtlsInitsize;
   i.utls.size = gUtlsSize;
 
-  VaCopy (Va, &i, MIN (Size, sizeof (struct apxh_bootinfo)), 0, 0, 0);
+  VaCopy (Va, &i, MIN (Size, sizeof (APXH_BOOT_INFO)), 0, 0, 0);
 #undef MIN
 }
 
@@ -767,15 +767,15 @@ VaRegions (
   MdVerify (Va, Size);
   VaVerify (Va, Size);
 
-  MaxRegion = Size / sizeof (struct apxh_region);
+  MaxRegion = Size / sizeof (APXH_REGION);
 
   if (MaxRegion > Regions)
     MaxRegion = Regions;
 
-  Size = Regions * sizeof (struct apxh_region);
+  Size = Regions * sizeof (APXH_REGION);
 
   printf ("Size of area: %lld = %ld * %d\n", Size, Regions,
-	  sizeof (struct apxh_region));
+	  sizeof (APXH_REGION));
   VaPopulate (Va, Size, 0, 0, 0);
 
   gReqRegionVa = Va;
@@ -796,7 +796,7 @@ VaRegionsCopy (
   VIRTUAL_ADDRESS Va = gReqRegionVa;
   unsigned long Size = gReqRegionSize;
   unsigned i, Regions;
-  struct apxh_region ApxhReg;
+  APXH_REGION ApxhReg;
   BOOTINFO_REGION *Reg;
 
   if (Va == 0)
@@ -805,7 +805,7 @@ VaRegionsCopy (
       return;
     }
 
-  Regions = Size / sizeof (struct apxh_region);
+  Regions = Size / sizeof (APXH_REGION);
 
   for (i = 0; i < Regions; i++)
     {
@@ -816,8 +816,8 @@ VaRegionsCopy (
 #if 0
       printf ("Copying %d %d %d\n", ApxhReg.type, ApxhReg.pfn, ApxhReg.len);
 #endif
-      VaCopy (Va + i * sizeof (struct apxh_region), &ApxhReg,
-	       sizeof (struct apxh_region), 0, 0, 0);
+      VaCopy (Va + i * sizeof (APXH_REGION), &ApxhReg,
+	       sizeof (APXH_REGION), 0, 0, 0);
     }
 }
 
