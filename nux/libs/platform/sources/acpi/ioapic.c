@@ -37,7 +37,7 @@ typedef struct _GSI_DESC
   UINT32 Irq;
   UINT32 Ioapic;
   UINT32 Pin;
-  enum platform_irq_type Mode;
+  PLATFORM_IRQ_TYPE Mode;
 } GSI_DESC;
 
 static GSI_DESC *gGsis;
