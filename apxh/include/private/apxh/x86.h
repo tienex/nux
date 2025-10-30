@@ -25,47 +25,47 @@
 #define CR0_PG  (1 << 31)
 #define CR0_WP  (1 << 16)
 
-static inline unsigned long
+static inline UINTN
 read_cr4 (void)
 {
-  unsigned long reg;
+  UINTN reg;
 
   asm volatile ("mov %%cr4, %0\n":"=r" (reg));
   return reg;
 }
 
 static inline void
-write_cr4 (unsigned long reg)
+write_cr4 (UINTN reg)
 {
   asm volatile ("mov %0, %%cr4\n"::"r" (reg));
 }
 
-static inline unsigned long
+static inline UINTN
 read_cr3 (void)
 {
-  unsigned long reg;
+  UINTN reg;
 
   asm volatile ("mov %%cr3, %0\n":"=r" (reg));
   return reg;
 }
 
 static inline void
-write_cr3 (unsigned long reg)
+write_cr3 (UINTN reg)
 {
   asm volatile ("mov %0, %%cr3\n"::"r" (reg));
 }
 
-static inline unsigned long
+static inline UINTN
 read_cr0 (void)
 {
-  unsigned long reg;
+  UINTN reg;
 
   asm volatile ("mov %%cr0, %0\n":"=r" (reg));
   return reg;
 }
 
 static inline void
-write_cr0 (unsigned long reg)
+write_cr0 (UINTN reg)
 {
   asm volatile ("mov %0, %%cr0\n"::"r" (reg));
 }

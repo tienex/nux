@@ -29,9 +29,9 @@ static EFI_LOADED_IMAGE *gpImg = NULL;
 
   @return Physical address of allocated page.
 **/
-unsigned long
+UINTN
 EfiAllocateMaxAddr (
-  IN unsigned long  MaxAddr
+  IN UINTN  MaxAddr
   )
 {
   EFI_STATUS efi_status;
@@ -48,7 +48,7 @@ EfiAllocateMaxAddr (
 
   Addr = (VOID *) MaxAddr;
   memset (Addr, 0, 4096);
-  return (unsigned long) Addr;
+  return (UINTN) Addr;
 }
 
 /**
@@ -69,7 +69,7 @@ Putchar (
 }
 
 static VOID *gpPayloadStart;
-static unsigned long gPayloadSize;
+static UINTN gPayloadSize;
 
 /**
   Get framebuffer from Graphics Output Protocol.
@@ -212,7 +212,7 @@ EFI_STATUS
 EfiGetPayload (
   IN CHAR16          *Name,
   OUT VOID           **ppPtr,
-  OUT unsigned long  *Size
+  OUT UINTN  *Size
   )
 {
   EFI_STATUS Rc;
@@ -278,7 +278,7 @@ EfiGetMemoryMap (
     {
       int Ram, Bsy;
       unsigned Len;
-      unsigned long Pfn;
+      UINTN Pfn;
 
       Ptr = (void *) Md + i * DescSize;
 
@@ -478,7 +478,7 @@ EfiExit (
 //
 
 /** @deprecated Use EfiAllocateMaxAddr instead **/
-unsigned long efi_allocate_maxaddr (unsigned long maxaddr) {
+UINTN efi_allocate_maxaddr (UINTN maxaddr) {
   return EfiAllocateMaxAddr (maxaddr);
 }
 
@@ -493,7 +493,7 @@ EFI_STATUS efi_getframebuffer (void) {
 }
 
 /** @deprecated Use EfiGetPayload instead **/
-EFI_STATUS efi_getpayload (CHAR16 *name, void **ptr, unsigned long *size) {
+EFI_STATUS efi_getpayload (CHAR16 *name, void **ptr, UINTN *size) {
   return EfiGetPayload (name, ptr, size);
 }
 

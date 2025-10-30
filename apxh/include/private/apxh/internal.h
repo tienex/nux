@@ -44,9 +44,9 @@ typedef enum _BOOTINFO_REGION_TYPE {
 **/
 typedef struct _BOOTINFO_REGION
 {
-  int type;
-  unsigned len;
-  unsigned long pfn;
+  INT32 type;
+  UINT32 len;
+  UINTN pfn;
 } BOOTINFO_REGION, *PBOOTINFO_REGION, *PCBOOTINFO_REGION;
 
 /** Legacy compatibility **/
@@ -90,7 +90,7 @@ typedef enum _MEMORY_TYPE
 #define PAGE2M_SIZE (1LL << PAGE2M_SHIFT)
 #define PAGE2M_MASK ~(PAGE2M_SIZE - 1)
 
-#define MB(_x) ((unsigned long)(_x) << 20)
+#define MB(_x) ((UINTN)(_x) << 20)
 #define BITMAP_SZ(_s) ((_s) >> 3)	// POW2
 #define PAGEMAP_SZ(_s) BITMAP_SZ((_s) >> PAGE_SHIFT)	// POW2
 

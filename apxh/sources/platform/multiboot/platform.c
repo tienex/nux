@@ -500,7 +500,7 @@ MbAmd64Entry (
   VOID *pTrampCr3;
   VOID *Tramp;
   UINT16 TrampCode = 0xe7ff;	/* jmp *%rdi */
-  unsigned long Cr0, Cr3, Cr4;
+  UINTN Cr0, Cr3, Cr4;
   UINT64 Efer;
   VIRTUAL_ADDRESS TrampEntry;
 
@@ -527,7 +527,7 @@ MbAmd64Entry (
   printf ("CR4: %08lx -> %08lx.\n", Cr4, read_cr4 ());
 
   Cr3 = read_cr3 ();
-  write_cr3 ((unsigned long) pTrampCr3);
+  write_cr3 ((UINTN) pTrampCr3);
   printf ("CR3: %08lx -> %08lx.\n", Cr3, read_cr3 ());
 
   Efer = rdmsr (MSR_IA32_EFER);
@@ -572,9 +572,9 @@ Mb386Entry (
   VOID *Tramp;
   VIRTUAL_ADDRESS TrampEntry;
   UINT16 TrampCode = 0xe7ff;	/* jmp *%edi */
-  unsigned long Cr4 = read_cr4 ();
-  unsigned long Cr3 = read_cr3 ();
-  unsigned long Cr0 = read_cr0 ();
+  UINTN Cr4 = read_cr4 ();
+  UINTN Cr3 = read_cr3 ();
+  UINTN Cr0 = read_cr0 ();
 
   /* Allocate trampoline pagetable. */
   pTrampCr3 = (VOID *) GetPage ();
@@ -597,7 +597,7 @@ Mb386Entry (
   write_cr4 (Cr4 | CR4_PAE);
   printf ("CR4: %08lx -> %08lx.\n", Cr4, read_cr4 ());
 
-  write_cr3 ((unsigned long) pTrampCr3);
+  write_cr3 ((UINTN) pTrampCr3);
   printf ("CR3: %08lx -> %08lx.\n", Cr3, read_cr3 ());
 
   write_cr0 (Cr0 | CR0_PG | CR0_WP);
