@@ -358,5 +358,5 @@ UINT8 fontdata[] = {
   0x60, 0x1d, 0xf1, 0xbd
 };
 
-unsigned int p_raw_len = 4096;
+UINT32 p_raw_len = 4096;
 #endif

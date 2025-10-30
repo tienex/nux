@@ -118,7 +118,7 @@ static INLINE struct __ZENTRY *
 _zone_findfree (struct zone *zn, UINTN size)
 {
   unsigned long tmp;
-  unsigned int minbit;
+  UINT32 minbit;
   struct __ZENTRY *ze = NULL;
 
   minbit = msbit (size);
