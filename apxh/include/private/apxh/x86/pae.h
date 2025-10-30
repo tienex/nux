@@ -9,8 +9,6 @@
   SPDX-License-Identifier: BSD-2-Clause
 **/
 
-#ifndef __apxh_x86_pae_h__
-#define __apxh_x86_pae_h__
 
 #include <apxh/internal.h>
 #include <apxh/x86.h>

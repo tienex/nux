@@ -4,9 +4,8 @@
 
   SPDX-License-Identifier:	BSD-2-Clause
 */
+
 #pragma once
-#ifndef __apxh_x86_h__
-#define __apxh_x86_h__
 
 #define MSR_IA32_MISC_ENABLE 0x000001a0
 #define _MSR_IA32_MISC_ENABLE_XD_DISABLE (1LL << 34)

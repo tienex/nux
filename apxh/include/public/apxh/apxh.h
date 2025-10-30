@@ -16,8 +16,6 @@
   SPDX-License-Identifier: BSD-2-Clause
 **/
 
-#ifndef __apxh_apxh_h__
-#define __apxh_apxh_h__
 
 #include <stdint.h>
 #include <nux/framebuffer.h>

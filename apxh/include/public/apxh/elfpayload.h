@@ -5,8 +5,6 @@
   SPDX-License-Identifier:	BSD-2-Clause
 */
 #pragma once
-#ifndef __apxh_elfpayload_h__
-#define __apxh_elfpayload_h__
 
 #include <stddef.h>
 #include <inttypes.h>

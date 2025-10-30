@@ -26,7 +26,6 @@
  *  WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR
  *  IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#ifndef __apxh_multiboot_h__
 #define __apxh_multiboot_h__ 1
 
 /* How many bytes from the start of the file we search for the header. */
