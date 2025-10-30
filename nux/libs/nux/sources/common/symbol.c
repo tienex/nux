@@ -40,8 +40,8 @@ NuxSymbolResolve (
   IN UINTN  Addr
   )
 {
-  CONST KSYM *Sym = _ksym_start;
-  CONST KSYM *Last = NULL;
+  PCKSYM Sym = _ksym_start;
+  PCKSYM Last = NULL;
 
   while (Sym->Addr != 0)
     {

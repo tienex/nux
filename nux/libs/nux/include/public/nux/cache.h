@@ -96,11 +96,11 @@ CacheSlotCompare (
   IN CONST VOID  *SlotB
   )
 {
-  CONST SLOT *Slot1;
-  CONST SLOT *Slot2;
+  PCSLOT Slot1;
+  PCSLOT Slot2;
 
-  Slot1 = (CONST SLOT *)SlotA;
-  Slot2 = (CONST SLOT *)SlotB;
+  Slot1 = (PCSLOT)SlotA;
+  Slot2 = (PCSLOT)SlotB;
 
   if (Slot1->Address < Slot2->Address) {
     return -1;
@@ -132,10 +132,10 @@ CacheSlotKeyCompare (
   IN CONST VOID  *Key
   )
 {
-  CONST SLOT  *Slot;
+  PCSLOT  Slot;
   UINTN   KeyAddress;
 
-  Slot       = (CONST SLOT *)SlotPtr;
+  Slot       = (PCSLOT)SlotPtr;
   KeyAddress = (UINTN)Key;
 
   if (Slot->Address < KeyAddress) {
