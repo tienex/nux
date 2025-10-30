@@ -41,7 +41,7 @@ main (int Argc, char *Argv[])
     {
       if (pLine[LineLen - 1] == '\n')
 	pLine[LineLen - 1] = '\0';
-      uint64_t Sq = squoze (pLine);
+      UINT64 Sq = squoze (pLine);
       printf ("%" PRIx64 "\n", Sq);
     }
 

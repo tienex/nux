@@ -36,7 +36,7 @@
 
 #define PAYLOAD_HDR_MAGIC 0x68efe6966e3e3bb5LL	/* RAD-50 for 'rad50archive' */
 
-uint64_t gMagic = 0x68efe6966e3e3bb5LL;
+UINT64 gMagic = 0x68efe6966e3e3bb5LL;
 
 /*
   On disk structure with payload information.
@@ -44,9 +44,9 @@ uint64_t gMagic = 0x68efe6966e3e3bb5LL;
 struct payload_hdr
 {
 
-  uint64_t magic;
-  uint64_t filename;
-  uint32_t size;
+  UINT64 magic;
+  UINT64 filename;
+  UINT32 size;
 } __attribute__((packed));
 
 

@@ -22,7 +22,7 @@
 
   @return 64-bit RAD-50 encoded value.
 **/
-uint64_t Squoze (char *pString);
+UINT64 Squoze (char *pString);
 
 /**
   Decode RAD-50 to string with length limit.
@@ -35,7 +35,7 @@ uint64_t Squoze (char *pString);
 
   @return Number of characters decoded.
 **/
-size_t UnsquozeLen (uint64_t Enc, size_t Len, char *pString);
+size_t UnsquozeLen (UINT64 Enc, size_t Len, char *pString);
 
 /**
   Decode RAD-50 to allocated string.
@@ -46,19 +46,19 @@ size_t UnsquozeLen (uint64_t Enc, size_t Len, char *pString);
 
   @return Pointer to allocated string (caller must free), or NULL on failure.
 **/
-char *Unsquoze (uint64_t Enc);
+char *Unsquoze (UINT64 Enc);
 
 //
 // Legacy function names (for backward compatibility)
 //
 
 /** @deprecated Use Squoze instead **/
-uint64_t squoze (char *string);
+UINT64 squoze (char *string);
 
 /** @deprecated Use UnsquozeLen instead **/
-size_t unsquozelen (uint64_t enc, size_t len, char *string);
+size_t unsquozelen (UINT64 enc, size_t len, char *string);
 
 /** @deprecated Use Unsquoze instead **/
-char *unsquoze (uint64_t enc);
+char *unsquoze (UINT64 enc);
 
 #endif /* _SQUOZE_H_ */
