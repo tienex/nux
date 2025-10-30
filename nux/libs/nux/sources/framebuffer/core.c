@@ -34,21 +34,21 @@ INT32 gFbScreenRows;
   Sets up framebuffer descriptor and clears display. Only RGB
   framebuffers are supported.
 
-  @param[in] pDesc  Framebuffer descriptor.
+  @param[in] Desc  Framebuffer descriptor.
 
   @retval 1  Framebuffer initialized successfully.
   @retval 0  Invalid framebuffer type.
 **/
 INT32
 FramebufferInitialize (
-  IN struct fbdesc  *pDesc
+  IN struct fbdesc  *Desc
   )
 {
-  if (pDesc->type == FB_INVALID)
+  if (Desc->type == FB_INVALID)
     return 0;
 
-  assert (pDesc->type == FB_RGB);
-  gFbDesc = pDesc;
+  assert (Desc->type == FB_RGB);
+  gFbDesc = Desc;
   memset ((void *) (UINTN) gFbDesc->addr, 0, gFbDesc->size);
   FramebufferReset ();
   return 1;

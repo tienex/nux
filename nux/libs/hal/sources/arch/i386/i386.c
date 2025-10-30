@@ -70,10 +70,10 @@ HalPcpuInit (
   )
 {
   pfn_t Pfn;
-  void *pStart, *pPtr;
+  void *Start, *Ptr;
   hal_l1p_t L1p;
   paddr_t PStart;
-  volatile uint16_t *pReset;
+  volatile uint16_t *Reset;
   extern char *_ap_start, *_ap_end;
 
   /* Allocate PCPU bootstrap code. Use KVA. *//* TODO: USE KVA? Not needed, not a long term mapping. */
@@ -83,10 +83,10 @@ HalPcpuInit (
   assert (Pfn < (1 << 8) && "Can't allocate Memory below 1MB!");
 
   /* Map and prepare the bootstrap code page. */
-  pStart = pfn_get (Pfn);
+  Start = pfn_get (Pfn);
   size_t ApBootSz = (size_t) ((void *) &_ap_end - (void *) &_ap_start);
   assert (ApBootSz <= PAGE_SIZE);
-  memcpy (pStart, &_ap_start, ApBootSz);
+  memcpy (Start, &_ap_start, ApBootSz);
   PStart = (paddr_t) Pfn << PAGE_SHIFT;
 
   /*
@@ -97,24 +97,24 @@ HalPcpuInit (
   extern uint32_t _bsp_cr3;
 
   /* Copy BSP CR3 into AP */
-  pPtr = pStart + ((void *) &_ap_cr3 - (void *) &_ap_start);
-  *(uint32_t *) pPtr = _bsp_cr3;
+  Ptr = Start + ((void *) &_ap_cr3 - (void *) &_ap_start);
+  *(uint32_t *) Ptr = _bsp_cr3;
 
   /* Setup temporary GDT register. */
-  pPtr = pStart + ((void *) &_ap_gdtreg - (void *) &_ap_start);
-  *(uint32_t *) (pPtr + 2) += (uint32_t) PStart;
+  Ptr = Start + ((void *) &_ap_gdtreg - (void *) &_ap_start);
+  *(uint32_t *) (Ptr + 2) += (uint32_t) PStart;
 
   /* Setup trampoline 1 */
-  pPtr = pStart + ((void *) &_ap_ljmp - (void *) &_ap_start);
-  *(uint32_t *) pPtr += (uint32_t) PStart;
+  Ptr = Start + ((void *) &_ap_ljmp - (void *) &_ap_start);
+  *(uint32_t *) Ptr += (uint32_t) PStart;
 
-  pfn_put (Pfn, pStart);
+  pfn_put (Pfn, Start);
 
   /* Set reset vector */
-  pReset = kva_physmap (0x467, 2, HAL_PTE_P | HAL_PTE_W | HAL_PTE_X);
-  *pReset = PStart & 0xf;
-  *(pReset + 1) = PStart >> 4;
-  kva_unmap ((void *) pReset, 2);
+  Reset = kva_physmap (0x467, 2, HAL_PTE_P | HAL_PTE_W | HAL_PTE_X);
+  *Reset = PStart & 0xf;
+  *(Reset + 1) = PStart >> 4;
+  kva_unmap ((void *) Reset, 2);
 
   /* PStart is in user address space: use kmap_ instead of hal_kmap */
   L1p = umap_get_l1p (NULL, PStart, true);
@@ -132,16 +132,16 @@ HalPcpuInit (
   Add per-CPU data structure.
 
   @param[in] PcpuId   Per-CPU ID.
-  @param[in] pHalData Pointer to HAL CPU data structure.
+  @param[in] HalData Pointer to HAL CPU data structure.
 **/
 VOID
 HalPcpuAdd (
   IN unsigned          PcpuId,
-  IN struct hal_cpu   *pHalData
+  IN struct hal_cpu   *HalData
   )
 {
   pfn_t Pfn;
-  void *pVa;
+  void *Va;
   void _set_tss (unsigned, void *);
   void _set_fs (unsigned, void *);
 
@@ -151,23 +151,23 @@ HalPcpuAdd (
     {
       /* Adding the BSP PCPU: Initialize TSS */
       extern char _bsp_stacktop;
-      pHalData->tss.ss0 = KDS;
-      pHalData->tss.esp0 = (uintptr_t) & _bsp_stacktop;
-      pHalData->tss.iomap = 108;
+      HalData->tss.ss0 = KDS;
+      HalData->tss.esp0 = (uintptr_t) & _bsp_stacktop;
+      HalData->tss.iomap = 108;
     }
   else
     {
       /* Adding secondary CPU: Allocate one PCPU kernel stack. */
       Pfn = pfn_alloc (1);
       assert (Pfn != PFN_INVALID);
-      pVa = kva_map (Pfn, HAL_PTE_W | HAL_PTE_P);
-      assert (pVa != NULL);
-      gPcpuKStack[gPcpuKStackNo++] = (uint64_t) (uintptr_t) pVa + PAGE_SIZE;
+      Va = kva_map (Pfn, HAL_PTE_W | HAL_PTE_P);
+      assert (Va != NULL);
+      gPcpuKStack[gPcpuKStackNo++] = (uint64_t) (uintptr_t) Va + PAGE_SIZE;
     }
-  _set_tss (PcpuId, &pHalData->tss);
-  _set_fs (PcpuId, &pHalData->data);
+  _set_tss (PcpuId, &HalData->tss);
+  _set_fs (PcpuId, &HalData->data);
 
-  gPcpuHalData[PcpuId] = (vaddr_t) (uintptr_t) pHalData;
+  gPcpuHalData[PcpuId] = (vaddr_t) (uintptr_t) HalData;
 }
 
 /**
@@ -212,14 +212,14 @@ HalPcpuEnter (
 /**
   Set per-CPU data pointer.
 
-  @param[in] pData  Pointer to per-CPU data.
+  @param[in] Data  Pointer to per-CPU data.
 **/
 VOID
 HalCpuSetData (
-  IN VOID  *pData
+  IN VOID  *Data
   )
 {
-  asm volatile ("movl %0, %%fs:0\n"::"r" (pData));
+  asm volatile ("movl %0, %%fs:0\n"::"r" (Data));
 }
 
 /**
@@ -232,10 +232,10 @@ HalCpuGetData (
   VOID
   )
 {
-  void *pData;
+  void *Data;
 
-  asm volatile ("movl %%fs:0, %0\n":"=r" (pData));
-  return pData;
+  asm volatile ("movl %%fs:0, %0\n":"=r" (Data));
+  return Data;
 }
 
 /**
@@ -264,11 +264,11 @@ I386InitializeAp (
   )
 {
   unsigned Pcpu = plt_pcpu_id ();
-  struct hal_cpu *pHalData = (struct hal_cpu *) (uintptr_t) gPcpuHalData[Pcpu];
+  struct hal_cpu *HalData = (struct hal_cpu *) (uintptr_t) gPcpuHalData[Pcpu];
 
-  pHalData->tss.ss0 = KDS;
-  pHalData->tss.esp0 = Esp;
-  pHalData->tss.iomap = 108;
+  HalData->tss.ss0 = KDS;
+  HalData->tss.esp0 = Esp;
+  HalData->tss.iomap = 108;
 
   pae32_init_ap ();
 

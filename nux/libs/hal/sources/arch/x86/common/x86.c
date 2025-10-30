@@ -569,7 +569,7 @@ hal_physmem_stree (
   OUT UINT32  *Order OPTIONAL
   )
 {
-  if (pOrder)
+  if (Order)
     *Order = hal_stree_order;
   return hal_stree_ptr;
 }
@@ -609,11 +609,11 @@ hal_virtmem_kmemsize (
 /**
   Print a string during early boot.
 
-  @param[in] pStr  String to print.
+  @param[in] Str  String to print.
 **/
 static VOID
 EarlyPrint (
-  IN CONST CHAR8  *pStr
+  IN CONST CHAR8  *Str
   )
 {
   size_t i;
@@ -756,7 +756,7 @@ __dead VOID
 hal_panic (
   IN UINT32            cpu,
   IN CONST CHAR8       *Error,
-  IN struct hal_frame  *pFrame
+  IN struct hal_frame  *Frame
   )
 {
   if (use_fb)
@@ -772,7 +772,7 @@ hal_panic (
 	  "----------------------------------------"
 	  "---------------------------------------\n"
 	  "Fatal error on CPU%d: %s\n", cpu, Error);
-  if (pFrame != NULL)
+  if (Frame != NULL)
     {
       hal_frame_print (Frame);
     }

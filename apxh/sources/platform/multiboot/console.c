@@ -63,7 +63,7 @@ Putchar (
   IN int  C
   )
 {
-  CONST UINT8 *pVPtr = (CONST VOID *) 0xb8000;
+  CONST UINT8 *VPtr = (CONST VOID *) 0xb8000;
   static int gInit = 0;
   static int gX = 0;
   static int gY = 0;
@@ -72,7 +72,7 @@ Putchar (
     {
       int i;
       for (i = 0; i < 80 * 25; i++)
-	*(UINT8 *) (pVPtr + i * 2) = 0;
+	*(UINT8 *) (VPtr + i * 2) = 0;
 
       Outb (SERIAL_PORT + 1, 0);
       Outb (SERIAL_PORT + 3, 0x80);
@@ -98,9 +98,9 @@ Putchar (
   if (80 * gY + gX >= 80 * 25)
     {
       int i;
-      memmove ((VOID *) pVPtr, (VOID *) pVPtr + 80 * 2, 80 * 2 * (25 - 1));
+      memmove ((VOID *) VPtr, (VOID *) VPtr + 80 * 2, 80 * 2 * (25 - 1));
       for (i = 0; i < 80; i++)
-	*(UINT8 *) (pVPtr + 80 * 2 * (25 - 1) + i * 2) = 0;
+	*(UINT8 *) (VPtr + 80 * 2 * (25 - 1) + i * 2) = 0;
       gY = 25 - 1;
       gX = 0;
     }

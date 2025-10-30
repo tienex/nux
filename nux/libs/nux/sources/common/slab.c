@@ -102,22 +102,22 @@ SlabAllocate (
   Finds the slab header for a given object by masking the
   address to the slab boundary.
 
-  @param[in] pObject  Pointer to object.
+  @param[in] Object  Pointer to object.
 
   @return Pointer to slab header, or NULL if magic check fails.
 **/
 static struct slabhdr *
 SlabGetHeader (
-  IN VOID  *pObject
+  IN VOID  *Object
   )
 {
-  struct slabhdr *pSlabHeader;
-  UINTN Addr = (UINTN) pObject;
+  struct slabhdr *SlabHeader;
+  UINTN Addr = (UINTN) Object;
 
-  pSlabHeader = (struct slabhdr *) (Addr & ~((UINTN) SlabSize () - 1));
-  if (pSlabHeader->magic != SLABMAGIC)
+  SlabHeader = (struct slabhdr *) (Addr & ~((UINTN) SlabSize () - 1));
+  if (SlabHeader->magic != SLABMAGIC)
     return NULL;
-  return pSlabHeader;
+  return SlabHeader;
 }
 
 /**
@@ -125,16 +125,16 @@ SlabGetHeader (
 
   Unmaps and frees the virtual address space for a slab.
 
-  @param[in] pPtr  Pointer to slab header.
+  @param[in] Ptr  Pointer to slab header.
 **/
 static VOID
 SlabFreeInternal (
-  IN VOID  *pPtr
+  IN VOID  *Ptr
   )
 {
-  KmapEnsureRange ((vaddr_t) pPtr, SLAB_SIZE, 0);
+  KmapEnsureRange ((vaddr_t) Ptr, SLAB_SIZE, 0);
   KmapCommit ();
-  KvaFree ((vaddr_t) pPtr, SLAB_SIZE);
+  KvaFree ((vaddr_t) Ptr, SLAB_SIZE);
 }
 
 //

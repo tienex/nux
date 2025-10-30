@@ -74,7 +74,7 @@ StreePfnAllocate (
   )
 {
   INTN Pg;
-  VOID *pVa;
+  VOID *Va;
 
   spinlock (&gPgLock);
   Pg = stree_bitsearch (gStree, gOrder, Low);
@@ -89,9 +89,9 @@ StreePfnAllocate (
   if (Pg < 0)
     return PFN_INVALID;
 
-  pVa = pfn_get (Pg);
-  memset (pVa, 0, PAGE_SIZE);
-  pfn_put (Pg, pVa);
+  Va = pfn_get (Pg);
+  memset (Va, 0, PAGE_SIZE);
+  pfn_put (Pg, Va);
 
   return (pfn_t) Pg;
 }
@@ -123,18 +123,18 @@ StreePfnFree (
   to replace the default stree-based allocator. Protected by
   write lock to ensure atomic replacement.
 
-  @param[in] pAlloc  Pointer to custom allocation function.
-  @param[in] pFree   Pointer to custom free function.
+  @param[in] Alloc  Pointer to custom allocation function.
+  @param[in] Free   Pointer to custom free function.
 **/
 VOID
 NuxSetAllocator (
-  IN pfn_t (*pAlloc) (INT32),
-  IN VOID (*pFree) (pfn_t)
+  IN pfn_t (*Alloc) (INT32),
+  IN VOID (*Free) (pfn_t)
   )
 {
   writelock (&gNuxPfnAllocLock);
-  gNuxPfnAlloc = pAlloc;
-  gNuxPfnFree = pFree;
+  gNuxPfnAlloc = Alloc;
+  gNuxPfnFree = Free;
   writeunlock (&gNuxPfnAllocLock);
 }
 

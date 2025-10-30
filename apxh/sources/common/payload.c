@@ -21,37 +21,37 @@ extern INT32 _end;
   Payloads are stored sequentially after the _end symbol.
 
   @param[in]  Index  Payload index (0-based).
-  @param[out] pSize  Pointer to receive payload size (optional).
+  @param[out] Size  Pointer to receive payload size (optional).
 
   @return Pointer to payload data, or pointer to end marker if not found.
 **/
 VOID *
 PayloadGet (
   IN UINT32          Index,
-  OUT OPTIONAL size_t  *pSize
+  OUT OPTIONAL size_t  *Size
   )
 {
-  struct payload_hdr *pPtr = (struct payload_hdr *) &_end;
+  struct payload_hdr *Ptr = (struct payload_hdr *) &_end;
   UINT32 j;
 
   j = 0;
-  while (pPtr->magic == ELFPAYLOAD_MAGIC)
+  while (Ptr->magic == ELFPAYLOAD_MAGIC)
     {
       if (j != Index)
 	{
-	  pPtr = (struct payload_hdr *) ((VOID *) (pPtr + 1) + pPtr->size);
+	  Ptr = (struct payload_hdr *) ((VOID *) (Ptr + 1) + Ptr->size);
 	  j++;
 	  continue;
 	}
 
-      if (pSize)
-	*pSize = pPtr->size;
-      return (VOID *) (pPtr + 1);
+      if (Size)
+	*Size = Ptr->size;
+      return (VOID *) (Ptr + 1);
     }
 
-  if (pSize)
-    *pSize = 0;
-  return pPtr;
+  if (Size)
+    *Size = 0;
+  return Ptr;
 }
 
 //

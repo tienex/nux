@@ -38,42 +38,42 @@ static struct apxh_platformdesc gPlatformDesc;
   Retrieves #address-cells and #size-cells properties from parent
   node in device tree.
 
-  @param[in]  pFdt     Pointer to flattened device tree.
+  @param[in]  Fdt     Pointer to flattened device tree.
   @param[in]  NodOff   Node offset.
-  @param[out] pAddrSz  Pointer to receive address cells count.
-  @param[out] pSizeSz  Pointer to receive size cells count.
+  @param[out] AddrSz  Pointer to receive address cells count.
+  @param[out] SizeSz  Pointer to receive size cells count.
 **/
 static VOID
 DtbAddrSize (
-  IN  CONST VOID  *pFdt,
+  IN  CONST VOID  *Fdt,
   IN  int         NodOff,
-  OUT UINT32      *pAddrSz,
-  OUT UINT32      *pSizeSz
+  OUT UINT32      *AddrSz,
+  OUT UINT32      *SizeSz
   )
 {
   int PaOff, Len;
   VOID *p;
 
-  PaOff = fdt_parent_offset (pFdt, NodOff);
+  PaOff = fdt_parent_offset (Fdt, NodOff);
 
-  p = (VOID *) fdt_getprop (pFdt, PaOff, "#address-cells", &Len);
+  p = (VOID *) fdt_getprop (Fdt, PaOff, "#address-cells", &Len);
   if (!p || Len != 4)
     {
-      *pAddrSz = 2;
+      *AddrSz = 2;
     }
   else
     {
-      *pAddrSz = fdt32_to_cpu (*(UINT32 *) p);
+      *AddrSz = fdt32_to_cpu (*(UINT32 *) p);
     }
 
-  p = (VOID *) fdt_getprop (pFdt, PaOff, "#size-cells", &Len);
+  p = (VOID *) fdt_getprop (Fdt, PaOff, "#size-cells", &Len);
   if (!p || Len != 4)
     {
-      *pSizeSz = 2;
+      *SizeSz = 2;
     }
   else
     {
-      *pSizeSz = fdt32_to_cpu (*(UINT32 *) p);
+      *SizeSz = fdt32_to_cpu (*(UINT32 *) p);
     }
 }
 
@@ -84,35 +84,35 @@ DtbAddrSize (
   invoking callback for each region found.
 
   @param[in] Func  Callback function for each region.
-  @param[in] pOpq  Opaque pointer passed to callback.
+  @param[in] Opq  Opaque pointer passed to callback.
 **/
 static VOID
 RamRegionForeach (
   IN VOID  (*Func) (UINT64, UINT64, bool, VOID *),
-  IN VOID  *pOpq
+  IN VOID  *Opq
   )
 {
-  VOID *pFdt = dtbptr;
+  VOID *Fdt = dtbptr;
   int NodOff;
 
-  for (NodOff = fdt_next_node (pFdt, -1, NULL);
-       NodOff >= 0; NodOff = fdt_next_node (pFdt, NodOff, NULL))
+  for (NodOff = fdt_next_node (Fdt, -1, NULL);
+       NodOff >= 0; NodOff = fdt_next_node (Fdt, NodOff, NULL))
     {
-      CONST CHAR *pName = fdt_get_name (pFdt, NodOff, NULL);
-      if (!pName)
+      CONST CHAR *Name = fdt_get_name (Fdt, NodOff, NULL);
+      if (!Name)
 	continue;
 
       // I should probably get the root child only here.
-      if (!strncmp (pName, "memory", 6))
+      if (!strncmp (Name, "memory", 6))
 	{
 	  int Len;
 	  UINT32 AddrSz, SizeSz;
 
-	  UINT32 *pReg = (UINT32 *) fdt_getprop (pFdt, NodOff, "reg", &Len);
-	  if (!pReg)
+	  UINT32 *Reg = (UINT32 *) fdt_getprop (Fdt, NodOff, "reg", &Len);
+	  if (!Reg)
 	    continue;
 
-	  DtbAddrSize (pFdt, NodOff, &AddrSz, &SizeSz);
+	  DtbAddrSize (Fdt, NodOff, &AddrSz, &SizeSz);
 
 	  for (int i = 0; i < Len; i += 4 * (AddrSz + SizeSz))
 	    {
@@ -120,27 +120,27 @@ RamRegionForeach (
 
 	      Base = 0;
 	      for (int j = 0; j < AddrSz; j++)
-		Base = (Base << 32) + fdt32_to_cpu (*pReg++);
+		Base = (Base << 32) + fdt32_to_cpu (*Reg++);
 
 	      Size = 0;
 	      for (int j = 0; j < SizeSz; j++)
-		Size = (Size << 32) + fdt32_to_cpu (*pReg++);
+		Size = (Size << 32) + fdt32_to_cpu (*Reg++);
 
-	      Func (Base, Size, false, pOpq);
+	      Func (Base, Size, false, Opq);
 	    }
 	}
-      else if (!strncmp (pName, "reserved-memory", 15))
+      else if (!strncmp (Name, "reserved-memory", 15))
 	{
 	  int Len, SubOff;
 	  UINT32 AddrSz, SizeSz;
 
-	  DtbAddrSize (pFdt, NodOff, &AddrSz, &SizeSz);
+	  DtbAddrSize (Fdt, NodOff, &AddrSz, &SizeSz);
 
-	  fdt_for_each_subnode (SubOff, pFdt, NodOff)
+	  fdt_for_each_subnode (SubOff, Fdt, NodOff)
 	  {
-	    UINT32 *pReg =
-	      (UINT32 *) fdt_getprop (pFdt, SubOff, "reg", &Len);
-	    if (!pReg)
+	    UINT32 *Reg =
+	      (UINT32 *) fdt_getprop (Fdt, SubOff, "reg", &Len);
+	    if (!Reg)
 	      continue;
 
 	    for (int i = 0; i < Len; i += 4 * (AddrSz + SizeSz))
@@ -149,13 +149,13 @@ RamRegionForeach (
 
 		Base = 0;
 		for (int j = 0; j < AddrSz; j++)
-		  Base = (Base << 32) + fdt32_to_cpu (*pReg++);
+		  Base = (Base << 32) + fdt32_to_cpu (*Reg++);
 
 		Size = 0;
 		for (int j = 0; j < SizeSz; j++)
-		  Size = (Size << 32) + fdt32_to_cpu (*pReg++);
+		  Size = (Size << 32) + fdt32_to_cpu (*Reg++);
 
-		Func (Base, Size, true, pOpq);
+		Func (Base, Size, true, Opq);
 	      }
 	  }
 	}
@@ -180,23 +180,23 @@ GetPayloadStart (
   IN plid_t  Id
   )
 {
-  VOID *pElfPayload;
+  VOID *ElfPayload;
 
   switch (Id)
     {
     case PAYLOAD_KERNEL:
-      pElfPayload = gpElfKernelPayload;
+      ElfPayload = gpElfKernelPayload;
       break;
     case PAYLOAD_USER:
-      pElfPayload = gpElfUserPayload;
+      ElfPayload = gpElfUserPayload;
       break;
     default:
       printf ("Unsupported payload ID %d\n", Id);
-      pElfPayload = NULL;
+      ElfPayload = NULL;
       break;
     }
 
-  return pElfPayload;
+  return ElfPayload;
 }
 
 /**
@@ -264,17 +264,17 @@ GetPage (
   @param[in] Base  Base physical address.
   @param[in] Len   Length in bytes.
   @param[in] Busy  TRUE if region is reserved/busy.
-  @param[in] pOpq  Opaque pointer (unused).
+  @param[in] Opq  Opaque pointer (unused).
 **/
 static VOID
 AddRamRegion (
   IN UINT64  Base,
   IN UINT64  Len,
   IN bool    Busy,
-  IN VOID    *pOpq
+  IN VOID    *Opq
   )
 {
-  struct bootinfo_region *pR;
+  struct bootinfo_region *R;
 
   if (gRegions >= SBI_MAX_RAM_REGIONS)
     {
@@ -289,10 +289,10 @@ AddRamRegion (
   if (Base + Len >= gMaxAddr)
     gMaxAddr = Base + Len;
 
-  pR = gRamRegions + gRegions++;
-  pR->type = Busy ? BOOTINFO_REGION_BSY : BOOTINFO_REGION_RAM;
-  pR->pfn = Base >> PAGE_SHIFT;
-  pR->len = Len >> PAGE_SHIFT;
+  R = gRamRegions + gRegions++;
+  R->type = Busy ? BOOTINFO_REGION_BSY : BOOTINFO_REGION_RAM;
+  R->pfn = Base >> PAGE_SHIFT;
+  R->len = Len >> PAGE_SHIFT;
 
   printf ("\t%016lx:%016lx (%s)\n", Base, Base + Len, Busy ? "SYS" : "RAM");
 }
@@ -309,25 +309,25 @@ MdInitialize (
   )
 {
   uintptr_t Ptr;
-  struct fdt_header *pFdtH;
+  struct fdt_header *FdtH;
 
   printf ("Booting from HART %lx\n", boothid);
   printf ("DTB Pointer at %lx\n", dtbptr);
 
-  pFdtH = (struct fdt_header *) dtbptr;
-  if (fdt_check_header (pFdtH) != 0)
+  FdtH = (struct fdt_header *) dtbptr;
+  if (fdt_check_header (FdtH) != 0)
     {
       printf ("Invalid DTB header.\n");
       exit (-1);
     }
 
-  printf ("Total size: %lx\n", fdt32_to_cpu (pFdtH->totalsize));
+  printf ("Total size: %lx\n", fdt32_to_cpu (FdtH->totalsize));
 
   printf ("Device Tree Memory Regions:\n");
   RamRegionForeach (AddRamRegion, NULL);
   /* Add DTB as busy. */
   AddRamRegion ((UINT64) dtbptr,
-		 PAGE_ROUND (fdt32_to_cpu (pFdtH->totalsize)), true, NULL);
+		 PAGE_ROUND (fdt32_to_cpu (FdtH->totalsize)), true, NULL);
   printf ("\n");
 
   gpElfKernelPayload = payload_get (0, &gElfKernelPayloadSize);
@@ -495,7 +495,7 @@ MdEntry (
   IN vaddr_t  Entry
   )
 {
-  VOID *pTrampRoot;
+  VOID *TrampRoot;
   unsigned long TrampSatp, Satp;
   extern char trampoline_start asm ("__rv64_tstart");
   extern char trampoline_end asm ("__rv64_tend");
@@ -505,17 +505,17 @@ MdEntry (
   printf ("Entry called.\n");
 
   /* Setup trampoline. */
-  pTrampRoot = (VOID *) GetPage ();
+  TrampRoot = (VOID *) GetPage ();
   /* Map trampoline page */
-  sv48_directmap (pTrampRoot, (uintptr_t) & trampoline_start,
+  sv48_directmap (TrampRoot, (uintptr_t) & trampoline_start,
 		  (uintptr_t) & trampoline_start,
 		  (uintptr_t) (&trampoline_end - &trampoline_start),
 		  MEMTYPE_WB, 0, 1);
   /* Map start page */
-  sv48_directmap (pTrampRoot, sv48_getphys (Entry), Entry, 4096, MEMTYPE_WB,
+  sv48_directmap (TrampRoot, sv48_getphys (Entry), Entry, 4096, MEMTYPE_WB,
 		  0, 1);
 
-  TrampSatp = 0x9L << 60 | (uintptr_t) pTrampRoot >> PAGE_SHIFT;
+  TrampSatp = 0x9L << 60 | (uintptr_t) TrampRoot >> PAGE_SHIFT;
   Satp = 0x9L << 60 | Pt >> PAGE_SHIFT;
 
   asm volatile

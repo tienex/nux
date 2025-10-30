@@ -64,14 +64,14 @@ struct hal_cpu *pcpu_haldata[HAL_MAXCPUS];
 /**
   Print a string during early boot.
 
-  @param[in] pStr  String to print.
+  @param[in] Str  String to print.
 **/
 static VOID
 EarlyPrint (
-  IN CONST CHAR8  *pStr
+  IN CONST CHAR8  *Str
   )
 {
-  CHAR8 *ptr = (CHAR8 *) pStr;
+  CHAR8 *ptr = (CHAR8 *) Str;
 
   while (*ptr != '\0')
     hal_putchar (*ptr++);
@@ -279,11 +279,11 @@ hal_physmem_region (
 
 VOID *
 hal_physmem_stree (
-  OUT UINT32  *pOrder OPTIONAL
+  OUT UINT32  *Order OPTIONAL
   )
 {
-  if (pOrder)
-    *pOrder = hal_stree_order;
+  if (Order)
+    *Order = hal_stree_order;
   return hal_stree_ptr;
 }
 
@@ -398,14 +398,14 @@ hal_pcpu_init (
 VOID
 hal_pcpu_add (
   IN UINT32           pcpuid,
-  IN struct hal_cpu   *pHalData
+  IN struct hal_cpu   *HalData
   )
 {
   extern int _bsp_stacktop[];
   assert (pcpuid < HAL_MAXCPUS);
 
-  pHalData->kernsp = (uintptr_t) _bsp_stacktop;
-  pcpu_haldata[pcpuid] = pHalData;
+  HalData->kernsp = (uintptr_t) _bsp_stacktop;
+  pcpu_haldata[pcpuid] = HalData;
 }
 
 VOID
@@ -436,10 +436,10 @@ hal_pcpu_startaddr (
 
 VOID
 hal_cpu_setdata (
-  IN VOID  *pData
+  IN VOID  *Data
   )
 {
-  ((struct hal_cpu *) __builtin_thread_pointer ())->data = pData;
+  ((struct hal_cpu *) __builtin_thread_pointer ())->data = Data;
 }
 
 VOID *
@@ -461,8 +461,8 @@ hal_init_done (
 __dead VOID
 hal_panic (
   IN UINT32            cpu,
-  IN CONST CHAR8       *pError,
-  IN struct hal_frame  *pFrame
+  IN CONST CHAR8       *Error,
+  IN struct hal_frame  *Frame
   )
 {
   if (use_fb)
@@ -477,10 +477,10 @@ hal_panic (
   printf ("\n"
 	  "----------------------------------------"
 	  "---------------------------------------\n"
-	  "Fatal error on CPU%d: %s\n", cpu, pError);
-  if (pFrame != NULL)
+	  "Fatal error on CPU%d: %s\n", cpu, Error);
+  if (Frame != NULL)
     {
-      hal_frame_print (pFrame);
+      hal_frame_print (Frame);
     }
   printf ("----------------------------------------"
 	  "---------------------------------------\n");
@@ -500,13 +500,13 @@ hal_vect_max (
 /**
   Handle page fault exception.
 
-  @param[in] pFrame  Exception frame.
+  @param[in] Frame  Exception frame.
 
   @return Modified frame pointer.
 **/
 struct hal_frame *
 DoPageFault (
-  IN struct hal_frame  *pFrame
+  IN struct hal_frame  *Frame
   )
 {
   hal_l1p_t l1p;
@@ -514,16 +514,16 @@ DoPageFault (
 
   /* In RISCV, we have to manually create the reasons for page fault. */
 
-  if (hal_frame_isuser (pFrame))
+  if (hal_frame_isuser (Frame))
     pfinfo |= HAL_PF_INFO_USER;
 
-  if (pFrame->scause == SCAUSE_SPF)
+  if (Frame->scause == SCAUSE_SPF)
     pfinfo |= HAL_PF_INFO_WRITE;
 
-  if (pFrame->scause == SCAUSE_IPF)
+  if (Frame->scause == SCAUSE_IPF)
     pfinfo |= HAL_PF_INFO_EXE;
 
-  l1p = cpumap_get_l1p (pFrame->stval, false);
+  l1p = cpumap_get_l1p (Frame->stval, false);
   if (l1p == L1P_INVALID)
     pfinfo |= HAL_PF_REASON_NOTP;
   else
@@ -535,19 +535,19 @@ DoPageFault (
 	pfinfo |= HAL_PF_REASON_NOTP;
     }
 
-  return hal_entry_pf (pFrame, pFrame->stval, pfinfo);
+  return hal_entry_pf (Frame, Frame->stval, pfinfo);
 }
 
 /**
   Main HAL entry point for exceptions and interrupts.
 
-  @param[in] pFrame  Exception/interrupt frame.
+  @param[in] Frame  Exception/interrupt frame.
 
   @return Modified frame pointer.
 **/
 struct hal_frame *
 _hal_entry (
-  IN struct hal_frame  *pFrame
+  IN struct hal_frame  *Frame
   )
 {
   struct hal_frame *r;
@@ -560,7 +560,7 @@ _hal_entry (
      interrupts.
      Note: SI is the only interrupt enabled in kernel, for NMI emulation.
    */
-  if (pFrame->scause == SCAUSE_SSI)
+  if (Frame->scause == SCAUSE_SSI)
     riscv_sip_siclear ();
 
   /*
@@ -569,27 +569,27 @@ _hal_entry (
   riscv_sie_kernel ();
   riscv_sstatus_sti ();
 
-  if (pFrame->scause & SCAUSE_INTR)
-    r = plt_interrupt (pFrame->scause & ~SCAUSE_INTR, pFrame);
+  if (Frame->scause & SCAUSE_INTR)
+    r = plt_interrupt (Frame->scause & ~SCAUSE_INTR, Frame);
   else
     {
-      switch (pFrame->scause)
+      switch (Frame->scause)
 	{
 	case SCAUSE_SYSC:
-	  pFrame->pc += 4;
+	  Frame->pc += 4;
 	  r =
-	    hal_entry_syscall (pFrame, pFrame->a0, pFrame->a1, pFrame->a2, pFrame->a3, pFrame->a4, pFrame->a5,
-			       pFrame->a6);
+	    hal_entry_syscall (Frame, Frame->a0, Frame->a1, Frame->a2, Frame->a3, Frame->a4, Frame->a5,
+			       Frame->a6);
 	  break;
 
 	case SCAUSE_IPF:
 	case SCAUSE_LPF:
 	case SCAUSE_SPF:
-	  r = DoPageFault (pFrame);
+	  r = DoPageFault (Frame);
 	  break;
 
 	default:
-	  r = hal_entry_xcpt (pFrame, pFrame->scause);
+	  r = hal_entry_xcpt (Frame, Frame->scause);
 	  break;
 	}
     }

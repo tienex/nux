@@ -337,44 +337,44 @@ ___mkptr (
   IN uintptr_t  Opq
   )
 {
-  struct kmem_head *pPtr;
-  struct kmem_tail *pTail;
+  struct kmem_head *Ptr;
+  struct kmem_tail *Tail;
   vaddr_t Addr = z_to_v (Zaddr);
 
-  pPtr = (struct kmem_head *) Addr;
-  pPtr->magic = ZONE_HEAD_MAGIC;
-  pPtr->addr = Zaddr;
-  pPtr->size = Size;
+  Ptr = (struct kmem_head *) Addr;
+  Ptr->magic = ZONE_HEAD_MAGIC;
+  Ptr->addr = Zaddr;
+  Ptr->size = Size;
 
-  pTail =
-    (struct kmem_tail *) ((VOID *) pPtr + Size - sizeof (struct kmem_tail));
-  pTail->magic = ZONE_TAIL_MAGIC;
-  pTail->offset = Size - sizeof (struct kmem_tail);
+  Tail =
+    (struct kmem_tail *) ((VOID *) Ptr + Size - sizeof (struct kmem_tail));
+  Tail->magic = ZONE_TAIL_MAGIC;
+  Tail->offset = Size - sizeof (struct kmem_tail);
 
   /* XXX: UNPAGE FREE PAGES IN THE MIDDLE. */
 
-  return pPtr;
+  return Ptr;
 }
 
 /**
   Free allocation header and tail.
 
-  @param[in] pPtr  Pointer to allocation header.
+  @param[in] Ptr  Pointer to allocation header.
   @param[in] Opq   Opaque value (unused).
 **/
 static VOID
 ___freeptr (
-  IN struct kmem_head  *pPtr,
+  IN struct kmem_head  *Ptr,
   IN uintptr_t         Opq
   )
 {
-  struct kmem_tail *pTail;
+  struct kmem_tail *Tail;
 
-  pTail =
-    (struct kmem_tail *) ((VOID *) pPtr + pPtr->size -
+  Tail =
+    (struct kmem_tail *) ((VOID *) Ptr + Ptr->size -
                           sizeof (struct kmem_tail));
-  memset (pPtr, 0, sizeof (*pPtr));
-  memset (pTail, 0, sizeof (*pTail));
+  memset (Ptr, 0, sizeof (*Ptr));
+  memset (Tail, 0, sizeof (*Tail));
 
   /* XXX: ENSURE SECTION IS POPULATED. */
 }
@@ -384,16 +384,16 @@ ___freeptr (
 
   @param[in]  Zaddr  Zone address.
   @param[in]  Size   Allocation size.
-  @param[out] pPh    Pointer to receive previous allocation header.
-  @param[out] pNh    Pointer to receive next allocation header.
+  @param[out] Ph    Pointer to receive previous allocation header.
+  @param[out] Nh    Pointer to receive next allocation header.
   @param[in]  Opq    Opaque value (Low flag).
 **/
 static VOID
 ___get_neighbors (
   IN  zaddr_t           Zaddr,
   IN  size_t            Size,
-  OUT struct kmem_head  **pPh,
-  OUT struct kmem_head  **pNh,
+  OUT struct kmem_head  **Ph,
+  OUT struct kmem_head  **Nh,
   IN  uintptr_t         Opq
   )
 {
@@ -401,8 +401,8 @@ ___get_neighbors (
   vaddr_t Vaddr;
   vaddr_t Ptail;
   vaddr_t Nhead;
-  struct kmem_head *pH;
-  struct kmem_tail *pT;
+  struct kmem_head *H;
+  struct kmem_tail *T;
 
   Vaddr = z_to_v (Zaddr);
   Ptail = Vaddr - sizeof (struct kmem_tail);
@@ -428,41 +428,41 @@ ___get_neighbors (
   if (Ptail == VADDR_INVALID)
     goto check_next;
 
-  pT = (struct kmem_tail *) Ptail;
+  T = (struct kmem_tail *) Ptail;
 #ifdef HAL_PAGED
-  if (!kmap_mapped_range ((vaddr_t) pT, sizeof (struct kmem_tail)))
+  if (!kmap_mapped_range ((vaddr_t) T, sizeof (struct kmem_tail)))
     goto check_next;
 #endif
 
-  if (pT->magic != ZONE_TAIL_MAGIC)
+  if (T->magic != ZONE_TAIL_MAGIC)
     goto check_next;
 
-  pH = (struct kmem_head *) (Ptail - pT->offset);
+  H = (struct kmem_head *) (Ptail - T->offset);
 #ifdef HAL_PAGED
-  if (!kmap_mapped_range ((vaddr_t) pH, sizeof (struct kmem_head)))
+  if (!kmap_mapped_range ((vaddr_t) H, sizeof (struct kmem_head)))
     goto check_next;
 #endif
 
-  if (pH->magic != ZONE_HEAD_MAGIC)
+  if (H->magic != ZONE_HEAD_MAGIC)
     goto check_next;
 
-  *pPh = pH;
+  *Ph = H;
 
 check_next:
 
   if (Nhead == VADDR_INVALID)
     return;
 
-  pH = (struct kmem_head *) Nhead;
+  H = (struct kmem_head *) Nhead;
 #ifdef HAL_PAGED
-  if (!kmap_mapped_range ((vaddr_t) pH, sizeof (struct kmem_head)))
+  if (!kmap_mapped_range ((vaddr_t) H, sizeof (struct kmem_head)))
     return;
 #endif
 
-  if (pH->magic != ZONE_HEAD_MAGIC)
+  if (H->magic != ZONE_HEAD_MAGIC)
     return;
 
-  *pNh = pH;
+  *Nh = H;
 }
 
 #include <nux/alloc.h>
@@ -488,18 +488,18 @@ KmemAllocate (
 {
   zaddr_t Zr;
   vaddr_t R;
-  lock_t *pL;
-  struct zone *pZ;
+  lock_t *L;
+  struct zone *Z;
   size_t Size64b;
 
   Size64b = size_zalign (Size);
 
-  pZ = Low ? gKmemZ + LO : gKmemZ + HI;
-  pL = Low ? gLockZ + LO : gLockZ + HI;
+  Z = Low ? gKmemZ + LO : gKmemZ + HI;
+  L = Low ? gLockZ + LO : gLockZ + HI;
 
-  spinlock (pL);
-  Zr = zone_alloc (pZ, zsize (Size64b));
-  spinunlock (pL);
+  spinlock (L);
+  Zr = zone_alloc (Z, zsize (Size64b));
+  spinunlock (L);
   if (Zr != (zaddr_t) - 1)
     return z_to_v (Zr);
 
@@ -526,8 +526,8 @@ KmemFree (
   UINT32 This;
   vaddr_t Base;
   vaddr_t Limit;
-  struct zone *pZ;
-  lock_t *pL;
+  struct zone *Z;
+  lock_t *L;
   size_t Size64b;
 
   Size64b = size_zalign (Size);
@@ -566,11 +566,11 @@ KmemFree (
   /*
      Free using allocator.
    */
-  pZ = gKmemZ + This;
-  pL = gLockZ + This;
-  spinlock (pL);
-  zone_free (pZ, v_to_z (Vaddr), zsize (Size64b));
-  spinunlock (pL);
+  Z = gKmemZ + This;
+  L = gLockZ + This;
+  spinlock (L);
+  zone_free (Z, v_to_z (Vaddr), zsize (Size64b));
+  spinunlock (L);
 
 out:
   return;

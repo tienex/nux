@@ -110,15 +110,15 @@ GetCpuMapL4Ptr (
   Release L4 page table entry pointer.
 
   @param[in] Va   Virtual address (unused).
-  @param[in] pPte Pointer to L4 page table entry.
+  @param[in] Pte Pointer to L4 page table entry.
 **/
 static VOID
 PutCpuMapL4Ptr (
   IN UINTN  Va,
-  IN PTE    *pPte
+  IN PTE    *Pte
   )
 {
-  pfn_put (GetCpuMapL4Pfn (), pPte);
+  pfn_put (GetCpuMapL4Pfn (), Pte);
 }
 
 
@@ -343,7 +343,7 @@ cpumap_get_l1p (
 /**
   Get L1 page table pointer for user map virtual address.
 
-  @param[in] pUmap  User address space map.
+  @param[in] Umap  User address space map.
   @param[in] Va     Virtual address.
   @param[in] Alloc  TRUE to allocate missing tables.
 
@@ -351,7 +351,7 @@ cpumap_get_l1p (
 **/
 hal_l1p_t
 UmapGetL1p (
-  IN struct hal_umap  *pUmap,
+  IN struct hal_umap  *Umap,
   IN UINTN            Va,
   IN BOOLEAN          Alloc
   )
@@ -360,15 +360,15 @@ UmapGetL1p (
   PTEP L1p;
 
   assert (L4OFF (Va) < UMAP_L4PTES);
-  if (pUmap == NULL)
+  if (Umap == NULL)
     pL4Ptr = GetCpuMapL4Ptr (Va);
   else
-    pL4Ptr = pUmap->l4 + L4OFF (Va);
+    pL4Ptr = Umap->l4 + L4OFF (Va);
 
 
   L1p = WalkL1p (pL4Ptr, Va, Alloc);
 
-  if (pUmap == NULL)
+  if (Umap == NULL)
     PutCpuMapL4Ptr (Va, pL4Ptr);
 
   return L1p;
@@ -511,7 +511,7 @@ ScanL3 (
 /**
   Scan L4 page table for next mapped entry.
 
-  @param[in]  pUmap     User address space map.
+  @param[in]  Umap     User address space map.
   @param[in]  Off       Starting offset.
   @param[out] pL4Off    Pointer to receive L4 offset.
   @param[out] pL3Off    Pointer to receive L3 offset.
@@ -525,7 +525,7 @@ ScanL3 (
 **/
 static BOOLEAN
 ScanL4 (
-  IN  struct hal_umap  *pUmap,
+  IN  struct hal_umap  *Umap,
   IN  UINT32           Off,
   OUT UINT32           *pL4Off,
   OUT UINT32           *pL3Off,
@@ -539,10 +539,10 @@ ScanL4 (
   PFN L3Pfn;
   for (UINT32 i = Off; i < UMAP_L4PTES; i++)
     {
-      if (pUmap == NULL)
+      if (Umap == NULL)
 	L4e = *GetCpuMapL4Off (Off);
       else
-	L4e = pUmap->l4[Off];
+	L4e = Umap->l4[Off];
       if (pte_valid_table (L4e))
 	{
 	  L3Pfn = pte_pfn (L4e);
@@ -560,7 +560,7 @@ ScanL4 (
 /**
   Get next mapped user address and page table information.
 
-  @param[in]  pUmap  User address space map.
+  @param[in]  Umap  User address space map.
   @param[in]  Uaddr  Starting user address.
   @param[out] pL1p   Pointer to receive L1 page table pointer.
   @param[out] pL1e   Pointer to receive L1 page table entry.
@@ -569,7 +569,7 @@ ScanL4 (
 **/
 uaddr_t
 PtUmapNext (
-  IN  struct hal_umap  *pUmap,
+  IN  struct hal_umap  *Umap,
   IN  uaddr_t          Uaddr,
   OUT hal_l1p_t        *pL1p OPTIONAL,
   OUT hal_l1e_t        *pL1e OPTIONAL
@@ -588,10 +588,10 @@ PtUmapNext (
   ret = UADDR_INVALID;
 
   assert (L4OFF (Uaddr) < UMAP_L4PTES);
-  if (pUmap == NULL)
+  if (Umap == NULL)
     pL4Ptr = GetCpuMapL4Ptr (Uaddr);
   else
-    pL4Ptr = pUmap->l4 + L4OFF (Uaddr);
+    pL4Ptr = Umap->l4 + L4OFF (Uaddr);
 
   /* Check till end of current l1. */
   L1Pfn = WalkL1Pfn (pL4Ptr, Uaddr, FALSE);
@@ -623,14 +623,14 @@ PtUmapNext (
 
   /* Scan L4 until end of UMAP area. */
   if (ScanL4
-      (pUmap, L4off + 1, &L4next, &L3next, &L2next, &L1next, pL1p, pL1e))
+      (Umap, L4off + 1, &L4next, &L3next, &L2next, &L1next, pL1p, pL1e))
     {
       ret = MakeAddress (L4next, L3next, L2next, L1next);
       goto _next_exit;
     }
 
 _next_exit:
-  if (pUmap == NULL)
+  if (Umap == NULL)
     PutCpuMapL4Ptr (Uaddr, pL4Ptr);
   return ret;
 }
@@ -638,11 +638,11 @@ _next_exit:
 /**
   Free all page tables in user address space.
 
-  @param[in] pUmap  User address space map to free.
+  @param[in] Umap  User address space map to free.
 **/
 VOID
 PtUmapFree (
-  IN struct hal_umap  *pUmap
+  IN struct hal_umap  *Umap
   )
 {
   PTE L4e;
@@ -654,7 +654,7 @@ PtUmapFree (
 
   for (UINT32 i = 0; i < UMAP_L4PTES; i++)
     {
-      L4e = pUmap->l4[i];
+      L4e = Umap->l4[i];
       assert (!pte_valid_leaf (L4e));
       if (pte_valid_table (L4e))
 	{
@@ -688,7 +688,7 @@ PtUmapFree (
 	  pfn_put (L3Pfn, pL3Ptr);
 	  pfn_free (L3Pfn);
 	}
-      pUmap->l4[i] = PTE_INVALID;
+      Umap->l4[i] = PTE_INVALID;
     }
 }
 
@@ -721,27 +721,27 @@ PtUmapMaxAddr (
 /**
   Initialize user address space map.
 
-  @param[in] pUmap  User address space map to initialize.
+  @param[in] Umap  User address space map to initialize.
 **/
 VOID
 hal_umap_init (
-  IN struct hal_umap  *pUmap
+  IN struct hal_umap  *Umap
   )
 {
   for (INT32 i = 0; i < UMAP_L4PTES; i++)
     {
-      pUmap->l4[i] = alloc_table ();
+      Umap->l4[i] = alloc_table ();
     }
 }
 
 /**
   Bootstrap user address space from current mappings.
 
-  @param[in] pUmap  User address space map to bootstrap.
+  @param[in] Umap  User address space map to bootstrap.
 **/
 VOID
 hal_umap_bootstrap (
-  IN struct hal_umap  *pUmap
+  IN struct hal_umap  *Umap
   )
 {
   vaddr_t Va = hal_virtmem_userbase ();
@@ -765,7 +765,7 @@ hal_umap_bootstrap (
 	  riscv_invlpg (Va, TRUE);
 	}
       PutCpuMapL4Ptr (Va, pL4Ptr);
-      pUmap->l4[i] = L4e;
+      Umap->l4[i] = L4e;
     }
 
   /* Panic if the boot user mapping doesn't fit in a UMAP. */
@@ -783,13 +783,13 @@ hal_umap_bootstrap (
 /**
   Load user address space into CPU.
 
-  @param[in] pUmap  User address space map to load (NULL for kernel-only).
+  @param[in] Umap  User address space map to load (NULL for kernel-only).
 
   @return Required TLB operation.
 **/
 hal_tlbop_t
 hal_umap_load (
-  IN struct hal_umap  *pUmap OPTIONAL
+  IN struct hal_umap  *Umap OPTIONAL
   )
 {
   vaddr_t Va = hal_virtmem_userbase ();
@@ -800,8 +800,8 @@ hal_umap_load (
     {
       PTE *pL4Ptr, OldL4e, NewL4e;
 
-      if (pUmap != NULL)
-	NewL4e = pUmap->l4[i];
+      if (Umap != NULL)
+	NewL4e = Umap->l4[i];
       else
 	NewL4e = 0;
 

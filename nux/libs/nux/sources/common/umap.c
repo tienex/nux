@@ -21,44 +21,44 @@
   Internal helper to modify a user page table entry with optional
   page table allocation. Updates TLB operation flags atomically.
 
-  @param[in]  pUmap  User address space map.
+  @param[in]  Umap  User address space map.
   @param[in]  Va     Virtual address to modify.
   @param[in]  L1e    New L1 page table entry value.
   @param[in]  Alloc  TRUE to allocate page tables if needed.
-  @param[out] pOldPfn Optional pointer to receive previous PFN.
+  @param[out] OldPfn Optional pointer to receive previous PFN.
 
   @retval TRUE   Page table entry was successfully set.
   @retval FALSE  Failed to get page table pointer (no allocation).
 **/
 static BOOLEAN
 UmapSetL1e (
-  IN  struct umap  *pUmap,
+  IN  struct umap  *Umap,
   IN  vaddr_t      Va,
   IN  hal_l1e_t    L1e,
   IN  BOOLEAN      Alloc,
-  OUT pfn_t        *pOldPfn OPTIONAL
+  OUT pfn_t        *OldPfn OPTIONAL
   )
 {
   hal_l1p_t L1p;
   hal_l1e_t OldL1e;
   pfn_t OldPfn;
   UINT32 OldProt;
-  struct hal_umap *pHal;
+  struct hal_umap *Hal;
 
-  pHal = (pUmap == CpuGetCurrentUserMap ()) ? NULL : &pUmap->hal;
-  if (!hal_umap_getl1p (pHal, Va, Alloc, &L1p))
+  Hal = (Umap == CpuGetCurrentUserMap ()) ? NULL : &Umap->hal;
+  if (!hal_umap_getl1p (Hal, Va, Alloc, &L1p))
     {
-      if (pOldPfn)
-	*pOldPfn = PFN_INVALID;
+      if (OldPfn)
+	*OldPfn = PFN_INVALID;
       return FALSE;
     }
   OldL1e = hal_l1e_set (L1p, L1e);
-  __atomic_or_fetch (&pUmap->tlbop, hal_l1e_tlbop (OldL1e, L1e),
+  __atomic_or_fetch (&Umap->tlbop, hal_l1e_tlbop (OldL1e, L1e),
 		     __ATOMIC_RELEASE);
 
   hal_l1e_unbox (OldL1e, &OldPfn, &OldProt);
-  if (pOldPfn != NULL)
-    *pOldPfn = OldProt & HAL_PTE_P ? OldPfn : PFN_INVALID;
+  if (OldPfn != NULL)
+    *OldPfn = OldProt & HAL_PTE_P ? OldPfn : PFN_INVALID;
 
   return TRUE;
 }
@@ -70,7 +70,7 @@ UmapSetL1e (
   and clearing specified flag bits. Does not flush TLB - call
   UmapCommit() to synchronize.
 
-  @param[in] pUmap    User address space map.
+  @param[in] Umap    User address space map.
   @param[in] Va       Virtual address to modify.
   @param[in] ProtSet  Protection flags to set (HAL_PTE_*).
   @param[in] ProtClr  Protection flags to clear (HAL_PTE_*).
@@ -79,7 +79,7 @@ UmapSetL1e (
 **/
 UINT32
 UmapChangeFlags (
-  IN struct umap  *pUmap,
+  IN struct umap  *Umap,
   IN vaddr_t      Va,
   IN UINT32       ProtSet,
   IN UINT32       ProtClr
@@ -90,7 +90,7 @@ UmapChangeFlags (
   pfn_t Pfn;
   UINT32 OldFlags, Flags;
 
-  if (!hal_umap_getl1p (&pUmap->hal, Va, FALSE, &L1p))
+  if (!hal_umap_getl1p (&Umap->hal, Va, FALSE, &L1p))
     return 0;
 
   L1e = hal_l1e_get (L1p);
@@ -99,7 +99,7 @@ UmapChangeFlags (
   Flags &= ~ProtClr;
   L1e = hal_l1e_box (Pfn, Flags);
   OldL1e = hal_l1e_set (L1p, L1e);
-  __atomic_or_fetch (&pUmap->tlbop, hal_l1e_tlbop (OldL1e, L1e),
+  __atomic_or_fetch (&Umap->tlbop, hal_l1e_tlbop (OldL1e, L1e),
 		     __ATOMIC_RELEASE);
   return OldFlags;
 }
@@ -110,28 +110,28 @@ UmapChangeFlags (
   Creates or updates a user mapping. Allocates page tables as needed.
   Does not flush TLB - call UmapCommit() to synchronize.
 
-  @param[in]  pUmap   User address space map.
+  @param[in]  Umap   User address space map.
   @param[in]  Va      Virtual address to map.
   @param[in]  Pfn     Page frame number to map.
   @param[in]  Prot    Protection flags (HAL_PTE_*).
-  @param[out] pOldPfn Optional pointer to receive previous PFN.
+  @param[out] OldPfn Optional pointer to receive previous PFN.
 
   @retval TRUE   Mapping created successfully.
   @retval FALSE  Failed to allocate page tables.
 **/
 BOOLEAN
 UmapMap (
-  IN  struct umap  *pUmap,
+  IN  struct umap  *Umap,
   IN  vaddr_t      Va,
   IN  pfn_t        Pfn,
   IN  UINT32       Prot,
-  OUT pfn_t        *pOldPfn OPTIONAL
+  OUT pfn_t        *OldPfn OPTIONAL
   )
 {
   hal_l1e_t L1e;
 
   L1e = hal_l1e_box (Pfn, Prot);
-  return UmapSetL1e (pUmap, Va, L1e, TRUE, pOldPfn);
+  return UmapSetL1e (Umap, Va, L1e, TRUE, OldPfn);
 }
 
 /**
@@ -140,14 +140,14 @@ UmapMap (
   Removes mapping for specified virtual address. Does not flush TLB -
   call UmapCommit() to synchronize.
 
-  @param[in] pUmap  User address space map.
+  @param[in] Umap  User address space map.
   @param[in] Va     Virtual address to unmap.
 
   @return Previous PFN if page was present, or PFN_INVALID if not mapped.
 **/
 pfn_t
 UmapUnmap (
-  IN struct umap  *pUmap,
+  IN struct umap  *Umap,
   IN vaddr_t      Va
   )
 {
@@ -156,14 +156,14 @@ UmapUnmap (
   pfn_t OldPfn;
   UINT32 OldProt;
 
-  if (!hal_umap_getl1p (&pUmap->hal, Va, FALSE, &L1p))
+  if (!hal_umap_getl1p (&Umap->hal, Va, FALSE, &L1p))
     {
       return PFN_INVALID;
     }
 
   L1e = hal_l1e_box (PFN_INVALID, 0);
   OldL1e = hal_l1e_set (L1p, L1e);
-  __atomic_or_fetch (&pUmap->tlbop, hal_l1e_tlbop (OldL1e, L1e),
+  __atomic_or_fetch (&Umap->tlbop, hal_l1e_tlbop (OldL1e, L1e),
 		     __ATOMIC_RELEASE);
 
   hal_l1e_unbox (OldL1e, &OldPfn, &OldProt);
@@ -177,15 +177,15 @@ UmapUnmap (
   ensuring mapping changes are visible. Clears pending TLB
   operation flags.
 
-  @param[in] pUmap  User address space map.
+  @param[in] Umap  User address space map.
 **/
 VOID
 UmapCommit (
-  IN struct umap  *pUmap
+  IN struct umap  *Umap
   )
 {
-  __atomic_clear (&pUmap->tlbop, __ATOMIC_RELEASE);
-  CpuTlbFlushMask (pUmap->cpumask);
+  __atomic_clear (&Umap->tlbop, __ATOMIC_RELEASE);
+  CpuTlbFlushMask (Umap->cpumask);
 }
 
 /**
@@ -194,16 +194,16 @@ UmapCommit (
   Initializes a minimal user map for early boot using HAL
   bootstrap functionality.
 
-  @param[in] pUmap  User address space map to bootstrap.
+  @param[in] Umap  User address space map to bootstrap.
 **/
 VOID
 UmapBootstrap (
-  IN struct umap  *pUmap
+  IN struct umap  *Umap
   )
 {
-  pUmap->tlbop = 0;
-  pUmap->cpumask = 0;
-  hal_umap_bootstrap (&pUmap->hal);
+  Umap->tlbop = 0;
+  Umap->cpumask = 0;
+  hal_umap_bootstrap (&Umap->hal);
 }
 
 /**
@@ -212,15 +212,15 @@ UmapBootstrap (
   Releases all page tables associated with user address space.
   Caller must ensure no CPUs are using this map (cpumask == 0).
 
-  @param[in] pUmap  User address space map to free.
+  @param[in] Umap  User address space map to free.
 **/
 VOID
 UmapFree (
-  IN struct umap  *pUmap
+  IN struct umap  *Umap
   )
 {
-  assert (pUmap->cpumask == 0);
-  hal_umap_free (&pUmap->hal);
+  assert (Umap->cpumask == 0);
+  hal_umap_free (&Umap->hal);
 }
 
 /**
@@ -228,16 +228,16 @@ UmapFree (
 
   Creates a new user address space map with clean state.
 
-  @param[in] pUmap  User address space map to initialize.
+  @param[in] Umap  User address space map to initialize.
 **/
 VOID
 UmapInitialize (
-  IN struct umap  *pUmap
+  IN struct umap  *Umap
   )
 {
-  pUmap->tlbop = 0;
-  pUmap->cpumask = 0;
-  hal_umap_init (&pUmap->hal);
+  Umap->tlbop = 0;
+  Umap->cpumask = 0;
+  hal_umap_init (&Umap->hal);
 }
 
 //

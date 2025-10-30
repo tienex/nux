@@ -31,9 +31,9 @@ FramebufferPutCharXY (
   IN UINT8   Char
   )
 {
-  VOID *pData = fontdata + Char * 16;
+  VOID *Data = fontdata + Char * 16;
 
-  FramebufferBlt (X, Y, Color, pData, 8, 16);
+  FramebufferBlt (X, Y, Color, Data, 8, 16);
 }
 
 //

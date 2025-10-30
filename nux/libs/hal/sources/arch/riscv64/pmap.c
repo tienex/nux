@@ -50,7 +50,7 @@ HalKmapGetL1p (
 /**
   Get L1 page table pointer for user virtual address.
 
-  @param[in]  pUmap   User address space map.
+  @param[in]  Umap   User address space map.
   @param[in]  Uaddr   User virtual address.
   @param[in]  Alloc   TRUE to allocate page tables if needed.
   @param[out] pL1p    Pointer to receive L1 page table pointer.
@@ -60,7 +60,7 @@ HalKmapGetL1p (
 **/
 BOOLEAN
 HalUmapGetL1p (
-  IN  struct hal_umap  *pUmap,
+  IN  struct hal_umap  *Umap,
   IN  UINTN            Uaddr,
   IN  BOOLEAN          Alloc,
   OUT hal_l1p_t        *pL1p OPTIONAL
@@ -75,7 +75,7 @@ HalUmapGetL1p (
       return FALSE;
     }
 
-  l1p = UmapGetL1p (pUmap, Uaddr, Alloc);
+  l1p = UmapGetL1p (Umap, Uaddr, Alloc);
   if (pL1p != NULL)
     *pL1p = l1p;
 
@@ -162,14 +162,14 @@ HalL1eBox (
   Extract PFN and protection flags from L1 page table entry.
 
   @param[in]  L1e    L1 page table entry.
-  @param[out] pPfn   Pointer to receive page frame number.
-  @param[out] pProt  Pointer to receive protection flags.
+  @param[out] Pfn   Pointer to receive page frame number.
+  @param[out] Prot  Pointer to receive protection flags.
 **/
 VOID
 HalL1eUnbox (
   IN  hal_l1e_t  L1e,
-  OUT UINTN      *pPfn OPTIONAL,
-  OUT UINT32     *pProt OPTIONAL
+  OUT UINTN      *Pfn OPTIONAL,
+  OUT UINT32     *Prot OPTIONAL
   )
 {
   UINT32 Prot = 0;
@@ -196,10 +196,10 @@ HalL1eUnbox (
 	Prot |= HAL_PTE_AVL1;
     }
 
-  if (pPfn)
-    *pPfn = pte_pfn (L1e);
-  if (pProt)
-    *pProt = Prot;
+  if (Pfn)
+    *Pfn = pte_pfn (L1e);
+  if (Prot)
+    *Prot = Prot;
 }
 
 /**
@@ -223,7 +223,7 @@ HalL1eTlbOp (
 /**
   Get next mapped user address and page table information.
 
-  @param[in]  pUmap  User address space map.
+  @param[in]  Umap  User address space map.
   @param[in]  Uaddr  Starting user address.
   @param[out] pL1p   Pointer to receive L1 page table pointer.
   @param[out] pL1e   Pointer to receive L1 page table entry.
@@ -232,7 +232,7 @@ HalL1eTlbOp (
 **/
 uaddr_t
 HalUmapNext (
-  IN  struct hal_umap  *pUmap,
+  IN  struct hal_umap  *Umap,
   IN  uaddr_t          Uaddr,
   OUT hal_l1p_t        *pL1p OPTIONAL,
   OUT hal_l1e_t        *pL1e OPTIONAL
@@ -241,20 +241,20 @@ HalUmapNext (
   if (Uaddr < hal_virtmem_userbase ())
     Uaddr = hal_virtmem_userbase ();
 
-  return PtUmapNext (pUmap, Uaddr, pL1p, pL1e);
+  return PtUmapNext (Umap, Uaddr, pL1p, pL1e);
 }
 
 /**
   Free user address space page tables.
 
-  @param[in] pUmap  User address space map to free.
+  @param[in] Umap  User address space map to free.
 **/
 VOID
 HalUmapFree (
-  IN struct hal_umap  *pUmap
+  IN struct hal_umap  *Umap
   )
 {
-  return PtUmapFree (pUmap);
+  return PtUmapFree (Umap);
 }
 
 //

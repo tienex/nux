@@ -187,7 +187,7 @@ Pae64Initialize (
 
   Creates a page mapping with specified permissions.
 
-  @param[in] pPt      Page table root.
+  @param[in] Pt      Page table root.
   @param[in] Va       Virtual address.
   @param[in] Pa       Physical address.
   @param[in] Payload  TRUE to allocate from payload pages.
@@ -196,7 +196,7 @@ Pae64Initialize (
 **/
 VOID
 Pae64MapPage (
-  IN VOID      *pPt,
+  IN VOID      *Pt,
   IN vaddr_t   Va,
   IN uintptr_t Pa,
   IN int       Payload,
@@ -208,7 +208,7 @@ Pae64MapPage (
   UINT64 L1F;
   uintptr_t Page;
 
-  pCr3 = (pte_t *) pPt;
+  pCr3 = (pte_t *) Pt;
 
   printf ("Mapping at va %llx PA %lx (p:%d, w:%d, x:%d)\n", Va, Pa, Payload,
 	  W, X);
@@ -325,7 +325,7 @@ Pae64GetPhys (
   and permissions. Uses 1GB, 2MB, or 4KB pages depending on
   alignment and size.
 
-  @param[in] pPt      Page table root.
+  @param[in] Pt      Page table root.
   @param[in] PaBase   Physical address base.
   @param[in] Va       Virtual address base.
   @param[in] Size     Size of region.
@@ -335,7 +335,7 @@ Pae64GetPhys (
 **/
 VOID
 Pae64DirectMap (
-  IN VOID              *pPt,
+  IN VOID              *Pt,
   IN UINT64            PaBase,
   IN vaddr_t           Va,
   IN size64_t          Size,
@@ -346,7 +346,7 @@ Pae64DirectMap (
 {
   ssize64_t Len;
   UINT64 Pa;
-  pte_t *pCr3 = (pte_t *) pPt;
+  pte_t *pCr3 = (pte_t *) Pt;
   int P1G = CpuSupports1gbPages ();
   unsigned long L3Cnt = 0, L2Cnt = 0, L1Cnt = 0;
 

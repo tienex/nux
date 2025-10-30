@@ -22,22 +22,22 @@
   Determines the user context type based on frame state and CPU
   idle status. Returns user frame context, idle context, or invalid.
 
-  @param[in] pFrame  HAL frame to examine.
+  @param[in] Frame  HAL frame to examine.
 
   @return User context pointer, UCTXT_IDLE if coming from idle, or
           UCTXT_INVALID if kernel-only context.
 **/
 uctxt_t *
 UctxtGet (
-  IN struct hal_frame  *pFrame
+  IN struct hal_frame  *Frame
   )
 {
   BOOLEAN WasIdle = CpuWasIdle ();
 
-  if (hal_frame_isuser (pFrame))
+  if (hal_frame_isuser (Frame))
     {
       assert (!WasIdle);
-      return (uctxt_t *) pFrame;
+      return (uctxt_t *) Frame;
     }
   else if (WasIdle)
     {
@@ -56,25 +56,25 @@ UctxtGet (
   Similar to UctxtGet() but terminates with fatal error if the
   context is invalid (kernel-only).
 
-  @param[in] pFrame  HAL frame to examine.
+  @param[in] Frame  HAL frame to examine.
 
   @return User context pointer or UCTXT_IDLE. Never returns UCTXT_INVALID.
 **/
 uctxt_t *
 UctxtGetUser (
-  IN struct hal_frame  *pFrame
+  IN struct hal_frame  *Frame
   )
 {
-  uctxt_t *pUctxt;
+  uctxt_t *Uctxt;
 
-  pUctxt = UctxtGet (pFrame);
+  Uctxt = UctxtGet (Frame);
 
-  if (pUctxt == UCTXT_INVALID)
+  if (Uctxt == UCTXT_INVALID)
     {
       fatal ("Expected User Frame.");
     }
 
-  return pUctxt;
+  return Uctxt;
 }
 
 /**
@@ -83,17 +83,17 @@ UctxtGetUser (
   Converts user context to HAL frame pointer, or NULL if context
   is invalid or idle.
 
-  @param[in] pUctxt  User context to convert.
+  @param[in] Uctxt  User context to convert.
 
   @return HAL frame pointer, or NULL if context is special.
 **/
 struct hal_frame *
 UctxtFramePointer (
-  IN uctxt_t  *pUctxt
+  IN uctxt_t  *Uctxt
   )
 {
-  if (pUctxt != UCTXT_INVALID && pUctxt != UCTXT_IDLE)
-    return (struct hal_frame *) pUctxt;
+  if (Uctxt != UCTXT_INVALID && Uctxt != UCTXT_IDLE)
+    return (struct hal_frame *) Uctxt;
 
   return NULL;
 }
@@ -104,24 +104,24 @@ UctxtFramePointer (
   Converts user context to HAL frame, entering idle state if
   context is UCTXT_IDLE. Asserts if context is invalid.
 
-  @param[in] pUctxt  User context to convert.
+  @param[in] Uctxt  User context to convert.
 
   @return HAL frame pointer. May not return if context is UCTXT_IDLE.
 **/
 struct hal_frame *
 UctxtFrame (
-  IN uctxt_t  *pUctxt
+  IN uctxt_t  *Uctxt
   )
 {
-  assert (pUctxt != UCTXT_INVALID);
+  assert (Uctxt != UCTXT_INVALID);
 
-  if (pUctxt == UCTXT_IDLE)
+  if (Uctxt == UCTXT_IDLE)
     {
       CpuIdle ();
     }
   else
     {
-      return (struct hal_frame *) pUctxt;
+      return (struct hal_frame *) Uctxt;
     }
 }
 
@@ -131,213 +131,213 @@ UctxtFrame (
   Sets up a user context with specified instruction pointer,
   stack pointer, and global pointer values.
 
-  @param[in] pUctxt  User context to initialize.
+  @param[in] Uctxt  User context to initialize.
   @param[in] Ip      Instruction pointer value.
   @param[in] Sp      Stack pointer value.
   @param[in] Gp      Global pointer value.
 **/
 VOID
 UctxtInitialize (
-  IN uctxt_t  *pUctxt,
+  IN uctxt_t  *Uctxt,
   IN vaddr_t  Ip,
   IN vaddr_t  Sp,
   IN vaddr_t  Gp
   )
 {
-  struct hal_frame *pFrame = UctxtFramePointer (pUctxt);
-  assert (pFrame);
+  struct hal_frame *Frame = UctxtFramePointer (Uctxt);
+  assert (Frame);
 
-  hal_frame_init (pFrame);
-  hal_frame_setip (pFrame, Ip);
-  hal_frame_setsp (pFrame, Sp);
-  hal_frame_setgp (pFrame, Gp);
+  hal_frame_init (Frame);
+  hal_frame_setip (Frame, Ip);
+  hal_frame_setsp (Frame, Sp);
+  hal_frame_setgp (Frame, Gp);
 }
 
 /**
   Get instruction pointer from user context.
 
-  @param[in] pUctxt  User context to query.
+  @param[in] Uctxt  User context to query.
 
   @return Instruction pointer value.
 **/
 vaddr_t
 UctxtGetIp (
-  IN uctxt_t  *pUctxt
+  IN uctxt_t  *Uctxt
   )
 {
-  struct hal_frame *pFrame = UctxtFramePointer (pUctxt);
-  assert (pFrame);
-  return hal_frame_getip (pFrame);
+  struct hal_frame *Frame = UctxtFramePointer (Uctxt);
+  assert (Frame);
+  return hal_frame_getip (Frame);
 }
 
 /**
   Set instruction pointer in user context.
 
-  @param[in] pUctxt  User context to modify.
+  @param[in] Uctxt  User context to modify.
   @param[in] Ip      New instruction pointer value.
 **/
 VOID
 UctxtSetIp (
-  IN uctxt_t  *pUctxt,
+  IN uctxt_t  *Uctxt,
   IN vaddr_t  Ip
   )
 {
-  struct hal_frame *pFrame = UctxtFramePointer (pUctxt);
-  assert (pFrame);
-  hal_frame_setip (pFrame, Ip);
+  struct hal_frame *Frame = UctxtFramePointer (Uctxt);
+  assert (Frame);
+  hal_frame_setip (Frame, Ip);
 }
 
 /**
   Get stack pointer from user context.
 
-  @param[in] pUctxt  User context to query.
+  @param[in] Uctxt  User context to query.
 
   @return Stack pointer value.
 **/
 vaddr_t
 UctxtGetSp (
-  IN uctxt_t  *pUctxt
+  IN uctxt_t  *Uctxt
   )
 {
-  struct hal_frame *pFrame = UctxtFramePointer (pUctxt);
-  assert (pFrame);
-  return hal_frame_getsp (pFrame);
+  struct hal_frame *Frame = UctxtFramePointer (Uctxt);
+  assert (Frame);
+  return hal_frame_getsp (Frame);
 }
 
 /**
   Set stack pointer in user context.
 
-  @param[in] pUctxt  User context to modify.
+  @param[in] Uctxt  User context to modify.
   @param[in] Sp      New stack pointer value.
 **/
 VOID
 UctxtSetSp (
-  IN uctxt_t  *pUctxt,
+  IN uctxt_t  *Uctxt,
   IN vaddr_t  Sp
   )
 {
-  struct hal_frame *pFrame = UctxtFramePointer (pUctxt);
-  assert (pFrame);
-  hal_frame_setsp (pFrame, Sp);
+  struct hal_frame *Frame = UctxtFramePointer (Uctxt);
+  assert (Frame);
+  hal_frame_setsp (Frame, Sp);
 }
 
 /**
   Get global pointer from user context.
 
-  @param[in] pUctxt  User context to query.
+  @param[in] Uctxt  User context to query.
 
   @return Global pointer value.
 **/
 vaddr_t
 UctxtGetGp (
-  IN uctxt_t  *pUctxt
+  IN uctxt_t  *Uctxt
   )
 {
-  struct hal_frame *pFrame = UctxtFramePointer (pUctxt);
-  assert (pFrame);
-  return hal_frame_getgp (pFrame);
+  struct hal_frame *Frame = UctxtFramePointer (Uctxt);
+  assert (Frame);
+  return hal_frame_getgp (Frame);
 }
 
 /**
   Set global pointer in user context.
 
-  @param[in] pUctxt  User context to modify.
+  @param[in] Uctxt  User context to modify.
   @param[in] Gp      New global pointer value.
 **/
 VOID
 UctxtSetGp (
-  IN uctxt_t  *pUctxt,
+  IN uctxt_t  *Uctxt,
   IN vaddr_t  Gp
   )
 {
-  struct hal_frame *pFrame = UctxtFramePointer (pUctxt);
-  assert (pFrame);
-  hal_frame_setgp (pFrame, Gp);
+  struct hal_frame *Frame = UctxtFramePointer (Uctxt);
+  assert (Frame);
+  hal_frame_setgp (Frame, Gp);
 }
 
 /**
   Set return value in user context.
 
-  @param[in] pUctxt  User context to modify.
+  @param[in] Uctxt  User context to modify.
   @param[in] Ret     Return value to set.
 **/
 VOID
 UctxtSetRet (
-  IN uctxt_t      *pUctxt,
+  IN uctxt_t      *Uctxt,
   IN UINTN  Ret
   )
 {
-  struct hal_frame *pFrame = UctxtFramePointer (pUctxt);
-  assert (pFrame);
-  hal_frame_setret (pFrame, Ret);
+  struct hal_frame *Frame = UctxtFramePointer (Uctxt);
+  assert (Frame);
+  hal_frame_setret (Frame, Ret);
 }
 
 /**
   Set argument 0 in user context.
 
-  @param[in] pUctxt  User context to modify.
+  @param[in] Uctxt  User context to modify.
   @param[in] A0      Argument 0 value.
 **/
 VOID
 UctxtSetA0 (
-  IN uctxt_t      *pUctxt,
+  IN uctxt_t      *Uctxt,
   IN UINTN  A0
   )
 {
-  struct hal_frame *pFrame = UctxtFramePointer (pUctxt);
-  assert (pFrame);
-  hal_frame_seta0 (pFrame, A0);
+  struct hal_frame *Frame = UctxtFramePointer (Uctxt);
+  assert (Frame);
+  hal_frame_seta0 (Frame, A0);
 }
 
 /**
   Set argument 1 in user context.
 
-  @param[in] pUctxt  User context to modify.
+  @param[in] Uctxt  User context to modify.
   @param[in] A1      Argument 1 value.
 **/
 VOID
 UctxtSetA1 (
-  IN uctxt_t      *pUctxt,
+  IN uctxt_t      *Uctxt,
   IN UINTN  A1
   )
 {
-  struct hal_frame *pFrame = UctxtFramePointer (pUctxt);
-  assert (pFrame);
-  hal_frame_seta1 (pFrame, A1);
+  struct hal_frame *Frame = UctxtFramePointer (Uctxt);
+  assert (Frame);
+  hal_frame_seta1 (Frame, A1);
 }
 
 /**
   Set argument 2 in user context.
 
-  @param[in] pUctxt  User context to modify.
+  @param[in] Uctxt  User context to modify.
   @param[in] A2      Argument 2 value.
 **/
 VOID
 UctxtSetA2 (
-  IN uctxt_t      *pUctxt,
+  IN uctxt_t      *Uctxt,
   IN UINTN  A2
   )
 {
-  struct hal_frame *pFrame = UctxtFramePointer (pUctxt);
-  assert (pFrame);
-  hal_frame_seta2 (pFrame, A2);
+  struct hal_frame *Frame = UctxtFramePointer (Uctxt);
+  assert (Frame);
+  hal_frame_seta2 (Frame, A2);
 }
 
 /**
   Set TLS pointer in user context.
 
-  @param[in] pUctxt  User context to modify.
+  @param[in] Uctxt  User context to modify.
   @param[in] Tls     TLS pointer value.
 **/
 VOID
 UctxtSetTls (
-  IN uctxt_t      *pUctxt,
+  IN uctxt_t      *Uctxt,
   IN UINTN  Tls
   )
 {
-  struct hal_frame *pFrame = UctxtFramePointer (pUctxt);
-  assert (pFrame);
-  hal_frame_settls (pFrame, Tls);
+  struct hal_frame *Frame = UctxtFramePointer (Uctxt);
+  assert (Frame);
+  hal_frame_settls (Frame, Tls);
 }
 
 /**
@@ -346,22 +346,22 @@ UctxtSetTls (
   Outputs context state to console. Handles special contexts
   (invalid/idle) appropriately.
 
-  @param[in] pUctxt  User context to print.
+  @param[in] Uctxt  User context to print.
 **/
 VOID
 UctxtPrint (
-  IN uctxt_t  *pUctxt
+  IN uctxt_t  *Uctxt
   )
 {
-  struct hal_frame *pFrame = UctxtFramePointer (pUctxt);
+  struct hal_frame *Frame = UctxtFramePointer (Uctxt);
 
-  switch ((UINTN) pFrame)
+  switch ((UINTN) Frame)
     {
     case 0:
       info ("INVALID/IDLE FRAME");
       break;
     default:
-      hal_frame_print (pFrame);
+      hal_frame_print (Frame);
     }
 }
 
@@ -371,14 +371,14 @@ UctxtPrint (
   Initializes user context with the user entry point from HAL.
   Returns FALSE if no user entry point is available.
 
-  @param[in] pUctxt  User context to bootstrap.
+  @param[in] Uctxt  User context to bootstrap.
 
   @retval TRUE   Context bootstrapped successfully.
   @retval FALSE  No user entry point available.
 **/
 BOOLEAN
 UctxtBootstrap (
-  IN uctxt_t  *pUctxt
+  IN uctxt_t  *Uctxt
   )
 {
   vaddr_t UserEntry;
@@ -389,7 +389,7 @@ UctxtBootstrap (
       return FALSE;
     }
 
-  UctxtInitialize (pUctxt, UserEntry, 0, 0);
+  UctxtInitialize (Uctxt, UserEntry, 0, 0);
   return TRUE;
 }
 

@@ -53,16 +53,16 @@ struct vmap
 /**
   Remove virtual memory entry from tree.
 
-  @param[in] pVme  Virtual memory entry to remove.
+  @param[in] Vme  Virtual memory entry to remove.
 **/
 static VOID
 VmapRemove (
-  IN struct vme  *pVme
+  IN struct vme  *Vme
   )
 {
   /* ASSERT ISA(vme) XXX: */
-  rb_tree_remove_node (&gVmapRbTree, (VOID *) pVme);
-  gVmapSize -= pVme->size;
+  rb_tree_remove_node (&gVmapRbTree, (VOID *) Vme);
+  gVmapSize -= Vme->size;
   kmem_alloc (0, sizeof (struct vme));
 }
 
@@ -98,22 +98,22 @@ VmapInsert (
   IN size_t   Len
   )
 {
-  struct vme *pVme;
+  struct vme *Vme;
 
-  pVme = (struct vme *) kmem_alloc (0, sizeof (struct vme));
-  pVme->addr = Start;
-  pVme->size = Len;
-  rb_tree_insert_node (&gVmapRbTree, (VOID *) pVme);
-  gVmapSize += pVme->size;
-  return pVme;
+  Vme = (struct vme *) kmem_alloc (0, sizeof (struct vme));
+  Vme->addr = Start;
+  Vme->size = Len;
+  rb_tree_insert_node (&gVmapRbTree, (VOID *) Vme);
+  gVmapSize += Vme->size;
+  return Vme;
 }
 
 /**
   Compare virtual memory entry with key for red-black tree lookup.
 
-  @param[in] pCtx  Context pointer (unused).
-  @param[in] pN    Node pointer.
-  @param[in] pKey  Key pointer (virtual address).
+  @param[in] Ctx  Context pointer (unused).
+  @param[in] N    Node pointer.
+  @param[in] Key  Key pointer (virtual address).
 
   @retval  1  Key is less than node range.
   @retval -1  Key is greater than node range.
@@ -121,17 +121,17 @@ VmapInsert (
 **/
 static INT32
 VmapCompareKey (
-  IN VOID        *pCtx,
-  IN CONST VOID  *pN,
-  IN CONST VOID  *pKey
+  IN VOID        *Ctx,
+  IN CONST VOID  *N,
+  IN CONST VOID  *Key
   )
 {
-  CONST struct vme *pVme = pN;
-  CONST vaddr_t Va = *(CONST vaddr_t *) pKey;
+  CONST struct vme *Vme = N;
+  CONST vaddr_t Va = *(CONST vaddr_t *) Key;
 
-  if (Va < pVme->addr)
+  if (Va < Vme->addr)
     return 1;
-  if (Va > pVme->addr + (pVme->size - 1))
+  if (Va > Vme->addr + (Vme->size - 1))
     return -1;
   return 0;
 }
@@ -139,7 +139,7 @@ VmapCompareKey (
 /**
   Compare two virtual memory entry nodes for red-black tree ordering.
 
-  @param[in] pCtx  Context pointer (unused).
+  @param[in] Ctx  Context pointer (unused).
   @param[in] pN1   First node pointer.
   @param[in] pN2   Second node pointer.
 
@@ -149,7 +149,7 @@ VmapCompareKey (
 **/
 static INT32
 VmapCompareNodes (
-  IN VOID        *pCtx,
+  IN VOID        *Ctx,
   IN CONST VOID  *pN1,
   IN CONST VOID  *pN2
   )
@@ -189,33 +189,33 @@ static const rb_tree_ops_t gVmapTreeOps = {
 
   @param[in]  Addr  Starting address of range.
   @param[in]  Size  Size of range.
-  @param[out] pPv   Pointer to receive previous entry.
-  @param[out] pNv   Pointer to receive next entry.
+  @param[out] Pv   Pointer to receive previous entry.
+  @param[out] Nv   Pointer to receive next entry.
   @param[in]  Opq   Opaque value (unused).
 **/
 static VOID
 ___get_neighbors (
   IN  vaddr_t      Addr,
   IN  size_t       Size,
-  OUT struct vme   **pPv,
-  OUT struct vme   **pNv,
+  OUT struct vme   **Pv,
+  OUT struct vme   **Nv,
   IN  uintptr_t    Opq
   )
 {
   vaddr_t End = Addr + Size;
-  struct vme *pPvme = NULL, *pNvme = NULL;
+  struct vme *Pvme = NULL, *Nvme = NULL;
 
   if (Addr == 0)
     goto _next;
 
-  pPvme = VmapFind (Addr - 1);
-  if (pPvme != NULL)
-    *pPv = pPvme;
+  Pvme = VmapFind (Addr - 1);
+  if (Pvme != NULL)
+    *Pv = Pvme;
 
 _next:
-  pNvme = VmapFind (End);
-  if (pNvme != NULL)
-    *pNv = pNvme;
+  Nvme = VmapFind (End);
+  if (Nvme != NULL)
+    *Nv = Nvme;
 }
 
 /**
@@ -240,16 +240,16 @@ ___mkptr (
 /**
   Free virtual memory entry pointer.
 
-  @param[in] pVme  Virtual memory entry to free.
+  @param[in] Vme  Virtual memory entry to free.
   @param[in] Opq   Opaque value (unused).
 **/
 static VOID
 ___freeptr (
-  IN struct vme  *pVme,
+  IN struct vme  *Vme,
   IN uintptr_t   Opq
   )
 {
-  VmapRemove (pVme);
+  VmapRemove (Vme);
 }
 
 #include <nux/alloc.h>
@@ -376,19 +376,19 @@ KvaMapPhysical (
 
   Unmaps backing physical pages and frees virtual address range.
 
-  @param[in] pPtr  Pointer to mapped memory.
+  @param[in] Ptr  Pointer to mapped memory.
   @param[in] Size  Size in bytes to unmap.
 **/
 VOID
 KvaUnmap (
-  IN VOID    *pPtr,
+  IN VOID    *Ptr,
   IN size_t  Size
   )
 {
   UINT32 No, i;
   vaddr_t Vaddr;
 
-  Vaddr = trunc_page ((uintptr_t) pPtr);
+  Vaddr = trunc_page ((uintptr_t) Ptr);
   Size = round_page (Size);
   No = round_page ((Vaddr & PAGE_MASK) + Size) >> PAGE_SHIFT;
 

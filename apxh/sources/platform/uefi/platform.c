@@ -115,7 +115,7 @@ MdEntry (
   )
 {
   VOID *pTrampCr3;
-  VOID *pTramp;
+  VOID *Tramp;
   vaddr_t TrampEntry;
   UINT64 TrampCode = 0xe7ffd9220fL;	/* mov %rcx, %cr3; jmp *%rdi */
 
@@ -127,9 +127,9 @@ MdEntry (
   pTrampCr3 = (VOID *) GetPage ();
 
   /* Setup trampoline. */
-  pTramp = (VOID *) GetPage ();
-  *(UINT64 *) pTramp = TrampCode;
-  TrampEntry = (vaddr_t) (uintptr_t) pTramp;
+  Tramp = (VOID *) GetPage ();
+  *(UINT64 *) Tramp = TrampCode;
+  TrampEntry = (vaddr_t) (uintptr_t) Tramp;
 
   /* Setup Direct map at 0->1Gb */
   pae64_directmap (pTrampCr3, 0, 0, 64L << 30, MEMTYPE_WB, 0, 1);
@@ -168,7 +168,7 @@ MdEntry (
   IN vaddr_t  Entry
   )
 {
-  VOID *pTrampRoot;
+  VOID *TrampRoot;
   unsigned long TrampSatp, Satp;
   extern char trampoline_start asm ("__rv64_tstart");
   extern char trampoline_end asm ("__rv64_tend");
@@ -178,17 +178,17 @@ MdEntry (
   printf ("Entry called.\n");
 
   /* Setup trampoline. */
-  pTrampRoot = (VOID *) GetPage ();
+  TrampRoot = (VOID *) GetPage ();
   /* Map trampoline page */
-  sv48_directmap (pTrampRoot, (uintptr_t) & trampoline_start,
+  sv48_directmap (TrampRoot, (uintptr_t) & trampoline_start,
 		  (uintptr_t) & trampoline_start,
 		  (uintptr_t) (&trampoline_end - &trampoline_start),
 		  MEMTYPE_WB, 0, 1);
   /* Map start page */
-  sv48_directmap (pTrampRoot, sv48_getphys (Entry), Entry, 4096, MEMTYPE_WB,
+  sv48_directmap (TrampRoot, sv48_getphys (Entry), Entry, 4096, MEMTYPE_WB,
 		  0, 1);
 
-  TrampSatp = 0x9L << 60 | (uintptr_t) pTrampRoot >> PAGE_SHIFT;
+  TrampSatp = 0x9L << 60 | (uintptr_t) TrampRoot >> PAGE_SHIFT;
   Satp = 0x9L << 60 | Pt >> PAGE_SHIFT;
 
   printf ("%lx %lx %lx\n", TrampSatp, Entry, Satp);
@@ -341,23 +341,23 @@ GetPayloadStart (
   IN plid_t  Id
   )
 {
-  VOID *pElfPayload;
+  VOID *ElfPayload;
 
   switch (Id)
     {
     case PAYLOAD_KERNEL:
-      pElfPayload = gpElfKernelPayload;
+      ElfPayload = gpElfKernelPayload;
       break;
     case PAYLOAD_USER:
-      pElfPayload = gpElfUserPayload;
+      ElfPayload = gpElfUserPayload;
       break;
     default:
       printf ("Unsupported payload ID %d\n", Id);
-      pElfPayload = NULL;
+      ElfPayload = NULL;
       break;
     }
 
-  return pElfPayload;
+  return ElfPayload;
 }
 
 /**
@@ -492,16 +492,16 @@ ApxhEfiAddMemRegion (
 
   Stores pointer and size of kernel ELF payload loaded from EFI filesystem.
 
-  @param[in] pStart  Pointer to kernel ELF image.
+  @param[in] Start  Pointer to kernel ELF image.
   @param[in] Size    Size of kernel ELF image in bytes.
 **/
 VOID
 ApxhEfiAddKernelPayload (
-  IN VOID    *pStart,
+  IN VOID    *Start,
   IN size_t  Size
   )
 {
-  gpElfKernelPayload = pStart;
+  gpElfKernelPayload = Start;
   gElfKernelPayloadSize = Size;
 }
 
@@ -511,16 +511,16 @@ ApxhEfiAddKernelPayload (
   Stores pointer and size of optional user ELF payload loaded from EFI
   filesystem.
 
-  @param[in] pStart  Pointer to user ELF image.
+  @param[in] Start  Pointer to user ELF image.
   @param[in] Size    Size of user ELF image in bytes.
 **/
 VOID
 ApxhEfiAddUserPayload (
-  IN VOID    *pStart,
+  IN VOID    *Start,
   IN size_t  Size
   )
 {
-  gpElfUserPayload = pStart;
+  gpElfUserPayload = Start;
   gElfUserPayloadSize = Size;
 }
 
@@ -529,14 +529,14 @@ ApxhEfiAddUserPayload (
 
   Stores ACPI Root System Description Pointer from EFI system table.
 
-  @param[in] pRsdp  Pointer to ACPI RSDP structure.
+  @param[in] Rsdp  Pointer to ACPI RSDP structure.
 **/
 VOID
 ApxhEfiAddRsdp (
-  IN VOID  *pRsdp
+  IN VOID  *Rsdp
   )
 {
-  gpEfiRsdp = pRsdp;
+  gpEfiRsdp = Rsdp;
 }
 
 //

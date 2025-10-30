@@ -207,7 +207,7 @@ VaPopulate (
   allocating and mapping pages as needed.
 
   @param[in] Va    Virtual address destination.
-  @param[in] pAddr Physical address source.
+  @param[in] Addr Physical address source.
   @param[in] Size  Size to copy.
   @param[in] U     TRUE for user-accessible.
   @param[in] W     TRUE for writable.
@@ -216,7 +216,7 @@ VaPopulate (
 VOID
 VaCopy (
   IN vaddr_t   Va,
-  IN VOID      *pAddr,
+  IN VOID      *Addr,
   IN size64_t  Size,
   IN int       U,
   IN int       W,
@@ -229,7 +229,7 @@ VaCopy (
   VaVerify (Va, Size);
 
 #if 0
-  printf ("Copying %08llx <- %p (u: %d, w:%d, x:%d, %d bytes)\n", Va, pAddr, U,
+  printf ("Copying %08llx <- %p (u: %d, w:%d, x:%d, %d bytes)\n", Va, Addr, U,
 	  W, X, Size);
 #endif
   VaPopulate (Va, Size, U, W, X);
@@ -244,11 +244,11 @@ VaCopy (
 
       PAddr = VaGetPhys (Va);
 
-      memcpy ((VOID *) PAddr, pAddr, CLen);
+      memcpy ((VOID *) PAddr, Addr, CLen);
 
       Len -= CLen;
       Va += CLen;
-      pAddr += CLen;
+      Addr += CLen;
     }
 }
 
@@ -356,23 +356,23 @@ VaFramebuf (
   )
 {
   UINT64 Pa;
-  struct fbdesc *pFbPtr;
+  struct fbdesc *FbPtr;
 
   md_verify (Va, Size);
   VaVerify (Va, Size);
 
-  pFbPtr = md_getframebuffer ();
-  if (pFbPtr == NULL || pFbPtr->type == FB_INVALID)
+  FbPtr = md_getframebuffer ();
+  if (FbPtr == NULL || FbPtr->type == FB_INVALID)
     return;
 
-  if (pFbPtr->size > Size)
+  if (FbPtr->size > Size)
     {
       printf ("ERROR: framebuffer too big. Shrinking int from %lx to %lx\n",
-	      pFbPtr->size, Size);
-      pFbPtr->size = Size;
+	      FbPtr->size, Size);
+      FbPtr->size = Size;
     }
 
-  Pa = pFbPtr->addr;
+  Pa = FbPtr->addr;
 
   switch (gElfArch)
     {
@@ -556,8 +556,8 @@ VaInfoCopy (
   size64_t Size = gReqInfoSize;
 #define MIN(x,y) ((x < y) ? x : y)
   struct apxh_bootinfo i;
-  struct fbdesc *pFbPtr;
-  struct apxh_platformdesc *pPlatformDesc;
+  struct fbdesc *FbPtr;
+  struct apxh_platformdesc *PlatformDesc;
 
   if (Va == 0)
     {
@@ -571,16 +571,16 @@ VaInfoCopy (
   i.numregions = NumRegions;
   i.uentry = UEntry;
 
-  pPlatformDesc = md_getplatformdesc ();
-  if (pPlatformDesc != NULL)
-    i.pltdesc = *pPlatformDesc;
+  PlatformDesc = md_getplatformdesc ();
+  if (PlatformDesc != NULL)
+    i.pltdesc = *PlatformDesc;
   else
     i.pltdesc = (struct apxh_platformdesc)
     {.Type = PLATFORM_UNKNOWN,.PlatformPointer = 0 };
 
-  pFbPtr = md_getframebuffer ();
-  if (pFbPtr != NULL)
-    i.fbdesc = *pFbPtr;
+  FbPtr = md_getframebuffer ();
+  if (FbPtr != NULL)
+    i.fbdesc = *FbPtr;
   else
     i.fbdesc.type = FB_INVALID;
 
@@ -621,7 +621,7 @@ VaStree (
   size64_t s;
   int i, Order;
   struct apxh_stree Hdr;
-  struct bootinfo_region *pReg;
+  struct bootinfo_region *Reg;
   unsigned Regions = md_memregions ();
   unsigned MaxFrame = md_maxrampfn ();
 
@@ -657,15 +657,15 @@ VaStree (
     {
       unsigned j;
 
-      pReg = md_getmemregion (i);
+      Reg = md_getmemregion (i);
 
-      if (pReg->type != BOOTINFO_REGION_RAM)
+      if (Reg->type != BOOTINFO_REGION_RAM)
 	continue;
 
 
-      for (j = 0; j < pReg->len; j++)
+      for (j = 0; j < Reg->len; j++)
 	{
-	  unsigned Frame = pReg->pfn + j;
+	  unsigned Frame = Reg->pfn + j;
 
 	  if (Frame > MaxFrame)
 	    {
@@ -682,15 +682,15 @@ VaStree (
     {
       unsigned j;
 
-      pReg = md_getmemregion (i);
+      Reg = md_getmemregion (i);
 
-      if (pReg->type == BOOTINFO_REGION_RAM)
+      if (Reg->type == BOOTINFO_REGION_RAM)
 	continue;
 
 
-      for (j = 0; j < pReg->len; j++)
+      for (j = 0; j < Reg->len; j++)
 	{
-	  unsigned Frame = pReg->pfn + j;
+	  unsigned Frame = Reg->pfn + j;
 
 	  if (Frame > MaxFrame)
 	    {
@@ -797,7 +797,7 @@ VaRegionsCopy (
   unsigned long Size = gReqRegionSize;
   unsigned i, Regions;
   struct apxh_region ApxhReg;
-  struct bootinfo_region *pReg;
+  struct bootinfo_region *Reg;
 
   if (Va == 0)
     {
@@ -809,10 +809,10 @@ VaRegionsCopy (
 
   for (i = 0; i < Regions; i++)
     {
-      pReg = md_getmemregion (i);
-      ApxhReg.type = pReg->type;
-      ApxhReg.pfn = pReg->pfn;
-      ApxhReg.len = pReg->len;
+      Reg = md_getmemregion (i);
+      ApxhReg.type = Reg->type;
+      ApxhReg.pfn = Reg->pfn;
+      ApxhReg.len = Reg->len;
 #if 0
       printf ("Copying %d %d %d\n", ApxhReg.type, ApxhReg.pfn, ApxhReg.len);
 #endif
@@ -836,7 +836,7 @@ VaPfnmap (
   )
 {
   unsigned i, MaxFrame;
-  struct bootinfo_region *pReg;
+  struct bootinfo_region *Reg;
   unsigned Regions = md_memregions ();
 
   md_verify (Va, Size);
@@ -856,16 +856,16 @@ VaPfnmap (
     {
       unsigned j;
 
-      pReg = md_getmemregion (i);
+      Reg = md_getmemregion (i);
 
-      printf ("Reg: %d Type %02d, PA: %016llx (%ld)\n", i, pReg->type,
-	      (UINT64) pReg->pfn << PAGE_SHIFT, pReg->len);
+      printf ("Reg: %d Type %02d, PA: %016llx (%ld)\n", i, Reg->type,
+	      (UINT64) Reg->pfn << PAGE_SHIFT, Reg->len);
 
 
-      for (j = 0; j < pReg->len; j++)
+      for (j = 0; j < Reg->len; j++)
 	{
-	  unsigned Frame = pReg->pfn + j;
-	  UINT8 *pPtr;
+	  unsigned Frame = Reg->pfn + j;
+	  UINT8 *Ptr;
 
 	  if (Frame > MaxFrame)
 	    {
@@ -873,13 +873,13 @@ VaPfnmap (
 	      break;
 	    }
 
-	  pPtr = (UINT8 *) VaGetPhys (Va + Frame * PFNMAP_ENTRY_SIZE);
-	  assert (pPtr != NULL);
+	  Ptr = (UINT8 *) VaGetPhys (Va + Frame * PFNMAP_ENTRY_SIZE);
+	  assert (Ptr != NULL);
 
 	  /* There's  a  priority  in  numbering of  regions.  RAM  is
 	     lowest, overwritten most easily. */
-	  if (*pPtr < pReg->type)
-	    *pPtr = pReg->type;
+	  if (*Ptr < Reg->type)
+	    *Ptr = Reg->type;
 	}
     }
 
@@ -920,11 +920,11 @@ VaPfnmapCopy (
 	{
 	  /* Page is allocated. Mark as BSY. */
 
-	  UINT8 *pPtr =
+	  UINT8 *Ptr =
 	    (UINT8 *) VaGetPhys (Va + Frame * PFNMAP_ENTRY_SIZE);
-	  assert (pPtr != NULL);
+	  assert (Ptr != NULL);
 
-	  *pPtr = BOOTINFO_REGION_BSY;
+	  *Ptr = BOOTINFO_REGION_BSY;
 	}
     }
 #undef MIN
@@ -1099,7 +1099,7 @@ main (
   IN char  *Argv[]
   )
 {
-  VOID *pElfStart;
+  VOID *ElfStart;
   size64_t ElfSize;
   UINT64 KEntry, UEntry;
 
@@ -1110,11 +1110,11 @@ main (
   /*
      Load kernel.
    */
-  pElfStart = get_payload_start (Argc, Argv, PAYLOAD_KERNEL);
+  ElfStart = get_payload_start (Argc, Argv, PAYLOAD_KERNEL);
   ElfSize = get_payload_size (PAYLOAD_KERNEL);
-  gElfArch = get_elf_arch (pElfStart);
+  gElfArch = get_elf_arch (ElfStart);
   printf ("Kernel payload %s ELF at addr %p (%d bytes)\n",
-	  GetArchName (gElfArch), pElfStart, ElfSize);
+	  GetArchName (gElfArch), ElfStart, ElfSize);
 
   VaInitialize ();
 
@@ -1122,15 +1122,15 @@ main (
     {
 #if EC_MACHINE_I386 || EC_MACHINE_AMD64
     case ARCH_386:
-      KEntry = load_elf32 (pElfStart, 0);
+      KEntry = load_elf32 (ElfStart, 0);
       break;
     case ARCH_AMD64:
-      KEntry = load_elf64 (pElfStart, 0);
+      KEntry = load_elf64 (ElfStart, 0);
       break;
 #endif
 #if EC_MACHINE_RISCV64
     case ARCH_RISCV64:
-      KEntry = load_elf64 (pElfStart, 0);
+      KEntry = load_elf64 (ElfStart, 0);
       break;
 #endif
     default:
@@ -1143,27 +1143,27 @@ main (
   /*
      Load user if it exists.
    */
-  pElfStart = get_payload_start (Argc, Argv, PAYLOAD_USER);
+  ElfStart = get_payload_start (Argc, Argv, PAYLOAD_USER);
   ElfSize = get_payload_size (PAYLOAD_USER);
-  if (pElfStart != NULL && ElfSize != 0)
+  if (ElfStart != NULL && ElfSize != 0)
     {
-      gElfArch = get_elf_arch (pElfStart);
+      gElfArch = get_elf_arch (ElfStart);
       printf ("User payload %s ELF at addr %p (%d bytes)\n",
-	      GetArchName (gElfArch), pElfStart, ElfSize);
+	      GetArchName (gElfArch), ElfStart, ElfSize);
 
       switch (gElfArch)
 	{
 #if EC_MACHINE_I386 || EC_MACHINE_AMD64
 	case ARCH_386:
-	  UEntry = load_elf32 (pElfStart, 1);
+	  UEntry = load_elf32 (ElfStart, 1);
 	  break;
 	case ARCH_AMD64:
-	  UEntry = load_elf64 (pElfStart, 1);
+	  UEntry = load_elf64 (ElfStart, 1);
 	  break;
 #endif
 #if EC_MACHINE_RISCV64
 	case ARCH_RISCV64:
-	  UEntry = load_elf64 (pElfStart, 1);
+	  UEntry = load_elf64 (ElfStart, 1);
 	  break;
 #endif
 	default:

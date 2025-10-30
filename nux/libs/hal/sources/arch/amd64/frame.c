@@ -38,17 +38,17 @@ IsCanonical (
 /**
   Handle system call.
 
-  @param[in] pFrame  Exception frame.
+  @param[in] Frame  Exception frame.
 
   @return Modified frame pointer.
 **/
 struct hal_frame *
 DoSyscall (
-  IN struct hal_frame  *pFrame
+  IN struct hal_frame  *Frame
   )
 {
-  return hal_entry_syscall (pFrame, pFrame->intr.rax, pFrame->intr.rdi, pFrame->intr.rsi,
-			    pFrame->intr.rdx, pFrame->intr.rbx, pFrame->intr.r8, pFrame->intr.r9);
+  return hal_entry_syscall (Frame, Frame->intr.rax, Frame->intr.rdi, Frame->intr.rsi,
+			    Frame->intr.rdx, Frame->intr.rbx, Frame->intr.r8, Frame->intr.r9);
 }
 
 /**
@@ -57,48 +57,48 @@ DoSyscall (
   Validates return address is canonical to avoid Intel CPU issue with
   #GP on user stack.
 
-  @param[in] pFrame  Exception frame.
+  @param[in] Frame  Exception frame.
 
   @return Modified frame pointer.
 **/
 struct hal_frame *
 DoSyscallEntry (
-  IN struct hal_frame  *pFrame
+  IN struct hal_frame  *Frame
   )
 {
-  struct hal_frame *pRetFrame;
+  struct hal_frame *RetFrame;
 
-  assert (pFrame->type == FRAMETYPE_SYSC);
+  assert (Frame->type == FRAMETYPE_SYSC);
 
-  pRetFrame = DoSyscall (pFrame);
+  RetFrame = DoSyscall (Frame);
 
-  if (!IsCanonical (pRetFrame->intr.rip))
+  if (!IsCanonical (RetFrame->intr.rip))
     {
       /*
          This is problematic on Intel. #GP will run in kernel mode on
          user stack. Get the #GP from iret.
        */
-      pRetFrame->type = FRAMETYPE_INTR;
+      RetFrame->type = FRAMETYPE_INTR;
     }
 
-  return pRetFrame;
+  return RetFrame;
 }
 
 /**
   Handle Non-Maskable Interrupt (NMI).
 
-  @param[in] pFrame  Exception frame.
+  @param[in] Frame  Exception frame.
 
   @return Frame pointer (unchanged).
 **/
 struct hal_frame *
 DoNmi (
-  IN struct hal_frame  *pFrame
+  IN struct hal_frame  *Frame
   )
 {
 
-  hal_entry_nmi (pFrame);
-  return pFrame;
+  hal_entry_nmi (Frame);
+  return Frame;
 }
 
 /**
@@ -108,25 +108,25 @@ DoNmi (
   and page faults.
 
   @param[in] Vect    Exception vector number.
-  @param[in] pFrame  Exception frame.
+  @param[in] Frame  Exception frame.
 
   @return Modified frame pointer.
 **/
 struct hal_frame *
 DoException (
   IN UINT64            Vect,
-  IN struct hal_frame  *pFrame
+  IN struct hal_frame  *Frame
   )
 {
-  struct hal_frame *pRetFrame;
+  struct hal_frame *RetFrame;
 
   if (Vect == 8)
     {
-      nux_panic ("DOUBLE FAULT EXCEPTION:\n", pFrame);
+      nux_panic ("DOUBLE FAULT EXCEPTION:\n", Frame);
     }
   else if (Vect == 18)
     {
-      nux_panic ("MACHINE CHECK EXCEPTION:\n", pFrame);
+      nux_panic ("MACHINE CHECK EXCEPTION:\n", Frame);
     }
   else if (Vect == 14)
     {
@@ -134,7 +134,7 @@ DoException (
 
       /* Page Fault. */
 
-      if (pFrame->intr.err & 1)
+      if (Frame->intr.err & 1)
 	{
 	  XcptErr = HAL_PF_REASON_PROT;
 	}
@@ -143,39 +143,39 @@ DoException (
 	  XcptErr = HAL_PF_REASON_NOTP;
 	}
 
-      if (pFrame->intr.err & 2)
+      if (Frame->intr.err & 2)
 	XcptErr |= HAL_PF_INFO_WRITE;
 
-      if (pFrame->intr.err & 4)
+      if (Frame->intr.err & 4)
 	XcptErr |= HAL_PF_INFO_USER;
 
-      if (pFrame->intr.err & 16)
+      if (Frame->intr.err & 16)
 	XcptErr |= HAL_PF_INFO_EXE;
-      pRetFrame = hal_entry_pf (pFrame, pFrame->intr.cr2, XcptErr);
+      RetFrame = hal_entry_pf (Frame, Frame->intr.cr2, XcptErr);
     }
   else
     {
-      pRetFrame = hal_entry_xcpt (pFrame, Vect);
+      RetFrame = hal_entry_xcpt (Frame, Vect);
     }
 
-  return pRetFrame;
+  return RetFrame;
 }
 
 /**
   Handle hardware interrupt vector.
 
   @param[in] Vect    Interrupt vector number.
-  @param[in] pFrame  Exception frame.
+  @param[in] Frame  Exception frame.
 
   @return Modified frame pointer.
 **/
 struct hal_frame *
 DoVector (
   IN UINT64            Vect,
-  IN struct hal_frame  *pFrame
+  IN struct hal_frame  *Frame
   )
 {
-  return plt_interrupt (Vect, pFrame);
+  return plt_interrupt (Vect, Frame);
 }
 
 /**
@@ -183,32 +183,32 @@ DoVector (
 
   Dispatches to appropriate handler based on vector number.
 
-  @param[in] pFrame  Exception frame.
+  @param[in] Frame  Exception frame.
 
   @return Modified frame pointer.
 **/
 struct hal_frame *
 DoInterruptEntry (
-  IN struct hal_frame  *pFrame
+  IN struct hal_frame  *Frame
   )
 {
   UINT64 Vect;
-  struct hal_frame *pRetFrame;
+  struct hal_frame *RetFrame;
 
-  assert (pFrame->type == FRAMETYPE_INTR);
+  assert (Frame->type == FRAMETYPE_INTR);
 
-  Vect = pFrame->intr.vect;
+  Vect = Frame->intr.vect;
 
   if (Vect == VECT_SYSC)
-    pRetFrame = DoSyscall (pFrame);
+    RetFrame = DoSyscall (Frame);
   else if (Vect == 2)
-    pRetFrame = DoNmi (pFrame);
+    RetFrame = DoNmi (Frame);
   else if (Vect < 32)
-    pRetFrame = DoException (Vect, pFrame);
+    RetFrame = DoException (Vect, Frame);
   else
-    pRetFrame = DoVector (Vect, pFrame);
+    RetFrame = DoVector (Vect, Frame);
 
-  return pRetFrame;
+  return RetFrame;
 }
 
 /**
@@ -216,94 +216,94 @@ DoInterruptEntry (
 
   Sets up initial frame state for user mode with interrupts enabled.
 
-  @param[out] pFrame  Exception frame to initialize.
+  @param[out] Frame  Exception frame to initialize.
 **/
 VOID
 HalFrameInitialize (
-  OUT struct hal_frame  *pFrame
+  OUT struct hal_frame  *Frame
   )
 {
-  memset (pFrame, 0, sizeof (*pFrame));
-  pFrame->type = FRAMETYPE_INTR;
-  pFrame->intr.cs = UCS;
-  pFrame->intr.rflags = 0x202;
-  pFrame->intr.ss = UDS;
+  memset (Frame, 0, sizeof (*Frame));
+  Frame->type = FRAMETYPE_INTR;
+  Frame->intr.cs = UCS;
+  Frame->intr.rflags = 0x202;
+  Frame->intr.ss = UDS;
 }
 
 /**
   Check if frame is from user mode.
 
-  @param[in] pFrame  Exception frame to check.
+  @param[in] Frame  Exception frame to check.
 
   @retval TRUE   Frame is from user mode.
   @retval FALSE  Frame is from supervisor mode.
 **/
 BOOLEAN
 HalFrameIsUser (
-  IN struct hal_frame  *pFrame
+  IN struct hal_frame  *Frame
   )
 {
-  return pFrame->intr.cs == UCS;
+  return Frame->intr.cs == UCS;
 }
 
 /**
   Set instruction pointer in frame.
 
-  @param[in,out] pFrame  Exception frame.
+  @param[in,out] Frame  Exception frame.
   @param[in]     Ip      Instruction pointer value.
 **/
 VOID
 HalFrameSetIp (
-  IN OUT struct hal_frame  *pFrame,
+  IN OUT struct hal_frame  *Frame,
   IN     UINTN             Ip
   )
 {
-  pFrame->intr.rip = Ip;
+  Frame->intr.rip = Ip;
 }
 
 /**
   Get instruction pointer from frame.
 
-  @param[in] pFrame  Exception frame.
+  @param[in] Frame  Exception frame.
 
   @return Instruction pointer value.
 **/
 UINTN
 HalFrameGetIp (
-  IN struct hal_frame  *pFrame
+  IN struct hal_frame  *Frame
   )
 {
-  return pFrame->intr.rip;
+  return Frame->intr.rip;
 }
 
 /**
   Set stack pointer in frame.
 
-  @param[in,out] pFrame  Exception frame.
+  @param[in,out] Frame  Exception frame.
   @param[in]     Sp      Stack pointer value.
 **/
 VOID
 HalFrameSetSp (
-  IN OUT struct hal_frame  *pFrame,
+  IN OUT struct hal_frame  *Frame,
   IN     vaddr_t           Sp
   )
 {
-  pFrame->intr.rsp = Sp;
+  Frame->intr.rsp = Sp;
 }
 
 /**
   Get stack pointer from frame.
 
-  @param[in] pFrame  Exception frame.
+  @param[in] Frame  Exception frame.
 
   @return Stack pointer value.
 **/
 UINTN
 HalFrameGetSp (
-  IN struct hal_frame  *pFrame
+  IN struct hal_frame  *Frame
   )
 {
-  return pFrame->intr.rsp;
+  return Frame->intr.rsp;
 }
 
 /**
@@ -311,13 +311,13 @@ HalFrameGetSp (
 
   AMD64 does not use a global pointer, returns 0.
 
-  @param[in] pFrame  Exception frame.
+  @param[in] Frame  Exception frame.
 
   @return Always returns 0.
 **/
 vaddr_t
 HalFrameGetGp (
-  IN struct hal_frame  *pFrame
+  IN struct hal_frame  *Frame
   )
 {
   return 0;
@@ -328,12 +328,12 @@ HalFrameGetGp (
 
   AMD64 does not use a global pointer, this is a no-op.
 
-  @param[in,out] pFrame  Exception frame.
+  @param[in,out] Frame  Exception frame.
   @param[in]     Gp      Global pointer value (ignored).
 **/
 VOID
 HalFrameSetGp (
-  IN OUT struct hal_frame  *pFrame,
+  IN OUT struct hal_frame  *Frame,
   IN     UINTN             Gp
   )
 {
@@ -343,77 +343,77 @@ HalFrameSetGp (
 /**
   Set argument register A0 (RDI) in frame.
 
-  @param[in,out] pFrame  Exception frame.
+  @param[in,out] Frame  Exception frame.
   @param[in]     A0      Value for first argument.
 **/
 VOID
 HalFrameSetA0 (
-  IN OUT struct hal_frame  *pFrame,
+  IN OUT struct hal_frame  *Frame,
   IN     UINTN             A0
   )
 {
-  pFrame->intr.rdi = A0;
+  Frame->intr.rdi = A0;
 }
 
 /**
   Set argument register A1 (RSI) in frame.
 
-  @param[in,out] pFrame  Exception frame.
+  @param[in,out] Frame  Exception frame.
   @param[in]     A1      Value for second argument.
 **/
 VOID
 HalFrameSetA1 (
-  IN OUT struct hal_frame  *pFrame,
+  IN OUT struct hal_frame  *Frame,
   IN     UINTN             A1
   )
 {
-  pFrame->intr.rsi = A1;
+  Frame->intr.rsi = A1;
 }
 
 /**
   Set argument register A2 (RDX) in frame.
 
-  @param[in,out] pFrame  Exception frame.
+  @param[in,out] Frame  Exception frame.
   @param[in]     A2      Value for third argument.
 **/
 VOID
 HalFrameSetA2 (
-  IN OUT struct hal_frame  *pFrame,
+  IN OUT struct hal_frame  *Frame,
   IN     UINTN             A2
   )
 {
-  pFrame->intr.rdx = A2;
+  Frame->intr.rdx = A2;
 }
 
 /**
   Set return value in frame.
 
-  @param[in,out] pFrame  Exception frame.
+  @param[in,out] Frame  Exception frame.
   @param[in]     Ret     Return value (stored in RAX).
 **/
 VOID
 HalFrameSetRet (
-  IN OUT struct hal_frame  *pFrame,
+  IN OUT struct hal_frame  *Frame,
   IN     UINTN             Ret
   )
 {
-  pFrame->intr.rax = Ret;
+  Frame->intr.rax = Ret;
 }
 
 /**
   Set thread-local storage base in frame.
 
-  @param[in,out] pFrame  Exception frame.
+  @param[in,out] Frame  Exception frame.
   @param[in]     Tls     TLS base address (stored in FS.base).
 **/
 VOID
 HalFrameSetTls (
-  IN OUT struct hal_frame  *pFrame,
+  IN OUT struct hal_frame  *Frame,
   IN     UINTN             Tls
   )
 {
   printf ("Setting fbase to %lx\n", Tls);
-  pFrame->intr.fsbase = Tls;
+  Frame->intr.fsbase = Tls;
 }
 
 /**
@@ -421,56 +421,56 @@ HalFrameSetTls (
 
   Displays all register values from the exception frame for debugging.
 
-  @param[in] pFrame  Exception frame to print.
+  @param[in] Frame  Exception frame to print.
 **/
 VOID
 HalFramePrint (
-  IN struct hal_frame  *pFrame
+  IN struct hal_frame  *Frame
   )
 {
   hallog ("RAX: %016lx RBX: %016lx\nRCX: %016lx RDX: %016lx",
-	  pFrame->intr.rax, pFrame->intr.rbx, pFrame->intr.rcx, pFrame->intr.rdx);
+	  Frame->intr.rax, Frame->intr.rbx, Frame->intr.rcx, Frame->intr.rdx);
   hallog ("RDI: %016lx RSI: %016lx\nRBP: %016lx RSP: %016lx",
-	  pFrame->intr.rdi, pFrame->intr.rsi, pFrame->intr.rbp, pFrame->intr.rsp);
+	  Frame->intr.rdi, Frame->intr.rsi, Frame->intr.rbp, Frame->intr.rsp);
   hallog ("R8 : %016lx R9 : %016lx\nR10: %016lx R11: %016lx",
-	  pFrame->intr.r8, pFrame->intr.r9, pFrame->intr.r10, pFrame->intr.r11);
+	  Frame->intr.r8, Frame->intr.r9, Frame->intr.r10, Frame->intr.r11);
   hallog ("R12: %016lx R13: %016lx\nR14: %016lx R15: %016lx",
-	  pFrame->intr.r12, pFrame->intr.r13, pFrame->intr.r14, pFrame->intr.r15);
-  hallog ("GS:  %016lx FS:  %016lx", pFrame->intr.gsbase, pFrame->intr.fsbase);
+	  Frame->intr.r12, Frame->intr.r13, Frame->intr.r14, Frame->intr.r15);
+  hallog ("GS:  %016lx FS:  %016lx", Frame->intr.gsbase, Frame->intr.fsbase);
   hallog (" CS: %04x     RIP: %016lx RFL: %016lx",
-	  (INT32) pFrame->intr.cs, pFrame->intr.rip, pFrame->intr.rflags);
-  hallog (" SS: %04x     RSP: %016lx", (INT32) pFrame->intr.ss, pFrame->intr.rsp);
-  hallog ("CR2: %016lx err: %08lx", pFrame->intr.cr2, pFrame->intr.err);
+	  (INT32) Frame->intr.cs, Frame->intr.rip, Frame->intr.rflags);
+  hallog (" SS: %04x     RSP: %016lx", (INT32) Frame->intr.ss, Frame->intr.rsp);
+  hallog ("CR2: %016lx err: %08lx", Frame->intr.cr2, Frame->intr.err);
 }
 
 /**
   Get base pointer from frame.
 
-  @param[in] pFrame  Exception frame.
+  @param[in] Frame  Exception frame.
 
   @return Base pointer (RBP) value.
 **/
 UINTN
 FrameBp (
-  IN struct hal_frame  *pFrame
+  IN struct hal_frame  *Frame
   )
 {
-  return pFrame->intr.rbp;
+  return Frame->intr.rbp;
 }
 
 /**
   Get CR2 (page fault address) from frame.
 
-  @param[in] pFrame  Exception frame.
+  @param[in] Frame  Exception frame.
 
   @return CR2 register value.
 **/
 UINTN
 FrameCr2 (
-  IN struct hal_frame  *pFrame
+  IN struct hal_frame  *Frame
   )
 {
-  return pFrame->intr.cr2;
+  return Frame->intr.cr2;
 }
 
 //

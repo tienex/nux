@@ -27,18 +27,18 @@ static pte_t *gSv48Root;
 
   Constructs and writes a PTE with the given PFN and flags.
 
-  @param[out] pPtep  Pointer to PTE.
+  @param[out] Ptep  Pointer to PTE.
   @param[in]  Pfn    Page frame number.
   @param[in]  Flags  PTE flags (PTE_V, PTE_R, PTE_W, PTE_X, PTE_U).
 **/
 static VOID
 SetPte (
-  OUT pte_t   *pPtep,
+  OUT pte_t   *Ptep,
   IN UINT64   Pfn,
   IN UINT64   Flags
   )
 {
-  *pPtep = (Pfn << 10) | Flags;
+  *Ptep = (Pfn << 10) | Flags;
 }
 
 /**
@@ -46,16 +46,16 @@ SetPte (
 
   Extracts the physical address from a page table entry.
 
-  @param[in] pPtep  Pointer to PTE.
+  @param[in] Ptep  Pointer to PTE.
 
   @return Physical address, or NULL if entry not valid.
 **/
 static VOID *
 PteGetAddr (
-  IN pte_t  *pPtep
+  IN pte_t  *Ptep
   )
 {
-  pte_t Pte = *pPtep;
+  pte_t Pte = *Ptep;
 
   if (!(Pte & PTE_V))
     return NULL;
@@ -68,16 +68,16 @@ PteGetAddr (
 
   Extracts the flag bits from a page table entry.
 
-  @param[in] pPtep  Pointer to PTE.
+  @param[in] Ptep  Pointer to PTE.
 
   @return PTE flags.
 **/
 static UINT64
 PteGetFlags (
-  IN pte_t  *pPtep
+  IN pte_t  *Ptep
   )
 {
-  pte_t Pte = *pPtep;
+  pte_t Pte = *Ptep;
 
   return Pte & ~0x7ffffffffffffc00LL;
 }
@@ -140,7 +140,7 @@ PteMergeFlags (
 
   Retrieves or allocates L3 page table for the given virtual address.
 
-  @param[in] pRoot    Root page table.
+  @param[in] Root    Root page table.
   @param[in] Va       Virtual address.
   @param[in] Payload  TRUE if allocating from payload pages.
 
@@ -148,7 +148,7 @@ PteMergeFlags (
 **/
 static pte_t *
 Sv48GetL3p (
-  IN pte_t   *pRoot,
+  IN pte_t   *Root,
   IN vaddr_t  Va,
   IN INT32    Payload
   )
@@ -157,7 +157,7 @@ Sv48GetL3p (
   UINT32 L4off = L4OFF64 (Va);
   UINT32 L3off = L3OFF64 (Va);
 
-  pL4p = pRoot + L4off;
+  pL4p = Root + L4off;
 
   pL3p = (pte_t *) PteGetAddr (pL4p);
   if (pL3p == NULL)
@@ -179,7 +179,7 @@ Sv48GetL3p (
 
   Retrieves or allocates L2 page table for the given virtual address.
 
-  @param[in] pRoot    Root page table.
+  @param[in] Root    Root page table.
   @param[in] Va       Virtual address.
   @param[in] Payload  TRUE if allocating from payload pages.
 
@@ -187,7 +187,7 @@ Sv48GetL3p (
 **/
 static pte_t *
 Sv48GetL2p (
-  IN pte_t   *pRoot,
+  IN pte_t   *Root,
   IN vaddr_t  Va,
   IN INT32    Payload
   )
@@ -196,7 +196,7 @@ Sv48GetL2p (
 
   UINT32 L2off = L2OFF64 (Va);
 
-  pL3p = Sv48GetL3p (pRoot, Va, Payload);
+  pL3p = Sv48GetL3p (Root, Va, Payload);
 
   pL2p = (pte_t *) PteGetAddr (pL3p);
   if (pL2p == NULL)
@@ -218,7 +218,7 @@ Sv48GetL2p (
 
   Retrieves or allocates L1 page table for the given virtual address.
 
-  @param[in] pRoot    Root page table.
+  @param[in] Root    Root page table.
   @param[in] Va       Virtual address.
   @param[in] Payload  TRUE if allocating from payload pages.
 
@@ -226,7 +226,7 @@ Sv48GetL2p (
 **/
 static pte_t *
 Sv48GetL1p (
-  IN pte_t   *pRoot,
+  IN pte_t   *Root,
   IN vaddr_t  Va,
   IN INT32    Payload
   )
@@ -234,7 +234,7 @@ Sv48GetL1p (
   pte_t *pL2p, *pL1p;
   UINT32 L1off = L1OFF64 (Va);
 
-  pL2p = Sv48GetL2p (pRoot, Va, Payload);
+  pL2p = Sv48GetL2p (Root, Va, Payload);
 
   pL1p = (pte_t *) PteGetAddr (pL2p);
   if (pL1p == NULL)
@@ -288,7 +288,7 @@ Sv48Initialize (
 
   Creates a page mapping at the specified virtual address.
 
-  @param[in] pPt      Page table root.
+  @param[in] Pt      Page table root.
   @param[in] Va       Virtual address.
   @param[in] Pa       Physical address.
   @param[in] Payload  TRUE if allocating from payload pages.
@@ -297,7 +297,7 @@ Sv48Initialize (
 **/
 VOID
 Sv48MapPage (
-  IN VOID     *pPt,
+  IN VOID     *Pt,
   IN vaddr_t  Va,
   IN UINTN    Pa,
   IN INT32    Payload,
@@ -305,16 +305,16 @@ Sv48MapPage (
   IN INT32    X
   )
 {
-  pte_t *pL1p, *pRoot;
+  pte_t *pL1p, *Root;
   UINT64 L1f;
   UINTN Page;
 
-  pRoot = (pte_t *) pPt;
+  Root = (pte_t *) Pt;
 
   printf ("Mapping at va %llx PA %lx (p:%d, w:%d, x:%d)\n", Va, Pa, Payload,
 	  W, X);
 
-  pL1p = Sv48GetL1p (pRoot, Va, Payload);
+  pL1p = Sv48GetL1p (Root, Va, Payload);
   L1f = (W ? PTE_W : 0) | (X ? PTE_X : 0) | PTE_R | PTE_V;
 
   Page = (UINTN) PteGetAddr (pL1p);
@@ -329,7 +329,7 @@ Sv48MapPage (
   Allocates and maps a page with the specified attributes, merging
   flags if page already exists.
 
-  @param[in] pRoot    Root page table.
+  @param[in] Root    Root page table.
   @param[in] Va       Virtual address.
   @param[in] U        TRUE if user-accessible.
   @param[in] W        TRUE if writable.
@@ -340,7 +340,7 @@ Sv48MapPage (
 **/
 static UINTN
 Sv48PopulatePage (
-  IN pte_t   *pRoot,
+  IN pte_t   *Root,
   IN vaddr_t  Va,
   IN INT32    U,
   IN INT32    W,
@@ -352,7 +352,7 @@ Sv48PopulatePage (
   UINT64 L1f;
   UINTN Page;
 
-  pL1p = Sv48GetL1p (pRoot, Va, Payload);
+  pL1p = Sv48GetL1p (Root, Va, Payload);
   L1f = (U ? PTE_U : 0) | (W ? PTE_W : 0) | (X ? PTE_X : 0) | PTE_R | PTE_V;
 
   Page = (UINTN) PteGetAddr (pL1p);
@@ -424,7 +424,7 @@ Sv48GetPhys (
   Creates direct (1:1) physical to virtual mappings using large pages
   where possible (1GB or 2MB).
 
-  @param[in] pPt      Page table root.
+  @param[in] Pt      Page table root.
   @param[in] PaBase   Physical base address.
   @param[in] Va       Virtual address.
   @param[in] Size     Size of region.
@@ -434,7 +434,7 @@ Sv48GetPhys (
 **/
 VOID
 Sv48DirectMap (
-  IN VOID              *pPt,
+  IN VOID              *Pt,
   IN UINT64            PaBase,
   IN vaddr_t           Va,
   IN size64_t          Size,
@@ -445,7 +445,7 @@ Sv48DirectMap (
 {
   ssize64_t Len;
   UINT64 Pa;
-  pte_t *pRoot = (pte_t *) pPt;
+  pte_t *Root = (pte_t *) Pt;
   UINT64 L3cnt = 0, L2cnt = 0, L1cnt = 0;
 
 #define GB1ALIGNED(_a) (((_a) & ((1L << 30) - 1)) == 0)
@@ -460,7 +460,7 @@ Sv48DirectMap (
 
       if (GB1ALIGNED (Pa) && GB1ALIGNED (Va) && Len >= (1L << 30))
 	{
-	  pte_t *pL3p = Sv48GetL3p (pRoot, Va, Payload);
+	  pte_t *pL3p = Sv48GetL3p (Root, Va, Payload);
 
 	  SetPte (pL3p, Pa >> PAGE_SHIFT,
 		   (X ? PTE_X : 0) | PTE_W | PTE_R | PTE_V);
@@ -471,7 +471,7 @@ Sv48DirectMap (
 	}
       else if (MB2ALIGNED (Pa) && MB2ALIGNED (Va) && Len >= (1 << 21))
 	{
-	  pte_t *pL2p = Sv48GetL2p (pRoot, Va, Payload);
+	  pte_t *pL2p = Sv48GetL2p (Root, Va, Payload);
 
 	  SetPte (pL2p, Pa >> PAGE_SHIFT,
 		   (X ? PTE_X : 0) | PTE_W | PTE_R | PTE_V);
@@ -482,7 +482,7 @@ Sv48DirectMap (
 	}
       else
 	{
-	  pte_t *pL1p = Sv48GetL1p (pRoot, Va, Payload);
+	  pte_t *pL1p = Sv48GetL1p (Root, Va, Payload);
 
 	  SetPte (pL1p, Pa >> PAGE_SHIFT,
 		   (X ? PTE_X : 0) | PTE_W | PTE_R | PTE_V);

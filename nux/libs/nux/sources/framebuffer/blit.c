@@ -26,7 +26,7 @@
   @param[in] X       X coordinate in pixels.
   @param[in] Y       Y coordinate in pixels.
   @param[in] Color   Foreground color.
-  @param[in] pData   Bitmap data (1 bit per pixel).
+  @param[in] Data   Bitmap data (1 bit per pixel).
   @param[in] Width   Bitmap width in pixels.
   @param[in] Height  Bitmap height in pixels.
 **/
@@ -35,7 +35,7 @@ FramebufferBlt (
   IN UINT32  X,
   IN UINT32  Y,
   IN UINT32  Color,
-  IN VOID    *pData,
+  IN VOID    *Data,
   IN size_t  Width,
   IN size_t  Height
   )
@@ -55,7 +55,7 @@ FramebufferBlt (
 
       while (WidthRemainingBytes)
 	{
-	  UINT8 Byte = *(UINT8 *) pData++;
+	  UINT8 Byte = *(UINT8 *) Data++;
 	  size_t BitsRemaining = WidthRemaining < 8 ? WidthRemaining : 8;
 
 	  while (BitsRemaining)

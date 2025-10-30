@@ -45,20 +45,20 @@ uint64_t gPcpuKStack[MAXCPUS];
   Set Task State Segment (TSS) in Global Descriptor Table (GDT).
 
   @param[in] PcpuId  Per-CPU ID.
-  @param[in] pTss    Pointer to TSS structure.
+  @param[in] Tss    Pointer to TSS structure.
 **/
 VOID
 GdtSetTss (
   IN unsigned           PcpuId,
-  IN struct amd64_tss  *pTss
+  IN struct amd64_tss  *Tss
   )
 {
-  uintptr_t Ptr = (uintptr_t) pTss;
+  uintptr_t Ptr = (uintptr_t) Tss;
   uint16_t Lo16 = (uint16_t) Ptr;
   uint8_t Ml8 = (uint8_t) (Ptr >> 16);
   uint8_t Mh8 = (uint8_t) (Ptr >> 24);
   uint32_t Hi32 = (uint32_t) (Ptr >> 32);
-  uint16_t Limit = sizeof (*pTss);
+  uint16_t Limit = sizeof (*Tss);
   uint32_t *pPtr32 = (uint32_t *) (_gdt + TSS_GDTIDX (PcpuId));
 
   pPtr32[0] = Limit | ((uint32_t) Lo16 << 16);
@@ -109,14 +109,14 @@ GetGsBase (
 /**
   Set per-CPU data pointer.
 
-  @param[in] pData  Pointer to per-CPU data.
+  @param[in] Data  Pointer to per-CPU data.
 **/
 VOID
 HalCpuSetData (
-  IN VOID  *pData
+  IN VOID  *Data
   )
 {
-  asm volatile ("movq %0, %%gs:0\n"::"r" (pData));
+  asm volatile ("movq %0, %%gs:0\n"::"r" (Data));
 }
 
 /**
@@ -129,10 +129,10 @@ HalCpuGetData (
   VOID
   )
 {
-  void *pData;
+  void *Data;
 
-  asm volatile ("movq %%gs:0, %0\n":"=r" (pData));
-  return pData;
+  asm volatile ("movq %%gs:0, %0\n":"=r" (Data));
+  return Data;
 }
 
 /**
@@ -175,31 +175,31 @@ AllocStackPage (
   Add per-CPU data structure.
 
   @param[in] PcpuId   Per-CPU ID.
-  @param[in] pHalData Pointer to HAL CPU data structure.
+  @param[in] HalData Pointer to HAL CPU data structure.
 **/
 VOID
 HalPcpuAdd (
   IN unsigned          PcpuId,
-  IN struct hal_cpu   *pHalData
+  IN struct hal_cpu   *HalData
   )
 {
 
   assert (PcpuId < MAXCPUS);
 
-  gPcpuHalData[PcpuId] = (vaddr_t) (uintptr_t) pHalData;
-  GdtSetTss (PcpuId, &pHalData->tss);
+  gPcpuHalData[PcpuId] = (vaddr_t) (uintptr_t) HalData;
+  GdtSetTss (PcpuId, &HalData->tss);
 
   if (PcpuId == gBspPcpuId)
     {
       /* Adding the BSP PCPU: Initialize TSS */
       extern char _bsp_stacktop, _ist1_stacktop, _ist1_stacktop,
 	_ist2_stacktop, _ist3_stacktop;
-      pHalData->kstack = (uintptr_t) & _bsp_stacktop;
-      pHalData->tss.ist[0] = (uintptr_t) & _ist1_stacktop;
-      pHalData->tss.ist[1] = (uintptr_t) & _ist2_stacktop;
-      pHalData->tss.ist[2] = (uintptr_t) & _ist3_stacktop;
-      pHalData->tss.rsp0 = (uintptr_t) & _bsp_stacktop;
-      pHalData->tss.iomap = 108;
+      HalData->kstack = (uintptr_t) & _bsp_stacktop;
+      HalData->tss.ist[0] = (uintptr_t) & _ist1_stacktop;
+      HalData->tss.ist[1] = (uintptr_t) & _ist2_stacktop;
+      HalData->tss.ist[2] = (uintptr_t) & _ist3_stacktop;
+      HalData->tss.rsp0 = (uintptr_t) & _bsp_stacktop;
+      HalData->tss.iomap = 108;
     }
   else
     {
@@ -219,12 +219,12 @@ HalPcpuInit (
   VOID
   )
 {
-  void *pVa;
+  void *Va;
   pfn_t Pfn;
-  void *pStart, *pPtr;
+  void *Start, *Ptr;
   hal_l1p_t L1p;
   paddr_t PStart;
-  volatile uint16_t *pReset;
+  volatile uint16_t *Reset;
   extern char *_ap_start, *_ap_end;
 
   /* Allocate PCPU bootstrap code page. */
@@ -234,12 +234,12 @@ HalPcpuInit (
   assert (Pfn < (1 << 8) && "Can't allocate Memory below 1MB!");
 
   /* Map and prepare the bootstrap code page. */
-  pVa = kva_map (Pfn, HAL_PTE_W | HAL_PTE_P);
-  assert (pVa != NULL);
-  pStart = pVa;
+  Va = kva_map (Pfn, HAL_PTE_W | HAL_PTE_P);
+  assert (Va != NULL);
+  Start = Va;
   size_t ApBootSz = (size_t) ((void *) &_ap_end - (void *) &_ap_start);
   assert (ApBootSz <= PAGE_SIZE);
-  memcpy (pStart, &_ap_start, ApBootSz);
+  memcpy (Start, &_ap_start, ApBootSz);
 
   PStart = (paddr_t) Pfn << PAGE_SHIFT;
 
@@ -251,26 +251,26 @@ HalPcpuInit (
   extern uint64_t _bsp_cr3;
 
   /* Copy BSP CR3 into AP */
-  pPtr = pStart + ((void *) &_ap_cr3 - (void *) &_ap_start);
-  *(uint64_t *) pPtr = _bsp_cr3;
+  Ptr = Start + ((void *) &_ap_cr3 - (void *) &_ap_start);
+  *(uint64_t *) Ptr = _bsp_cr3;
 
   /* Setup temporary GDT register. */
-  pPtr = pStart + ((void *) &_ap_gdtreg - (void *) &_ap_start);
-  *(uint32_t *) (pPtr + 2) += (uint32_t) PStart;
+  Ptr = Start + ((void *) &_ap_gdtreg - (void *) &_ap_start);
+  *(uint32_t *) (Ptr + 2) += (uint32_t) PStart;
 
   /* Setup trampoline 1 */
-  pPtr = pStart + ((void *) &_ap_ljmp1 - (void *) &_ap_start);
-  *(uint32_t *) pPtr += (uint32_t) PStart;
+  Ptr = Start + ((void *) &_ap_ljmp1 - (void *) &_ap_start);
+  *(uint32_t *) Ptr += (uint32_t) PStart;
 
   /* Setup trampoline 2 */
-  pPtr = pStart + ((void *) &_ap_ljmp2 - (void *) &_ap_start);
-  *(uint32_t *) pPtr += (uint32_t) PStart;
+  Ptr = Start + ((void *) &_ap_ljmp2 - (void *) &_ap_start);
+  *(uint32_t *) Ptr += (uint32_t) PStart;
 
   /* Set reset vector */
-  pReset = kva_physmap (0x467, 2, HAL_PTE_P | HAL_PTE_W | HAL_PTE_X);
-  *pReset = PStart & 0xf;
-  *(pReset + 1) = PStart >> 4;
-  kva_unmap ((void *) pReset, 2);
+  Reset = kva_physmap (0x467, 2, HAL_PTE_P | HAL_PTE_W | HAL_PTE_X);
+  *Reset = PStart & 0xf;
+  *(Reset + 1) = PStart >> 4;
+  kva_unmap ((void *) Reset, 2);
 
   /* PStart is in user address space: use kmap_ instead of hal_kmap */
   L1p = umap_get_l1p (NULL, PStart, true);
@@ -351,19 +351,19 @@ Amd64InitializeAp (
 {
   extern char _syscall_frame_entry;
   unsigned Pcpu = plt_pcpu_id ();
-  struct hal_cpu *pHalData = (struct hal_cpu *) (uintptr_t) gPcpuHalData[Pcpu];
+  struct hal_cpu *HalData = (struct hal_cpu *) (uintptr_t) gPcpuHalData[Pcpu];
 
   wrmsr (MSR_IA32_EFER, rdmsr (MSR_IA32_EFER) | _MSR_IA32_EFER_SCE);
   wrmsr (MSR_IA32_LSTAR, (uintptr_t) & _syscall_frame_entry);
   wrmsr (MSR_IA32_FMASK, 0xfffffffd);
   wrmsr (MSR_IA32_STAR, ((uint64_t) KCS << 32) | ((uint64_t) UCS32 << 48));
 
-  pHalData->kstack = Esp;
-  pHalData->tss.ist[0] = AllocStackPage ();
-  pHalData->tss.ist[1] = AllocStackPage ();
-  pHalData->tss.ist[2] = AllocStackPage ();
-  pHalData->tss.rsp0 = Esp;
-  pHalData->tss.iomap = 108;
+  HalData->kstack = Esp;
+  HalData->tss.ist[0] = AllocStackPage ();
+  HalData->tss.ist[1] = AllocStackPage ();
+  HalData->tss.ist[2] = AllocStackPage ();
+  HalData->tss.rsp0 = Esp;
+  HalData->tss.iomap = 108;
 
   pae64_init_ap ();
 

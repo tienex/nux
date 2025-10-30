@@ -41,32 +41,32 @@ UINT64 RsdpFind (VOID);
   Extracts framebuffer descriptor from Multiboot info structure,
   supporting RGB and indexed modes.
 
-  @param[in] pInfo  Pointer to Multiboot info structure.
+  @param[in] Info  Pointer to Multiboot info structure.
 **/
 static VOID
 ParseMultibootFramebuffer (
-  IN struct multiboot_info  *pInfo
+  IN struct multiboot_info  *Info
   )
 {
-  if (pInfo->framebuffer_type == MULTIBOOT_FRAMEBUFFER_TYPE_RGB)
+  if (Info->framebuffer_type == MULTIBOOT_FRAMEBUFFER_TYPE_RGB)
     {
       gFbDesc.type = FB_RGB;
-      gFbDesc.addr = pInfo->framebuffer_addr;
+      gFbDesc.addr = Info->framebuffer_addr;
       gFbDesc.size =
-	(UINT64) pInfo->framebuffer_pitch * pInfo->framebuffer_height;
+	(UINT64) Info->framebuffer_pitch * Info->framebuffer_height;
 
-      gFbDesc.pitch = pInfo->framebuffer_pitch;
-      gFbDesc.width = pInfo->framebuffer_width;
-      gFbDesc.height = pInfo->framebuffer_height;
-      gFbDesc.bpp = pInfo->framebuffer_bpp;
+      gFbDesc.pitch = Info->framebuffer_pitch;
+      gFbDesc.width = Info->framebuffer_width;
+      gFbDesc.height = Info->framebuffer_height;
+      gFbDesc.bpp = Info->framebuffer_bpp;
 
 #define MB2MASK(_p, _s)  (((1 << (_s)) - 1) << (1 << (_p)))
-      gFbDesc.r_mask = MB2MASK (pInfo->rpos, pInfo->rsize);
-      gFbDesc.g_mask = MB2MASK (pInfo->gpos, pInfo->gsize);
-      gFbDesc.b_mask = MB2MASK (pInfo->bpos, pInfo->bsize);
+      gFbDesc.r_mask = MB2MASK (Info->rpos, Info->rsize);
+      gFbDesc.g_mask = MB2MASK (Info->gpos, Info->gsize);
+      gFbDesc.b_mask = MB2MASK (Info->bpos, Info->bsize);
 #undef MB2MASK
     }
-  else if (pInfo->framebuffer_type == MULTIBOOT_FRAMEBUFFER_TYPE_INDEXED)
+  else if (Info->framebuffer_type == MULTIBOOT_FRAMEBUFFER_TYPE_INDEXED)
     {
       /*
          Indexed Frame Buffer not supported!
@@ -75,14 +75,14 @@ ParseMultibootFramebuffer (
          to frame buffer and we have no way (yet!) to handle it.
        */
       gFbDesc.type = FB_RGB;
-      gFbDesc.addr = pInfo->framebuffer_addr;
+      gFbDesc.addr = Info->framebuffer_addr;
       gFbDesc.size =
-	(UINT64) pInfo->framebuffer_pitch * pInfo->framebuffer_height;
+	(UINT64) Info->framebuffer_pitch * Info->framebuffer_height;
 
-      gFbDesc.pitch = pInfo->framebuffer_pitch;
-      gFbDesc.width = pInfo->framebuffer_width;
-      gFbDesc.height = pInfo->framebuffer_height;
-      gFbDesc.bpp = pInfo->framebuffer_bpp;
+      gFbDesc.pitch = Info->framebuffer_pitch;
+      gFbDesc.width = Info->framebuffer_width;
+      gFbDesc.height = Info->framebuffer_height;
+      gFbDesc.bpp = Info->framebuffer_bpp;
 
       gFbDesc.r_mask = 0xff;
       gFbDesc.g_mask = 0xff;
@@ -101,16 +101,16 @@ ParseMultibootFramebuffer (
   Converts Multiboot memory map to APXH bootinfo_region format
   in-place. Tracks maximum PFN and maximum RAM PFN.
 
-  @param[in] pInfo  Pointer to Multiboot info structure.
+  @param[in] Info  Pointer to Multiboot info structure.
 **/
 static VOID
 ParseMultibootMmap (
-  IN struct multiboot_info  *pInfo
+  IN struct multiboot_info  *Info
   )
 {
   size_t MmapLength;
 
-  MmapLength = pInfo->mmap_length;
+  MmapLength = Info->mmap_length;
 
   /*
      Step 1: check that we'll fit in the area allocated for the memory
@@ -126,7 +126,7 @@ ParseMultibootMmap (
      the kernel offset and the beginning of virtual memory: we can
      dereference multiboot pointers safely.
    */
-  memmove ((VOID *) BOOTMEM_MMAP, (VOID *) (uintptr_t) pInfo->mmap_addr,
+  memmove ((VOID *) BOOTMEM_MMAP, (VOID *) (uintptr_t) Info->mmap_addr,
 	   MmapLength);
   /* Unsafe to use multiboot info after this. */
 
@@ -146,9 +146,9 @@ ParseMultibootMmap (
   UINT64 MaxRamPfn = 0;
   unsigned Regions = 0;
   size_t Cur;
-  volatile struct multiboot_mmap_entry *pMbPtr =
+  volatile struct multiboot_mmap_entry *MbPtr =
     (struct multiboot_mmap_entry *) BOOTMEM_MMAP;
-  volatile struct bootinfo_region *pHrPtr =
+  volatile struct bootinfo_region *HrPtr =
     (struct bootinfo_region *) BOOTMEM_MMAP;
   printf ("Multiboot memory map:\n");
   for (Cur = 0; Cur < MmapLength;)
@@ -156,15 +156,15 @@ ParseMultibootMmap (
       size_t MbSize;
       struct bootinfo_region HReg;
 
-      printf ("%016llx:%016llx:%d\n", pMbPtr->addr, pMbPtr->len, pMbPtr->type);
-      if (pMbPtr->type == MULTIBOOT_MEMORY_AVAILABLE)
+      printf ("%016llx:%016llx:%d\n", MbPtr->addr, MbPtr->len, MbPtr->type);
+      if (MbPtr->type == MULTIBOOT_MEMORY_AVAILABLE)
 	HReg.type = BOOTINFO_REGION_RAM;
       else
 	HReg.type = BOOTINFO_REGION_OTHER;
 
-      HReg.pfn = pMbPtr->addr >> PAGE_SHIFT;
-      HReg.len = (pMbPtr->len + PAGE_SIZE - 1) >> PAGE_SHIFT;
-      MbSize = pMbPtr->size + sizeof (pMbPtr->size);
+      HReg.pfn = MbPtr->addr >> PAGE_SHIFT;
+      HReg.len = (MbPtr->len + PAGE_SIZE - 1) >> PAGE_SHIFT;
+      MbSize = MbPtr->size + sizeof (MbPtr->size);
 
       /* Count all memory as maxpfn */
       if (MaxPfn < HReg.pfn + HReg.len)
@@ -176,10 +176,10 @@ ParseMultibootMmap (
 	MaxRamPfn = HReg.pfn + HReg.len;
 
       /* We consumed this entry. Can write the hreg region. */
-      *pHrPtr = HReg;
+      *HrPtr = HReg;
 
-      pMbPtr = (VOID *) pMbPtr + MbSize;
-      pHrPtr++;
+      MbPtr = (VOID *) MbPtr + MbSize;
+      HrPtr++;
       Regions++;
       Cur += MbSize;
     }
@@ -196,18 +196,18 @@ ParseMultibootMmap (
   Extracts framebuffer and memory map information from Multiboot
   info structure passed by bootloader.
 
-  @param[in] pInfo  Pointer to Multiboot info structure.
+  @param[in] Info  Pointer to Multiboot info structure.
 **/
 VOID
 ParseMultiboot (
-  IN struct multiboot_info  *pInfo
+  IN struct multiboot_info  *Info
   )
 {
-  if (pInfo->flags & MULTIBOOT_INFO_FRAMEBUFFER_INFO)
-    ParseMultibootFramebuffer (pInfo);
+  if (Info->flags & MULTIBOOT_INFO_FRAMEBUFFER_INFO)
+    ParseMultibootFramebuffer (Info);
 
-  assert (pInfo->flags & MULTIBOOT_INFO_MEM_MAP);
-  ParseMultibootMmap (pInfo);
+  assert (Info->flags & MULTIBOOT_INFO_MEM_MAP);
+  ParseMultibootMmap (Info);
 }
 
 
@@ -229,23 +229,23 @@ GetPayloadStart (
   IN plid_t  Id
   )
 {
-  VOID *pElfPayload;
+  VOID *ElfPayload;
 
   switch (Id)
     {
     case PAYLOAD_KERNEL:
-      pElfPayload = gpElfKernelPayload;
+      ElfPayload = gpElfKernelPayload;
       break;
     case PAYLOAD_USER:
-      pElfPayload = gpElfUserPayload;
+      ElfPayload = gpElfUserPayload;
       break;
     default:
       printf ("Unsupported payload ID %d\n", Id);
-      pElfPayload = NULL;
+      ElfPayload = NULL;
       break;
     }
 
-  return pElfPayload;
+  return ElfPayload;
 }
 
 /**
@@ -402,10 +402,10 @@ MdGetMemRegion (
   IN unsigned  Index
   )
 {
-  struct bootinfo_region *pHrPtr = (struct bootinfo_region *) BOOTMEM_MMAP;
+  struct bootinfo_region *HrPtr = (struct bootinfo_region *) BOOTMEM_MMAP;
 
   assert (Index < gBootinfoRegions);
-  return pHrPtr + Index;
+  return HrPtr + Index;
 }
 
 /**
@@ -498,7 +498,7 @@ MbAmd64Entry (
   )
 {
   VOID *pTrampCr3;
-  VOID *pTramp;
+  VOID *Tramp;
   UINT16 TrampCode = 0xe7ff;	/* jmp *%rdi */
   unsigned long Cr0, Cr3, Cr4;
   UINT64 Efer;
@@ -508,11 +508,11 @@ MbAmd64Entry (
   pTrampCr3 = (VOID *) GetPage ();
 
   /* Setup trampoline. */
-  pTramp = (VOID *) GetPage ();
-  *(UINT16 *) pTramp = TrampCode;
-  TrampEntry = (vaddr_t) (uintptr_t) pTramp;
+  Tramp = (VOID *) GetPage ();
+  *(UINT16 *) Tramp = TrampCode;
+  TrampEntry = (vaddr_t) (uintptr_t) Tramp;
 
-  printf ("tramp is %lx (%x)\n", pTramp, *(UINT64 *) pTramp);
+  printf ("tramp is %lx (%x)\n", Tramp, *(UINT64 *) Tramp);
 
   /* Setup Direct map at 0->1Gb */
   pae64_directmap (pTrampCr3, 0, 0, 1L << 30, MEMTYPE_WB, 0, 1);
@@ -569,7 +569,7 @@ Mb386Entry (
   )
 {
   VOID *pTrampCr3;
-  VOID *pTramp;
+  VOID *Tramp;
   vaddr_t TrampEntry;
   UINT16 TrampCode = 0xe7ff;	/* jmp *%edi */
   unsigned long Cr4 = read_cr4 ();
@@ -580,11 +580,11 @@ Mb386Entry (
   pTrampCr3 = (VOID *) GetPage ();
 
   /* Setup trampoline. */
-  pTramp = (VOID *) GetPage ();
-  *(UINT16 *) pTramp = TrampCode;
-  TrampEntry = (vaddr_t) (uintptr_t) pTramp;
+  Tramp = (VOID *) GetPage ();
+  *(UINT16 *) Tramp = TrampCode;
+  TrampEntry = (vaddr_t) (uintptr_t) Tramp;
 
-  printf ("tramp is %lx (%x)\n", pTramp, *(UINT64 *) pTramp);
+  printf ("tramp is %lx (%x)\n", Tramp, *(UINT64 *) Tramp);
 
   /* Setup Direct map at 0->1Gb */
   pae_directmap (pTrampCr3, 0, 0, 1L << 30, MEMTYPE_WB, 0, 1);

@@ -29,18 +29,18 @@ static pte_t *gL2s[4];
   Writes a page table entry with the specified page frame number
   and flags.
 
-  @param[out] pPtep  Pointer to PTE.
+  @param[out] Ptep  Pointer to PTE.
   @param[in]  Pfn    Page frame number.
   @param[in]  Flags  PTE flags.
 **/
 static VOID
 SetPte (
-  OUT pte_t   *pPtep,
+  OUT pte_t   *Ptep,
   IN  UINT64  Pfn,
   IN  UINT64  Flags
   )
 {
-  *pPtep = (Pfn << PAGE_SHIFT) | Flags;
+  *Ptep = (Pfn << PAGE_SHIFT) | Flags;
 }
 
 /**
@@ -49,16 +49,16 @@ SetPte (
   Extracts the physical address from a page table entry.
   Returns NULL if PTE is not present.
 
-  @param[in] pPtep  Pointer to PTE.
+  @param[in] Ptep  Pointer to PTE.
 
   @return Physical address from PTE, or NULL if not present.
 **/
 static VOID *
 PteGetAddr (
-  IN pte_t  *pPtep
+  IN pte_t  *Ptep
   )
 {
-  pte_t Pte = *pPtep;
+  pte_t Pte = *Ptep;
 
   if (!(Pte & PTE_P))
     return NULL;
@@ -71,16 +71,16 @@ PteGetAddr (
 
   Extracts the flag bits from a page table entry.
 
-  @param[in] pPtep  Pointer to PTE.
+  @param[in] Ptep  Pointer to PTE.
 
   @return PTE flags.
 **/
 static UINT64
 PteGetFlags (
-  IN pte_t  *pPtep
+  IN pte_t  *Ptep
   )
 {
-  pte_t Pte = *pPtep;
+  pte_t Pte = *Ptep;
 
   return Pte & ~0x7ffffffffffff000LL;
 }
@@ -263,7 +263,7 @@ PaeGetL1p (
 
   Creates a page mapping with specified permissions.
 
-  @param[in] pPt      Page table root.
+  @param[in] Pt      Page table root.
   @param[in] Va       Virtual address.
   @param[in] Pa       Physical address.
   @param[in] Payload  TRUE to allocate from payload pages.
@@ -272,7 +272,7 @@ PaeGetL1p (
 **/
 VOID
 PaeMapPage (
-  IN VOID      *pPt,
+  IN VOID      *Pt,
   IN vaddr_t   Va,
   IN uintptr_t Pa,
   IN int       Payload,
@@ -284,7 +284,7 @@ PaeMapPage (
   UINT64 L1F;
   uintptr_t Page;
 
-  pCr3 = (pte_t *) pPt;
+  pCr3 = (pte_t *) Pt;
 
   pL1p = PaeGetL1p (pCr3, Va, Payload);
   L1F = (W ? PTE_W : 0) | (X ? 0 : PTE_NX) | PTE_P;
@@ -386,7 +386,7 @@ PaeGetPhys (
   Creates direct 1:1 mapping of physical memory with specified type
   and permissions using 4KB pages.
 
-  @param[in] pPt      Page table root.
+  @param[in] Pt      Page table root.
   @param[in] Pa       Physical address base.
   @param[in] Va       Virtual address base.
   @param[in] Size     Size of region.
@@ -396,7 +396,7 @@ PaeGetPhys (
 **/
 VOID
 PaeDirectMap (
-  IN VOID              *pPt,
+  IN VOID              *Pt,
   IN UINT64            Pa,
   IN vaddr_t           Va,
   IN size64_t          Size,
@@ -407,14 +407,14 @@ PaeDirectMap (
 {
   UINT64 PaPfn = Pa >> PAGE_SHIFT;
   unsigned i, n;
-  pte_t *pPte;
+  pte_t *Pte;
 
   n = Size >> PAGE_SHIFT;
 
   for (i = 0; i < n; i++)
     {
-      pPte = PaeGetL1p (pPt, Va + (i << PAGE_SHIFT), Payload);
-      SetPte (pPte, PaPfn + i,
+      Pte = PaeGetL1p (Pt, Va + (i << PAGE_SHIFT), Payload);
+      SetPte (Pte, PaPfn + i,
 	       MemtypeToFlags (Mt, true /*4k */ ) | PTE_P | PTE_W | (X ? 0 :
 								       PTE_NX));
     }

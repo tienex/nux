@@ -155,21 +155,21 @@ NmiEmulIpiSetAll (
 
   Checks and processes pending emulated NMI if present.
 
-  @param[in] pFrame  HAL frame at entry.
+  @param[in] Frame  HAL frame at entry.
 
   @return Frame to return to.
 **/
 struct hal_frame *
 NmiEmulEntry (
-  IN struct hal_frame  *pFrame
+  IN struct hal_frame  *Frame
   )
 {
   if (NmiEmulNmiPending ())
     {
       NmiEmulNmiClear ();
-      /* void */ hal_entry_nmi (pFrame);
+      /* void */ hal_entry_nmi (Frame);
     }
-  return pFrame;
+  return Frame;
 }
 
 //

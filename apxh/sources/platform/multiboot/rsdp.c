@@ -37,23 +37,23 @@ struct acpi_rsdp_thdr
 
   Searches memory region for ACPI RSDP signature "RSD PTR ".
 
-  @param[in] pBase  Base address to start scanning.
+  @param[in] Base  Base address to start scanning.
   @param[in] Size   Size of region to scan.
 
   @return Pointer to RSDP if found, NULL otherwise.
 **/
 static VOID *
 RsdpScan (
-  IN VOID    *pBase,
+  IN VOID    *Base,
   IN size_t  Size
   )
 {
-  VOID *pPtr;
+  VOID *Ptr;
 
-  for (pPtr = (UINT64 *) pBase; pPtr < pBase + Size; pPtr++)
+  for (Ptr = (UINT64 *) Base; Ptr < Base + Size; Ptr++)
     {
-      if (!memcmp (pPtr, RSDP_SIGN, 8))
-	return pPtr;
+      if (!memcmp (Ptr, RSDP_SIGN, 8))
+	return Ptr;
     }
 
   return NULL;
@@ -64,17 +64,17 @@ RsdpScan (
 
   Validates RSDP checksum for both ACPI 1.0 and 2.0+ versions.
 
-  @param[in] pPtr  Pointer to RSDP structure.
+  @param[in] Ptr  Pointer to RSDP structure.
 
   @retval TRUE   Checksum is valid.
   @retval FALSE  Checksum is invalid.
 **/
 static bool
 RsdpCheck (
-  IN VOID  *pPtr
+  IN VOID  *Ptr
   )
 {
-  struct acpi_rsdp_thdr *pRsdp = (struct acpi_rsdp_thdr *) pPtr;
+  struct acpi_rsdp_thdr *Rsdp = (struct acpi_rsdp_thdr *) Ptr;
   int i;
   UINT8 Sum;
 
@@ -82,26 +82,26 @@ RsdpCheck (
   debug ("Checking Checksum");
   Sum = 0;
   for (i = 0; i < 20; i++)
-    Sum += *(UINT8 *) (pPtr + i);
+    Sum += *(UINT8 *) (Ptr + i);
 
   if (Sum != 0)
     {
-      warn ("Checksum failed for RSDP at addr %p", pPtr);
+      warn ("Checksum failed for RSDP at addr %p", Ptr);
       return false;
     }
 
-  debug ("Revision: %d", pRsdp->revision);
+  debug ("Revision: %d", Rsdp->revision);
   /* Checksum ACPI V2.0 */
-  if (pRsdp->revision != 0)
+  if (Rsdp->revision != 0)
     {
       debug ("Checking Extended Checksum");
       Sum = 0;
-      for (i = 0; i < pRsdp->length; i++)
-	Sum += *(UINT8 *) (pPtr + i);
+      for (i = 0; i < Rsdp->length; i++)
+	Sum += *(UINT8 *) (Ptr + i);
 
       if (Sum != 0)
 	{
-	  warn ("Extended checksum failed for RSDP at addr %p", pPtr);
+	  warn ("Extended checksum failed for RSDP at addr %p", Ptr);
 	  return false;
 	}
     }
@@ -127,12 +127,12 @@ BiosFindRsdp (
   )
 {
   unsigned PAddr;
-  VOID *pMemStart = (VOID *) 0;
+  VOID *MemStart = (VOID *) 0;
 
   debug ("Searching for RSDP.");
 
   /* Method 1: Search EBDA's first kb. */
-  UINT16 EbdaSeg = *(UINT16 *) (pMemStart + EBDA_PTRADDR);
+  UINT16 EbdaSeg = *(UINT16 *) (MemStart + EBDA_PTRADDR);
   PAddr = ((uintptr_t) EbdaSeg << 4);
 
   if (PAddr <= (1 << 10))
@@ -141,16 +141,16 @@ BiosFindRsdp (
     }
   else
     {
-      VOID *pPtr;
+      VOID *Ptr;
 
-      debug ("Scanning EBDA at addr %x (%p)", PAddr, pMemStart + PAddr);
-      pPtr = RsdpScan ((UINT8 *) pMemStart + PAddr, 1 * KB);
-      if (pPtr != NULL)
-	return pPtr;
+      debug ("Scanning EBDA at addr %x (%p)", PAddr, MemStart + PAddr);
+      Ptr = RsdpScan ((UINT8 *) MemStart + PAddr, 1 * KB);
+      if (Ptr != NULL)
+	return Ptr;
     }
 
   debug ("Scanning 0xE0000 -> 0xFFFFF");
-  return RsdpScan (pMemStart + 0xe0000, 0x20000);
+  return RsdpScan (MemStart + 0xe0000, 0x20000);
 
 }
 
@@ -166,20 +166,20 @@ RsdpFind (
   VOID
   )
 {
-  VOID *pRsdp;
+  VOID *Rsdp;
 
-  pRsdp = BiosFindRsdp ();
-  if (pRsdp == NULL)
+  Rsdp = BiosFindRsdp ();
+  if (Rsdp == NULL)
     {
       warn ("RSDP not found.");
       return 0;
     }
 
-  if (!RsdpCheck (pRsdp))
+  if (!RsdpCheck (Rsdp))
     return 0;
 
-  info ("RSDP found at %p", pRsdp);
-  return (UINT64) (uintptr_t) pRsdp;
+  info ("RSDP found at %p", Rsdp);
+  return (UINT64) (uintptr_t) Rsdp;
 }
 
 //
