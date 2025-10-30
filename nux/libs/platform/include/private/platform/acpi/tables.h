@@ -10,7 +10,7 @@
 **/
 
 #ifndef __platform_acpi_tables_h__
-#define PLTACPI_ACPITLB_H
+#define __platform_acpi_tables_h__
 
 #include <cdefs.h>
 #include <stdint.h>
