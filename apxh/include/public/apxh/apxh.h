@@ -208,23 +208,4 @@ typedef struct _APXH_REGION {
 
 #pragma pack(pop)
 
-//
-// Legacy Type Aliases (for backward compatibility)
-//
-
-/** @deprecated Use APXH_PLATFORM_DESCRIPTOR instead **/
-typedef APXH_PLATFORM_DESCRIPTOR apxh_platformdesc;
-
-/** @deprecated Use APXH_TLS_INFO instead **/
-typedef APXH_TLS_INFO apxh_tlsinfo;
-
-/** @deprecated Use APXH_BOOT_INFO instead **/
-typedef APXH_BOOT_INFO apxh_bootinfo;
-
-/** @deprecated Use APXH_STREE instead **/
-typedef APXH_STREE apxh_stree;
-
-/** @deprecated Use APXH_REGION instead **/
-typedef APXH_REGION apxh_region;
-
 #endif // _APXH_H
