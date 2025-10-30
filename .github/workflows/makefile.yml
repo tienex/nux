@@ -1,49 +1,27 @@
-name: Project Build
+name: CI Workflow
 
 on:
   push:
-    branches: [ "main" ]
-  pull_request:
-    branches: [ "main" ]
-  workflow_dispatch:
+    branches:
+      - main
 
 jobs:
   build:
     runs-on: ubuntu-latest
-    
+
     steps:
-    - uses: actions/checkout@v3
+      - name: Checkout code
+        uses: actions/checkout@v2
 
-    - name: Download GCC Toolchain
-      if: steps.cache-check.outputs.cache-hit != 'true'
-      uses: dawidd6/action-download-artifact@v6
-      with:
-        github_token: ${{ github.token }}
-        workflow: makefile.yml
-        name: gcc-toolchain
-        repo: glguida/gcc_toolchain_build
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc g++ gcc-riscv64-linux-gnu
 
-    - name: Untar Toolchain
-      run: |
-        tar xfvJ gcc_toolchain.tar.xz
-        TOOLCHAIN_PATH=${{ github.workspace }}/gcc_toolchain_install
-        echo "$TOOLCHAIN_PATH/bin" >> "$GITHUB_PATH"
+      - name: Build for x86/x64
+        run: |
+          make build
 
-    - name: Submodules fetch
-      run: |
-        git submodule update --init --recursive
-
-    - name: Build RISCV64
-      run: |
-        ./configure ARCH=riscv64
-        make -j$(nproc)
-
-    - name: Build AMD64
-      run: |
-        ./configure ARCH=amd64
-        make -j$(nproc)
-
-    - name: Build I386
-      run: |
-        ./configure ARCH=i386
-        make -j$(nproc)
+      - name: Build for RISCV64
+        run: |
+          make build-riscv64
