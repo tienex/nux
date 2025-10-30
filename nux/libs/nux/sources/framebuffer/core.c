@@ -22,9 +22,9 @@ lock_t gFbLock;
 //
 // Console state
 //
-volatile INT32 gFbScreenColumn = 0;
-volatile INT32 gFbX = 0;
-volatile INT32 gFbY = 0;
+VOLATILE INT32 gFbScreenColumn = 0;
+VOLATILE INT32 gFbX = 0;
+VOLATILE INT32 gFbY = 0;
 INT32 gFbScreenCols;
 INT32 gFbScreenRows;
 

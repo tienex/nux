@@ -16,9 +16,9 @@
 #include <nux/internal.h>
 
 /** Set and cleared by HAL. If this is on, we're still in initialisation mode. **/
-volatile UINT32 gNuxApBooting = 0;
+VOLATILE UINT32 gNuxApBooting = 0;
 
-volatile UINT8 gNuxStFlags = 0;
+VOLATILE UINT8 gNuxStFlags = 0;
 
 /**
   Get current NUX system status flags.

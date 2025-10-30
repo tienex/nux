@@ -24,7 +24,7 @@ static PFN gMaxDmapPfn;
 static CACHE gCache;
 static SLOT *gSlots;
 
-static volatile TLB_GENERATION gPfncTlbGen = 0;
+static VOLATILE TLB_GENERATION gPfncTlbGen = 0;
 
 /**
   Fill PFN cache slot with new mapping.

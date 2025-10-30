@@ -103,7 +103,7 @@ LapicRead (
   IN UINT32  Reg
   )
 {
-  return *((volatile UINT32 *) (gLapicBase + Reg));
+  return *((VOLATILE UINT32 *) (gLapicBase + Reg));
 }
 
 /**
@@ -120,7 +120,7 @@ LapicWrite (
   IN UINT32  Data
   )
 {
-  *((volatile UINT32 *) (gLapicBase + Reg)) = Data;
+  *((VOLATILE UINT32 *) (gLapicBase + Reg)) = Data;
 }
 
 /**

@@ -26,7 +26,7 @@
   Includes cycle counter for measuring lock hold time.
 **/
 typedef struct _SPINLOCK {
-  volatile INT32  Lock;    ///< Lock state (0=unlocked, 1=locked)
+  VOLATILE INT32  Lock;    ///< Lock state (0=unlocked, 1=locked)
   UINT64          LockCy;  ///< Cycle count when lock was acquired
 } SPINLOCK;
 

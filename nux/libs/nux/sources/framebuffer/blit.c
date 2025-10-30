@@ -61,10 +61,10 @@ FramebufferBlt (
 	  while (BitsRemaining)
 	    {
 	      if (Byte & 0x80)
-		*(volatile UINT32 *) (UINTN) (gFbDesc->addr + Offset) =
+		*(VOLATILE UINT32 *) (UINTN) (gFbDesc->addr + Offset) =
 		  Color;
 	      else
-		*(volatile UINT32 *) (UINTN) (gFbDesc->addr + Offset) = 0;
+		*(VOLATILE UINT32 *) (UINTN) (gFbDesc->addr + Offset) = 0;
 
 	      Offset += BytesPerPixel;
 	      Byte <<= 1;

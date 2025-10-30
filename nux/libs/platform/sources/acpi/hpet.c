@@ -57,7 +57,7 @@ HpetRead (
   )
 {
   UINT32 Hi1, Hi2, Lo;
-  volatile UINT32 *Ptr = gHpetBase + Offset;
+  VOLATILE UINT32 *Ptr = gHpetBase + Offset;
 
   do
     {
@@ -84,7 +84,7 @@ HpetWrite (
   IN UINT64  Value
   )
 {
-  volatile UINT32 *Ptr = gHpetBase + Offset;
+  VOLATILE UINT32 *Ptr = gHpetBase + Offset;
   *(Ptr + 1) = Value >> 32;
   *Ptr = (UINT32) Value;
 }

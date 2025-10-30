@@ -27,7 +27,7 @@
   @retval TRUE   Address is canonical.
   @retval FALSE  Address is non-canonical.
 **/
-static inline BOOLEAN
+static INLINE BOOLEAN
 IsCanonical (
   IN UINT64  Addr
   )
@@ -478,7 +478,7 @@ FrameCr2 (
 //
 
 /** @deprecated Use IsCanonical instead **/
-static inline bool is_canonical (uint64_t addr) {
+static INLINE bool is_canonical (uint64_t addr) {
   return IsCanonical (addr);
 }
 

@@ -70,7 +70,7 @@ typedef struct _NUXPERF_MEASURE {
   ///
   /// Spinlock for updating statistics.
   ///
-  volatile UINTN  Lock;
+  VOLATILE UINTN  Lock;
 
   ///
   /// Minimum value observed.
@@ -195,7 +195,7 @@ NuxPerfCounterReset (
   NUXPERF_COUNTER *Ptr = _nuxperf_start;
 
   while (Ptr < _nuxperf_end) {
-    *(volatile UINTN *)&Ptr->Value = 0;
+    *(VOLATILE UINTN *)&Ptr->Value = 0;
     Ptr++;
   }
 }

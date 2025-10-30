@@ -73,7 +73,7 @@ HalPcpuInit (
   void *Start, *Ptr;
   hal_l1p_t L1p;
   PHYSICAL_ADDRESS PStart;
-  volatile uint16_t *Reset;
+  VOLATILE UINT16 *Reset;
   extern char *_ap_start, *_ap_end;
 
   /* Allocate PCPU bootstrap code. Use KVA. *//* TODO: USE KVA? Not needed, not a long term mapping. */

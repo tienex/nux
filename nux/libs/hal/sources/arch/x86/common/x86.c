@@ -74,7 +74,7 @@ INT32 gNuxInitialized = 0;
 
   Disables interrupts and halts the processor in an infinite loop.
 **/
-static inline __dead VOID
+static INLINE __dead VOID
 Halt (
   VOID
   )
