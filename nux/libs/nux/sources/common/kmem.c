@@ -287,7 +287,7 @@ KmemBrkShrink (
   KMEM area.
 */
 
-typedef unsigned long zaddr_t;
+typedef unsigned INTN zaddr_t;
 #define v_to_z(_v) ((_v) >> 6)
 #define z_to_v(_z) ((_z) << 6)
 #define zsize(_size) (v_to_z((_size) + 63))
@@ -298,7 +298,7 @@ typedef unsigned long zaddr_t;
 **/
 struct kmem_head
 {
-  unsigned long magic;           ///< Magic number for validation
+  unsigned INTN magic;           ///< Magic number for validation
   LIST_ENTRY (kmem_head) list;   ///< List entry
   VIRTUAL_ADDRESS addr;                  ///< Starting address
   UINTN size;                   ///< Allocation size
@@ -310,7 +310,7 @@ struct kmem_head
 struct kmem_tail
 {
   UINTN offset;                 ///< Offset to header
-  unsigned long magic;           ///< Magic number for validation
+  unsigned INTN magic;           ///< Magic number for validation
 };
 
 //#define kmdbg_printf(...) printf(__VA_ARGS__)
@@ -660,7 +660,7 @@ static int cmp (VIRTUAL_ADDRESS a, VIRTUAL_ADDRESS b) {
 
 #ifdef HAL_PAGED
 /** @deprecated Use EnsureRange instead **/
-static int _ensure_range (VIRTUAL_ADDRESS v1, VIRTUAL_ADDRESS v2, int mapped) {
+static int _ensure_range (VIRTUAL_ADDRESS v1, VIRTUAL_ADDRESS v2, INT32 mapped) {
   return EnsureRange (v1, v2, mapped);
 }
 
@@ -676,32 +676,32 @@ static int _ensure_range_unmapped (VIRTUAL_ADDRESS v1, VIRTUAL_ADDRESS v2) {
 #endif
 
 /** @deprecated Use KmemBreak instead **/
-int KmemBrk (int low, VIRTUAL_ADDRESS vaddr) {
+int KmemBrk (INT32 low, VIRTUAL_ADDRESS vaddr) {
   return KmemBreak (low, vaddr);
 }
 
 /** @deprecated Use KmemSbrk instead **/
-VIRTUAL_ADDRESS KmemSbrk (int low, long inc) {
+VIRTUAL_ADDRESS KmemSbrk (INT32 low, INTN inc) {
   return KmemSbrk (low, inc);
 }
 
 /** @deprecated Use KmemBrkGrow instead **/
-VIRTUAL_ADDRESS KmemBrkGrow (int low, UINT32 size) {
+VIRTUAL_ADDRESS KmemBrkGrow (INT32 low, UINT32 size) {
   return KmemBrkGrow (low, size);
 }
 
 /** @deprecated Use KmemBrkShrink instead **/
-int KmemBrkShrink (int low, UINT32 size) {
+int KmemBrkShrink (INT32 low, UINT32 size) {
   return KmemBrkShrink (low, size);
 }
 
 /** @deprecated Use KmemAllocate instead **/
-VIRTUAL_ADDRESS KmemAlloc (int low, UINTN size) {
+VIRTUAL_ADDRESS KmemAlloc (INT32 low, UINTN size) {
   return KmemAllocate (low, size);
 }
 
 /** @deprecated Use KmemFree instead **/
-void KmemFree (int low, VIRTUAL_ADDRESS vaddr, UINTN size) {
+void KmemFree (INT32 low, VIRTUAL_ADDRESS vaddr, UINTN size) {
   KmemFree (low, vaddr, size);
 }
 

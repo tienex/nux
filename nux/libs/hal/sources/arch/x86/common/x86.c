@@ -23,28 +23,28 @@
 #include <nux/batree.h>
 
 
-extern int _info_start;
+extern INT32 _info_start;
 
-extern int _physmap_start;
-extern int _physmap_end;
+extern INT32 _physmap_start;
+extern INT32 _physmap_end;
 
-extern int _pfncache_start;
-extern int _pfncache_end;
+extern INT32 _pfncache_start;
+extern INT32 _pfncache_end;
 
-extern int _kva_start;
-extern int _kva_end;
+extern INT32 _kva_start;
+extern INT32 _kva_end;
 
-extern int _kmem_start;
-extern int _kmem_end;
+extern INT32 _kmem_start;
+extern INT32 _kmem_end;
 
-extern int _stree_start[];
-extern int _stree_end[];
+extern INT32 _stree_start[];
+extern INT32 _stree_end[];
 
-extern int _fbuf_start;
-extern int _fbuf_end;
+extern INT32 _fbuf_start;
+extern INT32 _fbuf_end;
 
-extern int _memregs_start;
-extern int _memregs_end;
+extern INT32 _memregs_start;
+extern INT32 _memregs_end;
 
 //
 // Pin areas of memory to a fixed memory region type.
@@ -806,27 +806,27 @@ void wrmsr (UINT32 ecx, UINT64 val) {
 }
 
 /** @deprecated Use ReadCr4 instead **/
-UINT32 long read_cr4 (void) {
+unsigned long read_cr4 (void) {
   return ReadCr4 ();
 }
 
 /** @deprecated Use WriteCr4 instead **/
-void write_cr4 (unsigned long r) {
+void write_cr4 (unsigned INTN r) {
   WriteCr4 (r);
 }
 
 /** @deprecated Use ReadCr3 instead **/
-UINT32 long read_cr3 (void) {
+unsigned long read_cr3 (void) {
   return ReadCr3 ();
 }
 
 /** @deprecated Use WriteCr3 instead **/
-void write_cr3 (unsigned long r) {
+void write_cr3 (unsigned INTN r) {
   WriteCr3 (r);
 }
 
 /** @deprecated Use InB instead **/
-int inb (int port) {
+int inb (INT32 port) {
   return InB (port);
 }
 
@@ -841,17 +841,17 @@ int inl (UINT32 port) {
 }
 
 /** @deprecated Use OutB instead **/
-void outb (int port, int val) {
+void outb (INT32 port, INT32 val) {
   OutB (port, val);
 }
 
 /** @deprecated Use OutW instead **/
-void outw (UINT32 port, int val) {
+void outw (UINT32 port, INT32 val) {
   OutW (port, val);
 }
 
 /** @deprecated Use OutL instead **/
-void outl (UINT32 port, int val) {
+void outl (UINT32 port, INT32 val) {
   OutL (port, val);
 }
 
@@ -871,7 +871,7 @@ void x86_init (void) {
 }
 
 /** @deprecated Use StackFrame instead **/
-void stackframe (unsigned long rbp) {
+void stackframe (unsigned INTN rbp) {
   StackFrame (rbp);
 }
 

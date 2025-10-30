@@ -278,7 +278,7 @@ BatreeClrBit (WORD_T *Batree, UINT32 O, UINTN BitAddr)
 
 #include <string.h>
 static INLINE void
-BatreeSetAll (WORD_T *Batree, UINT32 O, UINT32 long Max)
+BatreeSetAll (WORD_T *Batree, UINT32 O, unsigned long Max)
 {
   INT32 L;
 
@@ -301,10 +301,10 @@ BatreeSetAll (WORD_T *Batree, UINT32 O, UINT32 long Max)
 
   @return Number of set bits.
 **/
-static INLINE UINT32 long
+static INLINE unsigned long
 BatreeCount (WORD_T *Batree, UINT32 O)
 {
-  UINT32 long Size = 0;
+  unsigned long Size = 0;
   WORD_T *Lmap = BatreeLmap (Batree, O, 0);
 
   for (INT32 i = 0; i < (1LL << O); i += (1 << WORDLOG2))

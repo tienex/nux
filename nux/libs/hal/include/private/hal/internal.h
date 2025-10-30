@@ -121,7 +121,7 @@ UINTN FrameCr2 (IN struct hal_frame *pFrame);
 // Legacy Function Declarations (for backward compatibility)
 //
 
-extern int nux_initialized;
+extern INT32 nux_initialized;
 
 void x86_init (void);
 void amd64_init (void);
@@ -134,19 +134,19 @@ void i386_init_done (void);
 void amd64_init_done (void);
 
 INT32 inb (INT32 port);
-VOID outb (INT32 port, int val);
+VOID outb (INT32 port, INT32 val);
 
 typedef UINT64 pte_t;
 typedef UINTN ptep_t;
 
 pte_t get_pte (ptep_t ptep);
 pte_t set_pte (ptep_t ptep, pte_t pte);
-hal_l1p_t kmap_get_l1p (unsigned long va, int alloc);
-hal_l1p_t umap_get_l1p (struct hal_umap *umap, unsigned long va, int alloc);
+hal_l1p_t kmap_get_l1p (unsigned INTN va, INT32 alloc);
+hal_l1p_t umap_get_l1p (struct hal_umap *umap, unsigned INTN va, INT32 alloc);
 USER_ADDRESS pt_umap_next (struct hal_umap *umap, USER_ADDRESS uaddr, hal_l1p_t * l1p_out,
 		   hal_l1e_t * l1e_out);
 VOID pt_umap_free (struct hal_umap *umap);
-VOID pt_umap_debugwalk (struct hal_umap *umap, unsigned long va);
+VOID pt_umap_debugwalk (struct hal_umap *umap, unsigned INTN va);
 UINTN pt_umap_minaddr (VOID);
 UINTN pt_umap_maxaddr (VOID);
 
@@ -160,13 +160,13 @@ INT32 vga_putchar (INT32 c);
 UINT64 rdmsr (UINT32 ecx);
 VOID wrmsr (UINT32 ecx, UINT64 val);
 
-UINT32 long read_cr4 (void);
-void write_cr4 (unsigned long r);
-UINT32 long read_cr3 (void);
-void write_cr3 (unsigned long r);
+unsigned long read_cr4 (void);
+void write_cr4 (unsigned INTN r);
+unsigned long read_cr3 (void);
+void write_cr3 (unsigned INTN r);
 
-UINT32 long frame_bp(struct hal_frame *f);
-UINT32 long frame_cr2(struct hal_frame *f);
+unsigned long frame_bp(struct hal_frame *f);
+unsigned long frame_cr2(struct hal_frame *f);
 
 #endif
 

@@ -18,8 +18,8 @@
 #include <hal/internal.h>
 
 extern UINT64 _gdt[];
-extern int _physmap_start;
-extern int _physmap_end;
+extern INT32 _physmap_start;
+extern INT32 _physmap_end;
 
 PHYSICAL_ADDRESS gPcpuPstart;
 VIRTUAL_ADDRESS gPcpuHalData[MAXCPUS];
@@ -415,12 +415,12 @@ void gdt_settss (UINT32 pcpuid, struct amd64_tss *tss) {
 }
 
 /** @deprecated Use SetKernelGsBase instead **/
-void set_kernel_gsbase (unsigned long gsbase) {
+void set_kernel_gsbase (unsigned INTN gsbase) {
   SetKernelGsBase (gsbase);
 }
 
 /** @deprecated Use SetGsBase instead **/
-void set_gsbase (unsigned long gsbase) {
+void set_gsbase (unsigned INTN gsbase) {
   SetGsBase (gsbase);
 }
 

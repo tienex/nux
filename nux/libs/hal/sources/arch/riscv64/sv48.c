@@ -834,47 +834,47 @@ static pte_t *get_cpumap_l4off (UINT32 off) {
 }
 
 /** @deprecated Use GetCpuMapL4Ptr instead **/
-static pte_t *get_cpumap_l4ptr (unsigned long va) {
+static pte_t *get_cpumap_l4ptr (unsigned INTN va) {
   return GetCpuMapL4Ptr (va);
 }
 
 /** @deprecated Use PutCpuMapL4Ptr instead **/
-static void put_cpumap_l4ptr (unsigned long va, pte_t * pte) {
+static void put_cpumap_l4ptr (unsigned INTN va, pte_t * pte) {
   PutCpuMapL4Ptr (va, pte);
 }
 
 /** @deprecated Use WalkL3Pfn instead **/
-static PFN walk_l3pfn (pte_t * l4ptr, unsigned long va, BOOLEAN alloc) {
+static PFN walk_l3pfn (pte_t * l4ptr, unsigned INTN va, BOOLEAN alloc) {
   return WalkL3Pfn (l4ptr, va, alloc);
 }
 
 /** @deprecated Use WalkL3p instead **/
-static ptep_t walk_l3p (pte_t * l4ptr, unsigned long va, BOOLEAN alloc) {
+static ptep_t walk_l3p (pte_t * l4ptr, unsigned INTN va, BOOLEAN alloc) {
   return WalkL3p (l4ptr, va, alloc);
 }
 
 /** @deprecated Use WalkL2Pfn instead **/
-static PFN walk_l2pfn (pte_t * l4ptr, unsigned long va, BOOLEAN alloc) {
+static PFN walk_l2pfn (pte_t * l4ptr, unsigned INTN va, BOOLEAN alloc) {
   return WalkL2Pfn (l4ptr, va, alloc);
 }
 
 /** @deprecated Use WalkL2p instead **/
-static ptep_t walk_l2p (pte_t * l4ptr, unsigned long va, BOOLEAN alloc) {
+static ptep_t walk_l2p (pte_t * l4ptr, unsigned INTN va, BOOLEAN alloc) {
   return WalkL2p (l4ptr, va, alloc);
 }
 
 /** @deprecated Use WalkL1Pfn instead **/
-static PFN walk_l1pfn (pte_t * l4ptr, unsigned long va, BOOLEAN alloc) {
+static PFN walk_l1pfn (pte_t * l4ptr, unsigned INTN va, BOOLEAN alloc) {
   return WalkL1Pfn (l4ptr, va, alloc);
 }
 
 /** @deprecated Use WalkL1p instead **/
-static ptep_t walk_l1p (pte_t * l4ptr, unsigned long va, BOOLEAN alloc) {
+static ptep_t walk_l1p (pte_t * l4ptr, unsigned INTN va, BOOLEAN alloc) {
   return WalkL1p (l4ptr, va, alloc);
 }
 
 /** @deprecated Use UmapGetL1p instead **/
-hal_l1p_t umap_get_l1p (struct hal_umap *umap, unsigned long va, BOOLEAN alloc) {
+hal_l1p_t umap_get_l1p (struct hal_umap *umap, unsigned INTN va, BOOLEAN alloc) {
   return UmapGetL1p (umap, va, alloc);
 }
 
@@ -915,11 +915,11 @@ void pt_umap_free (struct hal_umap *umap) {
 }
 
 /** @deprecated Use PtUmapMinAddr instead **/
-UINT32 long pt_umap_minaddr (void) {
+unsigned long pt_umap_minaddr (void) {
   return PtUmapMinAddr ();
 }
 
 /** @deprecated Use PtUmapMaxAddr instead **/
-UINT32 long pt_umap_maxaddr (void) {
+unsigned long pt_umap_maxaddr (void) {
   return PtUmapMaxAddr ();
 }

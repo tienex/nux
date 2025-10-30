@@ -60,7 +60,7 @@
 #define mkptep_fgn(_p) ((ptep_t)(UINTN)(_p) | 1)
 #define ptep_is_foreign(_p) ((_p) & 1)
 
-extern int _linear_start;
+extern INT32 _linear_start;
 static CONST pte_t *linaddr = (CONST pte_t *) &_linear_start;
 static pte_t *linaddr_l2;
 static pte_t *linaddr_l3;
@@ -589,7 +589,7 @@ UmapGetL1p (
 
   @return Minimum user virtual address.
 **/
-UINT32 long
+unsigned long
 PtUmapMinAddr (
   VOID
   )
@@ -602,7 +602,7 @@ PtUmapMinAddr (
 
   @return Maximum user virtual address.
 **/
-UINT32 long
+unsigned long
 PtUmapMaxAddr (
   VOID
   )
@@ -733,7 +733,7 @@ HalUmapBootstrap (
   )
 {
   VIRTUAL_ADDRESS Va = hal_virtmem_userbase ();
-  int i;
+  INT32 i;
 
   for (i = 0; i < UMAP_L4PTES; i++, Va += (1L << L4_SHIFT))
     {
@@ -776,7 +776,7 @@ HalUmapLoad (
 {
   VIRTUAL_ADDRESS Va = hal_virtmem_userbase ();
   hal_tlbop_t TlbOp = HAL_TLBOP_NONE;
-  int i;
+  INT32 i;
 
   for (i = 0; i < UMAP_L4PTES; i++, Va += (1L << L4_SHIFT))
     {
@@ -1103,7 +1103,7 @@ Pae64InitializeAp (
   VOID
   )
 {
-  unsigned long LinOff = L4OFF ((UINT32 long) linaddr);
+  unsigned long LinOff = L4OFF ((unsigned long) linaddr);
   pte_t *Va, *pCr3Va;
   PFN Pfn, Cr3Pfn;
 
@@ -1133,7 +1133,7 @@ Pae64Initialize (
   VOID
   )
 {
-  unsigned long LinOff = L4OFF ((UINT32 long) linaddr);
+  unsigned long LinOff = L4OFF ((unsigned long) linaddr);
   linaddr_l2 = (pte_t *) MakeAddress (LinOff, LinOff, 0, 0);
   linaddr_l3 = (pte_t *) MakeAddress (LinOff, LinOff, LinOff, 0);
   linaddr_l4 = (pte_t *) MakeAddress (LinOff, LinOff, LinOff, LinOff);
@@ -1164,82 +1164,82 @@ static pte_t alloc_table (BOOLEAN user) {
 }
 
 /** @deprecated Use LinMapGetL4p instead **/
-static ptep_t linmap_get_l4p (unsigned long va) {
+static ptep_t linmap_get_l4p (unsigned INTN va) {
   return LinMapGetL4p (va);
 }
 
 /** @deprecated Use LinMapGetL4e instead **/
-static pte_t linmap_get_l4e (unsigned long va) {
+static pte_t linmap_get_l4e (unsigned INTN va) {
   return LinMapGetL4e (va);
 }
 
 /** @deprecated Use LinMapGetL3p instead **/
-static ptep_t linmap_get_l3p (unsigned long va, BOOLEAN alloc, BOOLEAN user) {
+static ptep_t linmap_get_l3p (unsigned INTN va, BOOLEAN alloc, BOOLEAN user) {
   return LinMapGetL3p (va, alloc, user);
 }
 
 /** @deprecated Use LinMapGetL2p instead **/
-static ptep_t linmap_get_l2p (unsigned long va, BOOLEAN alloc, BOOLEAN user) {
+static ptep_t linmap_get_l2p (unsigned INTN va, BOOLEAN alloc, BOOLEAN user) {
   return LinMapGetL2p (va, alloc, user);
 }
 
 /** @deprecated Use LinMapGetL1p instead **/
-static ptep_t linmap_get_l1p (unsigned long va, BOOLEAN alloc, BOOLEAN user) {
+static ptep_t linmap_get_l1p (unsigned INTN va, BOOLEAN alloc, BOOLEAN user) {
   return LinMapGetL1p (va, alloc, user);
 }
 
 /** @deprecated Use GetUmapL4p instead **/
-static ptep_t get_umap_l4p (struct hal_umap *umap, unsigned long va) {
+static ptep_t get_umap_l4p (struct hal_umap *umap, unsigned INTN va) {
   return GetUmapL4p (umap, va);
 }
 
 /** @deprecated Use GetUmapL3Pfn instead **/
-static PFN get_umap_l3pfn (struct hal_umap *umap, unsigned long va, BOOLEAN alloc) {
+static PFN get_umap_l3pfn (struct hal_umap *umap, unsigned INTN va, BOOLEAN alloc) {
   return GetUmapL3Pfn (umap, va, alloc);
 }
 
 /** @deprecated Use GetUmapL3p instead **/
-static ptep_t get_umap_l3p (struct hal_umap *umap, unsigned long va, BOOLEAN alloc) {
+static ptep_t get_umap_l3p (struct hal_umap *umap, unsigned INTN va, BOOLEAN alloc) {
   return GetUmapL3p (umap, va, alloc);
 }
 
 /** @deprecated Use GetUmapL2Pfn instead **/
-static PFN get_umap_l2pfn (struct hal_umap *umap, unsigned long va, BOOLEAN alloc) {
+static PFN get_umap_l2pfn (struct hal_umap *umap, unsigned INTN va, BOOLEAN alloc) {
   return GetUmapL2Pfn (umap, va, alloc);
 }
 
 /** @deprecated Use GetUmapL2p instead **/
-static ptep_t get_umap_l2p (struct hal_umap *umap, unsigned long va, BOOLEAN alloc) {
+static ptep_t get_umap_l2p (struct hal_umap *umap, unsigned INTN va, BOOLEAN alloc) {
   return GetUmapL2p (umap, va, alloc);
 }
 
 /** @deprecated Use GetUmapL1Pfn instead **/
-static PFN get_umap_l1pfn (struct hal_umap *umap, unsigned long va, BOOLEAN alloc) {
+static PFN get_umap_l1pfn (struct hal_umap *umap, unsigned INTN va, BOOLEAN alloc) {
   return GetUmapL1Pfn (umap, va, alloc);
 }
 
 /** @deprecated Use UmapGetL1p instead **/
-ptep_t umap_get_l1p (struct hal_umap *umap, unsigned long va, BOOLEAN alloc) {
+ptep_t umap_get_l1p (struct hal_umap *umap, unsigned INTN va, BOOLEAN alloc) {
   return UmapGetL1p (umap, va, alloc);
 }
 
 /** @deprecated Use PtUmapMinAddr instead **/
-UINT32 long pt_umap_minaddr (void) {
+unsigned long pt_umap_minaddr (void) {
   return PtUmapMinAddr ();
 }
 
 /** @deprecated Use PtUmapMaxAddr instead **/
-UINT32 long pt_umap_maxaddr (void) {
+unsigned long pt_umap_maxaddr (void) {
   return PtUmapMaxAddr ();
 }
 
 /** @deprecated Use KmapGetL1p instead **/
-hal_l1p_t kmap_get_l1p (unsigned long va, int alloc) {
+hal_l1p_t kmap_get_l1p (unsigned INTN va, INT32 alloc) {
   return KmapGetL1p (va, alloc);
 }
 
 /** @deprecated Use PtUmapDebugWalk instead **/
-void pt_umap_debugwalk (struct hal_umap *umap, unsigned long va) {
+void pt_umap_debugwalk (struct hal_umap *umap, unsigned INTN va) {
   PtUmapDebugWalk (umap, va);
 }
 

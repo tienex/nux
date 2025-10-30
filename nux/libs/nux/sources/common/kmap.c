@@ -356,7 +356,7 @@ void kmapinit (void) {
 }
 
 /** @deprecated Use KmapMapInternal instead **/
-static PFN _kmap_map (VIRTUAL_ADDRESS va, PFN pfn, UINT32 prot, CONST int alloc) {
+static PFN _kmap_map (VIRTUAL_ADDRESS va, PFN pfn, UINT32 prot, CONST INT32 alloc) {
   return KmapMapInternal (va, pfn, prot, alloc);
 }
 

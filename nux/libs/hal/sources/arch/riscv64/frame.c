@@ -254,17 +254,17 @@ BOOLEAN hal_frame_isuser (struct hal_frame *f) {
 }
 
 /** @deprecated Use HalFrameSetIp instead **/
-void hal_frame_setip (struct hal_frame *f, unsigned long ip) {
+void hal_frame_setip (struct hal_frame *f, unsigned INTN ip) {
   HalFrameSetIp (f, ip);
 }
 
 /** @deprecated Use HalFrameSetSp instead **/
-void hal_frame_setsp (struct hal_frame *f, unsigned long sp) {
+void hal_frame_setsp (struct hal_frame *f, unsigned INTN sp) {
   HalFrameSetSp (f, sp);
 }
 
 /** @deprecated Use HalFrameSetGp instead **/
-void hal_frame_setgp (struct hal_frame *f, unsigned long gp) {
+void hal_frame_setgp (struct hal_frame *f, unsigned INTN gp) {
   HalFrameSetGp (f, gp);
 }
 
@@ -274,37 +274,37 @@ VIRTUAL_ADDRESS hal_frame_getgp (struct hal_frame *f) {
 }
 
 /** @deprecated Use HalFrameGetIp instead **/
-UINT32 long hal_frame_getip (struct hal_frame *f) {
+unsigned long hal_frame_getip (struct hal_frame *f) {
   return HalFrameGetIp (f);
 }
 
 /** @deprecated Use HalFrameGetSp instead **/
-UINT32 long hal_frame_getsp (struct hal_frame *f) {
+unsigned long hal_frame_getsp (struct hal_frame *f) {
   return HalFrameGetSp (f);
 }
 
 /** @deprecated Use HalFrameSetA0 instead **/
-void hal_frame_seta0 (struct hal_frame *f, unsigned long a0) {
+void hal_frame_seta0 (struct hal_frame *f, unsigned INTN a0) {
   HalFrameSetA0 (f, a0);
 }
 
 /** @deprecated Use HalFrameSetA1 instead **/
-void hal_frame_seta1 (struct hal_frame *f, unsigned long a1) {
+void hal_frame_seta1 (struct hal_frame *f, unsigned INTN a1) {
   HalFrameSetA1 (f, a1);
 }
 
 /** @deprecated Use HalFrameSetA2 instead **/
-void hal_frame_seta2 (struct hal_frame *f, unsigned long a2) {
+void hal_frame_seta2 (struct hal_frame *f, unsigned INTN a2) {
   HalFrameSetA2 (f, a2);
 }
 
 /** @deprecated Use HalFrameSetRet instead **/
-void hal_frame_setret (struct hal_frame *f, unsigned long ret) {
+void hal_frame_setret (struct hal_frame *f, unsigned INTN ret) {
   HalFrameSetRet (f, ret);
 }
 
 /** @deprecated Use HalFrameSetTls instead **/
-void hal_frame_settls (struct hal_frame *f, unsigned long ret) {
+void hal_frame_settls (struct hal_frame *f, unsigned INTN ret) {
   HalFrameSetTls (f, ret);
 }
 

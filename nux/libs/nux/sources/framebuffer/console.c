@@ -151,6 +151,6 @@ FramebufferPutChar (
 //
 
 /** @deprecated Use FramebufferPutChar instead **/
-int framebuffer_putc (int ch, UINT32 color) {
+int framebuffer_putc (INT32 ch, UINT32 color) {
   return FramebufferPutChar (ch, color);
 }

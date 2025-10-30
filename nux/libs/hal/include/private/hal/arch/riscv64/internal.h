@@ -40,34 +40,34 @@
 #define SIE_USER   (SIE_SSIE|SIE_STIE|SIE_SEIE)
 
 #ifndef _ASSEMBLER
-static INLINE UINT32 long
+static INLINE unsigned long
 riscv_sstatus_cli (void)
 {
-  unsigned long old;
+  unsigned INTN old;
   asm volatile ("csrrci %0, sstatus, %1\n":"=r" (old):"K" (SSTATUS_SIE));
   return old;
 }
 
-static INLINE UINT32 long
+static INLINE unsigned long
 riscv_sstatus_sti (void)
 {
-  unsigned long old;
+  unsigned INTN old;
   asm volatile ("csrrsi %0, sstatus, %1\n":"=r" (old):"K" (SSTATUS_SIE));
   return old;
 }
 
-static INLINE UINT32 long
+static INLINE unsigned long
 riscv_sie_kernel (void)
 {
-  unsigned long old;
+  unsigned INTN old;
   asm volatile ("csrrw %0, sie, %1\n":"=r" (old):"r" (SIE_KERNEL));
   return old;
 }
 
-static INLINE UINT32 long
+static INLINE unsigned long
 riscv_sie_user (void)
 {
-  unsigned long old;
+  unsigned INTN old;
   asm volatile ("csrrw %0, sie, %1\n":"=r" (old):"r" (SIE_USER));
   return old;
 }
@@ -189,42 +189,42 @@ alloc_table (void)
   return mkpte (pfn, PTE_V);
 }
 
-static INLINE UINT32 long
+static INLINE unsigned long
 riscv_satp (void)
 {
-  unsigned long satp;
+  unsigned INTN satp;
 
   asm volatile ("csrr %0, satp\n":"=r" (satp));
   return satp;
 }
 
 static INLINE VOID
-riscv_invlpg (unsigned long va, BOOLEAN no_svvptc_only)
+riscv_invlpg (unsigned INTN va, BOOLEAN no_svvptc_only)
 {
   asm volatile ("sfence.vma x0, %0\n"::"r" (va));
 }
 
 static INLINE VOID
-riscv_settp (unsigned long data)
+riscv_settp (unsigned INTN data)
 {
   asm volatile ("mv tp, %0\n"::"r" (data));
 }
 
-static INLINE UINT32 long
+static INLINE unsigned long
 riscv_gettp (void)
 {
-  unsigned long data;
+  unsigned INTN data;
   asm volatile ("mv %0, tp\n":"=r" (data));
   return data;
 }
 
-hal_l1p_t cpumap_get_l1p (unsigned long va, int alloc);
-hal_l1p_t umap_get_l1p (struct hal_umap *umap, unsigned long va, BOOLEAN alloc);
+hal_l1p_t cpumap_get_l1p (unsigned INTN va, INT32 alloc);
+hal_l1p_t umap_get_l1p (struct hal_umap *umap, unsigned INTN va, BOOLEAN alloc);
 USER_ADDRESS pt_umap_next (struct hal_umap *umap, USER_ADDRESS uaddr, hal_l1p_t * l1p_out,
 		   hal_l1e_t * l1e_out);
 void pt_umap_free (struct hal_umap *umap);
-UINT32 long pt_umap_minaddr (void);
-UINT32 long pt_umap_maxaddr (void);
+unsigned long pt_umap_minaddr (void);
+unsigned long pt_umap_maxaddr (void);
 #endif /* _ASSEMBLER */
 
 #endif /* _HAL_INTERNAL_H */

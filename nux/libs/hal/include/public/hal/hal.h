@@ -1014,7 +1014,7 @@ static INLINE CONST VIRTUAL_ADDRESS hal_virtmem_userentry (void) {
   return pVirtMem->lpVtbl->GetUserEntry(pVirtMem);
 }
 
-static INLINE BOOLEAN hal_kmap_getl1p (unsigned long va, BOOLEAN alloc, hal_l1p_t *l1p) {
+static INLINE BOOLEAN hal_kmap_getl1p (unsigned INTN va, BOOLEAN alloc, hal_l1p_t *l1p) {
   IHalMap *pMap; gpHal->lpVtbl->GetMapInterface(gpHal, &pMap);
   return pMap->lpVtbl->KmapGetL1p(pMap, va, alloc, l1p);
 }
@@ -1049,7 +1049,7 @@ static INLINE void hal_umap_free (struct hal_umap *umap) {
   pMap->lpVtbl->UmapFree(pMap, umap);
 }
 
-static INLINE hal_l1e_t hal_l1e_box (unsigned long pfn, UINT32 flags) {
+static INLINE hal_l1e_t hal_l1e_box (unsigned INTN pfn, UINT32 flags) {
   IHalMap *pMap; gpHal->lpVtbl->GetMapInterface(gpHal, &pMap);
   return pMap->lpVtbl->L1eBox(pMap, pfn, flags);
 }
@@ -1104,7 +1104,7 @@ static INLINE BOOLEAN hal_frame_isuser (struct hal_frame *f) {
   return Frame->lpVtbl->IsUser(Frame, f);
 }
 
-static INLINE void hal_frame_setip (struct hal_frame *f, unsigned long ip) {
+static INLINE void hal_frame_setip (struct hal_frame *f, unsigned INTN ip) {
   IHalFrame *Frame; gpHal->lpVtbl->GetFrameInterface(gpHal, &Frame);
   Frame->lpVtbl->SetIp(Frame, f, ip);
 }
@@ -1114,7 +1114,7 @@ static INLINE unsigned long hal_frame_getip (struct hal_frame *f) {
   return Frame->lpVtbl->GetIp(Frame, f);
 }
 
-static INLINE void hal_frame_setsp (struct hal_frame *f, unsigned long sp) {
+static INLINE void hal_frame_setsp (struct hal_frame *f, unsigned INTN sp) {
   IHalFrame *Frame; gpHal->lpVtbl->GetFrameInterface(gpHal, &Frame);
   Frame->lpVtbl->SetSp(Frame, f, sp);
 }
@@ -1124,7 +1124,7 @@ static INLINE unsigned long hal_frame_getsp (struct hal_frame *f) {
   return Frame->lpVtbl->GetSp(Frame, f);
 }
 
-static INLINE void hal_frame_setgp (struct hal_frame *f, unsigned long gp) {
+static INLINE void hal_frame_setgp (struct hal_frame *f, unsigned INTN gp) {
   IHalFrame *Frame; gpHal->lpVtbl->GetFrameInterface(gpHal, &Frame);
   Frame->lpVtbl->SetGp(Frame, f, gp);
 }
@@ -1134,27 +1134,27 @@ static INLINE unsigned long hal_frame_getgp (struct hal_frame *f) {
   return Frame->lpVtbl->GetGp(Frame, f);
 }
 
-static INLINE void hal_frame_seta0 (struct hal_frame *f, unsigned long a0) {
+static INLINE void hal_frame_seta0 (struct hal_frame *f, unsigned INTN a0) {
   IHalFrame *Frame; gpHal->lpVtbl->GetFrameInterface(gpHal, &Frame);
   Frame->lpVtbl->SetA0(Frame, f, a0);
 }
 
-static INLINE void hal_frame_seta1 (struct hal_frame *f, unsigned long a1) {
+static INLINE void hal_frame_seta1 (struct hal_frame *f, unsigned INTN a1) {
   IHalFrame *Frame; gpHal->lpVtbl->GetFrameInterface(gpHal, &Frame);
   Frame->lpVtbl->SetA1(Frame, f, a1);
 }
 
-static INLINE void hal_frame_seta2 (struct hal_frame *f, unsigned long a2) {
+static INLINE void hal_frame_seta2 (struct hal_frame *f, unsigned INTN a2) {
   IHalFrame *Frame; gpHal->lpVtbl->GetFrameInterface(gpHal, &Frame);
   Frame->lpVtbl->SetA2(Frame, f, a2);
 }
 
-static INLINE void hal_frame_setret (struct hal_frame *f, unsigned long r) {
+static INLINE void hal_frame_setret (struct hal_frame *f, unsigned INTN r) {
   IHalFrame *Frame; gpHal->lpVtbl->GetFrameInterface(gpHal, &Frame);
   Frame->lpVtbl->SetRet(Frame, f, r);
 }
 
-static INLINE void hal_frame_settls (struct hal_frame *f, unsigned long r) {
+static INLINE void hal_frame_settls (struct hal_frame *f, unsigned INTN r) {
   IHalFrame *Frame; gpHal->lpVtbl->GetFrameInterface(gpHal, &Frame);
   Frame->lpVtbl->SetTls(Frame, f, r);
 }
@@ -1168,7 +1168,7 @@ static INLINE void hal_init_done (void) {
   gpHal->lpVtbl->InitDone(gpHal);
 }
 
-static INLINE int hal_putchar (int c) {
+static INLINE int hal_putchar (INT32 c) {
   return gpHal->lpVtbl->PutChar(gpHal, c);
 }
 

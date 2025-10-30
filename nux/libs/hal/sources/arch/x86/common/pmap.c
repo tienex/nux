@@ -324,12 +324,12 @@ PmapInitialize (
 //
 
 /** @deprecated Use HalKmapGetL1p instead **/
-BOOLEAN hal_kmap_getl1p (unsigned long va, BOOLEAN alloc, hal_l1p_t * l1popq) {
+BOOLEAN hal_kmap_getl1p (unsigned INTN va, BOOLEAN alloc, hal_l1p_t * l1popq) {
   return HalKmapGetL1p (va, alloc, l1popq);
 }
 
 /** @deprecated Use HalUmapGetL1p instead **/
-BOOLEAN hal_umap_getl1p (struct hal_umap *umap, unsigned long uaddr, BOOLEAN alloc,
+BOOLEAN hal_umap_getl1p (struct hal_umap *umap, unsigned INTN uaddr, BOOLEAN alloc,
 		 hal_l1p_t * l1popq) {
   return HalUmapGetL1p (umap, uaddr, alloc, l1popq);
 }
@@ -345,7 +345,7 @@ hal_l1e_t hal_l1e_set (hal_l1p_t l1popq, hal_l1e_t l1e) {
 }
 
 /** @deprecated Use HalL1eBox instead **/
-hal_l1e_t hal_l1e_box (unsigned long pfn, UINT32 prot) {
+hal_l1e_t hal_l1e_box (unsigned INTN pfn, UINT32 prot) {
   return HalL1eBox (pfn, prot);
 }
 

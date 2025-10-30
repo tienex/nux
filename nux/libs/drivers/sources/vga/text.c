@@ -72,6 +72,6 @@ VgaPutChar (
 //
 
 /** @deprecated Use VgaPutChar instead **/
-int vga_putchar (int c) {
+int vga_putchar (INT32 c) {
   return VgaPutChar (c);
 }

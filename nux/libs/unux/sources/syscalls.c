@@ -171,41 +171,41 @@ Syscall6 (
 //
 
 /** @deprecated Use Syscall0 instead **/
-long syscall0 (unsigned long sys) {
+long syscall0 (unsigned INTN sys) {
   return Syscall0 (sys);
 }
 
 /** @deprecated Use Syscall1 instead **/
-long syscall1 (unsigned long sys, unsigned long arg1) {
+long syscall1 (unsigned INTN sys, unsigned INTN arg1) {
   return Syscall1 (sys, arg1);
 }
 
 /** @deprecated Use Syscall2 instead **/
-long syscall2 (unsigned long sys, unsigned long arg1, unsigned long arg2) {
+long syscall2 (unsigned INTN sys, unsigned INTN arg1, unsigned INTN arg2) {
   return Syscall2 (sys, arg1, arg2);
 }
 
 /** @deprecated Use Syscall3 instead **/
-long syscall3 (unsigned long sys, unsigned long arg1, unsigned long arg2,
-	       unsigned long arg3) {
+long syscall3 (unsigned INTN sys, unsigned INTN arg1, unsigned INTN arg2,
+	       unsigned INTN arg3) {
   return Syscall3 (sys, arg1, arg2, arg3);
 }
 
 /** @deprecated Use Syscall4 instead **/
-long syscall4 (unsigned long sys, unsigned long arg1, unsigned long arg2,
-	       unsigned long arg3, unsigned long arg4) {
+long syscall4 (unsigned INTN sys, unsigned INTN arg1, unsigned INTN arg2,
+	       unsigned INTN arg3, unsigned INTN arg4) {
   return Syscall4 (sys, arg1, arg2, arg3, arg4);
 }
 
 /** @deprecated Use Syscall5 instead **/
-long syscall5 (unsigned long sys, unsigned long arg1, unsigned long arg2,
-	       unsigned long arg3, unsigned long arg4, unsigned long arg5) {
+long syscall5 (unsigned INTN sys, unsigned INTN arg1, unsigned INTN arg2,
+	       unsigned INTN arg3, unsigned INTN arg4, unsigned INTN arg5) {
   return Syscall5 (sys, arg1, arg2, arg3, arg4, arg5);
 }
 
 /** @deprecated Use Syscall6 instead **/
-long syscall6 (unsigned long sys, unsigned long arg1, unsigned long arg2,
-	       unsigned long arg3, unsigned long arg4, unsigned long arg5,
-	       unsigned long arg6) {
+long syscall6 (unsigned INTN sys, unsigned INTN arg1, unsigned INTN arg2,
+	       unsigned INTN arg3, unsigned INTN arg4, unsigned INTN arg5,
+	       unsigned INTN arg6) {
   return Syscall6 (sys, arg1, arg2, arg3, arg4, arg5, arg6);
 }

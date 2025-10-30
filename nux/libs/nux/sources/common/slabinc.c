@@ -46,7 +46,7 @@ struct objhdr
 
 int SLABFUNC (grow) (struct slab * sc)
 {
-  int i;
+  INT32 i;
   struct objhdr *ptr;
   struct slabhdr *sh;
   CONST unsigned long objs = ___slabobjs (sc->objsize);
@@ -196,7 +196,7 @@ void SLABFUNC (free) (void *ptr)
 
 void
 SLABFUNC (register) (struct slab * sc, CONST char *name, UINTN objsize,
-		     void (*ctr) (void *, void *, int), int cachealign)
+		     void (*ctr) (void *, void *, int), INT32 cachealign)
 {
 #define MAX(_a,_b) ((_a) >= (_b) ? (_a) :  (_b))
 

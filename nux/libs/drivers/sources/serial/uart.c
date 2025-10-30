@@ -62,6 +62,6 @@ void serial_init (void) {
 }
 
 /** @deprecated Use SerialPutChar instead **/
-void serial_putchar (int c) {
+void serial_putchar (INT32 c) {
   SerialPutChar (c);
 }

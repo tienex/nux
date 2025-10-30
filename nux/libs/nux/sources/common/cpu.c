@@ -1105,7 +1105,7 @@ unsigned CpuNum (void) {
 }
 
 /** @deprecated Use CpuSendNmi instead **/
-void CpuNmi (int cpu) {
+void CpuNmi (INT32 cpu) {
   CpuSendNmi (cpu);
 }
 
@@ -1125,7 +1125,7 @@ void cpu_nmi_broadcast (void) {
 }
 
 /** @deprecated Use CpuSendIpi instead **/
-void CpuIpi (int cpu) {
+void CpuIpi (INT32 cpu) {
   CpuSendIpi (cpu);
 }
 
@@ -1165,7 +1165,7 @@ void CpuNmiOperation (void) {
 }
 
 /** @deprecated Use CpuKernelMapUpdate instead **/
-void cpu_kmapupdate (int cpu) {
+void cpu_kmapupdate (INT32 cpu) {
   CpuKernelMapUpdate (cpu);
 }
 
@@ -1175,7 +1175,7 @@ void CpuKmapUpdateBroadcast (void) {
 }
 
 /** @deprecated Use CpuTlbFlush instead **/
-void cpu_tlbflush (int cpu) {
+void cpu_tlbflush (INT32 cpu) {
   CpuTlbFlush (cpu);
 }
 
@@ -1217,7 +1217,7 @@ BOOLEAN cpu_useraccess_copyto (USER_ADDRESS dst, void *src, UINTN size,
 }
 
 /** @deprecated Use CpuUserAccessMemset instead **/
-BOOLEAN cpu_useraccess_memset (USER_ADDRESS dst, int ch, UINTN size,
+BOOLEAN cpu_useraccess_memset (USER_ADDRESS dst, INT32 ch, UINTN size,
                             BOOLEAN (*pf_handler) (USER_ADDRESS va, hal_pfinfo_t info)) {
   return CpuUserAccessMemset (dst, ch, size, pf_handler);
 }

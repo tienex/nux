@@ -523,12 +523,12 @@ BOOLEAN hal_frame_isuser (struct hal_frame *f) {
 }
 
 /** @deprecated Use HalFrameSetIp instead **/
-void hal_frame_setip (struct hal_frame *f, unsigned long ip) {
+void hal_frame_setip (struct hal_frame *f, unsigned INTN ip) {
   HalFrameSetIp (f, ip);
 }
 
 /** @deprecated Use HalFrameGetIp instead **/
-UINT32 long hal_frame_getip (struct hal_frame *f) {
+unsigned long hal_frame_getip (struct hal_frame *f) {
   return HalFrameGetIp (f);
 }
 
@@ -538,7 +538,7 @@ void hal_frame_setsp (struct hal_frame *f, VIRTUAL_ADDRESS sp) {
 }
 
 /** @deprecated Use HalFrameGetSp instead **/
-UINT32 long hal_frame_getsp (struct hal_frame *f) {
+unsigned long hal_frame_getsp (struct hal_frame *f) {
   return HalFrameGetSp (f);
 }
 
@@ -548,32 +548,32 @@ VIRTUAL_ADDRESS hal_frame_getgp (struct hal_frame *f) {
 }
 
 /** @deprecated Use HalFrameSetGp instead **/
-void hal_frame_setgp (struct hal_frame *f, unsigned long gp) {
+void hal_frame_setgp (struct hal_frame *f, unsigned INTN gp) {
   HalFrameSetGp (f, gp);
 }
 
 /** @deprecated Use HalFrameSetA0 instead **/
-void hal_frame_seta0 (struct hal_frame *f, unsigned long a0) {
+void hal_frame_seta0 (struct hal_frame *f, unsigned INTN a0) {
   HalFrameSetA0 (f, a0);
 }
 
 /** @deprecated Use HalFrameSetA1 instead **/
-void hal_frame_seta1 (struct hal_frame *f, unsigned long a1) {
+void hal_frame_seta1 (struct hal_frame *f, unsigned INTN a1) {
   HalFrameSetA1 (f, a1);
 }
 
 /** @deprecated Use HalFrameSetA2 instead **/
-void hal_frame_seta2 (struct hal_frame *f, unsigned long a2) {
+void hal_frame_seta2 (struct hal_frame *f, unsigned INTN a2) {
   HalFrameSetA2 (f, a2);
 }
 
 /** @deprecated Use HalFrameSetRet instead **/
-void hal_frame_setret (struct hal_frame *f, unsigned long r) {
+void hal_frame_setret (struct hal_frame *f, unsigned INTN r) {
   HalFrameSetRet (f, r);
 }
 
 /** @deprecated Use HalFrameSetTls instead **/
-void hal_frame_settls (struct hal_frame *f, unsigned long tls) {
+void hal_frame_settls (struct hal_frame *f, unsigned INTN tls) {
   HalFrameSetTls (f, tls);
 }
 
@@ -583,11 +583,11 @@ void hal_frame_print (struct hal_frame *f) {
 }
 
 /** @deprecated Use FrameBp instead **/
-UINT32 long frame_bp (struct hal_frame *f) {
+unsigned long frame_bp (struct hal_frame *f) {
   return FrameBp (f);
 }
 
 /** @deprecated Use FrameCr2 instead **/
-UINT32 long frame_cr2 (struct hal_frame *f) {
+unsigned long frame_cr2 (struct hal_frame *f) {
   return FrameCr2 (f);
 }

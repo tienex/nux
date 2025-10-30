@@ -65,11 +65,11 @@ NuxSymbolResolve (
 
 /** @deprecated Use KSYM instead **/
 struct ksym {
-  unsigned long addr;
+  unsigned INTN addr;
   CONST char *name;
 };
 
 /** @deprecated Use NuxSymbolResolve instead **/
-CONST char *nux_symresolve (unsigned long addr) {
+CONST char *nux_symresolve (unsigned INTN addr) {
   return NuxSymbolResolve (addr);
 }

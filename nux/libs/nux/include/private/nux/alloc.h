@@ -40,15 +40,15 @@ typedef __ZADDR_T zaddr_t;
 
 */
 
-static INLINE unsigned
-lsbit (unsigned long x)
+static INLINE UINT32
+lsbit (unsigned INTN x)
 {
   assert (x != 0);
   return __builtin_ffsl (x) - 1;
 }
 
-static INLINE unsigned
-msbit (unsigned long x)
+static INLINE UINT32
+msbit (unsigned INTN x)
 {
   assert (x != 0);
   return LONG_BIT - __builtin_clzl (x) - 1;
@@ -70,7 +70,7 @@ typedef struct _ZONE
   UINTN      Opq;             ///< Opaque user data
   unsigned long  Bmap;            ///< Bitmap of available sizes
   struct zlist   Zlist[ORDMAX];  ///< Free lists by order
-  unsigned       Nfree;           ///< Number of free entries
+  UINT32         Nfree;           ///< Number of free entries
 } ZONE, *PZONE, *PCZONE;
 
 static INLINE void
@@ -114,7 +114,7 @@ _zone_attachentry (struct zone *z, struct __ZENTRY *ze)
 static INLINE struct __ZENTRY *
 _zone_findfree (struct zone *zn, UINTN size)
 {
-  unsigned long tmp;
+  unsigned INTN tmp;
   UINT32 minbit;
   struct __ZENTRY *ze = NULL;
 
@@ -186,7 +186,7 @@ zone_alloc (struct zone *z, UINTN size)
 {
   struct __ZENTRY *ze;
   zaddr_t addr = (zaddr_t) - 1;
-  long diff;
+  INTN diff;
 
   assert (size != 0);
 
@@ -209,7 +209,7 @@ out:
 static INLINE void
 zone_init (struct zone *z, UINTN opq)
 {
-  int i;
+  INT32 i;
 
   z->Bmap = 0;
   z->Nfree = 0;

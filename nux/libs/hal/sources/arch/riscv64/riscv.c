@@ -23,16 +23,16 @@
 #include <hal/internal.h>
 #include <nux/batree.h>
 
-extern int _info_start;
+extern INT32 _info_start;
 
-extern int _stree_start[];
-extern int _stree_end[];
+extern INT32 _stree_start[];
+extern INT32 _stree_end[];
 
-extern int _fbuf_start;
-extern int _fbuf_end;
+extern INT32 _fbuf_start;
+extern INT32 _fbuf_end;
 
-extern int _memregs_start;
-extern int _memregs_end;
+extern INT32 _memregs_start;
+extern INT32 _memregs_end;
 
 extern UINT64 _riscv64_physmap_start;
 extern UINT64 _riscv64_physmap_end;
@@ -401,7 +401,7 @@ hal_pcpu_add (
   IN struct hal_cpu   *HalData
   )
 {
-  extern int _bsp_stacktop[];
+  extern INT32 _bsp_stacktop[];
   assert (pcpuid < HAL_MAXCPUS);
 
   HalData->kernsp = (UINTN) _bsp_stacktop;

@@ -206,7 +206,7 @@ void BatreePfnInitialize (void) {
 }
 
 /** @deprecated Use StreePfnAllocate instead **/
-PFN BatreePfnAlloc (int low) {
+PFN BatreePfnAlloc (INT32 low) {
   return StreePfnAllocate (low);
 }
 
@@ -221,7 +221,7 @@ void nux_set_allocator (PFN (*alloc) (int), void (*free) (PFN)) {
 }
 
 /** @deprecated Use PfnAllocate instead **/
-PFN PfnAlloc (int low) {
+PFN PfnAlloc (INT32 low) {
   return PfnAllocate (low);
 }
 
@@ -231,7 +231,7 @@ void PfnFree (PFN pfn) {
 }
 
 /** @deprecated Use PfnAvailable instead **/
-UINT32 long PfnAvail (void) {
+unsigned long PfnAvail (void) {
   return PfnAvailable ();
 }
 
@@ -239,7 +239,7 @@ UINT32 long PfnAvail (void) {
 static lock_t pglock __attribute__((alias("gPgLock")));
 static WORD_T *stree __attribute__((alias("gStree")));
 static UINT32 order __attribute__((alias("gOrder")));
-static UINT32 long free_pages __attribute__((alias("gFreePages")));
+static unsigned long free_pages __attribute__((alias("gFreePages")));
 rwlock_t _nux_pfnalloc_lock __attribute__((alias("gNuxPfnAllocLock")));
 PFN (*_nux_pfnalloc) (int) __attribute__((alias("gNuxPfnAlloc")));
 void (*_nux_pfnfree) (PFN) __attribute__((alias("gNuxPfnFree")));

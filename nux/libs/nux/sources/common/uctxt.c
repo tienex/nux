@@ -453,27 +453,27 @@ void UctxtSetGp (UCTXT * uctxt, VIRTUAL_ADDRESS gp) {
 }
 
 /** @deprecated Use UctxtSetRet instead **/
-void UctxtSetRet (UCTXT * uctxt, unsigned long ret) {
+void UctxtSetRet (UCTXT * uctxt, unsigned INTN ret) {
   UctxtSetRet (uctxt, ret);
 }
 
 /** @deprecated Use UctxtSetA0 instead **/
-void UctxtSetA0 (UCTXT * uctxt, unsigned long a0) {
+void UctxtSetA0 (UCTXT * uctxt, unsigned INTN a0) {
   UctxtSetA0 (uctxt, a0);
 }
 
 /** @deprecated Use UctxtSetA1 instead **/
-void UctxtSetA1 (UCTXT * uctxt, unsigned long a1) {
+void UctxtSetA1 (UCTXT * uctxt, unsigned INTN a1) {
   UctxtSetA1 (uctxt, a1);
 }
 
 /** @deprecated Use UctxtSetA2 instead **/
-void UctxtSetA2 (UCTXT * uctxt, unsigned long a2) {
+void UctxtSetA2 (UCTXT * uctxt, unsigned INTN a2) {
   UctxtSetA2 (uctxt, a2);
 }
 
 /** @deprecated Use UctxtSetTls instead **/
-void UctxtSetTls (UCTXT * uctxt, unsigned long tls) {
+void UctxtSetTls (UCTXT * uctxt, unsigned INTN tls) {
   UctxtSetTls (uctxt, tls);
 }
 
