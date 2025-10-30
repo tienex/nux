@@ -196,7 +196,7 @@ static PTE *
 PaeGetL2p (
   IN PTE    *pCr3,
   IN VIRTUAL_ADDRESS  Va,
-  IN int      Payload
+  IN INT32 Payload
   )
 {
   PTE *pL3p, *pL2p;
@@ -235,7 +235,7 @@ static PTE *
 PaeGetL1p (
   IN PTE    *pCr3,
   IN VIRTUAL_ADDRESS  Va,
-  IN int      Payload
+  IN INT32 Payload
   )
 {
   PTE *pL2p, *pL1p;
@@ -275,9 +275,9 @@ PaeMapPage (
   IN VOID      *Pt,
   IN VIRTUAL_ADDRESS   Va,
   IN UINTN Pa,
-  IN int       Payload,
-  IN int       W,
-  IN int       X
+  IN INT32 Payload,
+  IN INT32 W,
+  IN INT32 X
   )
 {
   PTE *pL1p, *pCr3;
@@ -311,9 +311,9 @@ PaeMapPage (
 static UINTN
 PaePopulatePage (
   IN VIRTUAL_ADDRESS  Va,
-  IN int      U,
-  IN int      W,
-  IN int      X
+  IN INT32 U,
+  IN INT32 W,
+  IN INT32 X
   )
 {
   PTE *pL1p;
@@ -401,8 +401,8 @@ PaeDirectMap (
   IN VIRTUAL_ADDRESS           Va,
   IN SIZE64          Size,
   IN MEMORY_TYPE  Mt,
-  IN int               Payload,
-  IN int               X
+  IN INT32 Payload,
+  IN INT32 X
   )
 {
   UINT64 PaPfn = Pa >> PAGE_SHIFT;
@@ -545,9 +545,9 @@ VOID
 PaePopulate (
   IN VIRTUAL_ADDRESS   Va,
   IN SIZE64  Size,
-  IN int       U,
-  IN int       W,
-  IN int       X
+  IN INT32 U,
+  IN INT32 W,
+  IN INT32 X
   )
 {
   SSIZE64 Len = Size;

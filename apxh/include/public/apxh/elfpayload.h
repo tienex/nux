@@ -16,7 +16,7 @@
 */
 
 /* Get payload address. */
-VOID *PayloadGet (IN UINT32 i, OUT OPTIONAL UINTN *size);
+VOID *PayloadGet (IN UINT32 Index, OUT OPTIONAL UINTN *Size);
 
 
 /*
@@ -37,13 +37,10 @@ VOID *PayloadGet (IN UINT32 i, OUT OPTIONAL UINTN *size);
 **/
 typedef struct _PAYLOAD_HDR
 {
-  UINT64 magic;
-  UINT64 filename;
-  UINT32 size;
+  UINT64 Magic;
+  UINT64 Filename;
+  UINT32 Size;
 } __attribute__((packed)) PAYLOAD_HDR, *PPAYLOAD_HDR, *PCPAYLOAD_HDR;
-
-/** Legacy compatibility **/
-#define payload_hdr PAYLOAD_HDR
 
 
 

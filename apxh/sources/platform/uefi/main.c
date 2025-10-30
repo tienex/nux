@@ -62,7 +62,7 @@ EfiAllocateMaxAddr (
 **/
 int
 Putchar (
-  IN int  C
+  IN INT32 C
   )
 {
   Print (L"%c", C);
@@ -468,7 +468,7 @@ EfiExitBs (
 **/
 VOID
 EfiExit (
-  IN int  Status
+  IN INT32 Status
   )
 {
 }

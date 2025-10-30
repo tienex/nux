@@ -24,7 +24,7 @@
 **/
 int
 Inb (
-  IN int  Port
+  IN INT32 Port
   )
 {
 INT32 Ret;
@@ -43,8 +43,8 @@ INT32 Ret;
 **/
 VOID
 Outb (
-  IN int  Port,
-  IN int  Val
+  IN INT32 Port,
+  IN INT32 Val
   )
 {
   asm volatile ("outb %%al, %%dx"::"d" (Port), "a" (Val));
@@ -60,7 +60,7 @@ Outb (
 **/
 VOID
 Putchar (
-  IN int  C
+  IN INT32 C
   )
 {
   CONST UINT8 *VPtr = (CONST VOID *) 0xb8000;

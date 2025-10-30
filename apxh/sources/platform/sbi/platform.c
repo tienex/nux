@@ -46,7 +46,7 @@ static APXH_PLATFORM_DESCRIPTOR gPlatformDesc;
 static VOID
 DtbAddrSize (
   IN  CONST VOID  *Fdt,
-  IN  int         NodOff,
+  IN INT32 NodOff,
   OUT UINT32      *AddrSz,
   OUT UINT32      *SizeSz
   )
@@ -175,7 +175,7 @@ INT32 Len, SubOff;
 **/
 VOID *
 GetPayloadStart (
-  IN int     Argc,
+  IN INT32 Argc,
   IN char    *Argv[],
   IN PAYLOAD_ID  Id
   )
@@ -290,9 +290,9 @@ AddRamRegion (
     gMaxAddr = Base + Len;
 
   R = gRamRegions + gRegions++;
-  R->type = Busy ? BOOTINFO_REGION_BSY : BOOTINFO_REGION_RAM;
-  R->pfn = Base >> PAGE_SHIFT;
-  R->len = Len >> PAGE_SHIFT;
+  R->Type = Busy ? BOOTINFO_REGION_BSY : BOOTINFO_REGION_RAM;
+  R->Pfn = Base >> PAGE_SHIFT;
+  R->Len = Len >> PAGE_SHIFT;
 
   printf ("\t%016lx:%016lx (%s)\n", Base, Base + Len, Busy ? "SYS" : "RAM");
 }
@@ -473,7 +473,7 @@ MdGetPlatformDesc (
   )
 {
   /* Only DTB supported. */
-  gPlatformDesc.type = PLATFORM_DTB;
+  gPlatformDesc.Type = PLATFORM_DTB;
   gPlatformDesc.PlatformPointer = (UINT64) (UINTN) dtbptr;
   return &gPlatformDesc;
 }

@@ -357,16 +357,16 @@ LoadElf32 (
   if (memcmp (Hdr->id, ElfId, 4) != 0)
     return (UINTN) - 1;
 
-  if (Hdr->type != ET_EXEC || Hdr->ver != EV_CURRENT)
+  if (Hdr->Type != ET_EXEC || Hdr->ver != EV_CURRENT)
     return (UINTN) - 1;
 
   for (i = 0; i < Hdr->phs; i++, Ph++)
     {
       if (User)
-	PhUload (ElfImg, Ph->type, Ph->flags, Ph->va, Ph->msize, Ph->off,
+	PhUload (ElfImg, Ph->Type, Ph->flags, Ph->va, Ph->msize, Ph->off,
 		  Ph->fsize);
       else
-	PhKload (ElfImg, Ph->type, Ph->flags, Ph->va, Ph->msize, Ph->off,
+	PhKload (ElfImg, Ph->Type, Ph->flags, Ph->va, Ph->msize, Ph->off,
 		  Ph->fsize);
     }
 
@@ -399,16 +399,16 @@ LoadElf64 (
   if (memcmp (Hdr->id, ElfId, 4) != 0)
     return (UINTN) - 1;
 
-  if (Hdr->type != ET_EXEC || Hdr->ver != EV_CURRENT)
+  if (Hdr->Type != ET_EXEC || Hdr->ver != EV_CURRENT)
     return (UINTN) - 1;
 
   for (i = 0; i < Hdr->phs; i++, Ph++)
     {
       if (User)
-	PhUload (ElfImg, Ph->type, Ph->flags, Ph->va, Ph->msize, Ph->off,
+	PhUload (ElfImg, Ph->Type, Ph->flags, Ph->va, Ph->msize, Ph->off,
 		  Ph->fsize);
       else
-	PhKload (ElfImg, Ph->type, Ph->flags, Ph->va, Ph->msize, Ph->off,
+	PhKload (ElfImg, Ph->Type, Ph->flags, Ph->va, Ph->msize, Ph->off,
 		  Ph->fsize);
     }
 

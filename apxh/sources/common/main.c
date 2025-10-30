@@ -171,9 +171,9 @@ VOID
 VaPopulate (
   IN VIRTUAL_ADDRESS   Va,
   IN SIZE64  Size,
-  IN int       U,
-  IN int       W,
-  IN int       X
+  IN INT32       U,
+  IN INT32       W,
+  IN INT32       X
   )
 {
   MdVerify (Va, Size);
@@ -218,9 +218,9 @@ VaCopy (
   IN VIRTUAL_ADDRESS   Va,
   IN VOID      *Addr,
   IN SIZE64  Size,
-  IN int       U,
-  IN int       W,
-  IN int       X
+  IN INT32       U,
+  IN INT32       W,
+  IN INT32       X
   )
 {
   SSIZE64 Len = Size;
@@ -268,11 +268,11 @@ VaCopy (
 VOID
 VaMemset (
   IN VIRTUAL_ADDRESS   Va,
-  IN int       C,
+  IN INT32       C,
   IN SIZE64  Size,
-  IN int       U,
-  IN int       W,
-  IN int       X
+  IN INT32       U,
+  IN INT32       W,
+  IN INT32       X
   )
 {
   SSIZE64 Len = Size;
@@ -362,7 +362,7 @@ VaFramebuf (
   VaVerify (Va, Size);
 
   FbPtr = MdGetFramebuffer ();
-  if (FbPtr == NULL || FbPtr->type == FB_INVALID)
+  if (FbPtr == NULL || FbPtr->Type == FB_INVALID)
     return;
 
   if (FbPtr->size > Size)
@@ -582,7 +582,7 @@ VaInfoCopy (
   if (FbPtr != NULL)
     i.fbdesc = *FbPtr;
   else
-    i.fbdesc.type = FB_INVALID;
+    i.fbdesc.Type = FB_INVALID;
 
   i.ktls.initvaddr = gKtlsVa;
   i.ktls.initsize = gKtlsInitsize;
@@ -659,13 +659,13 @@ INT32 i, Order;
 
       Reg = MdGetMemRegion (i);
 
-      if (Reg->type != BOOTINFO_REGION_RAM)
+      if (Reg->Type != BOOTINFO_REGION_RAM)
 	continue;
 
 
-      for (j = 0; j < Reg->len; j++)
+      for (j = 0; j < Reg->Len; j++)
 	{
-	  UINT32 Frame = Reg->pfn + j;
+	  UINT32 Frame = Reg->Pfn + j;
 
 	  if (Frame > MaxFrame)
 	    {
@@ -684,13 +684,13 @@ INT32 i, Order;
 
       Reg = MdGetMemRegion (i);
 
-      if (Reg->type == BOOTINFO_REGION_RAM)
+      if (Reg->Type == BOOTINFO_REGION_RAM)
 	continue;
 
 
-      for (j = 0; j < Reg->len; j++)
+      for (j = 0; j < Reg->Len; j++)
 	{
-	  UINT32 Frame = Reg->pfn + j;
+	  UINT32 Frame = Reg->Pfn + j;
 
 	  if (Frame > MaxFrame)
 	    {
@@ -810,11 +810,11 @@ VaRegionsCopy (
   for (i = 0; i < Regions; i++)
     {
       Reg = MdGetMemRegion (i);
-      ApxhReg.type = Reg->type;
-      ApxhReg.pfn = Reg->pfn;
-      ApxhReg.len = Reg->len;
+      ApxhReg.Type = Reg->Type;
+      ApxhReg.Pfn = Reg->Pfn;
+      ApxhReg.Len = Reg->Len;
 #if 0
-      printf ("Copying %d %d %d\n", ApxhReg.type, ApxhReg.pfn, ApxhReg.len);
+      printf ("Copying %d %d %d\n", ApxhReg.Type, ApxhReg.Pfn, ApxhReg.Len);
 #endif
       VaCopy (Va + i * sizeof (APXH_REGION), &ApxhReg,
 	       sizeof (APXH_REGION), 0, 0, 0);
@@ -858,13 +858,13 @@ VaPfnmap (
 
       Reg = MdGetMemRegion (i);
 
-      printf ("Reg: %d Type %02d, PA: %016llx (%ld)\n", i, Reg->type,
-	      (UINT64) Reg->pfn << PAGE_SHIFT, Reg->len);
+      printf ("Reg: %d Type %02d, PA: %016llx (%ld)\n", i, Reg->Type,
+	      (UINT64) Reg->Pfn << PAGE_SHIFT, Reg->Len);
 
 
-      for (j = 0; j < Reg->len; j++)
+      for (j = 0; j < Reg->Len; j++)
 	{
-	  UINT32 Frame = Reg->pfn + j;
+	  UINT32 Frame = Reg->Pfn + j;
 	  UINT8 *Ptr;
 
 	  if (Frame > MaxFrame)
@@ -878,8 +878,8 @@ VaPfnmap (
 
 	  /* There's  a  priority  in  numbering of  regions.  RAM  is
 	     lowest, overwritten most easily. */
-	  if (*Ptr < Reg->type)
-	    *Ptr = Reg->type;
+	  if (*Ptr < Reg->Type)
+	    *Ptr = Reg->Type;
 	}
     }
 
@@ -1095,7 +1095,7 @@ VaEntry (
 **/
 int
 main (
-  IN int   Argc,
+  IN INT32   Argc,
   IN char  *Argv[]
   )
 {

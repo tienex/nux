@@ -29,7 +29,7 @@ static UINT32 gBootinfoRegions;
 static UINT64 gBootinfoMaxPfn;
 static UINT64 gBootinfoMaxRamPfn;
 
-static FRAMEBUFFER_DESC gFbDesc = {.type = FB_INVALID };
+static FRAMEBUFFER_DESC gFbDesc = {.Type = FB_INVALID };
 
 static APXH_PLATFORM_DESCRIPTOR gPlatformDesc;
 
@@ -50,7 +50,7 @@ ParseMultibootFramebuffer (
 {
   if (Info->framebuffer_type == MULTIBOOT_FRAMEBUFFER_TYPE_RGB)
     {
-      gFbDesc.type = FB_RGB;
+      gFbDesc.Type = FB_RGB;
       gFbDesc.addr = Info->framebuffer_addr;
       gFbDesc.size =
 	(UINT64) Info->framebuffer_pitch * Info->framebuffer_height;
@@ -74,7 +74,7 @@ ParseMultibootFramebuffer (
          Unfortunately not much can be done here as GRUB will have switched
          to frame buffer and we have no way (yet!) to handle it.
        */
-      gFbDesc.type = FB_RGB;
+      gFbDesc.Type = FB_RGB;
       gFbDesc.addr = Info->framebuffer_addr;
       gFbDesc.size =
 	(UINT64) Info->framebuffer_pitch * Info->framebuffer_height;
@@ -90,7 +90,7 @@ ParseMultibootFramebuffer (
     }
   else
     {
-      gFbDesc.type = FB_INVALID;
+      gFbDesc.Type = FB_INVALID;
       return;
     }
 }
@@ -156,24 +156,24 @@ ParseMultibootMmap (
       UINTN MbSize;
       BOOTINFO_REGION HReg;
 
-      printf ("%016llx:%016llx:%d\n", MbPtr->addr, MbPtr->len, MbPtr->type);
-      if (MbPtr->type == MULTIBOOT_MEMORY_AVAILABLE)
-	HReg.type = BOOTINFO_REGION_RAM;
+      printf ("%016llx:%016llx:%d\n", MbPtr->addr, MbPtr->Len, MbPtr->Type);
+      if (MbPtr->Type == MULTIBOOT_MEMORY_AVAILABLE)
+	HReg.Type = BOOTINFO_REGION_RAM;
       else
-	HReg.type = BOOTINFO_REGION_OTHER;
+	HReg.Type = BOOTINFO_REGION_OTHER;
 
-      HReg.pfn = MbPtr->addr >> PAGE_SHIFT;
-      HReg.len = (MbPtr->len + PAGE_SIZE - 1) >> PAGE_SHIFT;
+      HReg.Pfn = MbPtr->addr >> PAGE_SHIFT;
+      HReg.Len = (MbPtr->Len + PAGE_SIZE - 1) >> PAGE_SHIFT;
       MbSize = MbPtr->size + sizeof (MbPtr->size);
 
       /* Count all memory as maxpfn */
-      if (MaxPfn < HReg.pfn + HReg.len)
-	MaxPfn = HReg.pfn + HReg.len;
+      if (MaxPfn < HReg.Pfn + HReg.Len)
+	MaxPfn = HReg.Pfn + HReg.Len;
 
       /* Count RAM maxrampfn */
-      if ((HReg.type == BOOTINFO_REGION_RAM)
-	  && (MaxRamPfn < HReg.pfn + HReg.len))
-	MaxRamPfn = HReg.pfn + HReg.len;
+      if ((HReg.Type == BOOTINFO_REGION_RAM)
+	  && (MaxRamPfn < HReg.Pfn + HReg.Len))
+	MaxRamPfn = HReg.Pfn + HReg.Len;
 
       /* We consumed this entry. Can write the hreg region. */
       *HrPtr = HReg;
@@ -224,7 +224,7 @@ ParseMultiboot (
 **/
 VOID *
 GetPayloadStart (
-  IN int     Argc,
+  IN INT32 Argc,
   IN char    *Argv[],
   IN PAYLOAD_ID  Id
   )
@@ -436,7 +436,7 @@ MdGetPlatformDesc (
   )
 {
   /* Only ACPI supported. */
-  gPlatformDesc.type = PLATFORM_ACPI;
+  gPlatformDesc.Type = PLATFORM_ACPI;
   gPlatformDesc.PlatformPointer = RsdpFind ();
   return &gPlatformDesc;
 }

@@ -21,7 +21,7 @@
 **/
 VOID
 Putchar (
-  IN int  Ch
+  IN INT32 Ch
   )
 {
   asm volatile ("mv a0, %0\n" "li a7, 1\n" "ecall\n"::"r" (Ch):"a0", "a7");
@@ -37,7 +37,7 @@ Putchar (
 **/
 VOID
 Exit (
-  IN int  Status
+  IN INT32 Status
   )
 {
   printf ("Exit %d\n", Status);

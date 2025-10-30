@@ -21,7 +21,7 @@ static UINTN gMaxRamPfn;
 static UINTN gMinRamPfn = -1;
 static UINT32 gNumRegions;
 static VOID *gpEfiRsdp;
-static FRAMEBUFFER_DESC gFbDesc = {.type = FB_INVALID, };
+static FRAMEBUFFER_DESC gFbDesc = {.Type = FB_INVALID, };
 
 static APXH_PLATFORM_DESCRIPTOR gPlatformDesc;
 
@@ -39,7 +39,7 @@ static BOOTINFO_REGION gMemRegions[BOOTINFO_REGIONS_MAX];
 **/
 VOID __dead
 Exit (
-  IN int  Status
+  IN INT32 Status
   )
 {
   printf ("EXIT CALLED!\n");
@@ -318,7 +318,7 @@ MdGetPlatformDesc (
   )
 {
   /* Only ACPI supported. */
-  gPlatformDesc.type = PLATFORM_ACPI;
+  gPlatformDesc.Type = PLATFORM_ACPI;
   gPlatformDesc.PlatformPointer = (UINT64) (UINTN) gpEfiRsdp;
   return &gPlatformDesc;
 }
@@ -336,7 +336,7 @@ MdGetPlatformDesc (
 **/
 VOID *
 GetPayloadStart (
-  IN int     Argc,
+  IN INT32 Argc,
   IN char    *Argv[],
   IN PAYLOAD_ID  Id
   )
@@ -421,7 +421,7 @@ ApxhEfiAddFramebuffer (
   IN UINT32   Bm
   )
 {
-  gFbDesc.type = FB_RGB;
+  gFbDesc.Type = FB_RGB;
   gFbDesc.addr = Addr;
   gFbDesc.size = Size;
 
@@ -449,8 +449,8 @@ ApxhEfiAddFramebuffer (
 **/
 VOID
 ApxhEfiAddMemRegion (
-  IN int            Ram,
-  IN int            Bsy,
+  IN INT32 Ram,
+  IN INT32 Bsy,
   IN UINTN  Pfn,
   IN UINT32 Len
   )
@@ -464,24 +464,24 @@ ApxhEfiAddMemRegion (
       return;
     }
 
-  gMemRegions[Cur].pfn = Pfn;
-  gMemRegions[Cur].len = Len;
+  gMemRegions[Cur].Pfn = Pfn;
+  gMemRegions[Cur].Len = Len;
 
   if (Pfn + Len > gMaxPfn)
     gMaxPfn = Pfn + Len;
 
   if (Ram && !Bsy)
     {
-      gMemRegions[Cur].type = BOOTINFO_REGION_RAM;
+      gMemRegions[Cur].Type = BOOTINFO_REGION_RAM;
       if (Pfn + Len > gMaxRamPfn)
 	gMaxRamPfn = Pfn + Len;
       if (Pfn < gMinRamPfn)
 	gMinRamPfn = Pfn;
     }
   else if (Ram && Bsy)
-    gMemRegions[Cur].type = BOOTINFO_REGION_BSY;
+    gMemRegions[Cur].Type = BOOTINFO_REGION_BSY;
   else
-    gMemRegions[Cur].type = BOOTINFO_REGION_OTHER;
+    gMemRegions[Cur].Type = BOOTINFO_REGION_OTHER;
 
 
   gNumRegions++;

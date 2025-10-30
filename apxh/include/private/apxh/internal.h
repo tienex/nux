@@ -42,9 +42,9 @@ typedef enum _BOOTINFO_REGION_TYPE {
 **/
 typedef struct _BOOTINFO_REGION
 {
-  INT32 type;
-  UINT32 len;
-  UINTN pfn;
+  INT32 Type;
+  UINT32 Len;
+  UINTN Pfn;
 } BOOTINFO_REGION, *PBOOTINFO_REGION, *PCBOOTINFO_REGION;
 
 /**

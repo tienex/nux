@@ -38,7 +38,7 @@ static PTE *
 Pae64GetL3p (
   IN PTE    *pCr3,
   IN VIRTUAL_ADDRESS  Va,
-  IN int      Payload
+  IN INT32 Payload
   )
 {
   PTE *pL4p, *pL3p;
@@ -78,7 +78,7 @@ static PTE *
 Pae64GetL2p (
   IN PTE    *pCr3,
   IN VIRTUAL_ADDRESS  Va,
-  IN int      Payload
+  IN INT32 Payload
   )
 {
   PTE *pL3p, *pL2p;
@@ -118,7 +118,7 @@ static PTE *
 Pae64GetL1p (
   IN PTE    *pCr3,
   IN VIRTUAL_ADDRESS  Va,
-  IN int      Payload
+  IN INT32 Payload
   )
 {
   PTE *pL2p, *pL1p;
@@ -199,9 +199,9 @@ Pae64MapPage (
   IN VOID      *Pt,
   IN VIRTUAL_ADDRESS   Va,
   IN UINTN Pa,
-  IN int       Payload,
-  IN int       W,
-  IN int       X
+  IN INT32 Payload,
+  IN INT32 W,
+  IN INT32 X
   )
 {
   PTE *pL1p, *pCr3;
@@ -241,10 +241,10 @@ static UINTN
 Pae64PopulatePage (
   IN PTE    *pCr3,
   IN VIRTUAL_ADDRESS  Va,
-  IN int      U,
-  IN int      W,
-  IN int      X,
-  IN int      Payload
+  IN INT32 U,
+  IN INT32 W,
+  IN INT32 X,
+  IN INT32 Payload
   )
 {
   PTE *pL1p;
@@ -340,8 +340,8 @@ Pae64DirectMap (
   IN VIRTUAL_ADDRESS           Va,
   IN SIZE64          Size,
   IN MEMORY_TYPE  Mt,
-  IN int               Payload,
-  IN int               X
+  IN INT32 Payload,
+  IN INT32 X
   )
 {
   SSIZE64 Len;
@@ -523,9 +523,9 @@ VOID
 Pae64Populate (
   IN VIRTUAL_ADDRESS   Va,
   IN SIZE64  Size,
-  IN int       U,
-  IN int       W,
-  IN int       X
+  IN INT32 U,
+  IN INT32 W,
+  IN INT32 X
   )
 {
   SSIZE64 Len = Size;
