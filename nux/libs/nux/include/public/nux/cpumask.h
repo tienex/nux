@@ -189,7 +189,7 @@ CpuMaskClear (
 //
 
 /** @deprecated Use AtomicCpuMaskSet instead **/
-static inline void atomic_cpumask_set (cpumask_t *cpumask, unsigned cpu) {
+static inline void atomic_cpumask_set (cpumask_t *cpumask, UINTN cpu) {
   AtomicCpuMaskSet (cpumask, cpu);
 }
 
@@ -199,7 +199,7 @@ static inline void atomic_cpumask_and (cpumask_t *cpumask, cpumask_t mask) {
 }
 
 /** @deprecated Use AtomicCpuMaskClear instead **/
-static inline void atomic_cpumask_clear (cpumask_t *cpumask, unsigned cpu) {
+static inline void atomic_cpumask_clear (cpumask_t *cpumask, UINTN cpu) {
   AtomicCpuMaskClear (cpumask, cpu);
 }
 
@@ -209,12 +209,12 @@ static inline cpumask_t atomic_cpumask (cpumask_t *cpumask) {
 }
 
 /** @deprecated Use CpuMaskSet instead **/
-static inline void cpumask_set (cpumask_t *cpumask, unsigned cpu) {
+static inline void cpumask_set (cpumask_t *cpumask, UINTN cpu) {
   CpuMaskSet (cpumask, cpu);
 }
 
 /** @deprecated Use CpuMaskClear instead **/
-static inline void cpumask_clear (cpumask_t *cpumask, unsigned cpu) {
+static inline void cpumask_clear (cpumask_t *cpumask, UINTN cpu) {
   CpuMaskClear (cpumask, cpu);
 }
 

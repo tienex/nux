@@ -45,15 +45,15 @@ typedef struct _FRAMEBUFFER_DESC
 /** Legacy compatibility **/
 #define fbdesc FRAMEBUFFER_DESC
 
-int FramebufferInit (FRAMEBUFFER_DESC *Desc);
-uint32_t FramebufferColor (unsigned R, unsigned G, unsigned B);
-void FramebufferBlt (unsigned X, unsigned Y, uint32_t Color,
-		      void *Data, size_t Width, size_t Height);
-int FramebufferPutc (int Ch, uint32_t Color);
-void FramebufferPutcXy (unsigned X, unsigned Y, uint32_t Color,
-			  unsigned char C);
+INT32 FramebufferInit (IN FRAMEBUFFER_DESC *Desc);
+UINT32 FramebufferColor (IN UINT32 R, IN UINT32 G, IN UINT32 B);
+VOID FramebufferBlt (IN UINT32 X, IN UINT32 Y, IN UINT32 Color,
+		      IN VOID *Data, IN UINTN Width, IN UINTN Height);
+INT32 FramebufferPutc (IN INT32 Ch, IN UINT32 Color);
+VOID FramebufferPutcXy (IN UINT32 X, IN UINT32 Y, IN UINT32 Color,
+			  IN UINT8 C);
 
-void FramebufferReset (void);
+VOID FramebufferReset (VOID);
 
 /** Legacy compatibility **/
 #define framebuffer_init FramebufferInit

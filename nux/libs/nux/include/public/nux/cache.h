@@ -217,7 +217,7 @@ CacheInitialize (
   TAILQ_INIT (&Cache->FreeList);
 
   Cache->NumSlots = NumSlots;
-  Cache->Slots    = pSlots;
+  Cache->Slots    = Slots;
   Cache->Fill     = FillFunc;
 
   //
@@ -357,7 +357,7 @@ CachePut (
 //
 
 /** @deprecated Use CacheGetSlotNumber instead **/
-static inline unsigned cache_getslotno (CACHE *c, SLOT *s) {
+static inline UINTN cache_getslotno (CACHE *c, SLOT *s) {
   return CacheGetSlotNumber (c, s);
 }
 
@@ -365,14 +365,14 @@ static inline unsigned cache_getslotno (CACHE *c, SLOT *s) {
 static inline void cache_init (
   CACHE *c,
   SLOT *slots,
-  unsigned numslots,
-  void (*fill)(unsigned, uintptr_t, uintptr_t)
+  UINTN numslots,
+  void (*fill)(UINTN, uintptr_t, uintptr_t)
 ) {
   CacheInitialize (c, slots, numslots, fill);
 }
 
 /** @deprecated Use CacheGet instead **/
-static inline unsigned cache_get (CACHE *c, uintptr_t addr) {
+static inline UINTN cache_get (CACHE *c, uintptr_t addr) {
   return CacheGet (c, addr);
 }
 
@@ -382,12 +382,12 @@ static inline void cache_put (CACHE *c, uintptr_t slotno) {
 }
 
 /** @deprecated Internal function, use CacheSlotCompare instead **/
-static inline int _slotcmp (void *ctx, const void *a, const void *b) {
+static inline INT32 _slotcmp (void *ctx, CONST VOID *a, CONST VOID *b) {
   return CacheSlotCompare (ctx, a, b);
 }
 
 /** @deprecated Internal function, use CacheSlotKeyCompare instead **/
-static inline int _slot_keycmp (void *ctx, const void *a, const void *b) {
+static inline INT32 _slot_keycmp (void *ctx, CONST VOID *a, CONST VOID *b) {
   return CacheSlotKeyCompare (ctx, a, b);
 }
 

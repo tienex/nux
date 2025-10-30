@@ -158,10 +158,10 @@ SlabAllocate (
 /** @deprecated Use SlabRegister instead **/
 static inline void slab_register (
   struct slab *sc,
-  const char *name,
-  size_t objsize,
-  void (*ctr)(void *, void *, int),
-  int cachealign
+  CONST CHAR8 *name,
+  UINTN objsize,
+  void (*ctr)(void *, void *, INT32),
+  INT32 cachealign
 ) {
   SlabRegister (sc, name, objsize, ctr, cachealign);
 }
@@ -172,7 +172,7 @@ static inline void slab_deregister (struct slab *sc) {
 }
 
 /** @deprecated Use SlabShrink instead **/
-static inline int slab_shrink (struct slab *sc) {
+static inline INT32 slab_shrink (struct slab *sc) {
   return SlabShrink (sc);
 }
 

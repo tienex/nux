@@ -298,7 +298,7 @@ static inline void spinlock (lock_t *l) {
 }
 
 /** @deprecated Use SpinLockAcquireMeasured instead **/
-static inline uint64_t spinlock_msr (lock_t *l) {
+static inline UINT64 spinlock_msr (lock_t *l) {
   return SpinLockAcquireMeasured (l);
 }
 
@@ -308,7 +308,7 @@ static inline void spinunlock (lock_t *l) {
 }
 
 /** @deprecated Use SpinLockReleaseMeasured instead **/
-static inline uint64_t spinunlock_msr (lock_t *l) {
+static inline UINT64 spinunlock_msr (lock_t *l) {
   return SpinLockReleaseMeasured (l);
 }
 

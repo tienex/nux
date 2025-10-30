@@ -133,7 +133,7 @@ static inline struct hal_frame *nmiemul_ipicheck (struct hal_frame *f) {
 }
 
 /** @deprecated Use NmiEmulNmiSet instead **/
-static inline void nmiemul_nmi_set (unsigned cpu) {
+static inline void nmiemul_nmi_set (UINTN cpu) {
   NmiEmulNmiSet (cpu);
 }
 
@@ -143,7 +143,7 @@ static inline void nmiemul_nmi_setall (void) {
 }
 
 /** @deprecated Use NmiEmulIpiPending instead **/
-static inline bool nmiemul_ipi_pending (void) {
+static inline BOOLEAN nmiemul_ipi_pending (void) {
   return NmiEmulIpiPending ();
 }
 
@@ -153,7 +153,7 @@ static inline void nmiemul_ipi_clear (void) {
 }
 
 /** @deprecated Use NmiEmulIpiSet instead **/
-static inline void nmiemul_ipi_set (unsigned cpu) {
+static inline void nmiemul_ipi_set (UINTN cpu) {
   NmiEmulIpiSet (cpu);
 }
 

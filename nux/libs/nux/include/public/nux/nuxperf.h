@@ -471,7 +471,7 @@ static inline void nuxperf_reset (void) {
 }
 
 /** @deprecated Use NuxPerfMeasureAdd instead **/
-static inline void nuxmeasure_add (nuxmeasure_t *msr, uint64_t data) {
+static inline void nuxmeasure_add (nuxmeasure_t *msr, UINT64 data) {
   NuxPerfMeasureAdd (msr, data);
 }
 

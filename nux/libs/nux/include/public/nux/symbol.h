@@ -35,7 +35,7 @@ CONST CHAR8 *NuxSymbolResolve (
 //
 
 /** @deprecated Use NuxSymbolResolve instead **/
-static inline const char *nux_symresolve (unsigned long addr) {
+static inline CONST CHAR8 *nux_symresolve (UINTN addr) {
   return NuxSymbolResolve (addr);
 }
 
