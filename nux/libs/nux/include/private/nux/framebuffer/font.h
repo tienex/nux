@@ -29,6 +29,6 @@
 //
 // Font data (defined in selected font file)
 //
-extern uint8_t fontdata[];
+extern UINT8 fontdata[];
 
 #endif // __FONT_H__

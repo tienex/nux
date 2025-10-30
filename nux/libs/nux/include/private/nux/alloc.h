@@ -67,7 +67,7 @@ LIST_HEAD (zlist, __ZENTRY);
 **/
 typedef struct _ZONE
 {
-  uintptr_t      Opq;             ///< Opaque user data
+  UINTN      Opq;             ///< Opaque user data
   unsigned long  Bmap;            ///< Bitmap of available sizes
   struct zlist   Zlist[ORDMAX];  ///< Free lists by order
   unsigned       Nfree;           ///< Number of free entries
@@ -79,7 +79,7 @@ typedef struct _ZONE
 static inline void
 _zone_detachentry (struct zone *z, struct __ZENTRY *ze)
 {
-  uint32_t msb;
+  UINT32 msb;
 
   assert (ze->size != 0);
   msb = msbit (ze->size);
@@ -97,7 +97,7 @@ _zone_detachentry (struct zone *z, struct __ZENTRY *ze)
 static inline void
 _zone_attachentry (struct zone *z, struct __ZENTRY *ze)
 {
-  uint32_t msb;
+  UINT32 msb;
 
   assert (ze->size != 0);
   msb = msbit (ze->size);
@@ -210,7 +210,7 @@ out:
 }
 
 static inline void
-zone_init (struct zone *z, uintptr_t opq)
+zone_init (struct zone *z, UINTN opq)
 {
   int i;
 

@@ -87,9 +87,9 @@ PTE GetPte (IN PTEP Ptep);
 PTE SetPte (IN PTEP Ptep, IN PTE Pte);
 hal_l1p_t KmapGetL1p (IN UINTN Va, IN INT32 Alloc);
 hal_l1p_t UmapGetL1p (IN struct hal_umap *pUmap, IN UINTN Va, IN INT32 Alloc);
-uaddr_t PtUmapNext (
+USER_ADDRESS PtUmapNext (
   IN struct hal_umap *pUmap,
-  IN uaddr_t Uaddr,
+  IN USER_ADDRESS Uaddr,
   OUT hal_l1p_t *pL1p OPTIONAL,
   OUT hal_l1e_t *pL1e OPTIONAL
   );
@@ -136,14 +136,14 @@ void amd64_init_done (void);
 int inb (int port);
 void outb (int port, int val);
 
-typedef uint64_t pte_t;
-typedef uintptr_t ptep_t;
+typedef UINT64 pte_t;
+typedef UINTN ptep_t;
 
 pte_t get_pte (ptep_t ptep);
 pte_t set_pte (ptep_t ptep, pte_t pte);
 hal_l1p_t kmap_get_l1p (unsigned long va, int alloc);
 hal_l1p_t umap_get_l1p (struct hal_umap *umap, unsigned long va, int alloc);
-uaddr_t pt_umap_next (struct hal_umap *umap, uaddr_t uaddr, hal_l1p_t * l1p_out,
+USER_ADDRESS pt_umap_next (struct hal_umap *umap, USER_ADDRESS uaddr, hal_l1p_t * l1p_out,
 		   hal_l1e_t * l1e_out);
 void pt_umap_free (struct hal_umap *umap);
 void pt_umap_debugwalk (struct hal_umap *umap, unsigned long va);
@@ -157,8 +157,8 @@ void serial_putchar (int c);
 
 int vga_putchar (int c);
 
-uint64_t rdmsr (uint32_t ecx);
-void wrmsr (uint32_t ecx, uint64_t val);
+UINT64 rdmsr (UINT32 ecx);
+void wrmsr (UINT32 ecx, UINT64 val);
 
 unsigned long read_cr4 (void);
 void write_cr4 (unsigned long r);

@@ -20,8 +20,8 @@
 #define NUXST_OKCPU   2		/* BSP is initialized and CPU operations are available. */
 #define NUXST_RUNNING 4		/* NUX is fully initialized. */
 #define NUXST_PANIC   128	/* NUX is in panic mode and shutting down. */
-uint8_t nux_status (void);
-uint8_t nux_status_setfl (uint8_t flags);
+UINT8 nux_status (void);
+UINT8 nux_status_setfl (UINT8 flags);
 bool nux_status_okcpu (void);
 
 /*
@@ -29,15 +29,15 @@ bool nux_status_okcpu (void);
 */
 struct ktlb
 {
-  tlbgen_t global;		/* Global mappings. */
-  tlbgen_t normal;		/* Non-global mappings. */
+  TLB_GENERATION global;		/* Global mappings. */
+  TLB_GENERATION normal;		/* Non-global mappings. */
 };
 
 /*
   Return <0 if a < b. 0 if a == b, >0 if a > b or wrapcounts differ.
 */
 static inline int
-tlbgen_cmp (tlbgen_t a, tlbgen_t b)
+tlbgen_cmp (TLB_GENERATION a, TLB_GENERATION b)
 {
   if (_TG_WRAP (a) == _TG_WRAP (b))
     {
@@ -83,7 +83,7 @@ struct cpu_info
    */
   jmp_buf usrpgfaultctx;
   unsigned usrpgfault;
-  uaddr_t usrpgaddr;
+  USER_ADDRESS usrpgaddr;
   hal_pfinfo_t usrpginfo;
 
   /* 
@@ -107,13 +107,13 @@ __dead void cpu_idle (void);
 bool cpu_wasidle (void);
 void cpu_clridle (void);
 void cpu_nmiop (void);
-void cpu_useraccess_checkpf (uaddr_t addr, hal_pfinfo_t info);
+void cpu_useraccess_checkpf (USER_ADDRESS addr, hal_pfinfo_t info);
 unsigned cpu_try_id (void);
 void cpu_kmapupdate_broadcast (void);
 
 void ktlbgen_markdirty (hal_tlbop_t op);
-tlbgen_t ktlbgen_global (void);
-tlbgen_t ktlbgen_normal (void);
+TLB_GENERATION ktlbgen_global (void);
+TLB_GENERATION ktlbgen_normal (void);
 
 /*
   User Context
@@ -128,16 +128,16 @@ tlbgen_t ktlbgen_normal (void);
   This function it's used at hal entries, and must be called only once
   as it clears the cpu idle status!
  */
-uctxt_t *uctxt_get (struct hal_frame *f);
+UCTXT *uctxt_get (struct hal_frame *f);
 
 /* Get user context from a HAL frame. Expected to be a valid user context. */
-uctxt_t *uctxt_getuser (struct hal_frame *f);
+UCTXT *uctxt_getuser (struct hal_frame *f);
 
 /* Transform a user context to a HAL frame. Or become idle. */
-struct hal_frame *uctxt_frame (uctxt_t * uctxt);
+struct hal_frame *uctxt_frame (UCTXT * uctxt);
 
 /* Transform a user context to a HAL frame. Or return NULL. */
-struct hal_frame *uctxt_frame_pointer (uctxt_t * uctxt);
+struct hal_frame *uctxt_frame_pointer (UCTXT * uctxt);
 
 #include <nux/nuxperf.h>
 #define NUXPERF_DECLARE
