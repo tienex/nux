@@ -49,9 +49,6 @@ typedef struct _BOOTINFO_REGION
   UINTN pfn;
 } BOOTINFO_REGION, *PBOOTINFO_REGION, *PCBOOTINFO_REGION;
 
-/** Legacy compatibility **/
-#define bootinfo_region BOOTINFO_REGION
-
 /**
   Memory Type for Page Mappings
 **/
@@ -61,12 +58,6 @@ typedef enum _MEMORY_TYPE
   MemTypeWriteBack      = 1,  ///< Write Back (cacheable)
   MemTypeUncached       = 2   ///< Uncached
 } MEMORY_TYPE;
-
-/** Legacy compatibility **/
-#define memory_type MEMORY_TYPE
-#define MEMTYPE_WC  MemTypeWriteCombining
-#define MEMTYPE_WB  MemTypeWriteBack
-#define MEMTYPE_UC  MemTypeUncached
 
 /* APXH ELF extensions. */
 #define PHT_APXH_INFO       0xAF100000	/* Info Page. */
@@ -110,27 +101,14 @@ VOID MdInit (VOID);
 UINT64 MdMaxPfn (VOID);
 UINT64 MdMinRamPfn (VOID);
 UINT64 MdMaxRamPfn (VOID);
-unsigned MdMemRegions (VOID);
-BOOTINFO_REGION *MdGetMemRegion (unsigned i);
+UINT32 MdMemRegions (VOID);
+BOOTINFO_REGION *MdGetMemRegion (UINT32 i);
 FRAMEBUFFER_DESC *MdGetFramebuffer (VOID);
 APXH_PLATFORM_DESCRIPTOR *MdGetPlatformDesc (VOID);
 VOID MdVerify (VIRTUAL_ADDRESS Va, size64_t Size);
 VOID MdEntry (arch_t Arch, VIRTUAL_ADDRESS Pt, VIRTUAL_ADDRESS Entry);
 
-VOID *PayloadGet (unsigned i, size_t *Size);
-
-/** Legacy compatibility **/
-#define md_init MdInit
-#define md_maxpfn MdMaxPfn
-#define md_minrampfn MdMinRamPfn
-#define md_maxrampfn MdMaxRamPfn
-#define md_memregions MdMemRegions
-#define md_getmemregion MdGetMemRegion
-#define md_getframebuffer MdGetFramebuffer
-#define md_getplatformdesc MdGetPlatformDesc
-#define md_verify MdVerify
-#define md_entry MdEntry
-#define payload_get PayloadGet
+VOID *PayloadGet (UINT32 i, size_t *Size);
 
 typedef enum _PAYLOAD_ID
 {
@@ -138,17 +116,12 @@ typedef enum _PAYLOAD_ID
   PayloadUser,
 } PAYLOAD_ID;
 
-/** Legacy compatibility **/
-#define plid_t PAYLOAD_ID
-#define PAYLOAD_KERNEL PayloadKernel
-#define PAYLOAD_USER PayloadUser
-
-VOID *GetPayloadStart (int Argc, char *Argv[], PAYLOAD_ID Id);
+VOID *GetPayloadStart (INT32 Argc, char *Argv[], PAYLOAD_ID Id);
 size_t GetPayloadSize (PAYLOAD_ID Id);
 
 arch_t GetElfArch (VOID *Elf);
-VIRTUAL_ADDRESS LoadElf32 (VOID *Elf, int U);
-VIRTUAL_ADDRESS LoadElf64 (VOID *Elf, int U);
+VIRTUAL_ADDRESS LoadElf32 (VOID *Elf, INT32 U);
+VIRTUAL_ADDRESS LoadElf64 (VOID *Elf, INT32 U);
 
 UINTN GetPage (VOID);
 UINTN GetPayloadPage (VOID);
@@ -156,9 +129,9 @@ UINTN GetPayloadPage (VOID);
 VOID VaInit (VOID);
 UINTN VaGetPhys (VIRTUAL_ADDRESS Va);
 VOID VaVerify (VIRTUAL_ADDRESS Va, size64_t Size);
-VOID VaPopulate (VIRTUAL_ADDRESS Va, size64_t Size, int U, int W, int X);
-VOID VaCopy (VIRTUAL_ADDRESS Va, VOID *Addr, size64_t Size, int U, int W, int X);
-VOID VaMemset (VIRTUAL_ADDRESS Va, int C, size64_t Size, int U, int W, int X);
+VOID VaPopulate (VIRTUAL_ADDRESS Va, size64_t Size, INT32 U, INT32 W, INT32 X);
+VOID VaCopy (VIRTUAL_ADDRESS Va, VOID *Addr, size64_t Size, INT32 U, INT32 W, INT32 X);
+VOID VaMemset (VIRTUAL_ADDRESS Va, INT32 C, size64_t Size, INT32 U, INT32 W, INT32 X);
 VOID VaPhysmap (VIRTUAL_ADDRESS Va, size64_t Size, MEMORY_TYPE Type);
 VOID VaLinear (VIRTUAL_ADDRESS Va, size64_t Size);
 VOID VaInfo (VIRTUAL_ADDRESS Va, size64_t Size);
@@ -172,37 +145,10 @@ VOID VaKtls (VIRTUAL_ADDRESS Va, size64_t InitSize, size64_t Size);
 VOID VaUtls (VIRTUAL_ADDRESS Va, size64_t InitSize, size64_t Size);
 VOID VaEntry (VIRTUAL_ADDRESS Entry);
 
-/** Legacy compatibility **/
-#define get_payload_start GetPayloadStart
-#define get_payload_size GetPayloadSize
-#define get_elf_arch GetElfArch
-#define load_elf32 LoadElf32
-#define load_elf64 LoadElf64
-#define get_page GetPage
-#define get_payload_page GetPayloadPage
-#define va_init VaInit
-#define va_getphys VaGetPhys
-#define va_verify VaVerify
-#define va_populate VaPopulate
-#define va_copy VaCopy
-#define va_memset VaMemset
-#define va_physmap VaPhysmap
-#define va_linear VaLinear
-#define va_info VaInfo
-#define va_pfnmap VaPfnmap
-#define va_stree VaStree
-#define va_topptalloc VaTopPtAlloc
-#define va_ptalloc VaPtAlloc
-#define va_framebuf VaFramebuf
-#define va_regions VaRegions
-#define va_ktls VaKtls
-#define va_utls VaUtls
-#define va_entry VaEntry
-
 VOID PaeInit (VOID);
 UINTN PaeGetPhys (VIRTUAL_ADDRESS Va);
 VOID PaeVerify (VIRTUAL_ADDRESS Va, size64_t Size);
-VOID PaePopulate (VIRTUAL_ADDRESS Va, size64_t Size, int U, int W, int X);
+VOID PaePopulate (VIRTUAL_ADDRESS Va, size64_t Size, INT32 U, INT32 W, INT32 X);
 VOID PaePhysmap (VIRTUAL_ADDRESS Va, size64_t Size, UINT64 Pa, MEMORY_TYPE Type);
 VOID PaePtAlloc (VIRTUAL_ADDRESS Va, size64_t Size);
 VOID PaeTopPtAlloc (VIRTUAL_ADDRESS Va, size64_t Size);
@@ -211,14 +157,14 @@ VOID PaeEntry (VIRTUAL_ADDRESS Entry);
 
 /* Internal PAE functions. */
 VOID PaeDirectMap (VOID *Pt, UINT64 Pa, VIRTUAL_ADDRESS Va, size64_t Size,
-		    MEMORY_TYPE Type, int Payload, int X);
-VOID PaeMapPage (VOID *Pt, VIRTUAL_ADDRESS Va, UINTN Pa, int Payload, int W,
-		   int X);
+		    MEMORY_TYPE Type, INT32 Payload, INT32 X);
+VOID PaeMapPage (VOID *Pt, VIRTUAL_ADDRESS Va, UINTN Pa, INT32 Payload, INT32 W,
+		   INT32 X);
 
 VOID Pae64Init (VOID);
 UINTN Pae64GetPhys (VIRTUAL_ADDRESS Va);
 VOID Pae64Verify (VIRTUAL_ADDRESS Va, size64_t Size);
-VOID Pae64Populate (VIRTUAL_ADDRESS Va, size64_t Size, int U, int W, int X);
+VOID Pae64Populate (VIRTUAL_ADDRESS Va, size64_t Size, INT32 U, INT32 W, INT32 X);
 VOID Pae64Physmap (VIRTUAL_ADDRESS Va, size64_t Size, UINT64 Pa, MEMORY_TYPE Type);
 VOID Pae64PtAlloc (VIRTUAL_ADDRESS Va, size64_t Size);
 VOID Pae64TopPtAlloc (VIRTUAL_ADDRESS Va, size64_t Size);
@@ -227,14 +173,14 @@ VOID Pae64Entry (VIRTUAL_ADDRESS Entry);
 
 /* Internal PAE64 functions. */
 VOID Pae64DirectMap (VOID *Pt, UINT64 Pa, VIRTUAL_ADDRESS Va, size64_t Size,
-		      MEMORY_TYPE Type, int Payload, int X);
-VOID Pae64MapPage (VOID *Pt, VIRTUAL_ADDRESS Va, UINTN Pa, int Payload, int W,
-		     int X);
+		      MEMORY_TYPE Type, INT32 Payload, INT32 X);
+VOID Pae64MapPage (VOID *Pt, VIRTUAL_ADDRESS Va, UINTN Pa, INT32 Payload, INT32 W,
+		     INT32 X);
 
 VOID Sv48Init (VOID);
 UINTN Sv48GetPhys (VIRTUAL_ADDRESS Va);
 VOID Sv48Verify (VIRTUAL_ADDRESS Va, size64_t Size);
-VOID Sv48Populate (VIRTUAL_ADDRESS Va, size64_t Size, int U, int W, int X);
+VOID Sv48Populate (VIRTUAL_ADDRESS Va, size64_t Size, INT32 U, INT32 W, INT32 X);
 VOID Sv48Physmap (VIRTUAL_ADDRESS Va, size64_t Size, UINT64 Pa, MEMORY_TYPE Type);
 VOID Sv48PtAlloc (VIRTUAL_ADDRESS Va, size64_t Size);
 VOID Sv48TopPtAlloc (VIRTUAL_ADDRESS Va, size64_t Size);
@@ -243,44 +189,9 @@ VOID Sv48Entry (VIRTUAL_ADDRESS Entry);
 
 /* Internal SV48 functions. */
 VOID Sv48DirectMap (VOID *Pt, UINT64 Pa, VIRTUAL_ADDRESS Va, size64_t Size,
-		     MEMORY_TYPE Type, int Payload, int X);
-VOID Sv48MapPage (VOID *Pt, VIRTUAL_ADDRESS Va, UINTN Pa, int Payload, int W,
-		    int X);
-
-/** Legacy compatibility **/
-#define pae_init PaeInit
-#define pae_getphys PaeGetPhys
-#define pae_verify PaeVerify
-#define pae_populate PaePopulate
-#define pae_physmap PaePhysmap
-#define pae_ptalloc PaePtAlloc
-#define pae_topptalloc PaeTopPtAlloc
-#define pae_linear PaeLinear
-#define pae_entry PaeEntry
-#define pae_directmap PaeDirectMap
-#define pae_map_page PaeMapPage
-#define pae64_init Pae64Init
-#define pae64_getphys Pae64GetPhys
-#define pae64_verify Pae64Verify
-#define pae64_populate Pae64Populate
-#define pae64_physmap Pae64Physmap
-#define pae64_ptalloc Pae64PtAlloc
-#define pae64_topptalloc Pae64TopPtAlloc
-#define pae64_linear Pae64Linear
-#define pae64_entry Pae64Entry
-#define pae64_directmap Pae64DirectMap
-#define pae64_map_page Pae64MapPage
-#define sv48_init Sv48Init
-#define sv48_getphys Sv48GetPhys
-#define sv48_verify Sv48Verify
-#define sv48_populate Sv48Populate
-#define sv48_physmap Sv48Physmap
-#define sv48_ptalloc Sv48PtAlloc
-#define sv48_topptalloc Sv48TopPtAlloc
-#define sv48_linear Sv48Linear
-#define sv48_entry Sv48Entry
-#define sv48_directmap Sv48DirectMap
-#define sv48_map_page Sv48MapPage
+		     MEMORY_TYPE Type, INT32 Payload, INT32 X);
+VOID Sv48MapPage (VOID *Pt, VIRTUAL_ADDRESS Va, UINTN Pa, INT32 Payload, INT32 W,
+		    INT32 X);
 
 
 #define info(...) do { printf (__VA_ARGS__); putchar('\n'); } while (0)
