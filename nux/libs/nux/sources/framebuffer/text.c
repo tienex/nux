@@ -41,6 +41,6 @@ FramebufferPutCharXY (
 //
 
 /** @deprecated Use FramebufferPutCharXY instead **/
-void framebuffer_putc_xy (unsigned x, unsigned y, uint32_t color, unsigned char c) {
+void framebuffer_putc_xy (unsigned x, unsigned y, UINT32 color, unsigned char c) {
   FramebufferPutCharXY (x, y, color, c);
 }

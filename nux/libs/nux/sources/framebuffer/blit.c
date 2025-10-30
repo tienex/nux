@@ -84,7 +84,7 @@ FramebufferBlt (
 //
 
 /** @deprecated Use FramebufferBlt instead **/
-void framebuffer_blt (unsigned x, unsigned y, uint32_t color,
+void framebuffer_blt (unsigned x, unsigned y, UINT32 color,
 		 void *data, size_t width, size_t height) {
   FramebufferBlt (x, y, color, data, width, height);
 }

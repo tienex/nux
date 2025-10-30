@@ -104,7 +104,7 @@ int framebuffer_init (struct fbdesc *desc) {
 }
 
 /** @deprecated Use FramebufferColor instead **/
-uint32_t framebuffer_color (unsigned r, unsigned g, unsigned b) {
+UINT32 framebuffer_color (unsigned r, unsigned g, unsigned b) {
   return FramebufferColor (r, g, b);
 }
 
