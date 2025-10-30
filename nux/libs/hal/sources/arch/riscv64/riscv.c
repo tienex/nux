@@ -77,10 +77,9 @@ EarlyPrint (
     hal_putchar (*ptr++);
 }
 
-
-/*
-  I/O ops aren't implemented in RISC-V.
-*/
+//
+// I/O ops aren't implemented in RISC-V.
+//
 
 UINTN
 hal_cpu_in (

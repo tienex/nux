@@ -17,9 +17,9 @@
 #include <nux/internal.h>
 #include <nux/nux.h>
 
-/*
- * VM allocator
- */
+//
+// VM allocator
+//
 
 static rb_tree_t gVmapRbTree;
 static vaddr_t gKvaBase;
@@ -177,9 +177,9 @@ static const rb_tree_ops_t gVmapTreeOps = {
   .rbto_context = NULL
 };
 
-/*
- * VM allocator.
- */
+//
+// VM allocator.
+//
 
 #define __ZENTRY vme
 #define __ZADDR_T vaddr_t

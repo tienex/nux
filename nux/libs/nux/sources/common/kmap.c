@@ -16,11 +16,11 @@
 
 #include <nux/internal.h>
 
-/*
-  Low level routines to handle kernel mappings.
-
-  Unlocked, unflushing, use with care.
-*/
+//
+// Low level routines to handle kernel mappings.
+//
+// Unlocked, unflushing, use with care.
+//
 
 /**
   Initialize kernel mapping subsystem.

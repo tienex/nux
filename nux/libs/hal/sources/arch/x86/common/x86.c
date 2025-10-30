@@ -46,17 +46,13 @@ extern int _fbuf_end;
 extern int _memregs_start;
 extern int _memregs_end;
 
-/*
-  Pin areas of memory to a fixed memory region type.
-*/
+//
+// Pin areas of memory to a fixed memory region type.
+//
 struct apxh_region _memregs_pinned[] = {
-  /*
-     Remove me after getting ACPI pointer from kernel .
-   */
+  // Remove me after getting ACPI pointer from kernel.
   {.type = APXH_REGION_MMIO,.pfn = 0,.len = 1,},
-  /*
-
-     Mark the whole 0xA0000-0x100000 area as MMIO. */
+  // Mark the whole 0xA0000-0x100000 area as MMIO.
   {.type = APXH_REGION_MMIO,.pfn = 0xa0,.len = 96,},
 };
 

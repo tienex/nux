@@ -5,9 +5,9 @@
   SPDX-License-Identifier:	BSD-2-Clause
 */
 
-/*
- * Generic, simple and portable slab allocator.
- */
+//
+// Generic, simple and portable slab allocator.
+//
 /* *INDENT-OFF* */
 
 #include <nux/slabinc.h>
