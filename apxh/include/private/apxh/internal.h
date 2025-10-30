@@ -106,101 +106,181 @@ typedef enum
   ARCH_RISCV64,
 } arch_t;
 
-void md_init (void);
-uint64_t md_maxpfn (void);
-uint64_t md_minrampfn (void);
-uint64_t md_maxrampfn (void);
-unsigned md_memregions (void);
-BOOTINFO_REGION *md_getmemregion (unsigned i);
-struct fbdesc *md_getframebuffer (void);
-APXH_PLATFORM_DESCRIPTOR *md_getplatformdesc (void);
-void md_verify (vaddr_t va, size64_t size);
-void md_entry (arch_t arch, vaddr_t pt, vaddr_t entry);
+VOID MdInit (VOID);
+UINT64 MdMaxPfn (VOID);
+UINT64 MdMinRamPfn (VOID);
+UINT64 MdMaxRamPfn (VOID);
+unsigned MdMemRegions (VOID);
+BOOTINFO_REGION *MdGetMemRegion (unsigned i);
+FRAMEBUFFER_DESC *MdGetFramebuffer (VOID);
+APXH_PLATFORM_DESCRIPTOR *MdGetPlatformDesc (VOID);
+VOID MdVerify (vaddr_t Va, size64_t Size);
+VOID MdEntry (arch_t Arch, vaddr_t Pt, vaddr_t Entry);
 
-void *payload_get (unsigned i, size_t *size);
+VOID *PayloadGet (unsigned i, size_t *Size);
 
-typedef enum
+/** Legacy compatibility **/
+#define md_init MdInit
+#define md_maxpfn MdMaxPfn
+#define md_minrampfn MdMinRamPfn
+#define md_maxrampfn MdMaxRamPfn
+#define md_memregions MdMemRegions
+#define md_getmemregion MdGetMemRegion
+#define md_getframebuffer MdGetFramebuffer
+#define md_getplatformdesc MdGetPlatformDesc
+#define md_verify MdVerify
+#define md_entry MdEntry
+#define payload_get PayloadGet
+
+typedef enum _PAYLOAD_ID
 {
-  PAYLOAD_KERNEL,
-  PAYLOAD_USER,
-} plid_t;
+  PayloadKernel,
+  PayloadUser,
+} PAYLOAD_ID;
 
-void *get_payload_start (int argc, char *argv[], plid_t id);
-size_t get_payload_size (plid_t id);
+/** Legacy compatibility **/
+#define plid_t PAYLOAD_ID
+#define PAYLOAD_KERNEL PayloadKernel
+#define PAYLOAD_USER PayloadUser
 
-arch_t get_elf_arch (void *elf);
-vaddr_t load_elf32 (void *elf, int u);
-vaddr_t load_elf64 (void *elf, int u);
+VOID *GetPayloadStart (int Argc, char *Argv[], PAYLOAD_ID Id);
+size_t GetPayloadSize (PAYLOAD_ID Id);
 
-uintptr_t get_page (void);
-uintptr_t get_payload_page (void);
+arch_t GetElfArch (VOID *Elf);
+vaddr_t LoadElf32 (VOID *Elf, int U);
+vaddr_t LoadElf64 (VOID *Elf, int U);
 
-void va_init (void);
-uintptr_t va_getphys (vaddr_t va);
-void va_verify (vaddr_t va, size64_t size);
-void va_populate (vaddr_t va, size64_t size, int u, int w, int x);
-void va_copy (vaddr_t va, void *addr, size64_t size, int u, int w, int x);
-void va_memset (vaddr_t va, int c, size64_t size, int u, int w, int x);
-void va_physmap (vaddr_t va, size64_t size, MEMORY_TYPE Type);
-void va_linear (vaddr_t va, size64_t size);
-void va_info (vaddr_t va, size64_t size);
-void va_pfnmap (vaddr_t va, size64_t size);
-void va_stree (vaddr_t va, size64_t size);
-void va_topptalloc (vaddr_t va, size64_t size);
-void va_ptalloc (vaddr_t va, size64_t size);
-void va_framebuf (vaddr_t va, size64_t size, MEMORY_TYPE Type);
-void va_regions (vaddr_t va, size64_t size);
-void va_ktls (vaddr_t va, size64_t initsize, size64_t size);
-void va_utls (vaddr_t va, size64_t initsize, size64_t size);
-void va_entry (vaddr_t entry);
+uintptr_t GetPage (VOID);
+uintptr_t GetPayloadPage (VOID);
 
-void pae_init (void);
-uintptr_t pae_getphys (vaddr_t va);
-void pae_verify (vaddr_t va, size64_t size);
-void pae_populate (vaddr_t va, size64_t size, int u, int w, int x);
-void pae_physmap (vaddr_t va, size64_t size, uint64_t pa, MEMORY_TYPE Type);
-void pae_ptalloc (vaddr_t va, size64_t size);
-void pae_topptalloc (vaddr_t va, size64_t size);
-void pae_linear (vaddr_t va, size64_t size);
-void pae_entry (vaddr_t entry);
+VOID VaInit (VOID);
+uintptr_t VaGetPhys (vaddr_t Va);
+VOID VaVerify (vaddr_t Va, size64_t Size);
+VOID VaPopulate (vaddr_t Va, size64_t Size, int U, int W, int X);
+VOID VaCopy (vaddr_t Va, VOID *Addr, size64_t Size, int U, int W, int X);
+VOID VaMemset (vaddr_t Va, int C, size64_t Size, int U, int W, int X);
+VOID VaPhysmap (vaddr_t Va, size64_t Size, MEMORY_TYPE Type);
+VOID VaLinear (vaddr_t Va, size64_t Size);
+VOID VaInfo (vaddr_t Va, size64_t Size);
+VOID VaPfnmap (vaddr_t Va, size64_t Size);
+VOID VaStree (vaddr_t Va, size64_t Size);
+VOID VaTopPtAlloc (vaddr_t Va, size64_t Size);
+VOID VaPtAlloc (vaddr_t Va, size64_t Size);
+VOID VaFramebuf (vaddr_t Va, size64_t Size, MEMORY_TYPE Type);
+VOID VaRegions (vaddr_t Va, size64_t Size);
+VOID VaKtls (vaddr_t Va, size64_t InitSize, size64_t Size);
+VOID VaUtls (vaddr_t Va, size64_t InitSize, size64_t Size);
+VOID VaEntry (vaddr_t Entry);
+
+/** Legacy compatibility **/
+#define get_payload_start GetPayloadStart
+#define get_payload_size GetPayloadSize
+#define get_elf_arch GetElfArch
+#define load_elf32 LoadElf32
+#define load_elf64 LoadElf64
+#define get_page GetPage
+#define get_payload_page GetPayloadPage
+#define va_init VaInit
+#define va_getphys VaGetPhys
+#define va_verify VaVerify
+#define va_populate VaPopulate
+#define va_copy VaCopy
+#define va_memset VaMemset
+#define va_physmap VaPhysmap
+#define va_linear VaLinear
+#define va_info VaInfo
+#define va_pfnmap VaPfnmap
+#define va_stree VaStree
+#define va_topptalloc VaTopPtAlloc
+#define va_ptalloc VaPtAlloc
+#define va_framebuf VaFramebuf
+#define va_regions VaRegions
+#define va_ktls VaKtls
+#define va_utls VaUtls
+#define va_entry VaEntry
+
+VOID PaeInit (VOID);
+uintptr_t PaeGetPhys (vaddr_t Va);
+VOID PaeVerify (vaddr_t Va, size64_t Size);
+VOID PaePopulate (vaddr_t Va, size64_t Size, int U, int W, int X);
+VOID PaePhysmap (vaddr_t Va, size64_t Size, uint64_t Pa, MEMORY_TYPE Type);
+VOID PaePtAlloc (vaddr_t Va, size64_t Size);
+VOID PaeTopPtAlloc (vaddr_t Va, size64_t Size);
+VOID PaeLinear (vaddr_t Va, size64_t Size);
+VOID PaeEntry (vaddr_t Entry);
 
 /* Internal PAE functions. */
-void pae_directmap (void *pt, uint64_t pa, vaddr_t va, size64_t size,
-		    MEMORY_TYPE Type, int payload, int x);
-void pae_map_page (void *pt, vaddr_t va, uintptr_t pa, int payload, int w,
-		   int x);
+VOID PaeDirectMap (VOID *Pt, uint64_t Pa, vaddr_t Va, size64_t Size,
+		    MEMORY_TYPE Type, int Payload, int X);
+VOID PaeMapPage (VOID *Pt, vaddr_t Va, uintptr_t Pa, int Payload, int W,
+		   int X);
 
-void pae64_init (void);
-uintptr_t pae64_getphys (vaddr_t va);
-void pae64_verify (vaddr_t va, size64_t size);
-void pae64_populate (vaddr_t va, size64_t size, int u, int w, int x);
-void pae64_physmap (vaddr_t va, size64_t size, uint64_t pa, MEMORY_TYPE Type);
-void pae64_ptalloc (vaddr_t va, size64_t size);
-void pae64_topptalloc (vaddr_t va, size64_t size);
-void pae64_linear (vaddr_t va, size64_t size);
-void pae64_entry (vaddr_t entry);
+VOID Pae64Init (VOID);
+uintptr_t Pae64GetPhys (vaddr_t Va);
+VOID Pae64Verify (vaddr_t Va, size64_t Size);
+VOID Pae64Populate (vaddr_t Va, size64_t Size, int U, int W, int X);
+VOID Pae64Physmap (vaddr_t Va, size64_t Size, uint64_t Pa, MEMORY_TYPE Type);
+VOID Pae64PtAlloc (vaddr_t Va, size64_t Size);
+VOID Pae64TopPtAlloc (vaddr_t Va, size64_t Size);
+VOID Pae64Linear (vaddr_t Va, size64_t Size);
+VOID Pae64Entry (vaddr_t Entry);
 
 /* Internal PAE64 functions. */
-void pae64_directmap (void *pt, uint64_t pa, vaddr_t va, size64_t size,
-		      MEMORY_TYPE Type, int payload, int x);
-void pae64_map_page (void *pt, vaddr_t va, uintptr_t pa, int payload, int w,
-		     int x);
+VOID Pae64DirectMap (VOID *Pt, uint64_t Pa, vaddr_t Va, size64_t Size,
+		      MEMORY_TYPE Type, int Payload, int X);
+VOID Pae64MapPage (VOID *Pt, vaddr_t Va, uintptr_t Pa, int Payload, int W,
+		     int X);
 
-void sv48_init (void);
-uintptr_t sv48_getphys (vaddr_t va);
-void sv48_verify (vaddr_t va, size64_t size);
-void sv48_populate (vaddr_t va, size64_t size, int u, int w, int x);
-void sv48_physmap (vaddr_t va, size64_t size, uint64_t pa, MEMORY_TYPE Type);
-void sv48_ptalloc (vaddr_t va, size64_t size);
-void sv48_topptalloc (vaddr_t va, size64_t size);
-void sv48_linear (vaddr_t va, size64_t size);
-void sv48_entry (vaddr_t entry);
+VOID Sv48Init (VOID);
+uintptr_t Sv48GetPhys (vaddr_t Va);
+VOID Sv48Verify (vaddr_t Va, size64_t Size);
+VOID Sv48Populate (vaddr_t Va, size64_t Size, int U, int W, int X);
+VOID Sv48Physmap (vaddr_t Va, size64_t Size, uint64_t Pa, MEMORY_TYPE Type);
+VOID Sv48PtAlloc (vaddr_t Va, size64_t Size);
+VOID Sv48TopPtAlloc (vaddr_t Va, size64_t Size);
+VOID Sv48Linear (vaddr_t Va, size64_t Size);
+VOID Sv48Entry (vaddr_t Entry);
 
 /* Internal SV48 functions. */
-void sv48_directmap (void *pt, uint64_t pa, vaddr_t va, size64_t size,
-		     MEMORY_TYPE Type, int payload, int x);
-void sv48_map_page (void *pt, vaddr_t va, uintptr_t pa, int payload, int w,
-		    int x);
+VOID Sv48DirectMap (VOID *Pt, uint64_t Pa, vaddr_t Va, size64_t Size,
+		     MEMORY_TYPE Type, int Payload, int X);
+VOID Sv48MapPage (VOID *Pt, vaddr_t Va, uintptr_t Pa, int Payload, int W,
+		    int X);
+
+/** Legacy compatibility **/
+#define pae_init PaeInit
+#define pae_getphys PaeGetPhys
+#define pae_verify PaeVerify
+#define pae_populate PaePopulate
+#define pae_physmap PaePhysmap
+#define pae_ptalloc PaePtAlloc
+#define pae_topptalloc PaeTopPtAlloc
+#define pae_linear PaeLinear
+#define pae_entry PaeEntry
+#define pae_directmap PaeDirectMap
+#define pae_map_page PaeMapPage
+#define pae64_init Pae64Init
+#define pae64_getphys Pae64GetPhys
+#define pae64_verify Pae64Verify
+#define pae64_populate Pae64Populate
+#define pae64_physmap Pae64Physmap
+#define pae64_ptalloc Pae64PtAlloc
+#define pae64_topptalloc Pae64TopPtAlloc
+#define pae64_linear Pae64Linear
+#define pae64_entry Pae64Entry
+#define pae64_directmap Pae64DirectMap
+#define pae64_map_page Pae64MapPage
+#define sv48_init Sv48Init
+#define sv48_getphys Sv48GetPhys
+#define sv48_verify Sv48Verify
+#define sv48_populate Sv48Populate
+#define sv48_physmap Sv48Physmap
+#define sv48_ptalloc Sv48PtAlloc
+#define sv48_topptalloc Sv48TopPtAlloc
+#define sv48_linear Sv48Linear
+#define sv48_entry Sv48Entry
+#define sv48_directmap Sv48DirectMap
+#define sv48_map_page Sv48MapPage
 
 
 #define info(...) do { printf (__VA_ARGS__); putchar('\n'); } while (0)
