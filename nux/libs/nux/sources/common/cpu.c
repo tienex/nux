@@ -46,7 +46,7 @@ CpuAdd (
   )
 {
   INT32 Id;
-  struct cpu_info *pCpuInfo;
+  struct cpu_info *CpuInfo;
 
   assert (NuxStatus () & NUXST_OKPLT);
   if (PhysId >= HAL_MAXCPUS)
@@ -65,13 +65,13 @@ CpuAdd (
   printf ("%d[%d] ", Id, PhysId);
 
   /* We are at init-time. We use LOW KMEM via BRK. */
-  pCpuInfo = (struct cpu_info *) kmem_brkgrow (1, sizeof (struct cpu_info));
-  pCpuInfo->cpu_id = Id;
-  pCpuInfo->phys_id = PhysId;
-  pCpuInfo->self = pCpuInfo;
-  hal_pcpu_add (PhysId, &pCpuInfo->hal_cpu);
+  CpuInfo = (struct cpu_info *) kmem_brkgrow (1, sizeof (struct cpu_info));
+  CpuInfo->cpu_id = Id;
+  CpuInfo->phys_id = PhysId;
+  CpuInfo->self = CpuInfo;
+  hal_pcpu_add (PhysId, &CpuInfo->hal_cpu);
 
-  gCpus[Id] = pCpuInfo;
+  gCpus[Id] = CpuInfo;
   gCpuPhysToId[PhysId] = Id;
   return Id;
 }
@@ -177,7 +177,7 @@ CpuEnter (
   VOID
   )
 {
-  struct cpu_info *pCpu;
+  struct cpu_info *Cpu;
   UINT32 PcpuId, CpuId;
 
   /* Setup Platform support for local CPU operations */
@@ -190,11 +190,11 @@ CpuEnter (
 
   /* Set per-cpu data. */
   CpuId = CpuIdFromPhys (PcpuId);
-  pCpu = CpuGetInfo (CpuId);
-  hal_cpu_setdata ((VOID *) pCpu);
+  Cpu = CpuGetInfo (CpuId);
+  hal_cpu_setdata ((VOID *) Cpu);
 
   /* Setup CPU idle loop. */
-  if (setjmp (pCpu->idlejmp))
+  if (setjmp (Cpu->idlejmp))
     {
       /* From a longjmp, OKCPU post here. */
       CpuGetCurrentInfo ()->idle = TRUE;
@@ -328,8 +328,8 @@ CpuTryGetId (
     }
   else
     {
-      struct cpu_info *pCi = CpuGetCurrentInfo ();
-      return pCi->cpu_id;
+      struct cpu_info *Ci = CpuGetCurrentInfo ();
+      return Ci->cpu_id;
     }
 }
 
@@ -338,14 +338,14 @@ CpuTryGetId (
 
   Requires NUXST_OKPLT status.
 
-  @param[in] pPtr  Pointer to per-CPU data.
+  @param[in] Ptr  Pointer to per-CPU data.
 **/
 VOID
 CpuSetData (
-  IN VOID  *pPtr
+  IN VOID  *Ptr
   )
 {
-  CpuGetCurrentInfo ()->data = pPtr;
+  CpuGetCurrentInfo ()->data = Ptr;
 }
 
 /**
@@ -390,10 +390,10 @@ CpuSendNmi (
   IN INT32  Cpu
   )
 {
-  struct cpu_info *pCi = CpuGetInfo (Cpu);
+  struct cpu_info *Ci = CpuGetInfo (Cpu);
 
-  if (pCi != NULL)
-    plt_pcpu_nmi (pCi->phys_id);
+  if (Ci != NULL)
+    plt_pcpu_nmi (Ci->phys_id);
 }
 
 /**
@@ -454,10 +454,10 @@ CpuSendIpi (
   IN INT32  Cpu
   )
 {
-  struct cpu_info *pCi = CpuGetInfo (Cpu);
+  struct cpu_info *Ci = CpuGetInfo (Cpu);
 
-  if (pCi != NULL)
-    plt_pcpu_ipi (pCi->phys_id);
+  if (Ci != NULL)
+    plt_pcpu_ipi (Ci->phys_id);
 }
 
 /**
@@ -498,9 +498,9 @@ CpuIdle (
   VOID
   )
 {
-  struct cpu_info *pCi = CpuGetCurrentInfo ();
+  struct cpu_info *Ci = CpuGetCurrentInfo ();
 
-  longjmp (pCi->idlejmp, 1);
+  longjmp (Ci->idlejmp, 1);
 }
 
 /**
@@ -514,11 +514,11 @@ CpuKernelTlbUpdate (
   VOID
   )
 {
-  struct cpu_info *pCi = CpuGetCurrentInfo ();
+  struct cpu_info *Ci = CpuGetCurrentInfo ();
   tlbgen_t CpuGlobal, CpuNormal;
 
-  __atomic_load (&pCi->ktlb.global, &CpuGlobal, __ATOMIC_RELAXED);
-  __atomic_load (&pCi->ktlb.normal, &CpuNormal, __ATOMIC_RELAXED);
+  __atomic_load (&Ci->ktlb.global, &CpuGlobal, __ATOMIC_RELAXED);
+  __atomic_load (&Ci->ktlb.normal, &CpuNormal, __ATOMIC_RELAXED);
   tlbgen_t KGlobal = ktlbgen_global ();
   tlbgen_t KNormal = ktlbgen_normal ();
 
@@ -532,15 +532,15 @@ CpuKernelTlbUpdate (
          Both failure and success case are relaxed because these
          variable are per cpu and accessed with relaxed order.
        */
-      __atomic_compare_exchange (&pCi->ktlb.global, &CpuGlobal, &KGlobal,
+      __atomic_compare_exchange (&Ci->ktlb.global, &CpuGlobal, &KGlobal,
                                  FALSE, __ATOMIC_RELAXED, __ATOMIC_RELAXED);
-      __atomic_compare_exchange (&pCi->ktlb.normal, &CpuNormal, &KNormal,
+      __atomic_compare_exchange (&Ci->ktlb.normal, &CpuNormal, &KNormal,
                                  FALSE, __ATOMIC_RELAXED, __ATOMIC_RELAXED);
     }
   else if (tlbgen_cmp (KNormal, CpuNormal) > 0)
     {
       hal_cpu_tlbop (HAL_TLBOP_FLUSH);
-      __atomic_compare_exchange (&pCi->ktlb.normal, &CpuNormal, &KNormal,
+      __atomic_compare_exchange (&Ci->ktlb.normal, &CpuNormal, &KNormal,
                                  FALSE, __ATOMIC_RELAXED, __ATOMIC_RELAXED);
     }
 }
@@ -565,10 +565,10 @@ CpuKernelTlbReach (
       return;
     }
 
-  struct cpu_info *pCi = CpuGetCurrentInfo ();
+  struct cpu_info *Ci = CpuGetCurrentInfo ();
   tlbgen_t CpuKtlb;
 
-  __atomic_load (&pCi->ktlb.normal, &CpuKtlb, __ATOMIC_RELAXED);
+  __atomic_load (&Ci->ktlb.normal, &CpuKtlb, __ATOMIC_RELAXED);
 
   if (tlbgen_cmp (Target, CpuKtlb) > 0)
     {
@@ -587,13 +587,13 @@ CpuTlbFlushLocal (
   )
 {
   /* We're flushing the cpu. Update the relevant kmap tlb generation. */
-  struct cpu_info *pCi = CpuGetCurrentInfo ();
+  struct cpu_info *Ci = CpuGetCurrentInfo ();
   tlbgen_t KNormal = ktlbgen_normal ();
   tlbgen_t CpuNormal;
 
-  __atomic_load (&pCi->ktlb.normal, &CpuNormal, __ATOMIC_RELAXED);
+  __atomic_load (&Ci->ktlb.normal, &CpuNormal, __ATOMIC_RELAXED);
   hal_cpu_tlbop (HAL_TLBOP_FLUSH);
-  __atomic_compare_exchange (&pCi->ktlb.normal, &CpuNormal, &KNormal,
+  __atomic_compare_exchange (&Ci->ktlb.normal, &CpuNormal, &KNormal,
                              FALSE, __ATOMIC_RELAXED, __ATOMIC_RELAXED);
 }
 
@@ -608,8 +608,8 @@ CpuNmiOperation (
   VOID
   )
 {
-  struct cpu_info *pCi = CpuGetCurrentInfo ();
-  UINT32 NmiOp = pCi->nmiop;
+  struct cpu_info *Ci = CpuGetCurrentInfo ();
+  UINT32 NmiOp = Ci->nmiop;
 
   if (NmiOp & NMIOP_KMAPUPDATE)
     {
@@ -636,12 +636,12 @@ CpuKernelMapUpdate (
   IN INT32  Cpu
   )
 {
-  struct cpu_info *pCi = CpuGetInfo (Cpu);
+  struct cpu_info *Ci = CpuGetInfo (Cpu);
 
-  if (pCi != NULL)
+  if (Ci != NULL)
     return;
 
-  __atomic_or_fetch (&pCi->nmiop, NMIOP_KMAPUPDATE, __ATOMIC_RELAXED);
+  __atomic_or_fetch (&Ci->nmiop, NMIOP_KMAPUPDATE, __ATOMIC_RELAXED);
   CpuSendNmi (Cpu);
 }
 
@@ -683,12 +683,12 @@ CpuTlbFlush (
   IN INT32  Cpu
   )
 {
-  struct cpu_info *pCi = CpuGetInfo (Cpu);
+  struct cpu_info *Ci = CpuGetInfo (Cpu);
 
-  if (pCi == NULL)
+  if (Ci == NULL)
     return;
 
-  __atomic_or_fetch (&pCi->nmiop, NMIOP_TLBFLUSH, __ATOMIC_RELAXED);
+  __atomic_or_fetch (&Ci->nmiop, NMIOP_TLBFLUSH, __ATOMIC_RELAXED);
   CpuSendNmi (Cpu);
 }
 
@@ -756,10 +756,10 @@ CpuUserAccessReset (
   VOID
   )
 {
-  struct cpu_info *pCi = CpuGetCurrentInfo ();
+  struct cpu_info *Ci = CpuGetCurrentInfo ();
 
-  pCi->usrpgaddr = 0;
-  pCi->usrpginfo = 0;
+  Ci->usrpgaddr = 0;
+  Ci->usrpginfo = 0;
   __insn_barrier ();
 }
 
@@ -773,12 +773,12 @@ CpuUserAccessEnd (
   VOID
   )
 {
-  struct cpu_info *pCi = CpuGetCurrentInfo ();
+  struct cpu_info *Ci = CpuGetCurrentInfo ();
 
   hal_useraccess_end ();
-  pCi->usrpgaddr = 0;
-  pCi->usrpginfo = 0;
-  pCi->usrpgfault = 0;
+  Ci->usrpgaddr = 0;
+  Ci->usrpginfo = 0;
+  Ci->usrpgfault = 0;
   __insn_barrier ();
 }
 
@@ -788,36 +788,36 @@ CpuUserAccessEnd (
   Safely copies data from user space with optional page fault handling.
   If a page fault occurs, the provided handler is called.
 
-  @param[out] pDst         Destination buffer in kernel space.
+  @param[out] Dst         Destination buffer in kernel space.
   @param[in]  Src          Source address in user space.
   @param[in]  Size         Number of bytes to copy.
-  @param[in]  pPfHandler   Optional page fault handler callback.
+  @param[in]  PfHandler   Optional page fault handler callback.
 
   @retval TRUE   Copy succeeded.
   @retval FALSE  Address invalid or unhandled page fault.
 **/
 BOOLEAN
 CpuUserAccessCopyFrom (
-  OUT VOID          *pDst,
+  OUT VOID          *Dst,
   IN  uaddr_t       Src,
   IN  size_t        Size,
-  IN  BOOLEAN       (*pPfHandler)(uaddr_t Va, hal_pfinfo_t Info)
+  IN  BOOLEAN       (*PfHandler)(uaddr_t Va, hal_pfinfo_t Info)
   )
 {
-  struct cpu_info *pCi = CpuGetCurrentInfo ();
+  struct cpu_info *Ci = CpuGetCurrentInfo ();
 
   if (!uaddr_validrange (Src, Size))
     return FALSE;
 
   CpuUserAccessStart ();
-  pCi->usrpgfault = 1;
+  Ci->usrpgfault = 1;
   __insn_barrier ();
-  if (setjmp (pCi->usrpgfaultctx) != 0)
+  if (setjmp (Ci->usrpgfaultctx) != 0)
     {
-      uaddr_t Uaddr = pCi->usrpgaddr;
-      hal_pfinfo_t PfInfo = pCi->usrpginfo;
+      uaddr_t Uaddr = Ci->usrpgaddr;
+      hal_pfinfo_t PfInfo = Ci->usrpginfo;
 
-      if (!pPfHandler || !pPfHandler (Uaddr, PfInfo))
+      if (!PfHandler || !PfHandler (Uaddr, PfInfo))
         {
           CpuUserAccessEnd ();
           return FALSE;
@@ -827,7 +827,7 @@ CpuUserAccessCopyFrom (
       // pass-through
     }
 
-  memcpy (pDst, (VOID *) Src, Size);
+  memcpy (Dst, (VOID *) Src, Size);
 
   CpuUserAccessEnd ();
   return TRUE;
@@ -840,9 +840,9 @@ CpuUserAccessCopyFrom (
   If a page fault occurs, the provided handler is called.
 
   @param[in]  Dst          Destination address in user space.
-  @param[in]  pSrc         Source buffer in kernel space.
+  @param[in]  Src         Source buffer in kernel space.
   @param[in]  Size         Number of bytes to copy.
-  @param[in]  pPfHandler   Optional page fault handler callback.
+  @param[in]  PfHandler   Optional page fault handler callback.
 
   @retval TRUE   Copy succeeded.
   @retval FALSE  Address invalid or unhandled page fault.
@@ -850,25 +850,25 @@ CpuUserAccessCopyFrom (
 BOOLEAN
 CpuUserAccessCopyTo (
   IN uaddr_t  Dst,
-  IN VOID     *pSrc,
+  IN VOID     *Src,
   IN size_t   Size,
-  IN BOOLEAN  (*pPfHandler)(uaddr_t Va, hal_pfinfo_t Info)
+  IN BOOLEAN  (*PfHandler)(uaddr_t Va, hal_pfinfo_t Info)
   )
 {
-  struct cpu_info *pCi = CpuGetCurrentInfo ();
+  struct cpu_info *Ci = CpuGetCurrentInfo ();
 
   if (!uaddr_validrange (Dst, Size))
     return FALSE;
 
   CpuUserAccessStart ();
-  pCi->usrpgfault = 1;
+  Ci->usrpgfault = 1;
   __insn_barrier ();
-  if (setjmp (pCi->usrpgfaultctx) != 0)
+  if (setjmp (Ci->usrpgfaultctx) != 0)
     {
-      uaddr_t Uaddr = pCi->usrpgaddr;
-      hal_pfinfo_t PfInfo = pCi->usrpginfo;
+      uaddr_t Uaddr = Ci->usrpgaddr;
+      hal_pfinfo_t PfInfo = Ci->usrpginfo;
 
-      if (!pPfHandler || !pPfHandler (Uaddr, PfInfo))
+      if (!PfHandler || !PfHandler (Uaddr, PfInfo))
         {
           CpuUserAccessEnd ();
           return FALSE;
@@ -878,7 +878,7 @@ CpuUserAccessCopyTo (
       // pass-through
     }
 
-  memcpy ((VOID *) Dst, pSrc, Size);
+  memcpy ((VOID *) Dst, Src, Size);
 
   CpuUserAccessEnd ();
   return TRUE;
@@ -893,7 +893,7 @@ CpuUserAccessCopyTo (
   @param[in]  Dst          Destination address in user space.
   @param[in]  Ch           Byte value to set.
   @param[in]  Size         Number of bytes to set.
-  @param[in]  pPfHandler   Optional page fault handler callback.
+  @param[in]  PfHandler   Optional page fault handler callback.
 
   @retval TRUE   Operation succeeded.
   @retval FALSE  Address invalid or unhandled page fault.
@@ -903,22 +903,22 @@ CpuUserAccessMemset (
   IN uaddr_t  Dst,
   IN INT32    Ch,
   IN size_t   Size,
-  IN BOOLEAN  (*pPfHandler)(uaddr_t Va, hal_pfinfo_t Info)
+  IN BOOLEAN  (*PfHandler)(uaddr_t Va, hal_pfinfo_t Info)
   )
 {
-  struct cpu_info *pCi = CpuGetCurrentInfo ();
+  struct cpu_info *Ci = CpuGetCurrentInfo ();
 
   if (!uaddr_validrange (Dst, Size))
     return FALSE;
 
-  pCi->usrpgfault = 1;
+  Ci->usrpgfault = 1;
   __insn_barrier ();
-  if (setjmp (pCi->usrpgfaultctx) != 0)
+  if (setjmp (Ci->usrpgfaultctx) != 0)
     {
-      uaddr_t Uaddr = pCi->usrpgaddr;
-      hal_pfinfo_t PfInfo = pCi->usrpginfo;
+      uaddr_t Uaddr = Ci->usrpgaddr;
+      hal_pfinfo_t PfInfo = Ci->usrpginfo;
 
-      if (!pPfHandler || !pPfHandler (Uaddr, PfInfo))
+      if (!PfHandler || !PfHandler (Uaddr, PfInfo))
         {
           CpuUserAccessEnd ();
           return FALSE;
@@ -949,14 +949,14 @@ CpuUserAccessCheckPageFault (
   IN hal_pfinfo_t  Info
   )
 {
-  struct cpu_info *pCi = CpuGetCurrentInfo ();
+  struct cpu_info *Ci = CpuGetCurrentInfo ();
 
-  if (pCi->usrpgfault)
+  if (Ci->usrpgfault)
     {
-      pCi->usrpgaddr = Addr;
-      pCi->usrpginfo = Info;
+      Ci->usrpgaddr = Addr;
+      Ci->usrpginfo = Info;
       __insn_barrier ();
-      longjmp (pCi->usrpgfaultctx, 1);
+      longjmp (Ci->usrpgfaultctx, 1);
       /* Not reached */
     }
 }
@@ -980,24 +980,24 @@ CpuGetCurrentUserMap (
   Switches to specified user address space, updating CPU mask and
   loading page tables.
 
-  @param[in] pUmap  User address space map to enter.
+  @param[in] Umap  User address space map to enter.
 **/
 VOID
 CpuEnterUserMap (
-  IN struct umap  *pUmap
+  IN struct umap  *Umap
   )
 {
-  struct umap *pCurUmap = CpuGetCurrentInfo ()->umap;
+  struct umap *CurUmap = CpuGetCurrentInfo ()->umap;
 
-  if (pUmap == pCurUmap)
+  if (Umap == CurUmap)
     return;
 
-  if (pCurUmap != NULL)
-    atomic_cpumask_clear (&pCurUmap->cpumask, CpuGetId ());
+  if (CurUmap != NULL)
+    atomic_cpumask_clear (&CurUmap->cpumask, CpuGetId ());
 
-  __atomic_store (&CpuGetCurrentInfo ()->umap, &pUmap, __ATOMIC_RELEASE);
-  atomic_cpumask_set (&pUmap->cpumask, CpuGetId ());
-  hal_cpu_tlbop (hal_umap_load (&pUmap->hal));
+  __atomic_store (&CpuGetCurrentInfo ()->umap, &Umap, __ATOMIC_RELEASE);
+  atomic_cpumask_set (&Umap->cpumask, CpuGetId ());
+  hal_cpu_tlbop (hal_umap_load (&Umap->hal));
 }
 
 /**
@@ -1012,17 +1012,17 @@ CpuExitUserMap (
   VOID
   )
 {
-  struct umap *pCurUmap;
+  struct umap *CurUmap;
 
   hal_cpu_tlbop (hal_umap_load (NULL));
-  pCurUmap = CpuGetCurrentInfo ()->umap;
-  if (pCurUmap == NULL)
+  CurUmap = CpuGetCurrentInfo ()->umap;
+  if (CurUmap == NULL)
     return NULL;
 
   __atomic_clear (&CpuGetCurrentInfo ()->umap, __ATOMIC_RELEASE);
-  atomic_cpumask_clear (&pCurUmap->cpumask, CpuGetId ());
+  atomic_cpumask_clear (&CurUmap->cpumask, CpuGetId ());
   CpuGetCurrentInfo ()->umap = NULL;
-  return pCurUmap;
+  return CurUmap;
 }
 
 //

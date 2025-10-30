@@ -38,13 +38,13 @@ putchar (
   This function never returns. If system was already in panic
   state, simply halts the CPU.
 
-  @param[in] pMessage  Panic message string.
-  @param[in] pFrame    HAL frame at time of panic.
+  @param[in] Message  Panic message string.
+  @param[in] Frame    HAL frame at time of panic.
 **/
 VOID __dead
 NuxPanic (
-  IN CONST CHAR8       *pMessage,
-  IN struct hal_frame  *pFrame
+  IN CONST CHAR8       *Message,
+  IN struct hal_frame  *Frame
   )
 {
   if (NuxStatusSetFlags (NUXST_PANIC) & NUXST_PANIC)
@@ -57,7 +57,7 @@ NuxPanic (
   /* STOP all CPUs except this one. */
   CpuSendNmiAllButSelf ();
 
-  hal_panic (CpuTryGetId (), pMessage, pFrame);
+  hal_panic (CpuTryGetId (), Message, Frame);
 }
 
 /**

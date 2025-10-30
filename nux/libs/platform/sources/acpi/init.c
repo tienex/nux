@@ -31,18 +31,18 @@ PlatformInitialize (
   VOID
   )
 {
-  CONST struct apxh_platformdesc *pDesc;
+  CONST struct apxh_platformdesc *Desc;
 
-  pDesc = hal_pltinfo ();
-  if (pDesc == NULL)
+  Desc = hal_pltinfo ();
+  if (Desc == NULL)
     fatal ("Invalid Platform Boot Table.");
 
-  if (pDesc->Type != PLATFORM_ACPI)
+  if (Desc->Type != PLATFORM_ACPI)
     fatal ("No ACPI RSDP found.");
 
-  printf ("RSDP: %llx\n", pDesc->PlatformPointer);
+  printf ("RSDP: %llx\n", Desc->PlatformPointer);
 
-  AcpiInitialize (pDesc->PlatformPointer);
+  AcpiInitialize (Desc->PlatformPointer);
   AcpiMadtScan ();
   GsiStart ();
 
