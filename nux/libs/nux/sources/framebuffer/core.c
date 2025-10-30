@@ -44,12 +44,12 @@ FramebufferInitialize (
   IN FRAMEBUFFER_DESC  *Desc
   )
 {
-  if (Desc->type == FB_INVALID)
+  if (Desc->Type == FB_INVALID)
     return 0;
 
-  assert (Desc->type == FB_RGB);
+  assert (Desc->Type == FB_RGB);
   gFbDesc = Desc;
-  memset ((VOID *) (UINTN) gFbDesc->addr, 0, gFbDesc->size);
+  memset ((VOID *) (UINTN) gFbDesc->Addr, 0, gFbDesc->Size);
   FramebufferReset ();
   return 1;
 }
@@ -89,7 +89,7 @@ FramebufferReset (
   )
 {
   spinlock_init (&gFbLock);
-  gFbScreenCols = (gFbDesc->width / 8) / (FB_ROWCHARS + 1);
+  gFbScreenCols = (gFbDesc->Width / 8) / (FB_ROWCHARS + 1);
   gFbScreenCols = gFbScreenCols == 0 ? 1 : gFbScreenCols;
-  gFbScreenRows = gFbDesc->height / 16;
+  gFbScreenRows = gFbDesc->Height / 16;
 }

@@ -44,18 +44,18 @@ LoadTable (
 
   Tbl = (ACPI_THDR *) KvaMapPhysical (Pa, ACPI_MAX_TBL, HAL_PTE_P);
 
-  if (Tbl->length >= ACPI_MAX_TBL)
+  if (Tbl->Length >= ACPI_MAX_TBL)
     {
       error ("Table %4.4s [%6.6s %8.8s rev%d] size %d > ACPI_MAX_TBL. Skipping checks.",
-	     Tbl->signature, Tbl->oemid, Tbl->oemtableid, Tbl->oemrevision,
-	     Tbl->length);
+	     Tbl->Signature, Tbl->OemId, Tbl->OemTableId, Tbl->OemRevision,
+	     Tbl->Length);
       return Tbl;
     }
 
   Sum = 0;
   Ptr = (UINT8 *) Tbl;
 
-  for (i = 0; i < Tbl->length; i++)
+  for (i = 0; i < Tbl->Length; i++)
     {
       Sum += Ptr[i];
     }
@@ -66,8 +66,8 @@ LoadTable (
       return NULL;
     }
 
-  debug ("loaded table '%4.4s' [%6.6s %8.8s rev%d]", Tbl->signature,
-	 Tbl->oemid, Tbl->oemtableid, Tbl->oemrevision);
+  debug ("loaded table '%4.4s' [%6.6s %8.8s rev%d]", Tbl->Signature,
+	 Tbl->OemId, Tbl->OemTableId, Tbl->OemRevision);
   return Tbl;
 }
 
@@ -98,8 +98,8 @@ PrintTable (
   IN ACPI_THDR  *Tbl
   )
 {
-  info ("TABLE '%4.4s' [%6.6s %8.8s rev%d]", Tbl->signature, Tbl->oemid,
-	Tbl->oemtableid, Tbl->oemrevision);
+  info ("TABLE '%4.4s' [%6.6s %8.8s rev%d]", Tbl->Signature, Tbl->OemId,
+	Tbl->OemTableId, Tbl->OemRevision);
 }
 
 /**
@@ -124,10 +124,10 @@ AcpiInitialize (
 
   Rsdp = (struct acpi_rsdp_thdr *) KvaMapPhysical (Root, ACPI_MAX_TBL, HAL_PTE_P);
 
-  info ("TABLE: '%8.8s' [%6.6s] rev: %d", Rsdp->signature, Rsdp->oemid,
-	Rsdp->revision);
+  info ("TABLE: '%8.8s' [%6.6s] rev: %d", Rsdp->Signature, Rsdp->OemId,
+	Rsdp->Revision);
 
-  if (Rsdp->revision == 0)
+  if (Rsdp->Revision == 0)
     {
       PaSdt = Rsdp->rsdt;
       debug ("SDT found at addr %" PRIx64, PaSdt);
@@ -147,7 +147,7 @@ AcpiInitialize (
 
   /* Iterate through ACPI tables. */
   Ptr = (VOID *) (RootTable + 1);
-  Length = (INT64) RootTable->length - sizeof (*RootTable);
+  Length = (INT64) RootTable->Length - sizeof (*RootTable);
   while (Length > 0)
     {
       PaSdt = EntryLen == 8 ? *(UINT64 *) Ptr : *(UINT32 *) Ptr;
@@ -155,9 +155,9 @@ AcpiInitialize (
 
       PrintTable (SdTable);
 
-      if (!memcmp (SdTable->signature, "APIC", 4))
+      if (!memcmp (SdTable->Signature, "APIC", 4))
 	gPaApicTable = PaSdt;
-      else if (!memcmp (SdTable->signature, "HPET", 4))
+      else if (!memcmp (SdTable->Signature, "HPET", 4))
 	gPaHpetTable = PaSdt;
 
       UnloadTable (SdTable);
@@ -201,7 +201,7 @@ AcpiMadtScan (
 
 #define madt_foreach(_cases)						\
 	do {								\
-		Len = AcpiMadt->hdr.length - sizeof(*AcpiMadt);	\
+		Len = AcpiMadt->Hdr.length - sizeof(*AcpiMadt);	\
 		_.Ptr = (UINT8 *) AcpiMadt + sizeof(*AcpiMadt);	\
 		while (Len > 0) {					\
 			Type = *_.Ptr;					\
@@ -220,27 +220,27 @@ AcpiMadtScan (
       return;
     }
 
-  LapicAddr = AcpiMadt->lapic;
+  LapicAddr = AcpiMadt->Lapic;
 
   /* Search for APICs. Output of this stage is number of Local
      and I/O APICs and Lapic address. */
   /* *INDENT-OFF* */
   madt_foreach({
       case ACPI_MADT_TYPE_LAPICOVERRIDE:
-	info("ACPI MADT LAPICOVR %"PRIx64, _.LapicOvr->address);
-	LapicAddr = _.LapicOvr->address;
+	info("ACPI MADT LAPICOVR %"PRIx64, _.LapicOvr->Address);
+	LapicAddr = _.LapicOvr->Address;
 	break;
       case ACPI_MADT_TYPE_LAPIC:
-	if (_.Lapic->flags & ACPI_MADT_LAPIC_ENABLED)
+	if (_.Lapic->Flags & ACPI_MADT_LAPIC_ENABLED)
 	  {
 	    info("ACPI MADT LAPIC %02d %02d %08x",
-		 _.Lapic->lapicid, _.Lapic->acpiid, _.Lapic->flags);
+		 _.Lapic->lapicid, _.Lapic->AcpiId, _.Lapic->Flags);
 	    NumLapic++;
 	  }
 	break;
       case ACPI_MADT_TYPE_IOAPIC:
 	info("ACPI MADT IOAPIC %02d %08x %02d",
-	       _.Ioapic->ioapicid, _.Ioapic->address, _.Ioapic->gsibase);
+	       _.Ioapic->IoApicId, _.Ioapic->Address, _.Ioapic->GsiBase);
 	NumIoapic++;
 	break;
       case ACPI_MADT_TYPE_LSAPIC:
@@ -292,11 +292,11 @@ AcpiMadtScan (
   /* *INDENT-OFF* */
   madt_foreach({
       case ACPI_MADT_TYPE_LAPIC:
-	if (_.Lapic->flags & ACPI_MADT_LAPIC_ENABLED)
-	  LapicAdd(_.Lapic->lapicid, _.Lapic->acpiid);
+	if (_.Lapic->Flags & ACPI_MADT_LAPIC_ENABLED)
+	  LapicAdd(_.Lapic->lapicid, _.Lapic->AcpiId);
 	break;
       case ACPI_MADT_TYPE_IOAPIC:
-	IoapicAdd(NumIoapic, _.Ioapic->address, _.Ioapic->gsibase);
+	IoapicAdd(NumIoapic, _.Ioapic->Address, _.Ioapic->GsiBase);
 	NumIoapic++;
 	break;
       default:
@@ -309,18 +309,18 @@ AcpiMadtScan (
   madt_foreach({
       case ACPI_MADT_TYPE_LAPICNMI:
 	info ("ACPI MADT LAPICNMI LINT%01d FL:%04x PROC:%02d",
-	       _.LapicNmi->lint, _.LapicNmi->flags, _.LapicNmi->acpiid);
+	       _.LapicNmi->Lint, _.LapicNmi->Flags, _.LapicNmi->AcpiId);
 	/* Ignore IntiFlags as NMI vectors ignore
 	 * polarity and trigger */
-	LapicAddNmi(_.LapicNmi->acpiid, _.LapicNmi->lint);
+	LapicAddNmi(_.LapicNmi->AcpiId, _.LapicNmi->Lint);
 	break;
       case ACPI_MADT_TYPE_LX2APICNMI:
 	warn ("LX2APICNMI ENTRY IGNORED");
 	break;
       case ACPI_MADT_TYPE_INTOVERRIDE:
 	info ("ACPI MADT INTOVR BUS %02d IRQ: %02d GSI: %02d FL: %04x",
-	       _.IntOvr->bus, _.IntOvr->irq, _.IntOvr->gsi, _.IntOvr->flags);
-	Flags = _.IntOvr->flags;
+	       _.IntOvr->bus, _.IntOvr->irq, _.IntOvr->gsi, _.IntOvr->Flags);
+	Flags = _.IntOvr->Flags;
 	switch (Flags & ACPI_MADT_TRIGGER_MASK) {
 	case ACPI_MADT_TRIGGER_RESERVED:
 	  warn ("reserved trigger value");
@@ -384,7 +384,7 @@ AcpiHpetScan (
       return FALSE;
     }
 
-  Rc = HpetInitialize (Hpet->address.address);
+  Rc = HpetInitialize (Hpet->Address.address);
 
   UnloadTable (Hpet);
 

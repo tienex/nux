@@ -23,19 +23,19 @@ typedef enum _FRAMEBUFFER_TYPE {
 **/
 typedef struct _FRAMEBUFFER_DESC
 {
-  INT16 type;
-  UINT16 bpp;
+  INT16 Type;
+  UINT16 Bpp;
 
-  UINT32 pitch;
-  UINT32 width;
-  UINT32 height;
+  UINT32 Pitch;
+  UINT32 Width;
+  UINT32 Height;
 
-  UINT64 addr;
-  UINT64 size;
+  UINT64 Addr;
+  UINT64 Size;
 
-  UINT32 r_mask;
-  UINT32 g_mask;
-  UINT32 b_mask;
+  UINT32 RMask;
+  UINT32 GMask;
+  UINT32 BMask;
 } __packed FRAMEBUFFER_DESC, *PFRAMEBUFFER_DESC, *PCFRAMEBUFFER_DESC;
 
 INT32 FramebufferInit (IN FRAMEBUFFER_DESC *Desc);

@@ -40,16 +40,16 @@ FramebufferBlt (
   IN UINTN  Height
   )
 {
-  UINT32 BytesPerPixel = gFbDesc->bpp / 8;
+  UINT32 BytesPerPixel = gFbDesc->Bpp / 8;
   UINTN HeightRemaining;
 
-  if (gFbDesc->type == FB_INVALID)
+  if (gFbDesc->Type == FB_INVALID)
     return;
 
   HeightRemaining = Height;
   while (HeightRemaining)
     {
-      UINTN Offset = Y * gFbDesc->pitch + X * BytesPerPixel;
+      UINTN Offset = Y * gFbDesc->Pitch + X * BytesPerPixel;
       UINTN WidthRemainingBytes = (Width + 7) / 8;
       UINTN WidthRemaining = Width;
 
@@ -61,10 +61,10 @@ FramebufferBlt (
 	  while (BitsRemaining)
 	    {
 	      if (Byte & 0x80)
-		*(VOLATILE UINT32 *) (UINTN) (gFbDesc->addr + Offset) =
+		*(VOLATILE UINT32 *) (UINTN) (gFbDesc->Addr + Offset) =
 		  Color;
 	      else
-		*(VOLATILE UINT32 *) (UINTN) (gFbDesc->addr + Offset) = 0;
+		*(VOLATILE UINT32 *) (UINTN) (gFbDesc->Addr + Offset) = 0;
 
 	      Offset += BytesPerPixel;
 	      Byte <<= 1;

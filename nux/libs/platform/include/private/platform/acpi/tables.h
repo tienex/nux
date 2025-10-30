@@ -37,15 +37,15 @@ typedef enum _ACPI_MADT_ENTRY_TYPE {
 
 typedef struct _ACPI_THDR
 {
-  CHAR8 signature[4];
-  UINT32 length;
-  UINT8 revision;
-  UINT8 checksum;
-  CHAR8 oemid[6];
-  CHAR8 oemtableid[8];
-  UINT32 oemrevision;
-  UINT32 creatid;
-  UINT32 creatrev;
+  CHAR8 Signature[4];
+  UINT32 Length;
+  UINT8 Revision;
+  UINT8 Checksum;
+  CHAR8 OemId[6];
+  CHAR8 OemTableId[8];
+  UINT32 OemRevision;
+  UINT32 CreatorId;
+  UINT32 CreatorRevision;
 } __packed ACPI_THDR;
 
 // Pointer type
@@ -55,11 +55,11 @@ typedef CONST ACPI_THDR *PCACPI_THDR;
 
 typedef struct _ACPI_GENADDR
 {
-  UINT8 spaceid;
-  UINT8 bitwidth;
-  UINT8 bitoffset;
-  UINT8 accesswidth;
-  UINT64 address;
+  UINT8 SpaceId;
+  UINT8 BitWidth;
+  UINT8 BitOffset;
+  UINT8 AccessWidth;
+  UINT64 Address;
 } __packed ACPI_GENADDR;
 
 // Pointer type
@@ -68,9 +68,9 @@ typedef CONST ACPI_GENADDR *PCACPI_GENADDR;
 
 typedef struct _ACPI_MADT
 {
-  ACPI_THDR hdr;
-  UINT32 lapic;
-  UINT32 flags;
+  ACPI_THDR Hdr;
+  UINT32 Lapic;
+  UINT32 Flags;
 } __packed ACPI_MADT;
 
 // Pointer type
@@ -88,12 +88,12 @@ typedef enum _ACPI_MADT_LAPIC_FLAGS {
 
 typedef struct _ACPI_MADT_IOAPIC
 {
-  UINT8 type;
-  UINT8 length;
-  UINT8 ioapicid;
-  UINT8 reserved;
-  UINT32 address;
-  UINT32 gsibase;
+  UINT8 Type;
+  UINT8 Length;
+  UINT8 IoApicId;
+  UINT8 Reserved;
+  UINT32 Address;
+  UINT32 GsiBase;
 } __packed ACPI_MADT_IOAPIC;
 
 // Pointer type
@@ -103,10 +103,10 @@ typedef CONST ACPI_MADT_IOAPIC *PCACPI_MADT_IOAPIC;
 
 typedef struct _ACPI_MADT_LAPICOVERRIDE
 {
-  UINT8 type;
-  UINT8 length;
-  UINT16 reserved;
-  UINT64 address;
+  UINT8 Type;
+  UINT8 Length;
+  UINT16 Reserved;
+  UINT64 Address;
 } __packed ACPI_MADT_LAPICOVERRIDE;
 
 // Pointer type
@@ -116,11 +116,11 @@ typedef CONST ACPI_MADT_LAPICOVERRIDE *PCACPI_MADT_LAPICOVERRIDE;
 
 typedef struct _ACPI_MADT_LAPICNMI
 {
-  UINT8 type;
-  UINT8 length;
-  UINT8 acpiid;
-  UINT16 flags;
-  UINT8 lint;
+  UINT8 Type;
+  UINT8 Length;
+  UINT8 AcpiId;
+  UINT16 Flags;
+  UINT8 Lint;
 } __packed ACPI_MADT_LAPICNMI;
 
 // Pointer type
@@ -153,12 +153,12 @@ typedef enum _ACPI_MADT_POLARITY {
 
 typedef struct _ACPI_HPET
 {
-  ACPI_THDR hdr;
-  UINT32 id;
-  ACPI_GENADDR address;
-  UINT8 sequence;
-  UINT8 mintick;
-  UINT8 flags;
+  ACPI_THDR Hdr;
+  UINT32 Id;
+  ACPI_GENADDR Address;
+  UINT8 Sequence;
+  UINT8 MinTick;
+  UINT8 Flags;
 } __packed ACPI_HPET;
 
 // Pointer type
