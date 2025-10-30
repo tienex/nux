@@ -153,7 +153,7 @@ CacheSlotKeyCompare (
 // Red-Black Tree Operations
 //
 
-static const rb_tree_ops_t CacheOps = {
+static CONST rb_tree_ops_t CacheOps = {
   CacheSlotCompare,
   CacheSlotKeyCompare,
   0,

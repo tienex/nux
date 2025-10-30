@@ -16,7 +16,7 @@
 
 #include <nux/internal.h>
 
-static volatile struct ktlb gKtlb;
+static VOLATILE struct ktlb gKtlb;
 
 /**
   Mark kernel TLB as dirty based on operation type.
@@ -101,4 +101,4 @@ TLB_GENERATION KtlbGenNormal (void) {
 }
 
 // Legacy global variable alias
-static volatile struct ktlb ktlb __attribute__((alias("gKtlb")));
+static VOLATILE struct ktlb ktlb __attribute__((alias("gKtlb")));

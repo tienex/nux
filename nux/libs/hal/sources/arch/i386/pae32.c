@@ -47,8 +47,8 @@
 extern int _linear_start;
 extern int _linear_l2table;
 extern int _linear_l3table;
-const VIRTUAL_ADDRESS linaddr = (VIRTUAL_ADDRESS) & _linear_start;
-const VIRTUAL_ADDRESS l2_linaddr = (VIRTUAL_ADDRESS) & _linear_l2table;
+CONST VIRTUAL_ADDRESS linaddr = (VIRTUAL_ADDRESS) & _linear_start;
+CONST VIRTUAL_ADDRESS l2_linaddr = (VIRTUAL_ADDRESS) & _linear_l2table;
 pte_t *l3_linaddr = (pte_t *) & _linear_l3table;
 
 /**

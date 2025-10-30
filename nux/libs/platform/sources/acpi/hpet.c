@@ -34,7 +34,7 @@
 
 #define TMR 0
 
-static volatile VOID *gHpetBase;
+static VOLATILE VOID *gHpetBase;
 static UINT64 gPeriod = 0;
 static UINT64 gGenCfg;
 static UINT64 gTmrCfg;

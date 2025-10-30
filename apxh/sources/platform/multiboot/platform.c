@@ -146,9 +146,9 @@ ParseMultibootMmap (
   UINT64 MaxRamPfn = 0;
   unsigned Regions = 0;
   size_t Cur;
-  volatile struct multiboot_mmap_entry *MbPtr =
+  VOLATILE struct multiboot_mmap_entry *MbPtr =
     (struct multiboot_mmap_entry *) BOOTMEM_MMAP;
-  volatile struct bootinfo_region *HrPtr =
+  VOLATILE struct bootinfo_region *HrPtr =
     (struct bootinfo_region *) BOOTMEM_MMAP;
   printf ("Multiboot memory map:\n");
   for (Cur = 0; Cur < MmapLength;)

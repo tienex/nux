@@ -32,8 +32,8 @@ VgaPutChar (
   )
 {
   extern unsigned char _physmap_start[];
-  const unsigned char *pVgaPtr =
-    (const unsigned char *) (_physmap_start + 0xb8000);
+  CONST unsigned char *pVgaPtr =
+    (CONST unsigned char *) (_physmap_start + 0xb8000);
   static INT32 Initialized = 0;
   static INT32 X = 0;
   static INT32 Y = 0;

@@ -1208,7 +1208,7 @@ void init (void) {
 }
 
 /** @deprecated Use GetArchName instead **/
-const char *get_arch_name (arch_t arch) {
+CONST char *get_arch_name (arch_t arch) {
   return GetArchName (arch);
 }
 

@@ -537,7 +537,7 @@ MdEntry (
 //
 
 /** @deprecated Use DtbAddrSize instead **/
-static void dtb_addrsize (const void *fdt, int noff, UINT32 *addrsz, UINT32 *sizesz) {
+static void dtb_addrsize (CONST void *fdt, int noff, UINT32 *addrsz, UINT32 *sizesz) {
   DtbAddrSize (fdt, noff, addrsz, sizesz);
 }
 

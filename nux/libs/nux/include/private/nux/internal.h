@@ -76,7 +76,7 @@ struct cpu_info
   UINT32 nmiop;
 
   /* TLB status for current CPU. */
-  volatile struct ktlb ktlb;
+  VOLATILE struct ktlb ktlb;
 
   /*
      User copy setjmp/longjmp for pagefaults.

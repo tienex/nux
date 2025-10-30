@@ -230,7 +230,7 @@ CopyGuid (
 #define IN
 #define OUT
 #define OPTIONAL
-#define CONST       const
+#define CONST       CONST
 #define VOLATILE    volatile
 #define INLINE      inline
 #define RESTRICT    __restrict

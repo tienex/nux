@@ -61,7 +61,7 @@
 #define ptep_is_foreign(_p) ((_p) & 1)
 
 extern int _linear_start;
-static const pte_t *linaddr = (const pte_t *) &_linear_start;
+static CONST pte_t *linaddr = (CONST pte_t *) &_linear_start;
 static pte_t *linaddr_l2;
 static pte_t *linaddr_l3;
 static pte_t *linaddr_l4;

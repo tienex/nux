@@ -58,7 +58,7 @@ struct apxh_region _memregs_pinned[] = {
 
 #define PINNED_MEMREGS (sizeof(_memregs_pinned)/sizeof(struct apxh_region))
 
-const struct apxh_bootinfo *bootinfo = (struct apxh_bootinfo *) &_info_start;
+CONST struct apxh_bootinfo *bootinfo = (struct apxh_bootinfo *) &_info_start;
 
 struct fbdesc fbdesc;
 struct apxh_platformdesc pltdesc;
@@ -468,7 +468,7 @@ hal_virtmem_dmapbase (
   return (UINT64) (UINTN) & _physmap_start;
 }
 
-const size_t
+CONST size_t
 hal_virtmem_dmapsize (
   VOID
   )
@@ -484,7 +484,7 @@ hal_virtmem_pfn$base (
   return (UINT64) (UINTN) & _pfncache_start;
 }
 
-const size_t
+CONST size_t
 hal_virtmem_pfn$size (
   VOID
   )
@@ -492,7 +492,7 @@ hal_virtmem_pfn$size (
   return (size_t) ((void *) &_pfncache_end - (void *) &_pfncache_start);
 }
 
-const VIRTUAL_ADDRESS
+CONST VIRTUAL_ADDRESS
 hal_virtmem_userbase (
   VOID
   )
@@ -500,7 +500,7 @@ hal_virtmem_userbase (
   return pt_umap_minaddr ();
 }
 
-const size_t
+CONST size_t
 hal_virtmem_usersize (
   VOID
   )
@@ -508,12 +508,12 @@ hal_virtmem_usersize (
   return pt_umap_maxaddr ();
 }
 
-const VIRTUAL_ADDRESS
+CONST VIRTUAL_ADDRESS
 hal_virtmem_userentry (
   VOID
   )
 {
-  return (const VIRTUAL_ADDRESS) bootinfo->uentry;
+  return (CONST VIRTUAL_ADDRESS) bootinfo->uentry;
 }
 
 UINTN
@@ -582,7 +582,7 @@ hal_virtmem_kvabase (
   return (VIRTUAL_ADDRESS) & _kva_start;
 }
 
-const size_t
+CONST size_t
 hal_virtmem_kvasize (
   VOID
   )
@@ -598,7 +598,7 @@ hal_virtmem_kmembase (
   return (VIRTUAL_ADDRESS) & _kmem_start;
 }
 
-const size_t
+CONST size_t
 hal_virtmem_kmemsize (
   VOID
   )
@@ -622,7 +622,7 @@ EarlyPrint (
     hal_putchar (Str[i]);
 }
 
-const struct apxh_platformdesc *
+CONST struct apxh_platformdesc *
 hal_pltinfo (
   VOID
   )

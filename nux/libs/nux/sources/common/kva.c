@@ -170,7 +170,7 @@ VmapCompareNodes (
   return 0;
 }
 
-static const rb_tree_ops_t gVmapTreeOps = {
+static CONST rb_tree_ops_t gVmapTreeOps = {
   .rbto_compare_nodes = VmapCompareNodes,
   .rbto_compare_key = VmapCompareKey,
   .rbto_node_offset = offsetof (struct vme, rb_node),
@@ -441,12 +441,12 @@ static struct vme *vmap_insert (VIRTUAL_ADDRESS start, size_t len) {
 }
 
 /** @deprecated Use VmapCompareKey instead **/
-static int vmap_compare_key (void *ctx, const void *n, const void *key) {
+static int vmap_compare_key (void *ctx, CONST void *n, CONST void *key) {
   return VmapCompareKey (ctx, n, key);
 }
 
 /** @deprecated Use VmapCompareNodes instead **/
-static int vmap_compare_nodes (void *ctx, const void *n1, const void *n2) {
+static int vmap_compare_nodes (void *ctx, CONST void *n1, CONST void *n2) {
   return VmapCompareNodes (ctx, n1, n2);
 }
 
