@@ -1,5 +1,10 @@
 /*
-  STREE: A compact bit-tree allocator.
+  BATREE: Binary Allocator Tree - A compact bit-tree allocator.
+
+  Renamed from STREE to BATREE to avoid confusion with splay trees.
+  BATREE uses a hierarchical bitmap structure for fast O(log n) allocation
+  and deallocation of fixed-size objects.
+
   Copyright (C) 2019 Gianluca Guida, glguida@tlbflush.org
 
   SPDX-License-Identifier: BSD-2-Clause
@@ -56,29 +61,29 @@
   A short number of nodes might make the table slighlty smaller, but
   increase the depth of the tree.
 
-  Set STREE_USE_INT, STREE_UES_LONG, STREE_USE_LONG_LONG to use the
+  Set BATREE_USE_INT, BATREE_USE_LONG, BATREE_USE_LONG_LONG to use the
   native compiler types as a node. The number of bits in these types
   will describe how many subtrees you can have in a single node.
 
   Set WORDSIZE to 8 or 16 to have smaller nodes.
 */
-//#define STREE_USE_INT
-//#define STREE_USE_LONG
-#define STREE_USE_LONG_LONG
+//#define BATREE_USE_INT
+//#define BATREE_USE_LONG
+#define BATREE_USE_LONG_LONG
 
-#ifdef STREE_USE_INT
+#ifdef BATREE_USE_INT
 #define WORDSIZE WORD_BIT
 #define ctz(_x)   __builtin_ctz(_x)
 #define clz(_x)   __builtin_clz(_x)
 #endif
 
-#ifdef STREE_USE_LONG
+#ifdef BATREE_USE_LONG
 #define WORDSIZE LONG_BIT
 #define ctz(_x)   __builtin_ctzl(_x)
 #define clz(_x)   __builtin_clzl(_x)
 #endif
 
-#ifdef STREE_USE_LONG_LONG
+#ifdef BATREE_USE_LONG_LONG
 #define WORDSIZE  64
 #define ctz(_x)   __builtin_ctzll(_x)
 #define clz(_x)   __builtin_clzll(_x)
@@ -132,18 +137,18 @@
 
    It is the sum of all LMAPS + bitmap.
 */
-#define STREE_SIZE(_o) CEIL_DIV((1LL << (_o)) - 1, WORDSIZE - 1)
+#define BATREE_SIZE(_o) CEIL_DIV((1LL << (_o)) - 1, WORDSIZE - 1)
 
 /**
   Given a number of objects, find the order needed
-  to create an STREE to manage them.
+  to create a BATREE to manage them.
 
   @param[in] N  Number of objects.
 
-  @return STREE order needed.
+  @return BATREE order needed.
 **/
 static inline size_t
-StreeOrder (size_t N)
+BatreeOrder (size_t N)
 {
   long Log2N = (LONG_BIT - 1 - __builtin_clzl ((long) N));
   long R = Log2N;
@@ -154,11 +159,8 @@ StreeOrder (size_t N)
   return R;
 }
 
-/** Legacy compatibility **/
-#define stree_order StreeOrder
-
 static inline size_t
-StreeLmapOff (unsigned O, unsigned L)
+BatreeLmapOff (unsigned O, unsigned L)
 {
   /*
      This mysterious code is the result of this sum:
@@ -181,18 +183,12 @@ StreeLmapOff (unsigned O, unsigned L)
   return R >> WORDLOG2;
 }
 
-/** Legacy compatibility **/
-#define stree_lmap_off StreeLmapOff
-
 /** Get level L bitmap of the search tree. **/
 static inline WORD_T *
-StreeLmap (WORD_T *Stree, unsigned O, unsigned L)
+BatreeLmap (WORD_T *Batree, unsigned O, unsigned L)
 {
-  return Stree + StreeLmapOff (O, L);
+  return Batree + BatreeLmapOff (O, L);
 }
-
-/** Legacy compatibility **/
-#define stree_lmap StreeLmap
 
 /** Get bit offset of an lmap of level L for address A. **/
 static inline size_t
@@ -200,9 +196,6 @@ LmapBitOff (unsigned L, unsigned A)
 {
   return ((size_t) A >> WORDLOG2 * L);
 }
-
-/** Legacy compatibility **/
-#define lmap_bitoff LmapBitOff
 
 static inline bool
 SetBit (WORD_T *Map, size_t BitAddr)
@@ -218,9 +211,6 @@ SetBit (WORD_T *Map, size_t BitAddr)
   return !!Old;
 }
 
-/** Legacy compatibility **/
-#define set_bit SetBit
-
 static inline bool
 ClrBit (WORD_T *Map, size_t BitAddr)
 {
@@ -233,9 +223,6 @@ ClrBit (WORD_T *Map, size_t BitAddr)
   return !!GET_WORD (Map + Off);
 }
 
-/** Legacy compatibility **/
-#define clr_bit ClrBit
-
 static inline int
 GetBit (WORD_T *Map, size_t BitAddr)
 {
@@ -245,28 +232,22 @@ GetBit (WORD_T *Map, size_t BitAddr)
   return !!(GET_WORD (Map + Off) & ((WORD_T) 1 << Bit));
 }
 
-/** Legacy compatibility **/
-#define get_bit GetBit
-
 static inline int
-StreeGetBit (WORD_T *Stree, unsigned O, size_t BitAddr)
+BatreeGetBit (WORD_T *Batree, unsigned O, size_t BitAddr)
 {
-  WORD_T *Lmap = StreeLmap (Stree, O, 0);
+  WORD_T *Lmap = BatreeLmap (Batree, O, 0);
 
   return GetBit (Lmap, LmapBitOff (0, BitAddr));
 }
 
-/** Legacy compatibility **/
-#define stree_getbit StreeGetBit
-
 static inline void
-StreeSetBit (WORD_T *Stree, unsigned O, size_t BitAddr)
+BatreeSetBit (WORD_T *Batree, unsigned O, size_t BitAddr)
 {
   int L;
 
   for (L = 0; L <= LOGWORD (O) - 1; L++)
     {
-      WORD_T *Lmap = StreeLmap (Stree, O, L);
+      WORD_T *Lmap = BatreeLmap (Batree, O, L);
       size_t Laddr = LmapBitOff (L, BitAddr);
 
       if (SetBit (Lmap, Laddr))
@@ -277,17 +258,14 @@ StreeSetBit (WORD_T *Stree, unsigned O, size_t BitAddr)
     }
 }
 
-/** Legacy compatibility **/
-#define stree_setbit StreeSetBit
-
 static inline void
-StreeClrBit (WORD_T *Stree, unsigned O, size_t BitAddr)
+BatreeClrBit (WORD_T *Batree, unsigned O, size_t BitAddr)
 {
   int L;
 
   for (L = 0; L <= LOGWORD (O) - 1; L++)
     {
-      WORD_T *Lmap = StreeLmap (Stree, O, L);
+      WORD_T *Lmap = BatreeLmap (Batree, O, L);
       size_t Laddr = LmapBitOff (L, BitAddr);
 
       if (ClrBit (Lmap, Laddr))
@@ -298,18 +276,15 @@ StreeClrBit (WORD_T *Stree, unsigned O, size_t BitAddr)
     }
 }
 
-/** Legacy compatibility **/
-#define stree_clrbit StreeClrBit
-
 #include <string.h>
 static inline void
-StreeSetAll (WORD_T *Stree, unsigned O, unsigned long Max)
+BatreeSetAll (WORD_T *Batree, unsigned O, unsigned long Max)
 {
   int L;
 
   for (L = LOGWORD (O) - 1; L >= 0; L -= 1)
     {
-      WORD_T *Lmap = StreeLmap (Stree, O, L);
+      WORD_T *Lmap = BatreeLmap (Batree, O, L);
       size_t Size = LmapBitOff (L, Max) >> WORDLOG2;
       size_t Bits = LmapBitOff (L, Max) & WORDMASK;
       memset (Lmap, -1, Size * sizeof (WORD_T));
@@ -318,22 +293,19 @@ StreeSetAll (WORD_T *Stree, unsigned O, unsigned long Max)
     }
 }
 
-/** Legacy compatibility **/
-#define stree_setall StreeSetAll
-
 /**
   Count all set bits.
 
-  @param[in] Stree  Pointer to STREE.
-  @param[in] O      Order.
+  @param[in] Batree  Pointer to BATREE.
+  @param[in] O       Order.
 
   @return Number of set bits.
 **/
 static inline unsigned long
-StreeCount (WORD_T *Stree, unsigned O)
+BatreeCount (WORD_T *Batree, unsigned O)
 {
   unsigned long Size = 0;
-  WORD_T *Lmap = StreeLmap (Stree, O, 0);
+  WORD_T *Lmap = BatreeLmap (Batree, O, 0);
 
   for (int i = 0; i < (1LL << O); i += (1 << WORDLOG2))
     {
@@ -343,23 +315,20 @@ StreeCount (WORD_T *Stree, unsigned O)
   return Size;
 }
 
-/** Legacy compatibility **/
-#define stree_count StreeCount
-
 /**
   Find a set bit.
 
   Low=1 will search the lowest address available,
   Low=0 will search the highest address available.
 
-  @param[in] Stree  Pointer to STREE.
-  @param[in] O      Order.
-  @param[in] Low    Search direction (1=low, 0=high).
+  @param[in] Batree  Pointer to BATREE.
+  @param[in] O       Order.
+  @param[in] Low     Search direction (1=low, 0=high).
 
   @return Bit address or -1 if not found.
 **/
 static inline long
-StreeBitSearch (WORD_T *Stree, unsigned O, int Low)
+BatreeBitSearch (WORD_T *Batree, unsigned O, int Low)
 {
   int L;
   size_t Laddr;
@@ -367,7 +336,7 @@ StreeBitSearch (WORD_T *Stree, unsigned O, int Low)
   Laddr = 0;
   for (L = LOGWORD (O) - 1; L >= 0; L -= 1)
     {
-      WORD_T *Lmap = StreeLmap (Stree, O, L);
+      WORD_T *Lmap = BatreeLmap (Batree, O, L);
       size_t Loff = LmapBitOff (L, Laddr) >> WORDLOG2;
       WORD_T Word = GET_WORD (Lmap + Loff);
       unsigned Bit;
@@ -398,65 +367,62 @@ StreeBitSearch (WORD_T *Stree, unsigned O, int Low)
   return Laddr;
 }
 
-/** Legacy compatibility **/
-#define stree_bitsearch StreeBitSearch
-
 
 #if 0
 
 #include <stdint.h>
 #define ORDER 7
 
-WORD_T tree[STREE_SIZE (ORDER)];
+WORD_T tree[BATREE_SIZE (ORDER)];
 
 int
 main ()
 {
-  printf ("ODER = %d, WORDSIZE = %d, DEPTH = %d\n", ORDER, WORDSIZE,
+  printf ("ORDER = %d, WORDSIZE = %d, DEPTH = %d\n", ORDER, WORDSIZE,
 	  LOGWORD (ORDER));
   printf ("size of tree: %d WORD_T, %d bytes\n",
 	  sizeof (tree) / sizeof (WORD_T), sizeof (tree));
 
-  stree_setbit (tree, ORDER, 42);
-  stree_setbit (tree, ORDER, 43);
+  BatreeSetBit (tree, ORDER, 42);
+  BatreeSetBit (tree, ORDER, 43);
 
-  stree_setbit (tree, ORDER, 90);
+  BatreeSetBit (tree, ORDER, 90);
 
-  stree_setbit (tree, ORDER, 1270);
-  //  stree_clrbit(tree, ORDER, 42);
-  //  stree_clrbit(tree, ORDER, 43);
+  BatreeSetBit (tree, ORDER, 1270);
+  //  BatreeClrBit(tree, ORDER, 42);
+  //  BatreeClrBit(tree, ORDER, 43);
 
-  stree_bitsearch (tree, ORDER, 1);
+  BatreeBitSearch (tree, ORDER, 1);
 
   signed l, i;
   for (l = LOGWORD (ORDER) - 1; l >= 0; l -= 1)
     {
-      WORD_T *lbitmap = stree_lmap (tree, ORDER, l);
+      WORD_T *lbitmap = BatreeLmap (tree, ORDER, l);
 
       printf ("Order %d Bitmap\n", l);
-      printf ("Offset is %d\n", stree_lmap_off (ORDER, l));
+      printf ("Offset is %d\n", BatreeLmapOff (ORDER, l));
 
       for (i = 0; i < (1LL << ORDER); i += (1 << (WORDLOG2 * l)))
 	{
-	  long off = lmap_bitoff (l, i);
-	  printf ("%d", get_bit (lbitmap, off));	//lbitmap[off >> WORDLOG2] & (off & 0x3f));
+	  long off = LmapBitOff (l, i);
+	  printf ("%d", GetBit (lbitmap, off));	//lbitmap[off >> WORDLOG2] & (off & 0x3f));
 	}
       printf ("\n");
     }
 
-  stree_bitsearch (tree, ORDER, 0);
-  stree_clrbit (tree, ORDER, 1270);
+  BatreeBitSearch (tree, ORDER, 0);
+  BatreeClrBit (tree, ORDER, 1270);
 
-  stree_bitsearch (tree, ORDER, 0);
-  stree_clrbit (tree, ORDER, 90);
+  BatreeBitSearch (tree, ORDER, 0);
+  BatreeClrBit (tree, ORDER, 90);
 
-  stree_bitsearch (tree, ORDER, 0);
-  stree_clrbit (tree, ORDER, 43);
+  BatreeBitSearch (tree, ORDER, 0);
+  BatreeClrBit (tree, ORDER, 43);
 
-  stree_bitsearch (tree, ORDER, 0);
-  stree_clrbit (tree, ORDER, 42);
+  BatreeBitSearch (tree, ORDER, 0);
+  BatreeClrBit (tree, ORDER, 42);
 
-  stree_bitsearch (tree, ORDER, 0);
+  BatreeBitSearch (tree, ORDER, 0);
 
 }
 #endif

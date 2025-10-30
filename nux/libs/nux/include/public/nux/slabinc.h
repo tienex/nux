@@ -96,9 +96,6 @@ typedef struct _SLABHDR
   };
 } SLABHDR, *PSLABHDR, *PCSLABHDR;
 
-/** Legacy type alias for compatibility **/
-#define slabhdr SLABHDR
-
 //
 // SLAB - Slab Cache
 //
@@ -135,9 +132,9 @@ typedef struct _SLAB
 
   ///
   /// Optional constructor/destructor callback.
-  /// Called with (object, opaque, deconstruct_flag).
+  /// Called with (object, constructor_data, deconstruct_flag).
   ///
-  VOID         (*Constructor)(VOID *Object, VOID *Opaque, INT32 Deconstruct);
+  VOID         (*Constructor)(VOID *Object, VOID *ConstructorData, INT32 Deconstruct);
 
   ///
   /// Number of empty slabs.
@@ -174,8 +171,5 @@ typedef struct _SLAB
   ///
   LIST_ENTRY (_SLAB) ListEntry;
 } SLAB, *PSLAB, *PCSLAB;
-
-/** Legacy type alias for compatibility **/
-#define slab SLAB
 
 #endif // SLABINC_H

@@ -18,10 +18,10 @@
 // Spinlock Macro Definitions for Slab Implementation
 //
 
-#define DECLARE_SPIN_LOCK(_x)  lock_t _x
-#define SPIN_LOCK_INIT(_x)     do { _x = 0; } while (0)
-#define SPIN_LOCK(_x)          spinlock(&_x)
-#define SPIN_UNLOCK(_x)        spinunlock(&_x)
+#define DECLARE_SPIN_LOCK(_x)  SPINLOCK _x
+#define SPIN_LOCK_INIT(_x)     SpinLockInitialize(&(_x))
+#define SPIN_LOCK(_x)          SpinLockAcquire(&(_x))
+#define SPIN_UNLOCK(_x)        SpinLockRelease(&(_x))
 #define SPIN_LOCK_FREE(_x)
 
 //
@@ -93,20 +93,20 @@ SlabShrink (
   );
 
 /**
-  Allocate an object from a slab cache with opaque data.
+  Allocate an object from a slab cache with constructor data.
 
-  Allocates an object from the slab cache, passing opaque data to the
+  Allocates an object from the slab cache, passing optional data to the
   constructor if one is defined.
 
-  @param[in,out] pSlab   Pointer to the slab cache.
-  @param[in]     pOpaque Opaque data passed to constructor, or NULL.
+  @param[in,out] pSlab           Pointer to the slab cache.
+  @param[in]     ConstructorData Optional data passed to constructor, or NULL.
 
   @return Pointer to allocated object, or NULL on failure.
 **/
 VOID *
 SlabAllocateOpaque (
   IN OUT struct slab  *pSlab,
-  IN     VOID         *pOpaque OPTIONAL
+  IN     VOID         *ConstructorData OPTIONAL
   );
 
 /**
@@ -135,7 +135,7 @@ SlabPrintStatistics (
 /**
   Allocate an object from a slab cache.
 
-  Convenience function that allocates an object without passing opaque
+  Convenience function that allocates an object without passing constructor
   data to the constructor.
 
   @param[in,out] pSlab  Pointer to the slab cache.
