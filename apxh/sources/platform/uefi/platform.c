@@ -464,8 +464,8 @@ ApxhEfiAddMemRegion (
       return;
     }
 
-  gMemRegions[Cur].Pfn = Pfn;
-  gMemRegions[Cur].Len = Len;
+  gMemRegions[Cur].PageFrameNumber = Pfn;
+  gMemRegions[Cur].Length = Len;
 
   if (Pfn + Len > gMaxPfn)
     gMaxPfn = Pfn + Len;

@@ -6,12 +6,10 @@
 */
 #pragma once
 
+#include <ananke/ananke.h>
 #include <assert.h>
 #include <stdio.h>
-#include <stdint.h>
-#include <inttypes.h>
 #include <string.h>
-#include <stdbool.h>
 #include <framebuffer.h>
 #include <apxh/apxh.h>
 
@@ -43,8 +41,8 @@ typedef enum _BOOTINFO_REGION_TYPE {
 typedef struct _BOOTINFO_REGION
 {
   INT32 Type;
-  UINT32 Len;
-  UINTN Pfn;
+  UINT32 Length;
+  UINTN PageFrameNumber;
 } BOOTINFO_REGION, *PBOOTINFO_REGION, *PCBOOTINFO_REGION;
 
 /**

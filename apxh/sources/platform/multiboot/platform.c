@@ -162,18 +162,18 @@ ParseMultibootMmap (
       else
 	HReg.Type = BOOTINFO_REGION_OTHER;
 
-      HReg.Pfn = MbPtr->addr >> PAGE_SHIFT;
-      HReg.Len = (MbPtr->Len + PAGE_SIZE - 1) >> PAGE_SHIFT;
+      HReg.PageFrameNumber = MbPtr->addr >> PAGE_SHIFT;
+      HReg.Length = (MbPtr->Len + PAGE_SIZE - 1) >> PAGE_SHIFT;
       MbSize = MbPtr->size + sizeof (MbPtr->size);
 
       /* Count all memory as maxpfn */
-      if (MaxPfn < HReg.Pfn + HReg.Len)
-	MaxPfn = HReg.Pfn + HReg.Len;
+      if (MaxPfn < HReg.PageFrameNumber + HReg.Length)
+	MaxPfn = HReg.PageFrameNumber + HReg.Length;
 
       /* Count RAM maxrampfn */
       if ((HReg.Type == BOOTINFO_REGION_RAM)
-	  && (MaxRamPfn < HReg.Pfn + HReg.Len))
-	MaxRamPfn = HReg.Pfn + HReg.Len;
+	  && (MaxRamPfn < HReg.PageFrameNumber + HReg.Length))
+	MaxRamPfn = HReg.PageFrameNumber + HReg.Length;
 
       /* We consumed this entry. Can write the hreg region. */
       *HrPtr = HReg;

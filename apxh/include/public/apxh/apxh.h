@@ -17,7 +17,7 @@
 **/
 
 
-#include <stdint.h>
+#include <ananke/ananke.h>
 #include <nux/framebuffer.h>
 
 //
@@ -54,7 +54,7 @@
 // APXH_PLATFORM_DESCRIPTOR - Platform Firmware Information
 //
 
-#pragma pack(push, 1)
+ANX_PACK_PUSH(1)
 
 typedef struct _APXH_PLATFORM_DESCRIPTOR {
   ///
@@ -204,5 +204,5 @@ typedef struct _APXH_REGION {
   UINT64  Length;
 } APXH_REGION;
 
-#pragma pack(pop)
+ANX_PACK_POP()
 

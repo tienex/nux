@@ -6,8 +6,7 @@
 */
 #pragma once
 
-#include <stddef.h>
-#include <inttypes.h>
+#include <ananke/ananke.h>
 
 /*
 
@@ -35,12 +34,14 @@ VOID *PayloadGet (IN UINT32 Index, OUT OPTIONAL UINTN *Size);
   Payloads are located at the end of the last kernel data/BSS
   address. The payload itself is prefixed by the following header.
 **/
+ANX_PACK_PUSH(1)
 typedef struct _PAYLOAD_HDR
 {
   UINT64 Magic;
   UINT64 Filename;
   UINT32 Size;
-} __attribute__((packed)) PAYLOAD_HDR, *PPAYLOAD_HDR, *PCPAYLOAD_HDR;
+} ANX_PACKED PAYLOAD_HDR, *PPAYLOAD_HDR, *PCPAYLOAD_HDR;
+ANX_PACK_POP()
 
 
 

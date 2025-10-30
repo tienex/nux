@@ -811,10 +811,10 @@ VaRegionsCopy (
     {
       Reg = MdGetMemRegion (i);
       ApxhReg.Type = Reg->Type;
-      ApxhReg.Pfn = Reg->Pfn;
-      ApxhReg.Len = Reg->Len;
+      ApxhReg.Pfn = Reg->PageFrameNumber;
+      ApxhReg.Length = Reg->Length;
 #if 0
-      printf ("Copying %d %d %d\n", ApxhReg.Type, ApxhReg.Pfn, ApxhReg.Len);
+      printf ("Copying %d %d %d\n", ApxhReg.Type, ApxhReg.Pfn, ApxhReg.Length);
 #endif
       VaCopy (Va + i * sizeof (APXH_REGION), &ApxhReg,
 	       sizeof (APXH_REGION), 0, 0, 0);
