@@ -20,9 +20,9 @@
 #define HI 1
 
 static lock_t gBrkLock;
-static vaddr_t gBase[2];
-static vaddr_t gBrk[2];
-static vaddr_t gMaxBrk[2];
+static VIRTUAL_ADDRESS gBase[2];
+static VIRTUAL_ADDRESS gBrk[2];
+static VIRTUAL_ADDRESS gMaxBrk[2];
 #ifdef HAL_PAGED
 static INT32 gKmemTrim = TRIM_NONE;
 #endif
@@ -48,8 +48,8 @@ static INT32 gKmemTrim = TRIM_NONE;
 **/
 static INT32
 Compare (
-  IN vaddr_t  A,
-  IN vaddr_t  B
+  IN VIRTUAL_ADDRESS  A,
+  IN VIRTUAL_ADDRESS  B
   )
 {
   if (A > B)
@@ -74,12 +74,12 @@ Compare (
 **/
 static INT32
 EnsureRange (
-  IN vaddr_t  V1,
-  IN vaddr_t  V2,
+  IN VIRTUAL_ADDRESS  V1,
+  IN VIRTUAL_ADDRESS  V2,
   IN INT32    Mapped
   )
 {
-  vaddr_t S, E;
+  VIRTUAL_ADDRESS S, E;
   UINT32 Prot;
 
   S = MIN (V1, V2);
@@ -89,7 +89,7 @@ EnsureRange (
   if (kmap_ensure_range (S, E - S, Prot))
     return -1;
 
-  kmap_commit ();
+  KmapCommit ();
   return 0;
 }
 
@@ -104,8 +104,8 @@ EnsureRange (
 **/
 static INT32
 EnsureRangeMapped (
-  IN vaddr_t  V1,
-  IN vaddr_t  V2
+  IN VIRTUAL_ADDRESS  V1,
+  IN VIRTUAL_ADDRESS  V2
   )
 {
   return EnsureRange (V1, V2, 1);
@@ -122,8 +122,8 @@ EnsureRangeMapped (
 **/
 static INT32
 EnsureRangeUnmapped (
-  IN vaddr_t  V1,
-  IN vaddr_t  V2
+  IN VIRTUAL_ADDRESS  V1,
+  IN VIRTUAL_ADDRESS  V2
   )
 {
   return EnsureRange (V1, V2, 0);
@@ -144,7 +144,7 @@ EnsureRangeUnmapped (
 INT32
 KmemBreak (
   IN INT32    Low,
-  IN vaddr_t  Vaddr
+  IN VIRTUAL_ADDRESS  Vaddr
   )
 {
   INT32 Ret = -1;
@@ -183,7 +183,7 @@ out:
 
   @return Previous break point value, or VADDR_INVALID on failure.
 **/
-vaddr_t
+VIRTUAL_ADDRESS
 KmemSbrk (
   IN INT32  Low,
   IN INT64  Inc
@@ -191,8 +191,8 @@ KmemSbrk (
 {
   CONST INT32 This = Low ? LO : HI;
   CONST INT32 Other = Low ? HI : LO;
-  vaddr_t Ret = VADDR_INVALID;
-  vaddr_t Vaddr;
+  VIRTUAL_ADDRESS Ret = VADDR_INVALID;
+  VIRTUAL_ADDRESS Vaddr;
 
   spinlock (&gBrkLock);
   if (Inc == 0)
@@ -235,13 +235,13 @@ out:
 
   @return Allocated address, or VADDR_INVALID on failure.
 **/
-vaddr_t
+VIRTUAL_ADDRESS
 KmemBrkGrow (
   IN INT32   Low,
   IN UINT32  Size
   )
 {
-  vaddr_t Ret;
+  VIRTUAL_ADDRESS Ret;
 
   if (Low)
     Ret = KmemSbrk (Low, Size);
@@ -271,7 +271,7 @@ KmemBrkShrink (
   IN UINT32  Size
   )
 {
-  vaddr_t Va;
+  VIRTUAL_ADDRESS Va;
   INT64 Inc;
 
   Inc = Low ? -Size : Size;
@@ -300,7 +300,7 @@ struct kmem_head
 {
   unsigned long magic;           ///< Magic number for validation
   LIST_ENTRY (kmem_head) list;   ///< List entry
-  vaddr_t addr;                  ///< Starting address
+  VIRTUAL_ADDRESS addr;                  ///< Starting address
   size_t size;                   ///< Allocation size
 };
 
@@ -339,7 +339,7 @@ ___mkptr (
 {
   struct kmem_head *Ptr;
   struct kmem_tail *Tail;
-  vaddr_t Addr = z_to_v (Zaddr);
+  VIRTUAL_ADDRESS Addr = z_to_v (Zaddr);
 
   Ptr = (struct kmem_head *) Addr;
   Ptr->magic = ZONE_HEAD_MAGIC;
@@ -398,9 +398,9 @@ ___get_neighbors (
   )
 {
   INT32 Low = Opq;
-  vaddr_t Vaddr;
-  vaddr_t Ptail;
-  vaddr_t Nhead;
+  VIRTUAL_ADDRESS Vaddr;
+  VIRTUAL_ADDRESS Ptail;
+  VIRTUAL_ADDRESS Nhead;
   struct kmem_head *H;
   struct kmem_tail *T;
 
@@ -430,7 +430,7 @@ ___get_neighbors (
 
   T = (struct kmem_tail *) Ptail;
 #ifdef HAL_PAGED
-  if (!kmap_mapped_range ((vaddr_t) T, sizeof (struct kmem_tail)))
+  if (!kmap_mapped_range ((VIRTUAL_ADDRESS) T, sizeof (struct kmem_tail)))
     goto check_next;
 #endif
 
@@ -439,7 +439,7 @@ ___get_neighbors (
 
   H = (struct kmem_head *) (Ptail - T->offset);
 #ifdef HAL_PAGED
-  if (!kmap_mapped_range ((vaddr_t) H, sizeof (struct kmem_head)))
+  if (!kmap_mapped_range ((VIRTUAL_ADDRESS) H, sizeof (struct kmem_head)))
     goto check_next;
 #endif
 
@@ -455,7 +455,7 @@ check_next:
 
   H = (struct kmem_head *) Nhead;
 #ifdef HAL_PAGED
-  if (!kmap_mapped_range ((vaddr_t) H, sizeof (struct kmem_head)))
+  if (!kmap_mapped_range ((VIRTUAL_ADDRESS) H, sizeof (struct kmem_head)))
     return;
 #endif
 
@@ -480,14 +480,14 @@ static struct zone gKmemZ[2];
 
   @return Allocated virtual address, or error indicator.
 **/
-vaddr_t
+VIRTUAL_ADDRESS
 KmemAllocate (
   IN INT32   Low,
   IN size_t  Size
   )
 {
   zaddr_t Zr;
-  vaddr_t R;
+  VIRTUAL_ADDRESS R;
   lock_t *L;
   struct zone *Z;
   size_t Size64b;
@@ -519,13 +519,13 @@ KmemAllocate (
 VOID
 KmemFree (
   IN INT32    Low,
-  IN vaddr_t  Vaddr,
+  IN VIRTUAL_ADDRESS  Vaddr,
   IN size_t   Size
   )
 {
   UINT32 This;
-  vaddr_t Base;
-  vaddr_t Limit;
+  VIRTUAL_ADDRESS Base;
+  VIRTUAL_ADDRESS Limit;
   struct zone *Z;
   lock_t *L;
   size_t Size64b;
@@ -551,8 +551,8 @@ KmemFree (
           /*
              If in TRIM mode, unmap and free unneeded pages.
            */
-          vaddr_t V1 = Low ? round_page (Base) : trunc_page (Base);
-          vaddr_t V2 = Low ? round_page (Limit) : trunc_page (Limit);
+          VIRTUAL_ADDRESS V1 = Low ? round_page (Base) : trunc_page (Base);
+          VIRTUAL_ADDRESS V2 = Low ? round_page (Limit) : trunc_page (Limit);
 
           kmdbg_printf ("Unmapping from [%lx-%lx] ", V1, V2);
           EnsureRangeUnmapped (V1, V2);
@@ -654,54 +654,54 @@ KmemInitialize (
 //
 
 /** @deprecated Use Compare instead **/
-static int cmp (vaddr_t a, vaddr_t b) {
+static int cmp (VIRTUAL_ADDRESS a, VIRTUAL_ADDRESS b) {
   return Compare (a, b);
 }
 
 #ifdef HAL_PAGED
 /** @deprecated Use EnsureRange instead **/
-static int _ensure_range (vaddr_t v1, vaddr_t v2, int mapped) {
+static int _ensure_range (VIRTUAL_ADDRESS v1, VIRTUAL_ADDRESS v2, int mapped) {
   return EnsureRange (v1, v2, mapped);
 }
 
 /** @deprecated Use EnsureRangeMapped instead **/
-static int _ensure_range_mapped (vaddr_t v1, vaddr_t v2) {
+static int _ensure_range_mapped (VIRTUAL_ADDRESS v1, VIRTUAL_ADDRESS v2) {
   return EnsureRangeMapped (v1, v2);
 }
 
 /** @deprecated Use EnsureRangeUnmapped instead **/
-static int _ensure_range_unmapped (vaddr_t v1, vaddr_t v2) {
+static int _ensure_range_unmapped (VIRTUAL_ADDRESS v1, VIRTUAL_ADDRESS v2) {
   return EnsureRangeUnmapped (v1, v2);
 }
 #endif
 
 /** @deprecated Use KmemBreak instead **/
-int kmem_brk (int low, vaddr_t vaddr) {
+int KmemBrk (int low, VIRTUAL_ADDRESS vaddr) {
   return KmemBreak (low, vaddr);
 }
 
 /** @deprecated Use KmemSbrk instead **/
-vaddr_t kmem_sbrk (int low, long inc) {
+VIRTUAL_ADDRESS KmemSbrk (int low, long inc) {
   return KmemSbrk (low, inc);
 }
 
 /** @deprecated Use KmemBrkGrow instead **/
-vaddr_t kmem_brkgrow (int low, unsigned size) {
+VIRTUAL_ADDRESS KmemBrkGrow (int low, unsigned size) {
   return KmemBrkGrow (low, size);
 }
 
 /** @deprecated Use KmemBrkShrink instead **/
-int kmem_brkshrink (int low, unsigned size) {
+int KmemBrkShrink (int low, unsigned size) {
   return KmemBrkShrink (low, size);
 }
 
 /** @deprecated Use KmemAllocate instead **/
-vaddr_t kmem_alloc (int low, size_t size) {
+VIRTUAL_ADDRESS KmemAlloc (int low, size_t size) {
   return KmemAllocate (low, size);
 }
 
 /** @deprecated Use KmemFree instead **/
-void kmem_free (int low, vaddr_t vaddr, size_t size) {
+void KmemFree (int low, VIRTUAL_ADDRESS vaddr, size_t size) {
   KmemFree (low, vaddr, size);
 }
 
@@ -722,9 +722,9 @@ void kmeminit (void) {
 
 // Legacy global variable aliases
 static lock_t brklock __attribute__((alias("gBrkLock")));
-static vaddr_t base[2] __attribute__((alias("gBase")));
-static vaddr_t brk[2] __attribute__((alias("gBrk")));
-static vaddr_t maxbrk[2] __attribute__((alias("gMaxBrk")));
+static VIRTUAL_ADDRESS base[2] __attribute__((alias("gBase")));
+static VIRTUAL_ADDRESS brk[2] __attribute__((alias("gBrk")));
+static VIRTUAL_ADDRESS maxbrk[2] __attribute__((alias("gMaxBrk")));
 #ifdef HAL_PAGED
 static int kmem_trim __attribute__((alias("gKmemTrim")));
 #endif

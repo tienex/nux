@@ -47,8 +47,8 @@ HalEntrySyscall (
 {
   UCTXT *Uctxt;
 
-  nuxperf_inc (&pnux_entry_syscall);
-  Uctxt = uctxt_get (Frame);
+  NuxPerfInc (&pnux_entry_syscall);
+  Uctxt = UctxtGet (Frame);
 
   switch ((UINTN) Uctxt)
     {
@@ -63,7 +63,7 @@ HalEntrySyscall (
 
   /* Process syscall */
   Uctxt = entry_sysc (Uctxt, A1, A2, A3, A4, A5, A6, A7);
-  return uctxt_frame (Uctxt);
+  return UctxtFrame (Uctxt);
 }
 
 /**
@@ -88,7 +88,7 @@ HalEntryPageFault (
 {
   UCTXT *Uctxt;
 
-  nuxperf_inc (&pnux_entry_pagefault);
+  NuxPerfInc (&pnux_entry_pagefault);
 
   if (!NuxStatusOkCpu ())
     {
@@ -96,7 +96,7 @@ HalEntryPageFault (
       /* Unreachable */
     }
 
-  Uctxt = uctxt_get (Frame);
+  Uctxt = UctxtGet (Frame);
 
   switch ((UINTN) Uctxt)
     {
@@ -122,7 +122,7 @@ HalEntryPageFault (
 
   /* User page fault. */
   Uctxt = entry_pf (Uctxt, Va, Info);
-  return uctxt_frame (Uctxt);
+  return UctxtFrame (Uctxt);
 }
 
 /**
@@ -164,7 +164,7 @@ HalEntryException (
 {
   UCTXT *Uctxt;
 
-  nuxperf_inc (&pnux_entry_exception);
+  NuxPerfInc (&pnux_entry_exception);
 
   if (!NuxStatusOkCpu ())
     {
@@ -172,7 +172,7 @@ HalEntryException (
       /* Unreachable */
     }
 
-  Uctxt = uctxt_get (Frame);
+  Uctxt = UctxtGet (Frame);
 
   switch ((UINTN) Uctxt)
     {
@@ -187,7 +187,7 @@ HalEntryException (
 
   /* User exception. */
   Uctxt = entry_ex (Uctxt, Xcpt);
-  return uctxt_frame (Uctxt);
+  return UctxtFrame (Uctxt);
 }
 
 /**
@@ -203,7 +203,7 @@ HalEntryNmi (
   IN struct hal_frame  *Frame
   )
 {
-  nuxperf_inc (&pnux_entry_nmi);
+  NuxPerfInc (&pnux_entry_nmi);
 
   if (__predict_false (NuxStatus () & NUXST_PANIC))
     {
@@ -237,11 +237,11 @@ HalEntryTimer (
 {
   UCTXT *Uctxt;
 
-  nuxperf_inc (&pnux_entry_timer);
-  Uctxt = uctxt_getuser (Frame);
+  NuxPerfInc (&pnux_entry_timer);
+  Uctxt = UctxtGetUser (Frame);
   Uctxt = entry_alarm (Uctxt);
-  plt_eoi_timer ();
-  return uctxt_frame (Uctxt);
+  PlatformEoiTimer ();
+  return UctxtFrame (Uctxt);
 }
 
 /**
@@ -264,11 +264,11 @@ HalEntryIrq (
 {
   UCTXT *Uctxt;
 
-  nuxperf_inc (&pnux_entry_irq);
-  Uctxt = uctxt_getuser (Frame);
+  NuxPerfInc (&pnux_entry_irq);
+  Uctxt = UctxtGetUser (Frame);
   Uctxt = entry_irq (Uctxt, Irq, IsLevel);
-  plt_eoi_irq (Irq);
-  return uctxt_frame (Uctxt);
+  PlatformEoiIrq (Irq);
+  return UctxtFrame (Uctxt);
 }
 
 /**
@@ -287,9 +287,9 @@ HalEntryIpi (
 {
   UCTXT *Uctxt;
 
-  nuxperf_inc (&pnux_entry_ipi);
-  Uctxt = uctxt_getuser (Frame);
+  NuxPerfInc (&pnux_entry_ipi);
+  Uctxt = UctxtGetUser (Frame);
   Uctxt = entry_ipi (Uctxt);
-  plt_eoi_ipi ();
-  return uctxt_frame (Uctxt);
+  PlatformEoiIpi ();
+  return UctxtFrame (Uctxt);
 }

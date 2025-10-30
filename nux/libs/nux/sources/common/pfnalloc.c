@@ -26,8 +26,8 @@ static UINT32 gOrder;
 static UINTN gFreePages;
 
 rwlock_t gNuxPfnAllocLock;
-pfn_t (*gNuxPfnAlloc) (INT32) = &StreePfnAllocate;
-VOID (*gNuxPfnFree) (pfn_t) = &StreePfnFree;
+PFN (*gNuxPfnAlloc) (INT32) = &StreePfnAllocate;
+VOID (*gNuxPfnFree) (PFN) = &StreePfnFree;
 
 /**
   Initialize page frame allocator from HAL.
@@ -68,7 +68,7 @@ StreePfnInitialize (
 
   @return Page frame number, or PFN_INVALID if no pages available.
 **/
-pfn_t
+PFN
 StreePfnAllocate (
   IN INT32  Low
   )
@@ -89,11 +89,11 @@ StreePfnAllocate (
   if (Pg < 0)
     return PFN_INVALID;
 
-  Va = pfn_get (Pg);
+  Va = PfnGet (Pg);
   memset (Va, 0, PAGE_SIZE);
-  pfn_put (Pg, Va);
+  PfnPut (Pg, Va);
 
-  return (pfn_t) Pg;
+  return (PFN) Pg;
 }
 
 /**
@@ -106,7 +106,7 @@ StreePfnAllocate (
 **/
 VOID
 StreePfnFree (
-  IN pfn_t  Pfn
+  IN PFN  Pfn
   )
 {
   assert (Pfn != PFN_INVALID);
@@ -128,8 +128,8 @@ StreePfnFree (
 **/
 VOID
 NuxSetAllocator (
-  IN pfn_t (*Alloc) (INT32),
-  IN VOID (*Free) (pfn_t)
+  IN PFN (*Alloc) (INT32),
+  IN VOID (*Free) (PFN)
   )
 {
   writelock (&gNuxPfnAllocLock);
@@ -148,12 +148,12 @@ NuxSetAllocator (
 
   @return Page frame number, or PFN_INVALID if no pages available.
 **/
-pfn_t
+PFN
 PfnAllocate (
   IN INT32  Low
   )
 {
-  pfn_t Pfn;
+  PFN Pfn;
 
   readlock (&gNuxPfnAllocLock);
   Pfn = gNuxPfnAlloc (Low);
@@ -172,7 +172,7 @@ PfnAllocate (
 **/
 VOID
 PfnFree (
-  IN pfn_t  Pfn
+  IN PFN  Pfn
   )
 {
   readlock (&gNuxPfnAllocLock);
@@ -201,37 +201,37 @@ PfnAvailable (
 //
 
 /** @deprecated Use StreePfnInitialize instead **/
-void stree_pfninit (void) {
+void BatreePfnInitialize (void) {
   StreePfnInitialize ();
 }
 
 /** @deprecated Use StreePfnAllocate instead **/
-pfn_t stree_pfnalloc (int low) {
+PFN BatreePfnAlloc (int low) {
   return StreePfnAllocate (low);
 }
 
 /** @deprecated Use StreePfnFree instead **/
-void stree_pfnfree (pfn_t pfn) {
+void BatreePfnFree (PFN pfn) {
   StreePfnFree (pfn);
 }
 
 /** @deprecated Use NuxSetAllocator instead **/
-void nux_set_allocator (pfn_t (*alloc) (int), void (*free) (pfn_t)) {
+void nux_set_allocator (PFN (*alloc) (int), void (*free) (PFN)) {
   NuxSetAllocator (alloc, free);
 }
 
 /** @deprecated Use PfnAllocate instead **/
-pfn_t pfn_alloc (int low) {
+PFN PfnAlloc (int low) {
   return PfnAllocate (low);
 }
 
 /** @deprecated Use PfnFree instead **/
-void pfn_free (pfn_t pfn) {
+void PfnFree (PFN pfn) {
   PfnFree (pfn);
 }
 
 /** @deprecated Use PfnAvailable instead **/
-unsigned long pfn_avail (void) {
+unsigned long PfnAvail (void) {
   return PfnAvailable ();
 }
 
@@ -241,5 +241,5 @@ static WORD_T *stree __attribute__((alias("gStree")));
 static unsigned order __attribute__((alias("gOrder")));
 static unsigned long free_pages __attribute__((alias("gFreePages")));
 rwlock_t _nux_pfnalloc_lock __attribute__((alias("gNuxPfnAllocLock")));
-pfn_t (*_nux_pfnalloc) (int) __attribute__((alias("gNuxPfnAlloc")));
-void (*_nux_pfnfree) (pfn_t) __attribute__((alias("gNuxPfnFree")));
+PFN (*_nux_pfnalloc) (int) __attribute__((alias("gNuxPfnAlloc")));
+void (*_nux_pfnfree) (PFN) __attribute__((alias("gNuxPfnFree")));

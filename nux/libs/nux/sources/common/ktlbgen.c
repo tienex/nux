@@ -53,12 +53,12 @@ KtlbGenMarkDirty (
 
   @return Current global TLB generation value.
 **/
-tlbgen_t
+TLB_GENERATION
 KtlbGenGlobal (
   VOID
   )
 {
-  tlbgen_t Ret;
+  TLB_GENERATION Ret;
   __atomic_load (&gKtlb.global, &Ret, __ATOMIC_ACQUIRE);
   return Ret;
 }
@@ -71,12 +71,12 @@ KtlbGenGlobal (
 
   @return Current normal TLB generation value.
 **/
-tlbgen_t
+TLB_GENERATION
 KtlbGenNormal (
   VOID
   )
 {
-  tlbgen_t Ret;
+  TLB_GENERATION Ret;
   __atomic_load (&gKtlb.normal, &Ret, __ATOMIC_ACQUIRE);
   return Ret;
 }
@@ -91,12 +91,12 @@ void ktlbgen_markdirty (hal_tlbop_t op) {
 }
 
 /** @deprecated Use KtlbGenGlobal instead **/
-tlbgen_t ktlbgen_global (void) {
+TLB_GENERATION ktlbgen_global (void) {
   return KtlbGenGlobal ();
 }
 
 /** @deprecated Use KtlbGenNormal instead **/
-tlbgen_t ktlbgen_normal (void) {
+TLB_GENERATION ktlbgen_normal (void) {
   return KtlbGenNormal ();
 }
 

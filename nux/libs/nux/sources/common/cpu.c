@@ -25,8 +25,8 @@ static UINT32 gNumberCpus = 0;
 static UINT32 gCpuPhysToId[HAL_MAXCPUS] = { -1, };
 static struct cpu_info *gCpus[HAL_MAXCPUS] = { 0, };
 
-static cpumask_t gTlbMap = 0;
-static cpumask_t gCpusActive = 0;
+static CPU_MASK gTlbMap = 0;
+static CPU_MASK gCpusActive = 0;
 
 /** We use this struct during bootstrap before the cpu infrastructure has been initialised. The CPU number is zero. **/
 struct cpu_info __boot_cpuinfo = { 0, };
@@ -65,8 +65,8 @@ CpuAdd (
   printf ("%d[%d] ", Id, PhysId);
 
   /* We are at init-time. We use LOW KMEM via BRK. */
-  CpuInfo = (struct cpu_info *) kmem_brkgrow (1, sizeof (struct cpu_info));
-  CpuInfo->cpu_id = Id;
+  CpuInfo = (struct cpu_info *) KmemBrkGrow (1, sizeof (struct cpu_info));
+  CpuInfo->CpuId = Id;
   CpuInfo->phys_id = PhysId;
   CpuInfo->self = CpuInfo;
   hal_pcpu_add (PhysId, &CpuInfo->hal_cpu);
@@ -257,7 +257,7 @@ CpuStartAll (
 
   while ((Pcpu = plt_pcpu_iterate ()) != PLT_PCPU_INVALID)
     {
-      paddr_t Start;
+      PHYSICAL_ADDRESS Start;
 
       if (Pcpu == plt_pcpu_id ())
         continue;
@@ -284,12 +284,12 @@ CpuStartAll (
 
   @return Bitmask of active CPUs.
 **/
-cpumask_t
+CPU_MASK
 CpuGetActiveMask (
   VOID
   )
 {
-  cpumask_t Mask = atomic_cpumask (&gCpusActive);
+  CPU_MASK Mask = atomic_cpumask (&gCpusActive);
 
   return Mask;
 }
@@ -306,7 +306,7 @@ CpuGetId (
   VOID
   )
 {
-  return CpuGetCurrentInfo ()->cpu_id;
+  return CpuGetCurrentInfo ()->CpuId;
 }
 
 /**
@@ -329,7 +329,7 @@ CpuTryGetId (
   else
     {
       struct cpu_info *Ci = CpuGetCurrentInfo ();
-      return Ci->cpu_id;
+      return Ci->CpuId;
     }
 }
 
@@ -405,7 +405,7 @@ CpuSendNmi (
 **/
 VOID
 CpuSendNmiMask (
-  IN cpumask_t  Map
+  IN CPU_MASK  Map
   )
 {
   foreach_cpumask (Map, CpuSendNmi (i));
@@ -423,7 +423,7 @@ CpuSendNmiAllButSelf (
 {
   if (NuxStatusOkCpu ())
     {
-      cpumask_t Mask = CpuGetActiveMask ();
+      CPU_MASK Mask = CpuGetActiveMask ();
       cpumask_clear (&Mask, CpuGetId ());
       CpuSendNmiMask (Mask);
     }
@@ -482,7 +482,7 @@ CpuSendIpiBroadcast (
 **/
 VOID
 CpuSendIpiMask (
-  IN cpumask_t  Map
+  IN CPU_MASK  Map
   )
 {
   foreach_cpumask (Map, CpuSendIpi (i));
@@ -515,12 +515,12 @@ CpuKernelTlbUpdate (
   )
 {
   struct cpu_info *Ci = CpuGetCurrentInfo ();
-  tlbgen_t CpuGlobal, CpuNormal;
+  TLB_GENERATION CpuGlobal, CpuNormal;
 
   __atomic_load (&Ci->ktlb.global, &CpuGlobal, __ATOMIC_RELAXED);
   __atomic_load (&Ci->ktlb.normal, &CpuNormal, __ATOMIC_RELAXED);
-  tlbgen_t KGlobal = ktlbgen_global ();
-  tlbgen_t KNormal = ktlbgen_normal ();
+  TLB_GENERATION KGlobal = ktlbgen_global ();
+  TLB_GENERATION KNormal = ktlbgen_normal ();
 
   if (tlbgen_cmp (KGlobal, CpuGlobal) > 0)
     {
@@ -555,7 +555,7 @@ CpuKernelTlbUpdate (
 **/
 VOID
 CpuKernelTlbReach (
-  IN tlbgen_t  Target
+  IN TLB_GENERATION  Target
   )
 {
   if (!NuxStatusOkCpu ())
@@ -566,7 +566,7 @@ CpuKernelTlbReach (
     }
 
   struct cpu_info *Ci = CpuGetCurrentInfo ();
-  tlbgen_t CpuKtlb;
+  TLB_GENERATION CpuKtlb;
 
   __atomic_load (&Ci->ktlb.normal, &CpuKtlb, __ATOMIC_RELAXED);
 
@@ -588,8 +588,8 @@ CpuTlbFlushLocal (
 {
   /* We're flushing the cpu. Update the relevant kmap tlb generation. */
   struct cpu_info *Ci = CpuGetCurrentInfo ();
-  tlbgen_t KNormal = ktlbgen_normal ();
-  tlbgen_t CpuNormal;
+  TLB_GENERATION KNormal = ktlbgen_normal ();
+  TLB_GENERATION CpuNormal;
 
   __atomic_load (&Ci->ktlb.normal, &CpuNormal, __ATOMIC_RELAXED);
   hal_cpu_tlbop (HAL_TLBOP_FLUSH);
@@ -663,7 +663,7 @@ CpuKernelMapUpdateBroadcast (
   else
     {
       /*
-         PLT code might call kva_map() to map pages at startup.
+         PLT code might call KvaMap() to map pages at startup.
          When PLT starts the CPU subsystem hasn't started yet.
          Flush only the local TLBs, but globally.
        */
@@ -701,7 +701,7 @@ CpuTlbFlush (
 **/
 VOID
 CpuTlbFlushMask (
-  IN cpumask_t  Mask
+  IN CPU_MASK  Mask
   )
 {
   foreach_cpumask (Mask, CpuTlbFlush (i));
@@ -725,7 +725,7 @@ CpuTlbFlushBroadcast (
   else
     {
       /*
-         PLT code might call kva_map() to map pages at startup.
+         PLT code might call KvaMap() to map pages at startup.
          When PLT starts the CPU subsystem hasn't started yet.
          Flush only the local TLBs, but globally.
        */
@@ -799,14 +799,14 @@ CpuUserAccessEnd (
 BOOLEAN
 CpuUserAccessCopyFrom (
   OUT VOID          *Dst,
-  IN  uaddr_t       Src,
+  IN  USER_ADDRESS       Src,
   IN  size_t        Size,
-  IN  BOOLEAN       (*PfHandler)(uaddr_t Va, hal_pfinfo_t Info)
+  IN  BOOLEAN       (*PfHandler)(USER_ADDRESS Va, hal_pfinfo_t Info)
   )
 {
   struct cpu_info *Ci = CpuGetCurrentInfo ();
 
-  if (!uaddr_validrange (Src, Size))
+  if (!UaddrValidRange (Src, Size))
     return FALSE;
 
   CpuUserAccessStart ();
@@ -814,7 +814,7 @@ CpuUserAccessCopyFrom (
   __insn_barrier ();
   if (setjmp (Ci->usrpgfaultctx) != 0)
     {
-      uaddr_t Uaddr = Ci->usrpgaddr;
+      USER_ADDRESS Uaddr = Ci->usrpgaddr;
       hal_pfinfo_t PfInfo = Ci->usrpginfo;
 
       if (!PfHandler || !PfHandler (Uaddr, PfInfo))
@@ -849,15 +849,15 @@ CpuUserAccessCopyFrom (
 **/
 BOOLEAN
 CpuUserAccessCopyTo (
-  IN uaddr_t  Dst,
+  IN USER_ADDRESS  Dst,
   IN VOID     *Src,
   IN size_t   Size,
-  IN BOOLEAN  (*PfHandler)(uaddr_t Va, hal_pfinfo_t Info)
+  IN BOOLEAN  (*PfHandler)(USER_ADDRESS Va, hal_pfinfo_t Info)
   )
 {
   struct cpu_info *Ci = CpuGetCurrentInfo ();
 
-  if (!uaddr_validrange (Dst, Size))
+  if (!UaddrValidRange (Dst, Size))
     return FALSE;
 
   CpuUserAccessStart ();
@@ -865,7 +865,7 @@ CpuUserAccessCopyTo (
   __insn_barrier ();
   if (setjmp (Ci->usrpgfaultctx) != 0)
     {
-      uaddr_t Uaddr = Ci->usrpgaddr;
+      USER_ADDRESS Uaddr = Ci->usrpgaddr;
       hal_pfinfo_t PfInfo = Ci->usrpginfo;
 
       if (!PfHandler || !PfHandler (Uaddr, PfInfo))
@@ -900,22 +900,22 @@ CpuUserAccessCopyTo (
 **/
 BOOLEAN
 CpuUserAccessMemset (
-  IN uaddr_t  Dst,
+  IN USER_ADDRESS  Dst,
   IN INT32    Ch,
   IN size_t   Size,
-  IN BOOLEAN  (*PfHandler)(uaddr_t Va, hal_pfinfo_t Info)
+  IN BOOLEAN  (*PfHandler)(USER_ADDRESS Va, hal_pfinfo_t Info)
   )
 {
   struct cpu_info *Ci = CpuGetCurrentInfo ();
 
-  if (!uaddr_validrange (Dst, Size))
+  if (!UaddrValidRange (Dst, Size))
     return FALSE;
 
   Ci->usrpgfault = 1;
   __insn_barrier ();
   if (setjmp (Ci->usrpgfaultctx) != 0)
     {
-      uaddr_t Uaddr = Ci->usrpgaddr;
+      USER_ADDRESS Uaddr = Ci->usrpgaddr;
       hal_pfinfo_t PfInfo = Ci->usrpginfo;
 
       if (!PfHandler || !PfHandler (Uaddr, PfInfo))
@@ -945,7 +945,7 @@ CpuUserAccessMemset (
 **/
 VOID
 CpuUserAccessCheckPageFault (
-  IN uaddr_t       Addr,
+  IN USER_ADDRESS       Addr,
   IN hal_pfinfo_t  Info
   )
 {
@@ -1075,12 +1075,12 @@ void cpu_startall (void) {
 }
 
 /** @deprecated Use CpuGetActiveMask instead **/
-cpumask_t cpu_activemask (void) {
+CPU_MASK CpuActiveMask (void) {
   return CpuGetActiveMask ();
 }
 
 /** @deprecated Use CpuGetId instead **/
-unsigned cpu_id (void) {
+unsigned CpuId (void) {
   return CpuGetId ();
 }
 
@@ -1090,27 +1090,27 @@ unsigned cpu_try_id (void) {
 }
 
 /** @deprecated Use CpuSetData instead **/
-void cpu_setdata (void *ptr) {
+void CpuSetData (void *ptr) {
   CpuSetData (ptr);
 }
 
 /** @deprecated Use CpuGetData instead **/
-void *cpu_getdata (void) {
+void *CpuGetData (void) {
   return CpuGetData ();
 }
 
 /** @deprecated Use CpuGetNumber instead **/
-unsigned cpu_num (void) {
+unsigned CpuNum (void) {
   return CpuGetNumber ();
 }
 
 /** @deprecated Use CpuSendNmi instead **/
-void cpu_nmi (int cpu) {
+void CpuNmi (int cpu) {
   CpuSendNmi (cpu);
 }
 
 /** @deprecated Use CpuSendNmiMask instead **/
-void cpu_nmi_mask (cpumask_t map) {
+void cpu_nmi_mask (CPU_MASK map) {
   CpuSendNmiMask (map);
 }
 
@@ -1125,7 +1125,7 @@ void cpu_nmi_broadcast (void) {
 }
 
 /** @deprecated Use CpuSendIpi instead **/
-void cpu_ipi (int cpu) {
+void CpuIpi (int cpu) {
   CpuSendIpi (cpu);
 }
 
@@ -1135,12 +1135,12 @@ void cpu_ipi_broadcast (void) {
 }
 
 /** @deprecated Use CpuSendIpiMask instead **/
-void cpu_ipi_mask (cpumask_t map) {
+void cpu_ipi_mask (CPU_MASK map) {
   CpuSendIpiMask (map);
 }
 
 /** @deprecated Use CpuIdle instead **/
-void cpu_idle (void) {
+void CpuIdle (void) {
   CpuIdle ();
 }
 
@@ -1150,7 +1150,7 @@ void cpu_ktlb_update (void) {
 }
 
 /** @deprecated Use CpuKernelTlbReach instead **/
-void cpu_ktlb_reach (tlbgen_t target) {
+void cpu_ktlb_reach (TLB_GENERATION target) {
   CpuKernelTlbReach (target);
 }
 
@@ -1180,7 +1180,7 @@ void cpu_tlbflush (int cpu) {
 }
 
 /** @deprecated Use CpuTlbFlushMask instead **/
-void cpu_tlbflush_mask (cpumask_t mask) {
+void cpu_tlbflush_mask (CPU_MASK mask) {
   CpuTlbFlushMask (mask);
 }
 
@@ -1205,25 +1205,25 @@ static void cpu_useraccess_end (void) {
 }
 
 /** @deprecated Use CpuUserAccessCopyFrom instead **/
-bool cpu_useraccess_copyfrom (void *dst, uaddr_t src, size_t size,
-                              bool (*pf_handler) (uaddr_t va, hal_pfinfo_t info)) {
+bool cpu_useraccess_copyfrom (void *dst, USER_ADDRESS src, size_t size,
+                              bool (*pf_handler) (USER_ADDRESS va, hal_pfinfo_t info)) {
   return CpuUserAccessCopyFrom (dst, src, size, pf_handler);
 }
 
 /** @deprecated Use CpuUserAccessCopyTo instead **/
-bool cpu_useraccess_copyto (uaddr_t dst, void *src, size_t size,
-                            bool (*pf_handler) (uaddr_t va, hal_pfinfo_t info)) {
+bool cpu_useraccess_copyto (USER_ADDRESS dst, void *src, size_t size,
+                            bool (*pf_handler) (USER_ADDRESS va, hal_pfinfo_t info)) {
   return CpuUserAccessCopyTo (dst, src, size, pf_handler);
 }
 
 /** @deprecated Use CpuUserAccessMemset instead **/
-bool cpu_useraccess_memset (uaddr_t dst, int ch, size_t size,
-                            bool (*pf_handler) (uaddr_t va, hal_pfinfo_t info)) {
+bool cpu_useraccess_memset (USER_ADDRESS dst, int ch, size_t size,
+                            bool (*pf_handler) (USER_ADDRESS va, hal_pfinfo_t info)) {
   return CpuUserAccessMemset (dst, ch, size, pf_handler);
 }
 
 /** @deprecated Use CpuUserAccessCheckPageFault instead **/
-void cpu_useraccess_checkpf (uaddr_t addr, hal_pfinfo_t info) {
+void cpu_useraccess_checkpf (USER_ADDRESS addr, hal_pfinfo_t info) {
   CpuUserAccessCheckPageFault (addr, info);
 }
 
@@ -1246,5 +1246,5 @@ struct umap *cpu_umap_exit (void) {
 static unsigned number_cpus __attribute__((alias("gNumberCpus")));
 static unsigned cpu_phys_to_id[HAL_MAXCPUS] __attribute__((alias("gCpuPhysToId")));
 static struct cpu_info *cpus[HAL_MAXCPUS] __attribute__((alias("gCpus")));
-static cpumask_t tlbmap __attribute__((alias("gTlbMap")));
-static cpumask_t cpus_active __attribute__((alias("gCpusActive")));
+static CPU_MASK tlbmap __attribute__((alias("gTlbMap")));
+static CPU_MASK cpus_active __attribute__((alias("gCpusActive")));

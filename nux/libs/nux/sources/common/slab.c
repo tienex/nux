@@ -68,13 +68,13 @@ SlabAllocate (
   OUT struct objhdr  **ppObjectHeader
   )
 {
-  vaddr_t KvaUnaligned, KvaUnalignedEnd, KvaStart, KvaEnd;
+  VIRTUAL_ADDRESS KvaUnaligned, KvaUnalignedEnd, KvaStart, KvaEnd;
 
   KvaUnaligned = KvaAllocate (2 * SLAB_SIZE - PAGE_SIZE);
   KvaUnalignedEnd = KvaUnaligned + 2 * SLAB_SIZE - PAGE_SIZE;
 
   if (KvaUnaligned % SLAB_SIZE)
-    KvaStart = (KvaUnaligned + SLAB_SIZE - 1) & ~((vaddr_t) SLAB_SIZE - 1);
+    KvaStart = (KvaUnaligned + SLAB_SIZE - 1) & ~((VIRTUAL_ADDRESS) SLAB_SIZE - 1);
   else
     KvaStart = KvaUnaligned;
   KvaEnd = KvaStart + SLAB_SIZE;
@@ -132,9 +132,9 @@ SlabFreeInternal (
   IN VOID  *Ptr
   )
 {
-  KmapEnsureRange ((vaddr_t) Ptr, SLAB_SIZE, 0);
+  KmapEnsureRange ((VIRTUAL_ADDRESS) Ptr, SLAB_SIZE, 0);
   KmapCommit ();
-  KvaFree ((vaddr_t) Ptr, SLAB_SIZE);
+  KvaFree ((VIRTUAL_ADDRESS) Ptr, SLAB_SIZE);
 }
 
 //

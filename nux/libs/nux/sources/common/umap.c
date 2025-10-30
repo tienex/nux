@@ -33,15 +33,15 @@
 static BOOLEAN
 UmapSetL1e (
   IN  struct umap  *Umap,
-  IN  vaddr_t      Va,
+  IN  VIRTUAL_ADDRESS      Va,
   IN  hal_l1e_t    L1e,
   IN  BOOLEAN      Alloc,
-  OUT pfn_t        *OldPfn OPTIONAL
+  OUT PFN        *OldPfn OPTIONAL
   )
 {
   hal_l1p_t L1p;
   hal_l1e_t OldL1e;
-  pfn_t OldPfn;
+  PFN OldPfn;
   UINT32 OldProt;
   struct hal_umap *Hal;
 
@@ -80,14 +80,14 @@ UmapSetL1e (
 UINT32
 UmapChangeFlags (
   IN struct umap  *Umap,
-  IN vaddr_t      Va,
+  IN VIRTUAL_ADDRESS      Va,
   IN UINT32       ProtSet,
   IN UINT32       ProtClr
   )
 {
   hal_l1p_t L1p;
   hal_l1e_t OldL1e, L1e;
-  pfn_t Pfn;
+  PFN Pfn;
   UINT32 OldFlags, Flags;
 
   if (!hal_umap_getl1p (&Umap->hal, Va, FALSE, &L1p))
@@ -122,10 +122,10 @@ UmapChangeFlags (
 BOOLEAN
 UmapMap (
   IN  struct umap  *Umap,
-  IN  vaddr_t      Va,
-  IN  pfn_t        Pfn,
+  IN  VIRTUAL_ADDRESS      Va,
+  IN  PFN        Pfn,
   IN  UINT32       Prot,
-  OUT pfn_t        *OldPfn OPTIONAL
+  OUT PFN        *OldPfn OPTIONAL
   )
 {
   hal_l1e_t L1e;
@@ -145,15 +145,15 @@ UmapMap (
 
   @return Previous PFN if page was present, or PFN_INVALID if not mapped.
 **/
-pfn_t
+PFN
 UmapUnmap (
   IN struct umap  *Umap,
-  IN vaddr_t      Va
+  IN VIRTUAL_ADDRESS      Va
   )
 {
   hal_l1p_t L1p;
   hal_l1e_t L1e, OldL1e;
-  pfn_t OldPfn;
+  PFN OldPfn;
   UINT32 OldProt;
 
   if (!hal_umap_getl1p (&Umap->hal, Va, FALSE, &L1p))
@@ -245,44 +245,44 @@ UmapInitialize (
 //
 
 /** @deprecated Use UmapSetL1e instead **/
-static bool _umap_setl1e (struct umap *umap, vaddr_t va, hal_l1e_t l1e, bool alloc,
-	      pfn_t * opfn) {
+static bool _umap_setl1e (struct umap *umap, VIRTUAL_ADDRESS va, hal_l1e_t l1e, bool alloc,
+	      PFN * opfn) {
   return UmapSetL1e (umap, va, l1e, alloc, opfn);
 }
 
 /** @deprecated Use UmapChangeFlags instead **/
-unsigned umap_chflags (struct umap *umap, vaddr_t va,
+unsigned UmapChFlags (struct umap *umap, VIRTUAL_ADDRESS va,
 	      unsigned prot_set, unsigned prot_clr) {
   return UmapChangeFlags (umap, va, prot_set, prot_clr);
 }
 
 /** @deprecated Use UmapMap instead **/
-bool umap_map (struct umap *umap, vaddr_t va, pfn_t pfn, unsigned prot,
-	  pfn_t * opfn) {
+bool UmapMap (struct umap *umap, VIRTUAL_ADDRESS va, PFN pfn, unsigned prot,
+	  PFN * opfn) {
   return UmapMap (umap, va, pfn, prot, opfn);
 }
 
 /** @deprecated Use UmapUnmap instead **/
-pfn_t umap_unmap (struct umap *umap, vaddr_t va) {
+PFN UmapUnmap (struct umap *umap, VIRTUAL_ADDRESS va) {
   return UmapUnmap (umap, va);
 }
 
 /** @deprecated Use UmapCommit instead **/
-void umap_commit (struct umap *umap) {
+void UmapCommit (struct umap *umap) {
   UmapCommit (umap);
 }
 
 /** @deprecated Use UmapBootstrap instead **/
-void umap_bootstrap (struct umap *umap) {
+void UmapBootstrap (struct umap *umap) {
   UmapBootstrap (umap);
 }
 
 /** @deprecated Use UmapFree instead **/
-void umap_free (struct umap *umap) {
+void UmapFree (struct umap *umap) {
   UmapFree (umap);
 }
 
 /** @deprecated Use UmapInitialize instead **/
-void umap_init (struct umap *umap) {
+void UmapInit (struct umap *umap) {
   UmapInitialize (umap);
 }

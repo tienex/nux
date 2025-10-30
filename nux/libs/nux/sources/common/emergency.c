@@ -107,6 +107,6 @@ exit (
 //
 
 /** @deprecated Use NuxPanic instead **/
-void __dead nux_panic (const char *message, struct hal_frame *f) {
+void __dead NuxPanic (const char *message, struct hal_frame *f) {
   NuxPanic (message, f);
 }
