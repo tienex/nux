@@ -39,36 +39,36 @@ LoadTable (
   )
 {
   INT32 i;
-  UINT8 Sum, *pPtr;
-  struct acpi_thdr *pTbl;
+  UINT8 Sum, *Ptr;
+  struct acpi_thdr *Tbl;
 
-  pTbl = (struct acpi_thdr *) KvaMapPhysical (Pa, ACPI_MAX_TBL, HAL_PTE_P);
+  Tbl = (struct acpi_thdr *) KvaMapPhysical (Pa, ACPI_MAX_TBL, HAL_PTE_P);
 
-  if (pTbl->length >= ACPI_MAX_TBL)
+  if (Tbl->length >= ACPI_MAX_TBL)
     {
       error ("Table %4.4s [%6.6s %8.8s rev%d] size %d > ACPI_MAX_TBL. Skipping checks.",
-	     pTbl->signature, pTbl->oemid, pTbl->oemtableid, pTbl->oemrevision,
-	     pTbl->length);
-      return pTbl;
+	     Tbl->signature, Tbl->oemid, Tbl->oemtableid, Tbl->oemrevision,
+	     Tbl->length);
+      return Tbl;
     }
 
   Sum = 0;
-  pPtr = (UINT8 *) pTbl;
+  Ptr = (UINT8 *) Tbl;
 
-  for (i = 0; i < pTbl->length; i++)
+  for (i = 0; i < Tbl->length; i++)
     {
-      Sum += pPtr[i];
+      Sum += Ptr[i];
     }
   if (Sum != 0)
     {
       warn ("Wrong checksum %d != 0 for ACPI table", Sum);
-      KvaUnmap (pTbl, ACPI_MAX_TBL);
+      KvaUnmap (Tbl, ACPI_MAX_TBL);
       return NULL;
     }
 
-  debug ("loaded table '%4.4s' [%6.6s %8.8s rev%d]", pTbl->signature,
-	 pTbl->oemid, pTbl->oemtableid, pTbl->oemrevision);
-  return pTbl;
+  debug ("loaded table '%4.4s' [%6.6s %8.8s rev%d]", Tbl->signature,
+	 Tbl->oemid, Tbl->oemtableid, Tbl->oemrevision);
+  return Tbl;
 }
 
 /**
@@ -80,10 +80,10 @@ LoadTable (
 **/
 static VOID
 UnloadTable (
-  IN VOID  *pTbl
+  IN VOID  *Tbl
   )
 {
-  KvaUnmap (pTbl, ACPI_MAX_TBL);
+  KvaUnmap (Tbl, ACPI_MAX_TBL);
 }
 
 /**
@@ -95,11 +95,11 @@ UnloadTable (
 **/
 static VOID
 PrintTable (
-  IN struct acpi_thdr  *pTbl
+  IN struct acpi_thdr  *Tbl
   )
 {
-  info ("TABLE '%4.4s' [%6.6s %8.8s rev%d]", pTbl->signature, pTbl->oemid,
-	pTbl->oemtableid, pTbl->oemrevision);
+  info ("TABLE '%4.4s' [%6.6s %8.8s rev%d]", Tbl->signature, Tbl->oemid,
+	Tbl->oemtableid, Tbl->oemrevision);
 }
 
 /**
