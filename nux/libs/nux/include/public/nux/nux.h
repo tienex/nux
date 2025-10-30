@@ -1505,16 +1505,6 @@ UINTN PfnAvail (VOID);
 PFN StreePfnAlloc (IN INT32 Low);
 VOID StreePfnFree (IN PFN Pfn);
 
-/** Legacy compatibility **/
-#define pfn_get PfnGet
-#define pfn_put PfnPut
-#define nux_set_allocator NuxSetAllocator
-#define pfn_alloc PfnAlloc
-#define pfn_free PfnFree
-#define pfn_avail PfnAvail
-#define stree_pfnalloc StreePfnAlloc
-#define stree_pfnfree StreePfnFree
-
 //
 // Kernel Virtual Address Operations
 //
@@ -1524,13 +1514,6 @@ VOID KvaFree (IN VIRTUAL_ADDRESS Va, IN UINTN Size);
 VOID *KvaMap (IN PFN Pfn, IN UINT32 Prot);
 VOID *KvaPhysMap (IN PHYSICAL_ADDRESS Paddr, IN UINTN Size, IN UINT32 Prot);
 VOID KvaUnmap (IN VOID *Va, IN UINTN Size);
-
-/** Legacy compatibility **/
-#define kva_alloc KvaAlloc
-#define kva_free KvaFree
-#define kva_map KvaMap
-#define kva_physmap KvaPhysMap
-#define kva_unmap KvaUnmap
 
 //
 // Kernel Mapping Operations
@@ -1548,19 +1531,6 @@ volatile TLB_GENERATION KmapTlbGen (VOID);
 volatile TLB_GENERATION KmapTlbGenGlobal (VOID);
 VOID KmapCommit (VOID);
 
-/** Legacy compatibility **/
-#define kmap_getpfn KmapGetPfn
-#define kmap_map KmapMap
-#define kmap_map_noalloc KmapMapNoAlloc
-#define kmap_unmap KmapUnmap
-#define kmap_mapped KmapMapped
-#define kmap_mapped_range KmapMappedRange
-#define kmap_ensure KmapEnsure
-#define kmap_ensure_range KmapEnsureRange
-#define kmap_tlbgen KmapTlbGen
-#define kmap_tlbgen_global KmapTlbGenGlobal
-#define kmap_commit KmapCommit
-
 //
 // Kernel Memory Operations
 //
@@ -1573,16 +1543,6 @@ VIRTUAL_ADDRESS KmemAlloc (IN INT32 Low, IN UINTN Size);
 VOID KmemFree (IN INT32 Low, IN VIRTUAL_ADDRESS Vaddr, IN UINTN Size);
 VOID KmemTrimSetMode (IN UINT32 TrimMode);
 VOID KmemTrimOne (IN UINT32 TrimMode);
-
-/** Legacy compatibility **/
-#define kmem_brk KmemBrk
-#define kmem_sbrk KmemSbrk
-#define kmem_brkgrow KmemBrkGrow
-#define kmem_brkshrink KmemBrkShrink
-#define kmem_alloc KmemAlloc
-#define kmem_free KmemFree
-#define kmem_trim_setmode KmemTrimSetMode
-#define kmem_trim_one KmemTrimOne
 
 //
 // CPU Operations
@@ -1618,37 +1578,6 @@ UMAP *CpuUmapCurrent (VOID);
 VOID CpuUmapEnter (IN UMAP *Umap);
 UMAP *CpuUmapExit (VOID);
 
-/** Legacy compatibility **/
-#define cpu_startall CpuStartAll
-#define cpu_id CpuId
-#define cpu_num CpuNum
-#define cpu_activemask CpuActiveMask
-#define cpu_setdata CpuSetData
-#define cpu_getdata CpuGetData
-#define cpu_idle CpuIdle
-#define cpu_nmi CpuNmi
-#define cpu_nmi_mask CpuNmiMask
-#define cpu_nmi_allbutself CpuNmiAllButSelf
-#define cpu_nmi_broadcast CpuNmiBroadcast
-#define cpu_ipi CpuIpi
-#define cpu_ipi_mask CpuIpiMask
-#define cpu_ipi_broadcast CpuIpiBroadcast
-#define cpu_tlbflush CpuTlbFlush
-#define cpu_tlbflush_mask CpuTlbFlushMask
-#define cpu_tlbflush_broadcast CpuTlbFlushBroadcast
-#define cpu_tlbflush_broadcast_sync CpuTlbFlushBroadcastSync
-#define cpu_ktlb_update CpuKtlbUpdate
-#define cpu_ktlb_reach CpuKtlbReach
-#define cpu_stop CpuStop
-#define cpu_stop_mask CpuStopMask
-#define cpu_stop_broadcast CpuStopBroadcast
-#define cpu_useraccess_copyfrom CpuUserAccessCopyFrom
-#define cpu_useraccess_copyto CpuUserAccessCopyTo
-#define cpu_useraccess_memset CpuUserAccessMemset
-#define cpu_umap_current CpuUmapCurrent
-#define cpu_umap_enter CpuUmapEnter
-#define cpu_umap_exit CpuUmapExit
-
 //
 // Timer Operations
 //
@@ -1656,11 +1585,6 @@ UMAP *CpuUmapExit (VOID);
 VOID TimerAlarm (IN UINT32 TimeNs);
 VOID TimerClear (VOID);
 UINT64 TimerGetTime (VOID);
-
-/** Legacy compatibility **/
-#define timer_alarm TimerAlarm
-#define timer_clear TimerClear
-#define timer_gettime TimerGetTime
 
 //
 // User Mapping Operations
@@ -1674,15 +1598,6 @@ UINT32 UmapChFlags (IN OUT UMAP *Umap, IN VIRTUAL_ADDRESS Va, IN UINT32 ProtSet,
 PFN UmapUnmap (IN OUT UMAP *Umap, IN VIRTUAL_ADDRESS Va);
 VOID UmapCommit (IN OUT UMAP *Umap);
 
-/** Legacy compatibility **/
-#define umap_bootstrap UmapBootstrap
-#define umap_init UmapInit
-#define umap_free UmapFree
-#define umap_map UmapMap
-#define umap_chflags UmapChFlags
-#define umap_unmap UmapUnmap
-#define umap_commit UmapCommit
-
 //
 // User Address Operations
 //
@@ -1692,13 +1607,6 @@ BOOLEAN UaddrValidRange (IN USER_ADDRESS Addr, IN UINTN Size);
 BOOLEAN UaddrCopyFrom (OUT VOID *Dst, IN USER_ADDRESS Src, IN UINTN Size, IN BOOLEAN (*PfHandler)(USER_ADDRESS Va, UINTN Info) OPTIONAL);
 BOOLEAN UaddrCopyTo (IN USER_ADDRESS Dst, IN VOID *Src, IN UINTN Size, IN BOOLEAN (*PfHandler)(USER_ADDRESS Va, UINTN Info) OPTIONAL);
 BOOLEAN UaddrMemset (IN USER_ADDRESS Dst, IN INT32 Ch, IN UINTN Size, IN BOOLEAN (*PfHandler)(USER_ADDRESS Va, UINTN Info) OPTIONAL);
-
-/** Legacy compatibility **/
-#define uaddr_valid UaddrValid
-#define uaddr_validrange UaddrValidRange
-#define uaddr_copyfrom UaddrCopyFrom
-#define uaddr_copyto UaddrCopyTo
-#define uaddr_memset UaddrMemset
 
 //
 // User Context Operations
@@ -1718,30 +1626,5 @@ VOID UctxtSetA1 (IN OUT UCTXT *Uctxt, IN UINTN A1);
 VOID UctxtSetA2 (IN OUT UCTXT *Uctxt, IN UINTN A2);
 VOID UctxtSetTls (IN OUT UCTXT *Uctxt, IN UINTN Tls);
 VOID UctxtPrint (IN UCTXT *Uctxt);
-
-/** Legacy compatibility **/
-#define uctxt_bootstrap UctxtBootstrap
-#define uctxt_init UctxtInit
-#define uctxt_setip UctxtSetIp
-#define uctxt_getip UctxtGetIp
-#define uctxt_setsp UctxtSetSp
-#define uctxt_getsp UctxtGetSp
-#define uctxt_setgp UctxtSetGp
-#define uctxt_getgp UctxtGetGp
-#define uctxt_setret UctxtSetRet
-#define uctxt_seta0 UctxtSetA0
-#define uctxt_seta1 UctxtSetA1
-#define uctxt_seta2 UctxtSetA2
-#define uctxt_settls UctxtSetTls
-#define uctxt_print UctxtPrint
-
-//
-// Legacy Wrapper Functions
-//
-
-/** @deprecated Use NuxPanic instead **/
-static inline void __dead nux_panic (const char *message, struct hal_frame *f) {
-  NuxPanic (message, f);
-}
 
 #endif // _NUX_H

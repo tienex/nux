@@ -1185,16 +1185,16 @@ static inline __dead void hal_panic (unsigned cpu, const char *error, struct hal
 // HAL Entry Points (callbacks from HAL to kernel)
 //
 
-struct hal_frame *hal_entry_pf (struct hal_frame *f, unsigned long va, hal_pfinfo_t pfi);
-struct hal_frame *hal_entry_xcpt (struct hal_frame *f, unsigned ex);
-struct hal_frame *hal_entry_irq (struct hal_frame *f, unsigned irq, bool level);
-struct hal_frame *hal_entry_timer (struct hal_frame *f);
-struct hal_frame *hal_entry_ipi (struct hal_frame *f);
-struct hal_frame *hal_entry_syscall (struct hal_frame *f, unsigned long a1,
-                                      unsigned long a2, unsigned long a3,
-                                      unsigned long a4, unsigned long a5,
-                                      unsigned long a6, unsigned long a7);
-void hal_entry_nmi (struct hal_frame *f);
-void hal_main_ap (void);
+struct hal_frame *HalEntryPageFault (IN struct hal_frame *Frame, IN UINTN Va, IN hal_pfinfo_t PfInfo);
+struct hal_frame *HalEntryException (IN struct hal_frame *Frame, IN UINT32 ExceptionNumber);
+struct hal_frame *HalEntryIrq (IN struct hal_frame *Frame, IN UINT32 IrqNumber, IN BOOLEAN Level);
+struct hal_frame *HalEntryTimer (IN struct hal_frame *Frame);
+struct hal_frame *HalEntryIpi (IN struct hal_frame *Frame);
+struct hal_frame *HalEntrySyscall (IN struct hal_frame *Frame, IN UINTN Arg1,
+                                   IN UINTN Arg2, IN UINTN Arg3,
+                                   IN UINTN Arg4, IN UINTN Arg5,
+                                   IN UINTN Arg6, IN UINTN Arg7);
+VOID HalEntryNmi (IN struct hal_frame *Frame);
+VOID HalMainAp (VOID);
 
 #endif // _HAL_H
