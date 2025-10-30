@@ -19,9 +19,9 @@
 #endif
 
 #ifdef ALLOCDEBUG
-#define dbgprintf(...) printf (__VA_ARGS__)
+#define DBGPRINTF(...) printf (__VA_ARGS__)
 #else
-#define dbgprintf(...)
+#define DBGPRINTF(...)
 #endif
 
 #ifndef __ZADDR_T
@@ -73,9 +73,6 @@ typedef struct _ZONE
   unsigned       Nfree;           ///< Number of free entries
 } ZONE, *PZONE, *PCZONE;
 
-/** Legacy type alias for compatibility **/
-#define zone ZONE
-
 static INLINE void
 _zone_detachentry (struct zone *z, struct __ZENTRY *ze)
 {
@@ -86,12 +83,12 @@ _zone_detachentry (struct zone *z, struct __ZENTRY *ze)
   assert (msb < ORDMAX);
 
   LIST_REMOVE (ze, list);
-  dbgprintf ("LIST_REMOVE: %p (%lx ->", ze, z->Bmap);
+  DBGPRINTF ("LIST_REMOVE: %p (%lx ->", ze, z->Bmap);
   if (LIST_EMPTY (z->Zlist + msb))
     z->Bmap &= ~(1UL << msb);
-  dbgprintf (" %lx)", z->Bmap);
+  DBGPRINTF (" %lx)", z->Bmap);
   z->Nfree -= ze->size;
-  dbgprintf ("D<%p>(%lx,%lx)", ze, ze->addr, ze->size);
+  DBGPRINTF ("D<%p>(%lx,%lx)", ze, ze->addr, ze->size);
 }
 
 static INLINE void
@@ -103,15 +100,15 @@ _zone_attachentry (struct zone *z, struct __ZENTRY *ze)
   msb = msbit (ze->size);
   assert (msb < ORDMAX);
 
-  dbgprintf ("LIST_INSERT(%p + %d, %p), bmap (%lx ->", z->Zlist, msb,
+  DBGPRINTF ("LIST_INSERT(%p + %d, %p), bmap (%lx ->", z->Zlist, msb,
 	     ze, z->Bmap);
   z->Bmap |= (1UL << msb);
-  dbgprintf (" %lx", z->Bmap);
+  DBGPRINTF (" %lx", z->Bmap);
 
 
   LIST_INSERT_HEAD (z->Zlist + msb, ze, list);
   z->Nfree += ze->size;
-  dbgprintf ("A<%p>(%lx,%lx)", ze, ze->addr, ze->size);
+  DBGPRINTF ("A<%p>(%lx,%lx)", ze, ze->addr, ze->size);
 }
 
 static INLINE struct __ZENTRY *
@@ -137,7 +134,7 @@ _zone_findfree (struct zone *zn, UINTN size)
     {
       tmp = lsbit (tmp);
       ze = LIST_FIRST (zn->Zlist + minbit + tmp);
-      dbgprintf ("LIST_FIRST(%p + %d + %d) = %p", zn->Zlist, minbit, tmp, ze);
+      DBGPRINTF ("LIST_FIRST(%p + %d + %d) = %p", zn->Zlist, minbit, tmp, ze);
     }
   return ze;
 }
@@ -154,23 +151,23 @@ zone_create (struct zone *z, zaddr_t zaddr, UINTN size)
 {
   struct __ZENTRY *ze, *pze = NULL, *nze = NULL;
   zaddr_t fprev = zaddr, lnext = zaddr + size;
-  dbgprintf ("HHH");
+  DBGPRINTF ("HHH");
   ___get_neighbors (zaddr, size, &pze, &nze, z->Opq);
-  dbgprintf ("HHH");
+  DBGPRINTF ("HHH");
   if (pze)
     {
       fprev = pze->addr;
       zone_remove (z, pze);
     }
-  dbgprintf ("HHH");
+  DBGPRINTF ("HHH");
   if (nze)
     {
       lnext = nze->addr + nze->size;
       zone_remove (z, nze);
     }
-  dbgprintf ("HHH");
+  DBGPRINTF ("HHH");
   ze = ___mkptr (fprev, lnext - fprev, z->Opq);
-  dbgprintf ("MKPTR(%p): %lx,%lx", ze, ze->addr, ze->size);
+  DBGPRINTF ("MKPTR(%p): %lx,%lx", ze, ze->addr, ze->size);
   _zone_attachentry (z, ze);
 }
 
@@ -180,7 +177,7 @@ zone_free (struct zone *z, zaddr_t zaddr, UINTN size)
 {
 
   assert (size != 0);
-  dbgprintf ("Freeing %lx", zaddr);
+  DBGPRINTF ("Freeing %lx", zaddr);
   zone_create (z, zaddr, size);
 }
 
@@ -205,7 +202,7 @@ zone_alloc (struct zone *z, UINTN size)
     zone_create (z, addr + size, diff);
 
 out:
-  dbgprintf ("Allocating %lx", addr);
+  DBGPRINTF ("Allocating %lx", addr);
   return addr;
 }
 
