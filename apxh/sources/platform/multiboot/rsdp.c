@@ -126,7 +126,7 @@ BiosFindRsdp (
   VOID
   )
 {
-  unsigned PAddr;
+  UINT32 PAddr;
   VOID *MemStart = (VOID *) 0;
 
   debug ("Searching for RSDP.");
@@ -180,28 +180,4 @@ RsdpFind (
 
   info ("RSDP found at %p", Rsdp);
   return (UINT64) (UINTN) Rsdp;
-}
-
-//
-// Legacy Function Wrappers (for backward compatibility)
-//
-
-/** @deprecated Use RsdpScan instead **/
-static void *rsdp_scan (void *base, size_t size) {
-  return RsdpScan (base, size);
-}
-
-/** @deprecated Use RsdpCheck instead **/
-static bool rsdp_check (void *ptr) {
-  return RsdpCheck (ptr);
-}
-
-/** @deprecated Use BiosFindRsdp instead **/
-static void *bios_find_rsdp (void) {
-  return BiosFindRsdp ();
-}
-
-/** @deprecated Use RsdpFind instead **/
-UINT64 rsdp_find (void) {
-  return RsdpFind ();
 }
