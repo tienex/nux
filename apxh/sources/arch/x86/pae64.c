@@ -42,8 +42,8 @@ Pae64GetL3p (
   )
 {
   PTE *pL4p, *pL3p;
-  unsigned L4Off = L4OFF64 (Va);
-  unsigned L3Off = L3OFF64 (Va);
+  UINT32 L4Off = L4OFF64 (Va);
+  UINT32 L3Off = L3OFF64 (Va);
 
   pL4p = pCr3 + L4Off;
 
@@ -83,7 +83,7 @@ Pae64GetL2p (
 {
   PTE *pL3p, *pL2p;
 
-  unsigned L2Off = L2OFF64 (Va);
+  UINT32 L2Off = L2OFF64 (Va);
 
   pL3p = Pae64GetL3p (pCr3, Va, Payload);
 
@@ -122,7 +122,7 @@ Pae64GetL1p (
   )
 {
   PTE *pL2p, *pL1p;
-  unsigned L1Off = L1OFF64 (Va);
+  UINT32 L1Off = L1OFF64 (Va);
 
   pL2p = Pae64GetL2p (pCr3, Va, Payload);
 
@@ -293,10 +293,10 @@ Pae64GetPhys (
 {
   UINTN Page;
   PTE *pL4p, *pL3p, *pL2p, *pL1p;
-  unsigned L4Off = L4OFF64 (Va);
-  unsigned L3Off = L3OFF64 (Va);
-  unsigned L2Off = L2OFF64 (Va);
-  unsigned L1Off = L1OFF64 (Va);
+  UINT32 L4Off = L4OFF64 (Va);
+  UINT32 L3Off = L3OFF64 (Va);
+  UINT32 L2Off = L2OFF64 (Va);
+  UINT32 L1Off = L1OFF64 (Va);
 
   pL4p = gPae64Cr3 + L4Off;
 
@@ -347,8 +347,8 @@ Pae64DirectMap (
   SSIZE64 Len;
   UINT64 Pa;
   PTE *pCr3 = (PTE *) Pt;
-  int P1G = CpuSupports1gbPages ();
-  unsigned long L3Cnt = 0, L2Cnt = 0, L1Cnt = 0;
+INT32 P1G = CpuSupports1gbPages ();
+  UINTN L3Cnt = 0, L2Cnt = 0, L1Cnt = 0;
 
 #define GB1ALIGNED(_a) (((_a) & ((1L << 30) - 1)) == 0)
 #define MB2ALIGNED(_a) (((_a) & ((1L << 21) - 1)) == 0)
@@ -437,7 +437,7 @@ Pae64TopPtAlloc (
   IN SIZE64  Size
   )
 {
-  unsigned i, n;
+  UINT32 i, n;
 
   n = (Size + (1 << 30) - 1) >> 30;
 
@@ -459,7 +459,7 @@ Pae64PtAlloc (
   IN SIZE64  Size
   )
 {
-  unsigned i, n;
+  UINT32 i, n;
 
   n = Size >> PAGE_SHIFT;
 
@@ -486,7 +486,7 @@ Pae64Linear (
   IN SIZE64  Size
   )
 {
-  unsigned L4Off = L4OFF64 (Va);
+  UINT32 L4Off = L4OFF64 (Va);
   PTE *pL4p;
 
   if (Va & PAE64_LINEAR_ALIGN)

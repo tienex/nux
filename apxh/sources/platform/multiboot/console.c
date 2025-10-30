@@ -27,7 +27,7 @@ Inb (
   IN int  Port
   )
 {
-  int Ret;
+INT32 Ret;
 
   asm volatile ("xor %%eax, %%eax; inb %%dx, %%al":"=a" (Ret):"d" (Port));
   return Ret;
@@ -70,7 +70,7 @@ Putchar (
 
   if (!gInit)
     {
-      int i;
+INT32 i;
       for (i = 0; i < 80 * 25; i++)
 	*(UINT8 *) (VPtr + i * 2) = 0;
 

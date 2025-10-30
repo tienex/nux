@@ -16,10 +16,10 @@
 
 static VOID *gpElfKernelPayload, *gpElfUserPayload;
 static UINTN gElfKernelPayloadSize, gElfUserPayloadSize;
-static unsigned long gMaxPfn;
-static unsigned long gMaxRamPfn;
-static unsigned long gMinRamPfn = -1;
-static unsigned gNumRegions;
+static UINTN gMaxPfn;
+static UINTN gMaxRamPfn;
+static UINTN gMinRamPfn = -1;
+static UINT32 gNumRegions;
 static VOID *gpEfiRsdp;
 static FRAMEBUFFER_DESC gFbDesc = {.type = FB_INVALID, };
 
@@ -61,7 +61,7 @@ GetPage (
   )
 {
   return (UINTN) EfiAllocateMaxAddr ((gMinRamPfn << PAGE_SHIFT) +
-					   (unsigned long) BOOTMEM);
+					   (UINTN) BOOTMEM);
 }
 
 /**
@@ -169,7 +169,7 @@ MdEntry (
   )
 {
   VOID *TrampRoot;
-  unsigned long TrampSatp, Satp;
+  UINTN TrampSatp, Satp;
   extern char trampoline_start asm ("__rv64_tstart");
   extern char trampoline_end asm ("__rv64_tend");
 
@@ -266,7 +266,7 @@ MdMaxRamPfn (
 **/
 BOOTINFO_REGION *
 MdGetMemRegion (
-  IN unsigned  Index
+  IN UINT32 Index
   )
 {
   assert (Index < BOOTINFO_REGIONS_MAX);
@@ -281,7 +281,7 @@ MdGetMemRegion (
 
   @return Number of memory regions.
 **/
-unsigned
+UINT32
 MdMemRegions (
   VOID
   )
@@ -369,7 +369,7 @@ GetPayloadStart (
 
   @return Payload size in bytes, or 0 if not loaded.
 **/
-unsigned long
+UINTN
 GetPayloadSize (
   IN PAYLOAD_ID  Id
   )
@@ -451,11 +451,11 @@ VOID
 ApxhEfiAddMemRegion (
   IN int            Ram,
   IN int            Bsy,
-  IN unsigned long  Pfn,
-  IN unsigned       Len
+  IN UINTN  Pfn,
+  IN UINT32 Len
   )
 {
-  unsigned Cur = gNumRegions;
+  UINT32 Cur = gNumRegions;
 
   if (Cur >= BOOTINFO_REGIONS_MAX)
     {

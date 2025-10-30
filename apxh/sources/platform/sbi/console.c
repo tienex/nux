@@ -50,11 +50,11 @@ Exit (
 //
 
 /** @deprecated Use Putchar instead **/
-void putchar (int ch) {
+void putchar (INT32 ch) {
   Putchar (ch);
 }
 
 /** @deprecated Use Exit instead **/
-void exit (int status) {
+void exit (INT32 status) {
   Exit (status);
 }

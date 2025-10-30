@@ -19,7 +19,7 @@ static VIRTUAL_ADDRESS gReqPfnmapVa, gReqInfoVa, gReqStreeVa, gReqRegionVa,
   gKtlsVa, gUtlsVa;
 static SIZE64 gReqPfnmapSize, gReqInfoSize, gReqStreeSize,
   gReqRegionSize, gKtlsInitsize, gKtlsSize, gUtlsInitsize, gUtlsSize;
-static unsigned gReqStreeOrder, gReqRegionNum;
+static UINT32 gReqStreeOrder, gReqRegionNum;
 static bool gStopPayloadAllocation = false;
 static UINT64 gMinRamAddr = 0;
 
@@ -37,7 +37,7 @@ GetPayloadPage (
   VOID
   )
 {
-  unsigned Pfn;
+  UINT32 Pfn;
   UINTN Page;
   UINTN Base = gMinRamAddr;
 
@@ -64,14 +64,14 @@ GetPayloadPage (
 
   @return TRUE if page is allocated, FALSE otherwise.
 **/
-unsigned
+UINT32
 CheckPayloadPage (
-  IN unsigned Addr
+  IN UINT32 Addr
   )
 {
-  unsigned i = (Addr - gMinRamAddr) >> PAGE_SHIFT;
-  unsigned By = i >> 3;
-  unsigned Bi = (1 << (i & 7));
+  UINT32 i = (Addr - gMinRamAddr) >> PAGE_SHIFT;
+  UINT32 By = i >> 3;
+  UINT32 Bi = (1 << (i & 7));
 
   assert (By <= PAGEMAP_SZ (BOOTMEM));
 
@@ -619,11 +619,11 @@ VaStree (
   )
 {
   SIZE64 s;
-  int i, Order;
+INT32 i, Order;
   APXH_STREE Hdr;
   BOOTINFO_REGION *Reg;
-  unsigned Regions = MdMemRegions ();
-  unsigned MaxFrame = MdMaxRamPfn ();
+  UINT32 Regions = MdMemRegions ();
+  UINT32 MaxFrame = MdMaxRamPfn ();
 
   MdVerify (Va, Size);
   VaVerify (Va, Size);
@@ -655,7 +655,7 @@ VaStree (
 
   for (i = 0; i < Regions; i++)
     {
-      unsigned j;
+      UINT32 j;
 
       Reg = MdGetMemRegion (i);
 
@@ -665,7 +665,7 @@ VaStree (
 
       for (j = 0; j < Reg->len; j++)
 	{
-	  unsigned Frame = Reg->pfn + j;
+	  UINT32 Frame = Reg->pfn + j;
 
 	  if (Frame > MaxFrame)
 	    {
@@ -680,7 +680,7 @@ VaStree (
   /* Clear in case of overlapping non-ram regions. */
   for (i = 0; i < Regions; i++)
     {
-      unsigned j;
+      UINT32 j;
 
       Reg = MdGetMemRegion (i);
 
@@ -690,7 +690,7 @@ VaStree (
 
       for (j = 0; j < Reg->len; j++)
 	{
-	  unsigned Frame = Reg->pfn + j;
+	  UINT32 Frame = Reg->pfn + j;
 
 	  if (Frame > MaxFrame)
 	    {
@@ -719,7 +719,7 @@ VaStreeCopy (
   )
 {
   VIRTUAL_ADDRESS Va = gReqStreeVa;
-  unsigned Order = gReqStreeOrder;
+  UINT32 Order = gReqStreeOrder;
   UINT64 Pa;
   VIRTUAL_ADDRESS MaxFrame;
 
@@ -733,7 +733,7 @@ VaStreeCopy (
 
   for (Pa = gMinRamAddr; Pa < BOOTMEM + gMinRamAddr; Pa += PAGE_SIZE)
     {
-      unsigned Frame = Pa >> PAGE_SHIFT;
+      UINT32 Frame = Pa >> PAGE_SHIFT;
 
       if (Frame > MaxFrame)
 	break;
@@ -761,8 +761,8 @@ VaRegions (
   IN SIZE64  Size
   )
 {
-  unsigned MaxRegion;
-  unsigned Regions = MdMemRegions ();
+  UINT32 MaxRegion;
+  UINT32 Regions = MdMemRegions ();
 
   MdVerify (Va, Size);
   VaVerify (Va, Size);
@@ -794,8 +794,8 @@ VaRegionsCopy (
   )
 {
   VIRTUAL_ADDRESS Va = gReqRegionVa;
-  unsigned long Size = gReqRegionSize;
-  unsigned i, Regions;
+  UINTN Size = gReqRegionSize;
+  UINT32 i, Regions;
   APXH_REGION ApxhReg;
   BOOTINFO_REGION *Reg;
 
@@ -835,9 +835,9 @@ VaPfnmap (
   IN SIZE64  Size
   )
 {
-  unsigned i, MaxFrame;
+  UINT32 i, MaxFrame;
   BOOTINFO_REGION *Reg;
-  unsigned Regions = MdMemRegions ();
+  UINT32 Regions = MdMemRegions ();
 
   MdVerify (Va, Size);
   VaVerify (Va, Size);
@@ -854,7 +854,7 @@ VaPfnmap (
 
   for (i = 0; i < Regions; i++)
     {
-      unsigned j;
+      UINT32 j;
 
       Reg = MdGetMemRegion (i);
 
@@ -864,7 +864,7 @@ VaPfnmap (
 
       for (j = 0; j < Reg->len; j++)
 	{
-	  unsigned Frame = Reg->pfn + j;
+	  UINT32 Frame = Reg->pfn + j;
 	  UINT8 *Ptr;
 
 	  if (Frame > MaxFrame)
@@ -898,10 +898,10 @@ VaPfnmapCopy (
   )
 {
   VIRTUAL_ADDRESS Va = gReqPfnmapVa;
-  unsigned long Size = gReqPfnmapSize;
-  unsigned MaxFrame = Size / PFNMAP_ENTRY_SIZE;
+  UINTN Size = gReqPfnmapSize;
+  UINT32 MaxFrame = Size / PFNMAP_ENTRY_SIZE;
 #define MIN(x,y) ((x < y) ? x : y)
-  unsigned long Pa;
+  UINTN Pa;
 
   if (Va == 0)
     {
@@ -911,7 +911,7 @@ VaPfnmapCopy (
 
   for (Pa = gMinRamAddr; Pa < BOOTMEM + gMinRamAddr; Pa += PAGE_SIZE)
     {
-      unsigned Frame = Pa >> PAGE_SHIFT;
+      UINT32 Frame = Pa >> PAGE_SHIFT;
 
       if (Frame > MaxFrame)
 	break;

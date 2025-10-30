@@ -157,7 +157,7 @@ PaeInitialize (
   VOID
   )
 {
-  int i;
+INT32 i;
 
   /* Enable NX */
   assert (CpuSupportsPae ());
@@ -200,8 +200,8 @@ PaeGetL2p (
   )
 {
   PTE *pL3p, *pL2p;
-  unsigned L3Off = L3OFF (Va);
-  unsigned L2Off = L2OFF (Va);
+  UINT32 L3Off = L3OFF (Va);
+  UINT32 L2Off = L2OFF (Va);
 
   pL3p = pCr3 + L3Off;
 
@@ -239,7 +239,7 @@ PaeGetL1p (
   )
 {
   PTE *pL2p, *pL1p;
-  unsigned L1Off = L1OFF (Va);
+  UINT32 L1Off = L1OFF (Va);
 
   pL2p = PaeGetL2p (pCr3, Va, Payload);
 
@@ -363,9 +363,9 @@ PaeGetPhys (
 {
   UINTN Page;
   PTE *pL2e, *pL1, *pL1e;
-  unsigned L3Off = L3OFF (Va);
-  unsigned L2Off = L2OFF (Va);
-  unsigned L1Off = L1OFF (Va);
+  UINT32 L3Off = L3OFF (Va);
+  UINT32 L2Off = L2OFF (Va);
+  UINT32 L1Off = L1OFF (Va);
 
   pL2e = gL2s[L3Off] + L2Off;
 
@@ -406,7 +406,7 @@ PaeDirectMap (
   )
 {
   UINT64 PaPfn = Pa >> PAGE_SHIFT;
-  unsigned i, n;
+  UINT32 i, n;
   PTE *Pte;
 
   n = Size >> PAGE_SHIFT;
@@ -475,7 +475,7 @@ PaePtAlloc (
   IN SIZE64  Size
   )
 {
-  unsigned i, n;
+  UINT32 i, n;
 
   n = Size >> PAGE_SHIFT;
 
@@ -502,9 +502,9 @@ PaeLinear (
   IN SIZE64  Size
   )
 {
-  int i;
-  unsigned L3Off = L3OFF (Va);
-  unsigned L2Off = L2OFF (Va);
+INT32 i;
+  UINT32 L3Off = L3OFF (Va);
+  UINT32 L2Off = L2OFF (Va);
 
   if (Va & PAE_LINEAR_ALIGN)
     {

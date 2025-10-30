@@ -20,7 +20,7 @@ extern long boothid;
 extern void *dtbptr;
 static UINT64 gMinAddr = -1;
 static UINT64 gMaxAddr = 0;
-static unsigned gRegions = 0;
+static UINT32 gRegions = 0;
 
 #define SBI_MAX_RAM_REGIONS 64
 BOOTINFO_REGION gRamRegions[SBI_MAX_RAM_REGIONS] = { 0, };
@@ -51,7 +51,7 @@ DtbAddrSize (
   OUT UINT32      *SizeSz
   )
 {
-  int PaOff, Len;
+INT32 PaOff, Len;
   VOID *p;
 
   PaOff = fdt_parent_offset (Fdt, NodOff);
@@ -93,7 +93,7 @@ RamRegionForeach (
   )
 {
   VOID *Fdt = dtbptr;
-  int NodOff;
+INT32 NodOff;
 
   for (NodOff = fdt_next_node (Fdt, -1, NULL);
        NodOff >= 0; NodOff = fdt_next_node (Fdt, NodOff, NULL))
@@ -105,7 +105,7 @@ RamRegionForeach (
       // I should probably get the root child only here.
       if (!strncmp (Name, "memory", 6))
 	{
-	  int Len;
+INT32 Len;
 	  UINT32 AddrSz, SizeSz;
 
 	  UINT32 *Reg = (UINT32 *) fdt_getprop (Fdt, NodOff, "reg", &Len);
@@ -114,16 +114,16 @@ RamRegionForeach (
 
 	  DtbAddrSize (Fdt, NodOff, &AddrSz, &SizeSz);
 
-	  for (int i = 0; i < Len; i += 4 * (AddrSz + SizeSz))
+	  for (INT32 i = 0; i < Len; i += 4 * (AddrSz + SizeSz))
 	    {
 	      UINT64 Base, Size;
 
 	      Base = 0;
-	      for (int j = 0; j < AddrSz; j++)
+	      for (INT32 j = 0; j < AddrSz; j++)
 		Base = (Base << 32) + fdt32_to_cpu (*Reg++);
 
 	      Size = 0;
-	      for (int j = 0; j < SizeSz; j++)
+	      for (INT32 j = 0; j < SizeSz; j++)
 		Size = (Size << 32) + fdt32_to_cpu (*Reg++);
 
 	      Func (Base, Size, false, Opq);
@@ -131,7 +131,7 @@ RamRegionForeach (
 	}
       else if (!strncmp (Name, "reserved-memory", 15))
 	{
-	  int Len, SubOff;
+INT32 Len, SubOff;
 	  UINT32 AddrSz, SizeSz;
 
 	  DtbAddrSize (Fdt, NodOff, &AddrSz, &SizeSz);
@@ -143,16 +143,16 @@ RamRegionForeach (
 	    if (!Reg)
 	      continue;
 
-	    for (int i = 0; i < Len; i += 4 * (AddrSz + SizeSz))
+	    for (INT32 i = 0; i < Len; i += 4 * (AddrSz + SizeSz))
 	      {
 		UINT64 Base, Size;
 
 		Base = 0;
-		for (int j = 0; j < AddrSz; j++)
+		for (INT32 j = 0; j < AddrSz; j++)
 		  Base = (Base << 32) + fdt32_to_cpu (*Reg++);
 
 		Size = 0;
-		for (int j = 0; j < SizeSz; j++)
+		for (INT32 j = 0; j < SizeSz; j++)
 		  Size = (Size << 32) + fdt32_to_cpu (*Reg++);
 
 		Func (Base, Size, true, Opq);
@@ -366,7 +366,7 @@ MdVerify (
 
   @return Number of memory regions.
 **/
-unsigned
+UINT32
 MdMemRegions (
   VOID
   )
@@ -385,7 +385,7 @@ MdMemRegions (
 **/
 BOOTINFO_REGION *
 MdGetMemRegion (
-  IN unsigned  Index
+  IN UINT32 Index
   )
 {
   if (Index >= SBI_MAX_RAM_REGIONS)
@@ -496,7 +496,7 @@ MdEntry (
   )
 {
   VOID *TrampRoot;
-  unsigned long TrampSatp, Satp;
+  UINTN TrampSatp, Satp;
   extern char trampoline_start asm ("__rv64_tstart");
   extern char trampoline_end asm ("__rv64_tend");
 

@@ -75,7 +75,7 @@ RsdpCheck (
   )
 {
   struct acpi_rsdp_thdr *Rsdp = (struct acpi_rsdp_thdr *) Ptr;
-  int i;
+INT32 i;
   UINT8 Sum;
 
   /* Checksum ACPI V1.0 */

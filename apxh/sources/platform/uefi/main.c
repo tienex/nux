@@ -276,8 +276,8 @@ EfiGetMemoryMap (
 
   for (i = 0; i < Num; i++)
     {
-      int Ram, Bsy;
-      unsigned Len;
+INT32 Ram, Bsy;
+      UINT32 Len;
       UINTN Pfn;
 
       Ptr = (void *) Md + i * DescSize;

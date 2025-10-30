@@ -25,7 +25,7 @@ static VOID *gpElfKernelPayload, *gpElfUserPayload;
 static UINTN gElfKernelPayloadSize, gElfUserPayloadSize;
 
 static UINTN gBrk;
-static unsigned gBootinfoRegions;
+static UINT32 gBootinfoRegions;
 static UINT64 gBootinfoMaxPfn;
 static UINT64 gBootinfoMaxRamPfn;
 
@@ -144,7 +144,7 @@ ParseMultibootMmap (
 
   UINT64 MaxPfn = 0;
   UINT64 MaxRamPfn = 0;
-  unsigned Regions = 0;
+  UINT32 Regions = 0;
   UINTN Cur;
   VOLATILE struct multiboot_mmap_entry *MbPtr =
     (struct multiboot_mmap_entry *) BOOTMEM_MMAP;
@@ -380,7 +380,7 @@ MdMaxRamPfn (
 
   @return Number of memory regions.
 **/
-unsigned
+UINT32
 MdMemRegions (
   VOID
   )
@@ -399,7 +399,7 @@ MdMemRegions (
 **/
 BOOTINFO_REGION *
 MdGetMemRegion (
-  IN unsigned  Index
+  IN UINT32 Index
   )
 {
   BOOTINFO_REGION *HrPtr = (BOOTINFO_REGION *) BOOTMEM_MMAP;

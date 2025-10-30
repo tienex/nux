@@ -31,7 +31,7 @@ ScanPatTable (
   bool UcSet = false;
   UINT64 Pat = Rdmsr (MSR_IA32_PAT);
 
-  for (int i = 0; i < 8; i++)
+  for (INT32 i = 0; i < 8; i++)
     {
       switch (Pat & 0x7)
 	{
@@ -90,13 +90,13 @@ SetupPatTable (
 
   @return PTE flags for specified memory type.
 **/
-unsigned
+UINT32
 MemtypeToFlags (
   IN MEMORY_TYPE  Mt,
   IN bool              Small
   )
 {
-  unsigned Pat = Small ? PTE_PAT_4K : PTE_PAT_BIG;
+  UINT32 Pat = Small ? PTE_PAT_4K : PTE_PAT_BIG;
 
   switch (Mt)
     {
@@ -151,12 +151,12 @@ CpuIsIntel (
 
   @return CPU family number.
 **/
-unsigned
+UINT32
 IntelCpuFamily (
   VOID
   )
 {
-  unsigned Family;
+  UINT32 Family;
   UINT32 Eax, Ebx, Ecx, Edx;
 
   Eax = 1;
@@ -176,12 +176,12 @@ IntelCpuFamily (
 
   @return CPU model number.
 **/
-unsigned
+UINT32
 IntelCpuModel (
   VOID
   )
 {
-  unsigned Model;
+  UINT32 Model;
   UINT32 Eax, Ebx, Ecx, Edx;
 
   Eax = 1;
@@ -282,8 +282,8 @@ CpuSupportsNx (
   /* Intel CPUs might have disabled this in MSR. */
   if (CpuIsIntel ())
     {
-      unsigned Family = IntelCpuFamily ();
-      unsigned Model = IntelCpuModel ();
+      UINT32 Family = IntelCpuFamily ();
+      UINT32 Model = IntelCpuModel ();
 
       if ((Family >= 6) && (Family > 6 || Model > 0xd))
 	{
