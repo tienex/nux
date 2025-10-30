@@ -40,9 +40,9 @@ LoadTable (
 {
   INT32 i;
   UINT8 Sum, *Ptr;
-  struct acpi_thdr *Tbl;
+  ACPI_THDR *Tbl;
 
-  Tbl = (struct acpi_thdr *) KvaMapPhysical (Pa, ACPI_MAX_TBL, HAL_PTE_P);
+  Tbl = (ACPI_THDR *) KvaMapPhysical (Pa, ACPI_MAX_TBL, HAL_PTE_P);
 
   if (Tbl->length >= ACPI_MAX_TBL)
     {
@@ -95,7 +95,7 @@ UnloadTable (
 **/
 static VOID
 PrintTable (
-  IN struct acpi_thdr  *Tbl
+  IN ACPI_THDR  *Tbl
   )
 {
   info ("TABLE '%4.4s' [%6.6s %8.8s rev%d]", Tbl->signature, Tbl->oemid,
@@ -120,7 +120,7 @@ AcpiInitialize (
   INT64 Length;
   PHYSICAL_ADDRESS PaSdt;
   struct acpi_rsdp_thdr *Rsdp;
-  struct acpi_thdr *RootTable, *SdTable;
+  ACPI_THDR *RootTable, *SdTable;
 
   Rsdp = (struct acpi_rsdp_thdr *) KvaMapPhysical (Root, ACPI_MAX_TBL, HAL_PTE_P);
 
@@ -187,15 +187,15 @@ AcpiMadtScan (
   UINT32 Flags, NumLapic = 0, NumIoapic = 0;
   UINT8 Type;
   PHYSICAL_ADDRESS LapicAddr;
-  struct acpi_madt *AcpiMadt;
+  ACPI_MADT *AcpiMadt;
 
   union
   {
     UINT8 *Ptr;
     struct acpi_madt_lapic *Lapic;
-    struct acpi_madt_ioapic *Ioapic;
-    struct acpi_madt_lapicoverride *LapicOvr;
-    struct acpi_madt_lapicnmi *LapicNmi;
+    ACPI_MADT_IOAPIC *Ioapic;
+    ACPI_MADT_LAPICOVERRIDE *LapicOvr;
+    ACPI_MADT_LAPICNMI *LapicNmi;
     struct acpi_madt_intoverride *IntOvr;
   } _;
 
@@ -369,7 +369,7 @@ AcpiHpetScan (
   )
 {
   BOOLEAN Rc;
-  struct acpi_hpet *Hpet;
+  ACPI_HPET *Hpet;
 
   if (gPaHpetTable == 0)
     {

@@ -20,7 +20,7 @@
 //
 // Global framebuffer state
 //
-extern struct fbdesc *gFbDesc;
+extern FRAMEBUFFER_DESC *gFbDesc;
 extern lock_t gFbLock;
 
 //

@@ -16,7 +16,7 @@
 //
 // Global framebuffer state
 //
-struct fbdesc *gFbDesc;
+FRAMEBUFFER_DESC *gFbDesc;
 lock_t gFbLock;
 
 //
@@ -41,7 +41,7 @@ INT32 gFbScreenRows;
 **/
 INT32
 FramebufferInitialize (
-  IN struct fbdesc  *Desc
+  IN FRAMEBUFFER_DESC  *Desc
   )
 {
   if (Desc->type == FB_INVALID)

@@ -60,7 +60,7 @@ struct apxh_region _memregs_pinned[] = {
 
 CONST struct apxh_bootinfo *bootinfo = (struct apxh_bootinfo *) &_info_start;
 
-struct fbdesc fbdesc;
+FRAMEBUFFER_DESC fbdesc;
 struct apxh_platformdesc pltdesc;
 
 void *gHalStreePtr;
