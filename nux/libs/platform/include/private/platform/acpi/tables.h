@@ -29,7 +29,7 @@
 #define ACPI_MADT_TYPE_GENINT 11
 #define ACPI_MADT_TYPE_GENDISTR 12
 
-struct acpi_rsdp_thdr
+typedef struct _ACPI_RSDP_THDR
 {
   char signature[8];
   uint8_t checksum;
@@ -42,9 +42,12 @@ struct acpi_rsdp_thdr
   uint64_t xsdt;
   uint8_t xchecksum;
   uint8_t reserved[3];
-} __packed;
+} __packed ACPI_RSDP_THDR;
 
-struct acpi_thdr
+// Legacy compatibility
+#define acpi_rsdp_thdr ACPI_RSDP_THDR
+
+typedef struct _ACPI_THDR
 {
   char signature[4];
   uint32_t length;
@@ -55,25 +58,34 @@ struct acpi_thdr
   uint32_t oemrevision;
   uint32_t creatid;
   uint32_t creatrev;
-} __packed;
+} __packed ACPI_THDR;
 
-struct acpi_genaddr
+// Legacy compatibility
+#define acpi_thdr ACPI_THDR
+
+typedef struct _ACPI_GENADDR
 {
   uint8_t spaceid;
   uint8_t bitwidth;
   uint8_t bitoffset;
   uint8_t accesswidth;
   uint64_t address;
-} __packed;
+} __packed ACPI_GENADDR;
 
-struct acpi_madt
+// Legacy compatibility
+#define acpi_genaddr ACPI_GENADDR
+
+typedef struct _ACPI_MADT
 {
-  struct acpi_thdr hdr;
+  ACPI_THDR hdr;
   uint32_t lapic;
   uint32_t flags;
-} __packed;
+} __packed ACPI_MADT;
 
-struct acpi_madt_lapic
+// Legacy compatibility
+#define acpi_madt ACPI_MADT
+
+typedef struct _ACPI_MADT_LAPIC
 {
   uint8_t type;
   uint8_t length;
@@ -81,9 +93,12 @@ struct acpi_madt_lapic
   uint8_t lapicid;
 #define ACPI_MADT_LAPIC_ENABLED 1
   uint32_t flags;
-} __packed;
+} __packed ACPI_MADT_LAPIC;
 
-struct acpi_madt_ioapic
+// Legacy compatibility
+#define acpi_madt_lapic ACPI_MADT_LAPIC
+
+typedef struct _ACPI_MADT_IOAPIC
 {
   uint8_t type;
   uint8_t length;
@@ -91,26 +106,35 @@ struct acpi_madt_ioapic
   uint8_t reserved;
   uint32_t address;
   uint32_t gsibase;
-} __packed;
+} __packed ACPI_MADT_IOAPIC;
 
-struct acpi_madt_lapicoverride
+// Legacy compatibility
+#define acpi_madt_ioapic ACPI_MADT_IOAPIC
+
+typedef struct _ACPI_MADT_LAPICOVERRIDE
 {
   uint8_t type;
   uint8_t length;
   uint16_t reserved;
   uint64_t address;
-} __packed;
+} __packed ACPI_MADT_LAPICOVERRIDE;
 
-struct acpi_madt_lapicnmi
+// Legacy compatibility
+#define acpi_madt_lapicoverride ACPI_MADT_LAPICOVERRIDE
+
+typedef struct _ACPI_MADT_LAPICNMI
 {
   uint8_t type;
   uint8_t length;
   uint8_t acpiid;
   uint16_t flags;
   uint8_t lint;
-} __packed;
+} __packed ACPI_MADT_LAPICNMI;
 
-struct acpi_madt_intoverride
+// Legacy compatibility
+#define acpi_madt_lapicnmi ACPI_MADT_LAPICNMI
+
+typedef struct _ACPI_MADT_INTOVERRIDE
 {
   uint8_t type;
   uint8_t length;
@@ -128,16 +152,22 @@ struct acpi_madt_intoverride
 #define ACPI_MADT_POLARITY_RESERVED    0x02
 #define ACPI_MADT_POLARITY_ACTIVE_LOW  0x03
   uint16_t flags;
-} __packed;
+} __packed ACPI_MADT_INTOVERRIDE;
 
-struct acpi_hpet
+// Legacy compatibility
+#define acpi_madt_intoverride ACPI_MADT_INTOVERRIDE
+
+typedef struct _ACPI_HPET
 {
-  struct acpi_thdr hdr;
+  ACPI_THDR hdr;
   uint32_t id;
-  struct acpi_genaddr address;
+  ACPI_GENADDR address;
   uint8_t sequence;
   uint8_t mintick;
   uint8_t flags;
-} __packed;
+} __packed ACPI_HPET;
+
+// Legacy compatibility
+#define acpi_hpet ACPI_HPET
 
 #endif

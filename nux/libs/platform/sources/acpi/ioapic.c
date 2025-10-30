@@ -22,7 +22,7 @@
 
 static UINT32 gIoapicsNo;
 
-typedef struct ioapic_desc
+typedef struct _IOAPIC_DESC
 {
   VOID *Base;
   UINT32 Irq;
@@ -32,7 +32,7 @@ typedef struct ioapic_desc
 static IOAPIC_DESC *gIoapics;
 static UINT32 gGsisNo;
 
-typedef struct gsi_desc
+typedef struct _GSI_DESC
 {
   UINT32 Irq;
   UINT32 Ioapic;

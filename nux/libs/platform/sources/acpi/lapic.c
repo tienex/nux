@@ -25,7 +25,7 @@
 static VOID *gLapicBase = NULL;
 static UINT32 gLapicsNo;
 
-typedef struct lapic_desc
+typedef struct _LAPIC_DESC
 {
   UINT32 PhysId;
   UINT32 PlatformId;
