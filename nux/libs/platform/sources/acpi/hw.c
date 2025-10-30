@@ -50,17 +50,3 @@ HwDelay (
   for (i = 0; i < 1000; i++)
     hal_cpu_relax ();
 }
-
-//
-// Legacy Function Wrappers (for backward compatibility)
-//
-
-/** @deprecated Use HwCmosWrite instead **/
-void hw_cmos_write (uint8_t addr, uint8_t val) {
-  HwCmosWrite (addr, val);
-}
-
-/** @deprecated Use HwDelay instead **/
-void hw_delay (void) {
-  HwDelay ();
-}
