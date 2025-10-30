@@ -1493,116 +1493,247 @@ UCTXT *entry_irq (
   );
 
 //
-// Legacy Function Declarations (for backward compatibility)
+// Physical Memory Operations
 //
 
-// Physical memory operations
-void *pfn_get (pfn_t pfn);
-void pfn_put (pfn_t pfn, void *va);
-void nux_set_allocator (pfn_t (*alloc) (int), void (*free) (pfn_t));
-pfn_t pfn_alloc (int low);
-void pfn_free (pfn_t pfn);
-unsigned long pfn_avail (void);
-pfn_t stree_pfnalloc (int low);
-void stree_pfnfree (pfn_t pfn);
+VOID *PfnGet (pfn_t Pfn);
+VOID PfnPut (pfn_t Pfn, VOID *Va);
+VOID NuxSetAllocator (pfn_t (*Alloc) (int), VOID (*Free) (pfn_t));
+pfn_t PfnAlloc (int Low);
+VOID PfnFree (pfn_t Pfn);
+unsigned long PfnAvail (VOID);
+pfn_t StreePfnAlloc (int Low);
+VOID StreePfnFree (pfn_t Pfn);
 
-// Kernel virtual address operations
-vaddr_t kva_alloc (size_t size);
-void kva_free (vaddr_t va, size_t size);
-void *kva_map (pfn_t pfn, unsigned prot);
-void *kva_physmap (paddr_t paddr, size_t size, unsigned prot);
-void kva_unmap (void *va, size_t size);
+/** Legacy compatibility **/
+#define pfn_get PfnGet
+#define pfn_put PfnPut
+#define nux_set_allocator NuxSetAllocator
+#define pfn_alloc PfnAlloc
+#define pfn_free PfnFree
+#define pfn_avail PfnAvail
+#define stree_pfnalloc StreePfnAlloc
+#define stree_pfnfree StreePfnFree
 
-// Kernel mapping operations
-pfn_t kmap_getpfn (vaddr_t va);
-pfn_t kmap_map (vaddr_t va, pfn_t pfn, unsigned prot);
-pfn_t kmap_map_noalloc (vaddr_t va, pfn_t pfn, unsigned prot);
-pfn_t kmap_unmap (vaddr_t va);
-int kmap_mapped (vaddr_t va);
-int kmap_mapped_range (vaddr_t va, size_t size);
-int kmap_ensure (vaddr_t va, unsigned reqprot);
-int kmap_ensure_range (vaddr_t va, size_t size, unsigned reqprot);
-volatile tlbgen_t kmap_tlbgen (void);
-volatile tlbgen_t kmap_tlbgen_global (void);
-void kmap_commit (void);
+//
+// Kernel Virtual Address Operations
+//
 
-// Kernel memory operations
-int kmem_brk (int low, vaddr_t vaddr);
-vaddr_t kmem_sbrk (int low, long inc);
-vaddr_t kmem_brkgrow (int low, unsigned size);
-int kmem_brkshrink (int low, unsigned size);
-vaddr_t kmem_alloc (int low, size_t size);
-void kmem_free (int low, vaddr_t vaddr, size_t size);
-void kmem_trim_setmode (unsigned trim_mode);
-void kmem_trim_one (unsigned trim_mode);
+vaddr_t KvaAlloc (size_t Size);
+VOID KvaFree (vaddr_t Va, size_t Size);
+VOID *KvaMap (pfn_t Pfn, unsigned Prot);
+VOID *KvaPhysMap (paddr_t Paddr, size_t Size, unsigned Prot);
+VOID KvaUnmap (VOID *Va, size_t Size);
 
-// CPU operations
-void cpu_startall (void);
-unsigned cpu_id (void);
-unsigned cpu_num (void);
-cpumask_t cpu_activemask (void);
-void cpu_setdata (void *ptr);
-void *cpu_getdata (void);
-void cpu_idle (void);
-void cpu_nmi (int cpu);
-void cpu_nmi_mask (cpumask_t map);
-void cpu_nmi_allbutself (void);
-void cpu_nmi_broadcast (void);
-void cpu_ipi (int cpu);
-void cpu_ipi_mask (cpumask_t map);
-void cpu_ipi_broadcast (void);
-void cpu_tlbflush (int cpu);
-void cpu_tlbflush_mask (cpumask_t mask);
-void cpu_tlbflush_broadcast (void);
-void cpu_tlbflush_broadcast_sync (void);
-void cpu_ktlb_update (void);
-void cpu_ktlb_reach (tlbgen_t target);
-void cpu_stop (int cpu);
-void cpu_stop_mask (cpumask_t mask);
-void cpu_stop_broadcast (void);
-bool cpu_useraccess_copyfrom (void *dst, uaddr_t src, size_t size, bool (*pf_handler)(uaddr_t va, hal_pfinfo_t info));
-bool cpu_useraccess_copyto (uaddr_t dst, void *src, size_t size, bool (*pf_handler)(uaddr_t va, hal_pfinfo_t info));
-bool cpu_useraccess_memset (uaddr_t dst, int ch, size_t size, bool (*pf_handler)(uaddr_t va, hal_pfinfo_t info));
-umap_t *cpu_umap_current (void);
-void cpu_umap_enter (struct umap *umap);
-umap_t *cpu_umap_exit (void);
+/** Legacy compatibility **/
+#define kva_alloc KvaAlloc
+#define kva_free KvaFree
+#define kva_map KvaMap
+#define kva_physmap KvaPhysMap
+#define kva_unmap KvaUnmap
 
-// Timer operations
-void timer_alarm (uint32_t time_ns);
-void timer_clear (void);
-uint64_t timer_gettime (void);
+//
+// Kernel Mapping Operations
+//
 
-// User mapping operations
-void umap_bootstrap (struct umap *umap);
-void umap_init (struct umap *umap);
-void umap_free (struct umap *umap);
-bool umap_map (struct umap *umap, vaddr_t va, pfn_t pfn, unsigned prot, pfn_t *opfn);
-unsigned umap_chflags (struct umap *umap, vaddr_t va, unsigned prot_set, unsigned prot_clr);
-pfn_t umap_unmap (struct umap *umap, vaddr_t va);
-void umap_commit (struct umap *umap);
+pfn_t KmapGetPfn (vaddr_t Va);
+pfn_t KmapMap (vaddr_t Va, pfn_t Pfn, unsigned Prot);
+pfn_t KmapMapNoAlloc (vaddr_t Va, pfn_t Pfn, unsigned Prot);
+pfn_t KmapUnmap (vaddr_t Va);
+int KmapMapped (vaddr_t Va);
+int KmapMappedRange (vaddr_t Va, size_t Size);
+int KmapEnsure (vaddr_t Va, unsigned ReqProt);
+int KmapEnsureRange (vaddr_t Va, size_t Size, unsigned ReqProt);
+volatile tlbgen_t KmapTlbGen (VOID);
+volatile tlbgen_t KmapTlbGenGlobal (VOID);
+VOID KmapCommit (VOID);
 
-// User address operations
-bool uaddr_valid (uaddr_t addr);
-bool uaddr_validrange (uaddr_t addr, size_t size);
-bool uaddr_copyfrom (void *dst, uaddr_t src, size_t size, bool (*pf_handler)(uaddr_t va, hal_pfinfo_t info));
-bool uaddr_copyto (uaddr_t dst, void *src, size_t size, bool (*pf_handler)(uaddr_t va, hal_pfinfo_t info));
-bool uaddr_memset (uaddr_t dst, int ch, size_t size, bool (*pf_handler)(uaddr_t va, hal_pfinfo_t info));
+/** Legacy compatibility **/
+#define kmap_getpfn KmapGetPfn
+#define kmap_map KmapMap
+#define kmap_map_noalloc KmapMapNoAlloc
+#define kmap_unmap KmapUnmap
+#define kmap_mapped KmapMapped
+#define kmap_mapped_range KmapMappedRange
+#define kmap_ensure KmapEnsure
+#define kmap_ensure_range KmapEnsureRange
+#define kmap_tlbgen KmapTlbGen
+#define kmap_tlbgen_global KmapTlbGenGlobal
+#define kmap_commit KmapCommit
 
-// User context operations
-bool uctxt_bootstrap (uctxt_t *uctxt);
-void uctxt_init (uctxt_t *uctxt, vaddr_t ip, vaddr_t sp, vaddr_t gp);
-void uctxt_setip (uctxt_t *uctxt, vaddr_t ip);
-vaddr_t uctxt_getip (uctxt_t *uctxt);
-void uctxt_setsp (uctxt_t *uctxt, vaddr_t sp);
-vaddr_t uctxt_getsp (uctxt_t *uctxt);
-void uctxt_setgp (uctxt_t *uctxt, vaddr_t gp);
-vaddr_t uctxt_getgp (uctxt_t *uctxt);
-void uctxt_setret (uctxt_t *uctxt, unsigned long ret);
-void uctxt_seta0 (uctxt_t *uctxt, unsigned long a0);
-void uctxt_seta1 (uctxt_t *uctxt, unsigned long a1);
-void uctxt_seta2 (uctxt_t *uctxt, unsigned long a2);
-void uctxt_settls (uctxt_t *uctxt, unsigned long tls);
-void uctxt_print (uctxt_t *uctxt);
+//
+// Kernel Memory Operations
+//
+
+int KmemBrk (int Low, vaddr_t Vaddr);
+vaddr_t KmemSbrk (int Low, long Inc);
+vaddr_t KmemBrkGrow (int Low, unsigned Size);
+int KmemBrkShrink (int Low, unsigned Size);
+vaddr_t KmemAlloc (int Low, size_t Size);
+VOID KmemFree (int Low, vaddr_t Vaddr, size_t Size);
+VOID KmemTrimSetMode (unsigned TrimMode);
+VOID KmemTrimOne (unsigned TrimMode);
+
+/** Legacy compatibility **/
+#define kmem_brk KmemBrk
+#define kmem_sbrk KmemSbrk
+#define kmem_brkgrow KmemBrkGrow
+#define kmem_brkshrink KmemBrkShrink
+#define kmem_alloc KmemAlloc
+#define kmem_free KmemFree
+#define kmem_trim_setmode KmemTrimSetMode
+#define kmem_trim_one KmemTrimOne
+
+//
+// CPU Operations
+//
+
+VOID CpuStartAll (VOID);
+unsigned CpuId (VOID);
+unsigned CpuNum (VOID);
+cpumask_t CpuActiveMask (VOID);
+VOID CpuSetData (VOID *Ptr);
+VOID *CpuGetData (VOID);
+VOID CpuIdle (VOID);
+VOID CpuNmi (int Cpu);
+VOID CpuNmiMask (cpumask_t Map);
+VOID CpuNmiAllButSelf (VOID);
+VOID CpuNmiBroadcast (VOID);
+VOID CpuIpi (int Cpu);
+VOID CpuIpiMask (cpumask_t Map);
+VOID CpuIpiBroadcast (VOID);
+VOID CpuTlbFlush (int Cpu);
+VOID CpuTlbFlushMask (cpumask_t Mask);
+VOID CpuTlbFlushBroadcast (VOID);
+VOID CpuTlbFlushBroadcastSync (VOID);
+VOID CpuKtlbUpdate (VOID);
+VOID CpuKtlbReach (tlbgen_t Target);
+VOID CpuStop (int Cpu);
+VOID CpuStopMask (cpumask_t Mask);
+VOID CpuStopBroadcast (VOID);
+bool CpuUserAccessCopyFrom (VOID *Dst, uaddr_t Src, size_t Size, bool (*PfHandler)(uaddr_t Va, hal_pfinfo_t Info));
+bool CpuUserAccessCopyTo (uaddr_t Dst, VOID *Src, size_t Size, bool (*PfHandler)(uaddr_t Va, hal_pfinfo_t Info));
+bool CpuUserAccessMemset (uaddr_t Dst, int Ch, size_t Size, bool (*PfHandler)(uaddr_t Va, hal_pfinfo_t Info));
+umap_t *CpuUmapCurrent (VOID);
+VOID CpuUmapEnter (struct umap *Umap);
+umap_t *CpuUmapExit (VOID);
+
+/** Legacy compatibility **/
+#define cpu_startall CpuStartAll
+#define cpu_id CpuId
+#define cpu_num CpuNum
+#define cpu_activemask CpuActiveMask
+#define cpu_setdata CpuSetData
+#define cpu_getdata CpuGetData
+#define cpu_idle CpuIdle
+#define cpu_nmi CpuNmi
+#define cpu_nmi_mask CpuNmiMask
+#define cpu_nmi_allbutself CpuNmiAllButSelf
+#define cpu_nmi_broadcast CpuNmiBroadcast
+#define cpu_ipi CpuIpi
+#define cpu_ipi_mask CpuIpiMask
+#define cpu_ipi_broadcast CpuIpiBroadcast
+#define cpu_tlbflush CpuTlbFlush
+#define cpu_tlbflush_mask CpuTlbFlushMask
+#define cpu_tlbflush_broadcast CpuTlbFlushBroadcast
+#define cpu_tlbflush_broadcast_sync CpuTlbFlushBroadcastSync
+#define cpu_ktlb_update CpuKtlbUpdate
+#define cpu_ktlb_reach CpuKtlbReach
+#define cpu_stop CpuStop
+#define cpu_stop_mask CpuStopMask
+#define cpu_stop_broadcast CpuStopBroadcast
+#define cpu_useraccess_copyfrom CpuUserAccessCopyFrom
+#define cpu_useraccess_copyto CpuUserAccessCopyTo
+#define cpu_useraccess_memset CpuUserAccessMemset
+#define cpu_umap_current CpuUmapCurrent
+#define cpu_umap_enter CpuUmapEnter
+#define cpu_umap_exit CpuUmapExit
+
+//
+// Timer Operations
+//
+
+VOID TimerAlarm (uint32_t TimeNs);
+VOID TimerClear (VOID);
+uint64_t TimerGetTime (VOID);
+
+/** Legacy compatibility **/
+#define timer_alarm TimerAlarm
+#define timer_clear TimerClear
+#define timer_gettime TimerGetTime
+
+//
+// User Mapping Operations
+//
+
+VOID UmapBootstrap (struct umap *Umap);
+VOID UmapInit (struct umap *Umap);
+VOID UmapFree (struct umap *Umap);
+bool UmapMap (struct umap *Umap, vaddr_t Va, pfn_t Pfn, unsigned Prot, pfn_t *OPfn);
+unsigned UmapChFlags (struct umap *Umap, vaddr_t Va, unsigned ProtSet, unsigned ProtClr);
+pfn_t UmapUnmap (struct umap *Umap, vaddr_t Va);
+VOID UmapCommit (struct umap *Umap);
+
+/** Legacy compatibility **/
+#define umap_bootstrap UmapBootstrap
+#define umap_init UmapInit
+#define umap_free UmapFree
+#define umap_map UmapMap
+#define umap_chflags UmapChFlags
+#define umap_unmap UmapUnmap
+#define umap_commit UmapCommit
+
+//
+// User Address Operations
+//
+
+bool UaddrValid (uaddr_t Addr);
+bool UaddrValidRange (uaddr_t Addr, size_t Size);
+bool UaddrCopyFrom (VOID *Dst, uaddr_t Src, size_t Size, bool (*PfHandler)(uaddr_t Va, hal_pfinfo_t Info));
+bool UaddrCopyTo (uaddr_t Dst, VOID *Src, size_t Size, bool (*PfHandler)(uaddr_t Va, hal_pfinfo_t Info));
+bool UaddrMemset (uaddr_t Dst, int Ch, size_t Size, bool (*PfHandler)(uaddr_t Va, hal_pfinfo_t Info));
+
+/** Legacy compatibility **/
+#define uaddr_valid UaddrValid
+#define uaddr_validrange UaddrValidRange
+#define uaddr_copyfrom UaddrCopyFrom
+#define uaddr_copyto UaddrCopyTo
+#define uaddr_memset UaddrMemset
+
+//
+// User Context Operations
+//
+
+bool UctxtBootstrap (uctxt_t *Uctxt);
+VOID UctxtInit (uctxt_t *Uctxt, vaddr_t Ip, vaddr_t Sp, vaddr_t Gp);
+VOID UctxtSetIp (uctxt_t *Uctxt, vaddr_t Ip);
+vaddr_t UctxtGetIp (uctxt_t *Uctxt);
+VOID UctxtSetSp (uctxt_t *Uctxt, vaddr_t Sp);
+vaddr_t UctxtGetSp (uctxt_t *Uctxt);
+VOID UctxtSetGp (uctxt_t *Uctxt, vaddr_t Gp);
+vaddr_t UctxtGetGp (uctxt_t *Uctxt);
+VOID UctxtSetRet (uctxt_t *Uctxt, unsigned long Ret);
+VOID UctxtSetA0 (uctxt_t *Uctxt, unsigned long A0);
+VOID UctxtSetA1 (uctxt_t *Uctxt, unsigned long A1);
+VOID UctxtSetA2 (uctxt_t *Uctxt, unsigned long A2);
+VOID UctxtSetTls (uctxt_t *Uctxt, unsigned long Tls);
+VOID UctxtPrint (uctxt_t *Uctxt);
+
+/** Legacy compatibility **/
+#define uctxt_bootstrap UctxtBootstrap
+#define uctxt_init UctxtInit
+#define uctxt_setip UctxtSetIp
+#define uctxt_getip UctxtGetIp
+#define uctxt_setsp UctxtSetSp
+#define uctxt_getsp UctxtGetSp
+#define uctxt_setgp UctxtSetGp
+#define uctxt_getgp UctxtGetGp
+#define uctxt_setret UctxtSetRet
+#define uctxt_seta0 UctxtSetA0
+#define uctxt_seta1 UctxtSetA1
+#define uctxt_seta2 UctxtSetA2
+#define uctxt_settls UctxtSetTls
+#define uctxt_print UctxtPrint
 
 //
 // Legacy Wrapper Functions
