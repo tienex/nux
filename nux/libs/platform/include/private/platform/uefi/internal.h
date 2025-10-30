@@ -6,7 +6,7 @@
 
   Copyright (C) 2019 Gianluca Guida <glguida@tlbflush.org>
 
-  SPDX-License-Identifier:	BSD-2-Clause
+  SPDX-License-Identifier: BSD-2-Clause
 **/
 
 #ifndef __platform_uefi_internal_h__

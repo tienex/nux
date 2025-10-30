@@ -15,6 +15,10 @@
 #include <stdint.h>
 #include <platform/platform.h>
 
+// Platform ACPI HPET IRQ
+extern UINT32 gPlatformAcpiHpetIrq;
+
+// Legacy compatibility alias
 extern unsigned pltacpi_hpet_irq;
 
 //
