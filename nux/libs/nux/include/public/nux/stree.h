@@ -134,25 +134,31 @@
 */
 #define STREE_SIZE(_o) CEIL_DIV((1LL << (_o)) - 1, WORDSIZE - 1)
 
-/*
+/**
   Given a number of objects, find the order needed
   to create an STREE to manage them.
-*/
+
+  @param[in] N  Number of objects.
+
+  @return STREE order needed.
+**/
 static inline size_t
-stree_order (size_t n)
+StreeOrder (size_t N)
 {
-  long log2_n = (LONG_BIT - 1 - __builtin_clzl ((long) n));
-  long r = log2_n;
+  long Log2N = (LONG_BIT - 1 - __builtin_clzl ((long) N));
+  long R = Log2N;
 
   /* Is the number a power of two? If not, add 1 */
-  r += __builtin_popcount (n) > 1 ? 1 : 0;
+  R += __builtin_popcount (N) > 1 ? 1 : 0;
 
-  return r;
+  return R;
 }
 
+/** Legacy compatibility **/
+#define stree_order StreeOrder
 
 static inline size_t
-stree_lmap_off (unsigned o, unsigned l)
+StreeLmapOff (unsigned O, unsigned L)
 {
   /*
      This mysterious code is the result of this sum:
@@ -169,80 +175,101 @@ stree_lmap_off (unsigned o, unsigned l)
      particular returns the bit offset, which is why we divide by
      WORDLOG2 before returning.
    */
-  unsigned y = l - 1;
-  size_t c = 1 << (o - WORDLOG2 * y);
-  size_t r = c * ((1 << WORDLOG2 * l) - 1) / (WORDSIZE - 1);
-  return r >> WORDLOG2;
+  unsigned Y = L - 1;
+  size_t C = 1 << (O - WORDLOG2 * Y);
+  size_t R = C * ((1 << WORDLOG2 * L) - 1) / (WORDSIZE - 1);
+  return R >> WORDLOG2;
 }
 
-/* Get level L bitmap of the search tree. */
+/** Legacy compatibility **/
+#define stree_lmap_off StreeLmapOff
+
+/** Get level L bitmap of the search tree. **/
 static inline WORD_T *
-stree_lmap (WORD_T * stree, unsigned o, unsigned l)
+StreeLmap (WORD_T *Stree, unsigned O, unsigned L)
 {
-  return stree + stree_lmap_off (o, l);
+  return Stree + StreeLmapOff (O, L);
 }
 
-/* Get bit offset of an lmap of level L for address A. */
+/** Legacy compatibility **/
+#define stree_lmap StreeLmap
+
+/** Get bit offset of an lmap of level L for address A. **/
 static inline size_t
-lmap_bitoff (unsigned l, unsigned a)
+LmapBitOff (unsigned L, unsigned A)
 {
-  return ((size_t) a >> WORDLOG2 * l);
+  return ((size_t) A >> WORDLOG2 * L);
 }
+
+/** Legacy compatibility **/
+#define lmap_bitoff LmapBitOff
 
 static inline bool
-set_bit (WORD_T * map, size_t bitaddr)
+SetBit (WORD_T *Map, size_t BitAddr)
 {
-  WORD_T old;
-  size_t off = bitaddr >> WORDLOG2;
-  size_t bit = bitaddr & WORDMASK;
+  WORD_T Old;
+  size_t Off = BitAddr >> WORDLOG2;
+  size_t Bit = BitAddr & WORDMASK;
 
-  old = GET_WORD (map + off);
-  OR_WORD (map + off, ((WORD_T) 1 << bit));
+  Old = GET_WORD (Map + Off);
+  OR_WORD (Map + Off, ((WORD_T) 1 << Bit));
 
   /* Return true if this is NOT the first bit set. */
-  return !!old;
+  return !!Old;
 }
+
+/** Legacy compatibility **/
+#define set_bit SetBit
 
 static inline bool
-clr_bit (WORD_T * map, size_t bitaddr)
+ClrBit (WORD_T *Map, size_t BitAddr)
 {
-  size_t off = bitaddr >> WORDLOG2;
-  size_t bit = bitaddr & WORDMASK;
+  size_t Off = BitAddr >> WORDLOG2;
+  size_t Bit = BitAddr & WORDMASK;
 
-  MASK_WORD (map + off, ~((WORD_T) 1 << bit));
+  MASK_WORD (Map + Off, ~((WORD_T) 1 << Bit));
 
   /* Return true if word still has bit set. */
-  return !!GET_WORD (map + off);
+  return !!GET_WORD (Map + Off);
 }
+
+/** Legacy compatibility **/
+#define clr_bit ClrBit
 
 static inline int
-get_bit (WORD_T * map, size_t bitaddr)
+GetBit (WORD_T *Map, size_t BitAddr)
 {
-  size_t off = bitaddr >> WORDLOG2;
-  size_t bit = bitaddr & WORDMASK;
+  size_t Off = BitAddr >> WORDLOG2;
+  size_t Bit = BitAddr & WORDMASK;
 
-  return !!(GET_WORD (map + off) & ((WORD_T) 1 << bit));
+  return !!(GET_WORD (Map + Off) & ((WORD_T) 1 << Bit));
 }
+
+/** Legacy compatibility **/
+#define get_bit GetBit
 
 static inline int
-stree_getbit (WORD_T * stree, unsigned o, size_t bitaddr)
+StreeGetBit (WORD_T *Stree, unsigned O, size_t BitAddr)
 {
-  WORD_T *lmap = stree_lmap (stree, o, 0);
+  WORD_T *Lmap = StreeLmap (Stree, O, 0);
 
-  return get_bit (lmap, lmap_bitoff (0, bitaddr));
+  return GetBit (Lmap, LmapBitOff (0, BitAddr));
 }
+
+/** Legacy compatibility **/
+#define stree_getbit StreeGetBit
 
 static inline void
-stree_setbit (WORD_T * stree, unsigned o, size_t bitaddr)
+StreeSetBit (WORD_T *Stree, unsigned O, size_t BitAddr)
 {
-  int l;
+  int L;
 
-  for (l = 0; l <= LOGWORD (o) - 1; l++)
+  for (L = 0; L <= LOGWORD (O) - 1; L++)
     {
-      WORD_T *lmap = stree_lmap (stree, o, l);
-      size_t laddr = lmap_bitoff (l, bitaddr);
+      WORD_T *Lmap = StreeLmap (Stree, O, L);
+      size_t Laddr = LmapBitOff (L, BitAddr);
 
-      if (set_bit (lmap, laddr))
+      if (SetBit (Lmap, Laddr))
 	{
 	  /* Other bits were set before. Don't set upper levels. */
 	  break;
@@ -250,17 +277,20 @@ stree_setbit (WORD_T * stree, unsigned o, size_t bitaddr)
     }
 }
 
+/** Legacy compatibility **/
+#define stree_setbit StreeSetBit
+
 static inline void
-stree_clrbit (WORD_T * stree, unsigned o, size_t bitaddr)
+StreeClrBit (WORD_T *Stree, unsigned O, size_t BitAddr)
 {
-  int l;
+  int L;
 
-  for (l = 0; l <= LOGWORD (o) - 1; l++)
+  for (L = 0; L <= LOGWORD (O) - 1; L++)
     {
-      WORD_T *lmap = stree_lmap (stree, o, l);
-      size_t laddr = lmap_bitoff (l, bitaddr);
+      WORD_T *Lmap = StreeLmap (Stree, O, L);
+      size_t Laddr = LmapBitOff (L, BitAddr);
 
-      if (clr_bit (lmap, laddr))
+      if (ClrBit (Lmap, Laddr))
 	{
 	  /* Other bits are set. Don't clear upper levels. */
 	  break;
@@ -268,87 +298,108 @@ stree_clrbit (WORD_T * stree, unsigned o, size_t bitaddr)
     }
 }
 
+/** Legacy compatibility **/
+#define stree_clrbit StreeClrBit
+
 #include <string.h>
 static inline void
-stree_setall (WORD_T * stree, unsigned o, unsigned long max)
+StreeSetAll (WORD_T *Stree, unsigned O, unsigned long Max)
 {
-  int l;
+  int L;
 
-  for (l = LOGWORD (o) - 1; l >= 0; l -= 1)
+  for (L = LOGWORD (O) - 1; L >= 0; L -= 1)
     {
-      WORD_T *lmap = stree_lmap (stree, o, l);
-      size_t size = lmap_bitoff (l, max) >> WORDLOG2;
-      size_t bits = lmap_bitoff (l, max) & WORDMASK;
-      memset (lmap, -1, size * sizeof (WORD_T));
-      lmap[size] =
-	bits == WORDSIZE - 1 ? (WORD_T) - 1 : ((WORD_T) 1 << (bits + 1)) - 1;
+      WORD_T *Lmap = StreeLmap (Stree, O, L);
+      size_t Size = LmapBitOff (L, Max) >> WORDLOG2;
+      size_t Bits = LmapBitOff (L, Max) & WORDMASK;
+      memset (Lmap, -1, Size * sizeof (WORD_T));
+      Lmap[Size] =
+	Bits == WORDSIZE - 1 ? (WORD_T) - 1 : ((WORD_T) 1 << (Bits + 1)) - 1;
     }
 }
 
-/*
+/** Legacy compatibility **/
+#define stree_setall StreeSetAll
+
+/**
   Count all set bits.
-*/
-static inline unsigned long
-stree_count (WORD_T * stree, unsigned o)
-{
-  unsigned long size = 0;
-  WORD_T *lmap = stree_lmap (stree, o, 0);
 
-  for (int i = 0; i < (1LL << o); i += (1 << WORDLOG2))
+  @param[in] Stree  Pointer to STREE.
+  @param[in] O      Order.
+
+  @return Number of set bits.
+**/
+static inline unsigned long
+StreeCount (WORD_T *Stree, unsigned O)
+{
+  unsigned long Size = 0;
+  WORD_T *Lmap = StreeLmap (Stree, O, 0);
+
+  for (int i = 0; i < (1LL << O); i += (1 << WORDLOG2))
     {
-      size += __builtin_popcountl (lmap[i >> WORDLOG2]);
+      Size += __builtin_popcountl (Lmap[i >> WORDLOG2]);
     }
 
-  return size;
+  return Size;
 }
 
-/*
+/** Legacy compatibility **/
+#define stree_count StreeCount
+
+/**
   Find a set bit.
 
-  LOW=1 will search the lowest address available,
-  LOW=0 will search the highest address available.
+  Low=1 will search the lowest address available,
+  Low=0 will search the highest address available.
 
-  Return the bit address.
-*/
+  @param[in] Stree  Pointer to STREE.
+  @param[in] O      Order.
+  @param[in] Low    Search direction (1=low, 0=high).
+
+  @return Bit address or -1 if not found.
+**/
 static inline long
-stree_bitsearch (WORD_T * stree, unsigned o, int low)
+StreeBitSearch (WORD_T *Stree, unsigned O, int Low)
 {
-  int l;
-  size_t laddr;
+  int L;
+  size_t Laddr;
 
-  laddr = 0;
-  for (l = LOGWORD (o) - 1; l >= 0; l -= 1)
+  Laddr = 0;
+  for (L = LOGWORD (O) - 1; L >= 0; L -= 1)
     {
-      WORD_T *lmap = stree_lmap (stree, o, l);
-      size_t loff = lmap_bitoff (l, laddr) >> WORDLOG2;
-      WORD_T word = GET_WORD (lmap + loff);
-      unsigned bit;
+      WORD_T *Lmap = StreeLmap (Stree, O, L);
+      size_t Loff = LmapBitOff (L, Laddr) >> WORDLOG2;
+      WORD_T Word = GET_WORD (Lmap + Loff);
+      unsigned Bit;
 
 #if 0
-      printf ("W=%d,l=%d,w=%llx,a=%lx\n", WORDSIZE, l, word, laddr);
-      for (int i = 0; i < (1LL << o); i += (1 << (WORDLOG2 * (l))))
+      printf ("W=%d,l=%d,w=%llx,a=%lx\n", WORDSIZE, L, Word, Laddr);
+      for (int i = 0; i < (1LL << O); i += (1 << (WORDLOG2 * (L))))
 	{
-	  long off = lmap_bitoff (l, i);
-	  printf ("%x", get_bit (lmap, off));	//lbitmap[off >> WORDLOG2] & (off & 0x3f));
+	  long Off = LmapBitOff (L, i);
+	  printf ("%x", GetBit (Lmap, Off));	//lbitmap[Off >> WORDLOG2] & (Off & 0x3f));
 	}
 #endif
 
-      if (word == 0)
+      if (Word == 0)
 	{
 	  /* Only top level should be zero, or the search table is corrupted. */
-	  assert (l == LOGWORD (o) - 1);
+	  assert (L == LOGWORD (O) - 1);
 	  return -1;
 	}
 
-      if (low)
-	bit = ctz (word);
+      if (Low)
+	Bit = ctz (Word);
       else
-	bit = WORDSIZE - 1 - clz (word);
+	Bit = WORDSIZE - 1 - clz (Word);
 
-      laddr |= bit << (l * WORDLOG2);
+      Laddr |= Bit << (L * WORDLOG2);
     }
-  return laddr;
+  return Laddr;
 }
+
+/** Legacy compatibility **/
+#define stree_bitsearch StreeBitSearch
 
 
 #if 0
