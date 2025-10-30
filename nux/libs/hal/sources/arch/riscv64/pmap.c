@@ -262,12 +262,12 @@ HalUmapFree (
 //
 
 /** @deprecated Use HalKmapGetL1p instead **/
-bool hal_kmap_getl1p (unsigned long va, bool alloc, hal_l1p_t * l1popq) {
+BOOLEAN hal_kmap_getl1p (unsigned long va, BOOLEAN alloc, hal_l1p_t * l1popq) {
   return HalKmapGetL1p (va, alloc, l1popq);
 }
 
 /** @deprecated Use HalUmapGetL1p instead **/
-bool hal_umap_getl1p (struct hal_umap *umap, unsigned long uaddr, bool alloc,
+BOOLEAN hal_umap_getl1p (struct hal_umap *umap, unsigned long uaddr, BOOLEAN alloc,
 		 hal_l1p_t * l1popq) {
   return HalUmapGetL1p (umap, uaddr, alloc, l1popq);
 }

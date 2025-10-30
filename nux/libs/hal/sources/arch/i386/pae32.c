@@ -171,7 +171,7 @@ AllocL3Table (
 **/
 static pte_t
 AllocTable (
-  IN bool  User
+  IN BOOLEAN  User
   )
 {
   PFN Pfn;
@@ -210,8 +210,8 @@ LinMapGetL3p (
 static ptep_t
 LinMapGetL2p (
   IN unsigned long  Va,
-  IN bool           Alloc,
-  IN bool           User
+  IN BOOLEAN           Alloc,
+  IN BOOLEAN           User
   )
 {
   ptep_t L3p;
@@ -247,8 +247,8 @@ LinMapGetL2p (
 static ptep_t
 LinMapGetL1p (
   IN unsigned long  Va,
-  IN bool           Alloc,
-  IN bool           User
+  IN BOOLEAN           Alloc,
+  IN BOOLEAN           User
   )
 {
   ptep_t L2p;
@@ -316,7 +316,7 @@ static PFN
 GetUmapL2Pfn (
   IN struct hal_umap  *Umap,
   IN unsigned long    Va,
-  IN bool             Alloc
+  IN BOOLEAN             Alloc
   )
 {
   ptep_t L3p;
@@ -352,7 +352,7 @@ static ptep_t
 GetUmapL2p (
   IN struct hal_umap  *Umap,
   IN unsigned long    Va,
-  IN bool             Alloc
+  IN BOOLEAN             Alloc
   )
 {
   PFN L2Pfn;
@@ -361,7 +361,7 @@ GetUmapL2p (
     {
       /* Use PMAP if current. */
       assert (L3OFF (Va) < UMAP_L3PTES);
-      return LinMapGetL2p (Va, Alloc, true /* user */ );
+      return LinMapGetL2p (Va, Alloc, TRUE /* user */ );
     }
 
   L2Pfn = GetUmapL2Pfn (Umap, Va, Alloc);
@@ -386,7 +386,7 @@ static PFN
 GetUmapL1Pfn (
   IN struct hal_umap  *Umap,
   IN unsigned long    Va,
-  IN bool             Alloc
+  IN BOOLEAN             Alloc
   )
 {
   ptep_t L2p;
@@ -399,7 +399,7 @@ GetUmapL1Pfn (
     {
       if (!Alloc)
 	return PFN_INVALID;
-      L2e = AllocTable (true /* user */ );
+      L2e = AllocTable (TRUE /* user */ );
       if (L2e == PTE_INVALID)
 	return PFN_INVALID;
       SetPte (L2p, L2e);
@@ -426,7 +426,7 @@ ptep_t
 UmapGetL1p (
   IN struct hal_umap  *Umap,
   IN unsigned long    Va,
-  IN bool             Alloc
+  IN BOOLEAN             Alloc
   )
 {
   PFN L1Pfn;
@@ -435,7 +435,7 @@ UmapGetL1p (
     {
       /* Use PMAP if current. */
       assert (L3OFF (Va) < UMAP_L3PTES);
-      return LinMapGetL1p (Va, Alloc, true /* user */ );
+      return LinMapGetL1p (Va, Alloc, TRUE /* user */ );
     }
 
   L1Pfn = GetUmapL1Pfn (Umap, Va, Alloc);
@@ -485,10 +485,10 @@ PtUmapMaxAddr (
 hal_l1p_t
 KmapGetL1p (
   IN unsigned long  Va,
-  IN bool           Alloc
+  IN BOOLEAN           Alloc
   )
 {
-  return (hal_l1p_t) LinMapGetL1p (Va, Alloc, false /* !user */ );
+  return (hal_l1p_t) LinMapGetL1p (Va, Alloc, FALSE /* !user */ );
 }
 
 /**
@@ -614,7 +614,7 @@ PtUmapDebugWalk (
     }
 
   i = 2;
-  Ptep = LinMapGetL2p (Va, false, false);
+  Ptep = LinMapGetL2p (Va, FALSE, FALSE);
   printf ("    L%d -", i);
   if (Ptep == PTEP_INVALID)
     {
@@ -630,7 +630,7 @@ PtUmapDebugWalk (
     }
 
   i = 1;
-  Ptep = LinMapGetL1p (Va, false, false);
+  Ptep = LinMapGetL1p (Va, FALSE, FALSE);
   printf ("    L%d -", i);
   if (Ptep == PTEP_INVALID)
     {
@@ -654,7 +654,7 @@ PtUmapDebugWalk (
   @retval TRUE   Found mapped entry.
   @retval FALSE  No mapped entry found.
 **/
-static bool
+static BOOLEAN
 ScanL1 (
   IN  PFN       L1Pfn,
   IN  unsigned    Off,
@@ -677,11 +677,11 @@ ScanL1 (
 	    *pL1eOut = L1e;
 	  *pL1OffOut = i;
 	  pfn_put (L1Pfn, pL1Ptr);
-	  return true;
+	  return TRUE;
 	}
     }
   pfn_put (L1Pfn, pL1Ptr);
-  return false;
+  return FALSE;
 }
 
 /**
@@ -697,7 +697,7 @@ ScanL1 (
   @retval TRUE   Found mapped entry.
   @retval FALSE  No mapped entry found.
 **/
-static bool
+static BOOLEAN
 ScanL2 (
   IN  PFN       L2Pfn,
   IN  unsigned    Off,
@@ -721,12 +721,12 @@ ScanL2 (
 	    {
 	      *pL2OffOut = i;
 	      pfn_put (L2Pfn, pL2Ptr);
-	      return true;
+	      return TRUE;
 	    }
 	}
     }
   pfn_put (L2Pfn, pL2Ptr);
-  return false;
+  return FALSE;
 }
 
 /**
@@ -743,7 +743,7 @@ ScanL2 (
   @retval TRUE   Found mapped entry.
   @retval FALSE  No mapped entry found.
 **/
-static bool
+static BOOLEAN
 ScanL3 (
   IN  struct hal_umap  *Umap,
   IN  unsigned         Off,
@@ -774,11 +774,11 @@ ScanL3 (
 	  if (ScanL2 (L2Pfn, 0, pL2OffOut, pL1OffOut, pL1pOut, pL1eOut))
 	    {
 	      *pL3OffOut = i;
-	      return true;
+	      return TRUE;
 	    }
 	}
     }
-  return false;
+  return FALSE;
 }
 
 /**
@@ -807,7 +807,7 @@ PtUmapNext (
   unsigned L3Next, L2Next, L1Next;
 
   /* Check till end of current l1. */
-  L1Pfn = GetUmapL1Pfn (Umap, Uaddr, false);
+  L1Pfn = GetUmapL1Pfn (Umap, Uaddr, FALSE);
   if (L1Pfn != PFN_INVALID
       && ScanL1 (L1Pfn, L1Off + 1, &L1Next, pL1pOut, pL1eOut))
     {
@@ -815,7 +815,7 @@ PtUmapNext (
     }
 
   /* Check till end of current l2. */
-  L2Pfn = GetUmapL2Pfn (Umap, Uaddr, false);
+  L2Pfn = GetUmapL2Pfn (Umap, Uaddr, FALSE);
   if (L2Pfn != PFN_INVALID
       && ScanL2 (L2Pfn, L2Off + 1, &L2Next, &L1Next, pL1pOut, pL1eOut))
     {
@@ -950,7 +950,7 @@ static pte_t alloc_l3table () {
 }
 
 /** @deprecated Use AllocTable instead **/
-static pte_t alloc_table (bool user) {
+static pte_t alloc_table (BOOLEAN user) {
   return AllocTable (user);
 }
 
@@ -960,12 +960,12 @@ static ptep_t linmap_get_l3p (unsigned long va) {
 }
 
 /** @deprecated Use LinMapGetL2p instead **/
-static ptep_t linmap_get_l2p (unsigned long va, bool alloc, bool user) {
+static ptep_t linmap_get_l2p (unsigned long va, BOOLEAN alloc, BOOLEAN user) {
   return LinMapGetL2p (va, alloc, user);
 }
 
 /** @deprecated Use LinMapGetL1p instead **/
-static ptep_t linmap_get_l1p (unsigned long va, bool alloc, bool user) {
+static ptep_t linmap_get_l1p (unsigned long va, BOOLEAN alloc, BOOLEAN user) {
   return LinMapGetL1p (va, alloc, user);
 }
 
@@ -975,22 +975,22 @@ static ptep_t get_umap_l3p (struct hal_umap *umap, unsigned long va) {
 }
 
 /** @deprecated Use GetUmapL2Pfn instead **/
-static PFN get_umap_l2pfn (struct hal_umap *umap, unsigned long va, bool alloc) {
+static PFN get_umap_l2pfn (struct hal_umap *umap, unsigned long va, BOOLEAN alloc) {
   return GetUmapL2Pfn (umap, va, alloc);
 }
 
 /** @deprecated Use GetUmapL2p instead **/
-static ptep_t get_umap_l2p (struct hal_umap *umap, unsigned long va, bool alloc) {
+static ptep_t get_umap_l2p (struct hal_umap *umap, unsigned long va, BOOLEAN alloc) {
   return GetUmapL2p (umap, va, alloc);
 }
 
 /** @deprecated Use GetUmapL1Pfn instead **/
-static PFN get_umap_l1pfn (struct hal_umap *umap, unsigned long va, bool alloc) {
+static PFN get_umap_l1pfn (struct hal_umap *umap, unsigned long va, BOOLEAN alloc) {
   return GetUmapL1Pfn (umap, va, alloc);
 }
 
 /** @deprecated Use UmapGetL1p instead **/
-ptep_t umap_get_l1p (struct hal_umap *umap, unsigned long va, bool alloc) {
+ptep_t umap_get_l1p (struct hal_umap *umap, unsigned long va, BOOLEAN alloc) {
   return UmapGetL1p (umap, va, alloc);
 }
 
@@ -1005,7 +1005,7 @@ UINT32 long pt_umap_maxaddr (void) {
 }
 
 /** @deprecated Use KmapGetL1p instead **/
-hal_l1p_t kmap_get_l1p (unsigned long va, bool alloc) {
+hal_l1p_t kmap_get_l1p (unsigned long va, BOOLEAN alloc) {
   return KmapGetL1p (va, alloc);
 }
 
@@ -1030,19 +1030,19 @@ void pt_umap_debugwalk (struct hal_umap *umap, unsigned long va) {
 }
 
 /** @deprecated Use ScanL1 instead **/
-static bool scan_l1 (PFN l1pfn, UINT32 off, unsigned *l1off_out, hal_l1p_t * l1p_out,
+static BOOLEAN scan_l1 (PFN l1pfn, UINT32 off, unsigned *l1off_out, hal_l1p_t * l1p_out,
 	 hal_l1e_t * l1e_out) {
   return ScanL1 (l1pfn, off, l1off_out, l1p_out, l1e_out);
 }
 
 /** @deprecated Use ScanL2 instead **/
-static bool scan_l2 (PFN l2pfn, UINT32 off, unsigned *l2off_out, unsigned *l1off_out,
+static BOOLEAN scan_l2 (PFN l2pfn, UINT32 off, unsigned *l2off_out, unsigned *l1off_out,
 	 hal_l1p_t * l1p_out, hal_l1e_t * l1e_out) {
   return ScanL2 (l2pfn, off, l2off_out, l1off_out, l1p_out, l1e_out);
 }
 
 /** @deprecated Use ScanL3 instead **/
-static bool scan_l3 (struct hal_umap *umap, UINT32 off,
+static BOOLEAN scan_l3 (struct hal_umap *umap, UINT32 off,
 	 unsigned *l3off_out, unsigned *l2off_out, unsigned *l1off_out,
 	 hal_l1p_t * l1p_out, hal_l1e_t * l1e_out) {
   return ScanL3 (umap, off, l3off_out, l2off_out, l1off_out, l1p_out, l1e_out);

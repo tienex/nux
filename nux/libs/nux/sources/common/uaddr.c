@@ -67,11 +67,11 @@ UaddrValidRange (
 //
 
 /** @deprecated Use UaddrValid instead **/
-bool UaddrValid (USER_ADDRESS a) {
+BOOLEAN UaddrValid (USER_ADDRESS a) {
   return UaddrValid (a);
 }
 
 /** @deprecated Use UaddrValidRange instead **/
-bool UaddrValidRange (USER_ADDRESS a, UINTN size) {
+BOOLEAN UaddrValidRange (USER_ADDRESS a, UINTN size) {
   return UaddrValidRange (a, size);
 }

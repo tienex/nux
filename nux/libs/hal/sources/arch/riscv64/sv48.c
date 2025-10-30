@@ -844,60 +844,60 @@ static void put_cpumap_l4ptr (unsigned long va, pte_t * pte) {
 }
 
 /** @deprecated Use WalkL3Pfn instead **/
-static PFN walk_l3pfn (pte_t * l4ptr, unsigned long va, bool alloc) {
+static PFN walk_l3pfn (pte_t * l4ptr, unsigned long va, BOOLEAN alloc) {
   return WalkL3Pfn (l4ptr, va, alloc);
 }
 
 /** @deprecated Use WalkL3p instead **/
-static ptep_t walk_l3p (pte_t * l4ptr, unsigned long va, bool alloc) {
+static ptep_t walk_l3p (pte_t * l4ptr, unsigned long va, BOOLEAN alloc) {
   return WalkL3p (l4ptr, va, alloc);
 }
 
 /** @deprecated Use WalkL2Pfn instead **/
-static PFN walk_l2pfn (pte_t * l4ptr, unsigned long va, bool alloc) {
+static PFN walk_l2pfn (pte_t * l4ptr, unsigned long va, BOOLEAN alloc) {
   return WalkL2Pfn (l4ptr, va, alloc);
 }
 
 /** @deprecated Use WalkL2p instead **/
-static ptep_t walk_l2p (pte_t * l4ptr, unsigned long va, bool alloc) {
+static ptep_t walk_l2p (pte_t * l4ptr, unsigned long va, BOOLEAN alloc) {
   return WalkL2p (l4ptr, va, alloc);
 }
 
 /** @deprecated Use WalkL1Pfn instead **/
-static PFN walk_l1pfn (pte_t * l4ptr, unsigned long va, bool alloc) {
+static PFN walk_l1pfn (pte_t * l4ptr, unsigned long va, BOOLEAN alloc) {
   return WalkL1Pfn (l4ptr, va, alloc);
 }
 
 /** @deprecated Use WalkL1p instead **/
-static ptep_t walk_l1p (pte_t * l4ptr, unsigned long va, bool alloc) {
+static ptep_t walk_l1p (pte_t * l4ptr, unsigned long va, BOOLEAN alloc) {
   return WalkL1p (l4ptr, va, alloc);
 }
 
 /** @deprecated Use UmapGetL1p instead **/
-hal_l1p_t umap_get_l1p (struct hal_umap *umap, unsigned long va, bool alloc) {
+hal_l1p_t umap_get_l1p (struct hal_umap *umap, unsigned long va, BOOLEAN alloc) {
   return UmapGetL1p (umap, va, alloc);
 }
 
 /** @deprecated Use ScanL1 instead **/
-static bool scan_l1 (PFN l1pfn, UINT32 off, unsigned *l1off_out, hal_l1p_t * l1p_out,
+static BOOLEAN scan_l1 (PFN l1pfn, UINT32 off, unsigned *l1off_out, hal_l1p_t * l1p_out,
 	 hal_l1e_t * l1e_out) {
   return ScanL1 (l1pfn, off, l1off_out, l1p_out, l1e_out);
 }
 
 /** @deprecated Use ScanL2 instead **/
-static bool scan_l2 (PFN l2pfn, UINT32 off, unsigned *l2off_out, unsigned *l1off_out,
+static BOOLEAN scan_l2 (PFN l2pfn, UINT32 off, unsigned *l2off_out, unsigned *l1off_out,
 	 hal_l1p_t * l1p_out, hal_l1e_t * l1e_out) {
   return ScanL2 (l2pfn, off, l2off_out, l1off_out, l1p_out, l1e_out);
 }
 
 /** @deprecated Use ScanL3 instead **/
-static bool scan_l3 (PFN l3pfn, UINT32 off, unsigned *l3off_out, unsigned *l2off_out,
+static BOOLEAN scan_l3 (PFN l3pfn, UINT32 off, unsigned *l3off_out, unsigned *l2off_out,
 	 unsigned *l1off_out, hal_l1p_t * l1p_out, hal_l1e_t * l1e_out) {
   return ScanL3 (l3pfn, off, l3off_out, l2off_out, l1off_out, l1p_out, l1e_out);
 }
 
 /** @deprecated Use ScanL4 instead **/
-static bool scan_l4 (struct hal_umap *umap, UINT32 off, unsigned *l4off_out,
+static BOOLEAN scan_l4 (struct hal_umap *umap, UINT32 off, unsigned *l4off_out,
 	 unsigned *l3off_out, unsigned *l2off_out, unsigned *l1off_out,
 	 hal_l1p_t * l1p_out, hal_l1e_t * l1e_out) {
   return ScanL4 (umap, off, l4off_out, l3off_out, l2off_out, l1off_out, l1p_out, l1e_out);

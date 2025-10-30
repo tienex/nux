@@ -245,7 +245,7 @@ UmapInitialize (
 //
 
 /** @deprecated Use UmapSetL1e instead **/
-static bool _umap_setl1e (struct umap *umap, VIRTUAL_ADDRESS va, hal_l1e_t l1e, bool alloc,
+static BOOLEAN _umap_setl1e (struct umap *umap, VIRTUAL_ADDRESS va, hal_l1e_t l1e, BOOLEAN alloc,
 	      PFN * opfn) {
   return UmapSetL1e (umap, va, l1e, alloc, opfn);
 }
@@ -257,7 +257,7 @@ unsigned UmapChFlags (struct umap *umap, VIRTUAL_ADDRESS va,
 }
 
 /** @deprecated Use UmapMap instead **/
-bool UmapMap (struct umap *umap, VIRTUAL_ADDRESS va, PFN pfn, UINT32 prot,
+BOOLEAN UmapMap (struct umap *umap, VIRTUAL_ADDRESS va, PFN pfn, UINT32 prot,
 	  PFN * opfn) {
   return UmapMap (umap, va, pfn, prot, opfn);
 }

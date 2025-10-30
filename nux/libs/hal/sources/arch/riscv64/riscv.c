@@ -523,7 +523,7 @@ DoPageFault (
   if (Frame->scause == SCAUSE_IPF)
     pfinfo |= HAL_PF_INFO_EXE;
 
-  l1p = cpumap_get_l1p (Frame->stval, false);
+  l1p = cpumap_get_l1p (Frame->stval, FALSE);
   if (l1p == L1P_INVALID)
     pfinfo |= HAL_PF_REASON_NOTP;
   else

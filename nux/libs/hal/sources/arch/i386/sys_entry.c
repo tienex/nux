@@ -468,7 +468,7 @@ void hal_frame_init (struct hal_frame *f) {
 }
 
 /** @deprecated Use HalFrameIsUser instead **/
-bool hal_frame_isuser (struct hal_frame *f) {
+BOOLEAN hal_frame_isuser (struct hal_frame *f) {
   return HalFrameIsUser (f);
 }
 

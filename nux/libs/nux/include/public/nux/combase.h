@@ -32,7 +32,7 @@ typedef int32_t         INT32;
 typedef int64_t         INT64;
 typedef unsigned long   UINTN;
 typedef long            INTN;
-typedef bool            BOOLEAN;
+typedef BOOLEAN            BOOLEAN;
 typedef char            CHAR8;
 typedef char            *PCHAR8;
 

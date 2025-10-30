@@ -478,7 +478,7 @@ FrameCr2 (
 //
 
 /** @deprecated Use IsCanonical instead **/
-static INLINE bool is_canonical (UINT64 addr) {
+static INLINE BOOLEAN is_canonical (UINT64 addr) {
   return IsCanonical (addr);
 }
 
@@ -518,7 +518,7 @@ void hal_frame_init (struct hal_frame *f) {
 }
 
 /** @deprecated Use HalFrameIsUser instead **/
-bool hal_frame_isuser (struct hal_frame *f) {
+BOOLEAN hal_frame_isuser (struct hal_frame *f) {
   return HalFrameIsUser (f);
 }
 

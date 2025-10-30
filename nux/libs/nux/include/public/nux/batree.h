@@ -197,7 +197,7 @@ LmapBitOff (UINT32 L, UINT32 A)
   return ((UINTN) A >> WORDLOG2 * L);
 }
 
-static INLINE bool
+static INLINE BOOLEAN
 SetBit (WORD_T *Map, UINTN BitAddr)
 {
   WORD_T Old;
@@ -207,11 +207,11 @@ SetBit (WORD_T *Map, UINTN BitAddr)
   Old = GET_WORD (Map + Off);
   OR_WORD (Map + Off, ((WORD_T) 1 << Bit));
 
-  /* Return true if this is NOT the first bit set. */
+  /* Return TRUE if this is NOT the first bit set. */
   return !!Old;
 }
 
-static INLINE bool
+static INLINE BOOLEAN
 ClrBit (WORD_T *Map, UINTN BitAddr)
 {
   UINTN Off = BitAddr >> WORDLOG2;
@@ -219,7 +219,7 @@ ClrBit (WORD_T *Map, UINTN BitAddr)
 
   MASK_WORD (Map + Off, ~((WORD_T) 1 << Bit));
 
-  /* Return true if word still has bit set. */
+  /* Return TRUE if word still has bit set. */
   return !!GET_WORD (Map + Off);
 }
 

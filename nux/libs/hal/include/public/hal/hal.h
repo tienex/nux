@@ -1014,7 +1014,7 @@ static INLINE CONST VIRTUAL_ADDRESS hal_virtmem_userentry (void) {
   return pVirtMem->lpVtbl->GetUserEntry(pVirtMem);
 }
 
-static INLINE bool hal_kmap_getl1p (unsigned long va, bool alloc, hal_l1p_t *l1p) {
+static INLINE BOOLEAN hal_kmap_getl1p (unsigned long va, BOOLEAN alloc, hal_l1p_t *l1p) {
   IHalMap *pMap; gpHal->lpVtbl->GetMapInterface(gpHal, &pMap);
   return pMap->lpVtbl->KmapGetL1p(pMap, va, alloc, l1p);
 }
@@ -1099,7 +1099,7 @@ static INLINE void hal_frame_init (struct hal_frame *f) {
   Frame->lpVtbl->Init(Frame, f);
 }
 
-static INLINE bool hal_frame_isuser (struct hal_frame *f) {
+static INLINE BOOLEAN hal_frame_isuser (struct hal_frame *f) {
   IHalFrame *Frame; gpHal->lpVtbl->GetFrameInterface(gpHal, &Frame);
   return Frame->lpVtbl->IsUser(Frame, f);
 }

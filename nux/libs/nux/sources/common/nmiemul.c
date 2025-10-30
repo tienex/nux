@@ -177,7 +177,7 @@ NmiEmulEntry (
 //
 
 /** @deprecated Use NmiEmulNmiPending instead **/
-static bool nmiemul_nmi_pending (void) {
+static BOOLEAN nmiemul_nmi_pending (void) {
   return NmiEmulNmiPending ();
 }
 
@@ -187,7 +187,7 @@ static void nmiemul_nmi_clear (void) {
 }
 
 /** @deprecated Use NmiEmulIpiPending instead **/
-bool nmiemul_ipi_pending (void) {
+BOOLEAN nmiemul_ipi_pending (void) {
   return NmiEmulIpiPending ();
 }
 

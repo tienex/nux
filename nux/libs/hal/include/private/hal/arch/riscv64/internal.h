@@ -199,7 +199,7 @@ riscv_satp (void)
 }
 
 static INLINE VOID
-riscv_invlpg (unsigned long va, bool no_svvptc_only)
+riscv_invlpg (unsigned long va, BOOLEAN no_svvptc_only)
 {
   asm volatile ("sfence.vma x0, %0\n"::"r" (va));
 }
@@ -219,7 +219,7 @@ riscv_gettp (void)
 }
 
 hal_l1p_t cpumap_get_l1p (unsigned long va, int alloc);
-hal_l1p_t umap_get_l1p (struct hal_umap *umap, unsigned long va, bool alloc);
+hal_l1p_t umap_get_l1p (struct hal_umap *umap, unsigned long va, BOOLEAN alloc);
 USER_ADDRESS pt_umap_next (struct hal_umap *umap, USER_ADDRESS uaddr, hal_l1p_t * l1p_out,
 		   hal_l1e_t * l1e_out);
 void pt_umap_free (struct hal_umap *umap);

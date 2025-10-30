@@ -483,6 +483,6 @@ void UctxtPrint (UCTXT * uctxt) {
 }
 
 /** @deprecated Use UctxtBootstrap instead **/
-bool UctxtBootstrap (UCTXT * uctxt) {
+BOOLEAN UctxtBootstrap (UCTXT * uctxt) {
   return UctxtBootstrap (uctxt);
 }
