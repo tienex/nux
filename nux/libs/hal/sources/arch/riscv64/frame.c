@@ -99,7 +99,7 @@ HalFrameSetGp (
 
   @return Global pointer value.
 **/
-vaddr_t
+VIRTUAL_ADDRESS
 HalFrameGetGp (
   IN struct hal_frame  *Frame
   )
@@ -269,7 +269,7 @@ void hal_frame_setgp (struct hal_frame *f, unsigned long gp) {
 }
 
 /** @deprecated Use HalFrameGetGp instead **/
-vaddr_t hal_frame_getgp (struct hal_frame *f) {
+VIRTUAL_ADDRESS hal_frame_getgp (struct hal_frame *f) {
   return HalFrameGetGp (f);
 }
 

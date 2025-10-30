@@ -180,7 +180,7 @@ hal_useraccess_end (
   asm volatile ("csrc sstatus, %0"::"r" (SSTATUS_SUM):"memory");
 }
 
-vaddr_t
+VIRTUAL_ADDRESS
 hal_virtmem_dmapbase (
   VOID
   )
@@ -196,7 +196,7 @@ hal_virtmem_dmapsize (
   return (size_t) (_riscv64_physmap_end - _riscv64_physmap_start);
 }
 
-vaddr_t
+VIRTUAL_ADDRESS
 hal_virtmem_pfn$base (
   VOID
   )
@@ -212,7 +212,7 @@ hal_virtmem_pfn$size (
   return (size_t) (_riscv64_pfncache_end - _riscv64_pfncache_start);
 }
 
-const vaddr_t
+const VIRTUAL_ADDRESS
 hal_virtmem_userbase (
   VOID
   )
@@ -228,12 +228,12 @@ hal_virtmem_usersize (
   return pt_umap_maxaddr ();
 }
 
-const vaddr_t
+const VIRTUAL_ADDRESS
 hal_virtmem_userentry (
   VOID
   )
 {
-  return (const vaddr_t) bootinfo->uentry;
+  return (const VIRTUAL_ADDRESS) bootinfo->uentry;
 }
 
 UINTN
@@ -287,12 +287,12 @@ hal_physmem_stree (
   return gHalStreePtr;
 }
 
-vaddr_t
+VIRTUAL_ADDRESS
 hal_virtmem_kvabase (
   VOID
   )
 {
-  return (vaddr_t) _riscv64_kva_start;
+  return (VIRTUAL_ADDRESS) _riscv64_kva_start;
 }
 
 const size_t
@@ -303,12 +303,12 @@ hal_virtmem_kvasize (
   return (size_t) (_riscv64_kva_end - _riscv64_kva_start);
 }
 
-vaddr_t
+VIRTUAL_ADDRESS
 hal_virtmem_kmembase (
   VOID
   )
 {
-  return (vaddr_t) _riscv64_kmem_start;
+  return (VIRTUAL_ADDRESS) _riscv64_kmem_start;
 }
 
 const size_t
@@ -348,7 +348,7 @@ RiscvInitialize (
     }
 
   fbdesc = bootinfo->fbdesc;
-  fbdesc.addr = (UINT64) (uintptr_t) & _fbuf_start;
+  fbdesc.addr = (UINT64) (UINTN) & _fbuf_start;
   gUseFb = framebuffer_init (&fbdesc);
 
   /* Check  APXH stree. */
@@ -404,7 +404,7 @@ hal_pcpu_add (
   extern int _bsp_stacktop[];
   assert (pcpuid < HAL_MAXCPUS);
 
-  HalData->kernsp = (uintptr_t) _bsp_stacktop;
+  HalData->kernsp = (UINTN) _bsp_stacktop;
   pcpu_haldata[pcpuid] = HalData;
 }
 
@@ -415,7 +415,7 @@ hal_pcpu_enter (
 {
   assert (pcpuid < HAL_MAXCPUS);
 
-  riscv_settp ((uintptr_t) pcpu_haldata[pcpuid]);
+  riscv_settp ((UINTN) pcpu_haldata[pcpuid]);
 
   /* CPU is up and running. Switch to full interrupt handler. */
   set_stvec_final ();
@@ -425,7 +425,7 @@ hal_pcpu_enter (
   riscv_sstatus_sti ();
 }
 
-paddr_t
+PHYSICAL_ADDRESS
 hal_pcpu_startaddr (
   IN UINT32  pcpuid
   )

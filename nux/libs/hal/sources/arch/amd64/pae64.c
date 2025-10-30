@@ -51,13 +51,13 @@
 #define l1e_reserved(_pte) ((_pte) & L1_RESPT)
 
 #define mkpte(_p, _f) (((uint64_t)(_p) << PAGE_SHIFT) | (_f))
-#define pte_pfn(_p) ((pfn_t)(((uint64_t) (_p) & ~PTE_NX) >> PAGE_SHIFT))
+#define pte_pfn(_p) ((PFN)(((uint64_t) (_p) & ~PTE_NX) >> PAGE_SHIFT))
 #define pte_present(_pte) ((_pte) & PTE_P)
 
 #define PTE_INVALID ((uint64_t)0)
 #define PTEP_INVALID L1P_INVALID
-#define mkptep_cur(_p) ((ptep_t)(uintptr_t)(_p))
-#define mkptep_fgn(_p) ((ptep_t)(uintptr_t)(_p) | 1)
+#define mkptep_cur(_p) ((ptep_t)(UINTN)(_p))
+#define mkptep_fgn(_p) ((ptep_t)(UINTN)(_p) | 1)
 #define ptep_is_foreign(_p) ((_p) & 1)
 
 extern int _linear_start;
@@ -104,7 +104,7 @@ GetPte (
   if (ptep_is_foreign (Ptep))
     {
       pte_t *T, Pte;
-      pfn_t Pfn;
+      PFN Pfn;
       unsigned Offset;
 
       Pfn = Ptep >> PAGE_SHIFT;
@@ -118,7 +118,7 @@ GetPte (
     }
   else
     {
-      return *(pte_t *) (uintptr_t) Ptep;
+      return *(pte_t *) (UINTN) Ptep;
     }
 
 }
@@ -142,7 +142,7 @@ SetPte (
   if (ptep_is_foreign (Ptep))
     {
       pte_t *T;
-      pfn_t Pfn;
+      PFN Pfn;
       unsigned Offset;
 
       Pfn = Ptep >> PAGE_SHIFT;
@@ -174,7 +174,7 @@ AllocTable (
   IN bool  User
   )
 {
-  pfn_t Pfn;
+  PFN Pfn;
 
   Pfn = pfn_alloc (0);
   if (Pfn == PFN_INVALID)
@@ -369,7 +369,7 @@ GetUmapL4p (
 
   @return L3 page frame number, or PFN_INVALID.
 **/
-static pfn_t
+static PFN
 GetUmapL3Pfn (
   IN struct hal_umap  *Umap,
   IN unsigned long    Va,
@@ -414,7 +414,7 @@ GetUmapL3p (
   IN bool             Alloc
   )
 {
-  pfn_t L3Pfn;
+  PFN L3Pfn;
 
   if (Umap == NULL)
     {
@@ -441,7 +441,7 @@ GetUmapL3p (
 
   @return L2 page frame number, or PFN_INVALID.
 **/
-static pfn_t
+static PFN
 GetUmapL2Pfn (
   IN struct hal_umap  *Umap,
   IN unsigned long    Va,
@@ -489,7 +489,7 @@ GetUmapL2p (
   IN bool             Alloc
   )
 {
-  pfn_t L2Pfn;
+  PFN L2Pfn;
 
   if (Umap == NULL)
     {
@@ -516,7 +516,7 @@ GetUmapL2p (
 
   @return L1 page frame number, or PFN_INVALID.
 **/
-static pfn_t
+static PFN
 GetUmapL1Pfn (
   IN struct hal_umap  *Umap,
   IN unsigned long    Va,
@@ -567,7 +567,7 @@ UmapGetL1p (
   IN bool             Alloc
   )
 {
-  pfn_t L1Pfn;
+  PFN L1Pfn;
 
   if (Umap == NULL)
     {
@@ -732,7 +732,7 @@ HalUmapBootstrap (
   IN struct hal_umap  *Umap
   )
 {
-  vaddr_t Va = hal_virtmem_userbase ();
+  VIRTUAL_ADDRESS Va = hal_virtmem_userbase ();
   int i;
 
   for (i = 0; i < UMAP_L4PTES; i++, Va += (1L << L4_SHIFT))
@@ -774,7 +774,7 @@ HalUmapLoad (
   IN struct hal_umap  *Umap
   )
 {
-  vaddr_t Va = hal_virtmem_userbase ();
+  VIRTUAL_ADDRESS Va = hal_virtmem_userbase ();
   hal_tlbop_t TlbOp = HAL_TLBOP_NONE;
   int i;
 
@@ -809,7 +809,7 @@ HalUmapLoad (
 **/
 static bool
 ScanL1 (
-  IN  pfn_t       L1Pfn,
+  IN  PFN       L1Pfn,
   IN  unsigned    Off,
   OUT unsigned   *pL1OffOut,
   OUT hal_l1p_t  *pL1pOut OPTIONAL,
@@ -852,7 +852,7 @@ ScanL1 (
 **/
 static bool
 ScanL2 (
-  IN  pfn_t       L2Pfn,
+  IN  PFN       L2Pfn,
   IN  unsigned    Off,
   OUT unsigned   *pL2OffOut,
   OUT unsigned   *pL1OffOut,
@@ -861,7 +861,7 @@ ScanL2 (
   )
 {
   pte_t *pL2Ptr, L2e;
-  pfn_t L1Pfn;
+  PFN L1Pfn;
 
   pL2Ptr = pfn_get (L2Pfn);
   for (unsigned i = Off; i < 512; i++)
@@ -898,7 +898,7 @@ ScanL2 (
 **/
 static bool
 ScanL3 (
-  IN  pfn_t       L3Pfn,
+  IN  PFN       L3Pfn,
   IN  unsigned    Off,
   OUT unsigned   *pL3OffOut,
   OUT unsigned   *pL2OffOut,
@@ -908,7 +908,7 @@ ScanL3 (
   )
 {
   pte_t *pL3Ptr, L3e;
-  pfn_t L2Pfn;
+  PFN L2Pfn;
 
   pL3Ptr = pfn_get (L3Pfn);
   for (unsigned i = Off; i < 512; i++)
@@ -957,7 +957,7 @@ ScanL4 (
   )
 {
   pte_t L4e;
-  pfn_t L3Pfn;
+  PFN L3Pfn;
   for (unsigned i = Off; i < UMAP_L4PTES; i++)
     {
       if (Umap != NULL)
@@ -989,10 +989,10 @@ ScanL4 (
 
   @return Next mapped user address, or UADDR_INVALID.
 **/
-uaddr_t
+USER_ADDRESS
 PtUmapNext (
   IN  struct hal_umap  *Umap,
-  IN  uaddr_t          Uaddr,
+  IN  USER_ADDRESS          Uaddr,
   OUT hal_l1p_t        *pL1pOut OPTIONAL,
   OUT hal_l1e_t        *pL1eOut OPTIONAL
   )
@@ -1002,7 +1002,7 @@ PtUmapNext (
   unsigned L3Off = L3OFF (Uaddr);
   unsigned L2Off = L2OFF (Uaddr);
   unsigned L1Off = L1OFF (Uaddr);
-  pfn_t L1Pfn, L2Pfn, L3Pfn;
+  PFN L1Pfn, L2Pfn, L3Pfn;
   unsigned L4Next, L3Next, L2Next, L1Next;
 
   /* Check till end of current l1. */
@@ -1051,11 +1051,11 @@ PtUmapFree (
   )
 {
   pte_t L4e;
-  pfn_t L3Pfn;
+  PFN L3Pfn;
   pte_t *pL3Ptr, L3e;
-  pfn_t L2Pfn;
+  PFN L2Pfn;
   pte_t *pL2Ptr, L2e;
-  pfn_t L1Pfn;
+  PFN L1Pfn;
 
   for (unsigned i = 0; i < UMAP_L4PTES; i++)
     {
@@ -1105,7 +1105,7 @@ Pae64InitializeAp (
 {
   unsigned long LinOff = L4OFF ((unsigned long) linaddr);
   pte_t *Va, *pCr3Va;
-  pfn_t Pfn, Cr3Pfn;
+  PFN Pfn, Cr3Pfn;
 
 
   Pfn = pfn_alloc (0);
@@ -1194,7 +1194,7 @@ static ptep_t get_umap_l4p (struct hal_umap *umap, unsigned long va) {
 }
 
 /** @deprecated Use GetUmapL3Pfn instead **/
-static pfn_t get_umap_l3pfn (struct hal_umap *umap, unsigned long va, bool alloc) {
+static PFN get_umap_l3pfn (struct hal_umap *umap, unsigned long va, bool alloc) {
   return GetUmapL3Pfn (umap, va, alloc);
 }
 
@@ -1204,7 +1204,7 @@ static ptep_t get_umap_l3p (struct hal_umap *umap, unsigned long va, bool alloc)
 }
 
 /** @deprecated Use GetUmapL2Pfn instead **/
-static pfn_t get_umap_l2pfn (struct hal_umap *umap, unsigned long va, bool alloc) {
+static PFN get_umap_l2pfn (struct hal_umap *umap, unsigned long va, bool alloc) {
   return GetUmapL2Pfn (umap, va, alloc);
 }
 
@@ -1214,7 +1214,7 @@ static ptep_t get_umap_l2p (struct hal_umap *umap, unsigned long va, bool alloc)
 }
 
 /** @deprecated Use GetUmapL1Pfn instead **/
-static pfn_t get_umap_l1pfn (struct hal_umap *umap, unsigned long va, bool alloc) {
+static PFN get_umap_l1pfn (struct hal_umap *umap, unsigned long va, bool alloc) {
   return GetUmapL1Pfn (umap, va, alloc);
 }
 
@@ -1259,19 +1259,19 @@ hal_tlbop_t hal_umap_load (struct hal_umap *umap) {
 }
 
 /** @deprecated Use ScanL1 instead **/
-static bool scan_l1 (pfn_t l1pfn, unsigned off, unsigned *l1off_out, hal_l1p_t * l1p_out,
+static bool scan_l1 (PFN l1pfn, unsigned off, unsigned *l1off_out, hal_l1p_t * l1p_out,
 	 hal_l1e_t * l1e_out) {
   return ScanL1 (l1pfn, off, l1off_out, l1p_out, l1e_out);
 }
 
 /** @deprecated Use ScanL2 instead **/
-static bool scan_l2 (pfn_t l2pfn, unsigned off, unsigned *l2off_out, unsigned *l1off_out,
+static bool scan_l2 (PFN l2pfn, unsigned off, unsigned *l2off_out, unsigned *l1off_out,
 	 hal_l1p_t * l1p_out, hal_l1e_t * l1e_out) {
   return ScanL2 (l2pfn, off, l2off_out, l1off_out, l1p_out, l1e_out);
 }
 
 /** @deprecated Use ScanL3 instead **/
-static bool scan_l3 (pfn_t l3pfn, unsigned off, unsigned *l3off_out, unsigned *l2off_out,
+static bool scan_l3 (PFN l3pfn, unsigned off, unsigned *l3off_out, unsigned *l2off_out,
 	 unsigned *l1off_out, hal_l1p_t * l1p_out, hal_l1e_t * l1e_out) {
   return ScanL3 (l3pfn, off, l3off_out, l2off_out, l1off_out, l1p_out, l1e_out);
 }
@@ -1284,7 +1284,7 @@ static bool scan_l4 (struct hal_umap *umap, unsigned off, unsigned *l4off_out,
 }
 
 /** @deprecated Use PtUmapNext instead **/
-uaddr_t pt_umap_next (struct hal_umap *umap, uaddr_t uaddr, hal_l1p_t * l1p_out,
+USER_ADDRESS pt_umap_next (struct hal_umap *umap, USER_ADDRESS uaddr, hal_l1p_t * l1p_out,
 	      hal_l1e_t * l1e_out) {
   return PtUmapNext (umap, uaddr, l1p_out, l1e_out);
 }

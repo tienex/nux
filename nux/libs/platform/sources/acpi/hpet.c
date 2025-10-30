@@ -141,7 +141,7 @@ HpetDoIrq (
 **/
 BOOLEAN
 HpetInitialize (
-  IN paddr_t  HpetPhysAddr
+  IN PHYSICAL_ADDRESS  HpetPhysAddr
   )
 {
   UINT64 Freq;
@@ -312,7 +312,7 @@ void hpet_doirq (void) {
 }
 
 /** @deprecated Use HpetInitialize instead **/
-bool hpet_init (paddr_t hpetpa) {
+bool hpet_init (PHYSICAL_ADDRESS hpetpa) {
   return HpetInitialize (hpetpa);
 }
 

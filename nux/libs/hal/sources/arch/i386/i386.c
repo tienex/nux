@@ -21,8 +21,8 @@
 #include <hal/arch/i386/i386.h>
 #include <hal/internal.h>
 
-paddr_t gPcpuPstart;
-vaddr_t gPcpuHalData[MAXCPUS];
+PHYSICAL_ADDRESS gPcpuPstart;
+VIRTUAL_ADDRESS gPcpuHalData[MAXCPUS];
 
 /*
   CPU kernel stack allocation:
@@ -39,7 +39,7 @@ uint64_t gPcpuKStack[MAXCPUS];
 static int gBspEnterCalled = 0;
 static unsigned gBspPcpuId;
 
-static vaddr_t gSmpOldVa;
+static VIRTUAL_ADDRESS gSmpOldVa;
 static hal_l1e_t gSmpOldL1e;
 
 /**
@@ -69,10 +69,10 @@ HalPcpuInit (
   VOID
   )
 {
-  pfn_t Pfn;
+  PFN Pfn;
   void *Start, *Ptr;
   hal_l1p_t L1p;
-  paddr_t PStart;
+  PHYSICAL_ADDRESS PStart;
   volatile uint16_t *Reset;
   extern char *_ap_start, *_ap_end;
 
@@ -87,7 +87,7 @@ HalPcpuInit (
   size_t ApBootSz = (size_t) ((void *) &_ap_end - (void *) &_ap_start);
   assert (ApBootSz <= PAGE_SIZE);
   memcpy (Start, &_ap_start, ApBootSz);
-  PStart = (paddr_t) Pfn << PAGE_SHIFT;
+  PStart = (PHYSICAL_ADDRESS) Pfn << PAGE_SHIFT;
 
   /*
      The following is trampoline dependent code, and configures the
@@ -140,7 +140,7 @@ HalPcpuAdd (
   IN struct hal_cpu   *HalData
   )
 {
-  pfn_t Pfn;
+  PFN Pfn;
   void *Va;
   void _set_tss (unsigned, void *);
   void _set_fs (unsigned, void *);
@@ -152,7 +152,7 @@ HalPcpuAdd (
       /* Adding the BSP PCPU: Initialize TSS */
       extern char _bsp_stacktop;
       HalData->tss.ss0 = KDS;
-      HalData->tss.esp0 = (uintptr_t) & _bsp_stacktop;
+      HalData->tss.esp0 = (UINTN) & _bsp_stacktop;
       HalData->tss.iomap = 108;
     }
   else
@@ -162,12 +162,12 @@ HalPcpuAdd (
       assert (Pfn != PFN_INVALID);
       Va = kva_map (Pfn, HAL_PTE_W | HAL_PTE_P);
       assert (Va != NULL);
-      gPcpuKStack[gPcpuKStackNo++] = (uint64_t) (uintptr_t) Va + PAGE_SIZE;
+      gPcpuKStack[gPcpuKStackNo++] = (uint64_t) (UINTN) Va + PAGE_SIZE;
     }
   _set_tss (PcpuId, &HalData->tss);
   _set_fs (PcpuId, &HalData->data);
 
-  gPcpuHalData[PcpuId] = (vaddr_t) (uintptr_t) HalData;
+  gPcpuHalData[PcpuId] = (VIRTUAL_ADDRESS) (UINTN) HalData;
 }
 
 /**
@@ -260,11 +260,11 @@ HalVectMax (
 **/
 VOID
 I386InitializeAp (
-  IN uintptr_t  Esp
+  IN UINTN  Esp
   )
 {
   unsigned Pcpu = plt_pcpu_id ();
-  struct hal_cpu *HalData = (struct hal_cpu *) (uintptr_t) gPcpuHalData[Pcpu];
+  struct hal_cpu *HalData = (struct hal_cpu *) (UINTN) gPcpuHalData[Pcpu];
 
   HalData->tss.ss0 = KDS;
   HalData->tss.esp0 = Esp;
@@ -352,7 +352,7 @@ unsigned hal_vect_max (void) {
 }
 
 /** @deprecated Use I386InitializeAp instead **/
-void i386_init_ap (uintptr_t esp) {
+void i386_init_ap (UINTN esp) {
   I386InitializeAp (esp);
 }
 
@@ -367,8 +367,8 @@ void i386_init_done (void) {
 }
 
 // Legacy global variable aliases
-paddr_t pcpu_pstart = 0;
-vaddr_t pcpu_haldata[MAXCPUS] = {0};
+PHYSICAL_ADDRESS pcpu_pstart = 0;
+VIRTUAL_ADDRESS pcpu_haldata[MAXCPUS] = {0};
 uint64_t pcpu_kstackno = 0;
 uint64_t pcpu_kstackcnt = 0;
 uint64_t pcpu_kstack[MAXCPUS] = {0};

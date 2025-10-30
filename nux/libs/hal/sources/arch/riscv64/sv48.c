@@ -567,10 +567,10 @@ ScanL4 (
 
   @return Next mapped user address, or UADDR_INVALID if none.
 **/
-uaddr_t
+USER_ADDRESS
 PtUmapNext (
   IN  struct hal_umap  *Umap,
-  IN  uaddr_t          Uaddr,
+  IN  USER_ADDRESS          Uaddr,
   OUT hal_l1p_t        *pL1p OPTIONAL,
   OUT hal_l1e_t        *pL1e OPTIONAL
   )
@@ -583,7 +583,7 @@ PtUmapNext (
   PTE *pL4Ptr;
   PFN L1Pfn, L2Pfn, L3Pfn;
   UINT32 L4next, L3next, L2next, L1next;
-  uaddr_t ret;
+  USER_ADDRESS ret;
 
   ret = UADDR_INVALID;
 
@@ -744,7 +744,7 @@ hal_umap_bootstrap (
   IN struct hal_umap  *Umap
   )
 {
-  vaddr_t Va = hal_virtmem_userbase ();
+  VIRTUAL_ADDRESS Va = hal_virtmem_userbase ();
   INT32 i;
 
   for (i = 0; i < UMAP_L4PTES; i++, Va += (1L << L4_SHIFT))
@@ -792,7 +792,7 @@ hal_umap_load (
   IN struct hal_umap  *Umap OPTIONAL
   )
 {
-  vaddr_t Va = hal_virtmem_userbase ();
+  VIRTUAL_ADDRESS Va = hal_virtmem_userbase ();
   hal_tlbop_t tlbop = HAL_TLBOP_NONE;
   INT32 i;
 
@@ -824,7 +824,7 @@ static uint64_t mkaddr (uint64_t l4off, uint64_t l3off, uint64_t l2off, uint64_t
 }
 
 /** @deprecated Use GetCpuMapL4Pfn instead **/
-static pfn_t get_cpumap_l4pfn (void) {
+static PFN get_cpumap_l4pfn (void) {
   return GetCpuMapL4Pfn ();
 }
 
@@ -844,7 +844,7 @@ static void put_cpumap_l4ptr (unsigned long va, pte_t * pte) {
 }
 
 /** @deprecated Use WalkL3Pfn instead **/
-static pfn_t walk_l3pfn (pte_t * l4ptr, unsigned long va, bool alloc) {
+static PFN walk_l3pfn (pte_t * l4ptr, unsigned long va, bool alloc) {
   return WalkL3Pfn (l4ptr, va, alloc);
 }
 
@@ -854,7 +854,7 @@ static ptep_t walk_l3p (pte_t * l4ptr, unsigned long va, bool alloc) {
 }
 
 /** @deprecated Use WalkL2Pfn instead **/
-static pfn_t walk_l2pfn (pte_t * l4ptr, unsigned long va, bool alloc) {
+static PFN walk_l2pfn (pte_t * l4ptr, unsigned long va, bool alloc) {
   return WalkL2Pfn (l4ptr, va, alloc);
 }
 
@@ -864,7 +864,7 @@ static ptep_t walk_l2p (pte_t * l4ptr, unsigned long va, bool alloc) {
 }
 
 /** @deprecated Use WalkL1Pfn instead **/
-static pfn_t walk_l1pfn (pte_t * l4ptr, unsigned long va, bool alloc) {
+static PFN walk_l1pfn (pte_t * l4ptr, unsigned long va, bool alloc) {
   return WalkL1Pfn (l4ptr, va, alloc);
 }
 
@@ -879,19 +879,19 @@ hal_l1p_t umap_get_l1p (struct hal_umap *umap, unsigned long va, bool alloc) {
 }
 
 /** @deprecated Use ScanL1 instead **/
-static bool scan_l1 (pfn_t l1pfn, unsigned off, unsigned *l1off_out, hal_l1p_t * l1p_out,
+static bool scan_l1 (PFN l1pfn, unsigned off, unsigned *l1off_out, hal_l1p_t * l1p_out,
 	 hal_l1e_t * l1e_out) {
   return ScanL1 (l1pfn, off, l1off_out, l1p_out, l1e_out);
 }
 
 /** @deprecated Use ScanL2 instead **/
-static bool scan_l2 (pfn_t l2pfn, unsigned off, unsigned *l2off_out, unsigned *l1off_out,
+static bool scan_l2 (PFN l2pfn, unsigned off, unsigned *l2off_out, unsigned *l1off_out,
 	 hal_l1p_t * l1p_out, hal_l1e_t * l1e_out) {
   return ScanL2 (l2pfn, off, l2off_out, l1off_out, l1p_out, l1e_out);
 }
 
 /** @deprecated Use ScanL3 instead **/
-static bool scan_l3 (pfn_t l3pfn, unsigned off, unsigned *l3off_out, unsigned *l2off_out,
+static bool scan_l3 (PFN l3pfn, unsigned off, unsigned *l3off_out, unsigned *l2off_out,
 	 unsigned *l1off_out, hal_l1p_t * l1p_out, hal_l1e_t * l1e_out) {
   return ScanL3 (l3pfn, off, l3off_out, l2off_out, l1off_out, l1p_out, l1e_out);
 }
@@ -904,7 +904,7 @@ static bool scan_l4 (struct hal_umap *umap, unsigned off, unsigned *l4off_out,
 }
 
 /** @deprecated Use PtUmapNext instead **/
-uaddr_t pt_umap_next (struct hal_umap *umap, uaddr_t uaddr, hal_l1p_t * l1p,
+USER_ADDRESS pt_umap_next (struct hal_umap *umap, USER_ADDRESS uaddr, hal_l1p_t * l1p,
 	   hal_l1e_t * l1e) {
   return PtUmapNext (umap, uaddr, l1p, l1e);
 }

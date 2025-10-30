@@ -21,12 +21,12 @@ extern uint64_t _gdt[];
 extern int _physmap_start;
 extern int _physmap_end;
 
-paddr_t gPcpuPstart;
-vaddr_t gPcpuHalData[MAXCPUS];
+PHYSICAL_ADDRESS gPcpuPstart;
+VIRTUAL_ADDRESS gPcpuHalData[MAXCPUS];
 
 static unsigned gBspPcpuId;
 
-static vaddr_t gSmpOldVa;
+static VIRTUAL_ADDRESS gSmpOldVa;
 static hal_l1e_t gSmpOldL1e;
 
 /*
@@ -53,7 +53,7 @@ GdtSetTss (
   IN struct amd64_tss  *Tss
   )
 {
-  uintptr_t Ptr = (uintptr_t) Tss;
+  UINTN Ptr = (UINTN) Tss;
   uint16_t Lo16 = (uint16_t) Ptr;
   uint8_t Ml8 = (uint8_t) (Ptr >> 16);
   uint8_t Mh8 = (uint8_t) (Ptr >> 24);
@@ -161,7 +161,7 @@ AllocStackPage (
   VOID
   )
 {
-  vaddr_t KAddr;
+  VIRTUAL_ADDRESS KAddr;
 
   /* Leave a canary page at beginning and end of kernel stack. */
   KAddr = kva_alloc (STACK_SIZE + 2 * CANARY_SIZE);
@@ -186,7 +186,7 @@ HalPcpuAdd (
 
   assert (PcpuId < MAXCPUS);
 
-  gPcpuHalData[PcpuId] = (vaddr_t) (uintptr_t) HalData;
+  gPcpuHalData[PcpuId] = (VIRTUAL_ADDRESS) (UINTN) HalData;
   GdtSetTss (PcpuId, &HalData->tss);
 
   if (PcpuId == gBspPcpuId)
@@ -194,11 +194,11 @@ HalPcpuAdd (
       /* Adding the BSP PCPU: Initialize TSS */
       extern char _bsp_stacktop, _ist1_stacktop, _ist1_stacktop,
 	_ist2_stacktop, _ist3_stacktop;
-      HalData->kstack = (uintptr_t) & _bsp_stacktop;
-      HalData->tss.ist[0] = (uintptr_t) & _ist1_stacktop;
-      HalData->tss.ist[1] = (uintptr_t) & _ist2_stacktop;
-      HalData->tss.ist[2] = (uintptr_t) & _ist3_stacktop;
-      HalData->tss.rsp0 = (uintptr_t) & _bsp_stacktop;
+      HalData->kstack = (UINTN) & _bsp_stacktop;
+      HalData->tss.ist[0] = (UINTN) & _ist1_stacktop;
+      HalData->tss.ist[1] = (UINTN) & _ist2_stacktop;
+      HalData->tss.ist[2] = (UINTN) & _ist3_stacktop;
+      HalData->tss.rsp0 = (UINTN) & _bsp_stacktop;
       HalData->tss.iomap = 108;
     }
   else
@@ -220,10 +220,10 @@ HalPcpuInit (
   )
 {
   void *Va;
-  pfn_t Pfn;
+  PFN Pfn;
   void *Start, *Ptr;
   hal_l1p_t L1p;
-  paddr_t PStart;
+  PHYSICAL_ADDRESS PStart;
   volatile uint16_t *Reset;
   extern char *_ap_start, *_ap_end;
 
@@ -241,7 +241,7 @@ HalPcpuInit (
   assert (ApBootSz <= PAGE_SIZE);
   memcpy (Start, &_ap_start, ApBootSz);
 
-  PStart = (paddr_t) Pfn << PAGE_SHIFT;
+  PStart = (PHYSICAL_ADDRESS) Pfn << PAGE_SHIFT;
 
   /*
      The following is trampoline dependent code, and configures the
@@ -291,7 +291,7 @@ HalPcpuInit (
 
   @return Physical address of bootstrap code, or PADDR_INVALID.
 **/
-paddr_t
+PHYSICAL_ADDRESS
 HalPcpuStartAddr (
   IN unsigned  Pcpu
   )
@@ -332,7 +332,7 @@ Amd64Initialize (
 {
   extern char _syscall_frame_entry;
   wrmsr (MSR_IA32_EFER, rdmsr (MSR_IA32_EFER) | _MSR_IA32_EFER_SCE);
-  wrmsr (MSR_IA32_LSTAR, (uintptr_t) & _syscall_frame_entry);
+  wrmsr (MSR_IA32_LSTAR, (UINTN) & _syscall_frame_entry);
   wrmsr (MSR_IA32_FMASK, 0xfffffffd);
   wrmsr (MSR_IA32_STAR, ((uint64_t) KCS << 32) | ((uint64_t) UCS32 << 48));
 }
@@ -346,15 +346,15 @@ Amd64Initialize (
 **/
 VOID
 Amd64InitializeAp (
-  IN uintptr_t  Esp
+  IN UINTN  Esp
   )
 {
   extern char _syscall_frame_entry;
   unsigned Pcpu = plt_pcpu_id ();
-  struct hal_cpu *HalData = (struct hal_cpu *) (uintptr_t) gPcpuHalData[Pcpu];
+  struct hal_cpu *HalData = (struct hal_cpu *) (UINTN) gPcpuHalData[Pcpu];
 
   wrmsr (MSR_IA32_EFER, rdmsr (MSR_IA32_EFER) | _MSR_IA32_EFER_SCE);
-  wrmsr (MSR_IA32_LSTAR, (uintptr_t) & _syscall_frame_entry);
+  wrmsr (MSR_IA32_LSTAR, (UINTN) & _syscall_frame_entry);
   wrmsr (MSR_IA32_FMASK, 0xfffffffd);
   wrmsr (MSR_IA32_STAR, ((uint64_t) KCS << 32) | ((uint64_t) UCS32 << 48));
 
@@ -460,7 +460,7 @@ void hal_pcpu_init (void) {
 }
 
 /** @deprecated Use HalPcpuStartAddr instead **/
-paddr_t hal_pcpu_startaddr (unsigned pcpu) {
+PHYSICAL_ADDRESS hal_pcpu_startaddr (unsigned pcpu) {
   return HalPcpuStartAddr (pcpu);
 }
 
@@ -475,7 +475,7 @@ void amd64_init (void) {
 }
 
 /** @deprecated Use Amd64InitializeAp instead **/
-void amd64_init_ap (uintptr_t esp) {
+void amd64_init_ap (UINTN esp) {
   Amd64InitializeAp (esp);
 }
 
@@ -490,8 +490,8 @@ void amd64_init_done (void) {
 }
 
 // Legacy global variable aliases
-paddr_t pcpu_pstart = 0;
-vaddr_t pcpu_haldata[MAXCPUS] = {0};
+PHYSICAL_ADDRESS pcpu_pstart = 0;
+VIRTUAL_ADDRESS pcpu_haldata[MAXCPUS] = {0};
 uint64_t pcpu_kstackno = 0;
 uint64_t pcpu_kstackcnt = 0;
 uint64_t pcpu_kstack[MAXCPUS] = {0};

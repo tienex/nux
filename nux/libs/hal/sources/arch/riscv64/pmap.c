@@ -230,10 +230,10 @@ HalL1eTlbOp (
 
   @return Next mapped user address, or UADDR_INVALID if none.
 **/
-uaddr_t
+USER_ADDRESS
 HalUmapNext (
   IN  struct hal_umap  *Umap,
-  IN  uaddr_t          Uaddr,
+  IN  USER_ADDRESS          Uaddr,
   OUT hal_l1p_t        *pL1p OPTIONAL,
   OUT hal_l1e_t        *pL1e OPTIONAL
   )
@@ -298,7 +298,7 @@ hal_tlbop_t hal_l1e_tlbop (hal_l1e_t old, hal_l1e_t new) {
 }
 
 /** @deprecated Use HalUmapNext instead **/
-uaddr_t hal_umap_next (struct hal_umap *umap, uaddr_t uaddr, hal_l1p_t * l1p,
+USER_ADDRESS hal_umap_next (struct hal_umap *umap, USER_ADDRESS uaddr, hal_l1p_t * l1p,
 	       hal_l1e_t * l1e) {
   return HalUmapNext (umap, uaddr, l1p, l1e);
 }

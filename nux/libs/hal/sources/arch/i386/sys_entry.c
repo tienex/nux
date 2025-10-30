@@ -213,7 +213,7 @@ HalFrameIsUser (
 
   @return Instruction pointer value.
 **/
-vaddr_t
+VIRTUAL_ADDRESS
 HalFrameGetIp (
   IN struct hal_frame  *Frame
   )
@@ -230,7 +230,7 @@ HalFrameGetIp (
 VOID
 HalFrameSetIp (
   IN OUT struct hal_frame  *Frame,
-  IN     vaddr_t           Ip
+  IN     VIRTUAL_ADDRESS           Ip
   )
 {
   Frame->eip = Ip;
@@ -243,7 +243,7 @@ HalFrameSetIp (
 
   @return Stack pointer value.
 **/
-vaddr_t
+VIRTUAL_ADDRESS
 HalFrameGetSp (
   IN struct hal_frame  *Frame
   )
@@ -260,7 +260,7 @@ HalFrameGetSp (
 VOID
 HalFrameSetSp (
   IN OUT struct hal_frame  *Frame,
-  IN     vaddr_t           Sp
+  IN     VIRTUAL_ADDRESS           Sp
   )
 {
   Frame->esp = Sp;
@@ -275,7 +275,7 @@ HalFrameSetSp (
 
   @return Always returns 0.
 **/
-vaddr_t
+VIRTUAL_ADDRESS
 HalFrameGetGp (
   IN struct hal_frame  *Frame
   )
@@ -473,27 +473,27 @@ bool hal_frame_isuser (struct hal_frame *f) {
 }
 
 /** @deprecated Use HalFrameGetIp instead **/
-vaddr_t hal_frame_getip (struct hal_frame *f) {
+VIRTUAL_ADDRESS hal_frame_getip (struct hal_frame *f) {
   return HalFrameGetIp (f);
 }
 
 /** @deprecated Use HalFrameSetIp instead **/
-void hal_frame_setip (struct hal_frame *f, vaddr_t ip) {
+void hal_frame_setip (struct hal_frame *f, VIRTUAL_ADDRESS ip) {
   HalFrameSetIp (f, ip);
 }
 
 /** @deprecated Use HalFrameGetSp instead **/
-vaddr_t hal_frame_getsp (struct hal_frame *f) {
+VIRTUAL_ADDRESS hal_frame_getsp (struct hal_frame *f) {
   return HalFrameGetSp (f);
 }
 
 /** @deprecated Use HalFrameSetSp instead **/
-void hal_frame_setsp (struct hal_frame *f, vaddr_t sp) {
+void hal_frame_setsp (struct hal_frame *f, VIRTUAL_ADDRESS sp) {
   HalFrameSetSp (f, sp);
 }
 
 /** @deprecated Use HalFrameGetGp instead **/
-vaddr_t hal_frame_getgp (struct hal_frame *f) {
+VIRTUAL_ADDRESS hal_frame_getgp (struct hal_frame *f) {
   return HalFrameGetGp (f);
 }
 

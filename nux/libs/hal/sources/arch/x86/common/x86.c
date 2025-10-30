@@ -460,12 +460,12 @@ hal_useraccess_end (
   /* TODO: SMEP */
 }
 
-vaddr_t
+VIRTUAL_ADDRESS
 hal_virtmem_dmapbase (
   VOID
   )
 {
-  return (UINT64) (uintptr_t) & _physmap_start;
+  return (UINT64) (UINTN) & _physmap_start;
 }
 
 const size_t
@@ -476,12 +476,12 @@ hal_virtmem_dmapsize (
   return (size_t) ((void *) &_physmap_end - (void *) &_physmap_start);
 }
 
-vaddr_t
+VIRTUAL_ADDRESS
 hal_virtmem_pfn$base (
   VOID
   )
 {
-  return (UINT64) (uintptr_t) & _pfncache_start;
+  return (UINT64) (UINTN) & _pfncache_start;
 }
 
 const size_t
@@ -492,7 +492,7 @@ hal_virtmem_pfn$size (
   return (size_t) ((void *) &_pfncache_end - (void *) &_pfncache_start);
 }
 
-const vaddr_t
+const VIRTUAL_ADDRESS
 hal_virtmem_userbase (
   VOID
   )
@@ -508,12 +508,12 @@ hal_virtmem_usersize (
   return pt_umap_maxaddr ();
 }
 
-const vaddr_t
+const VIRTUAL_ADDRESS
 hal_virtmem_userentry (
   VOID
   )
 {
-  return (const vaddr_t) bootinfo->uentry;
+  return (const VIRTUAL_ADDRESS) bootinfo->uentry;
 }
 
 UINTN
@@ -574,12 +574,12 @@ hal_physmem_stree (
   return gHalStreePtr;
 }
 
-vaddr_t
+VIRTUAL_ADDRESS
 hal_virtmem_kvabase (
   VOID
   )
 {
-  return (vaddr_t) & _kva_start;
+  return (VIRTUAL_ADDRESS) & _kva_start;
 }
 
 const size_t
@@ -590,12 +590,12 @@ hal_virtmem_kvasize (
   return (size_t) ((void *) &_kva_end - (void *) &_kva_start);
 }
 
-vaddr_t
+VIRTUAL_ADDRESS
 hal_virtmem_kmembase (
   VOID
   )
 {
-  return (vaddr_t) & _kmem_start;
+  return (VIRTUAL_ADDRESS) & _kmem_start;
 }
 
 const size_t
@@ -653,7 +653,7 @@ X86Initialize (
   SerialInitialize ();
 
   fbdesc = bootinfo->fbdesc;
-  fbdesc.addr = (UINT64) (uintptr_t) & _fbuf_start;
+  fbdesc.addr = (UINT64) (UINTN) & _fbuf_start;
   gUseFb = framebuffer_init (&fbdesc);
 
   /* Check  APXH stree. */

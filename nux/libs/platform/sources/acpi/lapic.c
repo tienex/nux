@@ -464,7 +464,7 @@ PlatformPcpuId (
 VOID
 PlatformPcpuStart (
   IN UINT32   PcpuId,
-  IN paddr_t  Start
+  IN PHYSICAL_ADDRESS  Start
   )
 {
   if (PcpuId == LapicGetCurrent ())
@@ -574,7 +574,7 @@ unsigned plt_pcpu_id (void) {
 }
 
 /** @deprecated Use PlatformPcpuStart instead **/
-void plt_pcpu_start (unsigned pcpuid, paddr_t start) {
+void plt_pcpu_start (unsigned pcpuid, PHYSICAL_ADDRESS start) {
   PlatformPcpuStart (pcpuid, start);
 }
 

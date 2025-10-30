@@ -20,9 +20,9 @@
 
 #define ACPI_MAX_TBL (16 << 12)
 
-static paddr_t gPaRootTable;
-static paddr_t gPaApicTable;
-static paddr_t gPaHpetTable;
+static PHYSICAL_ADDRESS gPaRootTable;
+static PHYSICAL_ADDRESS gPaApicTable;
+static PHYSICAL_ADDRESS gPaHpetTable;
 
 /**
   Load ACPI table.
@@ -35,7 +35,7 @@ static paddr_t gPaHpetTable;
 **/
 static VOID *
 LoadTable (
-  IN paddr_t  Pa
+  IN PHYSICAL_ADDRESS  Pa
   )
 {
   INT32 i;
@@ -112,13 +112,13 @@ PrintTable (
 **/
 VOID
 AcpiInitialize (
-  IN paddr_t  Root
+  IN PHYSICAL_ADDRESS  Root
   )
 {
   VOID *Ptr;
   size_t EntryLen;
   INT64 Length;
-  paddr_t PaSdt;
+  PHYSICAL_ADDRESS PaSdt;
   struct acpi_rsdp_thdr *Rsdp;
   struct acpi_thdr *RootTable, *SdTable;
 
@@ -186,7 +186,7 @@ AcpiMadtScan (
   INT32 Len;
   UINT32 Flags, NumLapic = 0, NumIoapic = 0;
   UINT8 Type;
-  paddr_t LapicAddr;
+  PHYSICAL_ADDRESS LapicAddr;
   struct acpi_madt *AcpiMadt;
 
   union
@@ -396,7 +396,7 @@ AcpiHpetScan (
 //
 
 /** @deprecated Use LoadTable instead **/
-static void *load_table (paddr_t pa) {
+static void *load_table (PHYSICAL_ADDRESS pa) {
   return LoadTable (pa);
 }
 
@@ -411,7 +411,7 @@ static void print_table (struct acpi_thdr *tbl) {
 }
 
 /** @deprecated Use AcpiInitialize instead **/
-void acpi_init (paddr_t root) {
+void acpi_init (PHYSICAL_ADDRESS root) {
   AcpiInitialize (root);
 }
 
@@ -426,6 +426,6 @@ bool acpi_hpet_scan (void) {
 }
 
 // Legacy global variable aliases
-static paddr_t pa_root_table __attribute__((alias("gPaRootTable")));
-static paddr_t pa_apic_table __attribute__((alias("gPaApicTable")));
-static paddr_t pa_hpet_table __attribute__((alias("gPaHpetTable")));
+static PHYSICAL_ADDRESS pa_root_table __attribute__((alias("gPaRootTable")));
+static PHYSICAL_ADDRESS pa_apic_table __attribute__((alias("gPaApicTable")));
+static PHYSICAL_ADDRESS pa_hpet_table __attribute__((alias("gPaHpetTable")));
