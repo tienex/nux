@@ -1176,7 +1176,7 @@ static INLINE CONST struct apxh_platformdesc *hal_pltinfo (void) {
   return gpHal->lpVtbl->GetPlatformInfo(gpHal);
 }
 
-static INLINE __dead void hal_panic (UINT32 cpu, CONST char *error, struct hal_frame *frame) {
+static INLINE __dead void hal_panic (UINT32 cpu, PCCHAR8error, struct hal_frame *frame) {
   gpHal->lpVtbl->Panic(gpHal, cpu, error, frame);
   __builtin_unreachable();
 }

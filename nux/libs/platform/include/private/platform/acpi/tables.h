@@ -37,12 +37,12 @@ typedef enum _ACPI_MADT_ENTRY_TYPE {
 
 typedef struct _ACPI_THDR
 {
-  char signature[4];
+  CHAR8 signature[4];
   UINT32 length;
   UINT8 revision;
   UINT8 checksum;
-  char oemid[6];
-  char oemtableid[8];
+  CHAR8 oemid[6];
+  CHAR8 oemtableid[8];
   UINT32 oemrevision;
   UINT32 creatid;
   UINT32 creatrev;

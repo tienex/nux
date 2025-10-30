@@ -195,7 +195,7 @@ void SLABFUNC (free) (void *ptr)
 }
 
 void
-SLABFUNC (register) (struct slab * sc, CONST char *name, UINTN objsize,
+SLABFUNC (register) (struct slab * sc, PCCHAR8name, UINTN objsize,
 		     void (*ctr) (void *, void *, int), INT32 cachealign)
 {
 #define MAX(_a,_b) ((_a) >= (_b) ? (_a) :  (_b))

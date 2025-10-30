@@ -629,7 +629,7 @@ struct hal_frame *do_pagefault (struct hal_frame *f) {
 }
 
 /** @deprecated Use EarlyPrint instead **/
-static void early_print (CONST char *s) {
+static void early_print (PCCHAR8s) {
   EarlyPrint (s);
 }
 

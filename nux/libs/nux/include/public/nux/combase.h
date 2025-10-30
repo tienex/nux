@@ -35,6 +35,7 @@ typedef long            INTN;
 typedef BOOLEAN            BOOLEAN;
 typedef char            CHAR8;
 typedef char            *PCHAR8;
+typedef CONST char      *PCCHAR8;
 
 #ifndef TRUE
 #define TRUE  ((BOOLEAN)1)

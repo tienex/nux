@@ -192,7 +192,7 @@ HalPcpuAdd (
   if (PcpuId == gBspPcpuId)
     {
       /* Adding the BSP PCPU: Initialize TSS */
-      extern char _bsp_stacktop, _ist1_stacktop, _ist1_stacktop,
+      extern UINT8 _bsp_stacktop, _ist1_stacktop, _ist1_stacktop,
 	_ist2_stacktop, _ist3_stacktop;
       HalData->kstack = (UINTN) & _bsp_stacktop;
       HalData->tss.ist[0] = (UINTN) & _ist1_stacktop;
@@ -225,7 +225,7 @@ HalPcpuInit (
   hal_l1p_t L1p;
   PHYSICAL_ADDRESS PStart;
   VOLATILE UINT16 *Reset;
-  extern char *_ap_start, *_ap_end;
+  extern CHAR8 *_ap_start, *_ap_end;
 
   /* Allocate PCPU bootstrap code page. */
   Pfn = pfn_alloc (1);
@@ -247,7 +247,7 @@ HalPcpuInit (
      The following is trampoline dependent code, and configures the
      trampoline to use the page just selected as bootstrap page.
    */
-  extern char _ap_gdtreg, _ap_ljmp1, _ap_ljmp2, _ap_cr3;
+  extern UINT8 _ap_gdtreg, _ap_ljmp1, _ap_ljmp2, _ap_cr3;
   extern UINT64 _bsp_cr3;
 
   /* Copy BSP CR3 into AP */
@@ -330,7 +330,7 @@ Amd64Initialize (
   VOID
   )
 {
-  extern char _syscall_frame_entry;
+  extern UINT8 _syscall_frame_entry;
   wrmsr (MSR_IA32_EFER, rdmsr (MSR_IA32_EFER) | _MSR_IA32_EFER_SCE);
   wrmsr (MSR_IA32_LSTAR, (UINTN) & _syscall_frame_entry);
   wrmsr (MSR_IA32_FMASK, 0xfffffffd);
@@ -349,7 +349,7 @@ Amd64InitializeAp (
   IN UINTN  Esp
   )
 {
-  extern char _syscall_frame_entry;
+  extern UINT8 _syscall_frame_entry;
   unsigned Pcpu = plt_pcpu_id ();
   struct hal_cpu *HalData = (struct hal_cpu *) (UINTN) gPcpuHalData[Pcpu];
 

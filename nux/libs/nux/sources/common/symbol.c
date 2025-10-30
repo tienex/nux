@@ -66,10 +66,10 @@ NuxSymbolResolve (
 /** @deprecated Use KSYM instead **/
 struct ksym {
   unsigned INTN addr;
-  CONST char *name;
+  PCCHAR8name;
 };
 
 /** @deprecated Use NuxSymbolResolve instead **/
-CONST char *nux_symresolve (unsigned INTN addr) {
+PCCHAR8nux_symresolve (unsigned INTN addr) {
   return NuxSymbolResolve (addr);
 }

@@ -74,7 +74,7 @@ HalPcpuInit (
   hal_l1p_t L1p;
   PHYSICAL_ADDRESS PStart;
   VOLATILE UINT16 *Reset;
-  extern char *_ap_start, *_ap_end;
+  extern CHAR8 *_ap_start, *_ap_end;
 
   /* Allocate PCPU bootstrap code. Use KVA. *//* TODO: USE KVA? Not needed, not a long term mapping. */
   Pfn = pfn_alloc (1);
@@ -93,7 +93,7 @@ HalPcpuInit (
      The following is trampoline dependent code, and configures the
      trampoline to use the page just selected as bootstrap page.
    */
-  extern char _ap_gdtreg, _ap_ljmp, _ap_cr3;
+  extern UINT8 _ap_gdtreg, _ap_ljmp, _ap_cr3;
   extern UINT32 _bsp_cr3;
 
   /* Copy BSP CR3 into AP */
@@ -150,7 +150,7 @@ HalPcpuAdd (
   if (PcpuId == gBspPcpuId)
     {
       /* Adding the BSP PCPU: Initialize TSS */
-      extern char _bsp_stacktop;
+      extern UINT8 _bsp_stacktop;
       HalData->tss.ss0 = KDS;
       HalData->tss.esp0 = (UINTN) & _bsp_stacktop;
       HalData->tss.iomap = 108;

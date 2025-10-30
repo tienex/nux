@@ -21,7 +21,7 @@
 #include <hal/internal.h>
 
 #if 0
-static char *exceptions[] = {
+static CHAR8 *exceptions[] = {
   "Divide by zero exception",
   "Debug exception",
   "NMI",
