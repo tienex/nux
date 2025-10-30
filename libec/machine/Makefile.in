@@ -1,9 +1,0 @@
-INCDIR=include/machine
-INCS= \
-	ansi.h \
-	asm.h \
-	inttypes.h \
-	limits.h \
-	profile.h \
-	setjmp.h \
-	stdint.h

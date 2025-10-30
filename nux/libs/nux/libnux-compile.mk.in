@@ -1,0 +1,19 @@
+#
+# NUX: A kernel Library.
+# Copyright (C) 2019 Gianluca Guida <glguida@tlbflush.org>
+#
+#  SPDX-License-Identifier:	BSD-2-Clause
+#
+#
+
+NUXSRCROOT=@NUXSRCROOT@
+NUXBUILDROOT=@NUXBUILDROOT@
+NUXSRCDIR=@LIBNUX_SRCDIR@
+NUXBUILDDIR=@LIBNUX_BUILDDIR@
+
+include @LIBNUX_BUILDDIR@/cfg.mk
+include @NUXBUILDROOT@/libs/hal/hal.mk
+include @NUXBUILDROOT@/libs/platform/plt.mk
+
+CPPFLAGS+= -I@NUXSRCROOT@/libs/nux/include/public -I@NUXSRCROOT@/libs/hal/include/public -I@NUXSRCROOT@/libs/platform/include/public -I@NUXSRCROOT@/apxh/include/public -I@NUXSRCROOT@/libs/ecrt/include/public -I@NUXSRCROOT@/libs/hal/include/private -I@NUXSRCROOT@/libs/platform/include/private -I@NUXSRCROOT@/libs/nux/include/private -I@NUXSRCROOT@/apxh/include/private
+LDFLAGS+= -fno-omit-frame-pointer

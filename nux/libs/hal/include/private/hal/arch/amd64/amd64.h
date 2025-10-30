@@ -1,0 +1,26 @@
+/*
+  NUX: A kernel Library.
+  Copyright (C) 2019 Gianluca Guida <glguida@tlbflush.org>
+
+  SPDX-License-Identifier:	BSD-2-Clause
+*/
+
+#ifndef __hal_arch_amd64_amd64_h__
+#define __hal_arch_amd64_amd64_h__
+
+#define TSS_GDTIDX(_i) (6 + (_i) * 2)
+
+#define KCS 0x08
+#define KDS 0x10
+#define UCS32 0x1b		/* Unused. */
+#define UDS 0x23
+#define UCS 0x2b
+
+
+#define VECT_MAX  0xFF
+#define VECT_IPI0 0xF0
+#define VECT_IRQ0 0x22
+#define VECT_SYSC 0x21
+#define MAXIRQS   (VECT_IPI0 - VECT_IRQ0)
+
+#endif

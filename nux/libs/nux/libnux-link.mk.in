@@ -1,0 +1,17 @@
+#
+# NUX: A kernel Library.
+# Copyright (C) 2019 Gianluca Guida <glguida@tlbflush.org>
+#
+#  SPDX-License-Identifier:	BSD-2-Clause
+#
+#
+
+include @LIBNUX_BUILDDIR@/cfg.mk
+
+@COMPILE_LIBNUX@
+
+LINKERSCRIPT+= @NUXSRCROOT@/libs/hal/$(LDFILE)
+LDFLAGS+= -L@NUXBUILDROOT@/libs/hal/$(OBJDIR) -L@LIBNUX_BUILDDIR@/$(OBJDIR) -L@NUXBUILDROOT@/libs/platform/$(OBJDIR)
+LDADD+=-lhal -lplt -lnux -u _nux_sysinit
+
+LIBDEPS+= @NUXBUILDROOT@/libs/nux/$(OBJDIR)/libnux.a @NUXBUILDROOT@/libs/hal/$(OBJDIR)/libhal.a @NUXBUILDROOT@/libs/platform/$(OBJDIR)/libplt.a

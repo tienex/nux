@@ -1,9 +1,9 @@
-[submodule "contrib/gnu-efi"]
-	path = contrib/gnu-efi
+[submodule "nux/contrib/gnu-efi"]
+	path = nux/contrib/gnu-efi
 	url = https://git.code.sf.net/p/gnu-efi/code
-[submodule "contrib/binutils"]
-	path = contrib/binutils
+[submodule "nux/contrib/binutils"]
+	path = nux/contrib/binutils
 	url = git://sourceware.org/git/binutils-gdb.git
-[submodule "contrib/dtc"]
-	path = contrib/dtc
+[submodule "nux/contrib/dtc"]
+	path = nux/contrib/dtc
 	url = https://git.kernel.org/pub/scm/utils/dtc/dtc.git/
