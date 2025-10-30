@@ -566,11 +566,11 @@ hal_physmem_region (
 
 VOID *
 hal_physmem_stree (
-  OUT UINT32  *pOrder OPTIONAL
+  OUT UINT32  *Order OPTIONAL
   )
 {
   if (pOrder)
-    *pOrder = hal_stree_order;
+    *Order = hal_stree_order;
   return hal_stree_ptr;
 }
 
@@ -617,9 +617,9 @@ EarlyPrint (
   )
 {
   size_t i;
-  size_t len = strlen (pStr);
+  size_t len = strlen (Str);
   for (i = 0; i < len; i++)
-    hal_putchar (pStr[i]);
+    hal_putchar (Str[i]);
 }
 
 const struct apxh_platformdesc *
@@ -714,12 +714,19 @@ hal_init_done (
 }
 
 /**
-  Stack frame structure for stack trace.
+  Stack Frame Structure
+
+  Represents a call stack frame for stack unwinding and tracing.
+  Contains frame pointer and return address.
 **/
-struct stackframe {
-  struct stackframe *rbp;
-  UINTN ra;
-};
+typedef struct _STACKFRAME
+{
+  struct _STACKFRAME  *Rbp;   ///< Frame pointer (base pointer)
+  UINTN               Ra;     ///< Return address
+} STACKFRAME, *PSTACKFRAME, *PCSTACKFRAME;
+
+/** Legacy type alias for compatibility **/
+#define stackframe STACKFRAME
 
 /**
   Print stack trace.
@@ -731,16 +738,16 @@ StackFrame (
   IN UINTN  Rbp
   )
 {
-  struct stackframe *sf = (struct stackframe *)Rbp;
+  STACKFRAME *Sf = (STACKFRAME *)Rbp;
   UINT32 i = 1;
 
   while (sf != NULL && i < 32 && ((UINTN)sf % (sizeof(VOID *)) == 0))
     {
-      printf ("    [%d]: %lx <%s>\n", i, sf->ra, NuxSymbolResolve(sf->ra));
+      printf ("    [%d]: %lx <%s>\n", i, Sf->Ra, NuxSymbolResolve(Sf->Ra));
 
-      if (sf->rbp <= sf)
+      if (Sf->Rbp <= sf)
 	break;
-      sf = sf->rbp;
+      Sf = Sf->Rbp;
       i++;
     }
 }
@@ -748,7 +755,7 @@ StackFrame (
 __dead VOID
 hal_panic (
   IN UINT32            cpu,
-  IN CONST CHAR8       *pError,
+  IN CONST CHAR8       *Error,
   IN struct hal_frame  *pFrame
   )
 {
@@ -764,19 +771,19 @@ hal_panic (
   printf ("\n"
 	  "----------------------------------------"
 	  "---------------------------------------\n"
-	  "Fatal error on CPU%d: %s\n", cpu, pError);
+	  "Fatal error on CPU%d: %s\n", cpu, Error);
   if (pFrame != NULL)
     {
-      hal_frame_print (pFrame);
+      hal_frame_print (Frame);
     }
   printf ("\n");
   printf ("Stack Trace:\n\n");
-  printf ("    [0]: %lx <%s>\n", hal_frame_getip(pFrame), NuxSymbolResolve(hal_frame_getip(pFrame)));
-  StackFrame (frame_bp(pFrame));
+  printf ("    [0]: %lx <%s>\n", hal_frame_getip(Frame), NuxSymbolResolve(hal_frame_getip(Frame)));
+  StackFrame (frame_bp(Frame));
   printf ("\n");
-  printf ("PTE Walk for CR2 [%lx]\n", frame_cr2(pFrame));
+  printf ("PTE Walk for CR2 [%lx]\n", frame_cr2(Frame));
   printf ("\n");
-  pt_umap_debugwalk (NULL, frame_cr2(pFrame));
+  pt_umap_debugwalk (NULL, frame_cr2(Frame));
   printf ("\n");
   printf ("----------------------------------------"
 	  "---------------------------------------\n");

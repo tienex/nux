@@ -12,14 +12,15 @@
 #include <nux/internal.h>
 
 /**
-  Kernel symbol table entry.
+  Kernel Symbol Table Entry
 
   Structure matching linker-generated symbol table format.
 **/
-typedef struct _KSYM {
-  UINTN Addr;
-  CONST CHAR8 *pName;
-} KSYM;
+typedef struct _KSYM
+{
+  UINTN        Addr;    ///< Symbol address
+  CONST CHAR8  *Name;   ///< Symbol name
+} KSYM, *PKSYM, *PCKSYM;
 
 extern KSYM _ksym_start[];
 extern KSYM _ksym_end[];
@@ -39,23 +40,23 @@ NuxSymbolResolve (
   IN UINTN  Addr
   )
 {
-  CONST KSYM *pSym = _ksym_start;
-  CONST KSYM *pLast = NULL;
+  CONST KSYM *Sym = _ksym_start;
+  CONST KSYM *Last = NULL;
 
-  while (pSym->Addr != 0)
+  while (Sym->Addr != 0)
     {
-      if (pSym->Addr > Addr)
+      if (Sym->Addr > Addr)
 	break;
-      pLast = pSym++;
+      Last = Sym++;
     }
 
-  if (pSym->Addr == 0)
-    pLast = NULL;
+  if (Sym->Addr == 0)
+    Last = NULL;
 
-  if (pLast == NULL)
+  if (Last == NULL)
     return "unknown";
   else
-    return pLast->pName;
+    return Last->Name;
 }
 
 //
