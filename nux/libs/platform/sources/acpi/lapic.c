@@ -35,16 +35,30 @@ typedef struct _LAPIC_DESC
 static LAPIC_DESC gLapics[MAXCPUS];
 
 //
-// Local APIC Delivery Modes and Registers
+// Local APIC Delivery Modes
 //
 
-#define APIC_DLVR_FIX   0
-#define APIC_DLVR_PRIO  1
-#define APIC_DLVR_SMI   2
-#define APIC_DLVR_NMI   4
-#define APIC_DLVR_INIT  5
-#define APIC_DLVR_START 6
-#define APIC_DLVR_EINT  7
+/**
+  APIC Delivery Mode
+**/
+typedef enum _APIC_DELIVERY_MODE {
+  ApicDeliveryFixed      = 0,  ///< Fixed delivery mode
+  ApicDeliveryPriority   = 1,  ///< Lowest priority delivery
+  ApicDeliverySmi        = 2,  ///< System Management Interrupt
+  ApicDeliveryNmi        = 4,  ///< Non-Maskable Interrupt
+  ApicDeliveryInit       = 5,  ///< INIT IPI
+  ApicDeliveryStartup    = 6,  ///< Startup IPI
+  ApicDeliveryExtInt     = 7   ///< External Interrupt
+} APIC_DELIVERY_MODE;
+
+/** Legacy compatibility **/
+#define APIC_DLVR_FIX   ApicDeliveryFixed
+#define APIC_DLVR_PRIO  ApicDeliveryPriority
+#define APIC_DLVR_SMI   ApicDeliverySmi
+#define APIC_DLVR_NMI   ApicDeliveryNmi
+#define APIC_DLVR_INIT  ApicDeliveryInit
+#define APIC_DLVR_START ApicDeliveryStartup
+#define APIC_DLVR_EINT  ApicDeliveryExtInt
 
 //
 // LAPIC Registers
