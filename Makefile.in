@@ -7,10 +7,10 @@
 
 INCSUBDIRS=include libec
 
-SUBDIRS=libfdt apxh @HALDIR@ @PLTDIR@ libnux libnux_user tools example
+SUBDIRS=libfdt apxh @HALDIR@ @PLATFORMDIR@ libnux libnux_user tools example
 
 apxh: libfdt
 
-libnux: apxh @HALDIR@ @PLTDIR@
+libnux: apxh @HALDIR@ @PLATFORMDIR@
 
 example: tools libnux libnux_user

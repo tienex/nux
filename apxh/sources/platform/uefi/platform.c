@@ -23,7 +23,7 @@ static unsigned gNumRegions;
 static VOID *gpEfiRsdp;
 static struct fbdesc gFbDesc = {.type = FB_INVALID, };
 
-static struct apxh_pltdesc gPltDesc;
+static struct apxh_platformdesc gPlatformDesc;
 
 static struct bootinfo_region gMemRegions[BOOTINFO_REGIONS_MAX];
 
@@ -310,17 +310,17 @@ MdGetFramebuffer (
 
   Returns platform descriptor with ACPI RSDP pointer from EFI system table.
 
-  @return Pointer to apxh_pltdesc structure.
+  @return Pointer to apxh_platformdesc structure.
 **/
-struct apxh_pltdesc *
-MdGetPltDesc (
+struct apxh_platformdesc *
+MdGetPlatformDesc (
   VOID
   )
 {
   /* Only ACPI supported. */
-  gPltDesc.type = PLT_ACPI;
-  gPltDesc.pltptr = (UINT64) (uintptr_t) gpEfiRsdp;
-  return &gPltDesc;
+  gPlatformDesc.type = PLATFORM_ACPI;
+  gPlatformDesc.PlatformPointer = (UINT64) (uintptr_t) gpEfiRsdp;
+  return &gPlatformDesc;
 }
 
 /**
@@ -598,9 +598,9 @@ struct fbdesc *md_getframebuffer (void) {
   return MdGetFramebuffer ();
 }
 
-/** @deprecated Use MdGetPltDesc instead **/
-struct apxh_pltdesc *md_getpltdesc (void) {
-  return MdGetPltDesc ();
+/** @deprecated Use MdGetPlatformDesc instead **/
+struct apxh_platformdesc *md_getplatformdesc (void) {
+  return MdGetPlatformDesc ();
 }
 
 /** @deprecated Use GetPayloadStart instead **/

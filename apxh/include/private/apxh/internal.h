@@ -87,7 +87,7 @@ uint64_t md_maxrampfn (void);
 unsigned md_memregions (void);
 struct bootinfo_region *md_getmemregion (unsigned i);
 struct fbdesc *md_getframebuffer (void);
-struct apxh_pltdesc *md_getpltdesc (void);
+struct apxh_platformdesc *md_getplatformdesc (void);
 void md_verify (vaddr_t va, size64_t size);
 void md_entry (arch_t arch, vaddr_t pt, vaddr_t entry);
 

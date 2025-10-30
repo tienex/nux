@@ -557,7 +557,7 @@ VaInfoCopy (
 #define MIN(x,y) ((x < y) ? x : y)
   struct apxh_bootinfo i;
   struct fbdesc *pFbPtr;
-  struct apxh_pltdesc *pPltDesc;
+  struct apxh_platformdesc *pPlatformDesc;
 
   if (Va == 0)
     {
@@ -571,12 +571,12 @@ VaInfoCopy (
   i.numregions = NumRegions;
   i.uentry = UEntry;
 
-  pPltDesc = md_getpltdesc ();
-  if (pPltDesc != NULL)
-    i.pltdesc = *pPltDesc;
+  pPlatformDesc = md_getplatformdesc ();
+  if (pPlatformDesc != NULL)
+    i.pltdesc = *pPlatformDesc;
   else
-    i.pltdesc = (struct apxh_pltdesc)
-    {.type = PLT_UNKNOWN,.pltptr = 0 };
+    i.pltdesc = (struct apxh_platformdesc)
+    {.Type = PLATFORM_UNKNOWN,.PlatformPointer = 0 };
 
   pFbPtr = md_getframebuffer ();
   if (pFbPtr != NULL)

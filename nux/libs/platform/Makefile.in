@@ -9,9 +9,9 @@
 @COMPILE_LIBNUX@
 
 LIBDIR=lib
-LIBRARY=plt
+LIBRARY=platform
 
-SRCS+= plt.c lapic.c ioapic.c hpet.c hw.c acpi.c
+SRCS+= init.c lapic.c ioapic.c hpet.c hw.c acpi.c
 
 INCDIR=include/public/platform
 INCS+=$(addprefix include/public/platform/,platform.h)

@@ -196,7 +196,7 @@ HpetInitialize (
       debug ("Using Interrupt Routing (%d - %x).\n", gIrqNo, IrqCap);
     }
 
-  if (PltIrqIsLevel (gIrqNo))
+  if (PlatformIrqIsLevel (gIrqNo))
     {
       debug ("Using Level Interrupt");
       /* Reset ISR just in case. */
@@ -206,7 +206,7 @@ HpetInitialize (
     }
 
   /* Register HPET irq no. */
-  gPltAcpiHpetIrq = gIrqNo;
+  gPlatformAcpiHpetIrq = gIrqNo;
 
   /* Start Time of Boot. */
   HpetWrite (REG_COUNTER, 0);
@@ -217,7 +217,7 @@ HpetInitialize (
   /* Enable HPET */
   HpetResume ();
 
-  PltIrqEnable (gIrqNo);
+  PlatformIrqEnable (gIrqNo);
   return TRUE;
 }
 
@@ -229,7 +229,7 @@ HpetInitialize (
   @return Counter value.
 **/
 UINT64
-PltTmrGetCounter (
+PlatformTmrGetCounter (
   VOID
   )
 {
@@ -244,7 +244,7 @@ PltTmrGetCounter (
   @param[in] Counter  Counter value to set.
 **/
 VOID
-PltTmrSetCounter (
+PlatformTmrSetCounter (
   IN UINT64  Counter
   )
 {
@@ -261,7 +261,7 @@ PltTmrSetCounter (
   @return Timer period in femtoseconds.
 **/
 UINT64
-PltTmrPeriod (
+PlatformTmrPeriod (
   VOID
   )
 {
@@ -277,14 +277,14 @@ PltTmrPeriod (
   @param[in] Alarm  Number of ticks until alarm.
 **/
 VOID
-PltTmrSetAlarm (
+PlatformTmrSetAlarm (
   IN UINT64  Alarm
   )
 {
   if (Alarm == 0)
     Alarm = 1;
   HpetPause ();
-  HpetWrite (REG_TMRCMP (TMR), PltTmrGetCounter () + Alarm);
+  HpetWrite (REG_TMRCMP (TMR), PlatformTmrGetCounter () + Alarm);
   HpetWrite (REG_TMRCAP (TMR), gTmrCfg | INT_ENB_CNF);
   HpetResume ();
 }
@@ -295,7 +295,7 @@ PltTmrSetAlarm (
   Disables HPET timer interrupt.
 **/
 VOID
-PltTmrClearAlarm (
+PlatformTmrClearAlarm (
   VOID
   )
 {
@@ -316,29 +316,29 @@ bool hpet_init (paddr_t hpetpa) {
   return HpetInitialize (hpetpa);
 }
 
-/** @deprecated Use PltTmrGetCounter instead **/
+/** @deprecated Use PlatformTmrGetCounter instead **/
 uint64_t plt_tmr_ctr (void) {
-  return PltTmrGetCounter ();
+  return PlatformTmrGetCounter ();
 }
 
-/** @deprecated Use PltTmrSetCounter instead **/
+/** @deprecated Use PlatformTmrSetCounter instead **/
 void plt_tmr_setctr (uint64_t ctr) {
-  PltTmrSetCounter (ctr);
+  PlatformTmrSetCounter (ctr);
 }
 
-/** @deprecated Use PltTmrPeriod instead **/
+/** @deprecated Use PlatformTmrPeriod instead **/
 uint64_t plt_tmr_period (void) {
-  return PltTmrPeriod ();
+  return PlatformTmrPeriod ();
 }
 
-/** @deprecated Use PltTmrSetAlarm instead **/
+/** @deprecated Use PlatformTmrSetAlarm instead **/
 void plt_tmr_setalm (uint64_t alm) {
-  PltTmrSetAlarm (alm);
+  PlatformTmrSetAlarm (alm);
 }
 
-/** @deprecated Use PltTmrClearAlarm instead **/
+/** @deprecated Use PlatformTmrClearAlarm instead **/
 void plt_tmr_clralm (void) {
-  PltTmrClearAlarm ();
+  PlatformTmrClearAlarm ();
 }
 
 // Legacy global variable aliases

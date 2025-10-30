@@ -334,12 +334,12 @@ LapicInitialize (
   Iterate through processors.
 
   Returns the physical ID of the next processor in sequence.
-  Returns PLT_PCPU_INVALID when iteration is complete.
+  Returns PLATFORM_PCPU_INVALID when iteration is complete.
 
-  @return Physical CPU ID, or PLT_PCPU_INVALID.
+  @return Physical CPU ID, or PLATFORM_PCPU_INVALID.
 **/
 INT32
-PltPcpuIterate (
+PlatformPcpuIterate (
   VOID
   )
 {
@@ -350,7 +350,7 @@ PltPcpuIterate (
   else
     {
       t = 0;
-      return PLT_PCPU_INVALID;
+      return PLATFORM_PCPU_INVALID;
     }
 }
 
@@ -360,7 +360,7 @@ PltPcpuIterate (
   Configures the Local APIC for the current processor.
 **/
 VOID
-PltPcpuEnter (
+PlatformPcpuEnter (
   VOID
   )
 {
@@ -375,7 +375,7 @@ PltPcpuEnter (
   @param[in] PcpuId  Physical CPU ID.
 **/
 VOID
-PltPcpuNmi (
+PlatformPcpuNmi (
   IN INT32  PcpuId
   )
 {
@@ -388,7 +388,7 @@ PltPcpuNmi (
   Sends a Non-Maskable Interrupt to all processors except self.
 **/
 VOID
-PltPcpuNmiAll (
+PlatformPcpuNmiAll (
   VOID
   )
 {
@@ -403,7 +403,7 @@ PltPcpuNmiAll (
   @param[in] PcpuId  Physical CPU ID.
 **/
 VOID
-PltPcpuIpi (
+PlatformPcpuIpi (
   IN INT32  PcpuId
   )
 {
@@ -416,7 +416,7 @@ PltPcpuIpi (
   Sends an inter-processor interrupt to all processors except self.
 **/
 VOID
-PltPcpuIpiAll (
+PlatformPcpuIpiAll (
   VOID
   )
 {
@@ -431,7 +431,7 @@ PltPcpuIpiAll (
   @return Physical CPU ID.
 **/
 UINT32
-PltPcpuId (
+PlatformPcpuId (
   VOID
   )
 {
@@ -448,7 +448,7 @@ PltPcpuId (
   @param[in] Start   Physical startup address.
 **/
 VOID
-PltPcpuStart (
+PlatformPcpuStart (
   IN UINT32   PcpuId,
   IN paddr_t  Start
   )
@@ -524,44 +524,44 @@ void lapic_init (uint64_t base, unsigned no) {
   LapicInitialize (base, no);
 }
 
-/** @deprecated Use PltPcpuIterate instead **/
+/** @deprecated Use PlatformPcpuIterate instead **/
 int plt_pcpu_iterate (void) {
-  return PltPcpuIterate ();
+  return PlatformPcpuIterate ();
 }
 
-/** @deprecated Use PltPcpuEnter instead **/
+/** @deprecated Use PlatformPcpuEnter instead **/
 void plt_pcpu_enter (void) {
-  PltPcpuEnter ();
+  PlatformPcpuEnter ();
 }
 
-/** @deprecated Use PltPcpuNmi instead **/
+/** @deprecated Use PlatformPcpuNmi instead **/
 void plt_pcpu_nmi (int pcpuid) {
-  PltPcpuNmi (pcpuid);
+  PlatformPcpuNmi (pcpuid);
 }
 
-/** @deprecated Use PltPcpuNmiAll instead **/
+/** @deprecated Use PlatformPcpuNmiAll instead **/
 void plt_pcpu_nmiall (void) {
-  PltPcpuNmiAll ();
+  PlatformPcpuNmiAll ();
 }
 
-/** @deprecated Use PltPcpuIpi instead **/
+/** @deprecated Use PlatformPcpuIpi instead **/
 void plt_pcpu_ipi (int pcpuid) {
-  PltPcpuIpi (pcpuid);
+  PlatformPcpuIpi (pcpuid);
 }
 
-/** @deprecated Use PltPcpuIpiAll instead **/
+/** @deprecated Use PlatformPcpuIpiAll instead **/
 void plt_pcpu_ipiall (void) {
-  PltPcpuIpiAll ();
+  PlatformPcpuIpiAll ();
 }
 
-/** @deprecated Use PltPcpuId instead **/
+/** @deprecated Use PlatformPcpuId instead **/
 unsigned plt_pcpu_id (void) {
-  return PltPcpuId ();
+  return PlatformPcpuId ();
 }
 
-/** @deprecated Use PltPcpuStart instead **/
+/** @deprecated Use PlatformPcpuStart instead **/
 void plt_pcpu_start (unsigned pcpuid, paddr_t start) {
-  PltPcpuStart (pcpuid, start);
+  PlatformPcpuStart (pcpuid, start);
 }
 
 // Legacy global variable aliases

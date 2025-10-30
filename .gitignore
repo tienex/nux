@@ -23,7 +23,7 @@ tools/objappend/objappend
 
 /*.mk
 hal.mk
-plt.mk
+platform.mk
 libec.mk
 libec-compile.mk
 libec-include.mk

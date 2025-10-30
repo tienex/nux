@@ -26,9 +26,9 @@
 // Platform Type Constants
 //
 
-#define PLT_UNKNOWN  0  ///< Unknown platform type
-#define PLT_ACPI     1  ///< ACPI-based platform (x86)
-#define PLT_DTB      2  ///< Device Tree Blob platform (RISC-V, ARM)
+#define PLATFORM_UNKNOWN  0  ///< Unknown platform type
+#define PLATFORM_ACPI     1  ///< ACPI-based platform (x86)
+#define PLATFORM_DTB      2  ///< Device Tree Blob platform (RISC-V, ARM)
 
 //
 // APXH Magic Numbers
@@ -60,14 +60,14 @@
 
 typedef struct _APXH_PLATFORM_DESCRIPTOR {
   ///
-  /// Platform type (PLT_UNKNOWN, PLT_ACPI, PLT_DTB).
+  /// Platform type (PLATFORM_UNKNOWN, PLATFORM_ACPI, PLATFORM_DTB).
   ///
   UINT64  Type;
 
   ///
   /// Pointer to platform-specific data:
-  /// - For PLT_ACPI: Physical address of ACPI RSDP
-  /// - For PLT_DTB: Physical address of Device Tree Blob
+  /// - For PLATFORM_ACPI: Physical address of ACPI RSDP
+  /// - For PLATFORM_DTB: Physical address of Device Tree Blob
   ///
   UINT64  PlatformPointer;
 } APXH_PLATFORM_DESCRIPTOR;
@@ -213,7 +213,7 @@ typedef struct _APXH_REGION {
 //
 
 /** @deprecated Use APXH_PLATFORM_DESCRIPTOR instead **/
-typedef APXH_PLATFORM_DESCRIPTOR apxh_pltdesc;
+typedef APXH_PLATFORM_DESCRIPTOR apxh_platformdesc;
 
 /** @deprecated Use APXH_TLS_INFO instead **/
 typedef APXH_TLS_INFO apxh_tlsinfo;

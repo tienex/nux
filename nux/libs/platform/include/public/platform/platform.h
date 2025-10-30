@@ -1,7 +1,7 @@
 /** @file
   Platform Layer Interface
 
-  Defines the COM-style PLT interface for platform-specific functionality
+  Defines the COM-style Platform interface for platform-specific functionality
   including IRQ management, physical CPU control, timer operations, and
   interrupt handling.
 
@@ -17,530 +17,566 @@
 #include <nux/types.h>
 
 //
-// PLT Interface GUID
+// Platform Interface GUID
 //
 
-#define IID_IPLT \
+#define IID_IPLATFORM \
   { 0x8E91A5C2, 0x53F6, 0x4B7A, { 0xB4, 0x6C, 0x9D, 0x8E, 0x3F, 0x4A, 0x2B, 0x5C } }
 
 //
 // Forward Declarations
 //
 
-INTERFACE_DECL (IPlt)
-INTERFACE_DECL (IPltHardware)
-INTERFACE_DECL (IPltIrq)
-INTERFACE_DECL (IPltPcpu)
-INTERFACE_DECL (IPltTimer)
+INTERFACE_DECL (IPlatform)
+INTERFACE_DECL (IPlatformHardware)
+INTERFACE_DECL (IPlatformIrq)
+INTERFACE_DECL (IPlatformPcpu)
+INTERFACE_DECL (IPlatformTimer)
 
 //
-// PLT Constants
+// Platform Constants
 //
 
-#define PLT_PCPU_INVALID ((UINTN)-1)
+#define PLATFORM_PCPU_INVALID ((UINTN)-1)
 
 //
 // IRQ Type Enumeration
 //
 
 typedef enum {
-  PltIrqEdge    = 0,  ///< Edge-triggered interrupt
-  PltIrqLvlLo   = 1,  ///< Level-triggered active-low interrupt
-  PltIrqLvlHi   = 2,  ///< Level-triggered active-high interrupt
-  PltIrqInvalid = 3   ///< Invalid IRQ type
-} PLT_IRQ_TYPE;
+  PlatformIrqEdge    = 0,  ///< Edge-triggered interrupt
+  PlatformIrqLvlLo   = 1,  ///< Level-triggered active-low interrupt
+  PlatformIrqLvlHi   = 2,  ///< Level-triggered active-high interrupt
+  PlatformIrqInvalid = 3   ///< Invalid IRQ type
+} PLATFORM_IRQ_TYPE;
 
 /** Legacy type alias for compatibility **/
-enum plt_irq_type {
-  PLT_IRQ_EDGE,
-  PLT_IRQ_LVLLO,
-  PLT_IRQ_LVLHI,
-  PLT_IRQ_INVALID,
+enum platform_irq_type {
+  PLATFORM_IRQ_EDGE,
+  PLATFORM_IRQ_LVLLO,
+  PLATFORM_IRQ_LVLHI,
+  PLATFORM_IRQ_INVALID,
 };
 
 //
-// IPltHardware Interface - Standard Hardware Operations
+// IPlatformHardware Interface - Standard Hardware Operations
 //
 
-struct _IPltHardwareVtbl {
+struct _IPlatformHardwareVtbl {
   //
   // IUnknown Methods
   //
-  HRESULT (*QueryInterface)(IN IPltHardware *This, IN IID *riid, OUT VOID **ppvObject);
-  ULONG   (*AddRef)(IN IPltHardware *This);
-  ULONG   (*Release)(IN IPltHardware *This);
+  HRESULT (*QueryInterface)(IN IPlatformHardware *This, IN IID *riid, OUT VOID **ppvObject);
+  ULONG   (*AddRef)(IN IPlatformHardware *This);
+  ULONG   (*Release)(IN IPlatformHardware *This);
 
   //
-  // IPltHardware Methods
+  // IPlatformHardware Methods
   //
 
   /**
     Output a character to the console.
 
-    @param[in]  This  Pointer to the IPltHardware instance.
+    @param[in]  This  Pointer to the IPlatformHardware instance.
     @param[in]  Char  Character to output.
   **/
-  VOID (*PutChar)(IN IPltHardware *This, IN INT32 Char);
+  VOID (*PutChar)(IN IPlatformHardware *This, IN INT32 Char);
 };
 
-INTERFACE_INHERIT_IUNKNOWN (IPltHardware)
+INTERFACE_INHERIT_IUNKNOWN (IPlatformHardware)
 
 //
-// IPltIrq Interface - IRQ Management
+// IPlatformIrq Interface - IRQ Management
 //
 
-struct _IPltIrqVtbl {
+struct _IPlatformIrqVtbl {
   //
   // IUnknown Methods
   //
-  HRESULT (*QueryInterface)(IN IPltIrq *This, IN IID *riid, OUT VOID **ppvObject);
-  ULONG   (*AddRef)(IN IPltIrq *This);
-  ULONG   (*Release)(IN IPltIrq *This);
+  HRESULT (*QueryInterface)(IN IPlatformIrq *This, IN IID *riid, OUT VOID **ppvObject);
+  ULONG   (*AddRef)(IN IPlatformIrq *This);
+  ULONG   (*Release)(IN IPlatformIrq *This);
 
   //
-  // IPltIrq Methods
+  // IPlatformIrq Methods
   //
 
   /**
     Get the type of an IRQ.
 
-    @param[in]  This  Pointer to the IPltIrq instance.
+    @param[in]  This  Pointer to the IPlatformIrq instance.
     @param[in]  Irq   IRQ number.
 
     @return IRQ type (edge or level-triggered).
   **/
-  PLT_IRQ_TYPE (*GetType)(IN IPltIrq *This, IN UINTN Irq);
+  PLATFORM_IRQ_TYPE (*GetType)(IN IPlatformIrq *This, IN UINTN Irq);
 
   /**
     Enable an IRQ.
 
-    @param[in]  This  Pointer to the IPltIrq instance.
+    @param[in]  This  Pointer to the IPlatformIrq instance.
     @param[in]  Irq   IRQ number to enable.
   **/
-  VOID (*Enable)(IN IPltIrq *This, IN UINTN Irq);
+  VOID (*Enable)(IN IPlatformIrq *This, IN UINTN Irq);
 
   /**
     Disable an IRQ.
 
-    @param[in]  This  Pointer to the IPltIrq instance.
+    @param[in]  This  Pointer to the IPlatformIrq instance.
     @param[in]  Irq   IRQ number to disable.
   **/
-  VOID (*Disable)(IN IPltIrq *This, IN UINTN Irq);
+  VOID (*Disable)(IN IPlatformIrq *This, IN UINTN Irq);
 
   /**
     Get the maximum IRQ number supported.
 
-    @param[in]  This  Pointer to the IPltIrq instance.
+    @param[in]  This  Pointer to the IPlatformIrq instance.
 
     @return Maximum IRQ number.
   **/
-  UINTN (*GetMaxIrq)(IN IPltIrq *This);
+  UINTN (*GetMaxIrq)(IN IPlatformIrq *This);
 
   /**
     Check if IRQ is level-triggered.
 
-    @param[in]  This  Pointer to the IPltIrq instance.
+    @param[in]  This  Pointer to the IPlatformIrq instance.
     @param[in]  Irq   IRQ number.
 
     @retval TRUE   IRQ is level-triggered.
     @retval FALSE  IRQ is edge-triggered.
   **/
-  BOOLEAN (*IsLevel)(IN IPltIrq *This, IN UINTN Irq);
+  BOOLEAN (*IsLevel)(IN IPlatformIrq *This, IN UINTN Irq);
 
   /**
     Send End-of-Interrupt for an IRQ.
 
-    @param[in]  This  Pointer to the IPltIrq instance.
+    @param[in]  This  Pointer to the IPlatformIrq instance.
     @param[in]  Irq   IRQ number.
   **/
-  VOID (*EndOfInterrupt)(IN IPltIrq *This, IN UINTN Irq);
+  VOID (*EndOfInterrupt)(IN IPlatformIrq *This, IN UINTN Irq);
 };
 
-INTERFACE_INHERIT_IUNKNOWN (IPltIrq)
+INTERFACE_INHERIT_IUNKNOWN (IPlatformIrq)
 
 //
-// IPltPcpu Interface - Physical CPU Management
+// IPlatformPcpu Interface - Physical CPU Management
 //
 
-struct _IPltPcpuVtbl {
+struct _IPlatformPcpuVtbl {
   //
   // IUnknown Methods
   //
-  HRESULT (*QueryInterface)(IN IPltPcpu *This, IN IID *riid, OUT VOID **ppvObject);
-  ULONG   (*AddRef)(IN IPltPcpu *This);
-  ULONG   (*Release)(IN IPltPcpu *This);
+  HRESULT (*QueryInterface)(IN IPlatformPcpu *This, IN IID *riid, OUT VOID **ppvObject);
+  ULONG   (*AddRef)(IN IPlatformPcpu *This);
+  ULONG   (*Release)(IN IPlatformPcpu *This);
 
   //
-  // IPltPcpu Methods
+  // IPlatformPcpu Methods
   //
 
   /**
     Iterate through physical CPUs.
 
-    @param[in]  This  Pointer to the IPltPcpu instance.
+    @param[in]  This  Pointer to the IPlatformPcpu instance.
 
-    @return Next PCPU ID, or PLT_PCPU_INVALID if iteration complete.
+    @return Next PCPU ID, or PLATFORM_PCPU_INVALID if iteration complete.
   **/
-  INTN (*Iterate)(IN IPltPcpu *This);
+  INTN (*Iterate)(IN IPlatformPcpu *This);
 
   /**
     Load platform-specific state for current CPU.
 
-    @param[in]  This  Pointer to the IPltPcpu instance.
+    @param[in]  This  Pointer to the IPlatformPcpu instance.
   **/
-  VOID (*Enter)(IN IPltPcpu *This);
+  VOID (*Enter)(IN IPlatformPcpu *This);
 
   /**
     Issue NMI to a specific CPU.
 
-    @param[in]  This    Pointer to the IPltPcpu instance.
+    @param[in]  This    Pointer to the IPlatformPcpu instance.
     @param[in]  PcpuId  Physical CPU identifier.
   **/
-  VOID (*SendNmi)(IN IPltPcpu *This, IN INTN PcpuId);
+  VOID (*SendNmi)(IN IPlatformPcpu *This, IN INTN PcpuId);
 
   /**
     Broadcast NMI to all CPUs.
 
-    @param[in]  This  Pointer to the IPltPcpu instance.
+    @param[in]  This  Pointer to the IPlatformPcpu instance.
   **/
-  VOID (*BroadcastNmi)(IN IPltPcpu *This);
+  VOID (*BroadcastNmi)(IN IPlatformPcpu *This);
 
   /**
     Issue IPI to a specific CPU.
 
-    @param[in]  This    Pointer to the IPltPcpu instance.
+    @param[in]  This    Pointer to the IPlatformPcpu instance.
     @param[in]  PcpuId  Physical CPU identifier.
   **/
-  VOID (*SendIpi)(IN IPltPcpu *This, IN INTN PcpuId);
+  VOID (*SendIpi)(IN IPlatformPcpu *This, IN INTN PcpuId);
 
   /**
     Broadcast IPI to all CPUs.
 
-    @param[in]  This  Pointer to the IPltPcpu instance.
+    @param[in]  This  Pointer to the IPlatformPcpu instance.
   **/
-  VOID (*BroadcastIpi)(IN IPltPcpu *This);
+  VOID (*BroadcastIpi)(IN IPlatformPcpu *This);
 
   /**
     Get current physical CPU ID.
 
-    @param[in]  This  Pointer to the IPltPcpu instance.
+    @param[in]  This  Pointer to the IPlatformPcpu instance.
 
     @return Current PCPU ID.
   **/
-  UINTN (*GetId)(IN IPltPcpu *This);
+  UINTN (*GetId)(IN IPlatformPcpu *This);
 
   /**
     Start a remote CPU.
 
-    @param[in]  This       Pointer to the IPltPcpu instance.
+    @param[in]  This       Pointer to the IPlatformPcpu instance.
     @param[in]  PcpuId     Physical CPU identifier.
     @param[in]  StartAddr  Physical address to begin execution.
   **/
-  VOID (*Start)(IN IPltPcpu *This, IN UINTN PcpuId, IN PHYSICAL_ADDRESS StartAddr);
+  VOID (*Start)(IN IPlatformPcpu *This, IN UINTN PcpuId, IN PHYSICAL_ADDRESS StartAddr);
 };
 
-INTERFACE_INHERIT_IUNKNOWN (IPltPcpu)
+INTERFACE_INHERIT_IUNKNOWN (IPlatformPcpu)
 
 //
-// IPltTimer Interface - Timer Operations
+// IPlatformTimer Interface - Timer Operations
 //
 
-struct _IPltTimerVtbl {
+struct _IPlatformTimerVtbl {
   //
   // IUnknown Methods
   //
-  HRESULT (*QueryInterface)(IN IPltTimer *This, IN IID *riid, OUT VOID **ppvObject);
-  ULONG   (*AddRef)(IN IPltTimer *This);
-  ULONG   (*Release)(IN IPltTimer *This);
+  HRESULT (*QueryInterface)(IN IPlatformTimer *This, IN IID *riid, OUT VOID **ppvObject);
+  ULONG   (*AddRef)(IN IPlatformTimer *This);
+  ULONG   (*Release)(IN IPlatformTimer *This);
 
   //
-  // IPltTimer Methods
+  // IPlatformTimer Methods
   //
 
   /**
     Read timer counter.
 
-    @param[in]  This  Pointer to the IPltTimer instance.
+    @param[in]  This  Pointer to the IPlatformTimer instance.
 
     @return Current timer count.
   **/
-  UINT64 (*GetCounter)(IN IPltTimer *This);
+  UINT64 (*GetCounter)(IN IPlatformTimer *This);
 
   /**
     Set timer counter.
 
-    @param[in]  This     Pointer to the IPltTimer instance.
+    @param[in]  This     Pointer to the IPlatformTimer instance.
     @param[in]  Counter  New counter value.
   **/
-  VOID (*SetCounter)(IN IPltTimer *This, IN UINT64 Counter);
+  VOID (*SetCounter)(IN IPlatformTimer *This, IN UINT64 Counter);
 
   /**
     Get timer period in femtoseconds.
 
-    @param[in]  This  Pointer to the IPltTimer instance.
+    @param[in]  This  Pointer to the IPlatformTimer instance.
 
     @return Timer period in femtoseconds.
   **/
-  UINT64 (*GetPeriod)(IN IPltTimer *This);
+  UINT64 (*GetPeriod)(IN IPlatformTimer *This);
 
   /**
     Set timer alarm.
 
-    @param[in]  This   Pointer to the IPltTimer instance.
+    @param[in]  This   Pointer to the IPlatformTimer instance.
     @param[in]  Ticks  Number of ticks until alarm.
   **/
-  VOID (*SetAlarm)(IN IPltTimer *This, IN UINT64 Ticks);
+  VOID (*SetAlarm)(IN IPlatformTimer *This, IN UINT64 Ticks);
 
   /**
     Clear timer alarm.
 
-    @param[in]  This  Pointer to the IPltTimer instance.
+    @param[in]  This  Pointer to the IPlatformTimer instance.
   **/
-  VOID (*ClearAlarm)(IN IPltTimer *This);
+  VOID (*ClearAlarm)(IN IPlatformTimer *This);
 
   /**
     Send End-of-Interrupt for timer.
 
-    @param[in]  This  Pointer to the IPltTimer instance.
+    @param[in]  This  Pointer to the IPlatformTimer instance.
   **/
-  VOID (*EndOfInterrupt)(IN IPltTimer *This);
+  VOID (*EndOfInterrupt)(IN IPlatformTimer *This);
 };
 
-INTERFACE_INHERIT_IUNKNOWN (IPltTimer)
+INTERFACE_INHERIT_IUNKNOWN (IPlatformTimer)
 
 //
-// IPlt Main Interface - Aggregates all PLT functionality
+// IPlatform Main Interface - Aggregates all Platform functionality
 //
 
-struct _IPltVtbl {
+struct _IPlatformVtbl {
   //
   // IUnknown Methods
   //
-  HRESULT (*QueryInterface)(IN IPlt *This, IN IID *riid, OUT VOID **ppvObject);
-  ULONG   (*AddRef)(IN IPlt *This);
-  ULONG   (*Release)(IN IPlt *This);
+  HRESULT (*QueryInterface)(IN IPlatform *This, IN IID *riid, OUT VOID **ppvObject);
+  ULONG   (*AddRef)(IN IPlatform *This);
+  ULONG   (*Release)(IN IPlatform *This);
 
   //
-  // IPlt Methods
+  // IPlatform Methods
   //
 
   /**
     Initialize the platform layer.
 
-    @param[in]  This  Pointer to the IPlt instance.
+    @param[in]  This  Pointer to the IPlatform instance.
   **/
-  VOID (*Init)(IN IPlt *This);
+  VOID (*Init)(IN IPlatform *This);
 
   /**
     Get the hardware interface.
 
-    @param[in]  This        Pointer to the IPlt instance.
-    @param[out] ppHardware  Receives the IPltHardware interface pointer.
+    @param[in]  This        Pointer to the IPlatform instance.
+    @param[out] ppHardware  Receives the IPlatformHardware interface pointer.
 
     @retval S_OK        Interface retrieved successfully.
     @retval E_POINTER   ppHardware is NULL.
   **/
-  HRESULT (*GetHardwareInterface)(IN IPlt *This, OUT IPltHardware **ppHardware);
+  HRESULT (*GetHardwareInterface)(IN IPlatform *This, OUT IPlatformHardware **ppHardware);
 
   /**
     Get the IRQ management interface.
 
-    @param[in]  This   Pointer to the IPlt instance.
-    @param[out] ppIrq  Receives the IPltIrq interface pointer.
+    @param[in]  This   Pointer to the IPlatform instance.
+    @param[out] ppIrq  Receives the IPlatformIrq interface pointer.
 
     @retval S_OK        Interface retrieved successfully.
     @retval E_POINTER   ppIrq is NULL.
   **/
-  HRESULT (*GetIrqInterface)(IN IPlt *This, OUT IPltIrq **ppIrq);
+  HRESULT (*GetIrqInterface)(IN IPlatform *This, OUT IPlatformIrq **ppIrq);
 
   /**
     Get the physical CPU interface.
 
-    @param[in]  This    Pointer to the IPlt instance.
-    @param[out] ppPcpu  Receives the IPltPcpu interface pointer.
+    @param[in]  This    Pointer to the IPlatform instance.
+    @param[out] ppPcpu  Receives the IPlatformPcpu interface pointer.
 
     @retval S_OK        Interface retrieved successfully.
     @retval E_POINTER   ppPcpu is NULL.
   **/
-  HRESULT (*GetPcpuInterface)(IN IPlt *This, OUT IPltPcpu **ppPcpu);
+  HRESULT (*GetPcpuInterface)(IN IPlatform *This, OUT IPlatformPcpu **ppPcpu);
 
   /**
     Get the timer interface.
 
-    @param[in]  This     Pointer to the IPlt instance.
-    @param[out] ppTimer  Receives the IPltTimer interface pointer.
+    @param[in]  This     Pointer to the IPlatform instance.
+    @param[out] ppTimer  Receives the IPlatformTimer interface pointer.
 
     @retval S_OK        Interface retrieved successfully.
     @retval E_POINTER   ppTimer is NULL.
   **/
-  HRESULT (*GetTimerInterface)(IN IPlt *This, OUT IPltTimer **ppTimer);
+  HRESULT (*GetTimerInterface)(IN IPlatform *This, OUT IPlatformTimer **ppTimer);
 
   /**
     Get the IPI end-of-interrupt interface.
 
-    @param[in]  This  Pointer to the IPlt instance.
+    @param[in]  This  Pointer to the IPlatform instance.
   **/
-  VOID (*EndOfInterruptIpi)(IN IPlt *This);
+  VOID (*EndOfInterruptIpi)(IN IPlatform *This);
 
   /**
     Handle platform interrupt.
 
-    @param[in]  This   Pointer to the IPlt instance.
+    @param[in]  This   Pointer to the IPlatform instance.
     @param[in]  Vector Interrupt vector number.
     @param[in]  pFrame Current CPU frame.
 
     @return Updated frame pointer.
   **/
-  struct hal_frame *(*Interrupt)(IN IPlt *This, IN UINTN Vector,
+  struct hal_frame *(*Interrupt)(IN IPlatform *This, IN UINTN Vector,
                                   IN struct hal_frame *pFrame);
 };
 
-INTERFACE_INHERIT_IUNKNOWN (IPlt)
+INTERFACE_INHERIT_IUNKNOWN (IPlatform)
 
 //
 // Legacy C Function Wrappers (for backward compatibility)
 //
 
-extern IPlt *gpPlt;
+extern IPlatform *gpPlatform;
 
-static inline void plt_init (void) {
-  gpPlt->lpVtbl->Init(gpPlt);
+static inline void platform_init (void) {
+  gpPlatform->lpVtbl->Init(gpPlatform);
 }
 
-static inline void plt_hw_putc (int c) {
-  IPltHardware *pHw;
-  gpPlt->lpVtbl->GetHardwareInterface(gpPlt, &pHw);
+static inline void platform_hw_putc (int c) {
+  IPlatformHardware *pHw;
+  gpPlatform->lpVtbl->GetHardwareInterface(gpPlatform, &pHw);
   pHw->lpVtbl->PutChar(pHw, c);
 }
 
-static inline enum plt_irq_type plt_irq_type (unsigned irq) {
-  IPltIrq *pIrq;
-  PLT_IRQ_TYPE type;
-  gpPlt->lpVtbl->GetIrqInterface(gpPlt, &pIrq);
+static inline enum platform_irq_type platform_irq_type (unsigned irq) {
+  IPlatformIrq *pIrq;
+  PLATFORM_IRQ_TYPE type;
+  gpPlatform->lpVtbl->GetIrqInterface(gpPlatform, &pIrq);
   type = pIrq->lpVtbl->GetType(pIrq, irq);
-  return (enum plt_irq_type)type;
+  return (enum platform_irq_type)type;
 }
 
-static inline void plt_irq_enable (unsigned irq) {
-  IPltIrq *pIrq;
-  gpPlt->lpVtbl->GetIrqInterface(gpPlt, &pIrq);
+static inline void platform_irq_enable (unsigned irq) {
+  IPlatformIrq *pIrq;
+  gpPlatform->lpVtbl->GetIrqInterface(gpPlatform, &pIrq);
   pIrq->lpVtbl->Enable(pIrq, irq);
 }
 
-static inline void plt_irq_disable (unsigned irq) {
-  IPltIrq *pIrq;
-  gpPlt->lpVtbl->GetIrqInterface(gpPlt, &pIrq);
+static inline void platform_irq_disable (unsigned irq) {
+  IPlatformIrq *pIrq;
+  gpPlatform->lpVtbl->GetIrqInterface(gpPlatform, &pIrq);
   pIrq->lpVtbl->Disable(pIrq, irq);
 }
 
-static inline unsigned plt_irq_max (void) {
-  IPltIrq *pIrq;
-  gpPlt->lpVtbl->GetIrqInterface(gpPlt, &pIrq);
+static inline unsigned platform_irq_max (void) {
+  IPlatformIrq *pIrq;
+  gpPlatform->lpVtbl->GetIrqInterface(gpPlatform, &pIrq);
   return pIrq->lpVtbl->GetMaxIrq(pIrq);
 }
 
-static inline bool plt_irq_islevel (unsigned irq) {
-  IPltIrq *pIrq;
-  gpPlt->lpVtbl->GetIrqInterface(gpPlt, &pIrq);
+static inline bool platform_irq_islevel (unsigned irq) {
+  IPlatformIrq *pIrq;
+  gpPlatform->lpVtbl->GetIrqInterface(gpPlatform, &pIrq);
   return pIrq->lpVtbl->IsLevel(pIrq, irq);
 }
 
-static inline int plt_pcpu_iterate (void) {
-  IPltPcpu *pPcpu;
-  gpPlt->lpVtbl->GetPcpuInterface(gpPlt, &pPcpu);
+static inline int platform_pcpu_iterate (void) {
+  IPlatformPcpu *pPcpu;
+  gpPlatform->lpVtbl->GetPcpuInterface(gpPlatform, &pPcpu);
   return pPcpu->lpVtbl->Iterate(pPcpu);
 }
 
-static inline void plt_pcpu_enter (void) {
-  IPltPcpu *pPcpu;
-  gpPlt->lpVtbl->GetPcpuInterface(gpPlt, &pPcpu);
+static inline void platform_pcpu_enter (void) {
+  IPlatformPcpu *pPcpu;
+  gpPlatform->lpVtbl->GetPcpuInterface(gpPlatform, &pPcpu);
   pPcpu->lpVtbl->Enter(pPcpu);
 }
 
-static inline void plt_pcpu_nmi (int pcpuid) {
-  IPltPcpu *pPcpu;
-  gpPlt->lpVtbl->GetPcpuInterface(gpPlt, &pPcpu);
+static inline void platform_pcpu_nmi (int pcpuid) {
+  IPlatformPcpu *pPcpu;
+  gpPlatform->lpVtbl->GetPcpuInterface(gpPlatform, &pPcpu);
   pPcpu->lpVtbl->SendNmi(pPcpu, pcpuid);
 }
 
-static inline void plt_pcpu_nmiall (void) {
-  IPltPcpu *pPcpu;
-  gpPlt->lpVtbl->GetPcpuInterface(gpPlt, &pPcpu);
+static inline void platform_pcpu_nmiall (void) {
+  IPlatformPcpu *pPcpu;
+  gpPlatform->lpVtbl->GetPcpuInterface(gpPlatform, &pPcpu);
   pPcpu->lpVtbl->BroadcastNmi(pPcpu);
 }
 
-static inline void plt_pcpu_ipi (int pcpuid) {
-  IPltPcpu *pPcpu;
-  gpPlt->lpVtbl->GetPcpuInterface(gpPlt, &pPcpu);
+static inline void platform_pcpu_ipi (int pcpuid) {
+  IPlatformPcpu *pPcpu;
+  gpPlatform->lpVtbl->GetPcpuInterface(gpPlatform, &pPcpu);
   pPcpu->lpVtbl->SendIpi(pPcpu, pcpuid);
 }
 
-static inline void plt_pcpu_ipiall (void) {
-  IPltPcpu *pPcpu;
-  gpPlt->lpVtbl->GetPcpuInterface(gpPlt, &pPcpu);
+static inline void platform_pcpu_ipiall (void) {
+  IPlatformPcpu *pPcpu;
+  gpPlatform->lpVtbl->GetPcpuInterface(gpPlatform, &pPcpu);
   pPcpu->lpVtbl->BroadcastIpi(pPcpu);
 }
 
-static inline unsigned plt_pcpu_id (void) {
-  IPltPcpu *pPcpu;
-  gpPlt->lpVtbl->GetPcpuInterface(gpPlt, &pPcpu);
+static inline unsigned platform_pcpu_id (void) {
+  IPlatformPcpu *pPcpu;
+  gpPlatform->lpVtbl->GetPcpuInterface(gpPlatform, &pPcpu);
   return pPcpu->lpVtbl->GetId(pPcpu);
 }
 
-static inline void plt_pcpu_start (unsigned pcpuid, paddr_t start) {
-  IPltPcpu *pPcpu;
-  gpPlt->lpVtbl->GetPcpuInterface(gpPlt, &pPcpu);
+static inline void platform_pcpu_start (unsigned pcpuid, paddr_t start) {
+  IPlatformPcpu *pPcpu;
+  gpPlatform->lpVtbl->GetPcpuInterface(gpPlatform, &pPcpu);
   pPcpu->lpVtbl->Start(pPcpu, pcpuid, start);
 }
 
-static inline uint64_t plt_tmr_ctr (void) {
-  IPltTimer *pTimer;
-  gpPlt->lpVtbl->GetTimerInterface(gpPlt, &pTimer);
+static inline uint64_t platform_tmr_ctr (void) {
+  IPlatformTimer *pTimer;
+  gpPlatform->lpVtbl->GetTimerInterface(gpPlatform, &pTimer);
   return pTimer->lpVtbl->GetCounter(pTimer);
 }
 
-static inline void plt_tmr_setctr (uint64_t ctr) {
-  IPltTimer *pTimer;
-  gpPlt->lpVtbl->GetTimerInterface(gpPlt, &pTimer);
+static inline void platform_tmr_setctr (uint64_t ctr) {
+  IPlatformTimer *pTimer;
+  gpPlatform->lpVtbl->GetTimerInterface(gpPlatform, &pTimer);
   pTimer->lpVtbl->SetCounter(pTimer, ctr);
 }
 
-static inline uint64_t plt_tmr_period (void) {
-  IPltTimer *pTimer;
-  gpPlt->lpVtbl->GetTimerInterface(gpPlt, &pTimer);
+static inline uint64_t platform_tmr_period (void) {
+  IPlatformTimer *pTimer;
+  gpPlatform->lpVtbl->GetTimerInterface(gpPlatform, &pTimer);
   return pTimer->lpVtbl->GetPeriod(pTimer);
 }
 
-static inline void plt_tmr_setalm (uint64_t alm) {
-  IPltTimer *pTimer;
-  gpPlt->lpVtbl->GetTimerInterface(gpPlt, &pTimer);
+static inline void platform_tmr_setalm (uint64_t alm) {
+  IPlatformTimer *pTimer;
+  gpPlatform->lpVtbl->GetTimerInterface(gpPlatform, &pTimer);
   pTimer->lpVtbl->SetAlarm(pTimer, alm);
 }
 
-static inline void plt_tmr_clralm (void) {
-  IPltTimer *pTimer;
-  gpPlt->lpVtbl->GetTimerInterface(gpPlt, &pTimer);
+static inline void platform_tmr_clralm (void) {
+  IPlatformTimer *pTimer;
+  gpPlatform->lpVtbl->GetTimerInterface(gpPlatform, &pTimer);
   pTimer->lpVtbl->ClearAlarm(pTimer);
 }
 
-static inline void plt_eoi_timer (void) {
-  IPltTimer *pTimer;
-  gpPlt->lpVtbl->GetTimerInterface(gpPlt, &pTimer);
+static inline void platform_eoi_timer (void) {
+  IPlatformTimer *pTimer;
+  gpPlatform->lpVtbl->GetTimerInterface(gpPlatform, &pTimer);
   pTimer->lpVtbl->EndOfInterrupt(pTimer);
 }
 
-static inline void plt_eoi_irq (unsigned irq) {
-  IPltIrq *pIrq;
-  gpPlt->lpVtbl->GetIrqInterface(gpPlt, &pIrq);
+static inline void platform_eoi_irq (unsigned irq) {
+  IPlatformIrq *pIrq;
+  gpPlatform->lpVtbl->GetIrqInterface(gpPlatform, &pIrq);
   pIrq->lpVtbl->EndOfInterrupt(pIrq, irq);
 }
 
-static inline void plt_eoi_ipi (void) {
-  gpPlt->lpVtbl->EndOfInterruptIpi(gpPlt);
+static inline void platform_eoi_ipi (void) {
+  gpPlatform->lpVtbl->EndOfInterruptIpi(gpPlatform);
 }
 
-static inline struct hal_frame *plt_interrupt (unsigned vect, struct hal_frame *f) {
-  return gpPlt->lpVtbl->Interrupt(gpPlt, vect, f);
+static inline struct hal_frame *platform_interrupt (unsigned vect, struct hal_frame *f) {
+  return gpPlatform->lpVtbl->Interrupt(gpPlatform, vect, f);
 }
+
+//
+// Deprecated aliases for old plt_* names (for backward compatibility)
+//
+
+#define gpPlt gpPlatform
+#define plt_init platform_init
+#define plt_hw_putc platform_hw_putc
+#define plt_irq_type platform_irq_type
+#define plt_irq_enable platform_irq_enable
+#define plt_irq_disable platform_irq_disable
+#define plt_irq_max platform_irq_max
+#define plt_irq_islevel platform_irq_islevel
+#define plt_pcpu_iterate platform_pcpu_iterate
+#define plt_pcpu_enter platform_pcpu_enter
+#define plt_pcpu_nmi platform_pcpu_nmi
+#define plt_pcpu_nmiall platform_pcpu_nmiall
+#define plt_pcpu_ipi platform_pcpu_ipi
+#define plt_pcpu_ipiall platform_pcpu_ipiall
+#define plt_pcpu_id platform_pcpu_id
+#define plt_pcpu_start platform_pcpu_start
+#define plt_tmr_ctr platform_tmr_ctr
+#define plt_tmr_setctr platform_tmr_setctr
+#define plt_tmr_period platform_tmr_period
+#define plt_tmr_setalm platform_tmr_setalm
+#define plt_tmr_clralm platform_tmr_clralm
+#define plt_eoi_timer platform_eoi_timer
+#define plt_eoi_irq platform_eoi_irq
+#define plt_eoi_ipi platform_eoi_ipi
+#define plt_interrupt platform_interrupt
+
+#define PLT_PCPU_INVALID PLATFORM_PCPU_INVALID
+#define PLT_IRQ_EDGE PLATFORM_IRQ_EDGE
+#define PLT_IRQ_LVLLO PLATFORM_IRQ_LVLLO
+#define PLT_IRQ_LVLHI PLATFORM_IRQ_LVLHI
+#define PLT_IRQ_INVALID PLATFORM_IRQ_INVALID
 
 #endif // PLATFORM_H

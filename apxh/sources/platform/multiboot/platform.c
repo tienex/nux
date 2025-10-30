@@ -31,7 +31,7 @@ static UINT64 gBootinfoMaxRamPfn;
 
 static struct fbdesc gFbDesc = {.type = FB_INVALID };
 
-static struct apxh_pltdesc gPltDesc;
+static struct apxh_platformdesc gPlatformDesc;
 
 UINT64 RsdpFind (VOID);
 
@@ -430,15 +430,15 @@ MdGetFramebuffer (
 
   @return Pointer to platform descriptor.
 **/
-struct apxh_pltdesc *
-MdGetPltDesc (
+struct apxh_platformdesc *
+MdGetPlatformDesc (
   VOID
   )
 {
   /* Only ACPI supported. */
-  gPltDesc.type = PLT_ACPI;
-  gPltDesc.pltptr = RsdpFind ();
-  return &gPltDesc;
+  gPlatformDesc.type = PLATFORM_ACPI;
+  gPlatformDesc.PlatformPointer = RsdpFind ();
+  return &gPlatformDesc;
 }
 
 /**
@@ -710,9 +710,9 @@ struct fbdesc *md_getframebuffer (void) {
   return MdGetFramebuffer ();
 }
 
-/** @deprecated Use MdGetPltDesc instead **/
-struct apxh_pltdesc *md_getpltdesc (void) {
-  return MdGetPltDesc ();
+/** @deprecated Use MdGetPlatformDesc instead **/
+struct apxh_platformdesc *md_getplatformdesc (void) {
+  return MdGetPlatformDesc ();
 }
 
 /** @deprecated Use MdVerify instead **/
@@ -745,6 +745,6 @@ static unsigned bootinfo_regions __attribute__((alias("gBootinfoRegions")));
 static uint64_t bootinfo_maxpfn __attribute__((alias("gBootinfoMaxPfn")));
 static uint64_t bootinfo_maxrampfn __attribute__((alias("gBootinfoMaxRamPfn")));
 static struct fbdesc fbdesc __attribute__((alias("gFbDesc")));
-static struct apxh_pltdesc pltdesc __attribute__((alias("gPltDesc")));
+static struct apxh_platformdesc platformdesc __attribute__((alias("gPlatformDesc")));
 static uint64_t pae64_gdt[3] __attribute__((alias("gPae64Gdt")));
 static struct gdtreg gdtreg __attribute__((alias("gGdtReg")));

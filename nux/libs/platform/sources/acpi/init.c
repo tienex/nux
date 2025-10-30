@@ -16,8 +16,8 @@
 
 #include <platform/acpi/internal.h>
 
-#define PLTACPI_INVALID_IRQ ((UINT32)-1)
-UINT32 gPltAcpiHpetIrq = PLTACPI_INVALID_IRQ;
+#define PLATFORMACPI_INVALID_IRQ ((UINT32)-1)
+UINT32 gPlatformAcpiHpetIrq = PLATFORMACPI_INVALID_IRQ;
 
 /**
   Initialize ACPI platform.
@@ -27,22 +27,22 @@ UINT32 gPltAcpiHpetIrq = PLTACPI_INVALID_IRQ;
   initializes HPET timer if available.
 **/
 VOID
-PltInitialize (
+PlatformInitialize (
   VOID
   )
 {
-  CONST struct apxh_pltdesc *pDesc;
+  CONST struct apxh_platformdesc *pDesc;
 
   pDesc = hal_pltinfo ();
   if (pDesc == NULL)
-    fatal ("Invalid PLT Boot Table.");
+    fatal ("Invalid Platform Boot Table.");
 
-  if (pDesc->type != PLT_ACPI)
+  if (pDesc->Type != PLATFORM_ACPI)
     fatal ("No ACPI RSDP found.");
 
-  printf ("RSDP: %llx\n", pDesc->pltptr);
+  printf ("RSDP: %llx\n", pDesc->PlatformPointer);
 
-  AcpiInitialize (pDesc->pltptr);
+  AcpiInitialize (pDesc->PlatformPointer);
   AcpiMadtScan ();
   GsiStart ();
 
@@ -57,7 +57,7 @@ PltInitialize (
   @param[in] Char  Character to output.
 **/
 VOID
-PltHwPutChar (
+PlatformHwPutChar (
   IN INT32  Char
   )
 {
@@ -80,7 +80,7 @@ PltHwPutChar (
   @return Updated frame pointer.
 **/
 struct hal_frame *
-PltInterrupt (
+PlatformInterrupt (
   IN UINT32            Vector,
   IN struct hal_frame  *pFrame
   )
@@ -100,14 +100,14 @@ PltInterrupt (
   else if (Vector >= APIC_VECT_IRQBASE)
     {
       UINT32 Irq = Vector - APIC_VECT_IRQBASE;
-      if (Irq == gPltAcpiHpetIrq)
+      if (Irq == gPlatformAcpiHpetIrq)
 	{
 	  HpetDoIrq ();
 	  pResult = hal_entry_timer (pFrame);
 	}
       else
 	{
-	  pResult = hal_entry_irq (pFrame, Irq, PltIrqIsLevel (Irq));
+	  pResult = hal_entry_irq (pFrame, Irq, PlatformIrqIsLevel (Irq));
 	}
     }
   else
@@ -126,7 +126,7 @@ PltInterrupt (
   Signals completion of IPI handling to local APIC.
 **/
 VOID
-PltEoiIpi (
+PlatformEoiIpi (
   VOID
   )
 {
@@ -141,7 +141,7 @@ PltEoiIpi (
   @param[in] Irq  IRQ number.
 **/
 VOID
-PltEoiIrq (
+PlatformEoiIrq (
   IN UINT32  Irq
   )
 {
@@ -154,7 +154,7 @@ PltEoiIrq (
   Signals completion of timer interrupt handling to local APIC.
 **/
 VOID
-PltEoiTimer (
+PlatformEoiTimer (
   VOID
   )
 {
@@ -165,35 +165,35 @@ PltEoiTimer (
 // Legacy Function Wrappers (for backward compatibility)
 //
 
-/** @deprecated Use PltInitialize instead **/
+/** @deprecated Use PlatformInitialize instead **/
 void plt_init (void) {
-  PltInitialize ();
+  PlatformInitialize ();
 }
 
-/** @deprecated Use PltHwPutChar instead **/
+/** @deprecated Use PlatformHwPutChar instead **/
 void plt_hw_putc (int c) {
-  PltHwPutChar (c);
+  PlatformHwPutChar (c);
 }
 
-/** @deprecated Use PltInterrupt instead **/
+/** @deprecated Use PlatformInterrupt instead **/
 struct hal_frame *plt_interrupt (unsigned vect, struct hal_frame *f) {
-  return PltInterrupt (vect, f);
+  return PlatformInterrupt (vect, f);
 }
 
-/** @deprecated Use PltEoiIpi instead **/
+/** @deprecated Use PlatformEoiIpi instead **/
 void plt_eoi_ipi (void) {
-  PltEoiIpi ();
+  PlatformEoiIpi ();
 }
 
-/** @deprecated Use PltEoiIrq instead **/
+/** @deprecated Use PlatformEoiIrq instead **/
 void plt_eoi_irq (unsigned irq) {
-  PltEoiIrq (irq);
+  PlatformEoiIrq (irq);
 }
 
-/** @deprecated Use PltEoiTimer instead **/
+/** @deprecated Use PlatformEoiTimer instead **/
 void plt_eoi_timer (void) {
-  PltEoiTimer ();
+  PlatformEoiTimer ();
 }
 
 // Legacy global variable alias
-unsigned pltacpi_hpet_irq __attribute__((alias("gPltAcpiHpetIrq")));
+unsigned pltacpi_hpet_irq __attribute__((alias("gPlatformAcpiHpetIrq")));

@@ -328,7 +328,7 @@ AcpiMadtScan (
 	case ACPI_MADT_TRIGGER_CONFORMS:
 	  /* ISA is EDGE */
 	case ACPI_MADT_TRIGGER_EDGE:
-	  GsiSetup(_.pIntOvr->gsi, _.pIntOvr->irq, PLT_IRQ_EDGE);
+	  GsiSetup(_.pIntOvr->gsi, _.pIntOvr->irq, PLATFORM_IRQ_EDGE);
 	  break;
 	case ACPI_MADT_TRIGGER_LEVEL:
 	  switch(Flags & ACPI_MADT_POLARITY_MASK) {
@@ -338,10 +338,10 @@ AcpiMadtScan (
 	  case ACPI_MADT_POLARITY_CONFORMS:
 	    /* Default for EISA is LOW */
 	  case ACPI_MADT_POLARITY_ACTIVE_LOW:
-	    GsiSetup(_.pIntOvr->gsi, _.pIntOvr->irq, PLT_IRQ_LVLLO);
+	    GsiSetup(_.pIntOvr->gsi, _.pIntOvr->irq, PLATFORM_IRQ_LVLLO);
 	    break;
 	  case ACPI_MADT_POLARITY_ACTIVE_HIGH:
-	    GsiSetup(_.pIntOvr->gsi, _.pIntOvr->irq, PLT_IRQ_LVLHI);
+	    GsiSetup(_.pIntOvr->gsi, _.pIntOvr->irq, PLATFORM_IRQ_LVLHI);
 	    break;
 	  }
 	  break;

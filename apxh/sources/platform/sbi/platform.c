@@ -30,7 +30,7 @@ static size_t gElfKernelPayloadSize, gElfUserPayloadSize;
 
 static uintptr_t gBrk;
 
-static struct apxh_pltdesc gPltDesc;
+static struct apxh_platformdesc gPlatformDesc;
 
 /**
   Get address and size cells from DTB node.
@@ -467,15 +467,15 @@ MdMaxPfn (
 
   @return Pointer to platform descriptor.
 **/
-struct apxh_pltdesc *
-MdGetPltDesc (
+struct apxh_platformdesc *
+MdGetPlatformDesc (
   VOID
   )
 {
   /* Only DTB supported. */
-  gPltDesc.type = PLT_DTB;
-  gPltDesc.pltptr = (UINT64) (uintptr_t) dtbptr;
-  return &gPltDesc;
+  gPlatformDesc.type = PLATFORM_DTB;
+  gPlatformDesc.PlatformPointer = (UINT64) (uintptr_t) dtbptr;
+  return &gPlatformDesc;
 }
 
 /**
@@ -606,9 +606,9 @@ uint64_t md_maxpfn (void) {
   return MdMaxPfn ();
 }
 
-/** @deprecated Use MdGetPltDesc instead **/
-struct apxh_pltdesc *md_getpltdesc (void) {
-  return MdGetPltDesc ();
+/** @deprecated Use MdGetPlatformDesc instead **/
+struct apxh_platformdesc *md_getplatformdesc (void) {
+  return MdGetPlatformDesc ();
 }
 
 /** @deprecated Use MdEntry instead **/
@@ -626,4 +626,4 @@ static void *elf_user_payload __attribute__((alias("gpElfUserPayload")));
 static size_t elf_kernel_payload_size __attribute__((alias("gElfKernelPayloadSize")));
 static size_t elf_user_payload_size __attribute__((alias("gElfUserPayloadSize")));
 static uintptr_t brk __attribute__((alias("gBrk")));
-static struct apxh_pltdesc pltdesc __attribute__((alias("gPltDesc")));
+static struct apxh_platformdesc platformdesc __attribute__((alias("gPlatformDesc")));

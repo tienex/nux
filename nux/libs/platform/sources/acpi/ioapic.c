@@ -37,7 +37,7 @@ typedef struct gsi_desc
   UINT32 Irq;
   UINT32 Ioapic;
   UINT32 Pin;
-  enum plt_irq_type Mode;
+  enum platform_irq_type Mode;
 } GSI_DESC;
 
 static GSI_DESC *gGsis;
@@ -225,7 +225,7 @@ VOID
 GsiSetup (
   IN UINT32              Index,
   IN UINT32              Irq,
-  IN enum plt_irq_type   Mode
+  IN enum platform_irq_type   Mode
   )
 {
   if (Index >= gGsisNo)
@@ -281,7 +281,7 @@ IrqResolve (
 static VOID
 GsiSetIrqType (
   IN UINT32              Irq,
-  IN enum plt_irq_type   Mode
+  IN enum platform_irq_type   Mode
   )
 {
   UINT32 Lo;
@@ -386,7 +386,7 @@ GsiDump (
   @return Number of GSIs.
 **/
 UINT32
-PltIrqGetNo (
+PlatformIrqGetNo (
   VOID
   )
 {
@@ -402,7 +402,7 @@ PltIrqGetNo (
   @param[in] Vect  Interrupt vector.
 **/
 VOID
-PltIrqSetVector (
+PlatformIrqSetVector (
   IN UINT32  Gsi,
   IN UINT32  Vect
   )
@@ -422,8 +422,8 @@ PltIrqSetVector (
 
   @return Interrupt type, or PLT_IRQ_INVALID if GSI invalid.
 **/
-enum plt_irq_type
-PltIrqGetType (
+enum platform_irq_type
+PlatformIrqGetType (
   IN UINT32  Gsi
   )
 {
@@ -441,7 +441,7 @@ PltIrqGetType (
   @param[in] Gsi  GSI number.
 **/
 VOID
-PltIrqEnable (
+PlatformIrqEnable (
   IN UINT32  Gsi
   )
 {
@@ -460,7 +460,7 @@ PltIrqEnable (
   @param[in] Gsi  GSI number.
 **/
 VOID
-PltIrqDisable (
+PlatformIrqDisable (
   IN UINT32  Gsi
   )
 {
@@ -479,7 +479,7 @@ PltIrqDisable (
   @return Maximum IRQ number.
 **/
 UINT32
-PltIrqGetMax (
+PlatformIrqGetMax (
   VOID
   )
 {
@@ -521,7 +521,7 @@ void gsi_init (void) {
 }
 
 /** @deprecated Use GsiSetup instead **/
-void gsi_setup (unsigned i, unsigned irq, enum plt_irq_type mode) {
+void gsi_setup (unsigned i, unsigned irq, enum platform_irq_type mode) {
   GsiSetup (i, irq, mode);
 }
 
@@ -531,7 +531,7 @@ static bool irqresolve (unsigned gsi) {
 }
 
 /** @deprecated Use GsiSetIrqType instead **/
-static void gsi_set_irqtype (unsigned irq, enum plt_irq_type mode) {
+static void gsi_set_irqtype (unsigned irq, enum platform_irq_type mode) {
   GsiSetIrqType (irq, mode);
 }
 
@@ -550,34 +550,34 @@ void gsi_dump (void) {
   GsiDump ();
 }
 
-/** @deprecated Use PltIrqGetNo instead **/
+/** @deprecated Use PlatformIrqGetNo instead **/
 unsigned plt_irq_no (void) {
-  return PltIrqGetNo ();
+  return PlatformIrqGetNo ();
 }
 
-/** @deprecated Use PltIrqSetVector instead **/
+/** @deprecated Use PlatformIrqSetVector instead **/
 void plt_irq_setvector (unsigned gsi, unsigned vect) {
-  PltIrqSetVector (gsi, vect);
+  PlatformIrqSetVector (gsi, vect);
 }
 
-/** @deprecated Use PltIrqGetType instead **/
-enum plt_irq_type plt_irq_type (unsigned gsi) {
-  return PltIrqGetType (gsi);
+/** @deprecated Use PlatformIrqGetType instead **/
+enum platform_irq_type plt_irq_type (unsigned gsi) {
+  return PlatformIrqGetType (gsi);
 }
 
-/** @deprecated Use PltIrqEnable instead **/
+/** @deprecated Use PlatformIrqEnable instead **/
 void plt_irq_enable (unsigned gsi) {
-  PltIrqEnable (gsi);
+  PlatformIrqEnable (gsi);
 }
 
-/** @deprecated Use PltIrqDisable instead **/
+/** @deprecated Use PlatformIrqDisable instead **/
 void plt_irq_disable (unsigned gsi) {
-  PltIrqDisable (gsi);
+  PlatformIrqDisable (gsi);
 }
 
-/** @deprecated Use PltIrqGetMax instead **/
+/** @deprecated Use PlatformIrqGetMax instead **/
 unsigned plt_irq_max (void) {
-  return PltIrqGetMax ();
+  return PlatformIrqGetMax ();
 }
 
 // Legacy global variable aliases

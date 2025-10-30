@@ -22,7 +22,7 @@ void ioapic_init (unsigned no);
 void ioapic_add (unsigned num, uint64_t base, unsigned irqbase);
 
 void gsi_init (void);
-void gsi_setup (unsigned i, unsigned irq, enum plt_irq_type mode);
+void gsi_setup (unsigned i, unsigned irq, enum platform_irq_type mode);
 void gsi_start (void);
 
 

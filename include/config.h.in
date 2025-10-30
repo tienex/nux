@@ -5,8 +5,13 @@
 #define DEBUG 1
 #endif
 
-#if @PLT_VERBOSE@
-#define PLT_VERBOSE 1
+#if @PLATFORM_VERBOSE@
+#define PLATFORM_VERBOSE 1
+#endif
+
+// Backward compatibility
+#ifdef PLATFORM_VERBOSE
+#define PLT_VERBOSE PLATFORM_VERBOSE
 #endif
 
 #endif
