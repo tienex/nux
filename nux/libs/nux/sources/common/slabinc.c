@@ -160,13 +160,13 @@ void SLABFUNC (free) (void *ptr)
 {
   struct slab *sc;
   struct slabhdr *sh;
-  unsigned max_objs;
+  unsigned MaxObjs;
 
   sh = ___slabgethdr (ptr);
   if (!sh)
     return;
   sc = sh->cache;
-  max_objs = ___slabobjs (sc->objsize);
+  MaxObjs = ___slabobjs (sc->objsize);
 
   if (sc->ctr)
     sc->ctr (ptr, NULL, 1);
@@ -182,7 +182,7 @@ void SLABFUNC (free) (void *ptr)
       sc->fullcnt--;
       sc->freecnt++;
     }
-  else if (sh->freecnt == max_objs)
+  else if (sh->freecnt == MaxObjs)
     {
       LIST_REMOVE (sh, list_entry);
       LIST_INSERT_HEAD (&sc->emptyq, sh, list_entry);

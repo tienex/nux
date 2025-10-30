@@ -58,13 +58,23 @@ msbit (unsigned long x)
 
 struct __ZENTRY;
 LIST_HEAD (zlist, __ZENTRY);
-struct zone
+
+/**
+  Zone Allocator
+
+  Manages a zone of memory with free list organized by size.
+  Uses bitmap to track available allocation sizes.
+**/
+typedef struct _ZONE
 {
-  uintptr_t opq;
-  unsigned long bmap;
-  struct zlist zlist[ORDMAX];
-  unsigned nfree;
-};
+  uintptr_t      Opq;             ///< Opaque user data
+  unsigned long  Bmap;            ///< Bitmap of available sizes
+  struct zlist   Zlist[ORDMAX];  ///< Free lists by order
+  unsigned       Nfree;           ///< Number of free entries
+} ZONE, *PZONE, *PCZONE;
+
+/** Legacy type alias for compatibility **/
+#define zone ZONE
 
 static inline void
 _zone_detachentry (struct zone *z, struct __ZENTRY *ze)
@@ -76,11 +86,11 @@ _zone_detachentry (struct zone *z, struct __ZENTRY *ze)
   assert (msb < ORDMAX);
 
   LIST_REMOVE (ze, list);
-  dbgprintf ("LIST_REMOVE: %p (%lx ->", ze, z->bmap);
-  if (LIST_EMPTY (z->zlist + msb))
-    z->bmap &= ~(1UL << msb);
-  dbgprintf (" %lx)", z->bmap);
-  z->nfree -= ze->size;
+  dbgprintf ("LIST_REMOVE: %p (%lx ->", ze, z->Bmap);
+  if (LIST_EMPTY (z->Zlist + msb))
+    z->Bmap &= ~(1UL << msb);
+  dbgprintf (" %lx)", z->Bmap);
+  z->Nfree -= ze->size;
   dbgprintf ("D<%p>(%lx,%lx)", ze, ze->addr, ze->size);
 }
 
@@ -93,14 +103,14 @@ _zone_attachentry (struct zone *z, struct __ZENTRY *ze)
   msb = msbit (ze->size);
   assert (msb < ORDMAX);
 
-  dbgprintf ("LIST_INSERT(%p + %d, %p), bmap (%lx ->", z->zlist, msb,
-	     ze, z->bmap);
-  z->bmap |= (1UL << msb);
-  dbgprintf (" %lx", z->bmap);
+  dbgprintf ("LIST_INSERT(%p + %d, %p), bmap (%lx ->", z->Zlist, msb,
+	     ze, z->Bmap);
+  z->Bmap |= (1UL << msb);
+  dbgprintf (" %lx", z->Bmap);
 
 
-  LIST_INSERT_HEAD (z->zlist + msb, ze, list);
-  z->nfree += ze->size;
+  LIST_INSERT_HEAD (z->Zlist + msb, ze, list);
+  z->Nfree += ze->size;
   dbgprintf ("A<%p>(%lx,%lx)", ze, ze->addr, ze->size);
 }
 
@@ -122,12 +132,12 @@ _zone_findfree (struct zone *zn, size_t size)
       return NULL;
     }
 
-  tmp = zn->bmap >> minbit;
+  tmp = zn->Bmap >> minbit;
   if (tmp)
     {
       tmp = lsbit (tmp);
-      ze = LIST_FIRST (zn->zlist + minbit + tmp);
-      dbgprintf ("LIST_FIRST(%p + %d + %d) = %p", zn->zlist, minbit, tmp, ze);
+      ze = LIST_FIRST (zn->Zlist + minbit + tmp);
+      dbgprintf ("LIST_FIRST(%p + %d + %d) = %p", zn->Zlist, minbit, tmp, ze);
     }
   return ze;
 }
@@ -136,7 +146,7 @@ static inline void
 zone_remove (struct zone *z, struct __ZENTRY *ze)
 {
   _zone_detachentry (z, ze);
-  ___freeptr (ze, z->opq);
+  ___freeptr (ze, z->Opq);
 }
 
 static inline void
@@ -145,7 +155,7 @@ zone_create (struct zone *z, zaddr_t zaddr, size_t size)
   struct __ZENTRY *ze, *pze = NULL, *nze = NULL;
   zaddr_t fprev = zaddr, lnext = zaddr + size;
   dbgprintf ("HHH");
-  ___get_neighbors (zaddr, size, &pze, &nze, z->opq);
+  ___get_neighbors (zaddr, size, &pze, &nze, z->Opq);
   dbgprintf ("HHH");
   if (pze)
     {
@@ -159,7 +169,7 @@ zone_create (struct zone *z, zaddr_t zaddr, size_t size)
       zone_remove (z, nze);
     }
   dbgprintf ("HHH");
-  ze = ___mkptr (fprev, lnext - fprev, z->opq);
+  ze = ___mkptr (fprev, lnext - fprev, z->Opq);
   dbgprintf ("MKPTR(%p): %lx,%lx", ze, ze->addr, ze->size);
   _zone_attachentry (z, ze);
 }
@@ -204,11 +214,11 @@ zone_init (struct zone *z, uintptr_t opq)
 {
   int i;
 
-  z->bmap = 0;
-  z->nfree = 0;
-  z->opq = opq;
+  z->Bmap = 0;
+  z->Nfree = 0;
+  z->Opq = opq;
   for (i = 0; i < ORDMAX; i++)
-    LIST_INIT (z->zlist + i);
+    LIST_INIT (z->Zlist + i);
 }
 
 #endif

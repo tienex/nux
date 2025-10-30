@@ -63,10 +63,10 @@ const struct apxh_bootinfo *bootinfo = (struct apxh_bootinfo *) &_info_start;
 struct fbdesc fbdesc;
 struct apxh_platformdesc pltdesc;
 
-void *hal_stree_ptr;
-unsigned hal_stree_order;
+void *gHalStreePtr;
+unsigned gHalStreeOrder;
 
-int use_fb;
+int gUseFb;
 INT32 gNuxInitialized = 0;
 
 /**
@@ -323,7 +323,7 @@ hal_putchar (
   )
 {
 
-  if (use_fb)
+  if (gUseFb)
     framebuffer_putc (c, 0xe0e0e0);
   else
     vga_putchar (c);
@@ -570,8 +570,8 @@ hal_physmem_stree (
   )
 {
   if (Order)
-    *Order = hal_stree_order;
-  return hal_stree_ptr;
+    *Order = gHalStreeOrder;
+  return gHalStreePtr;
 }
 
 vaddr_t
@@ -641,8 +641,8 @@ X86Initialize (
   VOID
   )
 {
-  size_t stree_memsize;
-  struct apxh_stree *stree_hdr;
+  size_t StreeMemsize;
+  struct apxh_stree *StreeHdr;
 
   if (bootinfo->magic != APXH_BOOTINFO_MAGIC)
     {
@@ -654,28 +654,28 @@ X86Initialize (
 
   fbdesc = bootinfo->fbdesc;
   fbdesc.addr = (UINT64) (uintptr_t) & _fbuf_start;
-  use_fb = framebuffer_init (&fbdesc);
+  gUseFb = framebuffer_init (&fbdesc);
 
   /* Check  APXH stree. */
-  stree_hdr = (struct apxh_stree *) _stree_start;
-  if (stree_hdr->magic != APXH_STREE_MAGIC)
+  StreeHdr = (struct apxh_stree *) _stree_start;
+  if (StreeHdr->magic != APXH_STREE_MAGIC)
     {
       EarlyPrint ("ERROR: Unrecognised stree magic!");
       hal_cpu_halt ();
     }
-  if (stree_hdr->size != 8 * STREE_SIZE (stree_hdr->order))
+  if (StreeHdr->size != 8 * STREE_SIZE (StreeHdr->order))
     {
       EarlyPrint ("ERROR: stree size doesn't match!");
       hal_cpu_halt ();
     }
-  stree_memsize = (size_t) ((void *) _stree_end - (void *) _stree_start);
-  if (stree_hdr->size + stree_hdr->offset > stree_memsize)
+  StreeMemsize = (size_t) ((void *) _stree_end - (void *) _stree_start);
+  if (StreeHdr->size + StreeHdr->offset > StreeMemsize)
     {
       EarlyPrint ("ERROR: stree doesn't fit in allocated memory!");
       hal_cpu_halt ();
     }
-  hal_stree_order = stree_hdr->order;
-  hal_stree_ptr = (UINT8 *) stree_hdr + stree_hdr->offset;
+  gHalStreeOrder = StreeHdr->order;
+  gHalStreePtr = (UINT8 *) StreeHdr + StreeHdr->offset;
 
   /* Do not allow allocation in non-RAM pinned memory regions. */
   for (INT32 i = 0; i < PINNED_MEMREGS; i++)
@@ -683,7 +683,7 @@ X86Initialize (
       struct apxh_region *r = _memregs_pinned + i;
       if (r->type != APXH_REGION_RAM)
 	for (INT32 j = 0; j < r->len; j++)
-	  stree_clrbit (hal_stree_ptr, hal_stree_order, r->pfn + j);
+	  stree_clrbit (gHalStreePtr, gHalStreeOrder, r->pfn + j);
     }
 
   pltdesc = bootinfo->pltdesc;
@@ -759,7 +759,7 @@ hal_panic (
   IN struct hal_frame  *Frame
   )
 {
-  if (use_fb)
+  if (gUseFb)
     {
       /*
          Reset frame buffer. This will unlock in case any CPU was
