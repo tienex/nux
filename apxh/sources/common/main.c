@@ -20,7 +20,7 @@ static VIRTUAL_ADDRESS gReqPfnmapVa, gReqInfoVa, gReqBatreeVa, gReqRegionVa,
 static SIZE64 gReqPfnmapSize, gReqInfoSize, gReqBatreeSize,
   gReqRegionSize, gKtlsInitsize, gKtlsSize, gUtlsInitsize, gUtlsSize;
 static UINT32 gReqBatreeOrder, gReqRegionNum;
-static bool gStopPayloadAllocation = false;
+static BOOLEAN gStopPayloadAllocation = FALSE;
 static UINT64 gMinRamAddr = 0;
 
 
@@ -390,7 +390,7 @@ VaFramebuf (
       break;
 #endif
     default:
-      (void) Pa;
+      (VOID) Pa;
       printf ("Unsupported VM architecture.\n");
       exit (-1);
     }
@@ -1178,7 +1178,7 @@ main (
     }
 
   /* Stop allocations as we're copying boot-time allocation. */
-  gStopPayloadAllocation = true;
+  gStopPayloadAllocation = TRUE;
   VaInfoCopy (UEntry, gReqRegionNum);
   VaPfnmapCopy ();
   VaBatreeCopy ();

@@ -415,7 +415,7 @@ PaeDirectMap (
     {
       Pte = PaeGetL1p (Pt, Va + (i << PAGE_SHIFT), Payload);
       SetPte (Pte, PaPfn + i,
-	       MemtypeToFlags (Mt, true /*4k */ ) | PTE_P | PTE_W | (X ? 0 :
+	       MemtypeToFlags (Mt, TRUE /*4k */ ) | PTE_P | PTE_W | (X ? 0 :
 								       PTE_NX));
     }
 }
@@ -480,7 +480,7 @@ PaePtAlloc (
   n = Size >> PAGE_SHIFT;
 
   for (i = 0; i < n; i++)
-    (void) PaeGetL1p (gPaeCr3, Va + (i << PAGE_SHIFT), 1);
+    (VOID) PaeGetL1p (gPaeCr3, Va + (i << PAGE_SHIFT), 1);
 }
 
 #define PAE_LINEAR_SHIFT (PAGE_SHIFT + 9 + 2)

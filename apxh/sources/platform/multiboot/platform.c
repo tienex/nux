@@ -470,16 +470,16 @@ static UINT64 gPae64Gdt[3] __attribute__((aligned (64))) = {
   0x00a09a0000000000LL,
 };
 
-static struct gdtreg
+typedef struct _GDTREG
 {
   UINT16 Size;
   UINT32 Base;
-} __attribute__((aligned (64)))
-     __packed gGdtReg = {
-       .Size = 15,
-       .Base = 0,
+} __attribute__((aligned (64))) __packed GDTREG;
 
-     };
+static GDTREG gGdtReg = {
+  .Size = 15,
+  .Base = 0,
+};
 
 /**
   Transfer control to AMD64 kernel.
@@ -515,7 +515,7 @@ MbAmd64Entry (
   printf ("tramp is %lx (%x)\n", Tramp, *(UINT64 *) Tramp);
 
   /* Setup Direct map at 0->1Gb */
-  pae64_directmap (pTrampCr3, 0, 0, 1L << 30, MEMTYPE_WB, 0, 1);
+  Pae64DirectMap (pTrampCr3, 0, 0, 1L << 30, MEMTYPE_WB, 0, 1);
 
   /* Map Entry page in transitional pagetable VA. */
   Pae64MapPage (pTrampCr3, (VIRTUAL_ADDRESS) Entry, Pae64GetPhys (Entry), 0, 0, 1);

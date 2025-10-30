@@ -16,7 +16,7 @@
 */
 
 /* Get payload address. */
-void *payload_get (unsigned i, UINTN *size);
+VOID *PayloadGet (IN UINT32 i, OUT OPTIONAL UINTN *size);
 
 
 /*

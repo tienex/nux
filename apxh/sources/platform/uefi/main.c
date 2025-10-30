@@ -34,15 +34,15 @@ EfiAllocateMaxAddr (
   IN UINTN  MaxAddr
   )
 {
-  EFI_STATUS efi_status;
+  EFI_STATUS EfiStatus;
   VOID *Addr;
 
-  efi_status = uefi_call_wrapper (BS->AllocatePages, 4,
+  EfiStatus = uefi_call_wrapper (BS->AllocatePages, 4,
 				  AllocateMaxAddress,
 				  EfiLoaderData, 1, &MaxAddr);
-  if (EFI_ERROR (efi_status))
+  if (EFI_ERROR (EfiStatus))
     {
-      Print (L"Allocate Pages Failed: %r\n", efi_status);
+      Print (L"Allocate Pages Failed: %r\n", EfiStatus);
       exit (-1);
     }
 
@@ -94,7 +94,7 @@ EfiGetFramebuffer (
   UINT32 RMask, GMask, BMask, Bpp, Pitch, Width, Height;
   UINT64 Addr, Size;
 
-  Rc = LibLocateProtocol (&GraphicsOutputProtocol, (void **) &Gop);
+  Rc = LibLocateProtocol (&GraphicsOutputProtocol, (VOID **) &Gop);
   if (Rc != EFI_SUCCESS)
     {
       Print (L"Cannot locate Graphic Output Proto (%r)\n", Rc);
@@ -280,7 +280,7 @@ INT32 Ram, Bsy;
       UINT32 Len;
       UINTN Pfn;
 
-      Ptr = (void *) Md + i * DescSize;
+      Ptr = (VOID *) Md + i * DescSize;
 
       switch (Ptr->Type)
 	{

@@ -41,7 +41,7 @@ typedef UINT64 PTE;
 //
 // Externally visible globals
 //
-extern bool gNxEnabled;
+extern BOOLEAN gNxEnabled;
 
 //
 // Common functions (implemented in pae_common.c)
@@ -65,7 +65,7 @@ MemtypeToFlags (
   @retval TRUE   CPU is Intel.
   @retval FALSE  CPU is not Intel.
 **/
-bool
+BOOLEAN
 CpuIsIntel (
   VOID
   );
@@ -96,7 +96,7 @@ IntelCpuModel (
   @retval TRUE   CPU supports PAE.
   @retval FALSE  CPU does not support PAE.
 **/
-bool
+BOOLEAN
 CpuSupportsPae (
   VOID
   );
@@ -107,7 +107,7 @@ CpuSupportsPae (
   @retval TRUE   CPU supports long mode.
   @retval FALSE  CPU does not support long mode.
 **/
-bool
+BOOLEAN
 CpuSupportsLongmode (
   VOID
   );
@@ -118,7 +118,7 @@ CpuSupportsLongmode (
   @retval TRUE   CPU supports 1GB pages.
   @retval FALSE  CPU does not support 1GB pages.
 **/
-bool
+BOOLEAN
 CpuSupports1gbPages (
   VOID
   );
@@ -129,7 +129,7 @@ CpuSupports1gbPages (
   @retval TRUE   CPU supports NX bit.
   @retval FALSE  CPU does not support NX bit.
 **/
-bool
+BOOLEAN
 CpuSupportsNx (
   VOID
   );

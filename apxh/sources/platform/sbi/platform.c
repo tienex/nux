@@ -17,7 +17,7 @@
 #include <apxh/apxh.h>
 
 extern long boothid;
-extern void *dtbptr;
+extern VOID *dtbptr;
 static UINT64 gMinAddr = -1;
 static UINT64 gMaxAddr = 0;
 static UINT32 gRegions = 0;
@@ -88,7 +88,7 @@ INT32 PaOff, Len;
 **/
 static VOID
 RamRegionForeach (
-  IN VOID  (*Func) (UINT64, UINT64, bool, VOID *),
+  IN VOID  (*Func) (UINT64, UINT64, BOOLEAN, VOID *),
   IN VOID  *Opq
   )
 {
@@ -126,7 +126,7 @@ INT32 Len;
 	      for (INT32 j = 0; j < SizeSz; j++)
 		Size = (Size << 32) + fdt32_to_cpu (*Reg++);
 
-	      Func (Base, Size, false, Opq);
+	      Func (Base, Size, FALSE, Opq);
 	    }
 	}
       else if (!strncmp (Name, "reserved-memory", 15))
@@ -155,7 +155,7 @@ INT32 Len, SubOff;
 		for (INT32 j = 0; j < SizeSz; j++)
 		  Size = (Size << 32) + fdt32_to_cpu (*Reg++);
 
-		Func (Base, Size, true, Opq);
+		Func (Base, Size, TRUE, Opq);
 	      }
 	  }
 	}
@@ -270,7 +270,7 @@ static VOID
 AddRamRegion (
   IN UINT64  Base,
   IN UINT64  Len,
-  IN bool    Busy,
+  IN BOOLEAN    Busy,
   IN VOID    *Opq
   )
 {
@@ -327,7 +327,7 @@ MdInitialize (
   RamRegionForeach (AddRamRegion, NULL);
   /* Add DTB as busy. */
   AddRamRegion ((UINT64) dtbptr,
-		 PAGE_ROUND (fdt32_to_cpu (FdtH->totalsize)), true, NULL);
+		 PAGE_ROUND (fdt32_to_cpu (FdtH->totalsize)), TRUE, NULL);
   printf ("\n");
 
   gpElfKernelPayload = PayloadGet (0, &gElfKernelPayloadSize);

@@ -16,20 +16,20 @@
 #define EBDA_PTRADDR 0x40e
 #define KB (1 << 10)
 
-struct acpi_rsdp_thdr
+typedef struct _ACPI_RSDP_THDR
 {
-  char signature[8];
-  UINT8 checksum;
-  char oemid[6];
-  UINT8 revision;
-  UINT32 rsdt;
+  CHAR8 Signature[8];
+  UINT8 Checksum;
+  CHAR8 OemId[6];
+  UINT8 Revision;
+  UINT32 Rsdt;
 
   /* ACPI >= 2.0 (revision != 0) */
-  UINT32 length;
-  UINT64 xsdt;
-  UINT8 xchecksum;
-  UINT8 reserved[3];
-} __packed;
+  UINT32 Length;
+  UINT64 Xsdt;
+  UINT8 XChecksum;
+  UINT8 Reserved[3];
+} __packed ACPI_RSDP_THDR;
 
 
 /**
@@ -69,13 +69,13 @@ RsdpScan (
   @retval TRUE   Checksum is valid.
   @retval FALSE  Checksum is invalid.
 **/
-static bool
+static BOOLEAN
 RsdpCheck (
   IN VOID  *Ptr
   )
 {
-  struct acpi_rsdp_thdr *Rsdp = (struct acpi_rsdp_thdr *) Ptr;
-INT32 i;
+  ACPI_RSDP_THDR *Rsdp = (ACPI_RSDP_THDR *) Ptr;
+  INT32 i;
   UINT8 Sum;
 
   /* Checksum ACPI V1.0 */
@@ -87,26 +87,26 @@ INT32 i;
   if (Sum != 0)
     {
       warn ("Checksum failed for RSDP at addr %p", Ptr);
-      return false;
+      return FALSE;
     }
 
-  debug ("Revision: %d", Rsdp->revision);
+  debug ("Revision: %d", Rsdp->Revision);
   /* Checksum ACPI V2.0 */
-  if (Rsdp->revision != 0)
+  if (Rsdp->Revision != 0)
     {
       debug ("Checking Extended Checksum");
       Sum = 0;
-      for (i = 0; i < Rsdp->length; i++)
+      for (i = 0; i < Rsdp->Length; i++)
 	Sum += *(UINT8 *) (Ptr + i);
 
       if (Sum != 0)
 	{
 	  warn ("Extended checksum failed for RSDP at addr %p", Ptr);
-	  return false;
+	  return FALSE;
 	}
     }
 
-  return true;
+  return TRUE;
 }
 
 /**

@@ -366,7 +366,7 @@ INT32 P1G = CpuSupports1gbPages ();
 	  PTE *pL3p = Pae64GetL3p (pCr3, Va, Payload);
 
 	  SetPte (pL3p, Pa >> PAGE_SHIFT,
-		   MemtypeToFlags (Mt, false /*1GB */ ) |
+		   MemtypeToFlags (Mt, FALSE /*1GB */ ) |
 		   PTE_PS | PTE_W | PTE_P | (X ? 0 : PTE_NX));
 	  Va += (1L << 30);
 	  Pa += (1L << 30);
@@ -378,7 +378,7 @@ INT32 P1G = CpuSupports1gbPages ();
 	  PTE *pL2p = Pae64GetL2p (pCr3, Va, Payload);
 
 	  SetPte (pL2p, Pa >> PAGE_SHIFT,
-		   MemtypeToFlags (Mt, false /* 2MB */ ) |
+		   MemtypeToFlags (Mt, FALSE /* 2MB */ ) |
 		   PTE_PS | PTE_W | PTE_P | (X ? 0 : PTE_NX));
 	  Va += (1L << 21);
 	  Pa += (1L << 21);
@@ -391,7 +391,7 @@ INT32 P1G = CpuSupports1gbPages ();
 
 	  SetPte (pL1p, Pa >> PAGE_SHIFT,
 		   MemtypeToFlags (Mt,
-				     true /*4kB */ ) | PTE_W | PTE_P | (X ? 0
+				     TRUE /*4kB */ ) | PTE_W | PTE_P | (X ? 0
 									:
 									PTE_NX));
 	  Va += (1L << PAGE_SHIFT);
@@ -442,7 +442,7 @@ Pae64TopPtAlloc (
   n = (Size + (1 << 30) - 1) >> 30;
 
   for (i = 0; i < n; i++)
-    (void) Pae64GetL3p (gPae64Cr3, Va + (i << PAGE_SHIFT), 1);
+    (VOID) Pae64GetL3p (gPae64Cr3, Va + (i << PAGE_SHIFT), 1);
 }
 
 /**
@@ -464,7 +464,7 @@ Pae64PtAlloc (
   n = Size >> PAGE_SHIFT;
 
   for (i = 0; i < n; i++)
-    (void) Pae64GetL1p (gPae64Cr3, Va + (i << PAGE_SHIFT), 1);
+    (VOID) Pae64GetL1p (gPae64Cr3, Va + (i << PAGE_SHIFT), 1);
 }
 
 #define PAE64_LINEAR_SHIFT (PAGE_SHIFT + 9 + 9 + 9)
