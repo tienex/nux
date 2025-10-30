@@ -519,10 +519,10 @@ CpuKernelTlbUpdate (
 
   __atomic_load (&Ci->ktlb.global, &CpuGlobal, __ATOMIC_RELAXED);
   __atomic_load (&Ci->ktlb.normal, &CpuNormal, __ATOMIC_RELAXED);
-  TLB_GENERATION KGlobal = ktlbgen_global ();
-  TLB_GENERATION KNormal = ktlbgen_normal ();
+  TLB_GENERATION KGlobal = KtlbGenGlobal ();
+  TLB_GENERATION KNormal = KtlbGenNormal ();
 
-  if (tlbgen_cmp (KGlobal, CpuGlobal) > 0)
+  if (TlbGenCompare (KGlobal, CpuGlobal) > 0)
     {
       hal_cpu_tlbop (HAL_TLBOP_FLUSHALL);
       /*
@@ -537,7 +537,7 @@ CpuKernelTlbUpdate (
       __atomic_compare_exchange (&Ci->ktlb.normal, &CpuNormal, &KNormal,
                                  FALSE, __ATOMIC_RELAXED, __ATOMIC_RELAXED);
     }
-  else if (tlbgen_cmp (KNormal, CpuNormal) > 0)
+  else if (TlbGenCompare (KNormal, CpuNormal) > 0)
     {
       hal_cpu_tlbop (HAL_TLBOP_FLUSH);
       __atomic_compare_exchange (&Ci->ktlb.normal, &CpuNormal, &KNormal,
@@ -570,7 +570,7 @@ CpuKernelTlbReach (
 
   __atomic_load (&Ci->ktlb.normal, &CpuKtlb, __ATOMIC_RELAXED);
 
-  if (tlbgen_cmp (Target, CpuKtlb) > 0)
+  if (TlbGenCompare (Target, CpuKtlb) > 0)
     {
       CpuKernelTlbUpdate ();
     }
@@ -588,7 +588,7 @@ CpuTlbFlushLocal (
 {
   /* We're flushing the cpu. Update the relevant kmap tlb generation. */
   struct cpu_info *Ci = CpuGetCurrentInfo ();
-  TLB_GENERATION KNormal = ktlbgen_normal ();
+  TLB_GENERATION KNormal = KtlbGenNormal ();
   TLB_GENERATION CpuNormal;
 
   __atomic_load (&Ci->ktlb.normal, &CpuNormal, __ATOMIC_RELAXED);
@@ -1060,12 +1060,12 @@ void cpu_enter (void) {
 }
 
 /** @deprecated Use CpuWasIdle instead **/
-bool cpu_wasidle (void) {
+bool CpuWasIdle (void) {
   return CpuWasIdle ();
 }
 
 /** @deprecated Use CpuClearIdle instead **/
-void cpu_clridle (void) {
+void CpuClearIdle (void) {
   CpuClearIdle ();
 }
 
@@ -1085,7 +1085,7 @@ unsigned CpuId (void) {
 }
 
 /** @deprecated Use CpuTryGetId instead **/
-unsigned cpu_try_id (void) {
+unsigned CpuTryId (void) {
   return CpuTryGetId ();
 }
 
@@ -1160,7 +1160,7 @@ void cpu_tlbflush_local (void) {
 }
 
 /** @deprecated Use CpuNmiOperation instead **/
-void cpu_nmiop (void) {
+void CpuNmiOperation (void) {
   CpuNmiOperation ();
 }
 
@@ -1170,7 +1170,7 @@ void cpu_kmapupdate (int cpu) {
 }
 
 /** @deprecated Use CpuKernelMapUpdateBroadcast instead **/
-void cpu_kmapupdate_broadcast (void) {
+void CpuKmapUpdateBroadcast (void) {
   CpuKernelMapUpdateBroadcast ();
 }
 
@@ -1223,7 +1223,7 @@ bool cpu_useraccess_memset (USER_ADDRESS dst, int ch, size_t size,
 }
 
 /** @deprecated Use CpuUserAccessCheckPageFault instead **/
-void cpu_useraccess_checkpf (USER_ADDRESS addr, hal_pfinfo_t info) {
+void CpuUserAccessCheckPageFault (USER_ADDRESS addr, hal_pfinfo_t info) {
   CpuUserAccessCheckPageFault (addr, info);
 }
 

@@ -129,12 +129,12 @@ void pae32_init (void);
 void pae32_init_ap (void);
 void pae64_init (void);
 void pae64_init_ap (void);
-void pmap_init (void);
+VOID pmap_init (VOID);
 void i386_init_done (void);
 void amd64_init_done (void);
 
-int inb (int port);
-void outb (int port, int val);
+INT32 inb (INT32 port);
+VOID outb (INT32 port, int val);
 
 typedef UINT64 pte_t;
 typedef UINTN ptep_t;
@@ -145,20 +145,20 @@ hal_l1p_t kmap_get_l1p (unsigned long va, int alloc);
 hal_l1p_t umap_get_l1p (struct hal_umap *umap, unsigned long va, int alloc);
 USER_ADDRESS pt_umap_next (struct hal_umap *umap, USER_ADDRESS uaddr, hal_l1p_t * l1p_out,
 		   hal_l1e_t * l1e_out);
-void pt_umap_free (struct hal_umap *umap);
-void pt_umap_debugwalk (struct hal_umap *umap, unsigned long va);
-unsigned long pt_umap_minaddr (void);
-unsigned long pt_umap_maxaddr (void);
+VOID pt_umap_free (struct hal_umap *umap);
+VOID pt_umap_debugwalk (struct hal_umap *umap, unsigned long va);
+UINTN pt_umap_minaddr (VOID);
+UINTN pt_umap_maxaddr (VOID);
 
-void tlbflush_global (void);
+VOID tlbflush_global (VOID);
 
-void serial_init (void);
-void serial_putchar (int c);
+VOID serial_init (VOID);
+VOID serial_putchar (INT32 c);
 
-int vga_putchar (int c);
+INT32 vga_putchar (INT32 c);
 
 UINT64 rdmsr (UINT32 ecx);
-void wrmsr (UINT32 ecx, UINT64 val);
+VOID wrmsr (UINT32 ecx, UINT64 val);
 
 unsigned long read_cr4 (void);
 void write_cr4 (unsigned long r);

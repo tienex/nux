@@ -40,7 +40,7 @@
 #define SIE_USER   (SIE_SSIE|SIE_STIE|SIE_SEIE)
 
 #ifndef _ASSEMBLER
-static inline unsigned long
+static inline UINT32 long
 riscv_sstatus_cli (void)
 {
   unsigned long old;
@@ -48,7 +48,7 @@ riscv_sstatus_cli (void)
   return old;
 }
 
-static inline unsigned long
+static inline UINT32 long
 riscv_sstatus_sti (void)
 {
   unsigned long old;
@@ -56,7 +56,7 @@ riscv_sstatus_sti (void)
   return old;
 }
 
-static inline unsigned long
+static inline UINT32 long
 riscv_sie_kernel (void)
 {
   unsigned long old;
@@ -64,7 +64,7 @@ riscv_sie_kernel (void)
   return old;
 }
 
-static inline unsigned long
+static inline UINT32 long
 riscv_sie_user (void)
 {
   unsigned long old;
@@ -72,7 +72,7 @@ riscv_sie_user (void)
   return old;
 }
 
-static inline void
+static inline VOID
 riscv_sip_siclear (void)
 {
   asm volatile ("csrci sip, %0\n"::"K" (SIP_SSIP));
@@ -125,19 +125,19 @@ pte_pfn (pte_t pte)
   return (PFN) (pte >> PTE_PFN_SHIFT);
 }
 
-static inline bool
+static inline BOOLEAN
 pte_valid_table (pte_t pte)
 {
   return ((pte & PTE_FLAGS) == PTE_V);
 }
 
-static inline bool
+static inline BOOLEAN
 pte_valid_leaf (pte_t pte)
 {
   return ((pte & (PTE_V | PTE_R)) == (PTE_V | PTE_R));
 }
 
-static inline bool
+static inline BOOLEAN
 pte_valid (pte_t pte)
 {
   return pte & PTE_V;
@@ -189,7 +189,7 @@ alloc_table (void)
   return mkpte (pfn, PTE_V);
 }
 
-static inline unsigned long
+static inline UINT32 long
 riscv_satp (void)
 {
   unsigned long satp;
@@ -198,19 +198,19 @@ riscv_satp (void)
   return satp;
 }
 
-static inline void
+static inline VOID
 riscv_invlpg (unsigned long va, bool no_svvptc_only)
 {
   asm volatile ("sfence.vma x0, %0\n"::"r" (va));
 }
 
-static inline void
+static inline VOID
 riscv_settp (unsigned long data)
 {
   asm volatile ("mv tp, %0\n"::"r" (data));
 }
 
-static inline unsigned long
+static inline UINT32 long
 riscv_gettp (void)
 {
   unsigned long data;

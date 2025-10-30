@@ -86,17 +86,17 @@ KtlbGenNormal (
 //
 
 /** @deprecated Use KtlbGenMarkDirty instead **/
-void ktlbgen_markdirty (hal_tlbop_t op) {
+void KtlbGenMarkDirty (hal_tlbop_t op) {
   KtlbGenMarkDirty (op);
 }
 
 /** @deprecated Use KtlbGenGlobal instead **/
-TLB_GENERATION ktlbgen_global (void) {
+TLB_GENERATION KtlbGenGlobal (void) {
   return KtlbGenGlobal ();
 }
 
 /** @deprecated Use KtlbGenNormal instead **/
-TLB_GENERATION ktlbgen_normal (void) {
+TLB_GENERATION KtlbGenNormal (void) {
   return KtlbGenNormal ();
 }
 

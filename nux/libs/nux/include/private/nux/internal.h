@@ -20,9 +20,9 @@
 #define NUXST_OKCPU   2		/* BSP is initialized and CPU operations are available. */
 #define NUXST_RUNNING 4		/* NUX is fully initialized. */
 #define NUXST_PANIC   128	/* NUX is in panic mode and shutting down. */
-UINT8 nux_status (void);
-UINT8 nux_status_setfl (UINT8 flags);
-bool nux_status_okcpu (void);
+UINT8 NuxStatus (VOID);
+UINT8 NuxStatusSetFlags (UINT8 Flags);
+BOOLEAN NuxStatusOkCpu (VOID);
 
 /*
   Kernel TLB status.
@@ -36,14 +36,14 @@ struct ktlb
 /*
   Return <0 if a < b. 0 if a == b, >0 if a > b or wrapcounts differ.
 */
-static inline int
-tlbgen_cmp (TLB_GENERATION a, TLB_GENERATION b)
+static inline INT32
+TlbGenCompare (TLB_GENERATION A, TLB_GENERATION B)
 {
-  if (_TG_WRAP (a) == _TG_WRAP (b))
+  if (_TG_WRAP (A) == _TG_WRAP (B))
     {
-      if (a < b)
+      if (A < B)
 	return -1;
-      else if (a > b)
+      else if (A > B)
 	return 1;
       else
 	return 0;
@@ -59,21 +59,21 @@ tlbgen_cmp (TLB_GENERATION a, TLB_GENERATION b)
 
 struct cpu_info
 {
-  unsigned cpu_id;
-  unsigned phys_id;
+  UINT32 cpu_id;
+  UINT32 phys_id;
   struct cpu_info *self;
 
   struct umap *umap;
 
   /* Idle jmp_buf */
   jmp_buf idlejmp;
-  bool idle;
+  BOOLEAN idle;
 
 
   /* NMI operations. */
 #define NMIOP_KMAPUPDATE 1	/* Update kmap across all CPUs. */
 #define NMIOP_TLBFLUSH 2	/* Flush TLBs. */
-  unsigned nmiop;
+  UINT32 nmiop;
 
   /* TLB status for current CPU. */
   volatile struct ktlb ktlb;
@@ -82,38 +82,38 @@ struct cpu_info
      User copy setjmp/longjmp for pagefaults.
    */
   jmp_buf usrpgfaultctx;
-  unsigned usrpgfault;
+  UINT32 usrpgfault;
   USER_ADDRESS usrpgaddr;
   hal_pfinfo_t usrpginfo;
 
-  /* 
+  /*
      This pointer can be set by users of
      libnux to store their private data.
    */
-  void *data;
+  VOID *data;
 
   struct hal_cpu hal_cpu;
 };
 
-void _pfncache_bootstrap (void);
-void stree_pfninit (void);
-void kvainit (void);
-void kmeminit (void);
-void pfncacheinit (void);
+VOID PfnCacheBootstrap (VOID);
+VOID BatreePfnInitialize (VOID);
+VOID KvaInitialize (VOID);
+VOID KmemInitialize (VOID);
+VOID PfnCacheInitialize (VOID);
 
-void cpu_init (void);
-void cpu_enter (void);
-__dead void cpu_idle (void);
-bool cpu_wasidle (void);
-void cpu_clridle (void);
-void cpu_nmiop (void);
-void cpu_useraccess_checkpf (USER_ADDRESS addr, hal_pfinfo_t info);
-unsigned cpu_try_id (void);
-void cpu_kmapupdate_broadcast (void);
+VOID CpuInitialize (VOID);
+VOID CpuEnter (VOID);
+__dead VOID CpuIdle (VOID);
+BOOLEAN CpuWasIdle (VOID);
+VOID CpuClearIdle (VOID);
+VOID CpuNmiOperation (VOID);
+VOID CpuUserAccessCheckPageFault (USER_ADDRESS Addr, hal_pfinfo_t Info);
+UINT32 CpuTryId (VOID);
+VOID CpuKmapUpdateBroadcast (VOID);
 
-void ktlbgen_markdirty (hal_tlbop_t op);
-TLB_GENERATION ktlbgen_global (void);
-TLB_GENERATION ktlbgen_normal (void);
+VOID KtlbGenMarkDirty (hal_tlbop_t Op);
+TLB_GENERATION KtlbGenGlobal (VOID);
+TLB_GENERATION KtlbGenNormal (VOID);
 
 /*
   User Context
@@ -128,16 +128,16 @@ TLB_GENERATION ktlbgen_normal (void);
   This function it's used at hal entries, and must be called only once
   as it clears the cpu idle status!
  */
-UCTXT *uctxt_get (struct hal_frame *f);
+UCTXT *UctxtGet (struct hal_frame *Frame);
 
 /* Get user context from a HAL frame. Expected to be a valid user context. */
-UCTXT *uctxt_getuser (struct hal_frame *f);
+UCTXT *UctxtGetUser (struct hal_frame *Frame);
 
 /* Transform a user context to a HAL frame. Or become idle. */
-struct hal_frame *uctxt_frame (UCTXT * uctxt);
+struct hal_frame *UctxtFrame (UCTXT *Uctxt);
 
 /* Transform a user context to a HAL frame. Or return NULL. */
-struct hal_frame *uctxt_frame_pointer (UCTXT * uctxt);
+struct hal_frame *UctxtFramePointer (UCTXT *Uctxt);
 
 #include <nux/nuxperf.h>
 #define NUXPERF_DECLARE

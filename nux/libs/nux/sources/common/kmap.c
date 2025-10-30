@@ -63,7 +63,7 @@ KmapMapInternal (
 
   assert (hal_kmap_getl1p (Va, Alloc, &L1p));
   OldL1e = hal_l1e_set (L1p, L1e);
-  ktlbgen_markdirty (hal_l1e_tlbop (OldL1e, L1e));
+  KtlbGenMarkDirty (hal_l1e_tlbop (OldL1e, L1e));
 
   hal_l1e_unbox (OldL1e, &OldPfn, &OldProt);
 
@@ -164,7 +164,7 @@ KmapUnmap (
   if (hal_kmap_getl1p (Va, 0, &L1p))
     {
       OldL1e = hal_l1e_set (L1p, L1e);
-      ktlbgen_markdirty (hal_l1e_tlbop (OldL1e, L1e));
+      KtlbGenMarkDirty (hal_l1e_tlbop (OldL1e, L1e));
 
       hal_l1e_unbox (OldL1e, &OldPfn, &OldProt);
 
@@ -286,7 +286,7 @@ KmapEnsure (
 
   L1e = hal_l1e_box (Pfn, ReqProt);
   OldL1e = hal_l1e_set (L1p, L1e);
-  ktlbgen_markdirty (hal_l1e_tlbop (OldL1e, L1e));
+  KtlbGenMarkDirty (hal_l1e_tlbop (OldL1e, L1e));
   Ret = 0;
 
 out:
