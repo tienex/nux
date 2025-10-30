@@ -23,13 +23,13 @@
 
 static UINT32 gNumberCpus = 0;
 static UINT32 gCpuPhysToId[HAL_MAXCPUS] = { -1, };
-static struct cpu_info *gCpus[HAL_MAXCPUS] = { 0, };
+static CPU_INFO *gCpus[HAL_MAXCPUS] = { 0, };
 
 static CPU_MASK gTlbMap = 0;
 static CPU_MASK gCpusActive = 0;
 
 /** We use this struct during bootstrap before the cpu infrastructure has been initialised. The CPU number is zero. **/
-struct cpu_info __boot_cpuinfo = { 0, };
+CPU_INFO __boot_cpuinfo = { 0, };
 
 /**
   Add a CPU to the system.
@@ -46,7 +46,7 @@ CpuAdd (
   )
 {
   INT32 Id;
-  struct cpu_info *CpuInfo;
+  CPU_INFO *CpuInfo;
 
   assert (NuxStatus () & NUXST_OKPLT);
   if (PhysId >= HAL_MAXCPUS)
@@ -65,9 +65,9 @@ CpuAdd (
   printf ("%d[%d] ", Id, PhysId);
 
   /* We are at init-time. We use LOW KMEM via BRK. */
-  CpuInfo = (struct cpu_info *) KmemBrkGrow (1, sizeof (struct cpu_info));
+  CpuInfo = (CPU_INFO *) KmemBrkGrow (1, sizeof (CPU_INFO));
   CpuInfo->CpuId = Id;
-  CpuInfo->phys_id = PhysId;
+  CpuInfo->PhysId = PhysId;
   CpuInfo->self = CpuInfo;
   hal_pcpu_add (PhysId, &CpuInfo->hal_cpu);
 
@@ -131,7 +131,7 @@ CpuIdFromPhys (
 
   @return Pointer to CPU info structure, or NULL on error.
 **/
-static struct cpu_info *
+static CPU_INFO *
 CpuGetInfo (
   IN UINT32  Id
   )
@@ -157,12 +157,12 @@ CpuGetInfo (
 
   @return Pointer to current CPU info structure.
 **/
-static struct cpu_info *
+static CPU_INFO *
 CpuGetCurrentInfo (
   VOID
   )
 {
-  return (struct cpu_info *) hal_cpu_getdata ();
+  return (CPU_INFO *) hal_cpu_getdata ();
 }
 
 /**
@@ -177,7 +177,7 @@ CpuEnter (
   VOID
   )
 {
-  struct cpu_info *Cpu;
+  CPU_INFO *Cpu;
   UINT32 PcpuId, CpuId;
 
   /* Setup Platform support for local CPU operations */
@@ -194,10 +194,10 @@ CpuEnter (
   hal_cpu_setdata ((VOID *) Cpu);
 
   /* Setup CPU idle loop. */
-  if (setjmp (Cpu->idlejmp))
+  if (setjmp (Cpu->IdleJmp))
     {
       /* From a longjmp, OKCPU post here. */
-      CpuGetCurrentInfo ()->idle = TRUE;
+      CpuGetCurrentInfo ()->Idle = TRUE;
       hal_cpu_idle ();
     }
 
@@ -226,7 +226,7 @@ CpuWasIdle (
   VOID
   )
 {
-  return CpuGetCurrentInfo ()->idle;
+  return CpuGetCurrentInfo ()->Idle;
 }
 
 /**
@@ -239,7 +239,7 @@ CpuClearIdle (
   VOID
   )
 {
-  CpuGetCurrentInfo ()->idle = FALSE;
+  CpuGetCurrentInfo ()->Idle = FALSE;
 }
 
 /**
@@ -328,7 +328,7 @@ CpuTryGetId (
     }
   else
     {
-      struct cpu_info *Ci = CpuGetCurrentInfo ();
+      CPU_INFO *Ci = CpuGetCurrentInfo ();
       return Ci->CpuId;
     }
 }
@@ -390,10 +390,10 @@ CpuSendNmi (
   IN INT32  Cpu
   )
 {
-  struct cpu_info *Ci = CpuGetInfo (Cpu);
+  CPU_INFO *Ci = CpuGetInfo (Cpu);
 
   if (Ci != NULL)
-    plt_pcpu_nmi (Ci->phys_id);
+    plt_pcpu_nmi (Ci->PhysId);
 }
 
 /**
@@ -454,10 +454,10 @@ CpuSendIpi (
   IN INT32  Cpu
   )
 {
-  struct cpu_info *Ci = CpuGetInfo (Cpu);
+  CPU_INFO *Ci = CpuGetInfo (Cpu);
 
   if (Ci != NULL)
-    plt_pcpu_ipi (Ci->phys_id);
+    plt_pcpu_ipi (Ci->PhysId);
 }
 
 /**
@@ -498,9 +498,9 @@ CpuIdle (
   VOID
   )
 {
-  struct cpu_info *Ci = CpuGetCurrentInfo ();
+  CPU_INFO *Ci = CpuGetCurrentInfo ();
 
-  longjmp (Ci->idlejmp, 1);
+  longjmp (Ci->IdleJmp, 1);
 }
 
 /**
@@ -514,11 +514,11 @@ CpuKernelTlbUpdate (
   VOID
   )
 {
-  struct cpu_info *Ci = CpuGetCurrentInfo ();
+  CPU_INFO *Ci = CpuGetCurrentInfo ();
   TLB_GENERATION CpuGlobal, CpuNormal;
 
-  __atomic_load (&Ci->ktlb.global, &CpuGlobal, __ATOMIC_RELAXED);
-  __atomic_load (&Ci->ktlb.normal, &CpuNormal, __ATOMIC_RELAXED);
+  __atomic_load (&Ci->Ktlb.Global, &CpuGlobal, __ATOMIC_RELAXED);
+  __atomic_load (&Ci->Ktlb.Normal, &CpuNormal, __ATOMIC_RELAXED);
   TLB_GENERATION KGlobal = KtlbGenGlobal ();
   TLB_GENERATION KNormal = KtlbGenNormal ();
 
@@ -532,15 +532,15 @@ CpuKernelTlbUpdate (
          Both failure and success case are relaxed because these
          variable are per cpu and accessed with relaxed order.
        */
-      __atomic_compare_exchange (&Ci->ktlb.global, &CpuGlobal, &KGlobal,
+      __atomic_compare_exchange (&Ci->Ktlb.Global, &CpuGlobal, &KGlobal,
                                  FALSE, __ATOMIC_RELAXED, __ATOMIC_RELAXED);
-      __atomic_compare_exchange (&Ci->ktlb.normal, &CpuNormal, &KNormal,
+      __atomic_compare_exchange (&Ci->Ktlb.Normal, &CpuNormal, &KNormal,
                                  FALSE, __ATOMIC_RELAXED, __ATOMIC_RELAXED);
     }
   else if (TlbGenCompare (KNormal, CpuNormal) > 0)
     {
       hal_cpu_tlbop (HAL_TLBOP_FLUSH);
-      __atomic_compare_exchange (&Ci->ktlb.normal, &CpuNormal, &KNormal,
+      __atomic_compare_exchange (&Ci->Ktlb.Normal, &CpuNormal, &KNormal,
                                  FALSE, __ATOMIC_RELAXED, __ATOMIC_RELAXED);
     }
 }
@@ -565,10 +565,10 @@ CpuKernelTlbReach (
       return;
     }
 
-  struct cpu_info *Ci = CpuGetCurrentInfo ();
+  CPU_INFO *Ci = CpuGetCurrentInfo ();
   TLB_GENERATION CpuKtlb;
 
-  __atomic_load (&Ci->ktlb.normal, &CpuKtlb, __ATOMIC_RELAXED);
+  __atomic_load (&Ci->Ktlb.Normal, &CpuKtlb, __ATOMIC_RELAXED);
 
   if (TlbGenCompare (Target, CpuKtlb) > 0)
     {
@@ -587,13 +587,13 @@ CpuTlbFlushLocal (
   )
 {
   /* We're flushing the cpu. Update the relevant kmap tlb generation. */
-  struct cpu_info *Ci = CpuGetCurrentInfo ();
+  CPU_INFO *Ci = CpuGetCurrentInfo ();
   TLB_GENERATION KNormal = KtlbGenNormal ();
   TLB_GENERATION CpuNormal;
 
-  __atomic_load (&Ci->ktlb.normal, &CpuNormal, __ATOMIC_RELAXED);
+  __atomic_load (&Ci->Ktlb.Normal, &CpuNormal, __ATOMIC_RELAXED);
   hal_cpu_tlbop (HAL_TLBOP_FLUSH);
-  __atomic_compare_exchange (&Ci->ktlb.normal, &CpuNormal, &KNormal,
+  __atomic_compare_exchange (&Ci->Ktlb.Normal, &CpuNormal, &KNormal,
                              FALSE, __ATOMIC_RELAXED, __ATOMIC_RELAXED);
 }
 
@@ -608,8 +608,8 @@ CpuNmiOperation (
   VOID
   )
 {
-  struct cpu_info *Ci = CpuGetCurrentInfo ();
-  UINT32 NmiOp = Ci->nmiop;
+  CPU_INFO *Ci = CpuGetCurrentInfo ();
+  UINT32 NmiOp = Ci->NmiOp;
 
   if (NmiOp & NMIOP_KMAPUPDATE)
     {
@@ -636,12 +636,12 @@ CpuKernelMapUpdate (
   IN INT32  Cpu
   )
 {
-  struct cpu_info *Ci = CpuGetInfo (Cpu);
+  CPU_INFO *Ci = CpuGetInfo (Cpu);
 
   if (Ci != NULL)
     return;
 
-  __atomic_or_fetch (&Ci->nmiop, NMIOP_KMAPUPDATE, __ATOMIC_RELAXED);
+  __atomic_or_fetch (&Ci->NmiOp, NMIOP_KMAPUPDATE, __ATOMIC_RELAXED);
   CpuSendNmi (Cpu);
 }
 
@@ -683,12 +683,12 @@ CpuTlbFlush (
   IN INT32  Cpu
   )
 {
-  struct cpu_info *Ci = CpuGetInfo (Cpu);
+  CPU_INFO *Ci = CpuGetInfo (Cpu);
 
   if (Ci == NULL)
     return;
 
-  __atomic_or_fetch (&Ci->nmiop, NMIOP_TLBFLUSH, __ATOMIC_RELAXED);
+  __atomic_or_fetch (&Ci->NmiOp, NMIOP_TLBFLUSH, __ATOMIC_RELAXED);
   CpuSendNmi (Cpu);
 }
 
@@ -756,10 +756,10 @@ CpuUserAccessReset (
   VOID
   )
 {
-  struct cpu_info *Ci = CpuGetCurrentInfo ();
+  CPU_INFO *Ci = CpuGetCurrentInfo ();
 
-  Ci->usrpgaddr = 0;
-  Ci->usrpginfo = 0;
+  Ci->UsrPgAddr = 0;
+  Ci->UsrPgInfo = 0;
   __insn_barrier ();
 }
 
@@ -773,12 +773,12 @@ CpuUserAccessEnd (
   VOID
   )
 {
-  struct cpu_info *Ci = CpuGetCurrentInfo ();
+  CPU_INFO *Ci = CpuGetCurrentInfo ();
 
   hal_useraccess_end ();
-  Ci->usrpgaddr = 0;
-  Ci->usrpginfo = 0;
-  Ci->usrpgfault = 0;
+  Ci->UsrPgAddr = 0;
+  Ci->UsrPgInfo = 0;
+  Ci->UsrPgFault = 0;
   __insn_barrier ();
 }
 
@@ -804,18 +804,18 @@ CpuUserAccessCopyFrom (
   IN  BOOLEAN       (*PfHandler)(USER_ADDRESS Va, hal_pfinfo_t Info)
   )
 {
-  struct cpu_info *Ci = CpuGetCurrentInfo ();
+  CPU_INFO *Ci = CpuGetCurrentInfo ();
 
   if (!UaddrValidRange (Src, Size))
     return FALSE;
 
   CpuUserAccessStart ();
-  Ci->usrpgfault = 1;
+  Ci->UsrPgFault = 1;
   __insn_barrier ();
-  if (setjmp (Ci->usrpgfaultctx) != 0)
+  if (setjmp (Ci->UsrPgFaultCtx) != 0)
     {
-      USER_ADDRESS Uaddr = Ci->usrpgaddr;
-      hal_pfinfo_t PfInfo = Ci->usrpginfo;
+      USER_ADDRESS Uaddr = Ci->UsrPgAddr;
+      hal_pfinfo_t PfInfo = Ci->UsrPgInfo;
 
       if (!PfHandler || !PfHandler (Uaddr, PfInfo))
         {
@@ -855,18 +855,18 @@ CpuUserAccessCopyTo (
   IN BOOLEAN  (*PfHandler)(USER_ADDRESS Va, hal_pfinfo_t Info)
   )
 {
-  struct cpu_info *Ci = CpuGetCurrentInfo ();
+  CPU_INFO *Ci = CpuGetCurrentInfo ();
 
   if (!UaddrValidRange (Dst, Size))
     return FALSE;
 
   CpuUserAccessStart ();
-  Ci->usrpgfault = 1;
+  Ci->UsrPgFault = 1;
   __insn_barrier ();
-  if (setjmp (Ci->usrpgfaultctx) != 0)
+  if (setjmp (Ci->UsrPgFaultCtx) != 0)
     {
-      USER_ADDRESS Uaddr = Ci->usrpgaddr;
-      hal_pfinfo_t PfInfo = Ci->usrpginfo;
+      USER_ADDRESS Uaddr = Ci->UsrPgAddr;
+      hal_pfinfo_t PfInfo = Ci->UsrPgInfo;
 
       if (!PfHandler || !PfHandler (Uaddr, PfInfo))
         {
@@ -906,17 +906,17 @@ CpuUserAccessMemset (
   IN BOOLEAN  (*PfHandler)(USER_ADDRESS Va, hal_pfinfo_t Info)
   )
 {
-  struct cpu_info *Ci = CpuGetCurrentInfo ();
+  CPU_INFO *Ci = CpuGetCurrentInfo ();
 
   if (!UaddrValidRange (Dst, Size))
     return FALSE;
 
-  Ci->usrpgfault = 1;
+  Ci->UsrPgFault = 1;
   __insn_barrier ();
-  if (setjmp (Ci->usrpgfaultctx) != 0)
+  if (setjmp (Ci->UsrPgFaultCtx) != 0)
     {
-      USER_ADDRESS Uaddr = Ci->usrpgaddr;
-      hal_pfinfo_t PfInfo = Ci->usrpginfo;
+      USER_ADDRESS Uaddr = Ci->UsrPgAddr;
+      hal_pfinfo_t PfInfo = Ci->UsrPgInfo;
 
       if (!PfHandler || !PfHandler (Uaddr, PfInfo))
         {
@@ -949,14 +949,14 @@ CpuUserAccessCheckPageFault (
   IN hal_pfinfo_t  Info
   )
 {
-  struct cpu_info *Ci = CpuGetCurrentInfo ();
+  CPU_INFO *Ci = CpuGetCurrentInfo ();
 
-  if (Ci->usrpgfault)
+  if (Ci->UsrPgFault)
     {
-      Ci->usrpgaddr = Addr;
-      Ci->usrpginfo = Info;
+      Ci->UsrPgAddr = Addr;
+      Ci->UsrPgInfo = Info;
       __insn_barrier ();
-      longjmp (Ci->usrpgfaultctx, 1);
+      longjmp (Ci->UsrPgFaultCtx, 1);
       /* Not reached */
     }
 }
@@ -1045,12 +1045,12 @@ static UINT32 cpu_idfromphys (UINT32 physid) {
 }
 
 /** @deprecated Use CpuGetInfo instead **/
-static struct cpu_info *cpu_getinfo (UINT32 id) {
+static CPU_INFO *cpu_getinfo (UINT32 id) {
   return CpuGetInfo (id);
 }
 
 /** @deprecated Use CpuGetCurrentInfo instead **/
-static struct cpu_info *cpu_curinfo (VOID) {
+static CPU_INFO *cpu_curinfo (VOID) {
   return CpuGetCurrentInfo ();
 }
 
@@ -1245,6 +1245,6 @@ struct umap *cpu_umap_exit (VOID) {
 // Legacy global variable aliases
 static UINT32 number_cpus __attribute__((alias("gNumberCpus")));
 static UINT32 cpu_phys_to_id[HAL_MAXCPUS] __attribute__((alias("gCpuPhysToId")));
-static struct cpu_info *cpus[HAL_MAXCPUS] __attribute__((alias("gCpus")));
+static CPU_INFO *cpus[HAL_MAXCPUS] __attribute__((alias("gCpus")));
 static CPU_MASK tlbmap __attribute__((alias("gTlbMap")));
 static CPU_MASK cpus_active __attribute__((alias("gCpusActive")));

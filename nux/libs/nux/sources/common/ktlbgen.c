@@ -16,7 +16,7 @@
 
 #include <nux/internal.h>
 
-static VOLATILE struct ktlb gKtlb;
+static VOLATILE KTLB gKtlb;
 
 /**
   Mark kernel TLB as dirty based on operation type.
@@ -35,10 +35,10 @@ KtlbGenMarkDirty (
   switch (Op)
     {
     case HAL_TLBOP_FLUSHALL:
-      __atomic_add_fetch (&gKtlb.global, 1, __ATOMIC_RELEASE);
+      __atomic_add_fetch (&gKtlb.Global, 1, __ATOMIC_RELEASE);
       break;
     case HAL_TLBOP_FLUSH:
-      __atomic_add_fetch (&gKtlb.normal, 1, __ATOMIC_RELEASE);
+      __atomic_add_fetch (&gKtlb.Normal, 1, __ATOMIC_RELEASE);
       break;
     default:
       break;
@@ -59,7 +59,7 @@ KtlbGenGlobal (
   )
 {
   TLB_GENERATION Ret;
-  __atomic_load (&gKtlb.global, &Ret, __ATOMIC_ACQUIRE);
+  __atomic_load (&gKtlb.Global, &Ret, __ATOMIC_ACQUIRE);
   return Ret;
 }
 
@@ -77,7 +77,7 @@ KtlbGenNormal (
   )
 {
   TLB_GENERATION Ret;
-  __atomic_load (&gKtlb.normal, &Ret, __ATOMIC_ACQUIRE);
+  __atomic_load (&gKtlb.Normal, &Ret, __ATOMIC_ACQUIRE);
   return Ret;
 }
 
@@ -101,4 +101,4 @@ TLB_GENERATION KtlbGenNormal (VOID) {
 }
 
 // Legacy global variable alias
-static VOLATILE struct ktlb ktlb __attribute__((alias("gKtlb")));
+static VOLATILE KTLB ktlb __attribute__((alias("gKtlb")));

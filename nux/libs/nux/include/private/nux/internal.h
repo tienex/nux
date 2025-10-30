@@ -27,11 +27,11 @@ BOOLEAN NuxStatusOkCpu (VOID);
 /*
   Kernel TLB status.
 */
-struct ktlb
+typedef struct _KTLB
 {
-  TLB_GENERATION global;		/* Global mappings. */
-  TLB_GENERATION normal;		/* Non-global mappings. */
-};
+  TLB_GENERATION Global;		/* Global mappings. */
+  TLB_GENERATION Normal;		/* Non-global mappings. */
+} KTLB, *PKTLB;
 
 /*
   Return <0 if a < b. 0 if a == b, >0 if a > b or wrapcounts differ.
@@ -57,43 +57,43 @@ TlbGenCompare (TLB_GENERATION A, TLB_GENERATION B)
    CPU management
 */
 
-struct cpu_info
+typedef struct _CPU_INFO
 {
-  UINT32 cpu_id;
-  UINT32 phys_id;
-  struct cpu_info *self;
+  UINT32 CpuId;
+  UINT32 PhysId;
+  struct _CPU_INFO *Self;
 
-  struct umap *umap;
+  struct umap *Umap;
 
   /* Idle jmp_buf */
-  jmp_buf idlejmp;
-  BOOLEAN idle;
+  jmp_buf IdleJmp;
+  BOOLEAN Idle;
 
 
   /* NMI operations. */
 #define NMIOP_KMAPUPDATE 1	/* Update kmap across all CPUs. */
 #define NMIOP_TLBFLUSH 2	/* Flush TLBs. */
-  UINT32 nmiop;
+  UINT32 NmiOp;
 
   /* TLB status for current CPU. */
-  VOLATILE struct ktlb ktlb;
+  VOLATILE KTLB Ktlb;
 
   /*
      User copy setjmp/longjmp for pagefaults.
    */
-  jmp_buf usrpgfaultctx;
-  UINT32 usrpgfault;
-  USER_ADDRESS usrpgaddr;
-  hal_pfinfo_t usrpginfo;
+  jmp_buf UsrPgFaultCtx;
+  UINT32 UsrPgFault;
+  USER_ADDRESS UsrPgAddr;
+  hal_pfinfo_t UsrPgInfo;
 
   /*
      This pointer can be set by users of
      libnux to store their private data.
    */
-  VOID *data;
+  VOID *Data;
 
-  struct hal_cpu hal_cpu;
-};
+  struct hal_cpu HalCpu;
+} CPU_INFO, *PCPU_INFO;
 
 VOID PfnCacheBootstrap (VOID);
 VOID BatreePfnInitialize (VOID);
