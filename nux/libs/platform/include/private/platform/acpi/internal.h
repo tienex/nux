@@ -19,7 +19,7 @@
 extern UINT32 gPlatformAcpiHpetIrq;
 
 // Legacy compatibility alias
-extern unsigned pltacpi_hpet_irq;
+extern UINT32 pltacpi_hpet_irq;
 
 //
 // LAPIC (Local APIC) Functions

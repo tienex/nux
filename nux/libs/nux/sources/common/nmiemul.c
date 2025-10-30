@@ -197,7 +197,7 @@ void nmiemul_ipi_clear (void) {
 }
 
 /** @deprecated Use NmiEmulNmiSet instead **/
-void nmiemul_nmi_set (unsigned cpu) {
+void nmiemul_nmi_set (UINT32 cpu) {
   NmiEmulNmiSet (cpu);
 }
 
@@ -207,7 +207,7 @@ void nmiemul_nmi_setall (void) {
 }
 
 /** @deprecated Use NmiEmulIpiSet instead **/
-void nmiemul_ipi_set (unsigned cpu) {
+void nmiemul_ipi_set (UINT32 cpu) {
   NmiEmulIpiSet (cpu);
 }
 
@@ -222,6 +222,6 @@ struct hal_frame *nmiemul_entry (struct hal_frame *f) {
 }
 
 // Legacy global variable alias
-static uint8_t pending[HAL_MAXCPUS] __attribute__((alias("gPending")));
+static UINT8 pending[HAL_MAXCPUS] __attribute__((alias("gPending")));
 
 #endif /* HAVE_NMIEMUL */

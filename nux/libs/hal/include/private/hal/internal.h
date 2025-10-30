@@ -160,13 +160,13 @@ INT32 vga_putchar (INT32 c);
 UINT64 rdmsr (UINT32 ecx);
 VOID wrmsr (UINT32 ecx, UINT64 val);
 
-unsigned long read_cr4 (void);
+UINT32 long read_cr4 (void);
 void write_cr4 (unsigned long r);
-unsigned long read_cr3 (void);
+UINT32 long read_cr3 (void);
 void write_cr3 (unsigned long r);
 
-unsigned long frame_bp(struct hal_frame *f);
-unsigned long frame_cr2(struct hal_frame *f);
+UINT32 long frame_bp(struct hal_frame *f);
+UINT32 long frame_cr2(struct hal_frame *f);
 
 #endif
 

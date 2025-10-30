@@ -8,7 +8,7 @@
 #define L1P_INVALID ((uintptr_t)0)
 
 typedef uintptr_t hal_l1p_t;
-typedef uint64_t hal_l1e_t;
+typedef UINT64 hal_l1e_t;
 
 static INLINE void
 hal_debug (void)
@@ -56,7 +56,7 @@ hal_debug (void)
 
 struct hal_umap
 {
-  uint64_t l4[UMAP_L4PTES];
+  UINT64 l4[UMAP_L4PTES];
 };
 
 #include <stdio.h>

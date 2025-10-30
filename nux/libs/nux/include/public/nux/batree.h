@@ -94,23 +94,23 @@
 #endif
 
 #if WORDSIZE==8
-#define WORD_T    uint8_t
+#define WORD_T    UINT8
 #define WORDLOG2  3
 #define WORDMASK  0x7
 #define ctz(_x)   (__builtin_ctz(_x))
 #define clz(_x)   (__builtin_clz(_x) - WORD_BIT + 8)
 #elif WORDSIZE==16
-#define WORD_T    uint16_t
+#define WORD_T    UINT16
 #define WORDLOG2  4
 #define WORDMASK  0xf
 #define ctz(_x)   (__builtin_ctz(_x))
 #define clz(_x)   (__builtin_clz(_x) - WORD_BIT + 16)
 #elif WORDSIZE==32
-#define WORD_T    uint32_t
+#define WORD_T    UINT32
 #define WORDLOG2  5
 #define WORDMASK  0x1f
 #elif WORDSIZE==64
-#define WORD_T    uint64_t
+#define WORD_T    UINT64
 #define WORDLOG2  6
 #define WORDMASK  0x3f
 #else

@@ -252,12 +252,12 @@ static bool _umap_setl1e (struct umap *umap, VIRTUAL_ADDRESS va, hal_l1e_t l1e, 
 
 /** @deprecated Use UmapChangeFlags instead **/
 unsigned UmapChFlags (struct umap *umap, VIRTUAL_ADDRESS va,
-	      unsigned prot_set, unsigned prot_clr) {
+	      UINT32 prot_set, UINT32 prot_clr) {
   return UmapChangeFlags (umap, va, prot_set, prot_clr);
 }
 
 /** @deprecated Use UmapMap instead **/
-bool UmapMap (struct umap *umap, VIRTUAL_ADDRESS va, PFN pfn, unsigned prot,
+bool UmapMap (struct umap *umap, VIRTUAL_ADDRESS va, PFN pfn, UINT32 prot,
 	  PFN * opfn) {
   return UmapMap (umap, va, pfn, prot, opfn);
 }

@@ -70,7 +70,7 @@ TimerGetTime (
 //
 
 /** @deprecated Use TimerAlarm instead **/
-void timer_alarm (uint32_t time_ns) {
+void timer_alarm (UINT32 time_ns) {
   TimerAlarm (time_ns);
 }
 
@@ -80,6 +80,6 @@ void timer_clear (void) {
 }
 
 /** @deprecated Use TimerGetTime instead **/
-uint64_t timer_gettime (void) {
+UINT64 timer_gettime (void) {
   return TimerGetTime ();
 }

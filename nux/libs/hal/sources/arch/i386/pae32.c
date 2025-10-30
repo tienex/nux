@@ -34,11 +34,11 @@
 #define l2e_reserved(_pte) ((_pte) & (l2e_bigpage(_pte) ? L2_RES2M : L2_RESPT))
 #define l1e_reserved(_pte) ((_pte) & L1_RESPT)
 
-#define mkpte(_p, _f) (((uint64_t)(_p) << PAGE_SHIFT) | (_f))
+#define mkpte(_p, _f) (((UINT64)(_p) << PAGE_SHIFT) | (_f))
 #define pte_pfn(_p) ((_p & ~PTE_NX) >> PAGE_SHIFT)
 #define pte_present(_pte) ((_pte) & PTE_P)
 
-#define PTE_INVALID ((uint64_t)0)
+#define PTE_INVALID ((UINT64)0)
 #define PTEP_INVALID L1P_INVALID
 #define mkptep_cur(_p) ((ptep_t)(UINTN)(_p))
 #define mkptep_fgn(_p) ((ptep_t)(UINTN)(_p) | 1)
@@ -60,11 +60,11 @@ pte_t *l3_linaddr = (pte_t *) & _linear_l3table;
 
   @return Virtual address.
 **/
-uint64_t
+UINT64
 MakeAddress (
-  IN uint64_t  L3off,
-  IN uint64_t  L2off,
-  IN uint64_t  L1off
+  IN UINT64  L3off,
+  IN UINT64  L2off,
+  IN UINT64  L1off
   )
 {
   return (L3off << L3_SHIFT) | (L2off << L2_SHIFT) | (L1off << L1_SHIFT);
@@ -451,7 +451,7 @@ UmapGetL1p (
 
   @return Minimum user virtual address.
 **/
-unsigned long
+UINT32 long
 PtUmapMinAddr (
   VOID
   )
@@ -464,7 +464,7 @@ PtUmapMinAddr (
 
   @return Maximum user virtual address.
 **/
-unsigned long
+UINT32 long
 PtUmapMaxAddr (
   VOID
   )
@@ -552,7 +552,7 @@ HalUmapLoad (
   IN struct hal_umap  *Umap
   )
 {
-  unsigned long LinOff = ((unsigned long) l3_linaddr & PAGE_MASK) >> 3;
+  unsigned long LinOff = ((UINT32 long) l3_linaddr & PAGE_MASK) >> 3;
   hal_tlbop_t TlbOp = HAL_TLBOP_NONE;
   PFN Cr3Pfn, KpdptePfn;
   pte_t *Pdptes, Kpdpte, *Kpd;
@@ -593,7 +593,7 @@ PtUmapDebugWalk (
   IN unsigned long    Va
   )
 {
-  unsigned i;
+  UINT32 i;
   pte_t Pte;
   ptep_t Ptep;
 
@@ -666,7 +666,7 @@ ScanL1 (
   pte_t *pL1Ptr, L1e;
 
   pL1Ptr = pfn_get (L1Pfn);
-  for (unsigned i = Off; i < 512; i++)
+  for (UINT32 i = Off; i < 512; i++)
     {
       L1e = pL1Ptr[i];
       if (L1e != 0)
@@ -711,7 +711,7 @@ ScanL2 (
   PFN L1Pfn;
 
   pL2Ptr = pfn_get (L2Pfn);
-  for (unsigned i = Off; i < 512; i++)
+  for (UINT32 i = Off; i < 512; i++)
     {
       L2e = pL2Ptr[i];
       if (pte_present (L2e))
@@ -756,7 +756,7 @@ ScanL3 (
 {
   pte_t L3e;
   PFN L2Pfn;
-  for (unsigned i = Off; i < UMAP_L3PTES; i++)
+  for (UINT32 i = Off; i < UMAP_L3PTES; i++)
     {
       if (Umap == NULL)
 	{
@@ -843,14 +843,14 @@ PtUmapFree (
   PFN L2Pfn, L1Pfn;
   pte_t L3e, *pL2Ptr, L2e;
 
-  for (unsigned i = 0; i < UMAP_L3PTES; i++)
+  for (UINT32 i = 0; i < UMAP_L3PTES; i++)
     {
       L3e = Umap->l3[i];
       if (pte_present (L3e))
 	{
 	  L2Pfn = pte_pfn (L3e);
 	  pL2Ptr = pfn_get (L2Pfn);
-	  for (unsigned i = 0; i < 512; i++)
+	  for (UINT32 i = 0; i < 512; i++)
 	    {
 	      L2e = pL2Ptr[i];
 	      if (pte_present (L2e))
@@ -877,7 +877,7 @@ Pae32InitializeAp (
   VOID
   )
 {
-  unsigned long LinOff = ((unsigned long) l3_linaddr & PAGE_MASK) >> 3;
+  unsigned long LinOff = ((UINT32 long) l3_linaddr & PAGE_MASK) >> 3;
   pte_t *Va;
   PFN L2Pfn[4], L3Pfn;
 
@@ -890,7 +890,7 @@ Pae32InitializeAp (
   for (int i = 0; i < 4; i++)
     {
       Va = kva_physmap (ptob (L2Pfn[i]), PAGE_SIZE, HAL_PTE_W | HAL_PTE_P);
-      memcpy (Va, (void *) (l2_linaddr + ((uint32_t) i << 30 >> 18)),
+      memcpy (Va, (void *) (l2_linaddr + ((UINT32) i << 30 >> 18)),
 	      PAGE_SIZE);
       kva_unmap (Va, PAGE_SIZE);
     }
@@ -930,7 +930,7 @@ Pae32Initialize (
 //
 
 /** @deprecated Use MakeAddress instead **/
-uint64_t mkaddr (uint64_t l3off, uint64_t l2off, uint64_t l1off) {
+UINT64 mkaddr (UINT64 l3off, UINT64 l2off, UINT64 l1off) {
   return MakeAddress (l3off, l2off, l1off);
 }
 
@@ -995,12 +995,12 @@ ptep_t umap_get_l1p (struct hal_umap *umap, unsigned long va, bool alloc) {
 }
 
 /** @deprecated Use PtUmapMinAddr instead **/
-unsigned long pt_umap_minaddr (void) {
+UINT32 long pt_umap_minaddr (void) {
   return PtUmapMinAddr ();
 }
 
 /** @deprecated Use PtUmapMaxAddr instead **/
-unsigned long pt_umap_maxaddr (void) {
+UINT32 long pt_umap_maxaddr (void) {
   return PtUmapMaxAddr ();
 }
 
@@ -1030,19 +1030,19 @@ void pt_umap_debugwalk (struct hal_umap *umap, unsigned long va) {
 }
 
 /** @deprecated Use ScanL1 instead **/
-static bool scan_l1 (PFN l1pfn, unsigned off, unsigned *l1off_out, hal_l1p_t * l1p_out,
+static bool scan_l1 (PFN l1pfn, UINT32 off, unsigned *l1off_out, hal_l1p_t * l1p_out,
 	 hal_l1e_t * l1e_out) {
   return ScanL1 (l1pfn, off, l1off_out, l1p_out, l1e_out);
 }
 
 /** @deprecated Use ScanL2 instead **/
-static bool scan_l2 (PFN l2pfn, unsigned off, unsigned *l2off_out, unsigned *l1off_out,
+static bool scan_l2 (PFN l2pfn, UINT32 off, unsigned *l2off_out, unsigned *l1off_out,
 	 hal_l1p_t * l1p_out, hal_l1e_t * l1e_out) {
   return ScanL2 (l2pfn, off, l2off_out, l1off_out, l1p_out, l1e_out);
 }
 
 /** @deprecated Use ScanL3 instead **/
-static bool scan_l3 (struct hal_umap *umap, unsigned off,
+static bool scan_l3 (struct hal_umap *umap, UINT32 off,
 	 unsigned *l3off_out, unsigned *l2off_out, unsigned *l1off_out,
 	 hal_l1p_t * l1p_out, hal_l1e_t * l1e_out) {
   return ScanL3 (umap, off, l3off_out, l2off_out, l1off_out, l1p_out, l1e_out);

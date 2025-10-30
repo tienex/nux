@@ -64,7 +64,7 @@ struct fbdesc fbdesc;
 struct apxh_platformdesc pltdesc;
 
 void *gHalStreePtr;
-unsigned gHalStreeOrder;
+UINT32 gHalStreeOrder;
 
 int gUseFb;
 INT32 gNuxInitialized = 0;
@@ -796,17 +796,17 @@ hal_panic (
 //
 
 /** @deprecated Use ReadMsr instead **/
-uint64_t rdmsr (uint32_t ecx) {
+UINT64 rdmsr (UINT32 ecx) {
   return ReadMsr (ecx);
 }
 
 /** @deprecated Use WriteMsr instead **/
-void wrmsr (uint32_t ecx, uint64_t val) {
+void wrmsr (UINT32 ecx, UINT64 val) {
   WriteMsr (ecx, val);
 }
 
 /** @deprecated Use ReadCr4 instead **/
-unsigned long read_cr4 (void) {
+UINT32 long read_cr4 (void) {
   return ReadCr4 ();
 }
 
@@ -816,7 +816,7 @@ void write_cr4 (unsigned long r) {
 }
 
 /** @deprecated Use ReadCr3 instead **/
-unsigned long read_cr3 (void) {
+UINT32 long read_cr3 (void) {
   return ReadCr3 ();
 }
 
@@ -831,12 +831,12 @@ int inb (int port) {
 }
 
 /** @deprecated Use InW instead **/
-int inw (unsigned port) {
+int inw (UINT32 port) {
   return InW (port);
 }
 
 /** @deprecated Use InL instead **/
-int inl (unsigned port) {
+int inl (UINT32 port) {
   return InL (port);
 }
 
@@ -846,12 +846,12 @@ void outb (int port, int val) {
 }
 
 /** @deprecated Use OutW instead **/
-void outw (unsigned port, int val) {
+void outw (UINT32 port, int val) {
   OutW (port, val);
 }
 
 /** @deprecated Use OutL instead **/
-void outl (unsigned port, int val) {
+void outl (UINT32 port, int val) {
   OutL (port, val);
 }
 

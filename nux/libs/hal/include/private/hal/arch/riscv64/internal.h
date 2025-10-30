@@ -108,13 +108,13 @@ typedef UINTN ptep_t;
 
 #ifndef _ASSEMBLER
 static INLINE ptep_t
-mkptep (PFN pfn, unsigned offset)
+mkptep (PFN pfn, UINT32 offset)
 {
   return (pfn << PAGE_SHIFT) | (offset << 3);
 }
 
 static INLINE pte_t
-mkpte (PFN pfn, unsigned flags)
+mkpte (PFN pfn, UINT32 flags)
 {
   return (pte_t) ((pfn << PTE_PFN_SHIFT) | flags);
 }
@@ -148,7 +148,7 @@ get_pte (ptep_t ptep)
 {
   pte_t *t, pte;
   PFN pfn;
-  unsigned offset;
+  UINT32 offset;
 
   pfn = ptep >> PAGE_SHIFT;
   offset = (ptep >> 3) & 0x1ff;
@@ -164,7 +164,7 @@ set_pte (ptep_t ptep, pte_t pte)
 {
   pte_t *t, old;
   PFN pfn;
-  unsigned offset;
+  UINT32 offset;
 
   pfn = ptep >> PAGE_SHIFT;
   offset = (ptep >> 3) & 0x1ff;
@@ -223,8 +223,8 @@ hal_l1p_t umap_get_l1p (struct hal_umap *umap, unsigned long va, bool alloc);
 USER_ADDRESS pt_umap_next (struct hal_umap *umap, USER_ADDRESS uaddr, hal_l1p_t * l1p_out,
 		   hal_l1e_t * l1e_out);
 void pt_umap_free (struct hal_umap *umap);
-unsigned long pt_umap_minaddr (void);
-unsigned long pt_umap_maxaddr (void);
+UINT32 long pt_umap_minaddr (void);
+UINT32 long pt_umap_maxaddr (void);
 #endif /* _ASSEMBLER */
 
 #endif /* _HAL_INTERNAL_H */

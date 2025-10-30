@@ -944,12 +944,12 @@ static INLINE unsigned long hal_physmem_maxrampfn (void) {
   return pPhysMem->lpVtbl->GetMaxRamPfn(pPhysMem);
 }
 
-static INLINE unsigned hal_physmem_numregions (void) {
+static INLINE UINT32 hal_physmem_numregions (void) {
   IHalPhysMem *pPhysMem; gpHal->lpVtbl->GetPhysMemInterface(gpHal, &pPhysMem);
   return pPhysMem->lpVtbl->GetNumRegions(pPhysMem);
 }
 
-static INLINE struct apxh_region *hal_physmem_region (unsigned i) {
+static INLINE struct apxh_region *hal_physmem_region (UINT32 i) {
   IHalPhysMem *pPhysMem; gpHal->lpVtbl->GetPhysMemInterface(gpHal, &pPhysMem);
   return pPhysMem->lpVtbl->GetRegion(pPhysMem, i);
 }
@@ -1049,7 +1049,7 @@ static INLINE void hal_umap_free (struct hal_umap *umap) {
   pMap->lpVtbl->UmapFree(pMap, umap);
 }
 
-static INLINE hal_l1e_t hal_l1e_box (unsigned long pfn, unsigned flags) {
+static INLINE hal_l1e_t hal_l1e_box (unsigned long pfn, UINT32 flags) {
   IHalMap *pMap; gpHal->lpVtbl->GetMapInterface(gpHal, &pMap);
   return pMap->lpVtbl->L1eBox(pMap, pfn, flags);
 }
@@ -1079,17 +1079,17 @@ static INLINE void hal_pcpu_init (void) {
   pPcpu->lpVtbl->Init(pPcpu);
 }
 
-static INLINE void hal_pcpu_add (unsigned pcpuid, struct hal_cpu *haldata) {
+static INLINE void hal_pcpu_add (UINT32 pcpuid, struct hal_cpu *haldata) {
   IHalPcpu *pPcpu; gpHal->lpVtbl->GetPcpuInterface(gpHal, &pPcpu);
   pPcpu->lpVtbl->Add(pPcpu, pcpuid, haldata);
 }
 
-static INLINE void hal_pcpu_enter (unsigned pcpuid) {
+static INLINE void hal_pcpu_enter (UINT32 pcpuid) {
   IHalPcpu *pPcpu; gpHal->lpVtbl->GetPcpuInterface(gpHal, &pPcpu);
   pPcpu->lpVtbl->Enter(pPcpu, pcpuid);
 }
 
-static INLINE PHYSICAL_ADDRESS hal_pcpu_startaddr (unsigned pcpu) {
+static INLINE PHYSICAL_ADDRESS hal_pcpu_startaddr (UINT32 pcpu) {
   IHalPcpu *pPcpu; gpHal->lpVtbl->GetPcpuInterface(gpHal, &pPcpu);
   return pPcpu->lpVtbl->GetStartAddr(pPcpu, pcpu);
 }
@@ -1176,7 +1176,7 @@ static INLINE CONST struct apxh_platformdesc *hal_pltinfo (void) {
   return gpHal->lpVtbl->GetPlatformInfo(gpHal);
 }
 
-static INLINE __dead void hal_panic (unsigned cpu, CONST char *error, struct hal_frame *frame) {
+static INLINE __dead void hal_panic (UINT32 cpu, CONST char *error, struct hal_frame *frame) {
   gpHal->lpVtbl->Panic(gpHal, cpu, error, frame);
   __builtin_unreachable();
 }

@@ -30,7 +30,7 @@
 #define L2OFF(_va) (((_va) >> L2_SHIFT) & 0x1ff)
 #define L1OFF(_va) (((_va) >> L1_SHIFT) & 0x1ff)
 
-#define MKCANON(_va) ((int64_t)((_va) << 16) >> 16)
+#define MKCANON(_va) ((INT64)((_va) << 16) >> 16)
 #define UNCANON(_va) ((_va) & ((1LL << 48) - 1))
 
 /* The following RES definitions assume 48-bit MAX PA */
@@ -50,11 +50,11 @@
 #define l2e_reserved(_pte) ((_pte) & (l2e_bigpage(_pte) ? L2_RES2M : L2_RESPT))
 #define l1e_reserved(_pte) ((_pte) & L1_RESPT)
 
-#define mkpte(_p, _f) (((uint64_t)(_p) << PAGE_SHIFT) | (_f))
-#define pte_pfn(_p) ((PFN)(((uint64_t) (_p) & ~PTE_NX) >> PAGE_SHIFT))
+#define mkpte(_p, _f) (((UINT64)(_p) << PAGE_SHIFT) | (_f))
+#define pte_pfn(_p) ((PFN)(((UINT64) (_p) & ~PTE_NX) >> PAGE_SHIFT))
 #define pte_present(_pte) ((_pte) & PTE_P)
 
-#define PTE_INVALID ((uint64_t)0)
+#define PTE_INVALID ((UINT64)0)
 #define PTEP_INVALID L1P_INVALID
 #define mkptep_cur(_p) ((ptep_t)(UINTN)(_p))
 #define mkptep_fgn(_p) ((ptep_t)(UINTN)(_p) | 1)
@@ -76,12 +76,12 @@ static pte_t *linaddr_l4;
 
   @return Canonical virtual address.
 **/
-uint64_t
+UINT64
 MakeAddress (
-  IN uint64_t  L4off,
-  IN uint64_t  L3off,
-  IN uint64_t  L2off,
-  IN uint64_t  L1off
+  IN UINT64  L4off,
+  IN UINT64  L3off,
+  IN UINT64  L2off,
+  IN UINT64  L1off
   )
 {
   return
@@ -589,7 +589,7 @@ UmapGetL1p (
 
   @return Minimum user virtual address.
 **/
-unsigned long
+UINT32 long
 PtUmapMinAddr (
   VOID
   )
@@ -602,7 +602,7 @@ PtUmapMinAddr (
 
   @return Maximum user virtual address.
 **/
-unsigned long
+UINT32 long
 PtUmapMaxAddr (
   VOID
   )
@@ -641,7 +641,7 @@ PtUmapDebugWalk (
   IN unsigned long    Va
   )
 {
-  unsigned i;
+  UINT32 i;
   pte_t Pte;
   ptep_t Ptep;
 
@@ -819,7 +819,7 @@ ScanL1 (
   pte_t *pL1Ptr, L1e;
 
   pL1Ptr = pfn_get (L1Pfn);
-  for (unsigned i = Off; i < 512; i++)
+  for (UINT32 i = Off; i < 512; i++)
     {
       L1e = pL1Ptr[i];
       if (L1e != 0)
@@ -864,7 +864,7 @@ ScanL2 (
   PFN L1Pfn;
 
   pL2Ptr = pfn_get (L2Pfn);
-  for (unsigned i = Off; i < 512; i++)
+  for (UINT32 i = Off; i < 512; i++)
     {
       L2e = pL2Ptr[i];
       if (pte_present (L2e))
@@ -911,7 +911,7 @@ ScanL3 (
   PFN L2Pfn;
 
   pL3Ptr = pfn_get (L3Pfn);
-  for (unsigned i = Off; i < 512; i++)
+  for (UINT32 i = Off; i < 512; i++)
     {
       L3e = pL3Ptr[i];
       if (pte_present (L3e))
@@ -958,7 +958,7 @@ ScanL4 (
 {
   pte_t L4e;
   PFN L3Pfn;
-  for (unsigned i = Off; i < UMAP_L4PTES; i++)
+  for (UINT32 i = Off; i < UMAP_L4PTES; i++)
     {
       if (Umap != NULL)
 	L4e = Umap->l4[i];
@@ -1057,21 +1057,21 @@ PtUmapFree (
   pte_t *pL2Ptr, L2e;
   PFN L1Pfn;
 
-  for (unsigned i = 0; i < UMAP_L4PTES; i++)
+  for (UINT32 i = 0; i < UMAP_L4PTES; i++)
     {
       L4e = Umap->l4[i];
       if (pte_present (L4e))
 	{
 	  L3Pfn = pte_pfn (L4e);
 	  pL3Ptr = pfn_get (L3Pfn);
-	  for (unsigned i = 0; i < 512; i++)
+	  for (UINT32 i = 0; i < 512; i++)
 	    {
 	      L3e = pL3Ptr[i];
 	      if (pte_present (L3e))
 		{
 		  L2Pfn = pte_pfn (L3e);
 		  pL2Ptr = pfn_get (L2Pfn);
-		  for (unsigned i = 0; i < 512; i++)
+		  for (UINT32 i = 0; i < 512; i++)
 		    {
 		      L2e = pL2Ptr[i];
 		      if (pte_present (L2e))
@@ -1103,7 +1103,7 @@ Pae64InitializeAp (
   VOID
   )
 {
-  unsigned long LinOff = L4OFF ((unsigned long) linaddr);
+  unsigned long LinOff = L4OFF ((UINT32 long) linaddr);
   pte_t *Va, *pCr3Va;
   PFN Pfn, Cr3Pfn;
 
@@ -1133,7 +1133,7 @@ Pae64Initialize (
   VOID
   )
 {
-  unsigned long LinOff = L4OFF ((unsigned long) linaddr);
+  unsigned long LinOff = L4OFF ((UINT32 long) linaddr);
   linaddr_l2 = (pte_t *) MakeAddress (LinOff, LinOff, 0, 0);
   linaddr_l3 = (pte_t *) MakeAddress (LinOff, LinOff, LinOff, 0);
   linaddr_l4 = (pte_t *) MakeAddress (LinOff, LinOff, LinOff, LinOff);
@@ -1144,7 +1144,7 @@ Pae64Initialize (
 //
 
 /** @deprecated Use MakeAddress instead **/
-uint64_t mkaddr (uint64_t l4off, uint64_t l3off, uint64_t l2off, uint64_t l1off) {
+UINT64 mkaddr (UINT64 l4off, UINT64 l3off, UINT64 l2off, UINT64 l1off) {
   return MakeAddress (l4off, l3off, l2off, l1off);
 }
 
@@ -1224,12 +1224,12 @@ ptep_t umap_get_l1p (struct hal_umap *umap, unsigned long va, bool alloc) {
 }
 
 /** @deprecated Use PtUmapMinAddr instead **/
-unsigned long pt_umap_minaddr (void) {
+UINT32 long pt_umap_minaddr (void) {
   return PtUmapMinAddr ();
 }
 
 /** @deprecated Use PtUmapMaxAddr instead **/
-unsigned long pt_umap_maxaddr (void) {
+UINT32 long pt_umap_maxaddr (void) {
   return PtUmapMaxAddr ();
 }
 
@@ -1259,25 +1259,25 @@ hal_tlbop_t hal_umap_load (struct hal_umap *umap) {
 }
 
 /** @deprecated Use ScanL1 instead **/
-static bool scan_l1 (PFN l1pfn, unsigned off, unsigned *l1off_out, hal_l1p_t * l1p_out,
+static bool scan_l1 (PFN l1pfn, UINT32 off, unsigned *l1off_out, hal_l1p_t * l1p_out,
 	 hal_l1e_t * l1e_out) {
   return ScanL1 (l1pfn, off, l1off_out, l1p_out, l1e_out);
 }
 
 /** @deprecated Use ScanL2 instead **/
-static bool scan_l2 (PFN l2pfn, unsigned off, unsigned *l2off_out, unsigned *l1off_out,
+static bool scan_l2 (PFN l2pfn, UINT32 off, unsigned *l2off_out, unsigned *l1off_out,
 	 hal_l1p_t * l1p_out, hal_l1e_t * l1e_out) {
   return ScanL2 (l2pfn, off, l2off_out, l1off_out, l1p_out, l1e_out);
 }
 
 /** @deprecated Use ScanL3 instead **/
-static bool scan_l3 (PFN l3pfn, unsigned off, unsigned *l3off_out, unsigned *l2off_out,
+static bool scan_l3 (PFN l3pfn, UINT32 off, unsigned *l3off_out, unsigned *l2off_out,
 	 unsigned *l1off_out, hal_l1p_t * l1p_out, hal_l1e_t * l1e_out) {
   return ScanL3 (l3pfn, off, l3off_out, l2off_out, l1off_out, l1p_out, l1e_out);
 }
 
 /** @deprecated Use ScanL4 instead **/
-static bool scan_l4 (struct hal_umap *umap, unsigned off, unsigned *l4off_out,
+static bool scan_l4 (struct hal_umap *umap, UINT32 off, unsigned *l4off_out,
 	 unsigned *l3off_out, unsigned *l2off_out, unsigned *l1off_out,
 	 hal_l1p_t * l1p_out, hal_l1e_t * l1e_out) {
   return ScanL4 (umap, off, l4off_out, l3off_out, l2off_out, l1off_out, l1p_out, l1e_out);

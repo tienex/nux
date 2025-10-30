@@ -478,7 +478,7 @@ FrameCr2 (
 //
 
 /** @deprecated Use IsCanonical instead **/
-static INLINE bool is_canonical (uint64_t addr) {
+static INLINE bool is_canonical (UINT64 addr) {
   return IsCanonical (addr);
 }
 
@@ -498,12 +498,12 @@ struct hal_frame *do_nmi (struct hal_frame *f) {
 }
 
 /** @deprecated Use DoException instead **/
-struct hal_frame *do_xcpt (uint64_t vect, struct hal_frame *f) {
+struct hal_frame *do_xcpt (UINT64 vect, struct hal_frame *f) {
   return DoException (vect, f);
 }
 
 /** @deprecated Use DoVector instead **/
-struct hal_frame *do_vect (uint64_t vect, struct hal_frame *f) {
+struct hal_frame *do_vect (UINT64 vect, struct hal_frame *f) {
   return DoVector (vect, f);
 }
 
@@ -528,7 +528,7 @@ void hal_frame_setip (struct hal_frame *f, unsigned long ip) {
 }
 
 /** @deprecated Use HalFrameGetIp instead **/
-unsigned long hal_frame_getip (struct hal_frame *f) {
+UINT32 long hal_frame_getip (struct hal_frame *f) {
   return HalFrameGetIp (f);
 }
 
@@ -538,7 +538,7 @@ void hal_frame_setsp (struct hal_frame *f, VIRTUAL_ADDRESS sp) {
 }
 
 /** @deprecated Use HalFrameGetSp instead **/
-unsigned long hal_frame_getsp (struct hal_frame *f) {
+UINT32 long hal_frame_getsp (struct hal_frame *f) {
   return HalFrameGetSp (f);
 }
 
@@ -583,11 +583,11 @@ void hal_frame_print (struct hal_frame *f) {
 }
 
 /** @deprecated Use FrameBp instead **/
-unsigned long frame_bp (struct hal_frame *f) {
+UINT32 long frame_bp (struct hal_frame *f) {
   return FrameBp (f);
 }
 
 /** @deprecated Use FrameCr2 instead **/
-unsigned long frame_cr2 (struct hal_frame *f) {
+UINT32 long frame_cr2 (struct hal_frame *f) {
   return FrameCr2 (f);
 }

@@ -34,17 +34,17 @@ extern int _fbuf_end;
 extern int _memregs_start;
 extern int _memregs_end;
 
-extern uint64_t _riscv64_physmap_start;
-extern uint64_t _riscv64_physmap_end;
+extern UINT64 _riscv64_physmap_start;
+extern UINT64 _riscv64_physmap_end;
 
-extern uint64_t _riscv64_pfncache_start;
-extern uint64_t _riscv64_pfncache_end;
+extern UINT64 _riscv64_pfncache_start;
+extern UINT64 _riscv64_pfncache_end;
 
-extern uint64_t _riscv64_kva_start;
-extern uint64_t _riscv64_kva_end;
+extern UINT64 _riscv64_kva_start;
+extern UINT64 _riscv64_kva_end;
 
-extern uint64_t _riscv64_kmem_start;
-extern uint64_t _riscv64_kmem_end;
+extern UINT64 _riscv64_kmem_start;
+extern UINT64 _riscv64_kmem_end;
 
 void set_stvec_final ();
 
@@ -54,7 +54,7 @@ struct fbdesc fbdesc;
 struct apxh_platformdesc pltdesc;
 
 void *gHalStreePtr;
-unsigned gHalStreeOrder;
+UINT32 gHalStreeOrder;
 
 int gUseFb;
 INT32 gNuxInitialized = 0;

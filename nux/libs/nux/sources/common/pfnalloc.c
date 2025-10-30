@@ -231,15 +231,15 @@ void PfnFree (PFN pfn) {
 }
 
 /** @deprecated Use PfnAvailable instead **/
-unsigned long PfnAvail (void) {
+UINT32 long PfnAvail (void) {
   return PfnAvailable ();
 }
 
 // Legacy global variable aliases
 static lock_t pglock __attribute__((alias("gPgLock")));
 static WORD_T *stree __attribute__((alias("gStree")));
-static unsigned order __attribute__((alias("gOrder")));
-static unsigned long free_pages __attribute__((alias("gFreePages")));
+static UINT32 order __attribute__((alias("gOrder")));
+static UINT32 long free_pages __attribute__((alias("gFreePages")));
 rwlock_t _nux_pfnalloc_lock __attribute__((alias("gNuxPfnAllocLock")));
 PFN (*_nux_pfnalloc) (int) __attribute__((alias("gNuxPfnAlloc")));
 void (*_nux_pfnfree) (PFN) __attribute__((alias("gNuxPfnFree")));

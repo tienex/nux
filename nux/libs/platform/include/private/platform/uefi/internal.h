@@ -14,6 +14,6 @@
 
 void efi_exit (int st);
 void efi_exitbs (void);
-unsigned long efi_allocate_maxaddr (unsigned long maxaddr);
+UINT32 long efi_allocate_maxaddr (unsigned long maxaddr);
 
 #endif

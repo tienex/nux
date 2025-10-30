@@ -56,7 +56,7 @@ static char *exceptions[] = {
 **/
 struct hal_frame *
 DoNmi (
-  IN uint32_t           Vect,
+  IN UINT32           Vect,
   IN struct hal_frame  *Frame
   )
 {
@@ -78,7 +78,7 @@ DoNmi (
 **/
 struct hal_frame *
 DoException (
-  IN uint32_t           Vect,
+  IN UINT32           Vect,
   IN struct hal_frame  *Frame
   )
 {
@@ -157,7 +157,7 @@ DoSyscall (
 **/
 struct hal_frame *
 DoVector (
-  IN uint32_t           Vect,
+  IN UINT32           Vect,
   IN struct hal_frame  *Frame
   )
 {
@@ -415,7 +415,7 @@ HalFramePrint (
 
   @return Base pointer (EBP) value.
 **/
-unsigned long
+UINT32 long
 FrameBp (
   IN struct hal_frame  *Frame
   )
@@ -430,7 +430,7 @@ FrameBp (
 
   @return CR2 register value.
 **/
-unsigned long
+UINT32 long
 FrameCr2 (
   IN struct hal_frame  *Frame
   )
@@ -443,12 +443,12 @@ FrameCr2 (
 //
 
 /** @deprecated Use DoNmi instead **/
-struct hal_frame * do_nmi (uint32_t vect, struct hal_frame *f) {
+struct hal_frame * do_nmi (UINT32 vect, struct hal_frame *f) {
   return DoNmi (vect, f);
 }
 
 /** @deprecated Use DoException instead **/
-struct hal_frame * do_xcpt (uint32_t vect, struct hal_frame *f) {
+struct hal_frame * do_xcpt (UINT32 vect, struct hal_frame *f) {
   return DoException (vect, f);
 }
 
@@ -458,7 +458,7 @@ struct hal_frame * do_syscall (struct hal_frame *f) {
 }
 
 /** @deprecated Use DoVector instead **/
-struct hal_frame * do_vect (uint32_t vect, struct hal_frame *f) {
+struct hal_frame * do_vect (UINT32 vect, struct hal_frame *f) {
   return DoVector (vect, f);
 }
 
@@ -533,11 +533,11 @@ void hal_frame_print (struct hal_frame *f) {
 }
 
 /** @deprecated Use FrameBp instead **/
-unsigned long frame_bp (struct hal_frame *f) {
+UINT32 long frame_bp (struct hal_frame *f) {
   return FrameBp (f);
 }
 
 /** @deprecated Use FrameCr2 instead **/
-unsigned long frame_cr2 (struct hal_frame *f) {
+UINT32 long frame_cr2 (struct hal_frame *f) {
   return FrameCr2 (f);
 }

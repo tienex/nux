@@ -17,14 +17,14 @@
 #include <hal/arch/amd64/amd64.h>
 #include <hal/internal.h>
 
-extern uint64_t _gdt[];
+extern UINT64 _gdt[];
 extern int _physmap_start;
 extern int _physmap_end;
 
 PHYSICAL_ADDRESS gPcpuPstart;
 VIRTUAL_ADDRESS gPcpuHalData[MAXCPUS];
 
-static unsigned gBspPcpuId;
+static UINT32 gBspPcpuId;
 
 static VIRTUAL_ADDRESS gSmpOldVa;
 static hal_l1e_t gSmpOldL1e;
@@ -37,9 +37,9 @@ static hal_l1e_t gSmpOldL1e;
 
    Importantly, gPcpuKStack[pcpu_id] doesn't mean is the stack of PCPU ID.
 */
-uint64_t gPcpuKStackNo = 0;
-uint64_t gPcpuKStackCnt = 0;
-uint64_t gPcpuKStack[MAXCPUS];
+UINT64 gPcpuKStackNo = 0;
+UINT64 gPcpuKStackCnt = 0;
+UINT64 gPcpuKStack[MAXCPUS];
 
 /**
   Set Task State Segment (TSS) in Global Descriptor Table (GDT).
@@ -54,15 +54,15 @@ GdtSetTss (
   )
 {
   UINTN Ptr = (UINTN) Tss;
-  uint16_t Lo16 = (uint16_t) Ptr;
-  uint8_t Ml8 = (uint8_t) (Ptr >> 16);
-  uint8_t Mh8 = (uint8_t) (Ptr >> 24);
-  uint32_t Hi32 = (uint32_t) (Ptr >> 32);
-  uint16_t Limit = sizeof (*Tss);
-  uint32_t *pPtr32 = (uint32_t *) (_gdt + TSS_GDTIDX (PcpuId));
+  UINT16 Lo16 = (UINT16) Ptr;
+  UINT8 Ml8 = (UINT8) (Ptr >> 16);
+  UINT8 Mh8 = (UINT8) (Ptr >> 24);
+  UINT32 Hi32 = (UINT32) (Ptr >> 32);
+  UINT16 Limit = sizeof (*Tss);
+  UINT32 *pPtr32 = (UINT32 *) (_gdt + TSS_GDTIDX (PcpuId));
 
-  pPtr32[0] = Limit | ((uint32_t) Lo16 << 16);
-  pPtr32[1] = Ml8 | (0x0089 << 8) | ((uint32_t) Mh8 << 24);
+  pPtr32[0] = Limit | ((UINT32) Lo16 << 16);
+  pPtr32[1] = Ml8 | (0x0089 << 8) | ((UINT32) Mh8 << 24);
   pPtr32[2] = Hi32;
   pPtr32[3] = 0;
 }
@@ -98,7 +98,7 @@ SetGsBase (
 
   @return Current GS base address.
 **/
-uint64_t
+UINT64
 GetGsBase (
   VOID
   )
@@ -156,7 +156,7 @@ HalVectMax (
 
   @return Virtual address of top of allocated stack.
 **/
-static uint64_t
+static UINT64
 AllocStackPage (
   VOID
   )
@@ -248,23 +248,23 @@ HalPcpuInit (
      trampoline to use the page just selected as bootstrap page.
    */
   extern char _ap_gdtreg, _ap_ljmp1, _ap_ljmp2, _ap_cr3;
-  extern uint64_t _bsp_cr3;
+  extern UINT64 _bsp_cr3;
 
   /* Copy BSP CR3 into AP */
   Ptr = Start + ((void *) &_ap_cr3 - (void *) &_ap_start);
-  *(uint64_t *) Ptr = _bsp_cr3;
+  *(UINT64 *) Ptr = _bsp_cr3;
 
   /* Setup temporary GDT register. */
   Ptr = Start + ((void *) &_ap_gdtreg - (void *) &_ap_start);
-  *(uint32_t *) (Ptr + 2) += (uint32_t) PStart;
+  *(UINT32 *) (Ptr + 2) += (UINT32) PStart;
 
   /* Setup trampoline 1 */
   Ptr = Start + ((void *) &_ap_ljmp1 - (void *) &_ap_start);
-  *(uint32_t *) Ptr += (uint32_t) PStart;
+  *(UINT32 *) Ptr += (UINT32) PStart;
 
   /* Setup trampoline 2 */
   Ptr = Start + ((void *) &_ap_ljmp2 - (void *) &_ap_start);
-  *(uint32_t *) Ptr += (uint32_t) PStart;
+  *(UINT32 *) Ptr += (UINT32) PStart;
 
   /* Set reset vector */
   Reset = kva_physmap (0x467, 2, HAL_PTE_P | HAL_PTE_W | HAL_PTE_X);
@@ -334,7 +334,7 @@ Amd64Initialize (
   wrmsr (MSR_IA32_EFER, rdmsr (MSR_IA32_EFER) | _MSR_IA32_EFER_SCE);
   wrmsr (MSR_IA32_LSTAR, (UINTN) & _syscall_frame_entry);
   wrmsr (MSR_IA32_FMASK, 0xfffffffd);
-  wrmsr (MSR_IA32_STAR, ((uint64_t) KCS << 32) | ((uint64_t) UCS32 << 48));
+  wrmsr (MSR_IA32_STAR, ((UINT64) KCS << 32) | ((UINT64) UCS32 << 48));
 }
 
 /**
@@ -356,7 +356,7 @@ Amd64InitializeAp (
   wrmsr (MSR_IA32_EFER, rdmsr (MSR_IA32_EFER) | _MSR_IA32_EFER_SCE);
   wrmsr (MSR_IA32_LSTAR, (UINTN) & _syscall_frame_entry);
   wrmsr (MSR_IA32_FMASK, 0xfffffffd);
-  wrmsr (MSR_IA32_STAR, ((uint64_t) KCS << 32) | ((uint64_t) UCS32 << 48));
+  wrmsr (MSR_IA32_STAR, ((UINT64) KCS << 32) | ((UINT64) UCS32 << 48));
 
   HalData->kstack = Esp;
   HalData->tss.ist[0] = AllocStackPage ();
@@ -410,7 +410,7 @@ Amd64InitializeDone (
 //
 
 /** @deprecated Use GdtSetTss instead **/
-void gdt_settss (unsigned pcpuid, struct amd64_tss *tss) {
+void gdt_settss (UINT32 pcpuid, struct amd64_tss *tss) {
   GdtSetTss (pcpuid, tss);
 }
 
@@ -425,7 +425,7 @@ void set_gsbase (unsigned long gsbase) {
 }
 
 /** @deprecated Use GetGsBase instead **/
-uint64_t get_gsbase (void) {
+UINT64 get_gsbase (void) {
   return GetGsBase ();
 }
 
@@ -440,17 +440,17 @@ void * hal_cpu_getdata (void) {
 }
 
 /** @deprecated Use HalVectMax instead **/
-unsigned hal_vect_max (void) {
+UINT32 hal_vect_max (void) {
   return HalVectMax ();
 }
 
 /** @deprecated Use AllocStackPage instead **/
-static uint64_t alloc_stackpage (void) {
+static UINT64 alloc_stackpage (void) {
   return AllocStackPage ();
 }
 
 /** @deprecated Use HalPcpuAdd instead **/
-void hal_pcpu_add (unsigned pcpuid, struct hal_cpu *haldata) {
+void hal_pcpu_add (UINT32 pcpuid, struct hal_cpu *haldata) {
   HalPcpuAdd (pcpuid, haldata);
 }
 
@@ -460,12 +460,12 @@ void hal_pcpu_init (void) {
 }
 
 /** @deprecated Use HalPcpuStartAddr instead **/
-PHYSICAL_ADDRESS hal_pcpu_startaddr (unsigned pcpu) {
+PHYSICAL_ADDRESS hal_pcpu_startaddr (UINT32 pcpu) {
   return HalPcpuStartAddr (pcpu);
 }
 
 /** @deprecated Use HalPcpuEnter instead **/
-void hal_pcpu_enter (unsigned pcpuid) {
+void hal_pcpu_enter (UINT32 pcpuid) {
   HalPcpuEnter (pcpuid);
 }
 
@@ -492,6 +492,6 @@ void amd64_init_done (void) {
 // Legacy global variable aliases
 PHYSICAL_ADDRESS pcpu_pstart = 0;
 VIRTUAL_ADDRESS pcpu_haldata[MAXCPUS] = {0};
-uint64_t pcpu_kstackno = 0;
-uint64_t pcpu_kstackcnt = 0;
-uint64_t pcpu_kstack[MAXCPUS] = {0};
+UINT64 pcpu_kstackno = 0;
+UINT64 pcpu_kstackcnt = 0;
+UINT64 pcpu_kstack[MAXCPUS] = {0};

@@ -25,7 +25,7 @@
 #define L2OFF(_va) (((_va) >> L2_SHIFT) & 0x1ff)
 #define L1OFF(_va) (((_va) >> L1_SHIFT) & 0x1ff)
 
-#define MKCANON(_va) ((int64_t)((_va) << 16) >> 16)
+#define MKCANON(_va) ((INT64)((_va) << 16) >> 16)
 #define UNCANON(_va) ((_va) & ((1LL << 48) - 1))
 
 #define PTE_INVALID ((UINT64)0)
@@ -819,7 +819,7 @@ hal_umap_load (
 //
 
 /** @deprecated Use MakeAddress instead **/
-static uint64_t mkaddr (uint64_t l4off, uint64_t l3off, uint64_t l2off, uint64_t l1off) {
+static UINT64 mkaddr (UINT64 l4off, UINT64 l3off, UINT64 l2off, UINT64 l1off) {
   return MakeAddress (l4off, l3off, l2off, l1off);
 }
 
@@ -829,7 +829,7 @@ static PFN get_cpumap_l4pfn (void) {
 }
 
 /** @deprecated Use GetCpuMapL4Off instead **/
-static pte_t *get_cpumap_l4off (unsigned off) {
+static pte_t *get_cpumap_l4off (UINT32 off) {
   return GetCpuMapL4Off (off);
 }
 
@@ -879,25 +879,25 @@ hal_l1p_t umap_get_l1p (struct hal_umap *umap, unsigned long va, bool alloc) {
 }
 
 /** @deprecated Use ScanL1 instead **/
-static bool scan_l1 (PFN l1pfn, unsigned off, unsigned *l1off_out, hal_l1p_t * l1p_out,
+static bool scan_l1 (PFN l1pfn, UINT32 off, unsigned *l1off_out, hal_l1p_t * l1p_out,
 	 hal_l1e_t * l1e_out) {
   return ScanL1 (l1pfn, off, l1off_out, l1p_out, l1e_out);
 }
 
 /** @deprecated Use ScanL2 instead **/
-static bool scan_l2 (PFN l2pfn, unsigned off, unsigned *l2off_out, unsigned *l1off_out,
+static bool scan_l2 (PFN l2pfn, UINT32 off, unsigned *l2off_out, unsigned *l1off_out,
 	 hal_l1p_t * l1p_out, hal_l1e_t * l1e_out) {
   return ScanL2 (l2pfn, off, l2off_out, l1off_out, l1p_out, l1e_out);
 }
 
 /** @deprecated Use ScanL3 instead **/
-static bool scan_l3 (PFN l3pfn, unsigned off, unsigned *l3off_out, unsigned *l2off_out,
+static bool scan_l3 (PFN l3pfn, UINT32 off, unsigned *l3off_out, unsigned *l2off_out,
 	 unsigned *l1off_out, hal_l1p_t * l1p_out, hal_l1e_t * l1e_out) {
   return ScanL3 (l3pfn, off, l3off_out, l2off_out, l1off_out, l1p_out, l1e_out);
 }
 
 /** @deprecated Use ScanL4 instead **/
-static bool scan_l4 (struct hal_umap *umap, unsigned off, unsigned *l4off_out,
+static bool scan_l4 (struct hal_umap *umap, UINT32 off, unsigned *l4off_out,
 	 unsigned *l3off_out, unsigned *l2off_out, unsigned *l1off_out,
 	 hal_l1p_t * l1p_out, hal_l1e_t * l1e_out) {
   return ScanL4 (umap, off, l4off_out, l3off_out, l2off_out, l1off_out, l1p_out, l1e_out);
@@ -915,11 +915,11 @@ void pt_umap_free (struct hal_umap *umap) {
 }
 
 /** @deprecated Use PtUmapMinAddr instead **/
-unsigned long pt_umap_minaddr (void) {
+UINT32 long pt_umap_minaddr (void) {
   return PtUmapMinAddr ();
 }
 
 /** @deprecated Use PtUmapMaxAddr instead **/
-unsigned long pt_umap_maxaddr (void) {
+UINT32 long pt_umap_maxaddr (void) {
   return PtUmapMaxAddr ();
 }

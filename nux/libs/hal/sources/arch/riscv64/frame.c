@@ -274,12 +274,12 @@ VIRTUAL_ADDRESS hal_frame_getgp (struct hal_frame *f) {
 }
 
 /** @deprecated Use HalFrameGetIp instead **/
-unsigned long hal_frame_getip (struct hal_frame *f) {
+UINT32 long hal_frame_getip (struct hal_frame *f) {
   return HalFrameGetIp (f);
 }
 
 /** @deprecated Use HalFrameGetSp instead **/
-unsigned long hal_frame_getsp (struct hal_frame *f) {
+UINT32 long hal_frame_getsp (struct hal_frame *f) {
   return HalFrameGetSp (f);
 }
 

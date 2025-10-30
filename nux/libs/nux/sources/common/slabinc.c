@@ -28,7 +28,7 @@
 
 static int __slabinc_initialized = 0;
 static UINTN __slabinc_size = 0;
-static unsigned __slabinc_slabs = 0;
+static UINT32 __slabinc_slabs = 0;
 static LIST_HEAD(slabqueue, slab) __slabinc_slabq;
 
 #ifndef SLABMAGIC

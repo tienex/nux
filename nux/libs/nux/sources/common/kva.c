@@ -461,12 +461,12 @@ void KvaFree (VIRTUAL_ADDRESS va, UINTN size) {
 }
 
 /** @deprecated Use KvaMap instead **/
-void *KvaMap (PFN pfn, unsigned prot) {
+void *KvaMap (PFN pfn, UINT32 prot) {
   return KvaMap (pfn, prot);
 }
 
 /** @deprecated Use KvaMapPhysical instead **/
-void *KvaPhysMap (PHYSICAL_ADDRESS paddr, UINTN size, unsigned prot) {
+void *KvaPhysMap (PHYSICAL_ADDRESS paddr, UINTN size, UINT32 prot) {
   return KvaMapPhysical (paddr, size, prot);
 }
 

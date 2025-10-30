@@ -32,12 +32,12 @@ VIRTUAL_ADDRESS gPcpuHalData[MAXCPUS];
 
    Importantly, gPcpuKStack[pcpu_id] doesn't mean is the stack of PCPU ID.
 */
-uint64_t gPcpuKStackNo = 0;
-uint64_t gPcpuKStackCnt = 0;
-uint64_t gPcpuKStack[MAXCPUS];
+UINT64 gPcpuKStackNo = 0;
+UINT64 gPcpuKStackCnt = 0;
+UINT64 gPcpuKStack[MAXCPUS];
 
 static int gBspEnterCalled = 0;
-static unsigned gBspPcpuId;
+static UINT32 gBspPcpuId;
 
 static VIRTUAL_ADDRESS gSmpOldVa;
 static hal_l1e_t gSmpOldL1e;
@@ -47,7 +47,7 @@ static hal_l1e_t gSmpOldL1e;
 
   @return FS segment selector value.
 **/
-uint16_t
+UINT16
 I386GetFsSelector (
   VOID
   )
@@ -94,19 +94,19 @@ HalPcpuInit (
      trampoline to use the page just selected as bootstrap page.
    */
   extern char _ap_gdtreg, _ap_ljmp, _ap_cr3;
-  extern uint32_t _bsp_cr3;
+  extern UINT32 _bsp_cr3;
 
   /* Copy BSP CR3 into AP */
   Ptr = Start + ((void *) &_ap_cr3 - (void *) &_ap_start);
-  *(uint32_t *) Ptr = _bsp_cr3;
+  *(UINT32 *) Ptr = _bsp_cr3;
 
   /* Setup temporary GDT register. */
   Ptr = Start + ((void *) &_ap_gdtreg - (void *) &_ap_start);
-  *(uint32_t *) (Ptr + 2) += (uint32_t) PStart;
+  *(UINT32 *) (Ptr + 2) += (UINT32) PStart;
 
   /* Setup trampoline 1 */
   Ptr = Start + ((void *) &_ap_ljmp - (void *) &_ap_start);
-  *(uint32_t *) Ptr += (uint32_t) PStart;
+  *(UINT32 *) Ptr += (UINT32) PStart;
 
   pfn_put (Pfn, Start);
 
@@ -162,7 +162,7 @@ HalPcpuAdd (
       assert (Pfn != PFN_INVALID);
       Va = kva_map (Pfn, HAL_PTE_W | HAL_PTE_P);
       assert (Va != NULL);
-      gPcpuKStack[gPcpuKStackNo++] = (uint64_t) (UINTN) Va + PAGE_SIZE;
+      gPcpuKStack[gPcpuKStackNo++] = (UINT64) (UINTN) Va + PAGE_SIZE;
     }
   _set_tss (PcpuId, &HalData->tss);
   _set_fs (PcpuId, &HalData->data);
@@ -177,7 +177,7 @@ HalPcpuAdd (
 
   @return Physical address of bootstrap code, or PADDR_INVALID.
 **/
-uint64_t
+UINT64
 HalPcpuStartAddr (
   IN unsigned  Pcpu
   )
@@ -198,8 +198,8 @@ HalPcpuEnter (
   IN unsigned  PcpuId
   )
 {
-  uint16_t Tss = (5 + 4 * PcpuId) << 3;
-  uint16_t Fs = (5 + 4 * PcpuId + 1) << 3;
+  UINT16 Tss = (5 + 4 * PcpuId) << 3;
+  UINT16 Fs = (5 + 4 * PcpuId + 1) << 3;
 
   assert (PcpuId < MAXCPUS);
 
@@ -312,7 +312,7 @@ I386InitializeDone (
 //
 
 /** @deprecated Use I386GetFsSelector instead **/
-uint16_t _i386_fs (void) {
+UINT16 _i386_fs (void) {
   return I386GetFsSelector ();
 }
 
@@ -322,17 +322,17 @@ void hal_pcpu_init (void) {
 }
 
 /** @deprecated Use HalPcpuAdd instead **/
-void hal_pcpu_add (unsigned pcpuid, struct hal_cpu *haldata) {
+void hal_pcpu_add (UINT32 pcpuid, struct hal_cpu *haldata) {
   HalPcpuAdd (pcpuid, haldata);
 }
 
 /** @deprecated Use HalPcpuStartAddr instead **/
-uint64_t hal_pcpu_startaddr (unsigned pcpu) {
+UINT64 hal_pcpu_startaddr (UINT32 pcpu) {
   return HalPcpuStartAddr (pcpu);
 }
 
 /** @deprecated Use HalPcpuEnter instead **/
-void hal_pcpu_enter (unsigned pcpuid) {
+void hal_pcpu_enter (UINT32 pcpuid) {
   HalPcpuEnter (pcpuid);
 }
 
@@ -347,7 +347,7 @@ void * hal_cpu_getdata (void) {
 }
 
 /** @deprecated Use HalVectMax instead **/
-unsigned hal_vect_max (void) {
+UINT32 hal_vect_max (void) {
   return HalVectMax ();
 }
 
@@ -369,6 +369,6 @@ void i386_init_done (void) {
 // Legacy global variable aliases
 PHYSICAL_ADDRESS pcpu_pstart = 0;
 VIRTUAL_ADDRESS pcpu_haldata[MAXCPUS] = {0};
-uint64_t pcpu_kstackno = 0;
-uint64_t pcpu_kstackcnt = 0;
-uint64_t pcpu_kstack[MAXCPUS] = {0};
+UINT64 pcpu_kstackno = 0;
+UINT64 pcpu_kstackcnt = 0;
+UINT64 pcpu_kstack[MAXCPUS] = {0};

@@ -1030,7 +1030,7 @@ CpuExitUserMap (
 //
 
 /** @deprecated Use CpuAdd instead **/
-static int cpu_add (uint16_t physid) {
+static int cpu_add (UINT16 physid) {
   return CpuAdd (physid);
 }
 
@@ -1040,12 +1040,12 @@ void cpu_init (void) {
 }
 
 /** @deprecated Use CpuIdFromPhys instead **/
-static unsigned cpu_idfromphys (unsigned physid) {
+static UINT32 cpu_idfromphys (UINT32 physid) {
   return CpuIdFromPhys (physid);
 }
 
 /** @deprecated Use CpuGetInfo instead **/
-static struct cpu_info *cpu_getinfo (unsigned id) {
+static struct cpu_info *cpu_getinfo (UINT32 id) {
   return CpuGetInfo (id);
 }
 
@@ -1243,8 +1243,8 @@ struct umap *cpu_umap_exit (void) {
 }
 
 // Legacy global variable aliases
-static unsigned number_cpus __attribute__((alias("gNumberCpus")));
-static unsigned cpu_phys_to_id[HAL_MAXCPUS] __attribute__((alias("gCpuPhysToId")));
+static UINT32 number_cpus __attribute__((alias("gNumberCpus")));
+static UINT32 cpu_phys_to_id[HAL_MAXCPUS] __attribute__((alias("gCpuPhysToId")));
 static struct cpu_info *cpus[HAL_MAXCPUS] __attribute__((alias("gCpus")));
 static CPU_MASK tlbmap __attribute__((alias("gTlbMap")));
 static CPU_MASK cpus_active __attribute__((alias("gCpusActive")));

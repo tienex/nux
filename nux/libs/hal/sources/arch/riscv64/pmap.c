@@ -283,7 +283,7 @@ hal_l1e_t hal_l1e_set (hal_l1p_t l1popq, hal_l1e_t l1e) {
 }
 
 /** @deprecated Use HalL1eBox instead **/
-hal_l1e_t hal_l1e_box (unsigned long pfn, unsigned prot) {
+hal_l1e_t hal_l1e_box (unsigned long pfn, UINT32 prot) {
   return HalL1eBox (pfn, prot);
 }
 

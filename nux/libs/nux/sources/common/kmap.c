@@ -356,7 +356,7 @@ void kmapinit (void) {
 }
 
 /** @deprecated Use KmapMapInternal instead **/
-static PFN _kmap_map (VIRTUAL_ADDRESS va, PFN pfn, unsigned prot, CONST int alloc) {
+static PFN _kmap_map (VIRTUAL_ADDRESS va, PFN pfn, UINT32 prot, CONST int alloc) {
   return KmapMapInternal (va, pfn, prot, alloc);
 }
 
@@ -366,12 +366,12 @@ PFN KmapGetPfn (VIRTUAL_ADDRESS va) {
 }
 
 /** @deprecated Use KmapMap instead **/
-PFN KmapMap (VIRTUAL_ADDRESS va, PFN pfn, unsigned prot) {
+PFN KmapMap (VIRTUAL_ADDRESS va, PFN pfn, UINT32 prot) {
   return KmapMap (va, pfn, prot);
 }
 
 /** @deprecated Use KmapMapNoAlloc instead **/
-PFN KmapMapNoAlloc (VIRTUAL_ADDRESS va, PFN pfn, unsigned prot) {
+PFN KmapMapNoAlloc (VIRTUAL_ADDRESS va, PFN pfn, UINT32 prot) {
   return KmapMapNoAlloc (va, pfn, prot);
 }
 
@@ -391,12 +391,12 @@ int kmap_mapped_range (VIRTUAL_ADDRESS va, UINTN size) {
 }
 
 /** @deprecated Use KmapEnsure instead **/
-int KmapEnsure (VIRTUAL_ADDRESS va, unsigned reqprot) {
+int KmapEnsure (VIRTUAL_ADDRESS va, UINT32 reqprot) {
   return KmapEnsure (va, reqprot);
 }
 
 /** @deprecated Use KmapEnsureRange instead **/
-int kmap_ensure_range (VIRTUAL_ADDRESS va, UINTN size, unsigned reqprot) {
+int kmap_ensure_range (VIRTUAL_ADDRESS va, UINTN size, UINT32 reqprot) {
   return KmapEnsureRange (va, size, reqprot);
 }
 
