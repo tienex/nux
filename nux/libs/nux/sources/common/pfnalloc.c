@@ -20,7 +20,7 @@
 #include <stree.h>
 #include <assert.h>
 
-static lock_t gPgLock;
+static SPINLOCK gPgLock;
 static WORD_T *gStree;
 static UINT32 gOrder;
 static UINTN gFreePages;
@@ -236,7 +236,7 @@ unsigned long PfnAvail (void) {
 }
 
 // Legacy global variable aliases
-static lock_t pglock __attribute__((alias("gPgLock")));
+static SPINLOCK pglock __attribute__((alias("gPgLock")));
 static WORD_T *stree __attribute__((alias("gStree")));
 static UINT32 order __attribute__((alias("gOrder")));
 static unsigned long free_pages __attribute__((alias("gFreePages")));

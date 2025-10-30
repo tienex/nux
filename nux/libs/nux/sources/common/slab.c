@@ -147,7 +147,7 @@ SlabFreeInternal (
 #define ___slabgethdr(_obj) SlabGetHeader(_obj)
 #define ___slabfree(_ptr) SlabFreeInternal(_ptr)
 
-#define DECLARE_SPIN_LOCK(_x) lock_t _x
+#define DECLARE_SPIN_LOCK(_x) SPINLOCK _x
 #define SPIN_LOCK_INIT(_x) spinlock_init(&_x)
 #define SPIN_LOCK(_x) spinlock(&_x)
 #define SPIN_UNLOCK(_x) spinunlock(&_x)

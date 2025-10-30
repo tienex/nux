@@ -254,7 +254,7 @@ ___freeptr (
 
 #include <nux/alloc.h>
 
-static lock_t gVmapLock;
+static SPINLOCK gVmapLock;
 static struct zone gVmapZone;
 
 /**
@@ -485,5 +485,5 @@ static rb_tree_t vmap_rbtree __attribute__((alias("gVmapRbTree")));
 static VIRTUAL_ADDRESS kvabase __attribute__((alias("gKvaBase")));
 static UINTN kvasize __attribute__((alias("gKvaSize")));
 static UINTN vmap_size __attribute__((alias("gVmapSize")));
-static lock_t vmap_lock __attribute__((alias("gVmapLock")));
+static SPINLOCK vmap_lock __attribute__((alias("gVmapLock")));
 static struct zone vmap_zone __attribute__((alias("gVmapZone")));

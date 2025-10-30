@@ -19,7 +19,7 @@
 #define LO 0
 #define HI 1
 
-static lock_t gBrkLock;
+static SPINLOCK gBrkLock;
 static VIRTUAL_ADDRESS gBase[2];
 static VIRTUAL_ADDRESS gBrk[2];
 static VIRTUAL_ADDRESS gMaxBrk[2];
@@ -467,7 +467,7 @@ check_next:
 
 #include <nux/alloc.h>
 
-static lock_t gLockZ[2];
+static SPINLOCK gLockZ[2];
 static struct zone gKmemZ[2];
 
 /**
@@ -488,7 +488,7 @@ KmemAllocate (
 {
   zaddr_t Zr;
   VIRTUAL_ADDRESS R;
-  lock_t *L;
+  SPINLOCK *L;
   struct zone *Z;
   UINTN Size64b;
 
@@ -527,7 +527,7 @@ KmemFree (
   VIRTUAL_ADDRESS Base;
   VIRTUAL_ADDRESS Limit;
   struct zone *Z;
-  lock_t *L;
+  SPINLOCK *L;
   UINTN Size64b;
 
   Size64b = size_zalign (Size);
@@ -721,12 +721,12 @@ void kmeminit (void) {
 }
 
 // Legacy global variable aliases
-static lock_t brklock __attribute__((alias("gBrkLock")));
+static SPINLOCK brklock __attribute__((alias("gBrkLock")));
 static VIRTUAL_ADDRESS base[2] __attribute__((alias("gBase")));
 static VIRTUAL_ADDRESS brk[2] __attribute__((alias("gBrk")));
 static VIRTUAL_ADDRESS maxbrk[2] __attribute__((alias("gMaxBrk")));
 #ifdef HAL_PAGED
 static int kmem_trim __attribute__((alias("gKmemTrim")));
 #endif
-static lock_t lockz[2] __attribute__((alias("gLockZ")));
+static SPINLOCK lockz[2] __attribute__((alias("gLockZ")));
 static struct zone kmemz[2] __attribute__((alias("gKmemZ")));

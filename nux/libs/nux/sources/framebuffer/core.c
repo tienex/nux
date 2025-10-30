@@ -17,7 +17,7 @@
 // Global framebuffer state
 //
 FRAMEBUFFER_DESC *gFbDesc;
-lock_t gFbLock;
+SPINLOCK gFbLock;
 
 //
 // Console state
