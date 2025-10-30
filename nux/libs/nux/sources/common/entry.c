@@ -34,7 +34,7 @@
   @return Modified frame pointer after system call processing.
 **/
 struct hal_frame *
-hal_entry_syscall (
+HalEntrySyscall (
   IN struct hal_frame  *Frame,
   IN UINTN             A1,
   IN UINTN             A2,
@@ -45,17 +45,17 @@ hal_entry_syscall (
   IN UINTN             A7
   )
 {
-  uctxt_t *Uctxt;
+  UCTXT *Uctxt;
 
   nuxperf_inc (&pnux_entry_syscall);
   Uctxt = uctxt_get (Frame);
 
-  switch ((uintptr_t) Uctxt)
+  switch ((UINTN) Uctxt)
     {
-    case (uintptr_t) UCTXT_INVALID:
-    case (uintptr_t) UCTXT_IDLE:
+    case (UINTN) UCTXT_INVALID:
+    case (UINTN) UCTXT_IDLE:
       /* Syscall in kernel? */
-      nux_panic ("Unexpected Kernel Exception -- Syscall(!)", Frame);
+      NuxPanic ("Unexpected Kernel Exception -- Syscall(!)", Frame);
       /* Unreached. */
     default:
       break;
@@ -80,28 +80,28 @@ hal_entry_syscall (
   @return Modified frame pointer after page fault processing.
 **/
 struct hal_frame *
-hal_entry_pf (
+HalEntryPageFault (
   IN struct hal_frame  *Frame,
   IN UINTN             Va,
   IN hal_pfinfo_t      Info
   )
 {
-  uctxt_t *Uctxt;
+  UCTXT *Uctxt;
 
   nuxperf_inc (&pnux_entry_pagefault);
 
   if (!NuxStatusOkCpu ())
     {
-      nux_panic ("Early Kernel Page Fault", Frame);
+      NuxPanic ("Early Kernel Page Fault", Frame);
       /* Unreachable */
     }
 
   Uctxt = uctxt_get (Frame);
 
-  switch ((uintptr_t) Uctxt)
+  switch ((UINTN) Uctxt)
     {
-    case (uintptr_t) UCTXT_INVALID:
-      if (uaddr_valid (Va))
+    case (UINTN) UCTXT_INVALID:
+      if (UaddrValid (Va))
         {
           /*
              This could be a PF due to kernel user access.
@@ -113,8 +113,8 @@ hal_entry_pf (
         }
 
       /* PASS-THROUGH */
-    case (uintptr_t) UCTXT_IDLE:
-      nux_panic ("Unexpected Kernel Page Fault", Frame);
+    case (UINTN) UCTXT_IDLE:
+      NuxPanic ("Unexpected Kernel Page Fault", Frame);
       /* Unreached. */
     default:
       break;
@@ -136,12 +136,12 @@ hal_entry_pf (
   @return Does not return (panic).
 **/
 struct hal_frame *
-hal_entry_debug (
+HalEntryDebug (
   IN struct hal_frame  *Frame,
   IN UINT32            Xcpt
   )
 {
-  nux_panic ("Kernel Panic", Frame);
+  NuxPanic ("Kernel Panic", Frame);
   /* Unreachable */
 }
 
@@ -157,29 +157,29 @@ hal_entry_debug (
   @return Modified frame pointer after exception processing.
 **/
 struct hal_frame *
-hal_entry_xcpt (
+HalEntryException (
   IN struct hal_frame  *Frame,
   IN UINT32            Xcpt
   )
 {
-  uctxt_t *Uctxt;
+  UCTXT *Uctxt;
 
   nuxperf_inc (&pnux_entry_exception);
 
   if (!NuxStatusOkCpu ())
     {
-      nux_panic ("Early Kernel Exception", Frame);
+      NuxPanic ("Early Kernel Exception", Frame);
       /* Unreachable */
     }
 
   Uctxt = uctxt_get (Frame);
 
-  switch ((uintptr_t) Uctxt)
+  switch ((UINTN) Uctxt)
     {
-    case (uintptr_t) UCTXT_INVALID:
-    case (uintptr_t) UCTXT_IDLE:
+    case (UINTN) UCTXT_INVALID:
+    case (UINTN) UCTXT_IDLE:
       /* Kernel exception. */
-      nux_panic ("Unexpected Kernel Exception", Frame);
+      NuxPanic ("Unexpected Kernel Exception", Frame);
       /* Unreached. */
     default:
       break;
@@ -199,7 +199,7 @@ hal_entry_xcpt (
   @param[in] Frame  Exception frame.
 **/
 VOID
-hal_entry_nmi (
+HalEntryNmi (
   IN struct hal_frame  *Frame
   )
 {
@@ -231,11 +231,11 @@ hal_entry_nmi (
   @return Modified frame pointer after timer processing.
 **/
 struct hal_frame *
-hal_entry_timer (
+HalEntryTimer (
   IN struct hal_frame  *Frame
   )
 {
-  uctxt_t *Uctxt;
+  UCTXT *Uctxt;
 
   nuxperf_inc (&pnux_entry_timer);
   Uctxt = uctxt_getuser (Frame);
@@ -256,13 +256,13 @@ hal_entry_timer (
   @return Modified frame pointer after IRQ processing.
 **/
 struct hal_frame *
-hal_entry_irq (
+HalEntryIrq (
   IN struct hal_frame  *Frame,
   IN UINT32            Irq,
   IN BOOLEAN           IsLevel
   )
 {
-  uctxt_t *Uctxt;
+  UCTXT *Uctxt;
 
   nuxperf_inc (&pnux_entry_irq);
   Uctxt = uctxt_getuser (Frame);
@@ -281,11 +281,11 @@ hal_entry_irq (
   @return Modified frame pointer after IPI processing.
 **/
 struct hal_frame *
-hal_entry_ipi (
+HalEntryIpi (
   IN struct hal_frame  *Frame
   )
 {
-  uctxt_t *Uctxt;
+  UCTXT *Uctxt;
 
   nuxperf_inc (&pnux_entry_ipi);
   Uctxt = uctxt_getuser (Frame);
