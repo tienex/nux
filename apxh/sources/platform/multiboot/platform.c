@@ -316,11 +316,11 @@ MdInitialize (
 {
   UINTN Ptr;
 
-  gpElfKernelPayload = payload_get (0, &gElfKernelPayloadSize);
+  gpElfKernelPayload = PayloadGet (0, &gElfKernelPayloadSize);
   Ptr = (UINTN) gpElfKernelPayload + gElfKernelPayloadSize;
   gBrk = PAGE_ROUND (Ptr);
 
-  gpElfUserPayload = payload_get (1, &gElfUserPayloadSize);
+  gpElfUserPayload = PayloadGet (1, &gElfUserPayloadSize);
   Ptr = (UINTN) gpElfUserPayload + gElfUserPayloadSize;
   gBrk = PAGE_ROUND (Ptr);
 
@@ -518,28 +518,28 @@ MbAmd64Entry (
   pae64_directmap (pTrampCr3, 0, 0, 1L << 30, MEMTYPE_WB, 0, 1);
 
   /* Map Entry page in transitional pagetable VA. */
-  pae64_map_page (pTrampCr3, (VIRTUAL_ADDRESS) Entry, pae64_getphys (Entry), 0, 0, 1);
+  Pae64MapPage (pTrampCr3, (VIRTUAL_ADDRESS) Entry, Pae64GetPhys (Entry), 0, 0, 1);
   printf ("mapping in %lx %llx at %lx\n", pTrampCr3, Entry,
-	  pae64_getphys (Entry));
+	  Pae64GetPhys (Entry));
 
-  Cr4 = read_cr4 ();
-  write_cr4 (Cr4 | CR4_PAE);
-  printf ("CR4: %08lx -> %08lx.\n", Cr4, read_cr4 ());
+  Cr4 = ReadCr4 ();
+  WriteCr4 (Cr4 | CR4_PAE);
+  printf ("CR4: %08lx -> %08lx.\n", Cr4, ReadCr4 ());
 
-  Cr3 = read_cr3 ();
-  write_cr3 ((UINTN) pTrampCr3);
-  printf ("CR3: %08lx -> %08lx.\n", Cr3, read_cr3 ());
+  Cr3 = ReadCr3 ();
+  WriteCr3 ((UINTN) pTrampCr3);
+  printf ("CR3: %08lx -> %08lx.\n", Cr3, ReadCr3 ());
 
-  Efer = rdmsr (MSR_IA32_EFER);
-  wrmsr (MSR_IA32_EFER, Efer | _MSR_IA32_EFER_LME);
-  printf ("EFER: %016llx -> %016llx.\n", Efer, rdmsr (MSR_IA32_EFER));
+  Efer = Rdmsr (MSR_IA32_EFER);
+  Wrmsr (MSR_IA32_EFER, Efer | _MSR_IA32_EFER_LME);
+  printf ("EFER: %016llx -> %016llx.\n", Efer, Rdmsr (MSR_IA32_EFER));
 
-  Cr0 = read_cr0 ();
-  write_cr0 (Cr0 | CR0_PG | CR0_WP);
-  printf ("CR0: %08lx -> %08lx.\n", Cr0, read_cr0 ());
+  Cr0 = ReadCr0 ();
+  WriteCr0 (Cr0 | CR0_PG | CR0_WP);
+  printf ("CR0: %08lx -> %08lx.\n", Cr0, ReadCr0 ());
 
   gGdtReg.Base = (UINT32) ((UINTN) & gPae64Gdt & 0xffffffff),
-    lgdt ((UINTN) & gGdtReg);
+    Lgdt ((UINTN) & gGdtReg);
 
   asm volatile
     ("ljmp $8,$1f\n"
@@ -572,9 +572,9 @@ Mb386Entry (
   VOID *Tramp;
   VIRTUAL_ADDRESS TrampEntry;
   UINT16 TrampCode = 0xe7ff;	/* jmp *%edi */
-  UINTN Cr4 = read_cr4 ();
-  UINTN Cr3 = read_cr3 ();
-  UINTN Cr0 = read_cr0 ();
+  UINTN Cr4 = ReadCr4 ();
+  UINTN Cr3 = ReadCr3 ();
+  UINTN Cr0 = ReadCr0 ();
 
   /* Allocate trampoline pagetable. */
   pTrampCr3 = (VOID *) GetPage ();
@@ -587,21 +587,21 @@ Mb386Entry (
   printf ("tramp is %lx (%x)\n", Tramp, *(UINT64 *) Tramp);
 
   /* Setup Direct map at 0->1Gb */
-  pae_directmap (pTrampCr3, 0, 0, 1L << 30, MEMTYPE_WB, 0, 1);
+  PaeDirectMap (pTrampCr3, 0, 0, 1L << 30, MEMTYPE_WB, 0, 1);
 
   /* Map Entry page in transitional pagetable VA. */
-  pae_map_page (pTrampCr3, (VIRTUAL_ADDRESS) Entry, pae_getphys (Entry), 0, 0, 1);
+  PaeMapPage (pTrampCr3, (VIRTUAL_ADDRESS) Entry, PaeGetPhys (Entry), 0, 0, 1);
   printf ("mapping in %lx %llx at %lx\n", pTrampCr3, Entry,
-	  pae_getphys (Entry));
+	  PaeGetPhys (Entry));
 
-  write_cr4 (Cr4 | CR4_PAE);
-  printf ("CR4: %08lx -> %08lx.\n", Cr4, read_cr4 ());
+  WriteCr4 (Cr4 | CR4_PAE);
+  printf ("CR4: %08lx -> %08lx.\n", Cr4, ReadCr4 ());
 
-  write_cr3 ((UINTN) pTrampCr3);
-  printf ("CR3: %08lx -> %08lx.\n", Cr3, read_cr3 ());
+  WriteCr3 ((UINTN) pTrampCr3);
+  printf ("CR3: %08lx -> %08lx.\n", Cr3, ReadCr3 ());
 
-  write_cr0 (Cr0 | CR0_PG | CR0_WP);
-  printf ("CR0: %08lx -> %08lx.\n", Cr0, read_cr0 ());
+  WriteCr0 (Cr0 | CR0_PG | CR0_WP);
+  printf ("CR0: %08lx -> %08lx.\n", Cr0, ReadCr0 ());
 
   asm volatile
     ("mov %0, %%eax\n"

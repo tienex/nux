@@ -378,7 +378,7 @@ VaFramebuf (
     {
 #if EC_MACHINE_I386 || EC_MACHINE_AMD64
     case ARCH_386:
-      pae_physmap (Va, Size, Pa, Mt);
+      PaePhysmap (Va, Size, Pa, Mt);
       break;
     case ARCH_AMD64:
       pae64_physmap (Va, Size, Pa, Mt);
@@ -601,7 +601,7 @@ VaInfoCopy (
 #define MASK_WORD(p,x) ((*(UINT64 *)VaGetPhys(gReqStreeVa + (VIRTUAL_ADDRESS)(UINTN)(p))) &= (x))
 #define GET_WORD(p) (*(UINT64 *)VaGetPhys(gReqStreeVa + (VIRTUAL_ADDRESS)(UINTN)(p)))
 #define SET_WORD(p,x) (*(UINT64 *)VaGetPhys(gReqStreeVa + (VIRTUAL_ADDRESS)(UINTN)(p)) = x)
-#include <stree.h>
+#include <nux/batree.h>
 
 /**
   Set up S-tree structure.
@@ -620,7 +620,7 @@ VaStree (
 {
   SIZE64 s;
   int i, Order;
-  struct apxh_stree Hdr;
+  APXH_STREE Hdr;
   BOOTINFO_REGION *Reg;
   unsigned Regions = MdMemRegions ();
   unsigned MaxFrame = MdMaxRamPfn ();
@@ -628,9 +628,9 @@ VaStree (
   MdVerify (Va, Size);
   VaVerify (Va, Size);
 
-  Order = stree_order (MaxFrame);
-  s = 8 * STREE_SIZE (Order);
-  s += sizeof (struct apxh_stree);
+  Order = BatreeOrder (MaxFrame);
+  s = 8 * BATREE_SIZE (Order);
+  s += sizeof (APXH_STREE);
 
   if (s > Size)
     {
@@ -647,7 +647,7 @@ VaStree (
   Hdr.version = APXH_STREE_VERSION;
   Hdr.order = Order;
   Hdr.offset = sizeof (Hdr);
-  Hdr.size = 8 * STREE_SIZE (Order);
+  Hdr.size = 8 * BATREE_SIZE (Order);
   VaCopy (Va, &Hdr, sizeof (Hdr), 0, 1, 0);
 
   /* Fill the S-Tree with all RAM regions. */
@@ -673,7 +673,7 @@ VaStree (
 	      break;
 	    }
 
-	  stree_setbit ((WORD_T *) 0, Order, Frame);
+	  BatreeSetBit ((WORD_T *) 0, Order, Frame);
 	}
     }
 
@@ -698,7 +698,7 @@ VaStree (
 	      break;
 	    }
 
-	  stree_clrbit ((WORD_T *) 0, Order, Frame);
+	  BatreeClrBit ((WORD_T *) 0, Order, Frame);
 	}
     }
 
@@ -729,7 +729,7 @@ VaStreeCopy (
       return;
     }
 
-  MaxFrame = md_maxrampfn ();
+  MaxFrame = MdMaxRamPfn ();
 
   for (Pa = gMinRamAddr; Pa < BOOTMEM + gMinRamAddr; Pa += PAGE_SIZE)
     {
@@ -741,7 +741,7 @@ VaStreeCopy (
       if (CheckPayloadPage (Pa))
 	{
 	  /* Page is allocated. Mark as BSY. */
-	  stree_clrbit ((WORD_T *) 0, Order, Frame);
+	  BatreeClrBit ((WORD_T *) 0, Order, Frame);
 	}
     }
 }
@@ -1122,15 +1122,15 @@ main (
     {
 #if EC_MACHINE_I386 || EC_MACHINE_AMD64
     case ARCH_386:
-      KEntry = load_elf32 (ElfStart, 0);
+      KEntry = LoadElf32 (ElfStart, 0);
       break;
     case ARCH_AMD64:
-      KEntry = load_elf64 (ElfStart, 0);
+      KEntry = LoadElf64 (ElfStart, 0);
       break;
 #endif
 #if EC_MACHINE_RISCV64
     case ARCH_RISCV64:
-      KEntry = load_elf64 (ElfStart, 0);
+      KEntry = LoadElf64 (ElfStart, 0);
       break;
 #endif
     default:
@@ -1155,15 +1155,15 @@ main (
 	{
 #if EC_MACHINE_I386 || EC_MACHINE_AMD64
 	case ARCH_386:
-	  UEntry = load_elf32 (ElfStart, 1);
+	  UEntry = LoadElf32 (ElfStart, 1);
 	  break;
 	case ARCH_AMD64:
-	  UEntry = load_elf64 (ElfStart, 1);
+	  UEntry = LoadElf64 (ElfStart, 1);
 	  break;
 #endif
 #if EC_MACHINE_RISCV64
 	case ARCH_RISCV64:
-	  UEntry = load_elf64 (ElfStart, 1);
+	  UEntry = LoadElf64 (ElfStart, 1);
 	  break;
 #endif
 	default:

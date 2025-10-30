@@ -53,7 +53,7 @@ Pae64GetL3p (
       UINTN L3Page;
 
       /* Populating L3. */
-      L3Page = Payload ? get_payload_page () : get_page ();
+      L3Page = Payload ? GetPayloadPage () : GetPage ();
 
       SetPte (pL4p, L3Page >> PAGE_SHIFT, PTE_U | PTE_W | PTE_P);
       pL3p = (PTE *) L3Page;
@@ -93,7 +93,7 @@ Pae64GetL2p (
       UINTN L2Page;
 
       /* Populating L2. */
-      L2Page = Payload ? get_payload_page () : get_page ();
+      L2Page = Payload ? GetPayloadPage () : GetPage ();
 
       SetPte (pL3p, L2Page >> PAGE_SHIFT, PTE_U | PTE_W | PTE_P);
       pL2p = (PTE *) L2Page;
@@ -132,7 +132,7 @@ Pae64GetL1p (
       UINTN L1Page;
 
       /* Populating L1. */
-      L1Page = Payload ? get_payload_page () : get_page ();
+      L1Page = Payload ? GetPayloadPage () : GetPage ();
 
       SetPte (pL2p, L1Page >> PAGE_SHIFT, PTE_U | PTE_W | PTE_P);
       pL1p = (PTE *) L1Page;
@@ -176,7 +176,7 @@ Pae64Initialize (
 
   SetupPatTable ();
 
-  gPae64Cr3 = (PTE *) get_payload_page ();
+  gPae64Cr3 = (PTE *) GetPayloadPage ();
 
   printf ("Using PAE64 paging (CR3: %08lx, NX: %d).\n", gPae64Cr3,
 	  gNxEnabled);
@@ -257,7 +257,7 @@ Pae64PopulatePage (
   Page = (UINTN) PteGetAddr (pL1p);
   if (Page == 0)
     {
-      Page = Payload ? get_payload_page () : get_page ();
+      Page = Payload ? GetPayloadPage () : GetPage ();
       SetPte (pL1p, Page >> PAGE_SHIFT, L1F);
     }
   else

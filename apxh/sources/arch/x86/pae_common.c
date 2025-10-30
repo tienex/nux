@@ -29,7 +29,7 @@ ScanPatTable (
   bool WbSet = false;
   bool WcSet = false;
   bool UcSet = false;
-  UINT64 Pat = rdmsr (MSR_IA32_PAT);
+  UINT64 Pat = Rdmsr (MSR_IA32_PAT);
 
   for (int i = 0; i < 8; i++)
     {
@@ -74,7 +74,7 @@ SetupPatTable (
 {
   /*
      Default PAT table, with added WC at 7 */
-  wrmsr (MSR_IA32_PAT, 0x0100040600070406LL);
+  Wrmsr (MSR_IA32_PAT, 0x0100040600070406LL);
 
   ScanPatTable ();
 }
@@ -133,7 +133,7 @@ CpuIsIntel (
 
   Eax = 0;
   Ecx = 0;
-  cpuid (&Eax, &Ebx, &Ecx, &Edx);
+  Cpuid (&Eax, &Ebx, &Ecx, &Edx);
 
   // GenuineIntel?
   if (Ebx == 0x756e6547 && Ecx == 0x6c65746e && Edx == 0x49656e69)
@@ -161,7 +161,7 @@ IntelCpuFamily (
 
   Eax = 1;
   Ecx = 0;
-  cpuid (&Eax, &Ebx, &Ecx, &Edx);
+  Cpuid (&Eax, &Ebx, &Ecx, &Edx);
 
   Family = (Eax & 0xf00) >> 8;
   Family |= (Eax & 0xf00000 >> 20);
@@ -186,7 +186,7 @@ IntelCpuModel (
 
   Eax = 1;
   Ecx = 0;
-  cpuid (&Eax, &Ebx, &Ecx, &Edx);
+  Cpuid (&Eax, &Ebx, &Ecx, &Edx);
 
   Model = (Eax & 0xf0) >> 4;
   Model |= (Eax & 0xf0000) >> 16;
@@ -211,7 +211,7 @@ CpuSupportsPae (
 
   Eax = 1;
   Ecx = 0;
-  cpuid (&Eax, &Ebx, &Ecx, &Edx);
+  Cpuid (&Eax, &Ebx, &Ecx, &Edx);
 
   return !!(Edx & (1 << 6));
 }
@@ -233,7 +233,7 @@ CpuSupportsLongmode (
 
   Eax = 0x80000001;
   Ecx = 0;
-  cpuid (&Eax, &Ebx, &Ecx, &Edx);
+  Cpuid (&Eax, &Ebx, &Ecx, &Edx);
 
   return !!(Edx & (1 << 29));
 }
@@ -255,7 +255,7 @@ CpuSupports1gbPages (
 
   Eax = 0x80000001;
   Ecx = 0;
-  cpuid (&Eax, &Ebx, &Ecx, &Edx);
+  Cpuid (&Eax, &Ebx, &Ecx, &Edx);
 
   return !!(Edx & (1 << 26));
 }
@@ -289,25 +289,25 @@ CpuSupportsNx (
 	{
 	  UINT64 MiscEnable;
 
-	  MiscEnable = rdmsr (MSR_IA32_MISC_ENABLE);
+	  MiscEnable = Rdmsr (MSR_IA32_MISC_ENABLE);
 	  if (MiscEnable & _MSR_IA32_MISC_ENABLE_XD_DISABLE)
 	    {
 	      MiscEnable &= ~_MSR_IA32_MISC_ENABLE_XD_DISABLE;
-	      wrmsr (MSR_IA32_MISC_ENABLE, MiscEnable);
+	      Wrmsr (MSR_IA32_MISC_ENABLE, MiscEnable);
 	    }
 	}
     }
   Eax = 0x80000001;
   Ecx = 0;
-  cpuid (&Eax, &Ebx, &Ecx, &Edx);
+  Cpuid (&Eax, &Ebx, &Ecx, &Edx);
 
   NxSupported = !!(Edx & (1 << 20));
   if (!NxSupported)
     return false;
 
-  Efer = rdmsr (MSR_IA32_EFER);
-  wrmsr (MSR_IA32_EFER, Efer | _MSR_IA32_EFER_NXE);
-  Efer = rdmsr (MSR_IA32_EFER);
+  Efer = Rdmsr (MSR_IA32_EFER);
+  Wrmsr (MSR_IA32_EFER, Efer | _MSR_IA32_EFER_NXE);
+  Efer = Rdmsr (MSR_IA32_EFER);
 
   return !!(Efer & _MSR_IA32_EFER_NXE);
 }

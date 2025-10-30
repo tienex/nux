@@ -165,12 +165,12 @@ PaeInitialize (
   gNxEnabled = CpuSupportsNx ();
 
   /* In PAE is only 64 bytes, but we allocate a full page for it. */
-  gPaeCr3 = (PTE *) get_payload_page ();
+  gPaeCr3 = (PTE *) GetPayloadPage ();
 
   /* Set PDPTEs */
   for (i = 0; i < 4; i++)
     {
-      UINTN L2Page = get_payload_page ();
+      UINTN L2Page = GetPayloadPage ();
 
       SetPte (gPaeCr3 + i, L2Page >> PAGE_SHIFT, PTE_P);
       gL2s[i] = (PTE *) L2Page;
@@ -211,7 +211,7 @@ PaeGetL2p (
       UINTN L2Page;
 
       /* Populating L2. */
-      L2Page = Payload ? get_payload_page () : get_page ();
+      L2Page = Payload ? GetPayloadPage () : GetPage ();
 
       SetPte (pL3p, L2Page >> PAGE_SHIFT, PTE_P);
       pL2p = (PTE *) L2Page;
@@ -249,7 +249,7 @@ PaeGetL1p (
       UINTN L1Page;
 
       /* Populating L1. */
-      L1Page = Payload ? get_payload_page () : get_page ();
+      L1Page = Payload ? GetPayloadPage () : GetPage ();
 
       SetPte (pL2p, L1Page >> PAGE_SHIFT, PTE_U | PTE_W | PTE_P);
       pL1p = (PTE *) L1Page;
@@ -327,7 +327,7 @@ PaePopulatePage (
   Page = (UINTN) PteGetAddr (pL1p);
   if (PteGetAddr (pL1p) == NULL)
     {
-      Page = get_payload_page ();
+      Page = GetPayloadPage ();
       SetPte (pL1p, Page >> PAGE_SHIFT, L1F);
     }
   else

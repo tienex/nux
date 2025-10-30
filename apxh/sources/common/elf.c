@@ -446,34 +446,3 @@ GetElfArch (
 
   return ARCH_UNSUPPORTED;
 }
-
-//
-// Legacy Function Wrappers (for backward compatibility)
-//
-
-/** @deprecated Use PhUload instead **/
-void ph_uload (void *elfimg, UINT32 type, UINT32 flags,
-	       UINT64 va, UINT64 msize, UINT64 off, UINT64 fsize) {
-  PhUload (elfimg, type, flags, va, msize, off, fsize);
-}
-
-/** @deprecated Use PhKload instead **/
-void ph_kload (void *elfimg, UINT32 type, UINT32 flags,
-	       UINT64 va, UINT64 msize, UINT64 off, UINT64 fsize) {
-  PhKload (elfimg, type, flags, va, msize, off, fsize);
-}
-
-/** @deprecated Use LoadElf32 instead **/
-VIRTUAL_ADDRESS load_elf32 (void *elfimg, int u) {
-  return LoadElf32 (elfimg, u);
-}
-
-/** @deprecated Use LoadElf64 instead **/
-VIRTUAL_ADDRESS load_elf64 (void *elfimg, int u) {
-  return LoadElf64 (elfimg, u);
-}
-
-/** @deprecated Use GetElfArch instead **/
-ARCH get_elf_arch (void *elfimg) {
-  return GetElfArch (elfimg);
-}

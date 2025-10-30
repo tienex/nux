@@ -53,12 +53,3 @@ PayloadGet (
     *Size = 0;
   return Ptr;
 }
-
-//
-// Legacy Function Wrappers (for backward compatibility)
-//
-
-/** @deprecated Use PayloadGet instead **/
-void *payload_get (unsigned i, UINTN *size) {
-  return PayloadGet (i, size);
-}

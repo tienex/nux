@@ -26,7 +26,7 @@
 #define CR0_WP  (1 << 16)
 
 static INLINE UINTN
-read_cr4 (void)
+ReadCr4 (void)
 {
   UINTN reg;
 
@@ -35,13 +35,13 @@ read_cr4 (void)
 }
 
 static INLINE void
-write_cr4 (UINTN reg)
+WriteCr4 (UINTN reg)
 {
   asm volatile ("mov %0, %%cr4\n"::"r" (reg));
 }
 
 static INLINE UINTN
-read_cr3 (void)
+ReadCr3 (void)
 {
   UINTN reg;
 
@@ -50,13 +50,13 @@ read_cr3 (void)
 }
 
 static INLINE void
-write_cr3 (UINTN reg)
+WriteCr3 (UINTN reg)
 {
   asm volatile ("mov %0, %%cr3\n"::"r" (reg));
 }
 
 static INLINE UINTN
-read_cr0 (void)
+ReadCr0 (void)
 {
   UINTN reg;
 
@@ -65,19 +65,19 @@ read_cr0 (void)
 }
 
 static INLINE void
-write_cr0 (UINTN reg)
+WriteCr0 (UINTN reg)
 {
   asm volatile ("mov %0, %%cr0\n"::"r" (reg));
 }
 
 static INLINE void
-cpuid (UINT32 * eax, UINT32 * ebx, UINT32 * ecx, UINT32 * edx)
+Cpuid (UINT32 * eax, UINT32 * ebx, UINT32 * ecx, UINT32 * edx)
 {
   asm volatile ("cpuid\n":"+a" (*eax), "=b" (*ebx), "+c" (*ecx), "=d" (*edx));
 }
 
 static INLINE UINT64
-rdmsr (UINT32 ecx)
+Rdmsr (UINT32 ecx)
 {
   UINT32 edx, eax;
 
@@ -87,7 +87,7 @@ rdmsr (UINT32 ecx)
 }
 
 static INLINE void
-wrmsr (UINT32 ecx, UINT64 msr)
+Wrmsr (UINT32 ecx, UINT64 msr)
 {
   UINT32 edx, eax;
 
@@ -98,7 +98,7 @@ wrmsr (UINT32 ecx, UINT64 msr)
 }
 
 static INLINE void
-lgdt (UINTN ptr)
+Lgdt (UINTN ptr)
 {
   asm volatile ("lgdtl (%0)\n"::"r" (ptr));
 }

@@ -330,11 +330,11 @@ MdInitialize (
 		 PAGE_ROUND (fdt32_to_cpu (FdtH->totalsize)), true, NULL);
   printf ("\n");
 
-  gpElfKernelPayload = payload_get (0, &gElfKernelPayloadSize);
+  gpElfKernelPayload = PayloadGet (0, &gElfKernelPayloadSize);
   Ptr = (UINTN) gpElfKernelPayload + gElfKernelPayloadSize;
   gBrk = PAGE_ROUND (Ptr);
 
-  gpElfUserPayload = payload_get (1, &gElfUserPayloadSize);
+  gpElfUserPayload = PayloadGet (1, &gElfUserPayloadSize);
   Ptr = (UINTN) gpElfUserPayload + gElfUserPayloadSize;
   gBrk = PAGE_ROUND (Ptr);
 

@@ -44,7 +44,7 @@ Exit (
 {
   printf ("EXIT CALLED!\n");
 
-  efi_exit (Status);
+  EfiExit (Status);
   while (1);
 }
 
@@ -60,7 +60,7 @@ GetPage (
   VOID
   )
 {
-  return (UINTN) efi_allocate_maxaddr ((gMinRamPfn << PAGE_SHIFT) +
+  return (UINTN) EfiAllocateMaxAddr ((gMinRamPfn << PAGE_SHIFT) +
 					   (unsigned long) BOOTMEM);
 }
 
@@ -135,9 +135,9 @@ MdEntry (
   pae64_directmap (pTrampCr3, 0, 0, 64L << 30, MEMTYPE_WB, 0, 1);
 
   /* Map Entry page in transitional pagetable VA. */
-  pae64_map_page (pTrampCr3, (VIRTUAL_ADDRESS) Entry, pae64_getphys (Entry), 0, 0, 1);
+  Pae64MapPage (pTrampCr3, (VIRTUAL_ADDRESS) Entry, Pae64GetPhys (Entry), 0, 0, 1);
 
-  efi_exitbs ();
+  EfiExitBs ();
 
   /* Assume physical mapping mode, 1:1 on lower addresses. */
   asm volatile
@@ -193,7 +193,7 @@ MdEntry (
 
   printf ("%lx %lx %lx\n", TrampSatp, Entry, Satp);
 
-  efi_exitbs ();
+  EfiExitBs ();
 
   asm volatile
     (".globl __rv64_tstart, __rv64_tend\n"

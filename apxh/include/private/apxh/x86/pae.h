@@ -58,7 +58,7 @@ extern bool gNxEnabled;
 **/
 UINT64
 MemtypeToFlags (
-  IN int  Type
+  IN INT32  Type
   );
 
 /**
@@ -139,13 +139,13 @@ CpuSupportsNx (
 /**
   Set PTE (Page Table Entry).
 
-  @param[in] pPte   Pointer to PTE.
+  @param[in,out] pPte   Pointer to PTE.
   @param[in] pAddr  Physical address.
   @param[in] Flags  PTE flags.
 **/
 VOID
 SetPte (
-  IN UINT64   *pPte,
+  IN OUT UINT64   *pPte,
   IN PHYSICAL_ADDRESS  pAddr,
   IN UINT64   Flags
   );
