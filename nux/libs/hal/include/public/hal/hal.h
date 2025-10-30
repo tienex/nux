@@ -1034,12 +1034,12 @@ static inline hal_tlbop_t hal_umap_load (struct hal_umap *umap) {
   return pMap->lpVtbl->UmapLoad(pMap, umap);
 }
 
-static inline bool hal_umap_getl1p (struct hal_umap *umap, uaddr_t uaddr, bool alloc, hal_l1p_t *l1p) {
+static inline BOOLEAN hal_umap_getl1p (struct hal_umap *umap, USER_ADDRESS uaddr, BOOLEAN alloc, hal_l1p_t *l1p) {
   IHalMap *pMap; gpHal->lpVtbl->GetMapInterface(gpHal, &pMap);
   return pMap->lpVtbl->UmapGetL1p(pMap, umap, uaddr, alloc, l1p);
 }
 
-static inline USER_ADDRESS hal_umap_next (struct hal_umap *umap, uaddr_t uaddr, hal_l1p_t *l1p, hal_l1e_t *l1e) {
+static inline USER_ADDRESS hal_umap_next (struct hal_umap *umap, USER_ADDRESS uaddr, hal_l1p_t *l1p, hal_l1e_t *l1e) {
   IHalMap *pMap; gpHal->lpVtbl->GetMapInterface(gpHal, &pMap);
   return pMap->lpVtbl->UmapNext(pMap, umap, uaddr, l1p, l1e);
 }
