@@ -51,7 +51,7 @@ void set_stvec_final ();
 const struct apxh_bootinfo *bootinfo = (struct apxh_bootinfo *) &_info_start;
 
 struct fbdesc fbdesc;
-struct apxh_pltdesc pltdesc;
+struct apxh_platformdesc pltdesc;
 
 void *hal_stree_ptr;
 unsigned hal_stree_order;
@@ -320,7 +320,7 @@ hal_virtmem_kmemsize (
   return (size_t) (_riscv64_kmem_end - _riscv64_kmem_start);
 }
 
-const struct apxh_pltdesc *
+const struct apxh_platformdesc *
 hal_pltinfo (
   VOID
   )

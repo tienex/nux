@@ -1,9 +1,13 @@
-/*
-  NUX: A kernel Library.
+/** @file
+  ACPI Table Structures
+
+  Definitions for ACPI table structures including RSDP, MADT,
+  and HPET table formats.
+
   Copyright (C) 2019 Gianluca Guida <glguida@tlbflush.org>
 
-  SPDX-License-Identifier:	BSD-2-Clause
-*/
+  SPDX-License-Identifier: BSD-2-Clause
+**/
 
 #ifndef __platform_acpi_tables_h__
 #define PLTACPI_ACPITLB_H

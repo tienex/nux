@@ -845,7 +845,7 @@ struct _IHalVtbl {
 
     @return Pointer to platform descriptor.
   **/
-  CONST struct apxh_pltdesc *(*GetPlatformInfo)(IN IHal *This);
+  CONST struct apxh_platformdesc *(*GetPlatformInfo)(IN IHal *This);
 
   /**
     Stop all CPUs and panic.
@@ -1172,7 +1172,7 @@ static inline int hal_putchar (int c) {
   return gpHal->lpVtbl->PutChar(gpHal, c);
 }
 
-static inline const struct apxh_pltdesc *hal_pltinfo (void) {
+static inline const struct apxh_platformdesc *hal_pltinfo (void) {
   return gpHal->lpVtbl->GetPlatformInfo(gpHal);
 }
 

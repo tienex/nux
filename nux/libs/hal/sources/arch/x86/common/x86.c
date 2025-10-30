@@ -65,7 +65,7 @@ struct apxh_region _memregs_pinned[] = {
 const struct apxh_bootinfo *bootinfo = (struct apxh_bootinfo *) &_info_start;
 
 struct fbdesc fbdesc;
-struct apxh_pltdesc pltdesc;
+struct apxh_platformdesc pltdesc;
 
 void *hal_stree_ptr;
 unsigned hal_stree_order;
@@ -626,7 +626,7 @@ EarlyPrint (
     hal_putchar (pStr[i]);
 }
 
-const struct apxh_pltdesc *
+const struct apxh_platformdesc *
 hal_pltinfo (
   VOID
   )
