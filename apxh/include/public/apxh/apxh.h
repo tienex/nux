@@ -132,7 +132,7 @@ typedef struct _APXH_BOOT_INFO {
   /// Framebuffer descriptor.
   /// Describes the linear framebuffer for console output.
   ///
-  struct fbdesc  FramebufferDesc;
+  FRAMEBUFFER_DESC  FramebufferDesc;
 
   ///
   /// Platform firmware descriptor.

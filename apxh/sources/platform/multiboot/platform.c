@@ -29,9 +29,9 @@ static unsigned gBootinfoRegions;
 static UINT64 gBootinfoMaxPfn;
 static UINT64 gBootinfoMaxRamPfn;
 
-static struct fbdesc gFbDesc = {.type = FB_INVALID };
+static FRAMEBUFFER_DESC gFbDesc = {.type = FB_INVALID };
 
-static struct apxh_platformdesc gPlatformDesc;
+static APXH_PLATFORM_DESCRIPTOR gPlatformDesc;
 
 UINT64 RsdpFind (VOID);
 
@@ -139,7 +139,7 @@ ParseMultibootMmap (
      because we have no control over where GRUB will put the memory, we
      don't have an early allocator and can't move it really anywhere.
    */
-  assert (sizeof (struct bootinfo_region) <=
+  assert (sizeof (BOOTINFO_REGION) <=
 	  sizeof (struct multiboot_mmap_entry));
 
   UINT64 MaxPfn = 0;
@@ -148,13 +148,13 @@ ParseMultibootMmap (
   UINTN Cur;
   VOLATILE struct multiboot_mmap_entry *MbPtr =
     (struct multiboot_mmap_entry *) BOOTMEM_MMAP;
-  VOLATILE struct bootinfo_region *HrPtr =
-    (struct bootinfo_region *) BOOTMEM_MMAP;
+  VOLATILE BOOTINFO_REGION *HrPtr =
+    (BOOTINFO_REGION *) BOOTMEM_MMAP;
   printf ("Multiboot memory map:\n");
   for (Cur = 0; Cur < MmapLength;)
     {
       UINTN MbSize;
-      struct bootinfo_region HReg;
+      BOOTINFO_REGION HReg;
 
       printf ("%016llx:%016llx:%d\n", MbPtr->addr, MbPtr->len, MbPtr->type);
       if (MbPtr->type == MULTIBOOT_MEMORY_AVAILABLE)
@@ -397,12 +397,12 @@ MdMemRegions (
 
   @return Pointer to region descriptor.
 **/
-struct bootinfo_region *
+BOOTINFO_REGION *
 MdGetMemRegion (
   IN unsigned  Index
   )
 {
-  struct bootinfo_region *HrPtr = (struct bootinfo_region *) BOOTMEM_MMAP;
+  BOOTINFO_REGION *HrPtr = (BOOTINFO_REGION *) BOOTMEM_MMAP;
 
   assert (Index < gBootinfoRegions);
   return HrPtr + Index;
@@ -415,7 +415,7 @@ MdGetMemRegion (
 
   @return Pointer to framebuffer descriptor.
 **/
-struct fbdesc *
+FRAMEBUFFER_DESC *
 MdGetFramebuffer (
   VOID
   )
@@ -430,7 +430,7 @@ MdGetFramebuffer (
 
   @return Pointer to platform descriptor.
 **/
-struct apxh_platformdesc *
+APXH_PLATFORM_DESCRIPTOR *
 MdGetPlatformDesc (
   VOID
   )

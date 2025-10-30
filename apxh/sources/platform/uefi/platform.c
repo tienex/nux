@@ -21,11 +21,11 @@ static unsigned long gMaxRamPfn;
 static unsigned long gMinRamPfn = -1;
 static unsigned gNumRegions;
 static VOID *gpEfiRsdp;
-static struct fbdesc gFbDesc = {.type = FB_INVALID, };
+static FRAMEBUFFER_DESC gFbDesc = {.type = FB_INVALID, };
 
-static struct apxh_platformdesc gPlatformDesc;
+static APXH_PLATFORM_DESCRIPTOR gPlatformDesc;
 
-static struct bootinfo_region gMemRegions[BOOTINFO_REGIONS_MAX];
+static BOOTINFO_REGION gMemRegions[BOOTINFO_REGIONS_MAX];
 
 #include <apxh/uefi/internal.h>
 
@@ -264,7 +264,7 @@ MdMaxRamPfn (
 
   @return Pointer to bootinfo_region structure.
 **/
-struct bootinfo_region *
+BOOTINFO_REGION *
 MdGetMemRegion (
   IN unsigned  Index
   )
@@ -297,7 +297,7 @@ MdMemRegions (
 
   @return Pointer to fbdesc structure.
 **/
-struct fbdesc *
+FRAMEBUFFER_DESC *
 MdGetFramebuffer (
   VOID
   )
@@ -312,7 +312,7 @@ MdGetFramebuffer (
 
   @return Pointer to apxh_platformdesc structure.
 **/
-struct apxh_platformdesc *
+APXH_PLATFORM_DESCRIPTOR *
 MdGetPlatformDesc (
   VOID
   )

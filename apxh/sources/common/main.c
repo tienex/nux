@@ -356,7 +356,7 @@ VaFramebuf (
   )
 {
   UINT64 Pa;
-  struct fbdesc *FbPtr;
+  FRAMEBUFFER_DESC *FbPtr;
 
   MdVerify (Va, Size);
   VaVerify (Va, Size);
@@ -556,8 +556,8 @@ VaInfoCopy (
   SIZE64 Size = gReqInfoSize;
 #define MIN(x,y) ((x < y) ? x : y)
   struct apxh_bootinfo i;
-  struct fbdesc *FbPtr;
-  struct apxh_platformdesc *PlatformDesc;
+  FRAMEBUFFER_DESC *FbPtr;
+  APXH_PLATFORM_DESCRIPTOR *PlatformDesc;
 
   if (Va == 0)
     {
@@ -575,7 +575,7 @@ VaInfoCopy (
   if (PlatformDesc != NULL)
     i.pltdesc = *PlatformDesc;
   else
-    i.pltdesc = (struct apxh_platformdesc)
+    i.pltdesc = (APXH_PLATFORM_DESCRIPTOR)
     {.Type = PLATFORM_UNKNOWN,.PlatformPointer = 0 };
 
   FbPtr = MdGetFramebuffer ();
@@ -621,7 +621,7 @@ VaStree (
   SIZE64 s;
   int i, Order;
   struct apxh_stree Hdr;
-  struct bootinfo_region *Reg;
+  BOOTINFO_REGION *Reg;
   unsigned Regions = MdMemRegions ();
   unsigned MaxFrame = MdMaxRamPfn ();
 
@@ -797,7 +797,7 @@ VaRegionsCopy (
   unsigned long Size = gReqRegionSize;
   unsigned i, Regions;
   struct apxh_region ApxhReg;
-  struct bootinfo_region *Reg;
+  BOOTINFO_REGION *Reg;
 
   if (Va == 0)
     {
@@ -836,7 +836,7 @@ VaPfnmap (
   )
 {
   unsigned i, MaxFrame;
-  struct bootinfo_region *Reg;
+  BOOTINFO_REGION *Reg;
   unsigned Regions = MdMemRegions ();
 
   MdVerify (Va, Size);

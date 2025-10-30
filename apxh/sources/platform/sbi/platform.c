@@ -23,14 +23,14 @@ static UINT64 gMaxAddr = 0;
 static unsigned gRegions = 0;
 
 #define SBI_MAX_RAM_REGIONS 64
-struct bootinfo_region gRamRegions[SBI_MAX_RAM_REGIONS] = { 0, };
+BOOTINFO_REGION gRamRegions[SBI_MAX_RAM_REGIONS] = { 0, };
 
 static VOID *gpElfKernelPayload, *gpElfUserPayload;
 static UINTN gElfKernelPayloadSize, gElfUserPayloadSize;
 
 static UINTN gBrk;
 
-static struct apxh_platformdesc gPlatformDesc;
+static APXH_PLATFORM_DESCRIPTOR gPlatformDesc;
 
 /**
   Get address and size cells from DTB node.
@@ -274,7 +274,7 @@ AddRamRegion (
   IN VOID    *Opq
   )
 {
-  struct bootinfo_region *R;
+  BOOTINFO_REGION *R;
 
   if (gRegions >= SBI_MAX_RAM_REGIONS)
     {
@@ -383,7 +383,7 @@ MdMemRegions (
 
   @return Pointer to region descriptor, or NULL if index out of range.
 **/
-struct bootinfo_region *
+BOOTINFO_REGION *
 MdGetMemRegion (
   IN unsigned  Index
   )
@@ -432,7 +432,7 @@ MdMaxRamPfn (
 
   @return NULL (no framebuffer on SBI).
 **/
-struct fbdesc *
+FRAMEBUFFER_DESC *
 MdGetFramebuffer (
   VOID
   )
@@ -467,7 +467,7 @@ MdMaxPfn (
 
   @return Pointer to platform descriptor.
 **/
-struct apxh_platformdesc *
+APXH_PLATFORM_DESCRIPTOR *
 MdGetPlatformDesc (
   VOID
   )
