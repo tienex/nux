@@ -1496,14 +1496,14 @@ UCTXT *entry_irq (
 // Physical Memory Operations
 //
 
-VOID *PfnGet (pfn_t Pfn);
-VOID PfnPut (pfn_t Pfn, VOID *Va);
-VOID NuxSetAllocator (pfn_t (*Alloc) (int), VOID (*Free) (pfn_t));
-pfn_t PfnAlloc (int Low);
-VOID PfnFree (pfn_t Pfn);
-unsigned long PfnAvail (VOID);
-pfn_t StreePfnAlloc (int Low);
-VOID StreePfnFree (pfn_t Pfn);
+VOID *PfnGet (IN PFN Pfn);
+VOID PfnPut (IN PFN Pfn, IN VOID *Va);
+VOID NuxSetAllocator (IN PFN (*Alloc) (INT32), IN VOID (*Free) (PFN));
+PFN PfnAlloc (IN INT32 Low);
+VOID PfnFree (IN PFN Pfn);
+UINTN PfnAvail (VOID);
+PFN StreePfnAlloc (IN INT32 Low);
+VOID StreePfnFree (IN PFN Pfn);
 
 /** Legacy compatibility **/
 #define pfn_get PfnGet
@@ -1519,11 +1519,11 @@ VOID StreePfnFree (pfn_t Pfn);
 // Kernel Virtual Address Operations
 //
 
-vaddr_t KvaAlloc (size_t Size);
-VOID KvaFree (vaddr_t Va, size_t Size);
-VOID *KvaMap (pfn_t Pfn, unsigned Prot);
-VOID *KvaPhysMap (paddr_t Paddr, size_t Size, unsigned Prot);
-VOID KvaUnmap (VOID *Va, size_t Size);
+VIRTUAL_ADDRESS KvaAlloc (IN UINTN Size);
+VOID KvaFree (IN VIRTUAL_ADDRESS Va, IN UINTN Size);
+VOID *KvaMap (IN PFN Pfn, IN UINT32 Prot);
+VOID *KvaPhysMap (IN PHYSICAL_ADDRESS Paddr, IN UINTN Size, IN UINT32 Prot);
+VOID KvaUnmap (IN VOID *Va, IN UINTN Size);
 
 /** Legacy compatibility **/
 #define kva_alloc KvaAlloc
@@ -1536,16 +1536,16 @@ VOID KvaUnmap (VOID *Va, size_t Size);
 // Kernel Mapping Operations
 //
 
-pfn_t KmapGetPfn (vaddr_t Va);
-pfn_t KmapMap (vaddr_t Va, pfn_t Pfn, unsigned Prot);
-pfn_t KmapMapNoAlloc (vaddr_t Va, pfn_t Pfn, unsigned Prot);
-pfn_t KmapUnmap (vaddr_t Va);
-int KmapMapped (vaddr_t Va);
-int KmapMappedRange (vaddr_t Va, size_t Size);
-int KmapEnsure (vaddr_t Va, unsigned ReqProt);
-int KmapEnsureRange (vaddr_t Va, size_t Size, unsigned ReqProt);
-volatile tlbgen_t KmapTlbGen (VOID);
-volatile tlbgen_t KmapTlbGenGlobal (VOID);
+PFN KmapGetPfn (IN VIRTUAL_ADDRESS Va);
+PFN KmapMap (IN VIRTUAL_ADDRESS Va, IN PFN Pfn, IN UINT32 Prot);
+PFN KmapMapNoAlloc (IN VIRTUAL_ADDRESS Va, IN PFN Pfn, IN UINT32 Prot);
+PFN KmapUnmap (IN VIRTUAL_ADDRESS Va);
+INT32 KmapMapped (IN VIRTUAL_ADDRESS Va);
+INT32 KmapMappedRange (IN VIRTUAL_ADDRESS Va, IN UINTN Size);
+INT32 KmapEnsure (IN VIRTUAL_ADDRESS Va, IN UINT32 ReqProt);
+INT32 KmapEnsureRange (IN VIRTUAL_ADDRESS Va, IN UINTN Size, IN UINT32 ReqProt);
+volatile TLB_GENERATION KmapTlbGen (VOID);
+volatile TLB_GENERATION KmapTlbGenGlobal (VOID);
 VOID KmapCommit (VOID);
 
 /** Legacy compatibility **/
@@ -1565,14 +1565,14 @@ VOID KmapCommit (VOID);
 // Kernel Memory Operations
 //
 
-int KmemBrk (int Low, vaddr_t Vaddr);
-vaddr_t KmemSbrk (int Low, long Inc);
-vaddr_t KmemBrkGrow (int Low, unsigned Size);
-int KmemBrkShrink (int Low, unsigned Size);
-vaddr_t KmemAlloc (int Low, size_t Size);
-VOID KmemFree (int Low, vaddr_t Vaddr, size_t Size);
-VOID KmemTrimSetMode (unsigned TrimMode);
-VOID KmemTrimOne (unsigned TrimMode);
+INT32 KmemBrk (IN INT32 Low, IN VIRTUAL_ADDRESS Vaddr);
+VIRTUAL_ADDRESS KmemSbrk (IN INT32 Low, IN INTN Inc);
+VIRTUAL_ADDRESS KmemBrkGrow (IN INT32 Low, IN UINT32 Size);
+INT32 KmemBrkShrink (IN INT32 Low, IN UINT32 Size);
+VIRTUAL_ADDRESS KmemAlloc (IN INT32 Low, IN UINTN Size);
+VOID KmemFree (IN INT32 Low, IN VIRTUAL_ADDRESS Vaddr, IN UINTN Size);
+VOID KmemTrimSetMode (IN UINT32 TrimMode);
+VOID KmemTrimOne (IN UINT32 TrimMode);
 
 /** Legacy compatibility **/
 #define kmem_brk KmemBrk
@@ -1589,34 +1589,34 @@ VOID KmemTrimOne (unsigned TrimMode);
 //
 
 VOID CpuStartAll (VOID);
-unsigned CpuId (VOID);
-unsigned CpuNum (VOID);
-cpumask_t CpuActiveMask (VOID);
-VOID CpuSetData (VOID *Ptr);
+UINT32 CpuId (VOID);
+UINT32 CpuNum (VOID);
+CPU_MASK CpuActiveMask (VOID);
+VOID CpuSetData (IN VOID *Ptr);
 VOID *CpuGetData (VOID);
 VOID CpuIdle (VOID);
-VOID CpuNmi (int Cpu);
-VOID CpuNmiMask (cpumask_t Map);
+VOID CpuNmi (IN INT32 Cpu);
+VOID CpuNmiMask (IN CPU_MASK Map);
 VOID CpuNmiAllButSelf (VOID);
 VOID CpuNmiBroadcast (VOID);
-VOID CpuIpi (int Cpu);
-VOID CpuIpiMask (cpumask_t Map);
+VOID CpuIpi (IN INT32 Cpu);
+VOID CpuIpiMask (IN CPU_MASK Map);
 VOID CpuIpiBroadcast (VOID);
-VOID CpuTlbFlush (int Cpu);
-VOID CpuTlbFlushMask (cpumask_t Mask);
+VOID CpuTlbFlush (IN INT32 Cpu);
+VOID CpuTlbFlushMask (IN CPU_MASK Mask);
 VOID CpuTlbFlushBroadcast (VOID);
 VOID CpuTlbFlushBroadcastSync (VOID);
 VOID CpuKtlbUpdate (VOID);
-VOID CpuKtlbReach (tlbgen_t Target);
-VOID CpuStop (int Cpu);
-VOID CpuStopMask (cpumask_t Mask);
+VOID CpuKtlbReach (IN TLB_GENERATION Target);
+VOID CpuStop (IN INT32 Cpu);
+VOID CpuStopMask (IN CPU_MASK Mask);
 VOID CpuStopBroadcast (VOID);
-bool CpuUserAccessCopyFrom (VOID *Dst, uaddr_t Src, size_t Size, bool (*PfHandler)(uaddr_t Va, hal_pfinfo_t Info));
-bool CpuUserAccessCopyTo (uaddr_t Dst, VOID *Src, size_t Size, bool (*PfHandler)(uaddr_t Va, hal_pfinfo_t Info));
-bool CpuUserAccessMemset (uaddr_t Dst, int Ch, size_t Size, bool (*PfHandler)(uaddr_t Va, hal_pfinfo_t Info));
-umap_t *CpuUmapCurrent (VOID);
-VOID CpuUmapEnter (struct umap *Umap);
-umap_t *CpuUmapExit (VOID);
+BOOLEAN CpuUserAccessCopyFrom (OUT VOID *Dst, IN USER_ADDRESS Src, IN UINTN Size, IN BOOLEAN (*PfHandler)(USER_ADDRESS Va, UINTN Info) OPTIONAL);
+BOOLEAN CpuUserAccessCopyTo (IN USER_ADDRESS Dst, IN VOID *Src, IN UINTN Size, IN BOOLEAN (*PfHandler)(USER_ADDRESS Va, UINTN Info) OPTIONAL);
+BOOLEAN CpuUserAccessMemset (IN USER_ADDRESS Dst, IN INT32 Ch, IN UINTN Size, IN BOOLEAN (*PfHandler)(USER_ADDRESS Va, UINTN Info) OPTIONAL);
+UMAP *CpuUmapCurrent (VOID);
+VOID CpuUmapEnter (IN UMAP *Umap);
+UMAP *CpuUmapExit (VOID);
 
 /** Legacy compatibility **/
 #define cpu_startall CpuStartAll
@@ -1653,9 +1653,9 @@ umap_t *CpuUmapExit (VOID);
 // Timer Operations
 //
 
-VOID TimerAlarm (uint32_t TimeNs);
+VOID TimerAlarm (IN UINT32 TimeNs);
 VOID TimerClear (VOID);
-uint64_t TimerGetTime (VOID);
+UINT64 TimerGetTime (VOID);
 
 /** Legacy compatibility **/
 #define timer_alarm TimerAlarm
@@ -1666,13 +1666,13 @@ uint64_t TimerGetTime (VOID);
 // User Mapping Operations
 //
 
-VOID UmapBootstrap (struct umap *Umap);
-VOID UmapInit (struct umap *Umap);
-VOID UmapFree (struct umap *Umap);
-bool UmapMap (struct umap *Umap, vaddr_t Va, pfn_t Pfn, unsigned Prot, pfn_t *OPfn);
-unsigned UmapChFlags (struct umap *Umap, vaddr_t Va, unsigned ProtSet, unsigned ProtClr);
-pfn_t UmapUnmap (struct umap *Umap, vaddr_t Va);
-VOID UmapCommit (struct umap *Umap);
+VOID UmapBootstrap (IN OUT UMAP *Umap);
+VOID UmapInit (IN OUT UMAP *Umap);
+VOID UmapFree (IN OUT UMAP *Umap);
+BOOLEAN UmapMap (IN OUT UMAP *Umap, IN VIRTUAL_ADDRESS Va, IN PFN Pfn, IN UINT32 Prot, OUT PFN *OPfn OPTIONAL);
+UINT32 UmapChFlags (IN OUT UMAP *Umap, IN VIRTUAL_ADDRESS Va, IN UINT32 ProtSet, IN UINT32 ProtClr);
+PFN UmapUnmap (IN OUT UMAP *Umap, IN VIRTUAL_ADDRESS Va);
+VOID UmapCommit (IN OUT UMAP *Umap);
 
 /** Legacy compatibility **/
 #define umap_bootstrap UmapBootstrap
@@ -1687,11 +1687,11 @@ VOID UmapCommit (struct umap *Umap);
 // User Address Operations
 //
 
-bool UaddrValid (uaddr_t Addr);
-bool UaddrValidRange (uaddr_t Addr, size_t Size);
-bool UaddrCopyFrom (VOID *Dst, uaddr_t Src, size_t Size, bool (*PfHandler)(uaddr_t Va, hal_pfinfo_t Info));
-bool UaddrCopyTo (uaddr_t Dst, VOID *Src, size_t Size, bool (*PfHandler)(uaddr_t Va, hal_pfinfo_t Info));
-bool UaddrMemset (uaddr_t Dst, int Ch, size_t Size, bool (*PfHandler)(uaddr_t Va, hal_pfinfo_t Info));
+BOOLEAN UaddrValid (IN USER_ADDRESS Addr);
+BOOLEAN UaddrValidRange (IN USER_ADDRESS Addr, IN UINTN Size);
+BOOLEAN UaddrCopyFrom (OUT VOID *Dst, IN USER_ADDRESS Src, IN UINTN Size, IN BOOLEAN (*PfHandler)(USER_ADDRESS Va, UINTN Info) OPTIONAL);
+BOOLEAN UaddrCopyTo (IN USER_ADDRESS Dst, IN VOID *Src, IN UINTN Size, IN BOOLEAN (*PfHandler)(USER_ADDRESS Va, UINTN Info) OPTIONAL);
+BOOLEAN UaddrMemset (IN USER_ADDRESS Dst, IN INT32 Ch, IN UINTN Size, IN BOOLEAN (*PfHandler)(USER_ADDRESS Va, UINTN Info) OPTIONAL);
 
 /** Legacy compatibility **/
 #define uaddr_valid UaddrValid
@@ -1704,20 +1704,20 @@ bool UaddrMemset (uaddr_t Dst, int Ch, size_t Size, bool (*PfHandler)(uaddr_t Va
 // User Context Operations
 //
 
-bool UctxtBootstrap (uctxt_t *Uctxt);
-VOID UctxtInit (uctxt_t *Uctxt, vaddr_t Ip, vaddr_t Sp, vaddr_t Gp);
-VOID UctxtSetIp (uctxt_t *Uctxt, vaddr_t Ip);
-vaddr_t UctxtGetIp (uctxt_t *Uctxt);
-VOID UctxtSetSp (uctxt_t *Uctxt, vaddr_t Sp);
-vaddr_t UctxtGetSp (uctxt_t *Uctxt);
-VOID UctxtSetGp (uctxt_t *Uctxt, vaddr_t Gp);
-vaddr_t UctxtGetGp (uctxt_t *Uctxt);
-VOID UctxtSetRet (uctxt_t *Uctxt, unsigned long Ret);
-VOID UctxtSetA0 (uctxt_t *Uctxt, unsigned long A0);
-VOID UctxtSetA1 (uctxt_t *Uctxt, unsigned long A1);
-VOID UctxtSetA2 (uctxt_t *Uctxt, unsigned long A2);
-VOID UctxtSetTls (uctxt_t *Uctxt, unsigned long Tls);
-VOID UctxtPrint (uctxt_t *Uctxt);
+BOOLEAN UctxtBootstrap (IN OUT UCTXT *Uctxt);
+VOID UctxtInit (IN OUT UCTXT *Uctxt, IN VIRTUAL_ADDRESS Ip, IN VIRTUAL_ADDRESS Sp, IN VIRTUAL_ADDRESS Gp);
+VOID UctxtSetIp (IN OUT UCTXT *Uctxt, IN VIRTUAL_ADDRESS Ip);
+VIRTUAL_ADDRESS UctxtGetIp (IN UCTXT *Uctxt);
+VOID UctxtSetSp (IN OUT UCTXT *Uctxt, IN VIRTUAL_ADDRESS Sp);
+VIRTUAL_ADDRESS UctxtGetSp (IN UCTXT *Uctxt);
+VOID UctxtSetGp (IN OUT UCTXT *Uctxt, IN VIRTUAL_ADDRESS Gp);
+VIRTUAL_ADDRESS UctxtGetGp (IN UCTXT *Uctxt);
+VOID UctxtSetRet (IN OUT UCTXT *Uctxt, IN UINTN Ret);
+VOID UctxtSetA0 (IN OUT UCTXT *Uctxt, IN UINTN A0);
+VOID UctxtSetA1 (IN OUT UCTXT *Uctxt, IN UINTN A1);
+VOID UctxtSetA2 (IN OUT UCTXT *Uctxt, IN UINTN A2);
+VOID UctxtSetTls (IN OUT UCTXT *Uctxt, IN UINTN Tls);
+VOID UctxtPrint (IN UCTXT *Uctxt);
 
 /** Legacy compatibility **/
 #define uctxt_bootstrap UctxtBootstrap
