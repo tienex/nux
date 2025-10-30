@@ -20,8 +20,8 @@
 #define L2OFF(_va) (((_va) >> 21) & 0x1ff)
 #define L1OFF(_va) (((_va) >> 12) & 0x1ff)
 
-static pte_t *gPaeCr3;
-static pte_t *gL2s[4];
+static PTE *gPaeCr3;
+static PTE *gL2s[4];
 
 /**
   Set PTE value.
@@ -35,7 +35,7 @@ static pte_t *gL2s[4];
 **/
 static VOID
 SetPte (
-  OUT pte_t   *Ptep,
+  OUT PTE   *Ptep,
   IN  UINT64  Pfn,
   IN  UINT64  Flags
   )
@@ -55,10 +55,10 @@ SetPte (
 **/
 static VOID *
 PteGetAddr (
-  IN pte_t  *Ptep
+  IN PTE  *Ptep
   )
 {
-  pte_t Pte = *Ptep;
+  PTE Pte = *Ptep;
 
   if (!(Pte & PTE_P))
     return NULL;
@@ -77,10 +77,10 @@ PteGetAddr (
 **/
 static UINT64
 PteGetFlags (
-  IN pte_t  *Ptep
+  IN PTE  *Ptep
   )
 {
-  pte_t Pte = *Ptep;
+  PTE Pte = *Ptep;
 
   return Pte & ~0x7ffffffffffff000LL;
 }
@@ -139,7 +139,7 @@ PteMergeFlags (
 VOID
 PaeVerify (
   IN VIRTUAL_ADDRESS   Va,
-  IN size64_t  Size
+  IN SIZE64  Size
   )
 {
   /* Nothing to check. */
@@ -165,7 +165,7 @@ PaeInitialize (
   gNxEnabled = CpuSupportsNx ();
 
   /* In PAE is only 64 bytes, but we allocate a full page for it. */
-  gPaeCr3 = (pte_t *) get_payload_page ();
+  gPaeCr3 = (PTE *) get_payload_page ();
 
   /* Set PDPTEs */
   for (i = 0; i < 4; i++)
@@ -173,7 +173,7 @@ PaeInitialize (
       UINTN L2Page = get_payload_page ();
 
       SetPte (gPaeCr3 + i, L2Page >> PAGE_SHIFT, PTE_P);
-      gL2s[i] = (pte_t *) L2Page;
+      gL2s[i] = (PTE *) L2Page;
     }
 
   SetupPatTable ();
@@ -192,20 +192,20 @@ PaeInitialize (
 
   @return Pointer to L2 PTE.
 **/
-static pte_t *
+static PTE *
 PaeGetL2p (
-  IN pte_t    *pCr3,
+  IN PTE    *pCr3,
   IN VIRTUAL_ADDRESS  Va,
   IN int      Payload
   )
 {
-  pte_t *pL3p, *pL2p;
+  PTE *pL3p, *pL2p;
   unsigned L3Off = L3OFF (Va);
   unsigned L2Off = L2OFF (Va);
 
   pL3p = pCr3 + L3Off;
 
-  pL2p = (pte_t *) PteGetAddr (pL3p);
+  pL2p = (PTE *) PteGetAddr (pL3p);
   if (pL2p == NULL)
     {
       UINTN L2Page;
@@ -214,7 +214,7 @@ PaeGetL2p (
       L2Page = Payload ? get_payload_page () : get_page ();
 
       SetPte (pL3p, L2Page >> PAGE_SHIFT, PTE_P);
-      pL2p = (pte_t *) L2Page;
+      pL2p = (PTE *) L2Page;
     }
 
   return pL2p + L2Off;
@@ -231,19 +231,19 @@ PaeGetL2p (
 
   @return Pointer to L1 PTE.
 **/
-static pte_t *
+static PTE *
 PaeGetL1p (
-  IN pte_t    *pCr3,
+  IN PTE    *pCr3,
   IN VIRTUAL_ADDRESS  Va,
   IN int      Payload
   )
 {
-  pte_t *pL2p, *pL1p;
+  PTE *pL2p, *pL1p;
   unsigned L1Off = L1OFF (Va);
 
   pL2p = PaeGetL2p (pCr3, Va, Payload);
 
-  pL1p = (pte_t *) PteGetAddr (pL2p);
+  pL1p = (PTE *) PteGetAddr (pL2p);
   if (pL1p == NULL)
     {
       UINTN L1Page;
@@ -252,7 +252,7 @@ PaeGetL1p (
       L1Page = Payload ? get_payload_page () : get_page ();
 
       SetPte (pL2p, L1Page >> PAGE_SHIFT, PTE_U | PTE_W | PTE_P);
-      pL1p = (pte_t *) L1Page;
+      pL1p = (PTE *) L1Page;
     }
 
   return pL1p + L1Off;
@@ -280,11 +280,11 @@ PaeMapPage (
   IN int       X
   )
 {
-  pte_t *pL1p, *pCr3;
+  PTE *pL1p, *pCr3;
   UINT64 L1F;
   UINTN Page;
 
-  pCr3 = (pte_t *) Pt;
+  pCr3 = (PTE *) Pt;
 
   pL1p = PaeGetL1p (pCr3, Va, Payload);
   L1F = (W ? PTE_W : 0) | (X ? 0 : PTE_NX) | PTE_P;
@@ -316,7 +316,7 @@ PaePopulatePage (
   IN int      X
   )
 {
-  pte_t *pL1p;
+  PTE *pL1p;
   UINT64 L1F;
   UINTN Page;
 
@@ -362,14 +362,14 @@ PaeGetPhys (
   )
 {
   UINTN Page;
-  pte_t *pL2e, *pL1, *pL1e;
+  PTE *pL2e, *pL1, *pL1e;
   unsigned L3Off = L3OFF (Va);
   unsigned L2Off = L2OFF (Va);
   unsigned L1Off = L1OFF (Va);
 
   pL2e = gL2s[L3Off] + L2Off;
 
-  pL1 = (pte_t *) PteGetAddr (pL2e);
+  pL1 = (PTE *) PteGetAddr (pL2e);
   assert (pL1 != NULL);
 
   pL1e = pL1 + L1Off;
@@ -399,15 +399,15 @@ PaeDirectMap (
   IN VOID              *Pt,
   IN UINT64            Pa,
   IN VIRTUAL_ADDRESS           Va,
-  IN size64_t          Size,
-  IN enum memory_type  Mt,
+  IN SIZE64          Size,
+  IN MEMORY_TYPE  Mt,
   IN int               Payload,
   IN int               X
   )
 {
   UINT64 PaPfn = Pa >> PAGE_SHIFT;
   unsigned i, n;
-  pte_t *Pte;
+  PTE *Pte;
 
   n = Size >> PAGE_SHIFT;
 
@@ -433,9 +433,9 @@ PaeDirectMap (
 VOID
 PaePhysmap (
   IN VIRTUAL_ADDRESS           Va,
-  IN size64_t          Size,
+  IN SIZE64          Size,
   IN UINT64            Pa,
-  IN enum memory_type  Mt
+  IN MEMORY_TYPE  Mt
   )
 {
   PaeDirectMap (gPaeCr3, Pa, Va, Size, Mt, 1, 0);
@@ -453,7 +453,7 @@ PaePhysmap (
 VOID
 PaeTopPtAlloc (
   IN VIRTUAL_ADDRESS   Va,
-  IN size64_t  Size
+  IN SIZE64  Size
   )
 {
   /* In PAE, TOPPTALLOC is equivalent to PTALLOC. */
@@ -472,7 +472,7 @@ PaeTopPtAlloc (
 VOID
 PaePtAlloc (
   IN VIRTUAL_ADDRESS   Va,
-  IN size64_t  Size
+  IN SIZE64  Size
   )
 {
   unsigned i, n;
@@ -499,7 +499,7 @@ PaePtAlloc (
 VOID
 PaeLinear (
   IN VIRTUAL_ADDRESS   Va,
-  IN size64_t  Size
+  IN SIZE64  Size
   )
 {
   int i;
@@ -521,7 +521,7 @@ PaeLinear (
 
   for (i = 0; i < 4; i++)
     {
-      pte_t *pL2p;
+      PTE *pL2p;
 
       pL2p = gL2s[L3Off] + L2Off + i;
       SetPte (pL2p, (UINT64) (UINTN) gL2s[i] >> PAGE_SHIFT,
@@ -544,13 +544,13 @@ PaeLinear (
 VOID
 PaePopulate (
   IN VIRTUAL_ADDRESS   Va,
-  IN size64_t  Size,
+  IN SIZE64  Size,
   IN int       U,
   IN int       W,
   IN int       X
   )
 {
-  ssize64_t Len = Size;
+  SSIZE64 Len = Size;
 
   while (Len > 0)
     {
@@ -575,7 +575,7 @@ PaeEntry (
   IN VIRTUAL_ADDRESS  Entry
   )
 {
-  md_entry (ARCH_386, (VIRTUAL_ADDRESS) (UINTN) gPaeCr3, Entry);
+  MdEntry (ARCH_386, (VIRTUAL_ADDRESS) (UINTN) gPaeCr3, Entry);
 }
 
 

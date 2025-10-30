@@ -18,7 +18,7 @@
 //
 // Type Definitions
 //
-typedef UINT64 pte_t;
+typedef UINT64 PTE;
 
 //
 // PTE (Page Table Entry) flags

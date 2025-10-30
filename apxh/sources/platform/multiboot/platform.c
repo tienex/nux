@@ -226,7 +226,7 @@ VOID *
 GetPayloadStart (
   IN int     Argc,
   IN char    *Argv[],
-  IN plid_t  Id
+  IN PAYLOAD_ID  Id
   )
 {
   VOID *ElfPayload;
@@ -259,7 +259,7 @@ GetPayloadStart (
 **/
 UINTN
 GetPayloadSize (
-  IN plid_t  Id
+  IN PAYLOAD_ID  Id
   )
 {
   UINTN ElfPayloadSize;
@@ -453,7 +453,7 @@ MdGetPlatformDesc (
 VOID
 MdVerify (
   IN VIRTUAL_ADDRESS   Va,
-  IN size64_t  Size
+  IN SIZE64  Size
   )
 {
   /* Check that we're not overwriting something we'll need */
@@ -621,7 +621,7 @@ Mb386Entry (
 **/
 VOID
 MdEntry (
-  IN arch_t   Arch,
+  IN ARCH   Arch,
   IN VIRTUAL_ADDRESS  Pt,
   IN VIRTUAL_ADDRESS  Entry
   )

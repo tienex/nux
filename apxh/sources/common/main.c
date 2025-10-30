@@ -12,12 +12,12 @@
 
 #include <apxh/internal.h>
 
-static arch_t gElfArch;
+static ARCH gElfArch;
 static UINT8 gBootPagemap[PAGEMAP_SZ (BOOTMEM)]
   __attribute__((aligned (4096)));
 static VIRTUAL_ADDRESS gReqPfnmapVa, gReqInfoVa, gReqStreeVa, gReqRegionVa,
   gKtlsVa, gUtlsVa;
-static size64_t gReqPfnmapSize, gReqInfoSize, gReqStreeSize,
+static SIZE64 gReqPfnmapSize, gReqInfoSize, gReqStreeSize,
   gReqRegionSize, gKtlsInitsize, gKtlsSize, gUtlsInitsize, gUtlsSize;
 static unsigned gReqStreeOrder, gReqRegionNum;
 static bool gStopPayloadAllocation = false;
@@ -43,7 +43,7 @@ GetPayloadPage (
 
   assert (!gStopPayloadAllocation);
 
-  Page = get_page ();
+  Page = GetPage ();
   assert (Page - Base < BOOTMEM);
   memset ((VOID *) Page, 0, PAGE_SIZE);
 
@@ -89,8 +89,8 @@ Initialize (
   VOID
   )
 {
-  md_init ();
-  gMinRamAddr = md_minrampfn () << PAGE_SHIFT;
+  MdInit ();
+  gMinRamAddr = MdMinRamPfn () << PAGE_SHIFT;
 }
 
 /**
@@ -104,7 +104,7 @@ Initialize (
 **/
 CONST CHAR *
 GetArchName (
-  IN arch_t  Arch
+  IN ARCH  Arch
   )
 {
   switch (Arch)
@@ -138,15 +138,15 @@ VaInitialize (
     {
 #if (EC_MACHINE_I386) || (EC_MACHINE_AMD64)
     case ARCH_386:
-      pae_init ();
+      PaeInit ();
       break;
     case ARCH_AMD64:
-      pae64_init ();
+      Pae64Init ();
       break;
 #endif
 #if EC_MACHINE_RISCV64
     case ARCH_RISCV64:
-      sv48_init ();
+      Sv48Init ();
       break;
 #endif
     default:
@@ -170,28 +170,28 @@ VaInitialize (
 VOID
 VaPopulate (
   IN VIRTUAL_ADDRESS   Va,
-  IN size64_t  Size,
+  IN SIZE64  Size,
   IN int       U,
   IN int       W,
   IN int       X
   )
 {
-  md_verify (Va, Size);
+  MdVerify (Va, Size);
   VaVerify (Va, Size);
 
   switch (gElfArch)
     {
 #if EC_MACHINE_I386 || EC_MACHINE_AMD64
     case ARCH_386:
-      pae_populate (Va, Size, U, W, X);
+      PaePopulate (Va, Size, U, W, X);
       break;
     case ARCH_AMD64:
-      pae64_populate (Va, Size, U, W, X);
+      Pae64Populate (Va, Size, U, W, X);
       break;
 #endif
 #if EC_MACHINE_RISCV64
     case ARCH_RISCV64:
-      sv48_populate (Va, Size, U, W, X);
+      Sv48Populate (Va, Size, U, W, X);
       break;
 #endif
     default:
@@ -217,15 +217,15 @@ VOID
 VaCopy (
   IN VIRTUAL_ADDRESS   Va,
   IN VOID      *Addr,
-  IN size64_t  Size,
+  IN SIZE64  Size,
   IN int       U,
   IN int       W,
   IN int       X
   )
 {
-  ssize64_t Len = Size;
+  SSIZE64 Len = Size;
 
-  md_verify (Va, Size);
+  MdVerify (Va, Size);
   VaVerify (Va, Size);
 
 #if 0
@@ -237,7 +237,7 @@ VaCopy (
   while (Len > 0)
     {
       UINTN PAddr;
-      size64_t CLen = PAGE_CEILING (Va) - Va;
+      SIZE64 CLen = PAGE_CEILING (Va) - Va;
 
       if (CLen > Len)
 	CLen = Len;
@@ -269,15 +269,15 @@ VOID
 VaMemset (
   IN VIRTUAL_ADDRESS   Va,
   IN int       C,
-  IN size64_t  Size,
+  IN SIZE64  Size,
   IN int       U,
   IN int       W,
   IN int       X
   )
 {
-  ssize64_t Len = Size;
+  SSIZE64 Len = Size;
 
-  md_verify (Va, Size);
+  MdVerify (Va, Size);
   VaVerify (Va, Size);
 
   printf ("Setting %08llx <- %d (u:%d, w:%d, x: %d, %d bytes)\n", Va, C, U, W,
@@ -287,7 +287,7 @@ VaMemset (
   while (Len > 0)
     {
       UINTN PAddr;
-      size64_t CLen = PAGE_CEILING (Va) - Va;
+      SIZE64 CLen = PAGE_CEILING (Va) - Va;
 
       PAddr = VaGetPhys (Va);
 
@@ -310,26 +310,26 @@ VaMemset (
 VOID
 VaPhysmap (
   IN VIRTUAL_ADDRESS           Va,
-  IN size64_t          Size,
-  IN enum memory_type  Mt
+  IN SIZE64          Size,
+  IN MEMORY_TYPE  Mt
   )
 {
-  md_verify (Va, Size);
+  MdVerify (Va, Size);
   VaVerify (Va, Size);
 
   switch (gElfArch)
     {
 #if EC_MACHINE_I386 || EC_MACHINE_AMD64
     case ARCH_386:
-      pae_physmap (Va, Size, 0, Mt);
+      PaePhysmap (Va, Size, 0, Mt);
       break;
     case ARCH_AMD64:
-      pae64_physmap (Va, Size, 0, Mt);
+      Pae64Physmap (Va, Size, 0, Mt);
       break;
 #endif
 #if EC_MACHINE_RISCV64
     case ARCH_RISCV64:
-      sv48_physmap (Va, Size, 0, Mt);
+      Sv48Physmap (Va, Size, 0, Mt);
       break;
 #endif
     default:
@@ -351,17 +351,17 @@ VaPhysmap (
 VOID
 VaFramebuf (
   IN VIRTUAL_ADDRESS           Va,
-  IN size64_t          Size,
-  IN enum memory_type  Mt
+  IN SIZE64          Size,
+  IN MEMORY_TYPE  Mt
   )
 {
   UINT64 Pa;
   struct fbdesc *FbPtr;
 
-  md_verify (Va, Size);
+  MdVerify (Va, Size);
   VaVerify (Va, Size);
 
-  FbPtr = md_getframebuffer ();
+  FbPtr = MdGetFramebuffer ();
   if (FbPtr == NULL || FbPtr->type == FB_INVALID)
     return;
 
@@ -408,25 +408,25 @@ VaFramebuf (
 VOID
 VaLinear (
   IN VIRTUAL_ADDRESS   Va,
-  IN size64_t  Size
+  IN SIZE64  Size
   )
 {
-  md_verify (Va, Size);
+  MdVerify (Va, Size);
   VaVerify (Va, Size);
 
   switch (gElfArch)
     {
 #if EC_MACHINE_I386 || EC_MACHINE_AMD64
     case ARCH_386:
-      pae_linear (Va, Size);
+      PaeLinear (Va, Size);
       break;
     case ARCH_AMD64:
-      pae64_linear (Va, Size);
+      Pae64Linear (Va, Size);
       break;
 #endif
 #if EC_MACHINE_RISCV64
     case ARCH_RISCV64:
-      sv48_linear (Va, Size);
+      Sv48Linear (Va, Size);
       break;
 #endif
     default:
@@ -446,25 +446,25 @@ VaLinear (
 VOID
 VaTopPtAlloc (
   IN VIRTUAL_ADDRESS   Va,
-  IN size64_t  Size
+  IN SIZE64  Size
   )
 {
-  md_verify (Va, Size);
+  MdVerify (Va, Size);
   VaVerify (Va, Size);
 
   switch (gElfArch)
     {
 #if EC_MACHINE_I386 || EC_MACHINE_AMD64
     case ARCH_386:
-      pae_topptalloc (Va, Size);
+      PaeTopPtAlloc (Va, Size);
       break;
     case ARCH_AMD64:
-      pae64_topptalloc (Va, Size);
+      Pae64TopPtAlloc (Va, Size);
       break;
 #endif
 #if EC_MACHINE_RISCV64
     case ARCH_RISCV64:
-      sv48_topptalloc (Va, Size);
+      Sv48TopPtAlloc (Va, Size);
       break;
 #endif
     default:
@@ -484,25 +484,25 @@ VaTopPtAlloc (
 VOID
 VaPtAlloc (
   IN VIRTUAL_ADDRESS   Va,
-  IN size64_t  Size
+  IN SIZE64  Size
   )
 {
-  md_verify (Va, Size);
+  MdVerify (Va, Size);
   VaVerify (Va, Size);
 
   switch (gElfArch)
     {
 #if EC_MACHINE_I386 || EC_MACHINE_AMD64
     case ARCH_386:
-      pae_ptalloc (Va, Size);
+      PaePtAlloc (Va, Size);
       break;
     case ARCH_AMD64:
-      pae64_ptalloc (Va, Size);
+      Pae64PtAlloc (Va, Size);
       break;
 #endif
 #if EC_MACHINE_RISCV64
     case ARCH_RISCV64:
-      sv48_ptalloc (Va, Size);
+      Sv48PtAlloc (Va, Size);
       break;
 #endif
     default:
@@ -523,10 +523,10 @@ VaPtAlloc (
 VOID
 VaInfo (
   IN VIRTUAL_ADDRESS   Va,
-  IN size64_t  Size
+  IN SIZE64  Size
   )
 {
-  md_verify (Va, Size);
+  MdVerify (Va, Size);
   VaVerify (Va, Size);
 
   VaPopulate (Va, Size, 0, 0, 0);
@@ -553,7 +553,7 @@ VaInfoCopy (
   )
 {
   VIRTUAL_ADDRESS Va = gReqInfoVa;
-  size64_t Size = gReqInfoSize;
+  SIZE64 Size = gReqInfoSize;
 #define MIN(x,y) ((x < y) ? x : y)
   struct apxh_bootinfo i;
   struct fbdesc *FbPtr;
@@ -566,19 +566,19 @@ VaInfoCopy (
     }
 
   i.magic = APXH_BOOTINFO_MAGIC;
-  i.maxpfn = md_maxpfn ();
-  i.maxrampfn = md_maxrampfn ();
+  i.maxpfn = MdMaxPfn ();
+  i.maxrampfn = MdMaxRamPfn ();
   i.numregions = NumRegions;
   i.uentry = UEntry;
 
-  PlatformDesc = md_getplatformdesc ();
+  PlatformDesc = MdGetPlatformDesc ();
   if (PlatformDesc != NULL)
     i.pltdesc = *PlatformDesc;
   else
     i.pltdesc = (struct apxh_platformdesc)
     {.Type = PLATFORM_UNKNOWN,.PlatformPointer = 0 };
 
-  FbPtr = md_getframebuffer ();
+  FbPtr = MdGetFramebuffer ();
   if (FbPtr != NULL)
     i.fbdesc = *FbPtr;
   else
@@ -615,17 +615,17 @@ VaInfoCopy (
 VOID
 VaStree (
   IN VIRTUAL_ADDRESS   Va,
-  IN size64_t  Size
+  IN SIZE64  Size
   )
 {
-  size64_t s;
+  SIZE64 s;
   int i, Order;
   struct apxh_stree Hdr;
   struct bootinfo_region *Reg;
-  unsigned Regions = md_memregions ();
-  unsigned MaxFrame = md_maxrampfn ();
+  unsigned Regions = MdMemRegions ();
+  unsigned MaxFrame = MdMaxRamPfn ();
 
-  md_verify (Va, Size);
+  MdVerify (Va, Size);
   VaVerify (Va, Size);
 
   Order = stree_order (MaxFrame);
@@ -657,7 +657,7 @@ VaStree (
     {
       unsigned j;
 
-      Reg = md_getmemregion (i);
+      Reg = MdGetMemRegion (i);
 
       if (Reg->type != BOOTINFO_REGION_RAM)
 	continue;
@@ -682,7 +682,7 @@ VaStree (
     {
       unsigned j;
 
-      Reg = md_getmemregion (i);
+      Reg = MdGetMemRegion (i);
 
       if (Reg->type == BOOTINFO_REGION_RAM)
 	continue;
@@ -758,13 +758,13 @@ VaStreeCopy (
 VOID
 VaRegions (
   IN VIRTUAL_ADDRESS   Va,
-  IN size64_t  Size
+  IN SIZE64  Size
   )
 {
   unsigned MaxRegion;
-  unsigned Regions = md_memregions ();
+  unsigned Regions = MdMemRegions ();
 
-  md_verify (Va, Size);
+  MdVerify (Va, Size);
   VaVerify (Va, Size);
 
   MaxRegion = Size / sizeof (struct apxh_region);
@@ -809,7 +809,7 @@ VaRegionsCopy (
 
   for (i = 0; i < Regions; i++)
     {
-      Reg = md_getmemregion (i);
+      Reg = MdGetMemRegion (i);
       ApxhReg.type = Reg->type;
       ApxhReg.pfn = Reg->pfn;
       ApxhReg.len = Reg->len;
@@ -832,21 +832,21 @@ VaRegionsCopy (
 VOID
 VaPfnmap (
   IN VIRTUAL_ADDRESS   Va,
-  IN size64_t  Size
+  IN SIZE64  Size
   )
 {
   unsigned i, MaxFrame;
   struct bootinfo_region *Reg;
-  unsigned Regions = md_memregions ();
+  unsigned Regions = MdMemRegions ();
 
-  md_verify (Va, Size);
+  MdVerify (Va, Size);
   VaVerify (Va, Size);
 
   MaxFrame = Size / PFNMAP_ENTRY_SIZE;
 
-  if (MaxFrame > md_maxpfn ())
+  if (MaxFrame > MdMaxPfn ())
     {
-      MaxFrame = md_maxpfn ();
+      MaxFrame = MdMaxPfn ();
       Size = MaxFrame * PFNMAP_ENTRY_SIZE;
     }
 
@@ -856,7 +856,7 @@ VaPfnmap (
     {
       unsigned j;
 
-      Reg = md_getmemregion (i);
+      Reg = MdGetMemRegion (i);
 
       printf ("Reg: %d Type %02d, PA: %016llx (%ld)\n", i, Reg->type,
 	      (UINT64) Reg->pfn << PAGE_SHIFT, Reg->len);
@@ -942,8 +942,8 @@ VaPfnmapCopy (
 VOID
 VaKtls (
   IN VIRTUAL_ADDRESS   Va,
-  IN size64_t  InitSize,
-  IN size64_t  Size
+  IN SIZE64  InitSize,
+  IN SIZE64  Size
   )
 {
   gKtlsVa = Va;
@@ -963,8 +963,8 @@ VaKtls (
 VOID
 VaUtls (
   IN VIRTUAL_ADDRESS   Va,
-  IN size64_t  InitSize,
-  IN size64_t  Size
+  IN SIZE64  InitSize,
+  IN SIZE64  Size
   )
 {
   gUtlsVa = Va;
@@ -984,22 +984,22 @@ VaUtls (
 VOID
 VaVerify (
   IN VIRTUAL_ADDRESS   Va,
-  IN size64_t  Size
+  IN SIZE64  Size
   )
 {
   switch (gElfArch)
     {
 #if EC_MACHINE_I386 || EC_MACHINE_AMD64
     case ARCH_386:
-      pae_verify (Va, Size);
+      PaeVerify (Va, Size);
       break;
     case ARCH_AMD64:
-      pae64_verify (Va, Size);
+      Pae64Verify (Va, Size);
       break;
 #endif
 #if EC_MACHINE_RISCV64
     case ARCH_RISCV64:
-      sv48_verify (Va, Size);
+      Sv48Verify (Va, Size);
       break;
 #endif
     default:
@@ -1027,15 +1027,15 @@ VaGetPhys (
     {
 #if EC_MACHINE_I386 || EC_MACHINE_AMD64
     case ARCH_386:
-      return pae_getphys (Va);
+      return PaeGetPhys (Va);
       break;
     case ARCH_AMD64:
-      return pae64_getphys (Va);
+      return Pae64GetPhys (Va);
       break;
 #endif
 #if EC_MACHINE_RISCV64
     case ARCH_RISCV64:
-      return sv48_getphys (Va);
+      return Sv48GetPhys (Va);
       break;
 #endif
     default:
@@ -1061,15 +1061,15 @@ VaEntry (
     {
 #if EC_MACHINE_I386 || EC_MACHINE_AMD64
     case ARCH_386:
-      pae_entry (Entry);
+      PaeEntry (Entry);
       break;
     case ARCH_AMD64:
-      pae64_entry (Entry);
+      Pae64Entry (Entry);
       break;
 #endif
 #if EC_MACHINE_RISCV64
     case ARCH_RISCV64:
-      sv48_entry (Entry);
+      Sv48Entry (Entry);
       break;
 #endif
     default:
@@ -1100,7 +1100,7 @@ main (
   )
 {
   VOID *ElfStart;
-  size64_t ElfSize;
+  SIZE64 ElfSize;
   UINT64 KEntry, UEntry;
 
   printf ("\nAPXH started.\n\n");
@@ -1110,9 +1110,9 @@ main (
   /*
      Load kernel.
    */
-  ElfStart = get_payload_start (Argc, Argv, PAYLOAD_KERNEL);
-  ElfSize = get_payload_size (PAYLOAD_KERNEL);
-  gElfArch = get_elf_arch (ElfStart);
+  ElfStart = GetPayloadStart (Argc, Argv, PayloadKernel);
+  ElfSize = GetPayloadSize (PayloadKernel);
+  gElfArch = GetElfArch (ElfStart);
   printf ("Kernel payload %s ELF at addr %p (%d bytes)\n",
 	  GetArchName (gElfArch), ElfStart, ElfSize);
 
@@ -1143,11 +1143,11 @@ main (
   /*
      Load user if it exists.
    */
-  ElfStart = get_payload_start (Argc, Argv, PAYLOAD_USER);
-  ElfSize = get_payload_size (PAYLOAD_USER);
+  ElfStart = GetPayloadStart (Argc, Argv, PayloadUser);
+  ElfSize = GetPayloadSize (PayloadUser);
   if (ElfStart != NULL && ElfSize != 0)
     {
-      gElfArch = get_elf_arch (ElfStart);
+      gElfArch = GetElfArch (ElfStart);
       printf ("User payload %s ELF at addr %p (%d bytes)\n",
 	      GetArchName (gElfArch), ElfStart, ElfSize);
 
@@ -1187,160 +1187,3 @@ main (
   VaEntry (KEntry);
   return 0;
 }
-
-//
-// Legacy Function Wrappers (for backward compatibility)
-//
-
-/** @deprecated Use GetPayloadPage instead **/
-UINTN get_payload_page (void) {
-  return GetPayloadPage ();
-}
-
-/** @deprecated Use CheckPayloadPage instead **/
-unsigned check_payload_page (unsigned addr) {
-  return CheckPayloadPage (addr);
-}
-
-/** @deprecated Use Initialize instead **/
-void init (void) {
-  Initialize ();
-}
-
-/** @deprecated Use GetArchName instead **/
-CONST char *get_arch_name (arch_t arch) {
-  return GetArchName (arch);
-}
-
-/** @deprecated Use VaInitialize instead **/
-void va_init (void) {
-  VaInitialize ();
-}
-
-/** @deprecated Use VaPopulate instead **/
-void va_populate (VIRTUAL_ADDRESS va, size64_t size, int u, int w, int x) {
-  VaPopulate (va, size, u, w, x);
-}
-
-/** @deprecated Use VaCopy instead **/
-void va_copy (VIRTUAL_ADDRESS va, void *addr, size64_t size, int u, int w, int x) {
-  VaCopy (va, addr, size, u, w, x);
-}
-
-/** @deprecated Use VaMemset instead **/
-void va_memset (VIRTUAL_ADDRESS va, int c, size64_t size, int u, int w, int x) {
-  VaMemset (va, c, size, u, w, x);
-}
-
-/** @deprecated Use VaPhysmap instead **/
-void va_physmap (VIRTUAL_ADDRESS va, size64_t size, enum memory_type mt) {
-  VaPhysmap (va, size, mt);
-}
-
-/** @deprecated Use VaFramebuf instead **/
-void va_framebuf (VIRTUAL_ADDRESS va, size64_t size, enum memory_type mt) {
-  VaFramebuf (va, size, mt);
-}
-
-/** @deprecated Use VaLinear instead **/
-void va_linear (VIRTUAL_ADDRESS va, size64_t size) {
-  VaLinear (va, size);
-}
-
-/** @deprecated Use VaTopPtAlloc instead **/
-void va_topptalloc (VIRTUAL_ADDRESS va, size64_t size) {
-  VaTopPtAlloc (va, size);
-}
-
-/** @deprecated Use VaPtAlloc instead **/
-void va_ptalloc (VIRTUAL_ADDRESS va, size64_t size) {
-  VaPtAlloc (va, size);
-}
-
-/** @deprecated Use VaInfo instead **/
-void va_info (VIRTUAL_ADDRESS va, size64_t size) {
-  VaInfo (va, size);
-}
-
-/** @deprecated Use VaInfoCopy instead **/
-static void va_info_copy (UINT64 uentry, UINT64 num_regions) {
-  VaInfoCopy (uentry, num_regions);
-}
-
-/** @deprecated Use VaStree instead **/
-void va_stree (VIRTUAL_ADDRESS va, size64_t size) {
-  VaStree (va, size);
-}
-
-/** @deprecated Use VaStreeCopy instead **/
-void va_stree_copy (void) {
-  VaStreeCopy ();
-}
-
-/** @deprecated Use VaRegions instead **/
-void va_regions (VIRTUAL_ADDRESS va, size64_t size) {
-  VaRegions (va, size);
-}
-
-/** @deprecated Use VaRegionsCopy instead **/
-static void va_regions_copy (void) {
-  VaRegionsCopy ();
-}
-
-/** @deprecated Use VaPfnmap instead **/
-void va_pfnmap (VIRTUAL_ADDRESS va, size64_t size) {
-  VaPfnmap (va, size);
-}
-
-/** @deprecated Use VaPfnmapCopy instead **/
-static void va_pfnmap_copy (void) {
-  VaPfnmapCopy ();
-}
-
-/** @deprecated Use VaKtls instead **/
-void va_ktls (VIRTUAL_ADDRESS va, size64_t initsize, size64_t size) {
-  VaKtls (va, initsize, size);
-}
-
-/** @deprecated Use VaUtls instead **/
-void va_utls (VIRTUAL_ADDRESS va, size64_t initsize, size64_t size) {
-  VaUtls (va, initsize, size);
-}
-
-/** @deprecated Use VaVerify instead **/
-void va_verify (VIRTUAL_ADDRESS va, size64_t size) {
-  VaVerify (va, size);
-}
-
-/** @deprecated Use VaGetPhys instead **/
-UINTN va_getphys (VIRTUAL_ADDRESS va) {
-  return VaGetPhys (va);
-}
-
-/** @deprecated Use VaEntry instead **/
-void va_entry (VIRTUAL_ADDRESS entry) {
-  VaEntry (entry);
-}
-
-// Legacy global variable aliases
-static arch_t elf_arch __attribute__((alias("gElfArch")));
-static UINT8 boot_pagemap[PAGEMAP_SZ (BOOTMEM)]
-  __attribute__((alias("gBootPagemap")));
-static VIRTUAL_ADDRESS req_pfnmap_va __attribute__((alias("gReqPfnmapVa")));
-static VIRTUAL_ADDRESS req_info_va __attribute__((alias("gReqInfoVa")));
-static VIRTUAL_ADDRESS req_stree_va __attribute__((alias("gReqStreeVa")));
-static VIRTUAL_ADDRESS req_region_va __attribute__((alias("gReqRegionVa")));
-static VIRTUAL_ADDRESS ktls_va __attribute__((alias("gKtlsVa")));
-static VIRTUAL_ADDRESS utls_va __attribute__((alias("gUtlsVa")));
-static size64_t req_pfnmap_size __attribute__((alias("gReqPfnmapSize")));
-static size64_t req_info_size __attribute__((alias("gReqInfoSize")));
-static size64_t req_stree_size __attribute__((alias("gReqStreeSize")));
-static size64_t req_region_size __attribute__((alias("gReqRegionSize")));
-static size64_t ktls_initsize __attribute__((alias("gKtlsInitsize")));
-static size64_t ktls_size __attribute__((alias("gKtlsSize")));
-static size64_t utls_initsize __attribute__((alias("gUtlsInitsize")));
-static size64_t utls_size __attribute__((alias("gUtlsSize")));
-static unsigned req_stree_order __attribute__((alias("gReqStreeOrder")));
-static unsigned req_region_num __attribute__((alias("gReqRegionNum")));
-static bool stop_payload_allocation __attribute__((alias("gStopPayloadAllocation")));
-static UINT64 minramaddr __attribute__((alias("gMinRamAddr")));

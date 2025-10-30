@@ -92,7 +92,7 @@ SetupPatTable (
 **/
 unsigned
 MemtypeToFlags (
-  IN enum memory_type  Mt,
+  IN MEMORY_TYPE  Mt,
   IN bool              Small
   )
 {

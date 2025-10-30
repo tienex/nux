@@ -177,7 +177,7 @@ VOID *
 GetPayloadStart (
   IN int     Argc,
   IN char    *Argv[],
-  IN plid_t  Id
+  IN PAYLOAD_ID  Id
   )
 {
   VOID *ElfPayload;
@@ -210,7 +210,7 @@ GetPayloadStart (
 **/
 UINTN
 GetPayloadSize (
-  IN plid_t  Id
+  IN PAYLOAD_ID  Id
   )
 {
   UINTN ElfPayloadSize;
@@ -353,7 +353,7 @@ MdInitialize (
 VOID
 MdVerify (
   IN VIRTUAL_ADDRESS   Va,
-  IN size64_t  Size
+  IN SIZE64  Size
   )
 {
   /* Nothing to verify. */
@@ -490,7 +490,7 @@ MdGetPlatformDesc (
 **/
 VOID
 MdEntry (
-  IN arch_t   Arch,
+  IN ARCH   Arch,
   IN VIRTUAL_ADDRESS  Pt,
   IN VIRTUAL_ADDRESS  Entry
   )
@@ -531,99 +531,3 @@ MdEntry (
      "__rv64_tend:\n"::"r" (TrampSatp), "r" (Entry), "r" (Satp):"t0", "t1",
      "a0");
 }
-
-//
-// Legacy Function Wrappers (for backward compatibility)
-//
-
-/** @deprecated Use DtbAddrSize instead **/
-static void dtb_addrsize (CONST void *fdt, int noff, UINT32 *addrsz, UINT32 *sizesz) {
-  DtbAddrSize (fdt, noff, addrsz, sizesz);
-}
-
-/** @deprecated Use RamRegionForeach instead **/
-static void ramregion_foreach (void (*_f) (UINT64, UINT64, bool, void *), void *opq) {
-  RamRegionForeach (_f, opq);
-}
-
-/** @deprecated Use GetPayloadStart instead **/
-void *get_payload_start (int argc, char *argv[], plid_t id) {
-  return GetPayloadStart (argc, argv, id);
-}
-
-/** @deprecated Use GetPayloadSize instead **/
-UINTN get_payload_size (plid_t id) {
-  return GetPayloadSize (id);
-}
-
-/** @deprecated Use GetPage instead **/
-UINTN get_page (void) {
-  return GetPage ();
-}
-
-/** @deprecated Use AddRamRegion instead **/
-static void add_ramregion (UINT64 base, UINT64 len, bool busy, void *opq) {
-  AddRamRegion (base, len, busy, opq);
-}
-
-/** @deprecated Use MdInitialize instead **/
-void md_init (void) {
-  MdInitialize ();
-}
-
-/** @deprecated Use MdVerify instead **/
-void md_verify (VIRTUAL_ADDRESS va, size64_t size) {
-  MdVerify (va, size);
-}
-
-/** @deprecated Use MdMemRegions instead **/
-unsigned md_memregions (void) {
-  return MdMemRegions ();
-}
-
-/** @deprecated Use MdGetMemRegion instead **/
-struct bootinfo_region *md_getmemregion (unsigned i) {
-  return MdGetMemRegion (i);
-}
-
-/** @deprecated Use MdMinRamPfn instead **/
-UINT64 md_minrampfn (void) {
-  return MdMinRamPfn ();
-}
-
-/** @deprecated Use MdMaxRamPfn instead **/
-UINT64 md_maxrampfn (void) {
-  return MdMaxRamPfn ();
-}
-
-/** @deprecated Use MdGetFramebuffer instead **/
-struct fbdesc *md_getframebuffer (void) {
-  return MdGetFramebuffer ();
-}
-
-/** @deprecated Use MdMaxPfn instead **/
-UINT64 md_maxpfn (void) {
-  return MdMaxPfn ();
-}
-
-/** @deprecated Use MdGetPlatformDesc instead **/
-struct apxh_platformdesc *md_getplatformdesc (void) {
-  return MdGetPlatformDesc ();
-}
-
-/** @deprecated Use MdEntry instead **/
-void md_entry (arch_t arch, VIRTUAL_ADDRESS pt, VIRTUAL_ADDRESS entry) {
-  MdEntry (arch, pt, entry);
-}
-
-// Legacy global variable aliases
-static UINT64 minaddr __attribute__((alias("gMinAddr")));
-static UINT64 maxaddr __attribute__((alias("gMaxAddr")));
-static unsigned regions __attribute__((alias("gRegions")));
-static struct bootinfo_region ram_regions[SBI_MAX_RAM_REGIONS] __attribute__((alias("gRamRegions")));
-static void *elf_kernel_payload __attribute__((alias("gpElfKernelPayload")));
-static void *elf_user_payload __attribute__((alias("gpElfUserPayload")));
-static UINTN elf_kernel_payload_size __attribute__((alias("gElfKernelPayloadSize")));
-static UINTN elf_user_payload_size __attribute__((alias("gElfUserPayloadSize")));
-static UINTN brk __attribute__((alias("gBrk")));
-static struct apxh_platformdesc platformdesc __attribute__((alias("gPlatformDesc")));

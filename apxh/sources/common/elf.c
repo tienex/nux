@@ -424,7 +424,7 @@ LoadElf64 (
 
   @return Architecture type, or ARCH_INVALID/ARCH_UNSUPPORTED.
 **/
-arch_t
+ARCH
 GetElfArch (
   IN VOID  *ElfImg
   )
@@ -474,6 +474,6 @@ VIRTUAL_ADDRESS load_elf64 (void *elfimg, int u) {
 }
 
 /** @deprecated Use GetElfArch instead **/
-arch_t get_elf_arch (void *elfimg) {
+ARCH get_elf_arch (void *elfimg) {
   return GetElfArch (elfimg);
 }

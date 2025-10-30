@@ -109,7 +109,7 @@ MdVerify (
 **/
 VOID
 MdEntry (
-  IN arch_t   Arch,
+  IN ARCH   Arch,
   IN VIRTUAL_ADDRESS  Pt,
   IN VIRTUAL_ADDRESS  Entry
   )
@@ -163,7 +163,7 @@ MdEntry (
 **/
 VOID
 MdEntry (
-  IN arch_t   Arch,
+  IN ARCH   Arch,
   IN VIRTUAL_ADDRESS  Pt,
   IN VIRTUAL_ADDRESS  Entry
   )
@@ -338,7 +338,7 @@ VOID *
 GetPayloadStart (
   IN int     Argc,
   IN char    *Argv[],
-  IN plid_t  Id
+  IN PAYLOAD_ID  Id
   )
 {
   VOID *ElfPayload;
@@ -371,7 +371,7 @@ GetPayloadStart (
 **/
 unsigned long
 GetPayloadSize (
-  IN plid_t  Id
+  IN PAYLOAD_ID  Id
   )
 {
   UINTN ElfPayloadSize;
@@ -537,106 +537,4 @@ ApxhEfiAddRsdp (
   )
 {
   gpEfiRsdp = Rsdp;
-}
-
-//
-// Legacy Function Wrappers (for backward compatibility)
-//
-
-/** @deprecated Use Exit instead **/
-void __dead exit (int st) {
-  Exit (st);
-}
-
-/** @deprecated Use GetPage instead **/
-UINTN get_page (void) {
-  return GetPage ();
-}
-
-/** @deprecated Use MdInitialize instead **/
-void md_init (void) {
-  MdInitialize ();
-}
-
-/** @deprecated Use MdVerify instead **/
-void md_verify (VIRTUAL_ADDRESS va, UINT64 size) {
-  MdVerify (va, size);
-}
-
-/** @deprecated Use MdEntry instead **/
-void md_entry (arch_t arch, VIRTUAL_ADDRESS pt, VIRTUAL_ADDRESS entry) {
-  MdEntry (arch, pt, entry);
-}
-
-/** @deprecated Use MdMaxPfn instead **/
-UINT64 md_maxpfn (void) {
-  return MdMaxPfn ();
-}
-
-/** @deprecated Use MdMinRamPfn instead **/
-UINT64 md_minrampfn (void) {
-  return MdMinRamPfn ();
-}
-
-/** @deprecated Use MdMaxRamPfn instead **/
-UINT64 md_maxrampfn (void) {
-  return MdMaxRamPfn ();
-}
-
-/** @deprecated Use MdGetMemRegion instead **/
-struct bootinfo_region *md_getmemregion (unsigned i) {
-  return MdGetMemRegion (i);
-}
-
-/** @deprecated Use MdMemRegions instead **/
-unsigned md_memregions (void) {
-  return MdMemRegions ();
-}
-
-/** @deprecated Use MdGetFramebuffer instead **/
-struct fbdesc *md_getframebuffer (void) {
-  return MdGetFramebuffer ();
-}
-
-/** @deprecated Use MdGetPlatformDesc instead **/
-struct apxh_platformdesc *md_getplatformdesc (void) {
-  return MdGetPlatformDesc ();
-}
-
-/** @deprecated Use GetPayloadStart instead **/
-void *get_payload_start (int argc, char *argv[], plid_t id) {
-  return GetPayloadStart (argc, argv, id);
-}
-
-/** @deprecated Use GetPayloadSize instead **/
-unsigned long get_payload_size (plid_t id) {
-  return GetPayloadSize (id);
-}
-
-/** @deprecated Use ApxhEfiAddFramebuffer instead **/
-void apxhefi_add_framebuffer (UINT64 addr, UINT64 size,
-			      UINT32 width, UINT32 height,
-			      UINT32 pitch, UINT32 bpp,
-			      UINT32 rm, UINT32 gm, UINT32 bm) {
-  ApxhEfiAddFramebuffer (addr, size, width, height, pitch, bpp, rm, gm, bm);
-}
-
-/** @deprecated Use ApxhEfiAddMemRegion instead **/
-void apxhefi_add_memregion (int ram, int bsy, unsigned long pfn, unsigned len) {
-  ApxhEfiAddMemRegion (ram, bsy, pfn, len);
-}
-
-/** @deprecated Use ApxhEfiAddKernelPayload instead **/
-void apxhefi_add_kernel_payload (void *start, UINTN size) {
-  ApxhEfiAddKernelPayload (start, size);
-}
-
-/** @deprecated Use ApxhEfiAddUserPayload instead **/
-void apxhefi_add_user_payload (void *start, UINTN size) {
-  ApxhEfiAddUserPayload (start, size);
-}
-
-/** @deprecated Use ApxhEfiAddRsdp instead **/
-void apxhefi_add_rsdp (void *rsdp) {
-  ApxhEfiAddRsdp (rsdp);
 }
