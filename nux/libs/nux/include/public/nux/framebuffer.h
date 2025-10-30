@@ -3,8 +3,20 @@
 
 #include <stdint.h>
 
-/*
-  Framebuffer description.
+/**
+  Framebuffer Type
+**/
+typedef enum _FRAMEBUFFER_TYPE {
+  FramebufferInvalid = -1,  ///< Invalid/no framebuffer
+  FramebufferRgb     = 0    ///< RGB framebuffer
+} FRAMEBUFFER_TYPE;
+
+/** Legacy compatibility **/
+#define FB_INVALID FramebufferInvalid
+#define FB_RGB     FramebufferRgb
+
+/**
+  Framebuffer Descriptor
 
   Similar in principle and structure to the Multiboot 2
   specification's framebuffer description.
@@ -12,11 +24,9 @@
   NOTE: This struct must look the same when compiled both
   in 32 and 64 bit. Which is why it is packed and uses
   only fixed-bits fields.
-*/
-struct fbdesc
+**/
+typedef struct _FRAMEBUFFER_DESC
 {
-#define FB_INVALID -1
-#define FB_RGB     0
   int16_t type;
   uint16_t bpp;
 
@@ -30,16 +40,27 @@ struct fbdesc
   uint32_t r_mask;
   uint32_t g_mask;
   uint32_t b_mask;
-} __packed;
+} __packed FRAMEBUFFER_DESC, *PFRAMEBUFFER_DESC, *PCFRAMEBUFFER_DESC;
 
-int framebuffer_init (struct fbdesc *desc);
-uint32_t framebuffer_color (unsigned r, unsigned g, unsigned b);
-void framebuffer_blt (unsigned x, unsigned y, uint32_t color,
-		      void *data, size_t width, size_t height);
-int framebuffer_putc (int ch, uint32_t color);
-void framebuffer_putc_xy (unsigned x, unsigned y, uint32_t color,
-			  unsigned char c);
+/** Legacy compatibility **/
+#define fbdesc FRAMEBUFFER_DESC
 
-void framebuffer_reset (void);
+int FramebufferInit (FRAMEBUFFER_DESC *Desc);
+uint32_t FramebufferColor (unsigned R, unsigned G, unsigned B);
+void FramebufferBlt (unsigned X, unsigned Y, uint32_t Color,
+		      void *Data, size_t Width, size_t Height);
+int FramebufferPutc (int Ch, uint32_t Color);
+void FramebufferPutcXy (unsigned X, unsigned Y, uint32_t Color,
+			  unsigned char C);
+
+void FramebufferReset (void);
+
+/** Legacy compatibility **/
+#define framebuffer_init FramebufferInit
+#define framebuffer_color FramebufferColor
+#define framebuffer_blt FramebufferBlt
+#define framebuffer_putc FramebufferPutc
+#define framebuffer_putc_xy FramebufferPutcXy
+#define framebuffer_reset FramebufferReset
 
 #endif
