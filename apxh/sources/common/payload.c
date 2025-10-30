@@ -28,7 +28,7 @@ extern INT32 _end;
 VOID *
 PayloadGet (
   IN UINT32          Index,
-  OUT OPTIONAL size_t  *Size
+  OUT OPTIONAL UINTN  *Size
   )
 {
   struct payload_hdr *Ptr = (struct payload_hdr *) &_end;
@@ -59,6 +59,6 @@ PayloadGet (
 //
 
 /** @deprecated Use PayloadGet instead **/
-void *payload_get (unsigned i, size_t *size) {
+void *payload_get (unsigned i, UINTN *size) {
   return PayloadGet (i, size);
 }

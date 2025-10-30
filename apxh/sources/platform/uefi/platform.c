@@ -15,7 +15,7 @@
 #define BOOTINFO_REGIONS_MAX 1024
 
 static VOID *gpElfKernelPayload, *gpElfUserPayload;
-static size_t gElfKernelPayloadSize, gElfUserPayloadSize;
+static UINTN gElfKernelPayloadSize, gElfUserPayloadSize;
 static unsigned long gMaxPfn;
 static unsigned long gMaxRamPfn;
 static unsigned long gMinRamPfn = -1;
@@ -374,7 +374,7 @@ GetPayloadSize (
   IN plid_t  Id
   )
 {
-  size_t ElfPayloadSize;
+  UINTN ElfPayloadSize;
 
   switch (Id)
     {
@@ -498,7 +498,7 @@ ApxhEfiAddMemRegion (
 VOID
 ApxhEfiAddKernelPayload (
   IN VOID    *Start,
-  IN size_t  Size
+  IN UINTN  Size
   )
 {
   gpElfKernelPayload = Start;
@@ -517,7 +517,7 @@ ApxhEfiAddKernelPayload (
 VOID
 ApxhEfiAddUserPayload (
   IN VOID    *Start,
-  IN size_t  Size
+  IN UINTN  Size
   )
 {
   gpElfUserPayload = Start;
@@ -627,12 +627,12 @@ void apxhefi_add_memregion (int ram, int bsy, unsigned long pfn, unsigned len) {
 }
 
 /** @deprecated Use ApxhEfiAddKernelPayload instead **/
-void apxhefi_add_kernel_payload (void *start, size_t size) {
+void apxhefi_add_kernel_payload (void *start, UINTN size) {
   ApxhEfiAddKernelPayload (start, size);
 }
 
 /** @deprecated Use ApxhEfiAddUserPayload instead **/
-void apxhefi_add_user_payload (void *start, size_t size) {
+void apxhefi_add_user_payload (void *start, UINTN size) {
   ApxhEfiAddUserPayload (start, size);
 }
 

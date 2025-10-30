@@ -800,7 +800,7 @@ BOOLEAN
 CpuUserAccessCopyFrom (
   OUT VOID          *Dst,
   IN  USER_ADDRESS       Src,
-  IN  size_t        Size,
+  IN  UINTN        Size,
   IN  BOOLEAN       (*PfHandler)(USER_ADDRESS Va, hal_pfinfo_t Info)
   )
 {
@@ -851,7 +851,7 @@ BOOLEAN
 CpuUserAccessCopyTo (
   IN USER_ADDRESS  Dst,
   IN VOID     *Src,
-  IN size_t   Size,
+  IN UINTN   Size,
   IN BOOLEAN  (*PfHandler)(USER_ADDRESS Va, hal_pfinfo_t Info)
   )
 {
@@ -902,7 +902,7 @@ BOOLEAN
 CpuUserAccessMemset (
   IN USER_ADDRESS  Dst,
   IN INT32    Ch,
-  IN size_t   Size,
+  IN UINTN   Size,
   IN BOOLEAN  (*PfHandler)(USER_ADDRESS Va, hal_pfinfo_t Info)
   )
 {
@@ -1205,19 +1205,19 @@ static void cpu_useraccess_end (void) {
 }
 
 /** @deprecated Use CpuUserAccessCopyFrom instead **/
-bool cpu_useraccess_copyfrom (void *dst, USER_ADDRESS src, size_t size,
+bool cpu_useraccess_copyfrom (void *dst, USER_ADDRESS src, UINTN size,
                               bool (*pf_handler) (USER_ADDRESS va, hal_pfinfo_t info)) {
   return CpuUserAccessCopyFrom (dst, src, size, pf_handler);
 }
 
 /** @deprecated Use CpuUserAccessCopyTo instead **/
-bool cpu_useraccess_copyto (USER_ADDRESS dst, void *src, size_t size,
+bool cpu_useraccess_copyto (USER_ADDRESS dst, void *src, UINTN size,
                             bool (*pf_handler) (USER_ADDRESS va, hal_pfinfo_t info)) {
   return CpuUserAccessCopyTo (dst, src, size, pf_handler);
 }
 
 /** @deprecated Use CpuUserAccessMemset instead **/
-bool cpu_useraccess_memset (USER_ADDRESS dst, int ch, size_t size,
+bool cpu_useraccess_memset (USER_ADDRESS dst, int ch, UINTN size,
                             bool (*pf_handler) (USER_ADDRESS va, hal_pfinfo_t info)) {
   return CpuUserAccessMemset (dst, ch, size, pf_handler);
 }

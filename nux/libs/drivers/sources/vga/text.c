@@ -31,9 +31,9 @@ VgaPutChar (
   IN INT32  Ch
   )
 {
-  extern unsigned char _physmap_start[];
-  CONST unsigned char *pVgaPtr =
-    (CONST unsigned char *) (_physmap_start + 0xb8000);
+  extern UINT8 _physmap_start[];
+  CONST UINT8 *pVgaPtr =
+    (CONST UINT8 *) (_physmap_start + 0xb8000);
   static INT32 Initialized = 0;
   static INT32 X = 0;
   static INT32 Y = 0;
@@ -42,7 +42,7 @@ VgaPutChar (
     {
       INT32 i;
       for (i = 0; i < 80 * 25; i++)
-	*(unsigned char *) (pVgaPtr + i * 2) = 0;
+	*(UINT8 *) (pVgaPtr + i * 2) = 0;
       Initialized = 1;
     }
 
@@ -58,12 +58,12 @@ VgaPutChar (
       INT32 i;
       memmove ((void *) pVgaPtr, (void *) pVgaPtr + 80 * 2, 80 * 2 * (25 - 1));
       for (i = 0; i < 80; i++)
-	*(unsigned char *) (pVgaPtr + 80 * 2 * (25 - 1) + i * 2) = 0;
+	*(UINT8 *) (pVgaPtr + 80 * 2 * (25 - 1) + i * 2) = 0;
       Y = 25 - 1;
       X = 0;
     }
 
-  *(unsigned char *) (pVgaPtr + X++ * 2 + Y * 80 * 2) = Ch;
+  *(UINT8 *) (pVgaPtr + X++ * 2 + Y * 80 * 2) = Ch;
   return Ch;
 }
 

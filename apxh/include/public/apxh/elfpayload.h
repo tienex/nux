@@ -18,7 +18,7 @@
 */
 
 /* Get payload address. */
-void *payload_get (unsigned i, size_t *size);
+void *payload_get (unsigned i, UINTN *size);
 
 
 /*

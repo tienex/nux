@@ -84,7 +84,7 @@ HalPcpuInit (
 
   /* Map and prepare the bootstrap code page. */
   Start = pfn_get (Pfn);
-  size_t ApBootSz = (size_t) ((void *) &_ap_end - (void *) &_ap_start);
+  UINTN ApBootSz = (UINTN) ((void *) &_ap_end - (void *) &_ap_start);
   assert (ApBootSz <= PAGE_SIZE);
   memcpy (Start, &_ap_start, ApBootSz);
   PStart = (PHYSICAL_ADDRESS) Pfn << PAGE_SHIFT;

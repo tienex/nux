@@ -23,8 +23,8 @@
 
 static rb_tree_t gVmapRbTree;
 static VIRTUAL_ADDRESS gKvaBase;
-static size_t gKvaSize;
-static size_t gVmapSize;
+static UINTN gKvaSize;
+static UINTN gVmapSize;
 
 /**
   Virtual memory entry structure.
@@ -36,7 +36,7 @@ struct vme
   struct rb_node rb_node;      ///< Red-black tree node
   LIST_ENTRY (vme) list;       ///< List entry
   VIRTUAL_ADDRESS addr;                ///< Starting virtual address
-  size_t size;                 ///< Size in bytes
+  UINTN size;                 ///< Size in bytes
 };
 
 /**
@@ -47,7 +47,7 @@ struct vme
 struct vmap
 {
   rb_tree_t rbtree;            ///< Red-black tree root
-  size_t size;                 ///< Total size managed
+  UINTN size;                 ///< Total size managed
 };
 
 /**
@@ -95,7 +95,7 @@ VmapFind (
 static struct vme *
 VmapInsert (
   IN VIRTUAL_ADDRESS  Start,
-  IN size_t   Len
+  IN UINTN   Len
   )
 {
   struct vme *Vme;
@@ -196,7 +196,7 @@ static CONST rb_tree_ops_t gVmapTreeOps = {
 static VOID
 ___get_neighbors (
   IN  VIRTUAL_ADDRESS      Addr,
-  IN  size_t       Size,
+  IN  UINTN       Size,
   OUT struct vme   **Pv,
   OUT struct vme   **Nv,
   IN  uintptr_t    Opq
@@ -230,7 +230,7 @@ _next:
 static struct vme *
 ___mkptr (
   IN VIRTUAL_ADDRESS     Addr,
-  IN size_t      Size,
+  IN UINTN      Size,
   IN uintptr_t   Opq
   )
 {
@@ -269,10 +269,10 @@ static struct zone gVmapZone;
 **/
 VIRTUAL_ADDRESS
 KvaAllocate (
-  IN size_t  Size
+  IN UINTN  Size
   )
 {
-  size_t PgSz;
+  UINTN PgSz;
   VIRTUAL_ADDRESS Va;
 
   PgSz = round_page (Size);
@@ -297,7 +297,7 @@ KvaAllocate (
 VOID
 KvaFree (
   IN VIRTUAL_ADDRESS  Va,
-  IN size_t   Size
+  IN UINTN   Size
   )
 {
   Va = trunc_page (Va);
@@ -349,7 +349,7 @@ KvaMap (
 VOID *
 KvaMapPhysical (
   IN PHYSICAL_ADDRESS  Paddr,
-  IN size_t   Size,
+  IN UINTN   Size,
   IN UINT32   Prot
   )
 {
@@ -382,7 +382,7 @@ KvaMapPhysical (
 VOID
 KvaUnmap (
   IN VOID    *Ptr,
-  IN size_t  Size
+  IN UINTN  Size
   )
 {
   UINT32 No, i;
@@ -436,7 +436,7 @@ static struct vme *vmap_find (VIRTUAL_ADDRESS va) {
 }
 
 /** @deprecated Use VmapInsert instead **/
-static struct vme *vmap_insert (VIRTUAL_ADDRESS start, size_t len) {
+static struct vme *vmap_insert (VIRTUAL_ADDRESS start, UINTN len) {
   return VmapInsert (start, len);
 }
 
@@ -451,12 +451,12 @@ static int vmap_compare_nodes (void *ctx, CONST void *n1, CONST void *n2) {
 }
 
 /** @deprecated Use KvaAllocate instead **/
-VIRTUAL_ADDRESS KvaAlloc (size_t size) {
+VIRTUAL_ADDRESS KvaAlloc (UINTN size) {
   return KvaAllocate (size);
 }
 
 /** @deprecated Use KvaFree instead **/
-void KvaFree (VIRTUAL_ADDRESS va, size_t size) {
+void KvaFree (VIRTUAL_ADDRESS va, UINTN size) {
   KvaFree (va, size);
 }
 
@@ -466,12 +466,12 @@ void *KvaMap (PFN pfn, unsigned prot) {
 }
 
 /** @deprecated Use KvaMapPhysical instead **/
-void *KvaPhysMap (PHYSICAL_ADDRESS paddr, size_t size, unsigned prot) {
+void *KvaPhysMap (PHYSICAL_ADDRESS paddr, UINTN size, unsigned prot) {
   return KvaMapPhysical (paddr, size, prot);
 }
 
 /** @deprecated Use KvaUnmap instead **/
-void KvaUnmap (void *ptr, size_t size) {
+void KvaUnmap (void *ptr, UINTN size) {
   KvaUnmap (ptr, size);
 }
 
@@ -483,7 +483,7 @@ void kvainit (void) {
 // Legacy global variable aliases
 static rb_tree_t vmap_rbtree __attribute__((alias("gVmapRbTree")));
 static VIRTUAL_ADDRESS kvabase __attribute__((alias("gKvaBase")));
-static size_t kvasize __attribute__((alias("gKvaSize")));
-static size_t vmap_size __attribute__((alias("gVmapSize")));
+static UINTN kvasize __attribute__((alias("gKvaSize")));
+static UINTN vmap_size __attribute__((alias("gVmapSize")));
 static lock_t vmap_lock __attribute__((alias("gVmapLock")));
 static struct zone vmap_zone __attribute__((alias("gVmapZone")));

@@ -188,12 +188,12 @@ hal_virtmem_dmapbase (
   return _riscv64_physmap_start;
 }
 
-CONST size_t
+CONST UINTN
 hal_virtmem_dmapsize (
   VOID
   )
 {
-  return (size_t) (_riscv64_physmap_end - _riscv64_physmap_start);
+  return (UINTN) (_riscv64_physmap_end - _riscv64_physmap_start);
 }
 
 VIRTUAL_ADDRESS
@@ -204,12 +204,12 @@ hal_virtmem_pfn$base (
   return _riscv64_pfncache_start;
 }
 
-CONST size_t
+CONST UINTN
 hal_virtmem_pfn$size (
   VOID
   )
 {
-  return (size_t) (_riscv64_pfncache_end - _riscv64_pfncache_start);
+  return (UINTN) (_riscv64_pfncache_end - _riscv64_pfncache_start);
 }
 
 CONST VIRTUAL_ADDRESS
@@ -220,7 +220,7 @@ hal_virtmem_userbase (
   return pt_umap_minaddr ();
 }
 
-CONST size_t
+CONST UINTN
 hal_virtmem_usersize (
   VOID
   )
@@ -295,12 +295,12 @@ hal_virtmem_kvabase (
   return (VIRTUAL_ADDRESS) _riscv64_kva_start;
 }
 
-CONST size_t
+CONST UINTN
 hal_virtmem_kvasize (
   VOID
   )
 {
-  return (size_t) (_riscv64_kva_end - _riscv64_kva_start);
+  return (UINTN) (_riscv64_kva_end - _riscv64_kva_start);
 }
 
 VIRTUAL_ADDRESS
@@ -311,12 +311,12 @@ hal_virtmem_kmembase (
   return (VIRTUAL_ADDRESS) _riscv64_kmem_start;
 }
 
-CONST size_t
+CONST UINTN
 hal_virtmem_kmemsize (
   VOID
   )
 {
-  return (size_t) (_riscv64_kmem_end - _riscv64_kmem_start);
+  return (UINTN) (_riscv64_kmem_end - _riscv64_kmem_start);
 }
 
 CONST struct apxh_platformdesc *
@@ -338,7 +338,7 @@ RiscvInitialize (
   VOID
   )
 {
-  size_t StreeMemsize;
+  UINTN StreeMemsize;
   struct apxh_stree *StreeHdr;
 
   if (bootinfo->magic != APXH_BOOTINFO_MAGIC)
@@ -363,7 +363,7 @@ RiscvInitialize (
       EarlyPrint ("ERROR: stree size doesn't match!");
       hal_cpu_halt ();
     }
-  StreeMemsize = (size_t) ((void *) _stree_end - (void *) _stree_start);
+  StreeMemsize = (UINTN) ((void *) _stree_end - (void *) _stree_start);
   if (StreeHdr->size + StreeHdr->offset > StreeMemsize)
     {
       EarlyPrint ("ERROR: stree doesn't fit in allocated memory!");

@@ -116,7 +116,7 @@ AcpiInitialize (
   )
 {
   VOID *Ptr;
-  size_t EntryLen;
+  UINTN EntryLen;
   INT64 Length;
   PHYSICAL_ADDRESS PaSdt;
   struct acpi_rsdp_thdr *Rsdp;

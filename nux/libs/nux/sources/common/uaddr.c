@@ -56,7 +56,7 @@ UaddrValid (
 BOOLEAN
 UaddrValidRange (
   IN USER_ADDRESS  Uaddr,
-  IN size_t   Size
+  IN UINTN   Size
   )
 {
   return UaddrValid (Uaddr) && UaddrValid (Uaddr + Size) && (Uaddr < (Uaddr + Size));
@@ -72,6 +72,6 @@ bool UaddrValid (USER_ADDRESS a) {
 }
 
 /** @deprecated Use UaddrValidRange instead **/
-bool UaddrValidRange (USER_ADDRESS a, size_t size) {
+bool UaddrValidRange (USER_ADDRESS a, UINTN size) {
   return UaddrValidRange (a, size);
 }

@@ -964,7 +964,7 @@ static INLINE VIRTUAL_ADDRESS hal_virtmem_userbase (void) {
   return pVirtMem->lpVtbl->GetUserBase(pVirtMem);
 }
 
-static INLINE CONST size_t hal_virtmem_usersize (void) {
+static INLINE CONST UINTN hal_virtmem_usersize (void) {
   IHalVirtMem *pVirtMem; gpHal->lpVtbl->GetVirtMemInterface(gpHal, &pVirtMem);
   return pVirtMem->lpVtbl->GetUserSize(pVirtMem);
 }
@@ -974,7 +974,7 @@ static INLINE VIRTUAL_ADDRESS hal_virtmem_dmapbase (void) {
   return pVirtMem->lpVtbl->GetDmapBase(pVirtMem);
 }
 
-static INLINE CONST size_t hal_virtmem_dmapsize (void) {
+static INLINE CONST UINTN hal_virtmem_dmapsize (void) {
   IHalVirtMem *pVirtMem; gpHal->lpVtbl->GetVirtMemInterface(gpHal, &pVirtMem);
   return pVirtMem->lpVtbl->GetDmapSize(pVirtMem);
 }
@@ -984,7 +984,7 @@ static INLINE VIRTUAL_ADDRESS hal_virtmem_pfn$base (void) {
   return pVirtMem->lpVtbl->GetPfnCacheBase(pVirtMem);
 }
 
-static INLINE CONST size_t hal_virtmem_pfn$size (void) {
+static INLINE CONST UINTN hal_virtmem_pfn$size (void) {
   IHalVirtMem *pVirtMem; gpHal->lpVtbl->GetVirtMemInterface(gpHal, &pVirtMem);
   return pVirtMem->lpVtbl->GetPfnCacheSize(pVirtMem);
 }
@@ -994,7 +994,7 @@ static INLINE VIRTUAL_ADDRESS hal_virtmem_kvabase (void) {
   return pVirtMem->lpVtbl->GetKvaBase(pVirtMem);
 }
 
-static INLINE CONST size_t hal_virtmem_kvasize (void) {
+static INLINE CONST UINTN hal_virtmem_kvasize (void) {
   IHalVirtMem *pVirtMem; gpHal->lpVtbl->GetVirtMemInterface(gpHal, &pVirtMem);
   return pVirtMem->lpVtbl->GetKvaSize(pVirtMem);
 }
@@ -1004,7 +1004,7 @@ static INLINE VIRTUAL_ADDRESS hal_virtmem_kmembase (void) {
   return pVirtMem->lpVtbl->GetKmemBase(pVirtMem);
 }
 
-static INLINE CONST size_t hal_virtmem_kmemsize (void) {
+static INLINE CONST UINTN hal_virtmem_kmemsize (void) {
   IHalVirtMem *pVirtMem; gpHal->lpVtbl->GetVirtMemInterface(gpHal, &pVirtMem);
   return pVirtMem->lpVtbl->GetKmemSize(pVirtMem);
 }

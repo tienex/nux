@@ -204,7 +204,7 @@ KmapIsMapped (
 INT32
 KmapIsMappedRange (
   IN VIRTUAL_ADDRESS  Va,
-  IN size_t   Size
+  IN UINTN   Size
   )
 {
   VIRTUAL_ADDRESS i, S, E;
@@ -308,7 +308,7 @@ out:
 INT32
 KmapEnsureRange (
   IN VIRTUAL_ADDRESS  Va,
-  IN size_t   Size,
+  IN UINTN   Size,
   IN UINT32   ReqProt
   )
 {
@@ -386,7 +386,7 @@ int KmapMapped (VIRTUAL_ADDRESS va) {
 }
 
 /** @deprecated Use KmapIsMappedRange instead **/
-int kmap_mapped_range (VIRTUAL_ADDRESS va, size_t size) {
+int kmap_mapped_range (VIRTUAL_ADDRESS va, UINTN size) {
   return KmapIsMappedRange (va, size);
 }
 
@@ -396,7 +396,7 @@ int KmapEnsure (VIRTUAL_ADDRESS va, unsigned reqprot) {
 }
 
 /** @deprecated Use KmapEnsureRange instead **/
-int kmap_ensure_range (VIRTUAL_ADDRESS va, size_t size, unsigned reqprot) {
+int kmap_ensure_range (VIRTUAL_ADDRESS va, UINTN size, unsigned reqprot) {
   return KmapEnsureRange (va, size, reqprot);
 }
 

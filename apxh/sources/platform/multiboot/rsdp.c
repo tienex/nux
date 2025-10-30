@@ -45,7 +45,7 @@ struct acpi_rsdp_thdr
 static VOID *
 RsdpScan (
   IN VOID    *Base,
-  IN size_t  Size
+  IN UINTN  Size
   )
 {
   VOID *Ptr;

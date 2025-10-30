@@ -36,12 +36,12 @@ FramebufferBlt (
   IN UINT32  Y,
   IN UINT32  Color,
   IN VOID    *Data,
-  IN size_t  Width,
-  IN size_t  Height
+  IN UINTN  Width,
+  IN UINTN  Height
   )
 {
   UINT32 BytesPerPixel = gFbDesc->bpp / 8;
-  size_t HeightRemaining;
+  UINTN HeightRemaining;
 
   if (gFbDesc->type == FB_INVALID)
     return;
@@ -49,14 +49,14 @@ FramebufferBlt (
   HeightRemaining = Height;
   while (HeightRemaining)
     {
-      size_t Offset = Y * gFbDesc->pitch + X * BytesPerPixel;
-      size_t WidthRemainingBytes = (Width + 7) / 8;
-      size_t WidthRemaining = Width;
+      UINTN Offset = Y * gFbDesc->pitch + X * BytesPerPixel;
+      UINTN WidthRemainingBytes = (Width + 7) / 8;
+      UINTN WidthRemaining = Width;
 
       while (WidthRemainingBytes)
 	{
 	  UINT8 Byte = *(UINT8 *) Data++;
-	  size_t BitsRemaining = WidthRemaining < 8 ? WidthRemaining : 8;
+	  UINTN BitsRemaining = WidthRemaining < 8 ? WidthRemaining : 8;
 
 	  while (BitsRemaining)
 	    {
@@ -77,14 +77,4 @@ FramebufferBlt (
       Y += 1;
       HeightRemaining--;
     }
-}
-
-//
-// Legacy Function Wrappers (for backward compatibility)
-//
-
-/** @deprecated Use FramebufferBlt instead **/
-void framebuffer_blt (unsigned x, unsigned y, UINT32 color,
-		 void *data, size_t width, size_t height) {
-  FramebufferBlt (x, y, color, data, width, height);
 }

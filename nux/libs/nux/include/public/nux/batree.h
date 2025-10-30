@@ -147,8 +147,8 @@
 
   @return BATREE order needed.
 **/
-static INLINE size_t
-BatreeOrder (size_t N)
+static INLINE UINTN
+BatreeOrder (UINTN N)
 {
   long Log2N = (LONG_BIT - 1 - __builtin_clzl ((long) N));
   long R = Log2N;
@@ -159,7 +159,7 @@ BatreeOrder (size_t N)
   return R;
 }
 
-static INLINE size_t
+static INLINE UINTN
 BatreeLmapOff (UINT32 O, UINT32 L)
 {
   /*
@@ -178,8 +178,8 @@ BatreeLmapOff (UINT32 O, UINT32 L)
      WORDLOG2 before returning.
    */
   UINT32 Y = L - 1;
-  size_t C = 1 << (O - WORDLOG2 * Y);
-  size_t R = C * ((1 << WORDLOG2 * L) - 1) / (WORDSIZE - 1);
+  UINTN C = 1 << (O - WORDLOG2 * Y);
+  UINTN R = C * ((1 << WORDLOG2 * L) - 1) / (WORDSIZE - 1);
   return R >> WORDLOG2;
 }
 
@@ -191,18 +191,18 @@ BatreeLmap (WORD_T *Batree, UINT32 O, UINT32 L)
 }
 
 /** Get bit offset of an lmap of level L for address A. **/
-static INLINE size_t
+static INLINE UINTN
 LmapBitOff (UINT32 L, UINT32 A)
 {
-  return ((size_t) A >> WORDLOG2 * L);
+  return ((UINTN) A >> WORDLOG2 * L);
 }
 
 static INLINE bool
-SetBit (WORD_T *Map, size_t BitAddr)
+SetBit (WORD_T *Map, UINTN BitAddr)
 {
   WORD_T Old;
-  size_t Off = BitAddr >> WORDLOG2;
-  size_t Bit = BitAddr & WORDMASK;
+  UINTN Off = BitAddr >> WORDLOG2;
+  UINTN Bit = BitAddr & WORDMASK;
 
   Old = GET_WORD (Map + Off);
   OR_WORD (Map + Off, ((WORD_T) 1 << Bit));
@@ -212,10 +212,10 @@ SetBit (WORD_T *Map, size_t BitAddr)
 }
 
 static INLINE bool
-ClrBit (WORD_T *Map, size_t BitAddr)
+ClrBit (WORD_T *Map, UINTN BitAddr)
 {
-  size_t Off = BitAddr >> WORDLOG2;
-  size_t Bit = BitAddr & WORDMASK;
+  UINTN Off = BitAddr >> WORDLOG2;
+  UINTN Bit = BitAddr & WORDMASK;
 
   MASK_WORD (Map + Off, ~((WORD_T) 1 << Bit));
 
@@ -224,16 +224,16 @@ ClrBit (WORD_T *Map, size_t BitAddr)
 }
 
 static INLINE int
-GetBit (WORD_T *Map, size_t BitAddr)
+GetBit (WORD_T *Map, UINTN BitAddr)
 {
-  size_t Off = BitAddr >> WORDLOG2;
-  size_t Bit = BitAddr & WORDMASK;
+  UINTN Off = BitAddr >> WORDLOG2;
+  UINTN Bit = BitAddr & WORDMASK;
 
   return !!(GET_WORD (Map + Off) & ((WORD_T) 1 << Bit));
 }
 
 static INLINE int
-BatreeGetBit (WORD_T *Batree, UINT32 O, size_t BitAddr)
+BatreeGetBit (WORD_T *Batree, UINT32 O, UINTN BitAddr)
 {
   WORD_T *Lmap = BatreeLmap (Batree, O, 0);
 
@@ -241,14 +241,14 @@ BatreeGetBit (WORD_T *Batree, UINT32 O, size_t BitAddr)
 }
 
 static INLINE void
-BatreeSetBit (WORD_T *Batree, UINT32 O, size_t BitAddr)
+BatreeSetBit (WORD_T *Batree, UINT32 O, UINTN BitAddr)
 {
   INT32 L;
 
   for (L = 0; L <= LOGWORD (O) - 1; L++)
     {
       WORD_T *Lmap = BatreeLmap (Batree, O, L);
-      size_t Laddr = LmapBitOff (L, BitAddr);
+      UINTN Laddr = LmapBitOff (L, BitAddr);
 
       if (SetBit (Lmap, Laddr))
 	{
@@ -259,14 +259,14 @@ BatreeSetBit (WORD_T *Batree, UINT32 O, size_t BitAddr)
 }
 
 static INLINE void
-BatreeClrBit (WORD_T *Batree, UINT32 O, size_t BitAddr)
+BatreeClrBit (WORD_T *Batree, UINT32 O, UINTN BitAddr)
 {
   INT32 L;
 
   for (L = 0; L <= LOGWORD (O) - 1; L++)
     {
       WORD_T *Lmap = BatreeLmap (Batree, O, L);
-      size_t Laddr = LmapBitOff (L, BitAddr);
+      UINTN Laddr = LmapBitOff (L, BitAddr);
 
       if (ClrBit (Lmap, Laddr))
 	{
@@ -285,8 +285,8 @@ BatreeSetAll (WORD_T *Batree, UINT32 O, UINT32 long Max)
   for (L = LOGWORD (O) - 1; L >= 0; L -= 1)
     {
       WORD_T *Lmap = BatreeLmap (Batree, O, L);
-      size_t Size = LmapBitOff (L, Max) >> WORDLOG2;
-      size_t Bits = LmapBitOff (L, Max) & WORDMASK;
+      UINTN Size = LmapBitOff (L, Max) >> WORDLOG2;
+      UINTN Bits = LmapBitOff (L, Max) & WORDMASK;
       memset (Lmap, -1, Size * sizeof (WORD_T));
       Lmap[Size] =
 	Bits == WORDSIZE - 1 ? (WORD_T) - 1 : ((WORD_T) 1 << (Bits + 1)) - 1;
@@ -331,13 +331,13 @@ static INLINE long
 BatreeBitSearch (WORD_T *Batree, UINT32 O, INT32 Low)
 {
   INT32 L;
-  size_t Laddr;
+  UINTN Laddr;
 
   Laddr = 0;
   for (L = LOGWORD (O) - 1; L >= 0; L -= 1)
     {
       WORD_T *Lmap = BatreeLmap (Batree, O, L);
-      size_t Loff = LmapBitOff (L, Laddr) >> WORDLOG2;
+      UINTN Loff = LmapBitOff (L, Laddr) >> WORDLOG2;
       WORD_T Word = GET_WORD (Lmap + Loff);
       UINT32 Bit;
 

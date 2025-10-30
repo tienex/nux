@@ -22,7 +22,7 @@
 #define BOOTMEM_MMAPSIZE  0x30000	/* Memory map maximum size */
 
 static VOID *gpElfKernelPayload, *gpElfUserPayload;
-static size_t gElfKernelPayloadSize, gElfUserPayloadSize;
+static UINTN gElfKernelPayloadSize, gElfUserPayloadSize;
 
 static UINTN gBrk;
 static unsigned gBootinfoRegions;
@@ -108,7 +108,7 @@ ParseMultibootMmap (
   IN struct multiboot_info  *Info
   )
 {
-  size_t MmapLength;
+  UINTN MmapLength;
 
   MmapLength = Info->mmap_length;
 
@@ -145,7 +145,7 @@ ParseMultibootMmap (
   UINT64 MaxPfn = 0;
   UINT64 MaxRamPfn = 0;
   unsigned Regions = 0;
-  size_t Cur;
+  UINTN Cur;
   VOLATILE struct multiboot_mmap_entry *MbPtr =
     (struct multiboot_mmap_entry *) BOOTMEM_MMAP;
   VOLATILE struct bootinfo_region *HrPtr =
@@ -153,7 +153,7 @@ ParseMultibootMmap (
   printf ("Multiboot memory map:\n");
   for (Cur = 0; Cur < MmapLength;)
     {
-      size_t MbSize;
+      UINTN MbSize;
       struct bootinfo_region HReg;
 
       printf ("%016llx:%016llx:%d\n", MbPtr->addr, MbPtr->len, MbPtr->type);
@@ -257,12 +257,12 @@ GetPayloadStart (
 
   @return Size of payload in bytes, or 0 if not found.
 **/
-size_t
+UINTN
 GetPayloadSize (
   IN plid_t  Id
   )
 {
-  size_t ElfPayloadSize;
+  UINTN ElfPayloadSize;
 
   switch (Id)
     {

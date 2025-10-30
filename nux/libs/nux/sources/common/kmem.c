@@ -301,7 +301,7 @@ struct kmem_head
   unsigned long magic;           ///< Magic number for validation
   LIST_ENTRY (kmem_head) list;   ///< List entry
   VIRTUAL_ADDRESS addr;                  ///< Starting address
-  size_t size;                   ///< Allocation size
+  UINTN size;                   ///< Allocation size
 };
 
 /**
@@ -309,7 +309,7 @@ struct kmem_head
 **/
 struct kmem_tail
 {
-  size_t offset;                 ///< Offset to header
+  UINTN offset;                 ///< Offset to header
   unsigned long magic;           ///< Magic number for validation
 };
 
@@ -333,7 +333,7 @@ struct kmem_tail
 static struct kmem_head *
 ___mkptr (
   IN zaddr_t    Zaddr,
-  IN size_t     Size,
+  IN UINTN     Size,
   IN uintptr_t  Opq
   )
 {
@@ -391,7 +391,7 @@ ___freeptr (
 static VOID
 ___get_neighbors (
   IN  zaddr_t           Zaddr,
-  IN  size_t            Size,
+  IN  UINTN            Size,
   OUT struct kmem_head  **Ph,
   OUT struct kmem_head  **Nh,
   IN  uintptr_t         Opq
@@ -483,14 +483,14 @@ static struct zone gKmemZ[2];
 VIRTUAL_ADDRESS
 KmemAllocate (
   IN INT32   Low,
-  IN size_t  Size
+  IN UINTN  Size
   )
 {
   zaddr_t Zr;
   VIRTUAL_ADDRESS R;
   lock_t *L;
   struct zone *Z;
-  size_t Size64b;
+  UINTN Size64b;
 
   Size64b = size_zalign (Size);
 
@@ -520,7 +520,7 @@ VOID
 KmemFree (
   IN INT32    Low,
   IN VIRTUAL_ADDRESS  Vaddr,
-  IN size_t   Size
+  IN UINTN   Size
   )
 {
   UINT32 This;
@@ -528,7 +528,7 @@ KmemFree (
   VIRTUAL_ADDRESS Limit;
   struct zone *Z;
   lock_t *L;
-  size_t Size64b;
+  UINTN Size64b;
 
   Size64b = size_zalign (Size);
 
@@ -696,12 +696,12 @@ int KmemBrkShrink (int low, unsigned size) {
 }
 
 /** @deprecated Use KmemAllocate instead **/
-VIRTUAL_ADDRESS KmemAlloc (int low, size_t size) {
+VIRTUAL_ADDRESS KmemAlloc (int low, UINTN size) {
   return KmemAllocate (low, size);
 }
 
 /** @deprecated Use KmemFree instead **/
-void KmemFree (int low, VIRTUAL_ADDRESS vaddr, size_t size) {
+void KmemFree (int low, VIRTUAL_ADDRESS vaddr, UINTN size) {
   KmemFree (low, vaddr, size);
 }
 

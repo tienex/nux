@@ -26,7 +26,7 @@ static unsigned gRegions = 0;
 struct bootinfo_region gRamRegions[SBI_MAX_RAM_REGIONS] = { 0, };
 
 static VOID *gpElfKernelPayload, *gpElfUserPayload;
-static size_t gElfKernelPayloadSize, gElfUserPayloadSize;
+static UINTN gElfKernelPayloadSize, gElfUserPayloadSize;
 
 static UINTN gBrk;
 
@@ -208,12 +208,12 @@ GetPayloadStart (
 
   @return Size of payload in bytes, or 0 if not found.
 **/
-size_t
+UINTN
 GetPayloadSize (
   IN plid_t  Id
   )
 {
-  size_t ElfPayloadSize;
+  UINTN ElfPayloadSize;
 
   switch (Id)
     {
@@ -552,7 +552,7 @@ void *get_payload_start (int argc, char *argv[], plid_t id) {
 }
 
 /** @deprecated Use GetPayloadSize instead **/
-size_t get_payload_size (plid_t id) {
+UINTN get_payload_size (plid_t id) {
   return GetPayloadSize (id);
 }
 
@@ -623,7 +623,7 @@ static unsigned regions __attribute__((alias("gRegions")));
 static struct bootinfo_region ram_regions[SBI_MAX_RAM_REGIONS] __attribute__((alias("gRamRegions")));
 static void *elf_kernel_payload __attribute__((alias("gpElfKernelPayload")));
 static void *elf_user_payload __attribute__((alias("gpElfUserPayload")));
-static size_t elf_kernel_payload_size __attribute__((alias("gElfKernelPayloadSize")));
-static size_t elf_user_payload_size __attribute__((alias("gElfUserPayloadSize")));
+static UINTN elf_kernel_payload_size __attribute__((alias("gElfKernelPayloadSize")));
+static UINTN elf_user_payload_size __attribute__((alias("gElfUserPayloadSize")));
 static UINTN brk __attribute__((alias("gBrk")));
 static struct apxh_platformdesc platformdesc __attribute__((alias("gPlatformDesc")));

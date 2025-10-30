@@ -27,7 +27,7 @@
 #endif
 
 static int __slabinc_initialized = 0;
-static size_t __slabinc_size = 0;
+static UINTN __slabinc_size = 0;
 static unsigned __slabinc_slabs = 0;
 static LIST_HEAD(slabqueue, slab) __slabinc_slabq;
 
@@ -63,7 +63,7 @@ int SLABFUNC (grow) (struct slab * sc)
   for (i = 0; i < objs; i++)
     {
       SLIST_INSERT_HEAD (&sh->freeq, ptr, list_entry);
-      ptr = (struct objhdr *) ((unsigned char *) ptr + sc->objsize);
+      ptr = (struct objhdr *) ((UINT8 *) ptr + sc->objsize);
     }
 
   SPIN_LOCK (sc->lock);
@@ -195,7 +195,7 @@ void SLABFUNC (free) (void *ptr)
 }
 
 void
-SLABFUNC (register) (struct slab * sc, CONST char *name, size_t objsize,
+SLABFUNC (register) (struct slab * sc, CONST char *name, UINTN objsize,
 		     void (*ctr) (void *, void *, int), int cachealign)
 {
 #define MAX(_a,_b) ((_a) >= (_b) ? (_a) :  (_b))

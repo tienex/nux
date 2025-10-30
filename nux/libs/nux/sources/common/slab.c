@@ -30,7 +30,7 @@
 
   @return Slab size (SLAB_SIZE).
 **/
-static CONST size_t
+static CONST UINTN
 SlabSize (
   VOID
   )
@@ -45,9 +45,9 @@ SlabSize (
 
   @return Number of objects that fit in a slab.
 **/
-static CONST size_t
+static CONST UINTN
 SlabObjectCount (
-  IN CONST size_t  ObjectSize
+  IN CONST UINTN  ObjectSize
   )
 {
   return (SlabSize () - 2 * sizeof (struct slabhdr)) / ObjectSize;

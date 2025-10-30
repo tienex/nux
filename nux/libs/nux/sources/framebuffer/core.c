@@ -93,31 +93,3 @@ FramebufferReset (
   gFbScreenCols = gFbScreenCols == 0 ? 1 : gFbScreenCols;
   gFbScreenRows = gFbDesc->height / 16;
 }
-
-//
-// Legacy Function Wrappers (for backward compatibility)
-//
-
-/** @deprecated Use FramebufferInitialize instead **/
-int framebuffer_init (struct fbdesc *desc) {
-  return FramebufferInitialize (desc);
-}
-
-/** @deprecated Use FramebufferColor instead **/
-UINT32 framebuffer_color (unsigned r, unsigned g, unsigned b) {
-  return FramebufferColor (r, g, b);
-}
-
-/** @deprecated Use FramebufferReset instead **/
-void framebuffer_reset (void) {
-  FramebufferReset ();
-}
-
-// Legacy global variable aliases
-static struct fbdesc *fbdesc __attribute__((alias("gFbDesc")));
-static lock_t fblock __attribute__((alias("gFbLock")));
-static volatile int fb_sc __attribute__((alias("gFbScreenColumn")));
-static volatile int fb_x __attribute__((alias("gFbX")));
-static volatile int fb_y __attribute__((alias("gFbY")));
-static int fb_scrcols __attribute__((alias("gFbScreenCols")));
-static int fb_scrrows __attribute__((alias("gFbScreenRows")));

@@ -35,12 +35,3 @@ FramebufferPutCharXY (
 
   FramebufferBlt (X, Y, Color, Data, 8, 16);
 }
-
-//
-// Legacy Function Wrappers (for backward compatibility)
-//
-
-/** @deprecated Use FramebufferPutCharXY instead **/
-void framebuffer_putc_xy (unsigned x, unsigned y, UINT32 color, unsigned char c) {
-  FramebufferPutCharXY (x, y, color, c);
-}

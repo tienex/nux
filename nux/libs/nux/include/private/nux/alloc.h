@@ -35,7 +35,7 @@ typedef __ZADDR_T zaddr_t;
    struct zentry {
        LIST_ENTRY(zentry) list;
        zaddr_t addr;
-       size_t size;
+       UINTN size;
    };
 
 */
@@ -115,7 +115,7 @@ _zone_attachentry (struct zone *z, struct __ZENTRY *ze)
 }
 
 static INLINE struct __ZENTRY *
-_zone_findfree (struct zone *zn, size_t size)
+_zone_findfree (struct zone *zn, UINTN size)
 {
   unsigned long tmp;
   unsigned int minbit;
@@ -150,7 +150,7 @@ zone_remove (struct zone *z, struct __ZENTRY *ze)
 }
 
 static INLINE void
-zone_create (struct zone *z, zaddr_t zaddr, size_t size)
+zone_create (struct zone *z, zaddr_t zaddr, UINTN size)
 {
   struct __ZENTRY *ze, *pze = NULL, *nze = NULL;
   zaddr_t fprev = zaddr, lnext = zaddr + size;
@@ -176,7 +176,7 @@ zone_create (struct zone *z, zaddr_t zaddr, size_t size)
 
 
 static INLINE void
-zone_free (struct zone *z, zaddr_t zaddr, size_t size)
+zone_free (struct zone *z, zaddr_t zaddr, UINTN size)
 {
 
   assert (size != 0);
@@ -185,7 +185,7 @@ zone_free (struct zone *z, zaddr_t zaddr, size_t size)
 }
 
 static INLINE zaddr_t
-zone_alloc (struct zone *z, size_t size)
+zone_alloc (struct zone *z, UINTN size)
 {
   struct __ZENTRY *ze;
   zaddr_t addr = (zaddr_t) - 1;

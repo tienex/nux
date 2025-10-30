@@ -468,12 +468,12 @@ hal_virtmem_dmapbase (
   return (UINT64) (UINTN) & _physmap_start;
 }
 
-CONST size_t
+CONST UINTN
 hal_virtmem_dmapsize (
   VOID
   )
 {
-  return (size_t) ((void *) &_physmap_end - (void *) &_physmap_start);
+  return (UINTN) ((void *) &_physmap_end - (void *) &_physmap_start);
 }
 
 VIRTUAL_ADDRESS
@@ -484,12 +484,12 @@ hal_virtmem_pfn$base (
   return (UINT64) (UINTN) & _pfncache_start;
 }
 
-CONST size_t
+CONST UINTN
 hal_virtmem_pfn$size (
   VOID
   )
 {
-  return (size_t) ((void *) &_pfncache_end - (void *) &_pfncache_start);
+  return (UINTN) ((void *) &_pfncache_end - (void *) &_pfncache_start);
 }
 
 CONST VIRTUAL_ADDRESS
@@ -500,7 +500,7 @@ hal_virtmem_userbase (
   return pt_umap_minaddr ();
 }
 
-CONST size_t
+CONST UINTN
 hal_virtmem_usersize (
   VOID
   )
@@ -582,12 +582,12 @@ hal_virtmem_kvabase (
   return (VIRTUAL_ADDRESS) & _kva_start;
 }
 
-CONST size_t
+CONST UINTN
 hal_virtmem_kvasize (
   VOID
   )
 {
-  return (size_t) ((void *) &_kva_end - (void *) &_kva_start);
+  return (UINTN) ((void *) &_kva_end - (void *) &_kva_start);
 }
 
 VIRTUAL_ADDRESS
@@ -598,12 +598,12 @@ hal_virtmem_kmembase (
   return (VIRTUAL_ADDRESS) & _kmem_start;
 }
 
-CONST size_t
+CONST UINTN
 hal_virtmem_kmemsize (
   VOID
   )
 {
-  return (size_t) ((void *) &_kmem_end - (void *) &_kmem_start);
+  return (UINTN) ((void *) &_kmem_end - (void *) &_kmem_start);
 }
 
 /**
@@ -616,8 +616,8 @@ EarlyPrint (
   IN CONST CHAR8  *Str
   )
 {
-  size_t i;
-  size_t len = strlen (Str);
+  UINTN i;
+  UINTN len = strlen (Str);
   for (i = 0; i < len; i++)
     hal_putchar (Str[i]);
 }
@@ -641,7 +641,7 @@ X86Initialize (
   VOID
   )
 {
-  size_t StreeMemsize;
+  UINTN StreeMemsize;
   struct apxh_stree *StreeHdr;
 
   if (bootinfo->magic != APXH_BOOTINFO_MAGIC)
@@ -668,7 +668,7 @@ X86Initialize (
       EarlyPrint ("ERROR: stree size doesn't match!");
       hal_cpu_halt ();
     }
-  StreeMemsize = (size_t) ((void *) _stree_end - (void *) _stree_start);
+  StreeMemsize = (UINTN) ((void *) _stree_end - (void *) _stree_start);
   if (StreeHdr->size + StreeHdr->offset > StreeMemsize)
     {
       EarlyPrint ("ERROR: stree doesn't fit in allocated memory!");

@@ -237,7 +237,7 @@ HalPcpuInit (
   Va = kva_map (Pfn, HAL_PTE_W | HAL_PTE_P);
   assert (Va != NULL);
   Start = Va;
-  size_t ApBootSz = (size_t) ((void *) &_ap_end - (void *) &_ap_start);
+  UINTN ApBootSz = (UINTN) ((void *) &_ap_end - (void *) &_ap_start);
   assert (ApBootSz <= PAGE_SIZE);
   memcpy (Start, &_ap_start, ApBootSz);
 

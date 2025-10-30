@@ -108,7 +108,7 @@ APXH_PLATFORM_DESCRIPTOR *MdGetPlatformDesc (VOID);
 VOID MdVerify (VIRTUAL_ADDRESS Va, size64_t Size);
 VOID MdEntry (arch_t Arch, VIRTUAL_ADDRESS Pt, VIRTUAL_ADDRESS Entry);
 
-VOID *PayloadGet (UINT32 i, size_t *Size);
+VOID *PayloadGet (UINT32 i, UINTN *Size);
 
 typedef enum _PAYLOAD_ID
 {
@@ -117,7 +117,7 @@ typedef enum _PAYLOAD_ID
 } PAYLOAD_ID;
 
 VOID *GetPayloadStart (INT32 Argc, char *Argv[], PAYLOAD_ID Id);
-size_t GetPayloadSize (PAYLOAD_ID Id);
+UINTN GetPayloadSize (PAYLOAD_ID Id);
 
 arch_t GetElfArch (VOID *Elf);
 VIRTUAL_ADDRESS LoadElf32 (VOID *Elf, INT32 U);
