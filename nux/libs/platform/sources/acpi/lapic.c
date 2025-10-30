@@ -30,7 +30,7 @@ typedef struct _LAPIC_DESC
   UINT32 PhysId;
   UINT32 PlatformId;
   UINT32 Lint[2];
-} LAPIC_DESC;
+} LAPIC_DESC, *PLAPIC_DESC, *PCLAPIC_DESC;
 
 static LAPIC_DESC gLapics[MAXCPUS];
 

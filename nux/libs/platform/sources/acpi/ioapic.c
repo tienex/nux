@@ -27,9 +27,9 @@ typedef struct _IOAPIC_DESC
   VOID *Base;
   UINT32 Irq;
   UINT32 Pins;
-} IOAPIC_DESC;
+} IOAPIC_DESC, *PIOAPIC_DESC, *PCIOAPIC_DESC;
 
-static IOAPIC_DESC *gIoapics;
+static PIOAPIC_DESC gIoapics;
 static UINT32 gGsisNo;
 
 typedef struct _GSI_DESC
@@ -38,9 +38,9 @@ typedef struct _GSI_DESC
   UINT32 Ioapic;
   UINT32 Pin;
   PLATFORM_IRQ_TYPE Mode;
-} GSI_DESC;
+} GSI_DESC, *PGSI_DESC, *PCGSI_DESC;
 
-static GSI_DESC *gGsis;
+static PGSI_DESC gGsis;
 
 #define IOAPIC_SIZE 0x20
 
