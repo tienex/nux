@@ -34,10 +34,9 @@ typedef struct lapic_desc
 
 static LAPIC_DESC gLapics[MAXCPUS];
 
-
-/*
- * Local APIC Delivery Modes and Registers
- */
+//
+// Local APIC Delivery Modes and Registers
+//
 
 #define APIC_DLVR_FIX   0
 #define APIC_DLVR_PRIO  1
@@ -47,7 +46,9 @@ static LAPIC_DESC gLapics[MAXCPUS];
 #define APIC_DLVR_START 6
 #define APIC_DLVR_EINT  7
 
-/* LAPIC registers */
+//
+// LAPIC Registers
+//
 #define L_IDREG		0x20
 #define L_VER		0x30
 #define L_TSKPRIO	0x80
@@ -325,10 +326,9 @@ LapicInitialize (
   debug ("LAPIC PA: %08" PRIx64 " VA: %p", Base, gLapicBase);
 }
 
-
-/*
- * PCPU module: Abstracted CPU operations
- */
+//
+// PCPU Module: Abstracted CPU Operations
+//
 
 /**
   Iterate through processors.
