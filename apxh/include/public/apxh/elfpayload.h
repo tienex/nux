@@ -31,18 +31,21 @@ void *payload_get (unsigned i, size_t *size);
 */
 #define ELFPAYLOAD_MAGIC 0x54a2f911659dece0LL
 
-/*
-  Payload header structure.
+/**
+  Payload Header Structure
 
   Payloads are located at the end of the last kernel data/BSS
   address. The payload itself is prefixed by the following header.
-*/
-struct payload_hdr
+**/
+typedef struct _PAYLOAD_HDR
 {
   uint64_t magic;
   uint64_t filename;
   uint32_t size;
-} __attribute__((packed));
+} __attribute__((packed)) PAYLOAD_HDR, *PPAYLOAD_HDR, *PCPAYLOAD_HDR;
+
+/** Legacy compatibility **/
+#define payload_hdr PAYLOAD_HDR
 
 
 

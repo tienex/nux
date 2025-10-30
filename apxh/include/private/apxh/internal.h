@@ -23,24 +23,50 @@ typedef int64_t ssize64_t;
 typedef uint64_t size64_t;
 typedef uint64_t vaddr_t;
 
-#define BOOTINFO_REGION_UNKNOWN 0	/* Unusable address. */
-#define BOOTINFO_REGION_RAM 1	/* Available RAM. */
-#define BOOTINFO_REGION_OTHER 2	/* Non-RAM physical address. */
-#define BOOTINFO_REGION_BSY 3	/* Boot allocated RAM. */
+/**
+  Boot Info Region Type
+**/
+typedef enum _BOOTINFO_REGION_TYPE {
+  BootInfoRegionUnknown = 0,  ///< Unusable address
+  BootInfoRegionRam     = 1,  ///< Available RAM
+  BootInfoRegionOther   = 2,  ///< Non-RAM physical address
+  BootInfoRegionBusy    = 3   ///< Boot allocated RAM
+} BOOTINFO_REGION_TYPE;
 
-struct bootinfo_region
+/** Legacy compatibility **/
+#define BOOTINFO_REGION_UNKNOWN BootInfoRegionUnknown
+#define BOOTINFO_REGION_RAM     BootInfoRegionRam
+#define BOOTINFO_REGION_OTHER   BootInfoRegionOther
+#define BOOTINFO_REGION_BSY     BootInfoRegionBusy
+
+/**
+  Boot Info Region Descriptor
+**/
+typedef struct _BOOTINFO_REGION
 {
   int type;
   unsigned len;
   unsigned long pfn;
-};
+} BOOTINFO_REGION, *PBOOTINFO_REGION, *PCBOOTINFO_REGION;
 
-enum memory_type
+/** Legacy compatibility **/
+#define bootinfo_region BOOTINFO_REGION
+
+/**
+  Memory Type for Page Mappings
+**/
+typedef enum _MEMORY_TYPE
 {
-  MEMTYPE_WC,			/* Write Combining. */
-  MEMTYPE_WB,			/* Write Back. */
-  MEMTYPE_UC,			/* Uncached. */
-};
+  MemTypeWriteCombining = 0,  ///< Write Combining
+  MemTypeWriteBack      = 1,  ///< Write Back (cacheable)
+  MemTypeUncached       = 2   ///< Uncached
+} MEMORY_TYPE;
+
+/** Legacy compatibility **/
+#define memory_type MEMORY_TYPE
+#define MEMTYPE_WC  MemTypeWriteCombining
+#define MEMTYPE_WB  MemTypeWriteBack
+#define MEMTYPE_UC  MemTypeUncached
 
 /* APXH ELF extensions. */
 #define PHT_APXH_INFO       0xAF100000	/* Info Page. */
@@ -85,9 +111,9 @@ uint64_t md_maxpfn (void);
 uint64_t md_minrampfn (void);
 uint64_t md_maxrampfn (void);
 unsigned md_memregions (void);
-struct bootinfo_region *md_getmemregion (unsigned i);
+BOOTINFO_REGION *md_getmemregion (unsigned i);
 struct fbdesc *md_getframebuffer (void);
-struct apxh_platformdesc *md_getplatformdesc (void);
+APXH_PLATFORM_DESCRIPTOR *md_getplatformdesc (void);
 void md_verify (vaddr_t va, size64_t size);
 void md_entry (arch_t arch, vaddr_t pt, vaddr_t entry);
 
@@ -115,14 +141,14 @@ void va_verify (vaddr_t va, size64_t size);
 void va_populate (vaddr_t va, size64_t size, int u, int w, int x);
 void va_copy (vaddr_t va, void *addr, size64_t size, int u, int w, int x);
 void va_memset (vaddr_t va, int c, size64_t size, int u, int w, int x);
-void va_physmap (vaddr_t va, size64_t size, enum memory_type);
+void va_physmap (vaddr_t va, size64_t size, MEMORY_TYPE Type);
 void va_linear (vaddr_t va, size64_t size);
 void va_info (vaddr_t va, size64_t size);
 void va_pfnmap (vaddr_t va, size64_t size);
 void va_stree (vaddr_t va, size64_t size);
 void va_topptalloc (vaddr_t va, size64_t size);
 void va_ptalloc (vaddr_t va, size64_t size);
-void va_framebuf (vaddr_t va, size64_t size, enum memory_type);
+void va_framebuf (vaddr_t va, size64_t size, MEMORY_TYPE Type);
 void va_regions (vaddr_t va, size64_t size);
 void va_ktls (vaddr_t va, size64_t initsize, size64_t size);
 void va_utls (vaddr_t va, size64_t initsize, size64_t size);
@@ -132,7 +158,7 @@ void pae_init (void);
 uintptr_t pae_getphys (vaddr_t va);
 void pae_verify (vaddr_t va, size64_t size);
 void pae_populate (vaddr_t va, size64_t size, int u, int w, int x);
-void pae_physmap (vaddr_t va, size64_t size, uint64_t pa, enum memory_type);
+void pae_physmap (vaddr_t va, size64_t size, uint64_t pa, MEMORY_TYPE Type);
 void pae_ptalloc (vaddr_t va, size64_t size);
 void pae_topptalloc (vaddr_t va, size64_t size);
 void pae_linear (vaddr_t va, size64_t size);
@@ -140,7 +166,7 @@ void pae_entry (vaddr_t entry);
 
 /* Internal PAE functions. */
 void pae_directmap (void *pt, uint64_t pa, vaddr_t va, size64_t size,
-		    enum memory_type, int payload, int x);
+		    MEMORY_TYPE Type, int payload, int x);
 void pae_map_page (void *pt, vaddr_t va, uintptr_t pa, int payload, int w,
 		   int x);
 
@@ -148,7 +174,7 @@ void pae64_init (void);
 uintptr_t pae64_getphys (vaddr_t va);
 void pae64_verify (vaddr_t va, size64_t size);
 void pae64_populate (vaddr_t va, size64_t size, int u, int w, int x);
-void pae64_physmap (vaddr_t va, size64_t size, uint64_t pa, enum memory_type);
+void pae64_physmap (vaddr_t va, size64_t size, uint64_t pa, MEMORY_TYPE Type);
 void pae64_ptalloc (vaddr_t va, size64_t size);
 void pae64_topptalloc (vaddr_t va, size64_t size);
 void pae64_linear (vaddr_t va, size64_t size);
@@ -156,7 +182,7 @@ void pae64_entry (vaddr_t entry);
 
 /* Internal PAE64 functions. */
 void pae64_directmap (void *pt, uint64_t pa, vaddr_t va, size64_t size,
-		      enum memory_type, int payload, int x);
+		      MEMORY_TYPE Type, int payload, int x);
 void pae64_map_page (void *pt, vaddr_t va, uintptr_t pa, int payload, int w,
 		     int x);
 
@@ -164,7 +190,7 @@ void sv48_init (void);
 uintptr_t sv48_getphys (vaddr_t va);
 void sv48_verify (vaddr_t va, size64_t size);
 void sv48_populate (vaddr_t va, size64_t size, int u, int w, int x);
-void sv48_physmap (vaddr_t va, size64_t size, uint64_t pa, enum memory_type);
+void sv48_physmap (vaddr_t va, size64_t size, uint64_t pa, MEMORY_TYPE Type);
 void sv48_ptalloc (vaddr_t va, size64_t size);
 void sv48_topptalloc (vaddr_t va, size64_t size);
 void sv48_linear (vaddr_t va, size64_t size);
@@ -172,7 +198,7 @@ void sv48_entry (vaddr_t entry);
 
 /* Internal SV48 functions. */
 void sv48_directmap (void *pt, uint64_t pa, vaddr_t va, size64_t size,
-		     enum memory_type, int payload, int x);
+		     MEMORY_TYPE Type, int payload, int x);
 void sv48_map_page (void *pt, vaddr_t va, uintptr_t pa, int payload, int w,
 		    int x);
 
