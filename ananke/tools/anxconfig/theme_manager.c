@@ -19,6 +19,12 @@ typedef struct {
 
     CHAR8 Name[MAX_THEME_NAME];
     TUI_BORDER_STYLE BorderStyle;
+    TUI_BORDER_STYLE ButtonStyle;
+
+    /* Visual properties */
+    BOOLEAN WindowShadowEnabled;
+    CHAR8 ShadowChar;
+    BOOLEAN UseUnicode;
 
     /* Theme colors for each component */
     TUI_THEME_COLORS Colors[19];  /* Number of TUI_THEME_COMPONENT values */
@@ -90,6 +96,52 @@ static CONST TUI_THEME_COLORS DefaultMonochromeTheme[] = {
     /* TuiThemeDesktop */          {TuiColorWhite, TuiColorBlack, TuiAttrNormal},
     /* TuiThemeSelection */        {TuiColorWhite, TuiColorBlack, TuiAttrReverse},
     /* TuiThemeDisabled */         {TuiColorWhite, TuiColorBlack, TuiAttrDim}
+};
+
+/* MS-DOS QBasic Theme - Classic QBasic IDE color scheme */
+static CONST TUI_THEME_COLORS QBasicTheme[] = {
+    /* TuiThemeMenuBar */         {TuiColorBlack, TuiColorCyan, TuiAttrNormal},
+    /* TuiThemeMenu */             {TuiColorBlack, TuiColorCyan, TuiAttrNormal},
+    /* TuiThemeMenuItem */         {TuiColorBlack, TuiColorCyan, TuiAttrNormal},
+    /* TuiThemeMenuItemSelected */ {TuiColorCyan, TuiColorBlack, TuiAttrNormal},
+    /* TuiThemeWindow */           {TuiColorYellow, TuiColorBlue, TuiAttrNormal},
+    /* TuiThemeWindowBorder */     {TuiColorCyan, TuiColorBlue, TuiAttrNormal},
+    /* TuiThemeWindowTitle */      {TuiColorWhite, TuiColorBlue, TuiAttrBold},
+    /* TuiThemeButton */           {TuiColorBlack, TuiColorCyan, TuiAttrNormal},
+    /* TuiThemeButtonFocused */    {TuiColorCyan, TuiColorBlack, TuiAttrBold},
+    /* TuiThemeInput */            {TuiColorBlack, TuiColorCyan, TuiAttrNormal},
+    /* TuiThemeInputFocused */     {TuiColorBlack, TuiColorWhite, TuiAttrNormal},
+    /* TuiThemeCheckbox */         {TuiColorYellow, TuiColorBlue, TuiAttrNormal},
+    /* TuiThemeCheckboxFocused */  {TuiColorBlack, TuiColorCyan, TuiAttrBold},
+    /* TuiThemeListBox */          {TuiColorYellow, TuiColorBlue, TuiAttrNormal},
+    /* TuiThemeListBoxSelected */  {TuiColorBlack, TuiColorCyan, TuiAttrNormal},
+    /* TuiThemeStatusBar */        {TuiColorBlack, TuiColorCyan, TuiAttrNormal},
+    /* TuiThemeDesktop */          {TuiColorCyan, TuiColorBlue, TuiAttrNormal},
+    /* TuiThemeSelection */        {TuiColorBlack, TuiColorCyan, TuiAttrNormal},
+    /* TuiThemeDisabled */         {TuiColorBrightBlack, TuiColorBlue, TuiAttrNormal}
+};
+
+/* Borland TurboVision Theme - Classic Turbo Pascal/C++ IDE colors */
+static CONST TUI_THEME_COLORS TurboVisionTheme[] = {
+    /* TuiThemeMenuBar */         {TuiColorBlack, TuiColorCyan, TuiAttrNormal},
+    /* TuiThemeMenu */             {TuiColorBlack, TuiColorWhite, TuiAttrNormal},
+    /* TuiThemeMenuItem */         {TuiColorBlack, TuiColorWhite, TuiAttrNormal},
+    /* TuiThemeMenuItemSelected */ {TuiColorWhite, TuiColorGreen, TuiAttrBold},
+    /* TuiThemeWindow */           {TuiColorYellow, TuiColorBlue, TuiAttrNormal},
+    /* TuiThemeWindowBorder */     {TuiColorCyan, TuiColorBlue, TuiAttrBold},
+    /* TuiThemeWindowTitle */      {TuiColorYellow, TuiColorBlue, TuiAttrBold},
+    /* TuiThemeButton */           {TuiColorBlack, TuiColorCyan, TuiAttrBold},
+    /* TuiThemeButtonFocused */    {TuiColorYellow, TuiColorGreen, TuiAttrBold},
+    /* TuiThemeInput */            {TuiColorBlack, TuiColorCyan, TuiAttrNormal},
+    /* TuiThemeInputFocused */     {TuiColorBlack, TuiColorWhite, TuiAttrBold},
+    /* TuiThemeCheckbox */         {TuiColorYellow, TuiColorBlue, TuiAttrNormal},
+    /* TuiThemeCheckboxFocused */  {TuiColorYellow, TuiColorGreen, TuiAttrBold},
+    /* TuiThemeListBox */          {TuiColorYellow, TuiColorBlue, TuiAttrNormal},
+    /* TuiThemeListBoxSelected */  {TuiColorWhite, TuiColorCyan, TuiAttrBold},
+    /* TuiThemeStatusBar */        {TuiColorBlack, TuiColorCyan, TuiAttrNormal},
+    /* TuiThemeDesktop */          {TuiColorCyan, TuiColorBlue, TuiAttrNormal},
+    /* TuiThemeSelection */        {TuiColorYellow, TuiColorGreen, TuiAttrBold},
+    /* TuiThemeDisabled */         {TuiColorBrightBlack, TuiColorBlue, TuiAttrNormal}
 };
 
 /* IUnknown methods */
@@ -261,6 +313,86 @@ static HRESULT ANXAPI Theme_SaveToFile(
     return S_OK;
 }
 
+/* Set window shadow */
+static HRESULT ANXAPI Theme_SetWindowShadow(
+    ITuiTheme *This,
+    BOOLEAN Enabled,
+    CHAR8 ShadowChar
+)
+{
+    ThemeImpl *impl = (ThemeImpl *)This;
+    impl->WindowShadowEnabled = Enabled;
+    impl->ShadowChar = ShadowChar;
+    return S_OK;
+}
+
+/* Get window shadow */
+static HRESULT ANXAPI Theme_GetWindowShadow(
+    ITuiTheme *This,
+    BOOLEAN *Enabled,
+    CHAR8 *ShadowChar
+)
+{
+    ThemeImpl *impl = (ThemeImpl *)This;
+
+    if (!Enabled || !ShadowChar) return E_INVALIDARG;
+
+    *Enabled = impl->WindowShadowEnabled;
+    *ShadowChar = impl->ShadowChar;
+
+    return S_OK;
+}
+
+/* Set button style */
+static HRESULT ANXAPI Theme_SetButtonStyle(
+    ITuiTheme *This,
+    TUI_BORDER_STYLE Style
+)
+{
+    ThemeImpl *impl = (ThemeImpl *)This;
+    impl->ButtonStyle = Style;
+    return S_OK;
+}
+
+/* Get button style */
+static HRESULT ANXAPI Theme_GetButtonStyle(
+    ITuiTheme *This,
+    TUI_BORDER_STYLE *Style
+)
+{
+    ThemeImpl *impl = (ThemeImpl *)This;
+
+    if (!Style) return E_INVALIDARG;
+
+    *Style = impl->ButtonStyle;
+    return S_OK;
+}
+
+/* Set use unicode */
+static HRESULT ANXAPI Theme_SetUseUnicode(
+    ITuiTheme *This,
+    BOOLEAN UseUnicode
+)
+{
+    ThemeImpl *impl = (ThemeImpl *)This;
+    impl->UseUnicode = UseUnicode;
+    return S_OK;
+}
+
+/* Get use unicode */
+static HRESULT ANXAPI Theme_GetUseUnicode(
+    ITuiTheme *This,
+    BOOLEAN *UseUnicode
+)
+{
+    ThemeImpl *impl = (ThemeImpl *)This;
+
+    if (!UseUnicode) return E_INVALIDARG;
+
+    *UseUnicode = impl->UseUnicode;
+    return S_OK;
+}
+
 /* Set theme name */
 static HRESULT ANXAPI Theme_SetName(
     ITuiTheme *This,
@@ -303,6 +435,12 @@ static ITuiTheme_Vtbl ThemeVtbl = {
     Theme_GetColors,
     Theme_SetBorderStyle,
     Theme_GetBorderStyle,
+    Theme_SetWindowShadow,
+    Theme_GetWindowShadow,
+    Theme_SetButtonStyle,
+    Theme_GetButtonStyle,
+    Theme_SetUseUnicode,
+    Theme_GetUseUnicode,
     Theme_LoadFromFile,
     Theme_SaveToFile,
     Theme_SetName,
@@ -336,6 +474,10 @@ HRESULT AnxTuiCreateTheme(
     memcpy(impl->Colors, DefaultDarkTheme, sizeof(impl->Colors));
 
     impl->BorderStyle = TuiBorderSingle;
+    impl->ButtonStyle = TuiBorderSingle;
+    impl->WindowShadowEnabled = FALSE;
+    impl->ShadowChar = 0xB1;  /* ░ light shade */
+    impl->UseUnicode = TRUE;
 
     *OutTheme = &impl->Interface;
     return S_OK;
@@ -360,6 +502,42 @@ HRESULT AnxTuiCreateMonochromeTheme(ITuiTheme **OutTheme)
         ThemeImpl *impl = (ThemeImpl *)*OutTheme;
         memcpy(impl->Colors, DefaultMonochromeTheme, sizeof(impl->Colors));
         impl->BorderStyle = TuiBorderAscii;
+    }
+    return hr;
+}
+
+/* Create MS-DOS QBasic theme */
+HRESULT AnxTuiCreateQBasicTheme(ITuiTheme **OutTheme)
+{
+    HRESULT hr = AnxTuiCreateTheme("MS-DOS QBasic", OutTheme);
+    if (SUCCEEDED(hr)) {
+        ThemeImpl *impl = (ThemeImpl *)*OutTheme;
+        memcpy(impl->Colors, QBasicTheme, sizeof(impl->Colors));
+
+        /* QBasic visual style */
+        impl->BorderStyle = TuiBorderDouble;        /* Double-line windows */
+        impl->ButtonStyle = TuiBorderSingle;        /* Simple buttons */
+        impl->WindowShadowEnabled = FALSE;          /* No shadows in QBasic */
+        impl->ShadowChar = 0;
+        impl->UseUnicode = TRUE;                    /* Use box drawing chars */
+    }
+    return hr;
+}
+
+/* Create Borland TurboVision theme */
+HRESULT AnxTuiCreateTurboVisionTheme(ITuiTheme **OutTheme)
+{
+    HRESULT hr = AnxTuiCreateTheme("Borland TurboVision", OutTheme);
+    if (SUCCEEDED(hr)) {
+        ThemeImpl *impl = (ThemeImpl *)*OutTheme;
+        memcpy(impl->Colors, TurboVisionTheme, sizeof(impl->Colors));
+
+        /* TurboVision visual style */
+        impl->BorderStyle = TuiBorderDouble;        /* Double-line windows */
+        impl->ButtonStyle = TuiBorderSunken;        /* 3D sunken buttons */
+        impl->WindowShadowEnabled = TRUE;           /* Windows cast shadows */
+        impl->ShadowChar = 0xB0;                    /* ░ medium shade */
+        impl->UseUnicode = TRUE;                    /* Use box drawing chars */
     }
     return hr;
 }

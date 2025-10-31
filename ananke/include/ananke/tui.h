@@ -2345,6 +2345,12 @@ typedef struct _ITuiTheme_Vtbl {
     HRESULT (ANXAPI *GetColors)(ITuiTheme *This, TUI_THEME_COMPONENT Component, TUI_THEME_COLORS *Colors);
     HRESULT (ANXAPI *SetBorderStyle)(ITuiTheme *This, TUI_BORDER_STYLE Style);
     HRESULT (ANXAPI *GetBorderStyle)(ITuiTheme *This, TUI_BORDER_STYLE *Style);
+    HRESULT (ANXAPI *SetWindowShadow)(ITuiTheme *This, BOOLEAN Enabled, CHAR8 ShadowChar);
+    HRESULT (ANXAPI *GetWindowShadow)(ITuiTheme *This, BOOLEAN *Enabled, CHAR8 *ShadowChar);
+    HRESULT (ANXAPI *SetButtonStyle)(ITuiTheme *This, TUI_BORDER_STYLE Style);
+    HRESULT (ANXAPI *GetButtonStyle)(ITuiTheme *This, TUI_BORDER_STYLE *Style);
+    HRESULT (ANXAPI *SetUseUnicode)(ITuiTheme *This, BOOLEAN UseUnicode);
+    HRESULT (ANXAPI *GetUseUnicode)(ITuiTheme *This, BOOLEAN *UseUnicode);
     HRESULT (ANXAPI *LoadFromFile)(ITuiTheme *This, CONST CHAR8 *FilePath);
     HRESULT (ANXAPI *SaveToFile)(ITuiTheme *This, CONST CHAR8 *FilePath);
     HRESULT (ANXAPI *SetName)(ITuiTheme *This, CONST CHAR8 *Name);
