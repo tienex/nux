@@ -12,6 +12,7 @@ project(Ananke
 option(ANANKE_BUILD_SHARED "Build shared library" OFF)
 option(ANANKE_BUILD_STATIC "Build static library" ON)
 option(ANANKE_BUILD_NTRTL "Build NT Runtime Library components" ON)
+option(ANANKE_BUILD_TOOLS "Build Ananke tools (anxconfig)" ON)
 option(ANANKE_INSTALL "Install Ananke headers and library" ON)
 
 # Set module path
@@ -43,6 +44,11 @@ target_include_directories(ananke_headers INTERFACE
 
 # Alias for consistent naming
 add_library(Ananke::Headers ALIAS ananke_headers)
+
+# Build tools
+if(ANANKE_BUILD_TOOLS)
+    add_subdirectory(tools/anxconfig)
+endif()
 
 # NT Runtime Library (NTRTL) - optional compiled components
 if(ANANKE_BUILD_NTRTL)

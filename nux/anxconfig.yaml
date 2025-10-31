@@ -1,0 +1,239 @@
+# ANXCONFIG Configuration File for NUX Kernel Framework
+
+mainmenu: "NUX Kernel Configuration"
+
+menu:
+  title: "Target Architectures"
+  items:
+    - name: NUX_TARGET_I386
+      type: boolean
+      prompt: "i386 (32-bit x86)"
+      default: true
+      help: |
+        Build NUX for i386 architecture (32-bit x86).
+
+    - name: NUX_TARGET_AMD64
+      type: boolean
+      prompt: "amd64 (64-bit x86)"
+      default: false
+      help: |
+        Build NUX for amd64 architecture (64-bit x86-64).
+
+    - name: NUX_TARGET_RISCV64
+      type: boolean
+      prompt: "riscv64 (64-bit RISC-V)"
+      default: false
+      help: |
+        Build NUX for riscv64 architecture (64-bit RISC-V).
+
+menu:
+  title: "Build Components"
+  items:
+    - name: NUX_BUILD_HAL
+      type: boolean
+      prompt: "Hardware Abstraction Layer (HAL)"
+      default: true
+      help: |
+        Build the Hardware Abstraction Layer.
+        Provides architecture-specific low-level interfaces.
+
+    - name: NUX_BUILD_PLATFORM
+      type: boolean
+      prompt: "Platform Layer (PLT)"
+      default: true
+      help: |
+        Build the Platform Layer.
+        Provides platform-specific interfaces (UART, timers, interrupts).
+
+    - name: NUX_BUILD_ECRT
+      type: boolean
+      prompt: "Embedded C Runtime (ECRT)"
+      default: true
+      help: |
+        Build the embedded C runtime library.
+        Provides standard C library functions for kernel use.
+
+    - name: NUX_BUILD_EXAMPLE
+      type: boolean
+      prompt: "Example kernel"
+      default: true
+      help: |
+        Build the example kernel implementation.
+        Demonstrates NUX usage.
+
+    - name: NUX_BUILD_TOOLS
+      type: boolean
+      prompt: "NUX tools"
+      default: true
+      help: |
+        Build NUX development tools (objlayout, etc.).
+
+menu:
+  title: "Kernel Features"
+  items:
+    - name: NUX_ENABLE_SMP
+      type: boolean
+      prompt: "Symmetric Multi-Processing (SMP)"
+      default: true
+      help: |
+        Enable support for multiple CPUs/cores.
+
+    - name: NUX_MAX_CPUS
+      type: integer
+      prompt: "  Maximum number of CPUs"
+      default: 64
+      depends: NUX_ENABLE_SMP
+      range: [1, 256]
+      help: |
+        Maximum number of CPUs the kernel can handle.
+
+    - name: NUX_ENABLE_NUMA
+      type: boolean
+      prompt: "NUMA support"
+      default: false
+      depends: NUX_ENABLE_SMP
+      help: |
+        Enable Non-Uniform Memory Access support.
+        For systems with multiple memory nodes.
+
+    - name: NUX_ENABLE_PREEMPTION
+      type: boolean
+      prompt: "Kernel preemption"
+      default: true
+      help: |
+        Allow kernel code to be preempted.
+        Improves real-time response at small performance cost.
+
+menu:
+  title: "Memory Management"
+  items:
+    - name: NUX_PAGE_SIZE
+      type: choice
+      prompt: "Page size"
+      default: PAGE_4KB
+      choices:
+        - name: PAGE_4KB
+          prompt: "4 KB"
+        - name: PAGE_16KB
+          prompt: "16 KB"
+        - name: PAGE_64KB
+          prompt: "64 KB"
+      help: |
+        Virtual memory page size.
+        4KB is standard for x86, some architectures support larger pages.
+
+    - name: NUX_KERNEL_HEAP_SIZE
+      type: hex
+      prompt: "Kernel heap size"
+      default: 0x2000000
+      help: |
+        Initial kernel heap size (for kmalloc).
+        32MB = 0x2000000, 64MB = 0x4000000, 128MB = 0x8000000
+
+    - name: NUX_SLAB_ALLOCATOR
+      type: boolean
+      prompt: "Use slab allocator"
+      default: true
+      help: |
+        Use slab allocator for kernel memory allocation.
+        More efficient than simple heap allocation.
+
+menu:
+  title: "Scheduling"
+  items:
+    - name: NUX_SCHEDULER_TYPE
+      type: choice
+      prompt: "Scheduler type"
+      default: SCHED_CFS
+      choices:
+        - name: SCHED_SIMPLE
+          prompt: "Simple round-robin"
+        - name: SCHED_PRIORITY
+          prompt: "Priority-based"
+        - name: SCHED_CFS
+          prompt: "Completely Fair Scheduler (CFS)"
+        - name: SCHED_REALTIME
+          prompt: "Real-time scheduler"
+      help: |
+        Process/thread scheduling algorithm.
+
+    - name: NUX_TIMESLICE_MS
+      type: integer
+      prompt: "Default timeslice (ms)"
+      default: 10
+      range: [1, 1000]
+      help: |
+        Default scheduler timeslice in milliseconds.
+
+menu:
+  title: "Debugging & Diagnostics"
+  items:
+    - name: NUX_DEBUG_LEVEL
+      type: choice
+      prompt: "Debug level"
+      default: DEBUG_INFO
+      choices:
+        - name: DEBUG_NONE
+          prompt: "No debugging"
+        - name: DEBUG_ERROR
+          prompt: "Errors only"
+        - name: DEBUG_WARN
+          prompt: "Warnings and errors"
+        - name: DEBUG_INFO
+          prompt: "Informational messages"
+        - name: DEBUG_VERBOSE
+          prompt: "Verbose debugging"
+        - name: DEBUG_TRACE
+          prompt: "Function tracing"
+      help: |
+        Set kernel debug output level.
+
+    - name: NUX_ENABLE_KGDB
+      type: boolean
+      prompt: "Kernel debugger (KGDB)"
+      default: false
+      help: |
+        Enable kernel-level debugger support.
+        Allows debugging kernel with GDB over serial.
+
+    - name: NUX_ENABLE_PROFILING
+      type: boolean
+      prompt: "Performance profiling"
+      default: false
+      help: |
+        Enable performance counter and profiling support.
+
+    - name: NUX_ENABLE_ASSERTIONS
+      type: boolean
+      prompt: "Runtime assertions"
+      default: true
+      help: |
+        Enable ASSERT() macros throughout kernel.
+        Recommended for development.
+
+menu:
+  title: "Security Features"
+  items:
+    - name: NUX_ENABLE_NX
+      type: boolean
+      prompt: "No-Execute (NX) protection"
+      default: true
+      help: |
+        Mark data pages as non-executable.
+        Prevents code execution attacks.
+
+    - name: NUX_ENABLE_ASLR
+      type: boolean
+      prompt: "Address Space Layout Randomization (ASLR)"
+      default: true
+      help: |
+        Randomize kernel and userspace memory layout.
+        Makes exploitation harder.
+
+    - name: NUX_ENABLE_STACK_CANARIES
+      type: boolean
+      prompt: "Stack canaries"
+      default: true
+      help: |
+        Insert stack overflow detection canaries.
+        Detects buffer overflow attacks.

@@ -1,0 +1,198 @@
+# ANXCONFIG Configuration File for APXH Bootloader
+
+mainmenu: "APXH Bootloader Configuration"
+
+menu:
+  title: "Target Architectures"
+  items:
+    - name: APXH_TARGET_I386
+      type: boolean
+      prompt: "i386 (32-bit x86)"
+      default: true
+      help: |
+        Build APXH for i386 architecture (32-bit x86).
+        Supports Multiboot protocol.
+
+    - name: APXH_TARGET_AMD64
+      type: boolean
+      prompt: "amd64 (64-bit x86)"
+      default: false
+      help: |
+        Build APXH for amd64 architecture (64-bit x86-64).
+        Supports Multiboot and UEFI protocols.
+
+    - name: APXH_TARGET_RISCV64
+      type: boolean
+      prompt: "riscv64 (64-bit RISC-V)"
+      default: false
+      help: |
+        Build APXH for riscv64 architecture (64-bit RISC-V).
+        Supports SBI and UEFI protocols.
+
+menu:
+  title: "Platform Support"
+  items:
+    - name: APXH_BUILD_MULTIBOOT
+      type: boolean
+      prompt: "Multiboot support"
+      default: true
+      depends: APXH_TARGET_I386 || APXH_TARGET_AMD64
+      help: |
+        Build Multiboot protocol support.
+        Allows booting from GRUB and other Multiboot-compliant bootloaders.
+
+    - name: APXH_BUILD_UEFI
+      type: boolean
+      prompt: "UEFI support"
+      default: true
+      depends: APXH_TARGET_AMD64 || APXH_TARGET_RISCV64
+      help: |
+        Build UEFI protocol support.
+        Allows booting from modern UEFI firmware.
+
+    - name: APXH_BUILD_SBI
+      type: boolean
+      prompt: "SBI support (RISC-V)"
+      default: true
+      depends: APXH_TARGET_RISCV64
+      help: |
+        Build SBI (Supervisor Binary Interface) support for RISC-V.
+        Required for booting on RISC-V systems.
+
+menu:
+  title: "Image Format Loaders"
+  items:
+    - name: APXH_LOADER_ELF
+      type: boolean
+      prompt: "ELF loader"
+      default: true
+      help: |
+        Support loading ELF (Executable and Linkable Format) images.
+        Standard format for Linux, BSD, and many other systems.
+
+    - name: APXH_LOADER_FATELF
+      type: boolean
+      prompt: "FatELF loader (universal binaries)"
+      default: true
+      depends: APXH_LOADER_ELF
+      help: |
+        Support FatELF format for universal binaries with multiple architectures.
+
+    - name: APXH_LOADER_MACHO
+      type: boolean
+      prompt: "Mach-O loader"
+      default: false
+      help: |
+        Support loading Mach-O (Mach Object) images.
+        macOS/Darwin executable format.
+
+    - name: APXH_LOADER_PE
+      type: boolean
+      prompt: "PE/COFF loader"
+      default: false
+      help: |
+        Support loading PE/COFF (Portable Executable) images.
+        Windows executable format.
+
+menu:
+  title: "Boot Features"
+  items:
+    - name: APXH_ENABLE_FRAMEBUFFER
+      type: boolean
+      prompt: "Enable framebuffer support"
+      default: true
+      help: |
+        Set up a framebuffer for kernel graphics output.
+        Provides early console and splash screen support.
+
+    - name: APXH_FRAMEBUFFER_WIDTH
+      type: integer
+      prompt: "  Default framebuffer width"
+      default: 1024
+      depends: APXH_ENABLE_FRAMEBUFFER
+      range: [640, 3840]
+      help: |
+        Default framebuffer width in pixels.
+
+    - name: APXH_FRAMEBUFFER_HEIGHT
+      type: integer
+      prompt: "  Default framebuffer height"
+      default: 768
+      depends: APXH_ENABLE_FRAMEBUFFER
+      range: [480, 2160]
+      help: |
+        Default framebuffer height in pixels.
+
+    - name: APXH_ENABLE_DEVICETREE
+      type: boolean
+      prompt: "Enable device tree support"
+      default: true
+      depends: APXH_TARGET_RISCV64
+      help: |
+        Parse and pass device tree (FDT) to kernel.
+        Required for RISC-V and ARM systems.
+
+    - name: APXH_ENABLE_ACPI
+      type: boolean
+      prompt: "Enable ACPI tables"
+      default: true
+      depends: APXH_TARGET_AMD64 || APXH_TARGET_I386
+      help: |
+        Parse and pass ACPI tables to kernel.
+        Standard for x86 systems.
+
+menu:
+  title: "Memory Configuration"
+  items:
+    - name: APXH_KERNEL_STACK_SIZE
+      type: hex
+      prompt: "Kernel stack size"
+      default: 0x4000
+      help: |
+        Initial kernel stack size in bytes.
+        16KB = 0x4000, 32KB = 0x8000, 64KB = 0x10000
+
+    - name: APXH_HEAP_SIZE
+      type: hex
+      prompt: "Bootloader heap size"
+      default: 0x100000
+      help: |
+        Heap size for bootloader allocations (loading kernel, etc.).
+        1MB = 0x100000, 4MB = 0x400000
+
+menu:
+  title: "Debug Options"
+  items:
+    - name: APXH_DEBUG_OUTPUT
+      type: boolean
+      prompt: "Enable debug output"
+      default: true
+      help: |
+        Enable debug console output during boot.
+
+    - name: APXH_DEBUG_SERIAL
+      type: boolean
+      prompt: "Enable serial console"
+      default: true
+      depends: APXH_DEBUG_OUTPUT
+      help: |
+        Output debug messages to serial port (COM1).
+
+    - name: APXH_SERIAL_BAUD
+      type: choice
+      prompt: "  Serial baud rate"
+      default: BAUD_115200
+      depends: APXH_DEBUG_SERIAL
+      choices:
+        - name: BAUD_9600
+          prompt: "9600"
+        - name: BAUD_19200
+          prompt: "19200"
+        - name: BAUD_38400
+          prompt: "38400"
+        - name: BAUD_57600
+          prompt: "57600"
+        - name: BAUD_115200
+          prompt: "115200"
+      help: |
+        Serial port baud rate for debug output.

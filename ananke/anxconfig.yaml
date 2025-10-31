@@ -1,0 +1,139 @@
+# ANXCONFIG Configuration File for Ananke
+# YAML-based configuration system
+
+mainmenu: "Ananke Configuration"
+
+config:
+  - name: ANANKE_BUILD_NTRTL
+    type: boolean
+    prompt: "Build NT Runtime Library (NTRTL)"
+    default: true
+    help: |
+      Build the NT Runtime Library components (bitmap, memory, tree, list, string).
+      These are compiled C functions that provide common data structures and utilities.
+
+  - name: ANANKE_BUILD_SHARED
+    type: boolean
+    prompt: "Build shared library"
+    default: false
+    depends: ANANKE_BUILD_NTRTL
+    help: |
+      Build NTRTL as a shared library (.so/.dll/.dylib).
+      Only available if NTRTL is enabled.
+
+  - name: ANANKE_BUILD_STATIC
+    type: boolean
+    prompt: "Build static library"
+    default: true
+    depends: ANANKE_BUILD_NTRTL
+    help: |
+      Build NTRTL as a static library (.a/.lib).
+      Only available if NTRTL is enabled.
+
+  - name: ANANKE_INSTALL
+    type: boolean
+    prompt: "Install headers and libraries"
+    default: true
+    help: |
+      Install Ananke headers and libraries to the system.
+      Allows other projects to use find_package(Ananke).
+
+menu:
+  title: "Memory Management Options"
+  depends: ANANKE_BUILD_NTRTL
+  items:
+    - name: ANANKE_NTRTL_POOL_SIZE
+      type: hex
+      prompt: "Default memory pool size"
+      default: 0x100000
+      help: |
+        Default size for NTRTL memory pools (in bytes).
+        1MB = 0x100000, 4MB = 0x400000, 16MB = 0x1000000
+
+    - name: ANANKE_NTRTL_USE_CUSTOM_ALLOCATOR
+      type: boolean
+      prompt: "Use custom memory allocator"
+      default: false
+      help: |
+        Allow NTRTL to use a custom memory allocator instead of malloc/free.
+        Useful for embedded systems or kernel environments.
+
+menu:
+  title: "Debug Options"
+  items:
+    - name: ANANKE_DEBUG_LEVEL
+      type: choice
+      prompt: "Debug level"
+      default: DEBUG_NORMAL
+      choices:
+        - name: DEBUG_NONE
+          prompt: "No debugging"
+        - name: DEBUG_NORMAL
+          prompt: "Normal debugging"
+        - name: DEBUG_VERBOSE
+          prompt: "Verbose debugging"
+        - name: DEBUG_EXTREME
+          prompt: "Extreme debugging (very slow)"
+      help: |
+        Set the debug output level for Ananke components.
+
+    - name: ANANKE_ENABLE_ASSERTIONS
+      type: boolean
+      prompt: "Enable runtime assertions"
+      default: true
+      help: |
+        Enable ASSERT() macros in Ananke code.
+        Recommended for development, disable for production.
+
+    - name: ANANKE_TRACE_COM_CALLS
+      type: boolean
+      prompt: "Trace COM interface calls"
+      default: false
+      depends: ANANKE_DEBUG_LEVEL != DEBUG_NONE
+      help: |
+        Log all COM interface method calls (QueryInterface, AddRef, Release).
+        Very verbose, only enable for debugging COM issues.
+
+menu:
+  title: "Compiler Compatibility"
+  items:
+    - name: ANANKE_FORCE_C89
+      type: boolean
+      prompt: "Force C89 compatibility"
+      default: false
+      help: |
+        Force strict C89/C90 compatibility mode.
+        Disables modern C features (C99/C11/C23).
+
+    - name: ANANKE_ENABLE_CPP_WRAPPERS
+      type: boolean
+      prompt: "Enable C++ wrappers"
+      default: true
+      help: |
+        Provide C++ wrapper classes for COM interfaces.
+        Makes COM interfaces easier to use in C++ code.
+
+separator: "Advanced Options"
+
+comment: |
+  The following options are for advanced users and developers only.
+  Changing these may affect binary compatibility.
+
+config:
+  - name: ANANKE_ABI_VERSION
+    type: integer
+    prompt: "ABI version number"
+    default: 1
+    range: [1, 255]
+    help: |
+      Ananke ABI version number.
+      Increment when making ABI-breaking changes.
+
+  - name: ANANKE_COM_VTBL_PADDING
+    type: integer
+    prompt: "COM vtable padding (reserved slots)"
+    default: 4
+    range: [0, 16]
+    help: |
+      Number of reserved vtable slots for future expansion.
+      Allows adding new methods without breaking ABI.
