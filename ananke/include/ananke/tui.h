@@ -4789,6 +4789,64 @@ struct _ITuiTextEditor {
     CONST ITuiTextEditor_Vtbl *Vtbl;
 };
 
+// {3A4B5C6D-7E8F-9A0B-1C2D-3E4F5A6B7C8D}
+DEFINE_GUID(IID_ITuiThemedScrollView,
+    0x3A4B5C6D, 0x7E8F, 0x9A0B, 0x1C, 0x2D, 0x3E, 0x4F, 0x5A, 0x6B, 0x7C, 0x8D);
+
+/**
+  ITuiThemedScrollView Interface
+
+  ScrollView theming interface. Inherits from ITuiThemedWidget.
+**/
+typedef struct _ITuiThemedScrollView_Vtbl {
+    // ITuiSerializable methods
+    HRESULT (ANXAPI *QueryInterface)(ITuiThemedScrollView *This, REFIID riid, VOID **ppvObject);
+    UINTN (ANXAPI *AddRef)(ITuiThemedScrollView *This);
+    UINTN (ANXAPI *Release)(ITuiThemedScrollView *This);
+    HRESULT (ANXAPI *SerializeToYaml)(ITuiThemedScrollView *This, CHAR8 **OutYaml, UINTN *OutLength);
+    HRESULT (ANXAPI *DeserializeFromYaml)(ITuiThemedScrollView *This, CONST CHAR8 *Yaml, UINTN Length);
+    HRESULT (ANXAPI *GetTypeName)(ITuiThemedScrollView *This, CONST CHAR8 **OutTypeName);
+    HRESULT (ANXAPI *Clone)(ITuiThemedScrollView *This, ITuiSerializable **OutClone);
+
+    // ITuiResponder methods
+    HRESULT (ANXAPI *GetNextResponder)(ITuiThemedScrollView *This, ITuiResponder **NextResponder);
+    HRESULT (ANXAPI *SetNextResponder)(ITuiThemedScrollView *This, ITuiResponder *NextResponder);
+    BOOLEAN (ANXAPI *AcceptsFirstResponder)(ITuiThemedScrollView *This);
+    HRESULT (ANXAPI *BecomeFirstResponder)(ITuiThemedScrollView *This);
+    HRESULT (ANXAPI *ResignFirstResponder)(ITuiThemedScrollView *This);
+
+    // ITuiWidget methods
+    HRESULT (ANXAPI *SetBounds)(ITuiThemedScrollView *This, CONST TUI_RECT *Bounds);
+    HRESULT (ANXAPI *GetBounds)(ITuiThemedScrollView *This, TUI_RECT *Bounds);
+    HRESULT (ANXAPI *SetVisible)(ITuiThemedScrollView *This, BOOLEAN Visible);
+    BOOLEAN (ANXAPI *IsVisible)(ITuiThemedScrollView *This);
+    HRESULT (ANXAPI *SetEnabled)(ITuiThemedScrollView *This, BOOLEAN Enabled);
+    BOOLEAN (ANXAPI *IsEnabled)(ITuiThemedScrollView *This);
+    HRESULT (ANXAPI *SetParent)(ITuiThemedScrollView *This, ITuiWidget *Parent);
+    HRESULT (ANXAPI *GetParent)(ITuiThemedScrollView *This, ITuiWidget **Parent);
+    HRESULT (ANXAPI *AddChild)(ITuiThemedScrollView *This, ITuiWidget *Child);
+    HRESULT (ANXAPI *RemoveChild)(ITuiThemedScrollView *This, ITuiWidget *Child);
+    HRESULT (ANXAPI *SetNeedsDisplay)(ITuiThemedScrollView *This, BOOLEAN Needed);
+
+    // ITuiThemedWidget methods
+    HRESULT (ANXAPI *ApplyTheme)(ITuiThemedScrollView *This, ITuiTheme *Theme);
+    HRESULT (ANXAPI *GetColors)(ITuiThemedScrollView *This, TUI_COLOR *Foreground, TUI_COLOR *Background);
+    HRESULT (ANXAPI *SetColors)(ITuiThemedScrollView *This, TUI_COLOR Foreground, TUI_COLOR Background);
+    HRESULT (ANXAPI *OnMouseEvent)(ITuiThemedScrollView *This, CONST TUI_MOUSE_EVENT *Event, BOOLEAN *Handled);
+    HRESULT (ANXAPI *OnKeyEvent)(ITuiThemedScrollView *This, TUI_KEY Key, UINT32 Modifiers, BOOLEAN *Handled);
+    HRESULT (ANXAPI *Draw)(ITuiThemedScrollView *This, ITuiSurface *Surface, CONST TUI_RECT *DirtyRect);
+
+    // ITuiThemedScrollView methods
+    HRESULT (ANXAPI *GetScrollbarColors)(ITuiThemedScrollView *This, TUI_COLOR *Foreground, TUI_COLOR *Background);
+    HRESULT (ANXAPI *SetScrollbarColors)(ITuiThemedScrollView *This, TUI_COLOR Foreground, TUI_COLOR Background);
+    HRESULT (ANXAPI *GetScrollbarThumbColors)(ITuiThemedScrollView *This, TUI_COLOR *Foreground, TUI_COLOR *Background);
+    HRESULT (ANXAPI *SetScrollbarThumbColors)(ITuiThemedScrollView *This, TUI_COLOR Foreground, TUI_COLOR Background);
+} ITuiThemedScrollView_Vtbl;
+
+struct _ITuiThemedScrollView {
+    CONST ITuiThemedScrollView_Vtbl *Vtbl;
+};
+
 // {E3F4A5B6-C7D8-4E9F-0A1B-2C3D4E5F6A7B}
 DEFINE_GUID(IID_ITuiScrollView,
     0xE3F4A5B6, 0xC7D8, 0x4E9F, 0x0A, 0x1B, 0x2C, 0x3D, 0x4E, 0x5F, 0x6A, 0x7B);
@@ -4797,26 +4855,126 @@ DEFINE_GUID(IID_ITuiScrollView,
   ITuiScrollView Interface
 
   Scrollable container for widgets or content.
+  Inherits from ITuiThemedScrollView.
 **/
 typedef struct _ITuiScrollView_Vtbl {
+    // ITuiSerializable methods
     HRESULT (ANXAPI *QueryInterface)(ITuiScrollView *This, REFIID riid, VOID **ppvObject);
     UINTN (ANXAPI *AddRef)(ITuiScrollView *This);
     UINTN (ANXAPI *Release)(ITuiScrollView *This);
+    HRESULT (ANXAPI *SerializeToYaml)(ITuiScrollView *This, CHAR8 **OutYaml, UINTN *OutLength);
+    HRESULT (ANXAPI *DeserializeFromYaml)(ITuiScrollView *This, CONST CHAR8 *Yaml, UINTN Length);
+    HRESULT (ANXAPI *GetTypeName)(ITuiScrollView *This, CONST CHAR8 **OutTypeName);
+    HRESULT (ANXAPI *Clone)(ITuiScrollView *This, ITuiSerializable **OutClone);
 
+    // ITuiResponder methods
+    HRESULT (ANXAPI *GetNextResponder)(ITuiScrollView *This, ITuiResponder **NextResponder);
+    HRESULT (ANXAPI *SetNextResponder)(ITuiScrollView *This, ITuiResponder *NextResponder);
+    BOOLEAN (ANXAPI *AcceptsFirstResponder)(ITuiScrollView *This);
+    HRESULT (ANXAPI *BecomeFirstResponder)(ITuiScrollView *This);
+    HRESULT (ANXAPI *ResignFirstResponder)(ITuiScrollView *This);
+
+    // ITuiWidget methods
+    HRESULT (ANXAPI *SetBounds)(ITuiScrollView *This, CONST TUI_RECT *Bounds);
+    HRESULT (ANXAPI *GetBounds)(ITuiScrollView *This, TUI_RECT *Bounds);
+    HRESULT (ANXAPI *SetVisible)(ITuiScrollView *This, BOOLEAN Visible);
+    BOOLEAN (ANXAPI *IsVisible)(ITuiScrollView *This);
+    HRESULT (ANXAPI *SetEnabled)(ITuiScrollView *This, BOOLEAN Enabled);
+    BOOLEAN (ANXAPI *IsEnabled)(ITuiScrollView *This);
+    HRESULT (ANXAPI *SetParent)(ITuiScrollView *This, ITuiWidget *Parent);
+    HRESULT (ANXAPI *GetParent)(ITuiScrollView *This, ITuiWidget **Parent);
+    HRESULT (ANXAPI *AddChild)(ITuiScrollView *This, ITuiWidget *Child);
+    HRESULT (ANXAPI *RemoveChild)(ITuiScrollView *This, ITuiWidget *Child);
+    HRESULT (ANXAPI *SetNeedsDisplay)(ITuiScrollView *This, BOOLEAN Needed);
+
+    // ITuiThemedWidget methods
+    HRESULT (ANXAPI *ApplyTheme)(ITuiScrollView *This, ITuiTheme *Theme);
+    HRESULT (ANXAPI *GetColors)(ITuiScrollView *This, TUI_COLOR *Foreground, TUI_COLOR *Background);
+    HRESULT (ANXAPI *SetColors)(ITuiScrollView *This, TUI_COLOR Foreground, TUI_COLOR Background);
+    HRESULT (ANXAPI *OnMouseEvent)(ITuiScrollView *This, CONST TUI_MOUSE_EVENT *Event, BOOLEAN *Handled);
+    HRESULT (ANXAPI *OnKeyEvent)(ITuiScrollView *This, TUI_KEY Key, UINT32 Modifiers, BOOLEAN *Handled);
+    HRESULT (ANXAPI *Draw)(ITuiScrollView *This, ITuiSurface *Surface, CONST TUI_RECT *DirtyRect);
+
+    // ITuiThemedScrollView methods
+    HRESULT (ANXAPI *GetScrollbarColors)(ITuiScrollView *This, TUI_COLOR *Foreground, TUI_COLOR *Background);
+    HRESULT (ANXAPI *SetScrollbarColors)(ITuiScrollView *This, TUI_COLOR Foreground, TUI_COLOR Background);
+    HRESULT (ANXAPI *GetScrollbarThumbColors)(ITuiScrollView *This, TUI_COLOR *Foreground, TUI_COLOR *Background);
+    HRESULT (ANXAPI *SetScrollbarThumbColors)(ITuiScrollView *This, TUI_COLOR Foreground, TUI_COLOR Background);
+
+    // ITuiScrollView methods
     HRESULT (ANXAPI *SetContentSize)(ITuiScrollView *This, UINT32 Width, UINT32 Height);
     HRESULT (ANXAPI *GetContentSize)(ITuiScrollView *This, UINT32 *Width, UINT32 *Height);
     HRESULT (ANXAPI *SetScrollPosition)(ITuiScrollView *This, INT32 X, INT32 Y);
     HRESULT (ANXAPI *GetScrollPosition)(ITuiScrollView *This, INT32 *X, INT32 *Y);
     HRESULT (ANXAPI *ScrollBy)(ITuiScrollView *This, INT32 DeltaX, INT32 DeltaY);
     HRESULT (ANXAPI *SetShowScrollbars)(ITuiScrollView *This, BOOLEAN Horizontal, BOOLEAN Vertical);
-    HRESULT (ANXAPI *AddChild)(ITuiScrollView *This, VOID *Widget, INT32 X, INT32 Y);
-    HRESULT (ANXAPI *RemoveChild)(ITuiScrollView *This, VOID *Widget);
-    HRESULT (ANXAPI *Render)(ITuiScrollView *This, ITuiScreen *Screen, INT32 X, INT32 Y, UINT32 Width, UINT32 Height);
-    HRESULT (ANXAPI *HandleInput)(ITuiScrollView *This, CONST TUI_INPUT_EVENT *Event, BOOLEAN *Handled);
+    HRESULT (ANXAPI *GetShowScrollbars)(ITuiScrollView *This, BOOLEAN *Horizontal, BOOLEAN *Vertical);
+    HRESULT (ANXAPI *AddScrollChild)(ITuiScrollView *This, VOID *Widget, INT32 X, INT32 Y);
+    HRESULT (ANXAPI *RemoveScrollChild)(ITuiScrollView *This, VOID *Widget);
 } ITuiScrollView_Vtbl;
 
 struct _ITuiScrollView {
     CONST ITuiScrollView_Vtbl *Vtbl;
+};
+
+// {4B5C6D7E-8F9A-0B1C-2D3E-4F5A6B7C8D9E}
+DEFINE_GUID(IID_ITuiThemedLongOpDialog,
+    0x4B5C6D7E, 0x8F9A, 0x0B1C, 0x2D, 0x3E, 0x4F, 0x5A, 0x6B, 0x7C, 0x8D, 0x9E);
+
+/**
+  ITuiThemedLongOpDialog Interface
+
+  LongOpDialog theming interface. Inherits from ITuiThemedWidget.
+**/
+typedef struct _ITuiThemedLongOpDialog_Vtbl {
+    // ITuiSerializable methods
+    HRESULT (ANXAPI *QueryInterface)(ITuiThemedLongOpDialog *This, REFIID riid, VOID **ppvObject);
+    UINTN (ANXAPI *AddRef)(ITuiThemedLongOpDialog *This);
+    UINTN (ANXAPI *Release)(ITuiThemedLongOpDialog *This);
+    HRESULT (ANXAPI *SerializeToYaml)(ITuiThemedLongOpDialog *This, CHAR8 **OutYaml, UINTN *OutLength);
+    HRESULT (ANXAPI *DeserializeFromYaml)(ITuiThemedLongOpDialog *This, CONST CHAR8 *Yaml, UINTN Length);
+    HRESULT (ANXAPI *GetTypeName)(ITuiThemedLongOpDialog *This, CONST CHAR8 **OutTypeName);
+    HRESULT (ANXAPI *Clone)(ITuiThemedLongOpDialog *This, ITuiSerializable **OutClone);
+
+    // ITuiResponder methods
+    HRESULT (ANXAPI *GetNextResponder)(ITuiThemedLongOpDialog *This, ITuiResponder **NextResponder);
+    HRESULT (ANXAPI *SetNextResponder)(ITuiThemedLongOpDialog *This, ITuiResponder *NextResponder);
+    BOOLEAN (ANXAPI *AcceptsFirstResponder)(ITuiThemedLongOpDialog *This);
+    HRESULT (ANXAPI *BecomeFirstResponder)(ITuiThemedLongOpDialog *This);
+    HRESULT (ANXAPI *ResignFirstResponder)(ITuiThemedLongOpDialog *This);
+
+    // ITuiWidget methods
+    HRESULT (ANXAPI *SetBounds)(ITuiThemedLongOpDialog *This, CONST TUI_RECT *Bounds);
+    HRESULT (ANXAPI *GetBounds)(ITuiThemedLongOpDialog *This, TUI_RECT *Bounds);
+    HRESULT (ANXAPI *SetVisible)(ITuiThemedLongOpDialog *This, BOOLEAN Visible);
+    BOOLEAN (ANXAPI *IsVisible)(ITuiThemedLongOpDialog *This);
+    HRESULT (ANXAPI *SetEnabled)(ITuiThemedLongOpDialog *This, BOOLEAN Enabled);
+    BOOLEAN (ANXAPI *IsEnabled)(ITuiThemedLongOpDialog *This);
+    HRESULT (ANXAPI *SetParent)(ITuiThemedLongOpDialog *This, ITuiWidget *Parent);
+    HRESULT (ANXAPI *GetParent)(ITuiThemedLongOpDialog *This, ITuiWidget **Parent);
+    HRESULT (ANXAPI *AddChild)(ITuiThemedLongOpDialog *This, ITuiWidget *Child);
+    HRESULT (ANXAPI *RemoveChild)(ITuiThemedLongOpDialog *This, ITuiWidget *Child);
+    HRESULT (ANXAPI *SetNeedsDisplay)(ITuiThemedLongOpDialog *This, BOOLEAN Needed);
+
+    // ITuiThemedWidget methods
+    HRESULT (ANXAPI *ApplyTheme)(ITuiThemedLongOpDialog *This, ITuiTheme *Theme);
+    HRESULT (ANXAPI *GetColors)(ITuiThemedLongOpDialog *This, TUI_COLOR *Foreground, TUI_COLOR *Background);
+    HRESULT (ANXAPI *SetColors)(ITuiThemedLongOpDialog *This, TUI_COLOR Foreground, TUI_COLOR Background);
+    HRESULT (ANXAPI *OnMouseEvent)(ITuiThemedLongOpDialog *This, CONST TUI_MOUSE_EVENT *Event, BOOLEAN *Handled);
+    HRESULT (ANXAPI *OnKeyEvent)(ITuiThemedLongOpDialog *This, TUI_KEY Key, UINT32 Modifiers, BOOLEAN *Handled);
+    HRESULT (ANXAPI *Draw)(ITuiThemedLongOpDialog *This, ITuiSurface *Surface, CONST TUI_RECT *DirtyRect);
+
+    // ITuiThemedLongOpDialog methods
+    HRESULT (ANXAPI *GetProgressColors)(ITuiThemedLongOpDialog *This, TUI_COLOR *Foreground, TUI_COLOR *Background);
+    HRESULT (ANXAPI *SetProgressColors)(ITuiThemedLongOpDialog *This, TUI_COLOR Foreground, TUI_COLOR Background);
+    HRESULT (ANXAPI *GetTitleColors)(ITuiThemedLongOpDialog *This, TUI_COLOR *Foreground, TUI_COLOR *Background);
+    HRESULT (ANXAPI *SetTitleColors)(ITuiThemedLongOpDialog *This, TUI_COLOR Foreground, TUI_COLOR Background);
+    HRESULT (ANXAPI *GetStatusColors)(ITuiThemedLongOpDialog *This, TUI_COLOR *Foreground, TUI_COLOR *Background);
+    HRESULT (ANXAPI *SetStatusColors)(ITuiThemedLongOpDialog *This, TUI_COLOR Foreground, TUI_COLOR Background);
+} ITuiThemedLongOpDialog_Vtbl;
+
+struct _ITuiThemedLongOpDialog {
+    CONST ITuiThemedLongOpDialog_Vtbl *Vtbl;
 };
 
 // {3F4E5D6C-7B8A-9C0D-1E2F-3A4B5C6D7E8F}
@@ -4827,90 +4985,65 @@ DEFINE_GUID(IID_ITuiLongOpDialog,
   ITuiLongOpDialog Interface
 
   Modal dialog for long-running operations with progress tracking,
-  time estimation, and cancel support.
+  time estimation, and cancel support. Inherits from ITuiThemedLongOpDialog.
 **/
 typedef struct _ITuiLongOpDialog_Vtbl {
+    // ITuiSerializable methods
     HRESULT (ANXAPI *QueryInterface)(ITuiLongOpDialog *This, REFIID riid, VOID **ppvObject);
     UINTN (ANXAPI *AddRef)(ITuiLongOpDialog *This);
     UINTN (ANXAPI *Release)(ITuiLongOpDialog *This);
+    HRESULT (ANXAPI *SerializeToYaml)(ITuiLongOpDialog *This, CHAR8 **OutYaml, UINTN *OutLength);
+    HRESULT (ANXAPI *DeserializeFromYaml)(ITuiLongOpDialog *This, CONST CHAR8 *Yaml, UINTN Length);
+    HRESULT (ANXAPI *GetTypeName)(ITuiLongOpDialog *This, CONST CHAR8 **OutTypeName);
+    HRESULT (ANXAPI *Clone)(ITuiLongOpDialog *This, ITuiSerializable **OutClone);
 
-    /**
-      Render the dialog.
-    **/
-    HRESULT (ANXAPI *Render)(
-        ITuiLongOpDialog *This,
-        ITuiScreen *Screen,
-        INT32 X,
-        INT32 Y
-    );
+    // ITuiResponder methods
+    HRESULT (ANXAPI *GetNextResponder)(ITuiLongOpDialog *This, ITuiResponder **NextResponder);
+    HRESULT (ANXAPI *SetNextResponder)(ITuiLongOpDialog *This, ITuiResponder *NextResponder);
+    BOOLEAN (ANXAPI *AcceptsFirstResponder)(ITuiLongOpDialog *This);
+    HRESULT (ANXAPI *BecomeFirstResponder)(ITuiLongOpDialog *This);
+    HRESULT (ANXAPI *ResignFirstResponder)(ITuiLongOpDialog *This);
 
-    /**
-      Handle keyboard input.
-    **/
-    HRESULT (ANXAPI *HandleKey)(
-        ITuiLongOpDialog *This,
-        TUI_KEY Key
-    );
-
-    /**
-      Standard widget methods.
-    **/
+    // ITuiWidget methods
     HRESULT (ANXAPI *SetBounds)(ITuiLongOpDialog *This, CONST TUI_RECT *Bounds);
     HRESULT (ANXAPI *GetBounds)(ITuiLongOpDialog *This, TUI_RECT *Bounds);
     HRESULT (ANXAPI *SetVisible)(ITuiLongOpDialog *This, BOOLEAN Visible);
     BOOLEAN (ANXAPI *IsVisible)(ITuiLongOpDialog *This);
     HRESULT (ANXAPI *SetEnabled)(ITuiLongOpDialog *This, BOOLEAN Enabled);
     BOOLEAN (ANXAPI *IsEnabled)(ITuiLongOpDialog *This);
+    HRESULT (ANXAPI *SetParent)(ITuiLongOpDialog *This, ITuiWidget *Parent);
+    HRESULT (ANXAPI *GetParent)(ITuiLongOpDialog *This, ITuiWidget **Parent);
+    HRESULT (ANXAPI *AddChild)(ITuiLongOpDialog *This, ITuiWidget *Child);
+    HRESULT (ANXAPI *RemoveChild)(ITuiLongOpDialog *This, ITuiWidget *Child);
+    HRESULT (ANXAPI *SetNeedsDisplay)(ITuiLongOpDialog *This, BOOLEAN Needed);
 
-    /**
-      Set dialog title.
-    **/
-    HRESULT (ANXAPI *SetTitle)(
-        ITuiLongOpDialog *This,
-        CONST CHAR8 *Title
-    );
+    // ITuiThemedWidget methods
+    HRESULT (ANXAPI *ApplyTheme)(ITuiLongOpDialog *This, ITuiTheme *Theme);
+    HRESULT (ANXAPI *GetColors)(ITuiLongOpDialog *This, TUI_COLOR *Foreground, TUI_COLOR *Background);
+    HRESULT (ANXAPI *SetColors)(ITuiLongOpDialog *This, TUI_COLOR Foreground, TUI_COLOR Background);
+    HRESULT (ANXAPI *OnMouseEvent)(ITuiLongOpDialog *This, CONST TUI_MOUSE_EVENT *Event, BOOLEAN *Handled);
+    HRESULT (ANXAPI *OnKeyEvent)(ITuiLongOpDialog *This, TUI_KEY Key, UINT32 Modifiers, BOOLEAN *Handled);
+    HRESULT (ANXAPI *Draw)(ITuiLongOpDialog *This, ITuiSurface *Surface, CONST TUI_RECT *DirtyRect);
 
-    /**
-      Update progress (0-100 percent) and status text.
-    **/
-    HRESULT (ANXAPI *UpdateProgress)(
-        ITuiLongOpDialog *This,
-        UINT32 Percent,
-        CONST CHAR8 *StatusText
-    );
+    // ITuiThemedLongOpDialog methods
+    HRESULT (ANXAPI *GetProgressColors)(ITuiLongOpDialog *This, TUI_COLOR *Foreground, TUI_COLOR *Background);
+    HRESULT (ANXAPI *SetProgressColors)(ITuiLongOpDialog *This, TUI_COLOR Foreground, TUI_COLOR Background);
+    HRESULT (ANXAPI *GetTitleColors)(ITuiLongOpDialog *This, TUI_COLOR *Foreground, TUI_COLOR *Background);
+    HRESULT (ANXAPI *SetTitleColors)(ITuiLongOpDialog *This, TUI_COLOR Foreground, TUI_COLOR Background);
+    HRESULT (ANXAPI *GetStatusColors)(ITuiLongOpDialog *This, TUI_COLOR *Foreground, TUI_COLOR *Background);
+    HRESULT (ANXAPI *SetStatusColors)(ITuiLongOpDialog *This, TUI_COLOR Foreground, TUI_COLOR Background);
 
-    /**
-      Set indeterminate mode (for operations with unknown duration).
-    **/
-    HRESULT (ANXAPI *SetIndeterminate)(
-        ITuiLongOpDialog *This,
-        BOOLEAN Indeterminate
-    );
-
-    /**
-      Check if user cancelled the operation.
-    **/
+    // ITuiLongOpDialog methods
+    HRESULT (ANXAPI *SetTitle)(ITuiLongOpDialog *This, CONST CHAR8 *Title);
+    HRESULT (ANXAPI *GetTitle)(ITuiLongOpDialog *This, CHAR8 *Buffer, UINTN BufferSize);
+    HRESULT (ANXAPI *UpdateProgress)(ITuiLongOpDialog *This, UINT32 Percent, CONST CHAR8 *StatusText);
+    UINT32 (ANXAPI *GetProgress)(ITuiLongOpDialog *This);
+    HRESULT (ANXAPI *SetIndeterminate)(ITuiLongOpDialog *This, BOOLEAN Indeterminate);
+    BOOLEAN (ANXAPI *GetIndeterminate)(ITuiLongOpDialog *This);
     BOOLEAN (ANXAPI *IsCancelled)(ITuiLongOpDialog *This);
-
-    /**
-      Set callback for cancel button.
-    **/
-    HRESULT (ANXAPI *SetCancelCallback)(
-        ITuiLongOpDialog *This,
-        HRESULT (*Callback)(VOID *UserData),
-        VOID *UserData
-    );
-
-    /**
-      Start the operation (resets timers).
-    **/
+    HRESULT (ANXAPI *SetCancelCallback)(ITuiLongOpDialog *This, HRESULT (*Callback)(VOID *UserData), VOID *UserData);
     HRESULT (ANXAPI *Start)(ITuiLongOpDialog *This);
-
-    /**
-      Mark operation as complete.
-    **/
     HRESULT (ANXAPI *Complete)(ITuiLongOpDialog *This);
-
 } ITuiLongOpDialog_Vtbl;
 
 struct _ITuiLongOpDialog {
