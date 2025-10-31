@@ -3,6 +3,7 @@
  *
  * Status bar that can attach to windows or desktop.
  * Supports multiple panels with different alignments.
+ * Uses new event dispatching architecture with ITuiWidget, ITuiDrawListener.
  */
 
 #include <stdio.h>
@@ -20,124 +21,242 @@ typedef struct {
 } StatusPanel;
 
 typedef struct {
-    ITuiStatusBar Interface;
+    ITuiWidget WidgetInterface;
+    ITuiDrawListener DrawListener;
+
     WIDGET_STATE State;
     StatusPanel Panels[MAX_STATUS_PANELS];
     UINT32 PanelCount;
+    ITuiResponder *NextResponder;
+    ITuiSurface *Surface;
 } TuiStatusBarImpl;
 
-/* IUnknown methods */
-static HRESULT ANXAPI StatusBar_QueryInterface(
-    ITuiStatusBar *This,
-    REFIID riid,
-    VOID **ppvObject
-)
+/* Helper macros for interface conversions */
+#define STATUSBAR_FROM_WIDGET(w) ((TuiStatusBarImpl*)((UINT8*)(w) - offsetof(TuiStatusBarImpl, WidgetInterface)))
+#define STATUSBAR_FROM_DRAW(d) ((TuiStatusBarImpl*)((UINT8*)(d) - offsetof(TuiStatusBarImpl, DrawListener)))
+
+/*=============================================================================
+ * ITuiWidget Implementation
+ *===========================================================================*/
+
+static HRESULT ANXAPI StatusBarWidget_QueryInterface(ITuiWidget *This, REFIID riid, VOID **ppvObject)
 {
-    if (ppvObject == NULL) return E_POINTER;
-    *ppvObject = This;
-    This->Vtbl->AddRef(This);
-    return S_OK;
+    TuiStatusBarImpl *impl = STATUSBAR_FROM_WIDGET(This);
+    if (!ppvObject) return E_POINTER;
+
+    if (IsEqualGUID(riid, &IID_IUnknown) || IsEqualGUID(riid, &IID_ITuiWidget)) {
+        *ppvObject = &impl->WidgetInterface;
+        impl->State.RefCount++;
+        return S_OK;
+    }
+    if (IsEqualGUID(riid, &IID_ITuiDrawListener)) {
+        *ppvObject = &impl->DrawListener;
+        impl->State.RefCount++;
+        return S_OK;
+    }
+    if (IsEqualGUID(riid, &IID_ITuiSerializable)) {
+        *ppvObject = &impl->WidgetInterface;
+        impl->State.RefCount++;
+        return S_OK;
+    }
+    if (IsEqualGUID(riid, &IID_ITuiResponder)) {
+        *ppvObject = &impl->WidgetInterface;
+        impl->State.RefCount++;
+        return S_OK;
+    }
+    *ppvObject = NULL;
+    return E_NOINTERFACE;
 }
 
-static UINTN ANXAPI StatusBar_AddRef(ITuiStatusBar *This)
+static UINTN ANXAPI StatusBarWidget_AddRef(ITuiWidget *This)
 {
-    TuiStatusBarImpl *impl = (TuiStatusBarImpl *)This;
+    TuiStatusBarImpl *impl = STATUSBAR_FROM_WIDGET(This);
     return ++impl->State.RefCount;
 }
 
-static UINTN ANXAPI StatusBar_Release(ITuiStatusBar *This)
+static UINTN ANXAPI StatusBarWidget_Release(ITuiWidget *This)
 {
-    TuiStatusBarImpl *impl = (TuiStatusBarImpl *)This;
+    TuiStatusBarImpl *impl = STATUSBAR_FROM_WIDGET(This);
     UINTN refCount = --impl->State.RefCount;
     if (refCount == 0) {
+        if (impl->Surface) impl->Surface->Vtbl->Release(impl->Surface);
+        if (impl->NextResponder) impl->NextResponder->Vtbl->Release(impl->NextResponder);
         free(impl);
     }
     return refCount;
 }
 
-/* ITuiStatusBar methods */
-static HRESULT ANXAPI StatusBar_AddPanel(
-    ITuiStatusBar *This,
-    UINT32 Width,
-    TUI_TEXT_ALIGNMENT Alignment
-)
+static HRESULT ANXAPI StatusBarWidget_SetBounds(ITuiWidget *This, CONST TUI_RECT *Bounds)
 {
-    TuiStatusBarImpl *impl = (TuiStatusBarImpl *)This;
-
-    if (impl->PanelCount >= MAX_STATUS_PANELS) return E_OUTOFMEMORY;
-
-    impl->Panels[impl->PanelCount].Text[0] = '\0';
-    impl->Panels[impl->PanelCount].Width = Width;
-    impl->Panels[impl->PanelCount].Alignment = Alignment;
-    impl->Panels[impl->PanelCount].Spring = FALSE;
-    impl->PanelCount++;
-
+    TuiStatusBarImpl *impl = STATUSBAR_FROM_WIDGET(This);
+    if (!Bounds) return E_INVALIDARG;
+    impl->State.Bounds = *Bounds;
     return S_OK;
 }
 
-static HRESULT ANXAPI StatusBar_AddSpringPanel(
-    ITuiStatusBar *This,
-    TUI_TEXT_ALIGNMENT Alignment
-)
+static HRESULT ANXAPI StatusBarWidget_GetBounds(ITuiWidget *This, TUI_RECT *Bounds)
 {
-    TuiStatusBarImpl *impl = (TuiStatusBarImpl *)This;
-
-    if (impl->PanelCount >= MAX_STATUS_PANELS) return E_OUTOFMEMORY;
-
-    impl->Panels[impl->PanelCount].Text[0] = '\0';
-    impl->Panels[impl->PanelCount].Width = 0;
-    impl->Panels[impl->PanelCount].Alignment = Alignment;
-    impl->Panels[impl->PanelCount].Spring = TRUE;
-    impl->PanelCount++;
-
+    TuiStatusBarImpl *impl = STATUSBAR_FROM_WIDGET(This);
+    if (!Bounds) return E_INVALIDARG;
+    *Bounds = impl->State.Bounds;
     return S_OK;
 }
 
-static HRESULT ANXAPI StatusBar_SetPanelText(
-    ITuiStatusBar *This,
-    INT32 PanelIndex,
-    CONST CHAR8 *Text
-)
+static HRESULT ANXAPI StatusBarWidget_SetVisible(ITuiWidget *This, BOOLEAN Visible)
 {
-    TuiStatusBarImpl *impl = (TuiStatusBarImpl *)This;
+    TuiStatusBarImpl *impl = STATUSBAR_FROM_WIDGET(This);
+    impl->State.Visible = Visible;
+    return S_OK;
+}
 
-    if (Text == NULL) return E_POINTER;
-    if (PanelIndex < 0 || (UINT32)PanelIndex >= impl->PanelCount) {
-        return E_INVALIDARG;
+static HRESULT ANXAPI StatusBarWidget_GetVisible(ITuiWidget *This, BOOLEAN *Visible)
+{
+    TuiStatusBarImpl *impl = STATUSBAR_FROM_WIDGET(This);
+    if (!Visible) return E_INVALIDARG;
+    *Visible = impl->State.Visible;
+    return S_OK;
+}
+
+static HRESULT ANXAPI StatusBarWidget_SetEnabled(ITuiWidget *This, BOOLEAN Enabled)
+{
+    TuiStatusBarImpl *impl = STATUSBAR_FROM_WIDGET(This);
+    impl->State.Enabled = Enabled;
+    return S_OK;
+}
+
+static HRESULT ANXAPI StatusBarWidget_GetEnabled(ITuiWidget *This, BOOLEAN *Enabled)
+{
+    TuiStatusBarImpl *impl = STATUSBAR_FROM_WIDGET(This);
+    if (!Enabled) return E_INVALIDARG;
+    *Enabled = impl->State.Enabled;
+    return S_OK;
+}
+
+static HRESULT ANXAPI StatusBarWidget_SetParent(ITuiWidget *This, ITuiWidget *Parent)
+{
+    TuiStatusBarImpl *impl = STATUSBAR_FROM_WIDGET(This);
+    if (impl->NextResponder) {
+        impl->NextResponder->Vtbl->Release(impl->NextResponder);
+        impl->NextResponder = NULL;
     }
-
-    strncpy(impl->Panels[PanelIndex].Text, Text,
-            sizeof(impl->Panels[0].Text) - 1);
-    impl->Panels[PanelIndex].Text[sizeof(impl->Panels[0].Text) - 1] = '\0';
-
-    return S_OK;
-}
-
-static HRESULT ANXAPI StatusBar_GetPanelText(
-    ITuiStatusBar *This,
-    INT32 PanelIndex,
-    CHAR8 *Buffer,
-    UINTN BufferSize
-)
-{
-    TuiStatusBarImpl *impl = (TuiStatusBarImpl *)This;
-
-    if (Buffer == NULL) return E_POINTER;
-    if (PanelIndex < 0 || (UINT32)PanelIndex >= impl->PanelCount) {
-        return E_INVALIDARG;
+    if (Parent) {
+        ITuiResponder *parentResponder = NULL;
+        HRESULT hr = Parent->Vtbl->QueryInterface((ITuiWidget *)Parent, &IID_ITuiResponder,
+                                                   (VOID **)&parentResponder);
+        if (SUCCEEDED(hr)) impl->NextResponder = parentResponder;
     }
-
-    strncpy(Buffer, impl->Panels[PanelIndex].Text, BufferSize - 1);
-    Buffer[BufferSize - 1] = '\0';
-
     return S_OK;
 }
 
-static HRESULT ANXAPI StatusBar_Clear(ITuiStatusBar *This)
+static HRESULT ANXAPI StatusBarWidget_GetParent(ITuiWidget *This, ITuiWidget **Parent)
 {
-    TuiStatusBarImpl *impl = (TuiStatusBarImpl *)This;
-    impl->PanelCount = 0;
+    TuiStatusBarImpl *impl = STATUSBAR_FROM_WIDGET(This);
+    if (!Parent) return E_INVALIDARG;
+    if (impl->NextResponder) {
+        return impl->NextResponder->Vtbl->QueryInterface(impl->NextResponder,
+                                                         &IID_ITuiWidget,
+                                                         (VOID **)Parent);
+    }
+    *Parent = NULL;
     return S_OK;
+}
+
+static HRESULT ANXAPI StatusBarWidget_Invalidate(ITuiWidget *This, CONST TUI_RECT *Rect)
+{
+    return S_OK;
+}
+
+static HRESULT ANXAPI StatusBarWidget_GetNextResponder(ITuiWidget *This, ITuiResponder **NextResponder)
+{
+    TuiStatusBarImpl *impl = STATUSBAR_FROM_WIDGET(This);
+    if (!NextResponder) return E_INVALIDARG;
+    *NextResponder = impl->NextResponder;
+    if (impl->NextResponder) impl->NextResponder->Vtbl->AddRef(impl->NextResponder);
+    return S_OK;
+}
+
+static HRESULT ANXAPI StatusBarWidget_BecomeFirstResponder(ITuiWidget *This)
+{
+    TuiStatusBarImpl *impl = STATUSBAR_FROM_WIDGET(This);
+    impl->State.Focused = TRUE;
+    return S_OK;
+}
+
+static HRESULT ANXAPI StatusBarWidget_ResignFirstResponder(ITuiWidget *This)
+{
+    TuiStatusBarImpl *impl = STATUSBAR_FROM_WIDGET(This);
+    impl->State.Focused = FALSE;
+    return S_OK;
+}
+
+static HRESULT ANXAPI StatusBarWidget_SerializeToYaml(ITuiWidget *This, CHAR8 **OutYaml, UINTN *OutLength)
+{
+    TuiStatusBarImpl *impl = STATUSBAR_FROM_WIDGET(This);
+    CHAR8 *yaml = (CHAR8 *)malloc(4096);
+    if (!yaml) return E_OUTOFMEMORY;
+
+    snprintf(yaml, 4096,
+        "type: StatusBar\nbounds:\n  x: %d\n  y: %d\n  width: %d\n  height: %d\n"
+        "visible: %s\nenabled: %s\npanel_count: %u\n",
+        impl->State.Bounds.X, impl->State.Bounds.Y, impl->State.Bounds.Width, impl->State.Bounds.Height,
+        impl->State.Visible ? "true" : "false", impl->State.Enabled ? "true" : "false",
+        impl->PanelCount);
+
+    *OutYaml = yaml;
+    *OutLength = strlen(yaml);
+    return S_OK;
+}
+
+static HRESULT ANXAPI StatusBarWidget_DeserializeFromYaml(ITuiWidget *This, CONST CHAR8 *Yaml, UINTN Length)
+{
+    return S_OK;
+}
+
+static HRESULT ANXAPI StatusBarWidget_GetTypeName(ITuiWidget *This, CONST CHAR8 **OutTypeName)
+{
+    *OutTypeName = "StatusBar";
+    return S_OK;
+}
+
+static HRESULT ANXAPI StatusBarWidget_Clone(ITuiWidget *This, ITuiSerializable **OutClone)
+{
+    ITuiWidget *newStatusBar = NULL;
+    HRESULT hr = AnxTuiCreateStatusBar(&newStatusBar);
+    if (FAILED(hr)) return hr;
+
+    *OutClone = (ITuiSerializable *)newStatusBar;
+    return S_OK;
+}
+
+static ITuiWidget_Vtbl StatusBarWidgetVtbl = {
+    StatusBarWidget_QueryInterface, StatusBarWidget_AddRef, StatusBarWidget_Release,
+    StatusBarWidget_SetBounds, StatusBarWidget_GetBounds, StatusBarWidget_SetVisible, StatusBarWidget_GetVisible,
+    StatusBarWidget_SetEnabled, StatusBarWidget_GetEnabled, StatusBarWidget_SetParent, StatusBarWidget_GetParent,
+    StatusBarWidget_Invalidate, StatusBarWidget_GetNextResponder, StatusBarWidget_BecomeFirstResponder,
+    StatusBarWidget_ResignFirstResponder, StatusBarWidget_SerializeToYaml, StatusBarWidget_DeserializeFromYaml,
+    StatusBarWidget_GetTypeName, StatusBarWidget_Clone
+};
+
+/*=============================================================================
+ * ITuiDrawListener Implementation
+ *===========================================================================*/
+
+static HRESULT ANXAPI StatusBarDraw_QueryInterface(ITuiDrawListener *This, REFIID riid, VOID **ppvObject)
+{
+    TuiStatusBarImpl *impl = STATUSBAR_FROM_DRAW(This);
+    return StatusBarWidget_QueryInterface(&impl->WidgetInterface, riid, ppvObject);
+}
+
+static UINTN ANXAPI StatusBarDraw_AddRef(ITuiDrawListener *This)
+{
+    TuiStatusBarImpl *impl = STATUSBAR_FROM_DRAW(This);
+    return ++impl->State.RefCount;
+}
+
+static UINTN ANXAPI StatusBarDraw_Release(ITuiDrawListener *This)
+{
+    TuiStatusBarImpl *impl = STATUSBAR_FROM_DRAW(This);
+    return StatusBarWidget_Release(&impl->WidgetInterface);
 }
 
 /* Helper: Compute panel positions and widths */
@@ -196,7 +315,7 @@ static VOID ComputePanelLayout(
 
 /* Helper: Render text with alignment */
 static VOID RenderAlignedText(
-    ITuiScreen *Screen,
+    ITuiSurface *Surface,
     INT32 X,
     INT32 Y,
     UINT32 Width,
@@ -209,6 +328,7 @@ static VOID RenderAlignedText(
     CHAR8 display[256];
     UINT32 textLen = strlen(Text);
     INT32 startX = X;
+    UINT32 i;
 
     if (textLen > Width) {
         /* Truncate */
@@ -229,46 +349,38 @@ static VOID RenderAlignedText(
     }
 
     /* Clear panel background */
-    UINT32 i;
     for (i = 0; i < Width; i++) {
-        Screen->Vtbl->WriteText(Screen, X + i, Y, " ", Fg, Bg);
+        Surface->Vtbl->WriteText(Surface, X + i, Y, " ", Fg, Bg);
     }
 
     /* Render text */
-    Screen->Vtbl->WriteText(Screen, startX, Y, display, Fg, Bg);
+    Surface->Vtbl->WriteText(Surface, startX, Y, display, Fg, Bg);
 }
 
-static HRESULT ANXAPI StatusBar_Render(
-    ITuiStatusBar *This,
-    ITuiScreen *Screen,
-    INT32 X,
-    INT32 Y,
-    UINT32 Width
-)
+static HRESULT ANXAPI StatusBarDraw_OnDraw(ITuiDrawListener *This, ITuiSurface *Surface, CONST TUI_RECT *DirtyRect)
 {
-    TuiStatusBarImpl *impl = (TuiStatusBarImpl *)This;
+    TuiStatusBarImpl *impl = STATUSBAR_FROM_DRAW(This);
     UINT32 i;
     UINT32 panelWidths[MAX_STATUS_PANELS];
     UINT32 panelPositions[MAX_STATUS_PANELS];
     TUI_COLOR fg, bg;
+    UINT32 width;
 
     if (!impl->State.Visible) return S_OK;
 
     fg = impl->State.ForegroundColor;
     bg = impl->State.BackgroundColor;
+    width = impl->State.Bounds.Width;
 
     /* Compute panel layout */
-    ComputePanelLayout(impl, Width, panelWidths, panelPositions);
-
-    /* Clear status bar background */
-    ClearRect(Screen, X, Y, Width, 1, bg);
+    ComputePanelLayout(impl, width, panelWidths, panelPositions);
 
     /* Render panels */
     for (i = 0; i < impl->PanelCount; i++) {
         RenderAlignedText(
-            Screen,
-            X + panelPositions[i],
-            Y,
+            Surface,
+            panelPositions[i],
+            0,
             panelWidths[i],
             impl->Panels[i].Text,
             impl->Panels[i].Alignment,
@@ -278,50 +390,127 @@ static HRESULT ANXAPI StatusBar_Render(
 
         /* Draw separator */
         if (i < impl->PanelCount - 1) {
-            Screen->Vtbl->WriteText(Screen,
-                                    X + panelPositions[i] + panelWidths[i],
-                                    Y, "│", fg, bg);
+            Surface->Vtbl->WriteText(Surface,
+                                    panelPositions[i] + panelWidths[i],
+                                    0, "│", fg, bg);
         }
     }
 
     return S_OK;
 }
 
-/* Vtable */
-static CONST ITuiStatusBar_Vtbl StatusBarVtbl = {
-    StatusBar_QueryInterface,
-    StatusBar_AddRef,
-    StatusBar_Release,
-    StatusBar_AddPanel,
-    StatusBar_AddSpringPanel,
-    StatusBar_SetPanelText,
-    StatusBar_GetPanelText,
-    StatusBar_Clear,
-    StatusBar_Render
+static HRESULT ANXAPI StatusBarDraw_OnGetPreferredSize(ITuiDrawListener *This, UINT32 *Width, UINT32 *Height)
+{
+    if (Width) *Width = 80;  /* Default width */
+    if (Height) *Height = 1;  /* Status bar is always 1 line tall */
+    return S_OK;
+}
+
+static ITuiDrawListener_Vtbl StatusBarDrawVtbl = {
+    StatusBarDraw_QueryInterface, StatusBarDraw_AddRef, StatusBarDraw_Release,
+    StatusBarDraw_OnDraw, StatusBarDraw_OnGetPreferredSize
 };
 
-/* Factory function */
-HRESULT ANXAPI AnxTuiCreateStatusBar(OUT ITuiStatusBar **StatusBar)
+/*=============================================================================
+ * Factory Function
+ *===========================================================================*/
+
+HRESULT ANXAPI AnxTuiCreateStatusBar(OUT ITuiWidget **Widget)
 {
     TuiStatusBarImpl *impl;
 
-    if (StatusBar == NULL) return E_POINTER;
+    if (Widget == NULL) return E_POINTER;
 
     impl = (TuiStatusBarImpl *)calloc(1, sizeof(TuiStatusBarImpl));
     if (impl == NULL) {
-        *StatusBar = NULL;
+        *Widget = NULL;
         return E_OUTOFMEMORY;
     }
 
-    impl->Interface.Vtbl = &StatusBarVtbl;
-    InitWidgetState(&impl->State);
+    /* Initialize vtables */
+    impl->WidgetInterface.Vtbl = &StatusBarWidgetVtbl;
+    impl->DrawListener.Vtbl = &StatusBarDrawVtbl;
 
-    impl->PanelCount = 0;
+    /* Initialize widget state */
+    InitWidgetState(&impl->State);
 
     /* Default colors for status bar */
     impl->State.ForegroundColor = TuiColorBlack;
     impl->State.BackgroundColor = TuiColorWhite;
 
-    *StatusBar = &impl->Interface;
+    impl->PanelCount = 0;
+    impl->NextResponder = NULL;
+    impl->Surface = NULL;
+
+    *Widget = &impl->WidgetInterface;
+    return S_OK;
+}
+
+/* Convenience functions for statusbar-specific operations */
+HRESULT ANXAPI AnxTuiStatusBarAddPanel(ITuiWidget *Widget, UINT32 Width, TUI_TEXT_ALIGNMENT Alignment)
+{
+    TuiStatusBarImpl *impl = STATUSBAR_FROM_WIDGET(Widget);
+
+    if (impl->PanelCount >= MAX_STATUS_PANELS) return E_OUTOFMEMORY;
+
+    impl->Panels[impl->PanelCount].Text[0] = '\0';
+    impl->Panels[impl->PanelCount].Width = Width;
+    impl->Panels[impl->PanelCount].Alignment = Alignment;
+    impl->Panels[impl->PanelCount].Spring = FALSE;
+    impl->PanelCount++;
+
+    return S_OK;
+}
+
+HRESULT ANXAPI AnxTuiStatusBarAddSpringPanel(ITuiWidget *Widget, TUI_TEXT_ALIGNMENT Alignment)
+{
+    TuiStatusBarImpl *impl = STATUSBAR_FROM_WIDGET(Widget);
+
+    if (impl->PanelCount >= MAX_STATUS_PANELS) return E_OUTOFMEMORY;
+
+    impl->Panels[impl->PanelCount].Text[0] = '\0';
+    impl->Panels[impl->PanelCount].Width = 0;
+    impl->Panels[impl->PanelCount].Alignment = Alignment;
+    impl->Panels[impl->PanelCount].Spring = TRUE;
+    impl->PanelCount++;
+
+    return S_OK;
+}
+
+HRESULT ANXAPI AnxTuiStatusBarSetPanelText(ITuiWidget *Widget, INT32 PanelIndex, CONST CHAR8 *Text)
+{
+    TuiStatusBarImpl *impl = STATUSBAR_FROM_WIDGET(Widget);
+
+    if (Text == NULL) return E_POINTER;
+    if (PanelIndex < 0 || (UINT32)PanelIndex >= impl->PanelCount) {
+        return E_INVALIDARG;
+    }
+
+    strncpy(impl->Panels[PanelIndex].Text, Text,
+            sizeof(impl->Panels[0].Text) - 1);
+    impl->Panels[PanelIndex].Text[sizeof(impl->Panels[0].Text) - 1] = '\0';
+
+    return S_OK;
+}
+
+HRESULT ANXAPI AnxTuiStatusBarGetPanelText(ITuiWidget *Widget, INT32 PanelIndex, CHAR8 *Buffer, UINTN BufferSize)
+{
+    TuiStatusBarImpl *impl = STATUSBAR_FROM_WIDGET(Widget);
+
+    if (Buffer == NULL) return E_POINTER;
+    if (PanelIndex < 0 || (UINT32)PanelIndex >= impl->PanelCount) {
+        return E_INVALIDARG;
+    }
+
+    strncpy(Buffer, impl->Panels[PanelIndex].Text, BufferSize - 1);
+    Buffer[BufferSize - 1] = '\0';
+
+    return S_OK;
+}
+
+HRESULT ANXAPI AnxTuiStatusBarClear(ITuiWidget *Widget)
+{
+    TuiStatusBarImpl *impl = STATUSBAR_FROM_WIDGET(Widget);
+    impl->PanelCount = 0;
     return S_OK;
 }
