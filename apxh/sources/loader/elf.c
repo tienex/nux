@@ -78,6 +78,8 @@
 //
 
 #define EM_386      3    ///< Intel 80386
+#define EM_PPC      20   ///< PowerPC 32-bit
+#define EM_PPC64    21   ///< PowerPC 64-bit
 #define EM_X86_64   62   ///< AMD x86-64
 #define EM_RISCV    0xF3 ///< RISC-V
 
@@ -630,6 +632,12 @@ GetElfArch (
   if (ElfHeader->Mach == EM_X86_64)
     return ArchAmd64;
 
+  if (ElfHeader->Mach == EM_PPC)
+    return ArchPpc32;
+
+  if (ElfHeader->Mach == EM_PPC64)
+    return ArchPpc64;
+
   if (ElfHeader->Mach == EM_RISCV)
     return ArchRiscV64;
 
@@ -918,6 +926,103 @@ GetElf64SymbolByAddress (
 }
 
 /**
+  OS/2 PowerPC ELF Export Entry (from .export section)
+**/
+ANX_PACK_PUSH(1)
+typedef struct _OS2_EXPORT_ENTRY {
+  UINT32  Address;     ///< Symbol address/offset
+  UINT32  NameOffset;  ///< Offset to symbol name in .export string table
+} OS2_EXPORT_ENTRY;
+ANX_PACK_POP()
+
+/**
+  Get symbol by name from OS/2 PowerPC ELF .export section.
+
+  OS/2 PowerPC ELF uses a custom .export section for exported symbols,
+  similar to PE export directory but with ELF-style layout.
+
+  @param[in]  ElfImg      Pointer to ELF image.
+  @param[in]  Name        Symbol name to look up.
+  @param[out] SymbolInfo  Receives symbol information.
+
+  @return S_OK on success, S_FALSE if not found, error code otherwise.
+**/
+static
+HRESULT
+GetOs2ExportSymbolByName (
+  IN  VOID                 *ElfImg,
+  IN  CONST CHAR8          *Name,
+  OUT IMGLOAD_SYMBOL_INFO  *SymbolInfo
+  )
+{
+  ELF32_HDR *ElfHeader = (ELF32_HDR *)ElfImg;
+  ELF32_SH *SectionHeaders;
+  ELF32_SH *StrTab;
+  INT32 i;
+  UINTN NameLen;
+
+  if (ElfHeader->Shoff == 0 || ElfHeader->Shs == 0) {
+    return S_FALSE;
+  }
+
+  SectionHeaders = (ELF32_SH *)ELFOFF(ElfHeader->Shoff);
+
+  // Get section name string table
+  if (ElfHeader->Shstrndx >= ElfHeader->Shs) {
+    return S_FALSE;
+  }
+  StrTab = &SectionHeaders[ElfHeader->Shstrndx];
+
+  NameLen = strlen(Name);
+
+  // Search for .export section
+  for (i = 0; i < ElfHeader->Shs; i++) {
+    CHAR8 *SectionName = (CHAR8 *)ELFOFF(StrTab->Off + SectionHeaders[i].Name);
+
+    if (memcmp(SectionName, ".export", 7) == 0) {
+      // Found .export section
+      OS2_EXPORT_ENTRY *Exports = (OS2_EXPORT_ENTRY *)ELFOFF(SectionHeaders[i].Off);
+      UINT32 NumExports = SectionHeaders[i].Size / sizeof(OS2_EXPORT_ENTRY);
+      UINT32 j;
+
+      // Find associated string table (usually next section)
+      ELF32_SH *ExportStrTab = NULL;
+      if (i + 1 < ElfHeader->Shs &&
+          SectionHeaders[i + 1].Type == SHT_STRTAB) {
+        ExportStrTab = &SectionHeaders[i + 1];
+      }
+
+      if (ExportStrTab == NULL) {
+        return S_FALSE;
+      }
+
+      // Search exports
+      for (j = 0; j < NumExports; j++) {
+        CHAR8 *ExportName = (CHAR8 *)ELFOFF(ExportStrTab->Off + Exports[j].NameOffset);
+        UINTN ExportNameLen = strlen(ExportName);
+
+        if (ExportNameLen == NameLen && memcmp(ExportName, Name, NameLen) == 0) {
+          // Found export
+          UINTN CopyLen = (NameLen < sizeof(SymbolInfo->Name) - 1) ?
+                          NameLen : (sizeof(SymbolInfo->Name) - 1);
+          memcpy(SymbolInfo->Name, Name, CopyLen);
+          SymbolInfo->Name[CopyLen] = '\0';
+          SymbolInfo->Address = Exports[j].Address;
+          SymbolInfo->Size = 0;
+          SymbolInfo->Type = ImgSymbolTypeFunction;
+          SymbolInfo->Binding = ImgSymbolBindGlobal;
+          return S_OK;
+        }
+      }
+
+      return S_FALSE;  // Export section found but symbol not in it
+    }
+  }
+
+  return S_FALSE;  // No .export section
+}
+
+/**
   Get symbol by name from 32-bit ELF image.
 
   @param[in]  ElfImg      Pointer to ELF image.
@@ -937,9 +1042,18 @@ GetElf32SymbolByName (
   ELF32_HDR *ElfHeader = (ELF32_HDR *)ElfImg;
   ELF32_SH *SectionHeader;
   INT32 i, j;
+  HRESULT Status;
 
   if (ElfHeader->Shoff == 0 || ElfHeader->Shs == 0) {
     return S_FALSE;  // No section headers
+  }
+
+  // For OS/2 PowerPC ELF, try .export section first
+  if (ElfHeader->Id[EI_OSABI] == ELFOSABI_OS2) {
+    Status = GetOs2ExportSymbolByName(ElfImg, Name, SymbolInfo);
+    if (SUCCEEDED(Status)) {
+      return Status;
+    }
   }
 
   SectionHeader = (ELF32_SH *)ELFOFF(ElfHeader->Shoff);
@@ -1718,6 +1832,12 @@ ElfGetMinimumSystemVersion (
 
 /**
   Get PM application type from OS/2 ELF NOTE section.
+
+  OS/2 PowerPC ELF uses a NOTE section to indicate PM (Presentation Manager)
+  compatibility, similar to the LE/LX module flags:
+  - PM incompatible: Console/text mode application
+  - PM compatible: Can run in PM (typically GUI)
+  - PM only: Requires PM (GUI required)
 **/
 static
 IMGLOAD_TARGET_SUBSYSTEM
@@ -1727,23 +1847,69 @@ ElfGetOs2PmType (
 {
   ELF32_HDR *Elf32;
   ELF32_SHDR *Sections;
+  ELF32_SHDR *StrTab;
   UINT16 i;
+  CHAR8 *SectionName;
 
   Elf32 = (ELF32_HDR *)ImageBase;
   Sections = (ELF32_SHDR *)((UINT8 *)ImageBase + Elf32->Shoff);
 
-  // Search for NOTE sections containing PM application type
+  // Get section header string table
+  if (Elf32->Shstrndx >= Elf32->Shnum) {
+    return ImgSubsystemOs2Cui;  // Default to console
+  }
+
+  StrTab = &Sections[Elf32->Shstrndx];
+
+  // Search for OS/2-specific NOTE sections or .note.OS2 section
   for (i = 0; i < Elf32->Shnum; i++) {
-    if (Sections[i].Type == PHT_NOTE) {
-      // OS/2 PM type is typically in a NOTE section
-      // This would need actual NOTE section parsing which varies by implementation
-      // For now, default to console application
-      break;
+    if (Sections[i].Type == SHT_NOTE) {
+      // Get section name
+      SectionName = (CHAR8 *)((UINT8 *)ImageBase + StrTab->Offset + Sections[i].Name);
+
+      // Check if this is an OS/2 NOTE section
+      if (memcmp(SectionName, ".note.OS2", 9) == 0 ||
+          memcmp(SectionName, ".note", 5) == 0) {
+        // Parse NOTE section for PM type
+        UINT8 *NoteData = (UINT8 *)ImageBase + Sections[i].Offset;
+        UINT32 NoteSize = Sections[i].Size;
+
+        // NOTE format: namesz, descsz, type, name, desc
+        if (NoteSize >= 12) {
+          UINT32 *Note = (UINT32 *)NoteData;
+          UINT32 NameSz = Note[0];
+          UINT32 DescSz = Note[1];
+          UINT32 Type = Note[2];
+
+          // Align sizes to 4 bytes
+          NameSz = (NameSz + 3) & ~3;
+
+          // Check if this is an OS/2 PM note
+          if (DescSz >= 4 && NameSz <= NoteSize - 12) {
+            UINT32 *Desc = (UINT32 *)(NoteData + 12 + NameSz);
+            UINT32 PmFlags = *Desc;
+
+            // PM flags (similar to LE/LX module flags):
+            // 0x00000100 = PM incompatible
+            // 0x00000200 = PM compatible
+            // 0x00000300 = PM only
+            switch (PmFlags & 0x00000300) {
+              case 0x00000300:  // PM only
+                return ImgSubsystemOs2Gui;
+              case 0x00000200:  // PM compatible
+                return ImgSubsystemOs2Gui;
+              case 0x00000100:  // PM incompatible
+              default:
+                return ImgSubsystemOs2Cui;
+            }
+          }
+        }
+      }
     }
   }
 
   // Default to console/CLI for OS/2
-  return ImgSubsystemCli;
+  return ImgSubsystemOs2Cui;
 }
 
 /**

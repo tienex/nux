@@ -31,14 +31,47 @@
 #define PE_OPT_MAGIC_PE32PLUS 0x20B   ///< PE32+ (64-bit) optional header
 
 //
-// Machine Types
+// Machine Types (comprehensive, including historical)
 //
 
-#define IMAGE_FILE_MACHINE_I386   0x014C  ///< x86
-#define IMAGE_FILE_MACHINE_AMD64  0x8664  ///< x86-64
-#define IMAGE_FILE_MACHINE_ARM    0x01C0  ///< ARM
-#define IMAGE_FILE_MACHINE_ARM64  0xAA64  ///< ARM64
-#define IMAGE_FILE_MACHINE_RISCV64 0x5064 ///< RISC-V 64-bit
+#define IMAGE_FILE_MACHINE_UNKNOWN   0x0000  ///< Unknown
+#define IMAGE_FILE_MACHINE_I386      0x014C  ///< Intel x86
+#define IMAGE_FILE_MACHINE_R3000     0x0162  ///< MIPS R3000 (little endian)
+#define IMAGE_FILE_MACHINE_R4000     0x0166  ///< MIPS R4000 (little endian)
+#define IMAGE_FILE_MACHINE_R10000    0x0168  ///< MIPS R10000 (little endian)
+#define IMAGE_FILE_MACHINE_WCEMIPSV2 0x0169  ///< MIPS WCE v2 (little endian)
+#define IMAGE_FILE_MACHINE_ALPHA     0x0184  ///< DEC Alpha AXP
+#define IMAGE_FILE_MACHINE_SH3       0x01A2  ///< Hitachi SH3
+#define IMAGE_FILE_MACHINE_SH3DSP    0x01A3  ///< Hitachi SH3 DSP
+#define IMAGE_FILE_MACHINE_SH3E      0x01A4  ///< Hitachi SH3E
+#define IMAGE_FILE_MACHINE_SH4       0x01A6  ///< Hitachi SH4
+#define IMAGE_FILE_MACHINE_SH5       0x01A8  ///< Hitachi SH5
+#define IMAGE_FILE_MACHINE_ARM       0x01C0  ///< ARM little endian
+#define IMAGE_FILE_MACHINE_THUMB     0x01C2  ///< ARM Thumb/Thumb-2 LE
+#define IMAGE_FILE_MACHINE_ARMNT     0x01C4  ///< ARM Thumb-2 LE
+#define IMAGE_FILE_MACHINE_AM33      0x01D3  ///< Matsushita AM33
+#define IMAGE_FILE_MACHINE_POWERPC   0x01F0  ///< PowerPC little endian
+#define IMAGE_FILE_MACHINE_POWERPCFP 0x01F1  ///< PowerPC with FP support
+#define IMAGE_FILE_MACHINE_POWERPCBE 0x01F2  ///< PowerPC big endian
+#define IMAGE_FILE_MACHINE_IA64      0x0200  ///< Intel Itanium
+#define IMAGE_FILE_MACHINE_MACPPC    0x01DF  ///< Mac PowerPC (unofficial)
+#define IMAGE_FILE_MACHINE_M68K      0x0268  ///< Motorola 68000
+#define IMAGE_FILE_MACHINE_MIPS16    0x0266  ///< MIPS16
+#define IMAGE_FILE_MACHINE_ALPHA64   0x0284  ///< Alpha AXP 64-bit
+#define IMAGE_FILE_MACHINE_MIPSFPU   0x0366  ///< MIPS with FPU
+#define IMAGE_FILE_MACHINE_MIPSFPU16 0x0466  ///< MIPS16 with FPU
+#define IMAGE_FILE_MACHINE_TRICORE   0x0520  ///< Infineon TriCore
+#define IMAGE_FILE_MACHINE_CEF       0x0CEF  ///< CEF
+#define IMAGE_FILE_MACHINE_EBC       0x0EBC  ///< EFI Byte Code
+#define IMAGE_FILE_MACHINE_AMD64     0x8664  ///< AMD64/x86-64
+#define IMAGE_FILE_MACHINE_M32R      0x9041  ///< Mitsubishi M32R LE
+#define IMAGE_FILE_MACHINE_ARM64     0xAA64  ///< ARM64/AArch64
+#define IMAGE_FILE_MACHINE_CEE       0xC0EE  ///< CLR pure MSIL
+#define IMAGE_FILE_MACHINE_RISCV32   0x5032  ///< RISC-V 32-bit
+#define IMAGE_FILE_MACHINE_RISCV64   0x5064  ///< RISC-V 64-bit
+#define IMAGE_FILE_MACHINE_RISCV128  0x5128  ///< RISC-V 128-bit
+#define IMAGE_FILE_MACHINE_LOONGARCH32 0x6232 ///< LoongArch 32-bit
+#define IMAGE_FILE_MACHINE_LOONGARCH64 0x6264 ///< LoongArch 64-bit
 
 //
 // Section Characteristics
@@ -207,6 +240,8 @@ typedef struct _PE_SECTION_HEADER {
 } PE_SECTION_HEADER;
 
 // Data Directory Indices
+#define IMAGE_DIRECTORY_ENTRY_EXPORT     0  ///< Export directory
+#define IMAGE_DIRECTORY_ENTRY_IMPORT     1  ///< Import directory
 #define IMAGE_DIRECTORY_ENTRY_EXCEPTION  3  ///< Exception (.pdata)
 #define IMAGE_DIRECTORY_ENTRY_BASERELOC  5  ///< Base relocations (.reloc)
 #define IMAGE_DIRECTORY_ENTRY_TLS        9  ///< TLS
@@ -228,6 +263,20 @@ typedef struct _PE_TLS_DIRECTORY64 {
   UINT32  SizeOfZeroFill;         ///< BSS size
   UINT32  Characteristics;        ///< Alignment (low 4 bits)
 } PE_TLS_DIRECTORY64;
+
+typedef struct _PE_EXPORT_DIRECTORY {
+  UINT32  Characteristics;        ///< Reserved, must be 0
+  UINT32  TimeDateStamp;          ///< Time/date stamp
+  UINT16  MajorVersion;           ///< Major version
+  UINT16  MinorVersion;           ///< Minor version
+  UINT32  Name;                   ///< RVA of DLL name
+  UINT32  Base;                   ///< Starting ordinal number
+  UINT32  NumberOfFunctions;      ///< Number of entries in EAT
+  UINT32  NumberOfNames;          ///< Number of entries in name pointer table
+  UINT32  AddressOfFunctions;     ///< RVA of export address table (EAT)
+  UINT32  AddressOfNames;         ///< RVA of export name pointer table
+  UINT32  AddressOfNameOrdinals;  ///< RVA of ordinal table
+} PE_EXPORT_DIRECTORY;
 
 typedef struct _PE_BASE_RELOCATION {
   UINT32  VirtualAddress;  ///< Page RVA
@@ -312,12 +361,90 @@ PeGetArch (
     case IMAGE_FILE_MACHINE_AMD64:
       *Architecture = ArchAmd64;
       break;
-    case IMAGE_FILE_MACHINE_RISCV64:
-      *Architecture = ArchRiscV64;
+    case IMAGE_FILE_MACHINE_ARM:
+    case IMAGE_FILE_MACHINE_ARMNT:
+      *Architecture = ArchArm;
+      break;
+    case IMAGE_FILE_MACHINE_THUMB:
+      *Architecture = ArchThumb;
       break;
     case IMAGE_FILE_MACHINE_ARM64:
       *Architecture = ArchArm64;
       break;
+    case IMAGE_FILE_MACHINE_RISCV32:
+      *Architecture = ArchRiscV32;
+      break;
+    case IMAGE_FILE_MACHINE_RISCV64:
+      *Architecture = ArchRiscV64;
+      break;
+    case IMAGE_FILE_MACHINE_RISCV128:
+      *Architecture = ArchRiscV128;
+      break;
+    case IMAGE_FILE_MACHINE_LOONGARCH32:
+      *Architecture = ArchLoongArch32;
+      break;
+    case IMAGE_FILE_MACHINE_LOONGARCH64:
+      *Architecture = ArchLoongArch64;
+      break;
+    case IMAGE_FILE_MACHINE_POWERPC:
+    case IMAGE_FILE_MACHINE_POWERPCFP:
+    case IMAGE_FILE_MACHINE_POWERPCBE:
+    case IMAGE_FILE_MACHINE_MACPPC:
+      *Architecture = ArchPpc32;
+      break;
+    case IMAGE_FILE_MACHINE_M68K:
+      *Architecture = ArchM68k;
+      break;
+    case IMAGE_FILE_MACHINE_R3000:
+      *Architecture = ArchMipsR3000;
+      break;
+    case IMAGE_FILE_MACHINE_R4000:
+      *Architecture = ArchMipsR4000;
+      break;
+    case IMAGE_FILE_MACHINE_R10000:
+      *Architecture = ArchMipsR10000;
+      break;
+    case IMAGE_FILE_MACHINE_WCEMIPSV2:
+    case IMAGE_FILE_MACHINE_MIPS16:
+    case IMAGE_FILE_MACHINE_MIPSFPU:
+    case IMAGE_FILE_MACHINE_MIPSFPU16:
+      *Architecture = ArchMips32;
+      break;
+    case IMAGE_FILE_MACHINE_ALPHA:
+    case IMAGE_FILE_MACHINE_ALPHA64:
+      *Architecture = ArchAlpha;
+      break;
+    case IMAGE_FILE_MACHINE_SH3:
+      *Architecture = ArchSh3;
+      break;
+    case IMAGE_FILE_MACHINE_SH3DSP:
+    case IMAGE_FILE_MACHINE_SH3E:
+      *Architecture = ArchSh3;
+      break;
+    case IMAGE_FILE_MACHINE_SH4:
+      *Architecture = ArchSh4;
+      break;
+    case IMAGE_FILE_MACHINE_SH5:
+      *Architecture = ArchSh5;
+      break;
+    case IMAGE_FILE_MACHINE_IA64:
+      *Architecture = ArchIa64;
+      break;
+    case IMAGE_FILE_MACHINE_AM33:
+      *Architecture = ArchAm29000;
+      break;
+    case IMAGE_FILE_MACHINE_M32R:
+      *Architecture = ArchUnsupported; // No specific M32R arch defined yet
+      break;
+    case IMAGE_FILE_MACHINE_EBC:
+      *Architecture = ArchUnsupported; // EFI Byte Code is virtual
+      break;
+    case IMAGE_FILE_MACHINE_CEE:
+      *Architecture = ArchUnsupported; // CLR MSIL is virtual
+      break;
+    case IMAGE_FILE_MACHINE_TRICORE:
+    case IMAGE_FILE_MACHINE_CEF:
+    case IMAGE_FILE_MACHINE_UNKNOWN:
     default:
       *Architecture = ArchUnsupported;
       return IMGLOAD_E_UNSUPPORTED_ARCH;
@@ -338,11 +465,29 @@ PeGetEndianness (
   OUT IMGLOAD_ENDIAN  *Endianness
   )
 {
+  DOS_HEADER *DosHeader;
+  PE_NT_HEADERS32 *NtHeaders;
+
   if (Endianness == NULL) {
     return E_POINTER;
   }
 
-  // All Windows architectures are little-endian
+  DosHeader = (DOS_HEADER *)ImageBase;
+  NtHeaders = (PE_NT_HEADERS32 *)PE_OFF(DosHeader->NewHeaderOffset);
+
+  // Check for big-endian architectures
+  switch (NtHeaders->FileHeader.Machine) {
+    case 0x0160:  // MIPS R3000 big endian (unofficial)
+    case IMAGE_FILE_MACHINE_POWERPCBE:
+    case IMAGE_FILE_MACHINE_MACPPC:
+    case IMAGE_FILE_MACHINE_M68K:
+      *Endianness = ImgEndianBig;
+      return S_OK;
+    default:
+      break;
+  }
+
+  // All other Windows PE architectures are little-endian
   *Endianness = ImgEndianLittle;
   return S_OK;
 }
@@ -632,7 +777,7 @@ PeGetSymbolByAddress (
 }
 
 /**
-  Look up symbol by name.
+  Look up symbol by name in PE export directory.
 **/
 static
 HRESULT
@@ -644,12 +789,79 @@ PeGetSymbolByName (
   OUT IMGLOAD_SYMBOL_INFO  *SymbolInfo
   )
 {
+  DOS_HEADER *DosHeader;
+  PE_NT_HEADERS32 *NtHeaders32;
+  PE_NT_HEADERS64 *NtHeaders64;
+  PE_DATA_DIRECTORY *ExportDir;
+  PE_EXPORT_DIRECTORY *ExportDirectory;
+  UINT32 *NamePointerTable;
+  UINT16 *OrdinalTable;
+  UINT32 *AddressTable;
+  UINT32 i;
+  BOOLEAN Is64Bit;
+  UINT64 ImageBaseVA;
+  UINTN NameLen;
+
   if (Name == NULL || SymbolInfo == NULL) {
     return E_POINTER;
   }
 
-  // PE symbol table parsing would go here
   memset(SymbolInfo, 0, sizeof(IMGLOAD_SYMBOL_INFO));
+
+  DosHeader = (DOS_HEADER *)ImageBase;
+  NtHeaders32 = (PE_NT_HEADERS32 *)PE_OFF(DosHeader->NewHeaderOffset);
+  NtHeaders64 = (PE_NT_HEADERS64 *)NtHeaders32;
+
+  Is64Bit = (NtHeaders32->OptionalHeader.Magic == PE_OPT_MAGIC_PE32PLUS);
+
+  // Get export data directory
+  ExportDir = Is64Bit ?
+    &NtHeaders64->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_EXPORT] :
+    &NtHeaders32->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_EXPORT];
+
+  if (ExportDir->VirtualAddress == 0 || ExportDir->Size == 0) {
+    // No exports
+    return S_FALSE;
+  }
+
+  ExportDirectory = (PE_EXPORT_DIRECTORY *)PE_OFF(ExportDir->VirtualAddress);
+
+  // Get export tables
+  NamePointerTable = (UINT32 *)PE_OFF(ExportDirectory->AddressOfNames);
+  OrdinalTable = (UINT16 *)PE_OFF(ExportDirectory->AddressOfNameOrdinals);
+  AddressTable = (UINT32 *)PE_OFF(ExportDirectory->AddressOfFunctions);
+
+  ImageBaseVA = Is64Bit ?
+    NtHeaders64->OptionalHeader.ImageBase :
+    (UINT64)NtHeaders32->OptionalHeader.ImageBase;
+
+  NameLen = strlen(Name);
+
+  // Search for the export by name
+  for (i = 0; i < ExportDirectory->NumberOfNames; i++) {
+    CHAR8 *ExportName = (CHAR8 *)PE_OFF(NamePointerTable[i]);
+    UINTN ExportNameLen = strlen(ExportName);
+
+    if (ExportNameLen == NameLen && memcmp(ExportName, Name, NameLen) == 0) {
+      // Found the export
+      UINT16 Ordinal = OrdinalTable[i];
+      UINT32 FunctionRVA = AddressTable[Ordinal];
+
+      // Copy name
+      UINTN CopyLen = (NameLen < sizeof(SymbolInfo->Name) - 1) ?
+                      NameLen : (sizeof(SymbolInfo->Name) - 1);
+      memcpy(SymbolInfo->Name, Name, CopyLen);
+      SymbolInfo->Name[CopyLen] = '\0';
+
+      // Set address
+      SymbolInfo->Address = ImageBaseVA + FunctionRVA;
+      SymbolInfo->Size = 0;  // PE doesn't store symbol size in exports
+
+      return S_OK;
+    }
+  }
+
+  // Not found
   return S_FALSE;
 }
 
