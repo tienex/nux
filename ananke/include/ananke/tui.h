@@ -57,6 +57,7 @@ typedef struct _ITuiDirectoryDialog ITuiDirectoryDialog;
 typedef struct _ITuiTerminal ITuiTerminal;
 typedef struct _ITuiTreeView ITuiTreeView;
 typedef struct _ITuiListView ITuiListView;
+typedef struct _ITuiWizard ITuiWizard;
 
 //
 // Text Direction for BiDi Support
@@ -2618,6 +2619,106 @@ struct _ITuiListView {
     CONST ITuiListView_Vtbl *Vtbl;
 };
 
+// {8E9F0A1B-2C3D-4E5F-6A7B-8C9D0E1F2A3B}
+DEFINE_GUID(IID_ITuiWizard,
+    0x8E9F0A1B, 0x2C3D, 0x4E5F, 0x6A, 0x7B, 0x8C, 0x9D, 0x0E, 0x1F, 0x2A, 0x3B);
+
+/**
+  ITuiWizard Interface
+
+  Multi-step workflow dialog with Back/Next/Finish/Cancel buttons,
+  progress indicator, and page validation.
+**/
+typedef struct _ITuiWizard_Vtbl {
+    HRESULT (ANXAPI *QueryInterface)(ITuiWizard *This, REFIID riid, VOID **ppvObject);
+    UINTN (ANXAPI *AddRef)(ITuiWizard *This);
+    UINTN (ANXAPI *Release)(ITuiWizard *This);
+
+    /**
+      Render the wizard.
+    **/
+    HRESULT (ANXAPI *Render)(
+        ITuiWizard *This,
+        ITuiScreen *Screen,
+        INT32 X,
+        INT32 Y
+    );
+
+    /**
+      Handle keyboard input.
+    **/
+    HRESULT (ANXAPI *HandleKey)(
+        ITuiWizard *This,
+        TUI_KEY Key
+    );
+
+    /**
+      Standard widget methods.
+    **/
+    HRESULT (ANXAPI *SetBounds)(ITuiWizard *This, CONST TUI_RECT *Bounds);
+    HRESULT (ANXAPI *GetBounds)(ITuiWizard *This, TUI_RECT *Bounds);
+    HRESULT (ANXAPI *SetVisible)(ITuiWizard *This, BOOLEAN Visible);
+    BOOLEAN (ANXAPI *IsVisible)(ITuiWizard *This);
+    HRESULT (ANXAPI *SetEnabled)(ITuiWizard *This, BOOLEAN Enabled);
+    BOOLEAN (ANXAPI *IsEnabled)(ITuiWizard *This);
+
+    /**
+      Add a page to the wizard.
+
+      @param[in] Title        Page title.
+      @param[in] Description  Page description.
+      @param[in] PageWidget   Page content widget (can be NULL).
+      @param[in] OnEnter      Callback when entering page (can be NULL).
+      @param[in] OnLeave      Callback when leaving page (can be NULL).
+      @param[in] OnValidate   Callback to validate page (can be NULL).
+      @param[in] UserData     User data for callbacks.
+    **/
+    HRESULT (ANXAPI *AddPage)(
+        ITuiWizard *This,
+        CONST CHAR8 *Title,
+        CONST CHAR8 *Description,
+        VOID *PageWidget,
+        HRESULT (*OnEnter)(VOID *PageWidget, VOID *UserData),
+        HRESULT (*OnLeave)(VOID *PageWidget, VOID *UserData, BOOLEAN *AllowLeave),
+        HRESULT (*OnValidate)(VOID *PageWidget, VOID *UserData, BOOLEAN *IsValid),
+        VOID *UserData
+    );
+
+    /**
+      Go to next page.
+    **/
+    HRESULT (ANXAPI *GoNext)(ITuiWizard *This);
+
+    /**
+      Go to previous page.
+    **/
+    HRESULT (ANXAPI *GoBack)(ITuiWizard *This);
+
+    /**
+      Finish the wizard.
+    **/
+    HRESULT (ANXAPI *Finish)(ITuiWizard *This);
+
+    /**
+      Reset wizard to first page.
+    **/
+    HRESULT (ANXAPI *Reset)(ITuiWizard *This);
+
+    /**
+      Set finish callback.
+    **/
+    HRESULT (ANXAPI *SetFinishCallback)(
+        ITuiWizard *This,
+        HRESULT (*Callback)(VOID *UserData),
+        VOID *UserData
+    );
+
+} ITuiWizard_Vtbl;
+
+struct _ITuiWizard {
+    CONST ITuiWizard_Vtbl *Vtbl;
+};
+
 //
 // Factory functions
 //
@@ -3054,6 +3155,20 @@ HRESULT
 ANXAPI
 AnxTuiCreateListView(
     OUT ITuiListView **OutListView
+);
+
+/**
+  Create a TUI Wizard instance.
+
+  @param[out] OutWizard  Pointer to receive the wizard interface.
+
+  @retval S_OK        Wizard created successfully.
+  @retval E_OUTOFMEMORY  Memory allocation failed.
+**/
+HRESULT
+ANXAPI
+AnxTuiCreateWizard(
+    OUT ITuiWizard **OutWizard
 );
 
 #ifdef __cplusplus
