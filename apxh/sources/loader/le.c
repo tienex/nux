@@ -19,6 +19,8 @@
 
 #include <apxh/internal.h>
 #include <apxh/imgload.h>
+#include <ananke/resource.h>
+#include "imgresource.h"
 
 //
 // LE/LX Magic Numbers
@@ -131,6 +133,20 @@ typedef struct _LE_PAGE_TABLE_ENTRY {
   UINT32  PageDataOffset : 24;  ///< Page data offset (from data pages offset)
   UINT8   Type;                  ///< Page type
 } LE_PAGE_TABLE_ENTRY;
+
+/**
+  LE/LX Resource Table Entry.
+
+  OS/2 LE/LX uses a resource table similar to NE format.
+  Resources are organized by type, then by ID/name.
+**/
+typedef struct _LE_RESOURCE_ENTRY {
+  UINT16  TypeId;       ///< Resource type ID
+  UINT16  NameId;       ///< Resource name ID
+  UINT32  ResourceSize; ///< Size of resource data
+  UINT16  ObjectNum;    ///< Object number containing resource
+  UINT32  Offset;       ///< Offset within object
+} LE_RESOURCE_ENTRY;
 
 ANX_PACK_POP()
 
@@ -951,6 +967,229 @@ LeGetMinimumSubsystemVersion (
   memset(MinimumVersion, 0, sizeof(IMGLOAD_SYSTEM_VERSION));
   return S_FALSE;
 }
+
+/**
+  Find native resource in LE/LX image.
+
+  Searches the LE/LX resource table for the specified resource.
+
+  @param[in]  ImageBase    Pointer to LE/LX image.
+  @param[in]  TypeCode     Resource type code (4-char or numeric).
+  @param[in]  Id           Resource ID (0 if using name).
+  @param[in]  Name         Resource name (NULL if using ID).
+  @param[out] Data         Receives pointer to resource data.
+  @param[out] Size         Receives size of resource data.
+
+  @return S_OK if found, S_FALSE if not found, error code otherwise.
+**/
+static
+HRESULT
+LeFindNativeResource (
+  IN  VOID         *ImageBase,
+  IN  UINT32       TypeCode,
+  IN  UINT32       Id,
+  IN  CONST CHAR8  *Name,
+  OUT VOID         **Data,
+  OUT UINT64       *Size
+  )
+{
+  DOS_HEADER_SHORT  *DosHeader;
+  LE_HEADER         *LeHeader;
+  LE_RESOURCE_ENTRY *Resources;
+  UINT32            i;
+  UINT16            TypeId;
+
+  if (ImageBase == NULL || Data == NULL || Size == NULL) {
+    return E_POINTER;
+  }
+
+  *Data = NULL;
+  *Size = 0;
+
+  DosHeader = (DOS_HEADER_SHORT *)ImageBase;
+  LeHeader = (LE_HEADER *)LE_OFF(DosHeader->NewHeaderOffset);
+
+  if (LeHeader->ResourceTableOffset == 0 || LeHeader->NumResourceEntries == 0) {
+    return S_FALSE;  // No resources
+  }
+
+  Resources = (LE_RESOURCE_ENTRY *)LE_OFF(DosHeader->NewHeaderOffset + LeHeader->ResourceTableOffset);
+
+  // Convert type code to type ID (for simplicity, use lower 16 bits)
+  TypeId = (UINT16)(TypeCode & 0xFFFF);
+
+  // Search for matching resource
+  for (i = 0; i < LeHeader->NumResourceEntries; i++) {
+    if (Resources[i].TypeId == TypeId) {
+      // Type matches, now check ID/name
+      if (Name != NULL) {
+        // Name-based lookup not yet implemented for LE/LX
+        continue;
+      } else if (Resources[i].NameId == (UINT16)Id) {
+        // Found matching resource by ID
+        LE_OBJECT_TABLE_ENTRY *Objects = (LE_OBJECT_TABLE_ENTRY *)
+          LE_OFF(DosHeader->NewHeaderOffset + LeHeader->ObjectTableOffset);
+
+        if (Resources[i].ObjectNum > 0 && Resources[i].ObjectNum <= LeHeader->NumObjects) {
+          LE_OBJECT_TABLE_ENTRY *Obj = &Objects[Resources[i].ObjectNum - 1];
+
+          *Data = (UINT8 *)ImageBase + Obj->BaseAddress + Resources[i].Offset;
+          *Size = Resources[i].ResourceSize;
+          return S_OK;
+        }
+      }
+    }
+  }
+
+  return S_FALSE;  // Resource not found
+}
+
+/**
+  Get resource from LE/LX image.
+
+  Uses hybrid strategy: tries native OS/2 resources first, then .axursrc section.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+LeGetResource (
+  IN  IImageLoader        *This,
+  IN  VOID                *ImageBase,
+  IN  IMGLOAD_RESOURCE_ID *ResourceId,
+  IN  IMGLOAD_RESOURCE_ID *ResourceType,
+  OUT IImageResource      **Resource
+  )
+{
+  VOID *ResourceFork;
+  UINT64 Size;
+  BOOLEAN NeedsFree;
+  HRESULT Status;
+  UINT32 TypeCode;
+  UINT16 Id;
+  CONST CHAR8 *Name;
+
+  if (ImageBase == NULL || Resource == NULL) {
+    return E_POINTER;
+  }
+
+  *Resource = NULL;
+
+  // Extract type code from ResourceType
+  if (ResourceType != NULL) {
+    if (ResourceType->IsNumeric) {
+      TypeCode = ResourceType->Id;
+    } else {
+      TypeCode = ANX_MAKE_TYPE(ResourceType->Name);
+    }
+  } else {
+    TypeCode = 0;
+  }
+
+  // Extract resource ID/name from ResourceId
+  if (ResourceId != NULL) {
+    if (ResourceId->IsNumeric) {
+      Id = (UINT16)ResourceId->Id;
+      Name = NULL;
+    } else {
+      Id = 0;
+      Name = ResourceId->Name;
+    }
+  } else {
+    Id = 0;
+    Name = NULL;
+  }
+
+  // Try hybrid strategy: native OS/2 resources first, then .axursrc
+  // Note: LE/LX doesn't have sections like ELF/COFF, so .axursrc would need
+  // to be in a resource object. For now, we only support native resources.
+  Status = FindUniversalResourceFork(
+    ImageBase,
+    ResourceStrategyBoth,
+    LeFindNativeResource,
+    NULL,  // No section-based search for LE/LX
+    NULL,
+    &ResourceFork,
+    &Size,
+    &NeedsFree
+  );
+
+  if (FAILED(Status) || Status == S_FALSE) {
+    return Status;
+  }
+
+  // Create resource object
+  Status = CreateImageResource(ResourceFork, TypeCode, Id, Name, Resource);
+
+  if (NeedsFree && ResourceFork != NULL) {
+    free(ResourceFork);
+  }
+
+  return Status;
+}
+
+/**
+  Get resource enumerator for LE/LX image.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+LeGetResourceEnumerator (
+  IN  IImageLoader        *This,
+  IN  VOID                *ImageBase,
+  IN  IMGLOAD_RESOURCE_ID *ResourceType,
+  OUT IEnumImageResource  **Enumerator
+  )
+{
+  VOID *ResourceFork;
+  UINT64 Size;
+  BOOLEAN NeedsFree;
+  HRESULT Status;
+  UINT32 TypeCode;
+
+  if (ImageBase == NULL || Enumerator == NULL) {
+    return E_POINTER;
+  }
+
+  *Enumerator = NULL;
+
+  // Extract type code
+  if (ResourceType != NULL) {
+    if (ResourceType->IsNumeric) {
+      TypeCode = ResourceType->Id;
+    } else {
+      TypeCode = ANX_MAKE_TYPE(ResourceType->Name);
+    }
+  } else {
+    TypeCode = 0;  // All types
+  }
+
+  // Try to find universal resource fork (hybrid strategy)
+  Status = FindUniversalResourceFork(
+    ImageBase,
+    ResourceStrategyBoth,
+    LeFindNativeResource,
+    NULL,
+    NULL,
+    &ResourceFork,
+    &Size,
+    &NeedsFree
+  );
+
+  if (FAILED(Status) || Status == S_FALSE) {
+    return Status;
+  }
+
+  // Create enumerator
+  Status = CreateImageResourceEnumerator(ResourceFork, TypeCode, Enumerator);
+
+  if (NeedsFree && ResourceFork != NULL) {
+    free(ResourceFork);
+  }
+
+  return Status;
+}
+
+//
 // LE/LX Loader VTable
 //
 
@@ -974,7 +1213,9 @@ static CONST IImageLoaderVtbl gLeVtbl = {
   LeGetTargetSystem,
   LeGetMinimumSystemVersion,
   LeGetTargetSubsystem,
-  LeGetMinimumSubsystemVersion
+  LeGetMinimumSubsystemVersion,
+  LeGetResource,
+  LeGetResourceEnumerator
 };
 
 //
