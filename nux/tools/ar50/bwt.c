@@ -126,6 +126,7 @@ BWTInverse (
   )
 {
   UINT32 *pNext;
+  UINT8 *pFirst;
   UINT32 Count[256];
   UINT32 Sum[256];
   size_t I;
@@ -137,10 +138,30 @@ BWTInverse (
   if (InputSize == 0 || OrigIndex >= InputSize)
     return FALSE;
 
-  // Allocate next array
+  // Allocate arrays
   pNext = (UINT32 *) malloc (InputSize * sizeof (UINT32));
-  if (pNext == NULL)
-    return FALSE;
+  pFirst = (UINT8 *) malloc (InputSize);
+  if (pNext == NULL || pFirst == NULL)
+    {
+      free (pNext);
+      free (pFirst);
+      return FALSE;
+    }
+
+  // Build first column (F) by sorting last column (L)
+  memcpy (pFirst, pInput, InputSize);
+  // Simple insertion sort (sufficient for moderate data sizes)
+  for (I = 1; I < InputSize; I++)
+    {
+      UINT8 Key = pFirst[I];
+      INTN J = I - 1;
+      while (J >= 0 && pFirst[J] > Key)
+        {
+          pFirst[J + 1] = pFirst[J];
+          J--;
+        }
+      pFirst[J + 1] = Key;
+    }
 
   // Count character frequencies
   memset (Count, 0, sizeof (Count));
@@ -152,21 +173,22 @@ BWTInverse (
   for (I = 1; I < 256; I++)
     Sum[I] = Sum[I - 1] + Count[I - 1];
 
-  // Build next array
+  // Build next array: maps F positions to L positions
   for (I = 0; I < InputSize; I++)
     {
       UINT8 Ch = pInput[I];
       pNext[Sum[Ch]++] = I;
     }
 
-  // Reconstruct original string
+  // Reconstruct original string from first column
   Idx = OrigIndex;
   for (I = 0; I < InputSize; I++)
     {
-      pOutput[I] = pInput[Idx];
+      pOutput[I] = pFirst[Idx];
       Idx = pNext[Idx];
     }
 
   free (pNext);
+  free (pFirst);
   return TRUE;
 }

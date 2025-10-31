@@ -32,7 +32,6 @@ typedef struct {
   Range decoder state.
 **/
 typedef struct {
-  UINT32 Low;
   UINT32 Code;
   UINT32 Range;
   const UINT8 *pInput;
@@ -135,7 +134,7 @@ DecodeSymbol (
   UINT32         *pSymbol
   )
 {
-  UINT32 Scaled = ((pDec->Code - pDec->Low) * Total) / pDec->Range;
+  UINT32 Scaled = (pDec->Code * Total) / pDec->Range;
   UINT32 I;
 
   // Find symbol
@@ -146,7 +145,7 @@ DecodeSymbol (
           *pSymbol = I;
 
           UINT32 R = pDec->Range / Total;
-          pDec->Low += R * pCumFreq[I];
+          pDec->Code -= R * pCumFreq[I];
           pDec->Range = R * (pCumFreq[I + 1] - pCumFreq[I]);
 
           RenormalizeDecoder (pDec);
@@ -186,7 +185,7 @@ RangeEncode (
   if (pInput == NULL || pOutput == NULL || pCompSize == NULL)
     return FALSE;
 
-  if (OutputSize < 8)
+  if (OutputSize < 4 + 1024 + 4)  // Header + freq table + min data
     return FALSE;
 
   // Calculate frequencies
@@ -203,17 +202,27 @@ RangeEncode (
     }
   CumFreq[256] = Total;
 
-  // Write header: input size
+  // Write header: input size and frequency table
   pOutput[0] = (InputSize >> 24) & 0xFF;
   pOutput[1] = (InputSize >> 16) & 0xFF;
   pOutput[2] = (InputSize >> 8) & 0xFF;
   pOutput[3] = InputSize & 0xFF;
 
+  // Write frequency table (256 * 4 bytes = 1024 bytes)
+  for (I = 0; I < 256; I++)
+    {
+      UINT32 F = Freq[I];
+      pOutput[4 + I*4 + 0] = (F >> 24) & 0xFF;
+      pOutput[4 + I*4 + 1] = (F >> 16) & 0xFF;
+      pOutput[4 + I*4 + 2] = (F >> 8) & 0xFF;
+      pOutput[4 + I*4 + 3] = F & 0xFF;
+    }
+
   // Initialize encoder
   Enc.Low = 0;
   Enc.Range = 0xFFFFFFFFU;
   Enc.pOutput = pOutput;
-  Enc.OutputPos = 4;
+  Enc.OutputPos = 4 + 1024;  // After header and freq table
   Enc.OutputSize = OutputSize;
 
   // Encode each symbol
@@ -267,7 +276,7 @@ RangeDecode (
   if (pInput == NULL || pOutput == NULL || pDecompSize == NULL)
     return FALSE;
 
-  if (InputSize < 8)
+  if (InputSize < 4 + 1024)  // Header + freq table
     return FALSE;
 
   // Read header
@@ -277,17 +286,28 @@ RangeDecode (
   if (DecompSize > OutputSize)
     return FALSE;
 
-  // For simplicity, use uniform frequencies (this is where you'd store/read the model)
-  Total = 256;
+  // Read frequency table
   for (I = 0; I < 256; I++)
-    CumFreq[I] = I;
-  CumFreq[256] = 256;
+    {
+      Freq[I] = ((UINT32)pInput[4 + I*4 + 0] << 24) |
+                ((UINT32)pInput[4 + I*4 + 1] << 16) |
+                ((UINT32)pInput[4 + I*4 + 2] << 8) |
+                pInput[4 + I*4 + 3];
+    }
+
+  // Build cumulative frequency table (same as encoder)
+  Total = 0;
+  for (I = 0; I < 256; I++)
+    {
+      CumFreq[I] = Total;
+      Total += (Freq[I] > 0) ? Freq[I] : 1;
+    }
+  CumFreq[256] = Total;
 
   // Initialize decoder
-  Dec.Low = 0;
   Dec.Range = 0xFFFFFFFFU;
   Dec.pInput = pInput;
-  Dec.InputPos = 4;
+  Dec.InputPos = 4 + 1024;  // After header and freq table
   Dec.InputSize = InputSize;
 
   // Read initial code

@@ -209,7 +209,14 @@ DoList (
       char *pName = Zoo64Decode (Hdr.filename);
       if (pName == NULL)
 	Fatal ("Failed to decode filename");
-      fprintf (stdout, "%16s: %-10u %08lx\n", pName, Hdr.size, ftell (pF));
+
+      BOOLEAN IsCompressed = (Hdr.flags & FLAG_COMPRESSED) != 0;
+      if (IsCompressed)
+	fprintf (stdout, "%16s: %-10u (comp) %-10u (orig) %08lx\n",
+		 pName, Hdr.size, Hdr.orig_size, ftell (pF));
+      else
+	fprintf (stdout, "%16s: %-10u %08lx\n", pName, Hdr.size, ftell (pF));
+
       free (pName);
       fseek (pF, Hdr.size, SEEK_CUR);
     }
@@ -235,10 +242,11 @@ DoCreate (
   int R;
   FILE *pF, *pOut;
   CHAR8 *pN;
-  VOID *pBuf;
-  size_t Size;
+  VOID *pBuf, *pCompBuf;
+  size_t Size, CompSize, OrigSize;
   struct stat St;
   PAYLOAD_HDR *pHdr;
+  BOOLEAN UseCompression;
 
   pOut = fopen (pFilename, "w");
   if (pOut == NULL)
@@ -256,23 +264,93 @@ DoCreate (
       if (R < 0)
 	Fatal ("%s: stat failed: %s", pN, strerror (errno));
 
-      Size = sizeof (PAYLOAD_HDR) + St.st_size;
+      OrigSize = St.st_size;
 
-      pBuf = calloc (1, Size);
+      // Allocate buffer for original data
+      pBuf = calloc (1, OrigSize);
       if (pBuf == NULL)
 	Fatal ("calloc failed");
 
-      pHdr = (PAYLOAD_HDR *) pBuf;
-      pHdr->magic = gMagic;
-      pHdr->filename = Zoo64Encode (pN);
-      pHdr->size = St.st_size;
-
-      if (fread ((void *) (pHdr + 1), 1, St.st_size, pF) == 0 || ferror (pF))
-	Fatal ("%s: fread failed", pN);
+      if (fread (pBuf, 1, OrigSize, pF) == 0 || ferror (pF))
+	{
+	  free (pBuf);
+	  Fatal ("%s: fread failed", pN);
+	}
       fclose (pF);
 
-      if ((fwrite (pBuf, 1, Size, pOut) == 0) || ferror (pOut))
-	Fatal ("Can't write to output file: %s", strerror (errno));
+      // Try compression
+      UseCompression = FALSE;
+      CompSize = 0;
+      pCompBuf = NULL;
+
+      if (OrigSize > 0)
+	{
+	  // Allocate compression buffer (extra space for headers)
+	  size_t CompBufSize = OrigSize + (OrigSize / 2) + 2048;
+	  pCompBuf = calloc (1, CompBufSize);
+	  if (pCompBuf != NULL)
+	    {
+	      if (CompressFull ((const UINT8 *)pBuf, OrigSize, (UINT8 *)pCompBuf,
+				CompBufSize, &CompSize))
+		{
+		  // Use compression only if it actually reduces size
+		  if (CompSize < OrigSize)
+		    {
+		      UseCompression = TRUE;
+		      fprintf (stdout, "%s: %zu -> %zu bytes (%.1f%%)\n",
+			       pN, OrigSize, CompSize,
+			       100.0 * CompSize / OrigSize);
+		    }
+		}
+	    }
+	}
+
+      // Prepare header
+      pHdr = (PAYLOAD_HDR *) calloc (1, sizeof (PAYLOAD_HDR));
+      if (pHdr == NULL)
+	{
+	  free (pBuf);
+	  if (pCompBuf) free (pCompBuf);
+	  Fatal ("calloc failed");
+	}
+
+      pHdr->magic = gMagic;
+      pHdr->filename = Zoo64Encode (pN);
+      pHdr->flags = UseCompression ? FLAG_COMPRESSED : 0;
+      pHdr->size = UseCompression ? CompSize : OrigSize;
+      pHdr->orig_size = UseCompression ? OrigSize : 0;
+
+      // Write header
+      if ((fwrite (pHdr, 1, sizeof (PAYLOAD_HDR), pOut) == 0) || ferror (pOut))
+	{
+	  free (pHdr);
+	  free (pBuf);
+	  if (pCompBuf) free (pCompBuf);
+	  Fatal ("Can't write header to output file: %s", strerror (errno));
+	}
+      free (pHdr);
+
+      // Write data (compressed or original)
+      if (UseCompression)
+	{
+	  if ((fwrite (pCompBuf, 1, CompSize, pOut) == 0) || ferror (pOut))
+	    {
+	      free (pBuf);
+	      free (pCompBuf);
+	      Fatal ("Can't write compressed data to output file: %s", strerror (errno));
+	    }
+	  free (pCompBuf);
+	}
+      else
+	{
+	  if ((fwrite (pBuf, 1, OrigSize, pOut) == 0) || ferror (pOut))
+	    {
+	      free (pBuf);
+	      if (pCompBuf) free (pCompBuf);
+	      Fatal ("Can't write data to output file: %s", strerror (errno));
+	    }
+	  if (pCompBuf) free (pCompBuf);
+	}
 
       free (pBuf);
     }
@@ -304,7 +382,9 @@ DoExtract (
   while (!(fread ((void *) &Hdr, 1, sizeof (Hdr), pF) == 0 || ferror (pF)))
     {
       FILE *pOut;
-      VOID *pBuf;
+      VOID *pBuf, *pDecompBuf;
+      size_t WriteSize, DecompSize;
+      BOOLEAN IsCompressed;
 
       if (Hdr.magic != gMagic)
 	Fatal ("Corrupted entry (Bad Magic)");
@@ -312,6 +392,9 @@ DoExtract (
       if (pName == NULL)
 	Fatal ("Failed to decode filename");
 
+      IsCompressed = (Hdr.flags & FLAG_COMPRESSED) != 0;
+
+      // Allocate buffer for compressed/stored data
       pBuf = calloc (1, Hdr.size);
       if (pBuf == NULL)
 	{
@@ -329,6 +412,7 @@ DoExtract (
 	  Fatal ("%s", ErrMsg);
 	}
 
+      // Read compressed/stored data from archive
       if (fread (pBuf, 1, Hdr.size, pF) == 0 || ferror (pF))
 	{
 	  char ErrMsg[256];
@@ -339,14 +423,79 @@ DoExtract (
 	  Fatal ("%s", ErrMsg);
 	}
 
-      if ((fwrite (pBuf, 1, Hdr.size, pOut) == 0) || ferror (pOut))
+      // Decompress if necessary
+      if (IsCompressed)
 	{
-	  char ErrMsg[512];
-	  snprintf (ErrMsg, sizeof(ErrMsg), "Can't write to output file %s: %s", pName, strerror (errno));
-	  fclose (pOut);
-	  free (pName);
-	  free (pBuf);
-	  Fatal ("%s", ErrMsg);
+	  // Allocate buffer for decompressed data
+	  pDecompBuf = calloc (1, Hdr.orig_size);
+	  if (pDecompBuf == NULL)
+	    {
+	      char ErrMsg[256];
+	      snprintf (ErrMsg, sizeof(ErrMsg), "calloc failed for decompression");
+	      fclose (pOut);
+	      free (pName);
+	      free (pBuf);
+	      Fatal ("%s", ErrMsg);
+	    }
+
+	  // Decompress
+	  if (!DecompressFull ((const UINT8 *)pBuf, Hdr.size, (UINT8 *)pDecompBuf,
+			       Hdr.orig_size, &DecompSize))
+	    {
+	      char ErrMsg[256];
+	      snprintf (ErrMsg, sizeof(ErrMsg), "%s: decompression failed", pName);
+	      fclose (pOut);
+	      free (pName);
+	      free (pBuf);
+	      free (pDecompBuf);
+	      Fatal ("%s", ErrMsg);
+	    }
+
+	  if (DecompSize != Hdr.orig_size)
+	    {
+	      char ErrMsg[256];
+	      snprintf (ErrMsg, sizeof(ErrMsg), "%s: decompressed size mismatch (expected %u, got %zu)",
+			pName, Hdr.orig_size, DecompSize);
+	      fclose (pOut);
+	      free (pName);
+	      free (pBuf);
+	      free (pDecompBuf);
+	      Fatal ("%s", ErrMsg);
+	    }
+
+	  fprintf (stdout, "%s: %u -> %zu bytes (decompressed)\n",
+		   pName, Hdr.size, DecompSize);
+
+	  // Write decompressed data
+	  WriteSize = DecompSize;
+	  if ((fwrite (pDecompBuf, 1, WriteSize, pOut) == 0) || ferror (pOut))
+	    {
+	      char ErrMsg[512];
+	      snprintf (ErrMsg, sizeof(ErrMsg), "Can't write to output file %s: %s",
+			pName, strerror (errno));
+	      fclose (pOut);
+	      free (pName);
+	      free (pBuf);
+	      free (pDecompBuf);
+	      Fatal ("%s", ErrMsg);
+	    }
+
+	  free (pDecompBuf);
+	}
+      else
+	{
+	  // Write uncompressed data
+	  WriteSize = Hdr.size;
+	  if ((fwrite (pBuf, 1, WriteSize, pOut) == 0) || ferror (pOut))
+	    {
+	      char ErrMsg[512];
+	      snprintf (ErrMsg, sizeof(ErrMsg), "Can't write to output file %s: %s",
+			pName, strerror (errno));
+	      fclose (pOut);
+	      free (pName);
+	      free (pBuf);
+	      Fatal ("%s", ErrMsg);
+	    }
 	}
 
       fclose (pOut);

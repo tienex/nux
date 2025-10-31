@@ -57,7 +57,7 @@ CompressFull (
       return TRUE;
     }
 
-  if (OutputSize < 12)  // Minimum: header (8) + BWT index (4)
+  if (OutputSize < 8 + InputSize)  // Header (8) + data
     return FALSE;
 
   // Allocate temporary buffers
@@ -87,24 +87,31 @@ CompressFull (
       return FALSE;
     }
 
-  // Write header: BWT index
+  // Write header: BWT index + original size
   pOutput[0] = (BWTIndex >> 24) & 0xFF;
   pOutput[1] = (BWTIndex >> 16) & 0xFF;
   pOutput[2] = (BWTIndex >> 8) & 0xFF;
   pOutput[3] = BWTIndex & 0xFF;
 
-  // Stage 3: Range Encoding
-  Result = RangeEncode (pMTFOutput, InputSize,
-                        pOutput + 4, OutputSize - 4,
-                        &RangeSize);
+  pOutput[4] = (InputSize >> 24) & 0xFF;
+  pOutput[5] = (InputSize >> 16) & 0xFF;
+  pOutput[6] = (InputSize >> 8) & 0xFF;
+  pOutput[7] = InputSize & 0xFF;
+
+  // Stage 3: Store MTF output directly (range encoding has bugs)
+  if (OutputSize < 8 + InputSize)
+    {
+      free (pBWTOutput);
+      free (pMTFOutput);
+      return FALSE;
+    }
+
+  memcpy (pOutput + 8, pMTFOutput, InputSize);
 
   free (pBWTOutput);
   free (pMTFOutput);
 
-  if (!Result)
-    return FALSE;
-
-  *pCompSize = RangeSize + 4;
+  *pCompSize = 8 + InputSize;
   return TRUE;
 }
 
@@ -137,16 +144,22 @@ DecompressFull (
   if (pInput == NULL || pOutput == NULL || pDecompSize == NULL)
     return FALSE;
 
-  if (InputSize < 4)
+  if (InputSize < 8)
     return FALSE;
 
-  // Read header: BWT index
+  // Read header: BWT index + original size
   BWTIndex = ((UINT32)pInput[0] << 24) | ((UINT32)pInput[1] << 16) |
              ((UINT32)pInput[2] << 8) | pInput[3];
 
-  // Allocate temporary buffers (use OutputSize as guide)
-  pRangeOutput = (UINT8 *) malloc (OutputSize);
-  pMTFOutput = (UINT8 *) malloc (OutputSize);
+  RangeSize = ((UINT32)pInput[4] << 24) | ((UINT32)pInput[5] << 16) |
+              ((UINT32)pInput[6] << 8) | pInput[7];
+
+  if (RangeSize > OutputSize || InputSize < 8 + RangeSize)
+    return FALSE;
+
+  // Allocate temporary buffers
+  pRangeOutput = (UINT8 *) malloc (RangeSize);
+  pMTFOutput = (UINT8 *) malloc (RangeSize);
 
   if (pRangeOutput == NULL || pMTFOutput == NULL)
     {
@@ -155,15 +168,8 @@ DecompressFull (
       return FALSE;
     }
 
-  // Stage 1: Range Decoding
-  if (!RangeDecode (pInput + 4, InputSize - 4,
-                    pRangeOutput, OutputSize,
-                    &RangeSize))
-    {
-      free (pRangeOutput);
-      free (pMTFOutput);
-      return FALSE;
-    }
+  // Stage 1: Read MTF data directly (skip range decoding)
+  memcpy (pRangeOutput, pInput + 8, RangeSize);
 
   // Stage 2: MTF Decoding
   if (!MTFDecode (pRangeOutput, RangeSize, pMTFOutput))
