@@ -99,6 +99,9 @@ set(ANXCONFIG_SOURCES
     # Drawing surface
     drawing_surface.c
     focus_manager.c
+    # Window manager and compositor
+    window_manager.c
+    composer.c
     # Common dialogs
     dialog_fileopensave.c
     dialog_about.c

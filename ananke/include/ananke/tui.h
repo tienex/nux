@@ -20,6 +20,22 @@ extern "C" {
 //
 // Forward declarations
 //
+
+// Base interfaces
+typedef struct _ITuiResponder ITuiResponder;
+typedef struct _ITuiWidget ITuiWidget;
+
+// Event listener interfaces
+typedef struct _ITuiDrawListener ITuiDrawListener;
+typedef struct _ITuiKeyListener ITuiKeyListener;
+typedef struct _ITuiMouseListener ITuiMouseListener;
+typedef struct _ITuiTimerListener ITuiTimerListener;
+typedef struct _ITuiNotificationListener ITuiNotificationListener;
+
+// Window management
+typedef struct _ITuiWindowManager ITuiWindowManager;
+typedef struct _ITuiComposer ITuiComposer;
+
 typedef struct _ITuiScreen ITuiScreen;
 typedef struct _ITuiWindow ITuiWindow;
 typedef struct _ITuiMenu ITuiMenu;
@@ -217,6 +233,472 @@ typedef struct _TUI_CELL {
     TUI_COLOR Background;
     UINT32 Attributes;
 } TUI_CELL;
+
+//
+// Base Responder and Widget Architecture (Cocoa-style)
+//
+
+// {1A2B3C4D-5E6F-7A8B-9C0D-1E2F3A4B5C6D}
+DEFINE_GUID(IID_ITuiResponder,
+    0x1A2B3C4D, 0x5E6F, 0x7A8B, 0x9C, 0x0D, 0x1E, 0x2F, 0x3A, 0x4B, 0x5C, 0x6D);
+
+/**
+  ITuiResponder Interface
+
+  Base interface for objects that respond to events.
+  Similar to NSResponder in Cocoa - handles event dispatching.
+**/
+typedef struct _ITuiResponder_Vtbl {
+    HRESULT (ANXAPI *QueryInterface)(ITuiResponder *This, REFIID riid, VOID **ppvObject);
+    UINTN (ANXAPI *AddRef)(ITuiResponder *This);
+    UINTN (ANXAPI *Release)(ITuiResponder *This);
+
+    /**
+      Get the next responder in the responder chain.
+    **/
+    HRESULT (ANXAPI *GetNextResponder)(
+        ITuiResponder *This,
+        ITuiResponder **NextResponder
+    );
+
+    /**
+      Set the next responder in the responder chain.
+    **/
+    HRESULT (ANXAPI *SetNextResponder)(
+        ITuiResponder *This,
+        ITuiResponder *NextResponder
+    );
+
+    /**
+      Check if this responder accepts first responder status.
+    **/
+    BOOLEAN (ANXAPI *AcceptsFirstResponder)(
+        ITuiResponder *This
+    );
+
+    /**
+      Become the first responder.
+    **/
+    HRESULT (ANXAPI *BecomeFirstResponder)(
+        ITuiResponder *This
+    );
+
+    /**
+      Resign first responder status.
+    **/
+    HRESULT (ANXAPI *ResignFirstResponder)(
+        ITuiResponder *This
+    );
+} ITuiResponder_Vtbl;
+
+struct _ITuiResponder {
+    CONST ITuiResponder_Vtbl *Vtbl;
+};
+
+// {2B3C4D5E-6F7A-8B9C-0D1E-2F3A4B5C6D7E}
+DEFINE_GUID(IID_ITuiWidget,
+    0x2B3C4D5E, 0x6F7A, 0x8B9C, 0x0D, 0x1E, 0x2F, 0x3A, 0x4B, 0x5C, 0x6D, 0x7E);
+
+/**
+  ITuiWidget Interface
+
+  Base interface for all TUI widgets. Inherits from ITuiResponder.
+  Provides common widget functionality (bounds, visibility, enable state).
+**/
+typedef struct _ITuiWidget_Vtbl {
+    // ITuiResponder methods
+    HRESULT (ANXAPI *QueryInterface)(ITuiWidget *This, REFIID riid, VOID **ppvObject);
+    UINTN (ANXAPI *AddRef)(ITuiWidget *This);
+    UINTN (ANXAPI *Release)(ITuiWidget *This);
+    HRESULT (ANXAPI *GetNextResponder)(ITuiWidget *This, ITuiResponder **NextResponder);
+    HRESULT (ANXAPI *SetNextResponder)(ITuiWidget *This, ITuiResponder *NextResponder);
+    BOOLEAN (ANXAPI *AcceptsFirstResponder)(ITuiWidget *This);
+    HRESULT (ANXAPI *BecomeFirstResponder)(ITuiWidget *This);
+    HRESULT (ANXAPI *ResignFirstResponder)(ITuiWidget *This);
+
+    // ITuiWidget methods
+    HRESULT (ANXAPI *SetBounds)(ITuiWidget *This, CONST TUI_RECT *Bounds);
+    HRESULT (ANXAPI *GetBounds)(ITuiWidget *This, TUI_RECT *Bounds);
+    HRESULT (ANXAPI *SetVisible)(ITuiWidget *This, BOOLEAN Visible);
+    BOOLEAN (ANXAPI *IsVisible)(ITuiWidget *This);
+    HRESULT (ANXAPI *SetEnabled)(ITuiWidget *This, BOOLEAN Enabled);
+    BOOLEAN (ANXAPI *IsEnabled)(ITuiWidget *This);
+    HRESULT (ANXAPI *SetParent)(ITuiWidget *This, ITuiWidget *Parent);
+    HRESULT (ANXAPI *GetParent)(ITuiWidget *This, ITuiWidget **Parent);
+    HRESULT (ANXAPI *AddChild)(ITuiWidget *This, ITuiWidget *Child);
+    HRESULT (ANXAPI *RemoveChild)(ITuiWidget *This, ITuiWidget *Child);
+    HRESULT (ANXAPI *SetNeedsDisplay)(ITuiWidget *This, BOOLEAN Needed);
+} ITuiWidget_Vtbl;
+
+struct _ITuiWidget {
+    CONST ITuiWidget_Vtbl *Vtbl;
+};
+
+//
+// Event Listener Interfaces
+//
+
+// {3C4D5E6F-7A8B-9C0D-1E2F-3A4B5C6D7E8F}
+DEFINE_GUID(IID_ITuiDrawListener,
+    0x3C4D5E6F, 0x7A8B, 0x9C0D, 0x1E, 0x2F, 0x3A, 0x4B, 0x5C, 0x6D, 0x7E, 0x8F);
+
+/**
+  ITuiDrawListener Interface
+
+  Listener for draw events. Widgets implement this to receive drawing requests.
+**/
+typedef struct _ITuiDrawListener_Vtbl {
+    HRESULT (ANXAPI *QueryInterface)(ITuiDrawListener *This, REFIID riid, VOID **ppvObject);
+    UINTN (ANXAPI *AddRef)(ITuiDrawListener *This);
+    UINTN (ANXAPI *Release)(ITuiDrawListener *This);
+
+    /**
+      Called when the widget needs to be drawn.
+    **/
+    HRESULT (ANXAPI *OnDraw)(
+        ITuiDrawListener *This,
+        ITuiSurface *Surface,
+        CONST TUI_RECT *DirtyRect
+    );
+
+    /**
+      Called to get the widget's preferred size.
+    **/
+    HRESULT (ANXAPI *OnGetPreferredSize)(
+        ITuiDrawListener *This,
+        UINT32 *Width,
+        UINT32 *Height
+    );
+} ITuiDrawListener_Vtbl;
+
+struct _ITuiDrawListener {
+    CONST ITuiDrawListener_Vtbl *Vtbl;
+};
+
+// {4D5E6F7A-8B9C-0D1E-2F3A-4B5C6D7E8F9A}
+DEFINE_GUID(IID_ITuiKeyListener,
+    0x4D5E6F7A, 0x8B9C, 0x0D1E, 0x2F, 0x3A, 0x4B, 0x5C, 0x6D, 0x7E, 0x8F, 0x9A);
+
+/**
+  ITuiKeyListener Interface
+
+  Listener for keyboard events.
+**/
+typedef struct _ITuiKeyListener_Vtbl {
+    HRESULT (ANXAPI *QueryInterface)(ITuiKeyListener *This, REFIID riid, VOID **ppvObject);
+    UINTN (ANXAPI *AddRef)(ITuiKeyListener *This);
+    UINTN (ANXAPI *Release)(ITuiKeyListener *This);
+
+    /**
+      Called when a key is pressed.
+    **/
+    HRESULT (ANXAPI *OnKeyDown)(
+        ITuiKeyListener *This,
+        TUI_KEY Key,
+        UINT32 Modifiers,
+        BOOLEAN *Handled
+    );
+
+    /**
+      Called when a key is released.
+    **/
+    HRESULT (ANXAPI *OnKeyUp)(
+        ITuiKeyListener *This,
+        TUI_KEY Key,
+        UINT32 Modifiers,
+        BOOLEAN *Handled
+    );
+
+    /**
+      Called when a character is typed.
+    **/
+    HRESULT (ANXAPI *OnChar)(
+        ITuiKeyListener *This,
+        CHAR16 Character,
+        BOOLEAN *Handled
+    );
+} ITuiKeyListener_Vtbl;
+
+struct _ITuiKeyListener {
+    CONST ITuiKeyListener_Vtbl *Vtbl;
+};
+
+// {5E6F7A8B-9C0D-1E2F-3A4B-5C6D7E8F9A0B}
+DEFINE_GUID(IID_ITuiMouseListener,
+    0x5E6F7A8B, 0x9C0D, 0x1E2F, 0x3A, 0x4B, 0x5C, 0x6D, 0x7E, 0x8F, 0x9A, 0x0B);
+
+/**
+  ITuiMouseListener Interface
+
+  Listener for mouse events.
+**/
+typedef struct _ITuiMouseListener_Vtbl {
+    HRESULT (ANXAPI *QueryInterface)(ITuiMouseListener *This, REFIID riid, VOID **ppvObject);
+    UINTN (ANXAPI *AddRef)(ITuiMouseListener *This);
+    UINTN (ANXAPI *Release)(ITuiMouseListener *This);
+
+    /**
+      Called when mouse button is pressed.
+    **/
+    HRESULT (ANXAPI *OnMouseDown)(
+        ITuiMouseListener *This,
+        CONST TUI_MOUSE_EVENT *Event,
+        BOOLEAN *Handled
+    );
+
+    /**
+      Called when mouse button is released.
+    **/
+    HRESULT (ANXAPI *OnMouseUp)(
+        ITuiMouseListener *This,
+        CONST TUI_MOUSE_EVENT *Event,
+        BOOLEAN *Handled
+    );
+
+    /**
+      Called when mouse is moved.
+    **/
+    HRESULT (ANXAPI *OnMouseMove)(
+        ITuiMouseListener *This,
+        CONST TUI_MOUSE_EVENT *Event,
+        BOOLEAN *Handled
+    );
+
+    /**
+      Called when mouse is dragged.
+    **/
+    HRESULT (ANXAPI *OnMouseDrag)(
+        ITuiMouseListener *This,
+        CONST TUI_MOUSE_EVENT *Event,
+        BOOLEAN *Handled
+    );
+
+    /**
+      Called when mouse enters widget.
+    **/
+    HRESULT (ANXAPI *OnMouseEnter)(
+        ITuiMouseListener *This,
+        CONST TUI_MOUSE_EVENT *Event
+    );
+
+    /**
+      Called when mouse leaves widget.
+    **/
+    HRESULT (ANXAPI *OnMouseLeave)(
+        ITuiMouseListener *This,
+        CONST TUI_MOUSE_EVENT *Event
+    );
+} ITuiMouseListener_Vtbl;
+
+struct _ITuiMouseListener {
+    CONST ITuiMouseListener_Vtbl *Vtbl;
+};
+
+// {6F7A8B9C-0D1E-2F3A-4B5C-6D7E8F9A0B1C}
+DEFINE_GUID(IID_ITuiTimerListener,
+    0x6F7A8B9C, 0x0D1E, 0x2F3A, 0x4B, 0x5C, 0x6D, 0x7E, 0x8F, 0x9A, 0x0B, 0x1C);
+
+/**
+  ITuiTimerListener Interface
+
+  Listener for timer events.
+**/
+typedef struct _ITuiTimerListener_Vtbl {
+    HRESULT (ANXAPI *QueryInterface)(ITuiTimerListener *This, REFIID riid, VOID **ppvObject);
+    UINTN (ANXAPI *AddRef)(ITuiTimerListener *This);
+    UINTN (ANXAPI *Release)(ITuiTimerListener *This);
+
+    /**
+      Called when a timer fires.
+    **/
+    HRESULT (ANXAPI *OnTimer)(
+        ITuiTimerListener *This,
+        UINT32 TimerId,
+        VOID *UserData
+    );
+} ITuiTimerListener_Vtbl;
+
+struct _ITuiTimerListener {
+    CONST ITuiTimerListener_Vtbl *Vtbl;
+};
+
+// {7A8B9C0D-1E2F-3A4B-5C6D-7E8F9A0B1C2D}
+DEFINE_GUID(IID_ITuiNotificationListener,
+    0x7A8B9C0D, 0x1E2F, 0x3A4B, 0x5C, 0x6D, 0x7E, 0x8F, 0x9A, 0x0B, 0x1C, 0x2D);
+
+/**
+  ITuiNotificationListener Interface
+
+  Listener for system notifications and widget events.
+**/
+typedef struct _ITuiNotificationListener_Vtbl {
+    HRESULT (ANXAPI *QueryInterface)(ITuiNotificationListener *This, REFIID riid, VOID **ppvObject);
+    UINTN (ANXAPI *AddRef)(ITuiNotificationListener *This);
+    UINTN (ANXAPI *Release)(ITuiNotificationListener *This);
+
+    /**
+      Called when a notification is posted.
+    **/
+    HRESULT (ANXAPI *OnNotification)(
+        ITuiNotificationListener *This,
+        CONST CHAR8 *NotificationName,
+        VOID *UserInfo
+    );
+} ITuiNotificationListener_Vtbl;
+
+struct _ITuiNotificationListener {
+    CONST ITuiNotificationListener_Vtbl *Vtbl;
+};
+
+// {8B9C0D1E-2F3A-4B5C-6D7E-8F9A0B1C2D3E}
+DEFINE_GUID(IID_ITuiComposer,
+    0x8B9C0D1E, 0x2F3A, 0x4B5C, 0x6D, 0x7E, 0x8F, 0x9A, 0x0B, 0x1C, 0x2D, 0x3E);
+
+/**
+  ITuiComposer Interface
+
+  Manages drawing surfaces and composites them to the screen.
+  Replaces direct screen access - widgets draw to surfaces instead.
+**/
+typedef struct _ITuiComposer_Vtbl {
+    HRESULT (ANXAPI *QueryInterface)(ITuiComposer *This, REFIID riid, VOID **ppvObject);
+    UINTN (ANXAPI *AddRef)(ITuiComposer *This);
+    UINTN (ANXAPI *Release)(ITuiComposer *This);
+
+    /**
+      Create a new drawing surface.
+    **/
+    HRESULT (ANXAPI *CreateSurface)(
+        ITuiComposer *This,
+        UINT32 Width,
+        UINT32 Height,
+        ITuiSurface **OutSurface
+    );
+
+    /**
+      Composite all dirty surfaces to the screen.
+    **/
+    HRESULT (ANXAPI *Composite)(
+        ITuiComposer *This,
+        ITuiScreen *Screen
+    );
+
+    /**
+      Mark a region as needing redraw.
+    **/
+    HRESULT (ANXAPI *MarkDirty)(
+        ITuiComposer *This,
+        CONST TUI_RECT *Rect
+    );
+
+    /**
+      Register a widget's surface.
+    **/
+    HRESULT (ANXAPI *RegisterSurface)(
+        ITuiComposer *This,
+        ITuiWidget *Widget,
+        ITuiSurface *Surface,
+        INT32 ZOrder
+    );
+
+    /**
+      Unregister a widget's surface.
+    **/
+    HRESULT (ANXAPI *UnregisterSurface)(
+        ITuiComposer *This,
+        ITuiWidget *Widget
+    );
+} ITuiComposer_Vtbl;
+
+struct _ITuiComposer {
+    CONST ITuiComposer_Vtbl *Vtbl;
+};
+
+// {9C0D1E2F-3A4B-5C6D-7E8F-9A0B1C2D3E4F}
+DEFINE_GUID(IID_ITuiWindowManager,
+    0x9C0D1E2F, 0x3A4B, 0x5C6D, 0x7E, 0x8F, 0x9A, 0x0B, 0x1C, 0x2D, 0x3E, 0x4F);
+
+/**
+  ITuiWindowManager Interface
+
+  Manages windows and routes events using QueryInterface to determine
+  which listener interfaces widgets support.
+**/
+typedef struct _ITuiWindowManager_Vtbl {
+    HRESULT (ANXAPI *QueryInterface)(ITuiWindowManager *This, REFIID riid, VOID **ppvObject);
+    UINTN (ANXAPI *AddRef)(ITuiWindowManager *This);
+    UINTN (ANXAPI *Release)(ITuiWindowManager *This);
+
+    /**
+      Register a window with the window manager.
+    **/
+    HRESULT (ANXAPI *RegisterWindow)(
+        ITuiWindowManager *This,
+        ITuiWindow *Window,
+        ITuiWidget *RootWidget
+    );
+
+    /**
+      Unregister a window.
+    **/
+    HRESULT (ANXAPI *UnregisterWindow)(
+        ITuiWindowManager *This,
+        ITuiWindow *Window
+    );
+
+    /**
+      Get the currently focused window.
+    **/
+    HRESULT (ANXAPI *GetFocusedWindow)(
+        ITuiWindowManager *This,
+        ITuiWindow **Window
+    );
+
+    /**
+      Set the focused window.
+    **/
+    HRESULT (ANXAPI *SetFocusedWindow)(
+        ITuiWindowManager *This,
+        ITuiWindow *Window
+    );
+
+    /**
+      Dispatch an event to the appropriate widget.
+      Uses QueryInterface to check for listener interfaces.
+    **/
+    HRESULT (ANXAPI *DispatchEvent)(
+        ITuiWindowManager *This,
+        CONST VOID *Event,
+        REFIID EventType
+    );
+
+    /**
+      Process all pending events.
+    **/
+    HRESULT (ANXAPI *ProcessEvents)(
+        ITuiWindowManager *This
+    );
+
+    /**
+      Get the first responder (focused widget).
+    **/
+    HRESULT (ANXAPI *GetFirstResponder)(
+        ITuiWindowManager *This,
+        ITuiResponder **Responder
+    );
+
+    /**
+      Set the first responder.
+    **/
+    HRESULT (ANXAPI *SetFirstResponder)(
+        ITuiWindowManager *This,
+        ITuiResponder *Responder
+    );
+} ITuiWindowManager_Vtbl;
+
+struct _ITuiWindowManager {
+    CONST ITuiWindowManager_Vtbl *Vtbl;
+};
 
 // {8F3D5E1A-2B4C-4D9E-A1F3-7C8E9D0A1B2C}
 DEFINE_GUID(IID_ITuiScreen,
@@ -3715,6 +4197,34 @@ HRESULT
 ANXAPI
 AnxTuiCreateHeaderView(
     OUT ITuiHeaderView **OutHeaderView
+);
+
+/**
+  Create a TUI Window Manager instance.
+
+  @param[out] OutWindowManager  Pointer to receive the window manager interface.
+
+  @retval S_OK        Window manager created successfully.
+  @retval E_OUTOFMEMORY  Memory allocation failed.
+**/
+HRESULT
+ANXAPI
+AnxTuiCreateWindowManager(
+    OUT ITuiWindowManager **OutWindowManager
+);
+
+/**
+  Create a TUI Composer instance.
+
+  @param[out] OutComposer  Pointer to receive the composer interface.
+
+  @retval S_OK        Composer created successfully.
+  @retval E_OUTOFMEMORY  Memory allocation failed.
+**/
+HRESULT
+ANXAPI
+AnxTuiCreateComposer(
+    OUT ITuiComposer **OutComposer
 );
 
 #ifdef __cplusplus
