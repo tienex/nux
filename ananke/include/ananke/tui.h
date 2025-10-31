@@ -5058,6 +5058,68 @@ struct _ITuiTerminal {
     CONST ITuiTerminal_Vtbl *Vtbl;
 };
 
+// {3A4B5C6D-7E8F-9A0B-1C2D-3E4F5A6B7C8D}
+DEFINE_GUID(IID_ITuiThemedTreeView,
+    0x3A4B5C6D, 0x7E8F, 0x9A0B, 0x1C, 0x2D, 0x3E, 0x4F, 0x5A, 0x6B, 0x7C, 0x8D);
+
+/**
+  ITuiThemedTreeView Interface
+
+  TreeView theming interface. Inherits from ITuiThemedWidget.
+**/
+typedef struct _ITuiThemedTreeView_Vtbl {
+    // ITuiSerializable methods
+    HRESULT (ANXAPI *QueryInterface)(ITuiThemedTreeView *This, REFIID riid, VOID **ppvObject);
+    UINTN (ANXAPI *AddRef)(ITuiThemedTreeView *This);
+    UINTN (ANXAPI *Release)(ITuiThemedTreeView *This);
+    HRESULT (ANXAPI *SerializeToYaml)(ITuiThemedTreeView *This, CHAR8 **OutYaml, UINTN *OutLength);
+    HRESULT (ANXAPI *DeserializeFromYaml)(ITuiThemedTreeView *This, CONST CHAR8 *Yaml, UINTN Length);
+    HRESULT (ANXAPI *GetTypeName)(ITuiThemedTreeView *This, CONST CHAR8 **OutTypeName);
+    HRESULT (ANXAPI *Clone)(ITuiThemedTreeView *This, ITuiSerializable **OutClone);
+
+    // ITuiResponder methods
+    HRESULT (ANXAPI *GetNextResponder)(ITuiThemedTreeView *This, ITuiResponder **NextResponder);
+    HRESULT (ANXAPI *SetNextResponder)(ITuiThemedTreeView *This, ITuiResponder *NextResponder);
+    BOOLEAN (ANXAPI *AcceptsFirstResponder)(ITuiThemedTreeView *This);
+    HRESULT (ANXAPI *BecomeFirstResponder)(ITuiThemedTreeView *This);
+    HRESULT (ANXAPI *ResignFirstResponder)(ITuiThemedTreeView *This);
+
+    // ITuiWidget methods
+    HRESULT (ANXAPI *SetBounds)(ITuiThemedTreeView *This, CONST TUI_RECT *Bounds);
+    HRESULT (ANXAPI *GetBounds)(ITuiThemedTreeView *This, TUI_RECT *Bounds);
+    HRESULT (ANXAPI *SetVisible)(ITuiThemedTreeView *This, BOOLEAN Visible);
+    BOOLEAN (ANXAPI *IsVisible)(ITuiThemedTreeView *This);
+    HRESULT (ANXAPI *SetEnabled)(ITuiThemedTreeView *This, BOOLEAN Enabled);
+    BOOLEAN (ANXAPI *IsEnabled)(ITuiThemedTreeView *This);
+    HRESULT (ANXAPI *SetParent)(ITuiThemedTreeView *This, ITuiWidget *Parent);
+    HRESULT (ANXAPI *GetParent)(ITuiThemedTreeView *This, ITuiWidget **Parent);
+    HRESULT (ANXAPI *AddChild)(ITuiThemedTreeView *This, ITuiWidget *Child);
+    HRESULT (ANXAPI *RemoveChild)(ITuiThemedTreeView *This, ITuiWidget *Child);
+    HRESULT (ANXAPI *SetNeedsDisplay)(ITuiThemedTreeView *This, BOOLEAN Needed);
+
+    // ITuiThemedWidget methods
+    HRESULT (ANXAPI *ApplyTheme)(ITuiThemedTreeView *This, ITuiTheme *Theme);
+    HRESULT (ANXAPI *GetColors)(ITuiThemedTreeView *This, TUI_COLOR *Foreground, TUI_COLOR *Background);
+    HRESULT (ANXAPI *SetColors)(ITuiThemedTreeView *This, TUI_COLOR Foreground, TUI_COLOR Background);
+    HRESULT (ANXAPI *OnMouseEvent)(ITuiThemedTreeView *This, CONST TUI_MOUSE_EVENT *Event, BOOLEAN *Handled);
+    HRESULT (ANXAPI *OnKeyEvent)(ITuiThemedTreeView *This, TUI_KEY Key, UINT32 Modifiers, BOOLEAN *Handled);
+    HRESULT (ANXAPI *Draw)(ITuiThemedTreeView *This, ITuiSurface *Surface, CONST TUI_RECT *DirtyRect);
+
+    // ITuiThemedTreeView methods
+    HRESULT (ANXAPI *GetSelectedColors)(ITuiThemedTreeView *This, TUI_COLOR *Foreground, TUI_COLOR *Background);
+    HRESULT (ANXAPI *SetSelectedColors)(ITuiThemedTreeView *This, TUI_COLOR Foreground, TUI_COLOR Background);
+    HRESULT (ANXAPI *GetExpandedChar)(ITuiThemedTreeView *This, CHAR8 *ExpandedChar);
+    HRESULT (ANXAPI *SetExpandedChar)(ITuiThemedTreeView *This, CHAR8 ExpandedChar);
+    HRESULT (ANXAPI *GetCollapsedChar)(ITuiThemedTreeView *This, CHAR8 *CollapsedChar);
+    HRESULT (ANXAPI *SetCollapsedChar)(ITuiThemedTreeView *This, CHAR8 CollapsedChar);
+    HRESULT (ANXAPI *GetIndentChar)(ITuiThemedTreeView *This, CHAR8 *IndentChar);
+    HRESULT (ANXAPI *SetIndentChar)(ITuiThemedTreeView *This, CHAR8 IndentChar);
+} ITuiThemedTreeView_Vtbl;
+
+struct _ITuiThemedTreeView {
+    CONST ITuiThemedTreeView_Vtbl *Vtbl;
+};
+
 // {6C7D8E9F-0A1B-2C3D-4E5F-6A7B8C9D0E1F}
 DEFINE_GUID(IID_ITuiTreeView,
     0x6C7D8E9F, 0x0A1B, 0x2C3D, 0x4E, 0x5F, 0x6A, 0x7B, 0x8C, 0x9D, 0x0E, 0x1F);
@@ -5066,109 +5128,70 @@ DEFINE_GUID(IID_ITuiTreeView,
   ITuiTreeView Interface
 
   Hierarchical tree control with expand/collapse, checkboxes,
-  inline editing, and keyboard navigation.
+  inline editing, and keyboard navigation. Inherits from ITuiThemedTreeView.
 **/
 typedef struct _ITuiTreeView_Vtbl {
+    // ITuiSerializable methods
     HRESULT (ANXAPI *QueryInterface)(ITuiTreeView *This, REFIID riid, VOID **ppvObject);
     UINTN (ANXAPI *AddRef)(ITuiTreeView *This);
     UINTN (ANXAPI *Release)(ITuiTreeView *This);
+    HRESULT (ANXAPI *SerializeToYaml)(ITuiTreeView *This, CHAR8 **OutYaml, UINTN *OutLength);
+    HRESULT (ANXAPI *DeserializeFromYaml)(ITuiTreeView *This, CONST CHAR8 *Yaml, UINTN Length);
+    HRESULT (ANXAPI *GetTypeName)(ITuiTreeView *This, CONST CHAR8 **OutTypeName);
+    HRESULT (ANXAPI *Clone)(ITuiTreeView *This, ITuiSerializable **OutClone);
 
-    /**
-      Render the tree view.
-    **/
-    HRESULT (ANXAPI *Render)(
-        ITuiTreeView *This,
-        ITuiScreen *Screen,
-        INT32 X,
-        INT32 Y,
-        UINT32 Width,
-        UINT32 Height
-    );
+    // ITuiResponder methods
+    HRESULT (ANXAPI *GetNextResponder)(ITuiTreeView *This, ITuiResponder **NextResponder);
+    HRESULT (ANXAPI *SetNextResponder)(ITuiTreeView *This, ITuiResponder *NextResponder);
+    BOOLEAN (ANXAPI *AcceptsFirstResponder)(ITuiTreeView *This);
+    HRESULT (ANXAPI *BecomeFirstResponder)(ITuiTreeView *This);
+    HRESULT (ANXAPI *ResignFirstResponder)(ITuiTreeView *This);
 
-    /**
-      Handle keyboard input.
-    **/
-    HRESULT (ANXAPI *HandleKey)(
-        ITuiTreeView *This,
-        TUI_KEY Key
-    );
-
-    /**
-      Standard widget methods.
-    **/
+    // ITuiWidget methods
     HRESULT (ANXAPI *SetBounds)(ITuiTreeView *This, CONST TUI_RECT *Bounds);
     HRESULT (ANXAPI *GetBounds)(ITuiTreeView *This, TUI_RECT *Bounds);
     HRESULT (ANXAPI *SetVisible)(ITuiTreeView *This, BOOLEAN Visible);
     BOOLEAN (ANXAPI *IsVisible)(ITuiTreeView *This);
     HRESULT (ANXAPI *SetEnabled)(ITuiTreeView *This, BOOLEAN Enabled);
     BOOLEAN (ANXAPI *IsEnabled)(ITuiTreeView *This);
+    HRESULT (ANXAPI *SetParent)(ITuiTreeView *This, ITuiWidget *Parent);
+    HRESULT (ANXAPI *GetParent)(ITuiTreeView *This, ITuiWidget **Parent);
+    HRESULT (ANXAPI *AddChild)(ITuiTreeView *This, ITuiWidget *Child);
+    HRESULT (ANXAPI *RemoveChild)(ITuiTreeView *This, ITuiWidget *Child);
+    HRESULT (ANXAPI *SetNeedsDisplay)(ITuiTreeView *This, BOOLEAN Needed);
 
-    /**
-      Add a root node.
-    **/
-    HRESULT (ANXAPI *AddNode)(
-        ITuiTreeView *This,
-        CONST CHAR8 *Text,
-        VOID *UserData,
-        VOID **OutHandle
-    );
+    // ITuiThemedWidget methods
+    HRESULT (ANXAPI *ApplyTheme)(ITuiTreeView *This, ITuiTheme *Theme);
+    HRESULT (ANXAPI *GetColors)(ITuiTreeView *This, TUI_COLOR *Foreground, TUI_COLOR *Background);
+    HRESULT (ANXAPI *SetColors)(ITuiTreeView *This, TUI_COLOR Foreground, TUI_COLOR Background);
+    HRESULT (ANXAPI *OnMouseEvent)(ITuiTreeView *This, CONST TUI_MOUSE_EVENT *Event, BOOLEAN *Handled);
+    HRESULT (ANXAPI *OnKeyEvent)(ITuiTreeView *This, TUI_KEY Key, UINT32 Modifiers, BOOLEAN *Handled);
+    HRESULT (ANXAPI *Draw)(ITuiTreeView *This, ITuiSurface *Surface, CONST TUI_RECT *DirtyRect);
 
-    /**
-      Add a child node.
-    **/
-    HRESULT (ANXAPI *AddChildNode)(
-        ITuiTreeView *This,
-        VOID *ParentHandle,
-        CONST CHAR8 *Text,
-        VOID *UserData,
-        VOID **OutHandle
-    );
+    // ITuiThemedTreeView methods
+    HRESULT (ANXAPI *GetSelectedColors)(ITuiTreeView *This, TUI_COLOR *Foreground, TUI_COLOR *Background);
+    HRESULT (ANXAPI *SetSelectedColors)(ITuiTreeView *This, TUI_COLOR Foreground, TUI_COLOR Background);
+    HRESULT (ANXAPI *GetExpandedChar)(ITuiTreeView *This, CHAR8 *ExpandedChar);
+    HRESULT (ANXAPI *SetExpandedChar)(ITuiTreeView *This, CHAR8 ExpandedChar);
+    HRESULT (ANXAPI *GetCollapsedChar)(ITuiTreeView *This, CHAR8 *CollapsedChar);
+    HRESULT (ANXAPI *SetCollapsedChar)(ITuiTreeView *This, CHAR8 CollapsedChar);
+    HRESULT (ANXAPI *GetIndentChar)(ITuiTreeView *This, CHAR8 *IndentChar);
+    HRESULT (ANXAPI *SetIndentChar)(ITuiTreeView *This, CHAR8 IndentChar);
 
-    /**
-      Set node checkbox state.
-    **/
-    HRESULT (ANXAPI *SetNodeCheckbox)(
-        ITuiTreeView *This,
-        VOID *NodeHandle,
-        BOOLEAN HasCheckbox,
-        UINT8 CheckState
-    );
-
-    /**
-      Set node icon.
-    **/
-    HRESULT (ANXAPI *SetNodeIcon)(
-        ITuiTreeView *This,
-        VOID *NodeHandle,
-        UINT32 Icon
-    );
-
-    /**
-      Expand or collapse node.
-    **/
-    HRESULT (ANXAPI *ExpandNode)(
-        ITuiTreeView *This,
-        VOID *NodeHandle,
-        BOOLEAN Expand
-    );
-
-    /**
-      Clear all nodes.
-    **/
+    // ITuiTreeView methods
+    HRESULT (ANXAPI *AddNode)(ITuiTreeView *This, CONST CHAR8 *Text, VOID *UserData, VOID **OutHandle);
+    HRESULT (ANXAPI *AddChildNode)(ITuiTreeView *This, VOID *ParentHandle, CONST CHAR8 *Text, VOID *UserData, VOID **OutHandle);
+    HRESULT (ANXAPI *SetNodeCheckbox)(ITuiTreeView *This, VOID *NodeHandle, BOOLEAN HasCheckbox, UINT8 CheckState);
+    HRESULT (ANXAPI *GetNodeCheckbox)(ITuiTreeView *This, VOID *NodeHandle, BOOLEAN *HasCheckbox, UINT8 *CheckState);
+    HRESULT (ANXAPI *SetNodeIcon)(ITuiTreeView *This, VOID *NodeHandle, UINT32 Icon);
+    HRESULT (ANXAPI *GetNodeIcon)(ITuiTreeView *This, VOID *NodeHandle, UINT32 *Icon);
+    HRESULT (ANXAPI *ExpandNode)(ITuiTreeView *This, VOID *NodeHandle, BOOLEAN Expand);
+    BOOLEAN (ANXAPI *IsNodeExpanded)(ITuiTreeView *This, VOID *NodeHandle);
+    HRESULT (ANXAPI *RemoveNode)(ITuiTreeView *This, VOID *NodeHandle);
     HRESULT (ANXAPI *Clear)(ITuiTreeView *This);
-
-    /**
-      Enable virtual mode for handling millions of items.
-      When enabled, tree data is fetched via callback on-demand.
-    **/
-    HRESULT (ANXAPI *SetVirtualMode)(
-        ITuiTreeView *This,
-        BOOLEAN Enable,
-        UINT32 ItemCount,
-        HRESULT (*Callback)(VOID *UserData, UINT32 Index, VOID *OutData),
-        VOID *UserData
-    );
-
+    HRESULT (ANXAPI *SetVirtualMode)(ITuiTreeView *This, BOOLEAN Enable, UINT32 ItemCount, HRESULT (*Callback)(VOID *UserData, UINT32 Index, VOID *OutData), VOID *UserData);
+    HRESULT (ANXAPI *GetSelectedNode)(ITuiTreeView *This, VOID **NodeHandle);
+    HRESULT (ANXAPI *SetSelectedNode)(ITuiTreeView *This, VOID *NodeHandle);
 } ITuiTreeView_Vtbl;
 
 struct _ITuiTreeView {
