@@ -27,7 +27,8 @@
 typedef enum _APXH_PLATFORM_TYPE {
   ApxhPlatformUnknown = 0,  ///< Unknown platform type
   ApxhPlatformAcpi    = 1,  ///< ACPI-based platform (x86)
-  ApxhPlatformDtb     = 2   ///< Device Tree Blob platform (RISC-V, ARM)
+  ApxhPlatformDtb     = 2,  ///< Device Tree Blob platform (RISC-V, ARM)
+  ApxhPlatformMps     = 3   ///< Intel MultiProcessor Specification (legacy x86 SMP)
 } APXH_PLATFORM_TYPE;
 
 //
@@ -62,7 +63,7 @@ ANX_PACK_PUSH(1)
 
 typedef struct _APXH_PLATFORM_DESCRIPTOR {
   ///
-  /// Platform type (ApxhPlatformUnknown, ApxhPlatformAcpi, ApxhPlatformDtb).
+  /// Platform type (ApxhPlatformUnknown, ApxhPlatformAcpi, ApxhPlatformDtb, ApxhPlatformMps).
   ///
   UINT64  Type;
 
@@ -70,6 +71,7 @@ typedef struct _APXH_PLATFORM_DESCRIPTOR {
   /// Pointer to platform-specific data:
   /// - For ApxhPlatformAcpi: Physical address of ACPI RSDP
   /// - For ApxhPlatformDtb: Physical address of Device Tree Blob
+  /// - For ApxhPlatformMps: Physical address of MP Floating Pointer Structure
   ///
   UINT64  PlatformPointer;
 } APXH_PLATFORM_DESCRIPTOR;

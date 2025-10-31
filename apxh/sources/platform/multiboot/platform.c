@@ -34,6 +34,7 @@ static FRAMEBUFFER_DESC gFbDesc = {.Type = FB_INVALID };
 static APXH_PLATFORM_DESCRIPTOR gPlatformDesc;
 
 UINT64 RsdpFind (VOID);
+UINT64 MpsFind (VOID);
 
 /**
   Parse Multiboot framebuffer information.
@@ -426,8 +427,14 @@ PlatformGetFramebuffer (
 /**
   Get platform descriptor.
 
-  Returns platform descriptor with ACPI RSDP pointer if available.
-  Falls back to Unknown platform type if ACPI is not present.
+  Returns platform descriptor with ACPI RSDP pointer if available,
+  falls back to Intel MPS (MultiProcessor Specification) for legacy
+  SMP systems, or Unknown for single-processor legacy systems.
+
+  Detection order:
+  1. ACPI (modern systems)
+  2. Intel MPS (legacy SMP systems, pre-ACPI)
+  3. Unknown (legacy single-processor or very old systems)
 
   @return Pointer to platform descriptor.
 **/
@@ -437,8 +444,9 @@ PlatformGetDescriptor (
   )
 {
   UINT64 Rsdp;
+  UINT64 Mps;
 
-  /* Try to find ACPI RSDP */
+  /* Try to find ACPI RSDP (modern systems) */
   Rsdp = RsdpFind ();
 
   if (Rsdp != 0) {
@@ -446,12 +454,24 @@ PlatformGetDescriptor (
     gPlatformDesc.Type = ApxhPlatformAcpi;
     gPlatformDesc.PlatformPointer = Rsdp;
     printf ("Platform: ACPI (RSDP at 0x%llx)\n", Rsdp);
-  } else {
-    /* No ACPI - use unknown/legacy platform */
-    gPlatformDesc.Type = ApxhPlatformUnknown;
-    gPlatformDesc.PlatformPointer = 0;
-    printf ("Platform: Legacy (no ACPI detected)\n");
+    return &gPlatformDesc;
   }
+
+  /* Try to find Intel MPS (legacy SMP systems) */
+  Mps = MpsFind ();
+
+  if (Mps != 0) {
+    /* Intel MPS available */
+    gPlatformDesc.Type = ApxhPlatformMps;
+    gPlatformDesc.PlatformPointer = Mps;
+    printf ("Platform: Intel MPS (MP Floating Pointer at 0x%llx)\n", Mps);
+    return &gPlatformDesc;
+  }
+
+  /* No ACPI or MPS - use unknown/legacy platform */
+  gPlatformDesc.Type = ApxhPlatformUnknown;
+  gPlatformDesc.PlatformPointer = 0;
+  printf ("Platform: Legacy (no ACPI or MPS detected)\n");
 
   return &gPlatformDesc;
 }
