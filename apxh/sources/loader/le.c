@@ -846,6 +846,86 @@ LeApplyRelocations (
 }
 
 //
+
+/**
+  Get target operating system from Le image.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+LeGetTargetSystem (
+  IN  IImageLoader           *This,
+  IN  VOID                   *ImageBase,
+  OUT IMGLOAD_TARGET_SYSTEM  *TargetSystem
+  )
+{
+  if (TargetSystem == NULL) {
+    return E_POINTER;
+  }
+
+  *TargetSystem = ImgSystemOs2;
+  return S_OK;
+}
+
+/**
+  Get minimum required system version from Le image.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+LeGetMinimumSystemVersion (
+  IN  IImageLoader            *This,
+  IN  VOID                    *ImageBase,
+  OUT IMGLOAD_SYSTEM_VERSION  *MinimumVersion
+  )
+{
+  if (MinimumVersion == NULL) {
+    return E_POINTER;
+  }
+
+  memset(MinimumVersion, 0, sizeof(IMGLOAD_SYSTEM_VERSION));
+  return S_FALSE;
+}
+
+/**
+  Get target subsystem from Le image.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+LeGetTargetSubsystem (
+  IN  IImageLoader              *This,
+  IN  VOID                      *ImageBase,
+  OUT IMGLOAD_TARGET_SUBSYSTEM  *TargetSubsystem
+  )
+{
+  if (TargetSubsystem == NULL) {
+    return E_POINTER;
+  }
+
+  *TargetSubsystem = ImgSubsystemOs2Cui;
+  return S_OK;
+}
+
+/**
+  Get minimum required subsystem version from Le image.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+LeGetMinimumSubsystemVersion (
+  IN  IImageLoader            *This,
+  IN  VOID                    *ImageBase,
+  OUT IMGLOAD_SYSTEM_VERSION  *MinimumVersion
+  )
+{
+  if (MinimumVersion == NULL) {
+    return E_POINTER;
+  }
+
+  memset(MinimumVersion, 0, sizeof(IMGLOAD_SYSTEM_VERSION));
+  return S_FALSE;
+}
 // LE/LX Loader VTable
 //
 
@@ -865,7 +945,11 @@ static CONST IImageLoaderVtbl gLeVtbl = {
   LeGetSymbolByAddress,
   LeGetSymbolByName,
   LeGetRelocInfo,
-  LeApplyRelocations
+  LeApplyRelocations,
+  LeGetTargetSystem,
+  LeGetMinimumSystemVersion,
+  LeGetTargetSubsystem,
+  LeGetMinimumSubsystemVersion
 };
 
 //

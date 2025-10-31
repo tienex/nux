@@ -97,14 +97,34 @@
 // Mach-O Load Command Types
 //
 
-#define LC_SEGMENT              0x1   ///< 32-bit segment
-#define LC_SYMTAB               0x2   ///< Symbol table
-#define LC_THREAD               0x4   ///< Thread state (deprecated)
-#define LC_UNIXTHREAD           0x5   ///< Unix thread (entry point)
-#define LC_SEGMENT_64           0x19  ///< 64-bit segment
-#define LC_UUID                 0x1B  ///< UUID
-#define LC_MAIN                 0x28  ///< Main entry point (LC_MAIN)
-#define LC_THREAD_LOCAL_VARIABLES 0x2F  ///< TLS variables
+#define LC_SEGMENT                 0x1   ///< 32-bit segment
+#define LC_SYMTAB                  0x2   ///< Symbol table
+#define LC_THREAD                  0x4   ///< Thread state (deprecated)
+#define LC_UNIXTHREAD              0x5   ///< Unix thread (entry point)
+#define LC_SEGMENT_64              0x19  ///< 64-bit segment
+#define LC_UUID                    0x1B  ///< UUID
+#define LC_VERSION_MIN_MACOSX      0x24  ///< Minimum macOS version
+#define LC_VERSION_MIN_IPHONEOS    0x25  ///< Minimum iOS version
+#define LC_MAIN                    0x28  ///< Main entry point (LC_MAIN)
+#define LC_VERSION_MIN_TVOS        0x2F  ///< Minimum tvOS version
+#define LC_VERSION_MIN_WATCHOS     0x30  ///< Minimum watchOS version
+#define LC_BUILD_VERSION           0x32  ///< Build version with platform
+#define LC_THREAD_LOCAL_VARIABLES  0x2F  ///< TLS variables
+
+//
+// Mach-O Platform Types (for LC_BUILD_VERSION)
+//
+
+#define PLATFORM_MACOS            1   ///< macOS
+#define PLATFORM_IOS              2   ///< iOS
+#define PLATFORM_TVOS             3   ///< tvOS
+#define PLATFORM_WATCHOS          4   ///< watchOS
+#define PLATFORM_BRIDGEOS         5   ///< bridgeOS
+#define PLATFORM_MACCATALYST      6   ///< Mac Catalyst
+#define PLATFORM_IOSSIMULATOR     7   ///< iOS Simulator
+#define PLATFORM_TVOSSIMULATOR    8   ///< tvOS Simulator
+#define PLATFORM_WATCHOSSIMULATOR 9   ///< watchOS Simulator
+#define PLATFORM_DRIVERKIT        10  ///< DriverKit
 
 //
 // Mach-O Segment Flags
@@ -189,6 +209,23 @@ typedef struct _MACHO_THREAD_COMMAND {
   UINT32  Count;        ///< Thread state count
   /* Thread state follows */
 } MACHO_THREAD_COMMAND;
+
+typedef struct _MACHO_VERSION_MIN_COMMAND {
+  UINT32  Cmd;          ///< LC_VERSION_MIN_*
+  UINT32  CmdSize;      ///< Command size
+  UINT32  Version;      ///< X.Y.Z encoded as nibbles xxxx.yy.zz
+  UINT32  Sdk;          ///< SDK version (same encoding)
+} MACHO_VERSION_MIN_COMMAND;
+
+typedef struct _MACHO_BUILD_VERSION_COMMAND {
+  UINT32  Cmd;          ///< LC_BUILD_VERSION
+  UINT32  CmdSize;      ///< Command size
+  UINT32  Platform;     ///< Platform identifier
+  UINT32  MinOs;        ///< Minimum OS version (X.Y.Z encoded)
+  UINT32  Sdk;          ///< SDK version
+  UINT32  NumTools;     ///< Number of tool entries
+  /* Tool entries follow */
+} MACHO_BUILD_VERSION_COMMAND;
 
 //
 // Universal Binary (FAT) Structures
@@ -1030,6 +1067,129 @@ MachoApplyRelocations (
 }
 
 /**
+  Helper structure for platform detection.
+**/
+typedef struct {
+  UINT32  Platform;       ///< Platform ID (PLATFORM_*)
+  UINT32  MinOsVersion;   ///< Minimum OS version
+  UINT32  SdkVersion;     ///< SDK version
+  BOOLEAN Found;          ///< Whether platform info was found
+} MACHO_PLATFORM_INFO;
+
+/**
+  Parse Mach-O load commands to extract platform and version information.
+
+  @param[in]  ImageBase      Base address of the Mach-O image.
+  @param[out] PlatformInfo   Pointer to receive platform information.
+
+  @retval S_OK         Platform information successfully extracted.
+  @retval S_FALSE      No platform information found (older binary).
+  @retval E_POINTER    PlatformInfo is NULL.
+  @retval E_INVALIDARG Invalid Mach-O format.
+**/
+static
+HRESULT
+MachoParsePlatformInfo (
+  IN  VOID                  *ImageBase,
+  OUT MACHO_PLATFORM_INFO   *PlatformInfo
+  )
+{
+  MACHO_HEADER               *Header;
+  MACHO_HEADER_64            *Header64;
+  MACHO_LOAD_COMMAND         *LoadCmd;
+  MACHO_VERSION_MIN_COMMAND  *VersionCmd;
+  MACHO_BUILD_VERSION_COMMAND *BuildCmd;
+  UINT8                      *CmdPtr;
+  UINT32                     I;
+  UINT32                     NumCmds;
+  UINT32                     Magic;
+  VOID                       *ActualHeader;
+  UINTN                      ActualSize;
+  HRESULT                    Status;
+  BOOLEAN                    Is64Bit;
+
+  if (PlatformInfo == NULL) {
+    return E_POINTER;
+  }
+
+  memset(PlatformInfo, 0, sizeof(MACHO_PLATFORM_INFO));
+
+  // Handle universal binaries
+  Status = MachoGetActualHeader(ImageBase, 0xFFFFFFFF, &ActualHeader, &ActualSize);
+  if (FAILED(Status)) {
+    return Status;
+  }
+
+  Magic = *(UINT32 *)ActualHeader;
+  Is64Bit = (Magic == MH_MAGIC_64 || Magic == MH_CIGAM_64);
+
+  if (Is64Bit) {
+    Header64 = (MACHO_HEADER_64 *)ActualHeader;
+    NumCmds = Header64->NumCmds;
+    CmdPtr = (UINT8 *)ActualHeader + sizeof(MACHO_HEADER_64);
+  } else {
+    Header = (MACHO_HEADER *)ActualHeader;
+    NumCmds = Header->NumCmds;
+    CmdPtr = (UINT8 *)ActualHeader + sizeof(MACHO_HEADER);
+  }
+
+  // Iterate through load commands to find version/platform info
+  for (I = 0; I < NumCmds; I++) {
+    LoadCmd = (MACHO_LOAD_COMMAND *)CmdPtr;
+
+    switch (LoadCmd->Cmd) {
+      case LC_BUILD_VERSION:
+        // Modern approach: LC_BUILD_VERSION directly specifies platform
+        BuildCmd = (MACHO_BUILD_VERSION_COMMAND *)LoadCmd;
+        PlatformInfo->Platform = BuildCmd->Platform;
+        PlatformInfo->MinOsVersion = BuildCmd->MinOs;
+        PlatformInfo->SdkVersion = BuildCmd->Sdk;
+        PlatformInfo->Found = TRUE;
+        return S_OK;  // BUILD_VERSION takes precedence
+
+      case LC_VERSION_MIN_MACOSX:
+        VersionCmd = (MACHO_VERSION_MIN_COMMAND *)LoadCmd;
+        PlatformInfo->Platform = PLATFORM_MACOS;
+        PlatformInfo->MinOsVersion = VersionCmd->Version;
+        PlatformInfo->SdkVersion = VersionCmd->Sdk;
+        PlatformInfo->Found = TRUE;
+        break;
+
+      case LC_VERSION_MIN_IPHONEOS:
+        VersionCmd = (MACHO_VERSION_MIN_COMMAND *)LoadCmd;
+        PlatformInfo->Platform = PLATFORM_IOS;
+        PlatformInfo->MinOsVersion = VersionCmd->Version;
+        PlatformInfo->SdkVersion = VersionCmd->Sdk;
+        PlatformInfo->Found = TRUE;
+        break;
+
+      case LC_VERSION_MIN_TVOS:
+        VersionCmd = (MACHO_VERSION_MIN_COMMAND *)LoadCmd;
+        PlatformInfo->Platform = PLATFORM_TVOS;
+        PlatformInfo->MinOsVersion = VersionCmd->Version;
+        PlatformInfo->SdkVersion = VersionCmd->Sdk;
+        PlatformInfo->Found = TRUE;
+        break;
+
+      case LC_VERSION_MIN_WATCHOS:
+        VersionCmd = (MACHO_VERSION_MIN_COMMAND *)LoadCmd;
+        PlatformInfo->Platform = PLATFORM_WATCHOS;
+        PlatformInfo->MinOsVersion = VersionCmd->Version;
+        PlatformInfo->SdkVersion = VersionCmd->Sdk;
+        PlatformInfo->Found = TRUE;
+        break;
+
+      default:
+        break;
+    }
+
+    CmdPtr += LoadCmd->CmdSize;
+  }
+
+  return PlatformInfo->Found ? S_OK : S_FALSE;
+}
+
+/**
   IUnknown::QueryInterface implementation.
 **/
 static
@@ -1098,10 +1258,9 @@ MachoGetTargetSystem (
     return E_POINTER;
   }
 
-  // Mach-O is used by Apple systems
-  // Could parse LC_VERSION_MIN_* or LC_BUILD_VERSION load commands for precise detection
-  // For now, default to macOS (most common)
-  *TargetSystem = ImgSystemMacOsX;
+  // Mach-O is used by Darwin-based Apple systems
+  // The specific platform (macOS, iOS, etc.) is indicated by the subsystem
+  *TargetSystem = ImgSystemDarwin;
   return S_OK;
 }
 
@@ -1117,12 +1276,27 @@ MachoGetMinimumSystemVersion (
   OUT IMGLOAD_SYSTEM_VERSION  *MinimumVersion
   )
 {
+  MACHO_PLATFORM_INFO  PlatformInfo;
+  HRESULT              Status;
+  UINT32               Version;
+
   if (MinimumVersion == NULL) {
     return E_POINTER;
   }
 
-  // Would require parsing LC_VERSION_MIN_* or LC_BUILD_VERSION load commands
   memset(MinimumVersion, 0, sizeof(IMGLOAD_SYSTEM_VERSION));
+
+  Status = MachoParsePlatformInfo(ImageBase, &PlatformInfo);
+  if (Status == S_OK && PlatformInfo.Found) {
+    // Decode version from Mach-O format: X.Y.Z encoded as nibbles xxxx.yy.zz
+    Version = PlatformInfo.MinOsVersion;
+    MinimumVersion->Major = (Version >> 16) & 0xFFFF;
+    MinimumVersion->Minor = (Version >> 8) & 0xFF;
+    MinimumVersion->Build = Version & 0xFF;
+    MinimumVersion->Revision = 0;
+    return S_OK;
+  }
+
   return S_FALSE;
 }
 
@@ -1138,10 +1312,11 @@ MachoGetTargetSubsystem (
   OUT IMGLOAD_TARGET_SUBSYSTEM  *TargetSubsystem
   )
 {
-  MACHO_HEADER *Header;
-  VOID *ActualHeader;
-  UINTN ActualSize;
-  HRESULT Status;
+  MACHO_PLATFORM_INFO  PlatformInfo;
+  MACHO_HEADER         *Header;
+  VOID                 *ActualHeader;
+  UINTN                ActualSize;
+  HRESULT              Status;
 
   if (TargetSubsystem == NULL) {
     return E_POINTER;
@@ -1155,22 +1330,47 @@ MachoGetTargetSubsystem (
 
   Header = (MACHO_HEADER *)ActualHeader;
 
-  // Determine subsystem from file type
-  switch (Header->FileType) {
-    case MH_EXECUTE:
-      *TargetSubsystem = ImgSubsystemUnixCli;  // macOS CLI application
-      break;
-    case MH_DYLIB:
-      *TargetSubsystem = ImgSubsystemSharedLibrary;
-      break;
-    case MH_BUNDLE:
-      *TargetSubsystem = ImgSubsystemSharedLibrary;  // Bundle is like a library
-      break;
-    default:
-      *TargetSubsystem = ImgSubsystemUnknown;
-      break;
+  // Libraries and bundles are subsystem-agnostic
+  if (Header->FileType == MH_DYLIB || Header->FileType == MH_BUNDLE) {
+    *TargetSubsystem = ImgSubsystemSharedLibrary;
+    return S_OK;
   }
 
+  // For executables and other types, determine subsystem from platform
+  Status = MachoParsePlatformInfo(ImageBase, &PlatformInfo);
+  if (Status == S_OK && PlatformInfo.Found) {
+    switch (PlatformInfo.Platform) {
+      case PLATFORM_MACOS:
+      case PLATFORM_MACCATALYST:
+        *TargetSubsystem = ImgSubsystemMacOs;
+        break;
+      case PLATFORM_IOS:
+      case PLATFORM_IOSSIMULATOR:
+        *TargetSubsystem = ImgSubsystemIos;
+        break;
+      case PLATFORM_TVOS:
+      case PLATFORM_TVOSSIMULATOR:
+        *TargetSubsystem = ImgSubsystemTvOs;
+        break;
+      case PLATFORM_WATCHOS:
+      case PLATFORM_WATCHOSSIMULATOR:
+        *TargetSubsystem = ImgSubsystemWatchOs;
+        break;
+      case PLATFORM_DRIVERKIT:
+        *TargetSubsystem = ImgSubsystemDriverKit;
+        break;
+      case PLATFORM_BRIDGEOS:
+        *TargetSubsystem = ImgSubsystemFirmware;
+        break;
+      default:
+        *TargetSubsystem = ImgSubsystemUnknown;
+        break;
+    }
+    return S_OK;
+  }
+
+  // No platform info found - older binary, default to macOS
+  *TargetSubsystem = ImgSubsystemMacOs;
   return S_OK;
 }
 

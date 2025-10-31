@@ -679,6 +679,86 @@ Plan9ApplyRelocations (
 }
 
 //
+
+/**
+  Get target operating system from Plan9 image.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+Plan9GetTargetSystem (
+  IN  IImageLoader           *This,
+  IN  VOID                   *ImageBase,
+  OUT IMGLOAD_TARGET_SYSTEM  *TargetSystem
+  )
+{
+  if (TargetSystem == NULL) {
+    return E_POINTER;
+  }
+
+  *TargetSystem = ImgSystemPlan9;
+  return S_OK;
+}
+
+/**
+  Get minimum required system version from Plan9 image.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+Plan9GetMinimumSystemVersion (
+  IN  IImageLoader            *This,
+  IN  VOID                    *ImageBase,
+  OUT IMGLOAD_SYSTEM_VERSION  *MinimumVersion
+  )
+{
+  if (MinimumVersion == NULL) {
+    return E_POINTER;
+  }
+
+  memset(MinimumVersion, 0, sizeof(IMGLOAD_SYSTEM_VERSION));
+  return S_FALSE;
+}
+
+/**
+  Get target subsystem from Plan9 image.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+Plan9GetTargetSubsystem (
+  IN  IImageLoader              *This,
+  IN  VOID                      *ImageBase,
+  OUT IMGLOAD_TARGET_SUBSYSTEM  *TargetSubsystem
+  )
+{
+  if (TargetSubsystem == NULL) {
+    return E_POINTER;
+  }
+
+  *TargetSubsystem = ImgSubsystemUnixCli;
+  return S_OK;
+}
+
+/**
+  Get minimum required subsystem version from Plan9 image.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+Plan9GetMinimumSubsystemVersion (
+  IN  IImageLoader            *This,
+  IN  VOID                    *ImageBase,
+  OUT IMGLOAD_SYSTEM_VERSION  *MinimumVersion
+  )
+{
+  if (MinimumVersion == NULL) {
+    return E_POINTER;
+  }
+
+  memset(MinimumVersion, 0, sizeof(IMGLOAD_SYSTEM_VERSION));
+  return S_FALSE;
+}
 // Plan 9 a.out Loader VTable
 //
 
@@ -698,7 +778,11 @@ static CONST IImageLoaderVtbl gPlan9Vtbl = {
   Plan9GetSymbolByAddress,
   Plan9GetSymbolByName,
   Plan9GetRelocInfo,
-  Plan9ApplyRelocations
+  Plan9ApplyRelocations,
+  Plan9GetTargetSystem,
+  Plan9GetMinimumSystemVersion,
+  Plan9GetTargetSubsystem,
+  Plan9GetMinimumSubsystemVersion
 };
 
 //

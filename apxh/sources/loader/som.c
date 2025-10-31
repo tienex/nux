@@ -611,6 +611,86 @@ SomRelease (
 }
 
 //
+
+/**
+  Get target operating system from Som image.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+SomGetTargetSystem (
+  IN  IImageLoader           *This,
+  IN  VOID                   *ImageBase,
+  OUT IMGLOAD_TARGET_SYSTEM  *TargetSystem
+  )
+{
+  if (TargetSystem == NULL) {
+    return E_POINTER;
+  }
+
+  *TargetSystem = ImgSystemHpux;
+  return S_OK;
+}
+
+/**
+  Get minimum required system version from Som image.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+SomGetMinimumSystemVersion (
+  IN  IImageLoader            *This,
+  IN  VOID                    *ImageBase,
+  OUT IMGLOAD_SYSTEM_VERSION  *MinimumVersion
+  )
+{
+  if (MinimumVersion == NULL) {
+    return E_POINTER;
+  }
+
+  memset(MinimumVersion, 0, sizeof(IMGLOAD_SYSTEM_VERSION));
+  return S_FALSE;
+}
+
+/**
+  Get target subsystem from Som image.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+SomGetTargetSubsystem (
+  IN  IImageLoader              *This,
+  IN  VOID                      *ImageBase,
+  OUT IMGLOAD_TARGET_SUBSYSTEM  *TargetSubsystem
+  )
+{
+  if (TargetSubsystem == NULL) {
+    return E_POINTER;
+  }
+
+  *TargetSubsystem = ImgSubsystemUnixCli;
+  return S_OK;
+}
+
+/**
+  Get minimum required subsystem version from Som image.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+SomGetMinimumSubsystemVersion (
+  IN  IImageLoader            *This,
+  IN  VOID                    *ImageBase,
+  OUT IMGLOAD_SYSTEM_VERSION  *MinimumVersion
+  )
+{
+  if (MinimumVersion == NULL) {
+    return E_POINTER;
+  }
+
+  memset(MinimumVersion, 0, sizeof(IMGLOAD_SYSTEM_VERSION));
+  return S_FALSE;
+}
 // HP SOM Loader VTable
 //
 
@@ -628,7 +708,11 @@ static CONST IImageLoaderVtbl gSomVtbl = {
   SomGetSymbolByAddress,
   SomGetSymbolByName,
   SomGetRelocInfo,
-  SomApplyRelocations
+  SomApplyRelocations,
+  SomGetTargetSystem,
+  SomGetMinimumSystemVersion,
+  SomGetTargetSubsystem,
+  SomGetMinimumSubsystemVersion
 };
 
 //

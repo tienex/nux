@@ -681,6 +681,86 @@ XcoffRelease (
 //
 
 #ifdef __cplusplus
+
+/**
+  Get target operating system from Xcoff image.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+XcoffGetTargetSystem (
+  IN  IImageLoader           *This,
+  IN  VOID                   *ImageBase,
+  OUT IMGLOAD_TARGET_SYSTEM  *TargetSystem
+  )
+{
+  if (TargetSystem == NULL) {
+    return E_POINTER;
+  }
+
+  *TargetSystem = ImgSystemAix;
+  return S_OK;
+}
+
+/**
+  Get minimum required system version from Xcoff image.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+XcoffGetMinimumSystemVersion (
+  IN  IImageLoader            *This,
+  IN  VOID                    *ImageBase,
+  OUT IMGLOAD_SYSTEM_VERSION  *MinimumVersion
+  )
+{
+  if (MinimumVersion == NULL) {
+    return E_POINTER;
+  }
+
+  memset(MinimumVersion, 0, sizeof(IMGLOAD_SYSTEM_VERSION));
+  return S_FALSE;
+}
+
+/**
+  Get target subsystem from Xcoff image.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+XcoffGetTargetSubsystem (
+  IN  IImageLoader              *This,
+  IN  VOID                      *ImageBase,
+  OUT IMGLOAD_TARGET_SUBSYSTEM  *TargetSubsystem
+  )
+{
+  if (TargetSubsystem == NULL) {
+    return E_POINTER;
+  }
+
+  *TargetSubsystem = ImgSubsystemUnixCli;
+  return S_OK;
+}
+
+/**
+  Get minimum required subsystem version from Xcoff image.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+XcoffGetMinimumSubsystemVersion (
+  IN  IImageLoader            *This,
+  IN  VOID                    *ImageBase,
+  OUT IMGLOAD_SYSTEM_VERSION  *MinimumVersion
+  )
+{
+  if (MinimumVersion == NULL) {
+    return E_POINTER;
+  }
+
+  memset(MinimumVersion, 0, sizeof(IMGLOAD_SYSTEM_VERSION));
+  return S_FALSE;
+}
 // C++ mode not supported in this implementation
 #error "C++ mode not implemented"
 #else
@@ -698,7 +778,11 @@ static CONST IImageLoaderVtbl gXcoffVtbl = {
   XcoffGetSymbolByAddress,
   XcoffGetSymbolByName,
   XcoffGetRelocInfo,
-  XcoffApplyRelocations
+  XcoffApplyRelocations,
+  XcoffGetTargetSystem,
+  XcoffGetMinimumSystemVersion,
+  XcoffGetTargetSubsystem,
+  XcoffGetMinimumSubsystemVersion
 };
 #endif
 

@@ -596,6 +596,86 @@ AoutRelease (
 }
 
 //
+
+/**
+  Get target operating system from Aout image.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+AoutGetTargetSystem (
+  IN  IImageLoader           *This,
+  IN  VOID                   *ImageBase,
+  OUT IMGLOAD_TARGET_SYSTEM  *TargetSystem
+  )
+{
+  if (TargetSystem == NULL) {
+    return E_POINTER;
+  }
+
+  *TargetSystem = ImgSystemUnix;
+  return S_OK;
+}
+
+/**
+  Get minimum required system version from Aout image.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+AoutGetMinimumSystemVersion (
+  IN  IImageLoader            *This,
+  IN  VOID                    *ImageBase,
+  OUT IMGLOAD_SYSTEM_VERSION  *MinimumVersion
+  )
+{
+  if (MinimumVersion == NULL) {
+    return E_POINTER;
+  }
+
+  memset(MinimumVersion, 0, sizeof(IMGLOAD_SYSTEM_VERSION));
+  return S_FALSE;
+}
+
+/**
+  Get target subsystem from Aout image.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+AoutGetTargetSubsystem (
+  IN  IImageLoader              *This,
+  IN  VOID                      *ImageBase,
+  OUT IMGLOAD_TARGET_SUBSYSTEM  *TargetSubsystem
+  )
+{
+  if (TargetSubsystem == NULL) {
+    return E_POINTER;
+  }
+
+  *TargetSubsystem = ImgSubsystemUnixCli;
+  return S_OK;
+}
+
+/**
+  Get minimum required subsystem version from Aout image.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+AoutGetMinimumSubsystemVersion (
+  IN  IImageLoader            *This,
+  IN  VOID                    *ImageBase,
+  OUT IMGLOAD_SYSTEM_VERSION  *MinimumVersion
+  )
+{
+  if (MinimumVersion == NULL) {
+    return E_POINTER;
+  }
+
+  memset(MinimumVersion, 0, sizeof(IMGLOAD_SYSTEM_VERSION));
+  return S_FALSE;
+}
 // a.out Loader VTable
 //
 
@@ -613,7 +693,11 @@ static CONST IImageLoaderVtbl gAoutVtbl = {
   AoutGetSymbolByAddress,
   AoutGetSymbolByName,
   AoutGetRelocInfo,
-  AoutApplyRelocations
+  AoutApplyRelocations,
+  AoutGetTargetSystem,
+  AoutGetMinimumSystemVersion,
+  AoutGetTargetSubsystem,
+  AoutGetMinimumSubsystemVersion
 };
 
 //

@@ -521,6 +521,86 @@ VmsRelease (
 }
 
 //
+
+/**
+  Get target operating system from Vms image.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+VmsGetTargetSystem (
+  IN  IImageLoader           *This,
+  IN  VOID                   *ImageBase,
+  OUT IMGLOAD_TARGET_SYSTEM  *TargetSystem
+  )
+{
+  if (TargetSystem == NULL) {
+    return E_POINTER;
+  }
+
+  *TargetSystem = ImgSystemOpenVms;
+  return S_OK;
+}
+
+/**
+  Get minimum required system version from Vms image.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+VmsGetMinimumSystemVersion (
+  IN  IImageLoader            *This,
+  IN  VOID                    *ImageBase,
+  OUT IMGLOAD_SYSTEM_VERSION  *MinimumVersion
+  )
+{
+  if (MinimumVersion == NULL) {
+    return E_POINTER;
+  }
+
+  memset(MinimumVersion, 0, sizeof(IMGLOAD_SYSTEM_VERSION));
+  return S_FALSE;
+}
+
+/**
+  Get target subsystem from Vms image.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+VmsGetTargetSubsystem (
+  IN  IImageLoader              *This,
+  IN  VOID                      *ImageBase,
+  OUT IMGLOAD_TARGET_SUBSYSTEM  *TargetSubsystem
+  )
+{
+  if (TargetSubsystem == NULL) {
+    return E_POINTER;
+  }
+
+  *TargetSubsystem = ImgSubsystemUnixCli;
+  return S_OK;
+}
+
+/**
+  Get minimum required subsystem version from Vms image.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+VmsGetMinimumSubsystemVersion (
+  IN  IImageLoader            *This,
+  IN  VOID                    *ImageBase,
+  OUT IMGLOAD_SYSTEM_VERSION  *MinimumVersion
+  )
+{
+  if (MinimumVersion == NULL) {
+    return E_POINTER;
+  }
+
+  memset(MinimumVersion, 0, sizeof(IMGLOAD_SYSTEM_VERSION));
+  return S_FALSE;
+}
 // OpenVMS Loader VTable
 //
 
@@ -538,7 +618,11 @@ static CONST IImageLoaderVtbl gVmsVtbl = {
   VmsGetSymbolByAddress,
   VmsGetSymbolByName,
   VmsGetRelocInfo,
-  VmsApplyRelocations
+  VmsApplyRelocations,
+  VmsGetTargetSystem,
+  VmsGetMinimumSystemVersion,
+  VmsGetTargetSubsystem,
+  VmsGetMinimumSubsystemVersion
 };
 
 //

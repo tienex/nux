@@ -42,12 +42,30 @@
 // ELF OS/ABI Identification
 //
 
-#define EI_OSABI         7   ///< OS/ABI identification index in e_ident
-#define ELFOSABI_NONE    0   ///< UNIX System V ABI
-#define ELFOSABI_LINUX   3   ///< Linux
-#define ELFOSABI_FREEBSD 9   ///< FreeBSD
-#define ELFOSABI_OPENBSD 12  ///< OpenBSD
-#define ELFOSABI_OS2     48  ///< OS/2 (unofficial value used by OS/2 PowerPC)
+#define EI_OSABI              7    ///< OS/ABI identification index in e_ident
+#define ELFOSABI_NONE         0    ///< UNIX System V ABI
+#define ELFOSABI_SYSV         0    ///< Alias for NONE
+#define ELFOSABI_HPUX         1    ///< HP-UX
+#define ELFOSABI_NETBSD       2    ///< NetBSD
+#define ELFOSABI_LINUX        3    ///< Linux
+#define ELFOSABI_GNU          3    ///< GNU (same as Linux)
+#define ELFOSABI_SOLARIS      6    ///< Sun Solaris
+#define ELFOSABI_AIX          7    ///< IBM AIX
+#define ELFOSABI_IRIX         8    ///< SGI Irix
+#define ELFOSABI_FREEBSD      9    ///< FreeBSD
+#define ELFOSABI_TRU64        10   ///< Compaq TRU64 UNIX
+#define ELFOSABI_MODESTO      11   ///< Novell Modesto
+#define ELFOSABI_OPENBSD      12   ///< OpenBSD
+#define ELFOSABI_OPENVMS      13   ///< Open VMS
+#define ELFOSABI_NSK          14   ///< Hewlett-Packard Non-Stop Kernel
+#define ELFOSABI_AROS         15   ///< Amiga Research OS
+#define ELFOSABI_FENIXOS      16   ///< The FenixOS
+#define ELFOSABI_CLOUDABI     17   ///< Nuxi CloudABI
+#define ELFOSABI_OPENVOS      18   ///< Stratus Technologies OpenVOS
+#define ELFOSABI_ARM_AEABI    64   ///< ARM EABI
+#define ELFOSABI_ARM          97   ///< ARM
+#define ELFOSABI_OS2          48   ///< OS/2 (unofficial value used by OS/2 PowerPC)
+#define ELFOSABI_STANDALONE   255  ///< Standalone (embedded)
 
 //
 // ELF File Types
@@ -1609,17 +1627,63 @@ ElfGetTargetSystem (
 
   // Determine OS from OSABI
   switch (OsAbi) {
+    case ELFOSABI_HPUX:
+      *TargetSystem = ImgSystemHpux;
+      break;
+    case ELFOSABI_NETBSD:
+      *TargetSystem = ImgSystemNetBsd;
+      break;
     case ELFOSABI_LINUX:
       *TargetSystem = ImgSystemLinux;
+      break;
+    case ELFOSABI_SOLARIS:
+      *TargetSystem = ImgSystemSolaris;
+      break;
+    case ELFOSABI_AIX:
+      *TargetSystem = ImgSystemAix;
+      break;
+    case ELFOSABI_IRIX:
+      *TargetSystem = ImgSystemIrix;
       break;
     case ELFOSABI_FREEBSD:
       *TargetSystem = ImgSystemFreeBsd;
       break;
+    case ELFOSABI_TRU64:
+      *TargetSystem = ImgSystemOsf1;  // TRU64 is OSF/1
+      break;
+    case ELFOSABI_MODESTO:
+      *TargetSystem = ImgSystemUnix;  // Novell Modesto (rare)
+      break;
     case ELFOSABI_OPENBSD:
       *TargetSystem = ImgSystemOpenBsd;
       break;
+    case ELFOSABI_OPENVMS:
+      *TargetSystem = ImgSystemOpenVms;
+      break;
+    case ELFOSABI_NSK:
+      *TargetSystem = ImgSystemUnix;  // HP Non-Stop Kernel
+      break;
+    case ELFOSABI_AROS:
+      *TargetSystem = ImgSystemAmigaOs;  // AROS is Amiga-like
+      break;
+    case ELFOSABI_FENIXOS:
+      *TargetSystem = ImgSystemUnknown;  // FenixOS (rare)
+      break;
+    case ELFOSABI_CLOUDABI:
+      *TargetSystem = ImgSystemUnix;  // CloudABI (capability-based Unix)
+      break;
+    case ELFOSABI_OPENVOS:
+      *TargetSystem = ImgSystemUnix;  // Stratus OpenVOS
+      break;
+    case ELFOSABI_ARM_AEABI:
+    case ELFOSABI_ARM:
+      *TargetSystem = ImgSystemEmbedded;  // ARM EABI (typically embedded)
+      break;
     case ELFOSABI_OS2:
       *TargetSystem = ImgSystemOs2;
+      break;
+    case ELFOSABI_STANDALONE:
+      *TargetSystem = ImgSystemBaremetal;  // Standalone/bare-metal
       break;
     case ELFOSABI_NONE:
     default:

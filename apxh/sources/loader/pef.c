@@ -557,6 +557,86 @@ PefRelease (
 //
 
 #ifdef __cplusplus
+
+/**
+  Get target operating system from Pef image.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+PefGetTargetSystem (
+  IN  IImageLoader           *This,
+  IN  VOID                   *ImageBase,
+  OUT IMGLOAD_TARGET_SYSTEM  *TargetSystem
+  )
+{
+  if (TargetSystem == NULL) {
+    return E_POINTER;
+  }
+
+  *TargetSystem = ImgSystemMacOs;
+  return S_OK;
+}
+
+/**
+  Get minimum required system version from Pef image.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+PefGetMinimumSystemVersion (
+  IN  IImageLoader            *This,
+  IN  VOID                    *ImageBase,
+  OUT IMGLOAD_SYSTEM_VERSION  *MinimumVersion
+  )
+{
+  if (MinimumVersion == NULL) {
+    return E_POINTER;
+  }
+
+  memset(MinimumVersion, 0, sizeof(IMGLOAD_SYSTEM_VERSION));
+  return S_FALSE;
+}
+
+/**
+  Get target subsystem from Pef image.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+PefGetTargetSubsystem (
+  IN  IImageLoader              *This,
+  IN  VOID                      *ImageBase,
+  OUT IMGLOAD_TARGET_SUBSYSTEM  *TargetSubsystem
+  )
+{
+  if (TargetSubsystem == NULL) {
+    return E_POINTER;
+  }
+
+  *TargetSubsystem = ImgSubsystemUnixCli;
+  return S_OK;
+}
+
+/**
+  Get minimum required subsystem version from Pef image.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+PefGetMinimumSubsystemVersion (
+  IN  IImageLoader            *This,
+  IN  VOID                    *ImageBase,
+  OUT IMGLOAD_SYSTEM_VERSION  *MinimumVersion
+  )
+{
+  if (MinimumVersion == NULL) {
+    return E_POINTER;
+  }
+
+  memset(MinimumVersion, 0, sizeof(IMGLOAD_SYSTEM_VERSION));
+  return S_FALSE;
+}
 // C++ mode not supported in this implementation
 #error "C++ mode not implemented"
 #else
@@ -574,7 +654,11 @@ static CONST IImageLoaderVtbl gPefVtbl = {
   PefGetSymbolByAddress,
   PefGetSymbolByName,
   PefGetRelocInfo,
-  PefApplyRelocations
+  PefApplyRelocations,
+  PefGetTargetSystem,
+  PefGetMinimumSystemVersion,
+  PefGetTargetSubsystem,
+  PefGetMinimumSubsystemVersion
 };
 #endif
 

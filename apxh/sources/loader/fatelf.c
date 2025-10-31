@@ -722,6 +722,86 @@ FatElfRelease (
 }
 
 //
+
+/**
+  Get target operating system from Fatelf image.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+FatelfGetTargetSystem (
+  IN  IImageLoader           *This,
+  IN  VOID                   *ImageBase,
+  OUT IMGLOAD_TARGET_SYSTEM  *TargetSystem
+  )
+{
+  if (TargetSystem == NULL) {
+    return E_POINTER;
+  }
+
+  *TargetSystem = ImgSystemUnix;
+  return S_OK;
+}
+
+/**
+  Get minimum required system version from Fatelf image.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+FatelfGetMinimumSystemVersion (
+  IN  IImageLoader            *This,
+  IN  VOID                    *ImageBase,
+  OUT IMGLOAD_SYSTEM_VERSION  *MinimumVersion
+  )
+{
+  if (MinimumVersion == NULL) {
+    return E_POINTER;
+  }
+
+  memset(MinimumVersion, 0, sizeof(IMGLOAD_SYSTEM_VERSION));
+  return S_FALSE;
+}
+
+/**
+  Get target subsystem from Fatelf image.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+FatelfGetTargetSubsystem (
+  IN  IImageLoader              *This,
+  IN  VOID                      *ImageBase,
+  OUT IMGLOAD_TARGET_SUBSYSTEM  *TargetSubsystem
+  )
+{
+  if (TargetSubsystem == NULL) {
+    return E_POINTER;
+  }
+
+  *TargetSubsystem = ImgSubsystemUnixCli;
+  return S_OK;
+}
+
+/**
+  Get minimum required subsystem version from Fatelf image.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+FatelfGetMinimumSubsystemVersion (
+  IN  IImageLoader            *This,
+  IN  VOID                    *ImageBase,
+  OUT IMGLOAD_SYSTEM_VERSION  *MinimumVersion
+  )
+{
+  if (MinimumVersion == NULL) {
+    return E_POINTER;
+  }
+
+  memset(MinimumVersion, 0, sizeof(IMGLOAD_SYSTEM_VERSION));
+  return S_FALSE;
+}
 // FatELF Loader VTable
 //
 
@@ -739,7 +819,11 @@ static CONST IImageLoaderVtbl gFatElfVtbl = {
   FatElfGetSymbolByAddress,
   FatElfGetSymbolByName,
   FatElfGetRelocInfo,
-  FatElfApplyRelocations
+  FatElfApplyRelocations,
+  FatelfGetTargetSystem,
+  FatelfGetMinimumSystemVersion,
+  FatelfGetTargetSubsystem,
+  FatelfGetMinimumSubsystemVersion
 };
 
 //

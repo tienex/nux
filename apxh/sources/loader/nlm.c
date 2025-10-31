@@ -735,6 +735,86 @@ NlmApplyRelocations (
 }
 
 //
+
+/**
+  Get target operating system from Nlm image.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+NlmGetTargetSystem (
+  IN  IImageLoader           *This,
+  IN  VOID                   *ImageBase,
+  OUT IMGLOAD_TARGET_SYSTEM  *TargetSystem
+  )
+{
+  if (TargetSystem == NULL) {
+    return E_POINTER;
+  }
+
+  *TargetSystem = ImgSystemNetware;
+  return S_OK;
+}
+
+/**
+  Get minimum required system version from Nlm image.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+NlmGetMinimumSystemVersion (
+  IN  IImageLoader            *This,
+  IN  VOID                    *ImageBase,
+  OUT IMGLOAD_SYSTEM_VERSION  *MinimumVersion
+  )
+{
+  if (MinimumVersion == NULL) {
+    return E_POINTER;
+  }
+
+  memset(MinimumVersion, 0, sizeof(IMGLOAD_SYSTEM_VERSION));
+  return S_FALSE;
+}
+
+/**
+  Get target subsystem from Nlm image.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+NlmGetTargetSubsystem (
+  IN  IImageLoader              *This,
+  IN  VOID                      *ImageBase,
+  OUT IMGLOAD_TARGET_SUBSYSTEM  *TargetSubsystem
+  )
+{
+  if (TargetSubsystem == NULL) {
+    return E_POINTER;
+  }
+
+  *TargetSubsystem = ImgSubsystemUnixCli;
+  return S_OK;
+}
+
+/**
+  Get minimum required subsystem version from Nlm image.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+NlmGetMinimumSubsystemVersion (
+  IN  IImageLoader            *This,
+  IN  VOID                    *ImageBase,
+  OUT IMGLOAD_SYSTEM_VERSION  *MinimumVersion
+  )
+{
+  if (MinimumVersion == NULL) {
+    return E_POINTER;
+  }
+
+  memset(MinimumVersion, 0, sizeof(IMGLOAD_SYSTEM_VERSION));
+  return S_FALSE;
+}
 // NLM Loader VTable
 //
 
@@ -754,7 +834,11 @@ static CONST IImageLoaderVtbl gNlmVtbl = {
   NlmGetSymbolByAddress,
   NlmGetSymbolByName,
   NlmGetRelocInfo,
-  NlmApplyRelocations
+  NlmApplyRelocations,
+  NlmGetTargetSystem,
+  NlmGetMinimumSystemVersion,
+  NlmGetTargetSubsystem,
+  NlmGetMinimumSubsystemVersion
 };
 
 //

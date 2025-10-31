@@ -55,22 +55,21 @@ typedef enum _IMGLOAD_TARGET_SYSTEM {
   ImgSystemDos           = 21,  ///< MS-DOS
   ImgSystemOs2           = 22,  ///< IBM OS/2
   ImgSystemMacOs         = 23,  ///< Classic Mac OS (pre-X)
-  ImgSystemMacOsX        = 24,  ///< macOS (Mac OS X)
-  ImgSystemIos           = 25,  ///< Apple iOS
-  ImgSystemTvos          = 26,  ///< Apple tvOS
-  ImgSystemWatchOs       = 27,  ///< Apple watchOS
-  ImgSystemAmigaOs       = 28,  ///< Amiga OS
-  ImgSystemAtariTos      = 29,  ///< Atari TOS
-  ImgSystemOpenVms       = 30,  ///< OpenVMS
-  ImgSystemPlan9         = 31,  ///< Plan 9 from Bell Labs
-  ImgSystemBeOs          = 32,  ///< BeOS
-  ImgSystemHaiku         = 33,  ///< Haiku
-  ImgSystemQnx           = 34,  ///< QNX
-  ImgSystemMinix         = 35,  ///< MINIX
-  ImgSystemEmbedded      = 36,  ///< Generic embedded system
-  ImgSystemUefi          = 37,  ///< UEFI firmware
-  ImgSystemBios          = 38,  ///< BIOS/legacy firmware
-  ImgSystemBaremetal     = 39   ///< Bare-metal/freestanding
+  ImgSystemDarwin        = 24,  ///< Darwin (Apple's Unix-like OS, basis for macOS/iOS/etc.)
+  ImgSystemNextStep      = 25,  ///< NeXTSTEP
+  ImgSystemRhapsody      = 26,  ///< Rhapsody (Mac OS X Server 1.0)
+  ImgSystemAmigaOs       = 27,  ///< Amiga OS
+  ImgSystemAtariTos      = 28,  ///< Atari TOS
+  ImgSystemOpenVms       = 29,  ///< OpenVMS
+  ImgSystemPlan9         = 30,  ///< Plan 9 from Bell Labs
+  ImgSystemBeOs          = 31,  ///< BeOS
+  ImgSystemHaiku         = 32,  ///< Haiku
+  ImgSystemQnx           = 33,  ///< QNX
+  ImgSystemMinix         = 34,  ///< MINIX
+  ImgSystemEmbedded      = 35,  ///< Generic embedded system
+  ImgSystemUefi          = 36,  ///< UEFI firmware
+  ImgSystemBios          = 37,  ///< BIOS/legacy firmware
+  ImgSystemBaremetal     = 38   ///< Bare-metal/freestanding
 } IMGLOAD_TARGET_SYSTEM;
 
 //
@@ -98,7 +97,15 @@ typedef enum _IMGLOAD_TARGET_SUBSYSTEM {
   ImgSubsystemFirmware           = 17,  ///< Firmware component
   ImgSubsystemBootLoader         = 18,  ///< Boot loader
   ImgSubsystemOs2Gui             = 19,  ///< OS/2 Presentation Manager GUI
-  ImgSubsystemOs2Cui             = 20   ///< OS/2 console application
+  ImgSubsystemOs2Cui             = 20,  ///< OS/2 console application
+  ImgSubsystemMacOs              = 21,  ///< macOS application
+  ImgSubsystemIos                = 22,  ///< iOS application
+  ImgSubsystemTvOs               = 23,  ///< tvOS application
+  ImgSubsystemWatchOs            = 24,  ///< watchOS application
+  ImgSubsystemDriverKit          = 25,  ///< DriverKit driver
+  ImgSubsystemNextStep           = 26,  ///< NeXTSTEP application
+  ImgSubsystemOpenStep           = 27,  ///< OpenStep application
+  ImgSubsystemRhapsody           = 28   ///< Rhapsody application
 } IMGLOAD_TARGET_SUBSYSTEM;
 
 //

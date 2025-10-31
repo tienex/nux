@@ -900,6 +900,86 @@ HunkApplyRelocations (
 }
 
 //
+
+/**
+  Get target operating system from Hunk image.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+HunkGetTargetSystem (
+  IN  IImageLoader           *This,
+  IN  VOID                   *ImageBase,
+  OUT IMGLOAD_TARGET_SYSTEM  *TargetSystem
+  )
+{
+  if (TargetSystem == NULL) {
+    return E_POINTER;
+  }
+
+  *TargetSystem = ImgSystemAmigaOs;
+  return S_OK;
+}
+
+/**
+  Get minimum required system version from Hunk image.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+HunkGetMinimumSystemVersion (
+  IN  IImageLoader            *This,
+  IN  VOID                    *ImageBase,
+  OUT IMGLOAD_SYSTEM_VERSION  *MinimumVersion
+  )
+{
+  if (MinimumVersion == NULL) {
+    return E_POINTER;
+  }
+
+  memset(MinimumVersion, 0, sizeof(IMGLOAD_SYSTEM_VERSION));
+  return S_FALSE;
+}
+
+/**
+  Get target subsystem from Hunk image.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+HunkGetTargetSubsystem (
+  IN  IImageLoader              *This,
+  IN  VOID                      *ImageBase,
+  OUT IMGLOAD_TARGET_SUBSYSTEM  *TargetSubsystem
+  )
+{
+  if (TargetSubsystem == NULL) {
+    return E_POINTER;
+  }
+
+  *TargetSubsystem = ImgSubsystemUnixCli;
+  return S_OK;
+}
+
+/**
+  Get minimum required subsystem version from Hunk image.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+HunkGetMinimumSubsystemVersion (
+  IN  IImageLoader            *This,
+  IN  VOID                    *ImageBase,
+  OUT IMGLOAD_SYSTEM_VERSION  *MinimumVersion
+  )
+{
+  if (MinimumVersion == NULL) {
+    return E_POINTER;
+  }
+
+  memset(MinimumVersion, 0, sizeof(IMGLOAD_SYSTEM_VERSION));
+  return S_FALSE;
+}
 // Amiga HUNK Loader VTable
 //
 
@@ -919,7 +999,11 @@ static CONST IImageLoaderVtbl gHunkVtbl = {
   HunkGetSymbolByAddress,
   HunkGetSymbolByName,
   HunkGetRelocInfo,
-  HunkApplyRelocations
+  HunkApplyRelocations,
+  HunkGetTargetSystem,
+  HunkGetMinimumSystemVersion,
+  HunkGetTargetSubsystem,
+  HunkGetMinimumSubsystemVersion
 };
 
 //

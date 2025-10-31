@@ -643,6 +643,86 @@ EcoffRelease (
 }
 
 //
+
+/**
+  Get target operating system from Ecoff image.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+EcoffGetTargetSystem (
+  IN  IImageLoader           *This,
+  IN  VOID                   *ImageBase,
+  OUT IMGLOAD_TARGET_SYSTEM  *TargetSystem
+  )
+{
+  if (TargetSystem == NULL) {
+    return E_POINTER;
+  }
+
+  *TargetSystem = ImgSystemUnix;
+  return S_OK;
+}
+
+/**
+  Get minimum required system version from Ecoff image.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+EcoffGetMinimumSystemVersion (
+  IN  IImageLoader            *This,
+  IN  VOID                    *ImageBase,
+  OUT IMGLOAD_SYSTEM_VERSION  *MinimumVersion
+  )
+{
+  if (MinimumVersion == NULL) {
+    return E_POINTER;
+  }
+
+  memset(MinimumVersion, 0, sizeof(IMGLOAD_SYSTEM_VERSION));
+  return S_FALSE;
+}
+
+/**
+  Get target subsystem from Ecoff image.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+EcoffGetTargetSubsystem (
+  IN  IImageLoader              *This,
+  IN  VOID                      *ImageBase,
+  OUT IMGLOAD_TARGET_SUBSYSTEM  *TargetSubsystem
+  )
+{
+  if (TargetSubsystem == NULL) {
+    return E_POINTER;
+  }
+
+  *TargetSubsystem = ImgSubsystemUnixCli;
+  return S_OK;
+}
+
+/**
+  Get minimum required subsystem version from Ecoff image.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+EcoffGetMinimumSubsystemVersion (
+  IN  IImageLoader            *This,
+  IN  VOID                    *ImageBase,
+  OUT IMGLOAD_SYSTEM_VERSION  *MinimumVersion
+  )
+{
+  if (MinimumVersion == NULL) {
+    return E_POINTER;
+  }
+
+  memset(MinimumVersion, 0, sizeof(IMGLOAD_SYSTEM_VERSION));
+  return S_FALSE;
+}
 // ECOFF Loader VTable
 //
 
@@ -660,7 +740,11 @@ static CONST IImageLoaderVtbl gEcoffVtbl = {
   EcoffGetSymbolByAddress,
   EcoffGetSymbolByName,
   EcoffGetRelocInfo,
-  EcoffApplyRelocations
+  EcoffApplyRelocations,
+  EcoffGetTargetSystem,
+  EcoffGetMinimumSystemVersion,
+  EcoffGetTargetSubsystem,
+  EcoffGetMinimumSubsystemVersion
 };
 
 //

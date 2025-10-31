@@ -534,6 +534,86 @@ Pdp10Release (
 }
 
 //
+
+/**
+  Get target operating system from Pdp10 image.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+Pdp10GetTargetSystem (
+  IN  IImageLoader           *This,
+  IN  VOID                   *ImageBase,
+  OUT IMGLOAD_TARGET_SYSTEM  *TargetSystem
+  )
+{
+  if (TargetSystem == NULL) {
+    return E_POINTER;
+  }
+
+  *TargetSystem = ImgSystemUnix;
+  return S_OK;
+}
+
+/**
+  Get minimum required system version from Pdp10 image.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+Pdp10GetMinimumSystemVersion (
+  IN  IImageLoader            *This,
+  IN  VOID                    *ImageBase,
+  OUT IMGLOAD_SYSTEM_VERSION  *MinimumVersion
+  )
+{
+  if (MinimumVersion == NULL) {
+    return E_POINTER;
+  }
+
+  memset(MinimumVersion, 0, sizeof(IMGLOAD_SYSTEM_VERSION));
+  return S_FALSE;
+}
+
+/**
+  Get target subsystem from Pdp10 image.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+Pdp10GetTargetSubsystem (
+  IN  IImageLoader              *This,
+  IN  VOID                      *ImageBase,
+  OUT IMGLOAD_TARGET_SUBSYSTEM  *TargetSubsystem
+  )
+{
+  if (TargetSubsystem == NULL) {
+    return E_POINTER;
+  }
+
+  *TargetSubsystem = ImgSubsystemUnixCli;
+  return S_OK;
+}
+
+/**
+  Get minimum required subsystem version from Pdp10 image.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+Pdp10GetMinimumSubsystemVersion (
+  IN  IImageLoader            *This,
+  IN  VOID                    *ImageBase,
+  OUT IMGLOAD_SYSTEM_VERSION  *MinimumVersion
+  )
+{
+  if (MinimumVersion == NULL) {
+    return E_POINTER;
+  }
+
+  memset(MinimumVersion, 0, sizeof(IMGLOAD_SYSTEM_VERSION));
+  return S_FALSE;
+}
 // PDP-10 Loader VTable
 //
 
@@ -551,7 +631,11 @@ static CONST IImageLoaderVtbl gPdp10Vtbl = {
   Pdp10GetSymbolByAddress,
   Pdp10GetSymbolByName,
   Pdp10GetRelocInfo,
-  Pdp10ApplyRelocations
+  Pdp10ApplyRelocations,
+  Pdp10GetTargetSystem,
+  Pdp10GetMinimumSystemVersion,
+  Pdp10GetTargetSubsystem,
+  Pdp10GetMinimumSubsystemVersion
 };
 
 //
