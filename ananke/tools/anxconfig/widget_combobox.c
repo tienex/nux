@@ -29,6 +29,12 @@ typedef struct {
     UINT32 CursorPos;         /* For editable mode */
     HRESULT (*ChangeCallback)(VOID *UserData, INT32 Index);
     VOID *UserData;
+
+    /* Virtual mode */
+    BOOLEAN VirtualMode;
+    UINT32 VirtualItemCount;
+    HRESULT (*OnGetVirtualItem)(VOID *UserData, UINT32 Index, CHAR8 *OutText, UINTN TextSize);
+    VOID *VirtualUserData;
 } TuiComboBoxImpl;
 
 /* IUnknown methods */
@@ -254,9 +260,10 @@ static HRESULT ANXAPI ComboBox_Render(
 
     /* Render drop-down list if open */
     if (impl->Dropped) {
+        UINT32 actualItemCount = impl->VirtualMode ? impl->VirtualItemCount : impl->ItemCount;
         UINT32 dropHeight = impl->DropDownHeight;
-        if (dropHeight > impl->ItemCount) {
-            dropHeight = impl->ItemCount;
+        if (dropHeight > actualItemCount) {
+            dropHeight = actualItemCount;
         }
         if (dropHeight > 10) dropHeight = 10;  /* Max height */
 
@@ -270,8 +277,23 @@ static HRESULT ANXAPI ComboBox_Render(
                       TuiColorBlack, TuiColorWhite);
 
         /* Render items */
-        for (i = 0; i < dropHeight && (impl->ScrollOffset + i) < impl->ItemCount; i++) {
+        for (i = 0; i < dropHeight && (impl->ScrollOffset + i) < actualItemCount; i++) {
             UINT32 itemIndex = impl->ScrollOffset + i;
+            CHAR8 itemText[MAX_ITEM_LENGTH];
+
+            /* Get item text from virtual mode or normal mode */
+            if (impl->VirtualMode) {
+                if (impl->OnGetVirtualItem) {
+                    if (FAILED(impl->OnGetVirtualItem(impl->VirtualUserData, itemIndex, itemText, sizeof(itemText)))) {
+                        strcpy(itemText, "");
+                    }
+                } else {
+                    strcpy(itemText, "");
+                }
+            } else {
+                strncpy(itemText, impl->Items[itemIndex], sizeof(itemText) - 1);
+                itemText[sizeof(itemText) - 1] = '\0';
+            }
 
             if ((INT32)itemIndex == impl->SelectedIndex) {
                 fg = TuiColorBlack;
@@ -282,13 +304,13 @@ static HRESULT ANXAPI ComboBox_Render(
             }
 
             snprintf(display, sizeof(display), " %-*s ",
-                     (int)(Width - 4), impl->Items[itemIndex]);
+                     (int)(Width - 4), itemText);
             Screen->Vtbl->WriteText(Screen, X + 1, Y + 2 + i, display, fg, bg);
         }
 
         /* Show scrollbar if needed */
-        if (impl->ItemCount > dropHeight) {
-            UINT32 scrollPos = (impl->ScrollOffset * dropHeight) / impl->ItemCount;
+        if (actualItemCount > dropHeight) {
+            UINT32 scrollPos = (impl->ScrollOffset * dropHeight) / actualItemCount;
             Screen->Vtbl->WriteText(Screen, X + Width - 2, Y + 2 + scrollPos,
                                     "█", TuiColorBlack, TuiColorWhite);
         }
