@@ -5865,6 +5865,62 @@ struct _ITuiHBox {
     CONST ITuiHBox_Vtbl *Vtbl;
 };
 
+// {5E6F7A8B-9C0D-1E2F-3A4B-5C6D7E8F9A0B}
+DEFINE_GUID(IID_ITuiThemedGrid,
+    0x5E6F7A8B, 0x9C0D, 0x1E2F, 0x3A, 0x4B, 0x5C, 0x6D, 0x7E, 0x8F, 0x9A, 0x0B);
+
+/**
+  ITuiThemedGrid Interface
+
+  Grid theming interface. Inherits from ITuiThemedWidget.
+**/
+typedef struct _ITuiThemedGrid_Vtbl {
+    // ITuiSerializable methods
+    HRESULT (ANXAPI *QueryInterface)(ITuiThemedGrid *This, REFIID riid, VOID **ppvObject);
+    UINTN (ANXAPI *AddRef)(ITuiThemedGrid *This);
+    UINTN (ANXAPI *Release)(ITuiThemedGrid *This);
+    HRESULT (ANXAPI *SerializeToYaml)(ITuiThemedGrid *This, CHAR8 **OutYaml, UINTN *OutLength);
+    HRESULT (ANXAPI *DeserializeFromYaml)(ITuiThemedGrid *This, CONST CHAR8 *Yaml, UINTN Length);
+    HRESULT (ANXAPI *GetTypeName)(ITuiThemedGrid *This, CONST CHAR8 **OutTypeName);
+    HRESULT (ANXAPI *Clone)(ITuiThemedGrid *This, ITuiSerializable **OutClone);
+
+    // ITuiResponder methods
+    HRESULT (ANXAPI *GetNextResponder)(ITuiThemedGrid *This, ITuiResponder **NextResponder);
+    HRESULT (ANXAPI *SetNextResponder)(ITuiThemedGrid *This, ITuiResponder *NextResponder);
+    BOOLEAN (ANXAPI *AcceptsFirstResponder)(ITuiThemedGrid *This);
+    HRESULT (ANXAPI *BecomeFirstResponder)(ITuiThemedGrid *This);
+    HRESULT (ANXAPI *ResignFirstResponder)(ITuiThemedGrid *This);
+
+    // ITuiWidget methods
+    HRESULT (ANXAPI *SetBounds)(ITuiThemedGrid *This, CONST TUI_RECT *Bounds);
+    HRESULT (ANXAPI *GetBounds)(ITuiThemedGrid *This, TUI_RECT *Bounds);
+    HRESULT (ANXAPI *SetVisible)(ITuiThemedGrid *This, BOOLEAN Visible);
+    BOOLEAN (ANXAPI *IsVisible)(ITuiThemedGrid *This);
+    HRESULT (ANXAPI *SetEnabled)(ITuiThemedGrid *This, BOOLEAN Enabled);
+    BOOLEAN (ANXAPI *IsEnabled)(ITuiThemedGrid *This);
+    HRESULT (ANXAPI *SetParent)(ITuiThemedGrid *This, ITuiWidget *Parent);
+    HRESULT (ANXAPI *GetParent)(ITuiThemedGrid *This, ITuiWidget **Parent);
+    HRESULT (ANXAPI *AddChild)(ITuiThemedGrid *This, ITuiWidget *Child);
+    HRESULT (ANXAPI *RemoveChild)(ITuiThemedGrid *This, ITuiWidget *Child);
+    HRESULT (ANXAPI *SetNeedsDisplay)(ITuiThemedGrid *This, BOOLEAN Needed);
+
+    // ITuiThemedWidget methods
+    HRESULT (ANXAPI *ApplyTheme)(ITuiThemedGrid *This, ITuiTheme *Theme);
+    HRESULT (ANXAPI *GetColors)(ITuiThemedGrid *This, TUI_COLOR *Foreground, TUI_COLOR *Background);
+    HRESULT (ANXAPI *SetColors)(ITuiThemedGrid *This, TUI_COLOR Foreground, TUI_COLOR Background);
+    HRESULT (ANXAPI *OnMouseEvent)(ITuiThemedGrid *This, CONST TUI_MOUSE_EVENT *Event, BOOLEAN *Handled);
+    HRESULT (ANXAPI *OnKeyEvent)(ITuiThemedGrid *This, TUI_KEY Key, UINT32 Modifiers, BOOLEAN *Handled);
+    HRESULT (ANXAPI *Draw)(ITuiThemedGrid *This, ITuiSurface *Surface, CONST TUI_RECT *DirtyRect);
+
+    // ITuiThemedGrid methods
+    HRESULT (ANXAPI *GetGridLineColors)(ITuiThemedGrid *This, TUI_COLOR *Foreground, TUI_COLOR *Background);
+    HRESULT (ANXAPI *SetGridLineColors)(ITuiThemedGrid *This, TUI_COLOR Foreground, TUI_COLOR Background);
+} ITuiThemedGrid_Vtbl;
+
+struct _ITuiThemedGrid {
+    CONST ITuiThemedGrid_Vtbl *Vtbl;
+};
+
 // {C2D3E4F5-6A7B-8C9D-0E1F-2A3B4C5D6E7F}
 DEFINE_GUID(IID_ITuiGrid,
     0xC2D3E4F5, 0x6A7B, 0x8C9D, 0x0E, 0x1F, 0x2A, 0x3B, 0x4C, 0x5D, 0x6E, 0x7F);
@@ -5873,27 +5929,120 @@ DEFINE_GUID(IID_ITuiGrid,
   ITuiGrid Interface
 
   Grid layout container that arranges children in rows and columns
-  with support for spanning, padding, and alignment.
+  with support for spanning, padding, and alignment. Inherits from ITuiThemedGrid.
 **/
 typedef struct _ITuiGrid_Vtbl {
+    // ITuiSerializable methods
     HRESULT (ANXAPI *QueryInterface)(ITuiGrid *This, REFIID riid, VOID **ppvObject);
     UINTN (ANXAPI *AddRef)(ITuiGrid *This);
     UINTN (ANXAPI *Release)(ITuiGrid *This);
-    HRESULT (ANXAPI *Render)(ITuiGrid *This, ITuiScreen *Screen, INT32 X, INT32 Y);
+    HRESULT (ANXAPI *SerializeToYaml)(ITuiGrid *This, CHAR8 **OutYaml, UINTN *OutLength);
+    HRESULT (ANXAPI *DeserializeFromYaml)(ITuiGrid *This, CONST CHAR8 *Yaml, UINTN Length);
+    HRESULT (ANXAPI *GetTypeName)(ITuiGrid *This, CONST CHAR8 **OutTypeName);
+    HRESULT (ANXAPI *Clone)(ITuiGrid *This, ITuiSerializable **OutClone);
+
+    // ITuiResponder methods
+    HRESULT (ANXAPI *GetNextResponder)(ITuiGrid *This, ITuiResponder **NextResponder);
+    HRESULT (ANXAPI *SetNextResponder)(ITuiGrid *This, ITuiResponder *NextResponder);
+    BOOLEAN (ANXAPI *AcceptsFirstResponder)(ITuiGrid *This);
+    HRESULT (ANXAPI *BecomeFirstResponder)(ITuiGrid *This);
+    HRESULT (ANXAPI *ResignFirstResponder)(ITuiGrid *This);
+
+    // ITuiWidget methods
     HRESULT (ANXAPI *SetBounds)(ITuiGrid *This, CONST TUI_RECT *Bounds);
     HRESULT (ANXAPI *GetBounds)(ITuiGrid *This, TUI_RECT *Bounds);
     HRESULT (ANXAPI *SetVisible)(ITuiGrid *This, BOOLEAN Visible);
     BOOLEAN (ANXAPI *IsVisible)(ITuiGrid *This);
     HRESULT (ANXAPI *SetEnabled)(ITuiGrid *This, BOOLEAN Enabled);
     BOOLEAN (ANXAPI *IsEnabled)(ITuiGrid *This);
+    HRESULT (ANXAPI *SetParent)(ITuiGrid *This, ITuiWidget *Parent);
+    HRESULT (ANXAPI *GetParent)(ITuiGrid *This, ITuiWidget **Parent);
+    HRESULT (ANXAPI *AddChild)(ITuiGrid *This, ITuiWidget *Child);
+    HRESULT (ANXAPI *RemoveChild)(ITuiGrid *This, ITuiWidget *Child);
+    HRESULT (ANXAPI *SetNeedsDisplay)(ITuiGrid *This, BOOLEAN Needed);
+
+    // ITuiThemedWidget methods
+    HRESULT (ANXAPI *ApplyTheme)(ITuiGrid *This, ITuiTheme *Theme);
+    HRESULT (ANXAPI *GetColors)(ITuiGrid *This, TUI_COLOR *Foreground, TUI_COLOR *Background);
+    HRESULT (ANXAPI *SetColors)(ITuiGrid *This, TUI_COLOR Foreground, TUI_COLOR Background);
+    HRESULT (ANXAPI *OnMouseEvent)(ITuiGrid *This, CONST TUI_MOUSE_EVENT *Event, BOOLEAN *Handled);
+    HRESULT (ANXAPI *OnKeyEvent)(ITuiGrid *This, TUI_KEY Key, UINT32 Modifiers, BOOLEAN *Handled);
+    HRESULT (ANXAPI *Draw)(ITuiGrid *This, ITuiSurface *Surface, CONST TUI_RECT *DirtyRect);
+
+    // ITuiThemedGrid methods
+    HRESULT (ANXAPI *GetGridLineColors)(ITuiGrid *This, TUI_COLOR *Foreground, TUI_COLOR *Background);
+    HRESULT (ANXAPI *SetGridLineColors)(ITuiGrid *This, TUI_COLOR Foreground, TUI_COLOR Background);
+
+    // ITuiGrid methods
     HRESULT (ANXAPI *Attach)(ITuiGrid *This, VOID *Widget, UINT32 Column, UINT32 Row, UINT32 ColumnSpan, UINT32 RowSpan);
     HRESULT (ANXAPI *SetSpacing)(ITuiGrid *This, UINT32 RowSpacing, UINT32 ColumnSpacing);
+    HRESULT (ANXAPI *GetSpacing)(ITuiGrid *This, UINT32 *RowSpacing, UINT32 *ColumnSpacing);
     HRESULT (ANXAPI *SetRowHeight)(ITuiGrid *This, UINT32 Row, UINT32 Height);
+    HRESULT (ANXAPI *GetRowHeight)(ITuiGrid *This, UINT32 Row, UINT32 *Height);
     HRESULT (ANXAPI *SetColumnWidth)(ITuiGrid *This, UINT32 Column, UINT32 Width);
+    HRESULT (ANXAPI *GetColumnWidth)(ITuiGrid *This, UINT32 Column, UINT32 *Width);
 } ITuiGrid_Vtbl;
 
 struct _ITuiGrid {
     CONST ITuiGrid_Vtbl *Vtbl;
+};
+
+// {6F7A8B9C-0D1E-2F3A-4B5C-6D7E8F9A0B1C}
+DEFINE_GUID(IID_ITuiThemedSplitView,
+    0x6F7A8B9C, 0x0D1E, 0x2F3A, 0x4B, 0x5C, 0x6D, 0x7E, 0x8F, 0x9A, 0x0B, 0x1C);
+
+/**
+  ITuiThemedSplitView Interface
+
+  SplitView theming interface. Inherits from ITuiThemedWidget.
+**/
+typedef struct _ITuiThemedSplitView_Vtbl {
+    // ITuiSerializable methods
+    HRESULT (ANXAPI *QueryInterface)(ITuiThemedSplitView *This, REFIID riid, VOID **ppvObject);
+    UINTN (ANXAPI *AddRef)(ITuiThemedSplitView *This);
+    UINTN (ANXAPI *Release)(ITuiThemedSplitView *This);
+    HRESULT (ANXAPI *SerializeToYaml)(ITuiThemedSplitView *This, CHAR8 **OutYaml, UINTN *OutLength);
+    HRESULT (ANXAPI *DeserializeFromYaml)(ITuiThemedSplitView *This, CONST CHAR8 *Yaml, UINTN Length);
+    HRESULT (ANXAPI *GetTypeName)(ITuiThemedSplitView *This, CONST CHAR8 **OutTypeName);
+    HRESULT (ANXAPI *Clone)(ITuiThemedSplitView *This, ITuiSerializable **OutClone);
+
+    // ITuiResponder methods
+    HRESULT (ANXAPI *GetNextResponder)(ITuiThemedSplitView *This, ITuiResponder **NextResponder);
+    HRESULT (ANXAPI *SetNextResponder)(ITuiThemedSplitView *This, ITuiResponder *NextResponder);
+    BOOLEAN (ANXAPI *AcceptsFirstResponder)(ITuiThemedSplitView *This);
+    HRESULT (ANXAPI *BecomeFirstResponder)(ITuiThemedSplitView *This);
+    HRESULT (ANXAPI *ResignFirstResponder)(ITuiThemedSplitView *This);
+
+    // ITuiWidget methods
+    HRESULT (ANXAPI *SetBounds)(ITuiThemedSplitView *This, CONST TUI_RECT *Bounds);
+    HRESULT (ANXAPI *GetBounds)(ITuiThemedSplitView *This, TUI_RECT *Bounds);
+    HRESULT (ANXAPI *SetVisible)(ITuiThemedSplitView *This, BOOLEAN Visible);
+    BOOLEAN (ANXAPI *IsVisible)(ITuiThemedSplitView *This);
+    HRESULT (ANXAPI *SetEnabled)(ITuiThemedSplitView *This, BOOLEAN Enabled);
+    BOOLEAN (ANXAPI *IsEnabled)(ITuiThemedSplitView *This);
+    HRESULT (ANXAPI *SetParent)(ITuiThemedSplitView *This, ITuiWidget *Parent);
+    HRESULT (ANXAPI *GetParent)(ITuiThemedSplitView *This, ITuiWidget **Parent);
+    HRESULT (ANXAPI *AddChild)(ITuiThemedSplitView *This, ITuiWidget *Child);
+    HRESULT (ANXAPI *RemoveChild)(ITuiThemedSplitView *This, ITuiWidget *Child);
+    HRESULT (ANXAPI *SetNeedsDisplay)(ITuiThemedSplitView *This, BOOLEAN Needed);
+
+    // ITuiThemedWidget methods
+    HRESULT (ANXAPI *ApplyTheme)(ITuiThemedSplitView *This, ITuiTheme *Theme);
+    HRESULT (ANXAPI *GetColors)(ITuiThemedSplitView *This, TUI_COLOR *Foreground, TUI_COLOR *Background);
+    HRESULT (ANXAPI *SetColors)(ITuiThemedSplitView *This, TUI_COLOR Foreground, TUI_COLOR Background);
+    HRESULT (ANXAPI *OnMouseEvent)(ITuiThemedSplitView *This, CONST TUI_MOUSE_EVENT *Event, BOOLEAN *Handled);
+    HRESULT (ANXAPI *OnKeyEvent)(ITuiThemedSplitView *This, TUI_KEY Key, UINT32 Modifiers, BOOLEAN *Handled);
+    HRESULT (ANXAPI *Draw)(ITuiThemedSplitView *This, ITuiSurface *Surface, CONST TUI_RECT *DirtyRect);
+
+    // ITuiThemedSplitView methods
+    HRESULT (ANXAPI *GetDividerColors)(ITuiThemedSplitView *This, TUI_COLOR *Foreground, TUI_COLOR *Background);
+    HRESULT (ANXAPI *SetDividerColors)(ITuiThemedSplitView *This, TUI_COLOR Foreground, TUI_COLOR Background);
+    CHAR8 (ANXAPI *GetDividerChar)(ITuiThemedSplitView *This);
+    HRESULT (ANXAPI *SetDividerChar)(ITuiThemedSplitView *This, CHAR8 DividerChar);
+} ITuiThemedSplitView_Vtbl;
+
+struct _ITuiThemedSplitView {
+    CONST ITuiThemedSplitView_Vtbl *Vtbl;
 };
 
 // {D3E4F5A6-7B8C-9D0E-1F2A-3B4C5D6E7F8A}
@@ -5904,24 +6053,61 @@ DEFINE_GUID(IID_ITuiSplitView,
   ITuiSplitView Interface
 
   Resizable two-pane container with draggable divider.
-  Supports horizontal and vertical orientation.
+  Supports horizontal and vertical orientation. Inherits from ITuiThemedSplitView.
 **/
 typedef struct _ITuiSplitView_Vtbl {
+    // ITuiSerializable methods
     HRESULT (ANXAPI *QueryInterface)(ITuiSplitView *This, REFIID riid, VOID **ppvObject);
     UINTN (ANXAPI *AddRef)(ITuiSplitView *This);
     UINTN (ANXAPI *Release)(ITuiSplitView *This);
-    HRESULT (ANXAPI *Render)(ITuiSplitView *This, ITuiScreen *Screen, INT32 X, INT32 Y);
-    HRESULT (ANXAPI *HandleMouse)(ITuiSplitView *This, CONST TUI_MOUSE_EVENT *Event);
+    HRESULT (ANXAPI *SerializeToYaml)(ITuiSplitView *This, CHAR8 **OutYaml, UINTN *OutLength);
+    HRESULT (ANXAPI *DeserializeFromYaml)(ITuiSplitView *This, CONST CHAR8 *Yaml, UINTN Length);
+    HRESULT (ANXAPI *GetTypeName)(ITuiSplitView *This, CONST CHAR8 **OutTypeName);
+    HRESULT (ANXAPI *Clone)(ITuiSplitView *This, ITuiSerializable **OutClone);
+
+    // ITuiResponder methods
+    HRESULT (ANXAPI *GetNextResponder)(ITuiSplitView *This, ITuiResponder **NextResponder);
+    HRESULT (ANXAPI *SetNextResponder)(ITuiSplitView *This, ITuiResponder *NextResponder);
+    BOOLEAN (ANXAPI *AcceptsFirstResponder)(ITuiSplitView *This);
+    HRESULT (ANXAPI *BecomeFirstResponder)(ITuiSplitView *This);
+    HRESULT (ANXAPI *ResignFirstResponder)(ITuiSplitView *This);
+
+    // ITuiWidget methods
     HRESULT (ANXAPI *SetBounds)(ITuiSplitView *This, CONST TUI_RECT *Bounds);
     HRESULT (ANXAPI *GetBounds)(ITuiSplitView *This, TUI_RECT *Bounds);
     HRESULT (ANXAPI *SetVisible)(ITuiSplitView *This, BOOLEAN Visible);
     BOOLEAN (ANXAPI *IsVisible)(ITuiSplitView *This);
     HRESULT (ANXAPI *SetEnabled)(ITuiSplitView *This, BOOLEAN Enabled);
     BOOLEAN (ANXAPI *IsEnabled)(ITuiSplitView *This);
+    HRESULT (ANXAPI *SetParent)(ITuiSplitView *This, ITuiWidget *Parent);
+    HRESULT (ANXAPI *GetParent)(ITuiSplitView *This, ITuiWidget **Parent);
+    HRESULT (ANXAPI *AddChild)(ITuiSplitView *This, ITuiWidget *Child);
+    HRESULT (ANXAPI *RemoveChild)(ITuiSplitView *This, ITuiWidget *Child);
+    HRESULT (ANXAPI *SetNeedsDisplay)(ITuiSplitView *This, BOOLEAN Needed);
+
+    // ITuiThemedWidget methods
+    HRESULT (ANXAPI *ApplyTheme)(ITuiSplitView *This, ITuiTheme *Theme);
+    HRESULT (ANXAPI *GetColors)(ITuiSplitView *This, TUI_COLOR *Foreground, TUI_COLOR *Background);
+    HRESULT (ANXAPI *SetColors)(ITuiSplitView *This, TUI_COLOR Foreground, TUI_COLOR Background);
+    HRESULT (ANXAPI *OnMouseEvent)(ITuiSplitView *This, CONST TUI_MOUSE_EVENT *Event, BOOLEAN *Handled);
+    HRESULT (ANXAPI *OnKeyEvent)(ITuiSplitView *This, TUI_KEY Key, UINT32 Modifiers, BOOLEAN *Handled);
+    HRESULT (ANXAPI *Draw)(ITuiSplitView *This, ITuiSurface *Surface, CONST TUI_RECT *DirtyRect);
+
+    // ITuiThemedSplitView methods
+    HRESULT (ANXAPI *GetDividerColors)(ITuiSplitView *This, TUI_COLOR *Foreground, TUI_COLOR *Background);
+    HRESULT (ANXAPI *SetDividerColors)(ITuiSplitView *This, TUI_COLOR Foreground, TUI_COLOR Background);
+    CHAR8 (ANXAPI *GetDividerChar)(ITuiSplitView *This);
+    HRESULT (ANXAPI *SetDividerChar)(ITuiSplitView *This, CHAR8 DividerChar);
+
+    // ITuiSplitView methods
     HRESULT (ANXAPI *SetPane1)(ITuiSplitView *This, VOID *Widget);
+    HRESULT (ANXAPI *GetPane1)(ITuiSplitView *This, VOID **Widget);
     HRESULT (ANXAPI *SetPane2)(ITuiSplitView *This, VOID *Widget);
+    HRESULT (ANXAPI *GetPane2)(ITuiSplitView *This, VOID **Widget);
     HRESULT (ANXAPI *SetSplitPosition)(ITuiSplitView *This, UINT32 Position);
+    UINT32 (ANXAPI *GetSplitPosition)(ITuiSplitView *This);
     HRESULT (ANXAPI *SetOrientation)(ITuiSplitView *This, UINT32 Orientation);
+    UINT32 (ANXAPI *GetOrientation)(ITuiSplitView *This);
 } ITuiSplitView_Vtbl;
 
 struct _ITuiSplitView {
