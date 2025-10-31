@@ -2332,9 +2332,75 @@ typedef enum _TUI_BORDER_STYLE {
 } TUI_BORDER_STYLE;
 
 /**
+  Theme Rendering Delegates
+
+  Allow themes to completely override widget rendering and sizing
+**/
+
+/* Widget rendering context passed to theme renderers */
+typedef struct {
+    ITuiSurface *Surface;
+    CONST TUI_RECT *Bounds;
+    BOOLEAN Focused;
+    BOOLEAN Enabled;
+    BOOLEAN Pressed;
+    VOID *WidgetData;  /* Widget-specific data */
+} TUI_RENDER_CONTEXT;
+
+/* Button rendering delegate */
+typedef HRESULT (ANXAPI *TUI_BUTTON_RENDERER)(
+    ITuiTheme *Theme,
+    CONST TUI_RENDER_CONTEXT *Context,
+    CONST CHAR8 *Label
+);
+
+/* Button size calculator */
+typedef HRESULT (ANXAPI *TUI_BUTTON_SIZER)(
+    ITuiTheme *Theme,
+    CONST CHAR8 *Label,
+    UINT32 *Width,
+    UINT32 *Height
+);
+
+/* Checkbox rendering delegate */
+typedef HRESULT (ANXAPI *TUI_CHECKBOX_RENDERER)(
+    ITuiTheme *Theme,
+    CONST TUI_RENDER_CONTEXT *Context,
+    CONST CHAR8 *Label,
+    BOOLEAN Checked,
+    UINT8 TristateValue
+);
+
+/* Checkbox size calculator */
+typedef HRESULT (ANXAPI *TUI_CHECKBOX_SIZER)(
+    ITuiTheme *Theme,
+    CONST CHAR8 *Label,
+    UINT32 *Width,
+    UINT32 *Height
+);
+
+/* Input field rendering delegate */
+typedef HRESULT (ANXAPI *TUI_INPUT_RENDERER)(
+    ITuiTheme *Theme,
+    CONST TUI_RENDER_CONTEXT *Context,
+    CONST CHAR8 *Label,
+    CONST CHAR8 *Value,
+    UINT32 CursorPos,
+    UINT32 Width
+);
+
+/* Window frame rendering delegate */
+typedef HRESULT (ANXAPI *TUI_WINDOW_RENDERER)(
+    ITuiTheme *Theme,
+    CONST TUI_RENDER_CONTEXT *Context,
+    CONST CHAR8 *Title,
+    TUI_BORDER_STYLE BorderStyle
+);
+
+/**
   ITuiTheme Interface
 
-  Customizable UI theme (colors, borders, styles).
+  Customizable UI theme (colors, borders, styles, and rendering).
 **/
 typedef struct _ITuiTheme_Vtbl {
     HRESULT (ANXAPI *QueryInterface)(ITuiTheme *This, REFIID riid, VOID **ppvObject);
@@ -2351,6 +2417,14 @@ typedef struct _ITuiTheme_Vtbl {
     HRESULT (ANXAPI *GetButtonStyle)(ITuiTheme *This, TUI_BORDER_STYLE *Style);
     HRESULT (ANXAPI *SetUseUnicode)(ITuiTheme *This, BOOLEAN UseUnicode);
     HRESULT (ANXAPI *GetUseUnicode)(ITuiTheme *This, BOOLEAN *UseUnicode);
+    HRESULT (ANXAPI *SetButtonRenderer)(ITuiTheme *This, TUI_BUTTON_RENDERER Renderer, TUI_BUTTON_SIZER Sizer);
+    HRESULT (ANXAPI *GetButtonRenderer)(ITuiTheme *This, TUI_BUTTON_RENDERER *Renderer, TUI_BUTTON_SIZER *Sizer);
+    HRESULT (ANXAPI *SetCheckboxRenderer)(ITuiTheme *This, TUI_CHECKBOX_RENDERER Renderer, TUI_CHECKBOX_SIZER Sizer);
+    HRESULT (ANXAPI *GetCheckboxRenderer)(ITuiTheme *This, TUI_CHECKBOX_RENDERER *Renderer, TUI_CHECKBOX_SIZER *Sizer);
+    HRESULT (ANXAPI *SetInputRenderer)(ITuiTheme *This, TUI_INPUT_RENDERER Renderer);
+    HRESULT (ANXAPI *GetInputRenderer)(ITuiTheme *This, TUI_INPUT_RENDERER *Renderer);
+    HRESULT (ANXAPI *SetWindowRenderer)(ITuiTheme *This, TUI_WINDOW_RENDERER Renderer);
+    HRESULT (ANXAPI *GetWindowRenderer)(ITuiTheme *This, TUI_WINDOW_RENDERER *Renderer);
     HRESULT (ANXAPI *LoadFromFile)(ITuiTheme *This, CONST CHAR8 *FilePath);
     HRESULT (ANXAPI *SaveToFile)(ITuiTheme *This, CONST CHAR8 *FilePath);
     HRESULT (ANXAPI *SetName)(ITuiTheme *This, CONST CHAR8 *Name);

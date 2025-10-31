@@ -26,6 +26,14 @@ typedef struct {
     CHAR8 ShadowChar;
     BOOLEAN UseUnicode;
 
+    /* Rendering delegates */
+    TUI_BUTTON_RENDERER ButtonRenderer;
+    TUI_BUTTON_SIZER ButtonSizer;
+    TUI_CHECKBOX_RENDERER CheckboxRenderer;
+    TUI_CHECKBOX_SIZER CheckboxSizer;
+    TUI_INPUT_RENDERER InputRenderer;
+    TUI_WINDOW_RENDERER WindowRenderer;
+
     /* Theme colors for each component */
     TUI_THEME_COLORS Colors[19];  /* Number of TUI_THEME_COMPONENT values */
 
@@ -439,6 +447,102 @@ static HRESULT ANXAPI Theme_GetUseUnicode(
     return S_OK;
 }
 
+/* Set button renderer */
+static HRESULT ANXAPI Theme_SetButtonRenderer(
+    ITuiTheme *This,
+    TUI_BUTTON_RENDERER Renderer,
+    TUI_BUTTON_SIZER Sizer
+)
+{
+    ThemeImpl *impl = (ThemeImpl *)This;
+    impl->ButtonRenderer = Renderer;
+    impl->ButtonSizer = Sizer;
+    return S_OK;
+}
+
+/* Get button renderer */
+static HRESULT ANXAPI Theme_GetButtonRenderer(
+    ITuiTheme *This,
+    TUI_BUTTON_RENDERER *Renderer,
+    TUI_BUTTON_SIZER *Sizer
+)
+{
+    ThemeImpl *impl = (ThemeImpl *)This;
+    if (Renderer) *Renderer = impl->ButtonRenderer;
+    if (Sizer) *Sizer = impl->ButtonSizer;
+    return S_OK;
+}
+
+/* Set checkbox renderer */
+static HRESULT ANXAPI Theme_SetCheckboxRenderer(
+    ITuiTheme *This,
+    TUI_CHECKBOX_RENDERER Renderer,
+    TUI_CHECKBOX_SIZER Sizer
+)
+{
+    ThemeImpl *impl = (ThemeImpl *)This;
+    impl->CheckboxRenderer = Renderer;
+    impl->CheckboxSizer = Sizer;
+    return S_OK;
+}
+
+/* Get checkbox renderer */
+static HRESULT ANXAPI Theme_GetCheckboxRenderer(
+    ITuiTheme *This,
+    TUI_CHECKBOX_RENDERER *Renderer,
+    TUI_CHECKBOX_SIZER *Sizer
+)
+{
+    ThemeImpl *impl = (ThemeImpl *)This;
+    if (Renderer) *Renderer = impl->CheckboxRenderer;
+    if (Sizer) *Sizer = impl->CheckboxSizer;
+    return S_OK;
+}
+
+/* Set input renderer */
+static HRESULT ANXAPI Theme_SetInputRenderer(
+    ITuiTheme *This,
+    TUI_INPUT_RENDERER Renderer
+)
+{
+    ThemeImpl *impl = (ThemeImpl *)This;
+    impl->InputRenderer = Renderer;
+    return S_OK;
+}
+
+/* Get input renderer */
+static HRESULT ANXAPI Theme_GetInputRenderer(
+    ITuiTheme *This,
+    TUI_INPUT_RENDERER *Renderer
+)
+{
+    ThemeImpl *impl = (ThemeImpl *)This;
+    if (Renderer) *Renderer = impl->InputRenderer;
+    return S_OK;
+}
+
+/* Set window renderer */
+static HRESULT ANXAPI Theme_SetWindowRenderer(
+    ITuiTheme *This,
+    TUI_WINDOW_RENDERER Renderer
+)
+{
+    ThemeImpl *impl = (ThemeImpl *)This;
+    impl->WindowRenderer = Renderer;
+    return S_OK;
+}
+
+/* Get window renderer */
+static HRESULT ANXAPI Theme_GetWindowRenderer(
+    ITuiTheme *This,
+    TUI_WINDOW_RENDERER *Renderer
+)
+{
+    ThemeImpl *impl = (ThemeImpl *)This;
+    if (Renderer) *Renderer = impl->WindowRenderer;
+    return S_OK;
+}
+
 /* Set theme name */
 static HRESULT ANXAPI Theme_SetName(
     ITuiTheme *This,
@@ -487,6 +591,14 @@ static ITuiTheme_Vtbl ThemeVtbl = {
     Theme_GetButtonStyle,
     Theme_SetUseUnicode,
     Theme_GetUseUnicode,
+    Theme_SetButtonRenderer,
+    Theme_GetButtonRenderer,
+    Theme_SetCheckboxRenderer,
+    Theme_GetCheckboxRenderer,
+    Theme_SetInputRenderer,
+    Theme_GetInputRenderer,
+    Theme_SetWindowRenderer,
+    Theme_GetWindowRenderer,
     Theme_LoadFromFile,
     Theme_SaveToFile,
     Theme_SetName,
@@ -524,6 +636,14 @@ HRESULT AnxTuiCreateTheme(
     impl->WindowShadowEnabled = FALSE;
     impl->ShadowChar = 0xB1;  /* ░ light shade */
     impl->UseUnicode = TRUE;
+
+    /* Initialize rendering delegates to NULL (use default rendering) */
+    impl->ButtonRenderer = NULL;
+    impl->ButtonSizer = NULL;
+    impl->CheckboxRenderer = NULL;
+    impl->CheckboxSizer = NULL;
+    impl->InputRenderer = NULL;
+    impl->WindowRenderer = NULL;
 
     *OutTheme = &impl->Interface;
     return S_OK;
