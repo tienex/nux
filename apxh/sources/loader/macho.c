@@ -71,11 +71,28 @@
 #define CPU_TYPE_ARM64       0x0100000C  ///< ARM 64-bit (AArch64)
 #define CPU_TYPE_ARM64_32    0x0200000C  ///< ARM 64-bit with 32-bit pointers
 #define CPU_TYPE_MC88000     13   ///< Motorola 88000
-#define CPU_TYPE_SPARC       14   ///< SPARC
+#define CPU_TYPE_SPARC       14   ///< SPARC 32-bit
+#define CPU_TYPE_SPARC_V9    0x01000014  ///< SPARC v9 64-bit
 #define CPU_TYPE_I860        15   ///< Intel i860
 #define CPU_TYPE_POWERPC     18   ///< PowerPC 32-bit
 #define CPU_TYPE_POWERPC64   0x01000012  ///< PowerPC 64-bit
+#define CPU_TYPE_POWERPC64_32 0x02000012 ///< PowerPC 64-bit with 32-bit pointers (unofficial)
 #define CPU_TYPE_RISCV       0xF3 ///< RISC-V
+#define CPU_TYPE_RISCV32     0xF3 ///< RISC-V 32-bit
+#define CPU_TYPE_RISCV64     0x0100F3 ///< RISC-V 64-bit
+#define CPU_TYPE_RISCV64_32  0x0200F3 ///< RISC-V 64-bit with 32-bit pointers (unofficial)
+#define CPU_TYPE_LOONGARCH32 0x6232 ///< LoongArch 32-bit (unofficial)
+#define CPU_TYPE_LOONGARCH64 0x01006232 ///< LoongArch 64-bit (unofficial)
+#define CPU_TYPE_LOONGARCH64_32 0x02006232 ///< LoongArch 64-bit with 32-bit pointers (unofficial)
+#define CPU_TYPE_MIPS        8    ///< MIPS (unofficial)
+#define CPU_TYPE_MIPS64      0x01000008 ///< MIPS 64-bit (unofficial)
+#define CPU_TYPE_MIPS64_32   0x02000008 ///< MIPS 64-bit with 32-bit pointers n32 (unofficial)
+#define CPU_TYPE_ALPHA       0x9026 ///< DEC Alpha (unofficial)
+#define CPU_TYPE_ALPHA32     0x02009026 ///< DEC Alpha 32-bit mode (unofficial)
+#define CPU_TYPE_IA64        50   ///< Intel IA-64 (unofficial)
+#define CPU_TYPE_IA64_32     0x02000032 ///< Intel IA-64 32-bit mode (unofficial)
+#define CPU_TYPE_S390X       0x5390 ///< IBM s390x (unofficial)
+#define CPU_TYPE_S390X_32    0x02005390 ///< IBM s390x 32-bit mode (unofficial)
 
 //
 // ARM CPU Subtypes
@@ -481,46 +498,132 @@ MachoGetArch (
     case CPU_TYPE_VAX:
       *Architecture = ArchVax;
       break;
+
     case CPU_TYPE_MC680x0:
       *Architecture = ArchM68k;
       break;
+
     case CPU_TYPE_I386:
       *Architecture = Arch386;
       break;
+
     case CPU_TYPE_X86_64:
       *Architecture = ArchAmd64;
       break;
+
     case CPU_TYPE_MC98000:
       *Architecture = ArchPpc32;
       break;
+
     case CPU_TYPE_HPPA:
       *Architecture = ArchPaRisc;
       break;
+
     case CPU_TYPE_ARM:
-      *Architecture = ArchArm;
+      *Architecture = ArchArm32;
       break;
+
     case CPU_TYPE_ARM64:
-    case CPU_TYPE_ARM64_32:
       *Architecture = ArchArm64;
       break;
+
+    case CPU_TYPE_ARM64_32:
+      *Architecture = ArchArm64_32;  // ILP32 on AArch64
+      break;
+
     case CPU_TYPE_MC88000:
       *Architecture = ArchM88k;
       break;
+
     case CPU_TYPE_SPARC:
       *Architecture = ArchSparc;
       break;
+
+    case CPU_TYPE_SPARC_V9:
+      *Architecture = ArchSparc64;
+      break;
+
     case CPU_TYPE_I860:
       *Architecture = ArchI860;
       break;
+
     case CPU_TYPE_POWERPC:
       *Architecture = ArchPpc32;
       break;
+
     case CPU_TYPE_POWERPC64:
       *Architecture = ArchPpc64;
       break;
+
+    case CPU_TYPE_POWERPC64_32:
+      *Architecture = ArchPpc64_32;  // 32-bit mode on PPC64
+      break;
+
+    case CPU_TYPE_RISCV32:
+      *Architecture = ArchRiscV32;
+      break;
+
+    case CPU_TYPE_RISCV64:
+      *Architecture = ArchRiscV64;
+      break;
+
+    case CPU_TYPE_RISCV64_32:
+      *Architecture = ArchRiscV64_32;  // ILP32 on RV64
+      break;
+
+    case CPU_TYPE_LOONGARCH32:
+      *Architecture = ArchLoongArch32;
+      break;
+
+    case CPU_TYPE_LOONGARCH64:
+      *Architecture = ArchLoongArch64;
+      break;
+
+    case CPU_TYPE_LOONGARCH64_32:
+      *Architecture = ArchLoongArch64_32;  // LA32 on LA64
+      break;
+
+    case CPU_TYPE_MIPS:
+      *Architecture = ArchMips32;
+      break;
+
+    case CPU_TYPE_MIPS64:
+      *Architecture = ArchMips64;
+      break;
+
+    case CPU_TYPE_MIPS64_32:
+      *Architecture = ArchMips64_32;  // n32 ABI
+      break;
+
+    case CPU_TYPE_ALPHA:
+      *Architecture = ArchAlpha;
+      break;
+
+    case CPU_TYPE_ALPHA32:
+      *Architecture = ArchAlpha32;  // 32-bit mode on Alpha
+      break;
+
+    case CPU_TYPE_IA64:
+      *Architecture = ArchIa64;
+      break;
+
+    case CPU_TYPE_IA64_32:
+      *Architecture = ArchIa64_32;  // 32-bit compatibility on IA-64
+      break;
+
+    case CPU_TYPE_S390X:
+      *Architecture = ArchS390x;
+      break;
+
+    case CPU_TYPE_S390X_32:
+      *Architecture = ArchS390x_32;  // 32-bit mode on s390x
+      break;
+
+    // For backwards compatibility
     case CPU_TYPE_RISCV:
       *Architecture = ArchRiscV64;
       break;
+
     default:
       *Architecture = ArchUnsupported;
       return IMGLOAD_E_UNSUPPORTED_ARCH;

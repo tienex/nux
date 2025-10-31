@@ -74,6 +74,13 @@
 #define IMAGE_FILE_MACHINE_RISCV128  0x5128  ///< RISC-V 128-bit
 #define IMAGE_FILE_MACHINE_LOONGARCH32 0x6232 ///< LoongArch 32-bit
 #define IMAGE_FILE_MACHINE_LOONGARCH64 0x6264 ///< LoongArch 64-bit
+#define IMAGE_FILE_MACHINE_PARISC    0x0290  ///< HP PA-RISC
+#define IMAGE_FILE_MACHINE_PARISC64  0x0291  ///< HP PA-RISC 64-bit (unofficial)
+#define IMAGE_FILE_MACHINE_SPARC     0x02C2  ///< SPARC (unofficial)
+#define IMAGE_FILE_MACHINE_SPARCV9   0x02C3  ///< SPARC v9 64-bit (unofficial)
+#define IMAGE_FILE_MACHINE_S390      0x5390  ///< IBM s390/s390x (unofficial)
+#define IMAGE_FILE_MACHINE_POWERPC64 0x01F3  ///< PowerPC 64-bit (unofficial)
+#define IMAGE_FILE_MACHINE_MIPS64    0x0167  ///< MIPS 64-bit (unofficial)
 
 //
 // Section Characteristics
@@ -397,6 +404,8 @@ PeGetArch (
 {
   DOS_HEADER *DosHeader;
   PE_NT_HEADERS32 *NtHeaders;
+  UINT16 OptMagic;
+  BOOLEAN IsPe32;  // TRUE for PE32, FALSE for PE32+
 
   if (Architecture == NULL) {
     return E_POINTER;
@@ -405,94 +414,198 @@ PeGetArch (
   DosHeader = (DOS_HEADER *)ImageBase;
   NtHeaders = (PE_NT_HEADERS32 *)PE_OFF(DosHeader->NewHeaderOffset);
 
+  // Determine if this is PE32 or PE32+
+  OptMagic = NtHeaders->OptionalHeader.Magic;
+  IsPe32 = (OptMagic == PE_OPT_MAGIC_PE32);
+
+  // For hybrid architectures: PE32 (32-bit format) with 64-bit machine type
+  // indicates 32-bit pointers on 64-bit hardware
   switch (NtHeaders->FileHeader.Machine) {
     case IMAGE_FILE_MACHINE_I386:
       *Architecture = Arch386;
       break;
+
     case IMAGE_FILE_MACHINE_AMD64:
-      *Architecture = ArchAmd64;
+      // x32 ABI: PE32 with AMD64 machine type
+      if (IsPe32)
+        *Architecture = ArchAmd64_32;
+      else
+        *Architecture = ArchAmd64;
       break;
+
     case IMAGE_FILE_MACHINE_ARM:
     case IMAGE_FILE_MACHINE_ARMNT:
-      *Architecture = ArchArm;
+      *Architecture = ArchArm32;
       break;
+
     case IMAGE_FILE_MACHINE_THUMB:
       *Architecture = ArchThumb;
       break;
+
     case IMAGE_FILE_MACHINE_ARM64:
-      *Architecture = ArchArm64;
+      // ARM64_32 (ILP32): PE32 with ARM64 machine type
+      if (IsPe32)
+        *Architecture = ArchArm64_32;
+      else
+        *Architecture = ArchArm64;
       break;
+
     case IMAGE_FILE_MACHINE_RISCV32:
       *Architecture = ArchRiscV32;
       break;
+
     case IMAGE_FILE_MACHINE_RISCV64:
-      *Architecture = ArchRiscV64;
+      // RV64 ILP32: PE32 with RISC-V 64 machine type
+      if (IsPe32)
+        *Architecture = ArchRiscV64_32;
+      else
+        *Architecture = ArchRiscV64;
       break;
+
     case IMAGE_FILE_MACHINE_RISCV128:
       *Architecture = ArchRiscV128;
       break;
+
     case IMAGE_FILE_MACHINE_LOONGARCH32:
       *Architecture = ArchLoongArch32;
       break;
+
     case IMAGE_FILE_MACHINE_LOONGARCH64:
-      *Architecture = ArchLoongArch64;
+      // LA32 on LA64: PE32 with LoongArch64 machine type
+      if (IsPe32)
+        *Architecture = ArchLoongArch64_32;
+      else
+        *Architecture = ArchLoongArch64;
       break;
+
     case IMAGE_FILE_MACHINE_POWERPC:
     case IMAGE_FILE_MACHINE_POWERPCFP:
     case IMAGE_FILE_MACHINE_POWERPCBE:
     case IMAGE_FILE_MACHINE_MACPPC:
       *Architecture = ArchPpc32;
       break;
+
+    case IMAGE_FILE_MACHINE_POWERPC64:
+      // 32-bit on PPC64: PE32 with PPC64 machine type
+      if (IsPe32)
+        *Architecture = ArchPpc64_32;
+      else
+        *Architecture = ArchPpc64;
+      break;
+
     case IMAGE_FILE_MACHINE_M68K:
       *Architecture = ArchM68k;
       break;
+
     case IMAGE_FILE_MACHINE_R3000:
       *Architecture = ArchMipsR3000;
       break;
+
     case IMAGE_FILE_MACHINE_R4000:
       *Architecture = ArchMipsR4000;
       break;
+
     case IMAGE_FILE_MACHINE_R10000:
       *Architecture = ArchMipsR10000;
       break;
+
     case IMAGE_FILE_MACHINE_WCEMIPSV2:
     case IMAGE_FILE_MACHINE_MIPS16:
     case IMAGE_FILE_MACHINE_MIPSFPU:
     case IMAGE_FILE_MACHINE_MIPSFPU16:
       *Architecture = ArchMips32;
       break;
+
+    case IMAGE_FILE_MACHINE_MIPS64:
+      // n32 ABI: PE32 with MIPS64 machine type
+      if (IsPe32)
+        *Architecture = ArchMips64_32;
+      else
+        *Architecture = ArchMips64;
+      break;
+
     case IMAGE_FILE_MACHINE_ALPHA:
+      // 32-bit on Alpha: PE32 with Alpha machine type
+      if (IsPe32)
+        *Architecture = ArchAlpha32;
+      else
+        *Architecture = ArchAlpha;
+      break;
+
     case IMAGE_FILE_MACHINE_ALPHA64:
       *Architecture = ArchAlpha;
       break;
+
     case IMAGE_FILE_MACHINE_SH3:
-      *Architecture = ArchSh3;
-      break;
     case IMAGE_FILE_MACHINE_SH3DSP:
     case IMAGE_FILE_MACHINE_SH3E:
       *Architecture = ArchSh3;
       break;
+
     case IMAGE_FILE_MACHINE_SH4:
       *Architecture = ArchSh4;
       break;
+
     case IMAGE_FILE_MACHINE_SH5:
       *Architecture = ArchSh5;
       break;
+
     case IMAGE_FILE_MACHINE_IA64:
-      *Architecture = ArchIa64;
+      // 32-bit on IA-64: PE32 with IA-64 machine type
+      if (IsPe32)
+        *Architecture = ArchIa64_32;
+      else
+        *Architecture = ArchIa64;
       break;
+
+    case IMAGE_FILE_MACHINE_PARISC:
+      *Architecture = ArchPaRisc;
+      break;
+
+    case IMAGE_FILE_MACHINE_PARISC64:
+      // 32-bit on PA-RISC 64: PE32 with PA-RISC64 machine type
+      if (IsPe32)
+        *Architecture = ArchPaRisc64_32;
+      else
+        *Architecture = ArchPaRisc64;
+      break;
+
+    case IMAGE_FILE_MACHINE_SPARC:
+      *Architecture = ArchSparc;
+      break;
+
+    case IMAGE_FILE_MACHINE_SPARCV9:
+      // 32-bit on SPARC64: PE32 with SPARCv9 machine type
+      if (IsPe32)
+        *Architecture = ArchSparc64_32;
+      else
+        *Architecture = ArchSparc64;
+      break;
+
+    case IMAGE_FILE_MACHINE_S390:
+      // s390x: PE32+ indicates 64-bit
+      if (!IsPe32)
+        *Architecture = ArchS390x;
+      else
+        *Architecture = ArchS390x_32;  // 32-bit on s390x
+      break;
+
     case IMAGE_FILE_MACHINE_AM33:
       *Architecture = ArchAm29000;
       break;
+
     case IMAGE_FILE_MACHINE_M32R:
       *Architecture = ArchUnsupported; // No specific M32R arch defined yet
       break;
+
     case IMAGE_FILE_MACHINE_EBC:
       *Architecture = ArchUnsupported; // EFI Byte Code is virtual
       break;
+
     case IMAGE_FILE_MACHINE_CEE:
       *Architecture = ArchUnsupported; // CLR MSIL is virtual
       break;
+
     case IMAGE_FILE_MACHINE_TRICORE:
     case IMAGE_FILE_MACHINE_CEF:
     case IMAGE_FILE_MACHINE_UNKNOWN:

@@ -80,11 +80,24 @@
 // ELF Machine Types
 //
 
+#define EM_SPARC    2    ///< SPARC
 #define EM_386      3    ///< Intel 80386
+#define EM_68K      4    ///< Motorola 68000
+#define EM_MIPS     8    ///< MIPS
+#define EM_PARISC   15   ///< HP PA-RISC
 #define EM_PPC      20   ///< PowerPC 32-bit
 #define EM_PPC64    21   ///< PowerPC 64-bit
+#define EM_S390     22   ///< IBM s390
+#define EM_ARM      40   ///< ARM 32-bit
+#define EM_ALPHA    0x9026 ///< DEC Alpha (old)
+#define EM_ALPHA_EXP 36    ///< DEC Alpha (experimental)
+#define EM_SH       42   ///< SuperH
+#define EM_SPARCV9  43   ///< SPARC v9 64-bit
+#define EM_IA_64    50   ///< Intel IA-64
 #define EM_X86_64   62   ///< AMD x86-64
+#define EM_AARCH64  183  ///< ARM 64-bit
 #define EM_RISCV    0xF3 ///< RISC-V
+#define EM_LOONGARCH 258 ///< LoongArch
 
 //
 // ELF Version
@@ -765,7 +778,9 @@ LoadElf64 (
 /**
   Get ELF architecture.
 
-  Determines the target architecture from ELF machine type.
+  Determines the target architecture from ELF machine type and class.
+  For hybrid architectures (32-bit on 64-bit), checks for ELFCLASS32 with
+  64-bit machine types.
 
   @param[in] ElfImg  Pointer to ELF image.
 
@@ -779,26 +794,106 @@ GetElfArch (
 {
   CHAR8 ElfId[] = { 0x7F, 'E', 'L', 'F' };
   ELF32_HDR *ElfHeader = (ELF32_HDR *)ElfImg;
+  UINT8 *Ident = (UINT8 *)ElfImg;
+  UINT8 ElfClass;
 
   if (memcmp(ElfHeader->Id, ElfId, 4) != 0)
     return ArchInvalid;
 
-  if (ElfHeader->Mach == EM_386)
-    return Arch386;
+  ElfClass = Ident[4];  // EI_CLASS
 
-  if (ElfHeader->Mach == EM_X86_64)
-    return ArchAmd64;
+  // Handle machine types
+  switch (ElfHeader->Mach) {
+    case EM_386:
+      return Arch386;
 
-  if (ElfHeader->Mach == EM_PPC)
-    return ArchPpc32;
+    case EM_X86_64:
+      // Check for x32 ABI (ELFCLASS32 with x86-64)
+      if (ElfClass == ELFCLASS32)
+        return ArchAmd64_32;
+      return ArchAmd64;
 
-  if (ElfHeader->Mach == EM_PPC64)
-    return ArchPpc64;
+    case EM_ARM:
+      return ArchArm32;
 
-  if (ElfHeader->Mach == EM_RISCV)
-    return ArchRiscV64;
+    case EM_AARCH64:
+      // Check for ILP32 ABI (ELFCLASS32 with AArch64)
+      if (ElfClass == ELFCLASS32)
+        return ArchArm64_32;
+      return ArchArm64;
 
-  return ArchUnsupported;
+    case EM_PPC:
+      return ArchPpc32;
+
+    case EM_PPC64:
+      // Check for 32-bit mode on PPC64
+      if (ElfClass == ELFCLASS32)
+        return ArchPpc64_32;
+      return ArchPpc64;
+
+    case EM_MIPS:
+      // For MIPS, check class to distinguish 32/64-bit and hybrid
+      if (ElfClass == ELFCLASS64)
+        return ArchMips64;
+      // Could be MIPS32 or n32 on MIPS64 - default to MIPS32
+      return ArchMips32;
+
+    case EM_RISCV:
+      // Check for ILP32 on RV64 (ELFCLASS32 with RISC-V)
+      if (ElfClass == ELFCLASS32)
+        return ArchRiscV32;  // Could be RV32 or ILP32 on RV64
+      return ArchRiscV64;
+
+    case EM_SPARC:
+      return ArchSparc;
+
+    case EM_SPARCV9:
+      // Check for 32-bit mode on SPARC64
+      if (ElfClass == ELFCLASS32)
+        return ArchSparc64_32;
+      return ArchSparc64;
+
+    case EM_ALPHA:
+    case EM_ALPHA_EXP:
+      // Alpha is typically 64-bit, but check for 32-bit mode
+      if (ElfClass == ELFCLASS32)
+        return ArchAlpha32;
+      return ArchAlpha;
+
+    case EM_PARISC:
+      // Check class for PA-RISC 32 vs 64
+      if (ElfClass == ELFCLASS64)
+        return ArchPaRisc64;
+      return ArchPaRisc;
+
+    case EM_IA_64:
+      // Check for 32-bit compatibility mode on Itanium
+      if (ElfClass == ELFCLASS32)
+        return ArchIa64_32;
+      return ArchIa64;
+
+    case EM_S390:
+      // s390 is the 31/32-bit version, s390x is 64-bit
+      // s390x uses EM_S390 with ELFCLASS64
+      if (ElfClass == ELFCLASS64)
+        return ArchS390x;
+      return ArchUnsupported;  // 32-bit s390
+
+    case EM_LOONGARCH:
+      // Check for LA32 on LA64 (ELFCLASS32 with LoongArch)
+      if (ElfClass == ELFCLASS32)
+        return ArchLoongArch32;  // Could be LA32 or LA32-on-LA64
+      return ArchLoongArch64;
+
+    case EM_68K:
+      return ArchM68k;
+
+    case EM_SH:
+      return ArchSh;
+
+    default:
+      return ArchUnsupported;
+  }
 }
 
 /**
