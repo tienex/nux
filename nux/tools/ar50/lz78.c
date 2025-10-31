@@ -59,8 +59,9 @@ LZ78Compress (
 
   DictSize = 0;
   InPos = 0;
-  OutPos = 0;
+  OutPos = 1;  // Reserve byte 0 for final match flag
   CurrentIndex = 0;
+  UINT8 HasFinalMatch = 0;
 
   while (InPos < InputSize)
     {
@@ -110,10 +111,10 @@ LZ78Compress (
         }
     }
 
-  // Emit final entry if needed
+  // Emit final partial match if needed
   if (CurrentIndex != 0)
     {
-      if (OutPos + 3 > OutputSize)
+      if (OutPos + 2 > OutputSize)
         {
           free (pDict);
           return FALSE;
@@ -121,8 +122,11 @@ LZ78Compress (
 
       pOutput[OutPos++] = (CurrentIndex >> 8) & 0xFF;
       pOutput[OutPos++] = CurrentIndex & 0xFF;
-      pOutput[OutPos++] = 0;  // Terminator
+      HasFinalMatch = 1;
     }
+
+  // Write flag byte at position 0
+  pOutput[0] = HasFinalMatch;
 
   free (pDict);
   *pCompSize = OutPos;
@@ -156,11 +160,14 @@ LZ78Decompress (
   if (pInput == NULL || pOutput == NULL || pDecompSize == NULL)
     return FALSE;
 
-  if (InputSize == 0)
+  if (InputSize < 1)
     {
       *pDecompSize = 0;
       return TRUE;
     }
+
+  // Read flag byte
+  UINT8 HasFinalMatch = pInput[0];
 
   // Allocate dictionary
   pDict = (LZ78_ENTRY *) malloc (LZ78_MAX_DICT_SIZE * sizeof (LZ78_ENTRY));
@@ -168,10 +175,11 @@ LZ78Decompress (
     return FALSE;
 
   DictSize = 0;
-  InPos = 0;
+  InPos = 1;  // Skip flag byte
   OutPos = 0;
 
-  while (InPos + 2 < InputSize)
+  // Process (index, character) pairs
+  while (InPos + 3 <= InputSize)
     {
       UINT16 Index = ((UINT16)pInput[InPos] << 8) | pInput[InPos + 1];
       UINT8 Character = pInput[InPos + 2];
@@ -206,22 +214,52 @@ LZ78Decompress (
         }
 
       // Output new character
-      if (Character != 0 || Index != 0)
+      if (OutPos >= OutputSize)
+        {
+          free (pDict);
+          return FALSE;
+        }
+      pOutput[OutPos++] = Character;
+
+      // Add to dictionary
+      if (DictSize < LZ78_MAX_DICT_SIZE)
+        {
+          pDict[DictSize].Prefix = Index;
+          pDict[DictSize].Character = Character;
+          DictSize++;
+        }
+    }
+
+  // Handle final partial match if present
+  if (HasFinalMatch && InPos + 2 <= InputSize)
+    {
+      UINT16 Index = ((UINT16)pInput[InPos] << 8) | pInput[InPos + 1];
+
+      // Reconstruct string from dictionary
+      UINT8 Buffer[256];
+      size_t BufLen = 0;
+
+      UINT16 Idx = Index;
+      while (Idx > 0 && BufLen < sizeof(Buffer))
+        {
+          if (Idx - 1 >= DictSize)
+            {
+              free (pDict);
+              return FALSE;
+            }
+          Buffer[BufLen++] = pDict[Idx - 1].Character;
+          Idx = pDict[Idx - 1].Prefix;
+        }
+
+      // Output in reverse order
+      for (size_t I = BufLen; I > 0; I--)
         {
           if (OutPos >= OutputSize)
             {
               free (pDict);
               return FALSE;
             }
-          pOutput[OutPos++] = Character;
-
-          // Add to dictionary
-          if (DictSize < LZ78_MAX_DICT_SIZE)
-            {
-              pDict[DictSize].Prefix = Index;
-              pDict[DictSize].Character = Character;
-              DictSize++;
-            }
+          pOutput[OutPos++] = Buffer[I - 1];
         }
     }
 

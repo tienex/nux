@@ -285,8 +285,9 @@ DoCreate (
 
       if (OrigSize > 0)
 	{
-	  // Allocate compression buffer (extra space for headers)
-	  size_t CompBufSize = OrigSize + (OrigSize / 2) + 2048;
+	  // Allocate compression buffer (extra space for range encoding frequency table + headers)
+	  // Range encoding adds ~1KB overhead, plus LZ78 may expand small files
+	  size_t CompBufSize = OrigSize * 3 + 3072;
 	  pCompBuf = calloc (1, CompBufSize);
 	  if (pCompBuf != NULL)
 	    {

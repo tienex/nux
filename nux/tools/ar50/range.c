@@ -126,7 +126,7 @@ RenormalizeDecoder (
 /**
   Decode a symbol with given cumulative frequencies.
 **/
-static UINT32
+static BOOLEAN
 DecodeSymbol (
   RANGE_DECODER  *pDec,
   UINT32         *pCumFreq,
@@ -134,26 +134,37 @@ DecodeSymbol (
   UINT32         *pSymbol
   )
 {
-  UINT32 Scaled = (pDec->Code * Total) / pDec->Range;
+  UINT32 R, Scaled;
   UINT32 I;
 
-  // Find symbol
+  // Calculate scaled value - avoid precision loss
+  R = pDec->Range / Total;
+  if (R == 0)
+    R = 1;
+
+  Scaled = pDec->Code / R;
+
+  // Clamp to valid range
+  if (Scaled >= Total)
+    Scaled = Total - 1;
+
+  // Find symbol via binary search would be faster, but linear is simple
   for (I = 0; I < 256; I++)
     {
       if (pCumFreq[I] <= Scaled && Scaled < pCumFreq[I + 1])
         {
           *pSymbol = I;
 
-          UINT32 R = pDec->Range / Total;
           pDec->Code -= R * pCumFreq[I];
           pDec->Range = R * (pCumFreq[I + 1] - pCumFreq[I]);
 
           RenormalizeDecoder (pDec);
-          return Scaled;
+          return TRUE;
         }
     }
 
-  return 0;
+  // Symbol not found - data corruption
+  return FALSE;
 }
 
 /**
@@ -318,7 +329,8 @@ RangeDecode (
   // Decode symbols
   for (I = 0; I < DecompSize; I++)
     {
-      DecodeSymbol (&Dec, CumFreq, Total, &Symbol);
+      if (!DecodeSymbol (&Dec, CumFreq, Total, &Symbol))
+        return FALSE;
       pOutput[I] = (UINT8)Symbol;
     }
 

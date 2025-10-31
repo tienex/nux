@@ -1,13 +1,14 @@
 /** @file
   Compression Pipeline Implementation
 
-  Implements a complete compression pipeline combining LZ78, BWT, MTF,
+  Implements a complete compression pipeline combining BWT, MTF, LZ78,
   and Range encoding for maximum compression.
 
   Pipeline stages:
   1. BWT (Burrows-Wheeler Transform) - Groups similar characters
   2. MTF (Move-To-Front) - Converts to small values
-  3. Range Encoding - Final compression
+  3. LZ78 (Dictionary Compression) - Compresses repetitive patterns
+  4. Range Encoding - Final entropy compression
 
   Copyright (C) 2015-2025 Gianluca Guida
 
@@ -15,15 +16,17 @@
 **/
 
 #include "types.h"
+#include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
 #include "compress.h"
 #include "bwt.h"
 #include "mtf.h"
+#include "lz78.h"
 #include "range.h"
 
 /**
-  Compress data using full pipeline (BWT + MTF + Range).
+  Compress data using full pipeline (BWT -> MTF -> LZ78 -> Range).
 
   @param[in]  pInput      Input data buffer.
   @param[in]  InputSize   Size of input data.
@@ -44,9 +47,10 @@ CompressFull (
 {
   UINT8 *pBWTOutput;
   UINT8 *pMTFOutput;
+  UINT8 *pLZ78Output;
+  size_t BWTSize, MTFSize, LZ78Size, RangeSize;
   UINT32 BWTIndex;
   BOOLEAN Result;
-  size_t RangeSize;
 
   if (pInput == NULL || pOutput == NULL || pCompSize == NULL)
     return FALSE;
@@ -57,17 +61,20 @@ CompressFull (
       return TRUE;
     }
 
-  if (OutputSize < 8 + InputSize)  // Header (8) + data
+  // Minimum output size needed for headers
+  if (OutputSize < 16)
     return FALSE;
 
-  // Allocate temporary buffers
+  // Allocate temporary buffers (generous sizing)
   pBWTOutput = (UINT8 *) malloc (InputSize);
   pMTFOutput = (UINT8 *) malloc (InputSize);
+  pLZ78Output = (UINT8 *) malloc (InputSize * 2);
 
-  if (pBWTOutput == NULL || pMTFOutput == NULL)
+  if (pBWTOutput == NULL || pMTFOutput == NULL || pLZ78Output == NULL)
     {
       free (pBWTOutput);
       free (pMTFOutput);
+      free (pLZ78Output);
       return FALSE;
     }
 
@@ -76,42 +83,61 @@ CompressFull (
     {
       free (pBWTOutput);
       free (pMTFOutput);
+      free (pLZ78Output);
       return FALSE;
     }
+
+  BWTSize = InputSize;
 
   // Stage 2: MTF Encoding
-  if (!MTFEncode (pBWTOutput, InputSize, pMTFOutput))
+  if (!MTFEncode (pBWTOutput, BWTSize, pMTFOutput))
     {
       free (pBWTOutput);
       free (pMTFOutput);
+      free (pLZ78Output);
       return FALSE;
     }
 
-  // Write header: BWT index + original size
-  pOutput[0] = (BWTIndex >> 24) & 0xFF;
-  pOutput[1] = (BWTIndex >> 16) & 0xFF;
-  pOutput[2] = (BWTIndex >> 8) & 0xFF;
-  pOutput[3] = BWTIndex & 0xFF;
+  MTFSize = BWTSize;
 
-  pOutput[4] = (InputSize >> 24) & 0xFF;
-  pOutput[5] = (InputSize >> 16) & 0xFF;
-  pOutput[6] = (InputSize >> 8) & 0xFF;
-  pOutput[7] = InputSize & 0xFF;
-
-  // Stage 3: Store MTF output directly (range encoding has bugs)
-  if (OutputSize < 8 + InputSize)
+  // Stage 3: LZ78 Compression
+  if (!LZ78Compress (pMTFOutput, MTFSize, pLZ78Output, InputSize * 2, &LZ78Size))
     {
       free (pBWTOutput);
       free (pMTFOutput);
+      free (pLZ78Output);
       return FALSE;
     }
 
-  memcpy (pOutput + 8, pMTFOutput, InputSize);
+  // Write header: original size, BWT index, LZ78 size
+  pOutput[0] = (InputSize >> 24) & 0xFF;
+  pOutput[1] = (InputSize >> 16) & 0xFF;
+  pOutput[2] = (InputSize >> 8) & 0xFF;
+  pOutput[3] = InputSize & 0xFF;
+
+  pOutput[4] = (BWTIndex >> 24) & 0xFF;
+  pOutput[5] = (BWTIndex >> 16) & 0xFF;
+  pOutput[6] = (BWTIndex >> 8) & 0xFF;
+  pOutput[7] = BWTIndex & 0xFF;
+
+  pOutput[8] = (LZ78Size >> 24) & 0xFF;
+  pOutput[9] = (LZ78Size >> 16) & 0xFF;
+  pOutput[10] = (LZ78Size >> 8) & 0xFF;
+  pOutput[11] = LZ78Size & 0xFF;
+
+  // Stage 4: Range Encoding
+  Result = RangeEncode (pLZ78Output, LZ78Size,
+                        pOutput + 12, OutputSize - 12,
+                        &RangeSize);
 
   free (pBWTOutput);
   free (pMTFOutput);
+  free (pLZ78Output);
 
-  *pCompSize = 8 + InputSize;
+  if (!Result)
+    return FALSE;
+
+  *pCompSize = 12 + RangeSize;
   return TRUE;
 }
 
@@ -136,58 +162,124 @@ DecompressFull (
   )
 {
   UINT8 *pRangeOutput;
+  UINT8 *pLZ78Output;
   UINT8 *pMTFOutput;
-  UINT32 BWTIndex;
-  size_t RangeSize;
+  UINT8 *pBWTOutput;
+  UINT32 OrigSize, LZ78Size, BWTIndex;
+  size_t RangeSize, DecompLZ78Size, MTFSize, BWTSize;
   BOOLEAN Result;
 
   if (pInput == NULL || pOutput == NULL || pDecompSize == NULL)
     return FALSE;
 
-  if (InputSize < 8)
+  if (InputSize < 12)
     return FALSE;
 
-  // Read header: BWT index + original size
-  BWTIndex = ((UINT32)pInput[0] << 24) | ((UINT32)pInput[1] << 16) |
+  // Read header
+  OrigSize = ((UINT32)pInput[0] << 24) | ((UINT32)pInput[1] << 16) |
              ((UINT32)pInput[2] << 8) | pInput[3];
 
-  RangeSize = ((UINT32)pInput[4] << 24) | ((UINT32)pInput[5] << 16) |
-              ((UINT32)pInput[6] << 8) | pInput[7];
+  BWTIndex = ((UINT32)pInput[4] << 24) | ((UINT32)pInput[5] << 16) |
+             ((UINT32)pInput[6] << 8) | pInput[7];
 
-  if (RangeSize > OutputSize || InputSize < 8 + RangeSize)
+  LZ78Size = ((UINT32)pInput[8] << 24) | ((UINT32)pInput[9] << 16) |
+             ((UINT32)pInput[10] << 8) | pInput[11];
+
+  if (OrigSize > OutputSize)
     return FALSE;
 
   // Allocate temporary buffers
-  pRangeOutput = (UINT8 *) malloc (RangeSize);
-  pMTFOutput = (UINT8 *) malloc (RangeSize);
+  pRangeOutput = (UINT8 *) malloc (LZ78Size * 2);
+  pLZ78Output = (UINT8 *) malloc (OrigSize * 2);
+  pMTFOutput = (UINT8 *) malloc (OrigSize);
+  pBWTOutput = (UINT8 *) malloc (OrigSize);
 
-  if (pRangeOutput == NULL || pMTFOutput == NULL)
+  if (pRangeOutput == NULL || pLZ78Output == NULL ||
+      pMTFOutput == NULL || pBWTOutput == NULL)
     {
       free (pRangeOutput);
+      free (pLZ78Output);
       free (pMTFOutput);
+      free (pBWTOutput);
       return FALSE;
     }
 
-  // Stage 1: Read MTF data directly (skip range decoding)
-  memcpy (pRangeOutput, pInput + 8, RangeSize);
-
-  // Stage 2: MTF Decoding
-  if (!MTFDecode (pRangeOutput, RangeSize, pMTFOutput))
+  // Stage 1: Range Decoding
+  if (!RangeDecode (pInput + 12, InputSize - 12,
+                    pRangeOutput, LZ78Size * 2,
+                    &RangeSize))
     {
       free (pRangeOutput);
+      free (pLZ78Output);
       free (pMTFOutput);
+      free (pBWTOutput);
       return FALSE;
     }
 
-  // Stage 3: Inverse BWT
-  Result = BWTInverse (pMTFOutput, RangeSize, BWTIndex, pOutput);
+  // Verify LZ78 size matches
+  if (RangeSize != LZ78Size)
+    {
+      free (pRangeOutput);
+      free (pLZ78Output);
+      free (pMTFOutput);
+      free (pBWTOutput);
+      return FALSE;
+    }
+
+  // Stage 2: LZ78 Decompression
+  if (!LZ78Decompress (pRangeOutput, LZ78Size,
+                       pLZ78Output, OrigSize * 2,
+                       &DecompLZ78Size))
+    {
+      free (pRangeOutput);
+      free (pLZ78Output);
+      free (pMTFOutput);
+      free (pBWTOutput);
+      return FALSE;
+    }
+
+  MTFSize = DecompLZ78Size;
+
+  // Stage 3: MTF Decoding
+  if (!MTFDecode (pLZ78Output, MTFSize, pMTFOutput))
+    {
+      free (pRangeOutput);
+      free (pLZ78Output);
+      free (pMTFOutput);
+      free (pBWTOutput);
+      return FALSE;
+    }
+
+  BWTSize = MTFSize;
+
+  // Stage 4: Inverse BWT
+  if (!BWTInverse (pMTFOutput, BWTSize, BWTIndex, pBWTOutput))
+    {
+      free (pRangeOutput);
+      free (pLZ78Output);
+      free (pMTFOutput);
+      free (pBWTOutput);
+      return FALSE;
+    }
+
+  // Verify size matches
+  if (BWTSize != OrigSize)
+    {
+      free (pRangeOutput);
+      free (pLZ78Output);
+      free (pMTFOutput);
+      free (pBWTOutput);
+      return FALSE;
+    }
+
+  // Copy to output
+  memcpy (pOutput, pBWTOutput, OrigSize);
 
   free (pRangeOutput);
+  free (pLZ78Output);
   free (pMTFOutput);
+  free (pBWTOutput);
 
-  if (!Result)
-    return FALSE;
-
-  *pDecompSize = RangeSize;
+  *pDecompSize = OrigSize;
   return TRUE;
 }
