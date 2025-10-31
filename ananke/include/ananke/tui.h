@@ -2495,6 +2495,18 @@ typedef struct _ITuiTreeView_Vtbl {
     **/
     HRESULT (ANXAPI *Clear)(ITuiTreeView *This);
 
+    /**
+      Enable virtual mode for handling millions of items.
+      When enabled, tree data is fetched via callback on-demand.
+    **/
+    HRESULT (ANXAPI *SetVirtualMode)(
+        ITuiTreeView *This,
+        BOOLEAN Enable,
+        UINT32 ItemCount,
+        HRESULT (*Callback)(VOID *UserData, UINT32 Index, VOID *OutData),
+        VOID *UserData
+    );
+
 } ITuiTreeView_Vtbl;
 
 struct _ITuiTreeView {
@@ -2586,6 +2598,18 @@ typedef struct _ITuiListView_Vtbl {
         ITuiListView *This,
         UINT32 ColumnIndex,
         UINT32 Width
+    );
+
+    /**
+      Enable virtual mode for handling millions of items.
+      When enabled, list data is fetched via callback on-demand.
+    **/
+    HRESULT (ANXAPI *SetVirtualMode)(
+        ITuiListView *This,
+        BOOLEAN Enable,
+        UINT32 ItemCount,
+        HRESULT (*Callback)(VOID *UserData, UINT32 Index, CHAR8 **OutCells, UINT32 *OutCellCount, BOOLEAN *OutChecked),
+        VOID *UserData
     );
 
 } ITuiListView_Vtbl;
