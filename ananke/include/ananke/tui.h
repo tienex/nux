@@ -54,6 +54,7 @@ typedef struct _ITuiMarkdownViewer ITuiMarkdownViewer;
 typedef struct _ITuiPrintDialog ITuiPrintDialog;
 typedef struct _ITuiLongOpDialog ITuiLongOpDialog;
 typedef struct _ITuiDirectoryDialog ITuiDirectoryDialog;
+typedef struct _ITuiTerminal ITuiTerminal;
 
 //
 // Text Direction for BiDi Support
@@ -2255,6 +2256,144 @@ struct _ITuiDirectoryDialog {
     CONST ITuiDirectoryDialog_Vtbl *Vtbl;
 };
 
+// {5B6C7D8E-9F0A-1B2C-3D4E-5F6A7B8C9D0E}
+DEFINE_GUID(IID_ITuiTerminal,
+    0x5B6C7D8E, 0x9F0A, 0x1B2C, 0x3D, 0x4E, 0x5F, 0x6A, 0x7B, 0x8C, 0x9D, 0x0E);
+
+/**
+  Terminal Render Callback
+
+  Custom callback for rendering terminal cells.
+
+  @param[in] UserData  User-provided context data.
+  @param[in] Screen    Screen interface for rendering.
+  @param[in] X         X coordinate to render at.
+  @param[in] Y         Y coordinate to render at.
+  @param[in] Cell      Terminal cell data (opaque structure).
+
+  @retval S_OK  Rendering successful.
+**/
+typedef HRESULT (*TerminalRenderCallback)(
+    VOID *UserData,
+    ITuiScreen *Screen,
+    INT32 X,
+    INT32 Y,
+    CONST VOID *Cell
+);
+
+/**
+  Terminal Parser Callback
+
+  Custom callback for parsing escape sequences.
+
+  @param[in] UserData  User-provided context data.
+  @param[in] Sequence  Escape sequence string.
+  @param[in] Length    Length of sequence.
+
+  @retval S_OK  Parsing successful.
+**/
+typedef HRESULT (*TerminalParserCallback)(
+    VOID *UserData,
+    CONST CHAR8 *Sequence,
+    UINTN Length
+);
+
+/**
+  ITuiTerminal Interface
+
+  Terminal emulator widget with customizable renderer and parser
+  for ANSI/VT100 escape sequences.
+**/
+typedef struct _ITuiTerminal_Vtbl {
+    HRESULT (ANXAPI *QueryInterface)(ITuiTerminal *This, REFIID riid, VOID **ppvObject);
+    UINTN (ANXAPI *AddRef)(ITuiTerminal *This);
+    UINTN (ANXAPI *Release)(ITuiTerminal *This);
+
+    /**
+      Render the terminal.
+    **/
+    HRESULT (ANXAPI *Render)(
+        ITuiTerminal *This,
+        ITuiScreen *Screen,
+        INT32 X,
+        INT32 Y,
+        BOOLEAN Focused
+    );
+
+    /**
+      Handle keyboard input.
+    **/
+    HRESULT (ANXAPI *HandleKey)(
+        ITuiTerminal *This,
+        TUI_KEY Key
+    );
+
+    /**
+      Standard widget methods.
+    **/
+    HRESULT (ANXAPI *SetBounds)(ITuiTerminal *This, CONST TUI_RECT *Bounds);
+    HRESULT (ANXAPI *GetBounds)(ITuiTerminal *This, TUI_RECT *Bounds);
+    HRESULT (ANXAPI *SetVisible)(ITuiTerminal *This, BOOLEAN Visible);
+    BOOLEAN (ANXAPI *IsVisible)(ITuiTerminal *This);
+    HRESULT (ANXAPI *SetEnabled)(ITuiTerminal *This, BOOLEAN Enabled);
+    BOOLEAN (ANXAPI *IsEnabled)(ITuiTerminal *This);
+
+    /**
+      Write text to terminal (will be parsed for escape sequences).
+    **/
+    HRESULT (ANXAPI *WriteText)(
+        ITuiTerminal *This,
+        CONST CHAR8 *Text,
+        UINTN Length
+    );
+
+    /**
+      Clear terminal screen.
+    **/
+    HRESULT (ANXAPI *Clear)(ITuiTerminal *This);
+
+    /**
+      Set terminal size (columns and rows).
+    **/
+    HRESULT (ANXAPI *SetSize)(
+        ITuiTerminal *This,
+        UINT32 Cols,
+        UINT32 Rows
+    );
+
+    /**
+      Set custom renderer callback.
+    **/
+    HRESULT (ANXAPI *SetRenderer)(
+        ITuiTerminal *This,
+        TerminalRenderCallback Renderer,
+        VOID *UserData
+    );
+
+    /**
+      Set custom parser callback.
+    **/
+    HRESULT (ANXAPI *SetParser)(
+        ITuiTerminal *This,
+        TerminalParserCallback Parser,
+        VOID *UserData
+    );
+
+    /**
+      Set input callback (for handling user input).
+    **/
+    HRESULT (ANXAPI *SetInputCallback)(
+        ITuiTerminal *This,
+        HRESULT (*Callback)(VOID *UserData, CONST CHAR8 *Input, UINTN Length),
+        VOID *UserData
+    );
+
+} ITuiTerminal_Vtbl;
+
+struct _ITuiTerminal {
+    CONST ITuiTerminal_Vtbl *Vtbl;
+};
+
 //
 // Factory functions
 //
@@ -2644,6 +2783,25 @@ ANXAPI
 AnxTuiCreateDirectoryDialog(
     IN  CONST CHAR8 *Title,
     OUT ITuiDirectoryDialog **OutDialog
+);
+
+/**
+  Create a TUI Terminal instance.
+
+  @param[in]  Cols         Number of columns.
+  @param[in]  Rows         Number of rows.
+  @param[out] OutTerminal  Pointer to receive the terminal interface.
+
+  @retval S_OK        Terminal created successfully.
+  @retval E_INVALIDARG  Invalid dimensions.
+  @retval E_OUTOFMEMORY  Memory allocation failed.
+**/
+HRESULT
+ANXAPI
+AnxTuiCreateTerminal(
+    IN  UINT32 Cols,
+    IN  UINT32 Rows,
+    OUT ITuiTerminal **OutTerminal
 );
 
 #ifdef __cplusplus
