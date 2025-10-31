@@ -25,13 +25,15 @@
 #include "mtf.h"
 #include "rad50rle.h"
 #include "lz78.h"
+#include "lz78_windowed.h"
 #include "range.h"
 
 /**
-  Compress data using full pipeline (BWT -> MTF -> RAD50RLE -> LZ78 -> Range).
+  Compress data using full pipeline (BWT -> MTF -> RAD50RLE -> Windowed LZ78 -> Range).
 
   @param[in]  pInput      Input data buffer.
   @param[in]  InputSize   Size of input data.
+  @param[in]  WindowSize  Window size for LZ78 (4K-1M).
   @param[out] pOutput     Output buffer for compressed data.
   @param[in]  OutputSize  Size of output buffer.
   @param[out] pCompSize   Actual compressed size.
@@ -42,6 +44,7 @@ BOOLEAN
 CompressFull (
   IN  const UINT8  *pInput,
   IN  size_t       InputSize,
+  IN  UINT32       WindowSize,
   OUT UINT8        *pOutput,
   IN  size_t       OutputSize,
   OUT size_t       *pCompSize
@@ -118,8 +121,9 @@ CompressFull (
       return FALSE;
     }
 
-  // Stage 4: LZ78 Compression
-  if (!LZ78Compress (pRAD50Output, RAD50Size, pLZ78Output, InputSize * 3, &LZ78Size))
+  // Stage 4: Windowed LZ78 Compression
+  if (!LZ78WindowedCompress (pRAD50Output, RAD50Size, WindowSize,
+                              pLZ78Output, InputSize * 3, &LZ78Size))
     {
       free (pBWTOutput);
       free (pMTFOutput);
@@ -128,7 +132,7 @@ CompressFull (
       return FALSE;
     }
 
-  // Write header: original size, BWT index, RAD50 size, LZ78 size
+  // Write header: original size, BWT index, window size, RAD50 size, LZ78 size
   pOutput[0] = (InputSize >> 24) & 0xFF;
   pOutput[1] = (InputSize >> 16) & 0xFF;
   pOutput[2] = (InputSize >> 8) & 0xFF;
@@ -139,19 +143,24 @@ CompressFull (
   pOutput[6] = (BWTIndex >> 8) & 0xFF;
   pOutput[7] = BWTIndex & 0xFF;
 
-  pOutput[8] = (RAD50Size >> 24) & 0xFF;
-  pOutput[9] = (RAD50Size >> 16) & 0xFF;
-  pOutput[10] = (RAD50Size >> 8) & 0xFF;
-  pOutput[11] = RAD50Size & 0xFF;
+  pOutput[8] = (WindowSize >> 24) & 0xFF;
+  pOutput[9] = (WindowSize >> 16) & 0xFF;
+  pOutput[10] = (WindowSize >> 8) & 0xFF;
+  pOutput[11] = WindowSize & 0xFF;
 
-  pOutput[12] = (LZ78Size >> 24) & 0xFF;
-  pOutput[13] = (LZ78Size >> 16) & 0xFF;
-  pOutput[14] = (LZ78Size >> 8) & 0xFF;
-  pOutput[15] = LZ78Size & 0xFF;
+  pOutput[12] = (RAD50Size >> 24) & 0xFF;
+  pOutput[13] = (RAD50Size >> 16) & 0xFF;
+  pOutput[14] = (RAD50Size >> 8) & 0xFF;
+  pOutput[15] = RAD50Size & 0xFF;
+
+  pOutput[16] = (LZ78Size >> 24) & 0xFF;
+  pOutput[17] = (LZ78Size >> 16) & 0xFF;
+  pOutput[18] = (LZ78Size >> 8) & 0xFF;
+  pOutput[19] = LZ78Size & 0xFF;
 
   // Stage 5: Range Encoding
   Result = RangeEncode (pLZ78Output, LZ78Size,
-                        pOutput + 16, OutputSize - 16,
+                        pOutput + 20, OutputSize - 20,
                         &RangeSize);
 
   free (pBWTOutput);
@@ -162,7 +171,7 @@ CompressFull (
   if (!Result)
     return FALSE;
 
-  *pCompSize = 16 + RangeSize;
+  *pCompSize = 20 + RangeSize;
   return TRUE;
 }
 
@@ -191,14 +200,14 @@ DecompressFull (
   UINT8 *pRAD50Output;
   UINT8 *pMTFOutput;
   UINT8 *pBWTOutput;
-  UINT32 OrigSize, RAD50Size, LZ78Size, BWTIndex;
+  UINT32 OrigSize, RAD50Size, LZ78Size, BWTIndex, WindowSize;
   size_t RangeSize, DecompLZ78Size, DecompRAD50Size, MTFSize, BWTSize;
   BOOLEAN Result;
 
   if (pInput == NULL || pOutput == NULL || pDecompSize == NULL)
     return FALSE;
 
-  if (InputSize < 16)
+  if (InputSize < 20)
     return FALSE;
 
   // Read header
@@ -208,11 +217,14 @@ DecompressFull (
   BWTIndex = ((UINT32)pInput[4] << 24) | ((UINT32)pInput[5] << 16) |
              ((UINT32)pInput[6] << 8) | pInput[7];
 
-  RAD50Size = ((UINT32)pInput[8] << 24) | ((UINT32)pInput[9] << 16) |
-              ((UINT32)pInput[10] << 8) | pInput[11];
+  WindowSize = ((UINT32)pInput[8] << 24) | ((UINT32)pInput[9] << 16) |
+               ((UINT32)pInput[10] << 8) | pInput[11];
 
-  LZ78Size = ((UINT32)pInput[12] << 24) | ((UINT32)pInput[13] << 16) |
-             ((UINT32)pInput[14] << 8) | pInput[15];
+  RAD50Size = ((UINT32)pInput[12] << 24) | ((UINT32)pInput[13] << 16) |
+              ((UINT32)pInput[14] << 8) | pInput[15];
+
+  LZ78Size = ((UINT32)pInput[16] << 24) | ((UINT32)pInput[17] << 16) |
+             ((UINT32)pInput[18] << 8) | pInput[19];
 
   if (OrigSize > OutputSize)
     return FALSE;
@@ -236,7 +248,7 @@ DecompressFull (
     }
 
   // Stage 1: Range Decoding
-  if (!RangeDecode (pInput + 16, InputSize - 16,
+  if (!RangeDecode (pInput + 20, InputSize - 20,
                     pRangeOutput, LZ78Size * 2,
                     &RangeSize))
     {
@@ -259,10 +271,10 @@ DecompressFull (
       return FALSE;
     }
 
-  // Stage 2: LZ78 Decompression
-  if (!LZ78Decompress (pRangeOutput, LZ78Size,
-                       pLZ78Output, RAD50Size * 2,
-                       &DecompLZ78Size))
+  // Stage 2: Windowed LZ78 Decompression
+  if (!LZ78WindowedDecompress (pRangeOutput, LZ78Size, WindowSize,
+                                pLZ78Output, RAD50Size * 2,
+                                &DecompLZ78Size))
     {
       free (pRangeOutput);
       free (pLZ78Output);

@@ -510,8 +510,8 @@ DoCreate (
 	  pCompBuf = calloc (1, CompBufSize);
 	  if (pCompBuf != NULL)
 	    {
-	      if (CompressFull ((const UINT8 *)pBuf, OrigSize, (UINT8 *)pCompBuf,
-				CompBufSize, &CompSize))
+	      if (CompressFull ((const UINT8 *)pBuf, OrigSize, gWindowSize,
+				(UINT8 *)pCompBuf, CompBufSize, &CompSize))
 		{
 		  // Use compression only if it actually reduces size
 		  if (CompSize < OrigSize)

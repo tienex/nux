@@ -19,10 +19,11 @@
 #include <stddef.h>
 
 /**
-  Compress data using full pipeline (LZ78 + BWT + MTF + Range).
+  Compress data using full pipeline (BWT + MTF + RAD50RLE + Windowed LZ78 + Range).
 
   @param[in]  pInput      Input data buffer.
   @param[in]  InputSize   Size of input data.
+  @param[in]  WindowSize  Window size for LZ78 (4K-1M).
   @param[out] pOutput     Output buffer for compressed data.
   @param[in]  OutputSize  Size of output buffer.
   @param[out] pCompSize   Actual compressed size.
@@ -33,6 +34,7 @@ BOOLEAN
 CompressFull (
   IN  const UINT8  *pInput,
   IN  size_t       InputSize,
+  IN  UINT32       WindowSize,
   OUT UINT8        *pOutput,
   IN  size_t       OutputSize,
   OUT size_t       *pCompSize
