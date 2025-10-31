@@ -2,6 +2,17 @@
 # clang-format configuration for NUX kernel
 # NT kernel coding style with UEFI/EDK2 commenting style
 # Based on: Windows NT kernel conventions and UEFI EDK2 C Coding Standards
+#
+# KNOWN LIMITATIONS (clang-format cannot do everything):
+# 1. Column alignment of parameter names - must be done manually
+#    Example:  IN UINT32    Param1,
+#              IN UINTN     Param2
+#    (Note extra spaces to align parameter names)
+# 2. Closing parenthesis indentation - will be at column 0, not at parameter indent level
+#    You may need to manually indent closing ) to match parameters
+# 3. Very short function declarations may fit on one line despite ColumnLimit
+#
+# Despite these limitations, this config enforces most NT kernel conventions automatically
 
 # Use LLVM as base style, then customize
 BasedOnStyle: LLVM

@@ -1,0 +1,146 @@
+---
+# clang-tidy configuration for NUX kernel
+# Enforces NT kernel coding style and UEFI conventions
+# Based on: Windows NT kernel conventions and UEFI EDK2 C Coding Standards
+
+# Enable checks, then disable specific ones that don't apply to kernel code
+Checks: >
+  -*,
+  bugprone-*,
+  -bugprone-easily-swappable-parameters,
+  -bugprone-implicit-widening-of-multiplication-result,
+  -bugprone-narrowing-conversions,
+  -bugprone-reserved-identifier,
+  -bugprone-suspicious-include,
+  clang-analyzer-*,
+  -clang-analyzer-security.insecureAPI.DeprecatedOrUnsafeBufferHandling,
+  -clang-analyzer-security.insecureAPI.strcpy,
+  concurrency-*,
+  misc-*,
+  -misc-definitions-in-headers,
+  -misc-unused-parameters,
+  -misc-no-recursion,
+  performance-*,
+  -performance-no-int-to-ptr,
+  portability-*,
+  -portability-restrict-system-includes,
+  readability-*,
+  -readability-avoid-const-params-in-decls,
+  -readability-braces-around-statements,
+  -readability-else-after-return,
+  -readability-function-cognitive-complexity,
+  -readability-identifier-length,
+  -readability-implicit-bool-conversion,
+  -readability-isolate-declaration,
+  -readability-magic-numbers,
+  -readability-uppercase-literal-suffix,
+  -readability-use-anyofallof,
+
+# Naming conventions for NT kernel / UEFI style
+CheckOptions:
+  # Functions: PascalCase
+  - key: readability-identifier-naming.FunctionCase
+    value: CamelCase
+  - key: readability-identifier-naming.FunctionPrefix
+    value: ''
+  - key: readability-identifier-naming.FunctionIgnoredRegexp
+    value: '^(main|printf|putchar|abort|exit|assert|memcpy|memset|memmove|malloc|free|strlen|strcmp|strncmp|strcpy|strncpy)$'
+
+  # Global functions: PascalCase (exported kernel functions)
+  - key: readability-identifier-naming.GlobalFunctionCase
+    value: CamelCase
+
+  # Struct/Union/Enum: PascalCase with optional prefix
+  - key: readability-identifier-naming.StructCase
+    value: CamelCase
+  - key: readability-identifier-naming.StructPrefix
+    value: ''
+  - key: readability-identifier-naming.UnionCase
+    value: CamelCase
+  - key: readability-identifier-naming.EnumCase
+    value: CamelCase
+
+  # Typedef: PascalCase or UPPER_CASE
+  - key: readability-identifier-naming.TypedefCase
+    value: CamelCase
+  - key: readability-identifier-naming.TypedefIgnoredRegexp
+    value: '^(UINT8|UINT16|UINT32|UINT64|UINTN|INT8|INT16|INT32|INT64|INTN|CHAR8|CHAR16|CHAR32|WCHAR|BOOLEAN|VOID|PFN|PHYSICAL_ADDRESS|VIRTUAL_ADDRESS|CPU_MASK|CPU_INFO|hal_.*|plt_.*|anx_.*|rtl_.*)$'
+
+  # Macros: UPPER_SNAKE_CASE
+  - key: readability-identifier-naming.MacroDefinitionCase
+    value: UPPER_CASE
+  - key: readability-identifier-naming.MacroDefinitionIgnoredRegexp
+    value: '^(assert|static_assert|NULL|offsetof|container_of|likely|unlikely|__.*|_.*|CONST|VOLATILE|IN|OUT|OPTIONAL)$'
+
+  # Enum constants: UPPER_CASE or PascalCase
+  - key: readability-identifier-naming.EnumConstantCase
+    value: UPPER_CASE
+  - key: readability-identifier-naming.EnumConstantPrefix
+    value: ''
+
+  # Global constants: UPPER_CASE or gPascalCase
+  - key: readability-identifier-naming.GlobalConstantCase
+    value: aNy_CasE
+  - key: readability-identifier-naming.GlobalConstantPrefix
+    value: ''
+
+  # Global variables: gPascalCase or UPPER_CASE
+  - key: readability-identifier-naming.GlobalVariableCase
+    value: aNy_CasE
+  - key: readability-identifier-naming.GlobalVariablePrefix
+    value: ''
+
+  # Local variables: camelCase or PascalCase (both are used)
+  - key: readability-identifier-naming.LocalVariableCase
+    value: aNy_CasE
+
+  # Parameters: PascalCase (from UEFI style)
+  - key: readability-identifier-naming.ParameterCase
+    value: CamelCase
+  - key: readability-identifier-naming.ParameterIgnoredRegexp
+    value: '^[a-z][a-z0-9]*$'
+
+  # Static variables: gPascalCase or sPascalCase
+  - key: readability-identifier-naming.StaticVariableCase
+    value: aNy_CasE
+
+  # Member variables: PascalCase
+  - key: readability-identifier-naming.MemberCase
+    value: CamelCase
+
+  # Pointer variables: explicit naming (no special prefix/suffix)
+  - key: readability-identifier-naming.PointerParameterCase
+    value: aNy_CasE
+
+  # Constants
+  - key: readability-identifier-naming.ConstantCase
+    value: aNy_CasE
+
+  # Readability settings
+  - key: readability-function-size.LineThreshold
+    value: '200'
+  - key: readability-function-size.StatementThreshold
+    value: '150'
+  - key: readability-function-size.BranchThreshold
+    value: '30'
+  - key: readability-function-size.ParameterThreshold
+    value: '10'
+  - key: readability-function-size.NestingThreshold
+    value: '6'
+
+  # Allow longer lines for kernel code
+  - key: readability-line-length.LineLength
+    value: '100'
+
+  # Performance settings
+  - key: performance-move-const-arg.CheckTriviallyCopyableMove
+    value: 'false'
+
+  # Misc settings
+  - key: misc-non-private-member-variables-in-classes.IgnoreClassesWithAllMemberVariablesBeingPublic
+    value: 'true'
+
+# Warning options
+WarningsAsErrors: ''
+HeaderFilterRegex: '.*'
+FormatStyle: file
