@@ -41,13 +41,24 @@ typedef enum _CONFIG_ITEM_TYPE {
 } CONFIG_ITEM_TYPE;
 
 //
+// Configuration Value Type
+//
+typedef enum _CONFIG_VALUE_TYPE {
+    ConfigValueBoolean,
+    ConfigValueTristate,
+    ConfigValueInteger,
+    ConfigValueHex,
+    ConfigValueString
+} CONFIG_VALUE_TYPE;
+
+//
 // Configuration Value
 //
 typedef union _CONFIG_VALUE {
     BOOLEAN Boolean;
     INT32 Integer;
     UINT32 Hex;
-    CHAR8 String[256];
+    CHAR8 *String;
     enum {
         TristateNo,
         TristateModule,
@@ -397,6 +408,28 @@ ANXAPI
 AnxConfigRunMenu(
     IN IConfigDatabase *Database,
     IN CONST CHAR8 *Title
+);
+
+/**
+  Evaluate a conditional dependency expression.
+
+  Supports operators: &&, ||, !, ==, !=, <, >, <=, >=, ()
+  Example: "CONFIG_FOO && (CONFIG_BAR || !CONFIG_BAZ)"
+
+  @param[in]  Database    Configuration database (for symbol lookup).
+  @param[in]  Expression  Expression string to evaluate.
+  @param[out] Result      Result of evaluation (TRUE/FALSE).
+
+  @retval S_OK          Expression evaluated successfully.
+  @retval E_INVALIDARG  Syntax error in expression.
+  @retval E_POINTER     Invalid pointer argument.
+**/
+HRESULT
+ANXAPI
+AnxConfigEvaluateExpression(
+    IN  IConfigDatabase *Database,
+    IN  CONST CHAR8 *Expression,
+    OUT BOOLEAN *Result
 );
 
 #ifdef __cplusplus

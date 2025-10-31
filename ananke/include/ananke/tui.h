@@ -24,6 +24,10 @@ typedef struct _ITuiScreen ITuiScreen;
 typedef struct _ITuiWindow ITuiWindow;
 typedef struct _ITuiMenu ITuiMenu;
 typedef struct _ITuiInput ITuiInput;
+typedef struct _ITuiCheckbox ITuiCheckbox;
+typedef struct _ITuiRadioGroup ITuiRadioGroup;
+typedef struct _ITuiButton ITuiButton;
+typedef struct _ITuiHelpViewer ITuiHelpViewer;
 
 //
 // TUI Color Attributes
@@ -88,6 +92,52 @@ typedef enum _TUI_KEY {
     TuiKeyF11,
     TuiKeyF12
 } TUI_KEY;
+
+//
+// TUI Mouse Event
+//
+typedef enum _TUI_MOUSE_BUTTON {
+    TuiMouseNone = 0,
+    TuiMouseLeft = 1,
+    TuiMouseMiddle = 2,
+    TuiMouseRight = 3,
+    TuiMouseWheelUp = 4,
+    TuiMouseWheelDown = 5
+} TUI_MOUSE_BUTTON;
+
+typedef enum _TUI_MOUSE_EVENT_TYPE {
+    TuiMousePress,
+    TuiMouseRelease,
+    TuiMouseMove,
+    TuiMouseDoubleClick,
+    TuiMouseDrag
+} TUI_MOUSE_EVENT_TYPE;
+
+typedef struct _TUI_MOUSE_EVENT {
+    TUI_MOUSE_EVENT_TYPE Type;
+    TUI_MOUSE_BUTTON Button;
+    INT32 X;
+    INT32 Y;
+    BOOLEAN Shift;
+    BOOLEAN Ctrl;
+    BOOLEAN Alt;
+} TUI_MOUSE_EVENT;
+
+//
+// TUI Input Event (keyboard or mouse)
+//
+typedef enum _TUI_INPUT_TYPE {
+    TuiInputKeyboard,
+    TuiInputMouse
+} TUI_INPUT_EVENT_TYPE;
+
+typedef struct _TUI_INPUT_EVENT {
+    TUI_INPUT_EVENT_TYPE Type;
+    union {
+        TUI_KEY Key;
+        TUI_MOUSE_EVENT Mouse;
+    };
+} TUI_INPUT_EVENT;
 
 //
 // TUI Rectangle
@@ -206,6 +256,31 @@ typedef struct _ITuiScreen_Vtbl {
     HRESULT (ANXAPI *GetKey)(
         ITuiScreen *This,
         TUI_KEY *Key
+    );
+
+    /**
+      Enable or disable mouse support.
+    **/
+    HRESULT (ANXAPI *SetMouseEnabled)(
+        ITuiScreen *This,
+        BOOLEAN Enabled
+    );
+
+    /**
+      Get next input event (keyboard or mouse, blocking).
+    **/
+    HRESULT (ANXAPI *GetInputEvent)(
+        ITuiScreen *This,
+        TUI_INPUT_EVENT *Event
+    );
+
+    /**
+      Get mouse position.
+    **/
+    HRESULT (ANXAPI *GetMousePosition)(
+        ITuiScreen *This,
+        INT32 *X,
+        INT32 *Y
     );
 
 } ITuiScreen_Vtbl;
@@ -382,6 +457,462 @@ struct _ITuiMenu {
     CONST ITuiMenu_Vtbl *Vtbl;
 };
 
+// {D4E5F6A7-B8C9-4D0E-1F2A-3B4C5D6E7F8A}
+DEFINE_GUID(IID_ITuiCheckbox,
+    0xD4E5F6A7, 0xB8C9, 0x4D0E, 0x1F, 0x2A, 0x3B, 0x4C, 0x5D, 0x6E, 0x7F, 0x8A);
+
+/**
+  ITuiCheckbox Interface
+
+  Represents a checkbox widget (boolean on/off toggle).
+**/
+typedef struct _ITuiCheckbox_Vtbl {
+    //
+    // IUnknown methods
+    //
+    HRESULT (ANXAPI *QueryInterface)(
+        ITuiCheckbox *This,
+        REFIID riid,
+        VOID **ppvObject
+    );
+
+    UINTN (ANXAPI *AddRef)(
+        ITuiCheckbox *This
+    );
+
+    UINTN (ANXAPI *Release)(
+        ITuiCheckbox *This
+    );
+
+    //
+    // ITuiCheckbox methods
+    //
+
+    /**
+      Set checkbox label.
+    **/
+    HRESULT (ANXAPI *SetLabel)(
+        ITuiCheckbox *This,
+        CONST CHAR8 *Label
+    );
+
+    /**
+      Get checkbox state.
+    **/
+    HRESULT (ANXAPI *GetChecked)(
+        ITuiCheckbox *This,
+        BOOLEAN *Checked
+    );
+
+    /**
+      Set checkbox state.
+    **/
+    HRESULT (ANXAPI *SetChecked)(
+        ITuiCheckbox *This,
+        BOOLEAN Checked
+    );
+
+    /**
+      Set tristate mode (Y/N/M for kernel modules).
+    **/
+    HRESULT (ANXAPI *SetTristate)(
+        ITuiCheckbox *This,
+        BOOLEAN Tristate
+    );
+
+    /**
+      Get tristate value (0=N, 1=M, 2=Y).
+    **/
+    HRESULT (ANXAPI *GetTristateValue)(
+        ITuiCheckbox *This,
+        UINT8 *Value
+    );
+
+    /**
+      Set tristate value.
+    **/
+    HRESULT (ANXAPI *SetTristateValue)(
+        ITuiCheckbox *This,
+        UINT8 Value
+    );
+
+    /**
+      Render checkbox at position.
+    **/
+    HRESULT (ANXAPI *Render)(
+        ITuiCheckbox *This,
+        ITuiScreen *Screen,
+        INT32 X,
+        INT32 Y,
+        BOOLEAN Focused
+    );
+
+    /**
+      Handle key input.
+    **/
+    HRESULT (ANXAPI *HandleKey)(
+        ITuiCheckbox *This,
+        TUI_KEY Key,
+        BOOLEAN *Handled
+    );
+
+} ITuiCheckbox_Vtbl;
+
+struct _ITuiCheckbox {
+    CONST ITuiCheckbox_Vtbl *Vtbl;
+};
+
+// {E5F6A7B8-C9D0-4E1F-2A3B-4C5D6E7F8A9B}
+DEFINE_GUID(IID_ITuiInput,
+    0xE5F6A7B8, 0xC9D0, 0x4E1F, 0x2A, 0x3B, 0x4C, 0x5D, 0x6E, 0x7F, 0x8A, 0x9B);
+
+/**
+  Input Field Type
+**/
+typedef enum _TUI_INPUT_TYPE {
+    TuiInputString,
+    TuiInputInteger,
+    TuiInputHex
+} TUI_INPUT_TYPE;
+
+/**
+  ITuiInput Interface
+
+  Represents an input field widget (string, integer, hex).
+**/
+typedef struct _ITuiInput_Vtbl {
+    //
+    // IUnknown methods
+    //
+    HRESULT (ANXAPI *QueryInterface)(
+        ITuiInput *This,
+        REFIID riid,
+        VOID **ppvObject
+    );
+
+    UINTN (ANXAPI *AddRef)(
+        ITuiInput *This
+    );
+
+    UINTN (ANXAPI *Release)(
+        ITuiInput *This
+    );
+
+    //
+    // ITuiInput methods
+    //
+
+    /**
+      Set input type.
+    **/
+    HRESULT (ANXAPI *SetType)(
+        ITuiInput *This,
+        TUI_INPUT_TYPE Type
+    );
+
+    /**
+      Set input label/prompt.
+    **/
+    HRESULT (ANXAPI *SetLabel)(
+        ITuiInput *This,
+        CONST CHAR8 *Label
+    );
+
+    /**
+      Get input value as string.
+    **/
+    HRESULT (ANXAPI *GetValue)(
+        ITuiInput *This,
+        CHAR8 *Buffer,
+        UINTN BufferSize
+    );
+
+    /**
+      Set input value from string.
+    **/
+    HRESULT (ANXAPI *SetValue)(
+        ITuiInput *This,
+        CONST CHAR8 *Value
+    );
+
+    /**
+      Set integer range (for integer inputs).
+    **/
+    HRESULT (ANXAPI *SetRange)(
+        ITuiInput *This,
+        INT64 Min,
+        INT64 Max
+    );
+
+    /**
+      Render input field at position.
+    **/
+    HRESULT (ANXAPI *Render)(
+        ITuiInput *This,
+        ITuiScreen *Screen,
+        INT32 X,
+        INT32 Y,
+        BOOLEAN Focused
+    );
+
+    /**
+      Handle key input.
+    **/
+    HRESULT (ANXAPI *HandleKey)(
+        ITuiInput *This,
+        TUI_KEY Key,
+        BOOLEAN *Handled
+    );
+
+} ITuiInput_Vtbl;
+
+struct _ITuiInput {
+    CONST ITuiInput_Vtbl *Vtbl;
+};
+
+// {F6A7B8C9-D0E1-4F2A-3B4C-5D6E7F8A9B0C}
+DEFINE_GUID(IID_ITuiRadioGroup,
+    0xF6A7B8C9, 0xD0E1, 0x4F2A, 0x3B, 0x4C, 0x5D, 0x6E, 0x7F, 0x8A, 0x9B, 0x0C);
+
+/**
+  ITuiRadioGroup Interface
+
+  Represents a radio button group (choice selection).
+**/
+typedef struct _ITuiRadioGroup_Vtbl {
+    //
+    // IUnknown methods
+    //
+    HRESULT (ANXAPI *QueryInterface)(
+        ITuiRadioGroup *This,
+        REFIID riid,
+        VOID **ppvObject
+    );
+
+    UINTN (ANXAPI *AddRef)(
+        ITuiRadioGroup *This
+    );
+
+    UINTN (ANXAPI *Release)(
+        ITuiRadioGroup *This
+    );
+
+    //
+    // ITuiRadioGroup methods
+    //
+
+    /**
+      Set group label.
+    **/
+    HRESULT (ANXAPI *SetLabel)(
+        ITuiRadioGroup *This,
+        CONST CHAR8 *Label
+    );
+
+    /**
+      Add a choice option.
+    **/
+    HRESULT (ANXAPI *AddChoice)(
+        ITuiRadioGroup *This,
+        CONST CHAR8 *Label,
+        CONST CHAR8 *Value
+    );
+
+    /**
+      Get selected choice index.
+    **/
+    HRESULT (ANXAPI *GetSelectedIndex)(
+        ITuiRadioGroup *This,
+        UINT32 *Index
+    );
+
+    /**
+      Set selected choice index.
+    **/
+    HRESULT (ANXAPI *SetSelectedIndex)(
+        ITuiRadioGroup *This,
+        UINT32 Index
+    );
+
+    /**
+      Get selected choice value.
+    **/
+    HRESULT (ANXAPI *GetSelectedValue)(
+        ITuiRadioGroup *This,
+        CHAR8 *Buffer,
+        UINTN BufferSize
+    );
+
+    /**
+      Render radio group at position.
+    **/
+    HRESULT (ANXAPI *Render)(
+        ITuiRadioGroup *This,
+        ITuiScreen *Screen,
+        INT32 X,
+        INT32 Y,
+        BOOLEAN Focused
+    );
+
+    /**
+      Handle key input.
+    **/
+    HRESULT (ANXAPI *HandleKey)(
+        ITuiRadioGroup *This,
+        TUI_KEY Key,
+        BOOLEAN *Handled
+    );
+
+} ITuiRadioGroup_Vtbl;
+
+struct _ITuiRadioGroup {
+    CONST ITuiRadioGroup_Vtbl *Vtbl;
+};
+
+// {A7B8C9D0-E1F2-4A3B-4C5D-6E7F8A9B0C1D}
+DEFINE_GUID(IID_ITuiButton,
+    0xA7B8C9D0, 0xE1F2, 0x4A3B, 0x4C, 0x5D, 0x6E, 0x7F, 0x8A, 0x9B, 0x0C, 0x1D);
+
+/**
+  ITuiButton Interface
+
+  Represents a clickable button widget.
+**/
+typedef struct _ITuiButton_Vtbl {
+    //
+    // IUnknown methods
+    //
+    HRESULT (ANXAPI *QueryInterface)(
+        ITuiButton *This,
+        REFIID riid,
+        VOID **ppvObject
+    );
+
+    UINTN (ANXAPI *AddRef)(
+        ITuiButton *This
+    );
+
+    UINTN (ANXAPI *Release)(
+        ITuiButton *This
+    );
+
+    //
+    // ITuiButton methods
+    //
+
+    /**
+      Set button label.
+    **/
+    HRESULT (ANXAPI *SetLabel)(
+        ITuiButton *This,
+        CONST CHAR8 *Label
+    );
+
+    /**
+      Set button callback.
+    **/
+    HRESULT (ANXAPI *SetCallback)(
+        ITuiButton *This,
+        HRESULT (*Callback)(VOID *UserData),
+        VOID *UserData
+    );
+
+    /**
+      Render button at position.
+    **/
+    HRESULT (ANXAPI *Render)(
+        ITuiButton *This,
+        ITuiScreen *Screen,
+        INT32 X,
+        INT32 Y,
+        BOOLEAN Focused
+    );
+
+    /**
+      Handle key input (Enter activates button).
+    **/
+    HRESULT (ANXAPI *HandleKey)(
+        ITuiButton *This,
+        TUI_KEY Key,
+        BOOLEAN *Handled
+    );
+
+} ITuiButton_Vtbl;
+
+struct _ITuiButton {
+    CONST ITuiButton_Vtbl *Vtbl;
+};
+
+// {B8C9D0E1-F2A3-4B4C-5D6E-7F8A9B0C1D2E}
+DEFINE_GUID(IID_ITuiHelpViewer,
+    0xB8C9D0E1, 0xF2A3, 0x4B4C, 0x5D, 0x6E, 0x7F, 0x8A, 0x9B, 0x0C, 0x1D, 0x2E);
+
+/**
+  ITuiHelpViewer Interface
+
+  Displays hyperlinked help text with navigation.
+**/
+typedef struct _ITuiHelpViewer_Vtbl {
+    //
+    // IUnknown methods
+    //
+    HRESULT (ANXAPI *QueryInterface)(
+        ITuiHelpViewer *This,
+        REFIID riid,
+        VOID **ppvObject
+    );
+
+    UINTN (ANXAPI *AddRef)(
+        ITuiHelpViewer *This
+    );
+
+    UINTN (ANXAPI *Release)(
+        ITuiHelpViewer *This
+    );
+
+    //
+    // ITuiHelpViewer methods
+    //
+
+    /**
+      Set help text content (supports markup for links).
+    **/
+    HRESULT (ANXAPI *SetContent)(
+        ITuiHelpViewer *This,
+        CONST CHAR8 *Content
+    );
+
+    /**
+      Add a hyperlink target.
+    **/
+    HRESULT (ANXAPI *AddLink)(
+        ITuiHelpViewer *This,
+        CONST CHAR8 *LinkId,
+        CONST CHAR8 *Target
+    );
+
+    /**
+      Show help viewer (modal dialog).
+    **/
+    HRESULT (ANXAPI *Show)(
+        ITuiHelpViewer *This,
+        ITuiScreen *Screen
+    );
+
+    /**
+      Navigate to link.
+    **/
+    HRESULT (ANXAPI *NavigateTo)(
+        ITuiHelpViewer *This,
+        CONST CHAR8 *LinkId
+    );
+
+} ITuiHelpViewer_Vtbl;
+
+struct _ITuiHelpViewer {
+    CONST ITuiHelpViewer_Vtbl *Vtbl;
+};
+
 //
 // Factory functions
 //
@@ -432,6 +963,80 @@ AnxTuiCreateMenu(
     IN  ITuiScreen *ParentScreen,
     IN  CONST CHAR8 *Title,
     OUT ITuiMenu **Menu
+);
+
+/**
+  Create a TUI Checkbox instance.
+
+  @param[out] Checkbox  Pointer to receive the checkbox interface.
+
+  @retval S_OK        Checkbox created successfully.
+  @retval E_OUTOFMEMORY  Memory allocation failed.
+**/
+HRESULT
+ANXAPI
+AnxTuiCreateCheckbox(
+    OUT ITuiCheckbox **Checkbox
+);
+
+/**
+  Create a TUI Input Field instance.
+
+  @param[in]  Type   Input field type (string/integer/hex).
+  @param[out] Input  Pointer to receive the input field interface.
+
+  @retval S_OK        Input field created successfully.
+  @retval E_OUTOFMEMORY  Memory allocation failed.
+**/
+HRESULT
+ANXAPI
+AnxTuiCreateInput(
+    IN  TUI_INPUT_TYPE Type,
+    OUT ITuiInput **Input
+);
+
+/**
+  Create a TUI Radio Group instance.
+
+  @param[out] RadioGroup  Pointer to receive the radio group interface.
+
+  @retval S_OK        Radio group created successfully.
+  @retval E_OUTOFMEMORY  Memory allocation failed.
+**/
+HRESULT
+ANXAPI
+AnxTuiCreateRadioGroup(
+    OUT ITuiRadioGroup **RadioGroup
+);
+
+/**
+  Create a TUI Button instance.
+
+  @param[in]  Label   Button label text.
+  @param[out] Button  Pointer to receive the button interface.
+
+  @retval S_OK        Button created successfully.
+  @retval E_OUTOFMEMORY  Memory allocation failed.
+**/
+HRESULT
+ANXAPI
+AnxTuiCreateButton(
+    IN  CONST CHAR8 *Label,
+    OUT ITuiButton **Button
+);
+
+/**
+  Create a TUI Help Viewer instance.
+
+  @param[out] HelpViewer  Pointer to receive the help viewer interface.
+
+  @retval S_OK        Help viewer created successfully.
+  @retval E_OUTOFMEMORY  Memory allocation failed.
+**/
+HRESULT
+ANXAPI
+AnxTuiCreateHelpViewer(
+    OUT ITuiHelpViewer **HelpViewer
 );
 
 #ifdef __cplusplus
