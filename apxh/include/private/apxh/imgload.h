@@ -286,6 +286,24 @@ typedef struct _IMGLOAD_CONTEXT {
 //
 
 typedef struct _IImageLoader IImageLoader;
+typedef struct _IImageResource IImageResource;
+typedef struct _IEnumImageResource IEnumImageResource;
+
+//
+// Image Resource Interface GUID
+// {C4E2F8A1-3D5B-4C7E-9A1F-6B8D4E3C2A91}
+//
+
+#define ANX_IID_IImageResource "C4E2F8A1-3D5B-4C7E-9A1F-6B8D4E3C2A91"
+ANX_DEFINE_GUID(IID_IImageResource, 0xC4E2F8A1,0x3D5B,0x4C7E,0x9A,0x1F,0x6B,0x8D,0x4E,0x3C,0x2A,0x91);
+
+//
+// Image Resource Enumerator Interface GUID
+// {D5F3A9B2-4E6C-5D8F-A2E0-7C9E5F4D3B92}
+//
+
+#define ANX_IID_IEnumImageResource "D5F3A9B2-4E6C-5D8F-A2E0-7C9E5F4D3B92"
+ANX_DEFINE_GUID(IID_IEnumImageResource, 0xD5F3A9B2,0x4E6C,0x5D8F,0xA2,0xE0,0x7C,0x9E,0x5F,0x4D,0x3B,0x92);
 
 //
 // Image Loader Interface GUID
@@ -305,6 +323,107 @@ ANX_DEFINE_GUID(IID_IImageLoader, 0xA57F0B12,0x8D4E,0x4F1A,0x9C,0x3B,0x2E,0x6F,0
 #define APXH_REGISTER_IMGLOADER(LoaderVar) \
   ANX_ATTR_SECTION(".imgloaders") ANX_ATTR_USED \
   static IImageLoader * CONST _imgloader_ptr_##LoaderVar = &LoaderVar
+
+//
+// Image Resource Interface (COM-style with ANX macros)
+//
+
+ANX_BEGIN_INTERFACE(IImageResource, IUnknown, IID_IImageResource, ANX_IID_IImageResource)
+  /**
+    Get resource data pointer.
+
+    @param[out] Data  Receives pointer to resource data.
+    @param[out] Size  Receives size of resource data.
+
+    @return S_OK on success, error code otherwise.
+  **/
+  ANX_IFACE_METHOD(HRESULT, GetData, (
+    IN  IImageResource  *This,
+    OUT VOID            **Data,
+    OUT UINT64          *Size
+    ))
+
+  /**
+    Get resource type.
+
+    @param[out] Type  Receives resource type (format-specific).
+
+    @return S_OK on success, error code otherwise.
+  **/
+  ANX_IFACE_METHOD(HRESULT, GetType, (
+    IN  IImageResource  *This,
+    OUT UINT32          *Type
+    ))
+
+  /**
+    Get resource ID.
+
+    @param[out] ResourceId  Receives resource identifier.
+
+    @return S_OK on success, error code otherwise.
+  **/
+  ANX_IFACE_METHOD(HRESULT, GetId, (
+    IN  IImageResource      *This,
+    OUT IMGLOAD_RESOURCE_ID *ResourceId
+    ))
+
+ANX_END_INTERFACE(IImageResource)
+
+//
+// Image Resource Enumerator Interface (COM-style with ANX macros)
+//
+
+ANX_BEGIN_INTERFACE(IEnumImageResource, IUnknown, IID_IEnumImageResource, ANX_IID_IEnumImageResource)
+  /**
+    Get next resource from enumeration.
+
+    @param[in]  Count      Number of resources to retrieve.
+    @param[out] Resources  Array to receive resource pointers.
+    @param[out] Fetched    Receives number of resources actually retrieved.
+
+    @return S_OK if Count resources retrieved, S_FALSE if fewer, error code otherwise.
+  **/
+  ANX_IFACE_METHOD(HRESULT, Next, (
+    IN  IEnumImageResource  *This,
+    IN  UINT32              Count,
+    OUT IImageResource      **Resources,
+    OUT UINT32              *Fetched
+    ))
+
+  /**
+    Skip specified number of resources.
+
+    @param[in] Count  Number of resources to skip.
+
+    @return S_OK on success, S_FALSE if fewer resources available, error code otherwise.
+  **/
+  ANX_IFACE_METHOD(HRESULT, Skip, (
+    IN IEnumImageResource  *This,
+    IN UINT32              Count
+    ))
+
+  /**
+    Reset enumeration to beginning.
+
+    @return S_OK on success, error code otherwise.
+  **/
+  ANX_IFACE_METHOD(HRESULT, Reset, (
+    IN IEnumImageResource  *This
+    ))
+
+  /**
+    Clone this enumerator.
+
+    @param[out] Clone  Receives cloned enumerator.
+
+    @return S_OK on success, error code otherwise.
+  **/
+  ANX_IFACE_METHOD(HRESULT, Clone, (
+    IN  IEnumImageResource   *This,
+    OUT IEnumImageResource   **Clone
+    ))
+
+ANX_END_INTERFACE(IEnumImageResource)
 
 //
 // Image Loader Interface (COM-style with ANX macros)
@@ -511,7 +630,7 @@ ANX_BEGIN_INTERFACE(IImageLoader, IUnknown, IID_IImageLoader, ANX_IID_IImageLoad
     ))
 
   /**
-    Get resource data from image by name or ID.
+    Get resource from image by name or ID.
 
     Uses format-specific mechanisms to locate resources (e.g., ELF uses
     OS/2 PowerPC .rsrc sections, PE uses resource directory).
@@ -519,15 +638,33 @@ ANX_BEGIN_INTERFACE(IImageLoader, IUnknown, IID_IImageLoader, ANX_IID_IImageLoad
     @param[in]  ImageBase      Pointer to image in memory.
     @param[in]  ResourceId     Resource identifier (name or numeric ID).
     @param[in]  ResourceType   Resource type identifier (format-specific).
-    @param[out] ResourceInfo   Receives resource information.
+    @param[out] Resource       Receives IImageResource interface pointer.
 
     @return S_OK on success, S_FALSE if not found, error code otherwise.
   **/
   ANX_IFACE_METHOD(HRESULT, GetResource, (
-    IN  VOID                      *ImageBase,
-    IN  IMGLOAD_RESOURCE_ID       *ResourceId,
-    IN  IMGLOAD_RESOURCE_ID       *ResourceType,
-    OUT IMGLOAD_RESOURCE_INFO     *ResourceInfo
+    IN  VOID                  *ImageBase,
+    IN  IMGLOAD_RESOURCE_ID   *ResourceId,
+    IN  IMGLOAD_RESOURCE_ID   *ResourceType,
+    OUT IImageResource        **Resource
+    ))
+
+  /**
+    Get resource enumerator for image.
+
+    Returns an enumerator for iterating over all resources of a given type
+    in the image.
+
+    @param[in]  ImageBase       Pointer to image in memory.
+    @param[in]  ResourceType    Resource type to enumerate (NULL for all types).
+    @param[out] Enumerator      Receives IEnumImageResource interface pointer.
+
+    @return S_OK on success, S_FALSE if no resources, error code otherwise.
+  **/
+  ANX_IFACE_METHOD(HRESULT, GetResourceEnumerator, (
+    IN  VOID                   *ImageBase,
+    IN  IMGLOAD_RESOURCE_ID    *ResourceType,
+    OUT IEnumImageResource     **Enumerator
     ))
 
 ANX_END_INTERFACE(IImageLoader)
