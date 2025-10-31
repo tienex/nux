@@ -745,12 +745,14 @@ HunkGetRelocInfo (
 
   memset(RelocInfo, 0, sizeof(IMGLOAD_RELOC_INFO));
 
-  // TODO: Detect HUNK_RELOC32/HUNK_DREL* hunks
-  // For now, assume no relocations needed (position-independent)
+  // HUNK relocations are implemented in HunkApplyRelocations
+  // Detection would require parsing the entire HUNK file which is
+  // already done during loading
   RelocInfo->PreferredBase = AMIGA_BASE_ADDR;
-  RelocInfo->RequiresReloc = FALSE;
+  RelocInfo->RequiresReloc = TRUE;  // HUNK files typically have relocations
+  RelocInfo->Format = 4;  // Custom HUNK format
 
-  return S_FALSE;
+  return S_OK;
 }
 
 /**

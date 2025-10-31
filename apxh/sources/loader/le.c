@@ -516,7 +516,9 @@ LeGetSymbolByAddress (
 
   memset(SymbolInfo, 0, sizeof(IMGLOAD_SYMBOL_INFO));
 
-  // TODO: Parse LE/LX entry table and export names
+  // LE/LX entry table uses bundle-based encoding with complex ordinal mapping
+  // See LeGetSymbolByName for resident names table parsing
+  // Full entry table parsing not implemented
   return S_FALSE;
 }
 
