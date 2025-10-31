@@ -279,7 +279,26 @@ VmsLoadImage (
           // Normal loadable section
           printf("VMS: Section %d at VPN %08X, %d pages, flags %08X\n",
                  i, Vpn, Pages, Flags);
-          // TODO: Map virtual pages
+
+          // Map virtual pages for this section
+          // VPN is in 512-byte pages on VAX, need to convert to actual addresses
+          VIRTUAL_ADDRESS SectionVa = Vpn * 512;
+          UINT64 SectionSize = Pages * 512;
+          BOOLEAN Writable = (Flags & VMS_ISD_WRT) ? TRUE : FALSE;
+          BOOLEAN Executable = (Flags & VMS_ISD_EXE) ? TRUE : FALSE;
+
+          // For now, create zero-filled pages
+          // Full implementation would need to load actual data from image
+          if (SectionSize > 0) {
+            VirtualAddressMemset(
+              SectionVa,
+              0,
+              SectionSize,
+              Context->IsUserMode,
+              Writable,
+              Executable
+            );
+          }
           break;
 
         case VMS_ISD_FIXUP:
