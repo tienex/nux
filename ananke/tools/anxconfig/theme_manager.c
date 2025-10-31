@@ -26,13 +26,13 @@ typedef struct {
     CHAR8 ShadowChar;
     BOOLEAN UseUnicode;
 
-    /* Rendering delegates */
-    TUI_BUTTON_RENDERER ButtonRenderer;
+    /* Background rendering delegates (called BEFORE control renders) */
+    TUI_BUTTON_BACKGROUND_RENDERER ButtonRenderer;
     TUI_BUTTON_SIZER ButtonSizer;
-    TUI_CHECKBOX_RENDERER CheckboxRenderer;
+    TUI_CHECKBOX_BACKGROUND_RENDERER CheckboxRenderer;
     TUI_CHECKBOX_SIZER CheckboxSizer;
-    TUI_INPUT_RENDERER InputRenderer;
-    TUI_WINDOW_RENDERER WindowRenderer;
+    TUI_INPUT_BACKGROUND_RENDERER InputRenderer;
+    TUI_WINDOW_BACKGROUND_RENDERER WindowRenderer;
 
     /* Theme colors for each component */
     TUI_THEME_COLORS Colors[19];  /* Number of TUI_THEME_COMPONENT values */
@@ -447,10 +447,10 @@ static HRESULT ANXAPI Theme_GetUseUnicode(
     return S_OK;
 }
 
-/* Set button renderer */
+/* Set button background renderer */
 static HRESULT ANXAPI Theme_SetButtonRenderer(
     ITuiTheme *This,
-    TUI_BUTTON_RENDERER Renderer,
+    TUI_BUTTON_BACKGROUND_RENDERER Renderer,
     TUI_BUTTON_SIZER Sizer
 )
 {
@@ -460,10 +460,10 @@ static HRESULT ANXAPI Theme_SetButtonRenderer(
     return S_OK;
 }
 
-/* Get button renderer */
+/* Get button background renderer */
 static HRESULT ANXAPI Theme_GetButtonRenderer(
     ITuiTheme *This,
-    TUI_BUTTON_RENDERER *Renderer,
+    TUI_BUTTON_BACKGROUND_RENDERER *Renderer,
     TUI_BUTTON_SIZER *Sizer
 )
 {
@@ -473,10 +473,10 @@ static HRESULT ANXAPI Theme_GetButtonRenderer(
     return S_OK;
 }
 
-/* Set checkbox renderer */
+/* Set checkbox background renderer */
 static HRESULT ANXAPI Theme_SetCheckboxRenderer(
     ITuiTheme *This,
-    TUI_CHECKBOX_RENDERER Renderer,
+    TUI_CHECKBOX_BACKGROUND_RENDERER Renderer,
     TUI_CHECKBOX_SIZER Sizer
 )
 {
@@ -486,10 +486,10 @@ static HRESULT ANXAPI Theme_SetCheckboxRenderer(
     return S_OK;
 }
 
-/* Get checkbox renderer */
+/* Get checkbox background renderer */
 static HRESULT ANXAPI Theme_GetCheckboxRenderer(
     ITuiTheme *This,
-    TUI_CHECKBOX_RENDERER *Renderer,
+    TUI_CHECKBOX_BACKGROUND_RENDERER *Renderer,
     TUI_CHECKBOX_SIZER *Sizer
 )
 {
@@ -499,10 +499,10 @@ static HRESULT ANXAPI Theme_GetCheckboxRenderer(
     return S_OK;
 }
 
-/* Set input renderer */
+/* Set input background renderer */
 static HRESULT ANXAPI Theme_SetInputRenderer(
     ITuiTheme *This,
-    TUI_INPUT_RENDERER Renderer
+    TUI_INPUT_BACKGROUND_RENDERER Renderer
 )
 {
     ThemeImpl *impl = (ThemeImpl *)This;
@@ -510,10 +510,10 @@ static HRESULT ANXAPI Theme_SetInputRenderer(
     return S_OK;
 }
 
-/* Get input renderer */
+/* Get input background renderer */
 static HRESULT ANXAPI Theme_GetInputRenderer(
     ITuiTheme *This,
-    TUI_INPUT_RENDERER *Renderer
+    TUI_INPUT_BACKGROUND_RENDERER *Renderer
 )
 {
     ThemeImpl *impl = (ThemeImpl *)This;
@@ -521,10 +521,10 @@ static HRESULT ANXAPI Theme_GetInputRenderer(
     return S_OK;
 }
 
-/* Set window renderer */
+/* Set window background renderer */
 static HRESULT ANXAPI Theme_SetWindowRenderer(
     ITuiTheme *This,
-    TUI_WINDOW_RENDERER Renderer
+    TUI_WINDOW_BACKGROUND_RENDERER Renderer
 )
 {
     ThemeImpl *impl = (ThemeImpl *)This;
@@ -532,10 +532,10 @@ static HRESULT ANXAPI Theme_SetWindowRenderer(
     return S_OK;
 }
 
-/* Get window renderer */
+/* Get window background renderer */
 static HRESULT ANXAPI Theme_GetWindowRenderer(
     ITuiTheme *This,
-    TUI_WINDOW_RENDERER *Renderer
+    TUI_WINDOW_BACKGROUND_RENDERER *Renderer
 )
 {
     ThemeImpl *impl = (ThemeImpl *)This;
