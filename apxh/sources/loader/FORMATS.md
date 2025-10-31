@@ -30,9 +30,9 @@ enabling cross-platform resource embedding in all executable formats.
 | COFF   | ❌ No  | ✅ Implemented | `.axursrc` section |
 | XCOFF  | ❌ No  | ✅ Implemented | `.axursrc` section (AIX) |
 | ECOFF  | ❌ No  | ✅ Implemented | `.axursrc` section (DEC/SGI) |
+| a.out  | ❌ No  | ✅ Implemented | Symbol-based (`__apxh_uresource_start/size`) |
 | LE/LX  | ⚠️ OS/2 | ⚠️ TODO | Native resource table + `.axursrc` |
 | NLM    | ⚠️ NetWare | ⚠️ TODO | NetWare resources or `.axursrc` |
-| a.out  | ❌ No  | ⚠️ TODO | Special handling needed (no sections) |
 | Other  | ❌ No  | ⚠️ TODO | Format-specific (Hunk, Atari, PDP-10, etc.) |
 
 ### Implementation Guide
@@ -56,6 +56,17 @@ static HRESULT FormatGetResource(...) {
   return Status;
 }
 ```
+
+**Special Case: Formats Without Sections (a.out)**
+
+For formats that lack section headers, use symbol-based resource location:
+1. Define special symbols when linking:
+   - `__apxh_uresource_start`: Points to resource fork start address
+   - `__apxh_uresource_size`: Value equals resource fork size
+2. Implement finder that looks up these symbols using `GetSymbolByName()`
+3. Use the finder with `FindUniversalResourceFork()` as usual
+
+See `aout.c` for a complete symbol-based implementation example.
 
 ## ELF (Executable and Linkable Format)
 
