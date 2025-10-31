@@ -27,9 +27,10 @@
 #include <sys/stat.h>
 
 #include "zoo64.h"
+#include "compress.h"
 
 #define PROGNAME "ar64"
-#define VERSION "1.0"
+#define VERSION "2.0"
 
 /*
   AR64 - Advanced archive format with Zoo64 encoding.
@@ -47,13 +48,22 @@ UINT64 gMagic = 0x9a7c6e5f4d3b2a19LL;
 
 /*
   On disk structure with payload information.
+
+  New format with compression support:
+  - flags: bit 0 = compressed, bits 1-7 reserved
+  - size: compressed size (if compressed) or original size
+  - orig_size: original size (only if compressed)
 */
 typedef struct _PAYLOAD_HDR
 {
   UINT64 magic;
   UINT64 filename;
-  UINT32 size;
+  UINT8  flags;        // Compression flags
+  UINT32 size;         // Compressed/stored size
+  UINT32 orig_size;    // Original size (if compressed)
 } __attribute__((packed)) PAYLOAD_HDR;
+
+#define FLAG_COMPRESSED 0x01
 
 
 /**

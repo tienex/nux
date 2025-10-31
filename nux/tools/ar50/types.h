@@ -36,6 +36,15 @@ typedef long          INTN;
 // void type
 typedef void VOID;
 
+// Boolean type
+typedef int BOOLEAN;
+#ifndef TRUE
+#define TRUE  1
+#endif
+#ifndef FALSE
+#define FALSE 0
+#endif
+
 // Function parameter direction macros
 #define IN
 #define OUT
