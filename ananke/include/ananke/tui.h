@@ -5051,73 +5051,130 @@ struct _ITuiLongOpDialog {
 };
 
 // {4A5B6C7D-8E9F-0A1B-2C3D-4E5F6A7B8C9D}
-DEFINE_GUID(IID_ITuiDirectoryDialog,
+DEFINE_GUID(IID_ITuiThemedDirectoryDialog,
     0x4A5B6C7D, 0x8E9F, 0x0A1B, 0x2C, 0x3D, 0x4E, 0x5F, 0x6A, 0x7B, 0x8C, 0x9D);
+
+/**
+  ITuiThemedDirectoryDialog Interface
+
+  DirectoryDialog theming interface. Inherits from ITuiThemedWidget.
+**/
+typedef struct _ITuiThemedDirectoryDialog_Vtbl {
+    // ITuiSerializable methods
+    HRESULT (ANXAPI *QueryInterface)(ITuiThemedDirectoryDialog *This, REFIID riid, VOID **ppvObject);
+    UINTN (ANXAPI *AddRef)(ITuiThemedDirectoryDialog *This);
+    UINTN (ANXAPI *Release)(ITuiThemedDirectoryDialog *This);
+    HRESULT (ANXAPI *SerializeToYaml)(ITuiThemedDirectoryDialog *This, CHAR8 **OutYaml, UINTN *OutLength);
+    HRESULT (ANXAPI *DeserializeFromYaml)(ITuiThemedDirectoryDialog *This, CONST CHAR8 *Yaml, UINTN Length);
+    HRESULT (ANXAPI *GetTypeName)(ITuiThemedDirectoryDialog *This, CONST CHAR8 **OutTypeName);
+    HRESULT (ANXAPI *Clone)(ITuiThemedDirectoryDialog *This, ITuiSerializable **OutClone);
+
+    // ITuiResponder methods
+    HRESULT (ANXAPI *GetNextResponder)(ITuiThemedDirectoryDialog *This, ITuiResponder **NextResponder);
+    HRESULT (ANXAPI *SetNextResponder)(ITuiThemedDirectoryDialog *This, ITuiResponder *NextResponder);
+    BOOLEAN (ANXAPI *AcceptsFirstResponder)(ITuiThemedDirectoryDialog *This);
+    HRESULT (ANXAPI *BecomeFirstResponder)(ITuiThemedDirectoryDialog *This);
+    HRESULT (ANXAPI *ResignFirstResponder)(ITuiThemedDirectoryDialog *This);
+
+    // ITuiWidget methods
+    HRESULT (ANXAPI *SetBounds)(ITuiThemedDirectoryDialog *This, CONST TUI_RECT *Bounds);
+    HRESULT (ANXAPI *GetBounds)(ITuiThemedDirectoryDialog *This, TUI_RECT *Bounds);
+    HRESULT (ANXAPI *SetVisible)(ITuiThemedDirectoryDialog *This, BOOLEAN Visible);
+    BOOLEAN (ANXAPI *IsVisible)(ITuiThemedDirectoryDialog *This);
+    HRESULT (ANXAPI *SetEnabled)(ITuiThemedDirectoryDialog *This, BOOLEAN Enabled);
+    BOOLEAN (ANXAPI *IsEnabled)(ITuiThemedDirectoryDialog *This);
+    HRESULT (ANXAPI *SetParent)(ITuiThemedDirectoryDialog *This, ITuiWidget *Parent);
+    HRESULT (ANXAPI *GetParent)(ITuiThemedDirectoryDialog *This, ITuiWidget **Parent);
+    HRESULT (ANXAPI *AddChild)(ITuiThemedDirectoryDialog *This, ITuiWidget *Child);
+    HRESULT (ANXAPI *RemoveChild)(ITuiThemedDirectoryDialog *This, ITuiWidget *Child);
+    HRESULT (ANXAPI *SetNeedsDisplay)(ITuiThemedDirectoryDialog *This, BOOLEAN Needed);
+
+    // ITuiThemedWidget methods
+    HRESULT (ANXAPI *ApplyTheme)(ITuiThemedDirectoryDialog *This, ITuiTheme *Theme);
+    HRESULT (ANXAPI *GetColors)(ITuiThemedDirectoryDialog *This, TUI_COLOR *Foreground, TUI_COLOR *Background);
+    HRESULT (ANXAPI *SetColors)(ITuiThemedDirectoryDialog *This, TUI_COLOR Foreground, TUI_COLOR Background);
+    HRESULT (ANXAPI *OnMouseEvent)(ITuiThemedDirectoryDialog *This, CONST TUI_MOUSE_EVENT *Event, BOOLEAN *Handled);
+    HRESULT (ANXAPI *OnKeyEvent)(ITuiThemedDirectoryDialog *This, TUI_KEY Key, UINT32 Modifiers, BOOLEAN *Handled);
+    HRESULT (ANXAPI *Draw)(ITuiThemedDirectoryDialog *This, ITuiSurface *Surface, CONST TUI_RECT *DirtyRect);
+
+    // ITuiThemedDirectoryDialog methods
+    HRESULT (ANXAPI *GetTreeColors)(ITuiThemedDirectoryDialog *This, TUI_COLOR *Foreground, TUI_COLOR *Background);
+    HRESULT (ANXAPI *SetTreeColors)(ITuiThemedDirectoryDialog *This, TUI_COLOR Foreground, TUI_COLOR Background);
+    HRESULT (ANXAPI *GetSelectionColors)(ITuiThemedDirectoryDialog *This, TUI_COLOR *Foreground, TUI_COLOR *Background);
+    HRESULT (ANXAPI *SetSelectionColors)(ITuiThemedDirectoryDialog *This, TUI_COLOR Foreground, TUI_COLOR Background);
+    HRESULT (ANXAPI *GetBorderColors)(ITuiThemedDirectoryDialog *This, TUI_COLOR *Foreground, TUI_COLOR *Background);
+    HRESULT (ANXAPI *SetBorderColors)(ITuiThemedDirectoryDialog *This, TUI_COLOR Foreground, TUI_COLOR Background);
+    HRESULT (ANXAPI *GetTitleColors)(ITuiThemedDirectoryDialog *This, TUI_COLOR *Foreground, TUI_COLOR *Background);
+    HRESULT (ANXAPI *SetTitleColors)(ITuiThemedDirectoryDialog *This, TUI_COLOR Foreground, TUI_COLOR Background);
+} ITuiThemedDirectoryDialog_Vtbl;
+
+struct _ITuiThemedDirectoryDialog {
+    CONST ITuiThemedDirectoryDialog_Vtbl *Vtbl;
+};
+
+// {5D6E7F8A-9B0C-1D2E-3F4A-5B6C7D8E9F0A}
+DEFINE_GUID(IID_ITuiDirectoryDialog,
+    0x5D6E7F8A, 0x9B0C, 0x1D2E, 0x3F, 0x4A, 0x5B, 0x6C, 0x7D, 0x8E, 0x9F, 0x0A);
 
 /**
   ITuiDirectoryDialog Interface
 
   Modal dialog for selecting directories with tree navigation.
+  Inherits from ITuiThemedDirectoryDialog.
 **/
 typedef struct _ITuiDirectoryDialog_Vtbl {
+    // ITuiSerializable methods
     HRESULT (ANXAPI *QueryInterface)(ITuiDirectoryDialog *This, REFIID riid, VOID **ppvObject);
     UINTN (ANXAPI *AddRef)(ITuiDirectoryDialog *This);
     UINTN (ANXAPI *Release)(ITuiDirectoryDialog *This);
+    HRESULT (ANXAPI *SerializeToYaml)(ITuiDirectoryDialog *This, CHAR8 **OutYaml, UINTN *OutLength);
+    HRESULT (ANXAPI *DeserializeFromYaml)(ITuiDirectoryDialog *This, CONST CHAR8 *Yaml, UINTN Length);
+    HRESULT (ANXAPI *GetTypeName)(ITuiDirectoryDialog *This, CONST CHAR8 **OutTypeName);
+    HRESULT (ANXAPI *Clone)(ITuiDirectoryDialog *This, ITuiSerializable **OutClone);
 
-    /**
-      Render the dialog.
-    **/
-    HRESULT (ANXAPI *Render)(
-        ITuiDirectoryDialog *This,
-        ITuiScreen *Screen,
-        INT32 X,
-        INT32 Y
-    );
+    // ITuiResponder methods
+    HRESULT (ANXAPI *GetNextResponder)(ITuiDirectoryDialog *This, ITuiResponder **NextResponder);
+    HRESULT (ANXAPI *SetNextResponder)(ITuiDirectoryDialog *This, ITuiResponder *NextResponder);
+    BOOLEAN (ANXAPI *AcceptsFirstResponder)(ITuiDirectoryDialog *This);
+    HRESULT (ANXAPI *BecomeFirstResponder)(ITuiDirectoryDialog *This);
+    HRESULT (ANXAPI *ResignFirstResponder)(ITuiDirectoryDialog *This);
 
-    /**
-      Handle keyboard input.
-    **/
-    HRESULT (ANXAPI *HandleKey)(
-        ITuiDirectoryDialog *This,
-        TUI_KEY Key
-    );
-
-    /**
-      Standard widget methods.
-    **/
+    // ITuiWidget methods
     HRESULT (ANXAPI *SetBounds)(ITuiDirectoryDialog *This, CONST TUI_RECT *Bounds);
     HRESULT (ANXAPI *GetBounds)(ITuiDirectoryDialog *This, TUI_RECT *Bounds);
     HRESULT (ANXAPI *SetVisible)(ITuiDirectoryDialog *This, BOOLEAN Visible);
     BOOLEAN (ANXAPI *IsVisible)(ITuiDirectoryDialog *This);
     HRESULT (ANXAPI *SetEnabled)(ITuiDirectoryDialog *This, BOOLEAN Enabled);
     BOOLEAN (ANXAPI *IsEnabled)(ITuiDirectoryDialog *This);
+    HRESULT (ANXAPI *SetParent)(ITuiDirectoryDialog *This, ITuiWidget *Parent);
+    HRESULT (ANXAPI *GetParent)(ITuiDirectoryDialog *This, ITuiWidget **Parent);
+    HRESULT (ANXAPI *AddChild)(ITuiDirectoryDialog *This, ITuiWidget *Child);
+    HRESULT (ANXAPI *RemoveChild)(ITuiDirectoryDialog *This, ITuiWidget *Child);
+    HRESULT (ANXAPI *SetNeedsDisplay)(ITuiDirectoryDialog *This, BOOLEAN Needed);
 
-    /**
-      Set initial directory to display.
-    **/
-    HRESULT (ANXAPI *SetInitialDirectory)(
-        ITuiDirectoryDialog *This,
-        CONST CHAR8 *Path
-    );
+    // ITuiThemedWidget methods
+    HRESULT (ANXAPI *ApplyTheme)(ITuiDirectoryDialog *This, ITuiTheme *Theme);
+    HRESULT (ANXAPI *GetColors)(ITuiDirectoryDialog *This, TUI_COLOR *Foreground, TUI_COLOR *Background);
+    HRESULT (ANXAPI *SetColors)(ITuiDirectoryDialog *This, TUI_COLOR Foreground, TUI_COLOR Background);
+    HRESULT (ANXAPI *OnMouseEvent)(ITuiDirectoryDialog *This, CONST TUI_MOUSE_EVENT *Event, BOOLEAN *Handled);
+    HRESULT (ANXAPI *OnKeyEvent)(ITuiDirectoryDialog *This, TUI_KEY Key, UINT32 Modifiers, BOOLEAN *Handled);
+    HRESULT (ANXAPI *Draw)(ITuiDirectoryDialog *This, ITuiSurface *Surface, CONST TUI_RECT *DirtyRect);
 
-    /**
-      Get selected directory path.
-    **/
-    HRESULT (ANXAPI *GetSelectedDirectory)(
-        ITuiDirectoryDialog *This,
-        CHAR8 *Buffer,
-        UINTN BufferSize
-    );
+    // ITuiThemedDirectoryDialog methods
+    HRESULT (ANXAPI *GetTreeColors)(ITuiDirectoryDialog *This, TUI_COLOR *Foreground, TUI_COLOR *Background);
+    HRESULT (ANXAPI *SetTreeColors)(ITuiDirectoryDialog *This, TUI_COLOR Foreground, TUI_COLOR Background);
+    HRESULT (ANXAPI *GetSelectionColors)(ITuiDirectoryDialog *This, TUI_COLOR *Foreground, TUI_COLOR *Background);
+    HRESULT (ANXAPI *SetSelectionColors)(ITuiDirectoryDialog *This, TUI_COLOR Foreground, TUI_COLOR Background);
+    HRESULT (ANXAPI *GetBorderColors)(ITuiDirectoryDialog *This, TUI_COLOR *Foreground, TUI_COLOR *Background);
+    HRESULT (ANXAPI *SetBorderColors)(ITuiDirectoryDialog *This, TUI_COLOR Foreground, TUI_COLOR Background);
+    HRESULT (ANXAPI *GetTitleColors)(ITuiDirectoryDialog *This, TUI_COLOR *Foreground, TUI_COLOR *Background);
+    HRESULT (ANXAPI *SetTitleColors)(ITuiDirectoryDialog *This, TUI_COLOR Foreground, TUI_COLOR Background);
 
-    /**
-      Show dialog modally and return result.
-    **/
-    HRESULT (ANXAPI *Show)(
-        ITuiDirectoryDialog *This,
-        ITuiScreen *Screen,
-        BOOLEAN *Result
-    );
-
+    // ITuiDirectoryDialog methods
+    HRESULT (ANXAPI *SetInitialDirectory)(ITuiDirectoryDialog *This, CONST CHAR8 *Path);
+    HRESULT (ANXAPI *GetInitialDirectory)(ITuiDirectoryDialog *This, CHAR8 *Buffer, UINTN BufferSize);
+    HRESULT (ANXAPI *GetSelectedDirectory)(ITuiDirectoryDialog *This, CHAR8 *Buffer, UINTN BufferSize);
+    HRESULT (ANXAPI *Show)(ITuiDirectoryDialog *This, ITuiScreen *Screen, BOOLEAN *Result);
 } ITuiDirectoryDialog_Vtbl;
 
 struct _ITuiDirectoryDialog {
