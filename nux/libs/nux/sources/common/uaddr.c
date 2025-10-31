@@ -61,17 +61,3 @@ UaddrValidRange (
 {
   return UaddrValid (Uaddr) && UaddrValid (Uaddr + Size) && (Uaddr < (Uaddr + Size));
 }
-
-//
-// Legacy Function Wrappers (for backward compatibility)
-//
-
-/** @deprecated Use UaddrValid instead **/
-BOOLEAN UaddrValid (USER_ADDRESS a) {
-  return UaddrValid (a);
-}
-
-/** @deprecated Use UaddrValidRange instead **/
-BOOLEAN UaddrValidRange (USER_ADDRESS a, UINTN size) {
-  return UaddrValidRange (a, size);
-}

@@ -80,25 +80,3 @@ KtlbGenNormal (
   ANX_ATOMIC_LOAD (&gKtlb.Normal, &Ret, __ATOMIC_ACQUIRE);
   return Ret;
 }
-
-//
-// Legacy Function Wrappers (for backward compatibility)
-//
-
-/** @deprecated Use KtlbGenMarkDirty instead **/
-VOID KtlbGenMarkDirty (hal_tlbop_t op) {
-  KtlbGenMarkDirty (op);
-}
-
-/** @deprecated Use KtlbGenGlobal instead **/
-TLB_GENERATION KtlbGenGlobal (VOID) {
-  return KtlbGenGlobal ();
-}
-
-/** @deprecated Use KtlbGenNormal instead **/
-TLB_GENERATION KtlbGenNormal (VOID) {
-  return KtlbGenNormal ();
-}
-
-// Legacy global variable alias
-static VOLATILE KTLB ktlb ANX_ATTR_ALIAS("gKtlb");

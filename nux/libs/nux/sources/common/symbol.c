@@ -58,18 +58,3 @@ NuxSymbolResolve (
   else
     return Last->Name;
 }
-
-//
-// Legacy Type and Function Wrappers (for backward compatibility)
-//
-
-/** @deprecated Use KSYM instead **/
-struct ksym {
-  unsigned INTN addr;
-  PCCHAR8name;
-};
-
-/** @deprecated Use NuxSymbolResolve instead **/
-PCCHAR8nux_symresolve (unsigned INTN addr) {
-  return NuxSymbolResolve (addr);
-}
