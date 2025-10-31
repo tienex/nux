@@ -2,7 +2,6 @@
  * Button Widget Implementation
  *
  * Uses new event dispatching architecture with ITuiWidget, ITuiKeyListener, ITuiDrawListener
- * Maintains backward compatibility with ITuiButton interface
  */
 
 #include <stdio.h>
@@ -11,14 +10,9 @@
 #include "widgets_common.h"
 
 typedef struct {
-    /* Main interface - ITuiWidget */
     ITuiWidget WidgetInterface;
-
-    /* Backward compatibility - ITuiButton */
-    ITuiButton ButtonInterface;
-
-    /* Listener interfaces */
     ITuiKeyListener KeyListener;
+    ITuiMouseListener MouseListener;
     ITuiDrawListener DrawListener;
 
     /* Implementation data */
@@ -37,8 +31,8 @@ typedef struct {
 
 /* Helper macros for getting impl from any interface */
 #define BUTTON_FROM_WIDGET(w) ((TuiButtonImpl*)((UINT8*)(w) - offsetof(TuiButtonImpl, WidgetInterface)))
-#define BUTTON_FROM_BUTTON(b) ((TuiButtonImpl*)((UINT8*)(b) - offsetof(TuiButtonImpl, ButtonInterface)))
 #define BUTTON_FROM_KEY(k) ((TuiButtonImpl*)((UINT8*)(k) - offsetof(TuiButtonImpl, KeyListener)))
+#define BUTTON_FROM_MOUSE(m) ((TuiButtonImpl*)((UINT8*)(m) - offsetof(TuiButtonImpl, MouseListener)))
 #define BUTTON_FROM_DRAW(d) ((TuiButtonImpl*)((UINT8*)(d) - offsetof(TuiButtonImpl, DrawListener)))
 
 /*
@@ -67,14 +61,14 @@ static HRESULT ANXAPI ButtonWidget_QueryInterface(
         return S_OK;
     }
 
-    if (IsEqualGUID(riid, &IID_ITuiDrawListener)) {
-        *ppvObject = &impl->DrawListener;
+    if (IsEqualGUID(riid, &IID_ITuiMouseListener)) {
+        *ppvObject = &impl->MouseListener;
         impl->State.RefCount++;
         return S_OK;
     }
 
-    if (IsEqualGUID(riid, &IID_ITuiButton)) {
-        *ppvObject = &impl->ButtonInterface;
+    if (IsEqualGUID(riid, &IID_ITuiDrawListener)) {
+        *ppvObject = &impl->DrawListener;
         impl->State.RefCount++;
         return S_OK;
     }
@@ -316,7 +310,7 @@ static HRESULT ANXAPI ButtonWidget_Clone(
 )
 {
     TuiButtonImpl *impl = BUTTON_FROM_WIDGET(This);
-    ITuiButton *newButton = NULL;
+    ITuiWidget *newButton = NULL;
     HRESULT hr;
 
     hr = AnxTuiCreateButton(impl->Label, &newButton);
@@ -443,6 +437,85 @@ static ITuiKeyListener_Vtbl ButtonKeyVtbl = {
 };
 
 /*
+ * ITuiMouseListener Implementation
+ */
+
+static HRESULT ANXAPI ButtonMouse_QueryInterface(
+    ITuiMouseListener *This,
+    REFIID riid,
+    VOID **ppvObject
+)
+{
+    TuiButtonImpl *impl = BUTTON_FROM_MOUSE(This);
+    return ButtonWidget_QueryInterface(&impl->WidgetInterface, riid, ppvObject);
+}
+
+static UINTN ANXAPI ButtonMouse_AddRef(ITuiMouseListener *This)
+{
+    TuiButtonImpl *impl = BUTTON_FROM_MOUSE(This);
+    return ++impl->State.RefCount;
+}
+
+static UINTN ANXAPI ButtonMouse_Release(ITuiMouseListener *This)
+{
+    TuiButtonImpl *impl = BUTTON_FROM_MOUSE(This);
+    return ButtonWidget_Release(&impl->WidgetInterface);
+}
+
+static HRESULT ANXAPI ButtonMouse_OnMouseEvent(
+    ITuiMouseListener *This,
+    CONST TUI_MOUSE_EVENT *Event,
+    BOOLEAN *Handled
+)
+{
+    TuiButtonImpl *impl = BUTTON_FROM_MOUSE(This);
+    HRESULT hr;
+
+    *Handled = FALSE;
+
+    if (!impl->State.Enabled) return S_OK;
+
+    /* Check if mouse is over button */
+    BOOLEAN isOver = IsPointInWidget(&impl->State, Event->X, Event->Y);
+
+    if (!isOver) {
+        impl->Pressed = FALSE;
+        return S_OK;
+    }
+
+    if (Event->Type == TuiMouseLeftDown) {
+        impl->Pressed = TRUE;
+        *Handled = TRUE;
+        return S_OK;
+    }
+
+    if (Event->Type == TuiMouseLeftUp && impl->Pressed) {
+        impl->Pressed = FALSE;
+
+        /* Call callback if registered */
+        if (impl->Callback) {
+            hr = impl->Callback(impl->UserData);
+            if (FAILED(hr)) {
+                return hr;
+            }
+        }
+
+        *Handled = TRUE;
+        return S_OK;
+    }
+
+    return S_OK;
+}
+
+/* ITuiMouseListener vtable */
+static ITuiMouseListener_Vtbl ButtonMouseVtbl = {
+    ButtonMouse_QueryInterface,
+    ButtonMouse_AddRef,
+    ButtonMouse_Release,
+    ButtonMouse_OnMouseEvent
+};
+
+/*
  * ITuiDrawListener Implementation
  */
 
@@ -532,142 +605,28 @@ static ITuiDrawListener_Vtbl ButtonDrawVtbl = {
 };
 
 /*
- * ITuiButton Implementation (backward compatibility)
- */
-
-static HRESULT ANXAPI Button_QueryInterface(
-    ITuiButton *This,
-    REFIID riid,
-    VOID **ppvObject
-)
-{
-    TuiButtonImpl *impl = BUTTON_FROM_BUTTON(This);
-    return ButtonWidget_QueryInterface(&impl->WidgetInterface, riid, ppvObject);
-}
-
-static UINTN ANXAPI Button_AddRef(ITuiButton *This)
-{
-    TuiButtonImpl *impl = BUTTON_FROM_BUTTON(This);
-    return ++impl->State.RefCount;
-}
-
-static UINTN ANXAPI Button_Release(ITuiButton *This)
-{
-    TuiButtonImpl *impl = BUTTON_FROM_BUTTON(This);
-    return ButtonWidget_Release(&impl->WidgetInterface);
-}
-
-static HRESULT ANXAPI Button_SetLabel(
-    ITuiButton *This,
-    CONST CHAR8 *Label
-)
-{
-    TuiButtonImpl *impl = BUTTON_FROM_BUTTON(This);
-    if (!Label) return E_POINTER;
-
-    strncpy(impl->Label, Label, sizeof(impl->Label) - 1);
-    impl->Label[sizeof(impl->Label) - 1] = '\0';
-    return S_OK;
-}
-
-static HRESULT ANXAPI Button_SetCallback(
-    ITuiButton *This,
-    HRESULT (*Callback)(VOID *UserData),
-    VOID *UserData
-)
-{
-    TuiButtonImpl *impl = BUTTON_FROM_BUTTON(This);
-    impl->Callback = Callback;
-    impl->UserData = UserData;
-    return S_OK;
-}
-
-static HRESULT ANXAPI Button_Render(
-    ITuiButton *This,
-    ITuiScreen *Screen,
-    INT32 X,
-    INT32 Y,
-    BOOLEAN Focused
-)
-{
-    TuiButtonImpl *impl = BUTTON_FROM_BUTTON(This);
-    CHAR8 display[300];
-    TUI_COLOR fg, bg;
-
-    if (!impl->State.Visible) return S_OK;
-
-    impl->State.Focused = Focused;
-
-    /* Choose colors */
-    if (!impl->State.Enabled) {
-        fg = TuiColorBrightBlack;
-        bg = TuiColorBlack;
-    } else if (impl->Pressed) {
-        fg = TuiColorWhite;
-        bg = TuiColorBlue;
-    } else if (Focused) {
-        fg = TuiColorBlack;
-        bg = TuiColorYellow;
-    } else {
-        fg = TuiColorWhite;
-        bg = TuiColorBlue;
-    }
-
-    /* Format: < Label > */
-    snprintf(display, sizeof(display), "< %s >", impl->Label);
-
-    Screen->Vtbl->WriteText(Screen, X, Y, display, fg, bg);
-
-    return S_OK;
-}
-
-static HRESULT ANXAPI Button_HandleKey(
-    ITuiButton *This,
-    TUI_KEY Key,
-    BOOLEAN *Handled
-)
-{
-    TuiButtonImpl *impl = BUTTON_FROM_BUTTON(This);
-
-    /* Delegate to key listener */
-    ITuiKeyListener *keyListener = &impl->KeyListener;
-    return keyListener->Vtbl->OnKeyDown(keyListener, Key, 0, Handled);
-}
-
-/* ITuiButton vtable (backward compatibility) */
-static CONST ITuiButton_Vtbl ButtonVtbl = {
-    Button_QueryInterface,
-    Button_AddRef,
-    Button_Release,
-    Button_SetLabel,
-    Button_SetCallback,
-    Button_Render,
-    Button_HandleKey
-};
-
-/*
  * Factory Function
  */
 
 HRESULT ANXAPI AnxTuiCreateButton(
     IN  CONST CHAR8 *Label,
-    OUT ITuiButton **Button
+    OUT ITuiWidget **Widget
 )
 {
     TuiButtonImpl *impl;
 
-    if (!Button) return E_POINTER;
+    if (!Widget) return E_POINTER;
 
     impl = (TuiButtonImpl *)calloc(1, sizeof(TuiButtonImpl));
     if (!impl) {
-        *Button = NULL;
+        *Widget = NULL;
         return E_OUTOFMEMORY;
     }
 
     /* Initialize all vtables */
     impl->WidgetInterface.Vtbl = &ButtonWidgetVtbl;
-    impl->ButtonInterface.Vtbl = &ButtonVtbl;
     impl->KeyListener.Vtbl = &ButtonKeyVtbl;
+    impl->MouseListener.Vtbl = &ButtonMouseVtbl;
     impl->DrawListener.Vtbl = &ButtonDrawVtbl;
 
     /* Initialize state */
@@ -686,6 +645,25 @@ HRESULT ANXAPI AnxTuiCreateButton(
     impl->NextResponder = NULL;
     impl->Surface = NULL;
 
-    *Button = &impl->ButtonInterface;
+    *Widget = &impl->WidgetInterface;
+    return S_OK;
+}
+
+/* Convenience methods for button-specific functionality */
+HRESULT ANXAPI AnxTuiButtonSetLabel(ITuiWidget *Widget, CONST CHAR8 *Label)
+{
+    TuiButtonImpl *impl = BUTTON_FROM_WIDGET(Widget);
+    if (!Label) return E_POINTER;
+
+    strncpy(impl->Label, Label, sizeof(impl->Label) - 1);
+    impl->Label[sizeof(impl->Label) - 1] = '\0';
+    return S_OK;
+}
+
+HRESULT ANXAPI AnxTuiButtonSetCallback(ITuiWidget *Widget, HRESULT (*Callback)(VOID *UserData), VOID *UserData)
+{
+    TuiButtonImpl *impl = BUTTON_FROM_WIDGET(Widget);
+    impl->Callback = Callback;
+    impl->UserData = UserData;
     return S_OK;
 }
