@@ -286,11 +286,11 @@ LeGetArch (
 
   // LE/LX is x86 32-bit only
   if (LeHeader->CpuType >= 2) {  // 386 or higher
-    *Architecture = ARCH_386;
+    *Architecture = Arch386;
     return S_OK;
   }
 
-  *Architecture = ARCH_UNSUPPORTED;
+  *Architecture = ArchUnsupported;
   return IMGLOAD_E_UNSUPPORTED_ARCH;
 }
 

@@ -143,9 +143,9 @@ AoutGetArch (
   Header = (AOUT_HEADER *)ImageBase;
 
   if (Header->MachType == AOUT_M_386) {
-    *Architecture = ARCH_386;
+    *Architecture = Arch386;
   } else {
-    *Architecture = ARCH_UNSUPPORTED;
+    *Architecture = ArchUnsupported;
     return IMGLOAD_E_UNSUPPORTED_ARCH;
   }
 

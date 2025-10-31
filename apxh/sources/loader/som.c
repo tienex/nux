@@ -154,14 +154,14 @@ SomGetArch (
   switch (Magic) {
     case SOM_MAGIC_PARISC10:
     case SOM_MAGIC_PARISC11:
-      *Architecture = ARCH_PARISC;
+      *Architecture = ArchPaRisc;
       break;
     case SOM_MAGIC_PARISC20W:
     case SOM_MAGIC_PARISC20N:
-      *Architecture = ARCH_PARISC64;
+      *Architecture = ArchPaRisc64;
       break;
     default:
-      *Architecture = ARCH_UNSUPPORTED;
+      *Architecture = ArchUnsupported;
       return IMGLOAD_E_UNSUPPORTED_ARCH;
   }
 

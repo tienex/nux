@@ -220,11 +220,11 @@ XenixGetArch (
   Header = (XOUT_HEADER *)ImageBase;
 
   if (Header->CpuType == 3) {  // 386
-    *Architecture = ARCH_386;
+    *Architecture = Arch386;
     return S_OK;
   }
 
-  *Architecture = ARCH_UNSUPPORTED;
+  *Architecture = ArchUnsupported;
   return IMGLOAD_E_UNSUPPORTED_ARCH;
 }
 

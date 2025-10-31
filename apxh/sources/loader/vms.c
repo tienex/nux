@@ -102,9 +102,9 @@ ANX_PACK_POP()
 // Target Architecture Values
 //
 
-#define VMS_ARCH_VAX       1  ///< VAX
-#define VMS_ARCH_ALPHA     2  ///< Alpha AXP
-#define VMS_ARCH_IA64      3  ///< Itanium (IA-64)
+#define VMS_ArchVax       1  ///< VAX
+#define VMS_ArchAlpha     2  ///< Alpha AXP
+#define VMS_ArchIa64      3  ///< Itanium (IA-64)
 
 //
 // IImageLoader Implementation for OpenVMS
@@ -159,17 +159,17 @@ VmsGetArch (
   Ihs = (VMS_IHS *)ImageBase;
 
   switch (Ihs->TargetArch) {
-    case VMS_ARCH_VAX:
-      *Architecture = ARCH_VAX;
+    case VMS_ArchVax:
+      *Architecture = ArchVax;
       break;
-    case VMS_ARCH_ALPHA:
-      *Architecture = ARCH_ALPHA;
+    case VMS_ArchAlpha:
+      *Architecture = ArchAlpha;
       break;
-    case VMS_ARCH_IA64:
-      *Architecture = ARCH_IA64;
+    case VMS_ArchIa64:
+      *Architecture = ArchIa64;
       break;
     default:
-      *Architecture = ARCH_UNSUPPORTED;
+      *Architecture = ArchUnsupported;
       return IMGLOAD_E_UNSUPPORTED_ARCH;
   }
 

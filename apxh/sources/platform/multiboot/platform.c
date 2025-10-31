@@ -618,7 +618,7 @@ Mb386Entry (
 
   Architecture dispatcher for kernel entry. Supports i386 and AMD64.
 
-  @param[in] Arch   Architecture (ARCH_386 or ARCH_AMD64).
+  @param[in] Arch   Architecture (Arch386 or ArchAmd64).
   @param[in] Pt     Page table root physical address.
   @param[in] Entry  Kernel entry point virtual address.
 **/
@@ -631,10 +631,10 @@ PlatformEntry (
 {
   switch (Arch)
     {
-    case ARCH_386:
+    case Arch386:
       Mb386Entry (PageTable, Entry);
       break;
-    case ARCH_AMD64:
+    case ArchAmd64:
       MbAmd64Entry (PageTable, Entry);
       break;
     default:

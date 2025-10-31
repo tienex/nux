@@ -553,6 +553,6 @@ Pae64Entry (
   IN VIRTUAL_ADDRESS  Entry
   )
 {
-  PlatformEntry (ARCH_AMD64, (VIRTUAL_ADDRESS) (UINTN) gPae64Cr3, Entry);
+  PlatformEntry (ArchAmd64, (VIRTUAL_ADDRESS) (UINTN) gPae64Cr3, Entry);
 }
 

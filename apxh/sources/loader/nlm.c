@@ -225,13 +225,13 @@ NlmGetArch (
   if (Header->Version == NLM_VERSION_5) {
     NLM_HEADER_V5 *HeaderV5 = (NLM_HEADER_V5 *)ImageBase;
     if (HeaderV5->Is64Bit) {
-      *Architecture = ARCH_AMD64;
+      *Architecture = ArchAmd64;
       return S_OK;
     }
   }
 
   // Default to 32-bit x86 for NLM v4 and v5 32-bit
-  *Architecture = ARCH_386;
+  *Architecture = Arch386;
   return S_OK;
 }
 

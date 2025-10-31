@@ -109,15 +109,15 @@ GetArchName (
 {
   switch (Arch)
     {
-    case ARCH_INVALID:
+    case ArchInvalid:
       return "invalid";
-    case ARCH_UNSUPPORTED:
+    case ArchUnsupported:
       return "unsupported";
-    case ARCH_386:
+    case Arch386:
       return "i386";
-    case ARCH_AMD64:
+    case ArchAmd64:
       return "AMD64";
-    case ARCH_RISCV64:
+    case ArchRiscV64:
       return "RISCV64";
     default:
       return "unknown";
@@ -137,15 +137,15 @@ VirtualAddressInitialize (
   switch (gElfArch)
     {
 #if (EC_MACHINE_I386) || (EC_MACHINE_AMD64)
-    case ARCH_386:
+    case Arch386:
       PaeInitialize ();
       break;
-    case ARCH_AMD64:
+    case ArchAmd64:
       Pae64Initialize ();
       break;
 #endif
 #if EC_MACHINE_RISCV64
-    case ARCH_RISCV64:
+    case ArchRiscV64:
       Sv48Initialize ();
       break;
 #endif
@@ -182,15 +182,15 @@ VirtualAddressPopulate (
   switch (gElfArch)
     {
 #if EC_MACHINE_I386 || EC_MACHINE_AMD64
-    case ARCH_386:
+    case Arch386:
       PaePopulate (Va, Size, U, W, X);
       break;
-    case ARCH_AMD64:
+    case ArchAmd64:
       Pae64Populate (Va, Size, U, W, X);
       break;
 #endif
 #if EC_MACHINE_RISCV64
-    case ARCH_RISCV64:
+    case ArchRiscV64:
       Sv48Populate (Va, Size, U, W, X);
       break;
 #endif
@@ -320,15 +320,15 @@ VirtualAddressMapPhysical (
   switch (gElfArch)
     {
 #if EC_MACHINE_I386 || EC_MACHINE_AMD64
-    case ARCH_386:
+    case Arch386:
       PaeMapPhysical (Va, Size, 0, Mt);
       break;
-    case ARCH_AMD64:
+    case ArchAmd64:
       Pae64MapPhysical (Va, Size, 0, Mt);
       break;
 #endif
 #if EC_MACHINE_RISCV64
-    case ARCH_RISCV64:
+    case ArchRiscV64:
       Sv48MapPhysical (Va, Size, 0, Mt);
       break;
 #endif
@@ -377,15 +377,15 @@ VirtualAddressMapFramebuffer (
   switch (gElfArch)
     {
 #if EC_MACHINE_I386 || EC_MACHINE_AMD64
-    case ARCH_386:
+    case Arch386:
       PaeMapPhysical (Va, Size, Pa, Mt);
       break;
-    case ARCH_AMD64:
+    case ArchAmd64:
       Pae64MapPhysical (Va, Size, Pa, Mt);
       break;
 #endif
 #if EC_MACHINE_RISCV64
-    case ARCH_RISCV64:
+    case ArchRiscV64:
       Sv48MapPhysical (Va, Size, Pa, Mt);
       break;
 #endif
@@ -417,15 +417,15 @@ VirtualAddressMapLinear (
   switch (gElfArch)
     {
 #if EC_MACHINE_I386 || EC_MACHINE_AMD64
-    case ARCH_386:
+    case Arch386:
       PaeMapLinear (Va, Size);
       break;
-    case ARCH_AMD64:
+    case ArchAmd64:
       Pae64MapLinear (Va, Size);
       break;
 #endif
 #if EC_MACHINE_RISCV64
-    case ARCH_RISCV64:
+    case ArchRiscV64:
       Sv48MapLinear (Va, Size);
       break;
 #endif
@@ -455,15 +455,15 @@ VirtualAddressAllocateTopPageTable (
   switch (gElfArch)
     {
 #if EC_MACHINE_I386 || EC_MACHINE_AMD64
-    case ARCH_386:
+    case Arch386:
       PaeAllocateTopPageTable (Va, Size);
       break;
-    case ARCH_AMD64:
+    case ArchAmd64:
       Pae64AllocateTopPageTable (Va, Size);
       break;
 #endif
 #if EC_MACHINE_RISCV64
-    case ARCH_RISCV64:
+    case ArchRiscV64:
       Sv48AllocateTopPageTable (Va, Size);
       break;
 #endif
@@ -493,15 +493,15 @@ VirtualAddressAllocatePageTable (
   switch (gElfArch)
     {
 #if EC_MACHINE_I386 || EC_MACHINE_AMD64
-    case ARCH_386:
+    case Arch386:
       PaeAllocatePageTable (Va, Size);
       break;
-    case ARCH_AMD64:
+    case ArchAmd64:
       Pae64AllocatePageTable (Va, Size);
       break;
 #endif
 #if EC_MACHINE_RISCV64
-    case ARCH_RISCV64:
+    case ArchRiscV64:
       Sv48AllocatePageTable (Va, Size);
       break;
 #endif
@@ -990,15 +990,15 @@ VirtualAddressVerify (
   switch (gElfArch)
     {
 #if EC_MACHINE_I386 || EC_MACHINE_AMD64
-    case ARCH_386:
+    case Arch386:
       PaeVerify (Va, Size);
       break;
-    case ARCH_AMD64:
+    case ArchAmd64:
       Pae64Verify (Va, Size);
       break;
 #endif
 #if EC_MACHINE_RISCV64
-    case ARCH_RISCV64:
+    case ArchRiscV64:
       Sv48Verify (Va, Size);
       break;
 #endif
@@ -1026,15 +1026,15 @@ VirtualAddressGetPhysical (
   switch (gElfArch)
     {
 #if EC_MACHINE_I386 || EC_MACHINE_AMD64
-    case ARCH_386:
+    case Arch386:
       return PaeGetPhysical (Va);
       break;
-    case ARCH_AMD64:
+    case ArchAmd64:
       return Pae64GetPhysical (Va);
       break;
 #endif
 #if EC_MACHINE_RISCV64
-    case ARCH_RISCV64:
+    case ArchRiscV64:
       return Sv48GetPhysical (Va);
       break;
 #endif
@@ -1060,15 +1060,15 @@ VirtualAddressSetEntry (
   switch (gElfArch)
     {
 #if EC_MACHINE_I386 || EC_MACHINE_AMD64
-    case ARCH_386:
+    case Arch386:
       PaeEntry (Entry);
       break;
-    case ARCH_AMD64:
+    case ArchAmd64:
       Pae64Entry (Entry);
       break;
 #endif
 #if EC_MACHINE_RISCV64
-    case ARCH_RISCV64:
+    case ArchRiscV64:
       Sv48Entry (Entry);
       break;
 #endif
@@ -1121,15 +1121,15 @@ main (
   switch (gElfArch)
     {
 #if EC_MACHINE_I386 || EC_MACHINE_AMD64
-    case ARCH_386:
+    case Arch386:
       KEntry = LoadElf32 (ElfStart, 0);
       break;
-    case ARCH_AMD64:
+    case ArchAmd64:
       KEntry = LoadElf64 (ElfStart, 0);
       break;
 #endif
 #if EC_MACHINE_RISCV64
-    case ARCH_RISCV64:
+    case ArchRiscV64:
       KEntry = LoadElf64 (ElfStart, 0);
       break;
 #endif
@@ -1154,15 +1154,15 @@ main (
       switch (gElfArch)
 	{
 #if EC_MACHINE_I386 || EC_MACHINE_AMD64
-	case ARCH_386:
+	case Arch386:
 	  UEntry = LoadElf32 (ElfStart, 1);
 	  break;
-	case ARCH_AMD64:
+	case ArchAmd64:
 	  UEntry = LoadElf64 (ElfStart, 1);
 	  break;
 #endif
 #if EC_MACHINE_RISCV64
-	case ARCH_RISCV64:
+	case ArchRiscV64:
 	  UEntry = LoadElf64 (ElfStart, 1);
 	  break;
 #endif

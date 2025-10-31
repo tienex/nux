@@ -399,50 +399,50 @@ MachoGetArch (
 
   switch (Header->CpuType) {
     case CPU_TYPE_VAX:
-      *Architecture = ARCH_VAX;
+      *Architecture = ArchVax;
       break;
     case CPU_TYPE_MC680x0:
-      *Architecture = ARCH_M68K;
+      *Architecture = ArchM68k;
       break;
     case CPU_TYPE_I386:
-      *Architecture = ARCH_386;
+      *Architecture = Arch386;
       break;
     case CPU_TYPE_X86_64:
-      *Architecture = ARCH_AMD64;
+      *Architecture = ArchAmd64;
       break;
     case CPU_TYPE_MC98000:
       *Architecture = ARCH_PPC;
       break;
     case CPU_TYPE_HPPA:
-      *Architecture = ARCH_PARISC;
+      *Architecture = ArchPaRisc;
       break;
     case CPU_TYPE_ARM:
-      *Architecture = ARCH_ARM;
+      *Architecture = ArchArm;
       break;
     case CPU_TYPE_ARM64:
     case CPU_TYPE_ARM64_32:
-      *Architecture = ARCH_ARM64;
+      *Architecture = ArchArm64;
       break;
     case CPU_TYPE_MC88000:
-      *Architecture = ARCH_M88K;
+      *Architecture = ArchM88k;
       break;
     case CPU_TYPE_SPARC:
       *Architecture = ARCH_SPARC;
       break;
     case CPU_TYPE_I860:
-      *Architecture = ARCH_I860;
+      *Architecture = ArchI860;
       break;
     case CPU_TYPE_POWERPC:
       *Architecture = ARCH_PPC;
       break;
     case CPU_TYPE_POWERPC64:
-      *Architecture = ARCH_PPC64;
+      *Architecture = ArchPpc64;
       break;
     case CPU_TYPE_RISCV:
-      *Architecture = ARCH_RISCV64;
+      *Architecture = ArchRiscV64;
       break;
     default:
-      *Architecture = ARCH_UNSUPPORTED;
+      *Architecture = ArchUnsupported;
       return IMGLOAD_E_UNSUPPORTED_ARCH;
   }
 

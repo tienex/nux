@@ -286,19 +286,19 @@ PeGetArch (
 
   switch (NtHeaders->FileHeader.Machine) {
     case IMAGE_FILE_MACHINE_I386:
-      *Architecture = ARCH_386;
+      *Architecture = Arch386;
       break;
     case IMAGE_FILE_MACHINE_AMD64:
-      *Architecture = ARCH_AMD64;
+      *Architecture = ArchAmd64;
       break;
     case IMAGE_FILE_MACHINE_RISCV64:
-      *Architecture = ARCH_RISCV64;
+      *Architecture = ArchRiscV64;
       break;
     case IMAGE_FILE_MACHINE_ARM64:
-      *Architecture = ARCH_ARM64;
+      *Architecture = ArchArm64;
       break;
     default:
-      *Architecture = ARCH_UNSUPPORTED;
+      *Architecture = ArchUnsupported;
       return IMGLOAD_E_UNSUPPORTED_ARCH;
   }
 

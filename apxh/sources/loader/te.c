@@ -231,45 +231,45 @@ TeGetArch (
 
   switch (Header->Machine) {
     case TE_IMAGE_MACHINE_I386:
-      *Architecture = ARCH_386;
+      *Architecture = Arch386;
       return S_OK;
 
     case TE_IMAGE_MACHINE_X64:
-      *Architecture = ARCH_AMD64;
+      *Architecture = ArchAmd64;
       return S_OK;
 
     case TE_IMAGE_MACHINE_ARM:
     case TE_IMAGE_MACHINE_THUMB:
     case TE_IMAGE_MACHINE_ARMNT:
-      *Architecture = ARCH_ARM;
+      *Architecture = ArchArm;
       return S_OK;
 
     case TE_IMAGE_MACHINE_AARCH64:
-      *Architecture = ARCH_ARM64;
+      *Architecture = ArchArm64;
       return S_OK;
 
     case TE_IMAGE_MACHINE_RISCV32:
-      *Architecture = ARCH_RISCV32;
+      *Architecture = ArchRiscV32;
       return S_OK;
 
     case TE_IMAGE_MACHINE_RISCV64:
-      *Architecture = ARCH_RISCV64;
+      *Architecture = ArchRiscV64;
       return S_OK;
 
     case TE_IMAGE_MACHINE_RISCV128:
-      *Architecture = ARCH_RISCV128;
+      *Architecture = ArchRiscV128;
       return S_OK;
 
     case TE_IMAGE_MACHINE_LOONGARCH32:
-      *Architecture = ARCH_LOONGARCH32;
+      *Architecture = ArchLoongArch32;
       return S_OK;
 
     case TE_IMAGE_MACHINE_LOONGARCH64:
-      *Architecture = ARCH_LOONGARCH64;
+      *Architecture = ArchLoongArch64;
       return S_OK;
 
     default:
-      *Architecture = ARCH_UNSUPPORTED;
+      *Architecture = ArchUnsupported;
       return IMGLOAD_E_UNSUPPORTED_ARCH;
   }
 }

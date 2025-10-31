@@ -573,7 +573,7 @@ LoadElf64 (
 
   @param[in] ElfImg  Pointer to ELF image.
 
-  @return Architecture type, or ARCH_INVALID/ARCH_UNSUPPORTED.
+  @return Architecture type, or ArchInvalid/ArchUnsupported.
 **/
 static
 ARCH
@@ -585,18 +585,18 @@ GetElfArch (
   ELF32_HDR *ElfHeader = (ELF32_HDR *)ElfImg;
 
   if (memcmp(ElfHeader->Id, ElfId, 4) != 0)
-    return ARCH_INVALID;
+    return ArchInvalid;
 
   if (ElfHeader->Mach == EM_386)
-    return ARCH_386;
+    return Arch386;
 
   if (ElfHeader->Mach == EM_X86_64)
-    return ARCH_AMD64;
+    return ArchAmd64;
 
   if (ElfHeader->Mach == EM_RISCV)
-    return ARCH_RISCV64;
+    return ArchRiscV64;
 
-  return ARCH_UNSUPPORTED;
+  return ArchUnsupported;
 }
 
 /**
@@ -1195,11 +1195,11 @@ ElfGetArch (
 
   *Architecture = GetElfArch(ImageBase);
 
-  if (*Architecture == ARCH_INVALID) {
+  if (*Architecture == ArchInvalid) {
     return IMGLOAD_E_INVALID_FORMAT;
   }
 
-  if (*Architecture == ARCH_UNSUPPORTED) {
+  if (*Architecture == ArchUnsupported) {
     return IMGLOAD_E_UNSUPPORTED_ARCH;
   }
 

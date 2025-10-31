@@ -274,7 +274,7 @@ Pdp10GetArch (
     return E_POINTER;
   }
 
-  *Architecture = ARCH_PDP10;
+  *Architecture = ArchPdp10;
   return S_OK;
 }
 

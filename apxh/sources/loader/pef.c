@@ -31,7 +31,7 @@
 //
 
 #define PEF_ARCH_PWPC   0x70777063  ///< "pwpc" - PowerPC
-#define PEF_ARCH_M68K   0x6D36386B  ///< "m68k" - Motorola 68K
+#define PEF_ArchM68k   0x6D36386B  ///< "m68k" - Motorola 68K
 
 //
 // PEF Section Types
@@ -164,16 +164,16 @@ PefGetArch (
   switch (Header->Architecture) {
     case PEF_ARCH_PWPC:
       // PowerPC not supported by APXH
-      *Architecture = ARCH_UNSUPPORTED;
+      *Architecture = ArchUnsupported;
       return IMGLOAD_E_UNSUPPORTED_ARCH;
 
-    case PEF_ARCH_M68K:
+    case PEF_ArchM68k:
       // Motorola 68K not supported by APXH
-      *Architecture = ARCH_UNSUPPORTED;
+      *Architecture = ArchUnsupported;
       return IMGLOAD_E_UNSUPPORTED_ARCH;
 
     default:
-      *Architecture = ARCH_UNSUPPORTED;
+      *Architecture = ArchUnsupported;
       return IMGLOAD_E_UNSUPPORTED_ARCH;
   }
 }

@@ -202,20 +202,20 @@ EcoffGetArch (
   switch (Header->Magic) {
     case ECOFF_MAGIC_MIPSEL:
     case ECOFF_MAGIC_MIPSEB:
-      *Architecture = ARCH_MIPS32;
+      *Architecture = ArchMips32;
       break;
 
     case ECOFF_MAGIC_MIPS64EL:
     case ECOFF_MAGIC_MIPS64EB:
-      *Architecture = ARCH_MIPS64;
+      *Architecture = ArchMips64;
       break;
 
     case ECOFF_MAGIC_ALPHA:
-      *Architecture = ARCH_ALPHA;
+      *Architecture = ArchAlpha;
       break;
 
     default:
-      *Architecture = ARCH_UNSUPPORTED;
+      *Architecture = ArchUnsupported;
       return IMGLOAD_E_UNSUPPORTED_ARCH;
   }
 

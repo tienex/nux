@@ -226,19 +226,19 @@ Plan9GetArch (
 
   switch (Magic) {
     case I_MAGIC:  // Intel 386
-      *Architecture = ARCH_386;
+      *Architecture = Arch386;
       return S_OK;
 
     case E_MAGIC:  // ARM
-      *Architecture = ARCH_UNSUPPORTED;
+      *Architecture = ArchUnsupported;
       return IMGLOAD_E_UNSUPPORTED_ARCH;
 
     case L_MAGIC:  // DEC Alpha
-      *Architecture = ARCH_ALPHA;
+      *Architecture = ArchAlpha;
       return S_OK;
 
     default:
-      *Architecture = ARCH_UNSUPPORTED;
+      *Architecture = ArchUnsupported;
       return IMGLOAD_E_UNSUPPORTED_ARCH;
   }
 }

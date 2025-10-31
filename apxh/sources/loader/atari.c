@@ -180,7 +180,7 @@ AtariGetArch (
   }
 
   // Atari TOS is 68K only, which is not supported by APXH
-  *Architecture = ARCH_UNSUPPORTED;
+  *Architecture = ArchUnsupported;
   return IMGLOAD_E_UNSUPPORTED_ARCH;
 }
 

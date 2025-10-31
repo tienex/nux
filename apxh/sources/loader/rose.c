@@ -290,17 +290,17 @@ RoseGetArch (
 
   switch (CpuType) {
     case MO_CPU_TYPE_MIPS:
-      *Architecture = ARCH_MIPS64;
+      *Architecture = ArchMips64;
       break;
     case MO_CPU_TYPE_I386:
-      *Architecture = ARCH_386;
+      *Architecture = Arch386;
       break;
     case MO_CPU_TYPE_M68000:
-      *Architecture = ARCH_M68K;
+      *Architecture = ArchM68k;
       break;
     default:
       // Default to Alpha for OSF/1 and Tru64
-      *Architecture = ARCH_ALPHA;
+      *Architecture = ArchAlpha;
       break;
   }
 

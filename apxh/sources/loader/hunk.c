@@ -174,7 +174,7 @@ HunkGetArch (
 
   // Traditional Amiga HUNK is 68K only, which is not supported by APXH
   // Note: AROS may extend HUNK to host x86 code, but no standard detection method exists
-  *Architecture = ARCH_UNSUPPORTED;
+  *Architecture = ArchUnsupported;
   return IMGLOAD_E_UNSUPPORTED_ARCH;
 }
 

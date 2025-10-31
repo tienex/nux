@@ -2,12 +2,13 @@
   APXH COFF Loader Implementation
 
   Provides COFF (Common Object File Format) parsing and loading for
-  Unix System V executables and object files using COM-style interface.
-  Handles sections, optional headers, and relocations for multiple
+  Unix System V Release 3 (SVR3) executables and object files using COM-style
+  interface. Handles sections, optional headers, and relocations for multiple
   architectures with proper endianness detection.
 
-  COFF is the predecessor of ELF and can be either big-endian or little-endian
-  depending on the target architecture.
+  This loader implements SVR3 COFF format, which is the predecessor of ELF
+  and can be either big-endian or little-endian depending on the target
+  architecture.
 
   Supported Architectures:
   - x86: i386, i860, AMD64/x86-64
@@ -161,6 +162,12 @@ ANX_PACK_POP()
 
 //
 // COFF Relocation Types
+//
+// Note: These use #define instead of enum because COFF relocation type values
+// are architecture-specific and overlap across architectures. The same numeric
+// value can mean different relocation types depending on the architecture context.
+// The architecture is determined at runtime via switch statements, making enums
+// impractical without verbose per-architecture enum types or non-standard values.
 //
 
 // Generic/Common
@@ -513,61 +520,61 @@ CoffGetArch (
   switch (Magic) {
     // x86/x64
     case COFF_MAGIC_I386:
-      *Architecture = ARCH_386;
+      *Architecture = Arch386;
       break;
     case COFF_MAGIC_I860:
-      *Architecture = ARCH_I860;
+      *Architecture = ArchI860;
       break;
     case COFF_MAGIC_AMD64:
-      *Architecture = ARCH_AMD64;
+      *Architecture = ArchAmd64;
       break;
 
     // ARM
     case COFF_MAGIC_ARMV4:
     case COFF_MAGIC_ARMV4T:
     case COFF_MAGIC_ARMV7:
-      *Architecture = ARCH_ARM;
+      *Architecture = ArchArm;
       break;
     case COFF_MAGIC_ARM64:
     case COFF_MAGIC_ARM64X64:
     case COFF_MAGIC_ARM64CLS:
     case COFF_MAGIC_ARM64I386:
-      *Architecture = ARCH_ARM64;
+      *Architecture = ArchArm64;
       break;
 
     // MIPS
     case COFF_MAGIC_MIPS_R3000_BE:
     case COFF_MAGIC_MIPS_R3000:
     case COFF_MAGIC_MIPS16:
-      *Architecture = ARCH_MIPS32;
+      *Architecture = ArchMips32;
       break;
     case COFF_MAGIC_MIPS_R4000:
     case COFF_MAGIC_MIPS_R10000:
     case COFF_MAGIC_MIPS_WCE:
     case COFF_MAGIC_MIPS_FPU:
     case COFF_MAGIC_MIPS16_FPU:
-      *Architecture = ARCH_MIPS64;
+      *Architecture = ArchMips64;
       break;
 
     // Alpha
     case COFF_MAGIC_ALPHA32:
     case COFF_MAGIC_ALPHA64:
-      *Architecture = ARCH_ALPHA;
+      *Architecture = ArchAlpha;
       break;
 
     // PowerPC
     case COFF_MAGIC_POWERPC_LE:
     case COFF_MAGIC_POWERPC_FPU:
     case COFF_MAGIC_POWERPC_BE:
-      *Architecture = ARCH_PPC32;
+      *Architecture = ArchPpc32;
       break;
     case COFF_MAGIC_POWERPC64_BE:
-      *Architecture = ARCH_PPC64;
+      *Architecture = ArchPpc64;
       break;
 
     // Motorola
     case COFF_MAGIC_M68K:
-      *Architecture = ARCH_M68K;
+      *Architecture = ArchM68k;
       break;
 
     // Hitachi SH
@@ -578,38 +585,38 @@ CoffGetArch (
     case COFF_MAGIC_SH5:
     case COFF_MAGIC_SH_BE:
     case COFF_MAGIC_SH_LE:
-      *Architecture = ARCH_SH;
+      *Architecture = ArchSh;
       break;
 
     // Other
     case COFF_MAGIC_ITANIUM:
-      *Architecture = ARCH_IA64;
+      *Architecture = ArchIa64;
       break;
     case COFF_MAGIC_PARISC:
-      *Architecture = ARCH_PARISC;
+      *Architecture = ArchPaRisc;
       break;
 
     // RISC-V
     case COFF_MAGIC_RISCV32:
-      *Architecture = ARCH_RISCV32;
+      *Architecture = ArchRiscV32;
       break;
     case COFF_MAGIC_RISCV64:
-      *Architecture = ARCH_RISCV64;
+      *Architecture = ArchRiscV64;
       break;
     case COFF_MAGIC_RISCV128:
-      *Architecture = ARCH_RISCV128;
+      *Architecture = ArchRiscV128;
       break;
 
     // LoongArch
     case COFF_MAGIC_LOONGARCH32:
-      *Architecture = ARCH_LOONGARCH32;
+      *Architecture = ArchLoongArch32;
       break;
     case COFF_MAGIC_LOONGARCH64:
-      *Architecture = ARCH_LOONGARCH64;
+      *Architecture = ArchLoongArch64;
       break;
 
     default:
-      *Architecture = ARCH_UNSUPPORTED;
+      *Architecture = ArchUnsupported;
       return IMGLOAD_E_UNSUPPORTED_ARCH;
   }
 
@@ -915,7 +922,7 @@ CoffGetRelocInfo (
   }
 
   // COFF has per-section relocations
-  RelocInfo->Format = 9;  // COFF format
+  RelocInfo->Format = ImgRelocFormatCoff;
   RelocInfo->RequiresReloc = TRUE;
 
   return S_OK;
@@ -990,7 +997,7 @@ CoffApplyRelocations (
 
       // Apply relocation based on type and architecture
       switch (Arch) {
-        case ARCH_386:
+        case Arch386:
           switch (RelocType) {
             case COFF_RELOC_I386_DIR32:
             case COFF_RELOC_I386_DIR32NB: {
@@ -1004,7 +1011,7 @@ CoffApplyRelocations (
           }
           break;
 
-        case ARCH_AMD64:
+        case ArchAmd64:
           switch (RelocType) {
             case COFF_RELOC_AMD64_ADDR64: {
               UINT64 *Target = (UINT64 *)COFF_OFF(RelocVa);
@@ -1023,7 +1030,7 @@ CoffApplyRelocations (
           }
           break;
 
-        case ARCH_ARM:
+        case ArchArm:
           switch (RelocType) {
             case COFF_RELOC_ARM_ADDR32:
             case COFF_RELOC_ARM_ADDR32NB: {
@@ -1037,7 +1044,7 @@ CoffApplyRelocations (
           }
           break;
 
-        case ARCH_ARM64:
+        case ArchArm64:
           switch (RelocType) {
             case COFF_RELOC_ARM64_ADDR64: {
               UINT64 *Target = (UINT64 *)COFF_OFF(RelocVa);
@@ -1056,8 +1063,8 @@ CoffApplyRelocations (
           }
           break;
 
-        case ARCH_MIPS32:
-        case ARCH_MIPS64:
+        case ArchMips32:
+        case ArchMips64:
           switch (RelocType) {
             case COFF_RELOC_MIPS_REFWORD:
             case COFF_RELOC_MIPS_REFWORDNB: {
@@ -1076,7 +1083,7 @@ CoffApplyRelocations (
           }
           break;
 
-        case ARCH_ALPHA:
+        case ArchAlpha:
           switch (RelocType) {
             case COFF_RELOC_ALPHA_REFQUAD: {
               UINT64 *Target = (UINT64 *)COFF_OFF(RelocVa);
@@ -1095,7 +1102,7 @@ CoffApplyRelocations (
           }
           break;
 
-        case ARCH_PPC32:
+        case ArchPpc32:
           switch (RelocType) {
             case COFF_RELOC_PPC_ADDR32:
             case COFF_RELOC_PPC_ADDR32NB: {
@@ -1121,7 +1128,7 @@ CoffApplyRelocations (
           }
           break;
 
-        case ARCH_PPC64:
+        case ArchPpc64:
           switch (RelocType) {
             case COFF_RELOC_PPC_ADDR64: {
               UINT64 *Target = (UINT64 *)COFF_OFF(RelocVa);
@@ -1140,7 +1147,7 @@ CoffApplyRelocations (
           }
           break;
 
-        case ARCH_SH:
+        case ArchSh:
           switch (RelocType) {
             case COFF_RELOC_SH_DIRECT32:
             case COFF_RELOC_SH_DIRECT32NB: {
@@ -1154,7 +1161,7 @@ CoffApplyRelocations (
           }
           break;
 
-        case ARCH_IA64:
+        case ArchIa64:
           switch (RelocType) {
             case COFF_RELOC_IA64_DIR64: {
               UINT64 *Target = (UINT64 *)COFF_OFF(RelocVa);

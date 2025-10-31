@@ -118,22 +118,22 @@ ArchToElfMachine (
   )
 {
   switch (Arch) {
-    case ARCH_386:
+    case Arch386:
       *MachineType = EM_386;
       *WordSize = FATELF_WORDSIZE_32;
       return TRUE;
 
-    case ARCH_AMD64:
+    case ArchAmd64:
       *MachineType = EM_X86_64;
       *WordSize = FATELF_WORDSIZE_64;
       return TRUE;
 
-    case ARCH_RISCV64:
+    case ArchRiscV64:
       *MachineType = EM_RISCV;
       *WordSize = FATELF_WORDSIZE_64;
       return TRUE;
 
-    case ARCH_ARM64:
+    case ArchArm64:
       *MachineType = EM_AARCH64;
       *WordSize = FATELF_WORDSIZE_64;
       return TRUE;
@@ -242,21 +242,21 @@ FatElfGetArch (
 
   // Try to find current architecture first
 #if defined(ANANKE_ARCH_X64)
-  Rec = FindMatchingRecord(ImageBase, ARCH_AMD64);
+  Rec = FindMatchingRecord(ImageBase, ArchAmd64);
   if (Rec != NULL) {
-    *Architecture = ARCH_AMD64;
+    *Architecture = ArchAmd64;
     return S_OK;
   }
 #elif defined(ANANKE_ARCH_X86)
-  Rec = FindMatchingRecord(ImageBase, ARCH_386);
+  Rec = FindMatchingRecord(ImageBase, Arch386);
   if (Rec != NULL) {
-    *Architecture = ARCH_386;
+    *Architecture = Arch386;
     return S_OK;
   }
-#elif defined(ANANKE_ARCH_RISCV64)
-  Rec = FindMatchingRecord(ImageBase, ARCH_RISCV64);
+#elif defined(ANANKE_ArchRiscV64)
+  Rec = FindMatchingRecord(ImageBase, ArchRiscV64);
   if (Rec != NULL) {
-    *Architecture = ARCH_RISCV64;
+    *Architecture = ArchRiscV64;
     return S_OK;
   }
 #endif
@@ -267,23 +267,23 @@ FatElfGetArch (
 
     switch (Rec->MachineType) {
       case EM_386:
-        *Architecture = ARCH_386;
+        *Architecture = Arch386;
         return S_OK;
       case EM_X86_64:
-        *Architecture = ARCH_AMD64;
+        *Architecture = ArchAmd64;
         return S_OK;
       case EM_RISCV:
-        *Architecture = ARCH_RISCV64;
+        *Architecture = ArchRiscV64;
         return S_OK;
       case EM_AARCH64:
-        *Architecture = ARCH_ARM64;
+        *Architecture = ArchArm64;
         return S_OK;
       default:
         continue;
     }
   }
 
-  *Architecture = ARCH_UNSUPPORTED;
+  *Architecture = ArchUnsupported;
   return IMGLOAD_E_UNSUPPORTED_ARCH;
 }
 
@@ -639,15 +639,15 @@ FatElfApplyRelocations (
   Records = (FATELF_RECORD *)FATELF_OFF(sizeof(FATELF_HEADER));
 
   // Determine target architecture
-  TargetArch = ARCH_INVALID;
+  TargetArch = ArchInvalid;
 #if defined(ANANKE_ARCH_X64)
-  TargetArch = ARCH_AMD64;
-#elif defined(ANANKE_ARCH_ARM64)
+  TargetArch = ArchAmd64;
+#elif defined(ANANKE_ArchArm64)
   TargetArch = ARCH_AARCH64;
-#elif defined(ANANKE_ARCH_RISCV64)
-  TargetArch = ARCH_RISCV64;
+#elif defined(ANANKE_ArchRiscV64)
+  TargetArch = ArchRiscV64;
 #elif defined(ANANKE_ARCH_IA32)
-  TargetArch = ARCH_386;
+  TargetArch = Arch386;
 #endif
 
   // Find matching record
