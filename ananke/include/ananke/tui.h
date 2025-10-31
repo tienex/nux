@@ -65,6 +65,9 @@ typedef struct _ITuiGrid ITuiGrid;
 typedef struct _ITuiSplitView ITuiSplitView;
 typedef struct _ITuiSurface ITuiSurface;
 typedef struct _ITuiPropertySheet ITuiPropertySheet;
+typedef struct _ITuiSpreadsheet ITuiSpreadsheet;
+typedef struct _ITuiRuler ITuiRuler;
+typedef struct _ITuiRichTextEditor ITuiRichTextEditor;
 
 //
 // Text Direction for BiDi Support
@@ -2947,6 +2950,100 @@ struct _ITuiPropertySheet {
     CONST ITuiPropertySheet_Vtbl *Vtbl;
 };
 
+// {A6B7C8D9-0E1F-2A3B-4C5D-6E7F8A9B0C1D}
+DEFINE_GUID(IID_ITuiSpreadsheet,
+    0xA6B7C8D9, 0x0E1F, 0x2A3B, 0x4C, 0x5D, 0x6E, 0x7F, 0x8A, 0x9B, 0x0C, 0x1D);
+
+/**
+  ITuiSpreadsheet Interface
+
+  Excel-like spreadsheet control with virtual storage, formula evaluation,
+  cell editing, selection, freeze panes, and formatting.
+**/
+typedef struct _ITuiSpreadsheet_Vtbl {
+    HRESULT (ANXAPI *QueryInterface)(ITuiSpreadsheet *This, REFIID riid, VOID **ppvObject);
+    UINTN (ANXAPI *AddRef)(ITuiSpreadsheet *This);
+    UINTN (ANXAPI *Release)(ITuiSpreadsheet *This);
+    HRESULT (ANXAPI *Render)(ITuiSpreadsheet *This, ITuiScreen *Screen, INT32 X, INT32 Y);
+    HRESULT (ANXAPI *HandleKey)(ITuiSpreadsheet *This, TUI_KEY Key);
+    HRESULT (ANXAPI *SetBounds)(ITuiSpreadsheet *This, CONST TUI_RECT *Bounds);
+    HRESULT (ANXAPI *GetBounds)(ITuiSpreadsheet *This, TUI_RECT *Bounds);
+    HRESULT (ANXAPI *SetVisible)(ITuiSpreadsheet *This, BOOLEAN Visible);
+    BOOLEAN (ANXAPI *IsVisible)(ITuiSpreadsheet *This);
+    HRESULT (ANXAPI *SetEnabled)(ITuiSpreadsheet *This, BOOLEAN Enabled);
+    BOOLEAN (ANXAPI *IsEnabled)(ITuiSpreadsheet *This);
+    HRESULT (ANXAPI *SetCellValue)(ITuiSpreadsheet *This, UINT32 Row, UINT32 Col, CONST CHAR8 *Value);
+    HRESULT (ANXAPI *GetCellValue)(ITuiSpreadsheet *This, UINT32 Row, UINT32 Col, CHAR8 *Value, UINTN ValueSize);
+    HRESULT (ANXAPI *SetColumnWidth)(ITuiSpreadsheet *This, UINT32 Column, UINT32 Width);
+    HRESULT (ANXAPI *SetVirtualMode)(ITuiSpreadsheet *This, BOOLEAN Enable, HRESULT (*OnGetCell)(VOID*, UINT32, UINT32, VOID*), HRESULT (*OnSetCell)(VOID*, UINT32, UINT32, CONST VOID*), VOID *UserData);
+} ITuiSpreadsheet_Vtbl;
+
+struct _ITuiSpreadsheet {
+    CONST ITuiSpreadsheet_Vtbl *Vtbl;
+};
+
+// {B7C8D9E0-1F2A-3B4C-5D6E-7F8A9B0C1D2E}
+DEFINE_GUID(IID_ITuiRuler,
+    0xB7C8D9E0, 0x1F2A, 0x3B4C, 0x5D, 0x6E, 0x7F, 0x8A, 0x9B, 0x0C, 0x1D, 0x2E);
+
+/**
+  ITuiRuler Interface
+
+  Horizontal/vertical ruler for text editors showing column/line numbers,
+  tab stops, margins, and cursor position.
+**/
+typedef struct _ITuiRuler_Vtbl {
+    HRESULT (ANXAPI *QueryInterface)(ITuiRuler *This, REFIID riid, VOID **ppvObject);
+    UINTN (ANXAPI *AddRef)(ITuiRuler *This);
+    UINTN (ANXAPI *Release)(ITuiRuler *This);
+    HRESULT (ANXAPI *Render)(ITuiRuler *This, ITuiScreen *Screen, INT32 X, INT32 Y);
+    HRESULT (ANXAPI *SetBounds)(ITuiRuler *This, CONST TUI_RECT *Bounds);
+    HRESULT (ANXAPI *GetBounds)(ITuiRuler *This, TUI_RECT *Bounds);
+    HRESULT (ANXAPI *SetVisible)(ITuiRuler *This, BOOLEAN Visible);
+    BOOLEAN (ANXAPI *IsVisible)(ITuiRuler *This);
+    HRESULT (ANXAPI *SetEnabled)(ITuiRuler *This, BOOLEAN Enabled);
+    BOOLEAN (ANXAPI *IsEnabled)(ITuiRuler *This);
+    HRESULT (ANXAPI *SetMargins)(ITuiRuler *This, UINT32 LeftMargin, UINT32 RightMargin, UINT32 FirstLineIndent);
+    HRESULT (ANXAPI *AddTabStop)(ITuiRuler *This, UINT32 Position, UINT32 Type);
+    HRESULT (ANXAPI *ClearTabStops)(ITuiRuler *This);
+    HRESULT (ANXAPI *SetCurrentPosition)(ITuiRuler *This, UINT32 Position);
+} ITuiRuler_Vtbl;
+
+struct _ITuiRuler {
+    CONST ITuiRuler_Vtbl *Vtbl;
+};
+
+// {C8D9E0F1-2A3B-4C5D-6E7F-8A9B0C1D2E3F}
+DEFINE_GUID(IID_ITuiRichTextEditor,
+    0xC8D9E0F1, 0x2A3B, 0x4C5D, 0x6E, 0x7F, 0x8A, 0x9B, 0x0C, 0x1D, 0x2E, 0x3F);
+
+/**
+  ITuiRichTextEditor Interface
+
+  Full-featured rich text editor similar to Word for DOS/WordPerfect/WordStar
+  with formatting, search/replace, block operations, and reveal codes.
+**/
+typedef struct _ITuiRichTextEditor_Vtbl {
+    HRESULT (ANXAPI *QueryInterface)(ITuiRichTextEditor *This, REFIID riid, VOID **ppvObject);
+    UINTN (ANXAPI *AddRef)(ITuiRichTextEditor *This);
+    UINTN (ANXAPI *Release)(ITuiRichTextEditor *This);
+    HRESULT (ANXAPI *Render)(ITuiRichTextEditor *This, ITuiScreen *Screen, INT32 X, INT32 Y);
+    HRESULT (ANXAPI *HandleKey)(ITuiRichTextEditor *This, TUI_KEY Key);
+    HRESULT (ANXAPI *SetBounds)(ITuiRichTextEditor *This, CONST TUI_RECT *Bounds);
+    HRESULT (ANXAPI *GetBounds)(ITuiRichTextEditor *This, TUI_RECT *Bounds);
+    HRESULT (ANXAPI *SetVisible)(ITuiRichTextEditor *This, BOOLEAN Visible);
+    BOOLEAN (ANXAPI *IsVisible)(ITuiRichTextEditor *This);
+    HRESULT (ANXAPI *SetEnabled)(ITuiRichTextEditor *This, BOOLEAN Enabled);
+    BOOLEAN (ANXAPI *IsEnabled)(ITuiRichTextEditor *This);
+    HRESULT (ANXAPI *SetText)(ITuiRichTextEditor *This, CONST CHAR8 *Text);
+    HRESULT (ANXAPI *ToggleFormat)(ITuiRichTextEditor *This, UINT32 Attribute);
+    HRESULT (ANXAPI *SetRuler)(ITuiRichTextEditor *This, ITuiRuler *Ruler);
+} ITuiRichTextEditor_Vtbl;
+
+struct _ITuiRichTextEditor {
+    CONST ITuiRichTextEditor_Vtbl *Vtbl;
+};
+
 //
 // Factory functions
 //
@@ -3519,6 +3616,58 @@ HRESULT
 ANXAPI
 AnxTuiCreatePropertySheet(
     OUT ITuiPropertySheet **OutPropertySheet
+);
+
+/**
+  Create a TUI Spreadsheet instance.
+
+  @param[in]  Rows            Number of rows.
+  @param[in]  Columns         Number of columns.
+  @param[out] OutSpreadsheet  Pointer to receive the spreadsheet interface.
+
+  @retval S_OK        Spreadsheet created successfully.
+  @retval E_INVALIDARG  Invalid dimensions.
+  @retval E_OUTOFMEMORY  Memory allocation failed.
+**/
+HRESULT
+ANXAPI
+AnxTuiCreateSpreadsheet(
+    IN  UINT32 Rows,
+    IN  UINT32 Columns,
+    OUT ITuiSpreadsheet **OutSpreadsheet
+);
+
+/**
+  Create a TUI Ruler instance.
+
+  @param[in]  Orientation  0=Horizontal, 1=Vertical.
+  @param[in]  Length       Ruler length in units.
+  @param[out] OutRuler     Pointer to receive the ruler interface.
+
+  @retval S_OK        Ruler created successfully.
+  @retval E_INVALIDARG  Invalid parameters.
+  @retval E_OUTOFMEMORY  Memory allocation failed.
+**/
+HRESULT
+ANXAPI
+AnxTuiCreateRuler(
+    IN  UINT32 Orientation,
+    IN  UINT32 Length,
+    OUT ITuiRuler **OutRuler
+);
+
+/**
+  Create a TUI Rich Text Editor instance.
+
+  @param[out] OutEditor  Pointer to receive the editor interface.
+
+  @retval S_OK        Editor created successfully.
+  @retval E_OUTOFMEMORY  Memory allocation failed.
+**/
+HRESULT
+ANXAPI
+AnxTuiCreateRichTextEditor(
+    OUT ITuiRichTextEditor **OutEditor
 );
 
 #ifdef __cplusplus

@@ -86,6 +86,9 @@ set(ANXCONFIG_SOURCES
     widget_listview.c
     widget_wizard.c
     widget_propertysheet.c
+    widget_spreadsheet.c
+    widget_ruler.c
+    widget_richtexteditor.c
     # Layout containers
     widget_flexcontainer.c
     widget_vbox.c
