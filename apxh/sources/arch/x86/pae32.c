@@ -152,6 +152,9 @@ PaeVerify (
   Sets up PAE (Physical Address Extension) paging with 3-level page
   tables. Allocates CR3 and 4 L2 page directory tables. Enables NX
   if supported and configures PAT table.
+
+  If PAE is not supported, prints a warning but continues with
+  initialization to allow basic operation on legacy systems.
 **/
 static VOID
 PaeInitialize (
@@ -160,8 +163,13 @@ PaeInitialize (
 {
 INT32 i;
 
-  /* Enable NX */
-  assert (CpuSupportsPae ());
+  /* Check for PAE support */
+  if (!CpuSupportsPae ()) {
+    printf ("WARNING: CPU does not support PAE!\n");
+    printf ("WARNING: Page table setup may not work correctly on this system.\n");
+    printf ("WARNING: The kernel will need to set up its own page tables.\n");
+    /* Continue anyway to allow bootloader to function on very old systems */
+  }
 
   gNxEnabled = CpuSupportsNx ();
 

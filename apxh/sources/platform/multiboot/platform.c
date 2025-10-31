@@ -426,7 +426,8 @@ PlatformGetFramebuffer (
 /**
   Get platform descriptor.
 
-  Returns platform descriptor with ACPI RSDP pointer.
+  Returns platform descriptor with ACPI RSDP pointer if available.
+  Falls back to Unknown platform type if ACPI is not present.
 
   @return Pointer to platform descriptor.
 **/
@@ -435,9 +436,23 @@ PlatformGetDescriptor (
   VOID
   )
 {
-  /* Only ACPI supported. */
-  gPlatformDesc.Type = ApxhPlatformAcpi;
-  gPlatformDesc.PlatformPointer = RsdpFind ();
+  UINT64 Rsdp;
+
+  /* Try to find ACPI RSDP */
+  Rsdp = RsdpFind ();
+
+  if (Rsdp != 0) {
+    /* ACPI available */
+    gPlatformDesc.Type = ApxhPlatformAcpi;
+    gPlatformDesc.PlatformPointer = Rsdp;
+    printf ("Platform: ACPI (RSDP at 0x%llx)\n", Rsdp);
+  } else {
+    /* No ACPI - use unknown/legacy platform */
+    gPlatformDesc.Type = ApxhPlatformUnknown;
+    gPlatformDesc.PlatformPointer = 0;
+    printf ("Platform: Legacy (no ACPI detected)\n");
+  }
+
   return &gPlatformDesc;
 }
 
@@ -491,6 +506,9 @@ static GDTREG gGdtReg = {
   to kernel entry point. Creates trampoline page table and switches
   CPU to 64-bit mode.
 
+  Note: AMD64 requires PAE - it cannot enter long mode without it.
+  If PAE is not detected, warns but continues anyway.
+
   @param[in] Pt     Page table root physical address.
   @param[in] Entry  Kernel entry point virtual address.
 **/
@@ -506,6 +524,18 @@ MbAmd64Entry (
   UINTN Cr0, Cr3, Cr4;
   UINT64 Efer;
   VIRTUAL_ADDRESS TrampEntry;
+
+  /* Check for PAE support (required for AMD64) */
+  if (!CpuSupportsPae ()) {
+    printf ("WARNING: CPU does not report PAE support!\n");
+    printf ("WARNING: AMD64 requires PAE. This may fail.\n");
+  }
+
+  /* Check for long mode support */
+  if (!CpuSupportsLongmode ()) {
+    printf ("WARNING: CPU does not support long mode (AMD64)!\n");
+    printf ("WARNING: Attempting to enter long mode anyway.\n");
+  }
 
   /* Allocate trampoline pagetable. */
   TrampCr3 = (VOID *) GetPage ();
@@ -527,7 +557,7 @@ MbAmd64Entry (
 
   Cr4 = ReadCr4 ();
   WriteCr4 (Cr4 | CR4_PAE);
-  printf ("CR4: %08lx -> %08lx.\n", Cr4, ReadCr4 ());
+  printf ("CR4: %08lx -> %08lx (PAE enabled for long mode).\n", Cr4, ReadCr4 ());
 
   Cr3 = ReadCr3 ();
   WriteCr3 ((UINTN) TrampCr3);
@@ -559,8 +589,9 @@ MbAmd64Entry (
 /**
   Transfer control to i386 kernel.
 
-  Sets up PAE paging and transfers control to 32-bit kernel entry
-  point. Creates trampoline page table.
+  Sets up PAE paging (if supported) and transfers control to 32-bit
+  kernel entry point. Creates trampoline page table. On non-PAE systems,
+  skips CR4 PAE bit and lets kernel handle paging setup.
 
   @param[in] Pt     Page table root physical address.
   @param[in] Entry  Kernel entry point virtual address.
@@ -578,6 +609,7 @@ Mb386Entry (
   UINTN Cr4 = ReadCr4 ();
   UINTN Cr3 = ReadCr3 ();
   UINTN Cr0 = ReadCr0 ();
+  BOOLEAN PaeSupported = CpuSupportsPae ();
 
   /* Allocate trampoline pagetable. */
   TrampCr3 = (VOID *) GetPage ();
@@ -597,8 +629,13 @@ Mb386Entry (
   printf ("mapping in %lx %llx at %lx\n", TrampCr3, Entry,
 	  PaeGetPhysical (Entry));
 
-  WriteCr4 (Cr4 | CR4_PAE);
-  printf ("CR4: %08lx -> %08lx.\n", Cr4, ReadCr4 ());
+  /* Enable PAE only if supported */
+  if (PaeSupported) {
+    WriteCr4 (Cr4 | CR4_PAE);
+    printf ("CR4: %08lx -> %08lx (PAE enabled).\n", Cr4, ReadCr4 ());
+  } else {
+    printf ("CR4: %08lx (PAE not supported, skipping).\n", Cr4);
+  }
 
   WriteCr3 ((UINTN) TrampCr3);
   printf ("CR3: %08lx -> %08lx.\n", Cr3, ReadCr3 ());
