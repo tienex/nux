@@ -23,6 +23,8 @@
 
 #include <apxh/internal.h>
 #include <apxh/imgload.h>
+#include <ananke/resource.h>
+#include "imgresource.h"
 
 //
 // HP SOM Magic Numbers and Constants
@@ -694,6 +696,55 @@ SomGetMinimumSubsystemVersion (
 // HP SOM Loader VTable
 //
 
+
+/**
+  Get resource from HP SOM image.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+SomGetResource (
+  IN  IImageLoader   *This,
+  IN  VOID           *ImageBase,
+  IN  UINT32         TypeCode,
+  IN  UINT32         Id,
+  IN  CONST CHAR8    *Name,
+  OUT IImageResource **Resource
+  )
+{
+  if (Resource == NULL) {
+    return E_POINTER;
+  }
+
+  *Resource = NULL;
+
+  // HP SOM format not yet fully implemented
+  return S_FALSE;
+}
+
+/**
+  Get resource enumerator for HP SOM image.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+SomGetResourceEnumerator (
+  IN  IImageLoader        *This,
+  IN  VOID                *ImageBase,
+  IN  UINT32              TypeCode,
+  OUT IEnumImageResource  **Enumerator
+  )
+{
+  if (Enumerator == NULL) {
+    return E_POINTER;
+  }
+
+  *Enumerator = NULL;
+
+  // HP SOM format not yet fully implemented  
+  return S_FALSE;
+}
+
 static CONST IImageLoaderVtbl gSomVtbl = {
   SomQueryInterface,
   SomAddRef,
@@ -713,6 +764,9 @@ static CONST IImageLoaderVtbl gSomVtbl = {
   SomGetMinimumSystemVersion,
   SomGetTargetSubsystem,
   SomGetMinimumSubsystemVersion
+,
+  SomGetResource,
+  SomGetResourceEnumerator
 };
 
 //
