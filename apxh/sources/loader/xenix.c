@@ -88,13 +88,65 @@ ANX_PACK_POP()
 //
 
 /**
+  IUnknown: QueryInterface
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+XenixQueryInterface (
+  IN  IImageLoader  *This,
+  IN  CONST GUID    *Iid,
+  OUT VOID          **Interface
+  )
+{
+  if (Interface == NULL) {
+    return E_POINTER;
+  }
+
+  if (memcmp(Iid, &IID_IImageLoader, sizeof(GUID)) == 0 ||
+      memcmp(Iid, &IID_IUnknown, sizeof(GUID)) == 0) {
+    *Interface = This;
+    return S_OK;
+  }
+
+  *Interface = NULL;
+  return E_NOINTERFACE;
+}
+
+/**
+  IUnknown: AddRef
+**/
+static
+UINTN
+STDMETHODCALLTYPE
+XenixAddRef (
+  IN IImageLoader  *This
+  )
+{
+  return 1;  // Static instance
+}
+
+/**
+  IUnknown: Release
+**/
+static
+UINTN
+STDMETHODCALLTYPE
+XenixRelease (
+  IN IImageLoader  *This
+  )
+{
+  return 1;  // Static instance
+}
+
+/**
   Check if image is XENIX X.OUT format.
 **/
 static
-BOOLEAN
-ANXAPI
+HRESULT
+STDMETHODCALLTYPE
 XenixDetect (
-  IN IMAGE_LOADER  *This,
+  IN IImageLoader  *This,
   IN VOID          *ImageBase,
   IN UINTN         ImageSize
   )
@@ -102,65 +154,110 @@ XenixDetect (
   XOUT_HEADER *Header;
 
   if (ImageSize < sizeof(XOUT_HEADER)) {
-    return FALSE;
+    return S_FALSE;
   }
 
   Header = (XOUT_HEADER *)ImageBase;
 
   return (Header->Magic == XOUT_MAGIC &&
           Header->CpuType == 3 &&  // 386
-          (Header->Flags & XOUT_F_EXEC));
+          (Header->Flags & XOUT_F_EXEC)) ? S_OK : S_FALSE;
 }
 
 /**
   Get architecture from XENIX image.
 **/
 static
-ARCH
-ANXAPI
+HRESULT
+STDMETHODCALLTYPE
 XenixGetArch (
-  IN IMAGE_LOADER  *This,
-  IN VOID          *ImageBase
+  IN  IImageLoader  *This,
+  IN  VOID          *ImageBase,
+  OUT ARCH          *Architecture
   )
 {
-  XOUT_HEADER *Header = (XOUT_HEADER *)ImageBase;
+  XOUT_HEADER *Header;
 
-  if (Header->CpuType == 3) {  // 386
-    return ARCH_386;
+  if (Architecture == NULL) {
+    return E_POINTER;
   }
 
-  return ARCH_UNSUPPORTED;
+  Header = (XOUT_HEADER *)ImageBase;
+
+  if (Header->CpuType == 3) {  // 386
+    *Architecture = ARCH_386;
+    return S_OK;
+  }
+
+  *Architecture = ARCH_UNSUPPORTED;
+  return IMGLOAD_E_UNSUPPORTED_ARCH;
+}
+
+/**
+  Get endianness from XENIX image.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+XenixGetEndianness (
+  IN  IImageLoader    *This,
+  IN  VOID            *ImageBase,
+  OUT IMGLOAD_ENDIAN  *Endianness
+  )
+{
+  if (Endianness == NULL) {
+    return E_POINTER;
+  }
+
+  // XENIX 386 is x86 little-endian
+  *Endianness = ImgEndianLittle;
+  return S_OK;
 }
 
 /**
   Get entry point from XENIX image.
 **/
 static
-VIRTUAL_ADDRESS
-ANXAPI
+HRESULT
+STDMETHODCALLTYPE
 XenixGetEntryPoint (
-  IN IMAGE_LOADER  *This,
-  IN VOID          *ImageBase
+  IN  IImageLoader     *This,
+  IN  VOID             *ImageBase,
+  OUT VIRTUAL_ADDRESS  *EntryPoint
   )
 {
-  XOUT_HEADER *Header = (XOUT_HEADER *)ImageBase;
-  return XOUT_TEXT_START + Header->Entry;
+  XOUT_HEADER *Header;
+
+  if (EntryPoint == NULL) {
+    return E_POINTER;
+  }
+
+  Header = (XOUT_HEADER *)ImageBase;
+  *EntryPoint = XOUT_TEXT_START + Header->Entry;
+  return S_OK;
 }
 
 /**
   Load XENIX image.
 **/
 static
-IMGLOAD_STATUS
-ANXAPI
+HRESULT
+STDMETHODCALLTYPE
 XenixLoadImage (
-  IN     IMAGE_LOADER     *This,
   IN OUT IMGLOAD_CONTEXT  *Context
   )
 {
-  VOID *ImageBase = Context->ImageBase;
-  XOUT_HEADER *Header = (XOUT_HEADER *)ImageBase;
+  VOID *ImageBase;
+  XOUT_HEADER *Header;
   UINT32 TextOffset, DataOffset;
+  HRESULT Hr;
+
+  if (Context == NULL) {
+    return E_POINTER;
+  }
+
+  ImageBase = Context->ImageBase;
+  Header = (XOUT_HEADER *)ImageBase;
 
   info("Loading XENIX X.OUT executable...");
 
@@ -212,45 +309,181 @@ XenixLoadImage (
     );
   }
 
-  Context->EntryPoint = XenixGetEntryPoint(This, ImageBase);
-  return ImgLoadSuccess;
+  Hr = XenixGetEntryPoint(&gXenixLoader, ImageBase, &Context->EntryPoint);
+  if (FAILED(Hr)) {
+    return Hr;
+  }
+
+  return S_OK;
 }
 
 /**
   Extract TLS information from XENIX image.
 **/
 static
-IMGLOAD_STATUS
-ANXAPI
+HRESULT
+STDMETHODCALLTYPE
 XenixGetTlsInfo (
-  IN  IMAGE_LOADER      *This,
+  IN  IImageLoader      *This,
   IN  VOID              *ImageBase,
   OUT IMGLOAD_TLS_INFO  *TlsInfo
   )
 {
+  if (TlsInfo == NULL) {
+    return E_POINTER;
+  }
+
   // XENIX doesn't support TLS
   memset(TlsInfo, 0, sizeof(IMGLOAD_TLS_INFO));
-  return ImgLoadSuccess;
+  return S_FALSE;
+}
+
+/**
+  Extract unwinding information from XENIX image.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+XenixGetUnwindInfo (
+  IN  IImageLoader         *This,
+  IN  VOID                 *ImageBase,
+  OUT IMGLOAD_UNWIND_INFO  *UnwindInfo
+  )
+{
+  if (UnwindInfo == NULL) {
+    return E_POINTER;
+  }
+
+  memset(UnwindInfo, 0, sizeof(IMGLOAD_UNWIND_INFO));
+
+  // XENIX does not have unwinding information
+  return S_FALSE;
+}
+
+/**
+  Look up symbol by virtual address.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+XenixGetSymbolByAddress (
+  IN  IImageLoader         *This,
+  IN  VOID                 *ImageBase,
+  IN  VIRTUAL_ADDRESS      Address,
+  OUT IMGLOAD_SYMBOL_INFO  *SymbolInfo
+  )
+{
+  if (SymbolInfo == NULL) {
+    return E_POINTER;
+  }
+
+  memset(SymbolInfo, 0, sizeof(IMGLOAD_SYMBOL_INFO));
+
+  // TODO: Parse XENIX symbol table
+  return S_FALSE;
+}
+
+/**
+  Look up symbol by name.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+XenixGetSymbolByName (
+  IN  IImageLoader         *This,
+  IN  VOID                 *ImageBase,
+  IN  CONST CHAR8          *Name,
+  OUT IMGLOAD_SYMBOL_INFO  *SymbolInfo
+  )
+{
+  if (SymbolInfo == NULL || Name == NULL) {
+    return E_POINTER;
+  }
+
+  memset(SymbolInfo, 0, sizeof(IMGLOAD_SYMBOL_INFO));
+
+  // TODO: Parse XENIX symbol table
+  return S_FALSE;
+}
+
+/**
+  Extract relocation information from XENIX image.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+XenixGetRelocInfo (
+  IN  IImageLoader        *This,
+  IN  VOID                *ImageBase,
+  OUT IMGLOAD_RELOC_INFO  *RelocInfo
+  )
+{
+  XOUT_HEADER *Header;
+
+  if (RelocInfo == NULL) {
+    return E_POINTER;
+  }
+
+  memset(RelocInfo, 0, sizeof(IMGLOAD_RELOC_INFO));
+
+  Header = (XOUT_HEADER *)ImageBase;
+
+  if (Header->Relocations > 0) {
+    RelocInfo->PreferredBase = XOUT_TEXT_START;
+    RelocInfo->RequiresReloc = TRUE;
+    RelocInfo->Format = 8;  // Custom XENIX format
+    return S_OK;
+  }
+
+  return S_FALSE;
+}
+
+/**
+  Apply relocations to XENIX image loaded at different address.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+XenixApplyRelocations (
+  IN IImageLoader     *This,
+  IN VOID             *ImageBase,
+  IN VIRTUAL_ADDRESS  LoadAddress,
+  IN VIRTUAL_ADDRESS  PreferredBase
+  )
+{
+  // TODO: Implement XENIX relocation processing
+  return E_NOTIMPL;
 }
 
 //
 // XENIX X.OUT Loader VTable
 //
 
-static CONST IMAGE_LOADER_VTBL gXenixVtbl = {
+static CONST IImageLoaderVtbl gXenixVtbl = {
+  // IUnknown
+  XenixQueryInterface,
+  XenixAddRef,
+  XenixRelease,
+  // IImageLoader
   XenixDetect,
   XenixGetArch,
+  XenixGetEndianness,
   XenixGetEntryPoint,
   XenixLoadImage,
-  XenixGetTlsInfo
+  XenixGetTlsInfo,
+  XenixGetUnwindInfo,
+  XenixGetSymbolByAddress,
+  XenixGetSymbolByName,
+  XenixGetRelocInfo,
+  XenixApplyRelocations
 };
 
 //
 // XENIX X.OUT Loader Instance
 //
 
-IMAGE_LOADER gXenixLoader = {
-  &gXenixVtbl,
-  "XENIX",
-  NULL
+IImageLoader gXenixLoader = {
+  &gXenixVtbl
 };
+
+ANX_REGISTER_IMGLOADER(gXenixLoader);

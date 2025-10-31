@@ -70,13 +70,65 @@ ANX_PACK_POP()
 //
 
 /**
+  IUnknown: QueryInterface
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+AtariQueryInterface (
+  IN  IImageLoader  *This,
+  IN  CONST GUID    *Iid,
+  OUT VOID          **Interface
+  )
+{
+  if (Interface == NULL) {
+    return E_POINTER;
+  }
+
+  if (memcmp(Iid, &IID_IImageLoader, sizeof(GUID)) == 0 ||
+      memcmp(Iid, &IID_IUnknown, sizeof(GUID)) == 0) {
+    *Interface = This;
+    return S_OK;
+  }
+
+  *Interface = NULL;
+  return E_NOINTERFACE;
+}
+
+/**
+  IUnknown: AddRef
+**/
+static
+UINTN
+STDMETHODCALLTYPE
+AtariAddRef (
+  IN IImageLoader  *This
+  )
+{
+  return 1;  // Static instance
+}
+
+/**
+  IUnknown: Release
+**/
+static
+UINTN
+STDMETHODCALLTYPE
+AtariRelease (
+  IN IImageLoader  *This
+  )
+{
+  return 1;  // Static instance
+}
+
+/**
   Check if image is Atari PRG format.
 **/
 static
-BOOLEAN
-ANXAPI
+HRESULT
+STDMETHODCALLTYPE
 AtariDetect (
-  IN IMAGE_LOADER  *This,
+  IN IImageLoader  *This,
   IN VOID          *ImageBase,
   IN UINTN         ImageSize
   )
@@ -84,59 +136,99 @@ AtariDetect (
   ATARI_PRG_HEADER *Header;
 
   if (ImageSize < sizeof(ATARI_PRG_HEADER)) {
-    return FALSE;
+    return S_FALSE;
   }
 
   Header = (ATARI_PRG_HEADER *)ImageBase;
 
-  return (Header->Magic == ATARI_MAGIC);
+  return (Header->Magic == ATARI_MAGIC) ? S_OK : S_FALSE;
 }
 
 /**
   Get architecture from Atari PRG image.
 **/
 static
-ARCH
-ANXAPI
+HRESULT
+STDMETHODCALLTYPE
 AtariGetArch (
-  IN IMAGE_LOADER  *This,
-  IN VOID          *ImageBase
+  IN  IImageLoader  *This,
+  IN  VOID          *ImageBase,
+  OUT ARCH          *Architecture
   )
 {
+  if (Architecture == NULL) {
+    return E_POINTER;
+  }
+
   // Atari TOS is 68K only, which is not supported by APXH
-  return ARCH_UNSUPPORTED;
+  *Architecture = ARCH_UNSUPPORTED;
+  return IMGLOAD_E_UNSUPPORTED_ARCH;
+}
+
+/**
+  Get endianness from Atari PRG image.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+AtariGetEndianness (
+  IN  IImageLoader    *This,
+  IN  VOID            *ImageBase,
+  OUT IMGLOAD_ENDIAN  *Endianness
+  )
+{
+  if (Endianness == NULL) {
+    return E_POINTER;
+  }
+
+  // Atari ST is 68K big-endian
+  *Endianness = ImgEndianBig;
+  return S_OK;
 }
 
 /**
   Get entry point from Atari PRG image.
 **/
 static
-VIRTUAL_ADDRESS
-ANXAPI
+HRESULT
+STDMETHODCALLTYPE
 AtariGetEntryPoint (
-  IN IMAGE_LOADER  *This,
-  IN VOID          *ImageBase
+  IN  IImageLoader     *This,
+  IN  VOID             *ImageBase,
+  OUT VIRTUAL_ADDRESS  *EntryPoint
   )
 {
+  if (EntryPoint == NULL) {
+    return E_POINTER;
+  }
+
   // Entry point is at start of text segment
-  return ATARI_TEXT_START;
+  *EntryPoint = ATARI_TEXT_START;
+  return S_OK;
 }
 
 /**
   Load Atari PRG image.
 **/
 static
-IMGLOAD_STATUS
-ANXAPI
+HRESULT
+STDMETHODCALLTYPE
 AtariLoadImage (
-  IN     IMAGE_LOADER     *This,
   IN OUT IMGLOAD_CONTEXT  *Context
   )
 {
-  VOID *ImageBase = Context->ImageBase;
-  ATARI_PRG_HEADER *Header = (ATARI_PRG_HEADER *)ImageBase;
+  VOID *ImageBase;
+  ATARI_PRG_HEADER *Header;
   UINT32 TextOffset, DataOffset, RelocOffset;
   VIRTUAL_ADDRESS TextAddr, DataAddr, BssAddr;
+  HRESULT Hr;
+
+  if (Context == NULL) {
+    return E_POINTER;
+  }
+
+  ImageBase = Context->ImageBase;
+  Header = (ATARI_PRG_HEADER *)ImageBase;
 
   info("Loading Atari TOS/PRG executable...");
 
@@ -196,45 +288,182 @@ AtariLoadImage (
     warn("Relocation fixups not implemented");
   }
 
-  Context->EntryPoint = AtariGetEntryPoint(This, ImageBase);
-  return ImgLoadSuccess;
+  Hr = AtariGetEntryPoint(&gAtariLoader, ImageBase, &Context->EntryPoint);
+  if (FAILED(Hr)) {
+    return Hr;
+  }
+
+  return S_OK;
 }
 
 /**
   Extract TLS information from Atari PRG image.
 **/
 static
-IMGLOAD_STATUS
-ANXAPI
+HRESULT
+STDMETHODCALLTYPE
 AtariGetTlsInfo (
-  IN  IMAGE_LOADER      *This,
+  IN  IImageLoader      *This,
   IN  VOID              *ImageBase,
   OUT IMGLOAD_TLS_INFO  *TlsInfo
   )
 {
+  if (TlsInfo == NULL) {
+    return E_POINTER;
+  }
+
   // Atari TOS doesn't support TLS
   memset(TlsInfo, 0, sizeof(IMGLOAD_TLS_INFO));
-  return ImgLoadSuccess;
+  return S_FALSE;
+}
+
+/**
+  Extract unwinding information from Atari PRG image.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+AtariGetUnwindInfo (
+  IN  IImageLoader         *This,
+  IN  VOID                 *ImageBase,
+  OUT IMGLOAD_UNWIND_INFO  *UnwindInfo
+  )
+{
+  if (UnwindInfo == NULL) {
+    return E_POINTER;
+  }
+
+  memset(UnwindInfo, 0, sizeof(IMGLOAD_UNWIND_INFO));
+
+  // Atari PRG does not have unwinding information
+  return S_FALSE;
+}
+
+/**
+  Look up symbol by virtual address.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+AtariGetSymbolByAddress (
+  IN  IImageLoader         *This,
+  IN  VOID                 *ImageBase,
+  IN  VIRTUAL_ADDRESS      Address,
+  OUT IMGLOAD_SYMBOL_INFO  *SymbolInfo
+  )
+{
+  if (SymbolInfo == NULL) {
+    return E_POINTER;
+  }
+
+  memset(SymbolInfo, 0, sizeof(IMGLOAD_SYMBOL_INFO));
+
+  // TODO: Parse Atari symbol table
+  return S_FALSE;
+}
+
+/**
+  Look up symbol by name.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+AtariGetSymbolByName (
+  IN  IImageLoader         *This,
+  IN  VOID                 *ImageBase,
+  IN  CONST CHAR8          *Name,
+  OUT IMGLOAD_SYMBOL_INFO  *SymbolInfo
+  )
+{
+  if (SymbolInfo == NULL || Name == NULL) {
+    return E_POINTER;
+  }
+
+  memset(SymbolInfo, 0, sizeof(IMGLOAD_SYMBOL_INFO));
+
+  // TODO: Parse Atari symbol table
+  return S_FALSE;
+}
+
+/**
+  Extract relocation information from Atari PRG image.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+AtariGetRelocInfo (
+  IN  IImageLoader        *This,
+  IN  VOID                *ImageBase,
+  OUT IMGLOAD_RELOC_INFO  *RelocInfo
+  )
+{
+  ATARI_PRG_HEADER *Header;
+
+  if (RelocInfo == NULL) {
+    return E_POINTER;
+  }
+
+  memset(RelocInfo, 0, sizeof(IMGLOAD_RELOC_INFO));
+
+  Header = (ATARI_PRG_HEADER *)ImageBase;
+
+  if (Header->RelocFlag == 0) {
+    // Has relocation information
+    RelocInfo->PreferredBase = ATARI_TEXT_START;
+    RelocInfo->RequiresReloc = TRUE;
+    RelocInfo->Format = 6;  // Custom Atari format
+    return S_OK;
+  }
+
+  return S_FALSE;
+}
+
+/**
+  Apply relocations to Atari PRG image loaded at different address.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+AtariApplyRelocations (
+  IN IImageLoader     *This,
+  IN VOID             *ImageBase,
+  IN VIRTUAL_ADDRESS  LoadAddress,
+  IN VIRTUAL_ADDRESS  PreferredBase
+  )
+{
+  // TODO: Implement Atari PRG relocation fixup table processing
+  return E_NOTIMPL;
 }
 
 //
 // Atari PRG Loader VTable
 //
 
-static CONST IMAGE_LOADER_VTBL gAtariVtbl = {
+static CONST IImageLoaderVtbl gAtariVtbl = {
+  // IUnknown
+  AtariQueryInterface,
+  AtariAddRef,
+  AtariRelease,
+  // IImageLoader
   AtariDetect,
   AtariGetArch,
+  AtariGetEndianness,
   AtariGetEntryPoint,
   AtariLoadImage,
-  AtariGetTlsInfo
+  AtariGetTlsInfo,
+  AtariGetUnwindInfo,
+  AtariGetSymbolByAddress,
+  AtariGetSymbolByName,
+  AtariGetRelocInfo,
+  AtariApplyRelocations
 };
 
 //
 // Atari PRG Loader Instance
 //
 
-IMAGE_LOADER gAtariLoader = {
-  &gAtariVtbl,
-  "Atari PRG",
-  NULL
+IImageLoader gAtariLoader = {
+  &gAtariVtbl
 };
+
+ANX_REGISTER_IMGLOADER(gAtariLoader);

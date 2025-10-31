@@ -155,13 +155,65 @@ ANX_PACK_POP()
 //
 
 /**
+  IUnknown: QueryInterface
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+LeQueryInterface (
+  IN  IImageLoader  *This,
+  IN  CONST GUID    *Iid,
+  OUT VOID          **Interface
+  )
+{
+  if (Interface == NULL) {
+    return E_POINTER;
+  }
+
+  if (memcmp(Iid, &IID_IImageLoader, sizeof(GUID)) == 0 ||
+      memcmp(Iid, &IID_IUnknown, sizeof(GUID)) == 0) {
+    *Interface = This;
+    return S_OK;
+  }
+
+  *Interface = NULL;
+  return E_NOINTERFACE;
+}
+
+/**
+  IUnknown: AddRef
+**/
+static
+UINTN
+STDMETHODCALLTYPE
+LeAddRef (
+  IN IImageLoader  *This
+  )
+{
+  return 1;  // Static instance
+}
+
+/**
+  IUnknown: Release
+**/
+static
+UINTN
+STDMETHODCALLTYPE
+LeRelease (
+  IN IImageLoader  *This
+  )
+{
+  return 1;  // Static instance
+}
+
+/**
   Check if image is LE/LX format.
 **/
 static
-BOOLEAN
-ANXAPI
+HRESULT
+STDMETHODCALLTYPE
 LeDetect (
-  IN IMAGE_LOADER  *This,
+  IN IImageLoader  *This,
   IN VOID          *ImageBase,
   IN UINTN         ImageSize
   )
@@ -170,59 +222,98 @@ LeDetect (
   LE_HEADER *LeHeader;
 
   if (ImageSize < sizeof(DOS_HEADER_SHORT)) {
-    return FALSE;
+    return S_FALSE;
   }
 
   DosHeader = (DOS_HEADER_SHORT *)ImageBase;
   if (DosHeader->Signature != DOS_SIGNATURE) {
-    return FALSE;
+    return S_FALSE;
   }
 
   if (DosHeader->NewHeaderOffset >= ImageSize - sizeof(LE_HEADER)) {
-    return FALSE;
+    return S_FALSE;
   }
 
   LeHeader = (LE_HEADER *)LE_OFF(DosHeader->NewHeaderOffset);
   return (LeHeader->Signature == LE_SIGNATURE ||
-          LeHeader->Signature == LX_SIGNATURE);
+          LeHeader->Signature == LX_SIGNATURE) ? S_OK : S_FALSE;
 }
 
 /**
   Get architecture from LE/LX image.
 **/
 static
-ARCH
-ANXAPI
+HRESULT
+STDMETHODCALLTYPE
 LeGetArch (
-  IN IMAGE_LOADER  *This,
-  IN VOID          *ImageBase
+  IN  IImageLoader  *This,
+  IN  VOID          *ImageBase,
+  OUT ARCH          *Architecture
   )
 {
-  DOS_HEADER_SHORT *DosHeader = (DOS_HEADER_SHORT *)ImageBase;
-  LE_HEADER *LeHeader = (LE_HEADER *)LE_OFF(DosHeader->NewHeaderOffset);
+  DOS_HEADER_SHORT *DosHeader;
+  LE_HEADER *LeHeader;
+
+  if (Architecture == NULL) {
+    return E_POINTER;
+  }
+
+  DosHeader = (DOS_HEADER_SHORT *)ImageBase;
+  LeHeader = (LE_HEADER *)LE_OFF(DosHeader->NewHeaderOffset);
 
   // LE/LX is x86 32-bit only
   if (LeHeader->CpuType >= 2) {  // 386 or higher
-    return ARCH_386;
+    *Architecture = ARCH_386;
+    return S_OK;
   }
 
-  return ARCH_UNSUPPORTED;
+  *Architecture = ARCH_UNSUPPORTED;
+  return IMGLOAD_E_UNSUPPORTED_ARCH;
+}
+
+/**
+  Get endianness from LE/LX image.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+LeGetEndianness (
+  IN  IImageLoader    *This,
+  IN  VOID            *ImageBase,
+  OUT IMGLOAD_ENDIAN  *Endianness
+  )
+{
+  if (Endianness == NULL) {
+    return E_POINTER;
+  }
+
+  // LE/LX is x86 little-endian
+  *Endianness = ImgEndianLittle;
+  return S_OK;
 }
 
 /**
   Get entry point from LE/LX image.
 **/
 static
-VIRTUAL_ADDRESS
-ANXAPI
+HRESULT
+STDMETHODCALLTYPE
 LeGetEntryPoint (
-  IN IMAGE_LOADER  *This,
-  IN VOID          *ImageBase
+  IN  IImageLoader     *This,
+  IN  VOID             *ImageBase,
+  OUT VIRTUAL_ADDRESS  *EntryPoint
   )
 {
-  DOS_HEADER_SHORT *DosHeader = (DOS_HEADER_SHORT *)ImageBase;
-  LE_HEADER *LeHeader = (LE_HEADER *)LE_OFF(DosHeader->NewHeaderOffset);
+  DOS_HEADER_SHORT *DosHeader;
+  LE_HEADER *LeHeader;
   LE_OBJECT_TABLE_ENTRY *Objects;
+
+  if (EntryPoint == NULL) {
+    return E_POINTER;
+  }
+
+  DosHeader = (DOS_HEADER_SHORT *)ImageBase;
+  LeHeader = (LE_HEADER *)LE_OFF(DosHeader->NewHeaderOffset);
 
   Objects = (LE_OBJECT_TABLE_ENTRY *)LE_OFF(DosHeader->NewHeaderOffset +
                                              LeHeader->ObjectTableOffset);
@@ -230,10 +321,12 @@ LeGetEntryPoint (
   // Entry point is in object InitObjectNum at offset InitEip
   if (LeHeader->InitObjectNum > 0 && LeHeader->InitObjectNum <= LeHeader->NumObjects) {
     LE_OBJECT_TABLE_ENTRY *InitObj = &Objects[LeHeader->InitObjectNum - 1];
-    return InitObj->BaseAddress + LeHeader->InitEip;
+    *EntryPoint = InitObj->BaseAddress + LeHeader->InitEip;
+    return S_OK;
   }
 
-  return 0;
+  *EntryPoint = 0;
+  return S_OK;
 }
 
 /**
@@ -318,19 +411,27 @@ LeLoadObject (
   Load LE/LX image.
 **/
 static
-IMGLOAD_STATUS
-ANXAPI
+HRESULT
+STDMETHODCALLTYPE
 LeLoadImage (
-  IN     IMAGE_LOADER     *This,
   IN OUT IMGLOAD_CONTEXT  *Context
   )
 {
-  VOID *ImageBase = Context->ImageBase;
-  DOS_HEADER_SHORT *DosHeader = (DOS_HEADER_SHORT *)ImageBase;
-  LE_HEADER *LeHeader = (LE_HEADER *)LE_OFF(DosHeader->NewHeaderOffset);
+  VOID *ImageBase;
+  DOS_HEADER_SHORT *DosHeader;
+  LE_HEADER *LeHeader;
   LE_OBJECT_TABLE_ENTRY *Objects;
   LE_PAGE_TABLE_ENTRY *PageTable;
   UINT32 i;
+  HRESULT Hr;
+
+  if (Context == NULL) {
+    return E_POINTER;
+  }
+
+  ImageBase = Context->ImageBase;
+  DosHeader = (DOS_HEADER_SHORT *)ImageBase;
+  LeHeader = (LE_HEADER *)LE_OFF(DosHeader->NewHeaderOffset);
 
   info("Loading %s executable...",
        LeHeader->Signature == LE_SIGNATURE ? "LE" : "LX");
@@ -345,45 +446,183 @@ LeLoadImage (
     LeLoadObject(ImageBase, LeHeader, &Objects[i], PageTable, Context->IsUserMode);
   }
 
-  Context->EntryPoint = LeGetEntryPoint(This, ImageBase);
-  return ImgLoadSuccess;
+  Hr = LeGetEntryPoint(&gLeLoader, ImageBase, &Context->EntryPoint);
+  if (FAILED(Hr)) {
+    return Hr;
+  }
+
+  return S_OK;
 }
 
 /**
   Extract TLS information from LE/LX image.
 **/
 static
-IMGLOAD_STATUS
-ANXAPI
+HRESULT
+STDMETHODCALLTYPE
 LeGetTlsInfo (
-  IN  IMAGE_LOADER      *This,
+  IN  IImageLoader      *This,
   IN  VOID              *ImageBase,
   OUT IMGLOAD_TLS_INFO  *TlsInfo
   )
 {
+  if (TlsInfo == NULL) {
+    return E_POINTER;
+  }
+
   // LE/LX doesn't have explicit TLS support
   memset(TlsInfo, 0, sizeof(IMGLOAD_TLS_INFO));
-  return ImgLoadSuccess;
+  return S_FALSE;
+}
+
+/**
+  Extract unwinding information from LE/LX image.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+LeGetUnwindInfo (
+  IN  IImageLoader         *This,
+  IN  VOID                 *ImageBase,
+  OUT IMGLOAD_UNWIND_INFO  *UnwindInfo
+  )
+{
+  if (UnwindInfo == NULL) {
+    return E_POINTER;
+  }
+
+  memset(UnwindInfo, 0, sizeof(IMGLOAD_UNWIND_INFO));
+
+  // LE/LX does not have unwinding information
+  return S_FALSE;
+}
+
+/**
+  Look up symbol by virtual address.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+LeGetSymbolByAddress (
+  IN  IImageLoader         *This,
+  IN  VOID                 *ImageBase,
+  IN  VIRTUAL_ADDRESS      Address,
+  OUT IMGLOAD_SYMBOL_INFO  *SymbolInfo
+  )
+{
+  if (SymbolInfo == NULL) {
+    return E_POINTER;
+  }
+
+  memset(SymbolInfo, 0, sizeof(IMGLOAD_SYMBOL_INFO));
+
+  // TODO: Parse LE/LX entry table and export names
+  return S_FALSE;
+}
+
+/**
+  Look up symbol by name.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+LeGetSymbolByName (
+  IN  IImageLoader         *This,
+  IN  VOID                 *ImageBase,
+  IN  CONST CHAR8          *Name,
+  OUT IMGLOAD_SYMBOL_INFO  *SymbolInfo
+  )
+{
+  if (SymbolInfo == NULL || Name == NULL) {
+    return E_POINTER;
+  }
+
+  memset(SymbolInfo, 0, sizeof(IMGLOAD_SYMBOL_INFO));
+
+  // TODO: Parse LE/LX resident/non-resident names table
+  return S_FALSE;
+}
+
+/**
+  Extract relocation information from LE/LX image.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+LeGetRelocInfo (
+  IN  IImageLoader        *This,
+  IN  VOID                *ImageBase,
+  OUT IMGLOAD_RELOC_INFO  *RelocInfo
+  )
+{
+  DOS_HEADER_SHORT *DosHeader;
+  LE_HEADER *LeHeader;
+
+  if (RelocInfo == NULL) {
+    return E_POINTER;
+  }
+
+  memset(RelocInfo, 0, sizeof(IMGLOAD_RELOC_INFO));
+
+  DosHeader = (DOS_HEADER_SHORT *)ImageBase;
+  LeHeader = (LE_HEADER *)LE_OFF(DosHeader->NewHeaderOffset);
+
+  // LE/LX has fixup records
+  if (LeHeader->FixupSize > 0) {
+    RelocInfo->RequiresReloc = TRUE;
+    RelocInfo->Format = 7;  // Custom LE/LX format
+    return S_OK;
+  }
+
+  return S_FALSE;
+}
+
+/**
+  Apply relocations to LE/LX image loaded at different address.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+LeApplyRelocations (
+  IN IImageLoader     *This,
+  IN VOID             *ImageBase,
+  IN VIRTUAL_ADDRESS  LoadAddress,
+  IN VIRTUAL_ADDRESS  PreferredBase
+  )
+{
+  // TODO: Implement LE/LX fixup record processing
+  return E_NOTIMPL;
 }
 
 //
 // LE/LX Loader VTable
 //
 
-static CONST IMAGE_LOADER_VTBL gLeVtbl = {
+static CONST IImageLoaderVtbl gLeVtbl = {
+  // IUnknown
+  LeQueryInterface,
+  LeAddRef,
+  LeRelease,
+  // IImageLoader
   LeDetect,
   LeGetArch,
+  LeGetEndianness,
   LeGetEntryPoint,
   LeLoadImage,
-  LeGetTlsInfo
+  LeGetTlsInfo,
+  LeGetUnwindInfo,
+  LeGetSymbolByAddress,
+  LeGetSymbolByName,
+  LeGetRelocInfo,
+  LeApplyRelocations
 };
 
 //
 // LE/LX Loader Instance
 //
 
-IMAGE_LOADER gLeLoader = {
-  &gLeVtbl,
-  "LE/LX",
-  NULL
+IImageLoader gLeLoader = {
+  &gLeVtbl
 };
+
+ANX_REGISTER_IMGLOADER(gLeLoader);
