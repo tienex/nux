@@ -351,6 +351,70 @@ ElfGetSymbolByName (
 }
 
 /**
+  Extract relocation information from ELF image.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+ElfGetRelocInfo (
+  IN  IImageLoader         *This,
+  IN  VOID                 *ImageBase,
+  OUT IMGLOAD_RELOC_INFO   *RelocInfo
+  )
+{
+  if (RelocInfo == NULL) {
+    return E_POINTER;
+  }
+
+  // ELF relocations are stored in .rel/.rela sections
+  // For now, return basic info - full implementation would parse dynamic sections
+  memset(RelocInfo, 0, sizeof(IMGLOAD_RELOC_INFO));
+
+  // ELF executables may have relocations in dynamic sections
+  // Format: 1=REL, 2=RELA (we'll determine this dynamically)
+  RelocInfo->Format = 0;  // Will be set when we parse sections
+  RelocInfo->RequiresReloc = FALSE;  // Most ELF executables don't need relocation
+
+  return S_FALSE;  // Relocation support to be implemented
+}
+
+/**
+  Apply relocations to ELF image loaded at different address.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+ElfApplyRelocations (
+  IN VOID              *ImageBase,
+  IN VIRTUAL_ADDRESS   LoadAddress,
+  IN VIRTUAL_ADDRESS   PreferredBase
+  )
+{
+  UINT8 *Ident;
+  INT64 Delta;
+
+  Ident = (UINT8 *)ImageBase;
+
+  // Calculate relocation delta
+  Delta = (INT64)LoadAddress - (INT64)PreferredBase;
+
+  if (Delta == 0) {
+    return S_OK;  // No relocation needed
+  }
+
+  // Check ELF class (32-bit or 64-bit)
+  if (Ident[4] == ELFCLASS32) {
+    // TODO: Implement 32-bit ELF relocation
+    return E_NOTIMPL;
+  } else if (Ident[4] == ELFCLASS64) {
+    // TODO: Implement 64-bit ELF relocation
+    return E_NOTIMPL;
+  }
+
+  return IMGLOAD_E_INVALID_FORMAT;
+}
+
+/**
   IUnknown::QueryInterface implementation (stub).
 **/
 static
@@ -427,7 +491,9 @@ static CONST IImageLoaderVtbl gElfVtbl = {
   ElfGetTlsInfo,
   ElfGetUnwindInfo,
   ElfGetSymbolByAddress,
-  ElfGetSymbolByName
+  ElfGetSymbolByName,
+  ElfGetRelocInfo,
+  ElfApplyRelocations
 };
 #endif
 

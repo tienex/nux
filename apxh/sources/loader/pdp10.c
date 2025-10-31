@@ -432,6 +432,55 @@ Pdp10GetSymbolByName (
 }
 
 /**
+  Extract relocation information from PDP-10 image.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+Pdp10GetRelocInfo (
+  IN  IImageLoader         *This,
+  IN  VOID                 *ImageBase,
+  OUT IMGLOAD_RELOC_INFO   *RelocInfo
+  )
+{
+  if (RelocInfo == NULL) {
+    return E_POINTER;
+  }
+
+  // PDP-10 SAV format typically does not contain relocations
+  memset(RelocInfo, 0, sizeof(IMGLOAD_RELOC_INFO));
+  RelocInfo->Format = 8;  // PDP-10 format
+  RelocInfo->RequiresReloc = FALSE;
+
+  return S_FALSE;
+}
+
+/**
+  Apply relocations to PDP-10 image loaded at different address.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+Pdp10ApplyRelocations (
+  IN VOID              *ImageBase,
+  IN VIRTUAL_ADDRESS   LoadAddress,
+  IN VIRTUAL_ADDRESS   PreferredBase
+  )
+{
+  INT64 Delta;
+
+  // Calculate relocation delta
+  Delta = (INT64)LoadAddress - (INT64)PreferredBase;
+
+  if (Delta == 0) {
+    return S_OK;  // No relocation needed
+  }
+
+  // PDP-10 SAV format does not support relocation
+  return E_NOTIMPL;
+}
+
+/**
   IUnknown::QueryInterface implementation (stub).
 **/
 static
@@ -500,7 +549,9 @@ static CONST IImageLoaderVtbl gPdp10Vtbl = {
   Pdp10GetTlsInfo,
   Pdp10GetUnwindInfo,
   Pdp10GetSymbolByAddress,
-  Pdp10GetSymbolByName
+  Pdp10GetSymbolByName,
+  Pdp10GetRelocInfo,
+  Pdp10ApplyRelocations
 };
 
 //

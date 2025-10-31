@@ -576,6 +576,99 @@ FatElfGetSymbolByName (
 }
 
 /**
+  Extract relocation information from FatELF image.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+FatElfGetRelocInfo (
+  IN  IImageLoader         *This,
+  IN  VOID                 *ImageBase,
+  OUT IMGLOAD_RELOC_INFO   *RelocInfo
+  )
+{
+  FATELF_RECORD *Rec;
+  VOID *ElfImage;
+  ARCH TargetArch;
+  HRESULT Status;
+
+  if (RelocInfo == NULL) {
+    return E_POINTER;
+  }
+
+  // Get target architecture
+  Status = FatElfGetArch(This, ImageBase, &TargetArch);
+  if (FAILED(Status)) {
+    memset(RelocInfo, 0, sizeof(IMGLOAD_RELOC_INFO));
+    return Status;
+  }
+
+  // Find matching record
+  Rec = FindMatchingRecord(ImageBase, TargetArch);
+  if (Rec == NULL) {
+    memset(RelocInfo, 0, sizeof(IMGLOAD_RELOC_INFO));
+    return IMGLOAD_E_UNSUPPORTED_ARCH;
+  }
+
+  // Delegate to embedded ELF loader
+  ElfImage = FATELF_OFF(Rec->Offset);
+  return gElfLoader.lpVtbl->GetRelocInfo(&gElfLoader, ElfImage, RelocInfo);
+}
+
+/**
+  Apply relocations to FatELF image loaded at different address.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+FatElfApplyRelocations (
+  IN VOID              *ImageBase,
+  IN VIRTUAL_ADDRESS   LoadAddress,
+  IN VIRTUAL_ADDRESS   PreferredBase
+  )
+{
+  FATELF_HEADER *Header;
+  FATELF_RECORD *Records;
+  FATELF_RECORD *Rec;
+  VOID *ElfImage;
+  ARCH TargetArch;
+  HRESULT Status;
+  UINTN i;
+
+  Header = (FATELF_HEADER *)ImageBase;
+  Records = (FATELF_RECORD *)FATELF_OFF(sizeof(FATELF_HEADER));
+
+  // Determine target architecture
+  TargetArch = ARCH_INVALID;
+#if defined(ANANKE_ARCH_X64)
+  TargetArch = ARCH_AMD64;
+#elif defined(ANANKE_ARCH_ARM64)
+  TargetArch = ARCH_AARCH64;
+#elif defined(ANANKE_ARCH_RISCV64)
+  TargetArch = ARCH_RISCV64;
+#elif defined(ANANKE_ARCH_IA32)
+  TargetArch = ARCH_386;
+#endif
+
+  // Find matching record
+  Rec = NULL;
+  for (i = 0; i < ANX_BSWAP16(Header->NumRecords); i++) {
+    if (GetArchFromMachine(ANX_BSWAP16(Records[i].MachineType)) == TargetArch) {
+      Rec = &Records[i];
+      break;
+    }
+  }
+
+  if (Rec == NULL) {
+    return IMGLOAD_E_UNSUPPORTED_ARCH;
+  }
+
+  // Delegate to embedded ELF loader
+  ElfImage = FATELF_OFF(ANX_BSWAP64(Rec->Offset));
+  return gElfLoader.lpVtbl->ApplyRelocations(ElfImage, LoadAddress, PreferredBase);
+}
+
+/**
   IUnknown::QueryInterface implementation.
 **/
 static
@@ -644,7 +737,9 @@ static CONST IImageLoaderVtbl gFatElfVtbl = {
   FatElfGetTlsInfo,
   FatElfGetUnwindInfo,
   FatElfGetSymbolByAddress,
-  FatElfGetSymbolByName
+  FatElfGetSymbolByName,
+  FatElfGetRelocInfo,
+  FatElfApplyRelocations
 };
 
 //

@@ -335,6 +335,74 @@ SomGetSymbolByName (
 }
 
 /**
+  Extract relocation information from HP SOM image.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+SomGetRelocInfo (
+  IN  IImageLoader         *This,
+  IN  VOID                 *ImageBase,
+  OUT IMGLOAD_RELOC_INFO   *RelocInfo
+  )
+{
+  SOM_HEADER *Header;
+
+  if (RelocInfo == NULL) {
+    return E_POINTER;
+  }
+
+  memset(RelocInfo, 0, sizeof(IMGLOAD_RELOC_INFO));
+
+  Header = (SOM_HEADER *)ImageBase;
+
+  // SOM has loader fixup records
+  if (ANX_BSWAP32(Header->LoaderSize) > 0) {
+    RelocInfo->RelocTableAddr = ANX_BSWAP32(Header->LoaderLocation);
+    RelocInfo->RelocTableSize = ANX_BSWAP32(Header->LoaderSize);
+    RelocInfo->Format = 6;  // SOM format
+    RelocInfo->RequiresReloc = TRUE;
+    return S_OK;
+  }
+
+  RelocInfo->RequiresReloc = FALSE;
+  return S_FALSE;
+}
+
+/**
+  Apply relocations to HP SOM image loaded at different address.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+SomApplyRelocations (
+  IN VOID              *ImageBase,
+  IN VIRTUAL_ADDRESS   LoadAddress,
+  IN VIRTUAL_ADDRESS   PreferredBase
+  )
+{
+  SOM_HEADER *Header;
+  INT64 Delta;
+
+  Header = (SOM_HEADER *)ImageBase;
+
+  // Calculate relocation delta
+  Delta = (INT64)LoadAddress - (INT64)PreferredBase;
+
+  if (Delta == 0) {
+    return S_OK;  // No relocation needed
+  }
+
+  // SOM loader fixup format is complex and platform-specific
+  // Full implementation would parse loader fixup records
+  if (ANX_BSWAP32(Header->LoaderSize) > 0) {
+    return E_NOTIMPL;  // TODO: Implement SOM relocation
+  }
+
+  return S_OK;  // No relocations to apply
+}
+
+/**
   IUnknown::QueryInterface implementation.
 **/
 static
@@ -403,7 +471,9 @@ static CONST IImageLoaderVtbl gSomVtbl = {
   SomGetTlsInfo,
   SomGetUnwindInfo,
   SomGetSymbolByAddress,
-  SomGetSymbolByName
+  SomGetSymbolByName,
+  SomGetRelocInfo,
+  SomApplyRelocations
 };
 
 //

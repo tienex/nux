@@ -400,6 +400,55 @@ VmsGetSymbolByName (
 }
 
 /**
+  Extract relocation information from OpenVMS image.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+VmsGetRelocInfo (
+  IN  IImageLoader         *This,
+  IN  VOID                 *ImageBase,
+  OUT IMGLOAD_RELOC_INFO   *RelocInfo
+  )
+{
+  if (RelocInfo == NULL) {
+    return E_POINTER;
+  }
+
+  // OpenVMS images typically contain fixup records in ISD
+  memset(RelocInfo, 0, sizeof(IMGLOAD_RELOC_INFO));
+  RelocInfo->Format = 7;  // VMS format
+  RelocInfo->RequiresReloc = FALSE;
+
+  return S_FALSE;  // Most VMS images are position-independent
+}
+
+/**
+  Apply relocations to OpenVMS image loaded at different address.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+VmsApplyRelocations (
+  IN VOID              *ImageBase,
+  IN VIRTUAL_ADDRESS   LoadAddress,
+  IN VIRTUAL_ADDRESS   PreferredBase
+  )
+{
+  INT64 Delta;
+
+  // Calculate relocation delta
+  Delta = (INT64)LoadAddress - (INT64)PreferredBase;
+
+  if (Delta == 0) {
+    return S_OK;  // No relocation needed
+  }
+
+  // OpenVMS image fixup format would require parsing ISD fixup records
+  return E_NOTIMPL;
+}
+
+/**
   IUnknown::QueryInterface implementation.
 **/
 static
@@ -468,7 +517,9 @@ static CONST IImageLoaderVtbl gVmsVtbl = {
   VmsGetTlsInfo,
   VmsGetUnwindInfo,
   VmsGetSymbolByAddress,
-  VmsGetSymbolByName
+  VmsGetSymbolByName,
+  VmsGetRelocInfo,
+  VmsApplyRelocations
 };
 
 //

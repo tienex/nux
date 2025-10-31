@@ -187,6 +187,7 @@ typedef struct _PE_SECTION_HEADER {
 
 // Data Directory Indices
 #define IMAGE_DIRECTORY_ENTRY_EXCEPTION  3  ///< Exception (.pdata)
+#define IMAGE_DIRECTORY_ENTRY_BASERELOC  5  ///< Base relocations (.reloc)
 #define IMAGE_DIRECTORY_ENTRY_TLS        9  ///< TLS
 
 typedef struct _PE_TLS_DIRECTORY32 {
@@ -206,6 +207,16 @@ typedef struct _PE_TLS_DIRECTORY64 {
   UINT32  SizeOfZeroFill;         ///< BSS size
   UINT32  Characteristics;        ///< Alignment (low 4 bits)
 } PE_TLS_DIRECTORY64;
+
+typedef struct _PE_BASE_RELOCATION {
+  UINT32  VirtualAddress;  ///< Page RVA
+  UINT32  SizeOfBlock;     ///< Block size including this header
+} PE_BASE_RELOCATION;
+
+// Relocation types
+#define IMAGE_REL_BASED_ABSOLUTE  0  ///< No-op
+#define IMAGE_REL_BASED_HIGHLOW   3  ///< 32-bit fixup
+#define IMAGE_REL_BASED_DIR64    10  ///< 64-bit fixup
 
 ANX_PACK_POP()
 
@@ -622,6 +633,158 @@ PeGetSymbolByName (
 }
 
 /**
+  Extract relocation information from PE image.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+PeGetRelocInfo (
+  IN  IImageLoader         *This,
+  IN  VOID                 *ImageBase,
+  OUT IMGLOAD_RELOC_INFO   *RelocInfo
+  )
+{
+  DOS_HEADER *DosHeader;
+  PE_NT_HEADERS32 *NtHeaders32;
+  PE_NT_HEADERS64 *NtHeaders64;
+  PE_DATA_DIRECTORY *RelocDir;
+  BOOLEAN Is64Bit;
+
+  if (RelocInfo == NULL) {
+    return E_POINTER;
+  }
+
+  memset(RelocInfo, 0, sizeof(IMGLOAD_RELOC_INFO));
+
+  DosHeader = (DOS_HEADER *)ImageBase;
+  NtHeaders32 = (PE_NT_HEADERS32 *)PE_OFF(DosHeader->NewHeaderOffset);
+  NtHeaders64 = (PE_NT_HEADERS64 *)NtHeaders32;
+
+  Is64Bit = (NtHeaders32->OptionalHeader.Magic == PE_OPT_MAGIC_PE32PLUS);
+
+  // Get preferred base address
+  if (Is64Bit) {
+    RelocInfo->PreferredBase = NtHeaders64->OptionalHeader.ImageBase;
+  } else {
+    RelocInfo->PreferredBase = NtHeaders32->OptionalHeader.ImageBase;
+  }
+
+  // Get base relocation directory
+  RelocDir = Is64Bit ?
+    &NtHeaders64->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_BASERELOC] :
+    &NtHeaders32->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_BASERELOC];
+
+  if (RelocDir->VirtualAddress == 0 || RelocDir->Size == 0) {
+    RelocInfo->RequiresReloc = FALSE;
+    return S_FALSE;  // No relocations
+  }
+
+  RelocInfo->RelocTableAddr = RelocDir->VirtualAddress;
+  RelocInfo->RelocTableSize = RelocDir->Size;
+  RelocInfo->Format = 3;  // PE format
+  RelocInfo->RequiresReloc = TRUE;
+
+  return S_OK;
+}
+
+/**
+  Apply relocations to PE image loaded at different address.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+PeApplyRelocations (
+  IN VOID              *ImageBase,
+  IN VIRTUAL_ADDRESS   LoadAddress,
+  IN VIRTUAL_ADDRESS   PreferredBase
+  )
+{
+  DOS_HEADER *DosHeader;
+  PE_NT_HEADERS32 *NtHeaders32;
+  PE_NT_HEADERS64 *NtHeaders64;
+  PE_DATA_DIRECTORY *RelocDir;
+  PE_BASE_RELOCATION *RelocBlock;
+  UINT16 *RelocEntry;
+  UINTN RelocOffset;
+  UINTN BlockSize;
+  UINTN NumEntries;
+  UINTN i;
+  INT64 Delta;
+  BOOLEAN Is64Bit;
+  UINT32 *Fixup32;
+  UINT64 *Fixup64;
+  UINT16 Type;
+  UINT16 Offset;
+
+  DosHeader = (DOS_HEADER *)ImageBase;
+  NtHeaders32 = (PE_NT_HEADERS32 *)PE_OFF(DosHeader->NewHeaderOffset);
+  NtHeaders64 = (PE_NT_HEADERS64 *)NtHeaders32;
+
+  Is64Bit = (NtHeaders32->OptionalHeader.Magic == PE_OPT_MAGIC_PE32PLUS);
+
+  // Calculate relocation delta
+  Delta = (INT64)LoadAddress - (INT64)PreferredBase;
+
+  if (Delta == 0) {
+    return S_OK;  // No relocation needed
+  }
+
+  // Get base relocation directory
+  RelocDir = Is64Bit ?
+    &NtHeaders64->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_BASERELOC] :
+    &NtHeaders32->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_BASERELOC];
+
+  if (RelocDir->VirtualAddress == 0 || RelocDir->Size == 0) {
+    return S_OK;  // No relocations to apply
+  }
+
+  // Process each relocation block
+  RelocOffset = 0;
+  while (RelocOffset < RelocDir->Size) {
+    RelocBlock = (PE_BASE_RELOCATION *)PE_OFF(RelocDir->VirtualAddress + RelocOffset);
+
+    if (RelocBlock->SizeOfBlock == 0) {
+      break;  // End of relocation data
+    }
+
+    BlockSize = RelocBlock->SizeOfBlock - sizeof(PE_BASE_RELOCATION);
+    NumEntries = BlockSize / sizeof(UINT16);
+    RelocEntry = (UINT16 *)((UINT8 *)RelocBlock + sizeof(PE_BASE_RELOCATION));
+
+    for (i = 0; i < NumEntries; i++) {
+      Type = (RelocEntry[i] >> 12) & 0xF;
+      Offset = RelocEntry[i] & 0xFFF;
+
+      switch (Type) {
+        case IMAGE_REL_BASED_ABSOLUTE:
+          // No-op, used for padding
+          break;
+
+        case IMAGE_REL_BASED_HIGHLOW:
+          // 32-bit fixup
+          Fixup32 = (UINT32 *)PE_OFF(RelocBlock->VirtualAddress + Offset);
+          *Fixup32 = (UINT32)(*Fixup32 + Delta);
+          break;
+
+        case IMAGE_REL_BASED_DIR64:
+          // 64-bit fixup
+          Fixup64 = (UINT64 *)PE_OFF(RelocBlock->VirtualAddress + Offset);
+          *Fixup64 = *Fixup64 + Delta;
+          break;
+
+        default:
+          // Unknown relocation type, skip
+          break;
+      }
+    }
+
+    RelocOffset += RelocBlock->SizeOfBlock;
+  }
+
+  return S_OK;
+}
+
+/**
   IUnknown::QueryInterface implementation.
 **/
 static
@@ -690,7 +853,9 @@ static CONST IImageLoaderVtbl gPeVtbl = {
   PeGetTlsInfo,
   PeGetUnwindInfo,
   PeGetSymbolByAddress,
-  PeGetSymbolByName
+  PeGetSymbolByName,
+  PeGetRelocInfo,
+  PeApplyRelocations
 };
 
 //

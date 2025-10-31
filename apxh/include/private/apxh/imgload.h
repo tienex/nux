@@ -64,6 +64,18 @@ typedef struct _IMGLOAD_SYMBOL_INFO {
 } IMGLOAD_SYMBOL_INFO, *PIMGLOAD_SYMBOL_INFO;
 
 //
+// Relocation Information Structure
+//
+
+typedef struct _IMGLOAD_RELOC_INFO {
+  VIRTUAL_ADDRESS  PreferredBase;    ///< Preferred load base address
+  VIRTUAL_ADDRESS  RelocTableAddr;   ///< Address of relocation table
+  UINT64           RelocTableSize;   ///< Size of relocation table
+  UINT32           Format;           ///< Relocation format (0=none, 1=ELF REL, 2=ELF RELA, 3=PE, 4=Mach-O)
+  BOOLEAN          RequiresReloc;    ///< TRUE if image requires relocation
+} IMGLOAD_RELOC_INFO, *PIMGLOAD_RELOC_INFO;
+
+//
 // Endianness
 //
 
@@ -236,6 +248,34 @@ ANX_BEGIN_INTERFACE(IImageLoader, IUnknown, IID_IImageLoader, ANX_IID_IImageLoad
     IN  VOID                  *ImageBase,
     IN  CONST CHAR8           *Name,
     OUT IMGLOAD_SYMBOL_INFO   *SymbolInfo
+    ))
+
+  /**
+    Extract relocation information from image.
+
+    @param[in]  ImageBase   Pointer to image in memory.
+    @param[out] RelocInfo   Receives relocation information.
+
+    @return S_OK on success, S_FALSE if no relocations, error code otherwise.
+  **/
+  ANX_IFACE_METHOD(HRESULT, GetRelocInfo, (
+    IN  VOID                 *ImageBase,
+    OUT IMGLOAD_RELOC_INFO   *RelocInfo
+    ))
+
+  /**
+    Apply relocations to image loaded at different address.
+
+    @param[in] ImageBase      Pointer to image in memory.
+    @param[in] LoadAddress    Actual load address.
+    @param[in] PreferredBase  Preferred base from image headers.
+
+    @return S_OK on success, error code otherwise.
+  **/
+  ANX_IFACE_METHOD(HRESULT, ApplyRelocations, (
+    IN VOID              *ImageBase,
+    IN VIRTUAL_ADDRESS   LoadAddress,
+    IN VIRTUAL_ADDRESS   PreferredBase
     ))
 
 ANX_END_INTERFACE(IImageLoader)

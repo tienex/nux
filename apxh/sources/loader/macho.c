@@ -615,6 +615,59 @@ MachoGetSymbolByName (
 }
 
 /**
+  Extract relocation information from Mach-O image.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+MachoGetRelocInfo (
+  IN  IImageLoader         *This,
+  IN  VOID                 *ImageBase,
+  OUT IMGLOAD_RELOC_INFO   *RelocInfo
+  )
+{
+  if (RelocInfo == NULL) {
+    return E_POINTER;
+  }
+
+  // Mach-O relocations are in LC_DYSYMTAB load command
+  memset(RelocInfo, 0, sizeof(IMGLOAD_RELOC_INFO));
+
+  // Mach-O typically doesn't require base relocation (uses PIC)
+  RelocInfo->Format = 4;  // Mach-O format
+  RelocInfo->RequiresReloc = FALSE;
+
+  return S_FALSE;  // Most Mach-O images don't need relocation
+}
+
+/**
+  Apply relocations to Mach-O image loaded at different address.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+MachoApplyRelocations (
+  IN VOID              *ImageBase,
+  IN VIRTUAL_ADDRESS   LoadAddress,
+  IN VIRTUAL_ADDRESS   PreferredBase
+  )
+{
+  INT64 Delta;
+
+  // Calculate relocation delta
+  Delta = (INT64)LoadAddress - (INT64)PreferredBase;
+
+  if (Delta == 0) {
+    return S_OK;  // No relocation needed
+  }
+
+  // Mach-O typically uses position-independent code
+  // and doesn't require base relocation
+  // Full implementation would parse LC_DYSYMTAB and apply relocations
+  return E_NOTIMPL;
+}
+
+/**
   IUnknown::QueryInterface implementation.
 **/
 static
@@ -683,7 +736,9 @@ static CONST IImageLoaderVtbl gMachoVtbl = {
   MachoGetTlsInfo,
   MachoGetUnwindInfo,
   MachoGetSymbolByAddress,
-  MachoGetSymbolByName
+  MachoGetSymbolByName,
+  MachoGetRelocInfo,
+  MachoApplyRelocations
 };
 
 //

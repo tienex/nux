@@ -389,6 +389,74 @@ AoutGetSymbolByName (
 }
 
 /**
+  Extract relocation information from a.out image.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+AoutGetRelocInfo (
+  IN  IImageLoader         *This,
+  IN  VOID                 *ImageBase,
+  OUT IMGLOAD_RELOC_INFO   *RelocInfo
+  )
+{
+  AOUT_HEADER *Header;
+
+  if (RelocInfo == NULL) {
+    return E_POINTER;
+  }
+
+  memset(RelocInfo, 0, sizeof(IMGLOAD_RELOC_INFO));
+
+  Header = (AOUT_HEADER *)ImageBase;
+
+  // a.out has text and data relocation tables
+  if (Header->TextReloc > 0 || Header->DataReloc > 0) {
+    RelocInfo->PreferredBase = AOUT_TEXT_START;
+    RelocInfo->RelocTableSize = Header->TextReloc + Header->DataReloc;
+    RelocInfo->Format = 5;  // a.out format
+    RelocInfo->RequiresReloc = TRUE;
+    return S_OK;
+  }
+
+  RelocInfo->RequiresReloc = FALSE;
+  return S_FALSE;
+}
+
+/**
+  Apply relocations to a.out image loaded at different address.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+AoutApplyRelocations (
+  IN VOID              *ImageBase,
+  IN VIRTUAL_ADDRESS   LoadAddress,
+  IN VIRTUAL_ADDRESS   PreferredBase
+  )
+{
+  AOUT_HEADER *Header;
+  INT64 Delta;
+
+  Header = (AOUT_HEADER *)ImageBase;
+
+  // Calculate relocation delta
+  Delta = (INT64)LoadAddress - (INT64)PreferredBase;
+
+  if (Delta == 0) {
+    return S_OK;  // No relocation needed
+  }
+
+  // a.out relocation format varies by platform
+  // Full implementation would parse text and data relocation tables
+  if (Header->TextReloc > 0 || Header->DataReloc > 0) {
+    return E_NOTIMPL;  // TODO: Implement a.out relocation
+  }
+
+  return S_OK;  // No relocations to apply
+}
+
+/**
   IUnknown::QueryInterface implementation.
 **/
 static
@@ -457,7 +525,9 @@ static CONST IImageLoaderVtbl gAoutVtbl = {
   AoutGetTlsInfo,
   AoutGetUnwindInfo,
   AoutGetSymbolByAddress,
-  AoutGetSymbolByName
+  AoutGetSymbolByName,
+  AoutGetRelocInfo,
+  AoutApplyRelocations
 };
 
 //
