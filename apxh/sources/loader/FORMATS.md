@@ -38,7 +38,7 @@ enabling cross-platform resource embedding in all executable formats.
 | XCOFF  | ❌ No  | ✅ Implemented | `.axursrc` section (AIX) |
 | ECOFF  | ❌ No  | ✅ Implemented | `.axursrc` section (DEC/SGI) |
 | a.out  | ❌ No  | ✅ Implemented | Symbol-based (`__apxh_uresource_start/size`) |
-| LE/LX  | ⚠️ OS/2 | ⚠️ TODO | Native resource table + `.axursrc` |
+| LE/LX  | ✅ OS/2 | ✅ Implemented | Native resource table (type/name/object/offset) |
 | NLM    | ⚠️ NetWare | ⚠️ TODO | NetWare resources or `.axursrc` |
 | Other  | ❌ No  | ⚠️ TODO | Format-specific (Hunk, Atari, PDP-10, etc.) |
 
@@ -94,7 +94,7 @@ executable formats, enabling proper startup/shutdown sequences for libraries and
 | XCOFF  | ✅ Sections | ✅ Implemented | `.init`, `.fini`, `.ctors`, `.dtors` (AIX) |
 | ECOFF  | ✅ Sections | ✅ Implemented | `.init`, `.fini`, `.ctors`, `.dtors` (DEC/SGI) |
 | a.out  | ⚠️ Limited | ⚠️ Partial | Dynamic linker support via `__DYNAMIC` |
-| LE/LX  | ⚠️ OS/2 | ⚠️ TODO | OS/2 DLL initialization/termination |
+| LE/LX  | ✅ OS/2 | ✅ Implemented | InitObjectNum/InitEip (init only, OS/2 handles term) |
 | PEF    | ⚠️ PowerPC | ⚠️ TODO | PowerPC fragment init/term |
 
 ### Implementation Patterns
