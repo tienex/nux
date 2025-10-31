@@ -39,6 +39,30 @@ CreateImageResource (
   );
 
 /**
+  Create IImageResource from raw native resource data.
+
+  For resources that don't fit the resource fork model (e.g., PE RT_BITMAP).
+
+  @param[in]  TypeCode      Resource type code.
+  @param[in]  ResourceId    Resource ID.
+  @param[in]  Name          Resource name (optional, NULL if ID-based).
+  @param[in]  Data          Pointer to resource data.
+  @param[in]  Size          Size of resource data.
+  @param[out] Resource      Receives IImageResource interface.
+
+  @return S_OK on success, error code otherwise.
+**/
+HRESULT
+CreateNativeImageResource (
+  IN  UINT32           TypeCode,
+  IN  UINT32           ResourceId,
+  IN  CONST CHAR8      *Name,
+  IN  VOID             *Data,
+  IN  UINT64           Size,
+  OUT IImageResource   **Resource
+  );
+
+/**
   Create IEnumImageResource for resource fork.
 
   @param[in]  ResourceFork  Pointer to Classic Mac resource fork data.

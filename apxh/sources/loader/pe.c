@@ -20,6 +20,8 @@
 
 #include <apxh/internal.h>
 #include <apxh/imgload.h>
+#include <ananke/resource.h>
+#include "imgresource.h"
 
 //
 // PE/COFF Magic Numbers
@@ -242,9 +244,58 @@ typedef struct _PE_SECTION_HEADER {
 // Data Directory Indices
 #define IMAGE_DIRECTORY_ENTRY_EXPORT     0  ///< Export directory
 #define IMAGE_DIRECTORY_ENTRY_IMPORT     1  ///< Import directory
+#define IMAGE_DIRECTORY_ENTRY_RESOURCE   2  ///< Resource directory
 #define IMAGE_DIRECTORY_ENTRY_EXCEPTION  3  ///< Exception (.pdata)
 #define IMAGE_DIRECTORY_ENTRY_BASERELOC  5  ///< Base relocations (.reloc)
 #define IMAGE_DIRECTORY_ENTRY_TLS        9  ///< TLS
+
+//
+// Resource Directory Structures
+//
+
+typedef struct _PE_RESOURCE_DIRECTORY {
+  UINT32  Characteristics;        ///< Resource flags
+  UINT32  TimeDateStamp;          ///< Creation time
+  UINT16  MajorVersion;           ///< Major version
+  UINT16  MinorVersion;           ///< Minor version
+  UINT16  NumberOfNamedEntries;   ///< Number of named entries
+  UINT16  NumberOfIdEntries;      ///< Number of ID entries
+} PE_RESOURCE_DIRECTORY;
+
+typedef struct _PE_RESOURCE_DIRECTORY_ENTRY {
+  UINT32  Name;                   ///< Name offset (high bit set) or ID
+  UINT32  OffsetToData;           ///< Subdirectory offset (high bit set) or data RVA
+} PE_RESOURCE_DIRECTORY_ENTRY;
+
+typedef struct _PE_RESOURCE_DATA_ENTRY {
+  UINT32  OffsetToData;           ///< RVA of resource data
+  UINT32  Size;                   ///< Size of resource data
+  UINT32  CodePage;               ///< Code page
+  UINT32  Reserved;               ///< Reserved (0)
+} PE_RESOURCE_DATA_ENTRY;
+
+//
+// Resource Type Constants (standard Windows types)
+//
+
+#define RT_CURSOR       1   ///< Cursor
+#define RT_BITMAP       2   ///< Bitmap
+#define RT_ICON         3   ///< Icon
+#define RT_MENU         4   ///< Menu
+#define RT_DIALOG       5   ///< Dialog
+#define RT_STRING       6   ///< String table
+#define RT_FONTDIR      7   ///< Font directory
+#define RT_FONT         8   ///< Font
+#define RT_ACCELERATOR  9   ///< Accelerator table
+#define RT_RCDATA       10  ///< Raw data
+#define RT_MESSAGETABLE 11  ///< Message table
+#define RT_VERSION      16  ///< Version information
+#define RT_PLUGPLAY     19  ///< Plug and Play
+#define RT_VXD          20  ///< VxD
+#define RT_ANICURSOR    21  ///< Animated cursor
+#define RT_ANIICON      22  ///< Animated icon
+#define RT_HTML         23  ///< HTML
+#define RT_MANIFEST     24  ///< Manifest
 
 typedef struct _PE_TLS_DIRECTORY32 {
   UINT32  StartAddressOfRawData;  ///< Start of TLS data
@@ -1278,6 +1329,511 @@ PeGetMinimumSubsystemVersion (
   return (MinimumVersion->Major > 0) ? S_OK : S_FALSE;
 }
 
+/**
+  Convert RVA to file pointer by searching section headers.
+**/
+static
+VOID *
+PeRvaToPointer (
+  IN VOID    *ImageBase,
+  IN UINT32  Rva
+  )
+{
+  DOS_HEADER *DosHeader;
+  PE_NT_HEADERS32 *NtHeaders;
+  PE_SECTION_HEADER *Sections;
+  UINT16 NumSections;
+  UINT16 i;
+
+  if (Rva == 0) {
+    return NULL;
+  }
+
+  DosHeader = (DOS_HEADER *)ImageBase;
+  NtHeaders = (PE_NT_HEADERS32 *)PE_OFF(DosHeader->NewHeaderOffset);
+  NumSections = NtHeaders->FileHeader.NumSections;
+
+  Sections = (PE_SECTION_HEADER *)((UINT8 *)&NtHeaders->OptionalHeader +
+                                   NtHeaders->FileHeader.OptionalHeaderSize);
+
+  // Find section containing this RVA
+  for (i = 0; i < NumSections; i++) {
+    UINT32 SectionStart = Sections[i].VirtualAddress;
+    UINT32 SectionEnd = SectionStart + Sections[i].VirtualSize;
+
+    if (Rva >= SectionStart && Rva < SectionEnd) {
+      // Calculate offset within section
+      UINT32 SectionOffset = Rva - SectionStart;
+      return PE_OFF(Sections[i].PointerToRawData + SectionOffset);
+    }
+  }
+
+  // RVA not found in any section
+  return NULL;
+}
+
+/**
+  Search for resource in PE resource directory tree.
+
+  PE resource directory has 3 levels:
+  - Level 0: Resource Type (RT_BITMAP, RT_ICON, or custom types like AUR)
+  - Level 1: Resource Name/ID
+  - Level 2: Language
+
+  @param[in]  ResourceDir    Pointer to resource directory root.
+  @param[in]  TypeCode       Resource type to search for.
+  @param[in]  Id             Resource ID (0 if using name).
+  @param[in]  Name           Resource name (NULL if using ID).
+  @param[out] Data           Receives pointer to resource data.
+  @param[out] Size           Receives size of resource data.
+
+  @return S_OK if found, S_FALSE if not found, error code otherwise.
+**/
+static
+HRESULT
+PeSearchResourceDirectory (
+  IN  VOID         *ResourceDir,
+  IN  UINT32       TypeCode,
+  IN  UINT32       Id,
+  IN  CONST CHAR8  *Name,
+  OUT VOID         **Data,
+  OUT UINT64       *Size
+  )
+{
+  PE_RESOURCE_DIRECTORY *Dir;
+  PE_RESOURCE_DIRECTORY_ENTRY *Entries;
+  UINT32 NumEntries;
+  UINT32 i;
+  VOID *TypeDir;
+  PE_RESOURCE_DIRECTORY *NameDir;
+  PE_RESOURCE_DIRECTORY_ENTRY *NameEntries;
+  UINT32 NameNumEntries;
+  UINT32 j;
+  VOID *LangDir;
+  PE_RESOURCE_DIRECTORY *LangResDir;
+  PE_RESOURCE_DIRECTORY_ENTRY *LangEntries;
+  PE_RESOURCE_DATA_ENTRY *DataEntry;
+
+  if (ResourceDir == NULL || Data == NULL || Size == NULL) {
+    return E_POINTER;
+  }
+
+  // Level 0: Search for type
+  Dir = (PE_RESOURCE_DIRECTORY *)ResourceDir;
+  NumEntries = Dir->NumberOfNamedEntries + Dir->NumberOfIdEntries;
+  Entries = (PE_RESOURCE_DIRECTORY_ENTRY *)((UINT8 *)Dir + sizeof(PE_RESOURCE_DIRECTORY));
+
+  TypeDir = NULL;
+  for (i = 0; i < NumEntries; i++) {
+    UINT32 EntryName = Entries[i].Name;
+    BOOLEAN IsNameEntry = !!(EntryName & 0x80000000);
+
+    if (IsNameEntry) {
+      // Named entry - check if Name parameter matches
+      if (Name != NULL) {
+        UINT32 NameOffset = EntryName & 0x7FFFFFFF;
+        UINT16 *NameData = (UINT16 *)((UINT8 *)ResourceDir + NameOffset);
+        UINT16 NameLength = NameData[0];
+        CHAR8 *NameString = (CHAR8 *)&NameData[1];
+        UINTN NameLen = strlen(Name);
+
+        // Compare Unicode name with ASCII name (simple conversion)
+        BOOLEAN Match = TRUE;
+        if (NameLength != NameLen) {
+          Match = FALSE;
+        } else {
+          for (UINT32 k = 0; k < NameLength; k++) {
+            if ((CHAR8)NameString[k * 2] != Name[k]) {
+              Match = FALSE;
+              break;
+            }
+          }
+        }
+
+        if (Match) {
+          TypeDir = (UINT8 *)ResourceDir + (Entries[i].OffsetToData & 0x7FFFFFFF);
+          break;
+        }
+      }
+    } else {
+      // ID entry
+      if (EntryName == TypeCode) {
+        TypeDir = (UINT8 *)ResourceDir + (Entries[i].OffsetToData & 0x7FFFFFFF);
+        break;
+      }
+    }
+  }
+
+  if (TypeDir == NULL) {
+    return S_FALSE;  // Type not found
+  }
+
+  // Level 1: Get first name/ID entry (we don't filter by specific name/ID at this level)
+  NameDir = (PE_RESOURCE_DIRECTORY *)TypeDir;
+  NameNumEntries = NameDir->NumberOfNamedEntries + NameDir->NumberOfIdEntries;
+  NameEntries = (PE_RESOURCE_DIRECTORY_ENTRY *)((UINT8 *)NameDir + sizeof(PE_RESOURCE_DIRECTORY));
+
+  if (NameNumEntries == 0) {
+    return S_FALSE;  // No names/IDs under this type
+  }
+
+  // Just take the first entry
+  LangDir = (UINT8 *)ResourceDir + (NameEntries[0].OffsetToData & 0x7FFFFFFF);
+
+  // Level 2: Get first language entry
+  LangResDir = (PE_RESOURCE_DIRECTORY *)LangDir;
+  LangEntries = (PE_RESOURCE_DIRECTORY_ENTRY *)((UINT8 *)LangResDir + sizeof(PE_RESOURCE_DIRECTORY));
+
+  if ((LangResDir->NumberOfNamedEntries + LangResDir->NumberOfIdEntries) == 0) {
+    return S_FALSE;  // No language entries
+  }
+
+  // Get data entry
+  DataEntry = (PE_RESOURCE_DATA_ENTRY *)((UINT8 *)ResourceDir + (LangEntries[0].OffsetToData & 0x7FFFFFFF));
+
+  *Data = (VOID *)(UINTN)DataEntry->OffsetToData;  // This is an RVA, caller must convert
+  *Size = DataEntry->Size;
+
+  return S_OK;
+}
+
+/**
+  Find native resource in PE resource directory.
+
+  Searches the PE resource tree for a specific resource by type and name/ID.
+
+  @param[in]  ImageBase      Pointer to PE image.
+  @param[in]  TypeCode       Resource type (4-char code or RT_* constant).
+  @param[in]  Id             Resource ID (0 if using name).
+  @param[in]  Name           Resource name (NULL if using ID).
+  @param[out] Data           Receives pointer to resource data.
+  @param[out] Size           Receives size of resource data.
+
+  @return S_OK if found, S_FALSE if not found, error code otherwise.
+**/
+static
+HRESULT
+PeFindNativeResource (
+  IN  VOID         *ImageBase,
+  IN  UINT32       TypeCode,
+  IN  UINT32       Id,
+  IN  CONST CHAR8  *Name,
+  OUT VOID         **Data,
+  OUT UINT64       *Size
+  )
+{
+  DOS_HEADER *DosHeader;
+  PE_NT_HEADERS32 *NtHeaders32;
+  PE_NT_HEADERS64 *NtHeaders64;
+  PE_DATA_DIRECTORY *ResourceDir;
+  VOID *ResourceDirBase;
+  BOOLEAN Is64Bit;
+  HRESULT Status;
+  VOID *ResourceRva;
+  UINT64 ResourceSize;
+
+  if (ImageBase == NULL || Data == NULL || Size == NULL) {
+    return E_POINTER;
+  }
+
+  DosHeader = (DOS_HEADER *)ImageBase;
+  NtHeaders32 = (PE_NT_HEADERS32 *)PE_OFF(DosHeader->NewHeaderOffset);
+  NtHeaders64 = (PE_NT_HEADERS64 *)NtHeaders32;
+
+  Is64Bit = (NtHeaders32->OptionalHeader.Magic == PE_OPT_MAGIC_PE32PLUS);
+
+  // Get resource data directory
+  ResourceDir = Is64Bit ?
+    &NtHeaders64->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_RESOURCE] :
+    &NtHeaders32->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_RESOURCE];
+
+  if (ResourceDir->VirtualAddress == 0 || ResourceDir->Size == 0) {
+    return S_FALSE;  // No resources
+  }
+
+  ResourceDirBase = PeRvaToPointer(ImageBase, ResourceDir->VirtualAddress);
+  if (ResourceDirBase == NULL) {
+    return IMGLOAD_E_INVALID_FORMAT;
+  }
+
+  // Search resource directory
+  Status = PeSearchResourceDirectory(
+    ResourceDirBase,
+    TypeCode,
+    Id,
+    Name,
+    &ResourceRva,
+    &ResourceSize
+  );
+
+  if (FAILED(Status) || Status == S_FALSE) {
+    return Status;
+  }
+
+  // Convert RVA to pointer
+  *Data = PeRvaToPointer(ImageBase, (UINT32)(UINTN)ResourceRva);
+  *Size = ResourceSize;
+
+  if (*Data == NULL) {
+    return IMGLOAD_E_INVALID_FORMAT;
+  }
+
+  return S_OK;
+}
+
+/**
+  Find section by name in PE image.
+
+  @param[in]  ImageBase      Pointer to PE image.
+  @param[in]  SectionName    Name of section to find (e.g., ".axursrc").
+  @param[out] Data           Receives pointer to section data.
+  @param[out] Size           Receives size of section.
+
+  @return S_OK if found, S_FALSE if not found, error code otherwise.
+**/
+static
+HRESULT
+PeFindSection (
+  IN  VOID         *ImageBase,
+  IN  CONST CHAR8  *SectionName,
+  OUT VOID         **Data,
+  OUT UINT64       *Size
+  )
+{
+  DOS_HEADER *DosHeader;
+  PE_NT_HEADERS32 *NtHeaders;
+  PE_SECTION_HEADER *Sections;
+  UINT16 NumSections;
+  UINT16 i;
+  UINTN NameLen;
+
+  if (ImageBase == NULL || SectionName == NULL || Data == NULL || Size == NULL) {
+    return E_POINTER;
+  }
+
+  DosHeader = (DOS_HEADER *)ImageBase;
+  NtHeaders = (PE_NT_HEADERS32 *)PE_OFF(DosHeader->NewHeaderOffset);
+  NumSections = NtHeaders->FileHeader.NumSections;
+
+  Sections = (PE_SECTION_HEADER *)((UINT8 *)&NtHeaders->OptionalHeader +
+                                   NtHeaders->FileHeader.OptionalHeaderSize);
+
+  NameLen = strlen(SectionName);
+  if (NameLen > 8) {
+    NameLen = 8;  // Section names are max 8 characters
+  }
+
+  // Search for section
+  for (i = 0; i < NumSections; i++) {
+    if (memcmp(Sections[i].Name, SectionName, NameLen) == 0) {
+      *Data = PE_OFF(Sections[i].PointerToRawData);
+      *Size = Sections[i].SizeOfRawData;
+      return S_OK;
+    }
+  }
+
+  return S_FALSE;  // Section not found
+}
+
+/**
+  Get resource from PE image.
+
+  Hybrid strategy: Combines universal resources (from AUR or .axursrc)
+  with native PE resources. Tries universal fork first, then native.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+PeGetResource (
+  IN  IImageLoader        *This,
+  IN  VOID                *ImageBase,
+  IN  IMGLOAD_RESOURCE_ID *ResourceId,
+  IN  IMGLOAD_RESOURCE_ID *ResourceType,
+  OUT IImageResource      **Resource
+  )
+{
+  VOID *ResourceFork;
+  UINT64 Size;
+  BOOLEAN NeedsFree;
+  HRESULT Status;
+  UINT32 TypeCode;
+  UINT32 PeTypeId;
+  UINT16 Id;
+  CONST CHAR8 *Name;
+  VOID *NativeData;
+  UINT64 NativeSize;
+
+  if (ImageBase == NULL || Resource == NULL) {
+    return E_POINTER;
+  }
+
+  *Resource = NULL;
+
+  // Extract type code from ResourceType
+  if (ResourceType != NULL) {
+    if (ResourceType->IsNumeric) {
+      TypeCode = ResourceType->Id;
+      PeTypeId = ResourceType->Id;
+    } else {
+      // Convert name to 4-char type code (take first 4 chars)
+      TypeCode = ANX_MAKE_TYPE(ResourceType->Name);
+      PeTypeId = 0;  // Use name for PE lookup
+    }
+  } else {
+    TypeCode = 0;  // All types
+    PeTypeId = 0;
+  }
+
+  // Extract resource ID/name from ResourceId
+  if (ResourceId != NULL) {
+    if (ResourceId->IsNumeric) {
+      Id = (UINT16)ResourceId->Id;
+      Name = NULL;
+    } else {
+      Id = 0;
+      Name = ResourceId->Name;
+    }
+  } else {
+    Id = 0;
+    Name = NULL;
+  }
+
+  // First, try to get universal resource fork
+  Status = FindUniversalResourceFork(
+    ImageBase,
+    ResourceStrategyBoth,
+    PeFindNativeResource,
+    PeFindSection,
+    ".axursrc",
+    &ResourceFork,
+    &Size,
+    &NeedsFree
+  );
+
+  if (Status == S_OK) {
+    // Try to find resource in universal fork
+    Status = CreateImageResource(
+      ResourceFork,
+      TypeCode,
+      Id,
+      Name,
+      Resource
+    );
+
+    if (Status == S_OK) {
+      // Found in universal fork
+      if (NeedsFree && ResourceFork != NULL) {
+        free(ResourceFork);
+      }
+      return S_OK;
+    }
+
+    // Not found in universal fork, will try native PE resources
+    if (NeedsFree && ResourceFork != NULL) {
+      free(ResourceFork);
+    }
+  }
+
+  // Try native PE resources (excluding AUR types which are for universal fork)
+  if (PeTypeId != ANX_RSRC_TYPE_AUR &&
+      PeTypeId != ANX_RSRC_TYPE_AUR_16BIT &&
+      PeTypeId != ANX_RSRC_ID_AUR_32BIT) {
+
+    Status = PeFindNativeResource(
+      ImageBase,
+      PeTypeId,
+      Id,
+      (ResourceType != NULL && !ResourceType->IsNumeric) ? ResourceType->Name : Name,
+      &NativeData,
+      &NativeSize
+    );
+
+    if (Status == S_OK) {
+      // Found in native resources - wrap it as IImageResource
+      Status = CreateNativeImageResource(
+        TypeCode,
+        Id,
+        (ResourceType != NULL && !ResourceType->IsNumeric) ? ResourceType->Name : Name,
+        NativeData,
+        NativeSize,
+        Resource
+      );
+      return Status;
+    }
+  }
+
+  return S_FALSE;  // Not found in either source
+}
+
+/**
+  Get resource enumerator for PE image.
+
+  Enumerates all resources of a given type from the universal resource fork.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+PeGetResourceEnumerator (
+  IN  IImageLoader        *This,
+  IN  VOID                *ImageBase,
+  IN  IMGLOAD_RESOURCE_ID *ResourceType,
+  OUT IEnumImageResource  **Enumerator
+  )
+{
+  VOID *ResourceFork;
+  UINT64 Size;
+  BOOLEAN NeedsFree;
+  HRESULT Status;
+  UINT32 TypeCode;
+
+  if (ImageBase == NULL || Enumerator == NULL) {
+    return E_POINTER;
+  }
+
+  *Enumerator = NULL;
+
+  // Extract type code from ResourceType
+  if (ResourceType != NULL) {
+    if (ResourceType->IsNumeric) {
+      TypeCode = ResourceType->Id;
+    } else {
+      // Convert name to 4-char type code
+      TypeCode = ANX_MAKE_TYPE(ResourceType->Name);
+    }
+  } else {
+    TypeCode = 0;  // All types
+  }
+
+  // Use FindUniversalResourceFork with hybrid strategy
+  Status = FindUniversalResourceFork(
+    ImageBase,
+    ResourceStrategyBoth,
+    PeFindNativeResource,
+    PeFindSection,
+    ".axursrc",
+    &ResourceFork,
+    &Size,
+    &NeedsFree
+  );
+
+  if (FAILED(Status) || Status == S_FALSE) {
+    return Status;
+  }
+
+  // Create enumerator
+  Status = CreateImageResourceEnumerator(
+    ResourceFork,
+    TypeCode,
+    Enumerator
+  );
+
+  if (NeedsFree && ResourceFork != NULL) {
+    free(ResourceFork);
+  }
+
+  return Status;
+}
+
 //
 // PE Loader VTable
 //
@@ -1300,7 +1856,9 @@ static CONST IImageLoaderVtbl gPeVtbl = {
   PeGetTargetSystem,
   PeGetMinimumSystemVersion,
   PeGetTargetSubsystem,
-  PeGetMinimumSubsystemVersion
+  PeGetMinimumSubsystemVersion,
+  PeGetResource,
+  PeGetResourceEnumerator
 };
 
 //

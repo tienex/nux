@@ -454,6 +454,54 @@ CreateImageResourceEnumerator (
 }
 
 /**
+  Create IImageResource from raw native resource data.
+
+  This wrapper is for native resources that don't fit the resource fork model
+  (e.g., PE RT_BITMAP, Mach-O individual resources).
+**/
+HRESULT
+CreateNativeImageResource (
+  IN  UINT32             TypeCode,
+  IN  UINT32             ResourceId,
+  IN  CONST CHAR8        *Name,
+  IN  VOID               *Data,
+  IN  UINT64             Size,
+  OUT IImageResource     **Resource
+  )
+{
+  ImageResourceImpl  *Impl;
+
+  if (Data == NULL || Resource == NULL) {
+    return E_POINTER;
+  }
+
+  // Allocate implementation
+  Impl = (ImageResourceImpl *)malloc(sizeof(ImageResourceImpl));
+  if (Impl == NULL) {
+    return E_OUTOFMEMORY;
+  }
+
+  memset(Impl, 0, sizeof(ImageResourceImpl));
+
+  Impl->Vtbl = (IImageResourceVtbl *)&gImageResourceVtbl;
+  Impl->RefCount = 1;
+  Impl->ResourceFork = NULL;  // No fork for native resources
+  Impl->Data = Data;
+  Impl->Size = Size;
+  Impl->TypeCode = TypeCode;
+  Impl->Id.IsNumeric = (Name == NULL);
+  if (Name != NULL) {
+    Impl->Id.Name = Name;
+  } else {
+    Impl->Id.Id = ResourceId;
+  }
+
+  *Resource = (IImageResource *)Impl;
+
+  return S_OK;
+}
+
+/**
   Find universal resource fork in image.
 
   Handles both native-embedded AUR resources and direct .rsrc sections.
