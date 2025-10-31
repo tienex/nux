@@ -477,13 +477,61 @@ NlmGetSymbolByAddress (
   OUT IMGLOAD_SYMBOL_INFO  *SymbolInfo
   )
 {
+  NLM_HEADER_V4 *Header;
+  UINT8 *SymTable;
+  UINT8 *Ptr, *End;
+  UINT32 i;
+
   if (SymbolInfo == NULL) {
     return E_POINTER;
   }
 
   memset(SymbolInfo, 0, sizeof(IMGLOAD_SYMBOL_INFO));
 
-  // TODO: Parse NLM public symbol table
+  Header = (NLM_HEADER_V4 *)ImageBase;
+  if (Header->NumPublicSymbols == 0) {
+    return S_FALSE;
+  }
+
+  SymTable = (UINT8 *)NLM_OFF(Header->PublicSymbolOffset);
+  Ptr = SymTable;
+  End = Ptr + (Header->NumPublicSymbols * 256);  // Generous upper bound
+
+  // Parse public symbol table
+  for (i = 0; i < Header->NumPublicSymbols; i++) {
+    UINT8 NameLen;
+    CHAR8 *Name;
+    UINT32 Offset;
+    VIRTUAL_ADDRESS SymAddr;
+
+    if (Ptr >= End) break;
+
+    NameLen = *Ptr++;
+    if (NameLen == 0 || Ptr + NameLen + 4 > End) {
+      break;
+    }
+
+    Name = (CHAR8 *)Ptr;
+    Ptr += NameLen;
+
+    Offset = *(UINT32 *)Ptr;
+    Ptr += 4;
+
+    // Symbol offset is RVA from code base
+    SymAddr = NLM_DEFAULT_CODE_BASE + Offset;
+
+    if (SymAddr == Address) {
+      // Found matching symbol
+      UINTN CopyLen = (NameLen < sizeof(SymbolInfo->Name) - 1) ?
+                      NameLen : (sizeof(SymbolInfo->Name) - 1);
+      memcpy(SymbolInfo->Name, Name, CopyLen);
+      SymbolInfo->Name[CopyLen] = '\0';
+      SymbolInfo->Address = SymAddr;
+      SymbolInfo->Size = 0;  // Unknown
+      return S_OK;
+    }
+  }
+
   return S_FALSE;
 }
 
@@ -500,13 +548,63 @@ NlmGetSymbolByName (
   OUT IMGLOAD_SYMBOL_INFO  *SymbolInfo
   )
 {
+  NLM_HEADER_V4 *Header;
+  UINT8 *SymTable;
+  UINT8 *Ptr, *End;
+  UINT32 i;
+  UINTN SearchLen;
+
   if (SymbolInfo == NULL || Name == NULL) {
     return E_POINTER;
   }
 
   memset(SymbolInfo, 0, sizeof(IMGLOAD_SYMBOL_INFO));
 
-  // TODO: Parse NLM public symbol table
+  SearchLen = strlen(Name);
+  Header = (NLM_HEADER_V4 *)ImageBase;
+  if (Header->NumPublicSymbols == 0) {
+    return S_FALSE;
+  }
+
+  SymTable = (UINT8 *)NLM_OFF(Header->PublicSymbolOffset);
+  Ptr = SymTable;
+  End = Ptr + (Header->NumPublicSymbols * 256);  // Generous upper bound
+
+  // Parse public symbol table
+  for (i = 0; i < Header->NumPublicSymbols; i++) {
+    UINT8 NameLen;
+    CHAR8 *SymName;
+    UINT32 Offset;
+    VIRTUAL_ADDRESS SymAddr;
+
+    if (Ptr >= End) break;
+
+    NameLen = *Ptr++;
+    if (NameLen == 0 || Ptr + NameLen + 4 > End) {
+      break;
+    }
+
+    SymName = (CHAR8 *)Ptr;
+    Ptr += NameLen;
+
+    Offset = *(UINT32 *)Ptr;
+    Ptr += 4;
+
+    // Check if name matches
+    if (NameLen == SearchLen && memcmp(SymName, Name, SearchLen) == 0) {
+      // Found matching symbol
+      SymAddr = NLM_DEFAULT_CODE_BASE + Offset;
+
+      UINTN CopyLen = (NameLen < sizeof(SymbolInfo->Name) - 1) ?
+                      NameLen : (sizeof(SymbolInfo->Name) - 1);
+      memcpy(SymbolInfo->Name, SymName, CopyLen);
+      SymbolInfo->Name[CopyLen] = '\0';
+      SymbolInfo->Address = SymAddr;
+      SymbolInfo->Size = 0;  // Unknown
+      return S_OK;
+    }
+  }
+
   return S_FALSE;
 }
 
@@ -557,9 +655,74 @@ NlmApplyRelocations (
   IN VIRTUAL_ADDRESS  PreferredBase
   )
 {
-  // TODO: Implement NLM relocation fixups
-  // NLM uses custom relocation format with fixup records
-  return E_NOTIMPL;
+  NLM_HEADER_V4 *Header;
+  UINT8 *FixupTable;
+  UINT8 *CodeBase;
+  UINT32 i;
+  INT32 Delta;
+
+  Header = (NLM_HEADER_V4 *)ImageBase;
+
+  if (Header->NumRelocationFixups == 0) {
+    return S_FALSE;  // No relocations
+  }
+
+  Delta = (INT32)((INT64)LoadAddress - (INT64)PreferredBase);
+  if (Delta == 0) {
+    return S_OK;  // Already at preferred base
+  }
+
+  FixupTable = (UINT8 *)NLM_OFF(Header->RelocationFixupOffset);
+  CodeBase = (UINT8 *)NLM_OFF(Header->CodeImageOffset);
+
+  // Process fixup records
+  UINT8 *Ptr = FixupTable;
+  for (i = 0; i < Header->NumRelocationFixups; i++) {
+    UINT8 FixupType = *Ptr++;
+    UINT32 Offset;
+
+    switch (FixupType) {
+      case 0x00:  // Internal reference (most common)
+        // Read 4-byte offset
+        Offset = *(UINT32 *)Ptr;
+        Ptr += 4;
+
+        // Apply fixup to code segment
+        if (Offset < Header->CodeImageSize) {
+          UINT32 *Target = (UINT32 *)(CodeBase + Offset);
+          *Target += Delta;
+        }
+        break;
+
+      case 0x01:  // External reference
+        // Skip: 4-byte offset + 4-byte external symbol index
+        Ptr += 8;
+        break;
+
+      case 0x02:  // Far call fixup
+        // Read 4-byte offset
+        Offset = *(UINT32 *)Ptr;
+        Ptr += 4;
+
+        if (Offset < Header->CodeImageSize) {
+          UINT32 *Target = (UINT32 *)(CodeBase + Offset);
+          *Target += Delta;
+        }
+        break;
+
+      case 0x03:  // Segment fixup
+        // Skip: 4-byte offset + 2-byte segment
+        Ptr += 6;
+        break;
+
+      default:
+        // Unknown fixup type, skip 4 bytes as default
+        Ptr += 4;
+        break;
+    }
+  }
+
+  return S_OK;
 }
 
 //
