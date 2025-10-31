@@ -817,6 +817,103 @@ XcoffFindSection (
 }
 
 /**
+  Get XCOFF init/fini function arrays.
+
+  XCOFF (IBM AIX) uses special sections for initialization and termination:
+  - .init: Initialization code section (executed before main)
+  - .fini: Finalization code section (executed after main)
+  - .ctors: Array of constructor function pointers (C++)
+  - .dtors: Array of destructor function pointers (C++)
+
+  @param[in]  ImageBase       Pointer to XCOFF image.
+  @param[out] InitSection     Receives pointer to .init section (NULL if none).
+  @param[out] InitSize        Receives size of .init section.
+  @param[out] FiniSection     Receives pointer to .fini section (NULL if none).
+  @param[out] FiniSize        Receives size of .fini section.
+  @param[out] CtorsArray      Receives pointer to .ctors array (NULL if none).
+  @param[out] NumCtors        Receives number of constructors.
+  @param[out] DtorsArray      Receives pointer to .dtors array (NULL if none).
+  @param[out] NumDtors        Receives number of destructors.
+
+  @return S_OK if any init/fini found, S_FALSE if none found.
+**/
+static
+HRESULT
+XcoffGetInitFini (
+  IN  VOID     *ImageBase,
+  OUT VOID     **InitSection,
+  OUT UINT64   *InitSize,
+  OUT VOID     **FiniSection,
+  OUT UINT64   *FiniSize,
+  OUT VOID     **CtorsArray,
+  OUT UINT32   *NumCtors,
+  OUT VOID     **DtorsArray,
+  OUT UINT32   *NumDtors
+  )
+{
+  VOID     *InitData;
+  VOID     *FiniData;
+  VOID     *CtorsData;
+  VOID     *DtorsData;
+  UINT64   InitSz;
+  UINT64   FiniSz;
+  UINT64   CtorsSz;
+  UINT64   DtorsSz;
+  HRESULT  Status;
+  BOOLEAN  FoundAny;
+
+  if (ImageBase == NULL) {
+    return E_POINTER;
+  }
+
+  // Initialize outputs
+  if (InitSection != NULL) *InitSection = NULL;
+  if (InitSize != NULL) *InitSize = 0;
+  if (FiniSection != NULL) *FiniSection = NULL;
+  if (FiniSize != NULL) *FiniSize = 0;
+  if (CtorsArray != NULL) *CtorsArray = NULL;
+  if (NumCtors != NULL) *NumCtors = 0;
+  if (DtorsArray != NULL) *DtorsArray = NULL;
+  if (NumDtors != NULL) *NumDtors = 0;
+
+  FoundAny = FALSE;
+
+  // Find .init section
+  Status = XcoffFindSection(ImageBase, ".init", &InitData, &InitSz);
+  if (Status == S_OK) {
+    if (InitSection != NULL) *InitSection = InitData;
+    if (InitSize != NULL) *InitSize = InitSz;
+    FoundAny = TRUE;
+  }
+
+  // Find .fini section
+  Status = XcoffFindSection(ImageBase, ".fini", &FiniData, &FiniSz);
+  if (Status == S_OK) {
+    if (FiniSection != NULL) *FiniSection = FiniData;
+    if (FiniSize != NULL) *FiniSize = FiniSz;
+    FoundAny = TRUE;
+  }
+
+  // Find .ctors section (array of function pointers)
+  Status = XcoffFindSection(ImageBase, ".ctors", &CtorsData, &CtorsSz);
+  if (Status == S_OK) {
+    if (CtorsArray != NULL) *CtorsArray = CtorsData;
+    if (NumCtors != NULL) *NumCtors = (UINT32)(CtorsSz / sizeof(UINT32));  // Assume 32-bit pointers
+    FoundAny = TRUE;
+  }
+
+  // Find .dtors section (array of function pointers)
+  Status = XcoffFindSection(ImageBase, ".dtors", &DtorsData, &DtorsSz);
+  if (Status == S_OK) {
+    if (DtorsArray != NULL) *DtorsArray = DtorsData;
+    if (NumDtors != NULL) *NumDtors = (UINT32)(DtorsSz / sizeof(UINT32));  // Assume 32-bit pointers
+    FoundAny = TRUE;
+  }
+
+  return FoundAny ? S_OK : S_FALSE;
+}
+
+/**
   Get resource from XCOFF image.
 
   XCOFF has no native resource system, so we only check .axursrc section.
