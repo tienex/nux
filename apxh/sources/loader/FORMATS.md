@@ -27,12 +27,13 @@ enabling cross-platform resource embedding in all executable formats.
 | PE     | ✅ Yes | ✅ Implemented | Resource directory (native) + `.axursrc` |
 | Mach-O | ✅ Yes | ✅ Implemented | `__RSRC` segment (native) + `__apxh_uresource` |
 | ELF    | ❌ No  | ✅ Implemented | `.axursrc` section |
-| COFF   | ❌ No  | ⚠️ Needs update | `.axursrc` section |
-| a.out  | ❌ No  | ⚠️ Needs update | Format-specific |
-| XCOFF  | ❌ No  | ⚠️ Needs update | `.axursrc` section |
-| ECOFF  | ❌ No  | ⚠️ Needs update | `.axursrc` section |
-| LE/LX  | ⚠️ OS/2 | ⚠️ Needs investigation | Native resource table or `.axursrc` |
-| NLM    | ⚠️ Maybe | ⚠️ Needs investigation | NetWare resources or `.axursrc` |
+| COFF   | ❌ No  | ✅ Implemented | `.axursrc` section |
+| XCOFF  | ❌ No  | ✅ Implemented | `.axursrc` section (AIX) |
+| ECOFF  | ❌ No  | ✅ Implemented | `.axursrc` section (DEC/SGI) |
+| LE/LX  | ⚠️ OS/2 | ⚠️ TODO | Native resource table + `.axursrc` |
+| NLM    | ⚠️ NetWare | ⚠️ TODO | NetWare resources or `.axursrc` |
+| a.out  | ❌ No  | ⚠️ TODO | Special handling needed (no sections) |
+| Other  | ❌ No  | ⚠️ TODO | Format-specific (Hunk, Atari, PDP-10, etc.) |
 
 ### Implementation Guide
 
