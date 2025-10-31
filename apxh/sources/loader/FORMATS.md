@@ -39,7 +39,8 @@ enabling cross-platform resource embedding in all executable formats.
 | ECOFF  | ❌ No  | ✅ Implemented | `.axursrc` section (DEC/SGI) |
 | a.out  | ❌ No  | ✅ Implemented | Symbol-based (`__apxh_uresource_start/size`) |
 | LE/LX  | ✅ OS/2 | ✅ Implemented | Native resource table (type/name/object/offset) |
-| NLM    | ⚠️ NetWare | ⚠️ TODO | NetWare resources or `.axursrc` |
+| PEF    | ❌ No  | ✅ Implemented | `.axursrc` section (Mac OS/BeOS) |
+| NLM    | ❌ No  | ✅ Implemented | Custom data segment (NetWare) |
 | Other  | ❌ No  | ⚠️ TODO | Format-specific (Hunk, Atari, PDP-10, etc.) |
 
 ### Implementation Guide
@@ -95,7 +96,8 @@ executable formats, enabling proper startup/shutdown sequences for libraries and
 | ECOFF  | ✅ Sections | ✅ Implemented | `.init`, `.fini`, `.ctors`, `.dtors` (DEC/SGI) |
 | a.out  | ⚠️ Limited | ⚠️ Partial | Dynamic linker support via `__DYNAMIC` |
 | LE/LX  | ✅ OS/2 | ✅ Implemented | InitObjectNum/InitEip (init only, OS/2 handles term) |
-| PEF    | ⚠️ PowerPC | ⚠️ TODO | PowerPC fragment init/term |
+| PEF    | ✅ Loader Header | ✅ Implemented | InitSection/InitOffset, TermSection/TermOffset |
+| NLM    | ✅ Entry Points | ✅ Implemented | CodeStartOffset, ExitProcedureOffset, CheckUnloadProcedureOffset |
 
 ### Implementation Patterns
 
@@ -149,6 +151,36 @@ CoffGetInitFini(ImageBase, &InitSection, &InitSize, &FiniSection, &FiniSize,
 // Static executables may use custom sections (non-standard)
 AoutGetDynamic(ImageBase, &Dynamic);  // Returns AOUT_LINK_DYNAMIC structure
 ```
+
+#### 6. **PEF (Mac OS/BeOS)**: Loader Info Header
+```c
+// PEF loader info header contains section/offset pairs for init/term functions
+// InitSection/InitOffset: Fragment initialization function
+// TermSection/TermOffset: Fragment termination function
+PefGetInitFini(ImageBase, &InitAddress, &TermAddress);
+```
+
+**Notes:**
+- Called by Code Fragment Manager (CFM) on fragment load/unload
+- Init function initializes global variables and resources
+- Term function cleans up resources and prepares for unload
+- Both are optional (section index can be -1)
+
+#### 7. **NLM (NetWare)**: Module Entry Points
+```c
+// NLM header contains RVA offsets for module lifecycle functions
+// CodeStartOffset:         Module initialization (entry point)
+// ExitProcedureOffset:     Module termination
+// CheckUnloadProcedureOffset: Pre-unload verification (returns 0 if OK to unload)
+NlmGetInitFini(ImageBase, &InitAddress, &TermAddress, &CheckUnloadAddress);
+```
+
+**Notes:**
+- CodeStartOffset called when module is loaded
+- ExitProcedureOffset called when module is unloaded
+- CheckUnloadProcedureOffset called before unload to verify it's safe
+- All three are optional (offset can be 0)
+- NetWare kernel manages module lifecycle
 
 ### Execution Order
 
