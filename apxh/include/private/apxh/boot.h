@@ -23,6 +23,10 @@ VOID Initialize (VOID);
 //
 
 CONST CHAR *GetArchName (IN ARCH Arch);
+ARCH GetKernelArchitecture (VOID);
+ARCH GetUserArchitecture (VOID);
+ARCH GetHostArchitecture (VOID);
+UINT32 GetMixedModeFlags (VOID);
 
 //
 // Image Loading

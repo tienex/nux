@@ -102,6 +102,12 @@ typedef struct _APXH_TLS_INFO {
 // APXH_BOOT_INFO - Main Boot Information Structure
 //
 
+// Mixed-mode execution flags
+#define APXH_MIXEDMODE_32ON64     (1 << 0)  ///< 32-bit kernel on 64-bit CPU
+#define APXH_MIXEDMODE_64UON32K   (1 << 1)  ///< 64-bit user on 32-bit kernel
+#define APXH_MIXEDMODE_32UON64K   (1 << 2)  ///< 32-bit user on 64-bit kernel
+#define APXH_MIXEDMODE_MIXED      (1 << 3)  ///< General mixed-mode (different bitness)
+
 typedef struct _APXH_BOOT_INFO {
   ///
   /// Magic number (APXH_BOOTINFO_MAGIC = 0xAF10B007).
@@ -153,6 +159,34 @@ typedef struct _APXH_BOOT_INFO {
   /// User-mode thread-local storage information.
   ///
   APXH_TLS_INFO  UserTls;
+
+  ///
+  /// Kernel architecture.
+  /// Specifies the instruction set architecture of the kernel.
+  ///
+  UINT32  KernelArchitecture;
+
+  ///
+  /// User architecture.
+  /// Specifies the instruction set architecture of user-space.
+  /// May be ArchInvalid (0) if no user-space program is loaded.
+  ///
+  UINT32  UserArchitecture;
+
+  ///
+  /// Host CPU architecture.
+  /// Specifies the native instruction set of the physical CPU.
+  ///
+  UINT32  HostArchitecture;
+
+  ///
+  /// Mixed-mode execution flags.
+  /// Bit 0: 32-bit kernel on 64-bit CPU (32-on-64)
+  /// Bit 1: 64-bit user on 32-bit kernel (64U-on-32K)
+  /// Bit 2: 32-bit user on 64-bit kernel (32U-on-64K)
+  /// Bit 3: General mixed-mode (kernel and user have different bitness)
+  ///
+  UINT32  MixedModeFlags;
 } APXH_BOOT_INFO;
 
 //

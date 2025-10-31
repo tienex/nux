@@ -20,6 +20,71 @@ static ARCH gHostArch = ArchInvalid;    ///< Host/CPU architecture
 static BOOLEAN gMixedMode = FALSE;      ///< TRUE if kernel/user have different bitness
 static BOOLEAN g32on64Mode = FALSE;     ///< TRUE if 32-bit on 64-bit CPU
 static BOOLEAN g64Uon32KMode = FALSE;   ///< TRUE if 64-bit user on 32-bit kernel
+
+/**
+  Get kernel architecture.
+
+  @return Kernel architecture.
+**/
+ARCH
+GetKernelArchitecture (
+  VOID
+  )
+{
+  return gKernelArch;
+}
+
+/**
+  Get user architecture.
+
+  @return User architecture (ArchInvalid if no user).
+**/
+ARCH
+GetUserArchitecture (
+  VOID
+  )
+{
+  return gUserArch;
+}
+
+/**
+  Get host CPU architecture.
+
+  @return Host CPU architecture.
+**/
+ARCH
+GetHostArchitecture (
+  VOID
+  )
+{
+  return gHostArch;
+}
+
+/**
+  Get mixed-mode flags.
+
+  @return Flags indicating mixed-mode execution scenarios.
+**/
+UINT32
+GetMixedModeFlags (
+  VOID
+  )
+{
+  UINT32 Flags = 0;
+
+  if (g32on64Mode)
+    Flags |= APXH_MIXEDMODE_32ON64;
+  if (g64Uon32KMode)
+    Flags |= APXH_MIXEDMODE_64UON32K;
+  if (gMixedMode)
+    Flags |= APXH_MIXEDMODE_MIXED;
+
+  // Check for 32U-on-64K (32-bit user on 64-bit kernel)
+  if (Is64BitArch(gKernelArch) && !Is64BitArch(gUserArch) && gUserArch != ArchInvalid)
+    Flags |= APXH_MIXEDMODE_32UON64K;
+
+  return Flags;
+}
 static UINT8 gBootPagemap[PAGEMAP_SZ (BOOTMEM)]
   ANX_ATTR_ALIGN(4096);
 static VIRTUAL_ADDRESS gReqPfnmapVa, gReqInfoVa, gReqBatreeVa, gReqRegionVa,
@@ -370,6 +435,12 @@ VasMapInfoCopy (
   BootInfo.UserTls.InitializedDataVaddr = gUtlsVa;
   BootInfo.UserTls.InitializedDataSize = gUtlsInitsize;
   BootInfo.UserTls.TotalSize = gUtlsSize;
+
+  // Architecture and mixed-mode information
+  BootInfo.KernelArchitecture = (UINT32)gKernelArch;
+  BootInfo.UserArchitecture = (UINT32)gUserArch;
+  BootInfo.HostArchitecture = (UINT32)gHostArch;
+  BootInfo.MixedModeFlags = GetMixedModeFlags();
 
   VasCopy (Va, &BootInfo, MIN (Size, sizeof (APXH_BOOT_INFO)), 0, 0, 0);
 #undef MIN
