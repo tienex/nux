@@ -137,14 +137,18 @@ typedef struct _LE_PAGE_TABLE_ENTRY {
 /**
   LE/LX Resource Table Entry.
 
-  OS/2 LE/LX uses a resource table similar to NE format.
+  LE/LX uses a resource table similar to NE format.
+  Both OS/2 and Windows VxD use the same structure, but with different type values:
+  - OS/2 (OsType = 1): OS/2-specific resource types
+  - Windows VxD (OsType = 4): Windows resource types (RT_BITMAP, RT_ICON, etc.)
+
   Resources are organized by type, then by ID/name.
 **/
 typedef struct _LE_RESOURCE_ENTRY {
-  UINT16  TypeId;       ///< Resource type ID
+  UINT16  TypeId;       ///< Resource type ID (OS/2 or Windows types depending on OsType)
   UINT16  NameId;       ///< Resource name ID
   UINT32  ResourceSize; ///< Size of resource data
-  UINT16  ObjectNum;    ///< Object number containing resource
+  UINT16  ObjectNum;    ///< Object number containing resource (1-based)
   UINT32  Offset;       ///< Offset within object
 } LE_RESOURCE_ENTRY;
 
@@ -865,6 +869,10 @@ LeApplyRelocations (
 
 /**
   Get target operating system from Le image.
+
+  LE/LX format was used by multiple operating systems:
+  - OS/2 (OsType = 1)
+  - Windows VxD (OsType = 4) - Virtual Device Drivers for Windows 3.x/9x
 **/
 static
 HRESULT
@@ -875,11 +883,30 @@ LeGetTargetSystem (
   OUT IMGLOAD_TARGET_SYSTEM  *TargetSystem
   )
 {
+  DOS_HEADER_SHORT *DosHeader;
+  LE_HEADER *LeHeader;
+
   if (TargetSystem == NULL) {
     return E_POINTER;
   }
 
-  *TargetSystem = ImgSystemOs2;
+  DosHeader = (DOS_HEADER_SHORT *)ImageBase;
+  LeHeader = (LE_HEADER *)LE_OFF(DosHeader->NewHeaderOffset);
+
+  // Determine target OS based on OsType field
+  switch (LeHeader->OsType) {
+    case 1:
+      *TargetSystem = ImgSystemOs2;
+      break;
+    case 4:
+      *TargetSystem = ImgSystemWindows;
+      break;
+    default:
+      // Unknown OS type, default to OS/2
+      *TargetSystem = ImgSystemOs2;
+      break;
+  }
+
   return S_OK;
 }
 
@@ -905,6 +932,8 @@ LeGetMinimumSystemVersion (
 
 /**
   Get target subsystem from Le image.
+
+  Distinguishes between OS/2 applications and Windows VxD drivers.
 **/
 static
 HRESULT
@@ -915,6 +944,7 @@ LeGetTargetSubsystem (
   OUT IMGLOAD_TARGET_SUBSYSTEM  *TargetSubsystem
   )
 {
+  DOS_HEADER_SHORT *DosHeader;
   LE_HEADER *Header;
   UINT32 PmFlags;
 
@@ -922,9 +952,17 @@ LeGetTargetSubsystem (
     return E_POINTER;
   }
 
-  Header = (LE_HEADER *)ImageBase;
+  DosHeader = (DOS_HEADER_SHORT *)ImageBase;
+  Header = (LE_HEADER *)LE_OFF(DosHeader->NewHeaderOffset);
 
-  // Check PM (Presentation Manager) compatibility flags
+  // Check OS type first
+  if (Header->OsType == 4) {
+    // Windows VxD (Virtual Device Driver)
+    *TargetSubsystem = ImgSubsystemNative;  // Kernel-mode driver
+    return S_OK;
+  }
+
+  // OS/2: Check PM (Presentation Manager) compatibility flags
   PmFlags = Header->ModuleFlags & 0x00000300;
 
   switch (PmFlags) {
@@ -1039,6 +1077,13 @@ LeGetInitFini (
 
   Searches the LE/LX resource table for the specified resource.
 
+  LE/LX format was used by both OS/2 and Windows:
+  - OS/2 (OsType = 1): Uses OS/2 resource format with OS/2-specific types
+  - Windows VxD (OsType = 4): Uses Windows resource format with Windows-specific types (RT_BITMAP, RT_ICON, etc.)
+
+  Both use the same LE_RESOURCE_ENTRY table structure, but resource type
+  values and interpretation differ based on the target OS.
+
   @param[in]  ImageBase    Pointer to LE/LX image.
   @param[in]  TypeCode     Resource type code (4-char or numeric).
   @param[in]  Id           Resource ID (0 if using name).
@@ -1079,6 +1124,8 @@ LeFindNativeResource (
     return S_FALSE;  // No resources
   }
 
+  // Note: Resource table format is the same for OS/2 (OsType=1) and Windows (OsType=4),
+  // but resource type values differ (OS/2 types vs Windows RT_* types)
   Resources = (LE_RESOURCE_ENTRY *)LE_OFF(DosHeader->NewHeaderOffset + LeHeader->ResourceTableOffset);
 
   // Convert type code to type ID (for simplicity, use lower 16 bits)
