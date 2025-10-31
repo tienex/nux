@@ -510,3 +510,6 @@ static CONST IImageLoaderVtbl gPdp10Vtbl = {
 IImageLoader gPdp10Loader = {
   &gPdp10Vtbl
 };
+
+// Auto-register this loader
+ANX_REGISTER_IMGLOADER(gPdp10Loader);
