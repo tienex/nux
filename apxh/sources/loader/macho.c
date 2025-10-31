@@ -750,4 +750,4 @@ IImageLoader gMachoLoader = {
 };
 
 // Auto-register this loader
-ANX_REGISTER_IMGLOADER(gMachoLoader);
+APXH_REGISTER_IMGLOADER(gMachoLoader);

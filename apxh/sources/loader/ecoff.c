@@ -672,4 +672,4 @@ IImageLoader gEcoffLoader = {
 };
 
 // Auto-register this loader
-ANX_REGISTER_IMGLOADER(gEcoffLoader);
+APXH_REGISTER_IMGLOADER(gEcoffLoader);

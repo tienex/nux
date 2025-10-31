@@ -625,4 +625,4 @@ IImageLoader gLeLoader = {
   &gLeVtbl
 };
 
-ANX_REGISTER_IMGLOADER(gLeLoader);
+APXH_REGISTER_IMGLOADER(gLeLoader);

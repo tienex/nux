@@ -522,4 +522,4 @@ IImageLoader gPlan9Loader = {
   &gPlan9Vtbl
 };
 
-ANX_REGISTER_IMGLOADER(gPlan9Loader);
+APXH_REGISTER_IMGLOADER(gPlan9Loader);

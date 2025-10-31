@@ -625,4 +625,4 @@ IImageLoader gAoutLoader = {
 };
 
 // Auto-register this loader
-ANX_REGISTER_IMGLOADER(gAoutLoader);
+APXH_REGISTER_IMGLOADER(gAoutLoader);

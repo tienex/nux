@@ -466,4 +466,4 @@ IImageLoader gAtariLoader = {
   &gAtariVtbl
 };
 
-ANX_REGISTER_IMGLOADER(gAtariLoader);
+APXH_REGISTER_IMGLOADER(gAtariLoader);

@@ -593,4 +593,4 @@ IImageLoader gNlmLoader = {
   &gNlmVtbl
 };
 
-ANX_REGISTER_IMGLOADER(gNlmLoader);
+APXH_REGISTER_IMGLOADER(gNlmLoader);

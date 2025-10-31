@@ -606,4 +606,4 @@ IImageLoader gRoseLoader = {
 };
 
 // Auto-register this loader
-ANX_REGISTER_IMGLOADER(gRoseLoader);
+APXH_REGISTER_IMGLOADER(gRoseLoader);

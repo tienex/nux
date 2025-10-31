@@ -762,4 +762,4 @@ IImageLoader gElfLoader = {
 };
 
 // Auto-register this loader
-ANX_REGISTER_IMGLOADER(gElfLoader);
+APXH_REGISTER_IMGLOADER(gElfLoader);

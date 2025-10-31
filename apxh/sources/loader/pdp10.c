@@ -563,4 +563,4 @@ IImageLoader gPdp10Loader = {
 };
 
 // Auto-register this loader
-ANX_REGISTER_IMGLOADER(gPdp10Loader);
+APXH_REGISTER_IMGLOADER(gPdp10Loader);

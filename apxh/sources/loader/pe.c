@@ -867,4 +867,4 @@ IImageLoader gPeLoader = {
 };
 
 // Auto-register this loader
-ANX_REGISTER_IMGLOADER(gPeLoader);
+APXH_REGISTER_IMGLOADER(gPeLoader);

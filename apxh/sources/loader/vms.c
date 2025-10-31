@@ -550,4 +550,4 @@ IImageLoader gVmsLoader = {
 };
 
 // Auto-register this loader
-ANX_REGISTER_IMGLOADER(gVmsLoader);
+APXH_REGISTER_IMGLOADER(gVmsLoader);

@@ -1266,4 +1266,4 @@ IImageLoader gCoffLoader = {
 };
 
 // Auto-register this loader
-ANX_REGISTER_IMGLOADER(gCoffLoader);
+APXH_REGISTER_IMGLOADER(gCoffLoader);

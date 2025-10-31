@@ -505,4 +505,4 @@ IImageLoader gSomLoader = {
 };
 
 // Auto-register this loader
-ANX_REGISTER_IMGLOADER(gSomLoader);
+APXH_REGISTER_IMGLOADER(gSomLoader);

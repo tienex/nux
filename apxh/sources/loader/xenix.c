@@ -486,4 +486,4 @@ IImageLoader gXenixLoader = {
   &gXenixVtbl
 };
 
-ANX_REGISTER_IMGLOADER(gXenixLoader);
+APXH_REGISTER_IMGLOADER(gXenixLoader);

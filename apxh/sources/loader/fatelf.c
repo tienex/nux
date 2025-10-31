@@ -751,4 +751,4 @@ IImageLoader gFatElfLoader = {
 };
 
 // Auto-register this loader
-ANX_REGISTER_IMGLOADER(gFatElfLoader);
+APXH_REGISTER_IMGLOADER(gFatElfLoader);

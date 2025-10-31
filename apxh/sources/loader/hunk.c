@@ -589,4 +589,4 @@ IImageLoader gHunkLoader = {
   &gHunkVtbl
 };
 
-ANX_REGISTER_IMGLOADER(gHunkLoader);
+APXH_REGISTER_IMGLOADER(gHunkLoader);
