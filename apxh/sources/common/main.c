@@ -840,51 +840,88 @@ main (
   IN char  *ArgumentVector[]
   )
 {
-  VOID *ImageStart;
-  SIZE64 ImageSize;
+  VOID *KernelImageStart, *UserImageStart;
+  SIZE64 KernelImageSize, UserImageSize;
   UINT64 KEntry, UEntry;
+  ARCH VasArch;
 
   printf ("\nAPXH started.\n\n");
 
   Initialize ();
 
   /*
-     Load kernel.
+     Peek at both payloads to determine architecture before VAS initialization.
+     This is critical for mixed-mode scenarios like 64U-on-32K where we need
+     64-bit page tables even though the kernel is 32-bit.
    */
-  ImageStart = GetPayloadStart (ArgumentCount, ArgumentVector, PayloadKernel);
-  ImageSize = GetPayloadSize (PayloadKernel);
-  gKernelArch = GetImageArch (ImageStart);
-  gImageArch = gKernelArch;  // For backwards compatibility
-  printf ("Kernel payload %s at addr %p (%d bytes)\n",
-	  GetArchName (gKernelArch), ImageStart, ImageSize);
+  KernelImageStart = GetPayloadStart (ArgumentCount, ArgumentVector, PayloadKernel);
+  KernelImageSize = GetPayloadSize (PayloadKernel);
+  gKernelArch = GetImageArch (KernelImageStart);
 
-  // Initialize architecture handlers and VAS
+  UserImageStart = GetPayloadStart (ArgumentCount, ArgumentVector, PayloadUser);
+  UserImageSize = GetPayloadSize (PayloadUser);
+  if (UserImageStart != NULL && UserImageSize != 0) {
+    gUserArch = GetImageArch (UserImageStart);
+  } else {
+    gUserArch = ArchInvalid;
+  }
+
+  /*
+     Determine VAS architecture based on mixed-mode requirements:
+     - 64U-on-32K: Use 64-bit page tables (user arch) to map 64-bit user space
+     - Otherwise: Use kernel architecture (kernel controls paging)
+   */
+  VasArch = gKernelArch;
+  if (!Is64BitArch(gKernelArch) && Is64BitArch(gUserArch)) {
+    // 64-bit user on 32-bit kernel - requires 64-bit page tables
+    VasArch = gUserArch;
+    info("64U-on-32K detected: Using 64-bit page tables for 32-bit kernel");
+    info("  Kernel: %s (32-bit)", ArchitectureGetName(gKernelArch));
+    info("  User:   %s (64-bit)", ArchitectureGetName(gUserArch));
+    info("  VAS:    %s (64-bit page tables)", ArchitectureGetName(VasArch));
+  } else if (Is64BitArch(gKernelArch) && !Is64BitArch(gUserArch) && gUserArch != ArchInvalid) {
+    // 32-bit user on 64-bit kernel - use 64-bit page tables
+    info("32U-on-64K detected: Using 64-bit page tables");
+    info("  Kernel: %s (64-bit)", ArchitectureGetName(gKernelArch));
+    info("  User:   %s (32-bit)", ArchitectureGetName(gUserArch));
+  } else if (gKernelArch != gHostArch) {
+    // 32-on-64 or other compatibility mode
+    info("Compatibility mode: Kernel %s on %s CPU",
+         ArchitectureGetName(gKernelArch),
+         ArchitectureGetName(gHostArch));
+  }
+
+  // Set gImageArch for VAS initialization
+  gImageArch = VasArch;
+
+  printf ("Kernel payload %s at addr %p (%d bytes)\n",
+	  GetArchName (gKernelArch), KernelImageStart, KernelImageSize);
+  if (gUserArch != ArchInvalid) {
+    printf ("User payload %s at addr %p (%d bytes)\n",
+	    GetArchName (gUserArch), UserImageStart, UserImageSize);
+  }
+
+  // Initialize architecture handlers and VAS with selected architecture
   ArchitecturesInit ();
   VasInitialize ();
 
-  // Load kernel image (format and bitness detected automatically)
-  KEntry = LoadExecutable (ImageStart, FALSE);
+  /*
+     Load kernel.
+   */
+  KEntry = LoadExecutable (KernelImageStart, FALSE);
   if (KEntry == (VIRTUAL_ADDRESS)-1) {
     printf ("Failed to load kernel image");
     exit (-1);
   }
-
   printf ("Kernel entry: %llx\n", KEntry);
 
   /*
      Load user if it exists.
    */
-  ImageStart = GetPayloadStart (ArgumentCount, ArgumentVector, PayloadUser);
-  ImageSize = GetPayloadSize (PayloadUser);
-  if (ImageStart != NULL && ImageSize != 0)
+  if (gUserArch != ArchInvalid)
     {
-      gUserArch = GetImageArch (ImageStart);
-      gImageArch = gUserArch;  // For backwards compatibility
-      printf ("User payload %s at addr %p (%d bytes)\n",
-	      GetArchName (gUserArch), ImageStart, ImageSize);
-
       // Load user image (format and bitness detected automatically)
-      UEntry = LoadExecutable (ImageStart, TRUE);
+      UEntry = LoadExecutable (UserImageStart, TRUE);
       if (UEntry == (VIRTUAL_ADDRESS)-1) {
         printf ("Failed to load user image");
         exit (-1);
@@ -894,7 +931,6 @@ main (
   else
     {
       UEntry = 0;
-      gUserArch = ArchInvalid;  // No user payload
     }
 
   // Analyze kernel/user architecture combination
@@ -908,6 +944,8 @@ main (
   VasMapBatreeCopy ();
   VasMapRegionsCopy ();
 
-  VasSetEntry (KEntry);
+  // Transfer control to kernel using kernel's architecture
+  // For mixed-mode (e.g., 64U-on-32K), this ensures we use the correct entry mechanism
+  VasSetEntry (KEntry, gKernelArch);
   return 0;
 }

@@ -455,22 +455,37 @@ VasAllocPageTable (
   Transfer control to kernel.
 
   Performs final setup and transfers control to loaded kernel
-  entry point using IVirtualAddressSpace interface. Does not return.
+  entry point. For mixed-mode scenarios (e.g., 64U-on-32K), uses
+  the kernel's architecture for entry, not the VAS architecture.
 
-  @param[in] Entry  Kernel entry point address.
+  @param[in] Entry     Kernel entry point address.
+  @param[in] KernelArch Architecture of the kernel (may differ from VAS arch).
 **/
 VOID
 VasSetEntry (
-  IN VIRTUAL_ADDRESS  Entry
+  IN VIRTUAL_ADDRESS  Entry,
+  IN ARCH             KernelArch
   )
 {
+  IVirtualAddressSpace *KernelArchHandler;
+
   if (gCurrentArch == NULL) {
     printf("ERROR: Architecture not initialized\n");
     exit(-1);
   }
 
-  // This call never returns
-  gCurrentArch->lpVtbl->Entry(gCurrentArch, Entry);
+  // For mixed-mode scenarios, get the kernel's architecture handler
+  // rather than using the VAS architecture handler
+  KernelArchHandler = ArchitectureGet(KernelArch);
+  if (KernelArchHandler == NULL) {
+    printf("ERROR: No architecture handler for kernel arch %s\n",
+           ArchitectureGetName(KernelArch));
+    exit(-1);
+  }
+
+  // Transfer control using kernel's architecture, not VAS architecture
+  // This is critical for 64U-on-32K where VAS is 64-bit but kernel is 32-bit
+  KernelArchHandler->lpVtbl->Entry(KernelArchHandler, Entry);
 
   // Should never reach here
   printf("ERROR: Entry function returned unexpectedly\n");

@@ -33,4 +33,4 @@ VOID VasMapFramebuffer (IN VIRTUAL_ADDRESS VirtualAddress, IN SIZE64 Size, IN ME
 VOID VasMapRegions (IN VIRTUAL_ADDRESS VirtualAddress, IN SIZE64 Size);
 VOID VasMapKernelTls (IN VIRTUAL_ADDRESS VirtualAddress, IN SIZE64 InitializedSize, IN SIZE64 TotalSize);
 VOID VasMapUserTls (IN VIRTUAL_ADDRESS VirtualAddress, IN SIZE64 InitializedSize, IN SIZE64 TotalSize);
-VOID VasSetEntry (IN VIRTUAL_ADDRESS EntryPoint);
+VOID VasSetEntry (IN VIRTUAL_ADDRESS EntryPoint, IN ARCH KernelArch);
