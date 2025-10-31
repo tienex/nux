@@ -229,6 +229,44 @@ typedef struct _MACHO_BUILD_VERSION_COMMAND {
   /* Tool entries follow */
 } MACHO_BUILD_VERSION_COMMAND;
 
+/**
+  Mach-O Section (32-bit).
+
+  Sections are contained within segments and represent specific
+  regions like code, data, or special sections for init/fini.
+**/
+typedef struct _MACHO_SECTION {
+  CHAR8   SectName[16];  ///< Section name
+  CHAR8   SegName[16];   ///< Segment name
+  UINT32  Addr;          ///< Virtual address
+  UINT32  Size;          ///< Section size
+  UINT32  Offset;        ///< File offset
+  UINT32  Align;         ///< Alignment (power of 2)
+  UINT32  RelOff;        ///< Relocation entries offset
+  UINT32  NumRel;        ///< Number of relocations
+  UINT32  Flags;         ///< Section flags
+  UINT32  Reserved1;     ///< Reserved
+  UINT32  Reserved2;     ///< Reserved
+} MACHO_SECTION;
+
+/**
+  Mach-O Section (64-bit).
+**/
+typedef struct _MACHO_SECTION_64 {
+  CHAR8   SectName[16];  ///< Section name
+  CHAR8   SegName[16];   ///< Segment name
+  UINT64  Addr;          ///< Virtual address
+  UINT64  Size;          ///< Section size
+  UINT32  Offset;        ///< File offset
+  UINT32  Align;         ///< Alignment (power of 2)
+  UINT32  RelOff;        ///< Relocation entries offset
+  UINT32  NumRel;        ///< Number of relocations
+  UINT32  Flags;         ///< Section flags
+  UINT32  Reserved1;     ///< Reserved
+  UINT32  Reserved2;     ///< Reserved
+  UINT32  Reserved3;     ///< Reserved (64-bit only)
+} MACHO_SECTION_64;
+
 //
 // Universal Binary (FAT) Structures
 //
@@ -1461,6 +1499,173 @@ MachoFindSegment (
   }
 
   return S_FALSE;  // Segment not found
+}
+
+/**
+  Find section by name in Mach-O image.
+
+  Searches all segments for the specified section. Section and segment
+  names are both compared (e.g., "__DATA,__mod_init_func").
+
+  @param[in]  ImageBase    Pointer to Mach-O image.
+  @param[in]  SegmentName  Segment name (e.g., "__DATA").
+  @param[in]  SectionName  Section name (e.g., "__mod_init_func").
+  @param[out] Data         Receives pointer to section data.
+  @param[out] Size         Receives size of section.
+
+  @return S_OK if found, S_FALSE if not found, error code otherwise.
+**/
+static
+HRESULT
+MachoFindSection (
+  IN  VOID         *ImageBase,
+  IN  CONST CHAR8  *SegmentName,
+  IN  CONST CHAR8  *SectionName,
+  OUT VOID         **Data,
+  OUT UINT64       *Size
+  )
+{
+  MACHO_HEADER *Header;
+  MACHO_HEADER_64 *Header64;
+  UINT32 Magic;
+  UINT32 NumCmds;
+  UINT8 *CmdPtr;
+  UINT32 i, j;
+  BOOLEAN Is64Bit;
+
+  if (ImageBase == NULL || SectionName == NULL || Data == NULL || Size == NULL) {
+    return E_POINTER;
+  }
+
+  Header = (MACHO_HEADER *)ImageBase;
+  Header64 = (MACHO_HEADER_64 *)ImageBase;
+  Magic = Header->Magic;
+
+  Is64Bit = (Magic == MH_MAGIC_64 || Magic == MH_CIGAM_64);
+  NumCmds = Is64Bit ? Header64->NumCmds : Header->NumCmds;
+
+  CmdPtr = (UINT8 *)ImageBase + (Is64Bit ? sizeof(MACHO_HEADER_64) : sizeof(MACHO_HEADER));
+
+  // Iterate through load commands
+  for (i = 0; i < NumCmds; i++) {
+    MACHO_LOAD_COMMAND *Cmd = (MACHO_LOAD_COMMAND *)CmdPtr;
+
+    if (Is64Bit && Cmd->Cmd == LC_SEGMENT_64) {
+      MACHO_SEGMENT_COMMAND_64 *Seg = (MACHO_SEGMENT_COMMAND_64 *)Cmd;
+
+      // Check segment name if provided
+      if (SegmentName != NULL && strncmp(Seg->SegName, SegmentName, 16) != 0) {
+        CmdPtr += Cmd->CmdSize;
+        continue;
+      }
+
+      // Search sections in this segment
+      MACHO_SECTION_64 *Sections = (MACHO_SECTION_64 *)(Seg + 1);
+      for (j = 0; j < Seg->NumSects; j++) {
+        if (strncmp(Sections[j].SectName, SectionName, 16) == 0) {
+          *Data = (UINT8 *)ImageBase + Sections[j].Offset;
+          *Size = Sections[j].Size;
+          return S_OK;
+        }
+      }
+    } else if (!Is64Bit && Cmd->Cmd == LC_SEGMENT) {
+      MACHO_SEGMENT_COMMAND *Seg = (MACHO_SEGMENT_COMMAND *)Cmd;
+
+      // Check segment name if provided
+      if (SegmentName != NULL && strncmp(Seg->SegName, SegmentName, 16) != 0) {
+        CmdPtr += Cmd->CmdSize;
+        continue;
+      }
+
+      // Search sections in this segment
+      MACHO_SECTION *Sections = (MACHO_SECTION *)(Seg + 1);
+      for (j = 0; j < Seg->NumSects; j++) {
+        if (strncmp(Sections[j].SectName, SectionName, 16) == 0) {
+          *Data = (UINT8 *)ImageBase + Sections[j].Offset;
+          *Size = Sections[j].Size;
+          return S_OK;
+        }
+      }
+    }
+
+    CmdPtr += Cmd->CmdSize;
+  }
+
+  return S_FALSE;  // Section not found
+}
+
+/**
+  Get Mach-O init/fini function arrays.
+
+  Mach-O uses special sections for initialization and termination:
+  - __DATA,__mod_init_func: Array of init function pointers
+  - __DATA,__mod_term_func: Array of term function pointers
+
+  These are called before/after main() for dynamic libraries and executables.
+
+  @param[in]  ImageBase       Pointer to Mach-O image.
+  @param[out] InitFuncs       Receives pointer to init function array (NULL if none).
+  @param[out] NumInitFuncs    Receives number of init functions.
+  @param[out] TermFuncs       Receives pointer to term function array (NULL if none).
+  @param[out] NumTermFuncs    Receives number of term functions.
+
+  @return S_OK if found, S_FALSE if not found.
+**/
+static
+HRESULT
+MachoGetInitFini (
+  IN  VOID     *ImageBase,
+  OUT VOID     **InitFuncs,
+  OUT UINT32   *NumInitFuncs,
+  OUT VOID     **TermFuncs,
+  OUT UINT32   *NumTermFuncs
+  )
+{
+  VOID     *InitData;
+  VOID     *TermData;
+  UINT64   InitSize;
+  UINT64   TermSize;
+  HRESULT  Status;
+  UINT32   PtrSize;
+  MACHO_HEADER *Header;
+  BOOLEAN  Is64Bit;
+
+  if (ImageBase == NULL) {
+    return E_POINTER;
+  }
+
+  if (InitFuncs != NULL) *InitFuncs = NULL;
+  if (NumInitFuncs != NULL) *NumInitFuncs = 0;
+  if (TermFuncs != NULL) *TermFuncs = NULL;
+  if (NumTermFuncs != NULL) *NumTermFuncs = 0;
+
+  Header = (MACHO_HEADER *)ImageBase;
+  Is64Bit = (Header->Magic == MH_MAGIC_64 || Header->Magic == MH_CIGAM_64);
+  PtrSize = Is64Bit ? 8 : 4;
+
+  // Find __mod_init_func section
+  Status = MachoFindSection(ImageBase, "__DATA", "__mod_init_func", &InitData, &InitSize);
+  if (Status == S_OK) {
+    if (InitFuncs != NULL) {
+      *InitFuncs = InitData;
+    }
+    if (NumInitFuncs != NULL) {
+      *NumInitFuncs = (UINT32)(InitSize / PtrSize);
+    }
+  }
+
+  // Find __mod_term_func section
+  Status = MachoFindSection(ImageBase, "__DATA", "__mod_term_func", &TermData, &TermSize);
+  if (Status == S_OK) {
+    if (TermFuncs != NULL) {
+      *TermFuncs = TermData;
+    }
+    if (NumTermFuncs != NULL) {
+      *NumTermFuncs = (UINT32)(TermSize / PtrSize);
+    }
+  }
+
+  return S_OK;
 }
 
 /**
