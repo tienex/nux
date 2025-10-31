@@ -1,14 +1,16 @@
 /** @file
-  APXH COFF Loader
+  APXH COFF Loader Implementation
 
   Provides COFF (Common Object File Format) parsing and loading for
-  SCO Unix and System V executables. Handles sections, optional headers,
-  and relocations for x86 32-bit systems.
+  Unix System V and early Windows executables using COM-style interface.
+  Handles sections, optional headers, and relocations for x86 and other
+  architectures.
 
   Supports:
   - SCO Unix COFF
   - System V Release 3/4 COFF
-  - x86 32-bit architecture
+  - x86 (32-bit and 64-bit)
+  - MIPS, ARM, Alpha architectures
 
   Copyright (C) 2025 A•NUX Project
 
@@ -22,7 +24,13 @@
 // COFF Magic Numbers
 //
 
-#define COFF_I386MAGIC  0x14C  ///< x86 COFF magic
+#define COFF_MAGIC_I386    0x014C  ///< Intel 386
+#define COFF_MAGIC_I860    0x014D  ///< Intel 860
+#define COFF_MAGIC_R3000   0x0162  ///< MIPS R3000 (little-endian)
+#define COFF_MAGIC_R4000   0x0166  ///< MIPS R4000 (little-endian)
+#define COFF_MAGIC_ALPHA   0x0184  ///< Alpha AXP
+#define COFF_MAGIC_ARM     0x01C0  ///< ARM
+#define COFF_MAGIC_AMD64   0x8664  ///< AMD64
 
 //
 // COFF File Header Flags
@@ -90,17 +98,17 @@ ANX_PACK_POP()
 #define COFF_OFF(_o) ((VOID *)(UINTN)((UINT8 *)ImageBase + (_o)))
 
 //
-// Internal Functions
+// IImageLoader Implementation for COFF
 //
 
 /**
-  Check if image is COFF format.
+  Detect if image is COFF format.
 **/
 static
-BOOLEAN
-ANXAPI
+HRESULT
+STDMETHODCALLTYPE
 CoffDetect (
-  IN IMAGE_LOADER  *This,
+  IN IImageLoader  *This,
   IN VOID          *ImageBase,
   IN UINTN         ImageSize
   )
@@ -108,73 +116,157 @@ CoffDetect (
   COFF_FILE_HEADER *Header;
 
   if (ImageSize < sizeof(COFF_FILE_HEADER)) {
-    return FALSE;
+    return S_FALSE;
   }
 
   Header = (COFF_FILE_HEADER *)ImageBase;
 
-  return (Header->Magic == COFF_I386MAGIC &&
-          (Header->Flags & COFF_F_EXEC));
+  // Check for known COFF machine types
+  switch (Header->Magic) {
+    case COFF_MAGIC_I386:
+    case COFF_MAGIC_AMD64:
+    case COFF_MAGIC_R3000:
+    case COFF_MAGIC_R4000:
+    case COFF_MAGIC_ALPHA:
+    case COFF_MAGIC_ARM:
+      // Must have executable flag set
+      if (Header->Flags & COFF_F_EXEC) {
+        return S_OK;
+      }
+      break;
+
+    default:
+      return S_FALSE;
+  }
+
+  return S_FALSE;
 }
 
 /**
   Get architecture from COFF image.
 **/
 static
-ARCH
-ANXAPI
+HRESULT
+STDMETHODCALLTYPE
 CoffGetArch (
-  IN IMAGE_LOADER  *This,
-  IN VOID          *ImageBase
+  IN  IImageLoader  *This,
+  IN  VOID          *ImageBase,
+  OUT ARCH          *Architecture
   )
 {
-  COFF_FILE_HEADER *Header = (COFF_FILE_HEADER *)ImageBase;
+  COFF_FILE_HEADER *Header;
 
-  if (Header->Magic == COFF_I386MAGIC) {
-    return ARCH_386;
+  if (Architecture == NULL) {
+    return E_POINTER;
   }
 
-  return ARCH_UNSUPPORTED;
+  Header = (COFF_FILE_HEADER *)ImageBase;
+
+  switch (Header->Magic) {
+    case COFF_MAGIC_I386:
+      *Architecture = ARCH_386;
+      break;
+
+    case COFF_MAGIC_AMD64:
+      *Architecture = ARCH_AMD64;
+      break;
+
+    case COFF_MAGIC_R3000:
+    case COFF_MAGIC_R4000:
+      *Architecture = ARCH_MIPS;
+      break;
+
+    case COFF_MAGIC_ALPHA:
+      *Architecture = ARCH_ALPHA;
+      break;
+
+    case COFF_MAGIC_ARM:
+      *Architecture = ARCH_ARM;
+      break;
+
+    default:
+      *Architecture = ARCH_UNSUPPORTED;
+      return IMGLOAD_E_UNSUPPORTED_ARCH;
+  }
+
+  return S_OK;
+}
+
+/**
+  Get endianness from COFF image.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+CoffGetEndianness (
+  IN  IImageLoader    *This,
+  IN  VOID            *ImageBase,
+  OUT IMGLOAD_ENDIAN  *Endianness
+  )
+{
+  if (Endianness == NULL) {
+    return E_POINTER;
+  }
+
+  // COFF is always little-endian (MIPS R3000/R4000 variants are little-endian)
+  *Endianness = ImgEndianLittle;
+
+  return S_OK;
 }
 
 /**
   Get entry point from COFF image.
 **/
 static
-VIRTUAL_ADDRESS
-ANXAPI
+HRESULT
+STDMETHODCALLTYPE
 CoffGetEntryPoint (
-  IN IMAGE_LOADER  *This,
-  IN VOID          *ImageBase
+  IN  IImageLoader      *This,
+  IN  VOID              *ImageBase,
+  OUT VIRTUAL_ADDRESS   *EntryPoint
   )
 {
-  COFF_FILE_HEADER *FileHeader = (COFF_FILE_HEADER *)ImageBase;
+  COFF_FILE_HEADER *FileHeader;
   COFF_AOUT_HEADER *AoutHeader;
+
+  if (EntryPoint == NULL) {
+    return E_POINTER;
+  }
+
+  FileHeader = (COFF_FILE_HEADER *)ImageBase;
 
   if (FileHeader->OptHeaderSize >= sizeof(COFF_AOUT_HEADER)) {
     AoutHeader = (COFF_AOUT_HEADER *)(FileHeader + 1);
-    return AoutHeader->Entry;
+    *EntryPoint = AoutHeader->Entry;
+    return S_OK;
   }
 
-  return 0;
+  *EntryPoint = 0;
+  return IMGLOAD_E_INVALID_HEADER;
 }
 
 /**
-  Load COFF image.
+  Load COFF image segments.
 **/
 static
-IMGLOAD_STATUS
-ANXAPI
+HRESULT
+STDMETHODCALLTYPE
 CoffLoadImage (
-  IN     IMAGE_LOADER     *This,
   IN OUT IMGLOAD_CONTEXT  *Context
   )
 {
-  VOID *ImageBase = Context->ImageBase;
-  COFF_FILE_HEADER *FileHeader = (COFF_FILE_HEADER *)ImageBase;
+  VOID *ImageBase;
+  COFF_FILE_HEADER *FileHeader;
   COFF_SECTION_HEADER *Sections;
   UINT16 i;
   UINTN SectionsOffset;
+
+  if (Context == NULL) {
+    return E_POINTER;
+  }
+
+  ImageBase = Context->ImageBase;
+  FileHeader = (COFF_FILE_HEADER *)ImageBase;
 
   info("Loading COFF executable...");
 
@@ -192,6 +284,10 @@ CoffLoadImage (
     info("  Section %.8s at 0x%08x (size: 0x%08x, flags: 0x%08x)",
          Sec->Name, Sec->VirtualAddr, Sec->Size, Sec->Flags);
 
+    if (Sec->Size == 0) {
+      continue;
+    }
+
     if (IsBss) {
       // BSS: zero-filled, writable
       VirtualAddressMemset(
@@ -202,7 +298,7 @@ CoffLoadImage (
         TRUE,   // Writable
         FALSE   // Not executable
       );
-    } else if (Sec->DataPtr > 0 && Sec->Size > 0) {
+    } else if (Sec->DataPtr > 0) {
       // Normal section with data
       VirtualAddressCopy(
         Sec->VirtualAddr,
@@ -215,45 +311,245 @@ CoffLoadImage (
     }
   }
 
-  Context->EntryPoint = CoffGetEntryPoint(This, ImageBase);
-  return ImgLoadSuccess;
+  return S_OK;
 }
 
 /**
   Extract TLS information from COFF image.
 **/
 static
-IMGLOAD_STATUS
-ANXAPI
+HRESULT
+STDMETHODCALLTYPE
 CoffGetTlsInfo (
-  IN  IMAGE_LOADER      *This,
+  IN  IImageLoader      *This,
   IN  VOID              *ImageBase,
   OUT IMGLOAD_TLS_INFO  *TlsInfo
   )
 {
+  if (TlsInfo == NULL) {
+    return E_POINTER;
+  }
+
   // COFF doesn't have explicit TLS support
   memset(TlsInfo, 0, sizeof(IMGLOAD_TLS_INFO));
-  return ImgLoadSuccess;
+  return S_FALSE;
+}
+
+/**
+  Extract unwinding information from COFF image.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+CoffGetUnwindInfo (
+  IN  IImageLoader         *This,
+  IN  VOID                 *ImageBase,
+  OUT IMGLOAD_UNWIND_INFO  *UnwindInfo
+  )
+{
+  if (UnwindInfo == NULL) {
+    return E_POINTER;
+  }
+
+  // COFF doesn't have standard unwinding information
+  memset(UnwindInfo, 0, sizeof(IMGLOAD_UNWIND_INFO));
+  return S_FALSE;
+}
+
+/**
+  Look up symbol by virtual address.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+CoffGetSymbolByAddress (
+  IN  IImageLoader         *This,
+  IN  VOID                 *ImageBase,
+  IN  VIRTUAL_ADDRESS      Address,
+  OUT IMGLOAD_SYMBOL_INFO  *SymbolInfo
+  )
+{
+  if (SymbolInfo == NULL) {
+    return E_POINTER;
+  }
+
+  // Symbol table parsing would go here
+  memset(SymbolInfo, 0, sizeof(IMGLOAD_SYMBOL_INFO));
+  return S_FALSE;
+}
+
+/**
+  Look up symbol by name.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+CoffGetSymbolByName (
+  IN  IImageLoader         *This,
+  IN  VOID                 *ImageBase,
+  IN  CONST CHAR8          *Name,
+  OUT IMGLOAD_SYMBOL_INFO  *SymbolInfo
+  )
+{
+  if (Name == NULL || SymbolInfo == NULL) {
+    return E_POINTER;
+  }
+
+  // Symbol table parsing would go here
+  memset(SymbolInfo, 0, sizeof(IMGLOAD_SYMBOL_INFO));
+  return S_FALSE;
+}
+
+/**
+  Extract relocation information from COFF image.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+CoffGetRelocInfo (
+  IN  IImageLoader         *This,
+  IN  VOID                 *ImageBase,
+  OUT IMGLOAD_RELOC_INFO   *RelocInfo
+  )
+{
+  COFF_FILE_HEADER *Header;
+
+  if (RelocInfo == NULL) {
+    return E_POINTER;
+  }
+
+  memset(RelocInfo, 0, sizeof(IMGLOAD_RELOC_INFO));
+
+  Header = (COFF_FILE_HEADER *)ImageBase;
+
+  // Check if relocations are stripped
+  if (Header->Flags & COFF_F_RELFLG) {
+    RelocInfo->RequiresReloc = FALSE;
+    return S_FALSE;
+  }
+
+  // COFF has per-section relocations
+  RelocInfo->Format = 9;  // COFF format
+  RelocInfo->RequiresReloc = TRUE;
+
+  return S_OK;
+}
+
+/**
+  Apply relocations to COFF image loaded at different address.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+CoffApplyRelocations (
+  IN VOID              *ImageBase,
+  IN VIRTUAL_ADDRESS   LoadAddress,
+  IN VIRTUAL_ADDRESS   PreferredBase
+  )
+{
+  COFF_FILE_HEADER *Header;
+  INT64 Delta;
+
+  Header = (COFF_FILE_HEADER *)ImageBase;
+
+  // Calculate relocation delta
+  Delta = (INT64)LoadAddress - (INT64)PreferredBase;
+
+  if (Delta == 0) {
+    return S_OK;  // No relocation needed
+  }
+
+  // Check if relocations are stripped
+  if (Header->Flags & COFF_F_RELFLG) {
+    return E_NOTIMPL;  // No relocations available
+  }
+
+  // COFF relocation format varies by architecture
+  // Full implementation would parse per-section relocation tables
+  return E_NOTIMPL;
+}
+
+/**
+  IUnknown::QueryInterface implementation.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+CoffQueryInterface (
+  IN  IImageLoader  *This,
+  IN  REFIID        riid,
+  OUT VOID          **ppvObject
+  )
+{
+  if (ppvObject == NULL) {
+    return E_POINTER;
+  }
+
+  *ppvObject = NULL;
+
+  if (memcmp(riid, &IID_IImageLoader, sizeof(GUID)) == 0 ||
+      memcmp(riid, &IID_IUnknown, sizeof(GUID)) == 0) {
+    *ppvObject = This;
+    return S_OK;
+  }
+
+  return E_NOINTERFACE;
+}
+
+/**
+  IUnknown::AddRef implementation.
+**/
+static
+UINT32
+STDMETHODCALLTYPE
+CoffAddRef (
+  IN IImageLoader  *This
+  )
+{
+  return 1;
+}
+
+/**
+  IUnknown::Release implementation.
+**/
+static
+UINT32
+STDMETHODCALLTYPE
+CoffRelease (
+  IN IImageLoader  *This
+  )
+{
+  return 1;
 }
 
 //
 // COFF Loader VTable
 //
 
-static CONST IMAGE_LOADER_VTBL gCoffVtbl = {
+static CONST IImageLoaderVtbl gCoffVtbl = {
+  CoffQueryInterface,
+  CoffAddRef,
+  CoffRelease,
   CoffDetect,
   CoffGetArch,
+  CoffGetEndianness,
   CoffGetEntryPoint,
   CoffLoadImage,
-  CoffGetTlsInfo
+  CoffGetTlsInfo,
+  CoffGetUnwindInfo,
+  CoffGetSymbolByAddress,
+  CoffGetSymbolByName,
+  CoffGetRelocInfo,
+  CoffApplyRelocations
 };
 
 //
 // COFF Loader Instance
 //
 
-IMAGE_LOADER gCoffLoader = {
-  &gCoffVtbl,
-  "COFF",
-  NULL
+IImageLoader gCoffLoader = {
+  &gCoffVtbl
 };
+
+// Auto-register this loader
+ANX_REGISTER_IMGLOADER(gCoffLoader);
