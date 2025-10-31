@@ -243,6 +243,29 @@ typedef struct _IMGLOAD_RELOC_INFO {
 } IMGLOAD_RELOC_INFO, *PIMGLOAD_RELOC_INFO;
 
 //
+// Resource Identifier (by name or numeric ID)
+//
+
+typedef struct _IMGLOAD_RESOURCE_ID {
+  BOOLEAN      IsNumeric;   ///< TRUE for numeric ID, FALSE for name
+  union {
+    UINT32      Id;         ///< Numeric resource ID
+    CONST CHAR8 *Name;      ///< Resource name (null-terminated)
+  };
+} IMGLOAD_RESOURCE_ID, *PIMGLOAD_RESOURCE_ID;
+
+//
+// Resource Information Structure
+//
+
+typedef struct _IMGLOAD_RESOURCE_INFO {
+  VOID       *Data;       ///< Pointer to resource data
+  UINT64     Size;        ///< Size of resource data
+  UINT32     Type;        ///< Resource type (format-specific)
+  BOOLEAN    IsLoaded;    ///< TRUE if resource is in memory, FALSE if reference only
+} IMGLOAD_RESOURCE_INFO, *PIMGLOAD_RESOURCE_INFO;
+
+//
 // Image Load Context
 //
 
@@ -485,6 +508,26 @@ ANX_BEGIN_INTERFACE(IImageLoader, IUnknown, IID_IImageLoader, ANX_IID_IImageLoad
   ANX_IFACE_METHOD(HRESULT, GetMinimumSubsystemVersion, (
     IN  VOID                     *ImageBase,
     OUT IMGLOAD_SYSTEM_VERSION   *MinimumVersion
+    ))
+
+  /**
+    Get resource data from image by name or ID.
+
+    Uses format-specific mechanisms to locate resources (e.g., ELF uses
+    OS/2 PowerPC .rsrc sections, PE uses resource directory).
+
+    @param[in]  ImageBase      Pointer to image in memory.
+    @param[in]  ResourceId     Resource identifier (name or numeric ID).
+    @param[in]  ResourceType   Resource type identifier (format-specific).
+    @param[out] ResourceInfo   Receives resource information.
+
+    @return S_OK on success, S_FALSE if not found, error code otherwise.
+  **/
+  ANX_IFACE_METHOD(HRESULT, GetResource, (
+    IN  VOID                      *ImageBase,
+    IN  IMGLOAD_RESOURCE_ID       *ResourceId,
+    IN  IMGLOAD_RESOURCE_ID       *ResourceType,
+    OUT IMGLOAD_RESOURCE_INFO     *ResourceInfo
     ))
 
 ANX_END_INTERFACE(IImageLoader)
