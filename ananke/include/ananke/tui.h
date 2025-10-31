@@ -55,6 +55,7 @@ typedef struct _ITuiPrintDialog ITuiPrintDialog;
 typedef struct _ITuiLongOpDialog ITuiLongOpDialog;
 typedef struct _ITuiDirectoryDialog ITuiDirectoryDialog;
 typedef struct _ITuiTerminal ITuiTerminal;
+typedef struct _ITuiTreeView ITuiTreeView;
 
 //
 // Text Direction for BiDi Support
@@ -2394,6 +2395,111 @@ struct _ITuiTerminal {
     CONST ITuiTerminal_Vtbl *Vtbl;
 };
 
+// {6C7D8E9F-0A1B-2C3D-4E5F-6A7B8C9D0E1F}
+DEFINE_GUID(IID_ITuiTreeView,
+    0x6C7D8E9F, 0x0A1B, 0x2C3D, 0x4E, 0x5F, 0x6A, 0x7B, 0x8C, 0x9D, 0x0E, 0x1F);
+
+/**
+  ITuiTreeView Interface
+
+  Hierarchical tree control with expand/collapse, checkboxes,
+  inline editing, and keyboard navigation.
+**/
+typedef struct _ITuiTreeView_Vtbl {
+    HRESULT (ANXAPI *QueryInterface)(ITuiTreeView *This, REFIID riid, VOID **ppvObject);
+    UINTN (ANXAPI *AddRef)(ITuiTreeView *This);
+    UINTN (ANXAPI *Release)(ITuiTreeView *This);
+
+    /**
+      Render the tree view.
+    **/
+    HRESULT (ANXAPI *Render)(
+        ITuiTreeView *This,
+        ITuiScreen *Screen,
+        INT32 X,
+        INT32 Y,
+        UINT32 Width,
+        UINT32 Height
+    );
+
+    /**
+      Handle keyboard input.
+    **/
+    HRESULT (ANXAPI *HandleKey)(
+        ITuiTreeView *This,
+        TUI_KEY Key
+    );
+
+    /**
+      Standard widget methods.
+    **/
+    HRESULT (ANXAPI *SetBounds)(ITuiTreeView *This, CONST TUI_RECT *Bounds);
+    HRESULT (ANXAPI *GetBounds)(ITuiTreeView *This, TUI_RECT *Bounds);
+    HRESULT (ANXAPI *SetVisible)(ITuiTreeView *This, BOOLEAN Visible);
+    BOOLEAN (ANXAPI *IsVisible)(ITuiTreeView *This);
+    HRESULT (ANXAPI *SetEnabled)(ITuiTreeView *This, BOOLEAN Enabled);
+    BOOLEAN (ANXAPI *IsEnabled)(ITuiTreeView *This);
+
+    /**
+      Add a root node.
+    **/
+    HRESULT (ANXAPI *AddNode)(
+        ITuiTreeView *This,
+        CONST CHAR8 *Text,
+        VOID *UserData,
+        VOID **OutHandle
+    );
+
+    /**
+      Add a child node.
+    **/
+    HRESULT (ANXAPI *AddChildNode)(
+        ITuiTreeView *This,
+        VOID *ParentHandle,
+        CONST CHAR8 *Text,
+        VOID *UserData,
+        VOID **OutHandle
+    );
+
+    /**
+      Set node checkbox state.
+    **/
+    HRESULT (ANXAPI *SetNodeCheckbox)(
+        ITuiTreeView *This,
+        VOID *NodeHandle,
+        BOOLEAN HasCheckbox,
+        UINT8 CheckState
+    );
+
+    /**
+      Set node icon.
+    **/
+    HRESULT (ANXAPI *SetNodeIcon)(
+        ITuiTreeView *This,
+        VOID *NodeHandle,
+        UINT32 Icon
+    );
+
+    /**
+      Expand or collapse node.
+    **/
+    HRESULT (ANXAPI *ExpandNode)(
+        ITuiTreeView *This,
+        VOID *NodeHandle,
+        BOOLEAN Expand
+    );
+
+    /**
+      Clear all nodes.
+    **/
+    HRESULT (ANXAPI *Clear)(ITuiTreeView *This);
+
+} ITuiTreeView_Vtbl;
+
+struct _ITuiTreeView {
+    CONST ITuiTreeView_Vtbl *Vtbl;
+};
+
 //
 // Factory functions
 //
@@ -2802,6 +2908,20 @@ AnxTuiCreateTerminal(
     IN  UINT32 Cols,
     IN  UINT32 Rows,
     OUT ITuiTerminal **OutTerminal
+);
+
+/**
+  Create a TUI Tree View instance.
+
+  @param[out] OutTreeView  Pointer to receive the tree view interface.
+
+  @retval S_OK        Tree view created successfully.
+  @retval E_OUTOFMEMORY  Memory allocation failed.
+**/
+HRESULT
+ANXAPI
+AnxTuiCreateTreeView(
+    OUT ITuiTreeView **OutTreeView
 );
 
 #ifdef __cplusplus

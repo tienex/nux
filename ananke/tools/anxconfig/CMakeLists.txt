@@ -82,6 +82,7 @@ set(ANXCONFIG_SOURCES
     widget_fkeybar.c
     widget_markdown_viewer.c
     widget_terminal.c
+    widget_treeview.c
     focus_manager.c
     # Common dialogs
     dialog_fileopensave.c
