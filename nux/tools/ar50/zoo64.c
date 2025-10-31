@@ -1,13 +1,12 @@
 /** @file
   Zoo64 String Encoding Implementation
 
-  Implements Zoo64 string compression using fixed-point range arithmetic
-  adaptive encoding. This format uses a 64-bit integer to encode filenames
-  with adaptive range coding and fixed-point arithmetic for precision.
+  Implements Zoo64 string compression using base-96 positional encoding
+  with fixed-point arithmetic. This format uses base-96 to represent all
+  printable ASCII characters (32-127).
 
-  Range arithmetic encoding provides better compression by using adaptive
-  probability ranges for each character. Fixed-point arithmetic avoids
-  floating-point operations while maintaining precision.
+  With base-96, we can encode up to 8 characters in 56 bits, leaving
+  8 bits for length encoding.
 
   Copyright (C) 2015-2025 Gianluca Guida
 
@@ -20,67 +19,39 @@
 #include "zoo64.h"
 
 /**
-  Character frequency table for adaptive encoding.
-
-  Frequencies for all 96 printable ASCII characters (space through tilde).
-  Values are normalized so the sum equals 2^16 = 65536 for fixed-point arithmetic.
+  Base for Zoo64 encoding (printable ASCII count).
 **/
-static const UINT16 gCharFreq[ZOO64_CHARSET_SIZE] = {
-  // Space (ASCII 32)
-  800,
-  // Punctuation (ASCII 33-47): ! " # $ % & ' ( ) * + , - . /
-  100, 50, 80, 150, 50, 50, 80, 150, 150, 150, 80, 80,
-  1200, 1000, 1500,
-  // Digits (ASCII 48-57): 0-9
-  900, 900, 850, 850, 800, 800, 750, 750, 700, 700,
-  // More punctuation (ASCII 58-64): : ; < = > ? @
-  300, 50, 50, 80, 50, 80, 80,
-  // Uppercase (ASCII 65-90): A-Z
-  500, 400, 450, 400, 500, 350, 350, 400, 450, 300, 250, 350,
-  400, 400, 450, 400, 250, 450, 450, 450, 350, 300, 300, 250,
-  300, 250,
-  // Brackets (ASCII 91-96): [ \ ] ^ _ `
-  150, 80, 150, 80, 1200, 80,
-  // Lowercase (ASCII 97-122): a-z
-  1300, 750, 850, 750, 1500, 650, 650, 750, 1100, 400, 500, 850,
-  750, 1000, 1100, 750, 300, 1000, 1000, 1100, 650, 500, 500, 400,
-  500, 300,
-  // Final punctuation (ASCII 123-127): { | } ~ DEL
-  80, 80, 80, 50, 50
-};
+#define ZOO64_BASE 96ULL
 
 /**
-  Build cumulative frequency table.
+  Maximum characters that fit in 56 bits with base-96.
 
-  Constructs cumulative frequency distribution for range encoding.
-
-  @param[out] pCumFreq  Output cumulative frequency table (size 97).
-  @param[out] pTotal    Total frequency sum.
+  log_96(2^56) ≈ 8.5, so we can safely encode 8 characters.
+  Using 56 bits leaves 8 bits for length encoding.
 **/
-static VOID
-BuildCumulativeFreq (
-  OUT UINT32  *pCumFreq,
-  OUT UINT32  *pTotal
-  )
-{
-  UINT32 Cum;
-  size_t I;
+#define ZOO64_MAX_CHARS 8
 
-  Cum = 0;
-  for (I = 0; I < ZOO64_CHARSET_SIZE; I++)
-    {
-      pCumFreq[I] = Cum;
-      Cum += gCharFreq[I];
-    }
-  pCumFreq[ZOO64_CHARSET_SIZE] = Cum;
-  *pTotal = Cum;
-}
+/**
+  Pre-computed powers of 96 for encoding/decoding.
+
+  Powers[i] = 96^i for i = 0 to 7
+**/
+static const UINT64 gPowersOf96[8] = {
+  1ULL,                          // 96^0
+  96ULL,                         // 96^1
+  9216ULL,                       // 96^2
+  884736ULL,                     // 96^3
+  84934656ULL,                   // 96^4
+  8153726976ULL,                 // 96^5
+  782757789696ULL,               // 96^6
+  75144747810816ULL              // 96^7
+};
 
 /**
   Map character to charset index.
 
   @param[in] C  ASCII character.
-  @return Charset index (0-95), or 0 for invalid characters.
+  @return Charset index (0-95).
 **/
 static inline UINT32
 CharToIndex (
@@ -109,11 +80,10 @@ IndexToChar (
 }
 
 /**
-  Encode string to Zoo64 format using range arithmetic.
+  Encode string to Zoo64 format using base-96 positional encoding.
 
-  Uses adaptive range coding with fixed-point arithmetic. Each character
-  narrows the encoding range based on its frequency. The algorithm encodes
-  up to 8 characters to avoid overflow.
+  Encodes up to 8 ASCII characters using base-96 positional notation.
+  The result uses 56 bits for data and 8 bits for length.
 
   @param[in] pString  Null-terminated ASCII string (max 8 chars).
   @return 64-bit Zoo64 encoded value.
@@ -123,53 +93,35 @@ Zoo64Encode (
   IN const char  *pString
   )
 {
-  UINT32 CumFreq[ZOO64_CHARSET_SIZE + 1];
-  UINT32 Total;
-  UINT64 Low, High, Range;
-  const char *pPtr;
-  UINT32 Idx;
-  UINT32 CharLow, CharHigh;
-  size_t Len;
+  UINT64 Result;
+  UINT32 Len;
+  UINT32 I;
 
   if (pString == NULL || *pString == '\0')
     return 0;
 
-  BuildCumulativeFreq (CumFreq, &Total);
-
-  // Initialize range [0, 2^56) to leave room for length encoding
-  Low = 0;
-  High = 0x00FFFFFFFFFFFFFFULL;  // 56 bits of range
-
-  pPtr = pString;
+  // Calculate string length (max 8 characters)
   Len = 0;
+  while (pString[Len] != '\0' && Len < ZOO64_MAX_CHARS)
+    Len++;
 
-  // Encode up to 8 characters
-  while (*pPtr != '\0' && Len < 8)
+  // Encode using base-96 positional notation
+  // result = c[0]*96^(Len-1) + c[1]*96^(Len-2) + ... + c[Len-1]*96^0
+  Result = 0;
+  for (I = 0; I < Len; I++)
     {
-      Idx = CharToIndex (*pPtr);
-      Range = High - Low + 1;
-
-      CharLow = CumFreq[Idx];
-      CharHigh = CumFreq[Idx + 1];
-
-      // Update range using fixed-point arithmetic
-      // New range = [Low + Range * CharLow / Total, Low + Range * CharHigh / Total)
-      High = Low + ((Range * (UINT64)CharHigh) / Total) - 1;
-      Low = Low + ((Range * (UINT64)CharLow) / Total);
-
-      pPtr++;
-      Len++;
+      UINT32 Idx = CharToIndex (pString[I]);
+      Result += Idx * gPowersOf96[Len - 1 - I];
     }
 
-  // Encode length in upper 8 bits
-  return (Low & 0x00FFFFFFFFFFFFFFULL) | ((UINT64)Len << 56);
+  // Store length in upper 8 bits
+  return Result | ((UINT64)Len << 56);
 }
 
 /**
   Decode Zoo64 to string with length limit.
 
-  Decodes using adaptive range arithmetic. Extracts length from upper bits
-  and decodes each character by finding which range contains the value.
+  Decodes using base-96 positional notation.
 
   @param[in]  Enc      Zoo64 encoded value.
   @param[in]  Len      Maximum output buffer length.
@@ -183,68 +135,35 @@ Zoo64DecodeLen (
   OUT char   *pString
   )
 {
-  UINT32 CumFreq[ZOO64_CHARSET_SIZE + 1];
-  UINT32 Total;
-  UINT64 Low, High, Range, Value;
+  UINT64 Value;
+  UINT32 EncLen;
+  UINT32 I;
   char *pPtr;
-  UINT32 EncLen, I, Idx;
-  UINT32 CharLow, CharHigh;
-  UINT64 Scaled;
 
   if (pString == NULL || Len == 0)
     return 0;
-
-  BuildCumulativeFreq (CumFreq, &Total);
 
   // Extract length from upper 8 bits
   EncLen = (UINT32)((Enc >> 56) & 0xFF);
   Value = Enc & 0x00FFFFFFFFFFFFFFULL;
 
-  if (EncLen == 0 || EncLen > 8)
+  if (EncLen == 0 || EncLen > ZOO64_MAX_CHARS || EncLen >= Len)
     {
       *pString = '\0';
       return 0;
     }
 
-  // Initialize range
-  Low = 0;
-  High = 0x00FFFFFFFFFFFFFFULL;
-
+  // Decode each character using positional notation
   pPtr = pString;
-
-  // Decode each character
-  for (I = 0; I < EncLen && I < Len - 1; I++)
+  for (I = 0; I < EncLen; I++)
     {
-      Range = High - Low + 1;
-
-      // Find character whose range contains Value
-      // Scaled = (Value - Low) * Total / Range
-      Scaled = ((Value - Low) * Total) / Range;
-
-      // Binary search for character
-      for (Idx = 0; Idx < ZOO64_CHARSET_SIZE; Idx++)
-        {
-          if (CumFreq[Idx] <= Scaled && Scaled < CumFreq[Idx + 1])
-            {
-              *pPtr++ = IndexToChar (Idx);
-
-              CharLow = CumFreq[Idx];
-              CharHigh = CumFreq[Idx + 1];
-
-              // Update range
-              High = Low + ((Range * (UINT64)CharHigh) / Total) - 1;
-              Low = Low + ((Range * (UINT64)CharLow) / Total);
-
-              break;
-            }
-        }
-
-      if (Idx >= ZOO64_CHARSET_SIZE)
-        break;  // Decoding error
+      UINT64 Divisor = gPowersOf96[EncLen - 1 - I];
+      UINT32 Idx = (UINT32)((Value / Divisor) % ZOO64_BASE);
+      *pPtr++ = IndexToChar (Idx);
     }
 
   *pPtr = '\0';
-  return pPtr - pString;
+  return EncLen;
 }
 
 /**
@@ -260,11 +179,11 @@ Zoo64Decode (
 {
   char *pStr;
 
-  pStr = malloc (9);  // Max 8 chars + null terminator
+  pStr = malloc (ZOO64_MAX_CHARS + 1);
   if (pStr == NULL)
     return NULL;
 
-  Zoo64DecodeLen (Enc, 9, pStr);
+  Zoo64DecodeLen (Enc, ZOO64_MAX_CHARS + 1, pStr);
   return pStr;
 }
 

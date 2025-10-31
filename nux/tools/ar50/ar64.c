@@ -167,7 +167,7 @@ PrintVersion (
 {
   printf ("%s %s\n", PROGNAME, VERSION);
   printf ("Copyright (C) 2015-2025 Gianluca Guida.\n");
-  printf ("Zoo64 format: Fixed-point range arithmetic adaptive encoding\n");
+  printf ("Zoo64 format: Base-96 positional encoding with fixed-point arithmetic\n");
   exit (0);
 }
 

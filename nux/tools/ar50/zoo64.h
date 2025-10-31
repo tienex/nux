@@ -1,10 +1,9 @@
 /** @file
   Zoo64 String Encoding Header
 
-  Declares functions for Zoo64 string compression using fixed-point
-  range arithmetic adaptive encoding. This format expands zoo format
-  to 64-bit with adaptive fixed-point arithmetic for efficient
-  filename encoding.
+  Declares functions for Zoo64 string compression using base-96 positional
+  encoding with fixed-point arithmetic. This format uses base-96 to encode
+  filenames into 64-bit integers, supporting the full printable ASCII set.
 
   Copyright (C) 2015-2025 Gianluca Guida
 
@@ -17,35 +16,30 @@
 #include "types.h"
 #include <stddef.h>
 
-// Fixed-point configuration for range arithmetic
-#define ZOO64_FIXPOINT_BITS 32
-#define ZOO64_FIXPOINT_ONE (1ULL << ZOO64_FIXPOINT_BITS)
-#define ZOO64_FIXPOINT_MASK (ZOO64_FIXPOINT_ONE - 1)
-
-// Maximum filename length supported
-#define ZOO64_MAX_LENGTH 16
-
-// Character set size for adaptive encoding
+// Character set size (printable ASCII: space through tilde)
 #define ZOO64_CHARSET_SIZE 96
+
+// Maximum filename length (96^10 < 2^64 < 96^11)
+#define ZOO64_MAX_LENGTH 10
 
 /**
   Encode string to Zoo64 format.
 
-  Uses fixed-point range arithmetic adaptive encoding to compress
-  up to 16 ASCII characters into a 64-bit integer. Supports full
+  Uses base-96 positional encoding with fixed-point arithmetic to compress
+  up to 10 ASCII characters into a 64-bit integer. Supports full
   printable ASCII character set (32-127).
 
-  @param[in] pString  Null-terminated ASCII string (max 16 chars).
+  @param[in] pString  Null-terminated ASCII string (max 10 chars).
 
-  @return 64-bit Zoo64 encoded value.
+  @return 64-bit Zoo64 encoded value (56 bits data + 8 bits length).
 **/
 UINT64 Zoo64Encode (const char *pString);
 
 /**
   Decode Zoo64 to string with length limit.
 
-  Decodes Zoo64 integer into ASCII string using fixed-point range
-  arithmetic with adaptive decoding.
+  Decodes Zoo64 integer into ASCII string using base-96 positional
+  notation with fixed-point arithmetic.
 
   @param[in]  Enc      Zoo64 encoded value.
   @param[in]  Len      Maximum length of output buffer.
