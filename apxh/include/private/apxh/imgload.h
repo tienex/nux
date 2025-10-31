@@ -255,6 +255,18 @@ typedef struct _IMGLOAD_RESOURCE_ID {
 } IMGLOAD_RESOURCE_ID, *PIMGLOAD_RESOURCE_ID;
 
 //
+// Initialization/Termination Function Information Structure
+//
+
+typedef struct _IMGLOAD_INITFINI_INFO {
+  BOOLEAN          HasInit;       ///< TRUE if initialization function present
+  BOOLEAN          HasFini;       ///< TRUE if termination function present
+  VIRTUAL_ADDRESS  InitAddress;   ///< Initialization function address
+  VIRTUAL_ADDRESS  FiniAddress;   ///< Termination function address
+  UINT32           Priority;      ///< Initialization priority (0 = highest, optional)
+} IMGLOAD_INITFINI_INFO, *PIMGLOAD_INITFINI_INFO;
+
+//
 // Resource Information Structure
 //
 
@@ -665,6 +677,22 @@ ANX_BEGIN_INTERFACE(IImageLoader, IUnknown, IID_IImageLoader, ANX_IID_IImageLoad
     IN  VOID                   *ImageBase,
     IN  IMGLOAD_RESOURCE_ID    *ResourceType,
     OUT IEnumImageResource     **Enumerator
+    ))
+
+  /**
+    Get initialization and termination function information from image.
+
+    Extracts information about initialization and termination functions
+    that should be called when loading/unloading the image.
+
+    @param[in]  ImageBase    Pointer to image in memory.
+    @param[out] InitFiniInfo Receives init/fini information.
+
+    @return S_OK on success, S_FALSE if no init/fini functions, error code otherwise.
+  **/
+  ANX_IFACE_METHOD(HRESULT, GetInitFini, (
+    IN  VOID                    *ImageBase,
+    OUT IMGLOAD_INITFINI_INFO   *InitFiniInfo
     ))
 
 ANX_END_INTERFACE(IImageLoader)
