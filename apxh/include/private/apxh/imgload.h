@@ -291,6 +291,10 @@ typedef struct _IMGLOAD_CONTEXT {
   IMGLOAD_TLS_INFO      KernelTls;        ///< Kernel TLS information
   IMGLOAD_TLS_INFO      UserTls;          ///< User TLS information
   IMGLOAD_UNWIND_INFO   UnwindInfo;       ///< Unwinding information
+  IMGLOAD_INITFINI_INFO InitFini;         ///< Initialization/termination functions
+  IEnumImageResource    *Resources;       ///< Resource enumerator (optional, may be NULL)
+  BOOLEAN               CompatibilityMode;///< TRUE if running in arch compatibility mode (e.g., 32-on-64)
+  ARCH                  HostArchitecture; ///< Host architecture (for compatibility mode)
 } IMGLOAD_CONTEXT, *PIMGLOAD_CONTEXT;
 
 //

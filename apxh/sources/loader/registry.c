@@ -97,6 +97,11 @@ ImageLoaderFind (
 /**
   Load image using appropriate loader.
 
+  Loads an executable image using the appropriate format loader.
+  Performs architecture compatibility checking, extracts init/fini functions,
+  and loads resources. Supports 32-on-64 and 64-on-32 compatibility modes
+  similar to XNU (macOS kernel).
+
   @param[in,out] Context  Load context with image information.
 
   @return S_OK on success, error code otherwise.
@@ -108,6 +113,7 @@ ImageLoad (
 {
   IImageLoader *Loader;
   HRESULT Status;
+  ARCH HostArch;
 
   if (Context == NULL) {
     return E_POINTER;
@@ -127,6 +133,26 @@ ImageLoad (
   if (FAILED(Status)) {
     warn("Failed to get image architecture");
     return Status;
+  }
+
+  // Get host architecture
+  HostArch = ArchitectureGetNative();
+  Context->HostArchitecture = HostArch;
+
+  // Check architecture compatibility
+  if (!ArchitectureIsCompatible(Context->Architecture, HostArch, !Context->IsUserMode)) {
+    warn("Architecture %s incompatible with host %s",
+         ArchitectureGetName(Context->Architecture),
+         ArchitectureGetName(HostArch));
+    return IMGLOAD_E_UNSUPPORTED_ARCH;
+  }
+
+  // Set compatibility mode flag
+  Context->CompatibilityMode = (Context->Architecture != HostArch);
+  if (Context->CompatibilityMode) {
+    info("Running %s image on %s host (compatibility mode)",
+         ArchitectureGetName(Context->Architecture),
+         ArchitectureGetName(HostArch));
   }
 
   // Get endianness
@@ -158,6 +184,31 @@ ImageLoad (
   if (FAILED(Status) && Status != S_FALSE) {
     warn("Failed to extract unwinding information");
     // Continue anyway - unwinding info is optional
+  }
+
+  // Extract initialization/termination functions (optional)
+  memset(&Context->InitFini, 0, sizeof(Context->InitFini));
+  Status = Loader->lpVtbl->GetInitFini(Loader, Context->ImageBase, &Context->InitFini);
+  if (Status == S_OK) {
+    if (Context->InitFini.HasInit) {
+      info("Initialization function at 0x%llx", (UINT64)Context->InitFini.InitAddress);
+    }
+    if (Context->InitFini.HasFini) {
+      info("Termination function at 0x%llx", (UINT64)Context->InitFini.FiniAddress);
+    }
+  } else if (FAILED(Status) && Status != S_FALSE) {
+    warn("Failed to extract init/fini information");
+    // Continue anyway - init/fini is optional
+  }
+
+  // Extract resources (optional)
+  Context->Resources = NULL;
+  Status = Loader->lpVtbl->GetResourceEnumerator(Loader, Context->ImageBase, NULL, &Context->Resources);
+  if (Status == S_OK && Context->Resources != NULL) {
+    info("Resources available for image");
+  } else if (FAILED(Status) && Status != S_FALSE) {
+    warn("Failed to get resource enumerator");
+    // Continue anyway - resources are optional
   }
 
   // Load the image

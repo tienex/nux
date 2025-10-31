@@ -220,6 +220,35 @@ ArchitectureGetName (
   );
 
 /**
+  Get the host/native architecture at compile time.
+
+  @return Native architecture type for this build.
+**/
+ARCH
+ArchitectureGetNative (
+  VOID
+  );
+
+/**
+  Check if guest architecture can run on host architecture.
+
+  Implements architecture compatibility similar to XNU (macOS kernel),
+  allowing 32-bit executables to run on compatible 64-bit systems.
+
+  @param[in] GuestArch  Architecture of the image to load.
+  @param[in] HostArch   Architecture of the host system.
+  @param[in] IsKernel   TRUE for kernel mode, FALSE for user mode.
+
+  @return TRUE if compatible, FALSE otherwise.
+**/
+BOOLEAN
+ArchitectureIsCompatible (
+  IN ARCH     GuestArch,
+  IN ARCH     HostArch,
+  IN BOOLEAN  IsKernel
+  );
+
+/**
   Initialize all architecture handlers.
 **/
 VOID
