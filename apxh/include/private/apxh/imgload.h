@@ -27,6 +27,90 @@
 #define IMGLOAD_E_TLS_ERROR            ((HRESULT)0x80090006L)  ///< TLS setup failed
 
 //
+// Target System Enumeration
+//
+
+typedef enum _IMGLOAD_TARGET_SYSTEM {
+  ImgSystemNone          = 0,   ///< No specific system
+  ImgSystemUnknown       = 1,   ///< Unknown system
+  ImgSystemUnix          = 2,   ///< Generic Unix
+  ImgSystemLinux         = 3,   ///< Linux
+  ImgSystemFreeBsd       = 4,   ///< FreeBSD
+  ImgSystemOpenBsd       = 5,   ///< OpenBSD
+  ImgSystemNetBsd        = 6,   ///< NetBSD
+  ImgSystemDragonFly     = 7,   ///< DragonFly BSD
+  ImgSystemSolaris       = 8,   ///< Solaris
+  ImgSystemIrix          = 9,   ///< IRIX
+  ImgSystemHpux          = 10,  ///< HP-UX
+  ImgSystemAix           = 11,  ///< AIX
+  ImgSystemOsf1          = 12,  ///< OSF/1 (Digital Unix, Tru64)
+  ImgSystemXenix         = 13,  ///< XENIX
+  ImgSystemSvr3          = 14,  ///< System V Release 3
+  ImgSystemSvr4          = 15,  ///< System V Release 4
+  ImgSystemBsd           = 16,  ///< Generic BSD
+  ImgSystemNetware       = 17,  ///< Novell NetWare
+  ImgSystemWindows       = 18,  ///< Microsoft Windows
+  ImgSystemWindowsNt     = 19,  ///< Windows NT family
+  ImgSystemWindowsCe     = 20,  ///< Windows CE
+  ImgSystemDos           = 21,  ///< MS-DOS
+  ImgSystemOs2           = 22,  ///< IBM OS/2
+  ImgSystemMacOs         = 23,  ///< Classic Mac OS (pre-X)
+  ImgSystemMacOsX        = 24,  ///< macOS (Mac OS X)
+  ImgSystemIos           = 25,  ///< Apple iOS
+  ImgSystemTvos          = 26,  ///< Apple tvOS
+  ImgSystemWatchOs       = 27,  ///< Apple watchOS
+  ImgSystemAmigaOs       = 28,  ///< Amiga OS
+  ImgSystemAtariTos      = 29,  ///< Atari TOS
+  ImgSystemOpenVms       = 30,  ///< OpenVMS
+  ImgSystemPlan9         = 31,  ///< Plan 9 from Bell Labs
+  ImgSystemBeOs          = 32,  ///< BeOS
+  ImgSystemHaiku         = 33,  ///< Haiku
+  ImgSystemQnx           = 34,  ///< QNX
+  ImgSystemMinix         = 35,  ///< MINIX
+  ImgSystemEmbedded      = 36,  ///< Generic embedded system
+  ImgSystemUefi          = 37,  ///< UEFI firmware
+  ImgSystemBios          = 38,  ///< BIOS/legacy firmware
+  ImgSystemBaremetal     = 39   ///< Bare-metal/freestanding
+} IMGLOAD_TARGET_SYSTEM;
+
+//
+// Target Subsystem Enumeration
+//
+
+typedef enum _IMGLOAD_TARGET_SUBSYSTEM {
+  ImgSubsystemNone               = 0,   ///< No subsystem
+  ImgSubsystemUnknown            = 1,   ///< Unknown subsystem
+  ImgSubsystemNative             = 2,   ///< Native/kernel mode
+  ImgSubsystemWindowsGui         = 3,   ///< Windows GUI application
+  ImgSubsystemWindowsCui         = 4,   ///< Windows console application
+  ImgSubsystemWindowsCeGui       = 5,   ///< Windows CE GUI
+  ImgSubsystemEfiApplication     = 6,   ///< UEFI application
+  ImgSubsystemEfiBootDriver      = 7,   ///< UEFI boot service driver
+  ImgSubsystemEfiRuntimeDriver   = 8,   ///< UEFI runtime driver
+  ImgSubsystemEfiRom             = 9,   ///< UEFI ROM image
+  ImgSubsystemPosix              = 10,  ///< POSIX console application
+  ImgSubsystemWindowsBootApp     = 11,  ///< Windows boot application
+  ImgSubsystemXbox               = 12,  ///< Xbox system
+  ImgSubsystemUnixCli            = 13,  ///< Unix command-line interface
+  ImgSubsystemUnixDaemon         = 14,  ///< Unix daemon/service
+  ImgSubsystemSharedLibrary      = 15,  ///< Shared library/DLL
+  ImgSubsystemKernelModule       = 16,  ///< Kernel module/driver
+  ImgSubsystemFirmware           = 17,  ///< Firmware component
+  ImgSubsystemBootLoader         = 18   ///< Boot loader
+} IMGLOAD_TARGET_SUBSYSTEM;
+
+//
+// System Version Structure
+//
+
+typedef struct _IMGLOAD_SYSTEM_VERSION {
+  UINT16  Major;      ///< Major version
+  UINT16  Minor;      ///< Minor version
+  UINT32  Build;      ///< Build number (optional, 0 if not applicable)
+  UINT32  Revision;   ///< Revision number (optional, 0 if not applicable)
+} IMGLOAD_SYSTEM_VERSION;
+
+//
 // Symbol Type Enumeration
 //
 
@@ -335,6 +419,58 @@ ANX_BEGIN_INTERFACE(IImageLoader, IUnknown, IID_IImageLoader, ANX_IID_IImageLoad
     IN VOID              *ImageBase,
     IN VIRTUAL_ADDRESS   LoadAddress,
     IN VIRTUAL_ADDRESS   PreferredBase
+    ))
+
+  /**
+    Get target operating system from image.
+
+    @param[in]  ImageBase      Pointer to image in memory.
+    @param[out] TargetSystem   Receives target system type.
+
+    @return S_OK on success, S_FALSE if unknown, error code otherwise.
+  **/
+  ANX_IFACE_METHOD(HRESULT, GetTargetSystem, (
+    IN  VOID                    *ImageBase,
+    OUT IMGLOAD_TARGET_SYSTEM   *TargetSystem
+    ))
+
+  /**
+    Get minimum required system version from image.
+
+    @param[in]  ImageBase       Pointer to image in memory.
+    @param[out] MinimumVersion  Receives minimum system version.
+
+    @return S_OK on success, S_FALSE if not specified, error code otherwise.
+  **/
+  ANX_IFACE_METHOD(HRESULT, GetMinimumSystemVersion, (
+    IN  VOID                     *ImageBase,
+    OUT IMGLOAD_SYSTEM_VERSION   *MinimumVersion
+    ))
+
+  /**
+    Get target subsystem from image.
+
+    @param[in]  ImageBase        Pointer to image in memory.
+    @param[out] TargetSubsystem  Receives target subsystem type.
+
+    @return S_OK on success, S_FALSE if unknown, error code otherwise.
+  **/
+  ANX_IFACE_METHOD(HRESULT, GetTargetSubsystem, (
+    IN  VOID                       *ImageBase,
+    OUT IMGLOAD_TARGET_SUBSYSTEM   *TargetSubsystem
+    ))
+
+  /**
+    Get minimum required subsystem version from image.
+
+    @param[in]  ImageBase       Pointer to image in memory.
+    @param[out] MinimumVersion  Receives minimum subsystem version.
+
+    @return S_OK on success, S_FALSE if not specified, error code otherwise.
+  **/
+  ANX_IFACE_METHOD(HRESULT, GetMinimumSubsystemVersion, (
+    IN  VOID                     *ImageBase,
+    OUT IMGLOAD_SYSTEM_VERSION   *MinimumVersion
     ))
 
 ANX_END_INTERFACE(IImageLoader)
