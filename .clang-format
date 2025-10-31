@@ -37,11 +37,18 @@ BraceWrapping:
     SplitEmptyRecord: true
     SplitEmptyNamespace: true
 
-# Line width - UEFI standard
-ColumnLimit: 80
+# Line width - Balanced setting for NT kernel style
+# Standard UEFI is 80, but we use 60 to encourage parameter breaking
+# while maintaining readability of comments and strings
+# Note: Very short function declarations may still fit on one line - format manually if needed
+ColumnLimit: 60
 
-# Function parameters - align on separate lines (NT kernel style)
-AlignAfterOpenBracket: AlwaysBreak
+# Function parameters - ALWAYS on separate lines (strict NT kernel style)
+# BlockIndent puts closing paren on new line (though at column 0, not parameter indent)
+# Note: clang-format limitation - closing paren won't be indented at parameter level
+# For exact NT kernel style (closing paren indented same as parameters), manual adjustment needed
+# However, this configuration gets very close and enforces consistent parameter formatting
+AlignAfterOpenBracket: BlockIndent
 AllowAllParametersOfDeclarationOnNextLine: false
 AllowAllArgumentsOnNextLine: false
 BinPackParameters: false
@@ -59,7 +66,15 @@ DerivePointerAlignment: false
 SpaceAfterCStyleCast: true
 SpaceAfterLogicalNot: false
 SpaceBeforeAssignmentOperators: true
-SpaceBeforeParens: ControlStatements
+# NT kernel style: space before parenthesis in function declarations and calls
+SpaceBeforeParens: Custom
+SpaceBeforeParensOptions:
+    AfterControlStatements: true
+    AfterFunctionDeclarationName: true
+    AfterFunctionDefinitionName: true
+    AfterForeachMacros: true
+    AfterIfMacros: true
+    BeforeNonEmptyParentheses: false
 SpaceInEmptyParentheses: false
 SpacesInCStyleCastParentheses: false
 SpacesInParentheses: false
@@ -99,12 +114,13 @@ KeepEmptyLinesAtTheStartOfBlocks: false
 MaxEmptyLinesToKeep: 2
 
 # Penalties (for line breaking decisions)
-PenaltyBreakBeforeFirstCallParameter: 100
+# Set to 0 to encourage parameter breaking
+PenaltyBreakBeforeFirstCallParameter: 1
 PenaltyBreakComment: 300
 PenaltyBreakFirstLessLess: 120
 PenaltyBreakString: 1000
 PenaltyExcessCharacter: 1000000
-PenaltyReturnTypeOnItsOwnLine: 200
+PenaltyReturnTypeOnItsOwnLine: 1
 
 # Macros that behave like foreach loops
 # These will be formatted as loop constructs
