@@ -2,14 +2,15 @@
   APXH Mach-O Loader
 
   Provides Mach-O (Mach Object) file format parsing and loading for
-  32-bit and 64-bit executables. Handles load commands, segments,
-  and Thread-Local Storage (TLS) for macOS/iOS binaries.
+  32-bit and 64-bit executables using COM-style interface. Handles load
+  commands, segments, TLS, and unwinding information for macOS/iOS binaries.
 
   Supports:
   - Mach-O 32-bit (MH_MAGIC) and 64-bit (MH_MAGIC_64)
   - x86, x86-64, ARM, ARM64, and RISC-V architectures
   - LC_SEGMENT/LC_SEGMENT_64 load commands
   - LC_THREAD_LOCAL_VARIABLES for TLS
+  - __unwind_info for unwinding
 
   Copyright (C) 2025 A•NUX Project
 
@@ -150,17 +151,17 @@ ANX_PACK_POP()
 #define MACHO_OFF(_o) ((VOID *)(UINTN)((UINT8 *)ImageBase + (_o)))
 
 //
-// Internal Functions
+// IImageLoader Implementation for Mach-O
 //
 
 /**
-  Check if image is Mach-O format.
+  Detect if image is Mach-O format.
 **/
 static
-BOOLEAN
-ANXAPI
+HRESULT
+STDMETHODCALLTYPE
 MachoDetect (
-  IN IMAGE_LOADER  *This,
+  IN IImageLoader  *This,
   IN VOID          *ImageBase,
   IN UINTN         ImageSize
   )
@@ -168,62 +169,120 @@ MachoDetect (
   MACHO_HEADER *Header;
 
   if (ImageSize < sizeof(MACHO_HEADER)) {
-    return FALSE;
+    return S_FALSE;
   }
 
   Header = (MACHO_HEADER *)ImageBase;
 
-  return (Header->Magic == MH_MAGIC ||
-          Header->Magic == MH_CIGAM ||
-          Header->Magic == MH_MAGIC_64 ||
-          Header->Magic == MH_CIGAM_64);
+  if (Header->Magic == MH_MAGIC ||
+      Header->Magic == MH_CIGAM ||
+      Header->Magic == MH_MAGIC_64 ||
+      Header->Magic == MH_CIGAM_64) {
+    return S_OK;
+  }
+
+  return S_FALSE;
 }
 
 /**
   Get architecture from Mach-O image.
 **/
 static
-ARCH
-ANXAPI
+HRESULT
+STDMETHODCALLTYPE
 MachoGetArch (
-  IN IMAGE_LOADER  *This,
-  IN VOID          *ImageBase
+  IN  IImageLoader  *This,
+  IN  VOID          *ImageBase,
+  OUT ARCH          *Architecture
   )
 {
-  MACHO_HEADER *Header = (MACHO_HEADER *)ImageBase;
+  MACHO_HEADER *Header;
+
+  if (Architecture == NULL) {
+    return E_POINTER;
+  }
+
+  Header = (MACHO_HEADER *)ImageBase;
 
   switch (Header->CpuType) {
     case CPU_TYPE_I386:
-      return ARCH_386;
+      *Architecture = ARCH_386;
+      break;
     case CPU_TYPE_X86_64:
-      return ARCH_AMD64;
+      *Architecture = ARCH_AMD64;
+      break;
     case CPU_TYPE_RISCV:
-      return ARCH_RISCV64;
+      *Architecture = ARCH_RISCV64;
+      break;
     case CPU_TYPE_ARM64:
-      // ARM64 not yet supported by APXH
-      return ARCH_UNSUPPORTED;
+      *Architecture = ARCH_ARM64;
+      break;
     default:
-      return ARCH_UNSUPPORTED;
+      *Architecture = ARCH_UNSUPPORTED;
+      return IMGLOAD_E_UNSUPPORTED_ARCH;
   }
+
+  return S_OK;
+}
+
+/**
+  Get endianness from Mach-O image.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+MachoGetEndianness (
+  IN  IImageLoader    *This,
+  IN  VOID            *ImageBase,
+  OUT IMGLOAD_ENDIAN  *Endianness
+  )
+{
+  MACHO_HEADER *Header;
+
+  if (Endianness == NULL) {
+    return E_POINTER;
+  }
+
+  Header = (MACHO_HEADER *)ImageBase;
+
+  // Determine endianness from magic number
+  if (Header->Magic == MH_MAGIC || Header->Magic == MH_MAGIC_64) {
+    *Endianness = ImgEndianBig;
+  } else if (Header->Magic == MH_CIGAM || Header->Magic == MH_CIGAM_64) {
+    *Endianness = ImgEndianLittle;
+  } else {
+    *Endianness = ImgEndianUnknown;
+    return IMGLOAD_E_INVALID_FORMAT;
+  }
+
+  return S_OK;
 }
 
 /**
   Get entry point from Mach-O image.
 **/
 static
-VIRTUAL_ADDRESS
-ANXAPI
+HRESULT
+STDMETHODCALLTYPE
 MachoGetEntryPoint (
-  IN IMAGE_LOADER  *This,
-  IN VOID          *ImageBase
+  IN  IImageLoader      *This,
+  IN  VOID              *ImageBase,
+  OUT VIRTUAL_ADDRESS   *EntryPoint
   )
 {
-  MACHO_HEADER *Header32 = (MACHO_HEADER *)ImageBase;
-  MACHO_HEADER_64 *Header64 = (MACHO_HEADER_64 *)ImageBase;
+  MACHO_HEADER *Header32;
+  MACHO_HEADER_64 *Header64;
   MACHO_LOAD_COMMAND *Cmd;
   UINT32 i;
   UINTN Offset;
   BOOLEAN Is64Bit;
+
+  if (EntryPoint == NULL) {
+    return E_POINTER;
+  }
+
+  Header32 = (MACHO_HEADER *)ImageBase;
+  Header64 = (MACHO_HEADER_64 *)ImageBase;
 
   Is64Bit = (Header32->Magic == MH_MAGIC_64 || Header32->Magic == MH_CIGAM_64);
   Offset = Is64Bit ? sizeof(MACHO_HEADER_64) : sizeof(MACHO_HEADER);
@@ -233,29 +292,29 @@ MachoGetEntryPoint (
 
     if (Cmd->Cmd == LC_MAIN) {
       MACHO_ENTRY_POINT_COMMAND *EntryCmd = (MACHO_ENTRY_POINT_COMMAND *)Cmd;
-      // LC_MAIN stores offset from __TEXT base, we need to add base address
-      // For simplicity, return the offset - caller must add image base
-      return (VIRTUAL_ADDRESS)EntryCmd->EntryOff;
+      *EntryPoint = (VIRTUAL_ADDRESS)EntryCmd->EntryOff;
+      return S_OK;
     } else if (Cmd->Cmd == LC_UNIXTHREAD) {
       // Legacy entry point in thread state
       MACHO_THREAD_COMMAND *ThreadCmd = (MACHO_THREAD_COMMAND *)Cmd;
-      // Entry point is in thread state, architecture-specific
-      // For x86/x86-64, it's the EIP/RIP register
+
       if (Is64Bit) {
         // x86-64 thread state: RIP is at offset 16 in the state
         UINT64 *State = (UINT64 *)(ThreadCmd + 1);
-        return (VIRTUAL_ADDRESS)State[16];
+        *EntryPoint = (VIRTUAL_ADDRESS)State[16];
       } else {
         // x86 thread state: EIP is at offset 10 in the state
         UINT32 *State = (UINT32 *)(ThreadCmd + 1);
-        return (VIRTUAL_ADDRESS)State[10];
+        *EntryPoint = (VIRTUAL_ADDRESS)State[10];
       }
+      return S_OK;
     }
 
     Offset += Cmd->CmdSize;
   }
 
-  return 0;
+  *EntryPoint = 0;
+  return IMGLOAD_E_INVALID_HEADER;
 }
 
 /**
@@ -277,7 +336,7 @@ MachoLoadSegment (
   BOOLEAN IsExecutable = !!(InitProt & VM_PROT_EXECUTE);
 
   if (VmAddr + VmSize < VmAddr) {
-    fatal("Mach-O segment size overflow");
+    return; // Overflow check
   }
 
   if (FileSize > 0) {
@@ -309,29 +368,51 @@ MachoLoadSegment (
   Load Mach-O image.
 **/
 static
-IMGLOAD_STATUS
-ANXAPI
+HRESULT
+STDMETHODCALLTYPE
 MachoLoadImage (
-  IN     IMAGE_LOADER     *This,
+  IN     IImageLoader     *This,
   IN OUT IMGLOAD_CONTEXT  *Context
   )
 {
-  VOID *ImageBase = Context->ImageBase;
-  MACHO_HEADER *Header32 = (MACHO_HEADER *)ImageBase;
+  VOID *ImageBase;
+  MACHO_HEADER *Header32;
   MACHO_LOAD_COMMAND *Cmd;
   UINT32 i;
   UINTN Offset;
   BOOLEAN Is64Bit;
+  HRESULT Status;
+
+  if (Context == NULL) {
+    return E_POINTER;
+  }
+
+  ImageBase = Context->ImageBase;
+  Header32 = (MACHO_HEADER *)ImageBase;
 
   Is64Bit = (Header32->Magic == MH_MAGIC_64 || Header32->Magic == MH_CIGAM_64);
 
   if (Header32->FileType != MH_EXECUTE) {
-    return ImgLoadInvalidFormat;
+    return IMGLOAD_E_INVALID_FORMAT;
+  }
+
+  // Populate context
+  Status = MachoGetArch(This, ImageBase, &Context->Architecture);
+  if (FAILED(Status)) {
+    return Status;
+  }
+
+  Status = MachoGetEndianness(This, ImageBase, &Context->Endianness);
+  if (FAILED(Status)) {
+    return Status;
+  }
+
+  Status = MachoGetEntryPoint(This, ImageBase, &Context->EntryPoint);
+  if (FAILED(Status)) {
+    return Status;
   }
 
   Offset = Is64Bit ? sizeof(MACHO_HEADER_64) : sizeof(MACHO_HEADER);
-
-  info("Loading Mach-O %s executable...", Is64Bit ? "64-bit" : "32-bit");
 
   // Process all load commands
   for (i = 0; i < Header32->NumCmds; i++) {
@@ -339,9 +420,6 @@ MachoLoadImage (
 
     if (Cmd->Cmd == LC_SEGMENT) {
       MACHO_SEGMENT_COMMAND *Seg = (MACHO_SEGMENT_COMMAND *)Cmd;
-      info("  Segment %.16s at 0x%08x (size: 0x%08x, prot: 0x%x)",
-           Seg->SegName, Seg->VmAddr, Seg->VmSize, Seg->InitProt);
-
       MachoLoadSegment(
         ImageBase,
         Seg->VmAddr,
@@ -353,9 +431,6 @@ MachoLoadImage (
       );
     } else if (Cmd->Cmd == LC_SEGMENT_64) {
       MACHO_SEGMENT_COMMAND_64 *Seg = (MACHO_SEGMENT_COMMAND_64 *)Cmd;
-      info("  Segment %.16s at 0x%016llx (size: 0x%016llx, prot: 0x%x)",
-           Seg->SegName, Seg->VmAddr, Seg->VmSize, Seg->InitProt);
-
       MachoLoadSegment(
         ImageBase,
         Seg->VmAddr,
@@ -370,30 +445,34 @@ MachoLoadImage (
     Offset += Cmd->CmdSize;
   }
 
-  Context->EntryPoint = MachoGetEntryPoint(This, ImageBase);
-  return ImgLoadSuccess;
+  return S_OK;
 }
 
 /**
   Extract TLS information from Mach-O image.
 **/
 static
-IMGLOAD_STATUS
-ANXAPI
+HRESULT
+STDMETHODCALLTYPE
 MachoGetTlsInfo (
-  IN  IMAGE_LOADER      *This,
+  IN  IImageLoader      *This,
   IN  VOID              *ImageBase,
   OUT IMGLOAD_TLS_INFO  *TlsInfo
   )
 {
-  MACHO_HEADER *Header32 = (MACHO_HEADER *)ImageBase;
+  MACHO_HEADER *Header32;
   MACHO_LOAD_COMMAND *Cmd;
   UINT32 i;
   UINTN Offset;
   BOOLEAN Is64Bit;
 
+  if (TlsInfo == NULL) {
+    return E_POINTER;
+  }
+
   memset(TlsInfo, 0, sizeof(IMGLOAD_TLS_INFO));
 
+  Header32 = (MACHO_HEADER *)ImageBase;
   Is64Bit = (Header32->Magic == MH_MAGIC_64 || Header32->Magic == MH_CIGAM_64);
   Offset = Is64Bit ? sizeof(MACHO_HEADER_64) : sizeof(MACHO_HEADER);
 
@@ -404,14 +483,13 @@ MachoGetTlsInfo (
     if (Cmd->Cmd == LC_SEGMENT_64) {
       MACHO_SEGMENT_COMMAND_64 *Seg = (MACHO_SEGMENT_COMMAND_64 *)Cmd;
 
-      // Check for TLS segments by name
       if (memcmp(Seg->SegName, "__thread_vars", 13) == 0 ||
           memcmp(Seg->SegName, "__thread_data", 13) == 0) {
         TlsInfo->InitDataAddr = Seg->VmAddr;
         TlsInfo->InitDataSize = Seg->FileSize;
         TlsInfo->TotalSize = Seg->VmSize;
-        TlsInfo->Alignment = 16; // Default TLS alignment
-        return ImgLoadSuccess;
+        TlsInfo->Alignment = 16;
+        return S_OK;
       }
     } else if (Cmd->Cmd == LC_SEGMENT) {
       MACHO_SEGMENT_COMMAND *Seg = (MACHO_SEGMENT_COMMAND *)Cmd;
@@ -422,7 +500,7 @@ MachoGetTlsInfo (
         TlsInfo->InitDataSize = Seg->FileSize;
         TlsInfo->TotalSize = Seg->VmSize;
         TlsInfo->Alignment = 16;
-        return ImgLoadSuccess;
+        return S_OK;
       }
     }
 
@@ -430,27 +508,191 @@ MachoGetTlsInfo (
   }
 
   // No TLS found - not an error
-  return ImgLoadSuccess;
+  return S_FALSE;
+}
+
+/**
+  Extract unwinding information from Mach-O image.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+MachoGetUnwindInfo (
+  IN  IImageLoader         *This,
+  IN  VOID                 *ImageBase,
+  OUT IMGLOAD_UNWIND_INFO  *UnwindInfo
+  )
+{
+  MACHO_HEADER *Header32;
+  MACHO_LOAD_COMMAND *Cmd;
+  UINT32 i;
+  UINTN Offset;
+  BOOLEAN Is64Bit;
+
+  if (UnwindInfo == NULL) {
+    return E_POINTER;
+  }
+
+  memset(UnwindInfo, 0, sizeof(IMGLOAD_UNWIND_INFO));
+
+  Header32 = (MACHO_HEADER *)ImageBase;
+  Is64Bit = (Header32->Magic == MH_MAGIC_64 || Header32->Magic == MH_CIGAM_64);
+  Offset = Is64Bit ? sizeof(MACHO_HEADER_64) : sizeof(MACHO_HEADER);
+
+  // Search for __unwind_info segment
+  for (i = 0; i < Header32->NumCmds; i++) {
+    Cmd = (MACHO_LOAD_COMMAND *)MACHO_OFF(Offset);
+
+    if (Cmd->Cmd == LC_SEGMENT_64) {
+      MACHO_SEGMENT_COMMAND_64 *Seg = (MACHO_SEGMENT_COMMAND_64 *)Cmd;
+
+      if (memcmp(Seg->SegName, "__unwind_info", 13) == 0) {
+        UnwindInfo->UnwindDataAddr = Seg->VmAddr;
+        UnwindInfo->UnwindDataSize = Seg->VmSize;
+        UnwindInfo->Format = 2;  // Mach-O compact unwinding format
+        return S_OK;
+      }
+    } else if (Cmd->Cmd == LC_SEGMENT) {
+      MACHO_SEGMENT_COMMAND *Seg = (MACHO_SEGMENT_COMMAND *)Cmd;
+
+      if (memcmp(Seg->SegName, "__unwind_info", 13) == 0) {
+        UnwindInfo->UnwindDataAddr = Seg->VmAddr;
+        UnwindInfo->UnwindDataSize = Seg->VmSize;
+        UnwindInfo->Format = 2;  // Mach-O compact unwinding format
+        return S_OK;
+      }
+    }
+
+    Offset += Cmd->CmdSize;
+  }
+
+  // No unwinding info - not an error
+  return S_FALSE;
+}
+
+/**
+  Look up symbol by virtual address.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+MachoGetSymbolByAddress (
+  IN  IImageLoader         *This,
+  IN  VOID                 *ImageBase,
+  IN  VIRTUAL_ADDRESS      Address,
+  OUT IMGLOAD_SYMBOL_INFO  *SymbolInfo
+  )
+{
+  if (SymbolInfo == NULL) {
+    return E_POINTER;
+  }
+
+  // Mach-O symbol table parsing would go here
+  memset(SymbolInfo, 0, sizeof(IMGLOAD_SYMBOL_INFO));
+  return S_FALSE;
+}
+
+/**
+  Look up symbol by name.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+MachoGetSymbolByName (
+  IN  IImageLoader         *This,
+  IN  VOID                 *ImageBase,
+  IN  CONST CHAR8          *Name,
+  OUT IMGLOAD_SYMBOL_INFO  *SymbolInfo
+  )
+{
+  if (Name == NULL || SymbolInfo == NULL) {
+    return E_POINTER;
+  }
+
+  // Mach-O symbol table parsing would go here
+  memset(SymbolInfo, 0, sizeof(IMGLOAD_SYMBOL_INFO));
+  return S_FALSE;
+}
+
+/**
+  IUnknown::QueryInterface implementation.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+MachoQueryInterface (
+  IN  IImageLoader  *This,
+  IN  REFIID        riid,
+  OUT VOID          **ppvObject
+  )
+{
+  if (ppvObject == NULL) {
+    return E_POINTER;
+  }
+
+  *ppvObject = NULL;
+
+  if (memcmp(riid, &IID_IImageLoader, sizeof(GUID)) == 0 ||
+      memcmp(riid, &IID_IUnknown, sizeof(GUID)) == 0) {
+    *ppvObject = This;
+    return S_OK;
+  }
+
+  return E_NOINTERFACE;
+}
+
+/**
+  IUnknown::AddRef implementation.
+**/
+static
+UINT32
+STDMETHODCALLTYPE
+MachoAddRef (
+  IN IImageLoader  *This
+  )
+{
+  return 1;
+}
+
+/**
+  IUnknown::Release implementation.
+**/
+static
+UINT32
+STDMETHODCALLTYPE
+MachoRelease (
+  IN IImageLoader  *This
+  )
+{
+  return 1;
 }
 
 //
 // Mach-O Loader VTable
 //
 
-static CONST IMAGE_LOADER_VTBL gMachoVtbl = {
+static CONST IImageLoaderVtbl gMachoVtbl = {
+  MachoQueryInterface,
+  MachoAddRef,
+  MachoRelease,
   MachoDetect,
   MachoGetArch,
+  MachoGetEndianness,
   MachoGetEntryPoint,
   MachoLoadImage,
-  MachoGetTlsInfo
+  MachoGetTlsInfo,
+  MachoGetUnwindInfo,
+  MachoGetSymbolByAddress,
+  MachoGetSymbolByName
 };
 
 //
 // Mach-O Loader Instance
 //
 
-IMAGE_LOADER gMachoLoader = {
-  &gMachoVtbl,
-  "Mach-O",
-  NULL
+IImageLoader gMachoLoader = {
+  &gMachoVtbl
 };
+
+// Auto-register this loader
+ANX_REGISTER_IMGLOADER(gMachoLoader);

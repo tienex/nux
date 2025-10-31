@@ -93,8 +93,8 @@ SomDetect (
 
   // Check system ID and magic (note: SOM is big-endian)
   // We need to byte-swap on little-endian systems
-  UINT32 Magic = __builtin_bswap32(Header->VersionId);
-  UINT16 SysId = __builtin_bswap16(Header->SystemId);
+  UINT32 Magic = ANX_BSWAP32(Header->VersionId);
+  UINT16 SysId = ANX_BSWAP16(Header->SystemId);
 
   if (SysId == SOM_SYSTEM_HPUX &&
       (Magic == SOM_MAGIC_PARISC10 || Magic == SOM_MAGIC_PARISC11 ||
@@ -125,7 +125,7 @@ SomGetArch (
   }
 
   Header = (SOM_HEADER *)ImageBase;
-  Magic = __builtin_bswap32(Header->VersionId);
+  Magic = ANX_BSWAP32(Header->VersionId);
 
   // Determine PA-RISC version from magic
   switch (Magic) {
@@ -187,7 +187,7 @@ SomGetEntryPoint (
   Header = (SOM_HEADER *)ImageBase;
 
   // Entry point is EntryOffset within EntrySubspace
-  *EntryPoint = __builtin_bswap32(Header->EntryOffset);
+  *EntryPoint = ANX_BSWAP32(Header->EntryOffset);
 
   if (*EntryPoint == 0) {
     return IMGLOAD_E_INVALID_HEADER;

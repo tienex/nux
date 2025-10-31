@@ -204,6 +204,47 @@
 #   define ANX_POPCOUNTN(x) ANX_POPCOUNT32(x)
 #endif
 
+/* Byte Swap (BSWAP) - reverse byte order for endianness conversion */
+#if defined(_MSC_VER)
+#   include <stdlib.h>
+#   define ANX_BSWAP16(x)  _byteswap_ushort(x)
+#   define ANX_BSWAP32(x)  _byteswap_ulong(x)
+#   define ANX_BSWAP64(x)  _byteswap_uint64(x)
+
+#elif defined(__GNUC__) || defined(__clang__)
+#   define ANX_BSWAP16(x)  __builtin_bswap16(x)
+#   define ANX_BSWAP32(x)  __builtin_bswap32(x)
+#   define ANX_BSWAP64(x)  __builtin_bswap64(x)
+
+#else
+    /* Portable byte swap implementations */
+    static INLINE UINT16 Anx_Bswap16(UINT16 Value) {
+        return (Value >> 8) | (Value << 8);
+    }
+
+    static INLINE UINT32 Anx_Bswap32(UINT32 Value) {
+        return ((Value & 0xFF000000U) >> 24) |
+               ((Value & 0x00FF0000U) >> 8)  |
+               ((Value & 0x0000FF00U) << 8)  |
+               ((Value & 0x000000FFU) << 24);
+    }
+
+    static INLINE UINT64 Anx_Bswap64(UINT64 Value) {
+        return ((Value & 0xFF00000000000000ULL) >> 56) |
+               ((Value & 0x00FF000000000000ULL) >> 40) |
+               ((Value & 0x0000FF0000000000ULL) >> 24) |
+               ((Value & 0x000000FF00000000ULL) >> 8)  |
+               ((Value & 0x00000000FF000000ULL) << 8)  |
+               ((Value & 0x0000000000FF0000ULL) << 24) |
+               ((Value & 0x000000000000FF00ULL) << 40) |
+               ((Value & 0x00000000000000FFULL) << 56);
+    }
+
+#   define ANX_BSWAP16(x)  Anx_Bswap16(x)
+#   define ANX_BSWAP32(x)  Anx_Bswap32(x)
+#   define ANX_BSWAP64(x)  Anx_Bswap64(x)
+#endif
+
 /* --------------------------------------------------------------- */
 /*  Varargs intrinsics - portable across all compilers.            */
 /* --------------------------------------------------------------- */
