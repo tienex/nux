@@ -192,13 +192,12 @@ typedef enum _ARCH {
   ArchS390x_32 = 49,      ///< 32-bit mode on s390x
   ArchSparc64_32 = 50,    ///< 32-bit mode on SPARC 64
 
-  // Pseudo-endian variants (software emulated byte order)
-  ArchM68kPseudoLe = 51,  ///< M68K in pseudo little-endian mode
-  Arch386PseudoBe = 52,   ///< x86 in pseudo big-endian mode
-  ArchAmd64PseudoBe = 53, ///< x86-64 in pseudo big-endian mode
-
   // Educational and specialized architectures
-  ArchMmix = 54,          ///< Donald Knuth's MMIX (64-bit RISC)
-  ArchDlx = 55,           ///< DLX (educational MIPS-like RISC)
-  ArchMoxie = 56          ///< Moxie (lightweight RISC)
+  ArchMmix = 51,          ///< Donald Knuth's MMIX (64-bit RISC)
+  ArchDlx = 52,           ///< DLX (educational MIPS-like RISC)
+  ArchMoxie = 53          ///< Moxie (lightweight RISC)
+
+  // Note: Endianness is tracked separately via IMGLOAD_ENDIAN in
+  // APXH_BOOT_INFO and IMGLOAD_CONTEXT. Architecture enum represents
+  // only the ISA, not byte order.
 } ARCH;
