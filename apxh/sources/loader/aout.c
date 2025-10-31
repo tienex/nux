@@ -52,7 +52,27 @@ typedef struct _AOUT_HEADER {
   UINT32  DataReloc;       ///< Data relocation size
 } AOUT_HEADER;
 
+/**
+  a.out relocation entry structure.
+**/
+typedef struct _AOUT_RELOC {
+  UINT32  Address;        ///< Offset from segment start
+  UINT32  SymNum : 24;    ///< Symbol index or segment number
+  UINT32  PcRel  : 1;     ///< PC-relative flag
+  UINT32  Length : 2;     ///< 0=byte, 1=word, 2=long, 3=quad
+  UINT32  Extern : 1;     ///< External reference flag
+  UINT32  Type   : 4;     ///< Relocation type
+} AOUT_RELOC;
+
 ANX_PACK_POP()
+
+//
+// a.out Relocation Types
+//
+
+#define RELOC_8        0  ///< 8-bit relocation
+#define RELOC_16       1  ///< 16-bit relocation
+#define RELOC_32       2  ///< 32-bit relocation
 
 //
 // Default a.out addresses
@@ -436,7 +456,12 @@ AoutApplyRelocations (
   )
 {
   AOUT_HEADER *Header;
+  AOUT_RELOC *TextRelocs, *DataRelocs;
   INT64 Delta;
+  UINT32 NumTextRelocs, NumDataRelocs;
+  UINT32 i;
+  UINT32 TextStart, DataStart;
+  UINT8 *TextBase, *DataBase;
 
   Header = (AOUT_HEADER *)ImageBase;
 
@@ -447,13 +472,74 @@ AoutApplyRelocations (
     return S_OK;  // No relocation needed
   }
 
-  // a.out relocation format varies by platform
-  // Full implementation would parse text and data relocation tables
-  if (Header->TextReloc > 0 || Header->DataReloc > 0) {
-    return E_NOTIMPL;  // TODO: Implement a.out relocation
+  // Check if there are any relocations
+  if (Header->TextReloc == 0 && Header->DataReloc == 0) {
+    return S_OK;  // No relocations to apply
   }
 
-  return S_OK;  // No relocations to apply
+  // Calculate segment addresses
+  TextStart = AOUT_TEXT_START;
+  DataStart = TextStart + AOUT_ROUND_PAGE(Header->TextSize);
+
+  TextBase = (UINT8 *)LoadAddress;
+  DataBase = TextBase + Header->TextSize;
+
+  // Get relocation tables
+  // They are located after: header + text + data + symbols
+  UINT32 RelocOffset = sizeof(AOUT_HEADER) + Header->TextSize +
+                       Header->DataSize + Header->SymbolSize;
+
+  TextRelocs = (AOUT_RELOC *)AOUT_OFF(RelocOffset);
+  DataRelocs = (AOUT_RELOC *)AOUT_OFF(RelocOffset + Header->TextReloc);
+
+  NumTextRelocs = Header->TextReloc / sizeof(AOUT_RELOC);
+  NumDataRelocs = Header->DataReloc / sizeof(AOUT_RELOC);
+
+  // Apply text relocations
+  for (i = 0; i < NumTextRelocs; i++) {
+    AOUT_RELOC *Reloc = &TextRelocs[i];
+
+    // Only apply non-external relocations (internal position-dependent code)
+    if (!Reloc->Extern) {
+      UINT8 *Target = TextBase + Reloc->Address;
+
+      switch (Reloc->Length) {
+        case 0:  // Byte
+          *(UINT8 *)Target += (UINT8)Delta;
+          break;
+        case 1:  // Word
+          *(UINT16 *)Target += (UINT16)Delta;
+          break;
+        case 2:  // Long
+          *(UINT32 *)Target += (UINT32)Delta;
+          break;
+      }
+    }
+  }
+
+  // Apply data relocations
+  for (i = 0; i < NumDataRelocs; i++) {
+    AOUT_RELOC *Reloc = &DataRelocs[i];
+
+    // Only apply non-external relocations
+    if (!Reloc->Extern) {
+      UINT8 *Target = DataBase + Reloc->Address;
+
+      switch (Reloc->Length) {
+        case 0:  // Byte
+          *(UINT8 *)Target += (UINT8)Delta;
+          break;
+        case 1:  // Word
+          *(UINT16 *)Target += (UINT16)Delta;
+          break;
+        case 2:  // Long
+          *(UINT32 *)Target += (UINT32)Delta;
+          break;
+      }
+    }
+  }
+
+  return S_OK;
 }
 
 /**
