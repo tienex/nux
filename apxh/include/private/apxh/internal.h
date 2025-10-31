@@ -85,65 +85,221 @@ typedef enum
   ARCH_INVALID,
   ARCH_UNSUPPORTED,
 
-  // x86 family
-  ARCH_386,
-  ARCH_AMD64,
+  // x86 family (Intel/AMD)
+  ARCH_8086,           ///< Intel 8086
+  ARCH_80186,          ///< Intel 80186
+  ARCH_80286,          ///< Intel 80286
+  ARCH_386,            ///< Intel 80386 and compatibles
+  ARCH_486,            ///< Intel 80486 and compatibles
+  ARCH_PENTIUM,        ///< Intel Pentium
+  ARCH_AMD64,          ///< AMD64/x86-64/EM64T
+  ARCH_I860,           ///< Intel i860 RISC
+  ARCH_I960,           ///< Intel i960 RISC
 
   // RISC-V
-  ARCH_RISCV32,
-  ARCH_RISCV64,
-  ARCH_RISCV128,
+  ARCH_RISCV32,        ///< RISC-V 32-bit
+  ARCH_RISCV64,        ///< RISC-V 64-bit
+  ARCH_RISCV128,       ///< RISC-V 128-bit
 
-  // ARM family
-  ARCH_ARM,
-  ARCH_ARM64,
+  // ARM family (all variants)
+  ARCH_ARM,            ///< ARM (generic 32-bit)
+  ARCH_ARMV4,          ///< ARMv4
+  ARCH_ARMV4T,         ///< ARMv4T (Thumb)
+  ARCH_ARMV5,          ///< ARMv5
+  ARCH_ARMV5T,         ///< ARMv5T (Thumb)
+  ARCH_ARMV6,          ///< ARMv6
+  ARCH_ARMV7,          ///< ARMv7
+  ARCH_ARM64,          ///< ARM64/AArch64
+  ARCH_THUMB,          ///< ARM Thumb mode
 
-  // PowerPC
-  ARCH_PPC32,
-  ARCH_PPC64,
+  // PowerPC family
+  ARCH_PPC32,          ///< PowerPC 32-bit
+  ARCH_PPC64,          ///< PowerPC 64-bit
+  ARCH_PPC601,         ///< PowerPC 601
+  ARCH_PPC603,         ///< PowerPC 603
+  ARCH_PPC604,         ///< PowerPC 604
+  ARCH_PPC750,         ///< PowerPC 750 (G3)
+  ARCH_PPC7400,        ///< PowerPC 7400 (G4)
+  ARCH_PPC970,         ///< PowerPC 970 (G5)
 
-  // MIPS
-  ARCH_MIPS32,
-  ARCH_MIPS64,
+  // MIPS family
+  ARCH_MIPS32,         ///< MIPS 32-bit (generic)
+  ARCH_MIPS64,         ///< MIPS 64-bit (generic)
+  ARCH_MIPS_R3000,     ///< MIPS R3000
+  ARCH_MIPS_R4000,     ///< MIPS R4000
+  ARCH_MIPS_R5000,     ///< MIPS R5000
+  ARCH_MIPS_R6000,     ///< MIPS R6000
+  ARCH_MIPS_R8000,     ///< MIPS R8000
+  ARCH_MIPS_R10000,    ///< MIPS R10000
+  ARCH_MIPS16,         ///< MIPS16
 
-  // Alpha
-  ARCH_ALPHA,
+  // Alpha (DEC/Compaq/HP)
+  ARCH_ALPHA,          ///< DEC Alpha (generic)
+  ARCH_ALPHA_21064,    ///< Alpha 21064 (EV4)
+  ARCH_ALPHA_21164,    ///< Alpha 21164 (EV5)
+  ARCH_ALPHA_21264,    ///< Alpha 21264 (EV6)
 
-  // PA-RISC
-  ARCH_PARISC,
-  ARCH_PARISC64,
+  // PA-RISC (HP)
+  ARCH_PARISC,         ///< PA-RISC 32-bit
+  ARCH_PARISC64,       ///< PA-RISC 64-bit (PA-RISC 2.0)
+  ARCH_PARISC1_0,      ///< PA-RISC 1.0
+  ARCH_PARISC1_1,      ///< PA-RISC 1.1
+  ARCH_PARISC2_0,      ///< PA-RISC 2.0
 
-  // SPARC
-  ARCH_SPARC32,
-  ARCH_SPARC64,
+  // SPARC (Sun/Oracle)
+  ARCH_SPARC32,        ///< SPARC 32-bit (V8)
+  ARCH_SPARC64,        ///< SPARC 64-bit (V9)
+  ARCH_SPARCV7,        ///< SPARC V7
+  ARCH_SPARCV8,        ///< SPARC V8
+  ARCH_SPARCV9,        ///< SPARC V9
 
-  // Itanium
-  ARCH_IA64,
+  // Itanium (Intel)
+  ARCH_IA64,           ///< Intel Itanium (IA-64)
 
-  // 68k and 88k
-  ARCH_M68K,
-  ARCH_M88K,
+  // Motorola 68k family
+  ARCH_M68K,           ///< Motorola 68000 (generic)
+  ARCH_M68000,         ///< Motorola 68000
+  ARCH_M68010,         ///< Motorola 68010
+  ARCH_M68020,         ///< Motorola 68020
+  ARCH_M68030,         ///< Motorola 68030
+  ARCH_M68040,         ///< Motorola 68040
+  ARCH_M68060,         ///< Motorola 68060
+  ARCH_COLDFIRE,       ///< Motorola/Freescale ColdFire
 
-  // LoongArch
-  ARCH_LOONGARCH32,
-  ARCH_LOONGARCH64,
+  // Motorola 88k family
+  ARCH_M88K,           ///< Motorola 88000 (generic)
+  ARCH_M88100,         ///< Motorola 88100
+  ARCH_M88110,         ///< Motorola 88110
 
-  // VAX
-  ARCH_VAX,
+  // LoongArch (Loongson)
+  ARCH_LOONGARCH32,    ///< LoongArch 32-bit
+  ARCH_LOONGARCH64,    ///< LoongArch 64-bit
 
-  // PDP-10
-  ARCH_PDP10,
+  // VAX (DEC)
+  ARCH_VAX,            ///< DEC VAX
 
-  // S/390
-  ARCH_S390,
-  ARCH_S390X,
+  // PDP (DEC)
+  ARCH_PDP7,           ///< DEC PDP-7
+  ARCH_PDP8,           ///< DEC PDP-8
+  ARCH_PDP9,           ///< DEC PDP-9
+  ARCH_PDP10,          ///< DEC PDP-10
+  ARCH_PDP11,          ///< DEC PDP-11
+  ARCH_PDP15,          ///< DEC PDP-15
 
-  // SH (SuperH)
-  ARCH_SH,
+  // IBM mainframe
+  ARCH_S360,           ///< IBM System/360
+  ARCH_S370,           ///< IBM System/370
+  ARCH_S390,           ///< IBM S/390 (31-bit)
+  ARCH_S390X,          ///< IBM z/Architecture (64-bit)
 
-  // Other legacy
-  ARCH_I860,
-  ARCH_I960,
+  // POWER (IBM)
+  ARCH_POWER,          ///< IBM POWER (generic)
+  ARCH_POWER1,         ///< IBM POWER1
+  ARCH_POWER2,         ///< IBM POWER2
+  ARCH_POWER3,         ///< IBM POWER3
+  ARCH_POWER4,         ///< IBM POWER4
+  ARCH_POWER5,         ///< IBM POWER5
+  ARCH_POWER6,         ///< IBM POWER6
+  ARCH_POWER7,         ///< IBM POWER7
+  ARCH_POWER8,         ///< IBM POWER8
+  ARCH_POWER9,         ///< IBM POWER9
+  ARCH_POWER10,        ///< IBM POWER10
+
+  // SuperH (Hitachi/Renesas)
+  ARCH_SH,             ///< SuperH (generic)
+  ARCH_SH1,            ///< SuperH SH-1
+  ARCH_SH2,            ///< SuperH SH-2
+  ARCH_SH3,            ///< SuperH SH-3
+  ARCH_SH4,            ///< SuperH SH-4
+  ARCH_SH5,            ///< SuperH SH-5
+
+  // AT&T/Bellmac/WE
+  ARCH_WE32000,        ///< AT&T WE32000 (3B series)
+  ARCH_WE32100,        ///< AT&T WE32100
+  ARCH_WE32200,        ///< AT&T WE32200
+
+  // National Semiconductor
+  ARCH_NS32016,        ///< NS32016
+  ARCH_NS32032,        ///< NS32032
+  ARCH_NS32332,        ///< NS32332
+  ARCH_NS32532,        ///< NS32532
+
+  // Clipper (Fairchild/Intergraph)
+  ARCH_CLIPPER,        ///< Clipper (generic)
+  ARCH_CLIPPER_C100,   ///< Clipper C100
+  ARCH_CLIPPER_C300,   ///< Clipper C300
+  ARCH_CLIPPER_C400,   ///< Clipper C400
+
+  // ROMP (IBM RT PC)
+  ARCH_ROMP,           ///< IBM ROMP
+
+  // AMD 29000
+  ARCH_AM29000,        ///< AMD Am29000
+
+  // Pyramid
+  ARCH_PYRAMID,        ///< Pyramid 90x
+
+  // Convex
+  ARCH_CONVEX,         ///< Convex
+
+  // Cray
+  ARCH_CRAY1,          ///< Cray-1
+  ARCH_CRAY2,          ///< Cray-2
+  ARCH_CRAY_X_MP,      ///< Cray X-MP
+  ARCH_CRAY_Y_MP,      ///< Cray Y-MP
+  ARCH_CRAY_C90,       ///< Cray C90
+  ARCH_CRAY_T3D,       ///< Cray T3D
+  ARCH_CRAY_T3E,       ///< Cray T3E
+  ARCH_CRAY_T90,       ///< Cray T90
+
+  // Embedded/Microcontrollers
+  ARCH_AVR,            ///< Atmel AVR
+  ARCH_AVR32,          ///< Atmel AVR32
+  ARCH_MSP430,         ///< TI MSP430
+  ARCH_8051,           ///< Intel 8051
+  ARCH_6502,           ///< MOS 6502
+  ARCH_6800,           ///< Motorola 6800
+  ARCH_6809,           ///< Motorola 6809
+  ARCH_Z80,            ///< Zilog Z80
+  ARCH_Z8000,          ///< Zilog Z8000
+  ARCH_PIC,            ///< Microchip PIC
+
+  // Other modern architectures
+  ARCH_ARC,            ///< Synopsys ARC
+  ARCH_XTENSA,         ///< Tensilica Xtensa
+  ARCH_OPENRISC,       ///< OpenRISC
+  ARCH_MICROBLAZE,     ///< Xilinx MicroBlaze
+  ARCH_NIOS,           ///< Altera Nios
+  ARCH_NIOS2,          ///< Altera Nios II
+  ARCH_BLACKFIN,       ///< Analog Devices Blackfin
+  ARCH_C6X,            ///< TI C6x DSP
+  ARCH_HEXAGON,        ///< Qualcomm Hexagon
+  ARCH_EPIPHANY,       ///< Adapteva Epiphany
+  ARCH_TILE,           ///< Tilera TILE
+  ARCH_TILEGX,         ///< Tilera TILE-Gx
+  ARCH_TILEPRO,        ///< Tilera TILEPro
+
+  // Acorn/ARM Ltd historical
+  ARCH_ARM2,           ///< Acorn ARM2
+  ARCH_ARM3,           ///< Acorn ARM3
+
+  // Historical minicomputers
+  ARCH_NOVA,           ///< Data General Nova
+  ARCH_ECLIPSE,        ///< Data General Eclipse
+
+  // Game consoles
+  ARCH_N64_VR4300,     ///< Nintendo 64 VR4300
+  ARCH_GAMECUBE_GEKKO, ///< GameCube Gekko
+  ARCH_WII_BROADWAY,   ///< Wii Broadway
+  ARCH_PS2_EE,         ///< PlayStation 2 Emotion Engine
+  ARCH_PS3_CELL,       ///< PlayStation 3 Cell
+
+  // Transputer
+  ARCH_TRANSPUTER,     ///< Inmos Transputer
+
+  // Misc
+  ARCH_UNICORE,        ///< PKUnity UniCore
+  ARCH_ALPHA_MAX,      ///< For range checking
 } ARCH;
 
 VOID PlatformInit (VOID);
