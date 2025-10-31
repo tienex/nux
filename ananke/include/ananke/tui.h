@@ -2576,6 +2576,95 @@ struct _ITuiHelpViewer {
     CONST ITuiHelpViewer_Vtbl *Vtbl;
 };
 
+// {0E1F2A3B-4C5D-6E7F-8A9B-0C1D2E3F4A5B}
+DEFINE_GUID(IID_ITuiThemedListBox,
+    0x0E1F2A3B, 0x4C5D, 0x6E7F, 0x8A, 0x9B, 0x0C, 0x1D, 0x2E, 0x3F, 0x4A, 0x5B);
+
+/**
+  ITuiThemedListBox Interface
+
+  ListBox theming interface. Inherits from ITuiThemedWidget.
+**/
+typedef struct _ITuiThemedListBox_Vtbl {
+    // ITuiSerializable methods
+    HRESULT (ANXAPI *QueryInterface)(ITuiThemedListBox *This, REFIID riid, VOID **ppvObject);
+    UINTN (ANXAPI *AddRef)(ITuiThemedListBox *This);
+    UINTN (ANXAPI *Release)(ITuiThemedListBox *This);
+    HRESULT (ANXAPI *SerializeToYaml)(ITuiThemedListBox *This, CHAR8 **OutYaml, UINTN *OutLength);
+    HRESULT (ANXAPI *DeserializeFromYaml)(ITuiThemedListBox *This, CONST CHAR8 *Yaml, UINTN Length);
+    HRESULT (ANXAPI *GetTypeName)(ITuiThemedListBox *This, CONST CHAR8 **OutTypeName);
+    HRESULT (ANXAPI *Clone)(ITuiThemedListBox *This, ITuiSerializable **OutClone);
+
+    // ITuiResponder methods
+    HRESULT (ANXAPI *GetNextResponder)(ITuiThemedListBox *This, ITuiResponder **NextResponder);
+    HRESULT (ANXAPI *SetNextResponder)(ITuiThemedListBox *This, ITuiResponder *NextResponder);
+    BOOLEAN (ANXAPI *AcceptsFirstResponder)(ITuiThemedListBox *This);
+    HRESULT (ANXAPI *BecomeFirstResponder)(ITuiThemedListBox *This);
+    HRESULT (ANXAPI *ResignFirstResponder)(ITuiThemedListBox *This);
+
+    // ITuiWidget methods
+    HRESULT (ANXAPI *SetBounds)(ITuiThemedListBox *This, CONST TUI_RECT *Bounds);
+    HRESULT (ANXAPI *GetBounds)(ITuiThemedListBox *This, TUI_RECT *Bounds);
+    HRESULT (ANXAPI *SetVisible)(ITuiThemedListBox *This, BOOLEAN Visible);
+    BOOLEAN (ANXAPI *IsVisible)(ITuiThemedListBox *This);
+    HRESULT (ANXAPI *SetEnabled)(ITuiThemedListBox *This, BOOLEAN Enabled);
+    BOOLEAN (ANXAPI *IsEnabled)(ITuiThemedListBox *This);
+    HRESULT (ANXAPI *SetParent)(ITuiThemedListBox *This, ITuiWidget *Parent);
+    HRESULT (ANXAPI *GetParent)(ITuiThemedListBox *This, ITuiWidget **Parent);
+    HRESULT (ANXAPI *AddChild)(ITuiThemedListBox *This, ITuiWidget *Child);
+    HRESULT (ANXAPI *RemoveChild)(ITuiThemedListBox *This, ITuiWidget *Child);
+    HRESULT (ANXAPI *SetNeedsDisplay)(ITuiThemedListBox *This, BOOLEAN Needed);
+
+    // ITuiThemedWidget methods
+    HRESULT (ANXAPI *ApplyTheme)(ITuiThemedListBox *This, ITuiTheme *Theme);
+    HRESULT (ANXAPI *GetColors)(ITuiThemedListBox *This, TUI_COLOR *Foreground, TUI_COLOR *Background);
+    HRESULT (ANXAPI *SetColors)(ITuiThemedListBox *This, TUI_COLOR Foreground, TUI_COLOR Background);
+    HRESULT (ANXAPI *OnMouseEvent)(ITuiThemedListBox *This, CONST TUI_MOUSE_EVENT *Event, BOOLEAN *Handled);
+    HRESULT (ANXAPI *OnKeyEvent)(ITuiThemedListBox *This, TUI_KEY Key, UINT32 Modifiers, BOOLEAN *Handled);
+    HRESULT (ANXAPI *Draw)(ITuiThemedListBox *This, ITuiSurface *Surface, CONST TUI_RECT *DirtyRect);
+
+    // ITuiThemedListBox methods
+    /**
+      Get selection colors.
+    **/
+    HRESULT (ANXAPI *GetSelectionColors)(
+        ITuiThemedListBox *This,
+        TUI_COLOR *Foreground,
+        TUI_COLOR *Background
+    );
+
+    /**
+      Set selection colors.
+    **/
+    HRESULT (ANXAPI *SetSelectionColors)(
+        ITuiThemedListBox *This,
+        TUI_COLOR Foreground,
+        TUI_COLOR Background
+    );
+
+    /**
+      Get scrollbar colors.
+    **/
+    HRESULT (ANXAPI *GetScrollbarColors)(
+        ITuiThemedListBox *This,
+        TUI_COLOR *BarColor,
+        TUI_COLOR *ThumbColor
+    );
+
+    /**
+      Set scrollbar colors.
+    **/
+    HRESULT (ANXAPI *SetScrollbarColors)(
+        ITuiThemedListBox *This,
+        TUI_COLOR BarColor,
+        TUI_COLOR ThumbColor
+    );
+} ITuiThemedListBox_Vtbl;
+
+struct _ITuiThemedListBox {
+    CONST ITuiThemedListBox_Vtbl *Vtbl;
+};
+
 // {C9D0E1F2-A3B4-4C5D-6E7F-8A9B0C1D2E3F}
 DEFINE_GUID(IID_ITuiListBox,
     0xC9D0E1F2, 0xA3B4, 0x4C5D, 0x6E, 0x7F, 0x8A, 0x9B, 0x0C, 0x1D, 0x2E, 0x3F);
@@ -2583,23 +2672,143 @@ DEFINE_GUID(IID_ITuiListBox,
 /**
   ITuiListBox Interface
 
-  Scrollable list of selectable items.
+  Scrollable list of selectable items. Inherits from ITuiThemedListBox.
 **/
 typedef struct _ITuiListBox_Vtbl {
+    // ITuiSerializable methods
     HRESULT (ANXAPI *QueryInterface)(ITuiListBox *This, REFIID riid, VOID **ppvObject);
     UINTN (ANXAPI *AddRef)(ITuiListBox *This);
     UINTN (ANXAPI *Release)(ITuiListBox *This);
+    HRESULT (ANXAPI *SerializeToYaml)(ITuiListBox *This, CHAR8 **OutYaml, UINTN *OutLength);
+    HRESULT (ANXAPI *DeserializeFromYaml)(ITuiListBox *This, CONST CHAR8 *Yaml, UINTN Length);
+    HRESULT (ANXAPI *GetTypeName)(ITuiListBox *This, CONST CHAR8 **OutTypeName);
+    HRESULT (ANXAPI *Clone)(ITuiListBox *This, ITuiSerializable **OutClone);
 
-    HRESULT (ANXAPI *AddItem)(ITuiListBox *This, CONST CHAR8 *Text, VOID *UserData);
-    HRESULT (ANXAPI *RemoveItem)(ITuiListBox *This, UINT32 Index);
-    HRESULT (ANXAPI *Clear)(ITuiListBox *This);
-    HRESULT (ANXAPI *GetItemCount)(ITuiListBox *This, UINT32 *Count);
-    HRESULT (ANXAPI *GetSelectedIndex)(ITuiListBox *This, INT32 *Index);
-    HRESULT (ANXAPI *SetSelectedIndex)(ITuiListBox *This, INT32 Index);
-    HRESULT (ANXAPI *GetItemText)(ITuiListBox *This, UINT32 Index, CHAR8 *Buffer, UINTN BufferSize);
-    HRESULT (ANXAPI *SetMultiSelect)(ITuiListBox *This, BOOLEAN Enabled);
-    HRESULT (ANXAPI *Render)(ITuiListBox *This, ITuiScreen *Screen, INT32 X, INT32 Y, UINT32 Width, UINT32 Height, BOOLEAN Focused);
-    HRESULT (ANXAPI *HandleInput)(ITuiListBox *This, CONST TUI_INPUT_EVENT *Event, BOOLEAN *Handled);
+    // ITuiResponder methods
+    HRESULT (ANXAPI *GetNextResponder)(ITuiListBox *This, ITuiResponder **NextResponder);
+    HRESULT (ANXAPI *SetNextResponder)(ITuiListBox *This, ITuiResponder *NextResponder);
+    BOOLEAN (ANXAPI *AcceptsFirstResponder)(ITuiListBox *This);
+    HRESULT (ANXAPI *BecomeFirstResponder)(ITuiListBox *This);
+    HRESULT (ANXAPI *ResignFirstResponder)(ITuiListBox *This);
+
+    // ITuiWidget methods
+    HRESULT (ANXAPI *SetBounds)(ITuiListBox *This, CONST TUI_RECT *Bounds);
+    HRESULT (ANXAPI *GetBounds)(ITuiListBox *This, TUI_RECT *Bounds);
+    HRESULT (ANXAPI *SetVisible)(ITuiListBox *This, BOOLEAN Visible);
+    BOOLEAN (ANXAPI *IsVisible)(ITuiListBox *This);
+    HRESULT (ANXAPI *SetEnabled)(ITuiListBox *This, BOOLEAN Enabled);
+    BOOLEAN (ANXAPI *IsEnabled)(ITuiListBox *This);
+    HRESULT (ANXAPI *SetParent)(ITuiListBox *This, ITuiWidget *Parent);
+    HRESULT (ANXAPI *GetParent)(ITuiListBox *This, ITuiWidget **Parent);
+    HRESULT (ANXAPI *AddChild)(ITuiListBox *This, ITuiWidget *Child);
+    HRESULT (ANXAPI *RemoveChild)(ITuiListBox *This, ITuiWidget *Child);
+    HRESULT (ANXAPI *SetNeedsDisplay)(ITuiListBox *This, BOOLEAN Needed);
+
+    // ITuiThemedWidget methods
+    HRESULT (ANXAPI *ApplyTheme)(ITuiListBox *This, ITuiTheme *Theme);
+    HRESULT (ANXAPI *GetColors)(ITuiListBox *This, TUI_COLOR *Foreground, TUI_COLOR *Background);
+    HRESULT (ANXAPI *SetColors)(ITuiListBox *This, TUI_COLOR Foreground, TUI_COLOR Background);
+    HRESULT (ANXAPI *OnMouseEvent)(ITuiListBox *This, CONST TUI_MOUSE_EVENT *Event, BOOLEAN *Handled);
+    HRESULT (ANXAPI *OnKeyEvent)(ITuiListBox *This, TUI_KEY Key, UINT32 Modifiers, BOOLEAN *Handled);
+    HRESULT (ANXAPI *Draw)(ITuiListBox *This, ITuiSurface *Surface, CONST TUI_RECT *DirtyRect);
+
+    // ITuiThemedListBox methods
+    HRESULT (ANXAPI *GetSelectionColors)(ITuiListBox *This, TUI_COLOR *Foreground, TUI_COLOR *Background);
+    HRESULT (ANXAPI *SetSelectionColors)(ITuiListBox *This, TUI_COLOR Foreground, TUI_COLOR Background);
+    HRESULT (ANXAPI *GetScrollbarColors)(ITuiListBox *This, TUI_COLOR *BarColor, TUI_COLOR *ThumbColor);
+    HRESULT (ANXAPI *SetScrollbarColors)(ITuiListBox *This, TUI_COLOR BarColor, TUI_COLOR ThumbColor);
+
+    // ITuiListBox methods
+    /**
+      Add item to list.
+    **/
+    HRESULT (ANXAPI *AddItem)(
+        ITuiListBox *This,
+        CONST CHAR8 *Text,
+        VOID *UserData
+    );
+
+    /**
+      Remove item at index.
+    **/
+    HRESULT (ANXAPI *RemoveItem)(
+        ITuiListBox *This,
+        UINT32 Index
+    );
+
+    /**
+      Clear all items.
+    **/
+    HRESULT (ANXAPI *Clear)(
+        ITuiListBox *This
+    );
+
+    /**
+      Get number of items.
+    **/
+    HRESULT (ANXAPI *GetItemCount)(
+        ITuiListBox *This,
+        UINT32 *Count
+    );
+
+    /**
+      Get selected item index (-1 if none).
+    **/
+    HRESULT (ANXAPI *GetSelectedIndex)(
+        ITuiListBox *This,
+        INT32 *Index
+    );
+
+    /**
+      Set selected item index.
+    **/
+    HRESULT (ANXAPI *SetSelectedIndex)(
+        ITuiListBox *This,
+        INT32 Index
+    );
+
+    /**
+      Get item text at index.
+    **/
+    HRESULT (ANXAPI *GetItemText)(
+        ITuiListBox *This,
+        UINT32 Index,
+        CHAR8 *Buffer,
+        UINTN BufferSize
+    );
+
+    /**
+      Get item user data at index.
+    **/
+    HRESULT (ANXAPI *GetItemUserData)(
+        ITuiListBox *This,
+        UINT32 Index,
+        VOID **UserData
+    );
+
+    /**
+      Check if multi-select is enabled.
+    **/
+    BOOLEAN (ANXAPI *IsMultiSelect)(
+        ITuiListBox *This
+    );
+
+    /**
+      Enable/disable multi-select mode.
+    **/
+    HRESULT (ANXAPI *SetMultiSelect)(
+        ITuiListBox *This,
+        BOOLEAN Enabled
+    );
+
+    /**
+      Get selected indices (for multi-select).
+    **/
+    HRESULT (ANXAPI *GetSelectedIndices)(
+        ITuiListBox *This,
+        INT32 *Indices,
+        UINT32 *Count
+    );
 } ITuiListBox_Vtbl;
 
 struct _ITuiListBox {
