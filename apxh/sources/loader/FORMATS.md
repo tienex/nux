@@ -52,7 +52,7 @@ enabling cross-platform resource embedding in all executable formats.
 | Amiga Hunk | ❌ No  | ✅ Implemented | No native resources (AmigaOS 68K) |
 | Atari TOS | ❌ No  | ✅ Implemented | No native resources (Atari ST/TT/Falcon 68K) |
 | Plan 9 | ❌ No  | ✅ Implemented | No native resources (Plan 9 a.out) |
-| Xenix COFF | ❌ No  | ✅ Implemented | No native resources (Microsoft Xenix) |
+| Xenix X.OUT | ❌ No  | ✅ Implemented | No native resources (SCO XENIX multi-arch) |
 | HP SOM | ❌ No  | ⚠️ Stub | Stub implementation (PA-RISC) |
 | OpenVMS | ❌ No  | ⚠️ Stub | Stub implementation (VAX/Alpha/Itanium) |
 | PDP-10 SAV | ❌ No  | ⚠️ Stub | Stub implementation (PDP-10 36-bit) |
@@ -119,7 +119,7 @@ executable formats, enabling proper startup/shutdown sequences for libraries and
 | Amiga Hunk | ❌ No  | ⚠️ N/A | No explicit init/fini (AmigaOS handles library initialization) |
 | Atari TOS | ❌ No  | ⚠️ N/A | No explicit init/fini (TOS handles program initialization) |
 | Plan 9 | ❌ No  | ⚠️ N/A | No explicit init/fini (Plan 9 a.out variant) |
-| Xenix COFF | ❌ No  | ⚠️ N/A | No explicit init/fini (basic COFF variant) |
+| Xenix X.OUT | ✅ Segmented | ✅ Implemented | Entry segment (segmented x.out only, multi-arch) |
 | HP SOM | ⚠️ Stub | ⚠️ Stub | Stub implementation |
 | OpenVMS | ⚠️ Stub | ⚠️ Stub | Stub implementation |
 | PDP-10 SAV | ⚠️ Stub | ⚠️ Stub | Stub implementation |
@@ -511,9 +511,23 @@ Typical termination sequence:
 
 ## Other Formats
 
-### Xenix COFF
+### SCO Xenix X.OUT
 - **Implementation:** `xenix.c`
-- **Status:** Stub implementation
+- **Status:** Fully implemented
+- SCO XENIX extended output format (x.out)
+- **Features:**
+  - Multiple CPU architectures (8086, 80186, 80286, 80386, 68K, VAX, Z8000, Z80, NS16032, PDP-11)
+  - Segmented x.out format (XE_SEG) with segment tables
+  - Non-segmented x.out format
+  - Version detection (v2.x, v3.x, v5.x)
+  - Byte/word swapping for cross-platform binaries
+  - Extension header with stack size and machine-dependent tables
+  - Shared library support (XE_VMOD)
+  - Multiple relocation and symbol table formats
+  - Init/fini support for segmented executables
+  - Large model support (XE_LTEXT, XE_LDATA)
+  - Pure text sharing (XE_PURE)
+  - Floating point hardware requirement detection (XE_FPH)
 
 ### NLM (NetWare Loadable Module)
 - **Implementation:** `nlm.c`
