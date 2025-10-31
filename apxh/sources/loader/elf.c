@@ -158,6 +158,55 @@
 #define ELF_APXH_URESOURCE         0xAF10000A  ///< Universal resource fork (AUR)
 
 //
+// ELF Dynamic Section Tags (from OS/2 ABI)
+//
+
+#define DT_NULL     0   ///< End of dynamic array
+#define DT_NEEDED   1   ///< Required library name
+#define DT_HASH     4   ///< Symbol hash table address
+#define DT_STRTAB   5   ///< String table address
+#define DT_SYMTAB   6   ///< Symbol table address
+#define DT_STRSZ    10  ///< String table size
+#define DT_SYMENT   11  ///< Symbol table entry size
+#define DT_INIT     12  ///< Initialization function address
+#define DT_FINI     13  ///< Termination function address
+#define DT_SONAME   14  ///< Shared object name
+#define DT_RPATH    15  ///< Library search path (deprecated)
+#define DT_DEBUG    21  ///< Debug information
+
+//
+// OS/2 PowerPC ELF Dynamic Tags (from OS/2 ABI Chapter 9)
+//
+
+#define DT_EXPORT    0x60000001  ///< Export table address
+#define DT_EXPORTSZ  0x60000002  ///< Export table size
+#define DT_EXPENT    0x60000003  ///< Export entry size
+#define DT_IMPORT    0x60000004  ///< Import table address
+#define DT_IMPORTSZ  0x60000005  ///< Import table size
+#define DT_IMPENT    0x60000006  ///< Import entry size
+#define DT_IT        0x60000007  ///< Init/term type bitfields
+#define DT_ITPRTY    0x60000008  ///< Init/term priority (0 = highest)
+#define DT_INITTERM  0x60000009  ///< Init/term function address
+#define DT_STACKSZ   0x6000000a  ///< Stack size
+
+//
+// OS/2 Init/Term Types (from DT_IT)
+//
+
+#define IT_NONE      0  ///< No init/term callback
+#define IT_GLOBAL    1  ///< Library-level (first load / final unload)
+#define IT_INSTANCE  2  ///< Per-process load/unload
+#define IT_THREAD    3  ///< Per-thread (reserved in Release 1)
+
+//
+// OS/2 Init/Term Macros
+//
+
+#define ELF_IT_INIT(it)     ((it) & 0x0F)         ///< Extract init type
+#define ELF_IT_TERM(it)     (((it) >> 4) & 0x0F)  ///< Extract term type
+#define ELF_IT_INFO(i, t)   (((i) & 0x0F) | (((t) & 0x0F) << 4))  ///< Combine init/term
+
+//
 // ELF Program Header Flags
 //
 
@@ -335,6 +384,28 @@ typedef struct _ELF64_RELA {
   UINT64  Info;    ///< Relocation type and symbol index
   INT64   Addend;  ///< Addend for relocation
 } ELF64_RELA;
+
+/**
+  ELF Dynamic Section Entry (32-bit)
+**/
+typedef struct _ELF32_DYN {
+  INT32   Tag;    ///< Dynamic entry type (DT_*)
+  union {
+    UINT32  Value;  ///< Integer value
+    UINT32  Ptr;    ///< Address value
+  } Un;
+} ELF32_DYN;
+
+/**
+  ELF Dynamic Section Entry (64-bit)
+**/
+typedef struct _ELF64_DYN {
+  INT64   Tag;    ///< Dynamic entry type (DT_*)
+  union {
+    UINT64  Value;  ///< Integer value
+    UINT64  Ptr;    ///< Address value
+  } Un;
+} ELF64_DYN;
 
 ANX_PACK_POP()
 
@@ -1179,6 +1250,203 @@ GetOs2ExportSymbolByName (
   }
 
   return S_FALSE;  // No .export section
+}
+
+/**
+  Get OS/2 init/fini information from ELF dynamic segment.
+
+  Parses PT_DYNAMIC program header to extract OS/2-specific initialization
+  and termination function addresses, types, and priorities.
+
+  Supports both 32-bit and 64-bit ELF (generalized).
+
+  @param[in]  ImageBase      Pointer to ELF image.
+  @param[out] InitAddress    Receives init function address (0 if none).
+  @param[out] FiniAddress    Receives fini function address (0 if none).
+  @param[out] InitTermAddress  Receives OS/2 initterm function address (0 if none).
+  @param[out] InitType       Receives init type (IT_NONE, IT_GLOBAL, IT_INSTANCE, IT_THREAD).
+  @param[out] TermType       Receives term type (IT_NONE, IT_GLOBAL, IT_INSTANCE, IT_THREAD).
+  @param[out] Priority       Receives init/term priority (0 = highest).
+
+  @return S_OK if dynamic segment found, S_FALSE if not found.
+**/
+static
+HRESULT
+GetOs2InitFiniInfo (
+  IN  VOID    *ImageBase,
+  OUT UINT64  *InitAddress,
+  OUT UINT64  *FiniAddress,
+  OUT UINT64  *InitTermAddress,
+  OUT UINT32  *InitType,
+  OUT UINT32  *TermType,
+  OUT UINT32  *Priority
+  )
+{
+  UINT8   *Ident;
+  UINT8   ElfClass;
+  VOID    *DynamicData;
+  UINT64  DynamicSize;
+  BOOLEAN FoundDynamic;
+  INT32   i;
+
+  if (ImageBase == NULL) {
+    return E_POINTER;
+  }
+
+  // Initialize outputs
+  if (InitAddress != NULL) *InitAddress = 0;
+  if (FiniAddress != NULL) *FiniAddress = 0;
+  if (InitTermAddress != NULL) *InitTermAddress = 0;
+  if (InitType != NULL) *InitType = IT_NONE;
+  if (TermType != NULL) *TermType = IT_NONE;
+  if (Priority != NULL) *Priority = 0;
+
+  Ident = (UINT8 *)ImageBase;
+  ElfClass = Ident[4];  // EI_CLASS
+  DynamicData = NULL;
+  DynamicSize = 0;
+  FoundDynamic = FALSE;
+
+  //
+  // Find PT_DYNAMIC program header for both 32-bit and 64-bit ELF
+  //
+  if (ElfClass == ELFCLASS32) {
+    ELF32_HDR  *Hdr = (ELF32_HDR *)ImageBase;
+    ELF32_PH   *ProgramHeaders;
+
+    if (Hdr->Phoff == 0 || Hdr->Phs == 0) {
+      return S_FALSE;
+    }
+
+    ProgramHeaders = (ELF32_PH *)((UINT8 *)ImageBase + Hdr->Phoff);
+
+    for (i = 0; i < Hdr->Phs; i++) {
+      if (ProgramHeaders[i].Type == PHT_DYNAMIC) {
+        DynamicData = (VOID *)((UINT8 *)ImageBase + ProgramHeaders[i].Off);
+        DynamicSize = ProgramHeaders[i].Filesz;
+        FoundDynamic = TRUE;
+        break;
+      }
+    }
+
+    if (FoundDynamic) {
+      ELF32_DYN  *Dyn = (ELF32_DYN *)DynamicData;
+      UINT32     NumEntries = DynamicSize / sizeof(ELF32_DYN);
+      UINT32     ItValue = 0;
+
+      for (i = 0; i < NumEntries; i++) {
+        if (Dyn[i].Tag == DT_NULL) {
+          break;  // End of dynamic array
+        }
+
+        switch (Dyn[i].Tag) {
+          case DT_INIT:
+            if (InitAddress != NULL) {
+              *InitAddress = Dyn[i].Un.Ptr;
+            }
+            break;
+
+          case DT_FINI:
+            if (FiniAddress != NULL) {
+              *FiniAddress = Dyn[i].Un.Ptr;
+            }
+            break;
+
+          case DT_INITTERM:
+            if (InitTermAddress != NULL) {
+              *InitTermAddress = Dyn[i].Un.Ptr;
+            }
+            break;
+
+          case DT_IT:
+            ItValue = Dyn[i].Un.Value;
+            if (InitType != NULL) {
+              *InitType = ELF_IT_INIT(ItValue);
+            }
+            if (TermType != NULL) {
+              *TermType = ELF_IT_TERM(ItValue);
+            }
+            break;
+
+          case DT_ITPRTY:
+            if (Priority != NULL) {
+              *Priority = Dyn[i].Un.Value;
+            }
+            break;
+        }
+      }
+    }
+  } else if (ElfClass == ELFCLASS64) {
+    ELF64_HDR  *Hdr = (ELF64_HDR *)ImageBase;
+    ELF64_PH   *ProgramHeaders;
+
+    if (Hdr->Phoff == 0 || Hdr->Phs == 0) {
+      return S_FALSE;
+    }
+
+    ProgramHeaders = (ELF64_PH *)((UINT8 *)ImageBase + Hdr->Phoff);
+
+    for (i = 0; i < Hdr->Phs; i++) {
+      if (ProgramHeaders[i].Type == PHT_DYNAMIC) {
+        DynamicData = (VOID *)((UINT8 *)ImageBase + ProgramHeaders[i].Off);
+        DynamicSize = ProgramHeaders[i].Filesz;
+        FoundDynamic = TRUE;
+        break;
+      }
+    }
+
+    if (FoundDynamic) {
+      ELF64_DYN  *Dyn = (ELF64_DYN *)DynamicData;
+      UINT64     NumEntries = DynamicSize / sizeof(ELF64_DYN);
+      UINT64     ItValue = 0;
+
+      for (i = 0; i < NumEntries; i++) {
+        if (Dyn[i].Tag == DT_NULL) {
+          break;  // End of dynamic array
+        }
+
+        switch (Dyn[i].Tag) {
+          case DT_INIT:
+            if (InitAddress != NULL) {
+              *InitAddress = Dyn[i].Un.Ptr;
+            }
+            break;
+
+          case DT_FINI:
+            if (FiniAddress != NULL) {
+              *FiniAddress = Dyn[i].Un.Ptr;
+            }
+            break;
+
+          case DT_INITTERM:
+            if (InitTermAddress != NULL) {
+              *InitTermAddress = Dyn[i].Un.Ptr;
+            }
+            break;
+
+          case DT_IT:
+            ItValue = Dyn[i].Un.Value;
+            if (InitType != NULL) {
+              *InitType = ELF_IT_INIT(ItValue);
+            }
+            if (TermType != NULL) {
+              *TermType = ELF_IT_TERM(ItValue);
+            }
+            break;
+
+          case DT_ITPRTY:
+            if (Priority != NULL) {
+              *Priority = Dyn[i].Un.Value;
+            }
+            break;
+        }
+      }
+    }
+  } else {
+    return IMGLOAD_E_INVALID_FORMAT;
+  }
+
+  return FoundDynamic ? S_OK : S_FALSE;
 }
 
 /**
