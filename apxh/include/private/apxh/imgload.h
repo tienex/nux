@@ -191,7 +191,11 @@ typedef enum _IMGLOAD_ENDIAN {
   ImgEndianUnknown = 0,  ///< Unknown endianness
   ImgEndianLittle  = 1,  ///< Little-endian
   ImgEndianBig     = 2   ///< Big-endian
+  // IMPORTANT: All values must fit in UINT8 (0-255) for endian-safety
 } IMGLOAD_ENDIAN;
+
+// Compile-time assertion to ensure IMGLOAD_ENDIAN fits in UINT8
+_Static_assert(ImgEndianBig <= 255, "IMGLOAD_ENDIAN values must fit in UINT8 for endian-safety");
 
 //
 // TLS Information Structure

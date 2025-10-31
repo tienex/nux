@@ -200,4 +200,12 @@ typedef enum _ARCH {
   // Note: Endianness is tracked separately via IMGLOAD_ENDIAN in
   // APXH_BOOT_INFO and IMGLOAD_CONTEXT. Architecture enum represents
   // only the ISA, not byte order.
+  //
+  // IMPORTANT: All ARCH values must fit in UINT8 (0-255) to ensure
+  // endian-safety in boot info structures. Single-byte enums avoid
+  // endianness conversion issues during cross-endian boot.
 } ARCH;
+
+// Compile-time assertion to ensure ARCH fits in UINT8
+#define ARCH_MAX_VALUE  ArchMoxie
+_Static_assert(ARCH_MAX_VALUE <= 255, "ARCH enum values must fit in UINT8 for endian-safety");

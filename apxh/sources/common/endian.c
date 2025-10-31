@@ -65,16 +65,14 @@ ConvertBootInfoEndianness (
   BootInfo->UserTls.InitializedDataSize = Swap64(BootInfo->UserTls.InitializedDataSize);
   BootInfo->UserTls.TotalSize = Swap64(BootInfo->UserTls.TotalSize);
 
-  // Convert architecture and mixed-mode info
-  BootInfo->KernelArchitecture = Swap32(BootInfo->KernelArchitecture);
-  BootInfo->UserArchitecture = Swap32(BootInfo->UserArchitecture);
-  BootInfo->HostArchitecture = Swap32(BootInfo->HostArchitecture);
-  BootInfo->MixedModeFlags = Swap32(BootInfo->MixedModeFlags);
+  // Architecture and endianness fields are UINT8 - endian-safe, no conversion needed
+  // KernelArchitecture, UserArchitecture, HostArchitecture (UINT8)
+  // KernelEndianness, UserEndianness, MixedEndian (UINT8)
+  // Reserved1 (UINT16) - must remain zero, swap to maintain zero
+  BootInfo->Reserved1 = Swap16(BootInfo->Reserved1);
 
-  // Convert endianness info
-  BootInfo->KernelEndianness = Swap32(BootInfo->KernelEndianness);
-  BootInfo->UserEndianness = Swap32(BootInfo->UserEndianness);
-  BootInfo->MixedEndian = Swap32(BootInfo->MixedEndian);
+  // Convert mixed-mode flags (UINT32)
+  BootInfo->MixedModeFlags = Swap32(BootInfo->MixedModeFlags);
 }
 
 /**

@@ -542,15 +542,20 @@ VasMapInfoCopy (
   BootInfo.UserTls.TotalSize = gUtlsSize;
 
   // Architecture and mixed-mode information
-  BootInfo.KernelArchitecture = (UINT32)gKernelArch;
-  BootInfo.UserArchitecture = (UINT32)gUserArch;
-  BootInfo.HostArchitecture = (UINT32)gHostArch;
+  // Use UINT8 for enums - endian-safe (single byte, no endianness issues)
+  BootInfo.KernelArchitecture = (UINT8)gKernelArch;
+  BootInfo.UserArchitecture = (UINT8)gUserArch;
+  BootInfo.HostArchitecture = (UINT8)gHostArch;
   BootInfo.MixedModeFlags = GetMixedModeFlags();
 
   // Endianness information
-  BootInfo.KernelEndianness = (UINT32)gKernelEndian;
-  BootInfo.UserEndianness = (UINT32)gUserEndian;
-  BootInfo.MixedEndian = (UINT32)gMixedEndian;
+  // Use UINT8 for enums - endian-safe (single byte, no endianness issues)
+  BootInfo.KernelEndianness = (UINT8)gKernelEndian;
+  BootInfo.UserEndianness = (UINT8)gUserEndian;
+  BootInfo.MixedEndian = (UINT8)gMixedEndian;
+
+  // Reserved field for alignment
+  BootInfo.Reserved1 = 0;
 
   VasCopy (Va, &BootInfo, MIN (Size, sizeof (APXH_BOOT_INFO)), 0, 0, 0);
 #undef MIN
