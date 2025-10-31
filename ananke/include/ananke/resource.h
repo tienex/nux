@@ -143,6 +143,32 @@ AnxResourceEnumTypes (
   OUT UINT32      *Count
   );
 
+/**
+  Merge multiple resource forks into one.
+
+  Combines resources from multiple forks, handling conflicts by:
+  - Taking first occurrence for duplicate type/ID combinations
+  - Preserving all unique resources
+  - Maintaining type organization
+
+  @param[in]  Forks      Array of pointers to resource fork data.
+  @param[in]  Count      Number of forks to merge.
+  @param[out] Merged     Receives pointer to merged fork (caller must free).
+  @param[out] Size       Receives size of merged fork.
+
+  @retval S_OK           Success.
+  @retval E_INVALIDARG   Invalid parameters.
+  @retval E_OUTOFMEMORY  Memory allocation failed.
+  @retval E_POINTER      NULL pointer parameter.
+**/
+HRESULT
+AnxResourceMerge (
+  IN  CONST VOID  **Forks,
+  IN  UINT32      Count,
+  OUT VOID        **Merged,
+  OUT UINT64      *Size
+  );
+
 //
 // Type Code Helpers
 //
@@ -183,6 +209,24 @@ ANX_TYPE_TO_STRING (
   String[3] = (CHAR8)(Type & 0xFF);
   String[4] = '\0';
 }
+
+//
+// APXH Universal Resource (AUR) Type Codes
+//
+// When embedding universal resource fork within native format resources:
+// - Name-based: "AUR" (APXH Universal Resource)
+// - 32-bit ID:  "AUR " (with space, for 32-bit resource systems)
+// - 16-bit ID:  "Au" (for 16-bit resource systems like OS/2)
+// - 64-bit ID:  "APXHURSC" (APXH Universal Resource Container, for extended systems)
+//
+
+#define ANX_RSRC_TYPE_AUR        ANX_MAKE_TYPE("AUR ")  ///< Universal resource (name/32-bit)
+#define ANX_RSRC_TYPE_AUR_16BIT  ANX_MAKE_TYPE("Au\0\0") ///< Universal resource (16-bit)
+#define ANX_RSRC_TYPE_AUR_64BIT  ANX_MAKE_TYPE("APXH")  ///< Universal resource (64-bit prefix)
+
+#define ANX_RSRC_ID_AUR_16BIT    0x4175  ///< "Au" as 16-bit ID
+#define ANX_RSRC_ID_AUR_32BIT    0x41555220  ///< "AUR " as 32-bit ID
+#define ANX_RSRC_NAME_AUR        "AUR"   ///< Universal resource name
 
 //
 // Common Type Codes

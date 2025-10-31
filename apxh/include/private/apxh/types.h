@@ -79,7 +79,8 @@ typedef enum _SEGMENT_TYPE {
   SegmentTopPageTableAlloc = 10, ///< Top-level PT allocation (APXH)
   SegmentFramebuffer    = 11,  ///< Framebuffer mapping (APXH)
   SegmentRegions        = 12,  ///< Region list (APXH)
-  SegmentLinear         = 13   ///< Linear/recursive page table mapping (APXH)
+  SegmentLinear         = 13,  ///< Linear/recursive page table mapping (APXH)
+  SegmentUniversalResource = 14 ///< APXH Universal Resource (AUR) fork (APXH)
 } SEGMENT_TYPE;
 
 /**

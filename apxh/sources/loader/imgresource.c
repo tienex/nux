@@ -452,3 +452,129 @@ CreateImageResourceEnumerator (
 
   return S_OK;
 }
+
+/**
+  Find universal resource fork in image.
+
+  Handles both native-embedded AUR resources and direct .rsrc sections.
+**/
+HRESULT
+FindUniversalResourceFork (
+  IN  VOID                   *ImageBase,
+  IN  RESOURCE_STRATEGY      Strategy,
+  IN  FindNativeResourceFunc FindNativeFunc,
+  IN  FindSectionFunc        FindSectionFunc,
+  IN  CONST CHAR8            *SectionName,
+  OUT VOID                   **ResourceFork,
+  OUT UINT64                 *Size,
+  OUT BOOLEAN                *NeedsFree
+  )
+{
+  HRESULT  Status;
+  VOID     *DirectFork;
+  UINT64   DirectSize;
+  VOID     *AurFork;
+  UINT64   AurSize;
+  BOOLEAN  FoundDirect;
+  BOOLEAN  FoundNative;
+
+  if (ImageBase == NULL || ResourceFork == NULL || Size == NULL || NeedsFree == NULL) {
+    return E_POINTER;
+  }
+
+  *ResourceFork = NULL;
+  *Size = 0;
+  *NeedsFree = FALSE;
+
+  FoundDirect = FALSE;
+  FoundNative = FALSE;
+
+  //
+  // Try native AUR resource if supported
+  //
+  if ((Strategy == ResourceStrategyNativeAUR || Strategy == ResourceStrategyBoth) &&
+      FindNativeFunc != NULL) {
+    
+    // Try finding AUR resource by name first
+    Status = FindNativeFunc(ImageBase, ANX_RSRC_TYPE_AUR, 0, ANX_RSRC_NAME_AUR, &AurFork, &AurSize);
+    
+    if (Status == S_OK) {
+      // Validate the AUR resource fork
+      Status = AnxResourceValidate(AurFork, AurSize);
+      if (SUCCEEDED(Status)) {
+        *ResourceFork = AurFork;
+        *Size = AurSize;
+        *NeedsFree = FALSE;  // Native resources are part of image
+        FoundNative = TRUE;
+      }
+    }
+
+    // If not found by name, try by ID (32-bit)
+    if (!FoundNative) {
+      Status = FindNativeFunc(ImageBase, ANX_RSRC_TYPE_AUR, ANX_RSRC_ID_AUR_32BIT, NULL, &AurFork, &AurSize);
+      
+      if (Status == S_OK) {
+        Status = AnxResourceValidate(AurFork, AurSize);
+        if (SUCCEEDED(Status)) {
+          *ResourceFork = AurFork;
+          *Size = AurSize;
+          *NeedsFree = FALSE;
+          FoundNative = TRUE;
+        }
+      }
+    }
+
+    // Try 16-bit ID
+    if (!FoundNative) {
+      Status = FindNativeFunc(ImageBase, ANX_RSRC_TYPE_AUR_16BIT, ANX_RSRC_ID_AUR_16BIT, NULL, &AurFork, &AurSize);
+      
+      if (Status == S_OK) {
+        Status = AnxResourceValidate(AurFork, AurSize);
+        if (SUCCEEDED(Status)) {
+          *ResourceFork = AurFork;
+          *Size = AurSize;
+          *NeedsFree = FALSE;
+          FoundNative = TRUE;
+        }
+      }
+    }
+
+    // TODO: Support merging multiple AUR sub-resources
+    // For now, we just use the first one found
+
+    if (FoundNative) {
+      return S_OK;
+    }
+
+    // If NativeAUR strategy and nothing found, return not found
+    if (Strategy == ResourceStrategyNativeAUR) {
+      return S_FALSE;
+    }
+  }
+
+  //
+  // Try direct .rsrc section
+  //
+  if ((Strategy == ResourceStrategyDirect || Strategy == ResourceStrategyBoth) &&
+      FindSectionFunc != NULL && SectionName != NULL) {
+    
+    Status = FindSectionFunc(ImageBase, SectionName, &DirectFork, &DirectSize);
+    
+    if (Status == S_OK) {
+      // Validate the resource fork
+      Status = AnxResourceValidate(DirectFork, DirectSize);
+      if (SUCCEEDED(Status)) {
+        *ResourceFork = DirectFork;
+        *Size = DirectSize;
+        *NeedsFree = FALSE;  // Section data is part of image
+        FoundDirect = TRUE;
+      }
+    }
+
+    if (FoundDirect) {
+      return S_OK;
+    }
+  }
+
+  return S_FALSE;  // No resources found
+}

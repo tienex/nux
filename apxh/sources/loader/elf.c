@@ -141,6 +141,7 @@
 #define ELF_APXH_REGIONS           0xAF100007  ///< Region list
 #define ELF_APXH_TOP_PT_ALLOC      0xAF100008  ///< Top-level PT allocation
 #define ELF_APXH_LINEAR            0xAF100009  ///< Linear page table map
+#define ELF_APXH_URESOURCE         0xAF10000A  ///< Universal resource fork (AUR)
 
 //
 // ELF Program Header Flags
@@ -379,6 +380,8 @@ MapElfTypeToSegmentType (
       return SegmentRegions;
     case ELF_APXH_LINEAR:
       return SegmentLinear;
+    case ELF_APXH_URESOURCE:
+      return SegmentUniversalResource;
     default:
       return SegmentNull;  // Ignore unknown types
   }
@@ -2036,21 +2039,24 @@ ElfGetMinimumSubsystemVersion (
 }
 
 /**
-  Find .rsrc section in ELF image.
+  Find .axursrc section in ELF image.
+
+  Looks for APXH Universal Resource section containing Classic Mac resource fork.
 **/
 static
 HRESULT
-ElfFindResourceFork (
-  IN  VOID    *ImageBase,
-  OUT VOID    **ResourceFork,
-  OUT UINT64  *Size
+ElfFindSection (
+  IN  VOID         *ImageBase,
+  IN  CONST CHAR8  *SectionName,
+  OUT VOID         **Data,
+  OUT UINT64       *Size
   )
 {
   UINT8  *Ident;
   UINT8  ElfClass;
   INT32  i;
 
-  if (ImageBase == NULL || ResourceFork == NULL || Size == NULL) {
+  if (ImageBase == NULL || SectionName == NULL || Data == NULL || Size == NULL) {
     return E_POINTER;
   }
 
@@ -2074,8 +2080,8 @@ ElfFindResourceFork (
     for (i = 0; i < Hdr->Shs; i++) {
       CHAR8 *SecName = &StrTab[Sections[i].Name];
 
-      if (strcmp(SecName, ".rsrc") == 0) {
-        *ResourceFork = (VOID *)((UINT8 *)ImageBase + Sections[i].Off);
+      if (strcmp(SecName, SectionName) == 0) {
+        *Data = (VOID *)((UINT8 *)ImageBase + Sections[i].Off);
         *Size = Sections[i].Size;
         return S_OK;
       }
@@ -2097,8 +2103,8 @@ ElfFindResourceFork (
     for (i = 0; i < Hdr->Shs; i++) {
       CHAR8 *SecName = &StrTab[Sections[i].Name];
 
-      if (strcmp(SecName, ".rsrc") == 0) {
-        *ResourceFork = (VOID *)((UINT8 *)ImageBase + Sections[i].Off);
+      if (strcmp(SecName, SectionName) == 0) {
+        *Data = (VOID *)((UINT8 *)ImageBase + Sections[i].Off);
         *Size = Sections[i].Size;
         return S_OK;
       }
@@ -2107,13 +2113,13 @@ ElfFindResourceFork (
     return IMGLOAD_E_INVALID_FORMAT;
   }
 
-  return S_FALSE;  // No .rsrc section
+  return S_FALSE;  // Section not found
 }
 
 /**
   Get resource from ELF image.
 
-  Uses Classic Mac resource fork in .rsrc section.
+  Uses Classic Mac resource fork in .axursrc section or PHT_APXH_URESOURCE program header.
 **/
 static
 HRESULT
@@ -2131,21 +2137,26 @@ ElfGetResource (
   UINT32   TypeCode;
   UINT16   Id;
   CONST CHAR8  *Name;
+  BOOLEAN  NeedsFree;
   HRESULT  Status;
 
   if (ImageBase == NULL || ResourceType == NULL || Resource == NULL) {
     return E_POINTER;
   }
 
-  // Find .rsrc section
-  Status = ElfFindResourceFork(ImageBase, &ResourceFork, &Size);
-  if (FAILED(Status) || Status == S_FALSE) {
-    return Status;
-  }
+  // Find universal resource fork (.axursrc section)
+  Status = FindUniversalResourceFork(
+             ImageBase,
+             ResourceStrategyDirect,
+             NULL,  // No native resources in ELF
+             ElfFindSection,
+             ".axursrc",
+             &ResourceFork,
+             &Size,
+             &NeedsFree
+             );
 
-  // Validate resource fork
-  Status = AnxResourceValidate(ResourceFork, Size);
-  if (FAILED(Status)) {
+  if (FAILED(Status) || Status == S_FALSE) {
     return Status;
   }
 
@@ -2190,21 +2201,26 @@ ElfGetResourceEnumerator (
   VOID     *ResourceFork;
   UINT64   Size;
   UINT32   TypeCode;
+  BOOLEAN  NeedsFree;
   HRESULT  Status;
 
   if (ImageBase == NULL || Enumerator == NULL) {
     return E_POINTER;
   }
 
-  // Find .rsrc section
-  Status = ElfFindResourceFork(ImageBase, &ResourceFork, &Size);
-  if (FAILED(Status) || Status == S_FALSE) {
-    return Status;
-  }
+  // Find universal resource fork
+  Status = FindUniversalResourceFork(
+             ImageBase,
+             ResourceStrategyDirect,
+             NULL,
+             ElfFindSection,
+             ".axursrc",
+             &ResourceFork,
+             &Size,
+             &NeedsFree
+             );
 
-  // Validate resource fork
-  Status = AnxResourceValidate(ResourceFork, Size);
-  if (FAILED(Status)) {
+  if (FAILED(Status) || Status == S_FALSE) {
     return Status;
   }
 
