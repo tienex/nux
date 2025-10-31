@@ -1656,122 +1656,139 @@ typedef enum _TUI_MENU_ITEM_TYPE {
     TuiMenuItemInfo
 } TUI_MENU_ITEM_TYPE;
 
+// {5F6A7B8C-9D0E-1F2A-3B4C-5D6E7F8A9B0C}
+DEFINE_GUID(IID_ITuiThemedMenu,
+    0x5F6A7B8C, 0x9D0E, 0x1F2A, 0x3B, 0x4C, 0x5D, 0x6E, 0x7F, 0x8A, 0x9B, 0x0C);
+
+/**
+  ITuiThemedMenu Interface
+
+  Menu theming interface. Inherits from ITuiThemedWidget.
+**/
+typedef struct _ITuiThemedMenu_Vtbl {
+    // ITuiSerializable methods
+    HRESULT (ANXAPI *QueryInterface)(ITuiThemedMenu *This, REFIID riid, VOID **ppvObject);
+    UINTN (ANXAPI *AddRef)(ITuiThemedMenu *This);
+    UINTN (ANXAPI *Release)(ITuiThemedMenu *This);
+    HRESULT (ANXAPI *SerializeToYaml)(ITuiThemedMenu *This, CHAR8 **OutYaml, UINTN *OutLength);
+    HRESULT (ANXAPI *DeserializeFromYaml)(ITuiThemedMenu *This, CONST CHAR8 *Yaml, UINTN Length);
+    HRESULT (ANXAPI *GetTypeName)(ITuiThemedMenu *This, CONST CHAR8 **OutTypeName);
+    HRESULT (ANXAPI *Clone)(ITuiThemedMenu *This, ITuiSerializable **OutClone);
+
+    // ITuiResponder methods
+    HRESULT (ANXAPI *GetNextResponder)(ITuiThemedMenu *This, ITuiResponder **NextResponder);
+    HRESULT (ANXAPI *SetNextResponder)(ITuiThemedMenu *This, ITuiResponder *NextResponder);
+    BOOLEAN (ANXAPI *AcceptsFirstResponder)(ITuiThemedMenu *This);
+    HRESULT (ANXAPI *BecomeFirstResponder)(ITuiThemedMenu *This);
+    HRESULT (ANXAPI *ResignFirstResponder)(ITuiThemedMenu *This);
+
+    // ITuiWidget methods
+    HRESULT (ANXAPI *SetBounds)(ITuiThemedMenu *This, CONST TUI_RECT *Bounds);
+    HRESULT (ANXAPI *GetBounds)(ITuiThemedMenu *This, TUI_RECT *Bounds);
+    HRESULT (ANXAPI *SetVisible)(ITuiThemedMenu *This, BOOLEAN Visible);
+    BOOLEAN (ANXAPI *IsVisible)(ITuiThemedMenu *This);
+    HRESULT (ANXAPI *SetEnabled)(ITuiThemedMenu *This, BOOLEAN Enabled);
+    BOOLEAN (ANXAPI *IsEnabled)(ITuiThemedMenu *This);
+    HRESULT (ANXAPI *SetParent)(ITuiThemedMenu *This, ITuiWidget *Parent);
+    HRESULT (ANXAPI *GetParent)(ITuiThemedMenu *This, ITuiWidget **Parent);
+    HRESULT (ANXAPI *AddChild)(ITuiThemedMenu *This, ITuiWidget *Child);
+    HRESULT (ANXAPI *RemoveChild)(ITuiThemedMenu *This, ITuiWidget *Child);
+    HRESULT (ANXAPI *SetNeedsDisplay)(ITuiThemedMenu *This, BOOLEAN Needed);
+
+    // ITuiThemedWidget methods
+    HRESULT (ANXAPI *ApplyTheme)(ITuiThemedMenu *This, ITuiTheme *Theme);
+    HRESULT (ANXAPI *GetColors)(ITuiThemedMenu *This, TUI_COLOR *Foreground, TUI_COLOR *Background);
+    HRESULT (ANXAPI *SetColors)(ITuiThemedMenu *This, TUI_COLOR Foreground, TUI_COLOR Background);
+    HRESULT (ANXAPI *OnMouseEvent)(ITuiThemedMenu *This, CONST TUI_MOUSE_EVENT *Event, BOOLEAN *Handled);
+    HRESULT (ANXAPI *OnKeyEvent)(ITuiThemedMenu *This, TUI_KEY Key, UINT32 Modifiers, BOOLEAN *Handled);
+    HRESULT (ANXAPI *Draw)(ITuiThemedMenu *This, ITuiSurface *Surface, CONST TUI_RECT *DirtyRect);
+
+    // ITuiThemedMenu methods
+    HRESULT (ANXAPI *GetHotkeyColor)(ITuiThemedMenu *This, TUI_COLOR *HotkeyColor);
+    HRESULT (ANXAPI *SetHotkeyColor)(ITuiThemedMenu *This, TUI_COLOR HotkeyColor);
+    HRESULT (ANXAPI *GetAcceleratorColor)(ITuiThemedMenu *This, TUI_COLOR *AcceleratorColor);
+    HRESULT (ANXAPI *SetAcceleratorColor)(ITuiThemedMenu *This, TUI_COLOR AcceleratorColor);
+    HRESULT (ANXAPI *GetSelectedColors)(ITuiThemedMenu *This, TUI_COLOR *Foreground, TUI_COLOR *Background);
+    HRESULT (ANXAPI *SetSelectedColors)(ITuiThemedMenu *This, TUI_COLOR Foreground, TUI_COLOR Background);
+    HRESULT (ANXAPI *GetDisabledColor)(ITuiThemedMenu *This, TUI_COLOR *DisabledColor);
+    HRESULT (ANXAPI *SetDisabledColor)(ITuiThemedMenu *This, TUI_COLOR DisabledColor);
+    CHAR8 (ANXAPI *GetSeparatorChar)(ITuiThemedMenu *This);
+    HRESULT (ANXAPI *SetSeparatorChar)(ITuiThemedMenu *This, CHAR8 SeparatorChar);
+} ITuiThemedMenu_Vtbl;
+
+struct _ITuiThemedMenu {
+    CONST ITuiThemedMenu_Vtbl *Vtbl;
+};
+
 /**
   ITuiMenu Interface
 
-  Represents an interactive menu.
+  Represents an interactive menu. Inherits from ITuiThemedMenu.
 **/
 typedef struct _ITuiMenu_Vtbl {
-    //
-    // IUnknown methods
-    //
-    HRESULT (ANXAPI *QueryInterface)(
-        ITuiMenu *This,
-        REFIID riid,
-        VOID **ppvObject
-    );
+    // ITuiSerializable methods
+    HRESULT (ANXAPI *QueryInterface)(ITuiMenu *This, REFIID riid, VOID **ppvObject);
+    UINTN (ANXAPI *AddRef)(ITuiMenu *This);
+    UINTN (ANXAPI *Release)(ITuiMenu *This);
+    HRESULT (ANXAPI *SerializeToYaml)(ITuiMenu *This, CHAR8 **OutYaml, UINTN *OutLength);
+    HRESULT (ANXAPI *DeserializeFromYaml)(ITuiMenu *This, CONST CHAR8 *Yaml, UINTN Length);
+    HRESULT (ANXAPI *GetTypeName)(ITuiMenu *This, CONST CHAR8 **OutTypeName);
+    HRESULT (ANXAPI *Clone)(ITuiMenu *This, ITuiSerializable **OutClone);
 
-    UINTN (ANXAPI *AddRef)(
-        ITuiMenu *This
-    );
+    // ITuiResponder methods
+    HRESULT (ANXAPI *GetNextResponder)(ITuiMenu *This, ITuiResponder **NextResponder);
+    HRESULT (ANXAPI *SetNextResponder)(ITuiMenu *This, ITuiResponder *NextResponder);
+    BOOLEAN (ANXAPI *AcceptsFirstResponder)(ITuiMenu *This);
+    HRESULT (ANXAPI *BecomeFirstResponder)(ITuiMenu *This);
+    HRESULT (ANXAPI *ResignFirstResponder)(ITuiMenu *This);
 
-    UINTN (ANXAPI *Release)(
-        ITuiMenu *This
-    );
+    // ITuiWidget methods
+    HRESULT (ANXAPI *SetBounds)(ITuiMenu *This, CONST TUI_RECT *Bounds);
+    HRESULT (ANXAPI *GetBounds)(ITuiMenu *This, TUI_RECT *Bounds);
+    HRESULT (ANXAPI *SetVisible)(ITuiMenu *This, BOOLEAN Visible);
+    BOOLEAN (ANXAPI *IsVisible)(ITuiMenu *This);
+    HRESULT (ANXAPI *SetEnabled)(ITuiMenu *This, BOOLEAN Enabled);
+    BOOLEAN (ANXAPI *IsEnabled)(ITuiMenu *This);
+    HRESULT (ANXAPI *SetParent)(ITuiMenu *This, ITuiWidget *Parent);
+    HRESULT (ANXAPI *GetParent)(ITuiMenu *This, ITuiWidget **Parent);
+    HRESULT (ANXAPI *AddChild)(ITuiMenu *This, ITuiWidget *Child);
+    HRESULT (ANXAPI *RemoveChild)(ITuiMenu *This, ITuiWidget *Child);
+    HRESULT (ANXAPI *SetNeedsDisplay)(ITuiMenu *This, BOOLEAN Needed);
 
-    //
+    // ITuiThemedWidget methods
+    HRESULT (ANXAPI *ApplyTheme)(ITuiMenu *This, ITuiTheme *Theme);
+    HRESULT (ANXAPI *GetColors)(ITuiMenu *This, TUI_COLOR *Foreground, TUI_COLOR *Background);
+    HRESULT (ANXAPI *SetColors)(ITuiMenu *This, TUI_COLOR Foreground, TUI_COLOR Background);
+    HRESULT (ANXAPI *OnMouseEvent)(ITuiMenu *This, CONST TUI_MOUSE_EVENT *Event, BOOLEAN *Handled);
+    HRESULT (ANXAPI *OnKeyEvent)(ITuiMenu *This, TUI_KEY Key, UINT32 Modifiers, BOOLEAN *Handled);
+    HRESULT (ANXAPI *Draw)(ITuiMenu *This, ITuiSurface *Surface, CONST TUI_RECT *DirtyRect);
+
+    // ITuiThemedMenu methods
+    HRESULT (ANXAPI *GetHotkeyColor)(ITuiMenu *This, TUI_COLOR *HotkeyColor);
+    HRESULT (ANXAPI *SetHotkeyColor)(ITuiMenu *This, TUI_COLOR HotkeyColor);
+    HRESULT (ANXAPI *GetAcceleratorColor)(ITuiMenu *This, TUI_COLOR *AcceleratorColor);
+    HRESULT (ANXAPI *SetAcceleratorColor)(ITuiMenu *This, TUI_COLOR AcceleratorColor);
+    HRESULT (ANXAPI *GetSelectedColors)(ITuiMenu *This, TUI_COLOR *Foreground, TUI_COLOR *Background);
+    HRESULT (ANXAPI *SetSelectedColors)(ITuiMenu *This, TUI_COLOR Foreground, TUI_COLOR Background);
+    HRESULT (ANXAPI *GetDisabledColor)(ITuiMenu *This, TUI_COLOR *DisabledColor);
+    HRESULT (ANXAPI *SetDisabledColor)(ITuiMenu *This, TUI_COLOR DisabledColor);
+    CHAR8 (ANXAPI *GetSeparatorChar)(ITuiMenu *This);
+    HRESULT (ANXAPI *SetSeparatorChar)(ITuiMenu *This, CHAR8 SeparatorChar);
+
     // ITuiMenu methods
-    //
-
-    /**
-      Add a menu item.
-    **/
-    HRESULT (ANXAPI *AddItem)(
-        ITuiMenu *This,
-        TUI_MENU_ITEM_TYPE Type,
-        CONST CHAR8 *Label,
-        CONST CHAR8 *Help,
-        VOID *UserData
-    );
-
-    /**
-      Display menu and run event loop.
-      Returns selected item index or -1 if cancelled.
-    **/
-    HRESULT (ANXAPI *Run)(
-        ITuiMenu *This,
-        INT32 *SelectedIndex
-    );
-
-    /**
-      Get item value (for boolean/choice/string/integer items).
-    **/
-    HRESULT (ANXAPI *GetItemValue)(
-        ITuiMenu *This,
-        INT32 Index,
-        VOID *Value,
-        UINTN ValueSize
-    );
-
-    /**
-      Set item value.
-    **/
-    HRESULT (ANXAPI *SetItemValue)(
-        ITuiMenu *This,
-        INT32 Index,
-        CONST VOID *Value,
-        UINTN ValueSize
-    );
-
-    /**
-      Set hotkey for menu item (e.g., 'F' for "File").
-      Pressing Alt+F will activate this item.
-    **/
-    HRESULT (ANXAPI *SetItemHotkey)(
-        ITuiMenu *This,
-        INT32 Index,
-        CHAR8 Hotkey
-    );
-
-    /**
-      Set accelerator key for menu item (e.g., Ctrl+S for Save).
-    **/
-    HRESULT (ANXAPI *SetItemAccelerator)(
-        ITuiMenu *This,
-        INT32 Index,
-        TUI_KEY Key,
-        BOOLEAN Ctrl,
-        BOOLEAN Alt,
-        BOOLEAN Shift
-    );
-
-    /**
-      Get item hotkey.
-    **/
-    HRESULT (ANXAPI *GetItemHotkey)(
-        ITuiMenu *This,
-        INT32 Index,
-        CHAR8 *Hotkey
-    );
-
-    /**
-      Enable/disable menu item.
-    **/
-    HRESULT (ANXAPI *SetItemEnabled)(
-        ITuiMenu *This,
-        INT32 Index,
-        BOOLEAN Enabled
-    );
-
-    /**
-      Check/uncheck menu item (for toggle items).
-    **/
-    HRESULT (ANXAPI *SetItemChecked)(
-        ITuiMenu *This,
-        INT32 Index,
-        BOOLEAN Checked
-    );
-
+    HRESULT (ANXAPI *AddItem)(ITuiMenu *This, TUI_MENU_ITEM_TYPE Type, CONST CHAR8 *Label, CONST CHAR8 *Help, VOID *UserData);
+    HRESULT (ANXAPI *Run)(ITuiMenu *This, INT32 *SelectedIndex);
+    HRESULT (ANXAPI *GetItemValue)(ITuiMenu *This, INT32 Index, VOID *Value, UINTN ValueSize);
+    HRESULT (ANXAPI *SetItemValue)(ITuiMenu *This, INT32 Index, CONST VOID *Value, UINTN ValueSize);
+    HRESULT (ANXAPI *SetItemHotkey)(ITuiMenu *This, INT32 Index, CHAR8 Hotkey);
+    HRESULT (ANXAPI *SetItemAccelerator)(ITuiMenu *This, INT32 Index, TUI_KEY Key, BOOLEAN Ctrl, BOOLEAN Alt, BOOLEAN Shift);
+    HRESULT (ANXAPI *GetItemHotkey)(ITuiMenu *This, INT32 Index, CHAR8 *Hotkey);
+    HRESULT (ANXAPI *SetItemEnabled)(ITuiMenu *This, INT32 Index, BOOLEAN Enabled);
+    HRESULT (ANXAPI *SetItemChecked)(ITuiMenu *This, INT32 Index, BOOLEAN Checked);
+    UINT32 (ANXAPI *GetItemCount)(ITuiMenu *This);
+    HRESULT (ANXAPI *GetItemLabel)(ITuiMenu *This, INT32 Index, CHAR8 *Buffer, UINTN BufferSize);
+    HRESULT (ANXAPI *RemoveItem)(ITuiMenu *This, INT32 Index);
+    HRESULT (ANXAPI *ClearItems)(ITuiMenu *This);
 } ITuiMenu_Vtbl;
 
 struct _ITuiMenu {
@@ -2220,6 +2237,66 @@ struct _ITuiInput {
     CONST ITuiInput_Vtbl *Vtbl;
 };
 
+// {8D9E0F1A-2B3C-4D5E-6F7A-8B9C0D1E2F3A}
+DEFINE_GUID(IID_ITuiThemedRadioGroup,
+    0x8D9E0F1A, 0x2B3C, 0x4D5E, 0x6F, 0x7A, 0x8B, 0x9C, 0x0D, 0x1E, 0x2F, 0x3A);
+
+/**
+  ITuiThemedRadioGroup Interface
+
+  Radio group theming interface. Inherits from ITuiThemedWidget.
+**/
+typedef struct _ITuiThemedRadioGroup_Vtbl {
+    // ITuiSerializable methods
+    HRESULT (ANXAPI *QueryInterface)(ITuiThemedRadioGroup *This, REFIID riid, VOID **ppvObject);
+    UINTN (ANXAPI *AddRef)(ITuiThemedRadioGroup *This);
+    UINTN (ANXAPI *Release)(ITuiThemedRadioGroup *This);
+    HRESULT (ANXAPI *SerializeToYaml)(ITuiThemedRadioGroup *This, CHAR8 **OutYaml, UINTN *OutLength);
+    HRESULT (ANXAPI *DeserializeFromYaml)(ITuiThemedRadioGroup *This, CONST CHAR8 *Yaml, UINTN Length);
+    HRESULT (ANXAPI *GetTypeName)(ITuiThemedRadioGroup *This, CONST CHAR8 **OutTypeName);
+    HRESULT (ANXAPI *Clone)(ITuiThemedRadioGroup *This, ITuiSerializable **OutClone);
+
+    // ITuiResponder methods
+    HRESULT (ANXAPI *GetNextResponder)(ITuiThemedRadioGroup *This, ITuiResponder **NextResponder);
+    HRESULT (ANXAPI *SetNextResponder)(ITuiThemedRadioGroup *This, ITuiResponder *NextResponder);
+    BOOLEAN (ANXAPI *AcceptsFirstResponder)(ITuiThemedRadioGroup *This);
+    HRESULT (ANXAPI *BecomeFirstResponder)(ITuiThemedRadioGroup *This);
+    HRESULT (ANXAPI *ResignFirstResponder)(ITuiThemedRadioGroup *This);
+
+    // ITuiWidget methods
+    HRESULT (ANXAPI *SetBounds)(ITuiThemedRadioGroup *This, CONST TUI_RECT *Bounds);
+    HRESULT (ANXAPI *GetBounds)(ITuiThemedRadioGroup *This, TUI_RECT *Bounds);
+    HRESULT (ANXAPI *SetVisible)(ITuiThemedRadioGroup *This, BOOLEAN Visible);
+    BOOLEAN (ANXAPI *IsVisible)(ITuiThemedRadioGroup *This);
+    HRESULT (ANXAPI *SetEnabled)(ITuiThemedRadioGroup *This, BOOLEAN Enabled);
+    BOOLEAN (ANXAPI *IsEnabled)(ITuiThemedRadioGroup *This);
+    HRESULT (ANXAPI *SetParent)(ITuiThemedRadioGroup *This, ITuiWidget *Parent);
+    HRESULT (ANXAPI *GetParent)(ITuiThemedRadioGroup *This, ITuiWidget **Parent);
+    HRESULT (ANXAPI *AddChild)(ITuiThemedRadioGroup *This, ITuiWidget *Child);
+    HRESULT (ANXAPI *RemoveChild)(ITuiThemedRadioGroup *This, ITuiWidget *Child);
+    HRESULT (ANXAPI *SetNeedsDisplay)(ITuiThemedRadioGroup *This, BOOLEAN Needed);
+
+    // ITuiThemedWidget methods
+    HRESULT (ANXAPI *ApplyTheme)(ITuiThemedRadioGroup *This, ITuiTheme *Theme);
+    HRESULT (ANXAPI *GetColors)(ITuiThemedRadioGroup *This, TUI_COLOR *Foreground, TUI_COLOR *Background);
+    HRESULT (ANXAPI *SetColors)(ITuiThemedRadioGroup *This, TUI_COLOR Foreground, TUI_COLOR Background);
+    HRESULT (ANXAPI *OnMouseEvent)(ITuiThemedRadioGroup *This, CONST TUI_MOUSE_EVENT *Event, BOOLEAN *Handled);
+    HRESULT (ANXAPI *OnKeyEvent)(ITuiThemedRadioGroup *This, TUI_KEY Key, UINT32 Modifiers, BOOLEAN *Handled);
+    HRESULT (ANXAPI *Draw)(ITuiThemedRadioGroup *This, ITuiSurface *Surface, CONST TUI_RECT *DirtyRect);
+
+    // ITuiThemedRadioGroup methods
+    HRESULT (ANXAPI *GetCheckedChar)(ITuiThemedRadioGroup *This, CHAR8 *CheckedChar);
+    HRESULT (ANXAPI *SetCheckedChar)(ITuiThemedRadioGroup *This, CHAR8 CheckedChar);
+    HRESULT (ANXAPI *GetUncheckedChar)(ITuiThemedRadioGroup *This, CHAR8 *UncheckedChar);
+    HRESULT (ANXAPI *SetUncheckedChar)(ITuiThemedRadioGroup *This, CHAR8 UncheckedChar);
+    HRESULT (ANXAPI *GetSelectedColors)(ITuiThemedRadioGroup *This, TUI_COLOR *Foreground, TUI_COLOR *Background);
+    HRESULT (ANXAPI *SetSelectedColors)(ITuiThemedRadioGroup *This, TUI_COLOR Foreground, TUI_COLOR Background);
+} ITuiThemedRadioGroup_Vtbl;
+
+struct _ITuiThemedRadioGroup {
+    CONST ITuiThemedRadioGroup_Vtbl *Vtbl;
+};
+
 // {F6A7B8C9-D0E1-4F2A-3B4C-5D6E7F8A9B0C}
 DEFINE_GUID(IID_ITuiRadioGroup,
     0xF6A7B8C9, 0xD0E1, 0x4F2A, 0x3B, 0x4C, 0x5D, 0x6E, 0x7F, 0x8A, 0x9B, 0x0C);
@@ -2227,92 +2304,65 @@ DEFINE_GUID(IID_ITuiRadioGroup,
 /**
   ITuiRadioGroup Interface
 
-  Represents a radio button group (choice selection).
+  Represents a radio button group (choice selection). Inherits from ITuiThemedRadioGroup.
 **/
 typedef struct _ITuiRadioGroup_Vtbl {
-    //
-    // IUnknown methods
-    //
-    HRESULT (ANXAPI *QueryInterface)(
-        ITuiRadioGroup *This,
-        REFIID riid,
-        VOID **ppvObject
-    );
+    // ITuiSerializable methods
+    HRESULT (ANXAPI *QueryInterface)(ITuiRadioGroup *This, REFIID riid, VOID **ppvObject);
+    UINTN (ANXAPI *AddRef)(ITuiRadioGroup *This);
+    UINTN (ANXAPI *Release)(ITuiRadioGroup *This);
+    HRESULT (ANXAPI *SerializeToYaml)(ITuiRadioGroup *This, CHAR8 **OutYaml, UINTN *OutLength);
+    HRESULT (ANXAPI *DeserializeFromYaml)(ITuiRadioGroup *This, CONST CHAR8 *Yaml, UINTN Length);
+    HRESULT (ANXAPI *GetTypeName)(ITuiRadioGroup *This, CONST CHAR8 **OutTypeName);
+    HRESULT (ANXAPI *Clone)(ITuiRadioGroup *This, ITuiSerializable **OutClone);
 
-    UINTN (ANXAPI *AddRef)(
-        ITuiRadioGroup *This
-    );
+    // ITuiResponder methods
+    HRESULT (ANXAPI *GetNextResponder)(ITuiRadioGroup *This, ITuiResponder **NextResponder);
+    HRESULT (ANXAPI *SetNextResponder)(ITuiRadioGroup *This, ITuiResponder *NextResponder);
+    BOOLEAN (ANXAPI *AcceptsFirstResponder)(ITuiRadioGroup *This);
+    HRESULT (ANXAPI *BecomeFirstResponder)(ITuiRadioGroup *This);
+    HRESULT (ANXAPI *ResignFirstResponder)(ITuiRadioGroup *This);
 
-    UINTN (ANXAPI *Release)(
-        ITuiRadioGroup *This
-    );
+    // ITuiWidget methods
+    HRESULT (ANXAPI *SetBounds)(ITuiRadioGroup *This, CONST TUI_RECT *Bounds);
+    HRESULT (ANXAPI *GetBounds)(ITuiRadioGroup *This, TUI_RECT *Bounds);
+    HRESULT (ANXAPI *SetVisible)(ITuiRadioGroup *This, BOOLEAN Visible);
+    BOOLEAN (ANXAPI *IsVisible)(ITuiRadioGroup *This);
+    HRESULT (ANXAPI *SetEnabled)(ITuiRadioGroup *This, BOOLEAN Enabled);
+    BOOLEAN (ANXAPI *IsEnabled)(ITuiRadioGroup *This);
+    HRESULT (ANXAPI *SetParent)(ITuiRadioGroup *This, ITuiWidget *Parent);
+    HRESULT (ANXAPI *GetParent)(ITuiRadioGroup *This, ITuiWidget **Parent);
+    HRESULT (ANXAPI *AddChild)(ITuiRadioGroup *This, ITuiWidget *Child);
+    HRESULT (ANXAPI *RemoveChild)(ITuiRadioGroup *This, ITuiWidget *Child);
+    HRESULT (ANXAPI *SetNeedsDisplay)(ITuiRadioGroup *This, BOOLEAN Needed);
 
-    //
+    // ITuiThemedWidget methods
+    HRESULT (ANXAPI *ApplyTheme)(ITuiRadioGroup *This, ITuiTheme *Theme);
+    HRESULT (ANXAPI *GetColors)(ITuiRadioGroup *This, TUI_COLOR *Foreground, TUI_COLOR *Background);
+    HRESULT (ANXAPI *SetColors)(ITuiRadioGroup *This, TUI_COLOR Foreground, TUI_COLOR Background);
+    HRESULT (ANXAPI *OnMouseEvent)(ITuiRadioGroup *This, CONST TUI_MOUSE_EVENT *Event, BOOLEAN *Handled);
+    HRESULT (ANXAPI *OnKeyEvent)(ITuiRadioGroup *This, TUI_KEY Key, UINT32 Modifiers, BOOLEAN *Handled);
+    HRESULT (ANXAPI *Draw)(ITuiRadioGroup *This, ITuiSurface *Surface, CONST TUI_RECT *DirtyRect);
+
+    // ITuiThemedRadioGroup methods
+    HRESULT (ANXAPI *GetCheckedChar)(ITuiRadioGroup *This, CHAR8 *CheckedChar);
+    HRESULT (ANXAPI *SetCheckedChar)(ITuiRadioGroup *This, CHAR8 CheckedChar);
+    HRESULT (ANXAPI *GetUncheckedChar)(ITuiRadioGroup *This, CHAR8 *UncheckedChar);
+    HRESULT (ANXAPI *SetUncheckedChar)(ITuiRadioGroup *This, CHAR8 UncheckedChar);
+    HRESULT (ANXAPI *GetSelectedColors)(ITuiRadioGroup *This, TUI_COLOR *Foreground, TUI_COLOR *Background);
+    HRESULT (ANXAPI *SetSelectedColors)(ITuiRadioGroup *This, TUI_COLOR Foreground, TUI_COLOR Background);
+
     // ITuiRadioGroup methods
-    //
-
-    /**
-      Set group label.
-    **/
-    HRESULT (ANXAPI *SetLabel)(
-        ITuiRadioGroup *This,
-        CONST CHAR8 *Label
-    );
-
-    /**
-      Add a choice option.
-    **/
-    HRESULT (ANXAPI *AddChoice)(
-        ITuiRadioGroup *This,
-        CONST CHAR8 *Label,
-        CONST CHAR8 *Value
-    );
-
-    /**
-      Get selected choice index.
-    **/
-    HRESULT (ANXAPI *GetSelectedIndex)(
-        ITuiRadioGroup *This,
-        UINT32 *Index
-    );
-
-    /**
-      Set selected choice index.
-    **/
-    HRESULT (ANXAPI *SetSelectedIndex)(
-        ITuiRadioGroup *This,
-        UINT32 Index
-    );
-
-    /**
-      Get selected choice value.
-    **/
-    HRESULT (ANXAPI *GetSelectedValue)(
-        ITuiRadioGroup *This,
-        CHAR8 *Buffer,
-        UINTN BufferSize
-    );
-
-    /**
-      Render radio group at position.
-    **/
-    HRESULT (ANXAPI *Render)(
-        ITuiRadioGroup *This,
-        ITuiScreen *Screen,
-        INT32 X,
-        INT32 Y,
-        BOOLEAN Focused
-    );
-
-    /**
-      Handle key input.
-    **/
-    HRESULT (ANXAPI *HandleKey)(
-        ITuiRadioGroup *This,
-        TUI_KEY Key,
-        BOOLEAN *Handled
-    );
-
+    HRESULT (ANXAPI *SetLabel)(ITuiRadioGroup *This, CONST CHAR8 *Label);
+    HRESULT (ANXAPI *GetLabel)(ITuiRadioGroup *This, CHAR8 *Buffer, UINTN BufferSize);
+    HRESULT (ANXAPI *AddChoice)(ITuiRadioGroup *This, CONST CHAR8 *Label, CONST CHAR8 *Value);
+    HRESULT (ANXAPI *GetSelectedIndex)(ITuiRadioGroup *This, UINT32 *Index);
+    HRESULT (ANXAPI *SetSelectedIndex)(ITuiRadioGroup *This, UINT32 Index);
+    HRESULT (ANXAPI *GetSelectedValue)(ITuiRadioGroup *This, CHAR8 *Buffer, UINTN BufferSize);
+    UINT32 (ANXAPI *GetChoiceCount)(ITuiRadioGroup *This);
+    HRESULT (ANXAPI *GetChoiceLabel)(ITuiRadioGroup *This, UINT32 Index, CHAR8 *Buffer, UINTN BufferSize);
+    HRESULT (ANXAPI *RemoveChoice)(ITuiRadioGroup *This, UINT32 Index);
+    HRESULT (ANXAPI *ClearChoices)(ITuiRadioGroup *This);
 } ITuiRadioGroup_Vtbl;
 
 struct _ITuiRadioGroup {
@@ -2815,6 +2865,66 @@ struct _ITuiListBox {
     CONST ITuiListBox_Vtbl *Vtbl;
 };
 
+// {4B5C6D7E-8F9A-0B1C-2D3E-4F5A6B7C8D9E}
+DEFINE_GUID(IID_ITuiThemedComboBox,
+    0x4B5C6D7E, 0x8F9A, 0x0B1C, 0x2D, 0x3E, 0x4F, 0x5A, 0x6B, 0x7C, 0x8D, 0x9E);
+
+/**
+  ITuiThemedComboBox Interface
+
+  ComboBox theming interface. Inherits from ITuiThemedWidget.
+**/
+typedef struct _ITuiThemedComboBox_Vtbl {
+    // ITuiSerializable methods
+    HRESULT (ANXAPI *QueryInterface)(ITuiThemedComboBox *This, REFIID riid, VOID **ppvObject);
+    UINTN (ANXAPI *AddRef)(ITuiThemedComboBox *This);
+    UINTN (ANXAPI *Release)(ITuiThemedComboBox *This);
+    HRESULT (ANXAPI *SerializeToYaml)(ITuiThemedComboBox *This, CHAR8 **OutYaml, UINTN *OutLength);
+    HRESULT (ANXAPI *DeserializeFromYaml)(ITuiThemedComboBox *This, CONST CHAR8 *Yaml, UINTN Length);
+    HRESULT (ANXAPI *GetTypeName)(ITuiThemedComboBox *This, CONST CHAR8 **OutTypeName);
+    HRESULT (ANXAPI *Clone)(ITuiThemedComboBox *This, ITuiSerializable **OutClone);
+
+    // ITuiResponder methods
+    HRESULT (ANXAPI *GetNextResponder)(ITuiThemedComboBox *This, ITuiResponder **NextResponder);
+    HRESULT (ANXAPI *SetNextResponder)(ITuiThemedComboBox *This, ITuiResponder *NextResponder);
+    BOOLEAN (ANXAPI *AcceptsFirstResponder)(ITuiThemedComboBox *This);
+    HRESULT (ANXAPI *BecomeFirstResponder)(ITuiThemedComboBox *This);
+    HRESULT (ANXAPI *ResignFirstResponder)(ITuiThemedComboBox *This);
+
+    // ITuiWidget methods
+    HRESULT (ANXAPI *SetBounds)(ITuiThemedComboBox *This, CONST TUI_RECT *Bounds);
+    HRESULT (ANXAPI *GetBounds)(ITuiThemedComboBox *This, TUI_RECT *Bounds);
+    HRESULT (ANXAPI *SetVisible)(ITuiThemedComboBox *This, BOOLEAN Visible);
+    BOOLEAN (ANXAPI *IsVisible)(ITuiThemedComboBox *This);
+    HRESULT (ANXAPI *SetEnabled)(ITuiThemedComboBox *This, BOOLEAN Enabled);
+    BOOLEAN (ANXAPI *IsEnabled)(ITuiThemedComboBox *This);
+    HRESULT (ANXAPI *SetParent)(ITuiThemedComboBox *This, ITuiWidget *Parent);
+    HRESULT (ANXAPI *GetParent)(ITuiThemedComboBox *This, ITuiWidget **Parent);
+    HRESULT (ANXAPI *AddChild)(ITuiThemedComboBox *This, ITuiWidget *Child);
+    HRESULT (ANXAPI *RemoveChild)(ITuiThemedComboBox *This, ITuiWidget *Child);
+    HRESULT (ANXAPI *SetNeedsDisplay)(ITuiThemedComboBox *This, BOOLEAN Needed);
+
+    // ITuiThemedWidget methods
+    HRESULT (ANXAPI *ApplyTheme)(ITuiThemedComboBox *This, ITuiTheme *Theme);
+    HRESULT (ANXAPI *GetColors)(ITuiThemedComboBox *This, TUI_COLOR *Foreground, TUI_COLOR *Background);
+    HRESULT (ANXAPI *SetColors)(ITuiThemedComboBox *This, TUI_COLOR Foreground, TUI_COLOR Background);
+    HRESULT (ANXAPI *OnMouseEvent)(ITuiThemedComboBox *This, CONST TUI_MOUSE_EVENT *Event, BOOLEAN *Handled);
+    HRESULT (ANXAPI *OnKeyEvent)(ITuiThemedComboBox *This, TUI_KEY Key, UINT32 Modifiers, BOOLEAN *Handled);
+    HRESULT (ANXAPI *Draw)(ITuiThemedComboBox *This, ITuiSurface *Surface, CONST TUI_RECT *DirtyRect);
+
+    // ITuiThemedComboBox methods
+    CHAR8 (ANXAPI *GetDropdownChar)(ITuiThemedComboBox *This);
+    HRESULT (ANXAPI *SetDropdownChar)(ITuiThemedComboBox *This, CHAR8 DropdownChar);
+    HRESULT (ANXAPI *GetDropdownColors)(ITuiThemedComboBox *This, TUI_COLOR *Foreground, TUI_COLOR *Background);
+    HRESULT (ANXAPI *SetDropdownColors)(ITuiThemedComboBox *This, TUI_COLOR Foreground, TUI_COLOR Background);
+    HRESULT (ANXAPI *GetListColors)(ITuiThemedComboBox *This, TUI_COLOR *Foreground, TUI_COLOR *Background);
+    HRESULT (ANXAPI *SetListColors)(ITuiThemedComboBox *This, TUI_COLOR Foreground, TUI_COLOR Background);
+} ITuiThemedComboBox_Vtbl;
+
+struct _ITuiThemedComboBox {
+    CONST ITuiThemedComboBox_Vtbl *Vtbl;
+};
+
 // {D0E1F2A3-B4C5-4D6E-7F8A-9B0C1D2E3F4A}
 DEFINE_GUID(IID_ITuiComboBox,
     0xD0E1F2A3, 0xB4C5, 0x4D6E, 0x7F, 0x8A, 0x9B, 0x0C, 0x1D, 0x2E, 0x3F, 0x4A);
@@ -2822,24 +2932,130 @@ DEFINE_GUID(IID_ITuiComboBox,
 /**
   ITuiComboBox Interface
 
-  Editable dropdown with autocomplete.
+  Editable dropdown with autocomplete. Inherits from ITuiThemedComboBox.
 **/
 typedef struct _ITuiComboBox_Vtbl {
+    // ITuiSerializable methods
     HRESULT (ANXAPI *QueryInterface)(ITuiComboBox *This, REFIID riid, VOID **ppvObject);
     UINTN (ANXAPI *AddRef)(ITuiComboBox *This);
     UINTN (ANXAPI *Release)(ITuiComboBox *This);
+    HRESULT (ANXAPI *SerializeToYaml)(ITuiComboBox *This, CHAR8 **OutYaml, UINTN *OutLength);
+    HRESULT (ANXAPI *DeserializeFromYaml)(ITuiComboBox *This, CONST CHAR8 *Yaml, UINTN Length);
+    HRESULT (ANXAPI *GetTypeName)(ITuiComboBox *This, CONST CHAR8 **OutTypeName);
+    HRESULT (ANXAPI *Clone)(ITuiComboBox *This, ITuiSerializable **OutClone);
 
+    // ITuiResponder methods
+    HRESULT (ANXAPI *GetNextResponder)(ITuiComboBox *This, ITuiResponder **NextResponder);
+    HRESULT (ANXAPI *SetNextResponder)(ITuiComboBox *This, ITuiResponder *NextResponder);
+    BOOLEAN (ANXAPI *AcceptsFirstResponder)(ITuiComboBox *This);
+    HRESULT (ANXAPI *BecomeFirstResponder)(ITuiComboBox *This);
+    HRESULT (ANXAPI *ResignFirstResponder)(ITuiComboBox *This);
+
+    // ITuiWidget methods
+    HRESULT (ANXAPI *SetBounds)(ITuiComboBox *This, CONST TUI_RECT *Bounds);
+    HRESULT (ANXAPI *GetBounds)(ITuiComboBox *This, TUI_RECT *Bounds);
+    HRESULT (ANXAPI *SetVisible)(ITuiComboBox *This, BOOLEAN Visible);
+    BOOLEAN (ANXAPI *IsVisible)(ITuiComboBox *This);
+    HRESULT (ANXAPI *SetEnabled)(ITuiComboBox *This, BOOLEAN Enabled);
+    BOOLEAN (ANXAPI *IsEnabled)(ITuiComboBox *This);
+    HRESULT (ANXAPI *SetParent)(ITuiComboBox *This, ITuiWidget *Parent);
+    HRESULT (ANXAPI *GetParent)(ITuiComboBox *This, ITuiWidget **Parent);
+    HRESULT (ANXAPI *AddChild)(ITuiComboBox *This, ITuiWidget *Child);
+    HRESULT (ANXAPI *RemoveChild)(ITuiComboBox *This, ITuiWidget *Child);
+    HRESULT (ANXAPI *SetNeedsDisplay)(ITuiComboBox *This, BOOLEAN Needed);
+
+    // ITuiThemedWidget methods
+    HRESULT (ANXAPI *ApplyTheme)(ITuiComboBox *This, ITuiTheme *Theme);
+    HRESULT (ANXAPI *GetColors)(ITuiComboBox *This, TUI_COLOR *Foreground, TUI_COLOR *Background);
+    HRESULT (ANXAPI *SetColors)(ITuiComboBox *This, TUI_COLOR Foreground, TUI_COLOR Background);
+    HRESULT (ANXAPI *OnMouseEvent)(ITuiComboBox *This, CONST TUI_MOUSE_EVENT *Event, BOOLEAN *Handled);
+    HRESULT (ANXAPI *OnKeyEvent)(ITuiComboBox *This, TUI_KEY Key, UINT32 Modifiers, BOOLEAN *Handled);
+    HRESULT (ANXAPI *Draw)(ITuiComboBox *This, ITuiSurface *Surface, CONST TUI_RECT *DirtyRect);
+
+    // ITuiThemedComboBox methods
+    CHAR8 (ANXAPI *GetDropdownChar)(ITuiComboBox *This);
+    HRESULT (ANXAPI *SetDropdownChar)(ITuiComboBox *This, CHAR8 DropdownChar);
+    HRESULT (ANXAPI *GetDropdownColors)(ITuiComboBox *This, TUI_COLOR *Foreground, TUI_COLOR *Background);
+    HRESULT (ANXAPI *SetDropdownColors)(ITuiComboBox *This, TUI_COLOR Foreground, TUI_COLOR Background);
+    HRESULT (ANXAPI *GetListColors)(ITuiComboBox *This, TUI_COLOR *Foreground, TUI_COLOR *Background);
+    HRESULT (ANXAPI *SetListColors)(ITuiComboBox *This, TUI_COLOR Foreground, TUI_COLOR Background);
+
+    // ITuiComboBox methods
     HRESULT (ANXAPI *AddItem)(ITuiComboBox *This, CONST CHAR8 *Text);
     HRESULT (ANXAPI *GetText)(ITuiComboBox *This, CHAR8 *Buffer, UINTN BufferSize);
     HRESULT (ANXAPI *SetText)(ITuiComboBox *This, CONST CHAR8 *Text);
     HRESULT (ANXAPI *SetEditable)(ITuiComboBox *This, BOOLEAN Editable);
+    BOOLEAN (ANXAPI *IsEditable)(ITuiComboBox *This);
     HRESULT (ANXAPI *SetAutocomplete)(ITuiComboBox *This, BOOLEAN Enabled);
-    HRESULT (ANXAPI *Render)(ITuiComboBox *This, ITuiScreen *Screen, INT32 X, INT32 Y, UINT32 Width, BOOLEAN Focused);
-    HRESULT (ANXAPI *HandleInput)(ITuiComboBox *This, CONST TUI_INPUT_EVENT *Event, BOOLEAN *Handled);
+    BOOLEAN (ANXAPI *IsAutocomplete)(ITuiComboBox *This);
+    UINT32 (ANXAPI *GetItemCount)(ITuiComboBox *This);
+    HRESULT (ANXAPI *GetItemText)(ITuiComboBox *This, UINT32 Index, CHAR8 *Buffer, UINTN BufferSize);
+    HRESULT (ANXAPI *RemoveItem)(ITuiComboBox *This, UINT32 Index);
+    HRESULT (ANXAPI *ClearItems)(ITuiComboBox *This);
+    HRESULT (ANXAPI *GetSelectedIndex)(ITuiComboBox *This, INT32 *Index);
+    HRESULT (ANXAPI *SetSelectedIndex)(ITuiComboBox *This, INT32 Index);
 } ITuiComboBox_Vtbl;
 
 struct _ITuiComboBox {
     CONST ITuiComboBox_Vtbl *Vtbl;
+};
+
+// {7C8D9E0F-1A2B-3C4D-5E6F-7A8B9C0D1E2F}
+DEFINE_GUID(IID_ITuiThemedDropDown,
+    0x7C8D9E0F, 0x1A2B, 0x3C4D, 0x5E, 0x6F, 0x7A, 0x8B, 0x9C, 0x0D, 0x1E, 0x2F);
+
+/**
+  ITuiThemedDropDown Interface
+
+  DropDown theming interface. Inherits from ITuiThemedWidget.
+**/
+typedef struct _ITuiThemedDropDown_Vtbl {
+    // ITuiSerializable methods
+    HRESULT (ANXAPI *QueryInterface)(ITuiThemedDropDown *This, REFIID riid, VOID **ppvObject);
+    UINTN (ANXAPI *AddRef)(ITuiThemedDropDown *This);
+    UINTN (ANXAPI *Release)(ITuiThemedDropDown *This);
+    HRESULT (ANXAPI *SerializeToYaml)(ITuiThemedDropDown *This, CHAR8 **OutYaml, UINTN *OutLength);
+    HRESULT (ANXAPI *DeserializeFromYaml)(ITuiThemedDropDown *This, CONST CHAR8 *Yaml, UINTN Length);
+    HRESULT (ANXAPI *GetTypeName)(ITuiThemedDropDown *This, CONST CHAR8 **OutTypeName);
+    HRESULT (ANXAPI *Clone)(ITuiThemedDropDown *This, ITuiSerializable **OutClone);
+
+    // ITuiResponder methods
+    HRESULT (ANXAPI *GetNextResponder)(ITuiThemedDropDown *This, ITuiResponder **NextResponder);
+    HRESULT (ANXAPI *SetNextResponder)(ITuiThemedDropDown *This, ITuiResponder *NextResponder);
+    BOOLEAN (ANXAPI *AcceptsFirstResponder)(ITuiThemedDropDown *This);
+    HRESULT (ANXAPI *BecomeFirstResponder)(ITuiThemedDropDown *This);
+    HRESULT (ANXAPI *ResignFirstResponder)(ITuiThemedDropDown *This);
+
+    // ITuiWidget methods
+    HRESULT (ANXAPI *SetBounds)(ITuiThemedDropDown *This, CONST TUI_RECT *Bounds);
+    HRESULT (ANXAPI *GetBounds)(ITuiThemedDropDown *This, TUI_RECT *Bounds);
+    HRESULT (ANXAPI *SetVisible)(ITuiThemedDropDown *This, BOOLEAN Visible);
+    BOOLEAN (ANXAPI *IsVisible)(ITuiThemedDropDown *This);
+    HRESULT (ANXAPI *SetEnabled)(ITuiThemedDropDown *This, BOOLEAN Enabled);
+    BOOLEAN (ANXAPI *IsEnabled)(ITuiThemedDropDown *This);
+    HRESULT (ANXAPI *SetParent)(ITuiThemedDropDown *This, ITuiWidget *Parent);
+    HRESULT (ANXAPI *GetParent)(ITuiThemedDropDown *This, ITuiWidget **Parent);
+    HRESULT (ANXAPI *AddChild)(ITuiThemedDropDown *This, ITuiWidget *Child);
+    HRESULT (ANXAPI *RemoveChild)(ITuiThemedDropDown *This, ITuiWidget *Child);
+    HRESULT (ANXAPI *SetNeedsDisplay)(ITuiThemedDropDown *This, BOOLEAN Needed);
+
+    // ITuiThemedWidget methods
+    HRESULT (ANXAPI *ApplyTheme)(ITuiThemedDropDown *This, ITuiTheme *Theme);
+    HRESULT (ANXAPI *GetColors)(ITuiThemedDropDown *This, TUI_COLOR *Foreground, TUI_COLOR *Background);
+    HRESULT (ANXAPI *SetColors)(ITuiThemedDropDown *This, TUI_COLOR Foreground, TUI_COLOR Background);
+    HRESULT (ANXAPI *OnMouseEvent)(ITuiThemedDropDown *This, CONST TUI_MOUSE_EVENT *Event, BOOLEAN *Handled);
+    HRESULT (ANXAPI *OnKeyEvent)(ITuiThemedDropDown *This, TUI_KEY Key, UINT32 Modifiers, BOOLEAN *Handled);
+    HRESULT (ANXAPI *Draw)(ITuiThemedDropDown *This, ITuiSurface *Surface, CONST TUI_RECT *DirtyRect);
+
+    // ITuiThemedDropDown methods
+    CHAR8 (ANXAPI *GetArrowChar)(ITuiThemedDropDown *This);
+    HRESULT (ANXAPI *SetArrowChar)(ITuiThemedDropDown *This, CHAR8 ArrowChar);
+    HRESULT (ANXAPI *GetListColors)(ITuiThemedDropDown *This, TUI_COLOR *Foreground, TUI_COLOR *Background);
+    HRESULT (ANXAPI *SetListColors)(ITuiThemedDropDown *This, TUI_COLOR Foreground, TUI_COLOR Background);
+} ITuiThemedDropDown_Vtbl;
+
+struct _ITuiThemedDropDown {
+    CONST ITuiThemedDropDown_Vtbl *Vtbl;
 };
 
 // {E1F2A3B4-C5D6-4E7F-8A9B-0C1D2E3F4A5B}
@@ -2849,22 +3065,123 @@ DEFINE_GUID(IID_ITuiDropDown,
 /**
   ITuiDropDown Interface
 
-  Dropdown menu (non-editable selection).
+  Dropdown menu (non-editable selection). Inherits from ITuiThemedDropDown.
 **/
 typedef struct _ITuiDropDown_Vtbl {
+    // ITuiSerializable methods
     HRESULT (ANXAPI *QueryInterface)(ITuiDropDown *This, REFIID riid, VOID **ppvObject);
     UINTN (ANXAPI *AddRef)(ITuiDropDown *This);
     UINTN (ANXAPI *Release)(ITuiDropDown *This);
+    HRESULT (ANXAPI *SerializeToYaml)(ITuiDropDown *This, CHAR8 **OutYaml, UINTN *OutLength);
+    HRESULT (ANXAPI *DeserializeFromYaml)(ITuiDropDown *This, CONST CHAR8 *Yaml, UINTN Length);
+    HRESULT (ANXAPI *GetTypeName)(ITuiDropDown *This, CONST CHAR8 **OutTypeName);
+    HRESULT (ANXAPI *Clone)(ITuiDropDown *This, ITuiSerializable **OutClone);
 
+    // ITuiResponder methods
+    HRESULT (ANXAPI *GetNextResponder)(ITuiDropDown *This, ITuiResponder **NextResponder);
+    HRESULT (ANXAPI *SetNextResponder)(ITuiDropDown *This, ITuiResponder *NextResponder);
+    BOOLEAN (ANXAPI *AcceptsFirstResponder)(ITuiDropDown *This);
+    HRESULT (ANXAPI *BecomeFirstResponder)(ITuiDropDown *This);
+    HRESULT (ANXAPI *ResignFirstResponder)(ITuiDropDown *This);
+
+    // ITuiWidget methods
+    HRESULT (ANXAPI *SetBounds)(ITuiDropDown *This, CONST TUI_RECT *Bounds);
+    HRESULT (ANXAPI *GetBounds)(ITuiDropDown *This, TUI_RECT *Bounds);
+    HRESULT (ANXAPI *SetVisible)(ITuiDropDown *This, BOOLEAN Visible);
+    BOOLEAN (ANXAPI *IsVisible)(ITuiDropDown *This);
+    HRESULT (ANXAPI *SetEnabled)(ITuiDropDown *This, BOOLEAN Enabled);
+    BOOLEAN (ANXAPI *IsEnabled)(ITuiDropDown *This);
+    HRESULT (ANXAPI *SetParent)(ITuiDropDown *This, ITuiWidget *Parent);
+    HRESULT (ANXAPI *GetParent)(ITuiDropDown *This, ITuiWidget **Parent);
+    HRESULT (ANXAPI *AddChild)(ITuiDropDown *This, ITuiWidget *Child);
+    HRESULT (ANXAPI *RemoveChild)(ITuiDropDown *This, ITuiWidget *Child);
+    HRESULT (ANXAPI *SetNeedsDisplay)(ITuiDropDown *This, BOOLEAN Needed);
+
+    // ITuiThemedWidget methods
+    HRESULT (ANXAPI *ApplyTheme)(ITuiDropDown *This, ITuiTheme *Theme);
+    HRESULT (ANXAPI *GetColors)(ITuiDropDown *This, TUI_COLOR *Foreground, TUI_COLOR *Background);
+    HRESULT (ANXAPI *SetColors)(ITuiDropDown *This, TUI_COLOR Foreground, TUI_COLOR Background);
+    HRESULT (ANXAPI *OnMouseEvent)(ITuiDropDown *This, CONST TUI_MOUSE_EVENT *Event, BOOLEAN *Handled);
+    HRESULT (ANXAPI *OnKeyEvent)(ITuiDropDown *This, TUI_KEY Key, UINT32 Modifiers, BOOLEAN *Handled);
+    HRESULT (ANXAPI *Draw)(ITuiDropDown *This, ITuiSurface *Surface, CONST TUI_RECT *DirtyRect);
+
+    // ITuiThemedDropDown methods
+    CHAR8 (ANXAPI *GetArrowChar)(ITuiDropDown *This);
+    HRESULT (ANXAPI *SetArrowChar)(ITuiDropDown *This, CHAR8 ArrowChar);
+    HRESULT (ANXAPI *GetListColors)(ITuiDropDown *This, TUI_COLOR *Foreground, TUI_COLOR *Background);
+    HRESULT (ANXAPI *SetListColors)(ITuiDropDown *This, TUI_COLOR Foreground, TUI_COLOR Background);
+
+    // ITuiDropDown methods
     HRESULT (ANXAPI *AddItem)(ITuiDropDown *This, CONST CHAR8 *Text, VOID *UserData);
     HRESULT (ANXAPI *GetSelectedIndex)(ITuiDropDown *This, INT32 *Index);
     HRESULT (ANXAPI *SetSelectedIndex)(ITuiDropDown *This, INT32 Index);
-    HRESULT (ANXAPI *Render)(ITuiDropDown *This, ITuiScreen *Screen, INT32 X, INT32 Y, UINT32 Width, BOOLEAN Focused);
-    HRESULT (ANXAPI *HandleInput)(ITuiDropDown *This, CONST TUI_INPUT_EVENT *Event, BOOLEAN *Handled);
+    UINT32 (ANXAPI *GetItemCount)(ITuiDropDown *This);
+    HRESULT (ANXAPI *GetItemText)(ITuiDropDown *This, UINT32 Index, CHAR8 *Buffer, UINTN BufferSize);
+    HRESULT (ANXAPI *GetItemUserData)(ITuiDropDown *This, UINT32 Index, VOID **UserData);
+    HRESULT (ANXAPI *RemoveItem)(ITuiDropDown *This, UINT32 Index);
+    HRESULT (ANXAPI *ClearItems)(ITuiDropDown *This);
 } ITuiDropDown_Vtbl;
 
 struct _ITuiDropDown {
     CONST ITuiDropDown_Vtbl *Vtbl;
+};
+
+// {9E0F1A2B-3C4D-5E6F-7A8B-9C0D1E2F3A4B}
+DEFINE_GUID(IID_ITuiThemedMenuBar,
+    0x9E0F1A2B, 0x3C4D, 0x5E6F, 0x7A, 0x8B, 0x9C, 0x0D, 0x1E, 0x2F, 0x3A, 0x4B);
+
+/**
+  ITuiThemedMenuBar Interface
+
+  MenuBar theming interface. Inherits from ITuiThemedWidget.
+**/
+typedef struct _ITuiThemedMenuBar_Vtbl {
+    // ITuiSerializable methods
+    HRESULT (ANXAPI *QueryInterface)(ITuiThemedMenuBar *This, REFIID riid, VOID **ppvObject);
+    UINTN (ANXAPI *AddRef)(ITuiThemedMenuBar *This);
+    UINTN (ANXAPI *Release)(ITuiThemedMenuBar *This);
+    HRESULT (ANXAPI *SerializeToYaml)(ITuiThemedMenuBar *This, CHAR8 **OutYaml, UINTN *OutLength);
+    HRESULT (ANXAPI *DeserializeFromYaml)(ITuiThemedMenuBar *This, CONST CHAR8 *Yaml, UINTN Length);
+    HRESULT (ANXAPI *GetTypeName)(ITuiThemedMenuBar *This, CONST CHAR8 **OutTypeName);
+    HRESULT (ANXAPI *Clone)(ITuiThemedMenuBar *This, ITuiSerializable **OutClone);
+
+    // ITuiResponder methods
+    HRESULT (ANXAPI *GetNextResponder)(ITuiThemedMenuBar *This, ITuiResponder **NextResponder);
+    HRESULT (ANXAPI *SetNextResponder)(ITuiThemedMenuBar *This, ITuiResponder *NextResponder);
+    BOOLEAN (ANXAPI *AcceptsFirstResponder)(ITuiThemedMenuBar *This);
+    HRESULT (ANXAPI *BecomeFirstResponder)(ITuiThemedMenuBar *This);
+    HRESULT (ANXAPI *ResignFirstResponder)(ITuiThemedMenuBar *This);
+
+    // ITuiWidget methods
+    HRESULT (ANXAPI *SetBounds)(ITuiThemedMenuBar *This, CONST TUI_RECT *Bounds);
+    HRESULT (ANXAPI *GetBounds)(ITuiThemedMenuBar *This, TUI_RECT *Bounds);
+    HRESULT (ANXAPI *SetVisible)(ITuiThemedMenuBar *This, BOOLEAN Visible);
+    BOOLEAN (ANXAPI *IsVisible)(ITuiThemedMenuBar *This);
+    HRESULT (ANXAPI *SetEnabled)(ITuiThemedMenuBar *This, BOOLEAN Enabled);
+    BOOLEAN (ANXAPI *IsEnabled)(ITuiThemedMenuBar *This);
+    HRESULT (ANXAPI *SetParent)(ITuiThemedMenuBar *This, ITuiWidget *Parent);
+    HRESULT (ANXAPI *GetParent)(ITuiThemedMenuBar *This, ITuiWidget **Parent);
+    HRESULT (ANXAPI *AddChild)(ITuiThemedMenuBar *This, ITuiWidget *Child);
+    HRESULT (ANXAPI *RemoveChild)(ITuiThemedMenuBar *This, ITuiWidget *Child);
+    HRESULT (ANXAPI *SetNeedsDisplay)(ITuiThemedMenuBar *This, BOOLEAN Needed);
+
+    // ITuiThemedWidget methods
+    HRESULT (ANXAPI *ApplyTheme)(ITuiThemedMenuBar *This, ITuiTheme *Theme);
+    HRESULT (ANXAPI *GetColors)(ITuiThemedMenuBar *This, TUI_COLOR *Foreground, TUI_COLOR *Background);
+    HRESULT (ANXAPI *SetColors)(ITuiThemedMenuBar *This, TUI_COLOR Foreground, TUI_COLOR Background);
+    HRESULT (ANXAPI *OnMouseEvent)(ITuiThemedMenuBar *This, CONST TUI_MOUSE_EVENT *Event, BOOLEAN *Handled);
+    HRESULT (ANXAPI *OnKeyEvent)(ITuiThemedMenuBar *This, TUI_KEY Key, UINT32 Modifiers, BOOLEAN *Handled);
+    HRESULT (ANXAPI *Draw)(ITuiThemedMenuBar *This, ITuiSurface *Surface, CONST TUI_RECT *DirtyRect);
+
+    // ITuiThemedMenuBar methods
+    HRESULT (ANXAPI *GetHotkeyColor)(ITuiThemedMenuBar *This, TUI_COLOR *HotkeyColor);
+    HRESULT (ANXAPI *SetHotkeyColor)(ITuiThemedMenuBar *This, TUI_COLOR HotkeyColor);
+    HRESULT (ANXAPI *GetActiveColors)(ITuiThemedMenuBar *This, TUI_COLOR *Foreground, TUI_COLOR *Background);
+    HRESULT (ANXAPI *SetActiveColors)(ITuiThemedMenuBar *This, TUI_COLOR Foreground, TUI_COLOR Background);
+} ITuiThemedMenuBar_Vtbl;
+
+struct _ITuiThemedMenuBar {
+    CONST ITuiThemedMenuBar_Vtbl *Vtbl;
 };
 
 // {F2A3B4C5-D6E7-4F8A-9B0C-1D2E3F4A5B6C}
@@ -2874,21 +3191,133 @@ DEFINE_GUID(IID_ITuiMenuBar,
 /**
   ITuiMenuBar Interface
 
-  Top menu bar with dropdown menus.
+  Top menu bar with dropdown menus. Inherits from ITuiThemedMenuBar.
 **/
 typedef struct _ITuiMenuBar_Vtbl {
+    // ITuiSerializable methods
     HRESULT (ANXAPI *QueryInterface)(ITuiMenuBar *This, REFIID riid, VOID **ppvObject);
     UINTN (ANXAPI *AddRef)(ITuiMenuBar *This);
     UINTN (ANXAPI *Release)(ITuiMenuBar *This);
+    HRESULT (ANXAPI *SerializeToYaml)(ITuiMenuBar *This, CHAR8 **OutYaml, UINTN *OutLength);
+    HRESULT (ANXAPI *DeserializeFromYaml)(ITuiMenuBar *This, CONST CHAR8 *Yaml, UINTN Length);
+    HRESULT (ANXAPI *GetTypeName)(ITuiMenuBar *This, CONST CHAR8 **OutTypeName);
+    HRESULT (ANXAPI *Clone)(ITuiMenuBar *This, ITuiSerializable **OutClone);
 
+    // ITuiResponder methods
+    HRESULT (ANXAPI *GetNextResponder)(ITuiMenuBar *This, ITuiResponder **NextResponder);
+    HRESULT (ANXAPI *SetNextResponder)(ITuiMenuBar *This, ITuiResponder *NextResponder);
+    BOOLEAN (ANXAPI *AcceptsFirstResponder)(ITuiMenuBar *This);
+    HRESULT (ANXAPI *BecomeFirstResponder)(ITuiMenuBar *This);
+    HRESULT (ANXAPI *ResignFirstResponder)(ITuiMenuBar *This);
+
+    // ITuiWidget methods
+    HRESULT (ANXAPI *SetBounds)(ITuiMenuBar *This, CONST TUI_RECT *Bounds);
+    HRESULT (ANXAPI *GetBounds)(ITuiMenuBar *This, TUI_RECT *Bounds);
+    HRESULT (ANXAPI *SetVisible)(ITuiMenuBar *This, BOOLEAN Visible);
+    BOOLEAN (ANXAPI *IsVisible)(ITuiMenuBar *This);
+    HRESULT (ANXAPI *SetEnabled)(ITuiMenuBar *This, BOOLEAN Enabled);
+    BOOLEAN (ANXAPI *IsEnabled)(ITuiMenuBar *This);
+    HRESULT (ANXAPI *SetParent)(ITuiMenuBar *This, ITuiWidget *Parent);
+    HRESULT (ANXAPI *GetParent)(ITuiMenuBar *This, ITuiWidget **Parent);
+    HRESULT (ANXAPI *AddChild)(ITuiMenuBar *This, ITuiWidget *Child);
+    HRESULT (ANXAPI *RemoveChild)(ITuiMenuBar *This, ITuiWidget *Child);
+    HRESULT (ANXAPI *SetNeedsDisplay)(ITuiMenuBar *This, BOOLEAN Needed);
+
+    // ITuiThemedWidget methods
+    HRESULT (ANXAPI *ApplyTheme)(ITuiMenuBar *This, ITuiTheme *Theme);
+    HRESULT (ANXAPI *GetColors)(ITuiMenuBar *This, TUI_COLOR *Foreground, TUI_COLOR *Background);
+    HRESULT (ANXAPI *SetColors)(ITuiMenuBar *This, TUI_COLOR Foreground, TUI_COLOR Background);
+    HRESULT (ANXAPI *OnMouseEvent)(ITuiMenuBar *This, CONST TUI_MOUSE_EVENT *Event, BOOLEAN *Handled);
+    HRESULT (ANXAPI *OnKeyEvent)(ITuiMenuBar *This, TUI_KEY Key, UINT32 Modifiers, BOOLEAN *Handled);
+    HRESULT (ANXAPI *Draw)(ITuiMenuBar *This, ITuiSurface *Surface, CONST TUI_RECT *DirtyRect);
+
+    // ITuiThemedMenuBar methods
+    HRESULT (ANXAPI *GetHotkeyColor)(ITuiMenuBar *This, TUI_COLOR *HotkeyColor);
+    HRESULT (ANXAPI *SetHotkeyColor)(ITuiMenuBar *This, TUI_COLOR HotkeyColor);
+    HRESULT (ANXAPI *GetActiveColors)(ITuiMenuBar *This, TUI_COLOR *Foreground, TUI_COLOR *Background);
+    HRESULT (ANXAPI *SetActiveColors)(ITuiMenuBar *This, TUI_COLOR Foreground, TUI_COLOR Background);
+
+    // ITuiMenuBar methods
     HRESULT (ANXAPI *AddMenu)(ITuiMenuBar *This, CONST CHAR8 *Title, ITuiMenu *Menu);
     HRESULT (ANXAPI *SetHotkey)(ITuiMenuBar *This, UINT32 MenuIndex, CHAR8 Hotkey);
-    HRESULT (ANXAPI *Render)(ITuiMenuBar *This, ITuiScreen *Screen);
-    HRESULT (ANXAPI *HandleInput)(ITuiMenuBar *This, CONST TUI_INPUT_EVENT *Event, BOOLEAN *Handled);
+    HRESULT (ANXAPI *GetHotkey)(ITuiMenuBar *This, UINT32 MenuIndex, CHAR8 *Hotkey);
+    UINT32 (ANXAPI *GetMenuCount)(ITuiMenuBar *This);
+    HRESULT (ANXAPI *GetMenuTitle)(ITuiMenuBar *This, UINT32 MenuIndex, CHAR8 *Buffer, UINTN BufferSize);
+    HRESULT (ANXAPI *GetMenu)(ITuiMenuBar *This, UINT32 MenuIndex, ITuiMenu **Menu);
+    HRESULT (ANXAPI *RemoveMenu)(ITuiMenuBar *This, UINT32 MenuIndex);
+    HRESULT (ANXAPI *ClearMenus)(ITuiMenuBar *This);
 } ITuiMenuBar_Vtbl;
 
 struct _ITuiMenuBar {
     CONST ITuiMenuBar_Vtbl *Vtbl;
+};
+
+// {2A3B4C5D-6E7F-8A9B-0C1D-2E3F4A5B6C7D}
+DEFINE_GUID(IID_ITuiThemedStatusBar,
+    0x2A3B4C5D, 0x6E7F, 0x8A9B, 0x0C, 0x1D, 0x2E, 0x3F, 0x4A, 0x5B, 0x6C, 0x7D);
+
+/**
+  ITuiThemedStatusBar Interface
+
+  StatusBar theming interface. Inherits from ITuiThemedWidget.
+**/
+typedef struct _ITuiThemedStatusBar_Vtbl {
+    // ITuiSerializable methods
+    HRESULT (ANXAPI *QueryInterface)(ITuiThemedStatusBar *This, REFIID riid, VOID **ppvObject);
+    UINTN (ANXAPI *AddRef)(ITuiThemedStatusBar *This);
+    UINTN (ANXAPI *Release)(ITuiThemedStatusBar *This);
+    HRESULT (ANXAPI *SerializeToYaml)(ITuiThemedStatusBar *This, CHAR8 **OutYaml, UINTN *OutLength);
+    HRESULT (ANXAPI *DeserializeFromYaml)(ITuiThemedStatusBar *This, CONST CHAR8 *Yaml, UINTN Length);
+    HRESULT (ANXAPI *GetTypeName)(ITuiThemedStatusBar *This, CONST CHAR8 **OutTypeName);
+    HRESULT (ANXAPI *Clone)(ITuiThemedStatusBar *This, ITuiSerializable **OutClone);
+
+    // ITuiResponder methods
+    HRESULT (ANXAPI *GetNextResponder)(ITuiThemedStatusBar *This, ITuiResponder **NextResponder);
+    HRESULT (ANXAPI *SetNextResponder)(ITuiThemedStatusBar *This, ITuiResponder *NextResponder);
+    BOOLEAN (ANXAPI *AcceptsFirstResponder)(ITuiThemedStatusBar *This);
+    HRESULT (ANXAPI *BecomeFirstResponder)(ITuiThemedStatusBar *This);
+    HRESULT (ANXAPI *ResignFirstResponder)(ITuiThemedStatusBar *This);
+
+    // ITuiWidget methods
+    HRESULT (ANXAPI *SetBounds)(ITuiThemedStatusBar *This, CONST TUI_RECT *Bounds);
+    HRESULT (ANXAPI *GetBounds)(ITuiThemedStatusBar *This, TUI_RECT *Bounds);
+    HRESULT (ANXAPI *SetVisible)(ITuiThemedStatusBar *This, BOOLEAN Visible);
+    BOOLEAN (ANXAPI *IsVisible)(ITuiThemedStatusBar *This);
+    HRESULT (ANXAPI *SetEnabled)(ITuiThemedStatusBar *This, BOOLEAN Enabled);
+    BOOLEAN (ANXAPI *IsEnabled)(ITuiThemedStatusBar *This);
+    HRESULT (ANXAPI *SetParent)(ITuiThemedStatusBar *This, ITuiWidget *Parent);
+    HRESULT (ANXAPI *GetParent)(ITuiThemedStatusBar *This, ITuiWidget **Parent);
+    HRESULT (ANXAPI *AddChild)(ITuiThemedStatusBar *This, ITuiWidget *Child);
+    HRESULT (ANXAPI *RemoveChild)(ITuiThemedStatusBar *This, ITuiWidget *Child);
+    HRESULT (ANXAPI *SetNeedsDisplay)(ITuiThemedStatusBar *This, BOOLEAN Needed);
+
+    // ITuiThemedWidget methods
+    HRESULT (ANXAPI *ApplyTheme)(ITuiThemedStatusBar *This, ITuiTheme *Theme);
+    HRESULT (ANXAPI *GetColors)(ITuiThemedStatusBar *This, TUI_COLOR *Foreground, TUI_COLOR *Background);
+    HRESULT (ANXAPI *SetColors)(ITuiThemedStatusBar *This, TUI_COLOR Foreground, TUI_COLOR Background);
+    HRESULT (ANXAPI *OnMouseEvent)(ITuiThemedStatusBar *This, CONST TUI_MOUSE_EVENT *Event, BOOLEAN *Handled);
+    HRESULT (ANXAPI *OnKeyEvent)(ITuiThemedStatusBar *This, TUI_KEY Key, UINT32 Modifiers, BOOLEAN *Handled);
+    HRESULT (ANXAPI *Draw)(ITuiThemedStatusBar *This, ITuiSurface *Surface, CONST TUI_RECT *DirtyRect);
+
+    // ITuiThemedStatusBar methods
+    /**
+      Get panel separator character.
+    **/
+    CHAR8 (ANXAPI *GetSeparatorChar)(
+        ITuiThemedStatusBar *This
+    );
+
+    /**
+      Set panel separator character.
+    **/
+    HRESULT (ANXAPI *SetSeparatorChar)(
+        ITuiThemedStatusBar *This,
+        CHAR8 SeparatorChar
+    );
+} ITuiThemedStatusBar_Vtbl;
+
+struct _ITuiThemedStatusBar {
+    CONST ITuiThemedStatusBar_Vtbl *Vtbl;
 };
 
 // {A3B4C5D6-E7F8-4A9B-0C1D-2E3F4A5B6C7D}
@@ -2898,17 +3327,126 @@ DEFINE_GUID(IID_ITuiStatusBar,
 /**
   ITuiStatusBar Interface
 
-  Bottom status bar with panels.
+  Multi-panel status bar widget. Inherits from ITuiThemedStatusBar.
 **/
 typedef struct _ITuiStatusBar_Vtbl {
+    // ITuiSerializable methods
     HRESULT (ANXAPI *QueryInterface)(ITuiStatusBar *This, REFIID riid, VOID **ppvObject);
     UINTN (ANXAPI *AddRef)(ITuiStatusBar *This);
     UINTN (ANXAPI *Release)(ITuiStatusBar *This);
+    HRESULT (ANXAPI *SerializeToYaml)(ITuiStatusBar *This, CHAR8 **OutYaml, UINTN *OutLength);
+    HRESULT (ANXAPI *DeserializeFromYaml)(ITuiStatusBar *This, CONST CHAR8 *Yaml, UINTN Length);
+    HRESULT (ANXAPI *GetTypeName)(ITuiStatusBar *This, CONST CHAR8 **OutTypeName);
+    HRESULT (ANXAPI *Clone)(ITuiStatusBar *This, ITuiSerializable **OutClone);
 
-    HRESULT (ANXAPI *SetText)(ITuiStatusBar *This, UINT32 Panel, CONST CHAR8 *Text);
-    HRESULT (ANXAPI *SetPanelCount)(ITuiStatusBar *This, UINT32 Count);
-    HRESULT (ANXAPI *SetPanelWidth)(ITuiStatusBar *This, UINT32 Panel, UINT32 Width);
-    HRESULT (ANXAPI *Render)(ITuiStatusBar *This, ITuiScreen *Screen);
+    // ITuiResponder methods
+    HRESULT (ANXAPI *GetNextResponder)(ITuiStatusBar *This, ITuiResponder **NextResponder);
+    HRESULT (ANXAPI *SetNextResponder)(ITuiStatusBar *This, ITuiResponder *NextResponder);
+    BOOLEAN (ANXAPI *AcceptsFirstResponder)(ITuiStatusBar *This);
+    HRESULT (ANXAPI *BecomeFirstResponder)(ITuiStatusBar *This);
+    HRESULT (ANXAPI *ResignFirstResponder)(ITuiStatusBar *This);
+
+    // ITuiWidget methods
+    HRESULT (ANXAPI *SetBounds)(ITuiStatusBar *This, CONST TUI_RECT *Bounds);
+    HRESULT (ANXAPI *GetBounds)(ITuiStatusBar *This, TUI_RECT *Bounds);
+    HRESULT (ANXAPI *SetVisible)(ITuiStatusBar *This, BOOLEAN Visible);
+    BOOLEAN (ANXAPI *IsVisible)(ITuiStatusBar *This);
+    HRESULT (ANXAPI *SetEnabled)(ITuiStatusBar *This, BOOLEAN Enabled);
+    BOOLEAN (ANXAPI *IsEnabled)(ITuiStatusBar *This);
+    HRESULT (ANXAPI *SetParent)(ITuiStatusBar *This, ITuiWidget *Parent);
+    HRESULT (ANXAPI *GetParent)(ITuiStatusBar *This, ITuiWidget **Parent);
+    HRESULT (ANXAPI *AddChild)(ITuiStatusBar *This, ITuiWidget *Child);
+    HRESULT (ANXAPI *RemoveChild)(ITuiStatusBar *This, ITuiWidget *Child);
+    HRESULT (ANXAPI *SetNeedsDisplay)(ITuiStatusBar *This, BOOLEAN Needed);
+
+    // ITuiThemedWidget methods
+    HRESULT (ANXAPI *ApplyTheme)(ITuiStatusBar *This, ITuiTheme *Theme);
+    HRESULT (ANXAPI *GetColors)(ITuiStatusBar *This, TUI_COLOR *Foreground, TUI_COLOR *Background);
+    HRESULT (ANXAPI *SetColors)(ITuiStatusBar *This, TUI_COLOR Foreground, TUI_COLOR Background);
+    HRESULT (ANXAPI *OnMouseEvent)(ITuiStatusBar *This, CONST TUI_MOUSE_EVENT *Event, BOOLEAN *Handled);
+    HRESULT (ANXAPI *OnKeyEvent)(ITuiStatusBar *This, TUI_KEY Key, UINT32 Modifiers, BOOLEAN *Handled);
+    HRESULT (ANXAPI *Draw)(ITuiStatusBar *This, ITuiSurface *Surface, CONST TUI_RECT *DirtyRect);
+
+    // ITuiThemedStatusBar methods
+    CHAR8 (ANXAPI *GetSeparatorChar)(ITuiStatusBar *This);
+    HRESULT (ANXAPI *SetSeparatorChar)(ITuiStatusBar *This, CHAR8 SeparatorChar);
+
+    // ITuiStatusBar methods
+    /**
+      Add a panel with fixed width.
+    **/
+    HRESULT (ANXAPI *AddPanel)(
+        ITuiStatusBar *This,
+        UINT32 Width,
+        TUI_TEXT_ALIGNMENT Alignment
+    );
+
+    /**
+      Add a spring panel (expands to fill available space).
+    **/
+    HRESULT (ANXAPI *AddSpringPanel)(
+        ITuiStatusBar *This,
+        TUI_TEXT_ALIGNMENT Alignment
+    );
+
+    /**
+      Get panel count.
+    **/
+    UINT32 (ANXAPI *GetPanelCount)(
+        ITuiStatusBar *This
+    );
+
+    /**
+      Set panel count (legacy).
+    **/
+    HRESULT (ANXAPI *SetPanelCount)(
+        ITuiStatusBar *This,
+        UINT32 Count
+    );
+
+    /**
+      Get panel text.
+    **/
+    HRESULT (ANXAPI *GetText)(
+        ITuiStatusBar *This,
+        UINT32 PanelIndex,
+        CHAR8 *Buffer,
+        UINTN BufferSize
+    );
+
+    /**
+      Set panel text.
+    **/
+    HRESULT (ANXAPI *SetText)(
+        ITuiStatusBar *This,
+        UINT32 PanelIndex,
+        CONST CHAR8 *Text
+    );
+
+    /**
+      Get panel width.
+    **/
+    HRESULT (ANXAPI *GetPanelWidth)(
+        ITuiStatusBar *This,
+        UINT32 PanelIndex,
+        UINT32 *Width
+    );
+
+    /**
+      Set panel width.
+    **/
+    HRESULT (ANXAPI *SetPanelWidth)(
+        ITuiStatusBar *This,
+        UINT32 PanelIndex,
+        UINT32 Width
+    );
+
+    /**
+      Clear all panels.
+    **/
+    HRESULT (ANXAPI *ClearPanels)(
+        ITuiStatusBar *This
+    );
 } ITuiStatusBar_Vtbl;
 
 struct _ITuiStatusBar {
@@ -3146,6 +3684,66 @@ struct _ITuiTheme {
 #define ITuiTheme_GetName(This,Buffer,BufferSize) (This)->Vtbl->GetName(This,Buffer,BufferSize)
 #endif /* COBJMACROS */
 
+// {0A1B2C3D-4E5F-6A7B-8C9D-0E1F2A3B4C5D}
+DEFINE_GUID(IID_ITuiThemedTabControl,
+    0x0A1B2C3D, 0x4E5F, 0x6A7B, 0x8C, 0x9D, 0x0E, 0x1F, 0x2A, 0x3B, 0x4C, 0x5D);
+
+/**
+  ITuiThemedTabControl Interface
+
+  TabControl theming interface. Inherits from ITuiThemedWidget.
+**/
+typedef struct _ITuiThemedTabControl_Vtbl {
+    // ITuiSerializable methods
+    HRESULT (ANXAPI *QueryInterface)(ITuiThemedTabControl *This, REFIID riid, VOID **ppvObject);
+    UINTN (ANXAPI *AddRef)(ITuiThemedTabControl *This);
+    UINTN (ANXAPI *Release)(ITuiThemedTabControl *This);
+    HRESULT (ANXAPI *SerializeToYaml)(ITuiThemedTabControl *This, CHAR8 **OutYaml, UINTN *OutLength);
+    HRESULT (ANXAPI *DeserializeFromYaml)(ITuiThemedTabControl *This, CONST CHAR8 *Yaml, UINTN Length);
+    HRESULT (ANXAPI *GetTypeName)(ITuiThemedTabControl *This, CONST CHAR8 **OutTypeName);
+    HRESULT (ANXAPI *Clone)(ITuiThemedTabControl *This, ITuiSerializable **OutClone);
+
+    // ITuiResponder methods
+    HRESULT (ANXAPI *GetNextResponder)(ITuiThemedTabControl *This, ITuiResponder **NextResponder);
+    HRESULT (ANXAPI *SetNextResponder)(ITuiThemedTabControl *This, ITuiResponder *NextResponder);
+    BOOLEAN (ANXAPI *AcceptsFirstResponder)(ITuiThemedTabControl *This);
+    HRESULT (ANXAPI *BecomeFirstResponder)(ITuiThemedTabControl *This);
+    HRESULT (ANXAPI *ResignFirstResponder)(ITuiThemedTabControl *This);
+
+    // ITuiWidget methods
+    HRESULT (ANXAPI *SetBounds)(ITuiThemedTabControl *This, CONST TUI_RECT *Bounds);
+    HRESULT (ANXAPI *GetBounds)(ITuiThemedTabControl *This, TUI_RECT *Bounds);
+    HRESULT (ANXAPI *SetVisible)(ITuiThemedTabControl *This, BOOLEAN Visible);
+    BOOLEAN (ANXAPI *IsVisible)(ITuiThemedTabControl *This);
+    HRESULT (ANXAPI *SetEnabled)(ITuiThemedTabControl *This, BOOLEAN Enabled);
+    BOOLEAN (ANXAPI *IsEnabled)(ITuiThemedTabControl *This);
+    HRESULT (ANXAPI *SetParent)(ITuiThemedTabControl *This, ITuiWidget *Parent);
+    HRESULT (ANXAPI *GetParent)(ITuiThemedTabControl *This, ITuiWidget **Parent);
+    HRESULT (ANXAPI *AddChild)(ITuiThemedTabControl *This, ITuiWidget *Child);
+    HRESULT (ANXAPI *RemoveChild)(ITuiThemedTabControl *This, ITuiWidget *Child);
+    HRESULT (ANXAPI *SetNeedsDisplay)(ITuiThemedTabControl *This, BOOLEAN Needed);
+
+    // ITuiThemedWidget methods
+    HRESULT (ANXAPI *ApplyTheme)(ITuiThemedTabControl *This, ITuiTheme *Theme);
+    HRESULT (ANXAPI *GetColors)(ITuiThemedTabControl *This, TUI_COLOR *Foreground, TUI_COLOR *Background);
+    HRESULT (ANXAPI *SetColors)(ITuiThemedTabControl *This, TUI_COLOR Foreground, TUI_COLOR Background);
+    HRESULT (ANXAPI *OnMouseEvent)(ITuiThemedTabControl *This, CONST TUI_MOUSE_EVENT *Event, BOOLEAN *Handled);
+    HRESULT (ANXAPI *OnKeyEvent)(ITuiThemedTabControl *This, TUI_KEY Key, UINT32 Modifiers, BOOLEAN *Handled);
+    HRESULT (ANXAPI *Draw)(ITuiThemedTabControl *This, ITuiSurface *Surface, CONST TUI_RECT *DirtyRect);
+
+    // ITuiThemedTabControl methods
+    HRESULT (ANXAPI *GetActiveTabColors)(ITuiThemedTabControl *This, TUI_COLOR *Foreground, TUI_COLOR *Background);
+    HRESULT (ANXAPI *SetActiveTabColors)(ITuiThemedTabControl *This, TUI_COLOR Foreground, TUI_COLOR Background);
+    HRESULT (ANXAPI *GetInactiveTabColors)(ITuiThemedTabControl *This, TUI_COLOR *Foreground, TUI_COLOR *Background);
+    HRESULT (ANXAPI *SetInactiveTabColors)(ITuiThemedTabControl *This, TUI_COLOR Foreground, TUI_COLOR Background);
+    CHAR8 (ANXAPI *GetSeparatorChar)(ITuiThemedTabControl *This);
+    HRESULT (ANXAPI *SetSeparatorChar)(ITuiThemedTabControl *This, CHAR8 SeparatorChar);
+} ITuiThemedTabControl_Vtbl;
+
+struct _ITuiThemedTabControl {
+    CONST ITuiThemedTabControl_Vtbl *Vtbl;
+};
+
 // {D6E7F8A9-B0C1-4D2E-3F4A-5B6C7D8E9F0A}
 DEFINE_GUID(IID_ITuiTabControl,
     0xD6E7F8A9, 0xB0C1, 0x4D2E, 0x3F, 0x4A, 0x5B, 0x6C, 0x7D, 0x8E, 0x9F, 0x0A);
@@ -3153,101 +3751,67 @@ DEFINE_GUID(IID_ITuiTabControl,
 /**
   ITuiTabControl Interface
 
-  Tabbed pages container.
+  Tabbed pages container. Inherits from ITuiThemedTabControl.
 **/
 typedef struct _ITuiTabControl_Vtbl {
+    // ITuiSerializable methods
     HRESULT (ANXAPI *QueryInterface)(ITuiTabControl *This, REFIID riid, VOID **ppvObject);
     UINTN (ANXAPI *AddRef)(ITuiTabControl *This);
     UINTN (ANXAPI *Release)(ITuiTabControl *This);
+    HRESULT (ANXAPI *SerializeToYaml)(ITuiTabControl *This, CHAR8 **OutYaml, UINTN *OutLength);
+    HRESULT (ANXAPI *DeserializeFromYaml)(ITuiTabControl *This, CONST CHAR8 *Yaml, UINTN Length);
+    HRESULT (ANXAPI *GetTypeName)(ITuiTabControl *This, CONST CHAR8 **OutTypeName);
+    HRESULT (ANXAPI *Clone)(ITuiTabControl *This, ITuiSerializable **OutClone);
 
-    /**
-      Add a new tab page.
-    **/
-    HRESULT (ANXAPI *AddTab)(
-        ITuiTabControl *This,
-        CONST CHAR8 *Title,
-        ITuiWindow *Content,
-        VOID *UserData
-    );
+    // ITuiResponder methods
+    HRESULT (ANXAPI *GetNextResponder)(ITuiTabControl *This, ITuiResponder **NextResponder);
+    HRESULT (ANXAPI *SetNextResponder)(ITuiTabControl *This, ITuiResponder *NextResponder);
+    BOOLEAN (ANXAPI *AcceptsFirstResponder)(ITuiTabControl *This);
+    HRESULT (ANXAPI *BecomeFirstResponder)(ITuiTabControl *This);
+    HRESULT (ANXAPI *ResignFirstResponder)(ITuiTabControl *This);
 
-    /**
-      Remove a tab by index.
-    **/
-    HRESULT (ANXAPI *RemoveTab)(
-        ITuiTabControl *This,
-        UINT32 Index
-    );
+    // ITuiWidget methods
+    HRESULT (ANXAPI *SetBounds)(ITuiTabControl *This, CONST TUI_RECT *Bounds);
+    HRESULT (ANXAPI *GetBounds)(ITuiTabControl *This, TUI_RECT *Bounds);
+    HRESULT (ANXAPI *SetVisible)(ITuiTabControl *This, BOOLEAN Visible);
+    BOOLEAN (ANXAPI *IsVisible)(ITuiTabControl *This);
+    HRESULT (ANXAPI *SetEnabled)(ITuiTabControl *This, BOOLEAN Enabled);
+    BOOLEAN (ANXAPI *IsEnabled)(ITuiTabControl *This);
+    HRESULT (ANXAPI *SetParent)(ITuiTabControl *This, ITuiWidget *Parent);
+    HRESULT (ANXAPI *GetParent)(ITuiTabControl *This, ITuiWidget **Parent);
+    HRESULT (ANXAPI *AddChild)(ITuiTabControl *This, ITuiWidget *Child);
+    HRESULT (ANXAPI *RemoveChild)(ITuiTabControl *This, ITuiWidget *Child);
+    HRESULT (ANXAPI *SetNeedsDisplay)(ITuiTabControl *This, BOOLEAN Needed);
 
-    /**
-      Get number of tabs.
-    **/
-    HRESULT (ANXAPI *GetTabCount)(
-        ITuiTabControl *This,
-        UINT32 *Count
-    );
+    // ITuiThemedWidget methods
+    HRESULT (ANXAPI *ApplyTheme)(ITuiTabControl *This, ITuiTheme *Theme);
+    HRESULT (ANXAPI *GetColors)(ITuiTabControl *This, TUI_COLOR *Foreground, TUI_COLOR *Background);
+    HRESULT (ANXAPI *SetColors)(ITuiTabControl *This, TUI_COLOR Foreground, TUI_COLOR Background);
+    HRESULT (ANXAPI *OnMouseEvent)(ITuiTabControl *This, CONST TUI_MOUSE_EVENT *Event, BOOLEAN *Handled);
+    HRESULT (ANXAPI *OnKeyEvent)(ITuiTabControl *This, TUI_KEY Key, UINT32 Modifiers, BOOLEAN *Handled);
+    HRESULT (ANXAPI *Draw)(ITuiTabControl *This, ITuiSurface *Surface, CONST TUI_RECT *DirtyRect);
 
-    /**
-      Get/set active tab index.
-    **/
-    HRESULT (ANXAPI *GetActiveTab)(
-        ITuiTabControl *This,
-        INT32 *Index
-    );
+    // ITuiThemedTabControl methods
+    HRESULT (ANXAPI *GetActiveTabColors)(ITuiTabControl *This, TUI_COLOR *Foreground, TUI_COLOR *Background);
+    HRESULT (ANXAPI *SetActiveTabColors)(ITuiTabControl *This, TUI_COLOR Foreground, TUI_COLOR Background);
+    HRESULT (ANXAPI *GetInactiveTabColors)(ITuiTabControl *This, TUI_COLOR *Foreground, TUI_COLOR *Background);
+    HRESULT (ANXAPI *SetInactiveTabColors)(ITuiTabControl *This, TUI_COLOR Foreground, TUI_COLOR Background);
+    CHAR8 (ANXAPI *GetSeparatorChar)(ITuiTabControl *This);
+    HRESULT (ANXAPI *SetSeparatorChar)(ITuiTabControl *This, CHAR8 SeparatorChar);
 
-    HRESULT (ANXAPI *SetActiveTab)(
-        ITuiTabControl *This,
-        INT32 Index
-    );
-
-    /**
-      Get tab title.
-    **/
-    HRESULT (ANXAPI *GetTabTitle)(
-        ITuiTabControl *This,
-        UINT32 Index,
-        CHAR8 *Buffer,
-        UINTN BufferSize
-    );
-
-    /**
-      Set tab title.
-    **/
-    HRESULT (ANXAPI *SetTabTitle)(
-        ITuiTabControl *This,
-        UINT32 Index,
-        CONST CHAR8 *Title
-    );
-
-    /**
-      Enable/disable a tab.
-    **/
-    HRESULT (ANXAPI *SetTabEnabled)(
-        ITuiTabControl *This,
-        UINT32 Index,
-        BOOLEAN Enabled
-    );
-
-    /**
-      Render tab control.
-    **/
-    HRESULT (ANXAPI *Render)(
-        ITuiTabControl *This,
-        ITuiScreen *Screen,
-        INT32 X,
-        INT32 Y,
-        UINT32 Width,
-        UINT32 Height
-    );
-
-    /**
-      Handle input events.
-    **/
-    HRESULT (ANXAPI *HandleInput)(
-        ITuiTabControl *This,
-        CONST TUI_INPUT_EVENT *Event,
-        BOOLEAN *Handled
-    );
-
+    // ITuiTabControl methods
+    HRESULT (ANXAPI *AddTab)(ITuiTabControl *This, CONST CHAR8 *Title, ITuiWidget *Content, VOID *UserData);
+    HRESULT (ANXAPI *RemoveTab)(ITuiTabControl *This, UINT32 Index);
+    UINT32 (ANXAPI *GetTabCount)(ITuiTabControl *This);
+    HRESULT (ANXAPI *GetActiveTab)(ITuiTabControl *This, INT32 *Index);
+    HRESULT (ANXAPI *SetActiveTab)(ITuiTabControl *This, INT32 Index);
+    HRESULT (ANXAPI *GetTabTitle)(ITuiTabControl *This, UINT32 Index, CHAR8 *Buffer, UINTN BufferSize);
+    HRESULT (ANXAPI *SetTabTitle)(ITuiTabControl *This, UINT32 Index, CONST CHAR8 *Title);
+    HRESULT (ANXAPI *SetTabEnabled)(ITuiTabControl *This, UINT32 Index, BOOLEAN Enabled);
+    BOOLEAN (ANXAPI *IsTabEnabled)(ITuiTabControl *This, UINT32 Index);
+    HRESULT (ANXAPI *GetTabUserData)(ITuiTabControl *This, UINT32 Index, VOID **UserData);
+    HRESULT (ANXAPI *GetTabContent)(ITuiTabControl *This, UINT32 Index, ITuiWidget **Content);
+    HRESULT (ANXAPI *ClearTabs)(ITuiTabControl *This);
 } ITuiTabControl_Vtbl;
 
 struct _ITuiTabControl {
