@@ -2,6 +2,60 @@
 
 This document provides references for implementing image format loaders in APXH.
 
+## Universal Resource System
+
+APXH implements a universal resource system based on Classic Macintosh resource fork format,
+enabling cross-platform resource embedding in all executable formats.
+
+### Resource Embedding Strategies
+
+**Formats WITH Native Resources** (e.g., PE, Mach-O):
+- Embed universal resource fork as AUR (APXH Universal Resource) resource within native system
+- Use hybrid strategy that exposes both native and universal resources
+- AUR type codes: "AUR " (32-bit), "Au" (16-bit), "APXHURSC" (64-bit)
+- Implementation: `ResourceStrategyBoth` with `FindUniversalResourceFork()`
+
+**Formats WITHOUT Native Resources** (e.g., ELF, COFF, a.out):
+- Store universal resource fork in dedicated section/segment
+- Section names: `.axursrc` (ELF), `.rsrc` (COFF), `__apxh_uresource` (Mach-O segment)
+- Implementation: `ResourceStrategyDirect` with `FindUniversalResourceFork()`
+
+### Resource Support Status
+
+| Format | Native Resources | Status | Section/Segment Name |
+|--------|------------------|--------|---------------------|
+| PE     | ✅ Yes | ✅ Implemented | Resource directory (native) + `.axursrc` |
+| Mach-O | ✅ Yes | ✅ Implemented | `__RSRC` segment (native) + `__apxh_uresource` |
+| ELF    | ❌ No  | ✅ Implemented | `.axursrc` section |
+| COFF   | ❌ No  | ⚠️ Needs update | `.axursrc` section |
+| a.out  | ❌ No  | ⚠️ Needs update | Format-specific |
+| XCOFF  | ❌ No  | ⚠️ Needs update | `.axursrc` section |
+| ECOFF  | ❌ No  | ⚠️ Needs update | `.axursrc` section |
+| LE/LX  | ⚠️ OS/2 | ⚠️ Needs investigation | Native resource table or `.axursrc` |
+| NLM    | ⚠️ Maybe | ⚠️ Needs investigation | NetWare resources or `.axursrc` |
+
+### Implementation Guide
+
+For formats WITHOUT native resources:
+1. Add `#include <ananke/resource.h>` and `#include "imgresource.h"`
+2. Implement section finder: `FormatFindSection(ImageBase, SectionName, Data, Size)`
+3. Implement GetResource using `FindUniversalResourceFork()` with `ResourceStrategyDirect`
+4. Implement GetResourceEnumerator similarly
+5. Update vtable to include resource methods
+
+Example implementation pattern (see `elf.c` for reference):
+```c
+static HRESULT FormatGetResource(...) {
+  Status = FindUniversalResourceFork(ImageBase, ResourceStrategyDirect,
+                                     NULL, FormatFindSection, ".axursrc",
+                                     &ResourceFork, &Size, &NeedsFree);
+  if (Status == S_OK) {
+    return CreateImageResource(ResourceFork, TypeCode, Id, Name, Resource);
+  }
+  return Status;
+}
+```
+
 ## ELF (Executable and Linkable Format)
 
 **Status:** ✅ Fully implemented with unwinding/symbol support
