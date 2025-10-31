@@ -1,0 +1,167 @@
+---
+# clang-format configuration for NUX kernel
+# NT kernel coding style with UEFI/EDK2 commenting style
+# Based on: Windows NT kernel conventions and UEFI EDK2 C Coding Standards
+
+# Use LLVM as base style, then customize
+BasedOnStyle: LLVM
+
+# Language and standard
+Language: Cpp
+Standard: c++03
+
+# Indentation - 4 spaces (NT kernel style)
+IndentWidth: 4
+TabWidth: 4
+UseTab: Never
+ContinuationIndentWidth: 4
+
+# Braces - Allman/BSD style (opening brace on new line)
+BreakBeforeBraces: Custom
+BraceWrapping:
+    AfterCaseLabel: false
+    AfterClass: true
+    AfterControlStatement: Always
+    AfterEnum: true
+    AfterFunction: true
+    AfterNamespace: true
+    AfterStruct: true
+    AfterUnion: true
+    AfterExternBlock: true
+    BeforeCatch: true
+    BeforeElse: true
+    BeforeLambdaBody: false
+    BeforeWhile: false
+    IndentBraces: false
+    SplitEmptyFunction: true
+    SplitEmptyRecord: true
+    SplitEmptyNamespace: true
+
+# Line width - UEFI standard
+ColumnLimit: 80
+
+# Function parameters - align on separate lines (NT kernel style)
+AlignAfterOpenBracket: AlwaysBreak
+AllowAllParametersOfDeclarationOnNextLine: false
+AllowAllArgumentsOnNextLine: false
+BinPackParameters: false
+BinPackArguments: false
+
+# Function declaration style
+AlwaysBreakAfterReturnType: All
+IndentWrappedFunctionNames: false
+
+# Pointer and reference alignment
+PointerAlignment: Right
+DerivePointerAlignment: false
+
+# Space configuration
+SpaceAfterCStyleCast: true
+SpaceAfterLogicalNot: false
+SpaceBeforeAssignmentOperators: true
+SpaceBeforeParens: ControlStatements
+SpaceInEmptyParentheses: false
+SpacesInCStyleCastParentheses: false
+SpacesInParentheses: false
+SpacesInSquareBrackets: false
+
+# Comments - UEFI Doxygen style
+ReflowComments: true
+SpacesBeforeTrailingComments: 2
+
+# Preprocessor
+IndentPPDirectives: None
+AlignConsecutiveMacros: Consecutive
+AlignEscapedNewlines: Right
+
+# Switch statement
+IndentCaseLabels: false
+AllowShortCaseLabelsOnASingleLine: false
+
+# Control statements
+AllowShortIfStatementsOnASingleLine: Never
+AllowShortLoopsOnASingleLine: false
+AllowShortFunctionsOnASingleLine: None
+AllowShortBlocksOnASingleLine: Never
+
+# Alignment
+AlignConsecutiveAssignments: None
+AlignConsecutiveDeclarations: None
+AlignOperands: Align
+AlignTrailingComments: true
+
+# Include sorting - maintain existing order
+SortIncludes: false
+IncludeBlocks: Preserve
+
+# Empty lines
+KeepEmptyLinesAtTheStartOfBlocks: false
+MaxEmptyLinesToKeep: 2
+
+# Penalties (for line breaking decisions)
+PenaltyBreakBeforeFirstCallParameter: 100
+PenaltyBreakComment: 300
+PenaltyBreakFirstLessLess: 120
+PenaltyBreakString: 1000
+PenaltyExcessCharacter: 1000000
+PenaltyReturnTypeOnItsOwnLine: 200
+
+# Macros that behave like foreach loops
+# These will be formatted as loop constructs
+ForEachMacros:
+    # CPU mask iteration
+    - 'FOREACH_CPUMASK'
+    - 'ONCE_CPUMASK'
+    # BSD queue macros
+    - 'SLIST_FOREACH'
+    - 'SLIST_FOREACH_SAFE'
+    - 'LIST_FOREACH'
+    - 'LIST_FOREACH_SAFE'
+    - 'TAILQ_FOREACH'
+    - 'TAILQ_FOREACH_REVERSE'
+    - 'TAILQ_FOREACH_SAFE'
+    - 'TAILQ_FOREACH_REVERSE_SAFE'
+    - 'SIMPLEQ_FOREACH'
+    - 'SIMPLEQ_FOREACH_SAFE'
+    - 'CIRCLEQ_FOREACH'
+    - 'CIRCLEQ_FOREACH_REVERSE'
+    # NT RTL list macros
+    - 'LIST_FOR_EACH'
+    - 'LIST_FOR_EACH_SAFE'
+
+# Attributes and specifiers
+AttributeMacros:
+    - 'IN'
+    - 'OUT'
+    - 'OPTIONAL'
+    - 'CONST'
+    - 'VOLATILE'
+    - '__attribute__'
+
+# Type macros
+TypenameMacros:
+    - 'UINT8'
+    - 'UINT16'
+    - 'UINT32'
+    - 'UINT64'
+    - 'UINTN'
+    - 'INT8'
+    - 'INT16'
+    - 'INT32'
+    - 'INT64'
+    - 'INTN'
+    - 'CHAR8'
+    - 'CHAR16'
+    - 'WCHAR'
+    - 'CHAR32'
+    - 'BOOLEAN'
+    - 'VOID'
+
+# Statement macros (macros that should be followed by semicolon)
+StatementMacros:
+    - 'assert'
+    - 'static_assert'
+
+# Formatting disabled in certain regions
+CommentPragmas: '\*INDENT-OFF\*|\*INDENT-ON\*|NOLINT'
+DisableFormat: false
