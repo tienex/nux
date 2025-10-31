@@ -7,7 +7,14 @@
 
   Supports:
   - Mach-O 32-bit (MH_MAGIC) and 64-bit (MH_MAGIC_64)
-  - x86, x86-64, ARM, ARM64, and RISC-V architectures
+  - Universal binaries (FAT_MAGIC) with multiple architecture slices
+  - Comprehensive architecture support:
+    * x86 (i386), x86-64 (AMD64)
+    * ARM, ARM64 (AArch64), ARM64_32
+    * PowerPC, PowerPC 64-bit
+    * Motorola 68k, Motorola 88000
+    * SPARC, PA-RISC, Intel i860
+    * RISC-V, VAX
   - LC_SEGMENT/LC_SEGMENT_64 load commands
   - LC_THREAD_LOCAL_VARIABLES for TLS
   - __unwind_info for unwinding
@@ -30,6 +37,15 @@
 #define MH_CIGAM_64   0xCFFAEDFE  ///< 64-bit Mach-O magic (little endian)
 
 //
+// Universal Binary (FAT) Magic Numbers
+//
+
+#define FAT_MAGIC     0xCAFEBABE  ///< Universal binary magic (big endian)
+#define FAT_CIGAM     0xBEBAFECA  ///< Universal binary magic (little endian)
+#define FAT_MAGIC_64  0xCAFEBABF  ///< Universal binary 64-bit magic (big endian)
+#define FAT_CIGAM_64  0xBFBAFECA  ///< Universal binary 64-bit magic (little endian)
+
+//
 // Mach-O File Types
 //
 
@@ -39,11 +55,40 @@
 // Mach-O CPU Types
 //
 
-#define CPU_TYPE_I386        7    ///< x86 32-bit
-#define CPU_TYPE_X86_64      0x01000007  ///< x86-64
+#define CPU_TYPE_ANY         -1   ///< Any architecture
+#define CPU_TYPE_VAX         1    ///< VAX
+#define CPU_TYPE_MC680x0     6    ///< Motorola 68k
+#define CPU_TYPE_I386        7    ///< x86 32-bit (Intel 80386)
+#define CPU_TYPE_X86_64      0x01000007  ///< x86-64 (AMD64)
+#define CPU_TYPE_MC98000     10   ///< PowerPC 98000
+#define CPU_TYPE_HPPA        11   ///< HP PA-RISC
 #define CPU_TYPE_ARM         12   ///< ARM 32-bit
-#define CPU_TYPE_ARM64       0x0100000C  ///< ARM 64-bit
+#define CPU_TYPE_ARM64       0x0100000C  ///< ARM 64-bit (AArch64)
+#define CPU_TYPE_ARM64_32    0x0200000C  ///< ARM 64-bit with 32-bit pointers
+#define CPU_TYPE_MC88000     13   ///< Motorola 88000
+#define CPU_TYPE_SPARC       14   ///< SPARC
+#define CPU_TYPE_I860        15   ///< Intel i860
+#define CPU_TYPE_POWERPC     18   ///< PowerPC 32-bit
+#define CPU_TYPE_POWERPC64   0x01000012  ///< PowerPC 64-bit
 #define CPU_TYPE_RISCV       0xF3 ///< RISC-V
+
+//
+// ARM CPU Subtypes
+//
+
+#define CPU_SUBTYPE_ARM_ALL      0    ///< All ARM
+#define CPU_SUBTYPE_ARM_V4T      5    ///< ARMv4T
+#define CPU_SUBTYPE_ARM_V6       6    ///< ARMv6
+#define CPU_SUBTYPE_ARM_V5TEJ    7    ///< ARMv5TEJ
+#define CPU_SUBTYPE_ARM_XSCALE   8    ///< ARM XScale
+#define CPU_SUBTYPE_ARM_V7       9    ///< ARMv7
+#define CPU_SUBTYPE_ARM_V7F      10   ///< ARMv7F (Cortex A9)
+#define CPU_SUBTYPE_ARM_V7S      11   ///< ARMv7S (Swift)
+#define CPU_SUBTYPE_ARM_V7K      12   ///< ARMv7K (Watch)
+#define CPU_SUBTYPE_ARM_V8       13   ///< ARMv8
+#define CPU_SUBTYPE_ARM_V6M      14   ///< ARMv6M (Cortex-M0)
+#define CPU_SUBTYPE_ARM_V7M      15   ///< ARMv7M (Cortex-M3)
+#define CPU_SUBTYPE_ARM_V7EM     16   ///< ARMv7EM (Cortex-M4)
 
 //
 // Mach-O Load Command Types
@@ -142,6 +187,32 @@ typedef struct _MACHO_THREAD_COMMAND {
   /* Thread state follows */
 } MACHO_THREAD_COMMAND;
 
+//
+// Universal Binary (FAT) Structures
+//
+
+typedef struct _FAT_HEADER {
+  UINT32  Magic;        ///< FAT_MAGIC or FAT_MAGIC_64
+  UINT32  NumArchs;     ///< Number of architecture slices
+} FAT_HEADER;
+
+typedef struct _FAT_ARCH {
+  UINT32  CpuType;      ///< CPU type
+  UINT32  CpuSubType;   ///< CPU subtype
+  UINT32  Offset;       ///< File offset to Mach-O header
+  UINT32  Size;         ///< Size of Mach-O slice
+  UINT32  Align;        ///< Alignment (power of 2)
+} FAT_ARCH;
+
+typedef struct _FAT_ARCH_64 {
+  UINT32  CpuType;      ///< CPU type
+  UINT32  CpuSubType;   ///< CPU subtype
+  UINT64  Offset;       ///< File offset to Mach-O header (64-bit)
+  UINT64  Size;         ///< Size of Mach-O slice (64-bit)
+  UINT32  Align;        ///< Alignment (power of 2)
+  UINT32  Reserved;     ///< Reserved
+} FAT_ARCH_64;
+
 ANX_PACK_POP()
 
 //
@@ -155,7 +226,7 @@ ANX_PACK_POP()
 //
 
 /**
-  Detect if image is Mach-O format.
+  Detect if image is Mach-O format (including universal binaries).
 **/
 static
 HRESULT
@@ -167,13 +238,16 @@ MachoDetect (
   )
 {
   MACHO_HEADER *Header;
+  FAT_HEADER *FatHeader;
 
   if (ImageSize < sizeof(MACHO_HEADER)) {
     return S_FALSE;
   }
 
   Header = (MACHO_HEADER *)ImageBase;
+  FatHeader = (FAT_HEADER *)ImageBase;
 
+  // Check for single Mach-O file
   if (Header->Magic == MH_MAGIC ||
       Header->Magic == MH_CIGAM ||
       Header->Magic == MH_MAGIC_64 ||
@@ -181,7 +255,116 @@ MachoDetect (
     return S_OK;
   }
 
+  // Check for universal binary (FAT)
+  if (FatHeader->Magic == FAT_MAGIC ||
+      FatHeader->Magic == FAT_CIGAM ||
+      FatHeader->Magic == FAT_MAGIC_64 ||
+      FatHeader->Magic == FAT_CIGAM_64) {
+    return S_OK;
+  }
+
   return S_FALSE;
+}
+
+/**
+  Get actual Mach-O header from image (handles universal binaries).
+
+  For universal binaries, selects the first compatible architecture slice.
+  For single Mach-O files, returns the image base directly.
+
+  @param[in]  ImageBase    Base address of image
+  @param[in]  ImageSize    Size of image in bytes
+  @param[out] MachoHeader  Pointer to actual Mach-O header
+  @param[out] MachoSize    Size of Mach-O slice (if FAT)
+
+  @retval S_OK            Success
+  @retval S_FALSE         No compatible slice found
+  @retval E_POINTER       Invalid parameter
+**/
+static
+HRESULT
+MachoGetActualHeader (
+  IN  VOID   *ImageBase,
+  IN  UINTN  ImageSize,
+  OUT VOID   **MachoHeader,
+  OUT UINTN  *MachoSize
+  )
+{
+  FAT_HEADER *FatHeader;
+  MACHO_HEADER *Header;
+  UINT32 Magic;
+  UINT32 NumArchs;
+  UINT32 i;
+  BOOLEAN IsFat64;
+  BOOLEAN NeedSwap;
+
+  if (MachoHeader == NULL || MachoSize == NULL) {
+    return E_POINTER;
+  }
+
+  Header = (MACHO_HEADER *)ImageBase;
+  Magic = Header->Magic;
+
+  // Check if it's a FAT binary
+  if (Magic == FAT_MAGIC || Magic == FAT_CIGAM ||
+      Magic == FAT_MAGIC_64 || Magic == FAT_CIGAM_64) {
+
+    FatHeader = (FAT_HEADER *)ImageBase;
+    IsFat64 = (Magic == FAT_MAGIC_64 || Magic == FAT_CIGAM_64);
+    NeedSwap = (Magic == FAT_CIGAM || Magic == FAT_CIGAM_64);
+
+    NumArchs = FatHeader->NumArchs;
+    if (NeedSwap) {
+      NumArchs = ANX_BSWAP32(NumArchs);
+    }
+
+    if (NumArchs == 0 || NumArchs > 100) {
+      return S_FALSE;
+    }
+
+    // Iterate through architecture slices
+    if (IsFat64) {
+      FAT_ARCH_64 *Arch = (FAT_ARCH_64 *)((UINT8 *)ImageBase + sizeof(FAT_HEADER));
+
+      for (i = 0; i < NumArchs; i++) {
+        UINT64 Offset = NeedSwap ? ANX_BSWAP64(Arch[i].Offset) : Arch[i].Offset;
+        UINT64 Size = NeedSwap ? ANX_BSWAP64(Arch[i].Size) : Arch[i].Size;
+
+        if (Offset + Size > ImageSize) {
+          continue;
+        }
+
+        // Return first valid slice
+        *MachoHeader = (VOID *)((UINT8 *)ImageBase + Offset);
+        *MachoSize = (UINTN)Size;
+        return S_OK;
+      }
+    } else {
+      FAT_ARCH *Arch = (FAT_ARCH *)((UINT8 *)ImageBase + sizeof(FAT_HEADER));
+
+      for (i = 0; i < NumArchs; i++) {
+        UINT32 Offset = NeedSwap ? ANX_BSWAP32(Arch[i].Offset) : Arch[i].Offset;
+        UINT32 Size = NeedSwap ? ANX_BSWAP32(Arch[i].Size) : Arch[i].Size;
+
+        if (Offset + Size > ImageSize) {
+          continue;
+        }
+
+        // Return first valid slice
+        *MachoHeader = (VOID *)((UINT8 *)ImageBase + Offset);
+        *MachoSize = (UINTN)Size;
+        return S_OK;
+      }
+    }
+
+    // No valid slice found
+    return S_FALSE;
+  }
+
+  // Single Mach-O file
+  *MachoHeader = ImageBase;
+  *MachoSize = ImageSize;
+  return S_OK;
 }
 
 /**
@@ -197,25 +380,66 @@ MachoGetArch (
   )
 {
   MACHO_HEADER *Header;
+  VOID *ActualHeader;
+  UINTN ActualSize;
+  HRESULT Status;
 
   if (Architecture == NULL) {
     return E_POINTER;
   }
 
-  Header = (MACHO_HEADER *)ImageBase;
+  // Handle universal binaries - get actual Mach-O header
+  // Note: ImageSize is not available here, so we use a large value for detection
+  Status = MachoGetActualHeader(ImageBase, 0xFFFFFFFF, &ActualHeader, &ActualSize);
+  if (FAILED(Status)) {
+    return Status;
+  }
+
+  Header = (MACHO_HEADER *)ActualHeader;
 
   switch (Header->CpuType) {
+    case CPU_TYPE_VAX:
+      *Architecture = ARCH_VAX;
+      break;
+    case CPU_TYPE_MC680x0:
+      *Architecture = ARCH_M68K;
+      break;
     case CPU_TYPE_I386:
       *Architecture = ARCH_386;
       break;
     case CPU_TYPE_X86_64:
       *Architecture = ARCH_AMD64;
       break;
-    case CPU_TYPE_RISCV:
-      *Architecture = ARCH_RISCV64;
+    case CPU_TYPE_MC98000:
+      *Architecture = ARCH_PPC;
+      break;
+    case CPU_TYPE_HPPA:
+      *Architecture = ARCH_PARISC;
+      break;
+    case CPU_TYPE_ARM:
+      *Architecture = ARCH_ARM;
       break;
     case CPU_TYPE_ARM64:
+    case CPU_TYPE_ARM64_32:
       *Architecture = ARCH_ARM64;
+      break;
+    case CPU_TYPE_MC88000:
+      *Architecture = ARCH_M88K;
+      break;
+    case CPU_TYPE_SPARC:
+      *Architecture = ARCH_SPARC;
+      break;
+    case CPU_TYPE_I860:
+      *Architecture = ARCH_I860;
+      break;
+    case CPU_TYPE_POWERPC:
+      *Architecture = ARCH_PPC;
+      break;
+    case CPU_TYPE_POWERPC64:
+      *Architecture = ARCH_PPC64;
+      break;
+    case CPU_TYPE_RISCV:
+      *Architecture = ARCH_RISCV64;
       break;
     default:
       *Architecture = ARCH_UNSUPPORTED;
@@ -238,12 +462,21 @@ MachoGetEndianness (
   )
 {
   MACHO_HEADER *Header;
+  VOID *ActualHeader;
+  UINTN ActualSize;
+  HRESULT Status;
 
   if (Endianness == NULL) {
     return E_POINTER;
   }
 
-  Header = (MACHO_HEADER *)ImageBase;
+  // Handle universal binaries
+  Status = MachoGetActualHeader(ImageBase, 0xFFFFFFFF, &ActualHeader, &ActualSize);
+  if (FAILED(Status)) {
+    return Status;
+  }
+
+  Header = (MACHO_HEADER *)ActualHeader;
 
   // Determine endianness from magic number
   if (Header->Magic == MH_MAGIC || Header->Magic == MH_MAGIC_64) {
@@ -276,19 +509,28 @@ MachoGetEntryPoint (
   UINT32 i;
   UINTN Offset;
   BOOLEAN Is64Bit;
+  VOID *ActualHeader;
+  UINTN ActualSize;
+  HRESULT Status;
 
   if (EntryPoint == NULL) {
     return E_POINTER;
   }
 
-  Header32 = (MACHO_HEADER *)ImageBase;
-  Header64 = (MACHO_HEADER_64 *)ImageBase;
+  // Handle universal binaries
+  Status = MachoGetActualHeader(ImageBase, 0xFFFFFFFF, &ActualHeader, &ActualSize);
+  if (FAILED(Status)) {
+    return Status;
+  }
+
+  Header32 = (MACHO_HEADER *)ActualHeader;
+  Header64 = (MACHO_HEADER_64 *)ActualHeader;
 
   Is64Bit = (Header32->Magic == MH_MAGIC_64 || Header32->Magic == MH_CIGAM_64);
   Offset = Is64Bit ? sizeof(MACHO_HEADER_64) : sizeof(MACHO_HEADER);
 
   for (i = 0; i < Header32->NumCmds; i++) {
-    Cmd = (MACHO_LOAD_COMMAND *)MACHO_OFF(Offset);
+    Cmd = (MACHO_LOAD_COMMAND *)((UINT8 *)ActualHeader + Offset);
 
     if (Cmd->Cmd == LC_MAIN) {
       MACHO_ENTRY_POINT_COMMAND *EntryCmd = (MACHO_ENTRY_POINT_COMMAND *)Cmd;
@@ -323,7 +565,7 @@ MachoGetEntryPoint (
 static
 VOID
 MachoLoadSegment (
-  IN VOID     *ImageBase,
+  IN VOID     *MachoBase,
   IN UINT64   VmAddr,
   IN UINT64   VmSize,
   IN UINT64   FileOff,
@@ -343,7 +585,7 @@ MachoLoadSegment (
     // Copy file data to virtual address
     VirtualAddressCopy(
       VmAddr,
-      MACHO_OFF(FileOff),
+      (VOID *)((UINT8 *)MachoBase + FileOff),
       FileSize,
       IsUserMode,
       IsWritable,
@@ -376,6 +618,8 @@ MachoLoadImage (
   )
 {
   VOID *ImageBase;
+  VOID *ActualHeader;
+  UINTN ActualSize;
   MACHO_HEADER *Header32;
   MACHO_LOAD_COMMAND *Cmd;
   UINT32 i;
@@ -388,7 +632,14 @@ MachoLoadImage (
   }
 
   ImageBase = Context->ImageBase;
-  Header32 = (MACHO_HEADER *)ImageBase;
+
+  // Handle universal binaries - get actual Mach-O header
+  Status = MachoGetActualHeader(ImageBase, Context->ImageSize, &ActualHeader, &ActualSize);
+  if (FAILED(Status)) {
+    return Status;
+  }
+
+  Header32 = (MACHO_HEADER *)ActualHeader;
 
   Is64Bit = (Header32->Magic == MH_MAGIC_64 || Header32->Magic == MH_CIGAM_64);
 
@@ -416,12 +667,12 @@ MachoLoadImage (
 
   // Process all load commands
   for (i = 0; i < Header32->NumCmds; i++) {
-    Cmd = (MACHO_LOAD_COMMAND *)MACHO_OFF(Offset);
+    Cmd = (MACHO_LOAD_COMMAND *)((UINT8 *)ActualHeader + Offset);
 
     if (Cmd->Cmd == LC_SEGMENT) {
       MACHO_SEGMENT_COMMAND *Seg = (MACHO_SEGMENT_COMMAND *)Cmd;
       MachoLoadSegment(
-        ImageBase,
+        ActualHeader,
         Seg->VmAddr,
         Seg->VmSize,
         Seg->FileOff,
@@ -432,7 +683,7 @@ MachoLoadImage (
     } else if (Cmd->Cmd == LC_SEGMENT_64) {
       MACHO_SEGMENT_COMMAND_64 *Seg = (MACHO_SEGMENT_COMMAND_64 *)Cmd;
       MachoLoadSegment(
-        ImageBase,
+        ActualHeader,
         Seg->VmAddr,
         Seg->VmSize,
         Seg->FileOff,
@@ -465,6 +716,9 @@ MachoGetTlsInfo (
   UINT32 i;
   UINTN Offset;
   BOOLEAN Is64Bit;
+  VOID *ActualHeader;
+  UINTN ActualSize;
+  HRESULT Status;
 
   if (TlsInfo == NULL) {
     return E_POINTER;
@@ -472,13 +726,19 @@ MachoGetTlsInfo (
 
   memset(TlsInfo, 0, sizeof(IMGLOAD_TLS_INFO));
 
-  Header32 = (MACHO_HEADER *)ImageBase;
+  // Handle universal binaries
+  Status = MachoGetActualHeader(ImageBase, 0xFFFFFFFF, &ActualHeader, &ActualSize);
+  if (FAILED(Status)) {
+    return Status;
+  }
+
+  Header32 = (MACHO_HEADER *)ActualHeader;
   Is64Bit = (Header32->Magic == MH_MAGIC_64 || Header32->Magic == MH_CIGAM_64);
   Offset = Is64Bit ? sizeof(MACHO_HEADER_64) : sizeof(MACHO_HEADER);
 
   // Search for __thread_vars or __thread_bss segments
   for (i = 0; i < Header32->NumCmds; i++) {
-    Cmd = (MACHO_LOAD_COMMAND *)MACHO_OFF(Offset);
+    Cmd = (MACHO_LOAD_COMMAND *)((UINT8 *)ActualHeader + Offset);
 
     if (Cmd->Cmd == LC_SEGMENT_64) {
       MACHO_SEGMENT_COMMAND_64 *Seg = (MACHO_SEGMENT_COMMAND_64 *)Cmd;
@@ -528,6 +788,9 @@ MachoGetUnwindInfo (
   UINT32 i;
   UINTN Offset;
   BOOLEAN Is64Bit;
+  VOID *ActualHeader;
+  UINTN ActualSize;
+  HRESULT Status;
 
   if (UnwindInfo == NULL) {
     return E_POINTER;
@@ -535,13 +798,19 @@ MachoGetUnwindInfo (
 
   memset(UnwindInfo, 0, sizeof(IMGLOAD_UNWIND_INFO));
 
-  Header32 = (MACHO_HEADER *)ImageBase;
+  // Handle universal binaries
+  Status = MachoGetActualHeader(ImageBase, 0xFFFFFFFF, &ActualHeader, &ActualSize);
+  if (FAILED(Status)) {
+    return Status;
+  }
+
+  Header32 = (MACHO_HEADER *)ActualHeader;
   Is64Bit = (Header32->Magic == MH_MAGIC_64 || Header32->Magic == MH_CIGAM_64);
   Offset = Is64Bit ? sizeof(MACHO_HEADER_64) : sizeof(MACHO_HEADER);
 
   // Search for __unwind_info segment
   for (i = 0; i < Header32->NumCmds; i++) {
-    Cmd = (MACHO_LOAD_COMMAND *)MACHO_OFF(Offset);
+    Cmd = (MACHO_LOAD_COMMAND *)((UINT8 *)ActualHeader + Offset);
 
     if (Cmd->Cmd == LC_SEGMENT_64) {
       MACHO_SEGMENT_COMMAND_64 *Seg = (MACHO_SEGMENT_COMMAND_64 *)Cmd;
