@@ -365,14 +365,14 @@ VirtualAddressMapFramebuffer (
   if (FbPtr == NULL || FbPtr->Type == FB_INVALID)
     return;
 
-  if (FbPtr->size > Size)
+  if (FbPtr->Size > Size)
     {
       printf ("ERROR: framebuffer too big. Shrinking int from %lx to %lx\n",
-	      FbPtr->size, Size);
-      FbPtr->size = Size;
+	      FbPtr->Size, Size);
+      FbPtr->Size = Size;
     }
 
-  Pa = FbPtr->addr;
+  Pa = FbPtr->Addr;
 
   switch (gElfArch)
     {
@@ -565,32 +565,32 @@ VirtualAddressMapInfoCopy (
       return;
     }
 
-  BootInfo.magic = APXH_BOOTINFO_MAGIC;
-  BootInfo.maxpfn = PlatformGetMaxPageFrameNumber ();
-  BootInfo.maxrampfn = PlatformGetMaxRamPageFrameNumber ();
-  BootInfo.numregions = NumRegions;
-  BootInfo.uentry = UEntry;
+  BootInfo.Magic = APXH_BOOTINFO_MAGIC;
+  BootInfo.MaxPfn = PlatformGetMaxPageFrameNumber ();
+  BootInfo.MaxRamPfn = PlatformGetMaxRamPageFrameNumber ();
+  BootInfo.NumRegions = NumRegions;
+  BootInfo.UserEntry = UEntry;
 
   PlatformDesc = PlatformGetDescriptor ();
   if (PlatformDesc != NULL)
-    BootInfo.pltdesc = *PlatformDesc;
+    BootInfo.PlatformDesc = *PlatformDesc;
   else
-    BootInfo.pltdesc = (APXH_PLATFORM_DESCRIPTOR)
+    BootInfo.PlatformDesc = (APXH_PLATFORM_DESCRIPTOR)
     {.Type = PLATFORM_UNKNOWN,.PlatformPointer = 0 };
 
   FbPtr = PlatformGetFramebuffer ();
   if (FbPtr != NULL)
-    BootInfo.fbdesc = *FbPtr;
+    BootInfo.FramebufferDesc = *FbPtr;
   else
-    BootInfo.fbdesc.Type = FB_INVALID;
+    BootInfo.FramebufferDesc.Type = FB_INVALID;
 
-  BootInfo.ktls.initvaddr = gKtlsVa;
-  BootInfo.ktls.initsize = gKtlsInitsize;
-  BootInfo.ktls.size = gKtlsSize;
+  BootInfo.KernelTls.InitializedDataVaddr = gKtlsVa;
+  BootInfo.KernelTls.InitializedDataSize = gKtlsInitsize;
+  BootInfo.KernelTls.TotalSize = gKtlsSize;
 
-  BootInfo.utls.initvaddr = gUtlsVa;
-  BootInfo.utls.initsize = gUtlsInitsize;
-  BootInfo.utls.size = gUtlsSize;
+  BootInfo.UserTls.InitializedDataVaddr = gUtlsVa;
+  BootInfo.UserTls.InitializedDataSize = gUtlsInitsize;
+  BootInfo.UserTls.TotalSize = gUtlsSize;
 
   VirtualAddressCopy (Va, &BootInfo, MIN (Size, sizeof (APXH_BOOT_INFO)), 0, 0, 0);
 #undef MIN
@@ -643,11 +643,11 @@ VirtualAddressMapBatree (
   VirtualAddressPopulate (Va, Size, 0, 1, 0);
 
   /* Copy the header. */
-  BatreeHeader.magic = APXH_BATREE_MAGIC;
-  BatreeHeader.version = APXH_BATREE_VERSION;
-  BatreeHeader.order = Order;
-  BatreeHeader.offset = sizeof (BatreeHeader);
-  BatreeHeader.size = 8 * BATREE_SIZE (Order);
+  BatreeHeader.Magic = APXH_BATREE_MAGIC;
+  BatreeHeader.Version = APXH_BATREE_VERSION;
+  BatreeHeader.Order = Order;
+  BatreeHeader.Offset = sizeof (BatreeHeader);
+  BatreeHeader.Size = 8 * BATREE_SIZE (Order);
   VirtualAddressCopy (Va, &BatreeHeader, sizeof (BatreeHeader), 0, 1, 0);
 
   /* Fill the S-Tree with all RAM regions. */
@@ -663,9 +663,9 @@ VirtualAddressMapBatree (
 	continue;
 
 
-      for (j = 0; j < Region->Len; j++)
+      for (j = 0; j < Region->Length; j++)
 	{
-	  UINT32 Frame = Region->Pfn + j;
+	  UINT32 Frame = Region->PageFrameNumber + j;
 
 	  if (Frame > MaxPageFrameNumber)
 	    {
@@ -688,9 +688,9 @@ VirtualAddressMapBatree (
 	continue;
 
 
-      for (j = 0; j < Region->Len; j++)
+      for (j = 0; j < Region->Length; j++)
 	{
-	  UINT32 Frame = Region->Pfn + j;
+	  UINT32 Frame = Region->PageFrameNumber + j;
 
 	  if (Frame > MaxPageFrameNumber)
 	    {
@@ -859,12 +859,12 @@ VirtualAddressMapPageFrameNumbers (
       Region = PlatformGetMemoryRegion (RegionIndex);
 
       printf ("Reg: %d Type %02d, PA: %016llx (%ld)\n", RegionIndex, Region->Type,
-	      (UINT64) Region->Pfn << PAGE_SHIFT, Region->Len);
+	      (UINT64) Region->PageFrameNumber << PAGE_SHIFT, Region->Length);
 
 
-      for (j = 0; j < Region->Len; j++)
+      for (j = 0; j < Region->Length; j++)
 	{
-	  UINT32 Frame = Region->Pfn + j;
+	  UINT32 Frame = Region->PageFrameNumber + j;
 	  UINT8 *Ptr;
 
 	  if (Frame > MaxPageFrameNumber)

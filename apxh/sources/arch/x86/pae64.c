@@ -36,30 +36,30 @@ static PTE *gPae64Cr3;
 **/
 static PTE *
 Pae64GetL3p (
-  IN PTE    *pCr3,
+  IN PTE    *Cr3,
   IN VIRTUAL_ADDRESS  VirtualAddress,
   IN INT32 IsPayload
   )
 {
-  PTE *pL4p, *pL3p;
+  PTE *L4Entry, *L3Entry;
   UINT32 L4Off = L4OFF64 (VirtualAddress);
   UINT32 L3Off = L3OFF64 (VirtualAddress);
 
-  pL4p = pCr3 + L4Off;
+  L4Entry = Cr3 + L4Off;
 
-  pL3p = (PTE *) PteGetAddr (pL4p);
-  if (pL3p == NULL)
+  L3Entry = (PTE *) PteGetAddr (L4Entry);
+  if (L3Entry == NULL)
     {
       UINTN L3Page;
 
       /* Populating L3. */
       L3Page = IsPayload ? GetPayloadPage () : GetPage ();
 
-      SetPte (pL4p, L3Page >> PAGE_SHIFT, PTE_U | PTE_W | PTE_P);
-      pL3p = (PTE *) L3Page;
+      SetPte (L4Entry, L3Page >> PAGE_SHIFT, PTE_U | PTE_W | PTE_P);
+      L3Entry = (PTE *) L3Page;
     }
 
-  return pL3p + L3Off;
+  return L3Entry + L3Off;
 }
 
 /**
@@ -76,30 +76,30 @@ Pae64GetL3p (
 **/
 static PTE *
 Pae64GetL2p (
-  IN PTE    *pCr3,
+  IN PTE    *Cr3,
   IN VIRTUAL_ADDRESS  VirtualAddress,
   IN INT32 IsPayload
   )
 {
-  PTE *pL3p, *pL2p;
+  PTE *L3Entry, *L2Entry;
 
   UINT32 L2Off = L2OFF64 (VirtualAddress);
 
-  pL3p = Pae64GetL3p (pCr3, VirtualAddress, IsPayload);
+  L3Entry = Pae64GetL3p (Cr3, VirtualAddress, IsPayload);
 
-  pL2p = (PTE *) PteGetAddr (pL3p);
-  if (pL2p == NULL)
+  L2Entry = (PTE *) PteGetAddr (L3Entry);
+  if (L2Entry == NULL)
     {
       UINTN L2Page;
 
       /* Populating L2. */
       L2Page = IsPayload ? GetPayloadPage () : GetPage ();
 
-      SetPte (pL3p, L2Page >> PAGE_SHIFT, PTE_U | PTE_W | PTE_P);
-      pL2p = (PTE *) L2Page;
+      SetPte (L3Entry, L2Page >> PAGE_SHIFT, PTE_U | PTE_W | PTE_P);
+      L2Entry = (PTE *) L2Page;
     }
 
-  return pL2p + L2Off;
+  return L2Entry + L2Off;
 }
 
 /**
@@ -116,29 +116,29 @@ Pae64GetL2p (
 **/
 static PTE *
 Pae64GetL1p (
-  IN PTE    *pCr3,
+  IN PTE    *Cr3,
   IN VIRTUAL_ADDRESS  VirtualAddress,
   IN INT32 IsPayload
   )
 {
-  PTE *pL2p, *pL1p;
+  PTE *L2Entry, *L1Entry;
   UINT32 L1Off = L1OFF64 (VirtualAddress);
 
-  pL2p = Pae64GetL2p (pCr3, VirtualAddress, IsPayload);
+  L2Entry = Pae64GetL2p (Cr3, VirtualAddress, IsPayload);
 
-  pL1p = (PTE *) PteGetAddr (pL2p);
-  if (pL1p == NULL)
+  L1Entry = (PTE *) PteGetAddr (L2Entry);
+  if (L1Entry == NULL)
     {
       UINTN L1Page;
 
       /* Populating L1. */
       L1Page = IsPayload ? GetPayloadPage () : GetPage ();
 
-      SetPte (pL2p, L1Page >> PAGE_SHIFT, PTE_U | PTE_W | PTE_P);
-      pL1p = (PTE *) L1Page;
+      SetPte (L2Entry, L1Page >> PAGE_SHIFT, PTE_U | PTE_W | PTE_P);
+      L1Entry = (PTE *) L1Page;
     }
 
-  return pL1p + L1Off;
+  return L1Entry + L1Off;
 }
 
 /**
@@ -204,22 +204,22 @@ Pae64MapPage (
   IN INT32 IsExecutable
   )
 {
-  PTE *pL1p, *pCr3;
+  PTE *L1Entry, *Cr3;
   UINT64 L1F;
   UINTN Page;
 
-  pCr3 = (PTE *) PageTable;
+  Cr3 = (PTE *) PageTable;
 
   printf ("Mapping at va %llx PA %lx (p:%d, w:%d, x:%d)\n", VirtualAddress, PhysicalAddress, IsPayload,
 	  IsWritable, IsExecutable);
 
-  pL1p = Pae64GetL1p (pCr3, VirtualAddress, IsPayload);
+  L1Entry = Pae64GetL1p (Cr3, VirtualAddress, IsPayload);
   L1F = (IsWritable ? PTE_W : 0) | (IsExecutable ? 0 : PTE_NX) | PTE_P;
 
-  Page = (UINTN) PteGetAddr (pL1p);
+  Page = (UINTN) PteGetAddr (L1Entry);
   assert (Page == 0);
   Page = PhysicalAddress >> PAGE_SHIFT;
-  SetPte (pL1p, Page, L1F);
+  SetPte (L1Entry, Page, L1F);
 }
 
 /**
@@ -239,7 +239,7 @@ Pae64MapPage (
 **/
 static UINTN
 Pae64PopulatePage (
-  IN PTE    *pCr3,
+  IN PTE    *Cr3,
   IN VIRTUAL_ADDRESS  VirtualAddress,
   IN INT32 IsUserMode,
   IN INT32 IsWritable,
@@ -247,29 +247,29 @@ Pae64PopulatePage (
   IN INT32 IsPayload
   )
 {
-  PTE *pL1p;
+  PTE *L1Entry;
   UINT64 L1F;
   UINTN Page;
 
-  pL1p = Pae64GetL1p (pCr3, VirtualAddress, IsPayload);
+  L1Entry = Pae64GetL1p (Cr3, VirtualAddress, IsPayload);
   L1F = (IsUserMode ? PTE_U : 0) | (IsWritable ? PTE_W : 0) | (IsExecutable ? 0 : PTE_NX) | PTE_P;
 
-  Page = (UINTN) PteGetAddr (pL1p);
+  Page = (UINTN) PteGetAddr (L1Entry);
   if (Page == 0)
     {
       Page = IsPayload ? GetPayloadPage () : GetPage ();
-      SetPte (pL1p, Page >> PAGE_SHIFT, L1F);
+      SetPte (L1Entry, Page >> PAGE_SHIFT, L1F);
     }
   else
     {
       UINT64 NewF;
-      UINT64 OldF = PteGetFlags (pL1p);
+      UINT64 OldF = PteGetFlags (L1Entry);
 
       NewF = PteMergeFlags (L1F, OldF);
       if (NewF != OldF)
 	{
 	  printf ("Flags changed from %llx to %llx\n", OldF, NewF);
-	  SetPte (pL1p, Page >> PAGE_SHIFT, NewF);
+	  SetPte (L1Entry, Page >> PAGE_SHIFT, NewF);
 	}
     }
 
@@ -292,27 +292,27 @@ Pae64GetPhysical (
   )
 {
   UINTN Page;
-  PTE *pL4p, *pL3p, *pL2p, *pL1p;
+  PTE *L4Entry, *L3Entry, *L2Entry, *L1Entry;
   UINT32 L4Off = L4OFF64 (VirtualAddress);
   UINT32 L3Off = L3OFF64 (VirtualAddress);
   UINT32 L2Off = L2OFF64 (VirtualAddress);
   UINT32 L1Off = L1OFF64 (VirtualAddress);
 
-  pL4p = gPae64Cr3 + L4Off;
+  L4Entry = gPae64Cr3 + L4Off;
 
-  pL3p = (PTE *) PteGetAddr (pL4p);
-  assert (pL3p != NULL);
-  pL3p += L3Off;
+  L3Entry = (PTE *) PteGetAddr (L4Entry);
+  assert (L3Entry != NULL);
+  L3Entry += L3Off;
 
-  pL2p = (PTE *) PteGetAddr (pL3p);
-  assert (pL2p != NULL);
-  pL2p += L2Off;
+  L2Entry = (PTE *) PteGetAddr (L3Entry);
+  assert (L2Entry != NULL);
+  L2Entry += L2Off;
 
-  pL1p = (PTE *) PteGetAddr (pL2p);
-  assert (pL1p != NULL);
-  pL1p += L1Off;
+  L1Entry = (PTE *) PteGetAddr (L2Entry);
+  assert (L1Entry != NULL);
+  L1Entry += L1Off;
 
-  Page = (UINTN) PteGetAddr (pL1p);
+  Page = (UINTN) PteGetAddr (L1Entry);
   assert (Page != 0);
 
   return Page |= (VirtualAddress & ~(PAGE_MASK));
@@ -346,7 +346,7 @@ Pae64DirectMap (
 {
   SSIZE64 Len;
   UINT64 Pa;
-  PTE *pCr3 = (PTE *) PageTable;
+  PTE *Cr3 = (PTE *) PageTable;
 INT32 P1G = CpuSupports1gbPages ();
   UINTN L3Cnt = 0, L2Cnt = 0, L1Cnt = 0;
 
@@ -363,9 +363,9 @@ INT32 P1G = CpuSupports1gbPages ();
 
       if (P1G && GB1ALIGNED (Pa) && GB1ALIGNED (VirtualAddress) && Len >= (1L << 30))
 	{
-	  PTE *pL3p = Pae64GetL3p (pCr3, VirtualAddress, IsPayload);
+	  PTE *L3Entry = Pae64GetL3p (Cr3, VirtualAddress, IsPayload);
 
-	  SetPte (pL3p, Pa >> PAGE_SHIFT,
+	  SetPte (L3Entry, Pa >> PAGE_SHIFT,
 		   MemtypeToFlags (Mt, FALSE /*1GB */ ) |
 		   PTE_PS | PTE_W | PTE_P | (IsExecutable ? 0 : PTE_NX));
 	  VirtualAddress += (1L << 30);
@@ -375,9 +375,9 @@ INT32 P1G = CpuSupports1gbPages ();
 	}
       else if (MB2ALIGNED (Pa) && MB2ALIGNED (VirtualAddress) && Len >= (1 << 21))
 	{
-	  PTE *pL2p = Pae64GetL2p (pCr3, VirtualAddress, IsPayload);
+	  PTE *L2Entry = Pae64GetL2p (Cr3, VirtualAddress, IsPayload);
 
-	  SetPte (pL2p, Pa >> PAGE_SHIFT,
+	  SetPte (L2Entry, Pa >> PAGE_SHIFT,
 		   MemtypeToFlags (Mt, FALSE /* 2MB */ ) |
 		   PTE_PS | PTE_W | PTE_P | (IsExecutable ? 0 : PTE_NX));
 	  VirtualAddress += (1L << 21);
@@ -387,9 +387,9 @@ INT32 P1G = CpuSupports1gbPages ();
 	}
       else
 	{
-	  PTE *pL1p = Pae64GetL1p (pCr3, VirtualAddress, IsPayload);
+	  PTE *L1Entry = Pae64GetL1p (Cr3, VirtualAddress, IsPayload);
 
-	  SetPte (pL1p, Pa >> PAGE_SHIFT,
+	  SetPte (L1Entry, Pa >> PAGE_SHIFT,
 		   MemtypeToFlags (Mt,
 				     TRUE /*4kB */ ) | PTE_W | PTE_P | (IsExecutable ? 0
 									:
@@ -487,7 +487,7 @@ Pae64MapLinear (
   )
 {
   UINT32 L4Off = L4OFF64 (VirtualAddress);
-  PTE *pL4p;
+  PTE *L4Entry;
 
   if (VirtualAddress & PAE64_LINEAR_ALIGN)
     {
@@ -502,9 +502,9 @@ Pae64MapLinear (
       exit (-1);
     }
 
-  pL4p = gPae64Cr3 + L4Off;
-  SetPte (pL4p, (UINTN) gPae64Cr3 >> PAGE_SHIFT, PTE_W | PTE_P);
-  printf ("Wrote %llx at %p\n", *pL4p, pL4p);
+  L4Entry = gPae64Cr3 + L4Off;
+  SetPte (L4Entry, (UINTN) gPae64Cr3 >> PAGE_SHIFT, PTE_W | PTE_P);
+  printf ("Wrote %llx at %p\n", *L4Entry, L4Entry);
 }
 
 /**

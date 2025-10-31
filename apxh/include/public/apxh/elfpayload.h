@@ -41,6 +41,9 @@ typedef struct _PAYLOAD_HDR
   UINT64 Filename;
   UINT32 Size;
 } ANX_PACKED PAYLOAD_HDR, *PPAYLOAD_HDR, *PCPAYLOAD_HDR;
+
+// Legacy lowercase struct name for compatibility
+typedef PAYLOAD_HDR payload_hdr;
 ANX_PACK_POP()
 
 

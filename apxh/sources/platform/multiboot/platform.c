@@ -51,19 +51,19 @@ ParseMultibootFramebuffer (
   if (Info->framebuffer_type == MULTIBOOT_FRAMEBUFFER_TYPE_RGB)
     {
       gFbDesc.Type = FB_RGB;
-      gFbDesc.addr = Info->framebuffer_addr;
-      gFbDesc.size =
+      gFbDesc.Addr = Info->framebuffer_addr;
+      gFbDesc.Size =
 	(UINT64) Info->framebuffer_pitch * Info->framebuffer_height;
 
-      gFbDesc.pitch = Info->framebuffer_pitch;
-      gFbDesc.width = Info->framebuffer_width;
-      gFbDesc.height = Info->framebuffer_height;
-      gFbDesc.bpp = Info->framebuffer_bpp;
+      gFbDesc.Pitch = Info->framebuffer_pitch;
+      gFbDesc.Width = Info->framebuffer_width;
+      gFbDesc.Height = Info->framebuffer_height;
+      gFbDesc.Bpp = Info->framebuffer_bpp;
 
 #define MB2MASK(_p, _s)  (((1 << (_s)) - 1) << (1 << (_p)))
-      gFbDesc.r_mask = MB2MASK (Info->rpos, Info->rsize);
-      gFbDesc.g_mask = MB2MASK (Info->gpos, Info->gsize);
-      gFbDesc.b_mask = MB2MASK (Info->bpos, Info->bsize);
+      gFbDesc.RMask = MB2MASK (Info->rpos, Info->rsize);
+      gFbDesc.GMask = MB2MASK (Info->gpos, Info->gsize);
+      gFbDesc.BMask = MB2MASK (Info->bpos, Info->bsize);
 #undef MB2MASK
     }
   else if (Info->framebuffer_type == MULTIBOOT_FRAMEBUFFER_TYPE_INDEXED)
@@ -75,18 +75,18 @@ ParseMultibootFramebuffer (
          to frame buffer and we have no way (yet!) to handle it.
        */
       gFbDesc.Type = FB_RGB;
-      gFbDesc.addr = Info->framebuffer_addr;
-      gFbDesc.size =
+      gFbDesc.Addr = Info->framebuffer_addr;
+      gFbDesc.Size =
 	(UINT64) Info->framebuffer_pitch * Info->framebuffer_height;
 
-      gFbDesc.pitch = Info->framebuffer_pitch;
-      gFbDesc.width = Info->framebuffer_width;
-      gFbDesc.height = Info->framebuffer_height;
-      gFbDesc.bpp = Info->framebuffer_bpp;
+      gFbDesc.Pitch = Info->framebuffer_pitch;
+      gFbDesc.Width = Info->framebuffer_width;
+      gFbDesc.Height = Info->framebuffer_height;
+      gFbDesc.Bpp = Info->framebuffer_bpp;
 
-      gFbDesc.r_mask = 0xff;
-      gFbDesc.g_mask = 0xff;
-      gFbDesc.b_mask = 0xff;
+      gFbDesc.RMask = 0xff;
+      gFbDesc.GMask = 0xff;
+      gFbDesc.BMask = 0xff;
     }
   else
     {
@@ -156,14 +156,14 @@ ParseMultibootMmap (
       UINTN MultibootEntrySize;
       BOOTINFO_REGION BootinfoRegion;
 
-      printf ("%016llx:%016llx:%d\n", MultibootPtr->addr, MultibootPtr->Len, MultibootPtr->Type);
-      if (MultibootPtr->Type == MULTIBOOT_MEMORY_AVAILABLE)
+      printf ("%016llx:%016llx:%d\n", MultibootPtr->addr, MultibootPtr->len, MultibootPtr->type);
+      if (MultibootPtr->type == MULTIBOOT_MEMORY_AVAILABLE)
 	BootinfoRegion.Type = BOOTINFO_REGION_RAM;
       else
 	BootinfoRegion.Type = BOOTINFO_REGION_OTHER;
 
       BootinfoRegion.PageFrameNumber = MultibootPtr->addr >> PAGE_SHIFT;
-      BootinfoRegion.Length = (MultibootPtr->Len + PAGE_SIZE - 1) >> PAGE_SHIFT;
+      BootinfoRegion.Length = (MultibootPtr->len + PAGE_SIZE - 1) >> PAGE_SHIFT;
       MultibootEntrySize = MultibootPtr->size + sizeof (MultibootPtr->size);
 
       /* Count all memory as maxpfn */
@@ -497,7 +497,7 @@ MbAmd64Entry (
   IN VIRTUAL_ADDRESS  Entry
   )
 {
-  VOID *pTrampCr3;
+  VOID *TrampCr3;
   VOID *Tramp;
   UINT16 TrampCode = 0xe7ff;	/* jmp *%rdi */
   UINTN Cr0, Cr3, Cr4;
@@ -505,7 +505,7 @@ MbAmd64Entry (
   VIRTUAL_ADDRESS TrampEntry;
 
   /* Allocate trampoline pagetable. */
-  pTrampCr3 = (VOID *) GetPage ();
+  TrampCr3 = (VOID *) GetPage ();
 
   /* Setup trampoline. */
   Tramp = (VOID *) GetPage ();
@@ -515,11 +515,11 @@ MbAmd64Entry (
   printf ("tramp is %lx (%x)\n", Tramp, *(UINT64 *) Tramp);
 
   /* Setup Direct map at 0->1Gb */
-  Pae64DirectMap (pTrampCr3, 0, 0, 1L << 30, MEMTYPE_WB, 0, 1);
+  Pae64DirectMap (TrampCr3, 0, 0, 1L << 30, MEMTYPE_WB, 0, 1);
 
   /* Map Entry page in transitional pagetable VA. */
-  Pae64MapPage (pTrampCr3, (VIRTUAL_ADDRESS) Entry, Pae64GetPhysical (Entry), 0, 0, 1);
-  printf ("mapping in %lx %llx at %lx\n", pTrampCr3, Entry,
+  Pae64MapPage (TrampCr3, (VIRTUAL_ADDRESS) Entry, Pae64GetPhysical (Entry), 0, 0, 1);
+  printf ("mapping in %lx %llx at %lx\n", TrampCr3, Entry,
 	  Pae64GetPhysical (Entry));
 
   Cr4 = ReadCr4 ();
@@ -527,7 +527,7 @@ MbAmd64Entry (
   printf ("CR4: %08lx -> %08lx.\n", Cr4, ReadCr4 ());
 
   Cr3 = ReadCr3 ();
-  WriteCr3 ((UINTN) pTrampCr3);
+  WriteCr3 ((UINTN) TrampCr3);
   printf ("CR3: %08lx -> %08lx.\n", Cr3, ReadCr3 ());
 
   Efer = Rdmsr (MSR_IA32_EFER);
@@ -568,7 +568,7 @@ Mb386Entry (
   IN VIRTUAL_ADDRESS  Entry
   )
 {
-  VOID *pTrampCr3;
+  VOID *TrampCr3;
   VOID *Tramp;
   VIRTUAL_ADDRESS TrampEntry;
   UINT16 TrampCode = 0xe7ff;	/* jmp *%edi */
@@ -577,7 +577,7 @@ Mb386Entry (
   UINTN Cr0 = ReadCr0 ();
 
   /* Allocate trampoline pagetable. */
-  pTrampCr3 = (VOID *) GetPage ();
+  TrampCr3 = (VOID *) GetPage ();
 
   /* Setup trampoline. */
   Tramp = (VOID *) GetPage ();
@@ -587,17 +587,17 @@ Mb386Entry (
   printf ("tramp is %lx (%x)\n", Tramp, *(UINT64 *) Tramp);
 
   /* Setup Direct map at 0->1Gb */
-  PaeDirectMap (pTrampCr3, 0, 0, 1L << 30, MEMTYPE_WB, 0, 1);
+  PaeDirectMap (TrampCr3, 0, 0, 1L << 30, MEMTYPE_WB, 0, 1);
 
   /* Map Entry page in transitional pagetable VA. */
-  PaeMapPage (pTrampCr3, (VIRTUAL_ADDRESS) Entry, PaeGetPhysical (Entry), 0, 0, 1);
-  printf ("mapping in %lx %llx at %lx\n", pTrampCr3, Entry,
+  PaeMapPage (TrampCr3, (VIRTUAL_ADDRESS) Entry, PaeGetPhysical (Entry), 0, 0, 1);
+  printf ("mapping in %lx %llx at %lx\n", TrampCr3, Entry,
 	  PaeGetPhysical (Entry));
 
   WriteCr4 (Cr4 | CR4_PAE);
   printf ("CR4: %08lx -> %08lx.\n", Cr4, ReadCr4 ());
 
-  WriteCr3 ((UINTN) pTrampCr3);
+  WriteCr3 ((UINTN) TrampCr3);
   printf ("CR3: %08lx -> %08lx.\n", Cr3, ReadCr3 ());
 
   WriteCr0 (Cr0 | CR0_PG | CR0_WP);

@@ -56,16 +56,30 @@ typedef enum _MEMORY_TYPE
 } MEMORY_TYPE;
 
 /* APXH ELF extensions. */
-#define PHT_APXH_INFO       0xAF100000	/* Info Page. */
-#define PHT_APXH_EMPTY      0xAF100001	/* Empty (no page tables). */
-#define PHT_APXH_PHYSMAP    0xAF100002	/* 1:1 Memory Map. */
-#define PHT_APXH_PFNMAP     0xAF100003	/* PFN Map. */
-#define PHT_APXH_BATREE      0xAF100004	/* Allocated Pages Bitmap. */
-#define PHT_APXH_PTALLOC    0xAF100005	/* Empty (alloc all page tables). */
-#define PHT_APXH_FRAMEBUF   0xAF100006	/* Frame Buffer. */
-#define PHT_APXH_REGIONS    0xAF100007	/* Region List. */
-#define PHT_APXH_TOPPTALLOC 0xAF100008	/* Empty (alloc all top-level PTs). */
-#define PHT_APXH_LINEAR     0xAF10FFFF	/* Linear map. */
+typedef enum _APXH_PROGRAM_HEADER_TYPE {
+  ApxhProgramHeaderInfo          = 0xAF100000,  ///< Info Page
+  ApxhProgramHeaderEmpty         = 0xAF100001,  ///< Empty (no page tables)
+  ApxhProgramHeaderPhysicalMap   = 0xAF100002,  ///< 1:1 Memory Map
+  ApxhProgramHeaderPfnMap        = 0xAF100003,  ///< PFN Map
+  ApxhProgramHeaderBatree        = 0xAF100004,  ///< Allocated Pages Bitmap
+  ApxhProgramHeaderPageTableAlloc = 0xAF100005, ///< Empty (alloc all page tables)
+  ApxhProgramHeaderFramebuffer   = 0xAF100006,  ///< Frame Buffer
+  ApxhProgramHeaderRegions       = 0xAF100007,  ///< Region List
+  ApxhProgramHeaderTopPageTableAlloc = 0xAF100008, ///< Empty (alloc all top-level PTs)
+  ApxhProgramHeaderLinear        = 0xAF10FFFF   ///< Linear map
+} APXH_PROGRAM_HEADER_TYPE;
+
+// Legacy compatibility
+#define PHT_APXH_INFO       ApxhProgramHeaderInfo
+#define PHT_APXH_EMPTY      ApxhProgramHeaderEmpty
+#define PHT_APXH_PHYSMAP    ApxhProgramHeaderPhysicalMap
+#define PHT_APXH_PFNMAP     ApxhProgramHeaderPfnMap
+#define PHT_APXH_BATREE     ApxhProgramHeaderBatree
+#define PHT_APXH_PTALLOC    ApxhProgramHeaderPageTableAlloc
+#define PHT_APXH_FRAMEBUF   ApxhProgramHeaderFramebuffer
+#define PHT_APXH_REGIONS    ApxhProgramHeaderRegions
+#define PHT_APXH_TOPPTALLOC ApxhProgramHeaderTopPageTableAlloc
+#define PHT_APXH_LINEAR     ApxhProgramHeaderLinear
 
 #define PFNMAP_ENTRY_SIZE 64
 

@@ -15,90 +15,90 @@
 
 typedef struct elf32ph
 {
-  UINT32 type;
-  UINT32 off;
-  UINT32 va;
-  UINT32 pa;
-  UINT32 fsize;
-  UINT32 msize;
-  UINT32 flags;
-  UINT32 align;
+  UINT32 Type;
+  UINT32 Off;
+  UINT32 Va;
+  UINT32 Pa;
+  UINT32 Fsize;
+  UINT32 Msize;
+  UINT32 Flags;
+  UINT32 Align;
 } ELF32_PH;
 
 typedef struct elf64ph
 {
-  UINT32 type;
-  UINT32 flags;
-  UINT64 off;
-  UINT64 va;
-  UINT64 pa;
-  UINT64 fsize;
-  UINT64 msize;
-  UINT64 align;
+  UINT32 Type;
+  UINT32 Flags;
+  UINT64 Off;
+  UINT64 Va;
+  UINT64 Pa;
+  UINT64 Fsize;
+  UINT64 Msize;
+  UINT64 Align;
 } ELF64_PH;
 
 typedef struct elf32sh
 {
-  UINT32 name;
-  UINT32 type;
-  UINT32 flags;
-  UINT32 addr;
-  UINT32 off;
-  UINT32 size;
-  UINT32 lnk;
-  UINT32 info;
-  UINT32 align;
-  UINT32 shent_size;
+  UINT32 Name;
+  UINT32 Type;
+  UINT32 Flags;
+  UINT32 Addr;
+  UINT32 Off;
+  UINT32 Size;
+  UINT32 Lnk;
+  UINT32 Info;
+  UINT32 Align;
+  UINT32 ShentSize;
 } ELF32_SH;
 
 typedef struct elf64sh
 {
-  UINT32 name;
-  UINT32 type;
-  UINT64 flags;
-  UINT64 addr;
-  UINT64 off;
-  UINT64 size;
-  UINT32 lnk;
-  UINT32 info;
-  UINT64 align;
-  UINT64 shent_size;
+  UINT32 Name;
+  UINT32 Type;
+  UINT64 Flags;
+  UINT64 Addr;
+  UINT64 Off;
+  UINT64 Size;
+  UINT32 Lnk;
+  UINT32 Info;
+  UINT64 Align;
+  UINT64 ShentSize;
 } ELF64_SH;
 
 typedef struct elf32hdr
 {
-  UINT8  id[16];
-  UINT16 type;
-  UINT16 mach;
-  UINT32 ver;
-  UINT32 entry;
-  UINT32 phoff;
-  UINT32 shoff;
-  UINT32 flags;
-  UINT16 eh_size;
-  UINT16 phent_size;
-  UINT16 phs;
-  UINT16 shent_size;
-  UINT16 shs;
-  UINT16 shstrndx;
+  UINT8  Id[16];
+  UINT16 Type;
+  UINT16 Mach;
+  UINT32 Ver;
+  UINT32 Entry;
+  UINT32 Phoff;
+  UINT32 Shoff;
+  UINT32 Flags;
+  UINT16 EhSize;
+  UINT16 PhentSize;
+  UINT16 Phs;
+  UINT16 ShentSize;
+  UINT16 Shs;
+  UINT16 Shstrndx;
 } __packed ELF32_HDR;
 
 typedef struct elf64hdr
 {
-  UINT8  id[16];
-  UINT16 type;
-  UINT16 mach;
-  UINT32 ver;
-  UINT64 entry;
-  UINT64 phoff;
-  UINT64 shoff;
-  UINT32 flags;
-  UINT16 eh_size;
-  UINT16 phent_size;
-  UINT16 phs;
-  UINT16 shent_size;
-  UINT16 shs;
-  UINT16 shstrndx;
+  UINT8  Id[16];
+  UINT16 Type;
+  UINT16 Mach;
+  UINT32 Ver;
+  UINT64 Entry;
+  UINT64 Phoff;
+  UINT64 Shoff;
+  UINT32 Flags;
+  UINT16 EhSize;
+  UINT16 PhentSize;
+  UINT16 Phs;
+  UINT16 ShentSize;
+  UINT16 Shs;
+  UINT16 Shstrndx;
 } __packed ELF64_HDR;
 
 #define ET_EXEC		2
@@ -352,25 +352,25 @@ LoadElf32 (
 
   CHAR8 ElfId[] = { 0x7f, 'E', 'L', 'F', };
   ELF32_HDR *ElfHeader = (ELF32_HDR *) ElfImage;
-  ELF32_PH *ProgramHeader = (ELF32_PH *) ELFOFF (ElfHeader->phoff);
+  ELF32_PH *ProgramHeader = (ELF32_PH *) ELFOFF (ElfHeader->Phoff);
 
-  if (memcmp (ElfHeader->id, ElfId, 4) != 0)
+  if (memcmp (ElfHeader->Id, ElfId, 4) != 0)
     return (UINTN) - 1;
 
-  if (ElfHeader->Type != ET_EXEC || ElfHeader->ver != EV_CURRENT)
+  if (ElfHeader->Type != ET_EXEC || ElfHeader->Ver != EV_CURRENT)
     return (UINTN) - 1;
 
-  for (i = 0; i < ElfHeader->phs; i++, ProgramHeader++)
+  for (i = 0; i < ElfHeader->Phs; i++, ProgramHeader++)
     {
       if (User)
-	PhUload (ElfImage, ProgramHeader->Type, ProgramHeader->flags, ProgramHeader->va, ProgramHeader->msize, ProgramHeader->off,
-		  ProgramHeader->fsize);
+	PhUload (ElfImage, ProgramHeader->Type, ProgramHeader->Flags, ProgramHeader->Va, ProgramHeader->Msize, ProgramHeader->Off,
+		  ProgramHeader->Fsize);
       else
-	PhKload (ElfImage, ProgramHeader->Type, ProgramHeader->flags, ProgramHeader->va, ProgramHeader->msize, ProgramHeader->off,
-		  ProgramHeader->fsize);
+	PhKload (ElfImage, ProgramHeader->Type, ProgramHeader->Flags, ProgramHeader->Va, ProgramHeader->Msize, ProgramHeader->Off,
+		  ProgramHeader->Fsize);
     }
 
-  return (VIRTUAL_ADDRESS) ElfHeader->entry;
+  return (VIRTUAL_ADDRESS) ElfHeader->Entry;
 }
 
 /**
@@ -394,25 +394,25 @@ LoadElf64 (
 
   CHAR8 ElfId[] = { 0x7f, 'E', 'L', 'F', };
   ELF64_HDR *ElfHeader = (ELF64_HDR *) ElfImage;
-  ELF64_PH *ProgramHeader = (ELF64_PH *) ELFOFF (ElfHeader->phoff);
+  ELF64_PH *ProgramHeader = (ELF64_PH *) ELFOFF (ElfHeader->Phoff);
 
-  if (memcmp (ElfHeader->id, ElfId, 4) != 0)
+  if (memcmp (ElfHeader->Id, ElfId, 4) != 0)
     return (UINTN) - 1;
 
-  if (ElfHeader->Type != ET_EXEC || ElfHeader->ver != EV_CURRENT)
+  if (ElfHeader->Type != ET_EXEC || ElfHeader->Ver != EV_CURRENT)
     return (UINTN) - 1;
 
-  for (i = 0; i < ElfHeader->phs; i++, ProgramHeader++)
+  for (i = 0; i < ElfHeader->Phs; i++, ProgramHeader++)
     {
       if (User)
-	PhUload (ElfImage, ProgramHeader->Type, ProgramHeader->flags, ProgramHeader->va, ProgramHeader->msize, ProgramHeader->off,
-		  ProgramHeader->fsize);
+	PhUload (ElfImage, ProgramHeader->Type, ProgramHeader->Flags, ProgramHeader->Va, ProgramHeader->Msize, ProgramHeader->Off,
+		  ProgramHeader->Fsize);
       else
-	PhKload (ElfImage, ProgramHeader->Type, ProgramHeader->flags, ProgramHeader->va, ProgramHeader->msize, ProgramHeader->off,
-		  ProgramHeader->fsize);
+	PhKload (ElfImage, ProgramHeader->Type, ProgramHeader->Flags, ProgramHeader->Va, ProgramHeader->Msize, ProgramHeader->Off,
+		  ProgramHeader->Fsize);
     }
 
-  return (VIRTUAL_ADDRESS) ElfHeader->entry;
+  return (VIRTUAL_ADDRESS) ElfHeader->Entry;
 }
 
 /**
@@ -432,16 +432,16 @@ GetElfArch (
   CHAR8 ElfId[] = { 0x7f, 'E', 'L', 'F', };
   ELF32_HDR *ElfHeader = (ELF32_HDR *) ElfImage;
 
-  if (memcmp (ElfHeader->id, ElfId, 4) != 0)
+  if (memcmp (ElfHeader->Id, ElfId, 4) != 0)
     return ARCH_INVALID;
 
-  if (ElfHeader->mach == EM_386)
+  if (ElfHeader->Mach == EM_386)
     return ARCH_386;
 
-  if (ElfHeader->mach == EM_X86_64)
+  if (ElfHeader->Mach == EM_X86_64)
     return ARCH_AMD64;
 
-  if (ElfHeader->mach == EM_RISCV)
+  if (ElfHeader->Mach == EM_RISCV)
     return ARCH_RISCV64;
 
   return ARCH_UNSUPPORTED;

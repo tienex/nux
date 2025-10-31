@@ -194,30 +194,30 @@ INT32 i;
 **/
 static PTE *
 PaeGetL2p (
-  IN PTE    *pCr3,
+  IN PTE    *Cr3,
   IN VIRTUAL_ADDRESS  VirtualAddress,
   IN INT32 IsPayload
   )
 {
-  PTE *pL3p, *pL2p;
+  PTE *L3Entry, *L2Entry;
   UINT32 L3Off = L3OFF (VirtualAddress);
   UINT32 L2Off = L2OFF (VirtualAddress);
 
-  pL3p = pCr3 + L3Off;
+  L3Entry = Cr3 + L3Off;
 
-  pL2p = (PTE *) PteGetAddr (pL3p);
-  if (pL2p == NULL)
+  L2Entry = (PTE *) PteGetAddr (L3Entry);
+  if (L2Entry == NULL)
     {
       UINTN L2Page;
 
       /* Populating L2. */
       L2Page = IsPayload ? GetPayloadPage () : GetPage ();
 
-      SetPte (pL3p, L2Page >> PAGE_SHIFT, PTE_P);
-      pL2p = (PTE *) L2Page;
+      SetPte (L3Entry, L2Page >> PAGE_SHIFT, PTE_P);
+      L2Entry = (PTE *) L2Page;
     }
 
-  return pL2p + L2Off;
+  return L2Entry + L2Off;
 }
 
 /**
@@ -233,29 +233,29 @@ PaeGetL2p (
 **/
 static PTE *
 PaeGetL1p (
-  IN PTE    *pCr3,
+  IN PTE    *Cr3,
   IN VIRTUAL_ADDRESS  VirtualAddress,
   IN INT32 IsPayload
   )
 {
-  PTE *pL2p, *pL1p;
+  PTE *L2Entry, *L1Entry;
   UINT32 L1Off = L1OFF (VirtualAddress);
 
-  pL2p = PaeGetL2p (pCr3, VirtualAddress, IsPayload);
+  L2Entry = PaeGetL2p (Cr3, VirtualAddress, IsPayload);
 
-  pL1p = (PTE *) PteGetAddr (pL2p);
-  if (pL1p == NULL)
+  L1Entry = (PTE *) PteGetAddr (L2Entry);
+  if (L1Entry == NULL)
     {
       UINTN L1Page;
 
       /* Populating L1. */
       L1Page = IsPayload ? GetPayloadPage () : GetPage ();
 
-      SetPte (pL2p, L1Page >> PAGE_SHIFT, PTE_U | PTE_W | PTE_P);
-      pL1p = (PTE *) L1Page;
+      SetPte (L2Entry, L1Page >> PAGE_SHIFT, PTE_U | PTE_W | PTE_P);
+      L1Entry = (PTE *) L1Page;
     }
 
-  return pL1p + L1Off;
+  return L1Entry + L1Off;
 }
 
 /**
@@ -280,19 +280,19 @@ PaeMapPage (
   IN INT32 IsExecutable
   )
 {
-  PTE *pL1p, *pCr3;
+  PTE *L1Entry, *Cr3;
   UINT64 L1F;
   UINTN Page;
 
-  pCr3 = (PTE *) PageTable;
+  Cr3 = (PTE *) PageTable;
 
-  pL1p = PaeGetL1p (pCr3, VirtualAddress, IsPayload);
+  L1Entry = PaeGetL1p (Cr3, VirtualAddress, IsPayload);
   L1F = (IsWritable ? PTE_W : 0) | (IsExecutable ? 0 : PTE_NX) | PTE_P;
 
-  Page = (UINTN) PteGetAddr (pL1p);
+  Page = (UINTN) PteGetAddr (L1Entry);
   assert (Page == 0);
   Page = PhysicalAddress >> PAGE_SHIFT;
-  SetPte (pL1p, Page, L1F);
+  SetPte (L1Entry, Page, L1F);
 }
 
 /**
@@ -316,30 +316,30 @@ PaePopulatePage (
   IN INT32 IsExecutable
   )
 {
-  PTE *pL1p;
+  PTE *L1Entry;
   UINT64 L1F;
   UINTN Page;
 
-  pL1p = PaeGetL1p (gPaeCr3, VirtualAddress, 1);
+  L1Entry = PaeGetL1p (gPaeCr3, VirtualAddress, 1);
 
   L1F = (IsUserMode ? PTE_U : 0) | (IsWritable ? PTE_W : 0) | (IsExecutable ? 0 : PTE_NX) | PTE_P;
 
-  Page = (UINTN) PteGetAddr (pL1p);
-  if (PteGetAddr (pL1p) == NULL)
+  Page = (UINTN) PteGetAddr (L1Entry);
+  if (PteGetAddr (L1Entry) == NULL)
     {
       Page = GetPayloadPage ();
-      SetPte (pL1p, Page >> PAGE_SHIFT, L1F);
+      SetPte (L1Entry, Page >> PAGE_SHIFT, L1F);
     }
   else
     {
       UINT64 NewF;
-      UINT64 OldF = PteGetFlags (pL1p);
+      UINT64 OldF = PteGetFlags (L1Entry);
 
       NewF = PteMergeFlags (L1F, OldF);
       if (NewF != OldF)
 	{
 	  printf ("Flags changed from %llx to %llx\n", OldF, NewF);
-	  SetPte (pL1p, Page >> PAGE_SHIFT, NewF);
+	  SetPte (L1Entry, Page >> PAGE_SHIFT, NewF);
 	}
     }
 
@@ -362,19 +362,19 @@ PaeGetPhysical (
   )
 {
   UINTN Page;
-  PTE *pL2e, *pL1, *pL1e;
+  PTE *L2Entry, *L1Table, *L1Entry;
   UINT32 L3Off = L3OFF (VirtualAddress);
   UINT32 L2Off = L2OFF (VirtualAddress);
   UINT32 L1Off = L1OFF (VirtualAddress);
 
-  pL2e = gL2s[L3Off] + L2Off;
+  L2Entry = gL2s[L3Off] + L2Off;
 
-  pL1 = (PTE *) PteGetAddr (pL2e);
-  assert (pL1 != NULL);
+  L1Table = (PTE *) PteGetAddr (L2Entry);
+  assert (L1Table != NULL);
 
-  pL1e = pL1 + L1Off;
+  L1Entry = L1Table + L1Off;
 
-  Page = (UINTN) PteGetAddr (pL1e);
+  Page = (UINTN) PteGetAddr (L1Entry);
   assert (Page != 0);
 
   return Page | (VirtualAddress & ~(PAGE_MASK));
@@ -407,14 +407,14 @@ PaeDirectMap (
 {
   UINT64 PaPfn = PhysicalAddress >> PAGE_SHIFT;
   UINT32 i, n;
-  PTE *Pte;
+  PTE *Entry;
 
   n = Size >> PAGE_SHIFT;
 
   for (i = 0; i < n; i++)
     {
-      Pte = PaeGetL1p (PageTable, VirtualAddress + (i << PAGE_SHIFT), IsPayload);
-      SetPte (Pte, PaPfn + i,
+      Entry = PaeGetL1p (PageTable, VirtualAddress + (i << PAGE_SHIFT), IsPayload);
+      SetPte (Entry, PaPfn + i,
 	       MemtypeToFlags (Mt, TRUE /*4k */ ) | PTE_P | PTE_W | (IsExecutable ? 0 :
 								       PTE_NX));
     }
@@ -521,10 +521,10 @@ INT32 i;
 
   for (i = 0; i < 4; i++)
     {
-      PTE *pL2p;
+      PTE *L2Entry;
 
-      pL2p = gL2s[L3Off] + L2Off + i;
-      SetPte (pL2p, (UINT64) (UINTN) gL2s[i] >> PAGE_SHIFT,
+      L2Entry = gL2s[L3Off] + L2Off + i;
+      SetPte (L2Entry, (UINT64) (UINTN) gL2s[i] >> PAGE_SHIFT,
 	       PTE_NX | PTE_W | PTE_P);
     }
 }

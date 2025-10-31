@@ -24,9 +24,16 @@
 // Platform Type Constants
 //
 
-#define PLATFORM_UNKNOWN  0  ///< Unknown platform type
-#define PLATFORM_ACPI     1  ///< ACPI-based platform (x86)
-#define PLATFORM_DTB      2  ///< Device Tree Blob platform (RISC-V, ARM)
+typedef enum _APXH_PLATFORM_TYPE {
+  ApxhPlatformUnknown = 0,  ///< Unknown platform type
+  ApxhPlatformAcpi    = 1,  ///< ACPI-based platform (x86)
+  ApxhPlatformDtb     = 2   ///< Device Tree Blob platform (RISC-V, ARM)
+} APXH_PLATFORM_TYPE;
+
+// Legacy compatibility
+#define PLATFORM_UNKNOWN ApxhPlatformUnknown
+#define PLATFORM_ACPI    ApxhPlatformAcpi
+#define PLATFORM_DTB     ApxhPlatformDtb
 
 //
 // APXH Magic Numbers
@@ -45,10 +52,18 @@
 // Memory Region Types
 //
 
-#define APXH_REGION_UNKNOWN  0  ///< Unknown/reserved region
-#define APXH_REGION_RAM      1  ///< Available RAM
-#define APXH_REGION_MMIO     2  ///< Memory-mapped I/O
-#define APXH_REGION_BSY      3  ///< Busy/in-use region
+typedef enum _APXH_REGION_TYPE {
+  ApxhRegionUnknown = 0,  ///< Unknown/reserved region
+  ApxhRegionRam     = 1,  ///< Available RAM
+  ApxhRegionMmio    = 2,  ///< Memory-mapped I/O
+  ApxhRegionBusy    = 3   ///< Busy/in-use region
+} APXH_REGION_TYPE;
+
+// Legacy compatibility
+#define APXH_REGION_UNKNOWN ApxhRegionUnknown
+#define APXH_REGION_RAM     ApxhRegionRam
+#define APXH_REGION_MMIO    ApxhRegionMmio
+#define APXH_REGION_BSY     ApxhRegionBusy
 
 //
 // APXH_PLATFORM_DESCRIPTOR - Platform Firmware Information

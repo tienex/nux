@@ -35,17 +35,17 @@ PayloadGet (
   UINT32 j;
 
   j = 0;
-  while (Ptr->magic == ELFPAYLOAD_MAGIC)
+  while (Ptr->Magic == ELFPAYLOAD_MAGIC)
     {
       if (j != Index)
 	{
-	  Ptr = (struct payload_hdr *) ((VOID *) (Ptr + 1) + Ptr->size);
+	  Ptr = (struct payload_hdr *) ((VOID *) (Ptr + 1) + Ptr->Size);
 	  j++;
 	  continue;
 	}
 
       if (Size)
-	*Size = Ptr->size;
+	*Size = Ptr->Size;
       return (VOID *) (Ptr + 1);
     }
 
