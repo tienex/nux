@@ -172,12 +172,29 @@ ArchitectureGetName (
       return "Alpha";
     case ArchIa64:
       return "IA-64";
+    // Hybrid ILP32 modes
     case ArchAmd64_32:
       return "x32";
     case ArchArm64_32:
       return "ARM64-32";
     case ArchRiscV64_32:
       return "RISCV64-32";
+    case ArchMips64_32:
+      return "MIPS64-32/n32";
+    case ArchLoongArch64_32:
+      return "LA64-32";
+    case ArchPpc64_32:
+      return "PPC64-32";
+    case ArchAlpha32:
+      return "Alpha32";
+    case ArchPaRisc64_32:
+      return "PARISC64-32";
+    case ArchIa64_32:
+      return "IA64-32";
+    case ArchS390x_32:
+      return "s390x-32";
+    case ArchSparc64_32:
+      return "SPARC64-32";
     default:
       return "unknown";
     }
@@ -376,6 +393,89 @@ ArchitectureIsCompatible (
   if (HostArch == ArchAlpha) {
     // Alpha32 (32-bit mode) can run on Alpha
     if (GuestArch == ArchAlpha32) {
+      return TRUE;
+    }
+  }
+
+  //
+  // ILP32 host compatibility: If bootloader is compiled as ILP32,
+  // it can still boot full 64-bit kernels since the CPU is 64-bit capable.
+  // ILP32 is just the ABI (32-bit pointers), not the ISA.
+  //
+
+  // x32 host can run x64 and other x86 variants
+  if (HostArch == ArchAmd64_32) {
+    if (GuestArch == ArchAmd64 || GuestArch == Arch386) {
+      return TRUE;
+    }
+  }
+
+  // rv64-32 host can run rv64 and rv32
+  if (HostArch == ArchRiscV64_32) {
+    if (GuestArch == ArchRiscV64 || GuestArch == ArchRiscV32) {
+      return TRUE;
+    }
+  }
+
+  // ARM64-32 host can run ARM64 and ARM
+  if (HostArch == ArchArm64_32) {
+    if (GuestArch == ArchArm64 || GuestArch == ArchArm) {
+      return TRUE;
+    }
+  }
+
+  // MIPS64-32 (n32) host can run MIPS64 and MIPS32
+  if (HostArch == ArchMips64_32) {
+    if (GuestArch == ArchMips64 || GuestArch == ArchMips32) {
+      return TRUE;
+    }
+  }
+
+  // PPC64-32 host can run PPC64 and PPC32
+  if (HostArch == ArchPpc64_32) {
+    if (GuestArch == ArchPpc64 || GuestArch == ArchPpc32) {
+      return TRUE;
+    }
+  }
+
+  // LA64-32 host can run LA64 and LA32
+  if (HostArch == ArchLoongArch64_32) {
+    if (GuestArch == ArchLoongArch64 || GuestArch == ArchLoongArch32) {
+      return TRUE;
+    }
+  }
+
+  // SPARC64-32 host can run SPARC64 and SPARC32
+  if (HostArch == ArchSparc64_32) {
+    if (GuestArch == ArchSparc64 || GuestArch == ArchSparc) {
+      return TRUE;
+    }
+  }
+
+  // s390x-32 host can run s390x and s390
+  if (HostArch == ArchS390x_32) {
+    if (GuestArch == ArchS390x || GuestArch == ArchS390) {
+      return TRUE;
+    }
+  }
+
+  // PA-RISC64-32 host can run PA-RISC64 and PA-RISC
+  if (HostArch == ArchPaRisc64_32) {
+    if (GuestArch == ArchPaRisc64 || GuestArch == ArchPaRisc) {
+      return TRUE;
+    }
+  }
+
+  // IA-64-32 host can run IA-64 and x86
+  if (HostArch == ArchIa64_32) {
+    if (GuestArch == ArchIa64 || GuestArch == Arch386) {
+      return TRUE;
+    }
+  }
+
+  // Alpha32 host can run full Alpha
+  if (HostArch == ArchAlpha32) {
+    if (GuestArch == ArchAlpha) {
       return TRUE;
     }
   }

@@ -212,12 +212,15 @@ Initialize (
 }
 
 /**
-  Check if architecture is 64-bit.
+  Check if architecture is 64-bit ISA.
+
+  Determines if the architecture uses a 64-bit instruction set,
+  including hybrid ILP32 modes (32-bit pointers on 64-bit ISA).
 
   @param[in] Arch  Architecture to check.
 
-  @retval TRUE   Architecture is 64-bit.
-  @retval FALSE  Architecture is 32-bit or invalid.
+  @retval TRUE   Architecture uses 64-bit ISA.
+  @retval FALSE  Architecture uses 32-bit or other ISA.
 **/
 static BOOLEAN
 Is64BitArch (
@@ -225,6 +228,7 @@ Is64BitArch (
   )
 {
   switch (Arch) {
+    // Native 64-bit architectures
     case ArchAmd64:
     case ArchArm64:
     case ArchRiscV64:
@@ -235,7 +239,24 @@ Is64BitArch (
     case ArchS390x:
     case ArchPaRisc64:
     case ArchLoongArch64:
+    case ArchRiscV128:
       return TRUE;
+
+    // Hybrid ILP32 modes (32-bit pointers on 64-bit ISA)
+    // These use 64-bit ISA and require 64-bit page tables
+    case ArchAmd64_32:       // x32: ILP32 on x86-64
+    case ArchArm64_32:       // ILP32 on AArch64
+    case ArchRiscV64_32:     // ILP32 on RISC-V 64
+    case ArchMips64_32:      // n32 ABI on MIPS64
+    case ArchLoongArch64_32: // LA32 on LA64
+    case ArchPpc64_32:       // 32-bit mode on PowerPC 64
+    case ArchAlpha32:        // 32-bit mode on Alpha
+    case ArchPaRisc64_32:    // 32-bit mode on PA-RISC 64
+    case ArchIa64_32:        // 32-bit compat on Itanium
+    case ArchS390x_32:       // 32-bit mode on s390x
+    case ArchSparc64_32:     // 32-bit mode on SPARC 64
+      return TRUE;
+
     default:
       return FALSE;
   }
@@ -290,32 +311,32 @@ AnalyzeArchitectureCombination (
   g64Uon32KMode = FALSE;
   gMixedEndian = FALSE;
 
-  // Check for 64-bit user on 32-bit kernel
+  // Check for 64-bit ISA user on 32-bit ISA kernel
   if (!KernelIs64 && UserIs64) {
     g64Uon32KMode = TRUE;
     gMixedMode = TRUE;
-    info("Detected 64-bit user on 32-bit kernel (64U-on-32K mode)");
-    info("  Kernel: %s (32-bit)", ArchitectureGetName(gKernelArch));
-    info("  User:   %s (64-bit)", ArchitectureGetName(gUserArch));
+    info("Detected 64-bit ISA user on 32-bit ISA kernel (64U-on-32K mode)");
+    info("  Kernel: %s (32-bit ISA)", ArchitectureGetName(gKernelArch));
+    info("  User:   %s (64-bit ISA)", ArchitectureGetName(gUserArch));
 
     if (!HostIs64) {
       warn("64U-on-32K requires 64-bit capable CPU!");
       warn("Host CPU is: %s", ArchitectureGetName(gHostArch));
     }
   }
-  // Check for 32-bit kernel on 64-bit host
+  // Check for 32-bit ISA kernel on 64-bit ISA host
   else if (!KernelIs64 && HostIs64) {
     g32on64Mode = TRUE;
-    info("Detected 32-bit kernel on 64-bit CPU (32-on-64 mode)");
-    info("  Kernel: %s (32-bit)", ArchitectureGetName(gKernelArch));
-    info("  Host:   %s (64-bit)", ArchitectureGetName(gHostArch));
+    info("Detected 32-bit ISA kernel on 64-bit ISA CPU (32-on-64 mode)");
+    info("  Kernel: %s (32-bit ISA)", ArchitectureGetName(gKernelArch));
+    info("  Host:   %s (64-bit ISA)", ArchitectureGetName(gHostArch));
   }
-  // Check for 32-bit user on 64-bit kernel
+  // Check for 32-bit ISA user on 64-bit ISA kernel
   else if (KernelIs64 && !UserIs64 && gUserArch != ArchInvalid) {
     gMixedMode = TRUE;
-    info("Detected 32-bit user on 64-bit kernel (32U-on-64K mode)");
-    info("  Kernel: %s (64-bit)", ArchitectureGetName(gKernelArch));
-    info("  User:   %s (32-bit)", ArchitectureGetName(gUserArch));
+    info("Detected 32-bit ISA user on 64-bit ISA kernel (32U-on-64K mode)");
+    info("  Kernel: %s (64-bit ISA)", ArchitectureGetName(gKernelArch));
+    info("  User:   %s (32-bit ISA)", ArchitectureGetName(gUserArch));
   }
   // Check if both are same bitness but different architectures
   else if (gKernelArch != gUserArch && gUserArch != ArchInvalid) {
