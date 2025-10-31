@@ -35,6 +35,9 @@ typedef struct _ITuiMenuBar ITuiMenuBar;
 typedef struct _ITuiStatusBar ITuiStatusBar;
 typedef struct _ITuiDesktop ITuiDesktop;
 typedef struct _ITuiTheme ITuiTheme;
+typedef struct _ITuiTabControl ITuiTabControl;
+typedef struct _ITuiProgressBar ITuiProgressBar;
+typedef struct _ITuiColorPicker ITuiColorPicker;
 
 //
 // TUI Color Attributes
@@ -1152,6 +1155,309 @@ struct _ITuiTheme {
     CONST ITuiTheme_Vtbl *Vtbl;
 };
 
+// {D6E7F8A9-B0C1-4D2E-3F4A-5B6C7D8E9F0A}
+DEFINE_GUID(IID_ITuiTabControl,
+    0xD6E7F8A9, 0xB0C1, 0x4D2E, 0x3F, 0x4A, 0x5B, 0x6C, 0x7D, 0x8E, 0x9F, 0x0A);
+
+/**
+  ITuiTabControl Interface
+
+  Tabbed pages container.
+**/
+typedef struct _ITuiTabControl_Vtbl {
+    HRESULT (ANXAPI *QueryInterface)(ITuiTabControl *This, REFIID riid, VOID **ppvObject);
+    UINTN (ANXAPI *AddRef)(ITuiTabControl *This);
+    UINTN (ANXAPI *Release)(ITuiTabControl *This);
+
+    /**
+      Add a new tab page.
+    **/
+    HRESULT (ANXAPI *AddTab)(
+        ITuiTabControl *This,
+        CONST CHAR8 *Title,
+        ITuiWindow *Content,
+        VOID *UserData
+    );
+
+    /**
+      Remove a tab by index.
+    **/
+    HRESULT (ANXAPI *RemoveTab)(
+        ITuiTabControl *This,
+        UINT32 Index
+    );
+
+    /**
+      Get number of tabs.
+    **/
+    HRESULT (ANXAPI *GetTabCount)(
+        ITuiTabControl *This,
+        UINT32 *Count
+    );
+
+    /**
+      Get/set active tab index.
+    **/
+    HRESULT (ANXAPI *GetActiveTab)(
+        ITuiTabControl *This,
+        INT32 *Index
+    );
+
+    HRESULT (ANXAPI *SetActiveTab)(
+        ITuiTabControl *This,
+        INT32 Index
+    );
+
+    /**
+      Get tab title.
+    **/
+    HRESULT (ANXAPI *GetTabTitle)(
+        ITuiTabControl *This,
+        UINT32 Index,
+        CHAR8 *Buffer,
+        UINTN BufferSize
+    );
+
+    /**
+      Set tab title.
+    **/
+    HRESULT (ANXAPI *SetTabTitle)(
+        ITuiTabControl *This,
+        UINT32 Index,
+        CONST CHAR8 *Title
+    );
+
+    /**
+      Enable/disable a tab.
+    **/
+    HRESULT (ANXAPI *SetTabEnabled)(
+        ITuiTabControl *This,
+        UINT32 Index,
+        BOOLEAN Enabled
+    );
+
+    /**
+      Render tab control.
+    **/
+    HRESULT (ANXAPI *Render)(
+        ITuiTabControl *This,
+        ITuiScreen *Screen,
+        INT32 X,
+        INT32 Y,
+        UINT32 Width,
+        UINT32 Height
+    );
+
+    /**
+      Handle input events.
+    **/
+    HRESULT (ANXAPI *HandleInput)(
+        ITuiTabControl *This,
+        CONST TUI_INPUT_EVENT *Event,
+        BOOLEAN *Handled
+    );
+
+} ITuiTabControl_Vtbl;
+
+struct _ITuiTabControl {
+    CONST ITuiTabControl_Vtbl *Vtbl;
+};
+
+// {E7F8A9B0-C1D2-4E3F-4A5B-6C7D8E9F0A1B}
+DEFINE_GUID(IID_ITuiProgressBar,
+    0xE7F8A9B0, 0xC1D2, 0x4E3F, 0x4A, 0x5B, 0x6C, 0x7D, 0x8E, 0x9F, 0x0A, 0x1B);
+
+/**
+  Progress Bar Style
+**/
+typedef enum _TUI_PROGRESS_STYLE {
+    TuiProgressBlocks,      /* ████████░░ */
+    TuiProgressDots,        /* ●●●●●○○○○○ */
+    TuiProgressArrows,      /* >>>>>>>--- */
+    TuiProgressPercent,     /* [50%] */
+    TuiProgressSpinner      /* Spinning animation */
+} TUI_PROGRESS_STYLE;
+
+/**
+  ITuiProgressBar Interface
+
+  Progress indicator with multiple styles.
+**/
+typedef struct _ITuiProgressBar_Vtbl {
+    HRESULT (ANXAPI *QueryInterface)(ITuiProgressBar *This, REFIID riid, VOID **ppvObject);
+    UINTN (ANXAPI *AddRef)(ITuiProgressBar *This);
+    UINTN (ANXAPI *Release)(ITuiProgressBar *This);
+
+    /**
+      Set progress value (0-100).
+    **/
+    HRESULT (ANXAPI *SetValue)(
+        ITuiProgressBar *This,
+        UINT32 Value
+    );
+
+    /**
+      Get current progress value.
+    **/
+    HRESULT (ANXAPI *GetValue)(
+        ITuiProgressBar *This,
+        UINT32 *Value
+    );
+
+    /**
+      Set progress bar style.
+    **/
+    HRESULT (ANXAPI *SetStyle)(
+        ITuiProgressBar *This,
+        TUI_PROGRESS_STYLE Style
+    );
+
+    /**
+      Set custom label text.
+    **/
+    HRESULT (ANXAPI *SetLabel)(
+        ITuiProgressBar *This,
+        CONST CHAR8 *Label
+    );
+
+    /**
+      Set indeterminate mode (for unknown duration).
+    **/
+    HRESULT (ANXAPI *SetIndeterminate)(
+        ITuiProgressBar *This,
+        BOOLEAN Indeterminate
+    );
+
+    /**
+      Set color scheme.
+    **/
+    HRESULT (ANXAPI *SetColors)(
+        ITuiProgressBar *This,
+        TUI_COLOR FilledColor,
+        TUI_COLOR EmptyColor
+    );
+
+    /**
+      Render progress bar.
+    **/
+    HRESULT (ANXAPI *Render)(
+        ITuiProgressBar *This,
+        ITuiScreen *Screen,
+        INT32 X,
+        INT32 Y,
+        UINT32 Width
+    );
+
+} ITuiProgressBar_Vtbl;
+
+struct _ITuiProgressBar {
+    CONST ITuiProgressBar_Vtbl *Vtbl;
+};
+
+// {F8A9B0C1-D2E3-4F4A-5B6C-7D8E9F0A1B2C}
+DEFINE_GUID(IID_ITuiColorPicker,
+    0xF8A9B0C1, 0xD2E3, 0x4F4A, 0x5B, 0x6C, 0x7D, 0x8E, 0x9F, 0x0A, 0x1B, 0x2C);
+
+/**
+  Color Picker Mode
+**/
+typedef enum _TUI_COLOR_PICKER_MODE {
+    TuiColorPickerBasic,       /* 8/16 color palette */
+    TuiColorPicker256,         /* 256 color palette */
+    TuiColorPickerRGB,         /* RGB sliders (if supported) */
+    TuiColorPickerHSV          /* HSV color wheel (if supported) */
+} TUI_COLOR_PICKER_MODE;
+
+/**
+  ITuiColorPicker Interface
+
+  Interactive color selection widget.
+**/
+typedef struct _ITuiColorPicker_Vtbl {
+    HRESULT (ANXAPI *QueryInterface)(ITuiColorPicker *This, REFIID riid, VOID **ppvObject);
+    UINTN (ANXAPI *AddRef)(ITuiColorPicker *This);
+    UINTN (ANXAPI *Release)(ITuiColorPicker *This);
+
+    /**
+      Set picker mode.
+    **/
+    HRESULT (ANXAPI *SetMode)(
+        ITuiColorPicker *This,
+        TUI_COLOR_PICKER_MODE Mode
+    );
+
+    /**
+      Get selected color.
+    **/
+    HRESULT (ANXAPI *GetColor)(
+        ITuiColorPicker *This,
+        TUI_COLOR *Color
+    );
+
+    /**
+      Set selected color.
+    **/
+    HRESULT (ANXAPI *SetColor)(
+        ITuiColorPicker *This,
+        TUI_COLOR Color
+    );
+
+    /**
+      Get RGB values (0-255 each).
+    **/
+    HRESULT (ANXAPI *GetRGB)(
+        ITuiColorPicker *This,
+        UINT8 *Red,
+        UINT8 *Green,
+        UINT8 *Blue
+    );
+
+    /**
+      Set RGB values.
+    **/
+    HRESULT (ANXAPI *SetRGB)(
+        ITuiColorPicker *This,
+        UINT8 Red,
+        UINT8 Green,
+        UINT8 Blue
+    );
+
+    /**
+      Show picker dialog.
+    **/
+    HRESULT (ANXAPI *Show)(
+        ITuiColorPicker *This,
+        ITuiScreen *Screen,
+        TUI_COLOR *SelectedColor
+    );
+
+    /**
+      Render color picker inline.
+    **/
+    HRESULT (ANXAPI *Render)(
+        ITuiColorPicker *This,
+        ITuiScreen *Screen,
+        INT32 X,
+        INT32 Y,
+        UINT32 Width,
+        UINT32 Height
+    );
+
+    /**
+      Handle input events.
+    **/
+    HRESULT (ANXAPI *HandleInput)(
+        ITuiColorPicker *This,
+        CONST TUI_INPUT_EVENT *Event,
+        BOOLEAN *Handled
+    );
+
+} ITuiColorPicker_Vtbl;
+
+struct _ITuiColorPicker {
+    CONST ITuiColorPicker_Vtbl *Vtbl;
+};
+
 //
 // Factory functions
 //
@@ -1393,6 +1699,48 @@ ANXAPI
 AnxTuiLoadTheme(
     IN  CONST CHAR8 *Name,
     OUT ITuiTheme **Theme
+);
+
+/**
+  Create a TUI Tab Control instance.
+
+  @param[out] TabControl  Pointer to receive the tab control interface.
+
+  @retval S_OK        Tab control created successfully.
+  @retval E_OUTOFMEMORY  Memory allocation failed.
+**/
+HRESULT
+ANXAPI
+AnxTuiCreateTabControl(
+    OUT ITuiTabControl **TabControl
+);
+
+/**
+  Create a TUI Progress Bar instance.
+
+  @param[out] ProgressBar  Pointer to receive the progress bar interface.
+
+  @retval S_OK        Progress bar created successfully.
+  @retval E_OUTOFMEMORY  Memory allocation failed.
+**/
+HRESULT
+ANXAPI
+AnxTuiCreateProgressBar(
+    OUT ITuiProgressBar **ProgressBar
+);
+
+/**
+  Create a TUI Color Picker instance.
+
+  @param[out] ColorPicker  Pointer to receive the color picker interface.
+
+  @retval S_OK        Color picker created successfully.
+  @retval E_OUTOFMEMORY  Memory allocation failed.
+**/
+HRESULT
+ANXAPI
+AnxTuiCreateColorPicker(
+    OUT ITuiColorPicker **ColorPicker
 );
 
 #ifdef __cplusplus
