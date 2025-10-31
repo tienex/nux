@@ -59,6 +59,37 @@ VasInitialize (
 }
 
 /**
+  Get architecture name.
+
+  Returns human-readable architecture name for display.
+
+  @param[in] Arch  Architecture enumeration value.
+
+  @return Pointer to architecture name string.
+**/
+CONST CHAR *
+GetArchName (
+  IN ARCH  Arch
+  )
+{
+  switch (Arch)
+    {
+    case ArchInvalid:
+      return "invalid";
+    case ArchUnsupported:
+      return "unsupported";
+    case Arch386:
+      return "i386";
+    case ArchAmd64:
+      return "AMD64";
+    case ArchRiscV64:
+      return "RISCV64";
+    default:
+      return "unknown";
+    }
+}
+
+/**
   Verify virtual address range.
 
   Validates that virtual address range is suitable for target

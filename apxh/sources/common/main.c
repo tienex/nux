@@ -104,26 +104,6 @@ Initialize (
   @return Pointer to architecture name string.
 **/
 CONST CHAR *
-GetArchName (
-  IN ARCH  Arch
-  )
-{
-  switch (Arch)
-    {
-    case ArchInvalid:
-      return "invalid";
-    case ArchUnsupported:
-      return "unsupported";
-    case Arch386:
-      return "i386";
-    case ArchAmd64:
-      return "AMD64";
-    case ArchRiscV64:
-      return "RISCV64";
-    default:
-      return "unknown";
-    }
-}
 
 /**
   Initialize virtual address subsystem.
@@ -131,30 +111,6 @@ GetArchName (
   Sets up paging structures for the target architecture.
 **/
 VOID
-VasInitialize (
-  VOID
-  )
-{
-  switch (gImageArch)
-    {
-#if (EC_MACHINE_I386) || (EC_MACHINE_AMD64)
-    case Arch386:
-      PaeInitialize ();
-      break;
-    case ArchAmd64:
-      Pae64Initialize ();
-      break;
-#endif
-#if EC_MACHINE_RISCV64
-    case ArchRiscV64:
-      Sv48Initialize ();
-      break;
-#endif
-    default:
-      printf ("Unsupported VM architecture.\n");
-      exit (-1);
-    }
-}
 
 /**
   Populate virtual address range.
