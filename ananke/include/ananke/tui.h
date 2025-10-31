@@ -3560,6 +3560,90 @@ struct _ITuiColorPicker {
     CONST ITuiColorPicker_Vtbl *Vtbl;
 };
 
+// {1F2A3B4C-5D6E-7F8A-9B0C-1D2E3F4A5B6C}
+DEFINE_GUID(IID_ITuiThemedGroupBox,
+    0x1F2A3B4C, 0x5D6E, 0x7F8A, 0x9B, 0x0C, 0x1D, 0x2E, 0x3F, 0x4A, 0x5B, 0x6C);
+
+/**
+  ITuiThemedGroupBox Interface
+
+  GroupBox theming interface. Inherits from ITuiThemedWidget.
+**/
+typedef struct _ITuiThemedGroupBox_Vtbl {
+    // ITuiSerializable methods
+    HRESULT (ANXAPI *QueryInterface)(ITuiThemedGroupBox *This, REFIID riid, VOID **ppvObject);
+    UINTN (ANXAPI *AddRef)(ITuiThemedGroupBox *This);
+    UINTN (ANXAPI *Release)(ITuiThemedGroupBox *This);
+    HRESULT (ANXAPI *SerializeToYaml)(ITuiThemedGroupBox *This, CHAR8 **OutYaml, UINTN *OutLength);
+    HRESULT (ANXAPI *DeserializeFromYaml)(ITuiThemedGroupBox *This, CONST CHAR8 *Yaml, UINTN Length);
+    HRESULT (ANXAPI *GetTypeName)(ITuiThemedGroupBox *This, CONST CHAR8 **OutTypeName);
+    HRESULT (ANXAPI *Clone)(ITuiThemedGroupBox *This, ITuiSerializable **OutClone);
+
+    // ITuiResponder methods
+    HRESULT (ANXAPI *GetNextResponder)(ITuiThemedGroupBox *This, ITuiResponder **NextResponder);
+    HRESULT (ANXAPI *SetNextResponder)(ITuiThemedGroupBox *This, ITuiResponder *NextResponder);
+    BOOLEAN (ANXAPI *AcceptsFirstResponder)(ITuiThemedGroupBox *This);
+    HRESULT (ANXAPI *BecomeFirstResponder)(ITuiThemedGroupBox *This);
+    HRESULT (ANXAPI *ResignFirstResponder)(ITuiThemedGroupBox *This);
+
+    // ITuiWidget methods
+    HRESULT (ANXAPI *SetBounds)(ITuiThemedGroupBox *This, CONST TUI_RECT *Bounds);
+    HRESULT (ANXAPI *GetBounds)(ITuiThemedGroupBox *This, TUI_RECT *Bounds);
+    HRESULT (ANXAPI *SetVisible)(ITuiThemedGroupBox *This, BOOLEAN Visible);
+    BOOLEAN (ANXAPI *IsVisible)(ITuiThemedGroupBox *This);
+    HRESULT (ANXAPI *SetEnabled)(ITuiThemedGroupBox *This, BOOLEAN Enabled);
+    BOOLEAN (ANXAPI *IsEnabled)(ITuiThemedGroupBox *This);
+    HRESULT (ANXAPI *SetParent)(ITuiThemedGroupBox *This, ITuiWidget *Parent);
+    HRESULT (ANXAPI *GetParent)(ITuiThemedGroupBox *This, ITuiWidget **Parent);
+    HRESULT (ANXAPI *AddChild)(ITuiThemedGroupBox *This, ITuiWidget *Child);
+    HRESULT (ANXAPI *RemoveChild)(ITuiThemedGroupBox *This, ITuiWidget *Child);
+    HRESULT (ANXAPI *SetNeedsDisplay)(ITuiThemedGroupBox *This, BOOLEAN Needed);
+
+    // ITuiThemedWidget methods
+    HRESULT (ANXAPI *ApplyTheme)(ITuiThemedGroupBox *This, ITuiTheme *Theme);
+    HRESULT (ANXAPI *GetColors)(ITuiThemedGroupBox *This, TUI_COLOR *Foreground, TUI_COLOR *Background);
+    HRESULT (ANXAPI *SetColors)(ITuiThemedGroupBox *This, TUI_COLOR Foreground, TUI_COLOR Background);
+    HRESULT (ANXAPI *OnMouseEvent)(ITuiThemedGroupBox *This, CONST TUI_MOUSE_EVENT *Event, BOOLEAN *Handled);
+    HRESULT (ANXAPI *OnKeyEvent)(ITuiThemedGroupBox *This, TUI_KEY Key, UINT32 Modifiers, BOOLEAN *Handled);
+    HRESULT (ANXAPI *Draw)(ITuiThemedGroupBox *This, ITuiSurface *Surface, CONST TUI_RECT *DirtyRect);
+
+    // ITuiThemedGroupBox methods
+    /**
+      Get border style.
+    **/
+    TUI_BORDER_STYLE (ANXAPI *GetBorderStyle)(
+        ITuiThemedGroupBox *This
+    );
+
+    /**
+      Set border style.
+    **/
+    HRESULT (ANXAPI *SetBorderStyle)(
+        ITuiThemedGroupBox *This,
+        TUI_BORDER_STYLE Style
+    );
+
+    /**
+      Get title color.
+    **/
+    HRESULT (ANXAPI *GetTitleColor)(
+        ITuiThemedGroupBox *This,
+        TUI_COLOR *TitleColor
+    );
+
+    /**
+      Set title color.
+    **/
+    HRESULT (ANXAPI *SetTitleColor)(
+        ITuiThemedGroupBox *This,
+        TUI_COLOR TitleColor
+    );
+} ITuiThemedGroupBox_Vtbl;
+
+struct _ITuiThemedGroupBox {
+    CONST ITuiThemedGroupBox_Vtbl *Vtbl;
+};
+
 // {A9B0C1D2-E3F4-4A5B-6C7D-8E9F0A1B2C3D}
 DEFINE_GUID(IID_ITuiGroupBox,
     0xA9B0C1D2, 0xE3F4, 0x4A5B, 0x6C, 0x7D, 0x8E, 0x9F, 0x0A, 0x1B, 0x2C, 0x3D);
@@ -3567,13 +3651,53 @@ DEFINE_GUID(IID_ITuiGroupBox,
 /**
   ITuiGroupBox Interface
 
-  Container widget for grouping related controls.
+  Container widget for grouping related controls. Inherits from ITuiThemedGroupBox.
 **/
 typedef struct _ITuiGroupBox_Vtbl {
+    // ITuiSerializable methods
     HRESULT (ANXAPI *QueryInterface)(ITuiGroupBox *This, REFIID riid, VOID **ppvObject);
     UINTN (ANXAPI *AddRef)(ITuiGroupBox *This);
     UINTN (ANXAPI *Release)(ITuiGroupBox *This);
+    HRESULT (ANXAPI *SerializeToYaml)(ITuiGroupBox *This, CHAR8 **OutYaml, UINTN *OutLength);
+    HRESULT (ANXAPI *DeserializeFromYaml)(ITuiGroupBox *This, CONST CHAR8 *Yaml, UINTN Length);
+    HRESULT (ANXAPI *GetTypeName)(ITuiGroupBox *This, CONST CHAR8 **OutTypeName);
+    HRESULT (ANXAPI *Clone)(ITuiGroupBox *This, ITuiSerializable **OutClone);
 
+    // ITuiResponder methods
+    HRESULT (ANXAPI *GetNextResponder)(ITuiGroupBox *This, ITuiResponder **NextResponder);
+    HRESULT (ANXAPI *SetNextResponder)(ITuiGroupBox *This, ITuiResponder *NextResponder);
+    BOOLEAN (ANXAPI *AcceptsFirstResponder)(ITuiGroupBox *This);
+    HRESULT (ANXAPI *BecomeFirstResponder)(ITuiGroupBox *This);
+    HRESULT (ANXAPI *ResignFirstResponder)(ITuiGroupBox *This);
+
+    // ITuiWidget methods
+    HRESULT (ANXAPI *SetBounds)(ITuiGroupBox *This, CONST TUI_RECT *Bounds);
+    HRESULT (ANXAPI *GetBounds)(ITuiGroupBox *This, TUI_RECT *Bounds);
+    HRESULT (ANXAPI *SetVisible)(ITuiGroupBox *This, BOOLEAN Visible);
+    BOOLEAN (ANXAPI *IsVisible)(ITuiGroupBox *This);
+    HRESULT (ANXAPI *SetEnabled)(ITuiGroupBox *This, BOOLEAN Enabled);
+    BOOLEAN (ANXAPI *IsEnabled)(ITuiGroupBox *This);
+    HRESULT (ANXAPI *SetParent)(ITuiGroupBox *This, ITuiWidget *Parent);
+    HRESULT (ANXAPI *GetParent)(ITuiGroupBox *This, ITuiWidget **Parent);
+    HRESULT (ANXAPI *AddChild)(ITuiGroupBox *This, ITuiWidget *Child);
+    HRESULT (ANXAPI *RemoveChild)(ITuiGroupBox *This, ITuiWidget *Child);
+    HRESULT (ANXAPI *SetNeedsDisplay)(ITuiGroupBox *This, BOOLEAN Needed);
+
+    // ITuiThemedWidget methods
+    HRESULT (ANXAPI *ApplyTheme)(ITuiGroupBox *This, ITuiTheme *Theme);
+    HRESULT (ANXAPI *GetColors)(ITuiGroupBox *This, TUI_COLOR *Foreground, TUI_COLOR *Background);
+    HRESULT (ANXAPI *SetColors)(ITuiGroupBox *This, TUI_COLOR Foreground, TUI_COLOR Background);
+    HRESULT (ANXAPI *OnMouseEvent)(ITuiGroupBox *This, CONST TUI_MOUSE_EVENT *Event, BOOLEAN *Handled);
+    HRESULT (ANXAPI *OnKeyEvent)(ITuiGroupBox *This, TUI_KEY Key, UINT32 Modifiers, BOOLEAN *Handled);
+    HRESULT (ANXAPI *Draw)(ITuiGroupBox *This, ITuiSurface *Surface, CONST TUI_RECT *DirtyRect);
+
+    // ITuiThemedGroupBox methods
+    TUI_BORDER_STYLE (ANXAPI *GetBorderStyle)(ITuiGroupBox *This);
+    HRESULT (ANXAPI *SetBorderStyle)(ITuiGroupBox *This, TUI_BORDER_STYLE Style);
+    HRESULT (ANXAPI *GetTitleColor)(ITuiGroupBox *This, TUI_COLOR *TitleColor);
+    HRESULT (ANXAPI *SetTitleColor)(ITuiGroupBox *This, TUI_COLOR TitleColor);
+
+    // ITuiGroupBox methods
     /**
       Set group box title.
     **/
@@ -3592,29 +3716,13 @@ typedef struct _ITuiGroupBox_Vtbl {
     );
 
     /**
-      Set border style.
+      Add a child widget at specific position.
     **/
-    HRESULT (ANXAPI *SetBorderStyle)(
+    HRESULT (ANXAPI *AddChildAt)(
         ITuiGroupBox *This,
-        TUI_BORDER_STYLE Style
-    );
-
-    /**
-      Add a child widget.
-    **/
-    HRESULT (ANXAPI *AddChild)(
-        ITuiGroupBox *This,
-        VOID *Widget,
+        ITuiWidget *Widget,
         INT32 X,
         INT32 Y
-    );
-
-    /**
-      Remove a child widget.
-    **/
-    HRESULT (ANXAPI *RemoveChild)(
-        ITuiGroupBox *This,
-        VOID *Widget
     );
 
     /**
@@ -3622,6 +3730,17 @@ typedef struct _ITuiGroupBox_Vtbl {
     **/
     HRESULT (ANXAPI *ClearChildren)(
         ITuiGroupBox *This
+    );
+
+    /**
+      Get content padding.
+    **/
+    HRESULT (ANXAPI *GetPadding)(
+        ITuiGroupBox *This,
+        UINT32 *Top,
+        UINT32 *Right,
+        UINT32 *Bottom,
+        UINT32 *Left
     );
 
     /**
@@ -3636,26 +3755,11 @@ typedef struct _ITuiGroupBox_Vtbl {
     );
 
     /**
-      Render group box.
+      Get child count.
     **/
-    HRESULT (ANXAPI *Render)(
-        ITuiGroupBox *This,
-        ITuiScreen *Screen,
-        INT32 X,
-        INT32 Y,
-        UINT32 Width,
-        UINT32 Height
+    UINT32 (ANXAPI *GetChildCount)(
+        ITuiGroupBox *This
     );
-
-    /**
-      Handle input events.
-    **/
-    HRESULT (ANXAPI *HandleInput)(
-        ITuiGroupBox *This,
-        CONST TUI_INPUT_EVENT *Event,
-        BOOLEAN *Handled
-    );
-
 } ITuiGroupBox_Vtbl;
 
 struct _ITuiGroupBox {
