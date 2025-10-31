@@ -89,6 +89,7 @@ set(ANXCONFIG_SOURCES
     widget_spreadsheet.c
     widget_ruler.c
     widget_richtexteditor.c
+    widget_headerview.c
     # Layout containers
     widget_flexcontainer.c
     widget_vbox.c

@@ -68,6 +68,7 @@ typedef struct _ITuiPropertySheet ITuiPropertySheet;
 typedef struct _ITuiSpreadsheet ITuiSpreadsheet;
 typedef struct _ITuiRuler ITuiRuler;
 typedef struct _ITuiRichTextEditor ITuiRichTextEditor;
+typedef struct _ITuiHeaderView ITuiHeaderView;
 
 //
 // Text Direction for BiDi Support
@@ -3044,6 +3045,38 @@ struct _ITuiRichTextEditor {
     CONST ITuiRichTextEditor_Vtbl *Vtbl;
 };
 
+// {E5F6A7B8-C9D0-4E1F-2A3B-4C5D6E7F8A9B}
+DEFINE_GUID(IID_ITuiHeaderView,
+    0xE5F6A7B8, 0xC9D0, 0x4E1F, 0x2A, 0x3B, 0x4C, 0x5D, 0x6E, 0x7F, 0x8A, 0x9B);
+
+/**
+  ITuiHeaderView Interface
+
+  Reusable column header control for list views, tree views, and spreadsheets.
+  Features sortable, resizable, and reorderable columns.
+**/
+typedef struct _ITuiHeaderView_Vtbl {
+    HRESULT (ANXAPI *QueryInterface)(ITuiHeaderView *This, REFIID riid, VOID **ppvObject);
+    UINTN (ANXAPI *AddRef)(ITuiHeaderView *This);
+    UINTN (ANXAPI *Release)(ITuiHeaderView *This);
+    HRESULT (ANXAPI *Render)(ITuiHeaderView *This, ITuiScreen *Screen, INT32 X, INT32 Y);
+    HRESULT (ANXAPI *HandleMouse)(ITuiHeaderView *This, CONST TUI_MOUSE_EVENT *Event);
+    HRESULT (ANXAPI *SetBounds)(ITuiHeaderView *This, CONST TUI_RECT *Bounds);
+    HRESULT (ANXAPI *GetBounds)(ITuiHeaderView *This, TUI_RECT *Bounds);
+    HRESULT (ANXAPI *SetVisible)(ITuiHeaderView *This, BOOLEAN Visible);
+    BOOLEAN (ANXAPI *IsVisible)(ITuiHeaderView *This);
+    HRESULT (ANXAPI *SetEnabled)(ITuiHeaderView *This, BOOLEAN Enabled);
+    BOOLEAN (ANXAPI *IsEnabled)(ITuiHeaderView *This);
+    HRESULT (ANXAPI *AddSection)(ITuiHeaderView *This, CONST CHAR8 *Title, UINT32 Width);
+    HRESULT (ANXAPI *SetSortIndicator)(ITuiHeaderView *This, UINT32 SectionIndex, UINT32 SortOrder);
+    HRESULT (ANXAPI *GetSectionWidth)(ITuiHeaderView *This, UINT32 SectionIndex, UINT32 *OutWidth);
+    HRESULT (ANXAPI *SetCallbacks)(ITuiHeaderView *This, HRESULT (*OnSectionClicked)(VOID*, UINT32), HRESULT (*OnSectionResized)(VOID*, UINT32, UINT32), HRESULT (*OnSectionMoved)(VOID*, UINT32, UINT32), VOID *UserData);
+} ITuiHeaderView_Vtbl;
+
+struct _ITuiHeaderView {
+    CONST ITuiHeaderView_Vtbl *Vtbl;
+};
+
 //
 // Factory functions
 //
@@ -3668,6 +3701,20 @@ HRESULT
 ANXAPI
 AnxTuiCreateRichTextEditor(
     OUT ITuiRichTextEditor **OutEditor
+);
+
+/**
+  Create a TUI Header View instance.
+
+  @param[out] OutHeaderView  Pointer to receive the header view interface.
+
+  @retval S_OK        Header view created successfully.
+  @retval E_OUTOFMEMORY  Memory allocation failed.
+**/
+HRESULT
+ANXAPI
+AnxTuiCreateHeaderView(
+    OUT ITuiHeaderView **OutHeaderView
 );
 
 #ifdef __cplusplus

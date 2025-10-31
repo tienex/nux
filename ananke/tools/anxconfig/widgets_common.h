@@ -48,6 +48,38 @@ typedef struct {
     CHAR8 ArrowLeft;             /* ◄ or 0x11 */
     CHAR8 ArrowRight;            /* ► or 0x10 */
 
+    /* Additional glyphs from CP437/850 */
+    CHAR8 CheckMark;             /* √ or 0xFB */
+    CHAR8 Bullet;                /* • or 0x07 or 0xF9 */
+    CHAR8 BulletHollow;          /* ○ or 0x09 */
+    CHAR8 Diamond;               /* ◆ or 0x04 */
+    CHAR8 Club;                  /* ♣ or 0x05 */
+    CHAR8 Heart;                 /* ♥ or 0x03 */
+    CHAR8 Spade;                 /* ♠ or 0x06 */
+    CHAR8 Male;                  /* ♂ or 0x0B */
+    CHAR8 Female;                /* ♀ or 0x0C */
+    CHAR8 Note;                  /* ♪ or 0x0D */
+    CHAR8 NoteDouble;            /* ♫ or 0x0E */
+    CHAR8 Sun;                   /* ☼ or 0x0F */
+    CHAR8 PointerRight;          /* ► or 0x10 (triangle) */
+    CHAR8 PointerLeft;           /* ◄ or 0x11 (triangle) */
+    CHAR8 UpDownArrow;           /* ↕ or 0x12 */
+    CHAR8 DoubleExclamation;     /* ‼ or 0x13 */
+    CHAR8 Paragraph;             /* ¶ or 0x14 */
+    CHAR8 Section;               /* § or 0x15 */
+    CHAR8 LeftRightArrow;        /* ↔ or 0x1D */
+    CHAR8 PointerUp;             /* ▲ or 0x1E (solid) */
+    CHAR8 PointerDown;           /* ▼ or 0x1F (solid) */
+    CHAR8 House;                 /* ⌂ or 0x7F */
+    CHAR8 VerticalBar;           /* │ or 0xB3 */
+    CHAR8 PlusMinus;             /* ± or 0xF1 */
+    CHAR8 GreaterEqual;          /* ≥ or 0xF2 */
+    CHAR8 LessEqual;             /* ≤ or 0xF3 */
+    CHAR8 Degree;                /* ° or 0xF8 */
+    CHAR8 MiddleDot;             /* · or 0xFA */
+    CHAR8 Squared;               /* ² or 0xFD */
+    CHAR8 CenteredDot;           /* · or 0xFA */
+
     BOOLEAN IsUnicode;
 } BoxChars;
 
@@ -58,6 +90,11 @@ static BoxChars gBoxChars = {
     0xCD, 0xBA, 0xC9, 0xBB, 0xC8, 0xBC, 0xCE,                          /* Double */
     0xB0, 0xB1, 0xB2, 0xDB,                                            /* Shading */
     0x1E, 0x1F, 0x11, 0x10,                                            /* Arrows */
+    /* Additional glyphs */
+    0xFB, 0x07, 0x09, 0x04, 0x05, 0x03, 0x06,                          /* CheckMark, Bullets, Suits */
+    0x0B, 0x0C, 0x0D, 0x0E, 0x0F,                                      /* Male, Female, Notes, Sun */
+    0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x1D, 0x1E, 0x1F,             /* Pointers, Arrows, Symbols */
+    0x7F, 0xB3, 0xF1, 0xF2, 0xF3, 0xF8, 0xFA, 0xFD, 0xFA,             /* House, Bar, Math, Dots */
     FALSE
 };
 
@@ -93,6 +130,38 @@ static inline VOID InitBoxCharsUnicode(VOID)
     gBoxChars.ArrowDown = 0x25BC;            /* ▼ */
     gBoxChars.ArrowLeft = 0x25C4;            /* ◄ */
     gBoxChars.ArrowRight = 0x25BA;           /* ► */
+
+    /* Additional Unicode glyphs */
+    gBoxChars.CheckMark = 0x221A;            /* √ */
+    gBoxChars.Bullet = 0x2022;               /* • */
+    gBoxChars.BulletHollow = 0x25CB;         /* ○ */
+    gBoxChars.Diamond = 0x25C6;              /* ◆ */
+    gBoxChars.Club = 0x2663;                 /* ♣ */
+    gBoxChars.Heart = 0x2665;                /* ♥ */
+    gBoxChars.Spade = 0x2660;                /* ♠ */
+    gBoxChars.Male = 0x2642;                 /* ♂ */
+    gBoxChars.Female = 0x2640;               /* ♀ */
+    gBoxChars.Note = 0x266A;                 /* ♪ */
+    gBoxChars.NoteDouble = 0x266B;           /* ♫ */
+    gBoxChars.Sun = 0x263C;                  /* ☼ */
+    gBoxChars.PointerRight = 0x25BA;         /* ► */
+    gBoxChars.PointerLeft = 0x25C4;          /* ◄ */
+    gBoxChars.UpDownArrow = 0x2195;          /* ↕ */
+    gBoxChars.DoubleExclamation = 0x203C;    /* ‼ */
+    gBoxChars.Paragraph = 0x00B6;            /* ¶ */
+    gBoxChars.Section = 0x00A7;              /* § */
+    gBoxChars.LeftRightArrow = 0x2194;       /* ↔ */
+    gBoxChars.PointerUp = 0x25B2;            /* ▲ */
+    gBoxChars.PointerDown = 0x25BC;          /* ▼ */
+    gBoxChars.House = 0x2302;                /* ⌂ */
+    gBoxChars.VerticalBar = 0x2502;          /* │ */
+    gBoxChars.PlusMinus = 0x00B1;            /* ± */
+    gBoxChars.GreaterEqual = 0x2265;         /* ≥ */
+    gBoxChars.LessEqual = 0x2264;            /* ≤ */
+    gBoxChars.Degree = 0x00B0;               /* ° */
+    gBoxChars.MiddleDot = 0x00B7;            /* · */
+    gBoxChars.Squared = 0x00B2;              /* ² */
+    gBoxChars.CenteredDot = 0x00B7;          /* · */
 
     gBoxChars.IsUnicode = TRUE;
 }
