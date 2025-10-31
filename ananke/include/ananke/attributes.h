@@ -1,4 +1,4 @@
-/++
+/*++
     Module Name:
 
         attributes.h
@@ -11,7 +11,7 @@
     Environment:
 
         C and C++ compatible.
---/
+--*/
 
 #pragma once
 

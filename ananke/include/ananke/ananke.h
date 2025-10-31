@@ -1,4 +1,4 @@
-/++
+/*++
     Module Name:
 
         common.h
@@ -14,7 +14,7 @@
         This is a super header that includes all ANANKE foundation modules.
 
         Design goals:
-            - C89..C23 and C++98..C++23 compatible.
+            - C89-C23 and C++98-C++23 compatible.
             - Works on flat and segmented address models.
             - Strict COM ordering: QueryInterface, AddRef, Release are always first.
             - UEFI-width types (UINT8, UINT16, UINT32, UINT64, UINTN, etc.).
@@ -24,8 +24,8 @@
 
     Environment:
 
-        Compiler-agnostic: MSVC, Clang, GCC, Watcom; 16/32/64-bit.
---/
+        Compiler-agnostic: MSVC, Clang, GCC, Watcom; 16-32-64-bit.
+--*/
 
 #pragma once
 

@@ -10,7 +10,7 @@
 #include <assert.h>
 #include <stdio.h>
 #include <string.h>
-#include <framebuffer.h>
+#include <nux/framebuffer.h>
 #include <apxh/apxh.h>
 
 #define BOOTMEM MB(512)		/* We won't be using more than 512Mb to boot. Promise. */
@@ -93,18 +93,18 @@ typedef enum
   ARCH_RISCV64,
 } ARCH;
 
-VOID MdInit (VOID);
-UINT64 MdMaxPfn (VOID);
-UINT64 MdMinRamPfn (VOID);
-UINT64 MdMaxRamPfn (VOID);
-UINT32 MdMemRegions (VOID);
-BOOTINFO_REGION *MdGetMemRegion (IN UINT32 i);
-FRAMEBUFFER_DESC *MdGetFramebuffer (VOID);
-APXH_PLATFORM_DESCRIPTOR *MdGetPlatformDesc (VOID);
-VOID MdVerify (IN VIRTUAL_ADDRESS Va, IN SIZE64 Size);
-VOID MdEntry (IN ARCH Arch, IN VIRTUAL_ADDRESS Pt, IN VIRTUAL_ADDRESS Entry);
+VOID PlatformInit (VOID);
+UINT64 PlatformGetMaxPageFrameNumber (VOID);
+UINT64 PlatformGetMinRamPageFrameNumber (VOID);
+UINT64 PlatformGetMaxRamPageFrameNumber (VOID);
+UINT32 PlatformGetMemoryRegionCount (VOID);
+BOOTINFO_REGION *PlatformGetMemoryRegion (IN UINT32 Index);
+FRAMEBUFFER_DESC *PlatformGetFramebuffer (VOID);
+APXH_PLATFORM_DESCRIPTOR *PlatformGetDescriptor (VOID);
+VOID PlatformVerify (IN VIRTUAL_ADDRESS VirtualAddress, IN SIZE64 Size);
+VOID PlatformEntry (IN ARCH Architecture, IN VIRTUAL_ADDRESS PageTable, IN VIRTUAL_ADDRESS EntryPoint);
 
-VOID *PayloadGet (IN UINT32 i, OUT OPTIONAL UINTN *Size);
+VOID *PayloadGet (IN UINT32 Index, OUT OPTIONAL UINTN *Size);
 
 typedef enum _PAYLOAD_ID
 {
@@ -112,82 +112,82 @@ typedef enum _PAYLOAD_ID
   PayloadUser,
 } PAYLOAD_ID;
 
-VOID *GetPayloadStart (IN INT32 Argc, IN char *Argv[], IN PAYLOAD_ID Id);
-UINTN GetPayloadSize (IN PAYLOAD_ID Id);
+VOID *GetPayloadStart (IN INT32 ArgumentCount, IN char *ArgumentVector[], IN PAYLOAD_ID PayloadId);
+UINTN GetPayloadSize (IN PAYLOAD_ID PayloadId);
 
-ARCH GetElfArch (IN VOID *Elf);
-VIRTUAL_ADDRESS LoadElf32 (IN VOID *Elf, IN INT32 U);
-VIRTUAL_ADDRESS LoadElf64 (IN VOID *Elf, IN INT32 U);
+ARCH GetElfArch (IN VOID *ElfImage);
+VIRTUAL_ADDRESS LoadElf32 (IN VOID *ElfImage, IN INT32 IsUserMode);
+VIRTUAL_ADDRESS LoadElf64 (IN VOID *ElfImage, IN INT32 IsUserMode);
 
 UINTN GetPage (VOID);
 UINTN GetPayloadPage (VOID);
 
-VOID VaInit (VOID);
-UINTN VaGetPhys (IN VIRTUAL_ADDRESS Va);
-VOID VaVerify (IN VIRTUAL_ADDRESS Va, IN SIZE64 Size);
-VOID VaPopulate (IN VIRTUAL_ADDRESS Va, IN SIZE64 Size, IN INT32 U, IN INT32 W, IN INT32 X);
-VOID VaCopy (IN VIRTUAL_ADDRESS Va, IN VOID *Addr, IN SIZE64 Size, IN INT32 U, IN INT32 W, IN INT32 X);
-VOID VaMemset (IN VIRTUAL_ADDRESS Va, IN INT32 C, IN SIZE64 Size, IN INT32 U, IN INT32 W, IN INT32 X);
-VOID VaPhysmap (IN VIRTUAL_ADDRESS Va, IN SIZE64 Size, IN MEMORY_TYPE Type);
-VOID VaLinear (IN VIRTUAL_ADDRESS Va, IN SIZE64 Size);
-VOID VaInfo (IN VIRTUAL_ADDRESS Va, IN SIZE64 Size);
-VOID VaPfnmap (IN VIRTUAL_ADDRESS Va, IN SIZE64 Size);
-VOID VaBatree (IN VIRTUAL_ADDRESS Va, IN SIZE64 Size);
-VOID VaTopPtAlloc (IN VIRTUAL_ADDRESS Va, IN SIZE64 Size);
-VOID VaPtAlloc (IN VIRTUAL_ADDRESS Va, IN SIZE64 Size);
-VOID VaFramebuf (IN VIRTUAL_ADDRESS Va, IN SIZE64 Size, IN MEMORY_TYPE Type);
-VOID VaRegions (IN VIRTUAL_ADDRESS Va, IN SIZE64 Size);
-VOID VaKtls (IN VIRTUAL_ADDRESS Va, IN SIZE64 InitSize, IN SIZE64 Size);
-VOID VaUtls (IN VIRTUAL_ADDRESS Va, IN SIZE64 InitSize, IN SIZE64 Size);
-VOID VaEntry (IN VIRTUAL_ADDRESS Entry);
+VOID VirtualAddressInit (VOID);
+UINTN VirtualAddressGetPhysical (IN VIRTUAL_ADDRESS VirtualAddress);
+VOID VirtualAddressVerify (IN VIRTUAL_ADDRESS VirtualAddress, IN SIZE64 Size);
+VOID VirtualAddressPopulate (IN VIRTUAL_ADDRESS VirtualAddress, IN SIZE64 Size, IN INT32 IsUserMode, IN INT32 IsWritable, IN INT32 IsExecutable);
+VOID VirtualAddressCopy (IN VIRTUAL_ADDRESS VirtualAddress, IN VOID *SourceAddress, IN SIZE64 Size, IN INT32 IsUserMode, IN INT32 IsWritable, IN INT32 IsExecutable);
+VOID VirtualAddressMemset (IN VIRTUAL_ADDRESS VirtualAddress, IN INT32 FillChar, IN SIZE64 Size, IN INT32 IsUserMode, IN INT32 IsWritable, IN INT32 IsExecutable);
+VOID VirtualAddressMapPhysical (IN VIRTUAL_ADDRESS VirtualAddress, IN SIZE64 Size, IN MEMORY_TYPE Type);
+VOID VirtualAddressMapLinear (IN VIRTUAL_ADDRESS VirtualAddress, IN SIZE64 Size);
+VOID VirtualAddressMapInfo (IN VIRTUAL_ADDRESS VirtualAddress, IN SIZE64 Size);
+VOID VirtualAddressMapPageFrameNumbers (IN VIRTUAL_ADDRESS VirtualAddress, IN SIZE64 Size);
+VOID VirtualAddressMapBatree (IN VIRTUAL_ADDRESS VirtualAddress, IN SIZE64 Size);
+VOID VirtualAddressAllocateTopPageTable (IN VIRTUAL_ADDRESS VirtualAddress, IN SIZE64 Size);
+VOID VirtualAddressAllocatePageTable (IN VIRTUAL_ADDRESS VirtualAddress, IN SIZE64 Size);
+VOID VirtualAddressMapFramebuffer (IN VIRTUAL_ADDRESS VirtualAddress, IN SIZE64 Size, IN MEMORY_TYPE Type);
+VOID VirtualAddressMapRegions (IN VIRTUAL_ADDRESS VirtualAddress, IN SIZE64 Size);
+VOID VirtualAddressMapKernelTls (IN VIRTUAL_ADDRESS VirtualAddress, IN SIZE64 InitializedSize, IN SIZE64 TotalSize);
+VOID VirtualAddressMapUserTls (IN VIRTUAL_ADDRESS VirtualAddress, IN SIZE64 InitializedSize, IN SIZE64 TotalSize);
+VOID VirtualAddressSetEntry (IN VIRTUAL_ADDRESS EntryPoint);
 
 VOID PaeInit (VOID);
-UINTN PaeGetPhys (IN VIRTUAL_ADDRESS Va);
-VOID PaeVerify (IN VIRTUAL_ADDRESS Va, IN SIZE64 Size);
-VOID PaePopulate (IN VIRTUAL_ADDRESS Va, IN SIZE64 Size, IN INT32 U, IN INT32 W, IN INT32 X);
-VOID PaePhysmap (IN VIRTUAL_ADDRESS Va, IN SIZE64 Size, IN UINT64 Pa, IN MEMORY_TYPE Type);
-VOID PaePtAlloc (IN VIRTUAL_ADDRESS Va, IN SIZE64 Size);
-VOID PaeTopPtAlloc (IN VIRTUAL_ADDRESS Va, IN SIZE64 Size);
-VOID PaeLinear (IN VIRTUAL_ADDRESS Va, IN SIZE64 Size);
-VOID PaeEntry (IN VIRTUAL_ADDRESS Entry);
+UINTN PaeGetPhysical (IN VIRTUAL_ADDRESS VirtualAddress);
+VOID PaeVerify (IN VIRTUAL_ADDRESS VirtualAddress, IN SIZE64 Size);
+VOID PaePopulate (IN VIRTUAL_ADDRESS VirtualAddress, IN SIZE64 Size, IN INT32 IsUserMode, IN INT32 IsWritable, IN INT32 IsExecutable);
+VOID PaeMapPhysical (IN VIRTUAL_ADDRESS VirtualAddress, IN SIZE64 Size, IN UINT64 PhysicalAddress, IN MEMORY_TYPE Type);
+VOID PaeAllocatePageTable (IN VIRTUAL_ADDRESS VirtualAddress, IN SIZE64 Size);
+VOID PaeAllocateTopPageTable (IN VIRTUAL_ADDRESS VirtualAddress, IN SIZE64 Size);
+VOID PaeMapLinear (IN VIRTUAL_ADDRESS VirtualAddress, IN SIZE64 Size);
+VOID PaeEntry (IN VIRTUAL_ADDRESS EntryPoint);
 
 /* Internal PAE functions. */
-VOID PaeDirectMap (IN VOID *Pt, IN UINT64 Pa, IN VIRTUAL_ADDRESS Va, IN SIZE64 Size,
-		    IN MEMORY_TYPE Type, IN INT32 Payload, IN INT32 X);
-VOID PaeMapPage (IN VOID *Pt, IN VIRTUAL_ADDRESS Va, IN UINTN Pa, IN INT32 Payload, IN INT32 W,
-		   IN INT32 X);
+VOID PaeDirectMap (IN VOID *PageTable, IN UINT64 PhysicalAddress, IN VIRTUAL_ADDRESS VirtualAddress, IN SIZE64 Size,
+		    IN MEMORY_TYPE Type, IN INT32 IsPayload, IN INT32 IsExecutable);
+VOID PaeMapPage (IN VOID *PageTable, IN VIRTUAL_ADDRESS VirtualAddress, IN UINTN PhysicalAddress, IN INT32 IsPayload, IN INT32 IsWritable,
+		   IN INT32 IsExecutable);
 
 VOID Pae64Init (VOID);
-UINTN Pae64GetPhys (IN VIRTUAL_ADDRESS Va);
-VOID Pae64Verify (IN VIRTUAL_ADDRESS Va, IN SIZE64 Size);
-VOID Pae64Populate (IN VIRTUAL_ADDRESS Va, IN SIZE64 Size, IN INT32 U, IN INT32 W, IN INT32 X);
-VOID Pae64Physmap (IN VIRTUAL_ADDRESS Va, IN SIZE64 Size, IN UINT64 Pa, IN MEMORY_TYPE Type);
-VOID Pae64PtAlloc (IN VIRTUAL_ADDRESS Va, IN SIZE64 Size);
-VOID Pae64TopPtAlloc (IN VIRTUAL_ADDRESS Va, IN SIZE64 Size);
-VOID Pae64Linear (IN VIRTUAL_ADDRESS Va, IN SIZE64 Size);
-VOID Pae64Entry (IN VIRTUAL_ADDRESS Entry);
+UINTN Pae64GetPhysical (IN VIRTUAL_ADDRESS VirtualAddress);
+VOID Pae64Verify (IN VIRTUAL_ADDRESS VirtualAddress, IN SIZE64 Size);
+VOID Pae64Populate (IN VIRTUAL_ADDRESS VirtualAddress, IN SIZE64 Size, IN INT32 IsUserMode, IN INT32 IsWritable, IN INT32 IsExecutable);
+VOID Pae64MapPhysical (IN VIRTUAL_ADDRESS VirtualAddress, IN SIZE64 Size, IN UINT64 PhysicalAddress, IN MEMORY_TYPE Type);
+VOID Pae64AllocatePageTable (IN VIRTUAL_ADDRESS VirtualAddress, IN SIZE64 Size);
+VOID Pae64AllocateTopPageTable (IN VIRTUAL_ADDRESS VirtualAddress, IN SIZE64 Size);
+VOID Pae64MapLinear (IN VIRTUAL_ADDRESS VirtualAddress, IN SIZE64 Size);
+VOID Pae64Entry (IN VIRTUAL_ADDRESS EntryPoint);
 
 /* Internal PAE64 functions. */
-VOID Pae64DirectMap (IN VOID *Pt, IN UINT64 Pa, IN VIRTUAL_ADDRESS Va, IN SIZE64 Size,
-		      IN MEMORY_TYPE Type, IN INT32 Payload, IN INT32 X);
-VOID Pae64MapPage (IN VOID *Pt, IN VIRTUAL_ADDRESS Va, IN UINTN Pa, IN INT32 Payload, IN INT32 W,
-		     IN INT32 X);
+VOID Pae64DirectMap (IN VOID *PageTable, IN UINT64 PhysicalAddress, IN VIRTUAL_ADDRESS VirtualAddress, IN SIZE64 Size,
+		      IN MEMORY_TYPE Type, IN INT32 IsPayload, IN INT32 IsExecutable);
+VOID Pae64MapPage (IN VOID *PageTable, IN VIRTUAL_ADDRESS VirtualAddress, IN UINTN PhysicalAddress, IN INT32 IsPayload, IN INT32 IsWritable,
+		     IN INT32 IsExecutable);
 
 VOID Sv48Init (VOID);
-UINTN Sv48GetPhys (IN VIRTUAL_ADDRESS Va);
-VOID Sv48Verify (IN VIRTUAL_ADDRESS Va, IN SIZE64 Size);
-VOID Sv48Populate (IN VIRTUAL_ADDRESS Va, IN SIZE64 Size, IN INT32 U, IN INT32 W, IN INT32 X);
-VOID Sv48Physmap (IN VIRTUAL_ADDRESS Va, IN SIZE64 Size, IN UINT64 Pa, IN MEMORY_TYPE Type);
-VOID Sv48PtAlloc (IN VIRTUAL_ADDRESS Va, IN SIZE64 Size);
-VOID Sv48TopPtAlloc (IN VIRTUAL_ADDRESS Va, IN SIZE64 Size);
-VOID Sv48Linear (IN VIRTUAL_ADDRESS Va, IN SIZE64 Size);
-VOID Sv48Entry (IN VIRTUAL_ADDRESS Entry);
+UINTN Sv48GetPhysical (IN VIRTUAL_ADDRESS VirtualAddress);
+VOID Sv48Verify (IN VIRTUAL_ADDRESS VirtualAddress, IN SIZE64 Size);
+VOID Sv48Populate (IN VIRTUAL_ADDRESS VirtualAddress, IN SIZE64 Size, IN INT32 IsUserMode, IN INT32 IsWritable, IN INT32 IsExecutable);
+VOID Sv48MapPhysical (IN VIRTUAL_ADDRESS VirtualAddress, IN SIZE64 Size, IN UINT64 PhysicalAddress, IN MEMORY_TYPE Type);
+VOID Sv48AllocatePageTable (IN VIRTUAL_ADDRESS VirtualAddress, IN SIZE64 Size);
+VOID Sv48AllocateTopPageTable (IN VIRTUAL_ADDRESS VirtualAddress, IN SIZE64 Size);
+VOID Sv48MapLinear (IN VIRTUAL_ADDRESS VirtualAddress, IN SIZE64 Size);
+VOID Sv48Entry (IN VIRTUAL_ADDRESS EntryPoint);
 
 /* Internal SV48 functions. */
-VOID Sv48DirectMap (IN VOID *Pt, IN UINT64 Pa, IN VIRTUAL_ADDRESS Va, IN SIZE64 Size,
-		     IN MEMORY_TYPE Type, IN INT32 Payload, IN INT32 X);
-VOID Sv48MapPage (IN VOID *Pt, IN VIRTUAL_ADDRESS Va, IN UINTN Pa, IN INT32 Payload, IN INT32 W,
-		    IN INT32 X);
+VOID Sv48DirectMap (IN VOID *PageTable, IN UINT64 PhysicalAddress, IN VIRTUAL_ADDRESS VirtualAddress, IN SIZE64 Size,
+		     IN MEMORY_TYPE Type, IN INT32 IsPayload, IN INT32 IsExecutable);
+VOID Sv48MapPage (IN VOID *PageTable, IN VIRTUAL_ADDRESS VirtualAddress, IN UINTN PhysicalAddress, IN INT32 IsPayload, IN INT32 IsWritable,
+		    IN INT32 IsExecutable);
 
 
 #define info(...) do { printf (__VA_ARGS__); putchar('\n'); } while (0)

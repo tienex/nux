@@ -142,51 +142,51 @@ ParseMultibootMmap (
   assert (sizeof (BOOTINFO_REGION) <=
 	  sizeof (struct multiboot_mmap_entry));
 
-  UINT64 MaxPfn = 0;
-  UINT64 MaxRamPfn = 0;
+  UINT64 MaxPageFrameNumber = 0;
+  UINT64 MaxRamPageFrameNumber = 0;
   UINT32 Regions = 0;
-  UINTN Cur;
-  VOLATILE struct multiboot_mmap_entry *MbPtr =
+  UINTN CurrentOffset;
+  VOLATILE struct multiboot_mmap_entry *MultibootPtr =
     (struct multiboot_mmap_entry *) BOOTMEM_MMAP;
-  VOLATILE BOOTINFO_REGION *HrPtr =
+  VOLATILE BOOTINFO_REGION *BootinfoRegionPtr =
     (BOOTINFO_REGION *) BOOTMEM_MMAP;
   printf ("Multiboot memory map:\n");
-  for (Cur = 0; Cur < MmapLength;)
+  for (CurrentOffset = 0; CurrentOffset < MmapLength;)
     {
-      UINTN MbSize;
-      BOOTINFO_REGION HReg;
+      UINTN MultibootEntrySize;
+      BOOTINFO_REGION BootinfoRegion;
 
-      printf ("%016llx:%016llx:%d\n", MbPtr->addr, MbPtr->Len, MbPtr->Type);
-      if (MbPtr->Type == MULTIBOOT_MEMORY_AVAILABLE)
-	HReg.Type = BOOTINFO_REGION_RAM;
+      printf ("%016llx:%016llx:%d\n", MultibootPtr->addr, MultibootPtr->Len, MultibootPtr->Type);
+      if (MultibootPtr->Type == MULTIBOOT_MEMORY_AVAILABLE)
+	BootinfoRegion.Type = BOOTINFO_REGION_RAM;
       else
-	HReg.Type = BOOTINFO_REGION_OTHER;
+	BootinfoRegion.Type = BOOTINFO_REGION_OTHER;
 
-      HReg.PageFrameNumber = MbPtr->addr >> PAGE_SHIFT;
-      HReg.Length = (MbPtr->Len + PAGE_SIZE - 1) >> PAGE_SHIFT;
-      MbSize = MbPtr->size + sizeof (MbPtr->size);
+      BootinfoRegion.PageFrameNumber = MultibootPtr->addr >> PAGE_SHIFT;
+      BootinfoRegion.Length = (MultibootPtr->Len + PAGE_SIZE - 1) >> PAGE_SHIFT;
+      MultibootEntrySize = MultibootPtr->size + sizeof (MultibootPtr->size);
 
       /* Count all memory as maxpfn */
-      if (MaxPfn < HReg.PageFrameNumber + HReg.Length)
-	MaxPfn = HReg.PageFrameNumber + HReg.Length;
+      if (MaxPageFrameNumber < BootinfoRegion.PageFrameNumber + BootinfoRegion.Length)
+	MaxPageFrameNumber = BootinfoRegion.PageFrameNumber + BootinfoRegion.Length;
 
       /* Count RAM maxrampfn */
-      if ((HReg.Type == BOOTINFO_REGION_RAM)
-	  && (MaxRamPfn < HReg.PageFrameNumber + HReg.Length))
-	MaxRamPfn = HReg.PageFrameNumber + HReg.Length;
+      if ((BootinfoRegion.Type == BOOTINFO_REGION_RAM)
+	  && (MaxRamPageFrameNumber < BootinfoRegion.PageFrameNumber + BootinfoRegion.Length))
+	MaxRamPageFrameNumber = BootinfoRegion.PageFrameNumber + BootinfoRegion.Length;
 
       /* We consumed this entry. Can write the hreg region. */
-      *HrPtr = HReg;
+      *BootinfoRegionPtr = BootinfoRegion;
 
-      MbPtr = (VOID *) MbPtr + MbSize;
-      HrPtr++;
+      MultibootPtr = (VOID *) MultibootPtr + MultibootEntrySize;
+      BootinfoRegionPtr++;
       Regions++;
-      Cur += MbSize;
+      CurrentOffset += MultibootEntrySize;
     }
 
   gBootinfoRegions = Regions;
-  gBootinfoMaxPfn = MaxPfn;
-  gBootinfoMaxRamPfn = MaxRamPfn;
+  gBootinfoMaxPfn = MaxPageFrameNumber;
+  gBootinfoMaxRamPfn = MaxRamPageFrameNumber;
 }
 
 
@@ -224,14 +224,14 @@ ParseMultiboot (
 **/
 VOID *
 GetPayloadStart (
-  IN INT32 Argc,
-  IN char    *Argv[],
-  IN PAYLOAD_ID  Id
+  IN INT32 ArgumentCount,
+  IN char    *ArgumentVector[],
+  IN PAYLOAD_ID  PayloadId
   )
 {
   VOID *ElfPayload;
 
-  switch (Id)
+  switch (PayloadId)
     {
     case PAYLOAD_KERNEL:
       ElfPayload = gpElfKernelPayload;
@@ -240,7 +240,7 @@ GetPayloadStart (
       ElfPayload = gpElfUserPayload;
       break;
     default:
-      printf ("Unsupported payload ID %d\n", Id);
+      printf ("Unsupported payload ID %d\n", PayloadId);
       ElfPayload = NULL;
       break;
     }
@@ -259,12 +259,12 @@ GetPayloadStart (
 **/
 UINTN
 GetPayloadSize (
-  IN PAYLOAD_ID  Id
+  IN PAYLOAD_ID  PayloadId
   )
 {
   UINTN ElfPayloadSize;
 
-  switch (Id)
+  switch (PayloadId)
     {
     case PAYLOAD_KERNEL:
       ElfPayloadSize = gElfKernelPayloadSize;
@@ -273,7 +273,7 @@ GetPayloadSize (
       ElfPayloadSize = gElfUserPayloadSize;
       break;
     default:
-      printf ("Unsupported payload ID %d\n", Id);
+      printf ("Unsupported payload ID %d\n", PayloadId);
       ElfPayloadSize = 0;
       break;
     }
@@ -335,7 +335,7 @@ MdInitialize (
   @return Maximum PFN.
 **/
 UINT64
-MdMaxPfn (
+PlatformGetMaxPageFrameNumber (
   VOID
   )
 {
@@ -351,7 +351,7 @@ MdMaxPfn (
   @return Minimum RAM PFN (0).
 **/
 UINT64
-MdMinRamPfn (
+PlatformGetMinRamPageFrameNumber (
   VOID
   )
 {
@@ -366,7 +366,7 @@ MdMinRamPfn (
   @return Maximum RAM PFN.
 **/
 UINT64
-MdMaxRamPfn (
+PlatformGetMaxRamPageFrameNumber (
   VOID
   )
 {
@@ -381,7 +381,7 @@ MdMaxRamPfn (
   @return Number of memory regions.
 **/
 UINT32
-MdMemRegions (
+PlatformGetMemoryRegionCount (
   VOID
   )
 {
@@ -398,7 +398,7 @@ MdMemRegions (
   @return Pointer to region descriptor.
 **/
 BOOTINFO_REGION *
-MdGetMemRegion (
+PlatformGetMemoryRegion (
   IN UINT32 Index
   )
 {
@@ -416,7 +416,7 @@ MdGetMemRegion (
   @return Pointer to framebuffer descriptor.
 **/
 FRAMEBUFFER_DESC *
-MdGetFramebuffer (
+PlatformGetFramebuffer (
   VOID
   )
 {
@@ -431,7 +431,7 @@ MdGetFramebuffer (
   @return Pointer to platform descriptor.
 **/
 APXH_PLATFORM_DESCRIPTOR *
-MdGetPlatformDesc (
+PlatformGetDescriptor (
   VOID
   )
 {
@@ -451,14 +451,14 @@ MdGetPlatformDesc (
   @param[in] Size  Size of region.
 **/
 VOID
-MdVerify (
-  IN VIRTUAL_ADDRESS   Va,
+PlatformVerify (
+  IN VIRTUAL_ADDRESS   VirtualAddress,
   IN SIZE64  Size
   )
 {
   /* Check that we're not overwriting something we'll need */
 
-  if (Va < BOOTMEM_MMAP + BOOTMEM_MMAPSIZE)
+  if (VirtualAddress < BOOTMEM_MMAP + BOOTMEM_MMAPSIZE)
     {
       printf ("ELF would overwrite memory map");
       exit (-1);
@@ -493,7 +493,7 @@ static GDTREG gGdtReg = {
 **/
 VOID
 MbAmd64Entry (
-  IN VIRTUAL_ADDRESS  Pt,
+  IN VIRTUAL_ADDRESS  PageTable,
   IN VIRTUAL_ADDRESS  Entry
   )
 {
@@ -518,9 +518,9 @@ MbAmd64Entry (
   Pae64DirectMap (pTrampCr3, 0, 0, 1L << 30, MEMTYPE_WB, 0, 1);
 
   /* Map Entry page in transitional pagetable VA. */
-  Pae64MapPage (pTrampCr3, (VIRTUAL_ADDRESS) Entry, Pae64GetPhys (Entry), 0, 0, 1);
+  Pae64MapPage (pTrampCr3, (VIRTUAL_ADDRESS) Entry, Pae64GetPhysical (Entry), 0, 0, 1);
   printf ("mapping in %lx %llx at %lx\n", pTrampCr3, Entry,
-	  Pae64GetPhys (Entry));
+	  Pae64GetPhysical (Entry));
 
   Cr4 = ReadCr4 ();
   WriteCr4 (Cr4 | CR4_PAE);
@@ -548,7 +548,7 @@ MbAmd64Entry (
      "mov %0, %%rax\n"
      "mov %1, %%rdi\n"
      "mov %2, %%rsi\n"
-     "jmp *%%rax\n" ".code32"::"m" (TrampEntry), "m" (Entry), "m" (Pt));
+     "jmp *%%rax\n" ".code32"::"m" (TrampEntry), "m" (Entry), "m" (PageTable));
 
   exit (-1);
 }
@@ -564,7 +564,7 @@ MbAmd64Entry (
 **/
 VOID
 Mb386Entry (
-  IN VIRTUAL_ADDRESS  Pt,
+  IN VIRTUAL_ADDRESS  PageTable,
   IN VIRTUAL_ADDRESS  Entry
   )
 {
@@ -590,9 +590,9 @@ Mb386Entry (
   PaeDirectMap (pTrampCr3, 0, 0, 1L << 30, MEMTYPE_WB, 0, 1);
 
   /* Map Entry page in transitional pagetable VA. */
-  PaeMapPage (pTrampCr3, (VIRTUAL_ADDRESS) Entry, PaeGetPhys (Entry), 0, 0, 1);
+  PaeMapPage (pTrampCr3, (VIRTUAL_ADDRESS) Entry, PaeGetPhysical (Entry), 0, 0, 1);
   printf ("mapping in %lx %llx at %lx\n", pTrampCr3, Entry,
-	  PaeGetPhys (Entry));
+	  PaeGetPhysical (Entry));
 
   WriteCr4 (Cr4 | CR4_PAE);
   printf ("CR4: %08lx -> %08lx.\n", Cr4, ReadCr4 ());
@@ -607,7 +607,7 @@ Mb386Entry (
     ("mov %0, %%eax\n"
      "mov %1, %%edi\n"
      "mov %2, %%esi\n"
-     "jmp *%%eax\n"::"m" (TrampEntry), "m" (Entry), "m" (Pt));
+     "jmp *%%eax\n"::"m" (TrampEntry), "m" (Entry), "m" (PageTable));
 }
 
 /**
@@ -620,19 +620,19 @@ Mb386Entry (
   @param[in] Entry  Kernel entry point virtual address.
 **/
 VOID
-MdEntry (
+PlatformEntry (
   IN ARCH   Arch,
-  IN VIRTUAL_ADDRESS  Pt,
+  IN VIRTUAL_ADDRESS  PageTable,
   IN VIRTUAL_ADDRESS  Entry
   )
 {
   switch (Arch)
     {
     case ARCH_386:
-      Mb386Entry (Pt, Entry);
+      Mb386Entry (PageTable, Entry);
       break;
     case ARCH_AMD64:
-      MbAmd64Entry (Pt, Entry);
+      MbAmd64Entry (PageTable, Entry);
       break;
     default:
       printf ("Architecture not supported by multiboot!\n");

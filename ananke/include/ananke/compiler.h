@@ -1,4 +1,4 @@
-/++
+/*++
     Module Name:
 
         compiler.h
@@ -10,7 +10,7 @@
     Environment:
 
         Compiler-agnostic: MSVC, Clang, GCC, Watcom.
---/
+--*/
 
 #pragma once
 

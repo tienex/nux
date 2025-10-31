@@ -1,4 +1,4 @@
-/++
+/*++
     Module Name:
 
         platform.h
@@ -10,7 +10,7 @@
     Environment:
 
         Cross-platform.
---/
+--*/
 
 #pragma once
 

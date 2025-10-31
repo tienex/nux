@@ -149,13 +149,13 @@ PteMergeFlags (
 static PTE *
 Sv48GetL3p (
   IN PTE   *Root,
-  IN VIRTUAL_ADDRESS  Va,
-  IN INT32    Payload
+  IN VIRTUAL_ADDRESS  VirtualAddress,
+  IN INT32    IsPayload
   )
 {
   PTE *pL4p, *pL3p;
-  UINT32 L4off = L4OFF64 (Va);
-  UINT32 L3off = L3OFF64 (Va);
+  UINT32 L4off = L4OFF64 (VirtualAddress);
+  UINT32 L3off = L3OFF64 (VirtualAddress);
 
   pL4p = Root + L4off;
 
@@ -165,7 +165,7 @@ Sv48GetL3p (
       UINTN L3page;
 
       /* Populating L3. */
-      L3page = Payload ? GetPayloadPage () : GetPage ();
+      L3page = IsPayload ? GetPayloadPage () : GetPage ();
 
       SetPte (pL4p, L3page >> PAGE_SHIFT, PTE_V);
       pL3p = (PTE *) L3page;
@@ -188,15 +188,15 @@ Sv48GetL3p (
 static PTE *
 Sv48GetL2p (
   IN PTE   *Root,
-  IN VIRTUAL_ADDRESS  Va,
-  IN INT32    Payload
+  IN VIRTUAL_ADDRESS  VirtualAddress,
+  IN INT32    IsPayload
   )
 {
   PTE *pL3p, *pL2p;
 
-  UINT32 L2off = L2OFF64 (Va);
+  UINT32 L2off = L2OFF64 (VirtualAddress);
 
-  pL3p = Sv48GetL3p (Root, Va, Payload);
+  pL3p = Sv48GetL3p (Root, VirtualAddress, IsPayload);
 
   pL2p = (PTE *) PteGetAddr (pL3p);
   if (pL2p == NULL)
@@ -204,7 +204,7 @@ Sv48GetL2p (
       UINTN L2page;
 
       /* Populating L2. */
-      L2page = Payload ? GetPayloadPage () : GetPage ();
+      L2page = IsPayload ? GetPayloadPage () : GetPage ();
 
       SetPte (pL3p, L2page >> PAGE_SHIFT, PTE_V);
       pL2p = (PTE *) L2page;
@@ -227,14 +227,14 @@ Sv48GetL2p (
 static PTE *
 Sv48GetL1p (
   IN PTE   *Root,
-  IN VIRTUAL_ADDRESS  Va,
-  IN INT32    Payload
+  IN VIRTUAL_ADDRESS  VirtualAddress,
+  IN INT32    IsPayload
   )
 {
   PTE *pL2p, *pL1p;
-  UINT32 L1off = L1OFF64 (Va);
+  UINT32 L1off = L1OFF64 (VirtualAddress);
 
-  pL2p = Sv48GetL2p (Root, Va, Payload);
+  pL2p = Sv48GetL2p (Root, VirtualAddress, IsPayload);
 
   pL1p = (PTE *) PteGetAddr (pL2p);
   if (pL1p == NULL)
@@ -242,7 +242,7 @@ Sv48GetL1p (
       UINTN L1page;
 
       /* Populating L1. */
-      L1page = Payload ? GetPayloadPage () : GetPage ();
+      L1page = IsPayload ? GetPayloadPage () : GetPage ();
 
       SetPte (pL2p, L1page >> PAGE_SHIFT, PTE_V);
       pL1p = (PTE *) L1page;
@@ -261,7 +261,7 @@ Sv48GetL1p (
 **/
 VOID
 Sv48Verify (
-  IN VIRTUAL_ADDRESS   Va,
+  IN VIRTUAL_ADDRESS   VirtualAddress,
   IN SIZE64  Size
   )
 {
@@ -297,29 +297,29 @@ Sv48Initialize (
 **/
 VOID
 Sv48MapPage (
-  IN VOID     *Pt,
-  IN VIRTUAL_ADDRESS  Va,
-  IN UINTN    Pa,
-  IN INT32    Payload,
-  IN INT32    W,
-  IN INT32    X
+  IN VOID     *PageTable,
+  IN VIRTUAL_ADDRESS  VirtualAddress,
+  IN UINTN    PhysicalAddress,
+  IN INT32    IsPayload,
+  IN INT32    IsWritable,
+  IN INT32    IsExecutable
   )
 {
   PTE *pL1p, *Root;
   UINT64 L1f;
   UINTN Page;
 
-  Root = (PTE *) Pt;
+  Root = (PTE *) PageTable;
 
-  printf ("Mapping at va %llx PA %lx (p:%d, w:%d, x:%d)\n", Va, Pa, Payload,
-	  W, X);
+  printf ("Mapping at va %llx PA %lx (p:%d, w:%d, x:%d)\n", VirtualAddress, PhysicalAddress, IsPayload,
+	  IsWritable, IsExecutable);
 
-  pL1p = Sv48GetL1p (Root, Va, Payload);
-  L1f = (W ? PTE_W : 0) | (X ? PTE_X : 0) | PTE_R | PTE_V;
+  pL1p = Sv48GetL1p (Root, VirtualAddress, IsPayload);
+  L1f = (IsWritable ? PTE_W : 0) | (IsExecutable ? PTE_X : 0) | PTE_R | PTE_V;
 
   Page = (UINTN) PteGetAddr (pL1p);
   assert (Page == 0);
-  Page = Pa >> PAGE_SHIFT;
+  Page = PhysicalAddress >> PAGE_SHIFT;
   SetPte (pL1p, Page, L1f);
 }
 
@@ -341,24 +341,24 @@ Sv48MapPage (
 static UINTN
 Sv48PopulatePage (
   IN PTE   *Root,
-  IN VIRTUAL_ADDRESS  Va,
-  IN INT32    U,
-  IN INT32    W,
-  IN INT32    X,
-  IN INT32    Payload
+  IN VIRTUAL_ADDRESS  VirtualAddress,
+  IN INT32    IsUserMode,
+  IN INT32    IsWritable,
+  IN INT32    IsExecutable,
+  IN INT32    IsPayload
   )
 {
   PTE *pL1p;
   UINT64 L1f;
   UINTN Page;
 
-  pL1p = Sv48GetL1p (Root, Va, Payload);
-  L1f = (U ? PTE_U : 0) | (W ? PTE_W : 0) | (X ? PTE_X : 0) | PTE_R | PTE_V;
+  pL1p = Sv48GetL1p (Root, VirtualAddress, IsPayload);
+  L1f = (IsUserMode ? PTE_U : 0) | (IsWritable ? PTE_W : 0) | (IsExecutable ? PTE_X : 0) | PTE_R | PTE_V;
 
   Page = (UINTN) PteGetAddr (pL1p);
   if (Page == 0)
     {
-      Page = Payload ? GetPayloadPage () : GetPage ();
+      Page = IsPayload ? GetPayloadPage () : GetPage ();
       SetPte (pL1p, Page >> PAGE_SHIFT, L1f);
     }
   else
@@ -387,16 +387,16 @@ Sv48PopulatePage (
   @return Physical address.
 **/
 UINTN
-Sv48GetPhys (
-  IN VIRTUAL_ADDRESS  Va
+Sv48GetPhysical (
+  IN VIRTUAL_ADDRESS  VirtualAddress
   )
 {
   UINTN Page;
   PTE *pL4p, *pL3p, *pL2p, *pL1p;
-  UINT32 L4off = L4OFF64 (Va);
-  UINT32 L3off = L3OFF64 (Va);
-  UINT32 L2off = L2OFF64 (Va);
-  UINT32 L1off = L1OFF64 (Va);
+  UINT32 L4off = L4OFF64 (VirtualAddress);
+  UINT32 L3off = L3OFF64 (VirtualAddress);
+  UINT32 L2off = L2OFF64 (VirtualAddress);
+  UINT32 L1off = L1OFF64 (VirtualAddress);
 
   pL4p = gSv48Root + L4off;
 
@@ -415,7 +415,7 @@ Sv48GetPhys (
   Page = (UINTN) PteGetAddr (pL1p);
   assert (Page != 0);
 
-  return Page |= (Va & ~(PAGE_MASK));
+  return Page |= (VirtualAddress & ~(PAGE_MASK));
 }
 
 /**
@@ -434,18 +434,18 @@ Sv48GetPhys (
 **/
 VOID
 Sv48DirectMap (
-  IN VOID              *Pt,
+  IN VOID              *PageTable,
   IN UINT64            PaBase,
-  IN VIRTUAL_ADDRESS           Va,
+  IN VIRTUAL_ADDRESS           VirtualAddress,
   IN SIZE64          Size,
   IN MEMORY_TYPE  Mt,
-  IN INT32             Payload,
-  IN INT32             X
+  IN INT32             IsPayload,
+  IN INT32             IsExecutable
   )
 {
   SSIZE64 Len;
   UINT64 Pa;
-  PTE *Root = (PTE *) Pt;
+  PTE *Root = (PTE *) PageTable;
   UINT64 L3cnt = 0, L2cnt = 0, L1cnt = 0;
 
 #define GB1ALIGNED(_a) (((_a) & ((1L << 30) - 1)) == 0)
@@ -458,35 +458,35 @@ Sv48DirectMap (
   while (Len > 0)
     {
 
-      if (GB1ALIGNED (Pa) && GB1ALIGNED (Va) && Len >= (1L << 30))
+      if (GB1ALIGNED (Pa) && GB1ALIGNED (VirtualAddress) && Len >= (1L << 30))
 	{
-	  PTE *pL3p = Sv48GetL3p (Root, Va, Payload);
+	  PTE *pL3p = Sv48GetL3p (Root, VirtualAddress, IsPayload);
 
 	  SetPte (pL3p, Pa >> PAGE_SHIFT,
-		   (X ? PTE_X : 0) | PTE_W | PTE_R | PTE_V);
-	  Va += (1L << 30);
+		   (IsExecutable ? PTE_X : 0) | PTE_W | PTE_R | PTE_V);
+	  VirtualAddress += (1L << 30);
 	  Pa += (1L << 30);
 	  Len -= (1L << 30);
 	  L3cnt++;
 	}
-      else if (MB2ALIGNED (Pa) && MB2ALIGNED (Va) && Len >= (1 << 21))
+      else if (MB2ALIGNED (Pa) && MB2ALIGNED (VirtualAddress) && Len >= (1 << 21))
 	{
-	  PTE *pL2p = Sv48GetL2p (Root, Va, Payload);
+	  PTE *pL2p = Sv48GetL2p (Root, VirtualAddress, IsPayload);
 
 	  SetPte (pL2p, Pa >> PAGE_SHIFT,
-		   (X ? PTE_X : 0) | PTE_W | PTE_R | PTE_V);
-	  Va += (1L << 21);
+		   (IsExecutable ? PTE_X : 0) | PTE_W | PTE_R | PTE_V);
+	  VirtualAddress += (1L << 21);
 	  Pa += (1L << 21);
 	  Len -= (1L << 21);
 	  L2cnt++;
 	}
       else
 	{
-	  PTE *pL1p = Sv48GetL1p (Root, Va, Payload);
+	  PTE *pL1p = Sv48GetL1p (Root, VirtualAddress, IsPayload);
 
 	  SetPte (pL1p, Pa >> PAGE_SHIFT,
-		   (X ? PTE_X : 0) | PTE_W | PTE_R | PTE_V);
-	  Va += (1L << PAGE_SHIFT);
+		   (IsExecutable ? PTE_X : 0) | PTE_W | PTE_R | PTE_V);
+	  VirtualAddress += (1L << PAGE_SHIFT);
 	  Pa += (1L << PAGE_SHIFT);
 	  Len -= (1L << PAGE_SHIFT);
 	  L1cnt++;
@@ -505,14 +505,14 @@ Sv48DirectMap (
   @param[in] Mt    Memory type.
 **/
 VOID
-Sv48Physmap (
-  IN VIRTUAL_ADDRESS           Va,
+Sv48MapPhysical (
+  IN VIRTUAL_ADDRESS           VirtualAddress,
   IN SIZE64          Size,
   IN UINT64            Pa,
   IN MEMORY_TYPE  Mt
   )
 {
-  Sv48DirectMap (gSv48Root, Pa, Va, Size, Mt, 1, 0);
+  Sv48DirectMap (gSv48Root, Pa, VirtualAddress, Size, Mt, 1, 0);
 }
 
 /**
@@ -524,8 +524,8 @@ Sv48Physmap (
   @param[in] Size  Size of region.
 **/
 VOID
-Sv48TopPtAlloc (
-  IN VIRTUAL_ADDRESS   Va,
+Sv48AllocateTopPageTable (
+  IN VIRTUAL_ADDRESS   VirtualAddress,
   IN SIZE64  Size
   )
 {
@@ -534,7 +534,7 @@ Sv48TopPtAlloc (
   n = (Size + (1 << 30) - 1) >> 30;
 
   for (i = 0; i < n; i++)
-    (VOID) Sv48GetL3p (gSv48Root, Va + (i << PAGE_SHIFT), 1);
+    (VOID) Sv48GetL3p (gSv48Root, VirtualAddress + (i << PAGE_SHIFT), 1);
 }
 
 /**
@@ -546,8 +546,8 @@ Sv48TopPtAlloc (
   @param[in] Size  Size of region.
 **/
 VOID
-Sv48PtAlloc (
-  IN VIRTUAL_ADDRESS   Va,
+Sv48AllocatePageTable (
+  IN VIRTUAL_ADDRESS   VirtualAddress,
   IN SIZE64  Size
   )
 {
@@ -556,7 +556,7 @@ Sv48PtAlloc (
   n = Size >> PAGE_SHIFT;
 
   for (i = 0; i < n; i++)
-    (VOID) Sv48GetL1p (gSv48Root, Va + (i << PAGE_SHIFT), 1);
+    (VOID) Sv48GetL1p (gSv48Root, VirtualAddress + (i << PAGE_SHIFT), 1);
 }
 
 #define SV48_LINEAR_SHIFT (PAGE_SHIFT + 9 + 9 + 9)
@@ -572,18 +572,18 @@ Sv48PtAlloc (
   @param[in] Size  Size of region.
 **/
 VOID
-Sv48Linear (
-  IN VIRTUAL_ADDRESS   Va,
+Sv48MapLinear (
+  IN VIRTUAL_ADDRESS   VirtualAddress,
   IN SIZE64  Size
   )
 {
-  UINT32 L4off = L4OFF64 (Va);
+  UINT32 L4off = L4OFF64 (VirtualAddress);
   PTE *pL4p;
 
-  if (Va & SV48_LINEAR_ALIGN)
+  if (VirtualAddress & SV48_LINEAR_ALIGN)
     {
       printf ("PAE Linear VA %llx not aligned (align mask: %llx).\n",
-	      Va, SV48_LINEAR_ALIGN);
+	      VirtualAddress, SV48_LINEAR_ALIGN);
       exit (-1);
     }
 
@@ -612,21 +612,21 @@ Sv48Linear (
 **/
 VOID
 Sv48Populate (
-  IN VIRTUAL_ADDRESS   Va,
+  IN VIRTUAL_ADDRESS   VirtualAddress,
   IN SIZE64  Size,
-  IN INT32     U,
-  IN INT32     W,
-  IN INT32     X
+  IN INT32     IsUserMode,
+  IN INT32     IsWritable,
+  IN INT32     IsExecutable
   )
 {
   SSIZE64 Len = Size;
 
   while (Len > 0)
     {
-      Sv48PopulatePage (gSv48Root, Va, U, W, X, 1);
+      Sv48PopulatePage (gSv48Root, VirtualAddress, IsUserMode, IsWritable, IsExecutable, 1);
 
-      Len -= PAGE_CEILING (Va) - Va;
-      Va += PAGE_CEILING (Va) - Va;
+      Len -= PAGE_CEILING (VirtualAddress) - VirtualAddress;
+      VirtualAddress += PAGE_CEILING (VirtualAddress) - VirtualAddress;
 
     }
 }
@@ -643,5 +643,5 @@ Sv48Entry (
   IN VIRTUAL_ADDRESS  Entry
   )
 {
-  MdEntry (ARCH_RISCV64, (VIRTUAL_ADDRESS) (UINTN) gSv48Root, Entry);
+  PlatformEntry (ARCH_RISCV64, (VIRTUAL_ADDRESS) (UINTN) gSv48Root, Entry);
 }

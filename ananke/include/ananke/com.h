@@ -1,4 +1,4 @@
-/++
+/*++
     Module Name:
 
         com.h
@@ -11,7 +11,7 @@
     Environment:
 
         C and C++ compatible.
---/
+--*/
 
 #pragma once
 
@@ -114,13 +114,17 @@ struct IClassFactory { const IClassFactoryVtbl* lpVtbl; };
 #define IClassFactory_LockServer(This, f)                    ((This)->lpVtbl->LockServer((This),(f)))
 
 /* --------------------------------------------------------------- */
-/*  Example: unified interface declaration.                        */
+/*  Example: unified interface declaration (commented out)         */
 /* --------------------------------------------------------------- */
-/* {7E6B9B33-4B40-4D1D-9F2B-6F7C6F6C4C11} */
-#define ANX_IID_IAnxSample "7E6B9B33-4B40-4D1D-9F2B-6F7C6F6C4C11"
-ANX_DEFINE_GUID(IID_IAnxSample, 0x7E6B9B33,0x4B40,0x4D1D,0x9F,0x2B,0x6F,0x7C,0x6F,0x6C,0x4C,0x11);
+/*
+   To define a custom COM interface, use this pattern:
 
-ANX_BEGIN_INTERFACE(IAnxSample, IUnknown, IID_IAnxSample, ANX_IID_IAnxSample)
-    ANX_IFACE_METHOD(HRESULT, Reset,    (VOID))
-    ANX_IFACE_METHOD(HRESULT, GetValue, (OUT UINT32* value))
-ANX_END_INTERFACE(IAnxSample)
+   // {7E6B9B33-4B40-4D1D-9F2B-6F7C6F6C4C11}
+   #define ANX_IID_IAnxSample "7E6B9B33-4B40-4D1D-9F2B-6F7C6F6C4C11"
+   ANX_DEFINE_GUID(IID_IAnxSample, 0x7E6B9B33,0x4B40,0x4D1D,0x9F,0x2B,0x6F,0x7C,0x6F,0x6C,0x4C,0x11);
+
+   ANX_BEGIN_INTERFACE(IAnxSample, IUnknown, IID_IAnxSample, ANX_IID_IAnxSample)
+       ANX_IFACE_METHOD(HRESULT, Reset,    (VOID))
+       ANX_IFACE_METHOD(HRESULT, GetValue, (OUT UINT32* value))
+   ANX_END_INTERFACE(IAnxSample)
+*/

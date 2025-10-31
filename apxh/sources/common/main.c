@@ -69,13 +69,13 @@ CheckPayloadPage (
   IN UINT32 Addr
   )
 {
-  UINT32 i = (Addr - gMinRamAddr) >> PAGE_SHIFT;
-  UINT32 By = i >> 3;
-  UINT32 Bi = (1 << (i & 7));
+  UINT32 PageIndex = (Addr - gMinRamAddr) >> PAGE_SHIFT;
+  UINT32 ByteIndex = PageIndex >> 3;
+  UINT32 BitMask = (1 << (PageIndex & 7));
 
-  assert (By <= PAGEMAP_SZ (BOOTMEM));
+  assert (ByteIndex <= PAGEMAP_SZ (BOOTMEM));
 
-  return !!(gBootPagemap[By] & Bi);
+  return !!(gBootPagemap[ByteIndex] & BitMask);
 }
 
 /**
@@ -89,8 +89,8 @@ Initialize (
   VOID
   )
 {
-  MdInit ();
-  gMinRamAddr = MdMinRamPfn () << PAGE_SHIFT;
+  PlatformInit ();
+  gMinRamAddr = PlatformGetMinRamPageFrameNumber () << PAGE_SHIFT;
 }
 
 /**
@@ -130,7 +130,7 @@ GetArchName (
   Sets up paging structures for the target architecture.
 **/
 VOID
-VaInitialize (
+VirtualAddressInitialize (
   VOID
   )
 {
@@ -138,15 +138,15 @@ VaInitialize (
     {
 #if (EC_MACHINE_I386) || (EC_MACHINE_AMD64)
     case ARCH_386:
-      PaeInit ();
+      PaeInitialize ();
       break;
     case ARCH_AMD64:
-      Pae64Init ();
+      Pae64Initialize ();
       break;
 #endif
 #if EC_MACHINE_RISCV64
     case ARCH_RISCV64:
-      Sv48Init ();
+      Sv48Initialize ();
       break;
 #endif
     default:
@@ -168,7 +168,7 @@ VaInitialize (
   @param[in] X     TRUE for executable.
 **/
 VOID
-VaPopulate (
+VirtualAddressPopulate (
   IN VIRTUAL_ADDRESS   Va,
   IN SIZE64  Size,
   IN INT32       U,
@@ -176,8 +176,8 @@ VaPopulate (
   IN INT32       X
   )
 {
-  MdVerify (Va, Size);
-  VaVerify (Va, Size);
+  PlatformVerify (Va, Size);
+  VirtualAddressVerify (Va, Size);
 
   switch (gElfArch)
     {
@@ -214,7 +214,7 @@ VaPopulate (
   @param[in] X     TRUE for executable.
 **/
 VOID
-VaCopy (
+VirtualAddressCopy (
   IN VIRTUAL_ADDRESS   Va,
   IN VOID      *Addr,
   IN SIZE64  Size,
@@ -225,14 +225,14 @@ VaCopy (
 {
   SSIZE64 Len = Size;
 
-  MdVerify (Va, Size);
-  VaVerify (Va, Size);
+  PlatformVerify (Va, Size);
+  VirtualAddressVerify (Va, Size);
 
 #if 0
   printf ("Copying %08llx <- %p (u: %d, w:%d, x:%d, %d bytes)\n", Va, Addr, U,
 	  W, X, Size);
 #endif
-  VaPopulate (Va, Size, U, W, X);
+  VirtualAddressPopulate (Va, Size, U, W, X);
 
   while (Len > 0)
     {
@@ -242,7 +242,7 @@ VaCopy (
       if (CLen > Len)
 	CLen = Len;
 
-      PAddr = VaGetPhys (Va);
+      PAddr = VirtualAddressGetPhysical (Va);
 
       memcpy ((VOID *) PAddr, Addr, CLen);
 
@@ -266,9 +266,9 @@ VaCopy (
   @param[in] X     TRUE for executable.
 **/
 VOID
-VaMemset (
+VirtualAddressMemset (
   IN VIRTUAL_ADDRESS   Va,
-  IN INT32       C,
+  IN INT32       FillChar,
   IN SIZE64  Size,
   IN INT32       U,
   IN INT32       W,
@@ -277,19 +277,19 @@ VaMemset (
 {
   SSIZE64 Len = Size;
 
-  MdVerify (Va, Size);
-  VaVerify (Va, Size);
+  PlatformVerify (Va, Size);
+  VirtualAddressVerify (Va, Size);
 
-  printf ("Setting %08llx <- %d (u:%d, w:%d, x: %d, %d bytes)\n", Va, C, U, W,
+  printf ("Setting %08llx <- %d (u:%d, w:%d, x: %d, %d bytes)\n", Va, FillChar, U, W,
 	  X, Size);
-  VaPopulate (Va, Size, U, W, X);
+  VirtualAddressPopulate (Va, Size, U, W, X);
 
   while (Len > 0)
     {
       UINTN PAddr;
       SIZE64 CLen = PAGE_CEILING (Va) - Va;
 
-      PAddr = VaGetPhys (Va);
+      PAddr = VirtualAddressGetPhysical (Va);
 
       memset ((VOID *) PAddr, 0, CLen);
 
@@ -308,28 +308,28 @@ VaMemset (
   @param[in] Mt    Memory type (WC, WB, UC).
 **/
 VOID
-VaPhysmap (
+VirtualAddressMapPhysical (
   IN VIRTUAL_ADDRESS           Va,
   IN SIZE64          Size,
   IN MEMORY_TYPE  Mt
   )
 {
-  MdVerify (Va, Size);
-  VaVerify (Va, Size);
+  PlatformVerify (Va, Size);
+  VirtualAddressVerify (Va, Size);
 
   switch (gElfArch)
     {
 #if EC_MACHINE_I386 || EC_MACHINE_AMD64
     case ARCH_386:
-      PaePhysmap (Va, Size, 0, Mt);
+      PaeMapPhysical (Va, Size, 0, Mt);
       break;
     case ARCH_AMD64:
-      Pae64Physmap (Va, Size, 0, Mt);
+      Pae64MapPhysical (Va, Size, 0, Mt);
       break;
 #endif
 #if EC_MACHINE_RISCV64
     case ARCH_RISCV64:
-      Sv48Physmap (Va, Size, 0, Mt);
+      Sv48MapPhysical (Va, Size, 0, Mt);
       break;
 #endif
     default:
@@ -349,7 +349,7 @@ VaPhysmap (
   @param[in] Mt    Memory type (typically WC for framebuffer).
 **/
 VOID
-VaFramebuf (
+VirtualAddressMapFramebuffer (
   IN VIRTUAL_ADDRESS           Va,
   IN SIZE64          Size,
   IN MEMORY_TYPE  Mt
@@ -358,10 +358,10 @@ VaFramebuf (
   UINT64 Pa;
   FRAMEBUFFER_DESC *FbPtr;
 
-  MdVerify (Va, Size);
-  VaVerify (Va, Size);
+  PlatformVerify (Va, Size);
+  VirtualAddressVerify (Va, Size);
 
-  FbPtr = MdGetFramebuffer ();
+  FbPtr = PlatformGetFramebuffer ();
   if (FbPtr == NULL || FbPtr->Type == FB_INVALID)
     return;
 
@@ -378,15 +378,15 @@ VaFramebuf (
     {
 #if EC_MACHINE_I386 || EC_MACHINE_AMD64
     case ARCH_386:
-      PaePhysmap (Va, Size, Pa, Mt);
+      PaeMapPhysical (Va, Size, Pa, Mt);
       break;
     case ARCH_AMD64:
-      Pae64Physmap (Va, Size, Pa, Mt);
+      Pae64MapPhysical (Va, Size, Pa, Mt);
       break;
 #endif
 #if EC_MACHINE_RISCV64
     case ARCH_RISCV64:
-      Sv48Physmap (Va, Size, Pa, Mt);
+      Sv48MapPhysical (Va, Size, Pa, Mt);
       break;
 #endif
     default:
@@ -406,27 +406,27 @@ VaFramebuf (
   @param[in] Size  Size of region.
 **/
 VOID
-VaLinear (
+VirtualAddressMapLinear (
   IN VIRTUAL_ADDRESS   Va,
   IN SIZE64  Size
   )
 {
-  MdVerify (Va, Size);
-  VaVerify (Va, Size);
+  PlatformVerify (Va, Size);
+  VirtualAddressVerify (Va, Size);
 
   switch (gElfArch)
     {
 #if EC_MACHINE_I386 || EC_MACHINE_AMD64
     case ARCH_386:
-      PaeLinear (Va, Size);
+      PaeMapLinear (Va, Size);
       break;
     case ARCH_AMD64:
-      Pae64Linear (Va, Size);
+      Pae64MapLinear (Va, Size);
       break;
 #endif
 #if EC_MACHINE_RISCV64
     case ARCH_RISCV64:
-      Sv48Linear (Va, Size);
+      Sv48MapLinear (Va, Size);
       break;
 #endif
     default:
@@ -444,27 +444,27 @@ VaLinear (
   @param[in] Size  Size of region.
 **/
 VOID
-VaTopPtAlloc (
+VirtualAddressAllocateTopPageTable (
   IN VIRTUAL_ADDRESS   Va,
   IN SIZE64  Size
   )
 {
-  MdVerify (Va, Size);
-  VaVerify (Va, Size);
+  PlatformVerify (Va, Size);
+  VirtualAddressVerify (Va, Size);
 
   switch (gElfArch)
     {
 #if EC_MACHINE_I386 || EC_MACHINE_AMD64
     case ARCH_386:
-      PaeTopPtAlloc (Va, Size);
+      PaeAllocateTopPageTable (Va, Size);
       break;
     case ARCH_AMD64:
-      Pae64TopPtAlloc (Va, Size);
+      Pae64AllocateTopPageTable (Va, Size);
       break;
 #endif
 #if EC_MACHINE_RISCV64
     case ARCH_RISCV64:
-      Sv48TopPtAlloc (Va, Size);
+      Sv48AllocateTopPageTable (Va, Size);
       break;
 #endif
     default:
@@ -482,27 +482,27 @@ VaTopPtAlloc (
   @param[in] Size  Size of region.
 **/
 VOID
-VaPtAlloc (
+VirtualAddressAllocatePageTable (
   IN VIRTUAL_ADDRESS   Va,
   IN SIZE64  Size
   )
 {
-  MdVerify (Va, Size);
-  VaVerify (Va, Size);
+  PlatformVerify (Va, Size);
+  VirtualAddressVerify (Va, Size);
 
   switch (gElfArch)
     {
 #if EC_MACHINE_I386 || EC_MACHINE_AMD64
     case ARCH_386:
-      PaePtAlloc (Va, Size);
+      PaeAllocatePageTable (Va, Size);
       break;
     case ARCH_AMD64:
-      Pae64PtAlloc (Va, Size);
+      Pae64AllocatePageTable (Va, Size);
       break;
 #endif
 #if EC_MACHINE_RISCV64
     case ARCH_RISCV64:
-      Sv48PtAlloc (Va, Size);
+      Sv48AllocatePageTable (Va, Size);
       break;
 #endif
     default:
@@ -521,15 +521,15 @@ VaPtAlloc (
   @param[in] Size  Size of region.
 **/
 VOID
-VaInfo (
+VirtualAddressMapInfo (
   IN VIRTUAL_ADDRESS   Va,
   IN SIZE64  Size
   )
 {
-  MdVerify (Va, Size);
-  VaVerify (Va, Size);
+  PlatformVerify (Va, Size);
+  VirtualAddressVerify (Va, Size);
 
-  VaPopulate (Va, Size, 0, 0, 0);
+  VirtualAddressPopulate (Va, Size, 0, 0, 0);
 
   /* Only save the va and size, we'll have to finish all allocations
      before we can return the proper data. */
@@ -547,7 +547,7 @@ VaInfo (
   @param[in] NumRegions  Number of memory regions.
 **/
 static VOID
-VaInfoCopy (
+VirtualAddressMapInfoCopy (
   IN UINT64   UEntry,
   IN UINT64   NumRegions
   )
@@ -555,7 +555,7 @@ VaInfoCopy (
   VIRTUAL_ADDRESS Va = gReqInfoVa;
   SIZE64 Size = gReqInfoSize;
 #define MIN(x,y) ((x < y) ? x : y)
-  APXH_BOOT_INFO i;
+  APXH_BOOT_INFO BootInfo;
   FRAMEBUFFER_DESC *FbPtr;
   APXH_PLATFORM_DESCRIPTOR *PlatformDesc;
 
@@ -565,42 +565,42 @@ VaInfoCopy (
       return;
     }
 
-  i.magic = APXH_BOOTINFO_MAGIC;
-  i.maxpfn = MdMaxPfn ();
-  i.maxrampfn = MdMaxRamPfn ();
-  i.numregions = NumRegions;
-  i.uentry = UEntry;
+  BootInfo.magic = APXH_BOOTINFO_MAGIC;
+  BootInfo.maxpfn = PlatformGetMaxPageFrameNumber ();
+  BootInfo.maxrampfn = PlatformGetMaxRamPageFrameNumber ();
+  BootInfo.numregions = NumRegions;
+  BootInfo.uentry = UEntry;
 
-  PlatformDesc = MdGetPlatformDesc ();
+  PlatformDesc = PlatformGetDescriptor ();
   if (PlatformDesc != NULL)
-    i.pltdesc = *PlatformDesc;
+    BootInfo.pltdesc = *PlatformDesc;
   else
-    i.pltdesc = (APXH_PLATFORM_DESCRIPTOR)
+    BootInfo.pltdesc = (APXH_PLATFORM_DESCRIPTOR)
     {.Type = PLATFORM_UNKNOWN,.PlatformPointer = 0 };
 
-  FbPtr = MdGetFramebuffer ();
+  FbPtr = PlatformGetFramebuffer ();
   if (FbPtr != NULL)
-    i.fbdesc = *FbPtr;
+    BootInfo.fbdesc = *FbPtr;
   else
-    i.fbdesc.Type = FB_INVALID;
+    BootInfo.fbdesc.Type = FB_INVALID;
 
-  i.ktls.initvaddr = gKtlsVa;
-  i.ktls.initsize = gKtlsInitsize;
-  i.ktls.size = gKtlsSize;
+  BootInfo.ktls.initvaddr = gKtlsVa;
+  BootInfo.ktls.initsize = gKtlsInitsize;
+  BootInfo.ktls.size = gKtlsSize;
 
-  i.utls.initvaddr = gUtlsVa;
-  i.utls.initsize = gUtlsInitsize;
-  i.utls.size = gUtlsSize;
+  BootInfo.utls.initvaddr = gUtlsVa;
+  BootInfo.utls.initsize = gUtlsInitsize;
+  BootInfo.utls.size = gUtlsSize;
 
-  VaCopy (Va, &i, MIN (Size, sizeof (APXH_BOOT_INFO)), 0, 0, 0);
+  VirtualAddressCopy (Va, &BootInfo, MIN (Size, sizeof (APXH_BOOT_INFO)), 0, 0, 0);
 #undef MIN
 }
 
 
-#define OR_WORD(p, x) ((*(UINT64 *)VaGetPhys(gReqBatreeVa + (VIRTUAL_ADDRESS)(UINTN)(p))) |= (x))
-#define MASK_WORD(p,x) ((*(UINT64 *)VaGetPhys(gReqBatreeVa + (VIRTUAL_ADDRESS)(UINTN)(p))) &= (x))
-#define GET_WORD(p) (*(UINT64 *)VaGetPhys(gReqBatreeVa + (VIRTUAL_ADDRESS)(UINTN)(p)))
-#define SET_WORD(p,x) (*(UINT64 *)VaGetPhys(gReqBatreeVa + (VIRTUAL_ADDRESS)(UINTN)(p)) = x)
+#define OR_WORD(p, x) ((*(UINT64 *)VirtualAddressGetPhysical(gReqBatreeVa + (VIRTUAL_ADDRESS)(UINTN)(p))) |= (x))
+#define MASK_WORD(p,x) ((*(UINT64 *)VirtualAddressGetPhysical(gReqBatreeVa + (VIRTUAL_ADDRESS)(UINTN)(p))) &= (x))
+#define GET_WORD(p) (*(UINT64 *)VirtualAddressGetPhysical(gReqBatreeVa + (VIRTUAL_ADDRESS)(UINTN)(p)))
+#define SET_WORD(p,x) (*(UINT64 *)VirtualAddressGetPhysical(gReqBatreeVa + (VIRTUAL_ADDRESS)(UINTN)(p)) = x)
 #include <nux/batree.h>
 
 /**
@@ -613,61 +613,61 @@ VaInfoCopy (
   @param[in] Size  Size of region.
 **/
 VOID
-VaBatree (
+VirtualAddressMapBatree (
   IN VIRTUAL_ADDRESS   Va,
   IN SIZE64  Size
   )
 {
-  SIZE64 s;
-INT32 i, Order;
-  APXH_BATREE Hdr;
-  BOOTINFO_REGION *Reg;
-  UINT32 Regions = MdMemRegions ();
-  UINT32 MaxFrame = MdMaxRamPfn ();
+  SIZE64 RequiredSize;
+  INT32 RegionIndex, Order;
+  APXH_BATREE BatreeHeader;
+  BOOTINFO_REGION *Region;
+  UINT32 Regions = PlatformGetMemoryRegionCount ();
+  UINT32 MaxPageFrameNumber = PlatformGetMaxRamPageFrameNumber ();
 
-  MdVerify (Va, Size);
-  VaVerify (Va, Size);
+  PlatformVerify (Va, Size);
+  VirtualAddressVerify (Va, Size);
 
-  Order = BatreeOrder (MaxFrame);
-  s = 8 * BATREE_SIZE (Order);
-  s += sizeof (APXH_BATREE);
+  Order = BatreeOrder (MaxPageFrameNumber);
+  RequiredSize = 8 * BATREE_SIZE (Order);
+  RequiredSize += sizeof (APXH_BATREE);
 
-  if (s > Size)
+  if (RequiredSize > Size)
     {
       printf ("Can't create PFN S-Tree of order %d: "
-	      "required %d bytes, %d available.\n", Order, s, Size);
+	      "required %d bytes, %d available.\n", Order, RequiredSize, Size);
     }
 
-  Size = s;
+  Size = RequiredSize;
   printf ("Populating size %d (order: %d)\n", Size, Order);
-  VaPopulate (Va, Size, 0, 1, 0);
+  VirtualAddressPopulate (Va, Size, 0, 1, 0);
 
   /* Copy the header. */
-  Hdr.magic = APXH_BATREE_MAGIC;
-  Hdr.version = APXH_BATREE_VERSION;
-  Hdr.order = Order;
-  Hdr.offset = sizeof (Hdr);
-  Hdr.size = 8 * BATREE_SIZE (Order);
-  VaCopy (Va, &Hdr, sizeof (Hdr), 0, 1, 0);
+  BatreeHeader.magic = APXH_BATREE_MAGIC;
+  BatreeHeader.version = APXH_BATREE_VERSION;
+  BatreeHeader.order = Order;
+  BatreeHeader.offset = sizeof (BatreeHeader);
+  BatreeHeader.size = 8 * BATREE_SIZE (Order);
+  VirtualAddressCopy (Va, &BatreeHeader, sizeof (BatreeHeader), 0, 1, 0);
 
   /* Fill the S-Tree with all RAM regions. */
-  gReqBatreeVa = Va + sizeof (Hdr);
+  gReqBatreeVa = Va + sizeof (BatreeHeader);
 
-  for (i = 0; i < Regions; i++)
+  for (RegionIndex = 0; RegionIndex < Regions; RegionIndex++)
     {
       UINT32 j;
 
-      Reg = MdGetMemRegion (i);
+      Region = PlatformGetMemoryRegion (RegionIndex);
 
-      if (Reg->Type != BOOTINFO_REGION_RAM)
+      if (Region->Type != BOOTINFO_REGION_RAM)
 	continue;
 
 
-      for (j = 0; j < Reg->Len; j++)
+      for (j = 0; j < Region->Len; j++)
 	{
-	  UINT32 Frame = Reg->Pfn + j;
+	  UINT32 Frame = Region->Pfn + j;
 
-	  if (Frame > MaxFrame)
+	  if (Frame > MaxPageFrameNumber)
 	    {
 	      printf ("Maximum reached.\n");
 	      break;
@@ -678,21 +678,21 @@ INT32 i, Order;
     }
 
   /* Clear in case of overlapping non-ram regions. */
-  for (i = 0; i < Regions; i++)
+  for (RegionIndex = 0; RegionIndex < Regions; RegionIndex++)
     {
       UINT32 j;
 
-      Reg = MdGetMemRegion (i);
+      Region = PlatformGetMemoryRegion (RegionIndex);
 
-      if (Reg->Type == BOOTINFO_REGION_RAM)
+      if (Region->Type == BOOTINFO_REGION_RAM)
 	continue;
 
 
-      for (j = 0; j < Reg->Len; j++)
+      for (j = 0; j < Region->Len; j++)
 	{
-	  UINT32 Frame = Reg->Pfn + j;
+	  UINT32 Frame = Region->Pfn + j;
 
-	  if (Frame > MaxFrame)
+	  if (Frame > MaxPageFrameNumber)
 	    {
 	      printf ("Maximum reached.\n");
 	      break;
@@ -714,14 +714,14 @@ INT32 i, Order;
   Marks all pages allocated by bootloader as busy in the BAtree.
 **/
 VOID
-VaBatreeCopy (
+VirtualAddressMapBatreeCopy (
   VOID
   )
 {
   VIRTUAL_ADDRESS Va = gReqBatreeVa;
   UINT32 Order = gReqBatreeOrder;
   UINT64 Pa;
-  VIRTUAL_ADDRESS MaxFrame;
+  VIRTUAL_ADDRESS MaxPageFrameNumber;
 
   if (Va == 0)
     {
@@ -729,13 +729,13 @@ VaBatreeCopy (
       return;
     }
 
-  MaxFrame = MdMaxRamPfn ();
+  MaxPageFrameNumber = PlatformGetMaxRamPageFrameNumber ();
 
   for (Pa = gMinRamAddr; Pa < BOOTMEM + gMinRamAddr; Pa += PAGE_SIZE)
     {
       UINT32 Frame = Pa >> PAGE_SHIFT;
 
-      if (Frame > MaxFrame)
+      if (Frame > MaxPageFrameNumber)
 	break;
 
       if (CheckPayloadPage (Pa))
@@ -756,16 +756,16 @@ VaBatreeCopy (
   @param[in] Size  Size of region.
 **/
 VOID
-VaRegions (
+VirtualAddressMapRegions (
   IN VIRTUAL_ADDRESS   Va,
   IN SIZE64  Size
   )
 {
   UINT32 MaxRegion;
-  UINT32 Regions = MdMemRegions ();
+  UINT32 Regions = PlatformGetMemoryRegionCount ();
 
-  MdVerify (Va, Size);
-  VaVerify (Va, Size);
+  PlatformVerify (Va, Size);
+  VirtualAddressVerify (Va, Size);
 
   MaxRegion = Size / sizeof (APXH_REGION);
 
@@ -776,7 +776,7 @@ VaRegions (
 
   printf ("Size of area: %lld = %ld * %d\n", Size, Regions,
 	  sizeof (APXH_REGION));
-  VaPopulate (Va, Size, 0, 0, 0);
+  VirtualAddressPopulate (Va, Size, 0, 0, 0);
 
   gReqRegionVa = Va;
   gReqRegionSize = Size;
@@ -789,7 +789,7 @@ VaRegions (
   Fills memory regions array with platform memory map.
 **/
 static VOID
-VaRegionsCopy (
+VirtualAddressMapRegionsCopy (
   VOID
   )
 {
@@ -809,14 +809,14 @@ VaRegionsCopy (
 
   for (i = 0; i < Regions; i++)
     {
-      Reg = MdGetMemRegion (i);
+      Reg = PlatformGetMemoryRegion (i);
       ApxhReg.Type = Reg->Type;
       ApxhReg.Pfn = Reg->PageFrameNumber;
       ApxhReg.Length = Reg->Length;
 #if 0
       printf ("Copying %d %d %d\n", ApxhReg.Type, ApxhReg.Pfn, ApxhReg.Length);
 #endif
-      VaCopy (Va + i * sizeof (APXH_REGION), &ApxhReg,
+      VirtualAddressCopy (Va + i * sizeof (APXH_REGION), &ApxhReg,
 	       sizeof (APXH_REGION), 0, 0, 0);
     }
 }
@@ -830,56 +830,56 @@ VaRegionsCopy (
   @param[in] Size  Size of region.
 **/
 VOID
-VaPfnmap (
+VirtualAddressMapPageFrameNumbers (
   IN VIRTUAL_ADDRESS   Va,
   IN SIZE64  Size
   )
 {
-  UINT32 i, MaxFrame;
-  BOOTINFO_REGION *Reg;
-  UINT32 Regions = MdMemRegions ();
+  UINT32 RegionIndex, MaxPageFrameNumber;
+  BOOTINFO_REGION *Region;
+  UINT32 Regions = PlatformGetMemoryRegionCount ();
 
-  MdVerify (Va, Size);
-  VaVerify (Va, Size);
+  PlatformVerify (Va, Size);
+  VirtualAddressVerify (Va, Size);
 
-  MaxFrame = Size / PFNMAP_ENTRY_SIZE;
+  MaxPageFrameNumber = Size / PFNMAP_ENTRY_SIZE;
 
-  if (MaxFrame > MdMaxPfn ())
+  if (MaxPageFrameNumber > PlatformGetMaxPageFrameNumber ())
     {
-      MaxFrame = MdMaxPfn ();
-      Size = MaxFrame * PFNMAP_ENTRY_SIZE;
+      MaxPageFrameNumber = PlatformGetMaxPageFrameNumber ();
+      Size = MaxPageFrameNumber * PFNMAP_ENTRY_SIZE;
     }
 
-  VaPopulate (Va, Size, 0, 1, 0);
+  VirtualAddressPopulate (Va, Size, 0, 1, 0);
 
-  for (i = 0; i < Regions; i++)
+  for (RegionIndex = 0; RegionIndex < Regions; RegionIndex++)
     {
       UINT32 j;
 
-      Reg = MdGetMemRegion (i);
+      Region = PlatformGetMemoryRegion (RegionIndex);
 
-      printf ("Reg: %d Type %02d, PA: %016llx (%ld)\n", i, Reg->Type,
-	      (UINT64) Reg->Pfn << PAGE_SHIFT, Reg->Len);
+      printf ("Reg: %d Type %02d, PA: %016llx (%ld)\n", RegionIndex, Region->Type,
+	      (UINT64) Region->Pfn << PAGE_SHIFT, Region->Len);
 
 
-      for (j = 0; j < Reg->Len; j++)
+      for (j = 0; j < Region->Len; j++)
 	{
-	  UINT32 Frame = Reg->Pfn + j;
+	  UINT32 Frame = Region->Pfn + j;
 	  UINT8 *Ptr;
 
-	  if (Frame > MaxFrame)
+	  if (Frame > MaxPageFrameNumber)
 	    {
 	      printf ("Maximum reached.\n");
 	      break;
 	    }
 
-	  Ptr = (UINT8 *) VaGetPhys (Va + Frame * PFNMAP_ENTRY_SIZE);
+	  Ptr = (UINT8 *) VirtualAddressGetPhysical (Va + Frame * PFNMAP_ENTRY_SIZE);
 	  assert (Ptr != NULL);
 
 	  /* There's  a  priority  in  numbering of  regions.  RAM  is
 	     lowest, overwritten most easily. */
-	  if (*Ptr < Reg->Type)
-	    *Ptr = Reg->Type;
+	  if (*Ptr < Region->Type)
+	    *Ptr = Region->Type;
 	}
     }
 
@@ -893,7 +893,7 @@ VaPfnmap (
   Marks all pages allocated by bootloader as busy in the PFN map.
 **/
 static VOID
-VaPfnmapCopy (
+VirtualAddressMapPageFrameNumbersCopy (
   VOID
   )
 {
@@ -921,7 +921,7 @@ VaPfnmapCopy (
 	  /* Page is allocated. Mark as BSY. */
 
 	  UINT8 *Ptr =
-	    (UINT8 *) VaGetPhys (Va + Frame * PFNMAP_ENTRY_SIZE);
+	    (UINT8 *) VirtualAddressGetPhysical (Va + Frame * PFNMAP_ENTRY_SIZE);
 	  assert (Ptr != NULL);
 
 	  *Ptr = BOOTINFO_REGION_BSY;
@@ -940,7 +940,7 @@ VaPfnmapCopy (
   @param[in] Size      Total TLS size including BSS.
 **/
 VOID
-VaKtls (
+VirtualAddressMapKernelTls (
   IN VIRTUAL_ADDRESS   Va,
   IN SIZE64  InitSize,
   IN SIZE64  Size
@@ -961,7 +961,7 @@ VaKtls (
   @param[in] Size      Total TLS size including BSS.
 **/
 VOID
-VaUtls (
+VirtualAddressMapUserTls (
   IN VIRTUAL_ADDRESS   Va,
   IN SIZE64  InitSize,
   IN SIZE64  Size
@@ -982,7 +982,7 @@ VaUtls (
   @param[in] Size  Size of region.
 **/
 VOID
-VaVerify (
+VirtualAddressVerify (
   IN VIRTUAL_ADDRESS   Va,
   IN SIZE64  Size
   )
@@ -1019,7 +1019,7 @@ VaVerify (
   @return Physical address.
 **/
 UINTN
-VaGetPhys (
+VirtualAddressGetPhysical (
   IN VIRTUAL_ADDRESS  Va
   )
 {
@@ -1027,15 +1027,15 @@ VaGetPhys (
     {
 #if EC_MACHINE_I386 || EC_MACHINE_AMD64
     case ARCH_386:
-      return PaeGetPhys (Va);
+      return PaeGetPhysical (Va);
       break;
     case ARCH_AMD64:
-      return Pae64GetPhys (Va);
+      return Pae64GetPhysical (Va);
       break;
 #endif
 #if EC_MACHINE_RISCV64
     case ARCH_RISCV64:
-      return Sv48GetPhys (Va);
+      return Sv48GetPhysical (Va);
       break;
 #endif
     default:
@@ -1053,7 +1053,7 @@ VaGetPhys (
   @param[in] Entry  Kernel entry point address.
 **/
 VOID
-VaEntry (
+VirtualAddressSetEntry (
   IN VIRTUAL_ADDRESS  Entry
   )
 {
@@ -1095,8 +1095,8 @@ VaEntry (
 **/
 int
 main (
-  IN INT32   Argc,
-  IN char  *Argv[]
+  IN INT32   ArgumentCount,
+  IN char  *ArgumentVector[]
   )
 {
   VOID *ElfStart;
@@ -1110,13 +1110,13 @@ main (
   /*
      Load kernel.
    */
-  ElfStart = GetPayloadStart (Argc, Argv, PayloadKernel);
+  ElfStart = GetPayloadStart (ArgumentCount, ArgumentVector, PayloadKernel);
   ElfSize = GetPayloadSize (PayloadKernel);
   gElfArch = GetElfArch (ElfStart);
   printf ("Kernel payload %s ELF at addr %p (%d bytes)\n",
 	  GetArchName (gElfArch), ElfStart, ElfSize);
 
-  VaInitialize ();
+  VirtualAddressInitialize ();
 
   switch (gElfArch)
     {
@@ -1143,7 +1143,7 @@ main (
   /*
      Load user if it exists.
    */
-  ElfStart = GetPayloadStart (Argc, Argv, PayloadUser);
+  ElfStart = GetPayloadStart (ArgumentCount, ArgumentVector, PayloadUser);
   ElfSize = GetPayloadSize (PayloadUser);
   if (ElfStart != NULL && ElfSize != 0)
     {
@@ -1179,11 +1179,11 @@ main (
 
   /* Stop allocations as we're copying boot-time allocation. */
   gStopPayloadAllocation = TRUE;
-  VaInfoCopy (UEntry, gReqRegionNum);
-  VaPfnmapCopy ();
-  VaBatreeCopy ();
-  VaRegionsCopy ();
+  VirtualAddressMapInfoCopy (UEntry, gReqRegionNum);
+  VirtualAddressMapPageFrameNumbersCopy ();
+  VirtualAddressMapBatreeCopy ();
+  VirtualAddressMapRegionsCopy ();
 
-  VaEntry (KEntry);
+  VirtualAddressSetEntry (KEntry);
   return 0;
 }

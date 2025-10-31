@@ -1,4 +1,4 @@
-/++
+/*++
     Module Name:
 
         hresult.h
@@ -10,7 +10,7 @@
     Environment:
 
         C and C++ compatible.
---/
+--*/
 
 #pragma once
 

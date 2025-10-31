@@ -1,4 +1,4 @@
-/++
+/*++
     Module Name:
 
         types.h
@@ -9,8 +9,8 @@
 
     Environment:
 
-        C89..C23, C++98..C++23 compatible.
---/
+        C89-C23, C++98-C++23 compatible.
+--*/
 
 #pragma once
 

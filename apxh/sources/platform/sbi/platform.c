@@ -46,18 +46,18 @@ static APXH_PLATFORM_DESCRIPTOR gPlatformDesc;
 static VOID
 DtbAddrSize (
   IN  CONST VOID  *Fdt,
-  IN INT32 NodOff,
+  IN INT32 NodeOffset,
   OUT UINT32      *AddrSz,
   OUT UINT32      *SizeSz
   )
 {
-INT32 PaOff, Len;
+  INT32 ParentOffset, Length;
   VOID *p;
 
-  PaOff = fdt_parent_offset (Fdt, NodOff);
+  ParentOffset = fdt_parent_offset (Fdt, NodeOffset);
 
-  p = (VOID *) fdt_getprop (Fdt, PaOff, "#address-cells", &Len);
-  if (!p || Len != 4)
+  p = (VOID *) fdt_getprop (Fdt, ParentOffset, "#address-cells", &Length);
+  if (!p || Length != 4)
     {
       *AddrSz = 2;
     }
@@ -66,8 +66,8 @@ INT32 PaOff, Len;
       *AddrSz = fdt32_to_cpu (*(UINT32 *) p);
     }
 
-  p = (VOID *) fdt_getprop (Fdt, PaOff, "#size-cells", &Len);
-  if (!p || Len != 4)
+  p = (VOID *) fdt_getprop (Fdt, ParentOffset, "#size-cells", &Length);
+  if (!p || Length != 4)
     {
       *SizeSz = 2;
     }
@@ -93,28 +93,28 @@ RamRegionForeach (
   )
 {
   VOID *Fdt = dtbptr;
-INT32 NodOff;
+  INT32 NodeOffset;
 
-  for (NodOff = fdt_next_node (Fdt, -1, NULL);
-       NodOff >= 0; NodOff = fdt_next_node (Fdt, NodOff, NULL))
+  for (NodeOffset = fdt_next_node (Fdt, -1, NULL);
+       NodeOffset >= 0; NodeOffset = fdt_next_node (Fdt, NodeOffset, NULL))
     {
-      CONST CHAR *Name = fdt_get_name (Fdt, NodOff, NULL);
+      CONST CHAR *Name = fdt_get_name (Fdt, NodeOffset, NULL);
       if (!Name)
 	continue;
 
       // I should probably get the root child only here.
       if (!strncmp (Name, "memory", 6))
 	{
-INT32 Len;
+	  INT32 Length;
 	  UINT32 AddrSz, SizeSz;
 
-	  UINT32 *Reg = (UINT32 *) fdt_getprop (Fdt, NodOff, "reg", &Len);
+	  UINT32 *Reg = (UINT32 *) fdt_getprop (Fdt, NodeOffset, "reg", &Length);
 	  if (!Reg)
 	    continue;
 
-	  DtbAddrSize (Fdt, NodOff, &AddrSz, &SizeSz);
+	  DtbAddrSize (Fdt, NodeOffset, &AddrSz, &SizeSz);
 
-	  for (INT32 i = 0; i < Len; i += 4 * (AddrSz + SizeSz))
+	  for (INT32 i = 0; i < Length; i += 4 * (AddrSz + SizeSz))
 	    {
 	      UINT64 Base, Size;
 
@@ -131,19 +131,19 @@ INT32 Len;
 	}
       else if (!strncmp (Name, "reserved-memory", 15))
 	{
-INT32 Len, SubOff;
+	  INT32 Length, SubOff;
 	  UINT32 AddrSz, SizeSz;
 
-	  DtbAddrSize (Fdt, NodOff, &AddrSz, &SizeSz);
+	  DtbAddrSize (Fdt, NodeOffset, &AddrSz, &SizeSz);
 
-	  fdt_for_each_subnode (SubOff, Fdt, NodOff)
+	  fdt_for_each_subnode (SubOff, Fdt, NodeOffset)
 	  {
 	    UINT32 *Reg =
-	      (UINT32 *) fdt_getprop (Fdt, SubOff, "reg", &Len);
+	      (UINT32 *) fdt_getprop (Fdt, SubOff, "reg", &Length);
 	    if (!Reg)
 	      continue;
 
-	    for (INT32 i = 0; i < Len; i += 4 * (AddrSz + SizeSz))
+	    for (INT32 i = 0; i < Length; i += 4 * (AddrSz + SizeSz))
 	      {
 		UINT64 Base, Size;
 
@@ -175,14 +175,14 @@ INT32 Len, SubOff;
 **/
 VOID *
 GetPayloadStart (
-  IN INT32 Argc,
-  IN char    *Argv[],
-  IN PAYLOAD_ID  Id
+  IN INT32 ArgumentCount,
+  IN char    *ArgumentVector[],
+  IN PAYLOAD_ID  PayloadId
   )
 {
   VOID *ElfPayload;
 
-  switch (Id)
+  switch (PayloadId)
     {
     case PAYLOAD_KERNEL:
       ElfPayload = gpElfKernelPayload;
@@ -191,7 +191,7 @@ GetPayloadStart (
       ElfPayload = gpElfUserPayload;
       break;
     default:
-      printf ("Unsupported payload ID %d\n", Id);
+      printf ("Unsupported payload ID %d\n", PayloadId);
       ElfPayload = NULL;
       break;
     }
@@ -210,12 +210,12 @@ GetPayloadStart (
 **/
 UINTN
 GetPayloadSize (
-  IN PAYLOAD_ID  Id
+  IN PAYLOAD_ID  PayloadId
   )
 {
   UINTN ElfPayloadSize;
 
-  switch (Id)
+  switch (PayloadId)
     {
     case PAYLOAD_KERNEL:
       ElfPayloadSize = gElfKernelPayloadSize;
@@ -224,7 +224,7 @@ GetPayloadSize (
       ElfPayloadSize = gElfUserPayloadSize;
       break;
     default:
-      printf ("Unsupported payload ID %d\n", Id);
+      printf ("Unsupported payload ID %d\n", PayloadId);
       ElfPayloadSize = 0;
       break;
     }
@@ -274,7 +274,7 @@ AddRamRegion (
   IN VOID    *Opq
   )
 {
-  BOOTINFO_REGION *R;
+  BOOTINFO_REGION *Region;
 
   if (gRegions >= SBI_MAX_RAM_REGIONS)
     {
@@ -289,10 +289,10 @@ AddRamRegion (
   if (Base + Len >= gMaxAddr)
     gMaxAddr = Base + Len;
 
-  R = gRamRegions + gRegions++;
-  R->Type = Busy ? BOOTINFO_REGION_BSY : BOOTINFO_REGION_RAM;
-  R->Pfn = Base >> PAGE_SHIFT;
-  R->Len = Len >> PAGE_SHIFT;
+  Region = gRamRegions + gRegions++;
+  Region->Type = Busy ? BOOTINFO_REGION_BSY : BOOTINFO_REGION_RAM;
+  Region->Pfn = Base >> PAGE_SHIFT;
+  Region->Len = Len >> PAGE_SHIFT;
 
   printf ("\t%016lx:%016lx (%s)\n", Base, Base + Len, Busy ? "SYS" : "RAM");
 }
@@ -304,7 +304,7 @@ AddRamRegion (
   and initializes heap allocator.
 **/
 VOID
-MdInitialize (
+PlatformInitialize (
   VOID
   )
 {
@@ -351,8 +351,8 @@ MdInitialize (
   @param[in] Size  Size of region.
 **/
 VOID
-MdVerify (
-  IN VIRTUAL_ADDRESS   Va,
+PlatformVerify (
+  IN VIRTUAL_ADDRESS   VirtualAddress,
   IN SIZE64  Size
   )
 {
@@ -367,7 +367,7 @@ MdVerify (
   @return Number of memory regions.
 **/
 UINT32
-MdMemRegions (
+PlatformGetMemoryRegionCount (
   VOID
   )
 {
@@ -384,7 +384,7 @@ MdMemRegions (
   @return Pointer to region descriptor, or NULL if index out of range.
 **/
 BOOTINFO_REGION *
-MdGetMemRegion (
+PlatformGetMemoryRegion (
   IN UINT32 Index
   )
 {
@@ -402,7 +402,7 @@ MdGetMemRegion (
   @return Minimum RAM PFN.
 **/
 UINT64
-MdMinRamPfn (
+PlatformGetMinRamPageFrameNumber (
   VOID
   )
 {
@@ -417,7 +417,7 @@ MdMinRamPfn (
   @return Maximum RAM PFN.
 **/
 UINT64
-MdMaxRamPfn (
+PlatformGetMaxRamPageFrameNumber (
   VOID
   )
 {
@@ -433,7 +433,7 @@ MdMaxRamPfn (
   @return NULL (no framebuffer on SBI).
 **/
 FRAMEBUFFER_DESC *
-MdGetFramebuffer (
+PlatformGetFramebuffer (
   VOID
   )
 {
@@ -449,7 +449,7 @@ MdGetFramebuffer (
   @return Maximum PFN.
 **/
 UINT64
-MdMaxPfn (
+PlatformGetMaxPageFrameNumber (
   VOID
   )
 {
@@ -457,7 +457,7 @@ MdMaxPfn (
      Scanning device memory usage in Device Tree is dependent from the
      board. Return the higest RAM address.
    */
-  return MdMaxRamPfn ();
+  return PlatformGetMaxRamPageFrameNumber ();
 }
 
 /**
@@ -468,7 +468,7 @@ MdMaxPfn (
   @return Pointer to platform descriptor.
 **/
 APXH_PLATFORM_DESCRIPTOR *
-MdGetPlatformDesc (
+PlatformGetDescriptor (
   VOID
   )
 {
@@ -489,9 +489,9 @@ MdGetPlatformDesc (
   @param[in] Entry  Kernel entry point virtual address.
 **/
 VOID
-MdEntry (
+PlatformEntry (
   IN ARCH   Arch,
-  IN VIRTUAL_ADDRESS  Pt,
+  IN VIRTUAL_ADDRESS  PageTable,
   IN VIRTUAL_ADDRESS  Entry
   )
 {
@@ -512,11 +512,11 @@ MdEntry (
 		  (UINTN) (&trampoline_end - &trampoline_start),
 		  MEMTYPE_WB, 0, 1);
   /* Map start page */
-  Sv48DirectMap (TrampRoot, Sv48GetPhys (Entry), Entry, 4096, MEMTYPE_WB,
+  Sv48DirectMap (TrampRoot, Sv48GetPhysical (Entry), Entry, 4096, MEMTYPE_WB,
 		  0, 1);
 
   TrampSatp = 0x9L << 60 | (UINTN) TrampRoot >> PAGE_SHIFT;
-  Satp = 0x9L << 60 | Pt >> PAGE_SHIFT;
+  Satp = 0x9L << 60 | PageTable >> PAGE_SHIFT;
 
   asm volatile
     (".globl __rv64_tstart, __rv64_tend\n"

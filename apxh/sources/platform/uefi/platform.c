@@ -87,8 +87,8 @@ MdInitialize (
   @param[in] Size  Size of range to verify.
 **/
 VOID
-MdVerify (
-  IN VIRTUAL_ADDRESS  Va,
+PlatformVerify (
+  IN VIRTUAL_ADDRESS  VirtualAddress,
   IN UINT64   Size
   )
 {
@@ -108,9 +108,9 @@ MdVerify (
   @param[in] Entry  Kernel entry point virtual address.
 **/
 VOID
-MdEntry (
+PlatformEntry (
   IN ARCH   Arch,
-  IN VIRTUAL_ADDRESS  Pt,
+  IN VIRTUAL_ADDRESS  PageTable,
   IN VIRTUAL_ADDRESS  Entry
   )
 {
@@ -135,7 +135,7 @@ MdEntry (
   Pae64DirectMap (pTrampCr3, 0, 0, 64L << 30, MEMTYPE_WB, 0, 1);
 
   /* Map Entry page in transitional pagetable VA. */
-  Pae64MapPage (pTrampCr3, (VIRTUAL_ADDRESS) Entry, Pae64GetPhys (Entry), 0, 0, 1);
+  Pae64MapPage (pTrampCr3, (VIRTUAL_ADDRESS) Entry, Pae64GetPhysical (Entry), 0, 0, 1);
 
   EfiExitBs ();
 
@@ -146,7 +146,7 @@ MdEntry (
      "mov %2, %%rsi\n"
      "mov %3, %%rcx\n"
      "cli\n"
-     "jmp *%%rax\n"::"m" (TrampEntry), "m" (Entry), "m" (Pt),
+     "jmp *%%rax\n"::"m" (TrampEntry), "m" (Entry), "m" (PageTable),
      "m" (pTrampCr3));
 }
 #elif EC_MACHINE_RISCV64
@@ -162,9 +162,9 @@ MdEntry (
   @param[in] Entry  Kernel entry point virtual address.
 **/
 VOID
-MdEntry (
+PlatformEntry (
   IN ARCH   Arch,
-  IN VIRTUAL_ADDRESS  Pt,
+  IN VIRTUAL_ADDRESS  PageTable,
   IN VIRTUAL_ADDRESS  Entry
   )
 {
@@ -185,11 +185,11 @@ MdEntry (
 		  (UINTN) (&trampoline_end - &trampoline_start),
 		  MEMTYPE_WB, 0, 1);
   /* Map start page */
-  Sv48DirectMap (TrampRoot, Sv48GetPhys (Entry), Entry, 4096, MEMTYPE_WB,
+  Sv48DirectMap (TrampRoot, Sv48GetPhysical (Entry), Entry, 4096, MEMTYPE_WB,
 		  0, 1);
 
   TrampSatp = 0x9L << 60 | (UINTN) TrampRoot >> PAGE_SHIFT;
-  Satp = 0x9L << 60 | Pt >> PAGE_SHIFT;
+  Satp = 0x9L << 60 | PageTable >> PAGE_SHIFT;
 
   printf ("%lx %lx %lx\n", TrampSatp, Entry, Satp);
 
@@ -218,7 +218,7 @@ MdEntry (
   @return Maximum PFN across all memory regions.
 **/
 UINT64
-MdMaxPfn (
+PlatformGetMaxPageFrameNumber (
   VOID
   )
 {
@@ -233,7 +233,7 @@ MdMaxPfn (
   @return Minimum RAM PFN.
 **/
 UINT64
-MdMinRamPfn (
+PlatformGetMinRamPageFrameNumber (
   VOID
   )
 {
@@ -248,7 +248,7 @@ MdMinRamPfn (
   @return Maximum RAM PFN.
 **/
 UINT64
-MdMaxRamPfn (
+PlatformGetMaxRamPageFrameNumber (
   VOID
   )
 {
@@ -265,7 +265,7 @@ MdMaxRamPfn (
   @return Pointer to bootinfo_region structure.
 **/
 BOOTINFO_REGION *
-MdGetMemRegion (
+PlatformGetMemoryRegion (
   IN UINT32 Index
   )
 {
@@ -282,7 +282,7 @@ MdGetMemRegion (
   @return Number of memory regions.
 **/
 UINT32
-MdMemRegions (
+PlatformGetMemoryRegionCount (
   VOID
   )
 {
@@ -298,7 +298,7 @@ MdMemRegions (
   @return Pointer to fbdesc structure.
 **/
 FRAMEBUFFER_DESC *
-MdGetFramebuffer (
+PlatformGetFramebuffer (
   VOID
   )
 {
@@ -313,7 +313,7 @@ MdGetFramebuffer (
   @return Pointer to apxh_platformdesc structure.
 **/
 APXH_PLATFORM_DESCRIPTOR *
-MdGetPlatformDesc (
+PlatformGetDescriptor (
   VOID
   )
 {
@@ -336,14 +336,14 @@ MdGetPlatformDesc (
 **/
 VOID *
 GetPayloadStart (
-  IN INT32 Argc,
-  IN char    *Argv[],
-  IN PAYLOAD_ID  Id
+  IN INT32 ArgumentCount,
+  IN char    *ArgumentVector[],
+  IN PAYLOAD_ID  PayloadId
   )
 {
   VOID *ElfPayload;
 
-  switch (Id)
+  switch (PayloadId)
     {
     case PAYLOAD_KERNEL:
       ElfPayload = gpElfKernelPayload;
@@ -352,7 +352,7 @@ GetPayloadStart (
       ElfPayload = gpElfUserPayload;
       break;
     default:
-      printf ("Unsupported payload ID %d\n", Id);
+      printf ("Unsupported payload ID %d\n", PayloadId);
       ElfPayload = NULL;
       break;
     }
@@ -371,12 +371,12 @@ GetPayloadStart (
 **/
 UINTN
 GetPayloadSize (
-  IN PAYLOAD_ID  Id
+  IN PAYLOAD_ID  PayloadId
   )
 {
   UINTN ElfPayloadSize;
 
-  switch (Id)
+  switch (PayloadId)
     {
     case PAYLOAD_KERNEL:
       ElfPayloadSize = gElfKernelPayloadSize;
@@ -385,7 +385,7 @@ GetPayloadSize (
       ElfPayloadSize = gElfUserPayloadSize;
       break;
     default:
-      printf ("Unsupported payload ID %d\n", Id);
+      printf ("Unsupported payload ID %d\n", PayloadId);
       ElfPayloadSize = 0;
       break;
     }
@@ -455,33 +455,33 @@ ApxhEfiAddMemRegion (
   IN UINT32 Len
   )
 {
-  UINT32 Cur = gNumRegions;
+  UINT32 CurrentRegionIndex = gNumRegions;
 
-  if (Cur >= BOOTINFO_REGIONS_MAX)
+  if (CurrentRegionIndex >= BOOTINFO_REGIONS_MAX)
     {
       printf ("Exceeded maximum number of memory regions. (%d >= %d\n",
-	      Cur, BOOTINFO_REGIONS_MAX);
+	      CurrentRegionIndex, BOOTINFO_REGIONS_MAX);
       return;
     }
 
-  gMemRegions[Cur].PageFrameNumber = Pfn;
-  gMemRegions[Cur].Length = Len;
+  gMemRegions[CurrentRegionIndex].PageFrameNumber = Pfn;
+  gMemRegions[CurrentRegionIndex].Length = Len;
 
   if (Pfn + Len > gMaxPfn)
     gMaxPfn = Pfn + Len;
 
   if (Ram && !Bsy)
     {
-      gMemRegions[Cur].Type = BOOTINFO_REGION_RAM;
+      gMemRegions[CurrentRegionIndex].Type = BOOTINFO_REGION_RAM;
       if (Pfn + Len > gMaxRamPfn)
 	gMaxRamPfn = Pfn + Len;
       if (Pfn < gMinRamPfn)
 	gMinRamPfn = Pfn;
     }
   else if (Ram && Bsy)
-    gMemRegions[Cur].Type = BOOTINFO_REGION_BSY;
+    gMemRegions[CurrentRegionIndex].Type = BOOTINFO_REGION_BSY;
   else
-    gMemRegions[Cur].Type = BOOTINFO_REGION_OTHER;
+    gMemRegions[CurrentRegionIndex].Type = BOOTINFO_REGION_OTHER;
 
 
   gNumRegions++;

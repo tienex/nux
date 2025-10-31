@@ -141,7 +141,7 @@ typedef struct elf64hdr
 **/
 VOID
 PhUload (
-  IN VOID    *ElfImg,
+  IN VOID    *ElfImage,
   IN UINT32  Type,
   IN UINT32  Flags,
   IN UINT64  Va,
@@ -165,7 +165,7 @@ PhUload (
 	  /*
 	     memcpy() to user and populate on fault.
 	   */
-	  VaCopy (Va, ELFOFF (Off), FSize, 1,
+	  VirtualAddressCopy (Va, ELFOFF (Off), FSize, 1,
 		   !!(Flags & PHF_W), !!(Flags & PHF_X));
 	}
 
@@ -174,7 +174,7 @@ PhUload (
 	  /*
 	     memset() to user and populate on fault.
 	   */
-	  VaMemset (Va + FSize, 0, MSize - FSize, 1,
+	  VirtualAddressMemset (Va + FSize, 0, MSize - FSize, 1,
 		     !!(Flags & PHF_W), !!(Flags & PHF_X));
 	}
       break;
@@ -193,10 +193,10 @@ PhUload (
 
 	  if (FSize != 0)
 	    {
-	      VaCopy (Va, ELFOFF (Off), FSize, 0,
+	      VirtualAddressCopy (Va, ELFOFF (Off), FSize, 0,
 		       !!(Flags & PHF_W), !!(Flags & PHF_X));
 	    }
-	  VaUtls (Va, FSize, MSize);
+	  VirtualAddressMapUserTls (Va, FSize, MSize);
 	}
     default:
       printf ("Ignored segment type %08lx.\n", Type);
@@ -220,7 +220,7 @@ PhUload (
 **/
 VOID
 PhKload (
-  IN VOID    *ElfImg,
+  IN VOID    *ElfImage,
   IN UINT32  Type,
   IN UINT32  Flags,
   IN UINT64  Va,
@@ -244,7 +244,7 @@ PhKload (
 	  /*
 	     memcpy() to user and populate on fault.
 	   */
-	  VaCopy (Va, ELFOFF (Off), FSize, 0,
+	  VirtualAddressCopy (Va, ELFOFF (Off), FSize, 0,
 		   !!(Flags & PHF_W), !!(Flags & PHF_X));
 	}
 
@@ -253,7 +253,7 @@ PhKload (
 	  /*
 	     memset() to user and populate on fault.
 	   */
-	  VaMemset (Va + FSize, 0, MSize - FSize, 0,
+	  VirtualAddressMemset (Va + FSize, 0, MSize - FSize, 0,
 		     !!(Flags & PHF_W), !!(Flags & PHF_X));
 	}
       break;
@@ -270,10 +270,10 @@ PhKload (
 	    }
 	  if (FSize != 0)
 	    {
-	      VaCopy (Va, ELFOFF (Off), FSize, 0,
+	      VirtualAddressCopy (Va, ELFOFF (Off), FSize, 0,
 		       !!(Flags & PHF_W), !!(Flags & PHF_X));
 	    }
-	  VaKtls (Va, FSize, MSize);
+	  VirtualAddressMapKernelTls (Va, FSize, MSize);
 	}
       break;
 
@@ -281,13 +281,13 @@ PhKload (
       /* Boot Information segment. */
       printf ("Boot Information area at %" PRIx64 " (size: %" PRId64 "d).\n",
 	      Va, MSize);
-      VaInfo (Va, MSize);
+      VirtualAddressMapInfo (Va, MSize);
       break;
     case PHT_APXH_PHYSMAP:
       /* Direct 1:1 PA mapping. */
       printf ("Physmap VA area at %" PRIx64 " (size: %" PRId64 ").\n", Va,
 	      MSize);
-      VaPhysmap (Va, MSize, MEMTYPE_WB);
+      VirtualAddressMapPhysical (Va, MSize, MEMTYPE_WB);
       break;
     case PHT_APXH_EMPTY:
       printf ("Empty VA area at %" PRIx64 " (size: %" PRId64 ").\n", Va,
@@ -297,33 +297,33 @@ PhKload (
     case PHT_APXH_PTALLOC:
       printf ("PT Alloc VA area at %" PRIx64 " (size: %" PRId64 ").\n", Va,
 	      MSize);
-      VaPtalloc (Va, MSize);
+      VirtualAddressAllocatePageTable (Va, MSize);
       break;
     case PHT_APXH_PFNMAP:
       printf ("PFN Map at %" PRIx64 " (size: %" PRId64 ").\n", Va, MSize);
-      VaPfnmap (Va, MSize);
+      VirtualAddressMapPageFrameNumbers (Va, MSize);
       break;
     case PHT_APXH_BATREE:
       printf ("S-Tree at %" PRIx64 " (size: %" PRId64 ").\n", Va, MSize);
-      VaBatree (Va, MSize);
+      VirtualAddressMapBatree (Va, MSize);
       break;
     case PHT_APXH_LINEAR:
       printf ("Linear Map at %" PRIx64 " (size: %" PRId64 ").\n", Va, MSize);
-      VaLinear (Va, MSize);
+      VirtualAddressMapLinear (Va, MSize);
       break;
     case PHT_APXH_FRAMEBUF:
       printf ("Framebuffer Map at %" PRIx64 " (size: %" PRId64 ").\n", Va,
 	      MSize);
-      VaFramebuf (Va, MSize, MEMTYPE_WC);
+      VirtualAddressMapFramebuffer (Va, MSize, MEMTYPE_WC);
       break;
     case PHT_APXH_REGIONS:
       printf ("Region Map at %" PRIx64 " (size: %" PRId64 ").\n", Va, MSize);
-      VaRegions (Va, MSize);
+      VirtualAddressMapRegions (Va, MSize);
       break;
     case PHT_APXH_TOPPTALLOC:
       printf ("TOP PT Alloc VA area at %" PRIx64 " (size: %" PRId64 ").\n",
 	      Va, MSize);
-      VaTopptalloc (Va, MSize);
+      VirtualAddressAllocateTopPageTable (Va, MSize);
       break;
     default:
       printf ("Ignored segment type %08lx.\n", Type);
@@ -344,33 +344,33 @@ PhKload (
 **/
 VIRTUAL_ADDRESS
 LoadElf32 (
-  IN VOID    *ElfImg,
+  IN VOID    *ElfImage,
   IN INT32   User
   )
 {
   INT32 i;
 
   CHAR8 ElfId[] = { 0x7f, 'E', 'L', 'F', };
-  ELF32_HDR *Hdr = (ELF32_HDR *) ElfImg;
-  ELF32_PH *Ph = (ELF32_PH *) ELFOFF (Hdr->phoff);
+  ELF32_HDR *ElfHeader = (ELF32_HDR *) ElfImage;
+  ELF32_PH *ProgramHeader = (ELF32_PH *) ELFOFF (ElfHeader->phoff);
 
-  if (memcmp (Hdr->id, ElfId, 4) != 0)
+  if (memcmp (ElfHeader->id, ElfId, 4) != 0)
     return (UINTN) - 1;
 
-  if (Hdr->Type != ET_EXEC || Hdr->ver != EV_CURRENT)
+  if (ElfHeader->Type != ET_EXEC || ElfHeader->ver != EV_CURRENT)
     return (UINTN) - 1;
 
-  for (i = 0; i < Hdr->phs; i++, Ph++)
+  for (i = 0; i < ElfHeader->phs; i++, ProgramHeader++)
     {
       if (User)
-	PhUload (ElfImg, Ph->Type, Ph->flags, Ph->va, Ph->msize, Ph->off,
-		  Ph->fsize);
+	PhUload (ElfImage, ProgramHeader->Type, ProgramHeader->flags, ProgramHeader->va, ProgramHeader->msize, ProgramHeader->off,
+		  ProgramHeader->fsize);
       else
-	PhKload (ElfImg, Ph->Type, Ph->flags, Ph->va, Ph->msize, Ph->off,
-		  Ph->fsize);
+	PhKload (ElfImage, ProgramHeader->Type, ProgramHeader->flags, ProgramHeader->va, ProgramHeader->msize, ProgramHeader->off,
+		  ProgramHeader->fsize);
     }
 
-  return (VIRTUAL_ADDRESS) Hdr->entry;
+  return (VIRTUAL_ADDRESS) ElfHeader->entry;
 }
 
 /**
@@ -386,33 +386,33 @@ LoadElf32 (
 **/
 VIRTUAL_ADDRESS
 LoadElf64 (
-  IN VOID    *ElfImg,
+  IN VOID    *ElfImage,
   IN INT32   User
   )
 {
   INT32 i;
 
   CHAR8 ElfId[] = { 0x7f, 'E', 'L', 'F', };
-  ELF64_HDR *Hdr = (ELF64_HDR *) ElfImg;
-  ELF64_PH *Ph = (ELF64_PH *) ELFOFF (Hdr->phoff);
+  ELF64_HDR *ElfHeader = (ELF64_HDR *) ElfImage;
+  ELF64_PH *ProgramHeader = (ELF64_PH *) ELFOFF (ElfHeader->phoff);
 
-  if (memcmp (Hdr->id, ElfId, 4) != 0)
+  if (memcmp (ElfHeader->id, ElfId, 4) != 0)
     return (UINTN) - 1;
 
-  if (Hdr->Type != ET_EXEC || Hdr->ver != EV_CURRENT)
+  if (ElfHeader->Type != ET_EXEC || ElfHeader->ver != EV_CURRENT)
     return (UINTN) - 1;
 
-  for (i = 0; i < Hdr->phs; i++, Ph++)
+  for (i = 0; i < ElfHeader->phs; i++, ProgramHeader++)
     {
       if (User)
-	PhUload (ElfImg, Ph->Type, Ph->flags, Ph->va, Ph->msize, Ph->off,
-		  Ph->fsize);
+	PhUload (ElfImage, ProgramHeader->Type, ProgramHeader->flags, ProgramHeader->va, ProgramHeader->msize, ProgramHeader->off,
+		  ProgramHeader->fsize);
       else
-	PhKload (ElfImg, Ph->Type, Ph->flags, Ph->va, Ph->msize, Ph->off,
-		  Ph->fsize);
+	PhKload (ElfImage, ProgramHeader->Type, ProgramHeader->flags, ProgramHeader->va, ProgramHeader->msize, ProgramHeader->off,
+		  ProgramHeader->fsize);
     }
 
-  return (VIRTUAL_ADDRESS) Hdr->entry;
+  return (VIRTUAL_ADDRESS) ElfHeader->entry;
 }
 
 /**
@@ -426,22 +426,22 @@ LoadElf64 (
 **/
 ARCH
 GetElfArch (
-  IN VOID  *ElfImg
+  IN VOID  *ElfImage
   )
 {
   CHAR8 ElfId[] = { 0x7f, 'E', 'L', 'F', };
-  ELF32_HDR *Hdr = (ELF32_HDR *) ElfImg;
+  ELF32_HDR *ElfHeader = (ELF32_HDR *) ElfImage;
 
-  if (memcmp (Hdr->id, ElfId, 4) != 0)
+  if (memcmp (ElfHeader->id, ElfId, 4) != 0)
     return ARCH_INVALID;
 
-  if (Hdr->mach == EM_386)
+  if (ElfHeader->mach == EM_386)
     return ARCH_386;
 
-  if (Hdr->mach == EM_X86_64)
+  if (ElfHeader->mach == EM_X86_64)
     return ARCH_AMD64;
 
-  if (Hdr->mach == EM_RISCV)
+  if (ElfHeader->mach == EM_RISCV)
     return ARCH_RISCV64;
 
   return ARCH_UNSUPPORTED;
