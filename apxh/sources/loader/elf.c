@@ -454,13 +454,84 @@ Elf32ApplyRelocations (
   IN INT64             Delta
   )
 {
-  // For static executables, we don't typically need relocations
-  // Dynamic executables would need to parse .rel.dyn or .rela.dyn sections
-  // This is a simplified implementation for R_386_RELATIVE relocations
+  typedef struct {
+    UINT8  Id[16];
+    UINT16 Type;
+    UINT16 Machine;
+    UINT32 Version;
+    UINT32 Entry;
+    UINT32 Phoff;
+    UINT32 Shoff;
+    UINT32 Flags;
+    UINT16 Ehsize;
+    UINT16 Phentsize;
+    UINT16 Phnum;
+    UINT16 Shentsize;
+    UINT16 Shnum;
+    UINT16 Shstrndx;
+  } ELF32_EHDR;
 
-  // Note: Full implementation would require parsing section headers
-  // and finding .rel.dyn or .rela.dyn sections
-  return S_OK;  // Static executables typically don't need relocation
+  typedef struct {
+    UINT32 Name;
+    UINT32 Type;
+    UINT32 Flags;
+    UINT32 Addr;
+    UINT32 Offset;
+    UINT32 Size;
+    UINT32 Link;
+    UINT32 Info;
+    UINT32 Addralign;
+    UINT32 Entsize;
+  } ELF32_SHDR;
+
+  #define SHT_REL  9
+  #define SHT_RELA 4
+
+  ELF32_EHDR *Ehdr = (ELF32_EHDR *)ImageBase;
+  ELF32_SHDR *Shdr;
+  UINT16 i, j;
+
+  if (Ehdr->Shoff == 0 || Ehdr->Shnum == 0) {
+    return S_OK;  // No sections
+  }
+
+  for (i = 0; i < Ehdr->Shnum; i++) {
+    Shdr = (ELF32_SHDR *)((UINT8 *)ImageBase + Ehdr->Shoff + i * Ehdr->Shentsize);
+
+    if (Shdr->Type == SHT_REL) {
+      ELF32_REL *Rel = (ELF32_REL *)((UINT8 *)ImageBase + Shdr->Offset);
+      UINT32 NumRelocs = Shdr->Size / sizeof(ELF32_REL);
+
+      for (j = 0; j < NumRelocs; j++) {
+        UINT32 Type = ELF32_R_TYPE(Rel[j].Info);
+        UINT32 *Target = (UINT32 *)((UINT8 *)ImageBase + Rel[j].Offset);
+
+        switch (Type) {
+          case R_386_RELATIVE:
+          case R_386_32:
+            *Target = (UINT32)(*Target + Delta);
+            break;
+        }
+      }
+    } else if (Shdr->Type == SHT_RELA) {
+      ELF32_RELA *Rela = (ELF32_RELA *)((UINT8 *)ImageBase + Shdr->Offset);
+      UINT32 NumRelocs = Shdr->Size / sizeof(ELF32_RELA);
+
+      for (j = 0; j < NumRelocs; j++) {
+        UINT32 Type = ELF32_R_TYPE(Rela[j].Info);
+        UINT32 *Target = (UINT32 *)((UINT8 *)ImageBase + Rela[j].Offset);
+
+        switch (Type) {
+          case R_386_RELATIVE:
+          case R_386_32:
+            *Target = (UINT32)(Delta + Rela[j].Addend);
+            break;
+        }
+      }
+    }
+  }
+
+  return S_OK;
 }
 
 /**
@@ -473,13 +544,93 @@ Elf64ApplyRelocations (
   IN INT64             Delta
   )
 {
-  // For static executables, we don't typically need relocations
-  // Dynamic executables would need to parse .rel.dyn or .rela.dyn sections
-  // This is a simplified implementation for R_X86_64_RELATIVE relocations
+  typedef struct {
+    UINT8  Id[16];
+    UINT16 Type;
+    UINT16 Machine;
+    UINT32 Version;
+    UINT64 Entry;
+    UINT64 Phoff;
+    UINT64 Shoff;
+    UINT32 Flags;
+    UINT16 Ehsize;
+    UINT16 Phentsize;
+    UINT16 Phnum;
+    UINT16 Shentsize;
+    UINT16 Shnum;
+    UINT16 Shstrndx;
+  } ELF64_EHDR;
 
-  // Note: Full implementation would require parsing section headers
-  // and finding .rel.dyn or .rela.dyn sections
-  return S_OK;  // Static executables typically don't need relocation
+  typedef struct {
+    UINT32 Name;
+    UINT32 Type;
+    UINT64 Flags;
+    UINT64 Addr;
+    UINT64 Offset;
+    UINT64 Size;
+    UINT32 Link;
+    UINT32 Info;
+    UINT64 Addralign;
+    UINT64 Entsize;
+  } ELF64_SHDR;
+
+  #define SHT_REL  9
+  #define SHT_RELA 4
+
+  ELF64_EHDR *Ehdr = (ELF64_EHDR *)ImageBase;
+  ELF64_SHDR *Shdr;
+  UINT16 i;
+  UINT64 j;
+
+  if (Ehdr->Shoff == 0 || Ehdr->Shnum == 0) {
+    return S_OK;  // No sections
+  }
+
+  for (i = 0; i < Ehdr->Shnum; i++) {
+    Shdr = (ELF64_SHDR *)((UINT8 *)ImageBase + Ehdr->Shoff + i * Ehdr->Shentsize);
+
+    if (Shdr->Type == SHT_REL) {
+      ELF64_REL *Rel = (ELF64_REL *)((UINT8 *)ImageBase + Shdr->Offset);
+      UINT64 NumRelocs = Shdr->Size / sizeof(ELF64_REL);
+
+      for (j = 0; j < NumRelocs; j++) {
+        UINT32 Type = ELF64_R_TYPE(Rel[j].Info);
+        UINT64 *Target = (UINT64 *)((UINT8 *)ImageBase + Rel[j].Offset);
+
+        switch (Type) {
+          case R_X86_64_RELATIVE:
+          case R_X86_64_64:
+            *Target = *Target + Delta;
+            break;
+          case R_RISCV_RELATIVE:
+          case R_RISCV_64:
+            *Target = *Target + Delta;
+            break;
+        }
+      }
+    } else if (Shdr->Type == SHT_RELA) {
+      ELF64_RELA *Rela = (ELF64_RELA *)((UINT8 *)ImageBase + Shdr->Offset);
+      UINT64 NumRelocs = Shdr->Size / sizeof(ELF64_RELA);
+
+      for (j = 0; j < NumRelocs; j++) {
+        UINT32 Type = ELF64_R_TYPE(Rela[j].Info);
+        UINT64 *Target = (UINT64 *)((UINT8 *)ImageBase + Rela[j].Offset);
+
+        switch (Type) {
+          case R_X86_64_RELATIVE:
+          case R_X86_64_64:
+            *Target = Delta + Rela[j].Addend;
+            break;
+          case R_RISCV_RELATIVE:
+          case R_RISCV_64:
+            *Target = Delta + Rela[j].Addend;
+            break;
+        }
+      }
+    }
+  }
+
+  return S_OK;
 }
 
 /**
