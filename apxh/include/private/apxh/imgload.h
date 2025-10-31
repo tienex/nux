@@ -194,14 +194,23 @@ ImageLoad (
 // Specific Loader Instances
 //
 
+extern IMAGE_LOADER gFatElfLoader;
 extern IMAGE_LOADER gElfLoader;
+extern IMAGE_LOADER gEcoffLoader;
 extern IMAGE_LOADER gMachoLoader;
 extern IMAGE_LOADER gPeLoader;
+extern IMAGE_LOADER gPefLoader;
 extern IMAGE_LOADER gLeLoader;
 extern IMAGE_LOADER gNlmLoader;
+extern IMAGE_LOADER gXcoffLoader;
 extern IMAGE_LOADER gAoutLoader;
 extern IMAGE_LOADER gCoffLoader;
 extern IMAGE_LOADER gXenixLoader;
+extern IMAGE_LOADER gHunkLoader;
+extern IMAGE_LOADER gAtariLoader;
+extern IMAGE_LOADER gPlan9Loader;
+extern IMAGE_LOADER gVmsLoader;
+extern IMAGE_LOADER gSomLoader;
 
 //
 // Initialization

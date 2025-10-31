@@ -2,8 +2,10 @@
   APXH Image Loader Registry
 
   Manages registration and selection of image loaders. Provides unified
-  interface for loading executables in multiple formats (ELF, Mach-O,
-  PE/COFF, NLM) with automatic format detection.
+  interface for loading executables in multiple formats with automatic
+  format detection. Supports: ELF, FatELF, ECOFF, Mach-O, PE/COFF, PEF,
+  LE/LX, NLM, XCOFF, COFF, a.out, XENIX, Amiga HUNK, Atari PRG, Plan 9,
+  HP SOM, and OpenVMS.
 
   Copyright (C) 2025 A•NUX Project
 
@@ -17,7 +19,7 @@
 // Maximum number of registered loaders
 //
 
-#define MAX_LOADERS 16
+#define MAX_LOADERS 32
 
 //
 // Loader Registry
@@ -144,14 +146,23 @@ ImageLoadersInit (
   info("Initializing image loaders...");
 
   // Register all supported loaders (order matters for detection)
+  ImageLoaderRegister(&gFatElfLoader);  // Check FatELF before ELF
   ImageLoaderRegister(&gElfLoader);
+  ImageLoaderRegister(&gEcoffLoader);   // Extended COFF (MIPS, Alpha)
   ImageLoaderRegister(&gMachoLoader);
   ImageLoaderRegister(&gPeLoader);
+  ImageLoaderRegister(&gPefLoader);     // Mac OS Classic
   ImageLoaderRegister(&gLeLoader);
-  ImageLoaderRegister(&gCoffLoader);
-  ImageLoaderRegister(&gAoutLoader);
-  ImageLoaderRegister(&gXenixLoader);
   ImageLoaderRegister(&gNlmLoader);
+  ImageLoaderRegister(&gXcoffLoader);   // AIX Extended COFF
+  ImageLoaderRegister(&gCoffLoader);    // SCO COFF
+  ImageLoaderRegister(&gAoutLoader);    // Unix/MINIX a.out
+  ImageLoaderRegister(&gXenixLoader);
+  ImageLoaderRegister(&gHunkLoader);    // Amiga
+  ImageLoaderRegister(&gAtariLoader);   // Atari TOS
+  ImageLoaderRegister(&gPlan9Loader);   // Plan 9
+  ImageLoaderRegister(&gSomLoader);     // HP-UX PA-RISC
+  ImageLoaderRegister(&gVmsLoader);     // OpenVMS
 
   info("Image loaders initialized (%d loaders)", gNumLoaders);
 }
