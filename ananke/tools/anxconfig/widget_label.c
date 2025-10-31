@@ -9,7 +9,6 @@
 
 typedef struct {
     ITuiWidget WidgetInterface;
-    ITuiLabel LabelInterface;
     ITuiDrawListener DrawListener;
 
     WIDGET_STATE State;
@@ -23,7 +22,6 @@ typedef struct {
 
 /* Helper macros for interface conversions */
 #define LABEL_FROM_WIDGET(w) ((TuiLabelImpl*)((UINT8*)(w) - offsetof(TuiLabelImpl, WidgetInterface)))
-#define LABEL_FROM_LABEL(l) ((TuiLabelImpl*)((UINT8*)(l) - offsetof(TuiLabelImpl, LabelInterface)))
 #define LABEL_FROM_DRAW(d) ((TuiLabelImpl*)((UINT8*)(d) - offsetof(TuiLabelImpl, DrawListener)))
 
 /* Helper: Find hotkey position in text */
@@ -56,11 +54,6 @@ static HRESULT ANXAPI LabelWidget_QueryInterface(ITuiWidget *This, REFIID riid, 
     }
     if (IsEqualGUID(riid, &IID_ITuiDrawListener)) {
         *ppvObject = &impl->DrawListener;
-        impl->State.RefCount++;
-        return S_OK;
-    }
-    if (IsEqualGUID(riid, &IID_ITuiLabel)) {
-        *ppvObject = &impl->LabelInterface;
         impl->State.RefCount++;
         return S_OK;
     }
@@ -345,112 +338,23 @@ static CONST ITuiDrawListener_Vtbl LabelDrawVtbl = {
 };
 
 /*=============================================================================
- * ITuiLabel Implementation (Backward Compatibility)
- *===========================================================================*/
-
-static HRESULT ANXAPI Label_QueryInterface(ITuiLabel *This, REFIID riid, VOID **ppvObject)
-{
-    TuiLabelImpl *impl = LABEL_FROM_LABEL(This);
-    return LabelWidget_QueryInterface(&impl->WidgetInterface, riid, ppvObject);
-}
-
-static UINTN ANXAPI Label_AddRef(ITuiLabel *This)
-{
-    TuiLabelImpl *impl = LABEL_FROM_LABEL(This);
-    return ++impl->State.RefCount;
-}
-
-static UINTN ANXAPI Label_Release(ITuiLabel *This)
-{
-    TuiLabelImpl *impl = LABEL_FROM_LABEL(This);
-    return LabelWidget_Release(&impl->WidgetInterface);
-}
-
-static HRESULT ANXAPI Label_SetText(ITuiLabel *This, CONST CHAR8 *Text)
-{
-    TuiLabelImpl *impl = LABEL_FROM_LABEL(This);
-    if (Text == NULL) return E_POINTER;
-
-    strncpy(impl->Text, Text, sizeof(impl->Text) - 1);
-    impl->Text[sizeof(impl->Text) - 1] = '\0';
-    return S_OK;
-}
-
-static HRESULT ANXAPI Label_GetText(ITuiLabel *This, CHAR8 *Buffer, UINTN BufferSize)
-{
-    TuiLabelImpl *impl = LABEL_FROM_LABEL(This);
-    if (Buffer == NULL) return E_POINTER;
-
-    strncpy(Buffer, impl->Text, BufferSize - 1);
-    Buffer[BufferSize - 1] = '\0';
-    return S_OK;
-}
-
-static HRESULT ANXAPI Label_SetHotkey(ITuiLabel *This, CHAR8 Hotkey)
-{
-    TuiLabelImpl *impl = LABEL_FROM_LABEL(This);
-    impl->Hotkey = Hotkey;
-    return S_OK;
-}
-
-static HRESULT ANXAPI Label_SetAlignment(ITuiLabel *This, TUI_TEXT_ALIGNMENT Alignment)
-{
-    TuiLabelImpl *impl = LABEL_FROM_LABEL(This);
-    impl->Alignment = Alignment;
-    return S_OK;
-}
-
-static HRESULT ANXAPI Label_SetWordWrap(ITuiLabel *This, BOOLEAN Wrap)
-{
-    TuiLabelImpl *impl = LABEL_FROM_LABEL(This);
-    impl->Wrap = Wrap;
-    return S_OK;
-}
-
-static HRESULT ANXAPI Label_Render(ITuiLabel *This, ITuiScreen *Screen, INT32 X, INT32 Y, UINT32 Width)
-{
-    TuiLabelImpl *impl = LABEL_FROM_LABEL(This);
-
-    /* Legacy render method - create temporary surface and delegate to OnDraw */
-    if (impl->Surface) {
-        TUI_RECT rect = { X, Y, X + Width, Y + 1 };
-        return LabelDraw_OnDraw(&impl->DrawListener, impl->Surface, &rect);
-    }
-
-    return S_OK;
-}
-
-static CONST ITuiLabel_Vtbl LabelVtbl = {
-    Label_QueryInterface,
-    Label_AddRef,
-    Label_Release,
-    Label_SetText,
-    Label_GetText,
-    Label_SetHotkey,
-    Label_SetAlignment,
-    Label_SetWordWrap,
-    Label_Render
-};
-
-/*=============================================================================
  * Factory Function
  *===========================================================================*/
 
-HRESULT ANXAPI AnxTuiCreateLabel(IN CONST CHAR8 *Text, OUT ITuiLabel **Label)
+HRESULT ANXAPI AnxTuiCreateLabel(IN CONST CHAR8 *Text, OUT ITuiWidget **Widget)
 {
     TuiLabelImpl *impl;
 
-    if (Label == NULL) return E_POINTER;
+    if (Widget == NULL) return E_POINTER;
 
     impl = (TuiLabelImpl *)calloc(1, sizeof(TuiLabelImpl));
     if (impl == NULL) {
-        *Label = NULL;
+        *Widget = NULL;
         return E_OUTOFMEMORY;
     }
 
     /* Initialize vtables */
     impl->WidgetInterface.Vtbl = &LabelWidgetVtbl;
-    impl->LabelInterface.Vtbl = &LabelVtbl;
     impl->DrawListener.Vtbl = &LabelDrawVtbl;
 
     /* Initialize widget state */
@@ -470,6 +374,48 @@ HRESULT ANXAPI AnxTuiCreateLabel(IN CONST CHAR8 *Text, OUT ITuiLabel **Label)
     impl->NextResponder = NULL;
     impl->Surface = NULL;
 
-    *Label = &impl->LabelInterface;
+    *Widget = &impl->WidgetInterface;
+    return S_OK;
+}
+
+/* Convenience methods for label-specific functionality */
+HRESULT ANXAPI AnxTuiLabelSetText(ITuiWidget *Widget, CONST CHAR8 *Text)
+{
+    TuiLabelImpl *impl = LABEL_FROM_WIDGET(Widget);
+    if (Text == NULL) return E_POINTER;
+
+    strncpy(impl->Text, Text, sizeof(impl->Text) - 1);
+    impl->Text[sizeof(impl->Text) - 1] = '\0';
+    return S_OK;
+}
+
+HRESULT ANXAPI AnxTuiLabelGetText(ITuiWidget *Widget, CHAR8 *Buffer, UINTN BufferSize)
+{
+    TuiLabelImpl *impl = LABEL_FROM_WIDGET(Widget);
+    if (Buffer == NULL) return E_POINTER;
+
+    strncpy(Buffer, impl->Text, BufferSize - 1);
+    Buffer[BufferSize - 1] = '\0';
+    return S_OK;
+}
+
+HRESULT ANXAPI AnxTuiLabelSetHotkey(ITuiWidget *Widget, CHAR8 Hotkey)
+{
+    TuiLabelImpl *impl = LABEL_FROM_WIDGET(Widget);
+    impl->Hotkey = Hotkey;
+    return S_OK;
+}
+
+HRESULT ANXAPI AnxTuiLabelSetAlignment(ITuiWidget *Widget, TUI_TEXT_ALIGNMENT Alignment)
+{
+    TuiLabelImpl *impl = LABEL_FROM_WIDGET(Widget);
+    impl->Alignment = Alignment;
+    return S_OK;
+}
+
+HRESULT ANXAPI AnxTuiLabelSetWordWrap(ITuiWidget *Widget, BOOLEAN Wrap)
+{
+    TuiLabelImpl *impl = LABEL_FROM_WIDGET(Widget);
+    impl->Wrap = Wrap;
     return S_OK;
 }
