@@ -634,7 +634,7 @@ NlmGetRelocInfo (
     RelocInfo->PreferredBase = NLM_DEFAULT_CODE_BASE;
     RelocInfo->RelocTableAddr = Header->RelocationFixupOffset;
     RelocInfo->RelocTableSize = Header->NumRelocationFixups * sizeof(UINT32);  // Approximate
-    RelocInfo->Format = 5;  // Custom NLM format
+    RelocInfo->Format = ImgRelocFormatNlm;
     RelocInfo->RequiresReloc = TRUE;
     return S_OK;
   }

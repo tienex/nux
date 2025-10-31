@@ -750,7 +750,7 @@ HunkGetRelocInfo (
   // already done during loading
   RelocInfo->PreferredBase = AMIGA_BASE_ADDR;
   RelocInfo->RequiresReloc = TRUE;  // HUNK files typically have relocations
-  RelocInfo->Format = 4;  // Custom HUNK format
+  RelocInfo->Format = ImgRelocFormatHunk;
 
   return S_OK;
 }

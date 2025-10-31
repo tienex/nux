@@ -530,7 +530,7 @@ AtariGetRelocInfo (
     // Has relocation information
     RelocInfo->PreferredBase = ATARI_TEXT_START;
     RelocInfo->RequiresReloc = TRUE;
-    RelocInfo->Format = 6;  // Custom Atari format
+    RelocInfo->Format = ImgRelocFormatAtari;
     return S_OK;
   }
 

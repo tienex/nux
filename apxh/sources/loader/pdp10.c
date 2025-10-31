@@ -449,7 +449,7 @@ Pdp10GetRelocInfo (
 
   // PDP-10 SAV format typically does not contain relocations
   memset(RelocInfo, 0, sizeof(IMGLOAD_RELOC_INFO));
-  RelocInfo->Format = 8;  // PDP-10 format
+  RelocInfo->Format = ImgRelocFormatPdp10;
   RelocInfo->RequiresReloc = FALSE;
 
   return S_FALSE;

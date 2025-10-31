@@ -434,7 +434,7 @@ AoutGetRelocInfo (
   if (Header->TextReloc > 0 || Header->DataReloc > 0) {
     RelocInfo->PreferredBase = AOUT_TEXT_START;
     RelocInfo->RelocTableSize = Header->TextReloc + Header->DataReloc;
-    RelocInfo->Format = 5;  // a.out format
+    RelocInfo->Format = ImgRelocFormatAout;
     RelocInfo->RequiresReloc = TRUE;
     return S_OK;
   }

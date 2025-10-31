@@ -628,7 +628,7 @@ XenixGetRelocInfo (
   if (Header->Relocations > 0) {
     RelocInfo->PreferredBase = XOUT_TEXT_START;
     RelocInfo->RequiresReloc = TRUE;
-    RelocInfo->Format = 8;  // Custom XENIX format
+    RelocInfo->Format = ImgRelocFormatXenix;
     return S_OK;
   }
 

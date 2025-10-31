@@ -635,7 +635,7 @@ RoseGetRelocInfo (
   RawHdr = (raw_mo_header_t *)ImageBase;
   Flags = ANX_BSWAP32(RawHdr->rmoh_flags);
 
-  RelocInfo->Format = 11;  // OSF/ROSE format
+  RelocInfo->Format = ImgRelocFormatRose;
   RelocInfo->RequiresReloc = !!(Flags & MOH_RELOCATABLE_F);
 
   return RelocInfo->RequiresReloc ? S_OK : S_FALSE;

@@ -436,7 +436,7 @@ VmsGetRelocInfo (
 
   // OpenVMS images typically contain fixup records in ISD
   memset(RelocInfo, 0, sizeof(IMGLOAD_RELOC_INFO));
-  RelocInfo->Format = 7;  // VMS format
+  RelocInfo->Format = ImgRelocFormatVms;
   RelocInfo->RequiresReloc = FALSE;
 
   return S_FALSE;  // Most VMS images are position-independent

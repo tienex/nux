@@ -643,7 +643,7 @@ LeGetRelocInfo (
   // LE/LX has fixup records
   if (LeHeader->FixupSize > 0) {
     RelocInfo->RequiresReloc = TRUE;
-    RelocInfo->Format = 7;  // Custom LE/LX format
+    RelocInfo->Format = ImgRelocFormatLe;
     return S_OK;
   }
 

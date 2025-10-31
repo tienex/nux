@@ -403,7 +403,7 @@ SomGetRelocInfo (
   if (ANX_BSWAP32(Header->LoaderSize) > 0) {
     RelocInfo->RelocTableAddr = ANX_BSWAP32(Header->LoaderLocation);
     RelocInfo->RelocTableSize = ANX_BSWAP32(Header->LoaderSize);
-    RelocInfo->Format = 6;  // SOM format
+    RelocInfo->Format = ImgRelocFormatSom;
     RelocInfo->RequiresReloc = TRUE;
     return S_OK;
   }

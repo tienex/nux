@@ -67,13 +67,22 @@ typedef enum _IMGLOAD_UNWIND_FORMAT {
 //
 
 typedef enum _IMGLOAD_RELOC_FORMAT {
-  ImgRelocFormatNone    = 0,  ///< No relocations
-  ImgRelocFormatElfRel  = 1,  ///< ELF REL (without addend)
-  ImgRelocFormatElfRela = 2,  ///< ELF RELA (with addend)
-  ImgRelocFormatPe      = 3,  ///< PE/COFF base relocations
-  ImgRelocFormatMachO   = 4,  ///< Mach-O relocations
-  ImgRelocFormatCoff    = 5,  ///< COFF relocations
-  ImgRelocFormatAout    = 6   ///< a.out relocations
+  ImgRelocFormatNone    = 0,   ///< No relocations
+  ImgRelocFormatElfRel  = 1,   ///< ELF REL (without addend)
+  ImgRelocFormatElfRela = 2,   ///< ELF RELA (with addend)
+  ImgRelocFormatPe      = 3,   ///< PE/COFF base relocations
+  ImgRelocFormatMachO   = 4,   ///< Mach-O relocations
+  ImgRelocFormatCoff    = 5,   ///< COFF relocations
+  ImgRelocFormatAout    = 6,   ///< a.out relocations
+  ImgRelocFormatLe      = 7,   ///< LE/LX relocations
+  ImgRelocFormatNlm     = 8,   ///< NetWare NLM relocations
+  ImgRelocFormatHunk    = 9,   ///< Amiga HUNK relocations
+  ImgRelocFormatAtari   = 10,  ///< Atari ST relocations
+  ImgRelocFormatRose    = 11,  ///< OSF/ROSE relocations
+  ImgRelocFormatXenix   = 12,  ///< XENIX relocations
+  ImgRelocFormatVms     = 13,  ///< VMS relocations
+  ImgRelocFormatPdp10   = 14,  ///< PDP-10 relocations
+  ImgRelocFormatSom     = 15   ///< HP-UX SOM relocations
 } IMGLOAD_RELOC_FORMAT;
 
 //

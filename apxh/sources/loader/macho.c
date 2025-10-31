@@ -411,7 +411,7 @@ MachoGetArch (
       *Architecture = ArchAmd64;
       break;
     case CPU_TYPE_MC98000:
-      *Architecture = ARCH_PPC;
+      *Architecture = ArchPpc32;
       break;
     case CPU_TYPE_HPPA:
       *Architecture = ArchPaRisc;
@@ -427,13 +427,13 @@ MachoGetArch (
       *Architecture = ArchM88k;
       break;
     case CPU_TYPE_SPARC:
-      *Architecture = ARCH_SPARC;
+      *Architecture = ArchSparc;
       break;
     case CPU_TYPE_I860:
       *Architecture = ArchI860;
       break;
     case CPU_TYPE_POWERPC:
-      *Architecture = ARCH_PPC;
+      *Architecture = ArchPpc32;
       break;
     case CPU_TYPE_POWERPC64:
       *Architecture = ArchPpc64;
@@ -537,19 +537,109 @@ MachoGetEntryPoint (
       *EntryPoint = (VIRTUAL_ADDRESS)EntryCmd->EntryOff;
       return S_OK;
     } else if (Cmd->Cmd == LC_UNIXTHREAD) {
-      // Legacy entry point in thread state
+      // Legacy entry point in thread state - architecture-specific
       MACHO_THREAD_COMMAND *ThreadCmd = (MACHO_THREAD_COMMAND *)Cmd;
+      UINT32 CpuType = Is64Bit ? Header64->CpuType : Header32->CpuType;
 
-      if (Is64Bit) {
-        // x86-64 thread state: RIP is at offset 16 in the state
-        UINT64 *State = (UINT64 *)(ThreadCmd + 1);
-        *EntryPoint = (VIRTUAL_ADDRESS)State[16];
-      } else {
-        // x86 thread state: EIP is at offset 10 in the state
-        UINT32 *State = (UINT32 *)(ThreadCmd + 1);
-        *EntryPoint = (VIRTUAL_ADDRESS)State[10];
+      // Extract PC from architecture-specific thread state
+      switch (CpuType) {
+        case CPU_TYPE_I386: {
+          // x86 thread state: EIP (Program Counter) is at DWORD offset 10
+          UINT32 *State = (UINT32 *)(ThreadCmd + 1);
+          *EntryPoint = (VIRTUAL_ADDRESS)State[10];
+          return S_OK;
+        }
+
+        case CPU_TYPE_X86_64: {
+          // x86-64 thread state: RIP (Instruction Pointer) is at QWORD offset 16
+          UINT64 *State = (UINT64 *)(ThreadCmd + 1);
+          *EntryPoint = (VIRTUAL_ADDRESS)State[16];
+          return S_OK;
+        }
+
+        case CPU_TYPE_ARM: {
+          // ARM thread state: PC (R15) is at DWORD offset 15
+          UINT32 *State = (UINT32 *)(ThreadCmd + 1);
+          *EntryPoint = (VIRTUAL_ADDRESS)State[15];
+          return S_OK;
+        }
+
+        case CPU_TYPE_ARM64:
+        case CPU_TYPE_ARM64_32: {
+          // ARM64 thread state: PC is at QWORD offset 32
+          UINT64 *State = (UINT64 *)(ThreadCmd + 1);
+          *EntryPoint = (VIRTUAL_ADDRESS)State[32];
+          return S_OK;
+        }
+
+        case CPU_TYPE_POWERPC: {
+          // PowerPC thread state: SRR0 (PC) is at DWORD offset 0
+          UINT32 *State = (UINT32 *)(ThreadCmd + 1);
+          *EntryPoint = (VIRTUAL_ADDRESS)State[0];
+          return S_OK;
+        }
+
+        case CPU_TYPE_POWERPC64: {
+          // PowerPC64 thread state: SRR0 (PC) is at QWORD offset 0
+          UINT64 *State = (UINT64 *)(ThreadCmd + 1);
+          *EntryPoint = (VIRTUAL_ADDRESS)State[0];
+          return S_OK;
+        }
+
+        case CPU_TYPE_SPARC: {
+          // SPARC thread state: PC is at DWORD offset 1
+          UINT32 *State = (UINT32 *)(ThreadCmd + 1);
+          *EntryPoint = (VIRTUAL_ADDRESS)State[1];
+          return S_OK;
+        }
+
+        case CPU_TYPE_MC680x0: {
+          // M68k thread state: PC is at DWORD offset 16
+          UINT32 *State = (UINT32 *)(ThreadCmd + 1);
+          *EntryPoint = (VIRTUAL_ADDRESS)State[16];
+          return S_OK;
+        }
+
+        case CPU_TYPE_VAX: {
+          // VAX thread state: PC is at DWORD offset 15
+          UINT32 *State = (UINT32 *)(ThreadCmd + 1);
+          *EntryPoint = (VIRTUAL_ADDRESS)State[15];
+          return S_OK;
+        }
+
+        case CPU_TYPE_RISCV: {
+          // RISC-V thread state: PC is at QWORD offset 0
+          UINT64 *State = (UINT64 *)(ThreadCmd + 1);
+          *EntryPoint = (VIRTUAL_ADDRESS)State[0];
+          return S_OK;
+        }
+
+        case CPU_TYPE_MC88000: {
+          // M88k thread state: PC (SXIP) is at DWORD offset 0
+          UINT32 *State = (UINT32 *)(ThreadCmd + 1);
+          *EntryPoint = (VIRTUAL_ADDRESS)State[0];
+          return S_OK;
+        }
+
+        case CPU_TYPE_I860: {
+          // i860 thread state: PC (fir) is at DWORD offset 0
+          UINT32 *State = (UINT32 *)(ThreadCmd + 1);
+          *EntryPoint = (VIRTUAL_ADDRESS)State[0];
+          return S_OK;
+        }
+
+        case CPU_TYPE_HPPA: {
+          // PA-RISC thread state: PC (PCOQ head) is at DWORD offset 0
+          UINT32 *State = (UINT32 *)(ThreadCmd + 1);
+          *EntryPoint = (VIRTUAL_ADDRESS)State[0];
+          return S_OK;
+        }
+
+        default:
+          // Unsupported architecture for UNIXTHREAD
+          *EntryPoint = 0;
+          return IMGLOAD_E_UNSUPPORTED_ARCH;
       }
-      return S_OK;
     }
 
     Offset += Cmd->CmdSize;
@@ -903,7 +993,7 @@ MachoGetRelocInfo (
   memset(RelocInfo, 0, sizeof(IMGLOAD_RELOC_INFO));
 
   // Mach-O typically doesn't require base relocation (uses PIC)
-  RelocInfo->Format = 4;  // Mach-O format
+  RelocInfo->Format = ImgRelocFormatMachO;
   RelocInfo->RequiresReloc = FALSE;
 
   return S_FALSE;  // Most Mach-O images don't need relocation

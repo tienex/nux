@@ -681,7 +681,7 @@ PeGetRelocInfo (
 
   RelocInfo->RelocTableAddr = RelocDir->VirtualAddress;
   RelocInfo->RelocTableSize = RelocDir->Size;
-  RelocInfo->Format = 3;  // PE format
+  RelocInfo->Format = ImgRelocFormatPe;
   RelocInfo->RequiresReloc = TRUE;
 
   return S_OK;

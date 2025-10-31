@@ -522,7 +522,7 @@ TeGetRelocInfo (
     RelocInfo->PreferredBase = Header->ImageBase;
     RelocInfo->RelocTableAddr = Header->DataDirectory[TE_IMAGE_DIRECTORY_ENTRY_BASERELOC].VirtualAddress;
     RelocInfo->RelocTableSize = Header->DataDirectory[TE_IMAGE_DIRECTORY_ENTRY_BASERELOC].Size;
-    RelocInfo->Format = 3;  // PE-style relocations
+    RelocInfo->Format = ImgRelocFormatPe;
     RelocInfo->RequiresReloc = TRUE;
     return S_OK;
   }
