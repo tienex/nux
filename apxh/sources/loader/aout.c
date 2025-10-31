@@ -1108,6 +1108,64 @@ AoutGetResource (
 }
 
 /**
+  Get initialization and termination functions from a.out image.
+
+  a.out uses special symbols for init/fini functions:
+  - _init or __init: Initialization function
+  - _fini or __fini: Termination function
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+AoutGetInitFini (
+  IN  IImageLoader          *This,
+  IN  VOID                  *ImageBase,
+  OUT IMGLOAD_INITFINI_INFO *InitFiniInfo
+  )
+{
+  IMGLOAD_SYMBOL_INFO SymbolInfo;
+  HRESULT Status;
+
+  if (InitFiniInfo == NULL) {
+    return E_POINTER;
+  }
+
+  memset(InitFiniInfo, 0, sizeof(IMGLOAD_INITFINI_INFO));
+
+  // Look for _init symbol
+  Status = AoutGetSymbolByName(This, ImageBase, "_init", &SymbolInfo);
+  if (Status == S_OK && SymbolInfo.Address != 0) {
+    InitFiniInfo->InitAddress = SymbolInfo.Address;
+    InitFiniInfo->HasInit = TRUE;
+  } else {
+    // Try __init
+    Status = AoutGetSymbolByName(This, ImageBase, "__init", &SymbolInfo);
+    if (Status == S_OK && SymbolInfo.Address != 0) {
+      InitFiniInfo->InitAddress = SymbolInfo.Address;
+      InitFiniInfo->HasInit = TRUE;
+    }
+  }
+
+  // Look for _fini symbol
+  Status = AoutGetSymbolByName(This, ImageBase, "_fini", &SymbolInfo);
+  if (Status == S_OK && SymbolInfo.Address != 0) {
+    InitFiniInfo->FiniAddress = SymbolInfo.Address;
+    InitFiniInfo->HasFini = TRUE;
+  } else {
+    // Try __fini
+    Status = AoutGetSymbolByName(This, ImageBase, "__fini", &SymbolInfo);
+    if (Status == S_OK && SymbolInfo.Address != 0) {
+      InitFiniInfo->FiniAddress = SymbolInfo.Address;
+      InitFiniInfo->HasFini = TRUE;
+    }
+  }
+
+  InitFiniInfo->Priority = 0;
+
+  return (InitFiniInfo->HasInit || InitFiniInfo->HasFini) ? S_OK : S_FALSE;
+}
+
+/**
   Get resource enumerator for a.out image.
 **/
 static
@@ -1192,7 +1250,8 @@ static CONST IImageLoaderVtbl gAoutVtbl = {
   AoutGetTargetSubsystem,
   AoutGetMinimumSubsystemVersion,
   AoutGetResource,
-  AoutGetResourceEnumerator
+  AoutGetResourceEnumerator,
+  AoutGetInitFini
 };
 
 //

@@ -1041,7 +1041,8 @@ static CONST IImageLoaderVtbl gEcoffVtbl = {
   EcoffGetTargetSubsystem,
   EcoffGetMinimumSubsystemVersion,
   EcoffGetResource,
-  EcoffGetResourceEnumerator
+  EcoffGetResourceEnumerator,
+  EcoffGetInitFini
 };
 
 //

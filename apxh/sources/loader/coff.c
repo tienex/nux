@@ -1642,7 +1642,8 @@ static CONST IImageLoaderVtbl gCoffVtbl = {
   CoffGetTargetSubsystem,
   CoffGetMinimumSubsystemVersion,
   CoffGetResource,
-  CoffGetResourceEnumerator
+  CoffGetResourceEnumerator,
+  CoffGetInitFini
 };
 
 //

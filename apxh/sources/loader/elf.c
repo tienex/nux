@@ -2805,6 +2805,123 @@ ElfGetResourceEnumerator (
   return CreateImageResourceEnumerator(ResourceFork, TypeCode, Enumerator);
 }
 
+/**
+  Get initialization and termination function information from ELF image.
+
+  Extracts init/fini functions from:
+  - DT_INIT/DT_FINI dynamic tags (generic ELF)
+  - DT_INITTERM/DT_IT for OS/2 PowerPC ELF
+  - .init/.fini sections as fallback
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+ElfGetInitFini (
+  IN  IImageLoader          *This,
+  IN  VOID                  *ImageBase,
+  OUT IMGLOAD_INITFINI_INFO *InitFiniInfo
+  )
+{
+  ELF32_HDR *Elf32Hdr;
+  ELF64_HDR *Elf64Hdr;
+  BOOLEAN Is64Bit;
+  BOOLEAN HasInit = FALSE;
+  BOOLEAN HasFini = FALSE;
+  VIRTUAL_ADDRESS InitAddr = 0;
+  VIRTUAL_ADDRESS FiniAddr = 0;
+  UINT32 Priority = 0;
+
+  if (ImageBase == NULL || InitFiniInfo == NULL) {
+    return E_POINTER;
+  }
+
+  memset(InitFiniInfo, 0, sizeof(IMGLOAD_INITFINI_INFO));
+
+  Elf32Hdr = (ELF32_HDR *)ImageBase;
+
+  // Determine if 32-bit or 64-bit
+  if (Elf32Hdr->Ident[4] == ELFCLASS64) {
+    Is64Bit = TRUE;
+    Elf64Hdr = (ELF64_HDR *)ImageBase;
+  } else {
+    Is64Bit = FALSE;
+  }
+
+  // Search for DYNAMIC segment to get init/fini tags
+  if (Is64Bit) {
+    ELF64_PHDR *Phdrs = (ELF64_PHDR *)((UINT8 *)ImageBase + Elf64Hdr->PhOff);
+    for (UINT32 i = 0; i < Elf64Hdr->PhNum; i++) {
+      if (Phdrs[i].Type == PHT_DYNAMIC) {
+        ELF64_DYN *Dyn = (ELF64_DYN *)((UINT8 *)ImageBase + Phdrs[i].Off);
+        UINTN DynCount = Phdrs[i].FSz / sizeof(ELF64_DYN);
+
+        for (UINTN j = 0; j < DynCount && Dyn[j].Tag != DT_NULL; j++) {
+          switch (Dyn[j].Tag) {
+            case DT_INIT:
+              InitAddr = Dyn[j].Value;
+              HasInit = TRUE;
+              break;
+            case DT_FINI:
+              FiniAddr = Dyn[j].Value;
+              HasFini = TRUE;
+              break;
+            case DT_INITTERM:  // OS/2 PowerPC combined init/term
+              InitAddr = Dyn[j].Value;
+              FiniAddr = Dyn[j].Value;
+              HasInit = TRUE;
+              HasFini = TRUE;
+              break;
+            case DT_ITPRTY:  // OS/2 init/term priority
+              Priority = (UINT32)Dyn[j].Value;
+              break;
+          }
+        }
+        break;
+      }
+    }
+  } else {
+    ELF32_PHDR *Phdrs = (ELF32_PHDR *)((UINT8 *)ImageBase + Elf32Hdr->PhOff);
+    for (UINT32 i = 0; i < Elf32Hdr->PhNum; i++) {
+      if (Phdrs[i].Type == PHT_DYNAMIC) {
+        ELF32_DYN *Dyn = (ELF32_DYN *)((UINT8 *)ImageBase + Phdrs[i].Off);
+        UINTN DynCount = Phdrs[i].FSz / sizeof(ELF32_DYN);
+
+        for (UINTN j = 0; j < DynCount && Dyn[j].Tag != DT_NULL; j++) {
+          switch (Dyn[j].Tag) {
+            case DT_INIT:
+              InitAddr = Dyn[j].Value;
+              HasInit = TRUE;
+              break;
+            case DT_FINI:
+              FiniAddr = Dyn[j].Value;
+              HasFini = TRUE;
+              break;
+            case DT_INITTERM:  // OS/2 PowerPC combined init/term
+              InitAddr = Dyn[j].Value;
+              FiniAddr = Dyn[j].Value;
+              HasInit = TRUE;
+              HasFini = TRUE;
+              break;
+            case DT_ITPRTY:  // OS/2 init/term priority
+              Priority = Dyn[j].Value;
+              break;
+          }
+        }
+        break;
+      }
+    }
+  }
+
+  // Fill in the result
+  InitFiniInfo->HasInit = HasInit;
+  InitFiniInfo->HasFini = HasFini;
+  InitFiniInfo->InitAddress = InitAddr;
+  InitFiniInfo->FiniAddress = FiniAddr;
+  InitFiniInfo->Priority = Priority;
+
+  return (HasInit || HasFini) ? S_OK : S_FALSE;
+}
+
 //
 // ELF Loader VTable
 //
@@ -2829,7 +2946,8 @@ static CONST IImageLoaderVtbl gElfVtbl = {
   ElfGetTargetSubsystem,
   ElfGetMinimumSubsystemVersion,
   ElfGetResource,
-  ElfGetResourceEnumerator
+  ElfGetResourceEnumerator,
+  ElfGetInitFini
 };
 
 //

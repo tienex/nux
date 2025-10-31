@@ -1766,6 +1766,91 @@ PeGetResource (
 }
 
 /**
+  Get initialization and termination functions from PE image.
+
+  PE uses TLS callbacks as initialization functions. These are executed
+  before the entry point. PE does not have standard termination functions.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+PeGetInitFini (
+  IN  IImageLoader          *This,
+  IN  VOID                  *ImageBase,
+  OUT IMGLOAD_INITFINI_INFO *InitFiniInfo
+  )
+{
+  DOS_HEADER *DosHeader;
+  PE_NT_HEADERS32 *NtHeaders32;
+  PE_NT_HEADERS64 *NtHeaders64;
+  PE_DATA_DIRECTORY *TlsDir;
+  BOOLEAN Is64Bit;
+  UINT64 ImageBaseVA;
+
+  if (InitFiniInfo == NULL) {
+    return E_POINTER;
+  }
+
+  memset(InitFiniInfo, 0, sizeof(IMGLOAD_INITFINI_INFO));
+
+  DosHeader = (DOS_HEADER *)ImageBase;
+  NtHeaders32 = (PE_NT_HEADERS32 *)PE_OFF(DosHeader->NewHeaderOffset);
+  NtHeaders64 = (PE_NT_HEADERS64 *)NtHeaders32;
+
+  Is64Bit = (NtHeaders32->OptionalHeader.Magic == PE_OPT_MAGIC_PE32PLUS);
+
+  // Get image base for converting absolute addresses
+  ImageBaseVA = Is64Bit ?
+    NtHeaders64->OptionalHeader.ImageBase :
+    (UINT64)NtHeaders32->OptionalHeader.ImageBase;
+
+  // Get TLS data directory
+  TlsDir = Is64Bit ?
+    &NtHeaders64->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_TLS] :
+    &NtHeaders32->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_TLS];
+
+  if (TlsDir->VirtualAddress == 0 || TlsDir->Size == 0) {
+    // No TLS callbacks
+    return S_FALSE;
+  }
+
+  // Get TLS directory and extract callback array address
+  if (Is64Bit) {
+    PE_TLS_DIRECTORY64 *TlsDirectory = (PE_TLS_DIRECTORY64 *)PeRvaToPointer(ImageBase, TlsDir->VirtualAddress);
+
+    if (TlsDirectory == NULL) {
+      return S_FALSE;
+    }
+
+    if (TlsDirectory->AddressOfCallBacks != 0) {
+      // TLS callbacks exist - use the callback array address as init
+      // The array itself is a NULL-terminated array of function pointers
+      InitFiniInfo->InitAddress = TlsDirectory->AddressOfCallBacks;
+      InitFiniInfo->HasInit = TRUE;
+    }
+  } else {
+    PE_TLS_DIRECTORY32 *TlsDirectory = (PE_TLS_DIRECTORY32 *)PeRvaToPointer(ImageBase, TlsDir->VirtualAddress);
+
+    if (TlsDirectory == NULL) {
+      return S_FALSE;
+    }
+
+    if (TlsDirectory->AddressOfCallBacks != 0) {
+      // TLS callbacks exist - use the callback array address as init
+      InitFiniInfo->InitAddress = TlsDirectory->AddressOfCallBacks;
+      InitFiniInfo->HasInit = TRUE;
+    }
+  }
+
+  // PE doesn't have standard termination functions
+  InitFiniInfo->HasFini = FALSE;
+  InitFiniInfo->FiniAddress = 0;
+  InitFiniInfo->Priority = 0;
+
+  return InitFiniInfo->HasInit ? S_OK : S_FALSE;
+}
+
+/**
   Get resource enumerator for PE image.
 
   Enumerates all resources of a given type from the universal resource fork.
@@ -1858,7 +1943,8 @@ static CONST IImageLoaderVtbl gPeVtbl = {
   PeGetTargetSubsystem,
   PeGetMinimumSubsystemVersion,
   PeGetResource,
-  PeGetResourceEnumerator
+  PeGetResourceEnumerator,
+  PeGetInitFini
 };
 
 //

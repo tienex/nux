@@ -1079,7 +1079,8 @@ static CONST IImageLoaderVtbl gXcoffVtbl = {
   XcoffGetTargetSubsystem,
   XcoffGetMinimumSubsystemVersion,
   XcoffGetResource,
-  XcoffGetResourceEnumerator
+  XcoffGetResourceEnumerator,
+  XcoffGetInitFini
 };
 #endif
 

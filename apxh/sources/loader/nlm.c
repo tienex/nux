@@ -1052,7 +1052,8 @@ static CONST IImageLoaderVtbl gNlmVtbl = {
   NlmGetTargetSubsystem,
   NlmGetMinimumSubsystemVersion,
   NlmGetResource,
-  NlmGetResourceEnumerator
+  NlmGetResourceEnumerator,
+  NlmGetInitFini
 };
 
 //

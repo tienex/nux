@@ -955,7 +955,8 @@ static CONST IImageLoaderVtbl gPefVtbl = {
   PefGetTargetSubsystem,
   PefGetMinimumSubsystemVersion,
   PefGetResource,
-  PefGetResourceEnumerator
+  PefGetResourceEnumerator,
+  PefGetInitFini
 };
 #endif
 

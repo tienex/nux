@@ -1328,7 +1328,8 @@ static CONST IImageLoaderVtbl gLeVtbl = {
   LeGetTargetSubsystem,
   LeGetMinimumSubsystemVersion,
   LeGetResource,
-  LeGetResourceEnumerator
+  LeGetResourceEnumerator,
+  LeGetInitFini
 };
 
 //

@@ -1941,7 +1941,8 @@ static CONST IImageLoaderVtbl gMachoVtbl = {
   MachoGetTargetSubsystem,
   MachoGetMinimumSubsystemVersion,
   MachoGetResource,
-  MachoGetResourceEnumerator
+  MachoGetResourceEnumerator,
+  MachoGetInitFini
 };
 
 //
