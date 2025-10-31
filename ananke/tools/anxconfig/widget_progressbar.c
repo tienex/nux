@@ -20,7 +20,6 @@ typedef enum {
 
 typedef struct {
     ITuiWidget WidgetInterface;
-    ITuiProgressBar ProgressBarInterface;
     ITuiDrawListener DrawListener;
 
     WIDGET_STATE State;
@@ -39,7 +38,6 @@ typedef struct {
 
 /* Helper macros for interface conversions */
 #define PROGRESSBAR_FROM_WIDGET(w) ((TuiProgressBarImpl*)((UINT8*)(w) - offsetof(TuiProgressBarImpl, WidgetInterface)))
-#define PROGRESSBAR_FROM_PROGRESSBAR(p) ((TuiProgressBarImpl*)((UINT8*)(p) - offsetof(TuiProgressBarImpl, ProgressBarInterface)))
 #define PROGRESSBAR_FROM_DRAW(d) ((TuiProgressBarImpl*)((UINT8*)(d) - offsetof(TuiProgressBarImpl, DrawListener)))
 
 /*=============================================================================
@@ -58,11 +56,6 @@ static HRESULT ANXAPI ProgressBarWidget_QueryInterface(ITuiWidget *This, REFIID 
     }
     if (IsEqualGUID(riid, &IID_ITuiDrawListener)) {
         *ppvObject = &impl->DrawListener;
-        impl->State.RefCount++;
-        return S_OK;
-    }
-    if (IsEqualGUID(riid, &IID_ITuiProgressBar)) {
-        *ppvObject = &impl->ProgressBarInterface;
         impl->State.RefCount++;
         return S_OK;
     }
@@ -431,158 +424,23 @@ static CONST ITuiDrawListener_Vtbl ProgressBarDrawVtbl = {
 };
 
 /*=============================================================================
- * ITuiProgressBar Implementation (Backward Compatibility)
- *===========================================================================*/
-
-static HRESULT ANXAPI ProgressBar_QueryInterface(ITuiProgressBar *This, REFIID riid, VOID **ppvObject)
-{
-    TuiProgressBarImpl *impl = PROGRESSBAR_FROM_PROGRESSBAR(This);
-    return ProgressBarWidget_QueryInterface(&impl->WidgetInterface, riid, ppvObject);
-}
-
-static UINTN ANXAPI ProgressBar_AddRef(ITuiProgressBar *This)
-{
-    TuiProgressBarImpl *impl = PROGRESSBAR_FROM_PROGRESSBAR(This);
-    return ++impl->State.RefCount;
-}
-
-static UINTN ANXAPI ProgressBar_Release(ITuiProgressBar *This)
-{
-    TuiProgressBarImpl *impl = PROGRESSBAR_FROM_PROGRESSBAR(This);
-    return ProgressBarWidget_Release(&impl->WidgetInterface);
-}
-
-static HRESULT ANXAPI ProgressBar_SetLabel(ITuiProgressBar *This, CONST CHAR8 *Label)
-{
-    TuiProgressBarImpl *impl = PROGRESSBAR_FROM_PROGRESSBAR(This);
-    if (Label == NULL) return E_POINTER;
-
-    strncpy(impl->Label, Label, sizeof(impl->Label) - 1);
-    impl->Label[sizeof(impl->Label) - 1] = '\0';
-    return S_OK;
-}
-
-static HRESULT ANXAPI ProgressBar_SetRange(ITuiProgressBar *This, INT32 MinValue, INT32 MaxValue)
-{
-    TuiProgressBarImpl *impl = PROGRESSBAR_FROM_PROGRESSBAR(This);
-
-    if (MinValue >= MaxValue) return E_INVALIDARG;
-
-    impl->MinValue = MinValue;
-    impl->MaxValue = MaxValue;
-
-    /* Clamp current value */
-    if (impl->CurrentValue < MinValue) impl->CurrentValue = MinValue;
-    if (impl->CurrentValue > MaxValue) impl->CurrentValue = MaxValue;
-
-    return S_OK;
-}
-
-static HRESULT ANXAPI ProgressBar_SetValue(ITuiProgressBar *This, INT32 Value)
-{
-    TuiProgressBarImpl *impl = PROGRESSBAR_FROM_PROGRESSBAR(This);
-
-    if (Value < impl->MinValue) Value = impl->MinValue;
-    if (Value > impl->MaxValue) Value = impl->MaxValue;
-
-    impl->CurrentValue = Value;
-
-    return S_OK;
-}
-
-static HRESULT ANXAPI ProgressBar_GetValue(ITuiProgressBar *This, INT32 *Value)
-{
-    TuiProgressBarImpl *impl = PROGRESSBAR_FROM_PROGRESSBAR(This);
-    if (Value == NULL) return E_POINTER;
-    *Value = impl->CurrentValue;
-    return S_OK;
-}
-
-static HRESULT ANXAPI ProgressBar_SetWidth(ITuiProgressBar *This, UINT32 Width)
-{
-    TuiProgressBarImpl *impl = PROGRESSBAR_FROM_PROGRESSBAR(This);
-    impl->Width = Width;
-    return S_OK;
-}
-
-static HRESULT ANXAPI ProgressBar_SetStyle(ITuiProgressBar *This, UINT32 Style)
-{
-    TuiProgressBarImpl *impl = PROGRESSBAR_FROM_PROGRESSBAR(This);
-    impl->Style = (ProgressStyle)Style;
-    return S_OK;
-}
-
-static HRESULT ANXAPI ProgressBar_SetShowPercentage(ITuiProgressBar *This, BOOLEAN ShowPercentage)
-{
-    TuiProgressBarImpl *impl = PROGRESSBAR_FROM_PROGRESSBAR(This);
-    impl->ShowPercentage = ShowPercentage;
-    return S_OK;
-}
-
-static HRESULT ANXAPI ProgressBar_SetIndeterminate(ITuiProgressBar *This, BOOLEAN Indeterminate)
-{
-    TuiProgressBarImpl *impl = PROGRESSBAR_FROM_PROGRESSBAR(This);
-    impl->Indeterminate = Indeterminate;
-    if (Indeterminate) {
-        impl->IndeterminatePos = 0;
-    }
-    return S_OK;
-}
-
-static HRESULT ANXAPI ProgressBar_Increment(ITuiProgressBar *This, INT32 Delta)
-{
-    TuiProgressBarImpl *impl = PROGRESSBAR_FROM_PROGRESSBAR(This);
-    return ProgressBar_SetValue(This, impl->CurrentValue + Delta);
-}
-
-static HRESULT ANXAPI ProgressBar_Render(ITuiProgressBar *This, ITuiScreen *Screen, INT32 X, INT32 Y)
-{
-    TuiProgressBarImpl *impl = PROGRESSBAR_FROM_PROGRESSBAR(This);
-
-    /* Legacy render method - delegate to OnDraw */
-    if (impl->Surface) {
-        TUI_RECT rect = { X, Y, X + impl->Width, Y + 2 };
-        return ProgressBarDraw_OnDraw(&impl->DrawListener, impl->Surface, &rect);
-    }
-
-    return S_OK;
-}
-
-static CONST ITuiProgressBar_Vtbl ProgressBarVtbl = {
-    ProgressBar_QueryInterface,
-    ProgressBar_AddRef,
-    ProgressBar_Release,
-    ProgressBar_SetLabel,
-    ProgressBar_SetRange,
-    ProgressBar_SetValue,
-    ProgressBar_GetValue,
-    ProgressBar_SetWidth,
-    ProgressBar_SetStyle,
-    ProgressBar_SetShowPercentage,
-    ProgressBar_SetIndeterminate,
-    ProgressBar_Increment,
-    ProgressBar_Render
-};
-
-/*=============================================================================
  * Factory Function
  *===========================================================================*/
 
-HRESULT ANXAPI AnxTuiCreateProgressBar(IN UINT32 Width, OUT ITuiProgressBar **ProgressBar)
+HRESULT ANXAPI AnxTuiCreateProgressBar(IN UINT32 Width, OUT ITuiWidget **Widget)
 {
     TuiProgressBarImpl *impl;
 
-    if (ProgressBar == NULL) return E_POINTER;
+    if (Widget == NULL) return E_POINTER;
 
     impl = (TuiProgressBarImpl *)calloc(1, sizeof(TuiProgressBarImpl));
     if (impl == NULL) {
-        *ProgressBar = NULL;
+        *Widget = NULL;
         return E_OUTOFMEMORY;
     }
 
     /* Initialize vtables */
     impl->WidgetInterface.Vtbl = &ProgressBarWidgetVtbl;
-    impl->ProgressBarInterface.Vtbl = &ProgressBarVtbl;
     impl->DrawListener.Vtbl = &ProgressBarDrawVtbl;
 
     /* Initialize widget state */
@@ -601,6 +459,90 @@ HRESULT ANXAPI AnxTuiCreateProgressBar(IN UINT32 Width, OUT ITuiProgressBar **Pr
     impl->NextResponder = NULL;
     impl->Surface = NULL;
 
-    *ProgressBar = &impl->ProgressBarInterface;
+    *Widget = &impl->WidgetInterface;
     return S_OK;
+}
+
+/* Convenience functions for progressbar-specific operations */
+HRESULT ANXAPI AnxTuiProgressBarSetLabel(ITuiWidget *Widget, CONST CHAR8 *Label)
+{
+    TuiProgressBarImpl *impl = PROGRESSBAR_FROM_WIDGET(Widget);
+    if (Label == NULL) return E_POINTER;
+
+    strncpy(impl->Label, Label, sizeof(impl->Label) - 1);
+    impl->Label[sizeof(impl->Label) - 1] = '\0';
+    return S_OK;
+}
+
+HRESULT ANXAPI AnxTuiProgressBarSetRange(ITuiWidget *Widget, INT32 MinValue, INT32 MaxValue)
+{
+    TuiProgressBarImpl *impl = PROGRESSBAR_FROM_WIDGET(Widget);
+
+    if (MinValue >= MaxValue) return E_INVALIDARG;
+
+    impl->MinValue = MinValue;
+    impl->MaxValue = MaxValue;
+
+    /* Clamp current value */
+    if (impl->CurrentValue < MinValue) impl->CurrentValue = MinValue;
+    if (impl->CurrentValue > MaxValue) impl->CurrentValue = MaxValue;
+
+    return S_OK;
+}
+
+HRESULT ANXAPI AnxTuiProgressBarSetValue(ITuiWidget *Widget, INT32 Value)
+{
+    TuiProgressBarImpl *impl = PROGRESSBAR_FROM_WIDGET(Widget);
+
+    if (Value < impl->MinValue) Value = impl->MinValue;
+    if (Value > impl->MaxValue) Value = impl->MaxValue;
+
+    impl->CurrentValue = Value;
+
+    return S_OK;
+}
+
+HRESULT ANXAPI AnxTuiProgressBarGetValue(ITuiWidget *Widget, INT32 *Value)
+{
+    TuiProgressBarImpl *impl = PROGRESSBAR_FROM_WIDGET(Widget);
+    if (Value == NULL) return E_POINTER;
+    *Value = impl->CurrentValue;
+    return S_OK;
+}
+
+HRESULT ANXAPI AnxTuiProgressBarSetWidth(ITuiWidget *Widget, UINT32 Width)
+{
+    TuiProgressBarImpl *impl = PROGRESSBAR_FROM_WIDGET(Widget);
+    impl->Width = Width;
+    return S_OK;
+}
+
+HRESULT ANXAPI AnxTuiProgressBarSetStyle(ITuiWidget *Widget, UINT32 Style)
+{
+    TuiProgressBarImpl *impl = PROGRESSBAR_FROM_WIDGET(Widget);
+    impl->Style = (ProgressStyle)Style;
+    return S_OK;
+}
+
+HRESULT ANXAPI AnxTuiProgressBarSetShowPercentage(ITuiWidget *Widget, BOOLEAN ShowPercentage)
+{
+    TuiProgressBarImpl *impl = PROGRESSBAR_FROM_WIDGET(Widget);
+    impl->ShowPercentage = ShowPercentage;
+    return S_OK;
+}
+
+HRESULT ANXAPI AnxTuiProgressBarSetIndeterminate(ITuiWidget *Widget, BOOLEAN Indeterminate)
+{
+    TuiProgressBarImpl *impl = PROGRESSBAR_FROM_WIDGET(Widget);
+    impl->Indeterminate = Indeterminate;
+    if (Indeterminate) {
+        impl->IndeterminatePos = 0;
+    }
+    return S_OK;
+}
+
+HRESULT ANXAPI AnxTuiProgressBarIncrement(ITuiWidget *Widget, INT32 Delta)
+{
+    TuiProgressBarImpl *impl = PROGRESSBAR_FROM_WIDGET(Widget);
+    return AnxTuiProgressBarSetValue(Widget, impl->CurrentValue + Delta);
 }
