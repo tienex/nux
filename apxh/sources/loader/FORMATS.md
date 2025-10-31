@@ -47,9 +47,15 @@ enabling cross-platform resource embedding in all executable formats.
 | ECOFF  | ❌ No  | ✅ Implemented | `.axursrc` section (DEC/SGI) |
 | a.out  | ❌ No  | ✅ Implemented | Symbol-based (`__apxh_uresource_start/size`) |
 | LE/LX  | ✅ OS/2/Win | ✅ Implemented | Native resource table (OS/2 types or Windows types) |
-| PEF    | ❌ No  | ✅ Implemented | `.axursrc` section (Mac OS/BeOS) |
+| PEF    | ❌ No  | ✅ Implemented | `.axursrc` section (CFM: Mac OS 68K/PPC, BeOS PPC) |
 | NLM    | ❌ No  | ✅ Implemented | Custom data segment (NetWare) |
-| Other  | ❌ No  | ⚠️ TODO | Format-specific (Hunk, Atari, PDP-10, etc.) |
+| Amiga Hunk | ❌ No  | ✅ Implemented | No native resources (AmigaOS 68K) |
+| Atari TOS | ❌ No  | ✅ Implemented | No native resources (Atari ST/TT/Falcon 68K) |
+| Plan 9 | ❌ No  | ✅ Implemented | No native resources (Plan 9 a.out) |
+| Xenix COFF | ❌ No  | ✅ Implemented | No native resources (Microsoft Xenix) |
+| HP SOM | ❌ No  | ⚠️ Stub | Stub implementation (PA-RISC) |
+| OpenVMS | ❌ No  | ⚠️ Stub | Stub implementation (VAX/Alpha/Itanium) |
+| PDP-10 SAV | ❌ No  | ⚠️ Stub | Stub implementation (PDP-10 36-bit) |
 
 ### Implementation Guide
 
@@ -104,8 +110,15 @@ executable formats, enabling proper startup/shutdown sequences for libraries and
 | ECOFF  | ✅ Sections | ✅ Implemented | `.init`, `.fini`, `.ctors`, `.dtors` (DEC/SGI) |
 | a.out  | ⚠️ Limited | ⚠️ Partial | Dynamic linker support via `__DYNAMIC` |
 | LE/LX  | ✅ OS/2/Win | ✅ Implemented | InitObjectNum/InitEip (OS/2 apps and Windows VxD) |
-| PEF    | ✅ Loader Header | ✅ Implemented | InitSection/InitOffset, TermSection/TermOffset |
+| PEF    | ✅ Loader Header | ✅ Implemented | InitSection/InitOffset, TermSection/TermOffset (CFM 68K/PPC) |
 | NLM    | ✅ Entry Points | ✅ Implemented | CodeStartOffset, ExitProcedureOffset, CheckUnloadProcedureOffset |
+| Amiga Hunk | ❌ No  | ⚠️ N/A | No explicit init/fini (AmigaOS handles library initialization) |
+| Atari TOS | ❌ No  | ⚠️ N/A | No explicit init/fini (TOS handles program initialization) |
+| Plan 9 | ❌ No  | ⚠️ N/A | No explicit init/fini (Plan 9 a.out variant) |
+| Xenix COFF | ❌ No  | ⚠️ N/A | No explicit init/fini (basic COFF variant) |
+| HP SOM | ⚠️ Stub | ⚠️ Stub | Stub implementation |
+| OpenVMS | ⚠️ Stub | ⚠️ Stub | Stub implementation |
+| PDP-10 SAV | ⚠️ Stub | ⚠️ Stub | Stub implementation |
 
 ### Implementation Patterns
 
