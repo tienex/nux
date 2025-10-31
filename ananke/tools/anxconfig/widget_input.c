@@ -15,11 +15,9 @@ typedef struct {
     /* Main interface - ITuiWidget */
     ITuiWidget WidgetInterface;
 
-    /* Backward compatibility - ITuiInput */
-    ITuiInput InputInterface;
-
     /* Listener interfaces */
     ITuiKeyListener KeyListener;
+    ITuiMouseListener MouseListener;
     ITuiDrawListener DrawListener;
 
     /* Implementation data */
@@ -43,8 +41,8 @@ typedef struct {
 
 /* Helper macros for getting impl from any interface */
 #define INPUT_FROM_WIDGET(w) ((TuiInputImpl*)((UINT8*)(w) - offsetof(TuiInputImpl, WidgetInterface)))
-#define INPUT_FROM_INPUT(i) ((TuiInputImpl*)((UINT8*)(i) - offsetof(TuiInputImpl, InputInterface)))
 #define INPUT_FROM_KEY(k) ((TuiInputImpl*)((UINT8*)(k) - offsetof(TuiInputImpl, KeyListener)))
+#define INPUT_FROM_MOUSE(m) ((TuiInputImpl*)((UINT8*)(m) - offsetof(TuiInputImpl, MouseListener)))
 #define INPUT_FROM_DRAW(d) ((TuiInputImpl*)((UINT8*)(d) - offsetof(TuiInputImpl, DrawListener)))
 
 /*
@@ -66,13 +64,23 @@ static HRESULT ANXAPI InputWidget_QueryInterface(ITuiWidget *This, REFIID riid, 
         impl->State.RefCount++;
         return S_OK;
     }
+    if (IsEqualGUID(riid, &IID_ITuiMouseListener)) {
+        *ppvObject = &impl->MouseListener;
+        impl->State.RefCount++;
+        return S_OK;
+    }
     if (IsEqualGUID(riid, &IID_ITuiDrawListener)) {
         *ppvObject = &impl->DrawListener;
         impl->State.RefCount++;
         return S_OK;
     }
-    if (IsEqualGUID(riid, &IID_ITuiInput)) {
-        *ppvObject = &impl->InputInterface;
+    if (IsEqualGUID(riid, &IID_ITuiSerializable)) {
+        *ppvObject = &impl->WidgetInterface;
+        impl->State.RefCount++;
+        return S_OK;
+    }
+    if (IsEqualGUID(riid, &IID_ITuiResponder)) {
+        *ppvObject = &impl->WidgetInterface;
         impl->State.RefCount++;
         return S_OK;
     }
@@ -236,15 +244,15 @@ static HRESULT ANXAPI InputWidget_GetTypeName(ITuiWidget *This, CONST CHAR8 **Ou
 static HRESULT ANXAPI InputWidget_Clone(ITuiWidget *This, ITuiSerializable **OutClone)
 {
     TuiInputImpl *impl = INPUT_FROM_WIDGET(This);
-    ITuiInput *newInput = NULL;
+    ITuiWidget *newInput = NULL;
     HRESULT hr = AnxTuiCreateInput(impl->Label, &newInput);
     if (FAILED(hr)) return hr;
 
-    newInput->Vtbl->SetValue(newInput, impl->Value);
-    newInput->Vtbl->SetType(newInput, impl->Type);
-    newInput->Vtbl->SetRange(newInput, impl->MinValue, impl->MaxValue);
-    newInput->Vtbl->SetWidth(newInput, impl->Width);
-    newInput->Vtbl->SetPasswordMode(newInput, impl->PasswordMode);
+    AnxTuiInputSetValue(newInput, impl->Value);
+    AnxTuiInputSetType(newInput, impl->Type);
+    AnxTuiInputSetRange(newInput, impl->MinValue, impl->MaxValue);
+    AnxTuiInputSetWidth(newInput, impl->Width);
+    AnxTuiInputSetPasswordMode(newInput, impl->PasswordMode);
 
     *OutClone = (ITuiSerializable *)newInput;
     return S_OK;
@@ -383,6 +391,53 @@ static ITuiKeyListener_Vtbl InputKeyVtbl = {
 };
 
 /*
+ * ITuiMouseListener Implementation
+ */
+
+static HRESULT ANXAPI InputMouse_QueryInterface(ITuiMouseListener *This, REFIID riid, VOID **ppvObject)
+{
+    TuiInputImpl *impl = INPUT_FROM_MOUSE(This);
+    return InputWidget_QueryInterface(&impl->WidgetInterface, riid, ppvObject);
+}
+
+static UINTN ANXAPI InputMouse_AddRef(ITuiMouseListener *This)
+{
+    TuiInputImpl *impl = INPUT_FROM_MOUSE(This);
+    return ++impl->State.RefCount;
+}
+
+static UINTN ANXAPI InputMouse_Release(ITuiMouseListener *This)
+{
+    TuiInputImpl *impl = INPUT_FROM_MOUSE(This);
+    return InputWidget_Release(&impl->WidgetInterface);
+}
+
+static HRESULT ANXAPI InputMouse_OnMouseEvent(ITuiMouseListener *This, CONST TUI_MOUSE_EVENT *Event, BOOLEAN *Handled)
+{
+    TuiInputImpl *impl = INPUT_FROM_MOUSE(This);
+    BOOLEAN isOver;
+
+    *Handled = FALSE;
+    if (!impl->State.Enabled) return S_OK;
+
+    isOver = IsPointInWidget(&impl->State, Event->X, Event->Y);
+    if (!isOver) return S_OK;
+
+    /* Click to focus */
+    if (Event->Type == TuiMouseLeftDown) {
+        impl->State.Focused = TRUE;
+        *Handled = TRUE;
+    }
+
+    return S_OK;
+}
+
+static ITuiMouseListener_Vtbl InputMouseVtbl = {
+    InputMouse_QueryInterface, InputMouse_AddRef, InputMouse_Release,
+    InputMouse_OnMouseEvent
+};
+
+/*
  * ITuiDrawListener Implementation
  */
 
@@ -488,180 +543,24 @@ static ITuiDrawListener_Vtbl InputDrawVtbl = {
 };
 
 /*
- * ITuiInput Implementation (backward compatibility)
- */
-
-static HRESULT ANXAPI Input_QueryInterface(ITuiInput *This, REFIID riid, VOID **ppvObject)
-{
-    TuiInputImpl *impl = INPUT_FROM_INPUT(This);
-    return InputWidget_QueryInterface(&impl->WidgetInterface, riid, ppvObject);
-}
-
-static UINTN ANXAPI Input_AddRef(ITuiInput *This)
-{
-    TuiInputImpl *impl = INPUT_FROM_INPUT(This);
-    return ++impl->State.RefCount;
-}
-
-static UINTN ANXAPI Input_Release(ITuiInput *This)
-{
-    TuiInputImpl *impl = INPUT_FROM_INPUT(This);
-    return InputWidget_Release(&impl->WidgetInterface);
-}
-
-static HRESULT ANXAPI Input_SetLabel(ITuiInput *This, CONST CHAR8 *Label)
-{
-    TuiInputImpl *impl = INPUT_FROM_INPUT(This);
-    if (!Label) return E_POINTER;
-    strncpy(impl->Label, Label, sizeof(impl->Label) - 1);
-    impl->Label[sizeof(impl->Label) - 1] = '\0';
-    return S_OK;
-}
-
-static HRESULT ANXAPI Input_SetValue(ITuiInput *This, CONST CHAR8 *Value)
-{
-    TuiInputImpl *impl = INPUT_FROM_INPUT(This);
-    if (!Value) return E_POINTER;
-    strncpy(impl->Value, Value, sizeof(impl->Value) - 1);
-    impl->Value[sizeof(impl->Value) - 1] = '\0';
-    impl->CursorPos = strlen(impl->Value);
-    return S_OK;
-}
-
-static HRESULT ANXAPI Input_GetValue(ITuiInput *This, CHAR8 *Buffer, UINTN BufferSize)
-{
-    TuiInputImpl *impl = INPUT_FROM_INPUT(This);
-    if (!Buffer) return E_POINTER;
-    strncpy(Buffer, impl->Value, BufferSize - 1);
-    Buffer[BufferSize - 1] = '\0';
-    return S_OK;
-}
-
-static HRESULT ANXAPI Input_SetType(ITuiInput *This, CONFIG_VALUE_TYPE Type)
-{
-    TuiInputImpl *impl = INPUT_FROM_INPUT(This);
-    impl->Type = Type;
-    return S_OK;
-}
-
-static HRESULT ANXAPI Input_SetRange(ITuiInput *This, INT64 MinValue, INT64 MaxValue)
-{
-    TuiInputImpl *impl = INPUT_FROM_INPUT(This);
-    impl->MinValue = MinValue;
-    impl->MaxValue = MaxValue;
-    return S_OK;
-}
-
-static HRESULT ANXAPI Input_SetWidth(ITuiInput *This, UINT32 Width)
-{
-    TuiInputImpl *impl = INPUT_FROM_INPUT(This);
-    impl->Width = Width;
-    return S_OK;
-}
-
-static HRESULT ANXAPI Input_SetPasswordMode(ITuiInput *This, BOOLEAN PasswordMode)
-{
-    TuiInputImpl *impl = INPUT_FROM_INPUT(This);
-    impl->PasswordMode = PasswordMode;
-    return S_OK;
-}
-
-static HRESULT ANXAPI Input_Render(ITuiInput *This, ITuiScreen *Screen, INT32 X, INT32 Y, BOOLEAN Focused)
-{
-    TuiInputImpl *impl = INPUT_FROM_INPUT(This);
-    CHAR8 display[1024], valueDisplay[512];
-    TUI_COLOR fg, bg;
-    UINT32 i, visibleLen, startPos;
-
-    if (!impl->State.Visible) return S_OK;
-    impl->State.Focused = Focused;
-
-    if (!impl->State.Enabled) {
-        fg = TuiColorBrightBlack;
-        bg = TuiColorBlack;
-    } else if (Focused) {
-        fg = TuiColorBlack;
-        bg = TuiColorWhite;
-    } else {
-        fg = TuiColorWhite;
-        bg = TuiColorBlue;
-    }
-
-    if (impl->PasswordMode) {
-        UINT32 len = strlen(impl->Value);
-        for (i = 0; i < len && i < sizeof(valueDisplay) - 1; i++) valueDisplay[i] = '*';
-        valueDisplay[i] = '\0';
-    } else {
-        strncpy(valueDisplay, impl->Value, sizeof(valueDisplay) - 1);
-        valueDisplay[sizeof(valueDisplay) - 1] = '\0';
-    }
-
-    visibleLen = impl->Width > 0 ? impl->Width : 20;
-    startPos = impl->ScrollOffset;
-
-    if (strlen(valueDisplay) > visibleLen) {
-        if (impl->CursorPos < impl->ScrollOffset) {
-            impl->ScrollOffset = impl->CursorPos;
-        } else if (impl->CursorPos >= impl->ScrollOffset + visibleLen) {
-            impl->ScrollOffset = impl->CursorPos - visibleLen + 1;
-        }
-        startPos = impl->ScrollOffset;
-        CHAR8 temp[512];
-        strncpy(temp, valueDisplay + startPos, visibleLen);
-        temp[visibleLen] = '\0';
-        strcpy(valueDisplay, temp);
-    }
-
-    if (strlen(impl->Label) > 0) {
-        snprintf(display, sizeof(display), "%s: [%-*s]", impl->Label, visibleLen, valueDisplay);
-    } else {
-        snprintf(display, sizeof(display), "[%-*s]", visibleLen, valueDisplay);
-    }
-
-    Screen->Vtbl->WriteText(Screen, X, Y, display, fg, bg);
-
-    if (Focused && impl->State.Enabled) {
-        INT32 cursorX = X + strlen(impl->Label) + (strlen(impl->Label) > 0 ? 3 : 1) +
-                        (impl->CursorPos - impl->ScrollOffset);
-        Screen->Vtbl->WriteText(Screen, cursorX, Y, "_", fg, bg);
-    }
-
-    return S_OK;
-}
-
-static HRESULT ANXAPI Input_HandleKey(ITuiInput *This, TUI_KEY Key, BOOLEAN *Handled)
-{
-    TuiInputImpl *impl = INPUT_FROM_INPUT(This);
-    ITuiKeyListener *keyListener = &impl->KeyListener;
-    return keyListener->Vtbl->OnKeyDown(keyListener, Key, 0, Handled);
-}
-
-static CONST ITuiInput_Vtbl InputVtbl = {
-    Input_QueryInterface, Input_AddRef, Input_Release,
-    Input_SetLabel, Input_SetValue, Input_GetValue, Input_SetType,
-    Input_SetRange, Input_SetWidth, Input_SetPasswordMode,
-    Input_Render, Input_HandleKey
-};
-
-/*
  * Factory Function
  */
 
-HRESULT ANXAPI AnxTuiCreateInput(IN CONST CHAR8 *Label, OUT ITuiInput **Input)
+HRESULT ANXAPI AnxTuiCreateInput(IN CONST CHAR8 *Label, OUT ITuiWidget **Widget)
 {
     TuiInputImpl *impl;
 
-    if (!Input) return E_POINTER;
+    if (!Widget) return E_POINTER;
 
     impl = (TuiInputImpl *)calloc(1, sizeof(TuiInputImpl));
     if (!impl) {
-        *Input = NULL;
+        *Widget = NULL;
         return E_OUTOFMEMORY;
     }
 
     impl->WidgetInterface.Vtbl = &InputWidgetVtbl;
-    impl->InputInterface.Vtbl = &InputVtbl;
     impl->KeyListener.Vtbl = &InputKeyVtbl;
+    impl->MouseListener.Vtbl = &InputMouseVtbl;
     impl->DrawListener.Vtbl = &InputDrawVtbl;
 
     InitWidgetState(&impl->State);
@@ -684,6 +583,64 @@ HRESULT ANXAPI AnxTuiCreateInput(IN CONST CHAR8 *Label, OUT ITuiInput **Input)
     impl->NextResponder = NULL;
     impl->Surface = NULL;
 
-    *Input = &impl->InputInterface;
+    *Widget = &impl->WidgetInterface;
+    return S_OK;
+}
+
+/* Convenience functions for input-specific operations */
+HRESULT ANXAPI AnxTuiInputSetLabel(ITuiWidget *Widget, CONST CHAR8 *Label)
+{
+    TuiInputImpl *impl = INPUT_FROM_WIDGET(Widget);
+    if (!Label) return E_POINTER;
+    strncpy(impl->Label, Label, sizeof(impl->Label) - 1);
+    impl->Label[sizeof(impl->Label) - 1] = '\0';
+    return S_OK;
+}
+
+HRESULT ANXAPI AnxTuiInputSetValue(ITuiWidget *Widget, CONST CHAR8 *Value)
+{
+    TuiInputImpl *impl = INPUT_FROM_WIDGET(Widget);
+    if (!Value) return E_POINTER;
+    strncpy(impl->Value, Value, sizeof(impl->Value) - 1);
+    impl->Value[sizeof(impl->Value) - 1] = '\0';
+    impl->CursorPos = strlen(impl->Value);
+    return S_OK;
+}
+
+HRESULT ANXAPI AnxTuiInputGetValue(ITuiWidget *Widget, CHAR8 *Buffer, UINTN BufferSize)
+{
+    TuiInputImpl *impl = INPUT_FROM_WIDGET(Widget);
+    if (!Buffer) return E_POINTER;
+    strncpy(Buffer, impl->Value, BufferSize - 1);
+    Buffer[BufferSize - 1] = '\0';
+    return S_OK;
+}
+
+HRESULT ANXAPI AnxTuiInputSetType(ITuiWidget *Widget, CONFIG_VALUE_TYPE Type)
+{
+    TuiInputImpl *impl = INPUT_FROM_WIDGET(Widget);
+    impl->Type = Type;
+    return S_OK;
+}
+
+HRESULT ANXAPI AnxTuiInputSetRange(ITuiWidget *Widget, INT64 MinValue, INT64 MaxValue)
+{
+    TuiInputImpl *impl = INPUT_FROM_WIDGET(Widget);
+    impl->MinValue = MinValue;
+    impl->MaxValue = MaxValue;
+    return S_OK;
+}
+
+HRESULT ANXAPI AnxTuiInputSetWidth(ITuiWidget *Widget, UINT32 Width)
+{
+    TuiInputImpl *impl = INPUT_FROM_WIDGET(Widget);
+    impl->Width = Width;
+    return S_OK;
+}
+
+HRESULT ANXAPI AnxTuiInputSetPasswordMode(ITuiWidget *Widget, BOOLEAN PasswordMode)
+{
+    TuiInputImpl *impl = INPUT_FROM_WIDGET(Widget);
+    impl->PasswordMode = PasswordMode;
     return S_OK;
 }
