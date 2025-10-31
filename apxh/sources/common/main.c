@@ -1,9 +1,10 @@
 /** @file
   APXH Main Bootloader
 
-  Main entry point and coordination logic for APXH ELF bootloader.
-  Manages ELF loading, virtual address space setup, and boot information
-  structures for both kernel and user-space payloads.
+  Main entry point and coordination logic for APXH bootloader.
+  Manages executable image loading (ELF, PE, LE/LX, Mach-O, etc.),
+  virtual address space setup, and boot information structures for
+  both kernel and user-space payloads.
 
   Copyright (C) 2019 Gianluca Guida, glguida@tlbflush.org
 
@@ -12,7 +13,7 @@
 
 #include <apxh/internal.h>
 
-static ARCH gElfArch;
+static ARCH gImageArch;
 static UINT8 gBootPagemap[PAGEMAP_SZ (BOOTMEM)]
   ANX_ATTR_ALIGN(4096);
 static VIRTUAL_ADDRESS gReqPfnmapVa, gReqInfoVa, gReqBatreeVa, gReqRegionVa,
@@ -134,7 +135,7 @@ VasInitialize (
   VOID
   )
 {
-  switch (gElfArch)
+  switch (gImageArch)
     {
 #if (EC_MACHINE_I386) || (EC_MACHINE_AMD64)
     case Arch386:
@@ -179,7 +180,7 @@ VasPopulate (
   PlatformVerify (Va, Size);
   VasVerify (Va, Size);
 
-  switch (gElfArch)
+  switch (gImageArch)
     {
 #if EC_MACHINE_I386 || EC_MACHINE_AMD64
     case Arch386:
@@ -317,7 +318,7 @@ VasMapPhysical (
   PlatformVerify (Va, Size);
   VasVerify (Va, Size);
 
-  switch (gElfArch)
+  switch (gImageArch)
     {
 #if EC_MACHINE_I386 || EC_MACHINE_AMD64
     case Arch386:
@@ -374,7 +375,7 @@ VasMapFramebuffer (
 
   Pa = FbPtr->Addr;
 
-  switch (gElfArch)
+  switch (gImageArch)
     {
 #if EC_MACHINE_I386 || EC_MACHINE_AMD64
     case Arch386:
@@ -414,7 +415,7 @@ VasMapLinear (
   PlatformVerify (Va, Size);
   VasVerify (Va, Size);
 
-  switch (gElfArch)
+  switch (gImageArch)
     {
 #if EC_MACHINE_I386 || EC_MACHINE_AMD64
     case Arch386:
@@ -452,7 +453,7 @@ VasAllocTopPageTable (
   PlatformVerify (Va, Size);
   VasVerify (Va, Size);
 
-  switch (gElfArch)
+  switch (gImageArch)
     {
 #if EC_MACHINE_I386 || EC_MACHINE_AMD64
     case Arch386:
@@ -490,7 +491,7 @@ VasAllocPageTable (
   PlatformVerify (Va, Size);
   VasVerify (Va, Size);
 
-  switch (gElfArch)
+  switch (gImageArch)
     {
 #if EC_MACHINE_I386 || EC_MACHINE_AMD64
     case Arch386:
@@ -987,7 +988,7 @@ VasVerify (
   IN SIZE64  Size
   )
 {
-  switch (gElfArch)
+  switch (gImageArch)
     {
 #if EC_MACHINE_I386 || EC_MACHINE_AMD64
     case Arch386:
@@ -1023,7 +1024,7 @@ VasGetPhysical (
   IN VIRTUAL_ADDRESS  Va
   )
 {
-  switch (gElfArch)
+  switch (gImageArch)
     {
 #if EC_MACHINE_I386 || EC_MACHINE_AMD64
     case Arch386:
@@ -1057,7 +1058,7 @@ VasSetEntry (
   IN VIRTUAL_ADDRESS  Entry
   )
 {
-  switch (gElfArch)
+  switch (gImageArch)
     {
 #if EC_MACHINE_I386 || EC_MACHINE_AMD64
     case Arch386:
@@ -1099,8 +1100,8 @@ main (
   IN char  *ArgumentVector[]
   )
 {
-  VOID *ElfStart;
-  SIZE64 ElfSize;
+  VOID *ImageStart;
+  SIZE64 ImageSize;
   UINT64 KEntry, UEntry;
 
   printf ("\nAPXH started.\n\n");
@@ -1110,14 +1111,14 @@ main (
   /*
      Load kernel.
    */
-  ElfStart = GetPayloadStart (ArgumentCount, ArgumentVector, PayloadKernel);
-  ElfSize = GetPayloadSize (PayloadKernel);
-  gElfArch = GetImageArch (ElfStart);
+  ImageStart = GetPayloadStart (ArgumentCount, ArgumentVector, PayloadKernel);
+  ImageSize = GetPayloadSize (PayloadKernel);
+  gImageArch = GetImageArch (ImageStart);
   printf ("Kernel payload %s at addr %p (%d bytes)\n",
-	  GetArchName (gElfArch), ElfStart, ElfSize);
+	  GetArchName (gImageArch), ImageStart, ImageSize);
 
   // Verify architecture is supported before initializing VAS
-  switch (gElfArch)
+  switch (gImageArch)
     {
 #if EC_MACHINE_I386 || EC_MACHINE_AMD64
     case Arch386:
@@ -1136,7 +1137,7 @@ main (
   VasInitialize ();
 
   // Load kernel image (format and bitness detected automatically)
-  KEntry = LoadExecutable (ElfStart, FALSE);
+  KEntry = LoadExecutable (ImageStart, FALSE);
   if (KEntry == (VIRTUAL_ADDRESS)-1) {
     printf ("Failed to load kernel image");
     exit (-1);
@@ -1147,16 +1148,16 @@ main (
   /*
      Load user if it exists.
    */
-  ElfStart = GetPayloadStart (ArgumentCount, ArgumentVector, PayloadUser);
-  ElfSize = GetPayloadSize (PayloadUser);
-  if (ElfStart != NULL && ElfSize != 0)
+  ImageStart = GetPayloadStart (ArgumentCount, ArgumentVector, PayloadUser);
+  ImageSize = GetPayloadSize (PayloadUser);
+  if (ImageStart != NULL && ImageSize != 0)
     {
-      gElfArch = GetImageArch (ElfStart);
+      gImageArch = GetImageArch (ImageStart);
       printf ("User payload %s at addr %p (%d bytes)\n",
-	      GetArchName (gElfArch), ElfStart, ElfSize);
+	      GetArchName (gImageArch), ImageStart, ImageSize);
 
       // Load user image (format and bitness detected automatically)
-      UEntry = LoadExecutable (ElfStart, TRUE);
+      UEntry = LoadExecutable (ImageStart, TRUE);
       if (UEntry == (VIRTUAL_ADDRESS)-1) {
         printf ("Failed to load user image");
         exit (-1);

@@ -1,5 +1,7 @@
 /*
-  APXH: An ELF boot-loader.
+  APXH: A multi-format boot-loader.
+  Supports ELF, PE, LE/LX, Mach-O, and other executable formats.
+
   Copyright (C) 2019 Gianluca Guida <glguida@tlbflush.org>
 
   SPDX-License-Identifier:	BSD-2-Clause
@@ -49,7 +51,7 @@ typedef enum _MEMORY_TYPE
   MemTypeUncached       = 2   ///< Uncached
 } MEMORY_TYPE;
 
-/* APXH ELF extensions. */
+/** APXH-specific program header types (ELF extension). */
 typedef enum _APXH_PROGRAM_HEADER_TYPE {
   ApxhProgramHeaderInfo          = 0xAF100000,  ///< Info Page
   ApxhProgramHeaderEmpty         = 0xAF100001,  ///< Empty (no page tables)

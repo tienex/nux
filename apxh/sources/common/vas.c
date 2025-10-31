@@ -14,7 +14,7 @@
 #include <apxh/internal.h>
 
 // External references to main.c globals
-extern ARCH gElfArch;
+extern ARCH gImageArch;
 extern VIRTUAL_ADDRESS gReqPfnmapVa, gReqInfoVa, gReqBatreeVa, gReqRegionVa,
   gKtlsVa, gUtlsVa;
 extern SIZE64 gReqPfnmapSize, gReqInfoSize, gReqBatreeSize,
@@ -37,7 +37,7 @@ VasInitialize (
   VOID
   )
 {
-  switch (gElfArch)
+  switch (gImageArch)
     {
 #if (EC_MACHINE_I386) || (EC_MACHINE_AMD64)
     case Arch386:
@@ -73,7 +73,7 @@ VasVerify (
   IN SIZE64  Size
   )
 {
-  switch (gElfArch)
+  switch (gImageArch)
     {
 #if EC_MACHINE_I386 || EC_MACHINE_AMD64
     case Arch386:
@@ -109,7 +109,7 @@ VasGetPhysical (
   IN VIRTUAL_ADDRESS  Va
   )
 {
-  switch (gElfArch)
+  switch (gImageArch)
     {
 #if EC_MACHINE_I386 || EC_MACHINE_AMD64
     case Arch386:
@@ -154,7 +154,7 @@ VasPopulate (
   PlatformVerify (Va, Size);
   VasVerify (Va, Size);
 
-  switch (gElfArch)
+  switch (gImageArch)
     {
 #if EC_MACHINE_I386 || EC_MACHINE_AMD64
     case Arch386:
@@ -292,7 +292,7 @@ VasMapPhysical (
   PlatformVerify (Va, Size);
   VasVerify (Va, Size);
 
-  switch (gElfArch)
+  switch (gImageArch)
     {
 #if EC_MACHINE_I386 || EC_MACHINE_AMD64
     case Arch386:
@@ -349,7 +349,7 @@ VasMapFramebuffer (
 
   Pa = FbPtr->Addr;
 
-  switch (gElfArch)
+  switch (gImageArch)
     {
 #if EC_MACHINE_I386 || EC_MACHINE_AMD64
     case Arch386:
@@ -389,7 +389,7 @@ VasMapLinear (
   PlatformVerify (Va, Size);
   VasVerify (Va, Size);
 
-  switch (gElfArch)
+  switch (gImageArch)
     {
 #if EC_MACHINE_I386 || EC_MACHINE_AMD64
     case Arch386:
@@ -427,7 +427,7 @@ VasAllocTopPageTable (
   PlatformVerify (Va, Size);
   VasVerify (Va, Size);
 
-  switch (gElfArch)
+  switch (gImageArch)
     {
 #if EC_MACHINE_I386 || EC_MACHINE_AMD64
     case Arch386:
@@ -465,7 +465,7 @@ VasAllocPageTable (
   PlatformVerify (Va, Size);
   VasVerify (Va, Size);
 
-  switch (gElfArch)
+  switch (gImageArch)
     {
 #if EC_MACHINE_I386 || EC_MACHINE_AMD64
     case Arch386:
@@ -499,7 +499,7 @@ VasSetEntry (
   IN VIRTUAL_ADDRESS  Entry
   )
 {
-  switch (gElfArch)
+  switch (gImageArch)
     {
 #if EC_MACHINE_I386 || EC_MACHINE_AMD64
     case Arch386:
