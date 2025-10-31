@@ -129,7 +129,7 @@ cd nux
 git submodule update --init --recursive
 mkdir build
 cd build
-../configure ARCH=i386
+../configure --enable-targets=i386
 make -j
 ````
 
@@ -140,21 +140,69 @@ cd example
 make qemu
 ```
 
-**Note if you are using your own compiler:**
+### Build Configuration Options
 
-If you need to specify which compiler to use, pass the `TOOLCHAIN` and `TOOLCHAIN32` parameters to
-`configure`.
+**Target Architecture Selection:**
 
-E.g., suppose you have `x86_64-elf-gcc` and `i686-elf-gcc` (AMD64 requires both):
+Use `--enable-targets=LIST` to specify one or more target architectures (comma-separated):
 
+```bash
+# Single target (i386)
+../configure --enable-targets=i386
+
+# Single target (amd64)
+../configure --enable-targets=amd64
+
+# Single target (riscv64)
+../configure --enable-targets=riscv64
+
+# Universal binary for ELF/Mach-O (multiple targets)
+../configure --enable-targets=i386,amd64
+
+# Note: PE/COFF format supports only a single target
 ```
-../nux/configure ARCH=amd64 TOOLCHAIN=amd64-elf TOOLCHAIN32=i686-elf
+
+**Toolchain Selection:**
+
+Choose between GNU and LLVM toolchains using `--with-toolchain`:
+
+```bash
+# Use GNU toolchain (default)
+../configure --enable-targets=i386 --with-toolchain=gnu
+
+# Use LLVM/Clang toolchain
+../configure --enable-targets=amd64 --with-toolchain=llvm
 ```
 
-or
+**Custom Toolchain Prefix and Suffix:**
 
+If you need to specify a custom toolchain prefix or suffix:
+
+```bash
+# Custom prefix (e.g., for x86_64-elf-gcc instead of x86_64-unknown-elf-gcc)
+../configure --enable-targets=amd64 --with-toolchain-prefix=x86_64-elf-
+
+# Custom suffix (e.g., for clang-17 instead of clang)
+../configure --enable-targets=i386 --with-toolchain=llvm --with-toolchain-suffix=-17
+
+# Combined example
+../configure --enable-targets=amd64 \
+  --with-toolchain=llvm \
+  --with-toolchain-prefix=x86_64-linux-gnu- \
+  --with-toolchain-suffix=-17
 ```
-../nux/configure ARCH=i386 TOOLCHAIN=i686-elf
+
+**Examples:**
+
+```bash
+# GNU toolchain with custom prefix
+../configure --enable-targets=amd64 --with-toolchain-prefix=x86_64-elf-
+
+# LLVM toolchain with version suffix
+../configure --enable-targets=i386 --with-toolchain=llvm --with-toolchain-suffix=-17
+
+# Universal binary for x86 (ELF)
+../configure --enable-targets=i386,amd64 --with-toolchain=gnu
 ```
 
 **Note for RISCV64:**
