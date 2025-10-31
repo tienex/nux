@@ -68,7 +68,42 @@ typedef struct _XOUT_SEG_HEADER {
   UINT32  Flags;              ///< Segment flags
 } XOUT_SEG_HEADER;
 
+typedef struct _XOUT_SYMBOL {
+  union {
+    CHAR8   Name[8];          ///< Symbol name (if <= 8 chars)
+    struct {
+      UINT32  Zeros;          ///< 0 if name in string table
+      UINT32  StringOffset;   ///< Offset into string table
+    } StringRef;
+  } N;
+  UINT32  Value;              ///< Symbol value
+  INT16   SectionNumber;      ///< Section number (1=text, 2=data, 3=bss)
+  UINT16  Type;               ///< Symbol type
+  UINT8   StorageClass;       ///< Storage class
+  UINT8   AuxCount;           ///< Number of auxiliary entries
+} XOUT_SYMBOL;
+
 ANX_PACK_POP()
+
+//
+// XENIX Symbol Storage Classes
+//
+
+#define C_NULL      0   ///< No storage class
+#define C_EXT       2   ///< External symbol
+#define C_STAT      3   ///< Static symbol
+#define C_LABEL     6   ///< Label
+#define C_FCN       101 ///< Function
+
+//
+// XENIX Symbol Section Numbers
+//
+
+#define N_UNDEF     0   ///< Undefined
+#define N_ABS       -1  ///< Absolute
+#define N_TEXT      1   ///< Text section
+#define N_DATA      2   ///< Data section
+#define N_BSS       3   ///< BSS section
 
 //
 // Default XENIX addresses
@@ -373,13 +408,87 @@ XenixGetSymbolByAddress (
   OUT IMGLOAD_SYMBOL_INFO  *SymbolInfo
   )
 {
+  XOUT_HEADER *Header;
+  XOUT_SYMBOL *Symbols;
+  UINT32 NumSymbols, i;
+  UINT32 SymbolOffset;
+  CHAR8 *StringTable;
+
   if (SymbolInfo == NULL) {
     return E_POINTER;
   }
 
   memset(SymbolInfo, 0, sizeof(IMGLOAD_SYMBOL_INFO));
 
-  // TODO: Parse XENIX symbol table
+  Header = (XOUT_HEADER *)ImageBase;
+  if (Header->SymbolSize == 0) {
+    return S_FALSE;
+  }
+
+  // Symbol table is after text, data, and relocations
+  SymbolOffset = sizeof(XOUT_HEADER) + Header->ExtSize +
+                 Header->TextSize + Header->DataSize + Header->Relocations;
+  Symbols = (XOUT_SYMBOL *)XOUT_OFF(SymbolOffset);
+  NumSymbols = Header->SymbolSize / sizeof(XOUT_SYMBOL);
+
+  // String table follows symbol table
+  StringTable = (CHAR8 *)XOUT_OFF(SymbolOffset + Header->SymbolSize);
+
+  // Search for symbol at address
+  for (i = 0; i < NumSymbols; i++) {
+    XOUT_SYMBOL *Sym = &Symbols[i];
+    VIRTUAL_ADDRESS SymAddr;
+    CONST CHAR8 *SymName;
+
+    // Skip auxiliary entries
+    if (Sym->AuxCount > 0) {
+      i += Sym->AuxCount;
+      continue;
+    }
+
+    // Calculate symbol address based on section
+    switch (Sym->SectionNumber) {
+      case N_TEXT:
+        SymAddr = XOUT_TEXT_START + Sym->Value;
+        break;
+
+      case N_DATA:
+        SymAddr = XOUT_DATA_START + Sym->Value;
+        break;
+
+      case N_BSS:
+        SymAddr = XOUT_DATA_START + Header->DataSize + Sym->Value;
+        break;
+
+      case N_ABS:
+        SymAddr = Sym->Value;
+        break;
+
+      default:
+        continue;  // Skip undefined/unknown
+    }
+
+    if (SymAddr == Address) {
+      // Get symbol name
+      if (Sym->N.StringRef.Zeros == 0) {
+        // Name in string table
+        SymName = StringTable + Sym->N.StringRef.StringOffset;
+      } else {
+        // Name inline (max 8 chars)
+        SymName = Sym->N.Name;
+      }
+
+      UINTN NameLen = strlen(SymName);
+      UINTN CopyLen = (NameLen < sizeof(SymbolInfo->Name) - 1) ?
+                      NameLen : (sizeof(SymbolInfo->Name) - 1);
+      memcpy(SymbolInfo->Name, SymName, CopyLen);
+      SymbolInfo->Name[CopyLen] = '\0';
+      SymbolInfo->Address = SymAddr;
+      SymbolInfo->Size = 0;  // Unknown
+      return S_OK;
+    }
+  }
+
   return S_FALSE;
 }
 
@@ -396,13 +505,101 @@ XenixGetSymbolByName (
   OUT IMGLOAD_SYMBOL_INFO  *SymbolInfo
   )
 {
+  XOUT_HEADER *Header;
+  XOUT_SYMBOL *Symbols;
+  UINT32 NumSymbols, i;
+  UINT32 SymbolOffset;
+  CHAR8 *StringTable;
+  UINTN SearchLen;
+
   if (SymbolInfo == NULL || Name == NULL) {
     return E_POINTER;
   }
 
   memset(SymbolInfo, 0, sizeof(IMGLOAD_SYMBOL_INFO));
 
-  // TODO: Parse XENIX symbol table
+  Header = (XOUT_HEADER *)ImageBase;
+  if (Header->SymbolSize == 0) {
+    return S_FALSE;
+  }
+
+  SearchLen = strlen(Name);
+
+  // Symbol table is after text, data, and relocations
+  SymbolOffset = sizeof(XOUT_HEADER) + Header->ExtSize +
+                 Header->TextSize + Header->DataSize + Header->Relocations;
+  Symbols = (XOUT_SYMBOL *)XOUT_OFF(SymbolOffset);
+  NumSymbols = Header->SymbolSize / sizeof(XOUT_SYMBOL);
+
+  // String table follows symbol table
+  StringTable = (CHAR8 *)XOUT_OFF(SymbolOffset + Header->SymbolSize);
+
+  // Search for symbol by name
+  for (i = 0; i < NumSymbols; i++) {
+    XOUT_SYMBOL *Sym = &Symbols[i];
+    VIRTUAL_ADDRESS SymAddr;
+    CONST CHAR8 *SymName;
+    BOOLEAN Match = FALSE;
+
+    // Skip auxiliary entries
+    if (Sym->AuxCount > 0) {
+      i += Sym->AuxCount;
+      continue;
+    }
+
+    // Get symbol name
+    if (Sym->N.StringRef.Zeros == 0) {
+      // Name in string table
+      SymName = StringTable + Sym->N.StringRef.StringOffset;
+      Match = (strcmp(SymName, Name) == 0);
+    } else {
+      // Name inline (max 8 chars)
+      UINTN InlineLen = 0;
+      while (InlineLen < 8 && Sym->N.Name[InlineLen] != '\0') {
+        InlineLen++;
+      }
+      if (InlineLen == SearchLen && memcmp(Sym->N.Name, Name, SearchLen) == 0) {
+        Match = TRUE;
+        SymName = Sym->N.Name;
+      }
+    }
+
+    if (!Match) {
+      continue;
+    }
+
+    // Calculate symbol address based on section
+    switch (Sym->SectionNumber) {
+      case N_TEXT:
+        SymAddr = XOUT_TEXT_START + Sym->Value;
+        break;
+
+      case N_DATA:
+        SymAddr = XOUT_DATA_START + Sym->Value;
+        break;
+
+      case N_BSS:
+        SymAddr = XOUT_DATA_START + Header->DataSize + Sym->Value;
+        break;
+
+      case N_ABS:
+        SymAddr = Sym->Value;
+        break;
+
+      default:
+        continue;  // Skip undefined/unknown
+    }
+
+    UINTN NameLen = strlen(SymName);
+    UINTN CopyLen = (NameLen < sizeof(SymbolInfo->Name) - 1) ?
+                    NameLen : (sizeof(SymbolInfo->Name) - 1);
+    memcpy(SymbolInfo->Name, SymName, CopyLen);
+    SymbolInfo->Name[CopyLen] = '\0';
+    SymbolInfo->Address = SymAddr;
+    SymbolInfo->Size = 0;  // Unknown
+    return S_OK;
+  }
+
   return S_FALSE;
 }
 
@@ -451,8 +648,49 @@ XenixApplyRelocations (
   IN VIRTUAL_ADDRESS  PreferredBase
   )
 {
-  // TODO: Implement XENIX relocation processing
-  return E_NOTIMPL;
+  XOUT_HEADER *Header;
+  UINT32 RelocOffset;
+  UINT32 *RelocTable;
+  UINT32 NumRelocs, i;
+  INT32 Delta;
+
+  Header = (XOUT_HEADER *)ImageBase;
+
+  if (Header->Relocations == 0) {
+    // No relocations
+    return S_FALSE;
+  }
+
+  Delta = (INT32)((INT64)LoadAddress - (INT64)PreferredBase);
+  if (Delta == 0) {
+    // Already at preferred base
+    return S_OK;
+  }
+
+  // Relocation table is after text and data
+  RelocOffset = sizeof(XOUT_HEADER) + Header->ExtSize +
+                Header->TextSize + Header->DataSize;
+  RelocTable = (UINT32 *)XOUT_OFF(RelocOffset);
+  NumRelocs = Header->Relocations / sizeof(UINT32);
+
+  // XENIX relocations are simple: each entry is an offset into text segment
+  // that needs to be adjusted by the load delta
+  UINT8 *TextBase = (UINT8 *)XOUT_OFF(sizeof(XOUT_HEADER) + Header->ExtSize);
+
+  for (i = 0; i < NumRelocs; i++) {
+    UINT32 Offset = RelocTable[i];
+
+    if (Offset >= Header->TextSize) {
+      // Invalid offset, skip
+      continue;
+    }
+
+    // Apply relocation (32-bit little-endian)
+    UINT32 *Target = (UINT32 *)(TextBase + Offset);
+    *Target += Delta;
+  }
+
+  return S_OK;
 }
 
 //

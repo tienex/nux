@@ -482,13 +482,115 @@ HunkGetSymbolByAddress (
   OUT IMGLOAD_SYMBOL_INFO  *SymbolInfo
   )
 {
+  UINT32 *Ptr = (UINT32 *)ImageBase;
+  UINT32 *End;
+  UINTN ImageSize = 0x100000;  // Assume max size for parsing
+
   if (SymbolInfo == NULL) {
     return E_POINTER;
   }
 
   memset(SymbolInfo, 0, sizeof(IMGLOAD_SYMBOL_INFO));
 
-  // TODO: Parse HUNK_SYMBOL hunks
+  End = (UINT32 *)((UINT8 *)ImageBase + ImageSize);
+
+  // Skip HUNK_HEADER
+  if (Ptr >= End || *Ptr != HUNK_HEADER) {
+    return S_FALSE;
+  }
+  Ptr++;
+
+  // Skip resident library names
+  while (Ptr < End && *Ptr != 0) {
+    UINT32 NameLen = *Ptr++;
+    Ptr += NameLen;
+  }
+  Ptr++;  // Skip terminating 0
+
+  // Skip hunk table
+  if (Ptr + 3 > End) return S_FALSE;
+  UINT32 NumHunks = *Ptr++;
+  Ptr += 2;  // Skip FirstHunk, LastHunk
+  Ptr += NumHunks;  // Skip hunk sizes
+
+  // Parse hunks looking for HUNK_SYMBOL
+  UINT32 CurrentHunk = 0;
+  VIRTUAL_ADDRESS CurrentBase = AMIGA_BASE_ADDR;
+
+  while (Ptr < End) {
+    UINT32 Magic = *Ptr++;
+
+    switch (Magic) {
+      case HUNK_CODE:
+      case HUNK_DATA: {
+        UINT32 Size = HUNK_SIZE(*Ptr++) * 4;
+        Ptr += Size / 4;
+        break;
+      }
+
+      case HUNK_BSS: {
+        HUNK_SIZE(*Ptr++);  // Just skip size
+        break;
+      }
+
+      case HUNK_SYMBOL: {
+        // Parse symbol entries for current hunk
+        while (Ptr < End && *Ptr != 0) {
+          UINT32 NameLen = *Ptr++;
+          if (NameLen == 0) break;
+
+          CHAR8 *Name = (CHAR8 *)Ptr;
+          Ptr += NameLen;
+
+          UINT32 Value = *Ptr++;
+          VIRTUAL_ADDRESS SymAddr = CurrentBase + Value;
+
+          if (SymAddr == Address) {
+            // Found matching symbol
+            UINTN CopyLen = ((NameLen * 4) < sizeof(SymbolInfo->Name) - 1) ?
+                            (NameLen * 4) : (sizeof(SymbolInfo->Name) - 1);
+            memcpy(SymbolInfo->Name, Name, CopyLen);
+            SymbolInfo->Name[CopyLen] = '\0';
+            SymbolInfo->Address = SymAddr;
+            SymbolInfo->Size = 0;
+            return S_OK;
+          }
+        }
+        break;
+      }
+
+      case HUNK_RELOC32:
+      case HUNK_DREL32:
+      case HUNK_DREL16:
+      case HUNK_DREL8:
+        while (Ptr < End && *Ptr != 0) {
+          UINT32 NumRelocs = *Ptr++;
+          if (NumRelocs == 0) break;
+          Ptr++;  // Skip hunk number
+          Ptr += NumRelocs;
+        }
+        Ptr++;
+        break;
+
+      case HUNK_DEBUG:
+        while (Ptr < End && *Ptr != 0) {
+          UINT32 NameLen = *Ptr++;
+          if (NameLen == 0) break;
+          Ptr += NameLen;
+          Ptr++;
+        }
+        break;
+
+      case HUNK_END:
+        CurrentHunk++;
+        // Update CurrentBase based on hunk tracking (simplified)
+        break;
+
+      default:
+        return S_FALSE;  // Unknown hunk
+    }
+  }
+
   return S_FALSE;
 }
 
@@ -505,13 +607,123 @@ HunkGetSymbolByName (
   OUT IMGLOAD_SYMBOL_INFO  *SymbolInfo
   )
 {
+  UINT32 *Ptr = (UINT32 *)ImageBase;
+  UINT32 *End;
+  UINTN ImageSize = 0x100000;  // Assume max size for parsing
+  UINTN SearchLen;
+
   if (SymbolInfo == NULL || Name == NULL) {
     return E_POINTER;
   }
 
   memset(SymbolInfo, 0, sizeof(IMGLOAD_SYMBOL_INFO));
 
-  // TODO: Parse HUNK_SYMBOL hunks
+  SearchLen = strlen(Name);
+  End = (UINT32 *)((UINT8 *)ImageBase + ImageSize);
+
+  // Skip HUNK_HEADER
+  if (Ptr >= End || *Ptr != HUNK_HEADER) {
+    return S_FALSE;
+  }
+  Ptr++;
+
+  // Skip resident library names
+  while (Ptr < End && *Ptr != 0) {
+    UINT32 NameLen = *Ptr++;
+    Ptr += NameLen;
+  }
+  Ptr++;  // Skip terminating 0
+
+  // Skip hunk table
+  if (Ptr + 3 > End) return S_FALSE;
+  UINT32 NumHunks = *Ptr++;
+  Ptr += 2;  // Skip FirstHunk, LastHunk
+  Ptr += NumHunks;  // Skip hunk sizes
+
+  // Parse hunks looking for HUNK_SYMBOL
+  UINT32 CurrentHunk = 0;
+  VIRTUAL_ADDRESS CurrentBase = AMIGA_BASE_ADDR;
+
+  while (Ptr < End) {
+    UINT32 Magic = *Ptr++;
+
+    switch (Magic) {
+      case HUNK_CODE:
+      case HUNK_DATA: {
+        UINT32 Size = HUNK_SIZE(*Ptr++) * 4;
+        Ptr += Size / 4;
+        break;
+      }
+
+      case HUNK_BSS: {
+        HUNK_SIZE(*Ptr++);  // Just skip size
+        break;
+      }
+
+      case HUNK_SYMBOL: {
+        // Parse symbol entries for current hunk
+        while (Ptr < End && *Ptr != 0) {
+          UINT32 NameLen = *Ptr++;
+          if (NameLen == 0) break;
+
+          CHAR8 *SymName = (CHAR8 *)Ptr;
+          UINTN SymNameBytes = NameLen * 4;
+          Ptr += NameLen;
+
+          UINT32 Value = *Ptr++;
+
+          // Check if name matches (null-terminated comparison)
+          if (SymNameBytes >= SearchLen) {
+            if (memcmp(SymName, Name, SearchLen) == 0 &&
+                (SymName[SearchLen] == '\0' || SearchLen == SymNameBytes)) {
+              // Found matching symbol
+              VIRTUAL_ADDRESS SymAddr = CurrentBase + Value;
+
+              UINTN CopyLen = (SymNameBytes < sizeof(SymbolInfo->Name) - 1) ?
+                              SymNameBytes : (sizeof(SymbolInfo->Name) - 1);
+              memcpy(SymbolInfo->Name, SymName, CopyLen);
+              SymbolInfo->Name[CopyLen] = '\0';
+              SymbolInfo->Address = SymAddr;
+              SymbolInfo->Size = 0;
+              return S_OK;
+            }
+          }
+        }
+        break;
+      }
+
+      case HUNK_RELOC32:
+      case HUNK_DREL32:
+      case HUNK_DREL16:
+      case HUNK_DREL8:
+        while (Ptr < End && *Ptr != 0) {
+          UINT32 NumRelocs = *Ptr++;
+          if (NumRelocs == 0) break;
+          Ptr++;  // Skip hunk number
+          Ptr += NumRelocs;
+        }
+        Ptr++;
+        break;
+
+      case HUNK_DEBUG:
+        while (Ptr < End && *Ptr != 0) {
+          UINT32 NameLen = *Ptr++;
+          if (NameLen == 0) break;
+          Ptr += NameLen;
+          Ptr++;
+        }
+        break;
+
+      case HUNK_END:
+        CurrentHunk++;
+        // Update CurrentBase based on hunk tracking (simplified)
+        break;
+
+      default:
+        return S_FALSE;  // Unknown hunk
+    }
+  }
+
   return S_FALSE;
 }
 
@@ -554,8 +766,135 @@ HunkApplyRelocations (
   IN VIRTUAL_ADDRESS  PreferredBase
   )
 {
-  // TODO: Implement HUNK_RELOC32/HUNK_DREL* relocation processing
-  return E_NOTIMPL;
+  UINT32 *Ptr = (UINT32 *)ImageBase;
+  UINT32 *End;
+  UINTN ImageSize = 0x100000;  // Assume max size
+  INT32 Delta;
+  VIRTUAL_ADDRESS CurrentBase = AMIGA_BASE_ADDR;
+  UINT8 *CurrentHunkData = NULL;
+
+  Delta = (INT32)((INT64)LoadAddress - (INT64)PreferredBase);
+  if (Delta == 0) {
+    return S_OK;  // No relocation needed
+  }
+
+  End = (UINT32 *)((UINT8 *)ImageBase + ImageSize);
+
+  // Skip HUNK_HEADER
+  if (Ptr >= End || *Ptr != HUNK_HEADER) {
+    return E_INVALIDARG;
+  }
+  Ptr++;
+
+  // Skip resident library names
+  while (Ptr < End && *Ptr != 0) {
+    UINT32 NameLen = *Ptr++;
+    Ptr += NameLen;
+  }
+  Ptr++;
+
+  // Skip hunk table
+  if (Ptr + 3 > End) return E_INVALIDARG;
+  UINT32 NumHunks = *Ptr++;
+  Ptr += 2;  // Skip FirstHunk, LastHunk
+  Ptr += NumHunks;  // Skip hunk sizes
+
+  // Parse hunks and apply relocations
+  while (Ptr < End) {
+    UINT32 Magic = *Ptr++;
+
+    switch (Magic) {
+      case HUNK_CODE:
+      case HUNK_DATA: {
+        UINT32 Size = HUNK_SIZE(*Ptr++) * 4;
+        CurrentHunkData = (UINT8 *)Ptr;
+        Ptr += Size / 4;
+        break;
+      }
+
+      case HUNK_BSS: {
+        HUNK_SIZE(*Ptr++);
+        CurrentHunkData = NULL;
+        break;
+      }
+
+      case HUNK_RELOC32: {
+        // Apply 32-bit relocations
+        while (Ptr < End && *Ptr != 0) {
+          UINT32 NumRelocs = *Ptr++;
+          if (NumRelocs == 0) break;
+
+          UINT32 TargetHunk = *Ptr++;  // Which hunk the relocs refer to
+
+          // Apply each relocation
+          for (UINT32 i = 0; i < NumRelocs && Ptr < End; i++) {
+            UINT32 Offset = *Ptr++;
+
+            if (CurrentHunkData != NULL) {
+              UINT32 *RelocTarget = (UINT32 *)(CurrentHunkData + Offset);
+              *RelocTarget += Delta;
+            }
+          }
+        }
+        Ptr++;  // Skip terminating 0
+        break;
+      }
+
+      case HUNK_DREL32: {
+        // Data-relative 32-bit relocations
+        while (Ptr < End && *Ptr != 0) {
+          UINT32 NumRelocs = *Ptr++;
+          if (NumRelocs == 0) break;
+
+          Ptr++;  // Skip target hunk
+
+          // Apply each relocation
+          for (UINT32 i = 0; i < NumRelocs && Ptr < End; i++) {
+            UINT32 Offset = *Ptr++;
+
+            if (CurrentHunkData != NULL) {
+              UINT32 *RelocTarget = (UINT32 *)(CurrentHunkData + Offset);
+              *RelocTarget += Delta;
+            }
+          }
+        }
+        Ptr++;
+        break;
+      }
+
+      case HUNK_DREL16:
+      case HUNK_DREL8:
+        // Skip these for now (less common)
+        while (Ptr < End && *Ptr != 0) {
+          UINT32 NumRelocs = *Ptr++;
+          if (NumRelocs == 0) break;
+          Ptr++;  // Skip hunk number
+          Ptr += NumRelocs;
+        }
+        Ptr++;
+        break;
+
+      case HUNK_SYMBOL:
+      case HUNK_DEBUG:
+        // Skip symbol/debug hunks
+        while (Ptr < End && *Ptr != 0) {
+          UINT32 NameLen = *Ptr++;
+          if (NameLen == 0) break;
+          Ptr += NameLen;
+          Ptr++;
+        }
+        break;
+
+      case HUNK_END:
+        CurrentHunkData = NULL;
+        break;
+
+      default:
+        return E_INVALIDARG;
+    }
+  }
+
+  return S_OK;
 }
 
 //

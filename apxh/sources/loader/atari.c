@@ -50,7 +50,26 @@ typedef struct _ATARI_PRG_HEADER {
   UINT16  RelocFlag;      ///< Relocation flag (0 = has relocation info)
 } ATARI_PRG_HEADER;
 
+typedef struct _ATARI_SYMBOL {
+  CHAR8   Name[8];        ///< Symbol name (space-padded)
+  UINT16  Type;           ///< Symbol type
+  UINT32  Value;          ///< Symbol value/address
+} ATARI_SYMBOL;
+
 ANX_PACK_POP()
+
+//
+// Atari Symbol Types
+//
+
+#define ATARI_SYM_DEFINED   0x8000  ///< Defined symbol
+#define ATARI_SYM_EQUATED   0x4000  ///< Equated symbol
+#define ATARI_SYM_GLOBAL    0x2000  ///< Global symbol
+#define ATARI_SYM_EQUATED_REG 0x1000  ///< Equated register
+#define ATARI_SYM_EXTERNAL  0x0800  ///< External reference
+#define ATARI_SYM_DATA      0x0400  ///< Data-based symbol
+#define ATARI_SYM_TEXT      0x0200  ///< Text-based symbol
+#define ATARI_SYM_BSS       0x0100  ///< BSS-based symbol
 
 //
 // Default Atari Load Addresses
@@ -352,13 +371,53 @@ AtariGetSymbolByAddress (
   OUT IMGLOAD_SYMBOL_INFO  *SymbolInfo
   )
 {
+  ATARI_PRG_HEADER *Header;
+  ATARI_SYMBOL *Symbols;
+  UINT32 NumSymbols, i;
+  UINT32 SymbolOffset;
+
   if (SymbolInfo == NULL) {
     return E_POINTER;
   }
 
   memset(SymbolInfo, 0, sizeof(IMGLOAD_SYMBOL_INFO));
 
-  // TODO: Parse Atari symbol table
+  Header = (ATARI_PRG_HEADER *)ImageBase;
+  if (Header->SymbolSize == 0) {
+    return S_FALSE;
+  }
+
+  // Symbol table is after data segment
+  SymbolOffset = sizeof(ATARI_PRG_HEADER) + Header->TextSize + Header->DataSize;
+  Symbols = (ATARI_SYMBOL *)ATARI_OFF(SymbolOffset);
+  NumSymbols = Header->SymbolSize / sizeof(ATARI_SYMBOL);
+
+  // Search for closest symbol at or before the address
+  for (i = 0; i < NumSymbols; i++) {
+    ATARI_SYMBOL *Sym = &Symbols[i];
+    UINT32 SymAddr = 0;
+
+    // Calculate symbol address based on type
+    if (Sym->Type & ATARI_SYM_TEXT) {
+      SymAddr = ATARI_TEXT_START + Sym->Value;
+    } else if (Sym->Type & ATARI_SYM_DATA) {
+      SymAddr = ATARI_TEXT_START + Header->TextSize + Sym->Value;
+    } else if (Sym->Type & ATARI_SYM_BSS) {
+      SymAddr = ATARI_TEXT_START + Header->TextSize + Header->DataSize + Sym->Value;
+    } else {
+      continue;  // Skip non-address symbols
+    }
+
+    if (SymAddr == Address) {
+      // Exact match
+      memcpy(SymbolInfo->Name, Sym->Name, 8);
+      SymbolInfo->Name[8] = '\0';
+      SymbolInfo->Address = SymAddr;
+      SymbolInfo->Size = 0;  // Unknown
+      return S_OK;
+    }
+  }
+
   return S_FALSE;
 }
 
@@ -375,13 +434,73 @@ AtariGetSymbolByName (
   OUT IMGLOAD_SYMBOL_INFO  *SymbolInfo
   )
 {
+  ATARI_PRG_HEADER *Header;
+  ATARI_SYMBOL *Symbols;
+  UINT32 NumSymbols, i;
+  UINT32 SymbolOffset;
+  UINTN NameLen;
+
   if (SymbolInfo == NULL || Name == NULL) {
     return E_POINTER;
   }
 
   memset(SymbolInfo, 0, sizeof(IMGLOAD_SYMBOL_INFO));
 
-  // TODO: Parse Atari symbol table
+  Header = (ATARI_PRG_HEADER *)ImageBase;
+  if (Header->SymbolSize == 0) {
+    return S_FALSE;
+  }
+
+  NameLen = strlen(Name);
+  if (NameLen > 8) {
+    return S_FALSE;  // Atari symbols are max 8 chars
+  }
+
+  // Symbol table is after data segment
+  SymbolOffset = sizeof(ATARI_PRG_HEADER) + Header->TextSize + Header->DataSize;
+  Symbols = (ATARI_SYMBOL *)ATARI_OFF(SymbolOffset);
+  NumSymbols = Header->SymbolSize / sizeof(ATARI_SYMBOL);
+
+  // Search for symbol by name
+  for (i = 0; i < NumSymbols; i++) {
+    ATARI_SYMBOL *Sym = &Symbols[i];
+    UINT32 SymAddr = 0;
+
+    // Compare names (space-padded in Atari format)
+    if (memcmp(Sym->Name, Name, NameLen) == 0) {
+      // Check if rest is spaces (or null terminator matched)
+      BOOLEAN Match = TRUE;
+      UINT32 j;
+      for (j = NameLen; j < 8; j++) {
+        if (Sym->Name[j] != ' ' && Sym->Name[j] != '\0') {
+          Match = FALSE;
+          break;
+        }
+      }
+
+      if (!Match) {
+        continue;
+      }
+
+      // Calculate symbol address based on type
+      if (Sym->Type & ATARI_SYM_TEXT) {
+        SymAddr = ATARI_TEXT_START + Sym->Value;
+      } else if (Sym->Type & ATARI_SYM_DATA) {
+        SymAddr = ATARI_TEXT_START + Header->TextSize + Sym->Value;
+      } else if (Sym->Type & ATARI_SYM_BSS) {
+        SymAddr = ATARI_TEXT_START + Header->TextSize + Header->DataSize + Sym->Value;
+      } else if (Sym->Type & ATARI_SYM_EQUATED) {
+        SymAddr = Sym->Value;  // Equated symbols use absolute values
+      }
+
+      memcpy(SymbolInfo->Name, Sym->Name, 8);
+      SymbolInfo->Name[8] = '\0';
+      SymbolInfo->Address = SymAddr;
+      SymbolInfo->Size = 0;  // Unknown
+      return S_OK;
+    }
+  }
+
   return S_FALSE;
 }
 
@@ -431,8 +550,92 @@ AtariApplyRelocations (
   IN VIRTUAL_ADDRESS  PreferredBase
   )
 {
-  // TODO: Implement Atari PRG relocation fixup table processing
-  return E_NOTIMPL;
+  ATARI_PRG_HEADER *Header;
+  UINT32 RelocOffset;
+  UINT8 *RelocTable;
+  UINT32 FirstOffset;
+  INT32 Delta;
+  UINT32 CurrentOffset;
+  UINT8 NextByte;
+
+  Header = (ATARI_PRG_HEADER *)ImageBase;
+
+  // Check if relocations are needed
+  if (Header->RelocFlag != 0) {
+    // No relocation information present
+    return S_FALSE;
+  }
+
+  Delta = (INT32)((INT64)LoadAddress - (INT64)PreferredBase);
+  if (Delta == 0) {
+    // Already at preferred base
+    return S_OK;
+  }
+
+  // Calculate relocation table offset
+  RelocOffset = sizeof(ATARI_PRG_HEADER) +
+                Header->TextSize +
+                Header->DataSize +
+                Header->SymbolSize;
+
+  RelocTable = (UINT8 *)ATARI_OFF(RelocOffset);
+
+  // Read first fixup offset (32-bit big-endian)
+  FirstOffset = ((UINT32)RelocTable[0] << 24) |
+                ((UINT32)RelocTable[1] << 16) |
+                ((UINT32)RelocTable[2] << 8) |
+                ((UINT32)RelocTable[3]);
+
+  if (FirstOffset == 0) {
+    // No relocations needed
+    return S_OK;
+  }
+
+  RelocTable += 4;
+  CurrentOffset = FirstOffset;
+
+  // Apply first relocation
+  {
+    UINT8 *TextBase = (UINT8 *)ATARI_OFF(sizeof(ATARI_PRG_HEADER));
+    UINT32 *RelocPtr = (UINT32 *)(TextBase + CurrentOffset);
+    UINT32 OldValue = ((UINT32)((UINT8 *)RelocPtr)[0] << 24) |
+                      ((UINT32)((UINT8 *)RelocPtr)[1] << 16) |
+                      ((UINT32)((UINT8 *)RelocPtr)[2] << 8) |
+                      ((UINT32)((UINT8 *)RelocPtr)[3]);
+    UINT32 NewValue = OldValue + Delta;
+
+    ((UINT8 *)RelocPtr)[0] = (NewValue >> 24) & 0xFF;
+    ((UINT8 *)RelocPtr)[1] = (NewValue >> 16) & 0xFF;
+    ((UINT8 *)RelocPtr)[2] = (NewValue >> 8) & 0xFF;
+    ((UINT8 *)RelocPtr)[3] = NewValue & 0xFF;
+  }
+
+  // Process relocation chain
+  while ((NextByte = *RelocTable++) != 0) {
+    if (NextByte == 1) {
+      // Special case: add 254 to offset
+      CurrentOffset += 254;
+    } else {
+      // Add byte value to offset
+      CurrentOffset += NextByte;
+
+      // Apply relocation at current offset
+      UINT8 *TextBase = (UINT8 *)ATARI_OFF(sizeof(ATARI_PRG_HEADER));
+      UINT32 *RelocPtr = (UINT32 *)(TextBase + CurrentOffset);
+      UINT32 OldValue = ((UINT32)((UINT8 *)RelocPtr)[0] << 24) |
+                        ((UINT32)((UINT8 *)RelocPtr)[1] << 16) |
+                        ((UINT32)((UINT8 *)RelocPtr)[2] << 8) |
+                        ((UINT32)((UINT8 *)RelocPtr)[3]);
+      UINT32 NewValue = OldValue + Delta;
+
+      ((UINT8 *)RelocPtr)[0] = (NewValue >> 24) & 0xFF;
+      ((UINT8 *)RelocPtr)[1] = (NewValue >> 16) & 0xFF;
+      ((UINT8 *)RelocPtr)[2] = (NewValue >> 8) & 0xFF;
+      ((UINT8 *)RelocPtr)[3] = NewValue & 0xFF;
+    }
+  }
+
+  return S_OK;
 }
 
 //

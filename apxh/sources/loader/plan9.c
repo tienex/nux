@@ -69,6 +69,21 @@ ANX_PACK_POP()
 #define PLAN9_HEADER_SIZE sizeof(PLAN9_EXEC)
 
 //
+// Plan 9 Symbol Types
+//
+
+#define PLAN9_SYM_TEXT       'T'  ///< Text (code) symbol - global
+#define PLAN9_SYM_TEXT_LOCAL 't'  ///< Text (code) symbol - local
+#define PLAN9_SYM_DATA       'D'  ///< Data symbol - global
+#define PLAN9_SYM_DATA_LOCAL 'd'  ///< Data symbol - local
+#define PLAN9_SYM_BSS        'B'  ///< BSS symbol - global
+#define PLAN9_SYM_BSS_LOCAL  'b'  ///< BSS symbol - local
+#define PLAN9_SYM_ABS        'A'  ///< Absolute symbol - global
+#define PLAN9_SYM_ABS_LOCAL  'a'  ///< Absolute symbol - local
+#define PLAN9_SYM_UNDEF      'U'  ///< Undefined symbol - global
+#define PLAN9_SYM_UNDEF_LOCAL 'u' ///< Undefined symbol - local
+
+//
 // Helper Macros
 //
 
@@ -416,13 +431,98 @@ Plan9GetSymbolByAddress (
   OUT IMGLOAD_SYMBOL_INFO  *SymbolInfo
   )
 {
+  PLAN9_EXEC *Header;
+  UINT8 *SymTable;
+  UINT32 SymbolSize, TextSize, DataSize;
+  UINT32 SymOffset;
+  UINT8 *Ptr, *End;
+
   if (SymbolInfo == NULL) {
     return E_POINTER;
   }
 
   memset(SymbolInfo, 0, sizeof(IMGLOAD_SYMBOL_INFO));
 
-  // TODO: Parse Plan 9 symbol table
+  Header = (PLAN9_EXEC *)ImageBase;
+  SymbolSize = SwapBE32((UINT32)Header->SymbolSize);
+
+  if (SymbolSize == 0) {
+    return S_FALSE;
+  }
+
+  TextSize = SwapBE32((UINT32)Header->TextSize);
+  DataSize = SwapBE32((UINT32)Header->DataSize);
+
+  // Symbol table is after text and data segments
+  SymOffset = PLAN9_HEADER_SIZE + TextSize + DataSize;
+  SymTable = (UINT8 *)PLAN9_OFF(SymOffset);
+  End = SymTable + SymbolSize;
+
+  // Parse symbol table entries
+  Ptr = SymTable;
+  while (Ptr < End) {
+    UINT8 Type;
+    UINT32 Value;
+    CHAR8 *Name;
+    UINTN NameLen;
+    VIRTUAL_ADDRESS SymAddr;
+
+    if (Ptr + 5 > End) break;  // Need at least type + value
+
+    Type = *Ptr++;
+    Value = ((UINT32)Ptr[0] << 24) |
+            ((UINT32)Ptr[1] << 16) |
+            ((UINT32)Ptr[2] << 8) |
+            ((UINT32)Ptr[3]);
+    Ptr += 4;
+
+    // Read null-terminated name
+    Name = (CHAR8 *)Ptr;
+    NameLen = 0;
+    while (Ptr < End && *Ptr != '\0') {
+      Ptr++;
+      NameLen++;
+    }
+    if (Ptr < End) Ptr++;  // Skip null terminator
+
+    // Calculate symbol address based on type
+    switch (Type) {
+      case PLAN9_SYM_TEXT:
+      case PLAN9_SYM_TEXT_LOCAL:
+        SymAddr = PLAN9_TEXT_BASE + Value;
+        break;
+
+      case PLAN9_SYM_DATA:
+      case PLAN9_SYM_DATA_LOCAL:
+        SymAddr = PLAN9_TEXT_BASE + TextSize + Value;
+        break;
+
+      case PLAN9_SYM_BSS:
+      case PLAN9_SYM_BSS_LOCAL:
+        SymAddr = PLAN9_TEXT_BASE + TextSize + DataSize + Value;
+        break;
+
+      case PLAN9_SYM_ABS:
+      case PLAN9_SYM_ABS_LOCAL:
+        SymAddr = Value;
+        break;
+
+      default:
+        continue;  // Skip undefined/unknown symbols
+    }
+
+    // Check for exact match
+    if (SymAddr == Address) {
+      UINTN CopyLen = (NameLen < sizeof(SymbolInfo->Name) - 1) ?
+                      NameLen : (sizeof(SymbolInfo->Name) - 1);
+      memcpy(SymbolInfo->Name, Name, CopyLen);
+      SymbolInfo->Name[CopyLen] = '\0';
+      SymbolInfo->Address = SymAddr;
+      SymbolInfo->Size = 0;  // Unknown
+      return S_OK;
+    }
+  }
+
   return S_FALSE;
 }
 
@@ -439,13 +539,100 @@ Plan9GetSymbolByName (
   OUT IMGLOAD_SYMBOL_INFO  *SymbolInfo
   )
 {
+  PLAN9_EXEC *Header;
+  UINT8 *SymTable;
+  UINT32 SymbolSize, TextSize, DataSize;
+  UINT32 SymOffset;
+  UINT8 *Ptr, *End;
+  UINTN SearchLen;
+
   if (SymbolInfo == NULL || Name == NULL) {
     return E_POINTER;
   }
 
   memset(SymbolInfo, 0, sizeof(IMGLOAD_SYMBOL_INFO));
 
-  // TODO: Parse Plan 9 symbol table
+  Header = (PLAN9_EXEC *)ImageBase;
+  SymbolSize = SwapBE32((UINT32)Header->SymbolSize);
+
+  if (SymbolSize == 0) {
+    return S_FALSE;
+  }
+
+  SearchLen = strlen(Name);
+  TextSize = SwapBE32((UINT32)Header->TextSize);
+  DataSize = SwapBE32((UINT32)Header->DataSize);
+
+  // Symbol table is after text and data segments
+  SymOffset = PLAN9_HEADER_SIZE + TextSize + DataSize;
+  SymTable = (UINT8 *)PLAN9_OFF(SymOffset);
+  End = SymTable + SymbolSize;
+
+  // Parse symbol table entries
+  Ptr = SymTable;
+  while (Ptr < End) {
+    UINT8 Type;
+    UINT32 Value;
+    CHAR8 *SymName;
+    UINTN NameLen;
+    VIRTUAL_ADDRESS SymAddr;
+
+    if (Ptr + 5 > End) break;  // Need at least type + value
+
+    Type = *Ptr++;
+    Value = ((UINT32)Ptr[0] << 24) |
+            ((UINT32)Ptr[1] << 16) |
+            ((UINT32)Ptr[2] << 8) |
+            ((UINT32)Ptr[3]);
+    Ptr += 4;
+
+    // Read null-terminated name
+    SymName = (CHAR8 *)Ptr;
+    NameLen = 0;
+    while (Ptr < End && *Ptr != '\0') {
+      Ptr++;
+      NameLen++;
+    }
+    if (Ptr < End) Ptr++;  // Skip null terminator
+
+    // Check if name matches
+    if (NameLen == SearchLen && memcmp(SymName, Name, SearchLen) == 0) {
+      // Calculate symbol address based on type
+      switch (Type) {
+        case PLAN9_SYM_TEXT:
+        case PLAN9_SYM_TEXT_LOCAL:
+          SymAddr = PLAN9_TEXT_BASE + Value;
+          break;
+
+        case PLAN9_SYM_DATA:
+        case PLAN9_SYM_DATA_LOCAL:
+          SymAddr = PLAN9_TEXT_BASE + TextSize + Value;
+          break;
+
+        case PLAN9_SYM_BSS:
+        case PLAN9_SYM_BSS_LOCAL:
+          SymAddr = PLAN9_TEXT_BASE + TextSize + DataSize + Value;
+          break;
+
+        case PLAN9_SYM_ABS:
+        case PLAN9_SYM_ABS_LOCAL:
+          SymAddr = Value;
+          break;
+
+        default:
+          continue;  // Skip undefined/unknown symbols
+      }
+
+      UINTN CopyLen = (NameLen < sizeof(SymbolInfo->Name) - 1) ?
+                      NameLen : (sizeof(SymbolInfo->Name) - 1);
+      memcpy(SymbolInfo->Name, SymName, CopyLen);
+      SymbolInfo->Name[CopyLen] = '\0';
+      SymbolInfo->Address = SymAddr;
+      SymbolInfo->Size = 0;  // Unknown
+      return S_OK;
+    }
+  }
+
   return S_FALSE;
 }
 
