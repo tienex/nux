@@ -12,8 +12,8 @@
 
 typedef struct {
     ITuiWidget WidgetInterface;
-    ITuiListBox ListBoxInterface;
     ITuiKeyListener KeyListener;
+    ITuiMouseListener MouseListener;
     ITuiDrawListener DrawListener;
 
     WIDGET_STATE State;
@@ -40,8 +40,8 @@ typedef struct {
 
 /* Helper macros for interface conversions */
 #define LISTBOX_FROM_WIDGET(w) ((TuiListBoxImpl*)((UINT8*)(w) - offsetof(TuiListBoxImpl, WidgetInterface)))
-#define LISTBOX_FROM_LISTBOX(l) ((TuiListBoxImpl*)((UINT8*)(l) - offsetof(TuiListBoxImpl, ListBoxInterface)))
 #define LISTBOX_FROM_KEY(k) ((TuiListBoxImpl*)((UINT8*)(k) - offsetof(TuiListBoxImpl, KeyListener)))
+#define LISTBOX_FROM_MOUSE(m) ((TuiListBoxImpl*)((UINT8*)(m) - offsetof(TuiListBoxImpl, MouseListener)))
 #define LISTBOX_FROM_DRAW(d) ((TuiListBoxImpl*)((UINT8*)(d) - offsetof(TuiListBoxImpl, DrawListener)))
 
 /*=============================================================================
@@ -63,13 +63,13 @@ static HRESULT ANXAPI ListBoxWidget_QueryInterface(ITuiWidget *This, REFIID riid
         impl->State.RefCount++;
         return S_OK;
     }
-    if (IsEqualGUID(riid, &IID_ITuiDrawListener)) {
-        *ppvObject = &impl->DrawListener;
+    if (IsEqualGUID(riid, &IID_ITuiMouseListener)) {
+        *ppvObject = &impl->MouseListener;
         impl->State.RefCount++;
         return S_OK;
     }
-    if (IsEqualGUID(riid, &IID_ITuiListBox)) {
-        *ppvObject = &impl->ListBoxInterface;
+    if (IsEqualGUID(riid, &IID_ITuiDrawListener)) {
+        *ppvObject = &impl->DrawListener;
         impl->State.RefCount++;
         return S_OK;
     }
@@ -512,30 +512,117 @@ static CONST ITuiDrawListener_Vtbl ListBoxDrawVtbl = {
 };
 
 /*=============================================================================
- * ITuiListBox Implementation (Backward Compatibility)
+ * ITuiMouseListener Implementation
  *===========================================================================*/
 
-static HRESULT ANXAPI ListBox_QueryInterface(ITuiListBox *This, REFIID riid, VOID **ppvObject)
+static HRESULT ANXAPI ListBoxMouse_QueryInterface(ITuiMouseListener *This, REFIID riid, VOID **ppvObject)
 {
-    TuiListBoxImpl *impl = LISTBOX_FROM_LISTBOX(This);
+    TuiListBoxImpl *impl = LISTBOX_FROM_MOUSE(This);
     return ListBoxWidget_QueryInterface(&impl->WidgetInterface, riid, ppvObject);
 }
 
-static UINTN ANXAPI ListBox_AddRef(ITuiListBox *This)
+static UINTN ANXAPI ListBoxMouse_AddRef(ITuiMouseListener *This)
 {
-    TuiListBoxImpl *impl = LISTBOX_FROM_LISTBOX(This);
+    TuiListBoxImpl *impl = LISTBOX_FROM_MOUSE(This);
     return ++impl->State.RefCount;
 }
 
-static UINTN ANXAPI ListBox_Release(ITuiListBox *This)
+static UINTN ANXAPI ListBoxMouse_Release(ITuiMouseListener *This)
 {
-    TuiListBoxImpl *impl = LISTBOX_FROM_LISTBOX(This);
+    TuiListBoxImpl *impl = LISTBOX_FROM_MOUSE(This);
     return ListBoxWidget_Release(&impl->WidgetInterface);
 }
 
-static HRESULT ANXAPI ListBox_AddItem(ITuiListBox *This, CONST CHAR8 *Item, VOID *UserData)
+static HRESULT ANXAPI ListBoxMouse_OnMouseEvent(ITuiMouseListener *This, CONST TUI_MOUSE_EVENT *Event, BOOLEAN *Handled)
 {
-    TuiListBoxImpl *impl = LISTBOX_FROM_LISTBOX(This);
+    TuiListBoxImpl *impl = LISTBOX_FROM_MOUSE(This);
+    BOOLEAN isOver;
+    INT32 relativeY, clickedIndex;
+    UINT32 actualItemCount;
+
+    *Handled = FALSE;
+    if (!impl->State.Enabled) return S_OK;
+
+    isOver = IsPointInWidget(&impl->State, Event->X, Event->Y);
+    if (!isOver) return S_OK;
+
+    /* Handle click to select item */
+    if (Event->Type == TuiMouseLeftDown) {
+        relativeY = Event->Y - impl->State.Bounds.Y;
+        clickedIndex = impl->ScrollOffset + relativeY;
+
+        actualItemCount = impl->VirtualMode ? impl->VirtualItemCount : impl->ItemCount;
+
+        if (clickedIndex >= 0 && (UINT32)clickedIndex < actualItemCount) {
+            impl->SelectedIndex = clickedIndex;
+
+            /* Call selection callback */
+            if (impl->SelectionCallback != NULL) {
+                impl->SelectionCallback(impl->UserData, clickedIndex);
+            }
+
+            *Handled = TRUE;
+        }
+    }
+
+    return S_OK;
+}
+
+static CONST ITuiMouseListener_Vtbl ListBoxMouseVtbl = {
+    ListBoxMouse_QueryInterface,
+    ListBoxMouse_AddRef,
+    ListBoxMouse_Release,
+    ListBoxMouse_OnMouseEvent
+};
+
+/*=============================================================================
+ * Factory Function
+ *===========================================================================*/
+
+HRESULT ANXAPI AnxTuiCreateListBox(IN UINT32 VisibleLines, OUT ITuiWidget **Widget)
+{
+    TuiListBoxImpl *impl;
+
+    if (Widget == NULL) return E_POINTER;
+
+    impl = (TuiListBoxImpl *)calloc(1, sizeof(TuiListBoxImpl));
+    if (impl == NULL) {
+        *Widget = NULL;
+        return E_OUTOFMEMORY;
+    }
+
+    /* Initialize vtables */
+    impl->WidgetInterface.Vtbl = &ListBoxWidgetVtbl;
+    impl->KeyListener.Vtbl = &ListBoxKeyVtbl;
+    impl->MouseListener.Vtbl = &ListBoxMouseVtbl;
+    impl->DrawListener.Vtbl = &ListBoxDrawVtbl;
+
+    /* Initialize widget state */
+    InitWidgetState(&impl->State);
+
+    /* Initialize listbox-specific state */
+    impl->ItemCount = 0;
+    impl->SelectedIndex = -1;
+    impl->ScrollOffset = 0;
+    impl->VisibleLines = VisibleLines;
+    impl->MultiSelect = FALSE;
+    impl->SelectionCallback = NULL;
+    impl->UserData = NULL;
+    impl->VirtualMode = FALSE;
+    impl->VirtualItemCount = 0;
+    impl->OnGetVirtualItem = NULL;
+    impl->VirtualUserData = NULL;
+    impl->NextResponder = NULL;
+    impl->Surface = NULL;
+
+    *Widget = &impl->WidgetInterface;
+    return S_OK;
+}
+
+/* Convenience functions for listbox-specific operations */
+HRESULT ANXAPI AnxTuiListBoxAddItem(ITuiWidget *Widget, CONST CHAR8 *Item, VOID *UserData)
+{
+    TuiListBoxImpl *impl = LISTBOX_FROM_WIDGET(Widget);
 
     if (Item == NULL) return E_POINTER;
     if (impl->ItemCount >= MAX_LIST_ITEMS) return E_OUTOFMEMORY;
@@ -549,9 +636,9 @@ static HRESULT ANXAPI ListBox_AddItem(ITuiListBox *This, CONST CHAR8 *Item, VOID
     return S_OK;
 }
 
-static HRESULT ANXAPI ListBox_RemoveItem(ITuiListBox *This, INT32 Index)
+HRESULT ANXAPI AnxTuiListBoxRemoveItem(ITuiWidget *Widget, INT32 Index)
 {
-    TuiListBoxImpl *impl = LISTBOX_FROM_LISTBOX(This);
+    TuiListBoxImpl *impl = LISTBOX_FROM_WIDGET(Widget);
     UINT32 i;
 
     if (Index < 0 || (UINT32)Index >= impl->ItemCount) return E_INVALIDARG;
@@ -573,34 +660,34 @@ static HRESULT ANXAPI ListBox_RemoveItem(ITuiListBox *This, INT32 Index)
     return S_OK;
 }
 
-static HRESULT ANXAPI ListBox_Clear(ITuiListBox *This)
+HRESULT ANXAPI AnxTuiListBoxClear(ITuiWidget *Widget)
 {
-    TuiListBoxImpl *impl = LISTBOX_FROM_LISTBOX(This);
+    TuiListBoxImpl *impl = LISTBOX_FROM_WIDGET(Widget);
     impl->ItemCount = 0;
     impl->SelectedIndex = -1;
     impl->ScrollOffset = 0;
     return S_OK;
 }
 
-static HRESULT ANXAPI ListBox_GetItemCount(ITuiListBox *This, UINT32 *Count)
+HRESULT ANXAPI AnxTuiListBoxGetItemCount(ITuiWidget *Widget, UINT32 *Count)
 {
-    TuiListBoxImpl *impl = LISTBOX_FROM_LISTBOX(This);
+    TuiListBoxImpl *impl = LISTBOX_FROM_WIDGET(Widget);
     if (Count == NULL) return E_POINTER;
     *Count = impl->ItemCount;
     return S_OK;
 }
 
-static HRESULT ANXAPI ListBox_GetSelectedIndex(ITuiListBox *This, INT32 *Index)
+HRESULT ANXAPI AnxTuiListBoxGetSelectedIndex(ITuiWidget *Widget, INT32 *Index)
 {
-    TuiListBoxImpl *impl = LISTBOX_FROM_LISTBOX(This);
+    TuiListBoxImpl *impl = LISTBOX_FROM_WIDGET(Widget);
     if (Index == NULL) return E_POINTER;
     *Index = impl->SelectedIndex;
     return S_OK;
 }
 
-static HRESULT ANXAPI ListBox_SetSelectedIndex(ITuiListBox *This, INT32 Index)
+HRESULT ANXAPI AnxTuiListBoxSetSelectedIndex(ITuiWidget *Widget, INT32 Index)
 {
-    TuiListBoxImpl *impl = LISTBOX_FROM_LISTBOX(This);
+    TuiListBoxImpl *impl = LISTBOX_FROM_WIDGET(Widget);
     UINT32 actualItemCount = impl->VirtualMode ? impl->VirtualItemCount : impl->ItemCount;
 
     if (Index < -1 || (Index >= 0 && (UINT32)Index >= actualItemCount)) {
@@ -626,9 +713,9 @@ static HRESULT ANXAPI ListBox_SetSelectedIndex(ITuiListBox *This, INT32 Index)
     return S_OK;
 }
 
-static HRESULT ANXAPI ListBox_GetItemText(ITuiListBox *This, INT32 Index, CHAR8 *Buffer, UINTN BufferSize)
+HRESULT ANXAPI AnxTuiListBoxGetItemText(ITuiWidget *Widget, INT32 Index, CHAR8 *Buffer, UINTN BufferSize)
 {
-    TuiListBoxImpl *impl = LISTBOX_FROM_LISTBOX(This);
+    TuiListBoxImpl *impl = LISTBOX_FROM_WIDGET(Widget);
 
     if (Buffer == NULL) return E_POINTER;
     if (Index < 0 || (UINT32)Index >= impl->ItemCount) return E_INVALIDARG;
@@ -638,97 +725,17 @@ static HRESULT ANXAPI ListBox_GetItemText(ITuiListBox *This, INT32 Index, CHAR8 
     return S_OK;
 }
 
-static HRESULT ANXAPI ListBox_SetSelectionCallback(ITuiListBox *This, HRESULT (*Callback)(VOID *UserData, INT32 Index), VOID *UserData)
+HRESULT ANXAPI AnxTuiListBoxSetSelectionCallback(ITuiWidget *Widget, HRESULT (*Callback)(VOID *UserData, INT32 Index), VOID *UserData)
 {
-    TuiListBoxImpl *impl = LISTBOX_FROM_LISTBOX(This);
+    TuiListBoxImpl *impl = LISTBOX_FROM_WIDGET(Widget);
     impl->SelectionCallback = Callback;
     impl->UserData = UserData;
     return S_OK;
 }
 
-static HRESULT ANXAPI ListBox_SetVisibleLines(ITuiListBox *This, UINT32 Lines)
+HRESULT ANXAPI AnxTuiListBoxSetVisibleLines(ITuiWidget *Widget, UINT32 Lines)
 {
-    TuiListBoxImpl *impl = LISTBOX_FROM_LISTBOX(This);
+    TuiListBoxImpl *impl = LISTBOX_FROM_WIDGET(Widget);
     impl->VisibleLines = Lines;
-    return S_OK;
-}
-
-static HRESULT ANXAPI ListBox_Render(ITuiListBox *This, ITuiScreen *Screen, INT32 X, INT32 Y, UINT32 Width, UINT32 Height)
-{
-    TuiListBoxImpl *impl = LISTBOX_FROM_LISTBOX(This);
-
-    /* Legacy render method - delegate to OnDraw */
-    if (impl->Surface) {
-        TUI_RECT rect = { X, Y, X + Width, Y + Height };
-        return ListBoxDraw_OnDraw(&impl->DrawListener, impl->Surface, &rect);
-    }
-
-    return S_OK;
-}
-
-static HRESULT ANXAPI ListBox_HandleKey(ITuiListBox *This, TUI_KEY Key, BOOLEAN *Handled)
-{
-    TuiListBoxImpl *impl = LISTBOX_FROM_LISTBOX(This);
-    return ListBoxKey_OnKeyDown(&impl->KeyListener, Key, 0, Handled);
-}
-
-static CONST ITuiListBox_Vtbl ListBoxVtbl = {
-    ListBox_QueryInterface,
-    ListBox_AddRef,
-    ListBox_Release,
-    ListBox_AddItem,
-    ListBox_RemoveItem,
-    ListBox_Clear,
-    ListBox_GetItemCount,
-    ListBox_GetSelectedIndex,
-    ListBox_SetSelectedIndex,
-    ListBox_GetItemText,
-    ListBox_SetSelectionCallback,
-    ListBox_SetVisibleLines,
-    ListBox_Render,
-    ListBox_HandleKey
-};
-
-/*=============================================================================
- * Factory Function
- *===========================================================================*/
-
-HRESULT ANXAPI AnxTuiCreateListBox(IN UINT32 VisibleLines, OUT ITuiListBox **ListBox)
-{
-    TuiListBoxImpl *impl;
-
-    if (ListBox == NULL) return E_POINTER;
-
-    impl = (TuiListBoxImpl *)calloc(1, sizeof(TuiListBoxImpl));
-    if (impl == NULL) {
-        *ListBox = NULL;
-        return E_OUTOFMEMORY;
-    }
-
-    /* Initialize vtables */
-    impl->WidgetInterface.Vtbl = &ListBoxWidgetVtbl;
-    impl->ListBoxInterface.Vtbl = &ListBoxVtbl;
-    impl->KeyListener.Vtbl = &ListBoxKeyVtbl;
-    impl->DrawListener.Vtbl = &ListBoxDrawVtbl;
-
-    /* Initialize widget state */
-    InitWidgetState(&impl->State);
-
-    /* Initialize listbox-specific state */
-    impl->ItemCount = 0;
-    impl->SelectedIndex = -1;
-    impl->ScrollOffset = 0;
-    impl->VisibleLines = VisibleLines;
-    impl->MultiSelect = FALSE;
-    impl->SelectionCallback = NULL;
-    impl->UserData = NULL;
-    impl->VirtualMode = FALSE;
-    impl->VirtualItemCount = 0;
-    impl->OnGetVirtualItem = NULL;
-    impl->VirtualUserData = NULL;
-    impl->NextResponder = NULL;
-    impl->Surface = NULL;
-
-    *ListBox = &impl->ListBoxInterface;
     return S_OK;
 }
