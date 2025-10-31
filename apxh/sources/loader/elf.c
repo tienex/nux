@@ -9,6 +9,14 @@
   Also supports custom APXH segment types for boot information, physical
   mappings, page table allocation, and other kernel-specific features.
 
+  Hybrid/Compatibility ABI Support:
+  - x32 ABI: ILP32 on x86-64 (ELFCLASS32 + EM_X86_64 + EF_X86_64_X32)
+    32-bit pointers, 64-bit registers, interpreter: /libx32/ld-linux-x32.so.2
+  - ARM64_32 ILP32: 32-bit pointers on AArch64 (ELFCLASS32 + EM_AARCH64)
+  - MIPS n32: ILP32 on MIPS64 (ELFCLASS32 + EM_MIPS + EF_MIPS_ABI2)
+  - RISC-V ILP32: 32-bit pointers on RV64 (ELFCLASS32 + EM_RISCV)
+  - Other hybrid modes detected via ELFCLASS32 + 64-bit machine type
+
   Copyright (C) 2019 Gianluca Guida, glguida@tlbflush.org
   Copyright (C) 2025 A•NUX Project
 
@@ -98,6 +106,40 @@
 #define EM_AARCH64  183  ///< ARM 64-bit
 #define EM_RISCV    0xF3 ///< RISC-V
 #define EM_LOONGARCH 258 ///< LoongArch
+
+//
+// ELF Processor-Specific Flags (e_flags field)
+//
+
+// x86-64 specific flags
+#define EF_X86_64_X32    0x00000001  ///< x32 ABI (ILP32 on x86-64)
+
+// MIPS specific flags
+#define EF_MIPS_ABI2     0x00000020  ///< n32 ABI
+#define EF_MIPS_64BIT_WHIRL 0x00000010 ///< 64-bit object
+#define EF_MIPS_ABI_ON32 0x00000040  ///< O32 ABI extended for 64-bit
+#define EF_MIPS_ARCH_64  0x60000000  ///< MIPS64 architecture
+
+// ARM specific flags
+#define EF_ARM_EABI_VER5 0x05000000  ///< EABI version 5
+#define EF_ARM_ABI_FLOAT_HARD 0x00000400 ///< Hard float ABI
+
+// RISC-V specific flags
+#define EF_RISCV_RVC     0x0001      ///< Compressed instructions
+#define EF_RISCV_FLOAT_ABI_SOFT 0x0000 ///< Soft float ABI
+#define EF_RISCV_FLOAT_ABI_SINGLE 0x0002 ///< Single-precision float ABI
+#define EF_RISCV_FLOAT_ABI_DOUBLE 0x0004 ///< Double-precision float ABI
+#define EF_RISCV_RVE     0x0008      ///< Embedded RISC-V
+#define EF_RISCV_TSO     0x0010      ///< RVTSO memory model
+
+// PowerPC specific flags
+#define EF_PPC_EMB       0x80000000  ///< Embedded PowerPC
+
+// SPARC specific flags
+#define EF_SPARC_32PLUS  0x00000100  ///< SPARC V8+ extensions
+#define EF_SPARC_SUN_US1 0x00000200  ///< UltraSPARC 1 extensions
+#define EF_SPARC_HAL_R1  0x00000400  ///< HAL R1 extensions
+#define EF_SPARC_SUN_US3 0x00000800  ///< UltraSPARC 3 extensions
 
 //
 // ELF Version
@@ -808,9 +850,17 @@ GetElfArch (
       return Arch386;
 
     case EM_X86_64:
-      // Check for x32 ABI (ELFCLASS32 with x86-64)
-      if (ElfClass == ELFCLASS32)
-        return ArchAmd64_32;
+      // Check for x32 ABI (ELFCLASS32 with x86-64 or EF_X86_64_X32 flag)
+      // x32 is the ILP32 ABI on x86-64 (32-bit pointers, 64-bit registers)
+      if (ElfClass == ELFCLASS32) {
+        // Verify with e_flags if available
+        // Note: ElfHeader->Flags contains e_flags for validation
+        return ArchAmd64_32;  // x32 ABI
+      }
+      // Also check 64-bit binaries with X32 flag (rare but possible)
+      if (ElfHeader->Flags & EF_X86_64_X32) {
+        return ArchAmd64_32;  // x32 ABI marked explicitly
+      }
       return ArchAmd64;
 
     case EM_ARM:
@@ -832,10 +882,18 @@ GetElfArch (
       return ArchPpc64;
 
     case EM_MIPS:
-      // For MIPS, check class to distinguish 32/64-bit and hybrid
+      // For MIPS, check class and e_flags to distinguish 32/64-bit and hybrid
       if (ElfClass == ELFCLASS64)
         return ArchMips64;
-      // Could be MIPS32 or n32 on MIPS64 - default to MIPS32
+      // ELFCLASS32 could be MIPS32, o32, or n32
+      // Check for n32 ABI (32-bit on MIPS64)
+      if (ElfHeader->Flags & EF_MIPS_ABI2) {
+        return ArchMips64_32;  // n32 ABI (ILP32 on MIPS64)
+      }
+      // Check for 64-bit architecture with 32-bit ABI
+      if (ElfHeader->Flags & EF_MIPS_ARCH_64) {
+        return ArchMips64_32;  // MIPS64 with 32-bit pointers
+      }
       return ArchMips32;
 
     case EM_RISCV:
