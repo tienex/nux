@@ -64,6 +64,7 @@ typedef struct _ITuiHBox ITuiHBox;
 typedef struct _ITuiGrid ITuiGrid;
 typedef struct _ITuiSplitView ITuiSplitView;
 typedef struct _ITuiSurface ITuiSurface;
+typedef struct _ITuiPropertySheet ITuiPropertySheet;
 
 //
 // Text Direction for BiDi Support
@@ -2911,6 +2912,41 @@ struct _ITuiSurface {
     CONST ITuiSurface_Vtbl *Vtbl;
 };
 
+// {F5A6B7C8-9D0E-1F2A-3B4C-5D6E7F8A9B0C}
+DEFINE_GUID(IID_ITuiPropertySheet,
+    0xF5A6B7C8, 0x9D0E, 0x1F2A, 0x3B, 0x4C, 0x5D, 0x6E, 0x7F, 0x8A, 0x9B, 0x0C);
+
+/**
+  ITuiPropertySheet Interface
+
+  Tabbed dialog with multiple property pages, OK/Cancel/Apply buttons,
+  validation, and modified state tracking.
+**/
+typedef struct _ITuiPropertySheet_Vtbl {
+    HRESULT (ANXAPI *QueryInterface)(ITuiPropertySheet *This, REFIID riid, VOID **ppvObject);
+    UINTN (ANXAPI *AddRef)(ITuiPropertySheet *This);
+    UINTN (ANXAPI *Release)(ITuiPropertySheet *This);
+    HRESULT (ANXAPI *Render)(ITuiPropertySheet *This, ITuiScreen *Screen, INT32 X, INT32 Y);
+    HRESULT (ANXAPI *HandleKey)(ITuiPropertySheet *This, TUI_KEY Key);
+    HRESULT (ANXAPI *SetBounds)(ITuiPropertySheet *This, CONST TUI_RECT *Bounds);
+    HRESULT (ANXAPI *GetBounds)(ITuiPropertySheet *This, TUI_RECT *Bounds);
+    HRESULT (ANXAPI *SetVisible)(ITuiPropertySheet *This, BOOLEAN Visible);
+    BOOLEAN (ANXAPI *IsVisible)(ITuiPropertySheet *This);
+    HRESULT (ANXAPI *SetEnabled)(ITuiPropertySheet *This, BOOLEAN Enabled);
+    BOOLEAN (ANXAPI *IsEnabled)(ITuiPropertySheet *This);
+    HRESULT (ANXAPI *AddPage)(ITuiPropertySheet *This, CONST CHAR8 *Title, CONST CHAR8 *Description, VOID *PageWidget, HRESULT (*OnActivate)(VOID*, VOID*), HRESULT (*OnDeactivate)(VOID*, VOID*), HRESULT (*OnApply)(VOID*, VOID*, BOOLEAN*), HRESULT (*OnValidate)(VOID*, VOID*, BOOLEAN*), HRESULT (*OnReset)(VOID*, VOID*), VOID *UserData);
+    HRESULT (ANXAPI *SetActivePage)(ITuiPropertySheet *This, INT32 PageIndex);
+    HRESULT (ANXAPI *SetPageModified)(ITuiPropertySheet *This, INT32 PageIndex, BOOLEAN Modified);
+    HRESULT (ANXAPI *Apply)(ITuiPropertySheet *This);
+    HRESULT (ANXAPI *OK)(ITuiPropertySheet *This);
+    HRESULT (ANXAPI *Cancel)(ITuiPropertySheet *This);
+    HRESULT (ANXAPI *Reset)(ITuiPropertySheet *This);
+} ITuiPropertySheet_Vtbl;
+
+struct _ITuiPropertySheet {
+    CONST ITuiPropertySheet_Vtbl *Vtbl;
+};
+
 //
 // Factory functions
 //
@@ -3469,6 +3505,20 @@ AnxTuiCreateSurface(
     IN  UINT32 Height,
     IN  ITuiScreen *Screen,
     OUT ITuiSurface **OutSurface
+);
+
+/**
+  Create a TUI Property Sheet instance.
+
+  @param[out] OutPropertySheet  Pointer to receive the property sheet interface.
+
+  @retval S_OK        Property sheet created successfully.
+  @retval E_OUTOFMEMORY  Memory allocation failed.
+**/
+HRESULT
+ANXAPI
+AnxTuiCreatePropertySheet(
+    OUT ITuiPropertySheet **OutPropertySheet
 );
 
 #ifdef __cplusplus
