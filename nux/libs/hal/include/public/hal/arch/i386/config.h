@@ -58,6 +58,7 @@ hal_umap_debug (struct hal_umap *umap)
   HAL CPU definition.
 */
 
+ANX_PACK_PUSH(1)
 struct i386_tss
 {
   UINT16 ptl, tmp0;
@@ -86,7 +87,8 @@ struct i386_tss
   UINT16 gs, tmp9;
   UINT16 ldt, tmpA;
   UINT16 t_flag, iomap;
-} __packed;
+};
+ANX_PACK_POP()
 
 struct hal_cpu
 {
@@ -99,6 +101,7 @@ struct hal_cpu
   HAL Frame definition.
 */
 
+ANX_PACK_PUSH(1)
 struct hal_frame
 {
   /* segments */
@@ -128,7 +131,8 @@ struct hal_frame
   UINT32 eflags;
   UINT32 esp;
   UINT32 ss;
-} __packed;
+};
+ANX_PACK_POP()
 
 
 #endif

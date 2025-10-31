@@ -203,8 +203,8 @@ HalPcpuEnter (
 
   assert (PcpuId < MAXCPUS);
 
-  asm volatile ("ltr %%ax"::"a" (Tss));
-  asm volatile ("mov %%ax, %%fs"::"a" (Fs));
+  ANX_CPU_LOAD_TR(Tss);
+  ANX_CPU_LOAD_FS(Fs);
 
   gBspEnterCalled = 1;
 }
@@ -219,7 +219,7 @@ HalCpuSetData (
   IN VOID  *Data
   )
 {
-  asm volatile ("movl %0, %%fs:0\n"::"r" (Data));
+  ANX_CPU_WRITE_FSBASE((UINT32)(UINTN)Data);
 }
 
 /**
@@ -232,10 +232,7 @@ HalCpuGetData (
   VOID
   )
 {
-  VOID *Data;
-
-  asm volatile ("movl %%fs:0, %0\n":"=r" (Data));
-  return Data;
+  return (VOID*)(UINTN)ANX_CPU_READ_FSBASE();
 }
 
 /**

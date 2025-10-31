@@ -32,7 +32,7 @@ NuxStatus (
 {
   UINT8 St;
 
-  __atomic_load (&gNuxStFlags, &St, __ATOMIC_ACQUIRE);
+  ANX_ATOMIC_LOAD (&gNuxStFlags, &St, __ATOMIC_ACQUIRE);
   return St;
 }
 
@@ -48,7 +48,7 @@ NuxStatusSetFlags (
   IN UINT8  Flags
   )
 {
-  return __atomic_fetch_or (&gNuxStFlags, Flags, __ATOMIC_ACQ_REL);
+  return ANX_ATOMIC_FETCH_OR (&gNuxStFlags, Flags, __ATOMIC_ACQ_REL);
 }
 
 /**
@@ -191,7 +191,7 @@ HalMainAp (
   )
 {
   CpuEnter ();
-  __atomic_sub_fetch (&gNuxApBooting, 1, __ATOMIC_ACQ_REL);
+  ANX_ATOMIC_SUB_FETCH (&gNuxApBooting, 1, __ATOMIC_ACQ_REL);
   exit (main_ap ());
 }
 

@@ -154,15 +154,3 @@ SlabFreeInternal (
 #define SPIN_LOCK_FREE(_x)
 
 #include <nux/slabinc.c>
-
-//
-// Legacy Function Wrappers (for backward compatibility)
-//
-
-#define slab_grow SlabGrow
-#define slab_shrink SlabShrink
-#define slab_alloc_opq SlabAllocOpq
-#define slab_free SlabFree
-#define slab_register SlabRegister
-#define slab_deregister SlabDeregister
-#define slab_printstats SlabPrintStats

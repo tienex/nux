@@ -5,7 +5,7 @@
   SPDX-License-Identifier: BSD-2-Clause
 */
 
-#include <machine/asm.h>
+#include <ananke/asmdefs.h>
 #include <hal/internal.h>
 #include <hal/arch/i386/i386.h>
 
@@ -46,7 +46,7 @@ _start:
 	mov %eax, _bsp_cr3
 
 	/* init hal */
-	call _C_LABEL(x86_init)
+	call ANX_ASM_MANGLE(x86_init)
 
 	push $_init_string
 	call ___start
@@ -133,8 +133,8 @@ _setup_idt:
 	ret
 	
 
-	.globl _C_LABEL(_set_tss)
-_C_LABEL(_set_tss):
+	.globl ANX_ASM_MANGLE(_set_tss)
+ANX_ASM_MANGLE(_set_tss):
 	push  %ebp
 	mov   %esp, %ebp
 	/* TSS (5 + 4*n) */
@@ -153,8 +153,8 @@ _C_LABEL(_set_tss):
 	pop  %ebp
 	ret
 
-	.globl _C_LABEL(_set_fs)
-_C_LABEL(_set_fs):
+	.globl ANX_ASM_MANGLE(_set_fs)
+ANX_ASM_MANGLE(_set_fs):
 	push  %ebp
 	mov   %esp, %ebp
 	/* FS (5 + 4*n + 1)*/
@@ -174,8 +174,8 @@ _C_LABEL(_set_fs):
 	pop  %ebp
 	ret
 
-	.globl _C_LABEL(_set_gs)
-_C_LABEL(_set_gs):
+	.globl ANX_ASM_MANGLE(_set_gs)
+ANX_ASM_MANGLE(_set_gs):
 	push  %ebp
 	mov   %esp, %ebp
 	/* GS (5 + 4*n + 2)*/
@@ -203,13 +203,13 @@ _C_LABEL(_set_gs):
  * stack.
  */
 	.code16
-	.globl _C_LABEL(_ap_start)
-ENTRY(_ap_start)
+	.globl ANX_ASM_MANGLE(_ap_start)
+ANX_ASM_FUNCTION_BEGIN(_ap_start)
 	cli
 	movw %cs, %ax
 	movw %ax, %ds
 
-	lgdtl _ap_gdtreg - _C_LABEL(_ap_start)
+	lgdtl _ap_gdtreg - ANX_ASM_MANGLE(_ap_start)
 	/* No IDT. If anything goes wrong here, machine triple-faults. */
 
 	movw $0xb800, %ax
@@ -241,7 +241,7 @@ ENTRY(_ap_start)
 	.globl _ap_gdtreg, _ap_ljmp, _ap_stackpage, _ap_cr3
 _ap_gdtreg:
 	.hword 127
-	.long .Lap_gdttmp - _C_LABEL(_ap_start)
+	.long .Lap_gdttmp - ANX_ASM_MANGLE(_ap_start)
 _ap_ljmp:
 	.long .Lap_setup - _ap_start
 	.word KCS
@@ -288,7 +288,7 @@ _ap_cr3:
 	or   $((1<<31)|(1<<16)), %eax
 	mov  %eax, %cr0
 	ljmp $0x08, $apsetup
-ENTRY(_ap_end)
+ANX_ASM_FUNCTION_BEGIN(_ap_end)
 
 	.code32
 apsetup:
@@ -325,7 +325,7 @@ apsetup:
 	mov (%eax), %esp
 
 	push %esp
-	call _C_LABEL(i386_init_ap)
+	call ANX_ASM_MANGLE(i386_init_ap)
 1:	hlt
 	jmp 1b
 

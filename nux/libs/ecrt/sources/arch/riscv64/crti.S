@@ -32,7 +32,7 @@
  * SUCH DAMAGE.
  */
 
-#include <machine/asm.h>
+#include <ananke/asmdefs.h>
 # this puts __global_pointer$ into .dynsym, so symlook_obj can now find that
 # (see reloc.c)
 	.weak	__global_pointer$

@@ -895,13 +895,13 @@ static INLINE UINT64 hal_cpu_cycles (VOID) {
 static INLINE VOID __dead hal_cpu_idle (VOID) {
   IHalCpu *Cpu; gpHal->lpVtbl->GetCpuInterface(gpHal, &Cpu);
   Cpu->lpVtbl->Idle(Cpu);
-  __builtin_unreachable();
+  ANX_UNREACHABLE();
 }
 
 static INLINE VOID __dead hal_cpu_halt (VOID) {
   IHalCpu *Cpu; gpHal->lpVtbl->GetCpuInterface(gpHal, &Cpu);
   Cpu->lpVtbl->Halt(Cpu);
-  __builtin_unreachable();
+  ANX_UNREACHABLE();
 }
 
 static INLINE VOID hal_cpu_tlbop (hal_tlbop_t op) {
@@ -1178,7 +1178,7 @@ static INLINE CONST struct apxh_platformdesc *hal_pltinfo (VOID) {
 
 static INLINE __dead VOID hal_panic (UINT32 cpu, PCCHAR8error, struct hal_frame *frame) {
   gpHal->lpVtbl->Panic(gpHal, cpu, error, frame);
-  __builtin_unreachable();
+  ANX_UNREACHABLE();
 }
 
 //

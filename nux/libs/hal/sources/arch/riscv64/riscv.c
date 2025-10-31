@@ -104,8 +104,7 @@ hal_cpu_relax (
   VOID
   )
 {
-  /* Should really use __builtin_riscv_pause() */
-  asm volatile ("nop\n");
+  ANX_CPU_NOP();
 }
 
 VOID
@@ -113,7 +112,7 @@ hal_cpu_trap (
   VOID
   )
 {
-  asm volatile ("ebreak;");
+  ANX_CPU_BREAKPOINT();
 }
 
 VOID
@@ -125,11 +124,11 @@ hal_cpu_idle (
 
   /* If IPI is pending, manually enable SI. */
   if (NmiEmulIpiPending ())
-    asm volatile ("csrsi sip, %0"::"K" (SIP_SSIP));
+    ANX_CPU_CSR_SET_IMM(sip, SIP_SSIP);
 
   while (1)
     {
-      asm volatile ("csrsi sstatus, 0x2; wfi;");
+      ANX_CPU_RISCV_ENABLE_INTR_WFI();
     }
 }
 
@@ -139,8 +138,7 @@ hal_cpu_halt (
   )
 {
   while (1)
-    asm volatile ("csrci sstatus, 0x2; 1: j 1b;");
-
+    ANX_CPU_RISCV_DISABLE_INTR_LOOP();
 }
 
 UINT64
@@ -148,9 +146,7 @@ hal_cpu_cycles (
   VOID
   )
 {
-  UINT64 cycles;
-  asm volatile ("rdcycle %0;" : "=r" (cycles));
-  return cycles;
+  return ANX_CPU_RDTSC();
 }
 
 VOID
@@ -161,7 +157,7 @@ hal_cpu_tlbop (
   if (tlbop == HAL_TLBOP_NONE)
     return;
 
-  asm volatile ("sfence.vma x0, x0":::"memory");
+  ANX_CPU_FLUSHTLB();
 }
 
 VOID
@@ -169,7 +165,7 @@ hal_useraccess_start (
   VOID
   )
 {
-  asm volatile ("csrs sstatus, %0"::"r" (SSTATUS_SUM):"memory");
+  ANX_CPU_CSR_SET(sstatus, SSTATUS_SUM);
 }
 
 VOID
@@ -177,7 +173,7 @@ hal_useraccess_end (
   VOID
   )
 {
-  asm volatile ("csrc sstatus, %0"::"r" (SSTATUS_SUM):"memory");
+  ANX_CPU_CSR_CLEAR(sstatus, SSTATUS_SUM);
 }
 
 VIRTUAL_ADDRESS
@@ -383,7 +379,7 @@ hal_putchar (
   IN INT32  ch
   )
 {
-  asm volatile ("mv a0, %0\n" "li a7, 1\n" "ecall\n"::"r" (ch):"a0", "a7");
+  ANX_CPU_SBI_PUTCHAR(ch);
   return ch;
 }
 
@@ -608,8 +604,8 @@ _hal_entry (
   riscv_sstatus_cli ();
   if (hal_frame_isuser (r))
     {
-      asm volatile ("csrw sscratch, tp\n");
-      //asm volatile  ("ebreak\n");
+      ANX_CPU_WRITE_SSCRATCH_TP();
+      //ANX_CPU_BREAKPOINT();
     }
   return r;
 }

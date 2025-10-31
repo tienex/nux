@@ -53,7 +53,7 @@ UmapSetL1e (
       return FALSE;
     }
   OldL1e = hal_l1e_set (L1p, L1e);
-  __atomic_or_fetch (&Umap->tlbop, hal_l1e_tlbop (OldL1e, L1e),
+  ANX_ATOMIC_OR_FETCH (&Umap->tlbop, hal_l1e_tlbop (OldL1e, L1e),
 		     __ATOMIC_RELEASE);
 
   hal_l1e_unbox (OldL1e, &OldPfn, &OldProt);
@@ -99,7 +99,7 @@ UmapChangeFlags (
   Flags &= ~ProtClr;
   L1e = hal_l1e_box (Pfn, Flags);
   OldL1e = hal_l1e_set (L1p, L1e);
-  __atomic_or_fetch (&Umap->tlbop, hal_l1e_tlbop (OldL1e, L1e),
+  ANX_ATOMIC_OR_FETCH (&Umap->tlbop, hal_l1e_tlbop (OldL1e, L1e),
 		     __ATOMIC_RELEASE);
   return OldFlags;
 }
@@ -163,7 +163,7 @@ UmapUnmap (
 
   L1e = hal_l1e_box (PFN_INVALID, 0);
   OldL1e = hal_l1e_set (L1p, L1e);
-  __atomic_or_fetch (&Umap->tlbop, hal_l1e_tlbop (OldL1e, L1e),
+  ANX_ATOMIC_OR_FETCH (&Umap->tlbop, hal_l1e_tlbop (OldL1e, L1e),
 		     __ATOMIC_RELEASE);
 
   hal_l1e_unbox (OldL1e, &OldPfn, &OldProt);
@@ -184,7 +184,7 @@ UmapCommit (
   IN struct umap  *Umap
   )
 {
-  __atomic_clear (&Umap->tlbop, __ATOMIC_RELEASE);
+  ANX_ATOMIC_CLEAR (&Umap->tlbop, __ATOMIC_RELEASE);
   CpuTlbFlushMask (Umap->cpumask);
 }
 
@@ -238,51 +238,4 @@ UmapInitialize (
   Umap->tlbop = 0;
   Umap->cpumask = 0;
   hal_umap_init (&Umap->hal);
-}
-
-//
-// Legacy Function Wrappers (for backward compatibility)
-//
-
-/** @deprecated Use UmapSetL1e instead **/
-static BOOLEAN _umap_setl1e (struct umap *umap, VIRTUAL_ADDRESS va, hal_l1e_t l1e, BOOLEAN alloc,
-	      PFN * opfn) {
-  return UmapSetL1e (umap, va, l1e, alloc, opfn);
-}
-
-/** @deprecated Use UmapChangeFlags instead **/
-unsigned UmapChFlags (struct umap *umap, VIRTUAL_ADDRESS va,
-	      UINT32 prot_set, UINT32 prot_clr) {
-  return UmapChangeFlags (umap, va, prot_set, prot_clr);
-}
-
-/** @deprecated Use UmapMap instead **/
-BOOLEAN UmapMap (struct umap *umap, VIRTUAL_ADDRESS va, PFN pfn, UINT32 prot,
-	  PFN * opfn) {
-  return UmapMap (umap, va, pfn, prot, opfn);
-}
-
-/** @deprecated Use UmapUnmap instead **/
-PFN UmapUnmap (struct umap *umap, VIRTUAL_ADDRESS va) {
-  return UmapUnmap (umap, va);
-}
-
-/** @deprecated Use UmapCommit instead **/
-VOID UmapCommit (struct umap *umap) {
-  UmapCommit (umap);
-}
-
-/** @deprecated Use UmapBootstrap instead **/
-VOID UmapBootstrap (struct umap *umap) {
-  UmapBootstrap (umap);
-}
-
-/** @deprecated Use UmapFree instead **/
-VOID UmapFree (struct umap *umap) {
-  UmapFree (umap);
-}
-
-/** @deprecated Use UmapInitialize instead **/
-VOID UmapInit (struct umap *umap) {
-  UmapInitialize (umap);
 }

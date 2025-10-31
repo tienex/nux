@@ -51,9 +51,9 @@ extern INT32 _memregs_end;
 //
 struct apxh_region _memregs_pinned[] = {
   // Remove me after getting ACPI pointer from kernel.
-  {.type = APXH_REGION_MMIO,.pfn = 0,.len = 1,},
+  {.type = ApxhRegionMmio,.pfn = 0,.len = 1,},
   // Mark the whole 0xA0000-0x100000 area as MMIO.
-  {.type = APXH_REGION_MMIO,.pfn = 0xa0,.len = 96,},
+  {.type = ApxhRegionMmio,.pfn = 0xa0,.len = 96,},
 };
 
 #define PINNED_MEMREGS (sizeof(_memregs_pinned)/sizeof(struct apxh_region))
@@ -80,7 +80,7 @@ Halt (
   )
 {
   while (1)
-    asm volatile ("cli; hlt");
+    ANX_CPU_CLI_HLT();
 }
 
 /**
@@ -95,11 +95,7 @@ ReadMsr (
   IN UINT32  Ecx
   )
 {
-  UINT32 Edx, Eax;
-
-  asm volatile ("rdmsr\n":"=d" (Edx), "=a" (Eax):"c" (Ecx));
-
-  return ((UINT64) Edx << 32) | Eax;
+  return ANX_CPU_RDMSR(Ecx);
 }
 
 /**
@@ -114,12 +110,7 @@ WriteMsr (
   IN UINT64  Val
   )
 {
-  UINT32 Edx, Eax;
-
-  Eax = (UINT32) Val;
-  Edx = (UINT32) (Val >> 32);
-
-  asm volatile ("wrmsr\n"::"a" (Eax), "d" (Edx), "c" (Ecx));
+  ANX_CPU_WRMSR(Ecx, Val);
 }
 
 /**
@@ -132,11 +123,7 @@ ReadCr4 (
   VOID
   )
 {
-  UINTN r;
-
-  asm volatile ("mov %%cr4, %0\n":"=r" (r));
-
-  return r;
+  return ANX_CPU_READ_CR4();
 }
 
 /**
@@ -149,7 +136,7 @@ WriteCr4 (
   IN UINTN  r
   )
 {
-  asm volatile ("mov %0, %%cr4\n"::"r" (r));
+  ANX_CPU_WRITE_CR4(r);
 }
 
 /**
@@ -162,11 +149,7 @@ ReadCr3 (
   VOID
   )
 {
-  UINTN r;
-
-  asm volatile ("mov %%cr3, %0\n":"=r" (r));
-
-  return r;
+  return ANX_CPU_READ_CR3();
 }
 
 /**
@@ -179,7 +162,7 @@ WriteCr3 (
   IN UINTN  r
   )
 {
-  asm volatile ("mov %0, %%cr3\n"::"r" (r));
+  ANX_CPU_WRITE_CR3(r);
 }
 
 /**
@@ -194,10 +177,7 @@ InB (
   IN INT32  Port
   )
 {
-  INT32 ret;
-
-  asm volatile ("xor %%eax, %%eax; inb %%dx, %%al":"=a" (ret):"d" (Port));
-  return ret;
+  return ANX_CPU_INB(Port);
 }
 
 /**
@@ -212,10 +192,7 @@ InW (
   IN UINT32  Port
   )
 {
-  INT32 ret;
-
-  asm volatile ("xor %%eax, %%eax; inw %%dx, %%ax":"=a" (ret):"d" (Port));
-  return ret;
+  return ANX_CPU_INW(Port);
 }
 
 /**
@@ -230,10 +207,7 @@ InL (
   IN UINT32  Port
   )
 {
-  INT32 ret;
-
-  asm volatile ("inl %%dx, %%eax":"=a" (ret):"d" (Port));
-  return ret;
+  return ANX_CPU_INL(Port);
 }
 
 /**
@@ -248,7 +222,7 @@ OutB (
   IN INT32  Val
   )
 {
-  asm volatile ("outb %%al, %%dx"::"d" (Port), "a" (Val));
+  ANX_CPU_OUTB(Port, Val);
 }
 
 /**
@@ -263,7 +237,7 @@ OutW (
   IN INT32   Val
   )
 {
-  asm volatile ("outw %%ax, %%dx"::"d" (Port), "a" (Val));
+  ANX_CPU_OUTW(Port, Val);
 }
 
 /**
@@ -278,7 +252,7 @@ OutL (
   IN INT32   Val
   )
 {
-  asm volatile ("outl %%eax, %%dx"::"d" (Port), "a" (Val));
+  ANX_CPU_OUTL(Port, Val);
 }
 
 /**
@@ -313,7 +287,7 @@ TlbFlushLocal (
   r = ReadCr3 ();
   WriteCr3 (r);
 
-  asm volatile ("":::"memory");
+  ANX_CPU_BARRIER();
 }
 
 
@@ -390,7 +364,7 @@ hal_cpu_relax (
   VOID
   )
 {
-  asm volatile ("pause");
+  ANX_CPU_PAUSE();
 }
 
 VOID
@@ -398,7 +372,7 @@ hal_cpu_trap (
   VOID
   )
 {
-  asm volatile ("ud2");
+  ANX_CPU_UD2();
 }
 
 UINT64
@@ -406,9 +380,7 @@ hal_cpu_cycles (
   VOID
   )
 {
-  UINT32 hi, lo;
-  asm volatile ("rdtsc" : "=a"(lo), "=d"(hi));
-  return ((UINT64)hi << 32) | lo;
+  return ANX_CPU_RDTSC();
 }
 
 __dead VOID
@@ -418,7 +390,7 @@ hal_cpu_idle (
 {
   while (1)
     {
-      asm volatile ("sti; hlt");
+      ANX_CPU_STI_HLT();
     }
 }
 
@@ -681,7 +653,7 @@ X86Initialize (
   for (INT32 i = 0; i < PINNED_MEMREGS; i++)
     {
       struct apxh_region *r = _memregs_pinned + i;
-      if (r->type != APXH_REGION_RAM)
+      if (r->type != ApxhRegionRam)
 	for (INT32 j = 0; j < r->len; j++)
 	  stree_clrbit (gHalStreePtr, gHalStreeOrder, r->pfn + j);
     }

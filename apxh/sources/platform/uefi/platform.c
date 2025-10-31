@@ -16,16 +16,16 @@
 
 static VOID *gpElfKernelPayload, *gpElfUserPayload;
 static UINTN gElfKernelPayloadSize, gElfUserPayloadSize;
-static unsigned long gMaxPfn;
-static unsigned long gMaxRamPfn;
-static unsigned long gMinRamPfn = -1;
-static unsigned gNumRegions;
+static UINTN gMaxPfn;
+static UINTN gMaxRamPfn;
+static UINTN gMinRamPfn = -1;
+static UINT32 gNumRegions;
 static VOID *gpEfiRsdp;
-static struct fbdesc gFbDesc = {.type = FB_INVALID, };
+static FRAMEBUFFER_DESC gFbDesc = {.Type = FB_INVALID, };
 
-static struct apxh_platformdesc gPlatformDesc;
+static APXH_PLATFORM_DESCRIPTOR gPlatformDesc;
 
-static struct bootinfo_region gMemRegions[BOOTINFO_REGIONS_MAX];
+static BOOTINFO_REGION gMemRegions[BOOTINFO_REGIONS_MAX];
 
 #include <apxh/uefi/internal.h>
 
@@ -39,12 +39,12 @@ static struct bootinfo_region gMemRegions[BOOTINFO_REGIONS_MAX];
 **/
 VOID __dead
 Exit (
-  IN int  Status
+  IN INT32 Status
   )
 {
   printf ("EXIT CALLED!\n");
 
-  efi_exit (Status);
+  EfiExit (Status);
   while (1);
 }
 
@@ -60,8 +60,8 @@ GetPage (
   VOID
   )
 {
-  return (UINTN) efi_allocate_maxaddr ((gMinRamPfn << PAGE_SHIFT) +
-					   (unsigned long) BOOTMEM);
+  return (UINTN) EfiAllocateMaxAddr ((gMinRamPfn << PAGE_SHIFT) +
+					   (UINTN) BOOTMEM);
 }
 
 /**
@@ -87,8 +87,8 @@ MdInitialize (
   @param[in] Size  Size of range to verify.
 **/
 VOID
-MdVerify (
-  IN VIRTUAL_ADDRESS  Va,
+PlatformVerify (
+  IN VIRTUAL_ADDRESS  VirtualAddress,
   IN UINT64   Size
   )
 {
@@ -108,9 +108,9 @@ MdVerify (
   @param[in] Entry  Kernel entry point virtual address.
 **/
 VOID
-MdEntry (
-  IN arch_t   Arch,
-  IN VIRTUAL_ADDRESS  Pt,
+PlatformEntry (
+  IN ARCH   Arch,
+  IN VIRTUAL_ADDRESS  PageTable,
   IN VIRTUAL_ADDRESS  Entry
   )
 {
@@ -132,12 +132,12 @@ MdEntry (
   TrampEntry = (VIRTUAL_ADDRESS) (UINTN) Tramp;
 
   /* Setup Direct map at 0->1Gb */
-  pae64_directmap (pTrampCr3, 0, 0, 64L << 30, MEMTYPE_WB, 0, 1);
+  Pae64DirectMap (pTrampCr3, 0, 0, 64L << 30, MEMTYPE_WB, 0, 1);
 
   /* Map Entry page in transitional pagetable VA. */
-  pae64_map_page (pTrampCr3, (VIRTUAL_ADDRESS) Entry, pae64_getphys (Entry), 0, 0, 1);
+  Pae64MapPage (pTrampCr3, (VIRTUAL_ADDRESS) Entry, Pae64GetPhysical (Entry), 0, 0, 1);
 
-  efi_exitbs ();
+  EfiExitBs ();
 
   /* Assume physical mapping mode, 1:1 on lower addresses. */
   asm volatile
@@ -146,7 +146,7 @@ MdEntry (
      "mov %2, %%rsi\n"
      "mov %3, %%rcx\n"
      "cli\n"
-     "jmp *%%rax\n"::"m" (TrampEntry), "m" (Entry), "m" (Pt),
+     "jmp *%%rax\n"::"m" (TrampEntry), "m" (Entry), "m" (PageTable),
      "m" (pTrampCr3));
 }
 #elif EC_MACHINE_RISCV64
@@ -162,14 +162,14 @@ MdEntry (
   @param[in] Entry  Kernel entry point virtual address.
 **/
 VOID
-MdEntry (
-  IN arch_t   Arch,
-  IN VIRTUAL_ADDRESS  Pt,
+PlatformEntry (
+  IN ARCH   Arch,
+  IN VIRTUAL_ADDRESS  PageTable,
   IN VIRTUAL_ADDRESS  Entry
   )
 {
   VOID *TrampRoot;
-  unsigned long TrampSatp, Satp;
+  UINTN TrampSatp, Satp;
   extern char trampoline_start asm ("__rv64_tstart");
   extern char trampoline_end asm ("__rv64_tend");
 
@@ -180,20 +180,20 @@ MdEntry (
   /* Setup trampoline. */
   TrampRoot = (VOID *) GetPage ();
   /* Map trampoline page */
-  sv48_directmap (TrampRoot, (UINTN) & trampoline_start,
+  Sv48DirectMap (TrampRoot, (UINTN) & trampoline_start,
 		  (UINTN) & trampoline_start,
 		  (UINTN) (&trampoline_end - &trampoline_start),
 		  MEMTYPE_WB, 0, 1);
   /* Map start page */
-  sv48_directmap (TrampRoot, sv48_getphys (Entry), Entry, 4096, MEMTYPE_WB,
+  Sv48DirectMap (TrampRoot, Sv48GetPhysical (Entry), Entry, 4096, MEMTYPE_WB,
 		  0, 1);
 
   TrampSatp = 0x9L << 60 | (UINTN) TrampRoot >> PAGE_SHIFT;
-  Satp = 0x9L << 60 | Pt >> PAGE_SHIFT;
+  Satp = 0x9L << 60 | PageTable >> PAGE_SHIFT;
 
   printf ("%lx %lx %lx\n", TrampSatp, Entry, Satp);
 
-  efi_exitbs ();
+  EfiExitBs ();
 
   asm volatile
     (".globl __rv64_tstart, __rv64_tend\n"
@@ -218,7 +218,7 @@ MdEntry (
   @return Maximum PFN across all memory regions.
 **/
 UINT64
-MdMaxPfn (
+PlatformGetMaxPageFrameNumber (
   VOID
   )
 {
@@ -233,7 +233,7 @@ MdMaxPfn (
   @return Minimum RAM PFN.
 **/
 UINT64
-MdMinRamPfn (
+PlatformGetMinRamPageFrameNumber (
   VOID
   )
 {
@@ -248,7 +248,7 @@ MdMinRamPfn (
   @return Maximum RAM PFN.
 **/
 UINT64
-MdMaxRamPfn (
+PlatformGetMaxRamPageFrameNumber (
   VOID
   )
 {
@@ -264,9 +264,9 @@ MdMaxRamPfn (
 
   @return Pointer to bootinfo_region structure.
 **/
-struct bootinfo_region *
-MdGetMemRegion (
-  IN unsigned  Index
+BOOTINFO_REGION *
+PlatformGetMemoryRegion (
+  IN UINT32 Index
   )
 {
   assert (Index < BOOTINFO_REGIONS_MAX);
@@ -281,8 +281,8 @@ MdGetMemRegion (
 
   @return Number of memory regions.
 **/
-unsigned
-MdMemRegions (
+UINT32
+PlatformGetMemoryRegionCount (
   VOID
   )
 {
@@ -297,8 +297,8 @@ MdMemRegions (
 
   @return Pointer to fbdesc structure.
 **/
-struct fbdesc *
-MdGetFramebuffer (
+FRAMEBUFFER_DESC *
+PlatformGetFramebuffer (
   VOID
   )
 {
@@ -312,13 +312,13 @@ MdGetFramebuffer (
 
   @return Pointer to apxh_platformdesc structure.
 **/
-struct apxh_platformdesc *
-MdGetPlatformDesc (
+APXH_PLATFORM_DESCRIPTOR *
+PlatformGetDescriptor (
   VOID
   )
 {
   /* Only ACPI supported. */
-  gPlatformDesc.type = PLATFORM_ACPI;
+  gPlatformDesc.Type = ApxhPlatformAcpi;
   gPlatformDesc.PlatformPointer = (UINT64) (UINTN) gpEfiRsdp;
   return &gPlatformDesc;
 }
@@ -336,14 +336,14 @@ MdGetPlatformDesc (
 **/
 VOID *
 GetPayloadStart (
-  IN int     Argc,
-  IN char    *Argv[],
-  IN plid_t  Id
+  IN INT32 ArgumentCount,
+  IN char    *ArgumentVector[],
+  IN PAYLOAD_ID  PayloadId
   )
 {
   VOID *ElfPayload;
 
-  switch (Id)
+  switch (PayloadId)
     {
     case PAYLOAD_KERNEL:
       ElfPayload = gpElfKernelPayload;
@@ -352,7 +352,7 @@ GetPayloadStart (
       ElfPayload = gpElfUserPayload;
       break;
     default:
-      printf ("Unsupported payload ID %d\n", Id);
+      printf ("Unsupported payload ID %d\n", PayloadId);
       ElfPayload = NULL;
       break;
     }
@@ -369,14 +369,14 @@ GetPayloadStart (
 
   @return Payload size in bytes, or 0 if not loaded.
 **/
-unsigned long
+UINTN
 GetPayloadSize (
-  IN plid_t  Id
+  IN PAYLOAD_ID  PayloadId
   )
 {
   UINTN ElfPayloadSize;
 
-  switch (Id)
+  switch (PayloadId)
     {
     case PAYLOAD_KERNEL:
       ElfPayloadSize = gElfKernelPayloadSize;
@@ -385,7 +385,7 @@ GetPayloadSize (
       ElfPayloadSize = gElfUserPayloadSize;
       break;
     default:
-      printf ("Unsupported payload ID %d\n", Id);
+      printf ("Unsupported payload ID %d\n", PayloadId);
       ElfPayloadSize = 0;
       break;
     }
@@ -421,7 +421,7 @@ ApxhEfiAddFramebuffer (
   IN UINT32   Bm
   )
 {
-  gFbDesc.type = FB_RGB;
+  gFbDesc.Type = FB_RGB;
   gFbDesc.addr = Addr;
   gFbDesc.size = Size;
 
@@ -449,39 +449,39 @@ ApxhEfiAddFramebuffer (
 **/
 VOID
 ApxhEfiAddMemRegion (
-  IN int            Ram,
-  IN int            Bsy,
-  IN unsigned long  Pfn,
-  IN unsigned       Len
+  IN INT32 Ram,
+  IN INT32 Bsy,
+  IN UINTN  Pfn,
+  IN UINT32 Len
   )
 {
-  unsigned Cur = gNumRegions;
+  UINT32 CurrentRegionIndex = gNumRegions;
 
-  if (Cur >= BOOTINFO_REGIONS_MAX)
+  if (CurrentRegionIndex >= BOOTINFO_REGIONS_MAX)
     {
       printf ("Exceeded maximum number of memory regions. (%d >= %d\n",
-	      Cur, BOOTINFO_REGIONS_MAX);
+	      CurrentRegionIndex, BOOTINFO_REGIONS_MAX);
       return;
     }
 
-  gMemRegions[Cur].pfn = Pfn;
-  gMemRegions[Cur].len = Len;
+  gMemRegions[CurrentRegionIndex].PageFrameNumber = Pfn;
+  gMemRegions[CurrentRegionIndex].Length = Len;
 
   if (Pfn + Len > gMaxPfn)
     gMaxPfn = Pfn + Len;
 
   if (Ram && !Bsy)
     {
-      gMemRegions[Cur].type = BOOTINFO_REGION_RAM;
+      gMemRegions[CurrentRegionIndex].Type = BootInfoRegionRam;
       if (Pfn + Len > gMaxRamPfn)
 	gMaxRamPfn = Pfn + Len;
       if (Pfn < gMinRamPfn)
 	gMinRamPfn = Pfn;
     }
   else if (Ram && Bsy)
-    gMemRegions[Cur].type = BOOTINFO_REGION_BSY;
+    gMemRegions[CurrentRegionIndex].Type = BootInfoRegionBusy;
   else
-    gMemRegions[Cur].type = BOOTINFO_REGION_OTHER;
+    gMemRegions[CurrentRegionIndex].Type = BootInfoRegionOther;
 
 
   gNumRegions++;
@@ -537,106 +537,4 @@ ApxhEfiAddRsdp (
   )
 {
   gpEfiRsdp = Rsdp;
-}
-
-//
-// Legacy Function Wrappers (for backward compatibility)
-//
-
-/** @deprecated Use Exit instead **/
-void __dead exit (int st) {
-  Exit (st);
-}
-
-/** @deprecated Use GetPage instead **/
-UINTN get_page (void) {
-  return GetPage ();
-}
-
-/** @deprecated Use MdInitialize instead **/
-void md_init (void) {
-  MdInitialize ();
-}
-
-/** @deprecated Use MdVerify instead **/
-void md_verify (VIRTUAL_ADDRESS va, UINT64 size) {
-  MdVerify (va, size);
-}
-
-/** @deprecated Use MdEntry instead **/
-void md_entry (arch_t arch, VIRTUAL_ADDRESS pt, VIRTUAL_ADDRESS entry) {
-  MdEntry (arch, pt, entry);
-}
-
-/** @deprecated Use MdMaxPfn instead **/
-UINT64 md_maxpfn (void) {
-  return MdMaxPfn ();
-}
-
-/** @deprecated Use MdMinRamPfn instead **/
-UINT64 md_minrampfn (void) {
-  return MdMinRamPfn ();
-}
-
-/** @deprecated Use MdMaxRamPfn instead **/
-UINT64 md_maxrampfn (void) {
-  return MdMaxRamPfn ();
-}
-
-/** @deprecated Use MdGetMemRegion instead **/
-struct bootinfo_region *md_getmemregion (unsigned i) {
-  return MdGetMemRegion (i);
-}
-
-/** @deprecated Use MdMemRegions instead **/
-unsigned md_memregions (void) {
-  return MdMemRegions ();
-}
-
-/** @deprecated Use MdGetFramebuffer instead **/
-struct fbdesc *md_getframebuffer (void) {
-  return MdGetFramebuffer ();
-}
-
-/** @deprecated Use MdGetPlatformDesc instead **/
-struct apxh_platformdesc *md_getplatformdesc (void) {
-  return MdGetPlatformDesc ();
-}
-
-/** @deprecated Use GetPayloadStart instead **/
-void *get_payload_start (int argc, char *argv[], plid_t id) {
-  return GetPayloadStart (argc, argv, id);
-}
-
-/** @deprecated Use GetPayloadSize instead **/
-unsigned long get_payload_size (plid_t id) {
-  return GetPayloadSize (id);
-}
-
-/** @deprecated Use ApxhEfiAddFramebuffer instead **/
-void apxhefi_add_framebuffer (UINT64 addr, UINT64 size,
-			      UINT32 width, UINT32 height,
-			      UINT32 pitch, UINT32 bpp,
-			      UINT32 rm, UINT32 gm, UINT32 bm) {
-  ApxhEfiAddFramebuffer (addr, size, width, height, pitch, bpp, rm, gm, bm);
-}
-
-/** @deprecated Use ApxhEfiAddMemRegion instead **/
-void apxhefi_add_memregion (int ram, int bsy, unsigned long pfn, unsigned len) {
-  ApxhEfiAddMemRegion (ram, bsy, pfn, len);
-}
-
-/** @deprecated Use ApxhEfiAddKernelPayload instead **/
-void apxhefi_add_kernel_payload (void *start, UINTN size) {
-  ApxhEfiAddKernelPayload (start, size);
-}
-
-/** @deprecated Use ApxhEfiAddUserPayload instead **/
-void apxhefi_add_user_payload (void *start, UINTN size) {
-  ApxhEfiAddUserPayload (start, size);
-}
-
-/** @deprecated Use ApxhEfiAddRsdp instead **/
-void apxhefi_add_rsdp (void *rsdp) {
-  ApxhEfiAddRsdp (rsdp);
 }

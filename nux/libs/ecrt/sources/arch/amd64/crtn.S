@@ -33,7 +33,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <machine/asm.h>
+#include <ananke/asmdefs.h>
 
 	.section ".init", "ax", @progbits
 	addq	$8, %rsp

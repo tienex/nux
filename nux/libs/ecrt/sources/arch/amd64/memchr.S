@@ -29,7 +29,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <machine/asm.h>
+#include <ananke/asmdefs.h>
 
 #if defined(LIBC_SCCS)
 	RCSID("$NetBSD: memchr.S,v 1.6 2014/03/22 19:16:34 jakllsch Exp $")
@@ -45,7 +45,7 @@
  * I don't think aligning any of the other branch targets is useful.
  */
 
-ENTRY(memchr)
+ANX_ASM_FUNCTION_BEGIN(memchr)
 	movabsq	$0x0101010101010101,%r8
 	lea	(%rdi,%rdx),%r10	/* limit of buffer to scan */
 	movzbq	%sil,%rsi	/* mask high bits! */
@@ -106,4 +106,4 @@ ENTRY(memchr)
 /* Not found */
 30:	xorq	%rax,%rax
 	ret
-END(memchr)
+ANX_ASM_FUNCTION_END(memchr)

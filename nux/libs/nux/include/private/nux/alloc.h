@@ -44,14 +44,14 @@ static INLINE UINT32
 lsbit (unsigned INTN x)
 {
   assert (x != 0);
-  return __builtin_ffsl (x) - 1;
+  return ANX_FFSN (x) - 1;
 }
 
 static INLINE UINT32
 msbit (unsigned INTN x)
 {
   assert (x != 0);
-  return LONG_BIT - __builtin_clzl (x) - 1;
+  return LONG_BIT - ANX_CLZN (x) - 1;
 }
 
 #define ORDMAX LONG_BIT

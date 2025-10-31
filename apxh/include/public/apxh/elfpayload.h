@@ -4,12 +4,9 @@
 
   SPDX-License-Identifier:	BSD-2-Clause
 */
+#pragma once
 
-#ifndef __apxh_elfpayload_h__
-#define __apxh_elfpayload_h__
-
-#include <stddef.h>
-#include <inttypes.h>
+#include <ananke/ananke.h>
 
 /*
 
@@ -18,7 +15,7 @@
 */
 
 /* Get payload address. */
-void *payload_get (unsigned i, UINTN *size);
+VOID *PayloadGet (IN UINT32 Index, OUT OPTIONAL UINTN *Size);
 
 
 /*
@@ -37,16 +34,14 @@ void *payload_get (unsigned i, UINTN *size);
   Payloads are located at the end of the last kernel data/BSS
   address. The payload itself is prefixed by the following header.
 **/
+ANX_PACK_PUSH(1)
 typedef struct _PAYLOAD_HDR
 {
-  UINT64 magic;
-  UINT64 filename;
-  UINT32 size;
-} __attribute__((packed)) PAYLOAD_HDR, *PPAYLOAD_HDR, *PCPAYLOAD_HDR;
-
-/** Legacy compatibility **/
-#define payload_hdr PAYLOAD_HDR
+  UINT64 Magic;
+  UINT64 Filename;
+  UINT32 Size;
+} PAYLOAD_HDR, *PPAYLOAD_HDR, *PCPAYLOAD_HDR;
+ANX_PACK_POP()
 
 
 
-#endif

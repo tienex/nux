@@ -29,7 +29,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <machine/asm.h>
+#include <ananke/asmdefs.h>
 
 #if defined(LIBC_SCCS)
 	RCSID("$NetBSD: memset.S,v 1.5 2014/05/22 16:47:31 pooka Exp $")
@@ -38,7 +38,7 @@
 #ifndef _KERNEL
 /* bzero, %rdi is buffer, %rsi length */
 
-ENTRY(bzero)
+ANX_ASM_FUNCTION_BEGIN(bzero)
 	mov	%rsi,%rdx		/* length */
 	xor	%eax,%eax		/* value to write */
 	jmp	1f
@@ -46,7 +46,7 @@ ENTRY(bzero)
 
 /* memset, %rdi is buffer, %rsi char to fill, %rdx length */
 
-ENTRY(memset)
+ANX_ASM_FUNCTION_BEGIN(memset)
 	movzbq	%sil,%rax		/* byte value to fill */
 	mov	%rdx,%rsi		/* copy of length */
 	mov	$0x0101010101010101,%r9
@@ -89,8 +89,8 @@ ENTRY(memset)
 	sub	%rdx,%rcx		/* adjust length ... */
 	add	%rdx,%rdi		/* ... and target */
 	jmp	2b
-END(memset)
+ANX_ASM_FUNCTION_END(memset)
 
 #ifndef _KERNEL
-END(bzero)
+ANX_ASM_FUNCTION_END(bzero)
 #endif

@@ -1,7 +1,7 @@
 /** @file
   NUX Generic Cache Implementation
 
-  Provides a simple, efficient cache implementation using red-black trees
+  Provides a simple, efficient cache implementation using NTRTL AVL trees
   for fast lookups and LRU (Least Recently Used) eviction policy.
 
   This is a template-style implementation that requires the user to define
@@ -16,7 +16,7 @@
 #define __nux_cache_h__
 
 #include <assert.h>
-#include <rbtree.h>
+#include <ananke/ntrtl.h>
 #include <nux/types.h>
 #include <nux/locks.h>
 
@@ -28,12 +28,12 @@
   Cache Slot
 
   Represents a single cache entry with LRU tracking and reference counting.
-  Uses red-black tree node for fast lookups by address.
+  Uses NTRTL AVL tree node for fast lookups by address.
 **/
 typedef struct _SLOT
 {
-  rb_node_t           RbNode;     ///< Red-black tree node (must be first)
-  TAILQ_ENTRY (_SLOT) LruEntry;   ///< LRU queue entry
+  RTL_AVL_TREE_NODE   AvlNode;    ///< NTRTL AVL tree node (must be first)
+  LIST_ENTRY          LruEntry;   ///< LRU queue entry
 
   UINTN  Address;                 ///< Cached address
   struct {
@@ -50,12 +50,12 @@ typedef struct _SLOT
   Cache
 
   Main cache structure managing a fixed number of slots with LRU eviction.
-  Uses red-black tree for O(log n) lookups and TAILQ for LRU ordering.
+  Uses NTRTL AVL tree for O(log n) lookups and LIST_ENTRY for LRU ordering.
 **/
 typedef struct _CACHE
 {
-  rb_tree_t           Map;        ///< Red-black tree for address lookup (must be first)
-  TAILQ_HEAD (, _SLOT) FreeList;  ///< LRU free list
+  RTL_AVL_TREE        Map;        ///< NTRTL AVL tree for address lookup (must be first)
+  LIST_ENTRY          FreeList;   ///< LRU free list head
   SPINLOCK            Lock;       ///< Protects cache structure
 
   /**
@@ -80,27 +80,28 @@ typedef struct _CACHE
 /**
   Compare two cache slots by address.
 
-  Used by red-black tree for slot ordering.
+  Used by NTRTL AVL tree for slot ordering.
 
-  @param[in] Context  Unused context pointer.
-  @param[in] SlotA    First slot to compare.
-  @param[in] SlotB    Second slot to compare.
+  @param[in] Node1    First AVL tree node to compare.
+  @param[in] Node2    Second AVL tree node to compare.
+  @param[in] Context  Cache structure pointer.
 
   @return -1 if A < B, 0 if A == B, 1 if A > B.
 **/
 static
-INT32
+INTN
+ANXAPI
 CacheSlotCompare (
-  IN VOID        *Context,
-  IN CONST VOID  *SlotA,
-  IN CONST VOID  *SlotB
+  IN PRTL_AVL_TREE_NODE  Node1,
+  IN PRTL_AVL_TREE_NODE  Node2,
+  IN VOID                *Context
   )
 {
   PCSLOT Slot1;
   PCSLOT Slot2;
 
-  Slot1 = (PCSLOT)SlotA;
-  Slot2 = (PCSLOT)SlotB;
+  Slot1 = CONTAINING_RECORD(Node1, SLOT, AvlNode);
+  Slot2 = CONTAINING_RECORD(Node2, SLOT, AvlNode);
 
   if (Slot1->Address < Slot2->Address) {
     return -1;
@@ -112,53 +113,6 @@ CacheSlotCompare (
 
   return 0;
 }
-
-/**
-  Compare cache slot address with a key address.
-
-  Used by red-black tree for address lookups.
-
-  @param[in] Context  Unused context pointer.
-  @param[in] SlotPtr  Slot to compare.
-  @param[in] Key      Key address to compare.
-
-  @return -1 if slot address < key, 0 if equal, 1 if slot address > key.
-**/
-static
-INT32
-CacheSlotKeyCompare (
-  IN VOID        *Context,
-  IN CONST VOID  *SlotPtr,
-  IN CONST VOID  *Key
-  )
-{
-  PCSLOT  Slot;
-  UINTN   KeyAddress;
-
-  Slot       = (PCSLOT)SlotPtr;
-  KeyAddress = (UINTN)Key;
-
-  if (Slot->Address < KeyAddress) {
-    return -1;
-  }
-
-  if (Slot->Address > KeyAddress) {
-    return 1;
-  }
-
-  return 0;
-}
-
-//
-// Red-Black Tree Operations
-//
-
-static CONST rb_tree_ops_t CacheOps = {
-  CacheSlotCompare,
-  CacheSlotKeyCompare,
-  0,
-  NULL
-};
 
 //
 // Cache Helper Functions
@@ -186,6 +140,38 @@ CacheGetSlotNumber (
 }
 
 /**
+  Find a slot in the AVL tree by address.
+
+  @param[in] Cache    Cache structure.
+  @param[in] Address  Address to search for.
+
+  @return Pointer to slot if found, NULL otherwise.
+**/
+static INLINE
+SLOT *
+CacheFindSlot (
+  IN CACHE *Cache,
+  IN UINTN Address
+  )
+{
+  PRTL_AVL_TREE_NODE Current = Cache->Map.Root;
+
+  while (Current != NULL) {
+    SLOT *Slot = CONTAINING_RECORD(Current, SLOT, AvlNode);
+
+    if (Address < Slot->Address) {
+      Current = Current->Left;
+    } else if (Address > Slot->Address) {
+      Current = Current->Right;
+    } else {
+      return Slot;
+    }
+  }
+
+  return NULL;
+}
+
+/**
   Initialize a cache.
 
   Sets up the cache structure with the specified number of slots and
@@ -208,8 +194,8 @@ CacheInitialize (
   UINTN  i;
 
   SpinLockInitialize (&Cache->Lock);
-  rb_tree_init (&Cache->Map, &CacheOps);
-  TAILQ_INIT (&Cache->FreeList);
+  RtlInitializeAvlTree (&Cache->Map, CacheSlotCompare, NULL, NULL, (VOID *)Cache);
+  InitializeListHead (&Cache->FreeList);
 
   Cache->NumSlots = NumSlots;
   Cache->Slots    = Slots;
@@ -221,7 +207,8 @@ CacheInitialize (
   for (i = 0; i < NumSlots; i++) {
     Slots[i].Valid    = 0;
     Slots[i].RefCount = 0;
-    TAILQ_INSERT_TAIL (&Cache->FreeList, Slots + i, LruEntry);
+    RtlInitializeAvlTreeNode (&Slots[i].AvlNode);
+    InsertTailList (&Cache->FreeList, &Slots[i].LruEntry);
   }
 }
 
@@ -249,9 +236,9 @@ CacheGet (
   SpinLockAcquire (&Cache->Lock);
 
   //
-  // Look up address in red-black tree
+  // Look up address in NTRTL AVL tree
   //
-  Slot = (SLOT *)rb_tree_find_node (&Cache->Map, (CONST VOID *)Address);
+  Slot = CacheFindSlot (Cache, Address);
 
   if (Slot != NULL) {
     assert (Slot->Valid);
@@ -267,7 +254,7 @@ CacheGet (
       //
       // Currently cached but unused - remove from free list and increment ref
       //
-      TAILQ_REMOVE (&Cache->FreeList, Slot, LruEntry);
+      RemoveEntryList (&Slot->LruEntry);
       Slot->RefCount = 1;
       goto Exit;
     }
@@ -276,15 +263,21 @@ CacheGet (
   //
   // Not present in cache - evict from free list
   //
-  Slot = TAILQ_FIRST (&Cache->FreeList);
+  if (!IsListEmpty (&Cache->FreeList)) {
+    PLIST_ENTRY Entry = Cache->FreeList.Flink;
+    Slot = CONTAINING_RECORD(Entry, SLOT, LruEntry);
 
-  if (Slot != NULL) {
-    UINTN  SlotNo;
+    UINTN  SlotNo = CacheGetSlotNumber (Cache, Slot);
 
-    SlotNo = CacheGetSlotNumber (Cache, Slot);
-
-    TAILQ_REMOVE (&Cache->FreeList, Slot, LruEntry);
+    RemoveEntryList (&Slot->LruEntry);
     assert (Slot->RefCount == 0);
+
+    //
+    // Remove old entry from AVL tree if it was valid
+    //
+    if (Slot->Valid) {
+      RtlRemoveAvlTreeNode (&Cache->Map, &Slot->AvlNode, TRUE);
+    }
 
     //
     // Call fill callback to populate the slot
@@ -295,8 +288,10 @@ CacheGet (
     Slot->RefCount = 1;
     Slot->Valid    = 1;
 
-    rb_tree_insert_node (&Cache->Map, Slot);
-    goto Exit;
+    RtlInitializeAvlTreeNode (&Slot->AvlNode);
+    RtlInsertAvlTreeNode (&Cache->Map, &Slot->AvlNode, TRUE);
+  } else {
+    Slot = NULL;
   }
 
 Exit:
@@ -341,10 +336,10 @@ CachePut (
     //
     // No more references - add to LRU free list for potential eviction
     //
-    TAILQ_INSERT_TAIL (&Cache->FreeList, Slot, LruEntry);
+    InsertTailList (&Cache->FreeList, &Slot->LruEntry);
   }
 
   SpinLockRelease (&Cache->Lock);
 }
 
-#endif // _CACHE_H
+#endif // __nux_cache_h__

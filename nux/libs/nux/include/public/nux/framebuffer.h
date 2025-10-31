@@ -21,6 +21,7 @@ typedef enum _FRAMEBUFFER_TYPE {
   in 32 and 64 bit. Which is why it is packed and uses
   only fixed-width UEFI types.
 **/
+ANX_PACK_PUSH(1)
 typedef struct _FRAMEBUFFER_DESC
 {
   INT16 Type;
@@ -36,7 +37,8 @@ typedef struct _FRAMEBUFFER_DESC
   UINT32 RMask;
   UINT32 GMask;
   UINT32 BMask;
-} __packed FRAMEBUFFER_DESC, *PFRAMEBUFFER_DESC, *PCFRAMEBUFFER_DESC;
+} FRAMEBUFFER_DESC, *PFRAMEBUFFER_DESC, *PCFRAMEBUFFER_DESC;
+ANX_PACK_POP()
 
 INT32 FramebufferInit (IN FRAMEBUFFER_DESC *Desc);
 UINT32 FramebufferColor (IN UINT32 R, IN UINT32 G, IN UINT32 B);

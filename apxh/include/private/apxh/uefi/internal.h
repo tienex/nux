@@ -4,12 +4,9 @@
 
   SPDX-License-Identifier:	BSD-2-Clause
 */
+#pragma once
 
-#ifndef __apxh_uefi_internal_h__
-#define __apxh_uefi_internal_h__
+VOID EfiExit (INT32 st);
+VOID EfiExitBs (VOID);
+UINTN EfiAllocateMaxAddr (UINTN maxaddr);
 
-VOID efi_exit (INT32 st);
-VOID efi_exitbs (VOID);
-UINTN efi_allocate_maxaddr (UINTN maxaddr);
-
-#endif

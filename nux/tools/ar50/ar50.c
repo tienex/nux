@@ -41,13 +41,13 @@ UINT64 gMagic = 0x68efe6966e3e3bb5LL;
 /*
   On disk structure with payload information.
 */
-struct payload_hdr
+typedef struct _PAYLOAD_HDR
 {
 
   UINT64 magic;
   UINT64 filename;
   UINT32 size;
-} __attribute__((packed));
+} __attribute__((packed)) PAYLOAD_HDR;
 
 
 /**
@@ -171,7 +171,7 @@ DoList (
   )
 {
   FILE *pF;
-  struct payload_hdr Hdr;
+  PAYLOAD_HDR Hdr;
 
   pF = fopen (pFilename, "r");
   if (pF == NULL)
@@ -213,7 +213,7 @@ DoCreate (
   VOID *pBuf;
   size_t Size;
   struct stat St;
-  struct payload_hdr *pHdr;
+  PAYLOAD_HDR *pHdr;
 
   pOut = fopen (pFilename, "w");
   if (pOut == NULL)
@@ -231,13 +231,13 @@ DoCreate (
       if (R < 0)
 	Fatal ("%s: stat failed: %s", pN, strerror (errno));
 
-      Size = sizeof (struct payload_hdr) + St.st_size;
+      Size = sizeof (PAYLOAD_HDR) + St.st_size;
 
       pBuf = calloc (1, Size);
       if (pBuf == NULL)
 	Fatal ("calloc failed");
 
-      pHdr = (struct payload_hdr *) pBuf;
+      pHdr = (PAYLOAD_HDR *) pBuf;
       pHdr->magic = gMagic;
       pHdr->filename = squoze (pN);
       pHdr->size = St.st_size;
@@ -266,7 +266,7 @@ DoExtract (
   )
 {
   FILE *pF;
-  struct payload_hdr Hdr;
+  PAYLOAD_HDR Hdr;
 
   pF = fopen (pFilename, "r");
   if (pF == NULL)

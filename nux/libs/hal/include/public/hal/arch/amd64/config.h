@@ -62,6 +62,7 @@ hal_umap_debug (struct hal_umap *umap)
   HAL CPU definition.
 */
 
+ANX_PACK_PUSH(1)
 struct amd64_tss
 {
   UINT32 res0;
@@ -73,15 +74,18 @@ struct amd64_tss
   UINT64 res2;
   UINT16 res3;
   UINT16 iomap;
-} __packed;
+};
+ANX_PACK_POP()
 
+ANX_PACK_PUSH(1)
 struct hal_cpu
 {
   VOID *data;			/* Must be at %gs:0 */
   UINT64 kstack;		/* syscall kstack. Must be at %gs:8 */
   UINT64 scratch;		/* syscall scratch. Must be at %gs:16 */
   struct amd64_tss tss;
-} __packed;
+};
+ANX_PACK_POP()
 
 /*
   HAL Frame definition.

@@ -1,10 +1,10 @@
 /* Common setjmp/longjmp implementation save float status when the
    softfloat abi is on. Let's ignore all that. */
 
-#include <machine/asm.h>
+#include <ananke/asmdefs.h>
 #include <machine/setjmp.h>
 
-ENTRY(_setjmp)
+ANX_ASM_FUNCTION_BEGIN(_setjmp)
 	sd	ra, _JB_RA(a0)		/* save return address */
 	sd	sp, _JB_SP(a0)		/* save stack pointer */
 	sd	s0, _JB_S0(a0)		/* save callee saved register */
@@ -21,9 +21,9 @@ ENTRY(_setjmp)
 	sd	s11, _JB_S11(a0)		/* save callee saved register */
 	li	a0, 0			/* indicate success */
 	ret				/* return */
-END(_setjmp)
+ANX_ASM_FUNCTION_END(_setjmp)
 
-ENTRY(_longjmp)
+ANX_ASM_FUNCTION_BEGIN(_longjmp)
 	ld	ra, _JB_RA(a0)		/* save return address */
 	ld	sp, _JB_SP(a0)		/* save stack pointer */
 	ld	s0, _JB_S0(a0)		/* save callee saved register */
@@ -42,10 +42,10 @@ ENTRY(_longjmp)
 	beqz	a1, 1f			/* test return value */
 	mv	a0, a1			/* use it if not 0 */
 1:	ret
-END(_longjmp)
+ANX_ASM_FUNCTION_END(_longjmp)
 
-ENTRY(_setupjmp)
+ANX_ASM_FUNCTION_BEGIN(_setupjmp)
 	sd a1, _JB_RA(a0)
 	sd sp, _JB_SP(a0)
 	ret
-END(_setupjmp)
+ANX_ASM_FUNCTION_END(_setupjmp)

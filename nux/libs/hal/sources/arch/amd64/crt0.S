@@ -5,7 +5,7 @@
   SPDX-License-Identifier: BSD-2-Clause
 */
 
-#include <machine/asm.h>
+#include <ananke/asmdefs.h>
 #include <hal/arch/amd64/amd64.h>
 #include <hal/internal.h>
 
@@ -60,7 +60,7 @@ _setcs_ljmp:
 	/* Load Temporary TSS to have IST working. */
 	xor %rdi, %rdi
 	movabs $_tss, %rsi
-	call _C_LABEL(gdt_settss)
+	call ANX_ASM_MANGLE(gdt_settss)
 	mov $(6 << 3), %ax
 	ltr %ax
 
@@ -82,7 +82,7 @@ _setcs_ljmp:
 	lidt (%rax)
 
 	/* init hal */
-	call _C_LABEL(x86_init)
+	call ANX_ASM_MANGLE(x86_init)
 
 	// Save CR3 for future AP boots.
 	mov %cr3, %rax
@@ -103,14 +103,14 @@ _setcs_ljmp:
 	.code16
 	.globl _ap_ljmp1, _ap_ljmp2, _ap_gdtreg, _ap_cr3, _ap_end
 
-	.globl _C_LABEL(_ap_start)
-ENTRY(_ap_start)
+	.globl ANX_ASM_MANGLE(_ap_start)
+ANX_ASM_FUNCTION_BEGIN(_ap_start)
 	cli
 	movw %cs, %ax
 	movw %ax, %ds
 	movw %ax, %es
 
-	lgdtl _ap_gdtreg - _C_LABEL(_ap_start)
+	lgdtl _ap_gdtreg - ANX_ASM_MANGLE(_ap_start)
 	/* No IDT. If anything goes wrong here, machine
 	/* triple-faults. */
 
@@ -187,7 +187,7 @@ _ap_ljmp2:
 	 */
 _ap_gdtreg:
 	.hword 127
-	.long .Lap_gdttmp - _C_LABEL(_ap_start)
+	.long .Lap_gdttmp - ANX_ASM_MANGLE(_ap_start)
 	.align 16
 .Lap_gdttmp:
 	.long 0
@@ -251,7 +251,7 @@ apsetup:
 	mov (%rax), %rsp
 
 	mov %rsp, %rdi
-	call _C_LABEL(amd64_init_ap)
+	call ANX_ASM_MANGLE(amd64_init_ap)
 1:	hlt
 	jmp 1b	
 

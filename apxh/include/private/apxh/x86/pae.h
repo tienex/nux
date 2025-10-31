@@ -9,8 +9,6 @@
   SPDX-License-Identifier: BSD-2-Clause
 **/
 
-#ifndef __apxh_x86_pae_h__
-#define __apxh_x86_pae_h__
 
 #include <apxh/internal.h>
 #include <apxh/x86.h>
@@ -18,7 +16,7 @@
 //
 // Type Definitions
 //
-typedef UINT64 pte_t;
+typedef UINT64 PTE;
 
 //
 // PTE (Page Table Entry) flags
@@ -43,7 +41,7 @@ typedef UINT64 pte_t;
 //
 // Externally visible globals
 //
-extern bool gNxEnabled;
+extern BOOLEAN gNxEnabled;
 
 //
 // Common functions (implemented in pae_common.c)
@@ -58,7 +56,7 @@ extern bool gNxEnabled;
 **/
 UINT64
 MemtypeToFlags (
-  IN int  Type
+  IN INT32  Type
   );
 
 /**
@@ -67,7 +65,7 @@ MemtypeToFlags (
   @retval TRUE   CPU is Intel.
   @retval FALSE  CPU is not Intel.
 **/
-bool
+BOOLEAN
 CpuIsIntel (
   VOID
   );
@@ -98,7 +96,7 @@ IntelCpuModel (
   @retval TRUE   CPU supports PAE.
   @retval FALSE  CPU does not support PAE.
 **/
-bool
+BOOLEAN
 CpuSupportsPae (
   VOID
   );
@@ -109,7 +107,7 @@ CpuSupportsPae (
   @retval TRUE   CPU supports long mode.
   @retval FALSE  CPU does not support long mode.
 **/
-bool
+BOOLEAN
 CpuSupportsLongmode (
   VOID
   );
@@ -120,7 +118,7 @@ CpuSupportsLongmode (
   @retval TRUE   CPU supports 1GB pages.
   @retval FALSE  CPU does not support 1GB pages.
 **/
-bool
+BOOLEAN
 CpuSupports1gbPages (
   VOID
   );
@@ -131,7 +129,7 @@ CpuSupports1gbPages (
   @retval TRUE   CPU supports NX bit.
   @retval FALSE  CPU does not support NX bit.
 **/
-bool
+BOOLEAN
 CpuSupportsNx (
   VOID
   );
@@ -139,13 +137,13 @@ CpuSupportsNx (
 /**
   Set PTE (Page Table Entry).
 
-  @param[in] pPte   Pointer to PTE.
+  @param[in,out] pPte   Pointer to PTE.
   @param[in] pAddr  Physical address.
   @param[in] Flags  PTE flags.
 **/
 VOID
 SetPte (
-  IN UINT64   *pPte,
+  IN OUT UINT64   *pPte,
   IN PHYSICAL_ADDRESS  pAddr,
   IN UINT64   Flags
   );
@@ -188,4 +186,3 @@ PteMergeFlags (
   IN UINT64  Flags
   );
 
-#endif // __PAE_H__

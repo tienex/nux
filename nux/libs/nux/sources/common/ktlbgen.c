@@ -35,10 +35,10 @@ KtlbGenMarkDirty (
   switch (Op)
     {
     case HAL_TLBOP_FLUSHALL:
-      __atomic_add_fetch (&gKtlb.Global, 1, __ATOMIC_RELEASE);
+      ANX_ATOMIC_ADD_FETCH (&gKtlb.Global, 1, __ATOMIC_RELEASE);
       break;
     case HAL_TLBOP_FLUSH:
-      __atomic_add_fetch (&gKtlb.Normal, 1, __ATOMIC_RELEASE);
+      ANX_ATOMIC_ADD_FETCH (&gKtlb.Normal, 1, __ATOMIC_RELEASE);
       break;
     default:
       break;
@@ -59,7 +59,7 @@ KtlbGenGlobal (
   )
 {
   TLB_GENERATION Ret;
-  __atomic_load (&gKtlb.Global, &Ret, __ATOMIC_ACQUIRE);
+  ANX_ATOMIC_LOAD (&gKtlb.Global, &Ret, __ATOMIC_ACQUIRE);
   return Ret;
 }
 
@@ -77,28 +77,6 @@ KtlbGenNormal (
   )
 {
   TLB_GENERATION Ret;
-  __atomic_load (&gKtlb.Normal, &Ret, __ATOMIC_ACQUIRE);
+  ANX_ATOMIC_LOAD (&gKtlb.Normal, &Ret, __ATOMIC_ACQUIRE);
   return Ret;
 }
-
-//
-// Legacy Function Wrappers (for backward compatibility)
-//
-
-/** @deprecated Use KtlbGenMarkDirty instead **/
-VOID KtlbGenMarkDirty (hal_tlbop_t op) {
-  KtlbGenMarkDirty (op);
-}
-
-/** @deprecated Use KtlbGenGlobal instead **/
-TLB_GENERATION KtlbGenGlobal (VOID) {
-  return KtlbGenGlobal ();
-}
-
-/** @deprecated Use KtlbGenNormal instead **/
-TLB_GENERATION KtlbGenNormal (VOID) {
-  return KtlbGenNormal ();
-}
-
-// Legacy global variable alias
-static VOLATILE KTLB ktlb __attribute__((alias("gKtlb")));

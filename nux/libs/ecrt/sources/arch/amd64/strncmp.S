@@ -3,7 +3,7 @@
  * Public domain.
  */
 
-#include <machine/asm.h>
+#include <ananke/asmdefs.h>
 
 #if defined(LIBC_SCCS)
         RCSID("$NetBSD: strncmp.S,v 1.4 2014/05/22 15:01:57 uebayasi Exp $")
@@ -15,7 +15,7 @@
  * cache.
  */
 
-ENTRY(strncmp)
+ANX_ASM_FUNCTION_BEGIN(strncmp)
 	testq	%rdx,%rdx
 	jmp	L2			/* Jump into the loop! */
 
@@ -105,4 +105,4 @@ L3:	movzbl	(%rdi),%eax		/* unsigned comparison */
 	ret
 L4:	xorl	%eax,%eax
 	ret
-END(strncmp)
+ANX_ASM_FUNCTION_END(strncmp)

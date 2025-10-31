@@ -132,7 +132,7 @@ NuxPerfCounterIncrement (
   IN OUT NUXPERF_COUNTER  *Counter
   )
 {
-  __atomic_fetch_add (&Counter->Value, 1, __ATOMIC_RELAXED);
+  ANX_ATOMIC_FETCH_ADD (&Counter->Value, 1, __ATOMIC_RELAXED);
 }
 
 /**
@@ -219,14 +219,14 @@ NuxPerfMeasureAdd (
   IN     UINT64           Data
   )
 {
-  while (__sync_lock_test_and_set (&Measure->Lock, 1)) {
+  while (ANX_SYNC_LOCK_TEST_AND_SET (&Measure->Lock, 1)) {
     hal_cpu_relax ();
   }
   Measure->Max = Data > Measure->Max ? Data : Measure->Max;
   Measure->Min = Data < Measure->Min ? Data : Measure->Min;
   Measure->Count++;
   Measure->Average = (Measure->Average * (Measure->Count - 1) + Data) / Measure->Count;
-  __sync_lock_release (&Measure->Lock);
+  ANX_SYNC_LOCK_RELEASE (&Measure->Lock);
 }
 
 /**
@@ -251,11 +251,11 @@ NuxPerfMeasureForEach (
   NUXPERF_MEASURE *Ptr = _nuxmeasure_start;
 
   while (Ptr < _nuxmeasure_end) {
-    while (__sync_lock_test_and_set (&Ptr->Lock, 1)) {
+    while (ANX_SYNC_LOCK_TEST_AND_SET (&Ptr->Lock, 1)) {
       hal_cpu_relax ();
     }
     CallbackFn (Context, Ptr);
-    __sync_lock_release (&Ptr->Lock);
+    ANX_SYNC_LOCK_RELEASE (&Ptr->Lock);
     Ptr++;
   }
 }
@@ -279,7 +279,7 @@ NuxPerfMeasureReset (
   // Note: This proceeds unlocked. Use with caution.
   //
   while (Ptr < _nuxmeasure_end) {
-    while (__sync_lock_test_and_set (&Ptr->Lock, 1)) {
+    while (ANX_SYNC_LOCK_TEST_AND_SET (&Ptr->Lock, 1)) {
       hal_cpu_relax ();
     }
 
@@ -288,7 +288,7 @@ NuxPerfMeasureReset (
     Ptr->Max = 0;
     Ptr->Count = 0;
 
-    __sync_lock_release (&Ptr->Lock);
+    ANX_SYNC_LOCK_RELEASE (&Ptr->Lock);
     Ptr++;
   }
 }
@@ -309,13 +309,13 @@ NuxPerfMeasurePrint (
   NUXPERF_MEASURE *Ptr = _nuxmeasure_start;
 
   while (Ptr < _nuxmeasure_end) {
-    while (__sync_lock_test_and_set (&Ptr->Lock, 1)) {
+    while (ANX_SYNC_LOCK_TEST_AND_SET (&Ptr->Lock, 1)) {
       hal_cpu_relax ();
     }
 
     printf ("msr: %-20s\t%16" PRId64 "\n    min/avg/max [ %" PRId64" / %" PRId64" / %" PRId64 " ]\n",
             Ptr->Name, Ptr->Count, Ptr->Min, Ptr->Average, Ptr->Max);
-    __sync_lock_release (&Ptr->Lock);
+    ANX_SYNC_LOCK_RELEASE (&Ptr->Lock);
     Ptr++;
   }
 }

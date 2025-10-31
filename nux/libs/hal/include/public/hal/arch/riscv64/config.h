@@ -13,7 +13,7 @@ typedef UINT64 hal_l1e_t;
 static INLINE VOID
 hal_debug (VOID)
 {
-  asm volatile ("ebreak\n");
+  ANX_CPU_BREAKPOINT();
 }
 
 #endif
@@ -77,6 +77,7 @@ struct hal_cpu
   VOID *data;
 };
 
+ANX_PACK_PUSH(1)
 struct hal_frame
 {
   unsigned INTN sstatus;
@@ -115,7 +116,8 @@ struct hal_frame
   unsigned INTN gp;
   unsigned INTN sp;
   unsigned INTN ra;
-} __packed;
+};
+ANX_PACK_POP()
 
 
 #endif

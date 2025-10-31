@@ -34,15 +34,15 @@ EfiAllocateMaxAddr (
   IN UINTN  MaxAddr
   )
 {
-  EFI_STATUS efi_status;
+  EFI_STATUS EfiStatus;
   VOID *Addr;
 
-  efi_status = uefi_call_wrapper (BS->AllocatePages, 4,
+  EfiStatus = uefi_call_wrapper (BS->AllocatePages, 4,
 				  AllocateMaxAddress,
 				  EfiLoaderData, 1, &MaxAddr);
-  if (EFI_ERROR (efi_status))
+  if (EFI_ERROR (EfiStatus))
     {
-      Print (L"Allocate Pages Failed: %r\n", efi_status);
+      Print (L"Allocate Pages Failed: %r\n", EfiStatus);
       exit (-1);
     }
 
@@ -62,7 +62,7 @@ EfiAllocateMaxAddr (
 **/
 int
 Putchar (
-  IN int  C
+  IN INT32 C
   )
 {
   Print (L"%c", C);
@@ -94,7 +94,7 @@ EfiGetFramebuffer (
   UINT32 RMask, GMask, BMask, Bpp, Pitch, Width, Height;
   UINT64 Addr, Size;
 
-  Rc = LibLocateProtocol (&GraphicsOutputProtocol, (void **) &Gop);
+  Rc = LibLocateProtocol (&GraphicsOutputProtocol, (VOID **) &Gop);
   if (Rc != EFI_SUCCESS)
     {
       Print (L"Cannot locate Graphic Output Proto (%r)\n", Rc);
@@ -168,7 +168,7 @@ EfiGetFramebuffer (
 
 	Mask = (RMask | GMask | BMask
 		| Info->PixelInformation.ReservedMask);
-	Bpp = __builtin_popcountl ((long) Mask);
+	Bpp = ANX_POPCOUNTN ((long) Mask);
 	break;
       }
     case PixelBltOnly:
@@ -190,7 +190,7 @@ EfiGetFramebuffer (
 	 "        RMASK: %08lx        GMASK: %08lx        BMASK: %08lx\n",
 	 Addr, Size, Width, Height, Pitch, Bpp, RMask, GMask, BMask);
 
-  apxhefi_add_framebuffer (Addr, Size, Width, Height, Pitch, Bpp, RMask,
+  ApxhEfiAddFramebuffer (Addr, Size, Width, Height, Pitch, Bpp, RMask,
 			   GMask, BMask);
 
 }
@@ -276,11 +276,11 @@ EfiGetMemoryMap (
 
   for (i = 0; i < Num; i++)
     {
-      int Ram, Bsy;
-      unsigned Len;
+INT32 Ram, Bsy;
+      UINT32 Len;
       UINTN Pfn;
 
-      Ptr = (void *) Md + i * DescSize;
+      Ptr = (VOID *) Md + i * DescSize;
 
       switch (Ptr->Type)
 	{
@@ -317,7 +317,7 @@ EfiGetMemoryMap (
       Pfn = Ptr->PhysicalStart >> 12;
       Len = Ptr->NumberOfPages;
 
-      apxhefi_add_memregion (Ram, Bsy, Pfn, Len);
+      ApxhEfiAddMemRegion (Ram, Bsy, Pfn, Len);
     }
 }
 
@@ -345,7 +345,7 @@ EfiGetRsdp (
   if (Rsdp == NULL)
     Print (L"No RSDP found!\n");
 
-  apxhefi_add_rsdp (Rsdp);
+  ApxhEfiAddRsdp (Rsdp);
 }
 
 
@@ -395,13 +395,13 @@ EfiMain (
       Print (L"Could not load kernel.elf: %r\n", Rc);
       return Rc;
     }
-  apxhefi_add_kernel_payload (gpPayloadStart, gPayloadSize);
+  ApxhEfiAddKernelPayload (gpPayloadStart, gPayloadSize);
 
   Rc = EfiGetPayload (L"user.elf", &gpPayloadStart, &gPayloadSize);
   if (Rc == EFI_SUCCESS)
     {
       Print (L"Loading user.elf");
-      apxhefi_add_user_payload (gpPayloadStart, gPayloadSize);
+      ApxhEfiAddUserPayload (gpPayloadStart, gPayloadSize);
     }
 
   /*
@@ -422,7 +422,7 @@ EfiMain (
   /*
      Launch APXH.
    */
-  apxh_main (0, 0);
+  main (0, 0);
 
   return EFI_SUCCESS;
 }
@@ -468,56 +468,7 @@ EfiExitBs (
 **/
 VOID
 EfiExit (
-  IN int  Status
+  IN INT32 Status
   )
 {
-}
-
-//
-// Legacy Function Wrappers (for backward compatibility)
-//
-
-/** @deprecated Use EfiAllocateMaxAddr instead **/
-UINTN efi_allocate_maxaddr (UINTN maxaddr) {
-  return EfiAllocateMaxAddr (maxaddr);
-}
-
-/** @deprecated Use Putchar instead **/
-int putchar (int c) {
-  return Putchar (c);
-}
-
-/** @deprecated Use EfiGetFramebuffer instead **/
-EFI_STATUS efi_getframebuffer (void) {
-  return EfiGetFramebuffer ();
-}
-
-/** @deprecated Use EfiGetPayload instead **/
-EFI_STATUS efi_getpayload (CHAR16 *name, void **ptr, UINTN *size) {
-  return EfiGetPayload (name, ptr, size);
-}
-
-/** @deprecated Use EfiGetMemoryMap instead **/
-void efi_getmemorymap (void) {
-  EfiGetMemoryMap ();
-}
-
-/** @deprecated Use EfiGetRsdp instead **/
-EFI_STATUS efi_getrsdp (void) {
-  return EfiGetRsdp ();
-}
-
-/** @deprecated Use EfiMain instead **/
-EFI_STATUS EFIAPI efi_main (EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE *SystemTable) {
-  return EfiMain (ImageHandle, SystemTable);
-}
-
-/** @deprecated Use EfiExitBs instead **/
-void efi_exitbs (void) {
-  EfiExitBs ();
-}
-
-/** @deprecated Use EfiExit instead **/
-void efi_exit (int st) {
-  EfiExit (st);
 }

@@ -12,7 +12,7 @@
 
 #include <apxh/x86/pae.h>
 
-bool gNxEnabled;
+BOOLEAN gNxEnabled;
 
 /**
   Scan PAT (Page Attribute Table).
@@ -26,12 +26,12 @@ ScanPatTable (
   VOID
   )
 {
-  bool WbSet = false;
-  bool WcSet = false;
-  bool UcSet = false;
-  UINT64 Pat = rdmsr (MSR_IA32_PAT);
+  BOOLEAN WbSet = FALSE;
+  BOOLEAN WcSet = FALSE;
+  BOOLEAN UcSet = FALSE;
+  UINT64 Pat = Rdmsr (MSR_IA32_PAT);
 
-  for (int i = 0; i < 8; i++)
+  for (INT32 i = 0; i < 8; i++)
     {
       switch (Pat & 0x7)
 	{
@@ -39,21 +39,21 @@ ScanPatTable (
 	  if (!UcSet)
 	    {
 	      printf ("PAT Table: UC Entry at %d\n", i);
-	      UcSet = true;
+	      UcSet = TRUE;
 	    }
 	  break;
 	case _MSR_IA32_PAT_WC:
 	  if (!WcSet)
 	    {
 	      printf ("PAT Table: WC Entry at %d\n", i);
-	      WcSet = true;
+	      WcSet = TRUE;
 	    }
 	  break;
 	case _MSR_IA32_PAT_WB:
 	  if (!WbSet)
 	    {
 	      printf ("PAT TABLE: WB Entry at %d\n", i);
-	      WbSet = true;
+	      WbSet = TRUE;
 	    }
 	  break;
 	}
@@ -74,7 +74,7 @@ SetupPatTable (
 {
   /*
      Default PAT table, with added WC at 7 */
-  wrmsr (MSR_IA32_PAT, 0x0100040600070406LL);
+  Wrmsr (MSR_IA32_PAT, 0x0100040600070406LL);
 
   ScanPatTable ();
 }
@@ -90,13 +90,13 @@ SetupPatTable (
 
   @return PTE flags for specified memory type.
 **/
-unsigned
+UINT32
 MemtypeToFlags (
-  IN enum memory_type  Mt,
-  IN bool              Small
+  IN MEMORY_TYPE  Mt,
+  IN BOOLEAN              Small
   )
 {
-  unsigned Pat = Small ? PTE_PAT_4K : PTE_PAT_BIG;
+  UINT32 Pat = Small ? PTE_PAT_4K : PTE_PAT_BIG;
 
   switch (Mt)
     {
@@ -124,7 +124,7 @@ MemtypeToFlags (
   @retval TRUE   CPU is Intel.
   @retval FALSE  CPU is not Intel.
 **/
-bool
+BOOLEAN
 CpuIsIntel (
   VOID
   )
@@ -133,13 +133,13 @@ CpuIsIntel (
 
   Eax = 0;
   Ecx = 0;
-  cpuid (&Eax, &Ebx, &Ecx, &Edx);
+  Cpuid (&Eax, &Ebx, &Ecx, &Edx);
 
   // GenuineIntel?
   if (Ebx == 0x756e6547 && Ecx == 0x6c65746e && Edx == 0x49656e69)
-    return true;
+    return TRUE;
   else
-    return false;
+    return FALSE;
 
   return 1;
 }
@@ -151,17 +151,17 @@ CpuIsIntel (
 
   @return CPU family number.
 **/
-unsigned
+UINT32
 IntelCpuFamily (
   VOID
   )
 {
-  unsigned Family;
+  UINT32 Family;
   UINT32 Eax, Ebx, Ecx, Edx;
 
   Eax = 1;
   Ecx = 0;
-  cpuid (&Eax, &Ebx, &Ecx, &Edx);
+  Cpuid (&Eax, &Ebx, &Ecx, &Edx);
 
   Family = (Eax & 0xf00) >> 8;
   Family |= (Eax & 0xf00000 >> 20);
@@ -176,17 +176,17 @@ IntelCpuFamily (
 
   @return CPU model number.
 **/
-unsigned
+UINT32
 IntelCpuModel (
   VOID
   )
 {
-  unsigned Model;
+  UINT32 Model;
   UINT32 Eax, Ebx, Ecx, Edx;
 
   Eax = 1;
   Ecx = 0;
-  cpuid (&Eax, &Ebx, &Ecx, &Edx);
+  Cpuid (&Eax, &Ebx, &Ecx, &Edx);
 
   Model = (Eax & 0xf0) >> 4;
   Model |= (Eax & 0xf0000) >> 16;
@@ -202,7 +202,7 @@ IntelCpuModel (
   @retval TRUE   PAE is supported.
   @retval FALSE  PAE is not supported.
 **/
-bool
+BOOLEAN
 CpuSupportsPae (
   VOID
   )
@@ -211,7 +211,7 @@ CpuSupportsPae (
 
   Eax = 1;
   Ecx = 0;
-  cpuid (&Eax, &Ebx, &Ecx, &Edx);
+  Cpuid (&Eax, &Ebx, &Ecx, &Edx);
 
   return !!(Edx & (1 << 6));
 }
@@ -224,7 +224,7 @@ CpuSupportsPae (
   @retval TRUE   Long mode is supported.
   @retval FALSE  Long mode is not supported.
 **/
-bool
+BOOLEAN
 CpuSupportsLongmode (
   VOID
   )
@@ -233,7 +233,7 @@ CpuSupportsLongmode (
 
   Eax = 0x80000001;
   Ecx = 0;
-  cpuid (&Eax, &Ebx, &Ecx, &Edx);
+  Cpuid (&Eax, &Ebx, &Ecx, &Edx);
 
   return !!(Edx & (1 << 29));
 }
@@ -246,7 +246,7 @@ CpuSupportsLongmode (
   @retval TRUE   1GB pages are supported.
   @retval FALSE  1GB pages are not supported.
 **/
-bool
+BOOLEAN
 CpuSupports1gbPages (
   VOID
   )
@@ -255,7 +255,7 @@ CpuSupports1gbPages (
 
   Eax = 0x80000001;
   Ecx = 0;
-  cpuid (&Eax, &Ebx, &Ecx, &Edx);
+  Cpuid (&Eax, &Ebx, &Ecx, &Edx);
 
   return !!(Edx & (1 << 26));
 }
@@ -270,44 +270,44 @@ CpuSupports1gbPages (
   @retval TRUE   NX is supported and enabled.
   @retval FALSE  NX is not supported.
 **/
-bool
+BOOLEAN
 CpuSupportsNx (
   VOID
   )
 {
-  bool NxSupported;
+  BOOLEAN NxSupported;
   UINT64 Efer;
   UINT32 Eax, Ebx, Ecx, Edx;
 
   /* Intel CPUs might have disabled this in MSR. */
   if (CpuIsIntel ())
     {
-      unsigned Family = IntelCpuFamily ();
-      unsigned Model = IntelCpuModel ();
+      UINT32 Family = IntelCpuFamily ();
+      UINT32 Model = IntelCpuModel ();
 
       if ((Family >= 6) && (Family > 6 || Model > 0xd))
 	{
 	  UINT64 MiscEnable;
 
-	  MiscEnable = rdmsr (MSR_IA32_MISC_ENABLE);
+	  MiscEnable = Rdmsr (MSR_IA32_MISC_ENABLE);
 	  if (MiscEnable & _MSR_IA32_MISC_ENABLE_XD_DISABLE)
 	    {
 	      MiscEnable &= ~_MSR_IA32_MISC_ENABLE_XD_DISABLE;
-	      wrmsr (MSR_IA32_MISC_ENABLE, MiscEnable);
+	      Wrmsr (MSR_IA32_MISC_ENABLE, MiscEnable);
 	    }
 	}
     }
   Eax = 0x80000001;
   Ecx = 0;
-  cpuid (&Eax, &Ebx, &Ecx, &Edx);
+  Cpuid (&Eax, &Ebx, &Ecx, &Edx);
 
   NxSupported = !!(Edx & (1 << 20));
   if (!NxSupported)
-    return false;
+    return FALSE;
 
-  Efer = rdmsr (MSR_IA32_EFER);
-  wrmsr (MSR_IA32_EFER, Efer | _MSR_IA32_EFER_NXE);
-  Efer = rdmsr (MSR_IA32_EFER);
+  Efer = Rdmsr (MSR_IA32_EFER);
+  Wrmsr (MSR_IA32_EFER, Efer | _MSR_IA32_EFER_NXE);
+  Efer = Rdmsr (MSR_IA32_EFER);
 
   return !!(Efer & _MSR_IA32_EFER_NXE);
 }

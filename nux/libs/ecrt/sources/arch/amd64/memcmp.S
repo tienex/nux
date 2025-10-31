@@ -4,13 +4,13 @@
  * Adapted for NetBSD/x86_64 by Frank van der Linden <fvdl@wasabisystems.com>
  */
 
-#include <machine/asm.h>
+#include <ananke/asmdefs.h>
 
 #if defined(LIBC_SCCS)
 	RCSID("$NetBSD: memcmp.S,v 1.3 2014/03/22 19:16:34 jakllsch Exp $")
 #endif
 
-ENTRY(memcmp)
+ANX_ASM_FUNCTION_BEGIN(memcmp)
 	movq	%rdx,%rcx		/* compare by longs */
 	shrq	$3,%rcx
 	repe
@@ -37,4 +37,4 @@ L6:	xorl	%eax,%eax		/* Perform unsigned comparison	*/
 	movb	-1(%rsi),%dl
 	subl    %edx,%eax
 	ret
-END(memcmp)
+ANX_ASM_FUNCTION_END(memcmp)

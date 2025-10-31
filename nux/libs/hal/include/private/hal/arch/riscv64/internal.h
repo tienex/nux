@@ -43,24 +43,20 @@
 static INLINE unsigned long
 riscv_sstatus_cli (VOID)
 {
-  unsigned INTN old;
-  asm volatile ("csrrci %0, sstatus, %1\n":"=r" (old):"K" (SSTATUS_SIE));
-  return old;
+  return ANX_CPU_CSR_RCI_SSTATUS(SSTATUS_SIE);
 }
 
 static INLINE unsigned long
 riscv_sstatus_sti (VOID)
 {
-  unsigned INTN old;
-  asm volatile ("csrrsi %0, sstatus, %1\n":"=r" (old):"K" (SSTATUS_SIE));
-  return old;
+  return ANX_CPU_CSR_RSI_SSTATUS(SSTATUS_SIE);
 }
 
 static INLINE unsigned long
 riscv_sie_kernel (VOID)
 {
   unsigned INTN old;
-  asm volatile ("csrrw %0, sie, %1\n":"=r" (old):"r" (SIE_KERNEL));
+  ANX_CPU_CSR_RW_SIE(SIE_KERNEL, old);
   return old;
 }
 
@@ -68,14 +64,14 @@ static INLINE unsigned long
 riscv_sie_user (VOID)
 {
   unsigned INTN old;
-  asm volatile ("csrrw %0, sie, %1\n":"=r" (old):"r" (SIE_USER));
+  ANX_CPU_CSR_RW_SIE(SIE_USER, old);
   return old;
 }
 
 static INLINE VOID
 riscv_sip_siclear (VOID)
 {
-  asm volatile ("csrci sip, %0\n"::"K" (SIP_SSIP));
+  ANX_CPU_CSR_CLEAR_IMM(sip, SIP_SSIP);
 }
 #endif
 
@@ -193,29 +189,26 @@ static INLINE unsigned long
 riscv_satp (VOID)
 {
   unsigned INTN satp;
-
-  asm volatile ("csrr %0, satp\n":"=r" (satp));
+  ANX_CPU_CSR_READ(satp, satp);
   return satp;
 }
 
 static INLINE VOID
 riscv_invlpg (unsigned INTN va, BOOLEAN no_svvptc_only)
 {
-  asm volatile ("sfence.vma x0, %0\n"::"r" (va));
+  ANX_CPU_INVLPG(va);
 }
 
 static INLINE VOID
 riscv_settp (unsigned INTN data)
 {
-  asm volatile ("mv tp, %0\n"::"r" (data));
+  ANX_CPU_SET_TP(data);
 }
 
 static INLINE unsigned long
 riscv_gettp (VOID)
 {
-  unsigned INTN data;
-  asm volatile ("mv %0, tp\n":"=r" (data));
-  return data;
+  return ANX_CPU_GET_TP();
 }
 
 hal_l1p_t cpumap_get_l1p (unsigned INTN va, INT32 alloc);

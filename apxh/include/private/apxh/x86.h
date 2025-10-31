@@ -5,8 +5,7 @@
   SPDX-License-Identifier:	BSD-2-Clause
 */
 
-#ifndef __apxh_x86_h__
-#define __apxh_x86_h__
+#pragma once
 
 #define MSR_IA32_MISC_ENABLE 0x000001a0
 #define _MSR_IA32_MISC_ENABLE_XD_DISABLE (1LL << 34)
@@ -26,81 +25,62 @@
 #define CR0_WP  (1 << 16)
 
 static INLINE UINTN
-read_cr4 (void)
+ReadCr4 (VOID)
 {
-  UINTN reg;
-
-  asm volatile ("mov %%cr4, %0\n":"=r" (reg));
-  return reg;
+  return ANX_CPU_READ_CR4();
 }
 
-static INLINE void
-write_cr4 (UINTN reg)
+static INLINE VOID
+WriteCr4 (UINTN reg)
 {
-  asm volatile ("mov %0, %%cr4\n"::"r" (reg));
+  ANX_CPU_WRITE_CR4(reg);
 }
 
 static INLINE UINTN
-read_cr3 (void)
+ReadCr3 (VOID)
 {
-  UINTN reg;
-
-  asm volatile ("mov %%cr3, %0\n":"=r" (reg));
-  return reg;
+  return ANX_CPU_READ_CR3();
 }
 
-static INLINE void
-write_cr3 (UINTN reg)
+static INLINE VOID
+WriteCr3 (UINTN reg)
 {
-  asm volatile ("mov %0, %%cr3\n"::"r" (reg));
+  ANX_CPU_WRITE_CR3(reg);
 }
 
 static INLINE UINTN
-read_cr0 (void)
+ReadCr0 (VOID)
 {
-  UINTN reg;
-
-  asm volatile ("mov %%cr0, %0\n":"=r" (reg));
-  return reg;
+  return ANX_CPU_READ_CR0();
 }
 
-static INLINE void
-write_cr0 (UINTN reg)
+static INLINE VOID
+WriteCr0 (UINTN reg)
 {
-  asm volatile ("mov %0, %%cr0\n"::"r" (reg));
+  ANX_CPU_WRITE_CR0(reg);
 }
 
-static INLINE void
-cpuid (UINT32 * eax, UINT32 * ebx, UINT32 * ecx, UINT32 * edx)
+static INLINE VOID
+Cpuid (UINT32 * eax, UINT32 * ebx, UINT32 * ecx, UINT32 * edx)
 {
-  asm volatile ("cpuid\n":"+a" (*eax), "=b" (*ebx), "+c" (*ecx), "=d" (*edx));
+  ANX_CPU_CPUID(eax, ebx, ecx, edx);
 }
 
 static INLINE UINT64
-rdmsr (UINT32 ecx)
+Rdmsr (UINT32 ecx)
 {
-  UINT32 edx, eax;
-
-  asm volatile ("rdmsr\n":"=d" (edx), "=a" (eax):"c" (ecx));
-
-  return ((UINT64) edx << 32) | eax;
+  return ANX_CPU_RDMSR(ecx);
 }
 
-static INLINE void
-wrmsr (UINT32 ecx, UINT64 msr)
+static INLINE VOID
+Wrmsr (UINT32 ecx, UINT64 msr)
 {
-  UINT32 edx, eax;
-
-  eax = (UINT32) msr;
-  edx = msr >> 32;
-
-  asm volatile ("wrmsr\n"::"c" (ecx), "d" (edx), "a" (eax));
+  ANX_CPU_WRMSR(ecx, msr);
 }
 
-static INLINE void
-lgdt (UINTN ptr)
+static INLINE VOID
+Lgdt (UINTN ptr)
 {
-  asm volatile ("lgdtl (%0)\n"::"r" (ptr));
+  ANX_CPU_LOAD_GDT((VOID*)ptr);
 }
 
-#endif

@@ -24,13 +24,10 @@
 **/
 int
 Inb (
-  IN int  Port
+  IN INT32 Port
   )
 {
-  int Ret;
-
-  asm volatile ("xor %%eax, %%eax; inb %%dx, %%al":"=a" (Ret):"d" (Port));
-  return Ret;
+  return ANX_CPU_INB(Port);
 }
 
 /**
@@ -43,11 +40,11 @@ Inb (
 **/
 VOID
 Outb (
-  IN int  Port,
-  IN int  Val
+  IN INT32 Port,
+  IN INT32 Val
   )
 {
-  asm volatile ("outb %%al, %%dx"::"d" (Port), "a" (Val));
+  ANX_CPU_OUTB(Port, Val);
 }
 
 /**
@@ -60,7 +57,7 @@ Outb (
 **/
 VOID
 Putchar (
-  IN int  C
+  IN INT32 C
   )
 {
   CONST UINT8 *VPtr = (CONST VOID *) 0xb8000;
@@ -70,7 +67,7 @@ Putchar (
 
   if (!gInit)
     {
-      int i;
+INT32 i;
       for (i = 0; i < 80 * 25; i++)
 	*(UINT8 *) (VPtr + i * 2) = 0;
 

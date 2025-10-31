@@ -37,7 +37,7 @@ NmiEmulNmiPending (
 
   assert (CpuId < HAL_MAXCPUS);
 
-  __atomic_load (gPending + CpuId, &Pending, __ATOMIC_ACQUIRE);
+  ANX_ATOMIC_LOAD (gPending + CpuId, &Pending, __ATOMIC_ACQUIRE);
   if (Pending & PENDING_NMI)
     return TRUE;
   return FALSE;
@@ -55,7 +55,7 @@ NmiEmulNmiClear (
 
   assert (CpuId < HAL_MAXCPUS);
 
-  __atomic_fetch_and (gPending + CpuId, ~(PENDING_NMI), __ATOMIC_ACQUIRE);
+  ANX_ATOMIC_FETCH_AND (gPending + CpuId, ~(PENDING_NMI), __ATOMIC_ACQUIRE);
 }
 
 /**
@@ -74,7 +74,7 @@ NmiEmulIpiPending (
 
   assert (CpuId < HAL_MAXCPUS);
 
-  __atomic_load (gPending + CpuId, &Pending, __ATOMIC_ACQUIRE);
+  ANX_ATOMIC_LOAD (gPending + CpuId, &Pending, __ATOMIC_ACQUIRE);
   if (Pending & PENDING_IPI)
     return TRUE;
   return FALSE;
@@ -92,7 +92,7 @@ NmiEmulIpiClear (
 
   assert (CpuId < HAL_MAXCPUS);
 
-  __atomic_fetch_and (gPending + CpuId, ~(PENDING_IPI), __ATOMIC_ACQUIRE);
+  ANX_ATOMIC_FETCH_AND (gPending + CpuId, ~(PENDING_IPI), __ATOMIC_ACQUIRE);
 }
 
 /**
@@ -106,7 +106,7 @@ NmiEmulNmiSet (
   )
 {
   assert (CpuId < HAL_MAXCPUS);
-  __atomic_fetch_or (gPending + CpuId, PENDING_NMI, __ATOMIC_RELEASE);
+  ANX_ATOMIC_FETCH_OR (gPending + CpuId, PENDING_NMI, __ATOMIC_RELEASE);
 
 }
 
@@ -119,7 +119,7 @@ NmiEmulNmiSetAll (
   )
 {
   for (UINT32 i = 0; i < HAL_MAXCPUS; i++)
-    __atomic_fetch_or (gPending + i, PENDING_NMI, __ATOMIC_RELEASE);
+    ANX_ATOMIC_FETCH_OR (gPending + i, PENDING_NMI, __ATOMIC_RELEASE);
 
 }
 
@@ -134,7 +134,7 @@ NmiEmulIpiSet (
   )
 {
   assert (CpuId < HAL_MAXCPUS);
-  __atomic_fetch_or (gPending + CpuId, PENDING_IPI, __ATOMIC_RELEASE);
+  ANX_ATOMIC_FETCH_OR (gPending + CpuId, PENDING_IPI, __ATOMIC_RELEASE);
 }
 
 /**
@@ -146,7 +146,7 @@ NmiEmulIpiSetAll (
   )
 {
   for (UINT32 i = 0; i < HAL_MAXCPUS; i++)
-    __atomic_fetch_or (gPending + i, PENDING_IPI, __ATOMIC_RELEASE);
+    ANX_ATOMIC_FETCH_OR (gPending + i, PENDING_IPI, __ATOMIC_RELEASE);
 
 }
 
@@ -171,57 +171,5 @@ NmiEmulEntry (
     }
   return Frame;
 }
-
-//
-// Legacy Function Wrappers (for backward compatibility)
-//
-
-/** @deprecated Use NmiEmulNmiPending instead **/
-static BOOLEAN nmiemul_nmi_pending (VOID) {
-  return NmiEmulNmiPending ();
-}
-
-/** @deprecated Use NmiEmulNmiClear instead **/
-static VOID nmiemul_nmi_clear (VOID) {
-  NmiEmulNmiClear ();
-}
-
-/** @deprecated Use NmiEmulIpiPending instead **/
-BOOLEAN nmiemul_ipi_pending (VOID) {
-  return NmiEmulIpiPending ();
-}
-
-/** @deprecated Use NmiEmulIpiClear instead **/
-VOID nmiemul_ipi_clear (VOID) {
-  NmiEmulIpiClear ();
-}
-
-/** @deprecated Use NmiEmulNmiSet instead **/
-VOID nmiemul_nmi_set (UINT32 cpu) {
-  NmiEmulNmiSet (cpu);
-}
-
-/** @deprecated Use NmiEmulNmiSetAll instead **/
-VOID nmiemul_nmi_setall (VOID) {
-  NmiEmulNmiSetAll ();
-}
-
-/** @deprecated Use NmiEmulIpiSet instead **/
-VOID nmiemul_ipi_set (UINT32 cpu) {
-  NmiEmulIpiSet (cpu);
-}
-
-/** @deprecated Use NmiEmulIpiSetAll instead **/
-VOID nmiemul_ipi_setall (VOID) {
-  NmiEmulIpiSetAll ();
-}
-
-/** @deprecated Use NmiEmulEntry instead **/
-struct hal_frame *nmiemul_entry (struct hal_frame *f) {
-  return NmiEmulEntry (f);
-}
-
-// Legacy global variable alias
-static UINT8 pending[HAL_MAXCPUS] __attribute__((alias("gPending")));
 
 #endif /* HAVE_NMIEMUL */

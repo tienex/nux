@@ -31,34 +31,25 @@ PayloadGet (
   OUT OPTIONAL UINTN  *Size
   )
 {
-  struct payload_hdr *Ptr = (struct payload_hdr *) &_end;
+  PAYLOAD_HDR *Ptr = (PAYLOAD_HDR *) &_end;
   UINT32 j;
 
   j = 0;
-  while (Ptr->magic == ELFPAYLOAD_MAGIC)
+  while (Ptr->Magic == ELFPAYLOAD_MAGIC)
     {
       if (j != Index)
 	{
-	  Ptr = (struct payload_hdr *) ((VOID *) (Ptr + 1) + Ptr->size);
+	  Ptr = (PAYLOAD_HDR *) ((VOID *) (Ptr + 1) + Ptr->Size);
 	  j++;
 	  continue;
 	}
 
       if (Size)
-	*Size = Ptr->size;
+	*Size = Ptr->Size;
       return (VOID *) (Ptr + 1);
     }
 
   if (Size)
     *Size = 0;
   return Ptr;
-}
-
-//
-// Legacy Function Wrappers (for backward compatibility)
-//
-
-/** @deprecated Use PayloadGet instead **/
-void *payload_get (unsigned i, UINTN *size) {
-  return PayloadGet (i, size);
 }

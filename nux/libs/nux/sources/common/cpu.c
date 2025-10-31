@@ -517,8 +517,8 @@ CpuKernelTlbUpdate (
   CPU_INFO *Ci = CpuGetCurrentInfo ();
   TLB_GENERATION CpuGlobal, CpuNormal;
 
-  __atomic_load (&Ci->Ktlb.Global, &CpuGlobal, __ATOMIC_RELAXED);
-  __atomic_load (&Ci->Ktlb.Normal, &CpuNormal, __ATOMIC_RELAXED);
+  ANX_ATOMIC_LOAD (&Ci->Ktlb.Global, &CpuGlobal, __ATOMIC_RELAXED);
+  ANX_ATOMIC_LOAD (&Ci->Ktlb.Normal, &CpuNormal, __ATOMIC_RELAXED);
   TLB_GENERATION KGlobal = KtlbGenGlobal ();
   TLB_GENERATION KNormal = KtlbGenNormal ();
 
@@ -532,15 +532,15 @@ CpuKernelTlbUpdate (
          Both failure and success case are relaxed because these
          variable are per cpu and accessed with relaxed order.
        */
-      __atomic_compare_exchange (&Ci->Ktlb.Global, &CpuGlobal, &KGlobal,
+      ANX_ATOMIC_COMPARE_EXCHANGE (&Ci->Ktlb.Global, &CpuGlobal, &KGlobal,
                                  FALSE, __ATOMIC_RELAXED, __ATOMIC_RELAXED);
-      __atomic_compare_exchange (&Ci->Ktlb.Normal, &CpuNormal, &KNormal,
+      ANX_ATOMIC_COMPARE_EXCHANGE (&Ci->Ktlb.Normal, &CpuNormal, &KNormal,
                                  FALSE, __ATOMIC_RELAXED, __ATOMIC_RELAXED);
     }
   else if (TlbGenCompare (KNormal, CpuNormal) > 0)
     {
       hal_cpu_tlbop (HAL_TLBOP_FLUSH);
-      __atomic_compare_exchange (&Ci->Ktlb.Normal, &CpuNormal, &KNormal,
+      ANX_ATOMIC_COMPARE_EXCHANGE (&Ci->Ktlb.Normal, &CpuNormal, &KNormal,
                                  FALSE, __ATOMIC_RELAXED, __ATOMIC_RELAXED);
     }
 }
@@ -568,7 +568,7 @@ CpuKernelTlbReach (
   CPU_INFO *Ci = CpuGetCurrentInfo ();
   TLB_GENERATION CpuKtlb;
 
-  __atomic_load (&Ci->Ktlb.Normal, &CpuKtlb, __ATOMIC_RELAXED);
+  ANX_ATOMIC_LOAD (&Ci->Ktlb.Normal, &CpuKtlb, __ATOMIC_RELAXED);
 
   if (TlbGenCompare (Target, CpuKtlb) > 0)
     {
@@ -591,9 +591,9 @@ CpuTlbFlushLocal (
   TLB_GENERATION KNormal = KtlbGenNormal ();
   TLB_GENERATION CpuNormal;
 
-  __atomic_load (&Ci->Ktlb.Normal, &CpuNormal, __ATOMIC_RELAXED);
+  ANX_ATOMIC_LOAD (&Ci->Ktlb.Normal, &CpuNormal, __ATOMIC_RELAXED);
   hal_cpu_tlbop (HAL_TLBOP_FLUSH);
-  __atomic_compare_exchange (&Ci->Ktlb.Normal, &CpuNormal, &KNormal,
+  ANX_ATOMIC_COMPARE_EXCHANGE (&Ci->Ktlb.Normal, &CpuNormal, &KNormal,
                              FALSE, __ATOMIC_RELAXED, __ATOMIC_RELAXED);
 }
 
@@ -641,7 +641,7 @@ CpuKernelMapUpdate (
   if (Ci != NULL)
     return;
 
-  __atomic_or_fetch (&Ci->NmiOp, NMIOP_KMAPUPDATE, __ATOMIC_RELAXED);
+  ANX_ATOMIC_OR_FETCH (&Ci->NmiOp, NMIOP_KMAPUPDATE, __ATOMIC_RELAXED);
   CpuSendNmi (Cpu);
 }
 
@@ -688,7 +688,7 @@ CpuTlbFlush (
   if (Ci == NULL)
     return;
 
-  __atomic_or_fetch (&Ci->NmiOp, NMIOP_TLBFLUSH, __ATOMIC_RELAXED);
+  ANX_ATOMIC_OR_FETCH (&Ci->NmiOp, NMIOP_TLBFLUSH, __ATOMIC_RELAXED);
   CpuSendNmi (Cpu);
 }
 
@@ -995,7 +995,7 @@ CpuEnterUserMap (
   if (CurUmap != NULL)
     atomic_cpumask_clear (&CurUmap->cpumask, CpuGetId ());
 
-  __atomic_store (&CpuGetCurrentInfo ()->umap, &Umap, __ATOMIC_RELEASE);
+  ANX_ATOMIC_STORE (&CpuGetCurrentInfo ()->umap, &Umap, __ATOMIC_RELEASE);
   atomic_cpumask_set (&Umap->cpumask, CpuGetId ());
   hal_cpu_tlbop (hal_umap_load (&Umap->hal));
 }
@@ -1019,232 +1019,8 @@ CpuExitUserMap (
   if (CurUmap == NULL)
     return NULL;
 
-  __atomic_clear (&CpuGetCurrentInfo ()->umap, __ATOMIC_RELEASE);
+  ANX_ATOMIC_CLEAR (&CpuGetCurrentInfo ()->umap, __ATOMIC_RELEASE);
   atomic_cpumask_clear (&CurUmap->cpumask, CpuGetId ());
   CpuGetCurrentInfo ()->umap = NULL;
   return CurUmap;
 }
-
-//
-// Legacy Function Wrappers (for backward compatibility)
-//
-
-/** @deprecated Use CpuAdd instead **/
-static int cpu_add (UINT16 physid) {
-  return CpuAdd (physid);
-}
-
-/** @deprecated Use CpuInitialize instead **/
-VOID cpu_init (VOID) {
-  CpuInitialize ();
-}
-
-/** @deprecated Use CpuIdFromPhys instead **/
-static UINT32 cpu_idfromphys (UINT32 physid) {
-  return CpuIdFromPhys (physid);
-}
-
-/** @deprecated Use CpuGetInfo instead **/
-static CPU_INFO *cpu_getinfo (UINT32 id) {
-  return CpuGetInfo (id);
-}
-
-/** @deprecated Use CpuGetCurrentInfo instead **/
-static CPU_INFO *cpu_curinfo (VOID) {
-  return CpuGetCurrentInfo ();
-}
-
-/** @deprecated Use CpuEnter instead **/
-VOID cpu_enter (VOID) {
-  CpuEnter ();
-}
-
-/** @deprecated Use CpuWasIdle instead **/
-BOOLEAN CpuWasIdle (VOID) {
-  return CpuWasIdle ();
-}
-
-/** @deprecated Use CpuClearIdle instead **/
-VOID CpuClearIdle (VOID) {
-  CpuClearIdle ();
-}
-
-/** @deprecated Use CpuStartAll instead **/
-VOID cpu_startall (VOID) {
-  CpuStartAll ();
-}
-
-/** @deprecated Use CpuGetActiveMask instead **/
-CPU_MASK CpuActiveMask (VOID) {
-  return CpuGetActiveMask ();
-}
-
-/** @deprecated Use CpuGetId instead **/
-unsigned CpuId (VOID) {
-  return CpuGetId ();
-}
-
-/** @deprecated Use CpuTryGetId instead **/
-unsigned CpuTryId (VOID) {
-  return CpuTryGetId ();
-}
-
-/** @deprecated Use CpuSetData instead **/
-VOID CpuSetData (VOID *ptr) {
-  CpuSetData (ptr);
-}
-
-/** @deprecated Use CpuGetData instead **/
-VOID *CpuGetData (VOID) {
-  return CpuGetData ();
-}
-
-/** @deprecated Use CpuGetNumber instead **/
-unsigned CpuNum (VOID) {
-  return CpuGetNumber ();
-}
-
-/** @deprecated Use CpuSendNmi instead **/
-VOID CpuNmi (INT32 cpu) {
-  CpuSendNmi (cpu);
-}
-
-/** @deprecated Use CpuSendNmiMask instead **/
-VOID cpu_nmi_mask (CPU_MASK map) {
-  CpuSendNmiMask (map);
-}
-
-/** @deprecated Use CpuSendNmiAllButSelf instead **/
-VOID cpu_nmi_allbutself (VOID) {
-  CpuSendNmiAllButSelf ();
-}
-
-/** @deprecated Use CpuSendNmiBroadcast instead **/
-VOID cpu_nmi_broadcast (VOID) {
-  CpuSendNmiBroadcast ();
-}
-
-/** @deprecated Use CpuSendIpi instead **/
-VOID CpuIpi (INT32 cpu) {
-  CpuSendIpi (cpu);
-}
-
-/** @deprecated Use CpuSendIpiBroadcast instead **/
-VOID cpu_ipi_broadcast (VOID) {
-  CpuSendIpiBroadcast ();
-}
-
-/** @deprecated Use CpuSendIpiMask instead **/
-VOID cpu_ipi_mask (CPU_MASK map) {
-  CpuSendIpiMask (map);
-}
-
-/** @deprecated Use CpuIdle instead **/
-VOID CpuIdle (VOID) {
-  CpuIdle ();
-}
-
-/** @deprecated Use CpuKernelTlbUpdate instead **/
-VOID cpu_ktlb_update (VOID) {
-  CpuKernelTlbUpdate ();
-}
-
-/** @deprecated Use CpuKernelTlbReach instead **/
-VOID cpu_ktlb_reach (TLB_GENERATION target) {
-  CpuKernelTlbReach (target);
-}
-
-/** @deprecated Use CpuTlbFlushLocal instead **/
-VOID cpu_tlbflush_local (VOID) {
-  CpuTlbFlushLocal ();
-}
-
-/** @deprecated Use CpuNmiOperation instead **/
-VOID CpuNmiOperation (VOID) {
-  CpuNmiOperation ();
-}
-
-/** @deprecated Use CpuKernelMapUpdate instead **/
-VOID cpu_kmapupdate (INT32 cpu) {
-  CpuKernelMapUpdate (cpu);
-}
-
-/** @deprecated Use CpuKernelMapUpdateBroadcast instead **/
-VOID CpuKmapUpdateBroadcast (VOID) {
-  CpuKernelMapUpdateBroadcast ();
-}
-
-/** @deprecated Use CpuTlbFlush instead **/
-VOID cpu_tlbflush (INT32 cpu) {
-  CpuTlbFlush (cpu);
-}
-
-/** @deprecated Use CpuTlbFlushMask instead **/
-VOID cpu_tlbflush_mask (CPU_MASK mask) {
-  CpuTlbFlushMask (mask);
-}
-
-/** @deprecated Use CpuTlbFlushBroadcast instead **/
-VOID cpu_tlbflush_broadcast (VOID) {
-  CpuTlbFlushBroadcast ();
-}
-
-/** @deprecated Use CpuUserAccessStart instead **/
-static VOID cpu_useraccess_start (VOID) {
-  CpuUserAccessStart ();
-}
-
-/** @deprecated Use CpuUserAccessReset instead **/
-static VOID cpu_useraccess_reset (VOID) {
-  CpuUserAccessReset ();
-}
-
-/** @deprecated Use CpuUserAccessEnd instead **/
-static VOID cpu_useraccess_end (VOID) {
-  CpuUserAccessEnd ();
-}
-
-/** @deprecated Use CpuUserAccessCopyFrom instead **/
-BOOLEAN cpu_useraccess_copyfrom (VOID *dst, USER_ADDRESS src, UINTN size,
-                              BOOLEAN (*pf_handler) (USER_ADDRESS va, hal_pfinfo_t info)) {
-  return CpuUserAccessCopyFrom (dst, src, size, pf_handler);
-}
-
-/** @deprecated Use CpuUserAccessCopyTo instead **/
-BOOLEAN cpu_useraccess_copyto (USER_ADDRESS dst, VOID *src, UINTN size,
-                            BOOLEAN (*pf_handler) (USER_ADDRESS va, hal_pfinfo_t info)) {
-  return CpuUserAccessCopyTo (dst, src, size, pf_handler);
-}
-
-/** @deprecated Use CpuUserAccessMemset instead **/
-BOOLEAN cpu_useraccess_memset (USER_ADDRESS dst, INT32 ch, UINTN size,
-                            BOOLEAN (*pf_handler) (USER_ADDRESS va, hal_pfinfo_t info)) {
-  return CpuUserAccessMemset (dst, ch, size, pf_handler);
-}
-
-/** @deprecated Use CpuUserAccessCheckPageFault instead **/
-VOID CpuUserAccessCheckPageFault (USER_ADDRESS addr, hal_pfinfo_t info) {
-  CpuUserAccessCheckPageFault (addr, info);
-}
-
-/** @deprecated Use CpuGetCurrentUserMap instead **/
-struct umap *cpu_umap_current (VOID) {
-  return CpuGetCurrentUserMap ();
-}
-
-/** @deprecated Use CpuEnterUserMap instead **/
-VOID cpu_umap_enter (struct umap *umap) {
-  CpuEnterUserMap (umap);
-}
-
-/** @deprecated Use CpuExitUserMap instead **/
-struct umap *cpu_umap_exit (VOID) {
-  return CpuExitUserMap ();
-}
-
-// Legacy global variable aliases
-static UINT32 number_cpus __attribute__((alias("gNumberCpus")));
-static UINT32 cpu_phys_to_id[HAL_MAXCPUS] __attribute__((alias("gCpuPhysToId")));
-static CPU_INFO *cpus[HAL_MAXCPUS] __attribute__((alias("gCpus")));
-static CPU_MASK tlbmap __attribute__((alias("gTlbMap")));
-static CPU_MASK cpus_active __attribute__((alias("gCpusActive")));

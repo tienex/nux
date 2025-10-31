@@ -21,10 +21,10 @@
 **/
 VOID
 Putchar (
-  IN int  Ch
+  IN INT32 Ch
   )
 {
-  asm volatile ("mv a0, %0\n" "li a7, 1\n" "ecall\n"::"r" (Ch):"a0", "a7");
+  ANX_CPU_SBI_PUTCHAR(Ch);
 }
 
 /**
@@ -37,7 +37,7 @@ Putchar (
 **/
 VOID
 Exit (
-  IN int  Status
+  IN INT32 Status
   )
 {
   printf ("Exit %d\n", Status);
@@ -50,11 +50,11 @@ Exit (
 //
 
 /** @deprecated Use Putchar instead **/
-void putchar (int ch) {
+VOID putchar (INT32 ch) {
   Putchar (ch);
 }
 
 /** @deprecated Use Exit instead **/
-void exit (int status) {
+VOID exit (INT32 status) {
   Exit (status);
 }

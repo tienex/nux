@@ -101,12 +101,3 @@ exit (
 
   abort ();
 }
-
-//
-// Legacy Function Wrappers (for backward compatibility)
-//
-
-/** @deprecated Use NuxPanic instead **/
-VOID __dead NuxPanic (PCCHAR8message, struct hal_frame *f) {
-  NuxPanic (message, f);
-}
