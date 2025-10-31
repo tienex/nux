@@ -26,6 +26,8 @@
 
 #include <apxh/internal.h>
 #include <apxh/imgload.h>
+#include <ananke/resource.h>
+#include "imgresource.h"
 
 //
 // Mach-O Magic Numbers
@@ -1395,6 +1397,321 @@ MachoGetMinimumSubsystemVersion (
   return S_FALSE;
 }
 
+/**
+  Find segment by name in Mach-O image.
+
+  @param[in]  ImageBase    Pointer to Mach-O image.
+  @param[in]  SegmentName  Segment name (e.g., "__RSRC", "__TEXT").
+  @param[out] Data         Receives pointer to segment data.
+  @param[out] Size         Receives size of segment.
+
+  @return S_OK if found, S_FALSE if not found, error code otherwise.
+**/
+static
+HRESULT
+MachoFindSegment (
+  IN  VOID         *ImageBase,
+  IN  CONST CHAR8  *SegmentName,
+  OUT VOID         **Data,
+  OUT UINT64       *Size
+  )
+{
+  MACHO_HEADER *Header;
+  MACHO_HEADER_64 *Header64;
+  UINT32 Magic;
+  UINT32 NumCmds;
+  UINT8 *CmdPtr;
+  UINT32 i;
+  BOOLEAN Is64Bit;
+
+  if (ImageBase == NULL || SegmentName == NULL || Data == NULL || Size == NULL) {
+    return E_POINTER;
+  }
+
+  Header = (MACHO_HEADER *)ImageBase;
+  Header64 = (MACHO_HEADER_64 *)ImageBase;
+  Magic = Header->Magic;
+
+  Is64Bit = (Magic == MH_MAGIC_64 || Magic == MH_CIGAM_64);
+  NumCmds = Is64Bit ? Header64->NumCmds : Header->NumCmds;
+
+  CmdPtr = (UINT8 *)ImageBase + (Is64Bit ? sizeof(MACHO_HEADER_64) : sizeof(MACHO_HEADER));
+
+  // Iterate through load commands
+  for (i = 0; i < NumCmds; i++) {
+    MACHO_LOAD_COMMAND *Cmd = (MACHO_LOAD_COMMAND *)CmdPtr;
+
+    if (Is64Bit && Cmd->Cmd == LC_SEGMENT_64) {
+      MACHO_SEGMENT_COMMAND_64 *Seg = (MACHO_SEGMENT_COMMAND_64 *)Cmd;
+      if (strncmp(Seg->SegName, SegmentName, 16) == 0) {
+        *Data = (UINT8 *)ImageBase + Seg->FileOff;
+        *Size = Seg->FileSize;
+        return S_OK;
+      }
+    } else if (!Is64Bit && Cmd->Cmd == LC_SEGMENT) {
+      MACHO_SEGMENT_COMMAND *Seg = (MACHO_SEGMENT_COMMAND *)Cmd;
+      if (strncmp(Seg->SegName, SegmentName, 16) == 0) {
+        *Data = (UINT8 *)ImageBase + Seg->FileOff;
+        *Size = Seg->FileSize;
+        return S_OK;
+      }
+    }
+
+    CmdPtr += Cmd->CmdSize;
+  }
+
+  return S_FALSE;  // Segment not found
+}
+
+/**
+  Find native resource in Mach-O __RSRC segment.
+
+  Mach-O uses Classic Mac resource fork format in __RSRC segment.
+
+  @param[in]  ImageBase    Pointer to Mach-O image.
+  @param[in]  TypeCode     Resource type (4-char code).
+  @param[in]  Id           Resource ID (0 if using name).
+  @param[in]  Name         Resource name (NULL if using ID).
+  @param[out] Data         Receives pointer to resource data.
+  @param[out] Size         Receives size of resource data.
+
+  @return S_OK if found, S_FALSE if not found, error code otherwise.
+**/
+static
+HRESULT
+MachoFindNativeResource (
+  IN  VOID         *ImageBase,
+  IN  UINT32       TypeCode,
+  IN  UINT32       Id,
+  IN  CONST CHAR8  *Name,
+  OUT VOID         **Data,
+  OUT UINT64       *Size
+  )
+{
+  VOID *RsrcSeg;
+  UINT64 RsrcSize;
+  HRESULT Status;
+
+  if (ImageBase == NULL || Data == NULL || Size == NULL) {
+    return E_POINTER;
+  }
+
+  // Find __RSRC segment
+  Status = MachoFindSegment(ImageBase, "__RSRC", &RsrcSeg, &RsrcSize);
+  if (Status != S_OK) {
+    return Status;
+  }
+
+  // Validate as resource fork
+  Status = AnxResourceValidate(RsrcSeg, RsrcSize);
+  if (FAILED(Status)) {
+    return IMGLOAD_E_INVALID_FORMAT;
+  }
+
+  // Find resource in fork
+  if (Name != NULL) {
+    Status = AnxResourceFindByName(RsrcSeg, TypeCode, Name, Data, Size);
+  } else {
+    Status = AnxResourceFindById(RsrcSeg, TypeCode, (UINT16)Id, Data, Size);
+  }
+
+  return Status;
+}
+
+/**
+  Get resource from Mach-O image.
+
+  Hybrid strategy: Combines universal resources (from AUR in __RSRC or
+  __apxh_uresource segment) with native resources from __RSRC.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+MachoGetResource (
+  IN  IImageLoader        *This,
+  IN  VOID                *ImageBase,
+  IN  IMGLOAD_RESOURCE_ID *ResourceId,
+  IN  IMGLOAD_RESOURCE_ID *ResourceType,
+  OUT IImageResource      **Resource
+  )
+{
+  VOID *ResourceFork;
+  UINT64 Size;
+  BOOLEAN NeedsFree;
+  HRESULT Status;
+  UINT32 TypeCode;
+  UINT16 Id;
+  CONST CHAR8 *Name;
+  VOID *NativeData;
+  UINT64 NativeSize;
+
+  if (ImageBase == NULL || Resource == NULL) {
+    return E_POINTER;
+  }
+
+  *Resource = NULL;
+
+  // Extract type code from ResourceType
+  if (ResourceType != NULL) {
+    if (ResourceType->IsNumeric) {
+      TypeCode = ResourceType->Id;
+    } else {
+      // Convert name to 4-char type code
+      TypeCode = ANX_MAKE_TYPE(ResourceType->Name);
+    }
+  } else {
+    TypeCode = 0;  // All types
+  }
+
+  // Extract resource ID/name from ResourceId
+  if (ResourceId != NULL) {
+    if (ResourceId->IsNumeric) {
+      Id = (UINT16)ResourceId->Id;
+      Name = NULL;
+    } else {
+      Id = 0;
+      Name = ResourceId->Name;
+    }
+  } else {
+    Id = 0;
+    Name = NULL;
+  }
+
+  // First, try to get universal resource fork
+  Status = FindUniversalResourceFork(
+    ImageBase,
+    ResourceStrategyBoth,
+    MachoFindNativeResource,
+    MachoFindSegment,
+    "__apxh_uresource",
+    &ResourceFork,
+    &Size,
+    &NeedsFree
+  );
+
+  if (Status == S_OK) {
+    // Try to find resource in universal fork
+    Status = CreateImageResource(
+      ResourceFork,
+      TypeCode,
+      Id,
+      Name,
+      Resource
+    );
+
+    if (Status == S_OK) {
+      // Found in universal fork
+      if (NeedsFree && ResourceFork != NULL) {
+        free(ResourceFork);
+      }
+      return S_OK;
+    }
+
+    // Not found in universal fork, will try native resources
+    if (NeedsFree && ResourceFork != NULL) {
+      free(ResourceFork);
+    }
+  }
+
+  // Try native Mach-O resources in __RSRC segment (excluding AUR)
+  if (TypeCode != ANX_RSRC_TYPE_AUR &&
+      TypeCode != ANX_RSRC_TYPE_AUR_16BIT) {
+
+    Status = MachoFindNativeResource(
+      ImageBase,
+      TypeCode,
+      Id,
+      Name,
+      &NativeData,
+      &NativeSize
+    );
+
+    if (Status == S_OK) {
+      // Found in native resources - wrap it
+      Status = CreateNativeImageResource(
+        TypeCode,
+        Id,
+        Name,
+        NativeData,
+        NativeSize,
+        Resource
+      );
+      return Status;
+    }
+  }
+
+  return S_FALSE;  // Not found in either source
+}
+
+/**
+  Get resource enumerator for Mach-O image.
+
+  Enumerates all resources of a given type from the universal resource fork.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+MachoGetResourceEnumerator (
+  IN  IImageLoader        *This,
+  IN  VOID                *ImageBase,
+  IN  IMGLOAD_RESOURCE_ID *ResourceType,
+  OUT IEnumImageResource  **Enumerator
+  )
+{
+  VOID *ResourceFork;
+  UINT64 Size;
+  BOOLEAN NeedsFree;
+  HRESULT Status;
+  UINT32 TypeCode;
+
+  if (ImageBase == NULL || Enumerator == NULL) {
+    return E_POINTER;
+  }
+
+  *Enumerator = NULL;
+
+  // Extract type code from ResourceType
+  if (ResourceType != NULL) {
+    if (ResourceType->IsNumeric) {
+      TypeCode = ResourceType->Id;
+    } else {
+      // Convert name to 4-char type code
+      TypeCode = ANX_MAKE_TYPE(ResourceType->Name);
+    }
+  } else {
+    TypeCode = 0;  // All types
+  }
+
+  // Use FindUniversalResourceFork with hybrid strategy
+  Status = FindUniversalResourceFork(
+    ImageBase,
+    ResourceStrategyBoth,
+    MachoFindNativeResource,
+    MachoFindSegment,
+    "__apxh_uresource",
+    &ResourceFork,
+    &Size,
+    &NeedsFree
+  );
+
+  if (FAILED(Status) || Status == S_FALSE) {
+    return Status;
+  }
+
+  // Create enumerator
+  Status = CreateImageResourceEnumerator(
+    ResourceFork,
+    TypeCode,
+    Enumerator
+  );
+
+  if (NeedsFree && ResourceFork != NULL) {
+    free(ResourceFork);
+  }
+
+  return Status;
+}
+
 //
 // Mach-O Loader VTable
 //
@@ -1417,7 +1734,9 @@ static CONST IImageLoaderVtbl gMachoVtbl = {
   MachoGetTargetSystem,
   MachoGetMinimumSystemVersion,
   MachoGetTargetSubsystem,
-  MachoGetMinimumSubsystemVersion
+  MachoGetMinimumSubsystemVersion,
+  MachoGetResource,
+  MachoGetResourceEnumerator
 };
 
 //
