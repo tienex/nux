@@ -30,6 +30,8 @@
 
 #include <apxh/internal.h>
 #include <apxh/imgload.h>
+#include <ananke/resource.h>
+#include "imgresource.h"
 
 //
 // COFF Magic Numbers (Common Object File Format)
@@ -1324,6 +1326,201 @@ CoffGetMinimumSubsystemVersion (
   return S_FALSE;
 }
 
+/**
+  Find section by name in COFF image.
+
+  @param[in]  ImageBase    Pointer to COFF image.
+  @param[in]  SectionName  Section name to find.
+  @param[out] Data         Receives pointer to section data.
+  @param[out] Size         Receives size of section.
+
+  @return S_OK if found, S_FALSE if not found, error code otherwise.
+**/
+static
+HRESULT
+CoffFindSection (
+  IN  VOID         *ImageBase,
+  IN  CONST CHAR8  *SectionName,
+  OUT VOID         **Data,
+  OUT UINT64       *Size
+  )
+{
+  COFF_FILE_HEADER *FileHeader;
+  COFF_SECTION_HEADER *Sections;
+  UINT16 NumSections;
+  UINT16 i;
+  UINTN NameLen;
+
+  if (ImageBase == NULL || SectionName == NULL || Data == NULL || Size == NULL) {
+    return E_POINTER;
+  }
+
+  FileHeader = (COFF_FILE_HEADER *)ImageBase;
+  NumSections = FileHeader->NumberOfSections;
+  Sections = (COFF_SECTION_HEADER *)((UINT8 *)ImageBase +
+                                     sizeof(COFF_FILE_HEADER) +
+                                     FileHeader->SizeOfOptionalHeader);
+
+  NameLen = strlen(SectionName);
+  if (NameLen > 8) {
+    NameLen = 8;  // COFF section names are max 8 characters
+  }
+
+  // Search for section
+  for (i = 0; i < NumSections; i++) {
+    if (memcmp(Sections[i].Name, SectionName, NameLen) == 0) {
+      *Data = (UINT8 *)ImageBase + Sections[i].PointerToRawData;
+      *Size = Sections[i].SizeOfRawData;
+      return S_OK;
+    }
+  }
+
+  return S_FALSE;  // Section not found
+}
+
+/**
+  Get resource from COFF image.
+
+  COFF has no native resource system, so we only check .axursrc section.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+CoffGetResource (
+  IN  IImageLoader        *This,
+  IN  VOID                *ImageBase,
+  IN  IMGLOAD_RESOURCE_ID *ResourceId,
+  IN  IMGLOAD_RESOURCE_ID *ResourceType,
+  OUT IImageResource      **Resource
+  )
+{
+  VOID *ResourceFork;
+  UINT64 Size;
+  BOOLEAN NeedsFree;
+  HRESULT Status;
+  UINT32 TypeCode;
+  UINT16 Id;
+  CONST CHAR8 *Name;
+
+  if (ImageBase == NULL || Resource == NULL) {
+    return E_POINTER;
+  }
+
+  *Resource = NULL;
+
+  // Extract type code from ResourceType
+  if (ResourceType != NULL) {
+    if (ResourceType->IsNumeric) {
+      TypeCode = ResourceType->Id;
+    } else {
+      TypeCode = ANX_MAKE_TYPE(ResourceType->Name);
+    }
+  } else {
+    TypeCode = 0;
+  }
+
+  // Extract resource ID/name from ResourceId
+  if (ResourceId != NULL) {
+    if (ResourceId->IsNumeric) {
+      Id = (UINT16)ResourceId->Id;
+      Name = NULL;
+    } else {
+      Id = 0;
+      Name = ResourceId->Name;
+    }
+  } else {
+    Id = 0;
+    Name = NULL;
+  }
+
+  // Find universal resource fork in .axursrc section
+  Status = FindUniversalResourceFork(
+    ImageBase,
+    ResourceStrategyDirect,
+    NULL,  // No native resources in COFF
+    CoffFindSection,
+    ".axursrc",
+    &ResourceFork,
+    &Size,
+    &NeedsFree
+  );
+
+  if (FAILED(Status) || Status == S_FALSE) {
+    return Status;
+  }
+
+  // Create resource object
+  Status = CreateImageResource(ResourceFork, TypeCode, Id, Name, Resource);
+
+  if (NeedsFree && ResourceFork != NULL) {
+    free(ResourceFork);
+  }
+
+  return Status;
+}
+
+/**
+  Get resource enumerator for COFF image.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+CoffGetResourceEnumerator (
+  IN  IImageLoader        *This,
+  IN  VOID                *ImageBase,
+  IN  IMGLOAD_RESOURCE_ID *ResourceType,
+  OUT IEnumImageResource  **Enumerator
+  )
+{
+  VOID *ResourceFork;
+  UINT64 Size;
+  BOOLEAN NeedsFree;
+  HRESULT Status;
+  UINT32 TypeCode;
+
+  if (ImageBase == NULL || Enumerator == NULL) {
+    return E_POINTER;
+  }
+
+  *Enumerator = NULL;
+
+  // Extract type code from ResourceType
+  if (ResourceType != NULL) {
+    if (ResourceType->IsNumeric) {
+      TypeCode = ResourceType->Id;
+    } else {
+      TypeCode = ANX_MAKE_TYPE(ResourceType->Name);
+    }
+  } else {
+    TypeCode = 0;
+  }
+
+  // Find universal resource fork
+  Status = FindUniversalResourceFork(
+    ImageBase,
+    ResourceStrategyDirect,
+    NULL,
+    CoffFindSection,
+    ".axursrc",
+    &ResourceFork,
+    &Size,
+    &NeedsFree
+  );
+
+  if (FAILED(Status) || Status == S_FALSE) {
+    return Status;
+  }
+
+  // Create enumerator
+  Status = CreateImageResourceEnumerator(ResourceFork, TypeCode, Enumerator);
+
+  if (NeedsFree && ResourceFork != NULL) {
+    free(ResourceFork);
+  }
+
+  return Status;
+}
+
 //
 // COFF Loader VTable
 //
@@ -1346,7 +1543,9 @@ static CONST IImageLoaderVtbl gCoffVtbl = {
   CoffGetTargetSystem,
   CoffGetMinimumSystemVersion,
   CoffGetTargetSubsystem,
-  CoffGetMinimumSubsystemVersion
+  CoffGetMinimumSubsystemVersion,
+  CoffGetResource,
+  CoffGetResourceEnumerator
 };
 
 //

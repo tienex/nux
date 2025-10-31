@@ -17,6 +17,8 @@
 
 #include <apxh/internal.h>
 #include <apxh/imgload.h>
+#include <ananke/resource.h>
+#include "imgresource.h"
 
 //
 // XCOFF Magic Numbers
@@ -761,6 +763,202 @@ XcoffGetMinimumSubsystemVersion (
   memset(MinimumVersion, 0, sizeof(IMGLOAD_SYSTEM_VERSION));
   return S_FALSE;
 }
+
+/**
+  Find section by name in XCOFF image.
+
+  @param[in]  ImageBase    Pointer to XCOFF image.
+  @param[in]  SectionName  Section name to find.
+  @param[out] Data         Receives pointer to section data.
+  @param[out] Size         Receives size of section.
+
+  @return S_OK if found, S_FALSE if not found, error code otherwise.
+**/
+static
+HRESULT
+XcoffFindSection (
+  IN  VOID         *ImageBase,
+  IN  CONST CHAR8  *SectionName,
+  OUT VOID         **Data,
+  OUT UINT64       *Size
+  )
+{
+  XCOFF_FILE_HEADER *FileHeader;
+  XCOFF_SECTION_HEADER *Sections;
+  UINT16 NumSections;
+  UINT16 i;
+  UINTN NameLen;
+
+  if (ImageBase == NULL || SectionName == NULL || Data == NULL || Size == NULL) {
+    return E_POINTER;
+  }
+
+  FileHeader = (XCOFF_FILE_HEADER *)ImageBase;
+  NumSections = FileHeader->NumberOfSections;
+  Sections = (XCOFF_SECTION_HEADER *)((UINT8 *)ImageBase +
+                                      sizeof(XCOFF_FILE_HEADER) +
+                                      FileHeader->SizeOfOptionalHeader);
+
+  NameLen = strlen(SectionName);
+  if (NameLen > 8) {
+    NameLen = 8;  // XCOFF section names are max 8 characters
+  }
+
+  // Search for section
+  for (i = 0; i < NumSections; i++) {
+    if (memcmp(Sections[i].Name, SectionName, NameLen) == 0) {
+      *Data = (UINT8 *)ImageBase + Sections[i].FilePointer;
+      *Size = Sections[i].Size;
+      return S_OK;
+    }
+  }
+
+  return S_FALSE;  // Section not found
+}
+
+/**
+  Get resource from XCOFF image.
+
+  XCOFF has no native resource system, so we only check .axursrc section.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+XcoffGetResource (
+  IN  IImageLoader        *This,
+  IN  VOID                *ImageBase,
+  IN  IMGLOAD_RESOURCE_ID *ResourceId,
+  IN  IMGLOAD_RESOURCE_ID *ResourceType,
+  OUT IImageResource      **Resource
+  )
+{
+  VOID *ResourceFork;
+  UINT64 Size;
+  BOOLEAN NeedsFree;
+  HRESULT Status;
+  UINT32 TypeCode;
+  UINT16 Id;
+  CONST CHAR8 *Name;
+
+  if (ImageBase == NULL || Resource == NULL) {
+    return E_POINTER;
+  }
+
+  *Resource = NULL;
+
+  // Extract type code from ResourceType
+  if (ResourceType != NULL) {
+    if (ResourceType->IsNumeric) {
+      TypeCode = ResourceType->Id;
+    } else {
+      TypeCode = ANX_MAKE_TYPE(ResourceType->Name);
+    }
+  } else {
+    TypeCode = 0;
+  }
+
+  // Extract resource ID/name from ResourceId
+  if (ResourceId != NULL) {
+    if (ResourceId->IsNumeric) {
+      Id = (UINT16)ResourceId->Id;
+      Name = NULL;
+    } else {
+      Id = 0;
+      Name = ResourceId->Name;
+    }
+  } else {
+    Id = 0;
+    Name = NULL;
+  }
+
+  // Find universal resource fork in .axursrc section
+  Status = FindUniversalResourceFork(
+    ImageBase,
+    ResourceStrategyDirect,
+    NULL,  // No native resources in XCOFF
+    XcoffFindSection,
+    ".axursrc",
+    &ResourceFork,
+    &Size,
+    &NeedsFree
+  );
+
+  if (FAILED(Status) || Status == S_FALSE) {
+    return Status;
+  }
+
+  // Create resource object
+  Status = CreateImageResource(ResourceFork, TypeCode, Id, Name, Resource);
+
+  if (NeedsFree && ResourceFork != NULL) {
+    free(ResourceFork);
+  }
+
+  return Status;
+}
+
+/**
+  Get resource enumerator for XCOFF image.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+XcoffGetResourceEnumerator (
+  IN  IImageLoader        *This,
+  IN  VOID                *ImageBase,
+  IN  IMGLOAD_RESOURCE_ID *ResourceType,
+  OUT IEnumImageResource  **Enumerator
+  )
+{
+  VOID *ResourceFork;
+  UINT64 Size;
+  BOOLEAN NeedsFree;
+  HRESULT Status;
+  UINT32 TypeCode;
+
+  if (ImageBase == NULL || Enumerator == NULL) {
+    return E_POINTER;
+  }
+
+  *Enumerator = NULL;
+
+  // Extract type code from ResourceType
+  if (ResourceType != NULL) {
+    if (ResourceType->IsNumeric) {
+      TypeCode = ResourceType->Id;
+    } else {
+      TypeCode = ANX_MAKE_TYPE(ResourceType->Name);
+    }
+  } else {
+    TypeCode = 0;
+  }
+
+  // Find universal resource fork
+  Status = FindUniversalResourceFork(
+    ImageBase,
+    ResourceStrategyDirect,
+    NULL,
+    XcoffFindSection,
+    ".axursrc",
+    &ResourceFork,
+    &Size,
+    &NeedsFree
+  );
+
+  if (FAILED(Status) || Status == S_FALSE) {
+    return Status;
+  }
+
+  // Create enumerator
+  Status = CreateImageResourceEnumerator(ResourceFork, TypeCode, Enumerator);
+
+  if (NeedsFree && ResourceFork != NULL) {
+    free(ResourceFork);
+  }
+
+  return Status;
+}
+
 // C++ mode not supported in this implementation
 #error "C++ mode not implemented"
 #else
@@ -782,7 +980,9 @@ static CONST IImageLoaderVtbl gXcoffVtbl = {
   XcoffGetTargetSystem,
   XcoffGetMinimumSystemVersion,
   XcoffGetTargetSubsystem,
-  XcoffGetMinimumSubsystemVersion
+  XcoffGetMinimumSubsystemVersion,
+  XcoffGetResource,
+  XcoffGetResourceEnumerator
 };
 #endif
 
