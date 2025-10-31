@@ -28,6 +28,7 @@
 
 #include "zoo64.h"
 #include "compress.h"
+#include "solid.h"
 
 #define PROGNAME "ar64"
 #define VERSION "2.0"
@@ -45,6 +46,8 @@
 #define PAYLOAD_HDR_MAGIC 0x9a7c6e5f4d3b2a19LL	/* Zoo64 for 'ar64zoo' */
 
 UINT64 gMagic = 0x9a7c6e5f4d3b2a19LL;
+BOOLEAN gSolidMode = FALSE;
+UINT32 gWindowSize = DEFAULT_WINDOW_SIZE;
 
 /*
   On disk structure with payload information.
@@ -155,12 +158,17 @@ Usage (
 \n\
  Options:\n\
   -m <string>		Use 'string' as magic value.\n\
+  -s, --solid		Use solid compression (compress all files together).\n\
+  -w <size>		Window size for solid compression (4K,8K,16K,32K,64K,128K,256K,512K,1M).\n\
+			Default: 64K\n\
 \n\
  Features:\n\
   - Zoo64 format: Fixed-point range arithmetic adaptive encoding\n\
   - Supports up to 16 character filenames (vs 12 in AR50)\n\
   - Full printable ASCII support (space through tilde)\n\
   - Better compression than RAD-50 encoding\n\
+  - Solid mode: compress multiple files together for better compression\n\
+  - Windowed compression: configurable window sizes (4K-1M) with second window\n\
 \n", PROGNAME, PROGNAME, PROGNAME, PROGNAME, PROGNAME);
   exit (Status);
 }
@@ -223,6 +231,217 @@ DoList (
 
   if (!feof (pF))
     Fatal ("Cannot read archive: %s", strerror (errno));
+}
+
+/**
+  Create new solid archive.
+
+  Creates solid archive where all files are compressed together.
+
+  @param[in] pFilename  Archive filename to create.
+  @param[in] ppList     NULL-terminated array of filenames to archive.
+**/
+VOID
+DoCreateSolid (
+  IN CHAR8         *pFilename,
+  IN CHAR8 *CONST  ppList[]
+  )
+{
+  FILE *pF, *pOut;
+  CHAR8 *pN;
+  UINT8 **ppFileData;
+  UINT32 *pFileSizes;
+  UINT64 *pFilenames;
+  UINT32 FileCount;
+  struct stat St;
+  UINT8 *pSolidData;
+  size_t SolidSize;
+  UINT32 TotalOrigSize = 0;
+
+  // Count files
+  FileCount = 0;
+  CHAR8 *CONST *pTemp = ppList;
+  while (*pTemp++)
+    FileCount++;
+
+  if (FileCount == 0)
+    Fatal ("No files to archive");
+
+  // Allocate arrays
+  ppFileData = (UINT8 **) calloc (FileCount, sizeof (UINT8 *));
+  pFileSizes = (UINT32 *) calloc (FileCount, sizeof (UINT32));
+  pFilenames = (UINT64 *) calloc (FileCount, sizeof (UINT64));
+
+  if (ppFileData == NULL || pFileSizes == NULL || pFilenames == NULL)
+    Fatal ("calloc failed");
+
+  // Load all files
+  for (UINT32 I = 0; I < FileCount; I++)
+    {
+      pN = ppList[I];
+
+      if (stat (pN, &St) < 0)
+        Fatal ("%s: stat failed: %s", pN, strerror (errno));
+
+      pFileSizes[I] = St.st_size;
+      pFilenames[I] = Zoo64Encode (pN);
+      TotalOrigSize += pFileSizes[I];
+
+      if (pFileSizes[I] > 0)
+        {
+          ppFileData[I] = (UINT8 *) calloc (1, pFileSizes[I]);
+          if (ppFileData[I] == NULL)
+            Fatal ("calloc failed");
+
+          pF = fopen (pN, "r");
+          if (pF == NULL)
+            Fatal ("%s: %s", pN, strerror (errno));
+
+          if (fread (ppFileData[I], 1, pFileSizes[I], pF) == 0 || ferror (pF))
+            Fatal ("%s: fread failed", pN);
+
+          fclose (pF);
+        }
+      else
+        {
+          ppFileData[I] = NULL;
+        }
+    }
+
+  // Allocate solid compression buffer
+  pSolidData = (UINT8 *) calloc (1, TotalOrigSize * 3 + 8192);
+  if (pSolidData == NULL)
+    Fatal ("calloc failed for solid compression buffer");
+
+  // Compress all files together
+  fprintf (stdout, "Solid compressing %u files (total: %u bytes) with %uK window...\n",
+           FileCount, TotalOrigSize, gWindowSize / 1024);
+
+  if (!SolidCompress ((const UINT8 **)ppFileData, pFileSizes, pFilenames,
+                      FileCount, gWindowSize, pSolidData,
+                      TotalOrigSize * 3 + 8192, &SolidSize))
+    {
+      Fatal ("Solid compression failed");
+    }
+
+  fprintf (stdout, "Solid: %u -> %zu bytes (%.1f%%)\n",
+           TotalOrigSize, SolidSize, 100.0 * SolidSize / TotalOrigSize);
+
+  // Write solid archive
+  pOut = fopen (pFilename, "w");
+  if (pOut == NULL)
+    Fatal ("%s: %s", pFilename, strerror (errno));
+
+  if (fwrite (pSolidData, 1, SolidSize, pOut) == 0 || ferror (pOut))
+    Fatal ("Can't write to output file: %s", strerror (errno));
+
+  fclose (pOut);
+
+  // Cleanup
+  for (UINT32 I = 0; I < FileCount; I++)
+    {
+      if (ppFileData[I])
+        free (ppFileData[I]);
+    }
+  free (ppFileData);
+  free (pFileSizes);
+  free (pFilenames);
+  free (pSolidData);
+
+  exit (0);
+}
+
+/**
+  Extract solid archive contents.
+
+  Extracts all files from solid archive to current directory.
+
+  @param[in] pFilename  Archive filename to extract.
+**/
+VOID
+DoExtractSolid (
+  IN CHAR8  *pFilename
+  )
+{
+  FILE *pF, *pOut;
+  UINT8 *pSolidData;
+  size_t SolidSize;
+  struct stat St;
+  UINT8 **ppFileData;
+  UINT32 *pFileSizes;
+  UINT64 *pFilenames;
+  UINT32 FileCount;
+
+  pF = fopen (pFilename, "r");
+  if (pF == NULL)
+    Fatal ("%s: %s", pFilename, strerror (errno));
+
+  // Get file size
+  if (stat (pFilename, &St) < 0)
+    Fatal ("%s: stat failed: %s", pFilename, strerror (errno));
+
+  SolidSize = St.st_size;
+
+  // Read solid archive
+  pSolidData = (UINT8 *) calloc (1, SolidSize);
+  if (pSolidData == NULL)
+    Fatal ("calloc failed");
+
+  if (fread (pSolidData, 1, SolidSize, pF) == 0 || ferror (pF))
+    Fatal ("%s: fread failed", pFilename);
+
+  fclose (pF);
+
+  // Allocate arrays for extracted files (max 256 files)
+  ppFileData = (UINT8 **) calloc (256, sizeof (UINT8 *));
+  pFileSizes = (UINT32 *) calloc (256, sizeof (UINT32));
+  pFilenames = (UINT64 *) calloc (256, sizeof (UINT64));
+
+  if (ppFileData == NULL || pFileSizes == NULL || pFilenames == NULL)
+    Fatal ("calloc failed");
+
+  // Decompress solid archive
+  if (!SolidDecompress (pSolidData, SolidSize, ppFileData, pFileSizes,
+                        pFilenames, &FileCount, 256))
+    {
+      Fatal ("Solid decompression failed");
+    }
+
+  fprintf (stdout, "Extracted %u files from solid archive\n", FileCount);
+
+  // Write extracted files
+  for (UINT32 I = 0; I < FileCount; I++)
+    {
+      char *pName = Zoo64Decode (pFilenames[I]);
+      if (pName == NULL)
+        Fatal ("Failed to decode filename");
+
+      fprintf (stdout, "%s: %u bytes\n", pName, pFileSizes[I]);
+
+      pOut = fopen (pName, "w");
+      if (pOut == NULL)
+        Fatal ("%s: %s", pName, strerror (errno));
+
+      if (pFileSizes[I] > 0)
+        {
+          if (fwrite (ppFileData[I], 1, pFileSizes[I], pOut) == 0 || ferror (pOut))
+            Fatal ("%s: fwrite failed", pName);
+        }
+
+      fclose (pOut);
+      free (pName);
+
+      if (ppFileData[I])
+        free (ppFileData[I]);
+    }
+
+  // Cleanup
+  free (ppFileData);
+  free (pFileSizes);
+  free (pFilenames);
+  free (pSolidData);
+
+  exit (0);
 }
 
 /**
@@ -513,6 +732,8 @@ CONST struct option gLongOptions[] = {
   {"list", no_argument, NULL, 'l'},
   {"create", no_argument, NULL, 'c'},
   {"extract", no_argument, NULL, 'x'},
+  {"solid", no_argument, NULL, 's'},
+  {"window", required_argument, NULL, 'w'},
   {"help", no_argument, NULL, 'h'},
   {"version", no_argument, NULL, 'V'},
   {0, no_argument, 0, 0}
@@ -540,7 +761,7 @@ main (int Argc, char *const Argv[])
   CmdSeen = 0;
   Create = List = ShowVersion = false;
 
-  while ((C = getopt_long (Argc, Argv, "cxlhVm:", gLongOptions, NULL)) != EOF)
+  while ((C = getopt_long (Argc, Argv, "cxlhVm:sw:", gLongOptions, NULL)) != EOF)
     switch (C)
       {
       case 'c':
@@ -564,6 +785,32 @@ main (int Argc, char *const Argv[])
 	break;
       case 'm':
 	gMagic = Zoo64Encode (optarg);
+	break;
+      case 's':
+	gSolidMode = TRUE;
+	break;
+      case 'w':
+	// Parse window size
+	if (strcmp (optarg, "4K") == 0 || strcmp (optarg, "4k") == 0)
+	  gWindowSize = WINDOW_4K;
+	else if (strcmp (optarg, "8K") == 0 || strcmp (optarg, "8k") == 0)
+	  gWindowSize = WINDOW_8K;
+	else if (strcmp (optarg, "16K") == 0 || strcmp (optarg, "16k") == 0)
+	  gWindowSize = WINDOW_16K;
+	else if (strcmp (optarg, "32K") == 0 || strcmp (optarg, "32k") == 0)
+	  gWindowSize = WINDOW_32K;
+	else if (strcmp (optarg, "64K") == 0 || strcmp (optarg, "64k") == 0)
+	  gWindowSize = WINDOW_64K;
+	else if (strcmp (optarg, "128K") == 0 || strcmp (optarg, "128k") == 0)
+	  gWindowSize = WINDOW_128K;
+	else if (strcmp (optarg, "256K") == 0 || strcmp (optarg, "256k") == 0)
+	  gWindowSize = WINDOW_256K;
+	else if (strcmp (optarg, "512K") == 0 || strcmp (optarg, "512k") == 0)
+	  gWindowSize = WINDOW_512K;
+	else if (strcmp (optarg, "1M") == 0 || strcmp (optarg, "1m") == 0)
+	  gWindowSize = WINDOW_1M;
+	else
+	  Fatal ("Invalid window size: %s (valid: 4K,8K,16K,32K,64K,128K,256K,512K,1M)", optarg);
 	break;
       default:
 	Usage (stderr, 1);
@@ -594,7 +841,10 @@ main (int Argc, char *const Argv[])
 	{
 	  Usage (stderr, 1);
 	}
-      DoCreate (pFilename, Argv);
+      if (gSolidMode)
+	DoCreateSolid (pFilename, Argv);
+      else
+	DoCreate (pFilename, Argv);
     }
 
   if (Extract)
@@ -603,7 +853,10 @@ main (int Argc, char *const Argv[])
 	{
 	  Usage (stderr, 1);
 	}
-      DoExtract (pFilename);
+      if (gSolidMode)
+	DoExtractSolid (pFilename);
+      else
+	DoExtract (pFilename);
     }
 
   if (List)
