@@ -27,6 +27,14 @@ enabling cross-platform resource embedding in all executable formats.
 - Fallback to `.axursrc` section for universal resources
 - Implementation: `ResourceStrategyBoth` with OS/2 resource parser
 
+**Special Case: LE/LX Format** (dual-OS support):
+- Used by both OS/2 (OsType = 1) and Windows VxD (OsType = 4)
+- Same resource table structure (`LE_RESOURCE_ENTRY`) for both
+- OS/2: Uses OS/2-specific resource types
+- Windows: Uses Windows resource types (RT_BITMAP, RT_ICON, RT_CURSOR, etc.)
+- Resource type interpretation depends on OsType field in LE header
+- Implementation: `ResourceStrategyBoth` with OS type detection
+
 ### Resource Support Status
 
 | Format | Native Resources | Status | Section/Segment Name |
@@ -38,7 +46,7 @@ enabling cross-platform resource embedding in all executable formats.
 | XCOFF  | ❌ No  | ✅ Implemented | `.axursrc` section (AIX) |
 | ECOFF  | ❌ No  | ✅ Implemented | `.axursrc` section (DEC/SGI) |
 | a.out  | ❌ No  | ✅ Implemented | Symbol-based (`__apxh_uresource_start/size`) |
-| LE/LX  | ✅ OS/2 | ✅ Implemented | Native resource table (type/name/object/offset) |
+| LE/LX  | ✅ OS/2/Win | ✅ Implemented | Native resource table (OS/2 types or Windows types) |
 | PEF    | ❌ No  | ✅ Implemented | `.axursrc` section (Mac OS/BeOS) |
 | NLM    | ❌ No  | ✅ Implemented | Custom data segment (NetWare) |
 | Other  | ❌ No  | ⚠️ TODO | Format-specific (Hunk, Atari, PDP-10, etc.) |
@@ -95,7 +103,7 @@ executable formats, enabling proper startup/shutdown sequences for libraries and
 | XCOFF  | ✅ Sections | ✅ Implemented | `.init`, `.fini`, `.ctors`, `.dtors` (AIX) |
 | ECOFF  | ✅ Sections | ✅ Implemented | `.init`, `.fini`, `.ctors`, `.dtors` (DEC/SGI) |
 | a.out  | ⚠️ Limited | ⚠️ Partial | Dynamic linker support via `__DYNAMIC` |
-| LE/LX  | ✅ OS/2 | ✅ Implemented | InitObjectNum/InitEip (init only, OS/2 handles term) |
+| LE/LX  | ✅ OS/2/Win | ✅ Implemented | InitObjectNum/InitEip (OS/2 apps and Windows VxD) |
 | PEF    | ✅ Loader Header | ✅ Implemented | InitSection/InitOffset, TermSection/TermOffset |
 | NLM    | ✅ Entry Points | ✅ Implemented | CodeStartOffset, ExitProcedureOffset, CheckUnloadProcedureOffset |
 
@@ -215,12 +223,19 @@ Typical termination sequence:
 - `DllMain(DLL_PROCESS_ATTACH)` for DLL initialization
 - `DllMain(DLL_PROCESS_DETACH)` for DLL termination
 
-**OS/2 (LE/LX and ELF):**
-- Init/term types control when functions run:
-  - `IT_GLOBAL`: First load / final unload (library-level)
-  - `IT_INSTANCE`: Each process attach / detach
-  - `IT_THREAD`: Each thread (reserved in Release 1)
-- Priority determines execution order (0 = highest priority)
+**OS/2 and Windows (LE/LX):**
+- LE/LX format used by both OS/2 (OsType = 1) and Windows VxD (OsType = 4)
+- OS/2 applications:
+  - Init/term via `InitObjectNum`/`InitEip` (entry point)
+  - OS/2 kernel handles DLL initialization and termination
+  - Init/term types control when functions run (for ELF):
+    - `IT_GLOBAL`: First load / final unload (library-level)
+    - `IT_INSTANCE`: Each process attach / detach
+    - `IT_THREAD`: Each thread (reserved in Release 1)
+- Windows VxD drivers:
+  - Init via `InitObjectNum`/`InitEip` (driver entry point)
+  - Windows kernel calls entry point during system initialization
+  - No explicit termination (drivers remain loaded until system shutdown)
 
 **Unix (ELF/COFF/ECOFF/XCOFF):**
 - `.init` / `.fini` sections contain arbitrary code
