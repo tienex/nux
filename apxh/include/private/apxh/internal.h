@@ -84,9 +84,60 @@ typedef enum
 {
   ARCH_INVALID,
   ARCH_UNSUPPORTED,
+
+  // x86 family
   ARCH_386,
   ARCH_AMD64,
+
+  // RISC-V
+  ARCH_RISCV32,
   ARCH_RISCV64,
+
+  // ARM family
+  ARCH_ARM,
+  ARCH_ARM64,
+
+  // PowerPC
+  ARCH_PPC32,
+  ARCH_PPC64,
+
+  // MIPS
+  ARCH_MIPS32,
+  ARCH_MIPS64,
+
+  // Alpha
+  ARCH_ALPHA,
+
+  // PA-RISC
+  ARCH_PARISC,
+  ARCH_PARISC64,
+
+  // SPARC
+  ARCH_SPARC32,
+  ARCH_SPARC64,
+
+  // Itanium
+  ARCH_IA64,
+
+  // 68k
+  ARCH_M68K,
+
+  // VAX
+  ARCH_VAX,
+
+  // PDP-10
+  ARCH_PDP10,
+
+  // S/390
+  ARCH_S390,
+  ARCH_S390X,
+
+  // SH (SuperH)
+  ARCH_SH,
+
+  // Other legacy
+  ARCH_I860,
+  ARCH_I960,
 } ARCH;
 
 VOID PlatformInit (VOID);

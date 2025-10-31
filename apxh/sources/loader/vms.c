@@ -5,8 +5,17 @@
   systems. OpenVMS uses a proprietary image format with a 1024-byte header
   containing image identification and section descriptors (ISDs).
 
-  NOTE: Full implementation requires the OpenVMS Internals and Data
-  Structures Manual (IDSM) specification. This is a stub implementation.
+  Documentation:
+  - OpenVMS Internals and Data Structures Manual (IDSM)
+  - Required header files: ihsdef.h (Image Header Section) and ihddef.h (Image Header Descriptor)
+  - Source: https://www.digiater.nl/openvms/freeware/v80/symbols/symbols.zip
+    - Extract symbols-src.zip from the above
+    - Look for ihsdef.h and ihddef.h in the include directory
+  - IHS (Image Header Section) defines the overall image structure
+  - IHD (Image Header Descriptor) defines per-section descriptors
+
+  NOTE: Full implementation requires the OpenVMS header files and IDSM
+  specification. This is a stub implementation.
 
   Supports:
   - VAX architecture

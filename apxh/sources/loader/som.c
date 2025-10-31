@@ -5,6 +5,11 @@
   executables. SOM is the native 32-bit format for HP-UX and MPE/ix on
   PA-RISC processors.
 
+  Documentation:
+  - HP-UX a.out(4) manual page - SOM format specification
+  - PA-RISC Runtime Architecture document
+  - HP-UX include files: som.h, lst.h
+
   NOTE: Full implementation requires HP-UX include files and PA-RISC
   Runtime Architecture documentation. This is a stub implementation.
 
