@@ -85,6 +85,14 @@ set(ANXCONFIG_SOURCES
     widget_treeview.c
     widget_listview.c
     widget_wizard.c
+    # Layout containers
+    widget_flexcontainer.c
+    widget_vbox.c
+    widget_hbox.c
+    widget_grid.c
+    widget_splitview.c
+    # Drawing surface
+    drawing_surface.c
     focus_manager.c
     # Common dialogs
     dialog_fileopensave.c

@@ -58,6 +58,12 @@ typedef struct _ITuiTerminal ITuiTerminal;
 typedef struct _ITuiTreeView ITuiTreeView;
 typedef struct _ITuiListView ITuiListView;
 typedef struct _ITuiWizard ITuiWizard;
+typedef struct _ITuiFlexContainer ITuiFlexContainer;
+typedef struct _ITuiVBox ITuiVBox;
+typedef struct _ITuiHBox ITuiHBox;
+typedef struct _ITuiGrid ITuiGrid;
+typedef struct _ITuiSplitView ITuiSplitView;
+typedef struct _ITuiSurface ITuiSurface;
 
 //
 // Text Direction for BiDi Support
@@ -2719,6 +2725,192 @@ struct _ITuiWizard {
     CONST ITuiWizard_Vtbl *Vtbl;
 };
 
+// {9F0A1B2C-3D4E-5F6A-7B8C-9D0E1F2A3B4C}
+DEFINE_GUID(IID_ITuiFlexContainer,
+    0x9F0A1B2C, 0x3D4E, 0x5F6A, 0x7B, 0x8C, 0x9D, 0x0E, 0x1F, 0x2A, 0x3B, 0x4C);
+
+/**
+  ITuiFlexContainer Interface
+
+  Flexbox-like layout container with support for row/column direction,
+  flex-grow/shrink, alignment, justify content, wrapping, and gaps.
+**/
+typedef struct _ITuiFlexContainer_Vtbl {
+    HRESULT (ANXAPI *QueryInterface)(ITuiFlexContainer *This, REFIID riid, VOID **ppvObject);
+    UINTN (ANXAPI *AddRef)(ITuiFlexContainer *This);
+    UINTN (ANXAPI *Release)(ITuiFlexContainer *This);
+    HRESULT (ANXAPI *Render)(ITuiFlexContainer *This, ITuiScreen *Screen, INT32 X, INT32 Y);
+    HRESULT (ANXAPI *SetBounds)(ITuiFlexContainer *This, CONST TUI_RECT *Bounds);
+    HRESULT (ANXAPI *GetBounds)(ITuiFlexContainer *This, TUI_RECT *Bounds);
+    HRESULT (ANXAPI *SetVisible)(ITuiFlexContainer *This, BOOLEAN Visible);
+    BOOLEAN (ANXAPI *IsVisible)(ITuiFlexContainer *This);
+    HRESULT (ANXAPI *SetEnabled)(ITuiFlexContainer *This, BOOLEAN Enabled);
+    BOOLEAN (ANXAPI *IsEnabled)(ITuiFlexContainer *This);
+    HRESULT (ANXAPI *AddChild)(ITuiFlexContainer *This, VOID *Widget, UINT32 FlexGrow, UINT32 FlexShrink, INT32 FlexBasis);
+    HRESULT (ANXAPI *RemoveChild)(ITuiFlexContainer *This, VOID *Widget);
+    HRESULT (ANXAPI *SetDirection)(ITuiFlexContainer *This, UINT32 Direction);
+    HRESULT (ANXAPI *SetJustifyContent)(ITuiFlexContainer *This, UINT32 Justify);
+    HRESULT (ANXAPI *SetAlignItems)(ITuiFlexContainer *This, UINT32 Align);
+    HRESULT (ANXAPI *SetGap)(ITuiFlexContainer *This, UINT32 Gap);
+    HRESULT (ANXAPI *SetPadding)(ITuiFlexContainer *This, UINT32 Top, UINT32 Right, UINT32 Bottom, UINT32 Left);
+} ITuiFlexContainer_Vtbl;
+
+struct _ITuiFlexContainer {
+    CONST ITuiFlexContainer_Vtbl *Vtbl;
+};
+
+// {A0B1C2D3-4E5F-6A7B-8C9D-0E1F2A3B4C5D}
+DEFINE_GUID(IID_ITuiVBox,
+    0xA0B1C2D3, 0x4E5F, 0x6A7B, 0x8C, 0x9D, 0x0E, 0x1F, 0x2A, 0x3B, 0x4C, 0x5D);
+
+/**
+  ITuiVBox Interface
+
+  Vertical box container for simple top-to-bottom stacking.
+**/
+typedef struct _ITuiVBox_Vtbl {
+    HRESULT (ANXAPI *QueryInterface)(ITuiVBox *This, REFIID riid, VOID **ppvObject);
+    UINTN (ANXAPI *AddRef)(ITuiVBox *This);
+    UINTN (ANXAPI *Release)(ITuiVBox *This);
+    HRESULT (ANXAPI *Render)(ITuiVBox *This, ITuiScreen *Screen, INT32 X, INT32 Y);
+    HRESULT (ANXAPI *SetBounds)(ITuiVBox *This, CONST TUI_RECT *Bounds);
+    HRESULT (ANXAPI *GetBounds)(ITuiVBox *This, TUI_RECT *Bounds);
+    HRESULT (ANXAPI *SetVisible)(ITuiVBox *This, BOOLEAN Visible);
+    BOOLEAN (ANXAPI *IsVisible)(ITuiVBox *This);
+    HRESULT (ANXAPI *SetEnabled)(ITuiVBox *This, BOOLEAN Enabled);
+    BOOLEAN (ANXAPI *IsEnabled)(ITuiVBox *This);
+    HRESULT (ANXAPI *PackStart)(ITuiVBox *This, VOID *Widget, BOOLEAN Expand, BOOLEAN Fill, UINT32 Padding);
+    HRESULT (ANXAPI *SetSpacing)(ITuiVBox *This, UINT32 Spacing);
+    HRESULT (ANXAPI *SetHomogeneous)(ITuiVBox *This, BOOLEAN Homogeneous);
+} ITuiVBox_Vtbl;
+
+struct _ITuiVBox {
+    CONST ITuiVBox_Vtbl *Vtbl;
+};
+
+// {B1C2D3E4-5F6A-7B8C-9D0E-1F2A3B4C5D6E}
+DEFINE_GUID(IID_ITuiHBox,
+    0xB1C2D3E4, 0x5F6A, 0x7B8C, 0x9D, 0x0E, 0x1F, 0x2A, 0x3B, 0x4C, 0x5D, 0x6E);
+
+/**
+  ITuiHBox Interface
+
+  Horizontal box container for simple left-to-right stacking.
+**/
+typedef struct _ITuiHBox_Vtbl {
+    HRESULT (ANXAPI *QueryInterface)(ITuiHBox *This, REFIID riid, VOID **ppvObject);
+    UINTN (ANXAPI *AddRef)(ITuiHBox *This);
+    UINTN (ANXAPI *Release)(ITuiHBox *This);
+    HRESULT (ANXAPI *Render)(ITuiHBox *This, ITuiScreen *Screen, INT32 X, INT32 Y);
+    HRESULT (ANXAPI *SetBounds)(ITuiHBox *This, CONST TUI_RECT *Bounds);
+    HRESULT (ANXAPI *GetBounds)(ITuiHBox *This, TUI_RECT *Bounds);
+    HRESULT (ANXAPI *SetVisible)(ITuiHBox *This, BOOLEAN Visible);
+    BOOLEAN (ANXAPI *IsVisible)(ITuiHBox *This);
+    HRESULT (ANXAPI *SetEnabled)(ITuiHBox *This, BOOLEAN Enabled);
+    BOOLEAN (ANXAPI *IsEnabled)(ITuiHBox *This);
+    HRESULT (ANXAPI *PackStart)(ITuiHBox *This, VOID *Widget, BOOLEAN Expand, BOOLEAN Fill, UINT32 Padding);
+    HRESULT (ANXAPI *SetSpacing)(ITuiHBox *This, UINT32 Spacing);
+    HRESULT (ANXAPI *SetHomogeneous)(ITuiHBox *This, BOOLEAN Homogeneous);
+} ITuiHBox_Vtbl;
+
+struct _ITuiHBox {
+    CONST ITuiHBox_Vtbl *Vtbl;
+};
+
+// {C2D3E4F5-6A7B-8C9D-0E1F-2A3B4C5D6E7F}
+DEFINE_GUID(IID_ITuiGrid,
+    0xC2D3E4F5, 0x6A7B, 0x8C9D, 0x0E, 0x1F, 0x2A, 0x3B, 0x4C, 0x5D, 0x6E, 0x7F);
+
+/**
+  ITuiGrid Interface
+
+  Grid layout container that arranges children in rows and columns
+  with support for spanning, padding, and alignment.
+**/
+typedef struct _ITuiGrid_Vtbl {
+    HRESULT (ANXAPI *QueryInterface)(ITuiGrid *This, REFIID riid, VOID **ppvObject);
+    UINTN (ANXAPI *AddRef)(ITuiGrid *This);
+    UINTN (ANXAPI *Release)(ITuiGrid *This);
+    HRESULT (ANXAPI *Render)(ITuiGrid *This, ITuiScreen *Screen, INT32 X, INT32 Y);
+    HRESULT (ANXAPI *SetBounds)(ITuiGrid *This, CONST TUI_RECT *Bounds);
+    HRESULT (ANXAPI *GetBounds)(ITuiGrid *This, TUI_RECT *Bounds);
+    HRESULT (ANXAPI *SetVisible)(ITuiGrid *This, BOOLEAN Visible);
+    BOOLEAN (ANXAPI *IsVisible)(ITuiGrid *This);
+    HRESULT (ANXAPI *SetEnabled)(ITuiGrid *This, BOOLEAN Enabled);
+    BOOLEAN (ANXAPI *IsEnabled)(ITuiGrid *This);
+    HRESULT (ANXAPI *Attach)(ITuiGrid *This, VOID *Widget, UINT32 Column, UINT32 Row, UINT32 ColumnSpan, UINT32 RowSpan);
+    HRESULT (ANXAPI *SetSpacing)(ITuiGrid *This, UINT32 RowSpacing, UINT32 ColumnSpacing);
+    HRESULT (ANXAPI *SetRowHeight)(ITuiGrid *This, UINT32 Row, UINT32 Height);
+    HRESULT (ANXAPI *SetColumnWidth)(ITuiGrid *This, UINT32 Column, UINT32 Width);
+} ITuiGrid_Vtbl;
+
+struct _ITuiGrid {
+    CONST ITuiGrid_Vtbl *Vtbl;
+};
+
+// {D3E4F5A6-7B8C-9D0E-1F2A-3B4C5D6E7F8A}
+DEFINE_GUID(IID_ITuiSplitView,
+    0xD3E4F5A6, 0x7B8C, 0x9D0E, 0x1F, 0x2A, 0x3B, 0x4C, 0x5D, 0x6E, 0x7F, 0x8A);
+
+/**
+  ITuiSplitView Interface
+
+  Resizable two-pane container with draggable divider.
+  Supports horizontal and vertical orientation.
+**/
+typedef struct _ITuiSplitView_Vtbl {
+    HRESULT (ANXAPI *QueryInterface)(ITuiSplitView *This, REFIID riid, VOID **ppvObject);
+    UINTN (ANXAPI *AddRef)(ITuiSplitView *This);
+    UINTN (ANXAPI *Release)(ITuiSplitView *This);
+    HRESULT (ANXAPI *Render)(ITuiSplitView *This, ITuiScreen *Screen, INT32 X, INT32 Y);
+    HRESULT (ANXAPI *HandleMouse)(ITuiSplitView *This, CONST TUI_MOUSE_EVENT *Event);
+    HRESULT (ANXAPI *SetBounds)(ITuiSplitView *This, CONST TUI_RECT *Bounds);
+    HRESULT (ANXAPI *GetBounds)(ITuiSplitView *This, TUI_RECT *Bounds);
+    HRESULT (ANXAPI *SetVisible)(ITuiSplitView *This, BOOLEAN Visible);
+    BOOLEAN (ANXAPI *IsVisible)(ITuiSplitView *This);
+    HRESULT (ANXAPI *SetEnabled)(ITuiSplitView *This, BOOLEAN Enabled);
+    BOOLEAN (ANXAPI *IsEnabled)(ITuiSplitView *This);
+    HRESULT (ANXAPI *SetPane1)(ITuiSplitView *This, VOID *Widget);
+    HRESULT (ANXAPI *SetPane2)(ITuiSplitView *This, VOID *Widget);
+    HRESULT (ANXAPI *SetSplitPosition)(ITuiSplitView *This, UINT32 Position);
+    HRESULT (ANXAPI *SetOrientation)(ITuiSplitView *This, UINT32 Orientation);
+} ITuiSplitView_Vtbl;
+
+struct _ITuiSplitView {
+    CONST ITuiSplitView_Vtbl *Vtbl;
+};
+
+// {E4F5A6B7-8C9D-0E1F-2A3B-4C5D6E7F8A9B}
+DEFINE_GUID(IID_ITuiSurface,
+    0xE4F5A6B7, 0x8C9D, 0x0E1F, 0x2A, 0x3B, 0x4C, 0x5D, 0x6E, 0x7F, 0x8A, 0x9B);
+
+/**
+  ITuiSurface Interface
+
+  Drawing surface abstraction providing clipping, fill/stroke operations,
+  and buffering capabilities.
+**/
+typedef struct _ITuiSurface_Vtbl {
+    HRESULT (ANXAPI *QueryInterface)(ITuiSurface *This, REFIID riid, VOID **ppvObject);
+    UINTN (ANXAPI *AddRef)(ITuiSurface *This);
+    UINTN (ANXAPI *Release)(ITuiSurface *This);
+    HRESULT (ANXAPI *SetClipRect)(ITuiSurface *This, CONST TUI_RECT *Rect);
+    HRESULT (ANXAPI *GetClipRect)(ITuiSurface *This, TUI_RECT *Rect);
+    HRESULT (ANXAPI *SetChar)(ITuiSurface *This, INT32 X, INT32 Y, CHAR16 Character, TUI_COLOR Foreground, TUI_COLOR Background);
+    HRESULT (ANXAPI *GetChar)(ITuiSurface *This, INT32 X, INT32 Y, CHAR16 *Character, TUI_COLOR *Foreground, TUI_COLOR *Background);
+    HRESULT (ANXAPI *SetAttributes)(ITuiSurface *This, INT32 X, INT32 Y, UINT8 Attributes);
+    HRESULT (ANXAPI *FillRect)(ITuiSurface *This, CONST TUI_RECT *Rect, CHAR16 Character, TUI_COLOR Foreground, TUI_COLOR Background);
+    HRESULT (ANXAPI *StrokeRect)(ITuiSurface *This, CONST TUI_RECT *Rect, TUI_BORDER_STYLE Style, TUI_COLOR Foreground, TUI_COLOR Background);
+    HRESULT (ANXAPI *DrawLine)(ITuiSurface *This, INT32 X1, INT32 Y1, INT32 X2, INT32 Y2, CHAR16 Character, TUI_COLOR Foreground, TUI_COLOR Background);
+    HRESULT (ANXAPI *WriteText)(ITuiSurface *This, INT32 X, INT32 Y, CONST CHAR8 *Text, TUI_COLOR Foreground, TUI_COLOR Background);
+    HRESULT (ANXAPI *Clear)(ITuiSurface *This, TUI_COLOR Background);
+    HRESULT (ANXAPI *Flush)(ITuiSurface *This, INT32 OffsetX, INT32 OffsetY);
+} ITuiSurface_Vtbl;
+
+struct _ITuiSurface {
+    CONST ITuiSurface_Vtbl *Vtbl;
+};
+
 //
 // Factory functions
 //
@@ -3169,6 +3361,114 @@ HRESULT
 ANXAPI
 AnxTuiCreateWizard(
     OUT ITuiWizard **OutWizard
+);
+
+/**
+  Create a TUI Flex Container instance.
+
+  @param[out] OutContainer  Pointer to receive the flex container interface.
+
+  @retval S_OK        Flex container created successfully.
+  @retval E_OUTOFMEMORY  Memory allocation failed.
+**/
+HRESULT
+ANXAPI
+AnxTuiCreateFlexContainer(
+    OUT ITuiFlexContainer **OutContainer
+);
+
+/**
+  Create a TUI VBox instance.
+
+  @param[in]  Homogeneous  TRUE for equal-height children.
+  @param[in]  Spacing      Spacing between children.
+  @param[out] OutVBox      Pointer to receive the VBox interface.
+
+  @retval S_OK        VBox created successfully.
+  @retval E_OUTOFMEMORY  Memory allocation failed.
+**/
+HRESULT
+ANXAPI
+AnxTuiCreateVBox(
+    IN  BOOLEAN Homogeneous,
+    IN  UINT32 Spacing,
+    OUT ITuiVBox **OutVBox
+);
+
+/**
+  Create a TUI HBox instance.
+
+  @param[in]  Homogeneous  TRUE for equal-width children.
+  @param[in]  Spacing      Spacing between children.
+  @param[out] OutHBox      Pointer to receive the HBox interface.
+
+  @retval S_OK        HBox created successfully.
+  @retval E_OUTOFMEMORY  Memory allocation failed.
+**/
+HRESULT
+ANXAPI
+AnxTuiCreateHBox(
+    IN  BOOLEAN Homogeneous,
+    IN  UINT32 Spacing,
+    OUT ITuiHBox **OutHBox
+);
+
+/**
+  Create a TUI Grid instance.
+
+  @param[in]  Rows      Number of rows.
+  @param[in]  Columns   Number of columns.
+  @param[out] OutGrid   Pointer to receive the grid interface.
+
+  @retval S_OK        Grid created successfully.
+  @retval E_INVALIDARG  Invalid dimensions.
+  @retval E_OUTOFMEMORY  Memory allocation failed.
+**/
+HRESULT
+ANXAPI
+AnxTuiCreateGrid(
+    IN  UINT32 Rows,
+    IN  UINT32 Columns,
+    OUT ITuiGrid **OutGrid
+);
+
+/**
+  Create a TUI Split View instance.
+
+  @param[in]  Orientation     0=Horizontal, 1=Vertical.
+  @param[in]  InitialPosition Initial divider position.
+  @param[out] OutSplitView    Pointer to receive the split view interface.
+
+  @retval S_OK        Split view created successfully.
+  @retval E_OUTOFMEMORY  Memory allocation failed.
+**/
+HRESULT
+ANXAPI
+AnxTuiCreateSplitView(
+    IN  UINT32 Orientation,
+    IN  UINT32 InitialPosition,
+    OUT ITuiSplitView **OutSplitView
+);
+
+/**
+  Create a TUI Drawing Surface instance.
+
+  @param[in]  Width      Surface width.
+  @param[in]  Height     Surface height.
+  @param[in]  Screen     Optional screen for flushing (can be NULL).
+  @param[out] OutSurface Pointer to receive the surface interface.
+
+  @retval S_OK        Surface created successfully.
+  @retval E_INVALIDARG  Invalid dimensions.
+  @retval E_OUTOFMEMORY  Memory allocation failed.
+**/
+HRESULT
+ANXAPI
+AnxTuiCreateSurface(
+    IN  UINT32 Width,
+    IN  UINT32 Height,
+    IN  ITuiScreen *Screen,
+    OUT ITuiSurface **OutSurface
 );
 
 #ifdef __cplusplus
