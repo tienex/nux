@@ -11,6 +11,7 @@
 **/
 
 #include <apxh/internal.h>
+#include <apxh/arch.h>
 
 #define PTE_V (1LL << 0)
 #define PTE_R (1LL << 1)
@@ -645,3 +646,176 @@ Sv48Entry (
 {
   PlatformEntry (ArchRiscV64, (VIRTUAL_ADDRESS) (UINTN) gSv48Root, Entry);
 }
+
+//
+// IArchitecture COM Interface Implementation
+//
+
+static HRESULT STDMETHODCALLTYPE
+Sv48QueryInterface (
+  IN  IArchitecture  *This,
+  IN  CONST GUID     *Iid,
+  OUT VOID           **Object
+  )
+{
+  if (memcmp (Iid, &IID_IArchitecture, sizeof (GUID)) == 0 ||
+      memcmp (Iid, &IID_IUnknown, sizeof (GUID)) == 0)
+    {
+      *Object = This;
+      return S_OK;
+    }
+
+  *Object = NULL;
+  return E_NOINTERFACE;
+}
+
+static UINT32 STDMETHODCALLTYPE
+Sv48AddRef (
+  IN IArchitecture  *This
+  )
+{
+  return 1;  // Static instance, no reference counting
+}
+
+static UINT32 STDMETHODCALLTYPE
+Sv48Release (
+  IN IArchitecture  *This
+  )
+{
+  return 1;  // Static instance, no reference counting
+}
+
+static HRESULT STDMETHODCALLTYPE
+Sv48IInitialize (
+  IN IArchitecture  *This
+  )
+{
+  Sv48Initialize ();
+  return S_OK;
+}
+
+static HRESULT STDMETHODCALLTYPE
+Sv48IGetPhysical (
+  IN  IArchitecture    *This,
+  IN  VIRTUAL_ADDRESS  VirtualAddress,
+  OUT UINTN            *PhysicalAddress
+  )
+{
+  if (PhysicalAddress == NULL) {
+    return E_POINTER;
+  }
+
+  *PhysicalAddress = Sv48GetPhysical (VirtualAddress);
+  return S_OK;
+}
+
+static HRESULT STDMETHODCALLTYPE
+Sv48IVerify (
+  IN IArchitecture    *This,
+  IN VIRTUAL_ADDRESS  VirtualAddress,
+  IN SIZE64           Size
+  )
+{
+  Sv48Verify (VirtualAddress, Size);
+  return S_OK;
+}
+
+static HRESULT STDMETHODCALLTYPE
+Sv48IPopulate (
+  IN IArchitecture    *This,
+  IN VIRTUAL_ADDRESS  VirtualAddress,
+  IN SIZE64           Size,
+  IN INT32            IsUserMode,
+  IN INT32            IsWritable,
+  IN INT32            IsExecutable
+  )
+{
+  Sv48Populate (VirtualAddress, Size, IsUserMode, IsWritable, IsExecutable);
+  return S_OK;
+}
+
+static HRESULT STDMETHODCALLTYPE
+Sv48IMapPhysical (
+  IN IArchitecture    *This,
+  IN VIRTUAL_ADDRESS  VirtualAddress,
+  IN SIZE64           Size,
+  IN UINT64           PhysicalAddress,
+  IN MEMORY_TYPE      Type
+  )
+{
+  Sv48MapPhysical (VirtualAddress, Size, PhysicalAddress, Type);
+  return S_OK;
+}
+
+static HRESULT STDMETHODCALLTYPE
+Sv48IAllocatePageTable (
+  IN IArchitecture    *This,
+  IN VIRTUAL_ADDRESS  VirtualAddress,
+  IN SIZE64           Size
+  )
+{
+  Sv48AllocatePageTable (VirtualAddress, Size);
+  return S_OK;
+}
+
+static HRESULT STDMETHODCALLTYPE
+Sv48IAllocateTopPageTable (
+  IN IArchitecture    *This,
+  IN VIRTUAL_ADDRESS  VirtualAddress,
+  IN SIZE64           Size
+  )
+{
+  Sv48AllocateTopPageTable (VirtualAddress, Size);
+  return S_OK;
+}
+
+static HRESULT STDMETHODCALLTYPE
+Sv48IMapLinear (
+  IN IArchitecture    *This,
+  IN VIRTUAL_ADDRESS  VirtualAddress,
+  IN SIZE64           Size
+  )
+{
+  Sv48MapLinear (VirtualAddress, Size);
+  return S_OK;
+}
+
+static HRESULT STDMETHODCALLTYPE
+Sv48IEntry (
+  IN IArchitecture    *This,
+  IN VIRTUAL_ADDRESS  EntryPoint
+  )
+{
+  Sv48Entry (EntryPoint);
+  return S_OK;  // Never returns
+}
+
+//
+// Sv48 Architecture VTable
+//
+
+static CONST IArchitectureVtbl gSv48Vtbl = {
+  Sv48QueryInterface,
+  Sv48AddRef,
+  Sv48Release,
+  Sv48IInitialize,
+  Sv48IGetPhysical,
+  Sv48IVerify,
+  Sv48IPopulate,
+  Sv48IMapPhysical,
+  Sv48IAllocatePageTable,
+  Sv48IAllocateTopPageTable,
+  Sv48IMapLinear,
+  Sv48IEntry
+};
+
+//
+// Sv48 Architecture Instance
+//
+
+IArchitecture gSv48Arch = {
+  &gSv48Vtbl
+};
+
+// Auto-register this architecture
+APXH_REGISTER_ARCH(gSv48Arch, ArchRiscV64);

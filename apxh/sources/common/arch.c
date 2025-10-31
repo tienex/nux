@@ -53,14 +53,14 @@ ArchitectureRegister (
   }
 
   if (gNumArchitectures >= MAX_ARCHITECTURES) {
-    fatal("Too many architectures registered (max %d)", MAX_ARCHITECTURES);
+    printf("ERROR: Too many architectures registered (max %d)\n", MAX_ARCHITECTURES);
     return E_OUTOFMEMORY;
   }
 
   // Verify architecture implements IArchitecture
   Status = Architecture->lpVtbl->QueryInterface(Architecture, &IID_IArchitecture, &TestInterface);
   if (FAILED(Status) || TestInterface == NULL) {
-    warn("Architecture does not implement IArchitecture interface");
+    printf("WARNING: Architecture does not implement IArchitecture interface\n");
     return E_NOINTERFACE;
   }
 
@@ -68,7 +68,7 @@ ArchitectureRegister (
   gArchTypes[gNumArchitectures] = ArchType;
   gNumArchitectures++;
 
-  info("Registered architecture #%d: %s", gNumArchitectures, ArchitectureGetName(ArchType));
+  printf("Registered architecture #%d: %s\n", gNumArchitectures, ArchitectureGetName(ArchType));
 
   return S_OK;
 }
@@ -110,7 +110,7 @@ ArchitectureSetCurrent (
 {
   gCurrentArchitecture = ArchitectureGet(Arch);
   if (gCurrentArchitecture == NULL) {
-    warn("Architecture %s not registered", ArchitectureGetName(Arch));
+    printf("WARNING: Architecture %s not registered\n", ArchitectureGetName(Arch));
     return E_NOTFOUND;
   }
 
@@ -177,23 +177,24 @@ ArchitectureGetName (
 
 /**
   Initialize all architecture handlers.
+
+  Auto-registers all architectures from the .architectures section.
 **/
 VOID
 ArchitecturesInit (
   VOID
   )
 {
-  info("Initializing architecture handlers...");
+  extern CONST ARCHITECTURE_REGISTRATION __start_architectures[];
+  extern CONST ARCHITECTURE_REGISTRATION __stop_architectures[];
+  CONST ARCHITECTURE_REGISTRATION *Reg;
 
-  // Register all supported architectures
-#if EC_MACHINE_I386 || EC_MACHINE_AMD64
-  ArchitectureRegister(&gPaeArch, Arch386);
-  ArchitectureRegister(&gPae64Arch, ArchAmd64);
-#endif
+  printf("Initializing architecture handlers...\n");
 
-#if EC_MACHINE_RISCV64
-  ArchitectureRegister(&gSv48Arch, ArchRiscV64);
-#endif
+  // Auto-register all architectures from .architectures section
+  for (Reg = __start_architectures; Reg < __stop_architectures; Reg++) {
+    ArchitectureRegister(Reg->Architecture, Reg->ArchType);
+  }
 
-  info("Architecture handlers initialized (%d handlers)", gNumArchitectures);
+  printf("Architecture handlers initialized (%d handlers)\n", gNumArchitectures);
 }

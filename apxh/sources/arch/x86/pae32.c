@@ -750,7 +750,7 @@ IArchitecture gPaeArch = {
 };
 
 // Auto-register this architecture
-APXH_REGISTER_ARCH(gPaeArch);
+APXH_REGISTER_ARCH(gPaeArch, Arch386);
 
 
 /*

@@ -31,9 +31,17 @@ ANX_DEFINE_GUID(IID_IArchitecture, 0xB8F3C4D2,0x9E1A,0x4F7B,0x8C,0x2D,0x3E,0x5F,
 // Architecture Auto-Registration Support
 //
 
-#define APXH_REGISTER_ARCH(ArchVar) \
+typedef struct _ARCHITECTURE_REGISTRATION {
+  IArchitecture  *Architecture;
+  ARCH           ArchType;
+} ARCHITECTURE_REGISTRATION;
+
+#define APXH_REGISTER_ARCH(ArchVar, ArchTypeValue) \
   ANX_ATTR_SECTION(".architectures") ANX_ATTR_USED \
-  static IArchitecture * CONST _arch_ptr_##ArchVar = &ArchVar
+  static CONST ARCHITECTURE_REGISTRATION _arch_reg_##ArchVar = { \
+    &ArchVar, \
+    ArchTypeValue \
+  }
 
 //
 // Architecture Interface (COM-style with ANX macros)
