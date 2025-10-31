@@ -5,6 +5,9 @@ vpath %.c $(SRCDIR)
 ar50: ar50.c squoze.c
 	$(HOST_CC) $^ -o $@ $(CFLAGS) $(LDFLAGS)
 
+ar64: ar64.c zoo64.c
+	$(HOST_CC) $^ -o $@ $(CFLAGS) $(LDFLAGS)
+
 sq: sq.c squoze.c
 	$(HOST_CC) $^ -o $@ $(CFLAGS) $(LDFLAGS)
 
@@ -13,7 +16,7 @@ unsq: unsq.c squoze.c
 
 .PHONY: clean
 clean:
-	rm *.o ar50 sq unsq
+	rm *.o ar50 ar64 sq unsq
 
-ALL_TARGET += ar50 sq unsq
+ALL_TARGET += ar50 ar64 sq unsq
 CLEAN_TARGET += clean

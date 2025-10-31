@@ -10,8 +10,8 @@
   SPDX-License-Identifier: BSD-2-Clause
 **/
 
+#include "types.h"
 #include <string.h>
-#include <stdint.h>
 #include <stdlib.h>
 
 /**
