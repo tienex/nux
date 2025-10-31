@@ -165,14 +165,12 @@ PefGetArch (
 
   switch (Header->Architecture) {
     case PEF_ARCH_PWPC:
-      // PowerPC not supported by APXH
-      *Architecture = ArchUnsupported;
-      return IMGLOAD_E_UNSUPPORTED_ARCH;
+      *Architecture = ArchPpc32;
+      return S_OK;
 
     case PEF_ArchM68k:
-      // Motorola 68K not supported by APXH
-      *Architecture = ArchUnsupported;
-      return IMGLOAD_E_UNSUPPORTED_ARCH;
+      *Architecture = ArchM68k;
+      return S_OK;
 
     default:
       *Architecture = ArchUnsupported;
