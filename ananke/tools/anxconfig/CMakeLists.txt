@@ -102,6 +102,9 @@ set(ANXCONFIG_SOURCES
     # Window manager and compositor
     window_manager.c
     composer.c
+    # Universal resource and serialization
+    amx_serializer.c
+    amx_resource_manager.c
     # Common dialogs
     dialog_fileopensave.c
     dialog_about.c

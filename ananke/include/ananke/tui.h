@@ -26,6 +26,11 @@ typedef struct _ITuiSerializable ITuiSerializable;
 typedef struct _ITuiResponder ITuiResponder;
 typedef struct _ITuiWidget ITuiWidget;
 
+// Universal resource and serialization system
+typedef struct _IAmxSerializer IAmxSerializer;
+typedef struct _IAmxResource IAmxResource;
+typedef struct _IAmxResourceManager IAmxResourceManager;
+
 // Event listener interfaces
 typedef struct _ITuiDrawListener ITuiDrawListener;
 typedef struct _ITuiKeyListener ITuiKeyListener;
@@ -301,6 +306,267 @@ struct _ITuiSerializable {
 #define ITuiSerializable_DeserializeFromYaml(This,Yaml,Length) (This)->Vtbl->DeserializeFromYaml(This,Yaml,Length)
 #define ITuiSerializable_GetTypeName(This,OutTypeName) (This)->Vtbl->GetTypeName(This,OutTypeName)
 #define ITuiSerializable_Clone(This,OutClone) (This)->Vtbl->Clone(This,OutClone)
+#endif
+
+//
+// Universal Resource and Serialization System
+//
+
+// {A1B2C3D4-E5F6-7A8B-9C0D-1E2F3A4B5C6D}
+DEFINE_GUID(IID_IAmxSerializer,
+    0xA1B2C3D4, 0xE5F6, 0x7A8B, 0x9C, 0x0D, 0x1E, 0x2F, 0x3A, 0x4B, 0x5C, 0x6D);
+
+/**
+  IAmxSerializer Interface
+
+  Universal YAML serializer for all objects.
+  Handles serialization/deserialization of arbitrary objects to/from YAML.
+**/
+typedef struct _IAmxSerializer_Vtbl {
+    HRESULT (ANXAPI *QueryInterface)(IAmxSerializer *This, REFIID riid, VOID **ppvObject);
+    UINTN (ANXAPI *AddRef)(IAmxSerializer *This);
+    UINTN (ANXAPI *Release)(IAmxSerializer *This);
+
+    /**
+      Serialize an object to YAML string.
+    **/
+    HRESULT (ANXAPI *Serialize)(
+        IAmxSerializer *This,
+        ITuiSerializable *Object,
+        CHAR8 **OutYaml,
+        UINTN *OutLength
+    );
+
+    /**
+      Deserialize YAML string to an object.
+    **/
+    HRESULT (ANXAPI *Deserialize)(
+        IAmxSerializer *This,
+        CONST CHAR8 *Yaml,
+        UINTN Length,
+        ITuiSerializable **OutObject
+    );
+
+    /**
+      Serialize object to YAML file.
+    **/
+    HRESULT (ANXAPI *SerializeToFile)(
+        IAmxSerializer *This,
+        ITuiSerializable *Object,
+        CONST CHAR8 *FilePath
+    );
+
+    /**
+      Deserialize object from YAML file.
+    **/
+    HRESULT (ANXAPI *DeserializeFromFile)(
+        IAmxSerializer *This,
+        CONST CHAR8 *FilePath,
+        ITuiSerializable **OutObject
+    );
+
+    /**
+      Register a type factory for deserialization.
+      Maps type names to factory functions.
+    **/
+    HRESULT (ANXAPI *RegisterTypeFactory)(
+        IAmxSerializer *This,
+        CONST CHAR8 *TypeName,
+        HRESULT (*FactoryFunc)(ITuiSerializable **OutObject)
+    );
+
+    /**
+      Validate YAML syntax.
+    **/
+    HRESULT (ANXAPI *ValidateYaml)(
+        IAmxSerializer *This,
+        CONST CHAR8 *Yaml,
+        UINTN Length,
+        BOOLEAN *IsValid,
+        CHAR8 **ErrorMessage
+    );
+} IAmxSerializer_Vtbl;
+
+struct _IAmxSerializer {
+    CONST IAmxSerializer_Vtbl *Vtbl;
+};
+
+#ifdef COBJMACROS
+#define IAmxSerializer_QueryInterface(This,riid,ppvObject) (This)->Vtbl->QueryInterface(This,riid,ppvObject)
+#define IAmxSerializer_AddRef(This) (This)->Vtbl->AddRef(This)
+#define IAmxSerializer_Release(This) (This)->Vtbl->Release(This)
+#define IAmxSerializer_Serialize(This,Object,OutYaml,OutLength) (This)->Vtbl->Serialize(This,Object,OutYaml,OutLength)
+#define IAmxSerializer_Deserialize(This,Yaml,Length,OutObject) (This)->Vtbl->Deserialize(This,Yaml,Length,OutObject)
+#define IAmxSerializer_SerializeToFile(This,Object,FilePath) (This)->Vtbl->SerializeToFile(This,Object,FilePath)
+#define IAmxSerializer_DeserializeFromFile(This,FilePath,OutObject) (This)->Vtbl->DeserializeFromFile(This,FilePath,OutObject)
+#define IAmxSerializer_RegisterTypeFactory(This,TypeName,FactoryFunc) (This)->Vtbl->RegisterTypeFactory(This,TypeName,FactoryFunc)
+#define IAmxSerializer_ValidateYaml(This,Yaml,Length,IsValid,ErrorMessage) (This)->Vtbl->ValidateYaml(This,Yaml,Length,IsValid,ErrorMessage)
+#endif
+
+// {B2C3D4E5-F6A7-8B9C-0D1E-2F3A4B5C6D7E}
+DEFINE_GUID(IID_IAmxResource,
+    0xB2C3D4E5, 0xF6A7, 0x8B9C, 0x0D, 0x1E, 0x2F, 0x3A, 0x4B, 0x5C, 0x6D, 0x7E);
+
+/**
+  IAmxResource Interface
+
+  Universal resource object.
+  Represents any resource (widget, config, theme, etc.) that can be stored and retrieved.
+**/
+typedef struct _IAmxResource_Vtbl {
+    HRESULT (ANXAPI *QueryInterface)(IAmxResource *This, REFIID riid, VOID **ppvObject);
+    UINTN (ANXAPI *AddRef)(IAmxResource *This);
+    UINTN (ANXAPI *Release)(IAmxResource *This);
+
+    /**
+      Get resource ID (URI).
+    **/
+    HRESULT (ANXAPI *GetId)(
+        IAmxResource *This,
+        CONST CHAR8 **OutId
+    );
+
+    /**
+      Get resource type.
+    **/
+    HRESULT (ANXAPI *GetType)(
+        IAmxResource *This,
+        CONST CHAR8 **OutType
+    );
+
+    /**
+      Get the underlying object (ITuiSerializable).
+    **/
+    HRESULT (ANXAPI *GetObject)(
+        IAmxResource *This,
+        ITuiSerializable **OutObject
+    );
+
+    /**
+      Get resource metadata.
+    **/
+    HRESULT (ANXAPI *GetMetadata)(
+        IAmxResource *This,
+        CONST CHAR8 *Key,
+        CONST CHAR8 **OutValue
+    );
+
+    /**
+      Set resource metadata.
+    **/
+    HRESULT (ANXAPI *SetMetadata)(
+        IAmxResource *This,
+        CONST CHAR8 *Key,
+        CONST CHAR8 *Value
+    );
+} IAmxResource_Vtbl;
+
+struct _IAmxResource {
+    CONST IAmxResource_Vtbl *Vtbl;
+};
+
+#ifdef COBJMACROS
+#define IAmxResource_QueryInterface(This,riid,ppvObject) (This)->Vtbl->QueryInterface(This,riid,ppvObject)
+#define IAmxResource_AddRef(This) (This)->Vtbl->AddRef(This)
+#define IAmxResource_Release(This) (This)->Vtbl->Release(This)
+#define IAmxResource_GetId(This,OutId) (This)->Vtbl->GetId(This,OutId)
+#define IAmxResource_GetType(This,OutType) (This)->Vtbl->GetType(This,OutType)
+#define IAmxResource_GetObject(This,OutObject) (This)->Vtbl->GetObject(This,OutObject)
+#define IAmxResource_GetMetadata(This,Key,OutValue) (This)->Vtbl->GetMetadata(This,Key,OutValue)
+#define IAmxResource_SetMetadata(This,Key,Value) (This)->Vtbl->SetMetadata(This,Key,Value)
+#endif
+
+// {C3D4E5F6-A7B8-9C0D-1E2F-3A4B5C6D7E8F}
+DEFINE_GUID(IID_IAmxResourceManager,
+    0xC3D4E5F6, 0xA7B8, 0x9C0D, 0x1E, 0x2F, 0x3A, 0x4B, 0x5C, 0x6D, 0x7E, 0x8F);
+
+/**
+  IAmxResourceManager Interface
+
+  Universal resource manager.
+  Stores and retrieves resources by URI, with YAML persistence.
+**/
+typedef struct _IAmxResourceManager_Vtbl {
+    HRESULT (ANXAPI *QueryInterface)(IAmxResourceManager *This, REFIID riid, VOID **ppvObject);
+    UINTN (ANXAPI *AddRef)(IAmxResourceManager *This);
+    UINTN (ANXAPI *Release)(IAmxResourceManager *This);
+
+    /**
+      Register a resource.
+    **/
+    HRESULT (ANXAPI *RegisterResource)(
+        IAmxResourceManager *This,
+        CONST CHAR8 *Uri,
+        ITuiSerializable *Object,
+        IAmxResource **OutResource
+    );
+
+    /**
+      Get a resource by URI.
+    **/
+    HRESULT (ANXAPI *GetResource)(
+        IAmxResourceManager *This,
+        CONST CHAR8 *Uri,
+        IAmxResource **OutResource
+    );
+
+    /**
+      Remove a resource.
+    **/
+    HRESULT (ANXAPI *RemoveResource)(
+        IAmxResourceManager *This,
+        CONST CHAR8 *Uri
+    );
+
+    /**
+      Load resources from YAML file.
+    **/
+    HRESULT (ANXAPI *LoadFromFile)(
+        IAmxResourceManager *This,
+        CONST CHAR8 *FilePath
+    );
+
+    /**
+      Save resources to YAML file.
+    **/
+    HRESULT (ANXAPI *SaveToFile)(
+        IAmxResourceManager *This,
+        CONST CHAR8 *FilePath
+    );
+
+    /**
+      Enumerate all resources.
+    **/
+    HRESULT (ANXAPI *EnumerateResources)(
+        IAmxResourceManager *This,
+        HRESULT (*Callback)(CONST CHAR8 *Uri, IAmxResource *Resource, VOID *UserData),
+        VOID *UserData
+    );
+
+    /**
+      Get serializer instance.
+    **/
+    HRESULT (ANXAPI *GetSerializer)(
+        IAmxResourceManager *This,
+        IAmxSerializer **OutSerializer
+    );
+} IAmxResourceManager_Vtbl;
+
+struct _IAmxResourceManager {
+    CONST IAmxResourceManager_Vtbl *Vtbl;
+};
+
+#ifdef COBJMACROS
+#define IAmxResourceManager_QueryInterface(This,riid,ppvObject) (This)->Vtbl->QueryInterface(This,riid,ppvObject)
+#define IAmxResourceManager_AddRef(This) (This)->Vtbl->AddRef(This)
+#define IAmxResourceManager_Release(This) (This)->Vtbl->Release(This)
+#define IAmxResourceManager_RegisterResource(This,Uri,Object,OutResource) (This)->Vtbl->RegisterResource(This,Uri,Object,OutResource)
+#define IAmxResourceManager_GetResource(This,Uri,OutResource) (This)->Vtbl->GetResource(This,Uri,OutResource)
+#define IAmxResourceManager_RemoveResource(This,Uri) (This)->Vtbl->RemoveResource(This,Uri)
+#define IAmxResourceManager_LoadFromFile(This,FilePath) (This)->Vtbl->LoadFromFile(This,FilePath)
+#define IAmxResourceManager_SaveToFile(This,FilePath) (This)->Vtbl->SaveToFile(This,FilePath)
+#define IAmxResourceManager_EnumerateResources(This,Callback,UserData) (This)->Vtbl->EnumerateResources(This,Callback,UserData)
+#define IAmxResourceManager_GetSerializer(This,OutSerializer) (This)->Vtbl->GetSerializer(This,OutSerializer)
 #endif
 
 // {1A2B3C4D-5E6F-7A8B-9C0D-1E2F3A4B5C6D}
@@ -4343,6 +4609,34 @@ HRESULT
 ANXAPI
 AnxTuiCreateComposer(
     OUT ITuiComposer **OutComposer
+);
+
+/**
+  Create a YAML Serializer instance.
+
+  @param[out] OutSerializer  Pointer to receive the serializer interface.
+
+  @retval S_OK        Serializer created successfully.
+  @retval E_OUTOFMEMORY  Memory allocation failed.
+**/
+HRESULT
+ANXAPI
+AnxAmxCreateSerializer(
+    OUT IAmxSerializer **OutSerializer
+);
+
+/**
+  Create a Resource Manager instance.
+
+  @param[out] OutManager  Pointer to receive the resource manager interface.
+
+  @retval S_OK        Resource manager created successfully.
+  @retval E_OUTOFMEMORY  Memory allocation failed.
+**/
+HRESULT
+ANXAPI
+AnxAmxCreateResourceManager(
+    OUT IAmxResourceManager **OutManager
 );
 
 #ifdef __cplusplus
