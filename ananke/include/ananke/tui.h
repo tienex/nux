@@ -56,6 +56,7 @@ typedef struct _ITuiLongOpDialog ITuiLongOpDialog;
 typedef struct _ITuiDirectoryDialog ITuiDirectoryDialog;
 typedef struct _ITuiTerminal ITuiTerminal;
 typedef struct _ITuiTreeView ITuiTreeView;
+typedef struct _ITuiListView ITuiListView;
 
 //
 // Text Direction for BiDi Support
@@ -2500,6 +2501,99 @@ struct _ITuiTreeView {
     CONST ITuiTreeView_Vtbl *Vtbl;
 };
 
+// {7D8E9F0A-1B2C-3D4E-5F6A-7B8C9D0E1F2A}
+DEFINE_GUID(IID_ITuiListView,
+    0x7D8E9F0A, 0x1B2C, 0x3D4E, 0x5F, 0x6A, 0x7B, 0x8C, 0x9D, 0x0E, 0x1F, 0x2A);
+
+/**
+  ITuiListView Interface
+
+  Multi-column list control with resizable columns, different view modes,
+  alternating rows, checkboxes, and inline editing.
+**/
+typedef struct _ITuiListView_Vtbl {
+    HRESULT (ANXAPI *QueryInterface)(ITuiListView *This, REFIID riid, VOID **ppvObject);
+    UINTN (ANXAPI *AddRef)(ITuiListView *This);
+    UINTN (ANXAPI *Release)(ITuiListView *This);
+
+    /**
+      Render the list view.
+    **/
+    HRESULT (ANXAPI *Render)(
+        ITuiListView *This,
+        ITuiScreen *Screen,
+        INT32 X,
+        INT32 Y,
+        UINT32 Width,
+        UINT32 Height
+    );
+
+    /**
+      Handle keyboard input.
+    **/
+    HRESULT (ANXAPI *HandleKey)(
+        ITuiListView *This,
+        TUI_KEY Key
+    );
+
+    /**
+      Standard widget methods.
+    **/
+    HRESULT (ANXAPI *SetBounds)(ITuiListView *This, CONST TUI_RECT *Bounds);
+    HRESULT (ANXAPI *GetBounds)(ITuiListView *This, TUI_RECT *Bounds);
+    HRESULT (ANXAPI *SetVisible)(ITuiListView *This, BOOLEAN Visible);
+    BOOLEAN (ANXAPI *IsVisible)(ITuiListView *This);
+    HRESULT (ANXAPI *SetEnabled)(ITuiListView *This, BOOLEAN Enabled);
+    BOOLEAN (ANXAPI *IsEnabled)(ITuiListView *This);
+
+    /**
+      Add a column.
+    **/
+    HRESULT (ANXAPI *AddColumn)(
+        ITuiListView *This,
+        CONST CHAR8 *Header,
+        UINT32 Width
+    );
+
+    /**
+      Add an item with cell data.
+    **/
+    HRESULT (ANXAPI *AddItem)(
+        ITuiListView *This,
+        CONST CHAR8 **Cells,
+        UINT32 CellCount,
+        VOID *UserData,
+        UINT32 *OutIndex
+    );
+
+    /**
+      Clear all items.
+    **/
+    HRESULT (ANXAPI *Clear)(ITuiListView *This);
+
+    /**
+      Set view mode (list, details, icons, column browse).
+    **/
+    HRESULT (ANXAPI *SetMode)(
+        ITuiListView *This,
+        UINT32 Mode
+    );
+
+    /**
+      Set column width.
+    **/
+    HRESULT (ANXAPI *SetColumnWidth)(
+        ITuiListView *This,
+        UINT32 ColumnIndex,
+        UINT32 Width
+    );
+
+} ITuiListView_Vtbl;
+
+struct _ITuiListView {
+    CONST ITuiListView_Vtbl *Vtbl;
+};
+
 //
 // Factory functions
 //
@@ -2922,6 +3016,20 @@ HRESULT
 ANXAPI
 AnxTuiCreateTreeView(
     OUT ITuiTreeView **OutTreeView
+);
+
+/**
+  Create a TUI List View instance.
+
+  @param[out] OutListView  Pointer to receive the list view interface.
+
+  @retval S_OK        List view created successfully.
+  @retval E_OUTOFMEMORY  Memory allocation failed.
+**/
+HRESULT
+ANXAPI
+AnxTuiCreateListView(
+    OUT ITuiListView **OutListView
 );
 
 #ifdef __cplusplus
