@@ -4928,96 +4928,130 @@ typedef HRESULT (*TerminalParserCallback)(
     UINTN Length
 );
 
+// {2F3A4B5C-6D7E-8F9A-0B1C-2D3E4F5A6B7C}
+DEFINE_GUID(IID_ITuiThemedTerminal,
+    0x2F3A4B5C, 0x6D7E, 0x8F9A, 0x0B, 0x1C, 0x2D, 0x3E, 0x4F, 0x5A, 0x6B, 0x7C);
+
+/**
+  ITuiThemedTerminal Interface
+
+  Terminal theming interface. Inherits from ITuiThemedWidget.
+**/
+typedef struct _ITuiThemedTerminal_Vtbl {
+    // ITuiSerializable methods
+    HRESULT (ANXAPI *QueryInterface)(ITuiThemedTerminal *This, REFIID riid, VOID **ppvObject);
+    UINTN (ANXAPI *AddRef)(ITuiThemedTerminal *This);
+    UINTN (ANXAPI *Release)(ITuiThemedTerminal *This);
+    HRESULT (ANXAPI *SerializeToYaml)(ITuiThemedTerminal *This, CHAR8 **OutYaml, UINTN *OutLength);
+    HRESULT (ANXAPI *DeserializeFromYaml)(ITuiThemedTerminal *This, CONST CHAR8 *Yaml, UINTN Length);
+    HRESULT (ANXAPI *GetTypeName)(ITuiThemedTerminal *This, CONST CHAR8 **OutTypeName);
+    HRESULT (ANXAPI *Clone)(ITuiThemedTerminal *This, ITuiSerializable **OutClone);
+
+    // ITuiResponder methods
+    HRESULT (ANXAPI *GetNextResponder)(ITuiThemedTerminal *This, ITuiResponder **NextResponder);
+    HRESULT (ANXAPI *SetNextResponder)(ITuiThemedTerminal *This, ITuiResponder *NextResponder);
+    BOOLEAN (ANXAPI *AcceptsFirstResponder)(ITuiThemedTerminal *This);
+    HRESULT (ANXAPI *BecomeFirstResponder)(ITuiThemedTerminal *This);
+    HRESULT (ANXAPI *ResignFirstResponder)(ITuiThemedTerminal *This);
+
+    // ITuiWidget methods
+    HRESULT (ANXAPI *SetBounds)(ITuiThemedTerminal *This, CONST TUI_RECT *Bounds);
+    HRESULT (ANXAPI *GetBounds)(ITuiThemedTerminal *This, TUI_RECT *Bounds);
+    HRESULT (ANXAPI *SetVisible)(ITuiThemedTerminal *This, BOOLEAN Visible);
+    BOOLEAN (ANXAPI *IsVisible)(ITuiThemedTerminal *This);
+    HRESULT (ANXAPI *SetEnabled)(ITuiThemedTerminal *This, BOOLEAN Enabled);
+    BOOLEAN (ANXAPI *IsEnabled)(ITuiThemedTerminal *This);
+    HRESULT (ANXAPI *SetParent)(ITuiThemedTerminal *This, ITuiWidget *Parent);
+    HRESULT (ANXAPI *GetParent)(ITuiThemedTerminal *This, ITuiWidget **Parent);
+    HRESULT (ANXAPI *AddChild)(ITuiThemedTerminal *This, ITuiWidget *Child);
+    HRESULT (ANXAPI *RemoveChild)(ITuiThemedTerminal *This, ITuiWidget *Child);
+    HRESULT (ANXAPI *SetNeedsDisplay)(ITuiThemedTerminal *This, BOOLEAN Needed);
+
+    // ITuiThemedWidget methods
+    HRESULT (ANXAPI *ApplyTheme)(ITuiThemedTerminal *This, ITuiTheme *Theme);
+    HRESULT (ANXAPI *GetColors)(ITuiThemedTerminal *This, TUI_COLOR *Foreground, TUI_COLOR *Background);
+    HRESULT (ANXAPI *SetColors)(ITuiThemedTerminal *This, TUI_COLOR Foreground, TUI_COLOR Background);
+    HRESULT (ANXAPI *OnMouseEvent)(ITuiThemedTerminal *This, CONST TUI_MOUSE_EVENT *Event, BOOLEAN *Handled);
+    HRESULT (ANXAPI *OnKeyEvent)(ITuiThemedTerminal *This, TUI_KEY Key, UINT32 Modifiers, BOOLEAN *Handled);
+    HRESULT (ANXAPI *Draw)(ITuiThemedTerminal *This, ITuiSurface *Surface, CONST TUI_RECT *DirtyRect);
+
+    // ITuiThemedTerminal methods
+    HRESULT (ANXAPI *GetCursorColor)(ITuiThemedTerminal *This, TUI_COLOR *CursorColor);
+    HRESULT (ANXAPI *SetCursorColor)(ITuiThemedTerminal *This, TUI_COLOR CursorColor);
+    HRESULT (ANXAPI *GetSelectionColors)(ITuiThemedTerminal *This, TUI_COLOR *Foreground, TUI_COLOR *Background);
+    HRESULT (ANXAPI *SetSelectionColors)(ITuiThemedTerminal *This, TUI_COLOR Foreground, TUI_COLOR Background);
+    HRESULT (ANXAPI *GetScrollbarColors)(ITuiThemedTerminal *This, TUI_COLOR *Foreground, TUI_COLOR *Background);
+    HRESULT (ANXAPI *SetScrollbarColors)(ITuiThemedTerminal *This, TUI_COLOR Foreground, TUI_COLOR Background);
+} ITuiThemedTerminal_Vtbl;
+
+struct _ITuiThemedTerminal {
+    CONST ITuiThemedTerminal_Vtbl *Vtbl;
+};
+
 /**
   ITuiTerminal Interface
 
   Terminal emulator widget with customizable renderer and parser
-  for ANSI/VT100 escape sequences.
+  for ANSI/VT100 escape sequences. Inherits from ITuiThemedTerminal.
 **/
 typedef struct _ITuiTerminal_Vtbl {
+    // ITuiSerializable methods
     HRESULT (ANXAPI *QueryInterface)(ITuiTerminal *This, REFIID riid, VOID **ppvObject);
     UINTN (ANXAPI *AddRef)(ITuiTerminal *This);
     UINTN (ANXAPI *Release)(ITuiTerminal *This);
+    HRESULT (ANXAPI *SerializeToYaml)(ITuiTerminal *This, CHAR8 **OutYaml, UINTN *OutLength);
+    HRESULT (ANXAPI *DeserializeFromYaml)(ITuiTerminal *This, CONST CHAR8 *Yaml, UINTN Length);
+    HRESULT (ANXAPI *GetTypeName)(ITuiTerminal *This, CONST CHAR8 **OutTypeName);
+    HRESULT (ANXAPI *Clone)(ITuiTerminal *This, ITuiSerializable **OutClone);
 
-    /**
-      Render the terminal.
-    **/
-    HRESULT (ANXAPI *Render)(
-        ITuiTerminal *This,
-        ITuiScreen *Screen,
-        INT32 X,
-        INT32 Y,
-        BOOLEAN Focused
-    );
+    // ITuiResponder methods
+    HRESULT (ANXAPI *GetNextResponder)(ITuiTerminal *This, ITuiResponder **NextResponder);
+    HRESULT (ANXAPI *SetNextResponder)(ITuiTerminal *This, ITuiResponder *NextResponder);
+    BOOLEAN (ANXAPI *AcceptsFirstResponder)(ITuiTerminal *This);
+    HRESULT (ANXAPI *BecomeFirstResponder)(ITuiTerminal *This);
+    HRESULT (ANXAPI *ResignFirstResponder)(ITuiTerminal *This);
 
-    /**
-      Handle keyboard input.
-    **/
-    HRESULT (ANXAPI *HandleKey)(
-        ITuiTerminal *This,
-        TUI_KEY Key
-    );
-
-    /**
-      Standard widget methods.
-    **/
+    // ITuiWidget methods
     HRESULT (ANXAPI *SetBounds)(ITuiTerminal *This, CONST TUI_RECT *Bounds);
     HRESULT (ANXAPI *GetBounds)(ITuiTerminal *This, TUI_RECT *Bounds);
     HRESULT (ANXAPI *SetVisible)(ITuiTerminal *This, BOOLEAN Visible);
     BOOLEAN (ANXAPI *IsVisible)(ITuiTerminal *This);
     HRESULT (ANXAPI *SetEnabled)(ITuiTerminal *This, BOOLEAN Enabled);
     BOOLEAN (ANXAPI *IsEnabled)(ITuiTerminal *This);
+    HRESULT (ANXAPI *SetParent)(ITuiTerminal *This, ITuiWidget *Parent);
+    HRESULT (ANXAPI *GetParent)(ITuiTerminal *This, ITuiWidget **Parent);
+    HRESULT (ANXAPI *AddChild)(ITuiTerminal *This, ITuiWidget *Child);
+    HRESULT (ANXAPI *RemoveChild)(ITuiTerminal *This, ITuiWidget *Child);
+    HRESULT (ANXAPI *SetNeedsDisplay)(ITuiTerminal *This, BOOLEAN Needed);
 
-    /**
-      Write text to terminal (will be parsed for escape sequences).
-    **/
-    HRESULT (ANXAPI *WriteText)(
-        ITuiTerminal *This,
-        CONST CHAR8 *Text,
-        UINTN Length
-    );
+    // ITuiThemedWidget methods
+    HRESULT (ANXAPI *ApplyTheme)(ITuiTerminal *This, ITuiTheme *Theme);
+    HRESULT (ANXAPI *GetColors)(ITuiTerminal *This, TUI_COLOR *Foreground, TUI_COLOR *Background);
+    HRESULT (ANXAPI *SetColors)(ITuiTerminal *This, TUI_COLOR Foreground, TUI_COLOR Background);
+    HRESULT (ANXAPI *OnMouseEvent)(ITuiTerminal *This, CONST TUI_MOUSE_EVENT *Event, BOOLEAN *Handled);
+    HRESULT (ANXAPI *OnKeyEvent)(ITuiTerminal *This, TUI_KEY Key, UINT32 Modifiers, BOOLEAN *Handled);
+    HRESULT (ANXAPI *Draw)(ITuiTerminal *This, ITuiSurface *Surface, CONST TUI_RECT *DirtyRect);
 
-    /**
-      Clear terminal screen.
-    **/
+    // ITuiThemedTerminal methods
+    HRESULT (ANXAPI *GetCursorColor)(ITuiTerminal *This, TUI_COLOR *CursorColor);
+    HRESULT (ANXAPI *SetCursorColor)(ITuiTerminal *This, TUI_COLOR CursorColor);
+    HRESULT (ANXAPI *GetSelectionColors)(ITuiTerminal *This, TUI_COLOR *Foreground, TUI_COLOR *Background);
+    HRESULT (ANXAPI *SetSelectionColors)(ITuiTerminal *This, TUI_COLOR Foreground, TUI_COLOR Background);
+    HRESULT (ANXAPI *GetScrollbarColors)(ITuiTerminal *This, TUI_COLOR *Foreground, TUI_COLOR *Background);
+    HRESULT (ANXAPI *SetScrollbarColors)(ITuiTerminal *This, TUI_COLOR Foreground, TUI_COLOR Background);
+
+    // ITuiTerminal methods
+    HRESULT (ANXAPI *WriteText)(ITuiTerminal *This, CONST CHAR8 *Text, UINTN Length);
     HRESULT (ANXAPI *Clear)(ITuiTerminal *This);
-
-    /**
-      Set terminal size (columns and rows).
-    **/
-    HRESULT (ANXAPI *SetSize)(
-        ITuiTerminal *This,
-        UINT32 Cols,
-        UINT32 Rows
-    );
-
-    /**
-      Set custom renderer callback.
-    **/
-    HRESULT (ANXAPI *SetRenderer)(
-        ITuiTerminal *This,
-        TerminalRenderCallback Renderer,
-        VOID *UserData
-    );
-
-    /**
-      Set custom parser callback.
-    **/
-    HRESULT (ANXAPI *SetParser)(
-        ITuiTerminal *This,
-        TerminalParserCallback Parser,
-        VOID *UserData
-    );
-
-    /**
-      Set input callback (for handling user input).
-    **/
-    HRESULT (ANXAPI *SetInputCallback)(
-        ITuiTerminal *This,
-        HRESULT (*Callback)(VOID *UserData, CONST CHAR8 *Input, UINTN Length),
-        VOID *UserData
-    );
-
+    HRESULT (ANXAPI *SetSize)(ITuiTerminal *This, UINT32 Cols, UINT32 Rows);
+    HRESULT (ANXAPI *GetSize)(ITuiTerminal *This, UINT32 *Cols, UINT32 *Rows);
+    HRESULT (ANXAPI *SetRenderer)(ITuiTerminal *This, TerminalRenderCallback Renderer, VOID *UserData);
+    HRESULT (ANXAPI *SetParser)(ITuiTerminal *This, TerminalParserCallback Parser, VOID *UserData);
+    HRESULT (ANXAPI *SetInputCallback)(ITuiTerminal *This, HRESULT (*Callback)(VOID *UserData, CONST CHAR8 *Input, UINTN Length), VOID *UserData);
+    HRESULT (ANXAPI *GetCursorPosition)(ITuiTerminal *This, UINT32 *Col, UINT32 *Row);
+    HRESULT (ANXAPI *SetCursorPosition)(ITuiTerminal *This, UINT32 Col, UINT32 Row);
+    HRESULT (ANXAPI *SetScrollbackLines)(ITuiTerminal *This, UINT32 Lines);
+    UINT32 (ANXAPI *GetScrollbackLines)(ITuiTerminal *This);
 } ITuiTerminal_Vtbl;
 
 struct _ITuiTerminal {
