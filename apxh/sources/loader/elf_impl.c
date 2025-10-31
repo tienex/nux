@@ -3,15 +3,17 @@
 
   Provides ELF (Executable and Linkable Format) parsing and loading
   for 32-bit and 64-bit executables. Handles program headers for
-  kernel and user-space segments, including LOAD, TLS, and custom
-  APXH segment types.
+  kernel and user-space segments, including LOAD, TLS, unwinding info,
+  and symbol lookup. Also supports custom APXH segment types.
 
   Copyright (C) 2019 Gianluca Guida, glguida@tlbflush.org
+  Copyright (C) 2025 A•NUX Project
 
   SPDX-License-Identifier: BSD-2-Clause
 **/
 
 #include <apxh/internal.h>
+#include <apxh/imgload.h>
 
 typedef struct elf32ph
 {
@@ -451,4 +453,395 @@ GetElfArch (
     return ARCH_RISCV64;
 
   return ARCH_UNSUPPORTED;
+}
+
+/**
+  Get ELF endianness.
+
+  Determines the endianness from ELF identification field.
+
+  @param[in] ElfImg  Pointer to ELF image.
+
+  @return Endianness type (little/big), or ImgEndianUnknown if invalid.
+**/
+IMGLOAD_ENDIAN
+GetElfEndianness (
+  IN VOID  *ElfImage
+  )
+{
+  CHAR8 ElfId[] = { 0x7f, 'E', 'L', 'F', };
+  UINT8 *Ident = (UINT8 *) ElfImage;
+
+  // Verify ELF magic
+  if (memcmp (Ident, ElfId, 4) != 0)
+    return ImgEndianUnknown;
+
+  // ELF identification byte 5 (EI_DATA) specifies endianness
+  // 1 = ELFDATA2LSB (little-endian)
+  // 2 = ELFDATA2MSB (big-endian)
+  switch (Ident[5]) {
+    case 1:  // ELFDATA2LSB
+      return ImgEndianLittle;
+    case 2:  // ELFDATA2MSB
+      return ImgEndianBig;
+    default:
+      return ImgEndianUnknown;
+  }
+}
+
+//
+// Section header types and program header types for unwinding info
+//
+
+#define SHT_PROGBITS_EH_FRAME 0x6474e550  ///< PT_GNU_EH_FRAME
+#define SHT_EH_FRAME_NAME     ".eh_frame"
+
+/**
+  Get unwinding information from 32-bit ELF image.
+
+  @param[in]  ElfImage    Pointer to ELF image.
+  @param[out] UnwindInfo  Receives unwinding information.
+
+  @return S_OK on success, S_FALSE if no unwinding info, error code otherwise.
+**/
+HRESULT
+GetElf32UnwindInfo (
+  IN  VOID                 *ElfImage,
+  OUT IMGLOAD_UNWIND_INFO  *UnwindInfo
+  )
+{
+  ELF32_HDR *ElfHeader = (ELF32_HDR *)ElfImage;
+  ELF32_PH *ProgramHeader;
+  ELF32_SH *SectionHeader;
+  INT32 i;
+
+  memset(UnwindInfo, 0, sizeof(IMGLOAD_UNWIND_INFO));
+
+  // First, check program headers for PT_GNU_EH_FRAME
+  ProgramHeader = (ELF32_PH *)ELFOFF(ElfHeader->Phoff);
+  for (i = 0; i < ElfHeader->Phs; i++, ProgramHeader++) {
+    if (ProgramHeader->Type == 0x6474e550) {  // PT_GNU_EH_FRAME
+      UnwindInfo->UnwindDataAddr = ProgramHeader->Va;
+      UnwindInfo->UnwindDataSize = ProgramHeader->Msize;
+      UnwindInfo->Format = 0;  // DWARF eh_frame
+      return S_OK;
+    }
+  }
+
+  // If not found in program headers, check section headers
+  if (ElfHeader->Shoff != 0 && ElfHeader->Shs > 0) {
+    SectionHeader = (ELF32_SH *)ELFOFF(ElfHeader->Shoff);
+    ELF32_SH *StringTableSection = &SectionHeader[ElfHeader->Shstrndx];
+    CHAR8 *StringTable = (CHAR8 *)ELFOFF(StringTableSection->Off);
+
+    for (i = 0; i < ElfHeader->Shs; i++, SectionHeader++) {
+      CHAR8 *SectionName = &StringTable[SectionHeader->Name];
+      if (strcmp(SectionName, ".eh_frame") == 0) {
+        UnwindInfo->UnwindDataAddr = SectionHeader->Addr;
+        UnwindInfo->UnwindDataSize = SectionHeader->Size;
+        UnwindInfo->Format = 0;  // DWARF eh_frame
+        return S_OK;
+      }
+    }
+  }
+
+  return S_FALSE;  // No unwinding info found
+}
+
+/**
+  Get unwinding information from 64-bit ELF image.
+
+  @param[in]  ElfImage    Pointer to ELF image.
+  @param[out] UnwindInfo  Receives unwinding information.
+
+  @return S_OK on success, S_FALSE if no unwinding info, error code otherwise.
+**/
+HRESULT
+GetElf64UnwindInfo (
+  IN  VOID                 *ElfImage,
+  OUT IMGLOAD_UNWIND_INFO  *UnwindInfo
+  )
+{
+  ELF64_HDR *ElfHeader = (ELF64_HDR *)ElfImage;
+  ELF64_PH *ProgramHeader;
+  ELF64_SH *SectionHeader;
+  INT32 i;
+
+  memset(UnwindInfo, 0, sizeof(IMGLOAD_UNWIND_INFO));
+
+  // First, check program headers for PT_GNU_EH_FRAME
+  ProgramHeader = (ELF64_PH *)ELFOFF(ElfHeader->Phoff);
+  for (i = 0; i < ElfHeader->Phs; i++, ProgramHeader++) {
+    if (ProgramHeader->Type == 0x6474e550) {  // PT_GNU_EH_FRAME
+      UnwindInfo->UnwindDataAddr = ProgramHeader->Va;
+      UnwindInfo->UnwindDataSize = ProgramHeader->Msize;
+      UnwindInfo->Format = 0;  // DWARF eh_frame
+      return S_OK;
+    }
+  }
+
+  // If not found in program headers, check section headers
+  if (ElfHeader->Shoff != 0 && ElfHeader->Shs > 0) {
+    SectionHeader = (ELF64_SH *)ELFOFF(ElfHeader->Shoff);
+    ELF64_SH *StringTableSection = &SectionHeader[ElfHeader->Shstrndx];
+    CHAR8 *StringTable = (CHAR8 *)ELFOFF(StringTableSection->Off);
+
+    for (i = 0; i < ElfHeader->Shs; i++, SectionHeader++) {
+      CHAR8 *SectionName = &StringTable[SectionHeader->Name];
+      if (strcmp(SectionName, ".eh_frame") == 0) {
+        UnwindInfo->UnwindDataAddr = SectionHeader->Addr;
+        UnwindInfo->UnwindDataSize = SectionHeader->Size;
+        UnwindInfo->Format = 0;  // DWARF eh_frame
+        return S_OK;
+      }
+    }
+  }
+
+  return S_FALSE;  // No unwinding info found
+}
+
+//
+// ELF symbol table structures
+//
+
+typedef struct elf32sym {
+  UINT32 Name;
+  UINT32 Value;
+  UINT32 Size;
+  UINT8  Info;
+  UINT8  Other;
+  UINT16 Shndx;
+} ELF32_SYM;
+
+typedef struct elf64sym {
+  UINT32 Name;
+  UINT8  Info;
+  UINT8  Other;
+  UINT16 Shndx;
+  UINT64 Value;
+  UINT64 Size;
+} ELF64_SYM;
+
+#define SHT_SYMTAB  2
+#define SHT_DYNSYM  11
+#define SHT_STRTAB  3
+
+#define ELF_ST_BIND(i)   ((i)>>4)
+#define ELF_ST_TYPE(i)   ((i)&0xf)
+
+#define STT_NOTYPE  0
+#define STT_OBJECT  1
+#define STT_FUNC    2
+#define STT_SECTION 3
+
+#define STB_LOCAL   0
+#define STB_GLOBAL  1
+#define STB_WEAK    2
+
+/**
+  Get symbol by address from 32-bit ELF image.
+
+  @param[in]  ElfImage    Pointer to ELF image.
+  @param[in]  Address     Virtual address to look up.
+  @param[out] SymbolInfo  Receives symbol information.
+
+  @return S_OK on success, S_FALSE if not found, error code otherwise.
+**/
+HRESULT
+GetElf32SymbolByAddress (
+  IN  VOID                 *ElfImage,
+  IN  VIRTUAL_ADDRESS      Address,
+  OUT IMGLOAD_SYMBOL_INFO  *SymbolInfo
+  )
+{
+  ELF32_HDR *ElfHeader = (ELF32_HDR *)ElfImage;
+  ELF32_SH *SectionHeader;
+  INT32 i, j;
+
+  if (ElfHeader->Shoff == 0 || ElfHeader->Shs == 0) {
+    return S_FALSE;  // No section headers
+  }
+
+  SectionHeader = (ELF32_SH *)ELFOFF(ElfHeader->Shoff);
+
+  // Search for symbol table sections
+  for (i = 0; i < ElfHeader->Shs; i++) {
+    if (SectionHeader[i].Type == SHT_SYMTAB || SectionHeader[i].Type == SHT_DYNSYM) {
+      ELF32_SYM *Symbols = (ELF32_SYM *)ELFOFF(SectionHeader[i].Off);
+      UINT32 NumSymbols = SectionHeader[i].Size / sizeof(ELF32_SYM);
+      ELF32_SH *StringTableSection = &SectionHeader[SectionHeader[i].Lnk];
+      CHAR8 *StringTable = (CHAR8 *)ELFOFF(StringTableSection->Off);
+
+      for (j = 0; j < NumSymbols; j++) {
+        if (Symbols[j].Value <= Address &&
+            Address < Symbols[j].Value + Symbols[j].Size) {
+          // Found symbol
+          SymbolInfo->Name = &StringTable[Symbols[j].Name];
+          SymbolInfo->Address = Symbols[j].Value;
+          SymbolInfo->Size = Symbols[j].Size;
+          SymbolInfo->Type = ELF_ST_TYPE(Symbols[j].Info);
+          SymbolInfo->Binding = ELF_ST_BIND(Symbols[j].Info);
+          return S_OK;
+        }
+      }
+    }
+  }
+
+  return S_FALSE;  // Symbol not found
+}
+
+/**
+  Get symbol by address from 64-bit ELF image.
+
+  @param[in]  ElfImage    Pointer to ELF image.
+  @param[in]  Address     Virtual address to look up.
+  @param[out] SymbolInfo  Receives symbol information.
+
+  @return S_OK on success, S_FALSE if not found, error code otherwise.
+**/
+HRESULT
+GetElf64SymbolByAddress (
+  IN  VOID                 *ElfImage,
+  IN  VIRTUAL_ADDRESS      Address,
+  OUT IMGLOAD_SYMBOL_INFO  *SymbolInfo
+  )
+{
+  ELF64_HDR *ElfHeader = (ELF64_HDR *)ElfImage;
+  ELF64_SH *SectionHeader;
+  INT32 i, j;
+
+  if (ElfHeader->Shoff == 0 || ElfHeader->Shs == 0) {
+    return S_FALSE;  // No section headers
+  }
+
+  SectionHeader = (ELF64_SH *)ELFOFF(ElfHeader->Shoff);
+
+  // Search for symbol table sections
+  for (i = 0; i < ElfHeader->Shs; i++) {
+    if (SectionHeader[i].Type == SHT_SYMTAB || SectionHeader[i].Type == SHT_DYNSYM) {
+      ELF64_SYM *Symbols = (ELF64_SYM *)ELFOFF(SectionHeader[i].Off);
+      UINT64 NumSymbols = SectionHeader[i].Size / sizeof(ELF64_SYM);
+      ELF64_SH *StringTableSection = &SectionHeader[SectionHeader[i].Lnk];
+      CHAR8 *StringTable = (CHAR8 *)ELFOFF(StringTableSection->Off);
+
+      for (j = 0; j < NumSymbols; j++) {
+        if (Symbols[j].Value <= Address &&
+            Address < Symbols[j].Value + Symbols[j].Size) {
+          // Found symbol
+          SymbolInfo->Name = &StringTable[Symbols[j].Name];
+          SymbolInfo->Address = Symbols[j].Value;
+          SymbolInfo->Size = Symbols[j].Size;
+          SymbolInfo->Type = ELF_ST_TYPE(Symbols[j].Info);
+          SymbolInfo->Binding = ELF_ST_BIND(Symbols[j].Info);
+          return S_OK;
+        }
+      }
+    }
+  }
+
+  return S_FALSE;  // Symbol not found
+}
+
+/**
+  Get symbol by name from 32-bit ELF image.
+
+  @param[in]  ElfImage    Pointer to ELF image.
+  @param[in]  Name        Symbol name to look up.
+  @param[out] SymbolInfo  Receives symbol information.
+
+  @return S_OK on success, S_FALSE if not found, error code otherwise.
+**/
+HRESULT
+GetElf32SymbolByName (
+  IN  VOID                 *ElfImage,
+  IN  CONST CHAR8          *Name,
+  OUT IMGLOAD_SYMBOL_INFO  *SymbolInfo
+  )
+{
+  ELF32_HDR *ElfHeader = (ELF32_HDR *)ElfImage;
+  ELF32_SH *SectionHeader;
+  INT32 i, j;
+
+  if (ElfHeader->Shoff == 0 || ElfHeader->Shs == 0) {
+    return S_FALSE;  // No section headers
+  }
+
+  SectionHeader = (ELF32_SH *)ELFOFF(ElfHeader->Shoff);
+
+  // Search for symbol table sections
+  for (i = 0; i < ElfHeader->Shs; i++) {
+    if (SectionHeader[i].Type == SHT_SYMTAB || SectionHeader[i].Type == SHT_DYNSYM) {
+      ELF32_SYM *Symbols = (ELF32_SYM *)ELFOFF(SectionHeader[i].Off);
+      UINT32 NumSymbols = SectionHeader[i].Size / sizeof(ELF32_SYM);
+      ELF32_SH *StringTableSection = &SectionHeader[SectionHeader[i].Lnk];
+      CHAR8 *StringTable = (CHAR8 *)ELFOFF(StringTableSection->Off);
+
+      for (j = 0; j < NumSymbols; j++) {
+        CHAR8 *SymbolName = &StringTable[Symbols[j].Name];
+        if (strcmp(SymbolName, Name) == 0) {
+          // Found symbol
+          SymbolInfo->Name = SymbolName;
+          SymbolInfo->Address = Symbols[j].Value;
+          SymbolInfo->Size = Symbols[j].Size;
+          SymbolInfo->Type = ELF_ST_TYPE(Symbols[j].Info);
+          SymbolInfo->Binding = ELF_ST_BIND(Symbols[j].Info);
+          return S_OK;
+        }
+      }
+    }
+  }
+
+  return S_FALSE;  // Symbol not found
+}
+
+/**
+  Get symbol by name from 64-bit ELF image.
+
+  @param[in]  ElfImage    Pointer to ELF image.
+  @param[in]  Name        Symbol name to look up.
+  @param[out] SymbolInfo  Receives symbol information.
+
+  @return S_OK on success, S_FALSE if not found, error code otherwise.
+**/
+HRESULT
+GetElf64SymbolByName (
+  IN  VOID                 *ElfImage,
+  IN  CONST CHAR8          *Name,
+  OUT IMGLOAD_SYMBOL_INFO  *SymbolInfo
+  )
+{
+  ELF64_HDR *ElfHeader = (ELF64_HDR *)ElfImage;
+  ELF64_SH *SectionHeader;
+  INT32 i, j;
+
+  if (ElfHeader->Shoff == 0 || ElfHeader->Shs == 0) {
+    return S_FALSE;  // No section headers
+  }
+
+  SectionHeader = (ELF64_SH *)ELFOFF(ElfHeader->Shoff);
+
+  // Search for symbol table sections
+  for (i = 0; i < ElfHeader->Shs; i++) {
+    if (SectionHeader[i].Type == SHT_SYMTAB || SectionHeader[i].Type == SHT_DYNSYM) {
+      ELF64_SYM *Symbols = (ELF64_SYM *)ELFOFF(SectionHeader[i].Off);
+      UINT64 NumSymbols = SectionHeader[i].Size / sizeof(ELF64_SYM);
+      ELF64_SH *StringTableSection = &SectionHeader[SectionHeader[i].Lnk];
+      CHAR8 *StringTable = (CHAR8 *)ELFOFF(StringTableSection->Off);
+
+      for (j = 0; j < NumSymbols; j++) {
+        CHAR8 *SymbolName = &StringTable[Symbols[j].Name];
+        if (strcmp(SymbolName, Name) == 0) {
+          // Found symbol
+          SymbolInfo->Name = SymbolName;
+          SymbolInfo->Address = Symbols[j].Value;
+          SymbolInfo->Size = Symbols[j].Size;
+          SymbolInfo->Type = ELF_ST_TYPE(Symbols[j].Info);
+          SymbolInfo->Binding = ELF_ST_BIND(Symbols[j].Info);
+          return S_OK;
+        }
+      }
+    }
+  }
+
+  return S_FALSE;  // Symbol not found
 }
