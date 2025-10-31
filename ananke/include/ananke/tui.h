@@ -295,6 +295,17 @@ struct _ITuiResponder {
     CONST ITuiResponder_Vtbl *Vtbl;
 };
 
+#ifdef COBJMACROS
+#define ITuiResponder_QueryInterface(This,riid,ppvObject) (This)->Vtbl->QueryInterface(This,riid,ppvObject)
+#define ITuiResponder_AddRef(This) (This)->Vtbl->AddRef(This)
+#define ITuiResponder_Release(This) (This)->Vtbl->Release(This)
+#define ITuiResponder_GetNextResponder(This,NextResponder) (This)->Vtbl->GetNextResponder(This,NextResponder)
+#define ITuiResponder_SetNextResponder(This,NextResponder) (This)->Vtbl->SetNextResponder(This,NextResponder)
+#define ITuiResponder_AcceptsFirstResponder(This) (This)->Vtbl->AcceptsFirstResponder(This)
+#define ITuiResponder_BecomeFirstResponder(This) (This)->Vtbl->BecomeFirstResponder(This)
+#define ITuiResponder_ResignFirstResponder(This) (This)->Vtbl->ResignFirstResponder(This)
+#endif
+
 // {2B3C4D5E-6F7A-8B9C-0D1E-2F3A4B5C6D7E}
 DEFINE_GUID(IID_ITuiWidget,
     0x2B3C4D5E, 0x6F7A, 0x8B9C, 0x0D, 0x1E, 0x2F, 0x3A, 0x4B, 0x5C, 0x6D, 0x7E);
@@ -333,6 +344,28 @@ typedef struct _ITuiWidget_Vtbl {
 struct _ITuiWidget {
     CONST ITuiWidget_Vtbl *Vtbl;
 };
+
+#ifdef COBJMACROS
+#define ITuiWidget_QueryInterface(This,riid,ppvObject) (This)->Vtbl->QueryInterface(This,riid,ppvObject)
+#define ITuiWidget_AddRef(This) (This)->Vtbl->AddRef(This)
+#define ITuiWidget_Release(This) (This)->Vtbl->Release(This)
+#define ITuiWidget_GetNextResponder(This,NextResponder) (This)->Vtbl->GetNextResponder(This,NextResponder)
+#define ITuiWidget_SetNextResponder(This,NextResponder) (This)->Vtbl->SetNextResponder(This,NextResponder)
+#define ITuiWidget_AcceptsFirstResponder(This) (This)->Vtbl->AcceptsFirstResponder(This)
+#define ITuiWidget_BecomeFirstResponder(This) (This)->Vtbl->BecomeFirstResponder(This)
+#define ITuiWidget_ResignFirstResponder(This) (This)->Vtbl->ResignFirstResponder(This)
+#define ITuiWidget_SetBounds(This,Bounds) (This)->Vtbl->SetBounds(This,Bounds)
+#define ITuiWidget_GetBounds(This,Bounds) (This)->Vtbl->GetBounds(This,Bounds)
+#define ITuiWidget_SetVisible(This,Visible) (This)->Vtbl->SetVisible(This,Visible)
+#define ITuiWidget_IsVisible(This) (This)->Vtbl->IsVisible(This)
+#define ITuiWidget_SetEnabled(This,Enabled) (This)->Vtbl->SetEnabled(This,Enabled)
+#define ITuiWidget_IsEnabled(This) (This)->Vtbl->IsEnabled(This)
+#define ITuiWidget_SetParent(This,Parent) (This)->Vtbl->SetParent(This,Parent)
+#define ITuiWidget_GetParent(This,Parent) (This)->Vtbl->GetParent(This,Parent)
+#define ITuiWidget_AddChild(This,Child) (This)->Vtbl->AddChild(This,Child)
+#define ITuiWidget_RemoveChild(This,Child) (This)->Vtbl->RemoveChild(This,Child)
+#define ITuiWidget_SetNeedsDisplay(This,Needed) (This)->Vtbl->SetNeedsDisplay(This,Needed)
+#endif
 
 //
 // Event Listener Interfaces
