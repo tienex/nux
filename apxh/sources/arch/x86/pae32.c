@@ -137,7 +137,7 @@ PteMergeFlags (
   @param[in] Va    Virtual address.
   @param[in] Size  Size of region.
 **/
-VOID
+static VOID
 PaeVerify (
   IN VIRTUAL_ADDRESS   VirtualAddress,
   IN SIZE64  Size
@@ -153,7 +153,7 @@ PaeVerify (
   tables. Allocates CR3 and 4 L2 page directory tables. Enables NX
   if supported and configures PAT table.
 **/
-VOID
+static VOID
 PaeInitialize (
   VOID
   )
@@ -357,7 +357,7 @@ PaePopulatePage (
 
   @return Physical address.
 **/
-UINTN
+static UINTN
 PaeGetPhysical (
   IN VIRTUAL_ADDRESS  VirtualAddress
   )
@@ -431,7 +431,7 @@ PaeDirectMap (
   @param[in] Pa    Physical address.
   @param[in] Mt    Memory type.
 **/
-VOID
+static VOID
 PaeMapPhysical (
   IN VIRTUAL_ADDRESS           VirtualAddress,
   IN SIZE64          Size,
@@ -451,7 +451,7 @@ PaeMapPhysical (
   @param[in] Va    Virtual address.
   @param[in] Size  Size of region.
 **/
-VOID
+static VOID
 PaeAllocateTopPageTable (
   IN VIRTUAL_ADDRESS   VirtualAddress,
   IN SIZE64  Size
@@ -470,7 +470,7 @@ PaeAllocateTopPageTable (
   @param[in] Va    Virtual address.
   @param[in] Size  Size of region.
 **/
-VOID
+static VOID
 PaeAllocatePageTable (
   IN VIRTUAL_ADDRESS   VirtualAddress,
   IN SIZE64  Size
@@ -497,7 +497,7 @@ PaeAllocatePageTable (
   @param[in] Va    Virtual address for linear mapping.
   @param[in] Size  Size of region (must be >= PAE_LINEAR_SIZE).
 **/
-VOID
+static VOID
 PaeMapLinear (
   IN VIRTUAL_ADDRESS   VirtualAddress,
   IN SIZE64  Size
@@ -542,7 +542,7 @@ INT32 i;
   @param[in] W     TRUE for writable.
   @param[in] X     TRUE for executable.
 **/
-VOID
+static VOID
 PaePopulate (
   IN VIRTUAL_ADDRESS   VirtualAddress,
   IN SIZE64  Size,
@@ -571,7 +571,7 @@ PaePopulate (
 
   @param[in] Entry  Kernel entry point address.
 **/
-VOID
+static VOID
 PaeEntry (
   IN VIRTUAL_ADDRESS  Entry
   )

@@ -151,7 +151,7 @@ Pae64GetL1p (
   @param[in] Va    Virtual address.
   @param[in] Size  Size of region.
 **/
-VOID
+static VOID
 Pae64Verify (
   IN VIRTUAL_ADDRESS   VirtualAddress,
   IN SIZE64  Size
@@ -166,7 +166,7 @@ Pae64Verify (
   Sets up PAE64 (AMD64) paging with 4-level page tables. Enables
   NX if supported and configures PAT table.
 **/
-VOID
+static VOID
 Pae64Initialize (
   VOID
   )
@@ -287,7 +287,7 @@ Pae64PopulatePage (
 
   @return Physical address.
 **/
-UINTN
+static UINTN
 Pae64GetPhysical (
   IN VIRTUAL_ADDRESS  VirtualAddress
   )
@@ -413,7 +413,7 @@ INT32 P1G = CpuSupports1gbPages ();
   @param[in] Pa    Physical address.
   @param[in] Mt    Memory type.
 **/
-VOID
+static VOID
 Pae64MapPhysical (
   IN VIRTUAL_ADDRESS           VirtualAddress,
   IN SIZE64          Size,
@@ -432,7 +432,7 @@ Pae64MapPhysical (
   @param[in] Va    Virtual address.
   @param[in] Size  Size of region.
 **/
-VOID
+static VOID
 Pae64AllocateTopPageTable (
   IN VIRTUAL_ADDRESS   VirtualAddress,
   IN SIZE64  Size
@@ -454,7 +454,7 @@ Pae64AllocateTopPageTable (
   @param[in] Va    Virtual address.
   @param[in] Size  Size of region.
 **/
-VOID
+static VOID
 Pae64AllocatePageTable (
   IN VIRTUAL_ADDRESS   VirtualAddress,
   IN SIZE64  Size
@@ -481,7 +481,7 @@ Pae64AllocatePageTable (
   @param[in] Va    Virtual address for linear mapping.
   @param[in] Size  Size of region (must be >= PAE64_LINEAR_SIZE).
 **/
-VOID
+static VOID
 Pae64MapLinear (
   IN VIRTUAL_ADDRESS   VirtualAddress,
   IN SIZE64  Size
@@ -520,7 +520,7 @@ Pae64MapLinear (
   @param[in] W     TRUE for writable.
   @param[in] X     TRUE for executable.
 **/
-VOID
+static VOID
 Pae64Populate (
   IN VIRTUAL_ADDRESS   VirtualAddress,
   IN SIZE64  Size,
@@ -549,7 +549,7 @@ Pae64Populate (
 
   @param[in] Entry  Kernel entry point address.
 **/
-VOID
+static VOID
 Pae64Entry (
   IN VIRTUAL_ADDRESS  Entry
   )

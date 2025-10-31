@@ -260,7 +260,7 @@ Sv48GetL1p (
   @param[in] Va    Virtual address.
   @param[in] Size  Size of region.
 **/
-VOID
+static VOID
 Sv48Verify (
   IN VIRTUAL_ADDRESS   VirtualAddress,
   IN SIZE64  Size
@@ -274,7 +274,7 @@ Sv48Verify (
 
   Allocates and initializes the root page table for SV48.
 **/
-VOID
+static VOID
 Sv48Initialize (
   VOID
   )
@@ -387,7 +387,7 @@ Sv48PopulatePage (
 
   @return Physical address.
 **/
-UINTN
+static UINTN
 Sv48GetPhysical (
   IN VIRTUAL_ADDRESS  VirtualAddress
   )
@@ -505,7 +505,7 @@ Sv48DirectMap (
   @param[in] Pa    Physical address.
   @param[in] Mt    Memory type.
 **/
-VOID
+static VOID
 Sv48MapPhysical (
   IN VIRTUAL_ADDRESS           VirtualAddress,
   IN SIZE64          Size,
@@ -524,7 +524,7 @@ Sv48MapPhysical (
   @param[in] Va    Virtual address.
   @param[in] Size  Size of region.
 **/
-VOID
+static VOID
 Sv48AllocateTopPageTable (
   IN VIRTUAL_ADDRESS   VirtualAddress,
   IN SIZE64  Size
@@ -546,7 +546,7 @@ Sv48AllocateTopPageTable (
   @param[in] Va    Virtual address.
   @param[in] Size  Size of region.
 **/
-VOID
+static VOID
 Sv48AllocatePageTable (
   IN VIRTUAL_ADDRESS   VirtualAddress,
   IN SIZE64  Size
@@ -572,7 +572,7 @@ Sv48AllocatePageTable (
   @param[in] Va    Virtual address.
   @param[in] Size  Size of region.
 **/
-VOID
+static VOID
 Sv48MapLinear (
   IN VIRTUAL_ADDRESS   VirtualAddress,
   IN SIZE64  Size
@@ -611,7 +611,7 @@ Sv48MapLinear (
   @param[in] W     TRUE if writable.
   @param[in] X     TRUE if executable.
 **/
-VOID
+static VOID
 Sv48Populate (
   IN VIRTUAL_ADDRESS   VirtualAddress,
   IN SIZE64  Size,
@@ -639,7 +639,7 @@ Sv48Populate (
 
   @param[in] Entry  Kernel entry point virtual address.
 **/
-VOID
+static VOID
 Sv48Entry (
   IN VIRTUAL_ADDRESS  Entry
   )

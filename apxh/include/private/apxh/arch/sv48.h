@@ -15,21 +15,7 @@
 #if ANX_ARCH_RISCV
 
 //
-// Sv48 Initialization and Management
-//
-
-VOID Sv48Initialize (VOID);
-UINTN Sv48GetPhysical (IN VIRTUAL_ADDRESS VirtualAddress);
-VOID Sv48Verify (IN VIRTUAL_ADDRESS VirtualAddress, IN SIZE64 Size);
-VOID Sv48Populate (IN VIRTUAL_ADDRESS VirtualAddress, IN SIZE64 Size, IN INT32 IsUserMode, IN INT32 IsWritable, IN INT32 IsExecutable);
-VOID Sv48MapPhysical (IN VIRTUAL_ADDRESS VirtualAddress, IN SIZE64 Size, IN UINT64 PhysicalAddress, IN MEMORY_TYPE Type);
-VOID Sv48AllocatePageTable (IN VIRTUAL_ADDRESS VirtualAddress, IN SIZE64 Size);
-VOID Sv48AllocateTopPageTable (IN VIRTUAL_ADDRESS VirtualAddress, IN SIZE64 Size);
-VOID Sv48MapLinear (IN VIRTUAL_ADDRESS VirtualAddress, IN SIZE64 Size);
-VOID Sv48Entry (IN VIRTUAL_ADDRESS EntryPoint);
-
-//
-// Low-level Sv48 Functions
+// Low-level Sv48 Functions (used by platform code)
 //
 
 VOID Sv48DirectMap (IN VOID *PageTable, IN UINT64 PhysicalAddress, IN VIRTUAL_ADDRESS VirtualAddress, IN SIZE64 Size,

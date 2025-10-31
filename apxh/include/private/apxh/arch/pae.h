@@ -15,21 +15,7 @@
 #if ANX_ARCH_X86 || ANX_ARCH_X86_64
 
 //
-// PAE Initialization and Management
-//
-
-VOID PaeInitialize (VOID);
-UINTN PaeGetPhysical (IN VIRTUAL_ADDRESS VirtualAddress);
-VOID PaeVerify (IN VIRTUAL_ADDRESS VirtualAddress, IN SIZE64 Size);
-VOID PaePopulate (IN VIRTUAL_ADDRESS VirtualAddress, IN SIZE64 Size, IN INT32 IsUserMode, IN INT32 IsWritable, IN INT32 IsExecutable);
-VOID PaeMapPhysical (IN VIRTUAL_ADDRESS VirtualAddress, IN SIZE64 Size, IN UINT64 PhysicalAddress, IN MEMORY_TYPE Type);
-VOID PaeAllocatePageTable (IN VIRTUAL_ADDRESS VirtualAddress, IN SIZE64 Size);
-VOID PaeAllocateTopPageTable (IN VIRTUAL_ADDRESS VirtualAddress, IN SIZE64 Size);
-VOID PaeMapLinear (IN VIRTUAL_ADDRESS VirtualAddress, IN SIZE64 Size);
-VOID PaeEntry (IN VIRTUAL_ADDRESS EntryPoint);
-
-//
-// Low-level PAE Functions
+// Low-level PAE Functions (used by platform code)
 //
 
 VOID PaeDirectMap (IN VOID *PageTable, IN UINT64 PhysicalAddress, IN VIRTUAL_ADDRESS VirtualAddress, IN SIZE64 Size,
