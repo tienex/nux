@@ -195,7 +195,7 @@ FindMaximumNode (
  * --------------------------------------------------------------- */
 
 VOID
-EFIAPI
+ANXAPI
 RtlInitializeAvlTree (
   OUT PRTL_AVL_TREE                Tree,
   IN  PRTL_AVL_COMPARE_ROUTINE     CompareRoutine,
@@ -264,7 +264,7 @@ InsertNode (
 }
 
 BOOLEAN
-EFIAPI
+ANXAPI
 RtlInsertAvlTreeNode (
   IN OUT PRTL_AVL_TREE       Tree,
   IN     PRTL_AVL_TREE_NODE  Node,
@@ -362,7 +362,7 @@ RemoveNode (
 }
 
 BOOLEAN
-EFIAPI
+ANXAPI
 RtlRemoveAvlTreeNode (
   IN OUT PRTL_AVL_TREE       Tree,
   IN     PRTL_AVL_TREE_NODE  Node,
@@ -408,7 +408,7 @@ FindNode (
 }
 
 PRTL_AVL_TREE_NODE
-EFIAPI
+ANXAPI
 RtlFindAvlTreeNode (
   IN PRTL_AVL_TREE       Tree,
   IN PRTL_AVL_TREE_NODE  SearchNode
@@ -418,7 +418,7 @@ RtlFindAvlTreeNode (
 }
 
 PRTL_AVL_TREE_NODE
-EFIAPI
+ANXAPI
 RtlFindMinimumAvlTreeNode (
   IN PRTL_AVL_TREE  Tree
   )
@@ -427,7 +427,7 @@ RtlFindMinimumAvlTreeNode (
 }
 
 PRTL_AVL_TREE_NODE
-EFIAPI
+ANXAPI
 RtlFindMaximumAvlTreeNode (
   IN PRTL_AVL_TREE  Tree
   )
@@ -436,7 +436,7 @@ RtlFindMaximumAvlTreeNode (
 }
 
 PRTL_AVL_TREE_NODE
-EFIAPI
+ANXAPI
 RtlAvlTreePredecessor (
   IN PRTL_AVL_TREE_NODE  Node
   )
@@ -463,7 +463,7 @@ RtlAvlTreePredecessor (
 }
 
 PRTL_AVL_TREE_NODE
-EFIAPI
+ANXAPI
 RtlAvlTreeSuccessor (
   IN PRTL_AVL_TREE_NODE  Node
   )
@@ -514,7 +514,7 @@ ClearNode (
 }
 
 VOID
-EFIAPI
+ANXAPI
 RtlClearAvlTree (
   IN OUT PRTL_AVL_TREE  Tree
   )
@@ -529,7 +529,7 @@ RtlClearAvlTree (
  * --------------------------------------------------------------- */
 
 BOOLEAN
-EFIAPI
+ANXAPI
 RtlAddGenericTreeNode (
   IN OUT PRTL_GENERIC_TREE       Tree,
   IN OUT PRTL_GENERIC_TREE_NODE  Parent OPTIONAL,
@@ -564,7 +564,7 @@ RtlAddGenericTreeNode (
 }
 
 BOOLEAN
-EFIAPI
+ANXAPI
 RtlRemoveGenericTreeNode (
   IN OUT PRTL_GENERIC_TREE       Tree,
   IN     PRTL_GENERIC_TREE_NODE  Node
@@ -640,7 +640,7 @@ FindGenericNode (
 }
 
 PRTL_GENERIC_TREE_NODE
-EFIAPI
+ANXAPI
 RtlFindGenericTreeNode (
   IN PRTL_GENERIC_TREE  Tree,
   IN VOID               *Data
@@ -673,7 +673,7 @@ ClearGenericNode (
 }
 
 VOID
-EFIAPI
+ANXAPI
 RtlClearGenericTree (
   IN OUT PRTL_GENERIC_TREE  Tree
   )

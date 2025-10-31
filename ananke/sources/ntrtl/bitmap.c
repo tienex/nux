@@ -114,7 +114,7 @@ FindLastSetBitInElement (
  * --------------------------------------------------------------- */
 
 VOID
-EFIAPI
+ANXAPI
 RtlInitializeBitMap (
   OUT PRTL_BITMAP  BitMap,
   IN  UINTN        *Buffer,
@@ -130,7 +130,7 @@ RtlInitializeBitMap (
  * --------------------------------------------------------------- */
 
 VOID
-EFIAPI
+ANXAPI
 RtlSetBit (
   IN OUT PRTL_BITMAP  BitMap,
   IN     UINTN        BitNumber
@@ -143,7 +143,7 @@ RtlSetBit (
 }
 
 VOID
-EFIAPI
+ANXAPI
 RtlClearBit (
   IN OUT PRTL_BITMAP  BitMap,
   IN     UINTN        BitNumber
@@ -156,7 +156,7 @@ RtlClearBit (
 }
 
 BOOLEAN
-EFIAPI
+ANXAPI
 RtlTestBit (
   IN PRTL_BITMAP  BitMap,
   IN UINTN        BitNumber
@@ -169,7 +169,7 @@ RtlTestBit (
 }
 
 VOID
-EFIAPI
+ANXAPI
 RtlSetBits (
   IN OUT PRTL_BITMAP  BitMap,
   IN     UINTN        StartingIndex,
@@ -184,7 +184,7 @@ RtlSetBits (
 }
 
 VOID
-EFIAPI
+ANXAPI
 RtlClearBits (
   IN OUT PRTL_BITMAP  BitMap,
   IN     UINTN        StartingIndex,
@@ -199,7 +199,7 @@ RtlClearBits (
 }
 
 VOID
-EFIAPI
+ANXAPI
 RtlSetAllBits (
   IN OUT PRTL_BITMAP  BitMap
   )
@@ -213,7 +213,7 @@ RtlSetAllBits (
 }
 
 VOID
-EFIAPI
+ANXAPI
 RtlClearAllBits (
   IN OUT PRTL_BITMAP  BitMap
   )
@@ -231,7 +231,7 @@ RtlClearAllBits (
  * --------------------------------------------------------------- */
 
 INTN
-EFIAPI
+ANXAPI
 RtlFindFirstSetBit (
   IN PRTL_BITMAP  BitMap
   )
@@ -255,7 +255,7 @@ RtlFindFirstSetBit (
 }
 
 INTN
-EFIAPI
+ANXAPI
 RtlFindFirstClearBit (
   IN PRTL_BITMAP  BitMap
   )
@@ -279,7 +279,7 @@ RtlFindFirstClearBit (
 }
 
 INTN
-EFIAPI
+ANXAPI
 RtlFindLastSetBit (
   IN PRTL_BITMAP  BitMap
   )
@@ -303,7 +303,7 @@ RtlFindLastSetBit (
 }
 
 INTN
-EFIAPI
+ANXAPI
 RtlFindLastClearBit (
   IN PRTL_BITMAP  BitMap
   )
@@ -327,7 +327,7 @@ RtlFindLastClearBit (
 }
 
 INTN
-EFIAPI
+ANXAPI
 RtlFindSetBits (
   IN PRTL_BITMAP  BitMap,
   IN UINTN        NumberToFind,
@@ -371,7 +371,7 @@ RtlFindSetBits (
 }
 
 INTN
-EFIAPI
+ANXAPI
 RtlFindClearBits (
   IN PRTL_BITMAP  BitMap,
   IN UINTN        NumberToFind,
@@ -415,7 +415,7 @@ RtlFindClearBits (
 }
 
 INTN
-EFIAPI
+ANXAPI
 RtlFindClearBitsAndSet (
   IN OUT PRTL_BITMAP  BitMap,
   IN     UINTN        NumberToFind,
@@ -432,7 +432,7 @@ RtlFindClearBitsAndSet (
 }
 
 INTN
-EFIAPI
+ANXAPI
 RtlFindNextSetBit (
   IN PRTL_BITMAP  BitMap,
   IN UINTN        StartingIndex
@@ -450,7 +450,7 @@ RtlFindNextSetBit (
 }
 
 INTN
-EFIAPI
+ANXAPI
 RtlFindNextClearBit (
   IN PRTL_BITMAP  BitMap,
   IN UINTN        StartingIndex
@@ -472,7 +472,7 @@ RtlFindNextClearBit (
  * --------------------------------------------------------------- */
 
 UINTN
-EFIAPI
+ANXAPI
 RtlNumberOfSetBits (
   IN PRTL_BITMAP  BitMap
   )
@@ -497,7 +497,7 @@ RtlNumberOfSetBits (
 }
 
 UINTN
-EFIAPI
+ANXAPI
 RtlNumberOfClearBits (
   IN PRTL_BITMAP  BitMap
   )
@@ -506,7 +506,7 @@ RtlNumberOfClearBits (
 }
 
 UINTN
-EFIAPI
+ANXAPI
 RtlNumberOfSetBitsInRange (
   IN PRTL_BITMAP  BitMap,
   IN UINTN        StartingIndex,
@@ -526,7 +526,7 @@ RtlNumberOfSetBitsInRange (
 }
 
 BOOLEAN
-EFIAPI
+ANXAPI
 RtlAreBitsSet (
   IN PRTL_BITMAP  BitMap
   )
@@ -555,7 +555,7 @@ RtlAreBitsSet (
 }
 
 BOOLEAN
-EFIAPI
+ANXAPI
 RtlAreBitsClear (
   IN PRTL_BITMAP  BitMap
   )
@@ -584,7 +584,7 @@ RtlAreBitsClear (
 }
 
 BOOLEAN
-EFIAPI
+ANXAPI
 RtlAreRangeBitsSet (
   IN PRTL_BITMAP  BitMap,
   IN UINTN        StartingIndex,
@@ -603,7 +603,7 @@ RtlAreRangeBitsSet (
 }
 
 BOOLEAN
-EFIAPI
+ANXAPI
 RtlAreRangeBitsClear (
   IN PRTL_BITMAP  BitMap,
   IN UINTN        StartingIndex,

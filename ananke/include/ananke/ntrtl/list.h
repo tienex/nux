@@ -300,7 +300,7 @@ PopEntryList (
   @return Number of entries in list
 **/
 UINTN
-EFIAPI
+ANXAPI
 RtlListLength (
     IN CONST LIST_ENTRY  *ListHead
     );
@@ -313,7 +313,7 @@ RtlListLength (
   @return Number of entries in list
 **/
 UINTN
-EFIAPI
+ANXAPI
 RtlSListLength (
     IN CONST SINGLE_LIST_ENTRY  *ListHead
     );
@@ -324,7 +324,7 @@ RtlSListLength (
   @param[in,out] ListHead  List head
 **/
 VOID
-EFIAPI
+ANXAPI
 RtlReverseList (
     IN OUT PLIST_ENTRY  ListHead
     );
@@ -335,7 +335,7 @@ RtlReverseList (
   @param[in,out] ListHead  List head
 **/
 VOID
-EFIAPI
+ANXAPI
 RtlReverseSList (
     IN OUT PSINGLE_LIST_ENTRY  ListHead
     );
@@ -351,7 +351,7 @@ RtlReverseSList (
   @retval FALSE  Error occurred
 **/
 BOOLEAN
-EFIAPI
+ANXAPI
 RtlSplitList (
     IN OUT PLIST_ENTRY       ListHead,
     IN     PLIST_ENTRY       SplitEntry,
@@ -365,7 +365,7 @@ RtlSplitList (
   @param[in,out] ListHead2  Head of second list
 **/
 VOID
-EFIAPI
+ANXAPI
 RtlConcatenateLists (
     IN OUT PLIST_ENTRY  ListHead1,
     IN OUT PLIST_ENTRY  ListHead2
@@ -381,7 +381,7 @@ RtlConcatenateLists (
   @retval FALSE  Entry not found
 **/
 BOOLEAN
-EFIAPI
+ANXAPI
 RtlFindSListEntry (
     IN CONST SINGLE_LIST_ENTRY  *ListHead,
     IN CONST SINGLE_LIST_ENTRY  *Entry
@@ -395,7 +395,7 @@ RtlFindSListEntry (
   @return Pointer to last entry, or NULL if list is empty
 **/
 PSINGLE_LIST_ENTRY
-EFIAPI
+ANXAPI
 RtlSListGetLast (
     IN CONST SINGLE_LIST_ENTRY  *ListHead
     );

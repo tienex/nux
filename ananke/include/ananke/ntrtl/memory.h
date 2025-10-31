@@ -22,7 +22,7 @@
   @param[in]  Length       Number of bytes to zero
 **/
 VOID
-EFIAPI
+ANXAPI
 RtlZeroMemory (
     OUT VOID   *Destination,
     IN  UINTN  Length
@@ -36,7 +36,7 @@ RtlZeroMemory (
   @param[in]  Fill         Byte value to fill
 **/
 VOID
-EFIAPI
+ANXAPI
 RtlFillMemory (
     OUT VOID   *Destination,
     IN  UINTN  Length,
@@ -50,7 +50,7 @@ RtlFillMemory (
   @param[in]  Length       Number of bytes to zero
 **/
 VOID
-EFIAPI
+ANXAPI
 RtlSecureZeroMemory (
     OUT VOID   *Destination,
     IN  UINTN  Length
@@ -64,7 +64,7 @@ RtlSecureZeroMemory (
   @param[in]  Pattern      32-bit pattern to fill
 **/
 VOID
-EFIAPI
+ANXAPI
 RtlFillMemoryUlong (
     OUT VOID    *Destination,
     IN  UINTN   Length,
@@ -79,7 +79,7 @@ RtlFillMemoryUlong (
   @param[in]  Pattern      Pattern to fill
 **/
 VOID
-EFIAPI
+ANXAPI
 RtlFillMemoryUintn (
     OUT VOID   *Destination,
     IN  UINTN  Length,
@@ -98,7 +98,7 @@ RtlFillMemoryUintn (
   @param[in]  Length       Number of bytes to copy
 **/
 VOID
-EFIAPI
+ANXAPI
 RtlCopyMemory (
     OUT VOID        *Destination,
     IN  CONST VOID  *Source,
@@ -113,7 +113,7 @@ RtlCopyMemory (
   @param[in]  Length       Number of bytes to move
 **/
 VOID
-EFIAPI
+ANXAPI
 RtlMoveMemory (
     OUT VOID        *Destination,
     IN  CONST VOID  *Source,
@@ -130,7 +130,7 @@ RtlMoveMemory (
   @param[in]  Length       Number of bytes to copy (must be multiple of cache line)
 **/
 VOID
-EFIAPI
+ANXAPI
 RtlCopyMemoryNonTemporal (
     OUT VOID        *Destination,
     IN  CONST VOID  *Source,
@@ -151,7 +151,7 @@ RtlCopyMemoryNonTemporal (
   @return Number of bytes that match (equal to Length if buffers are identical)
 **/
 UINTN
-EFIAPI
+ANXAPI
 RtlCompareMemory (
     IN CONST VOID  *Source1,
     IN CONST VOID  *Source2,
@@ -169,7 +169,7 @@ RtlCompareMemory (
   @retval FALSE  Buffers are not equal
 **/
 BOOLEAN
-EFIAPI
+ANXAPI
 RtlEqualMemory (
     IN CONST VOID  *Source1,
     IN CONST VOID  *Source2,
@@ -186,7 +186,7 @@ RtlEqualMemory (
   @return <0 if Source1 < Source2, 0 if equal, >0 if Source1 > Source2
 **/
 INT32
-EFIAPI
+ANXAPI
 RtlCompareMemoryUlong (
     IN CONST VOID  *Source1,
     IN CONST VOID  *Source2,
@@ -235,7 +235,7 @@ RtlCompareMemoryUlong (
   @return Pointer to allocated memory, or NULL if allocation fails
 **/
 VOID *
-EFIAPI
+ANXAPI
 RtlAllocateMemory (
     IN UINTN   PoolType,
     IN UINTN   Size,
@@ -249,7 +249,7 @@ RtlAllocateMemory (
   @param[in] Tag     Pool tag (must match allocation tag)
 **/
 VOID
-EFIAPI
+ANXAPI
 RtlFreeMemory (
     IN VOID    *Memory,
     IN UINT32  Tag
@@ -266,7 +266,7 @@ RtlFreeMemory (
   @return Pointer to reallocated memory, or NULL if reallocation fails
 **/
 VOID *
-EFIAPI
+ANXAPI
 RtlReallocateMemory (
     IN VOID    *Memory OPTIONAL,
     IN UINTN   OldSize,
@@ -286,7 +286,7 @@ RtlReallocateMemory (
   @param[in] Address  Address to prefetch
 **/
 VOID
-EFIAPI
+ANXAPI
 RtlPrefetchForRead (
     IN CONST VOID  *Address
     );
@@ -299,7 +299,7 @@ RtlPrefetchForRead (
   @param[in] Address  Address to prefetch
 **/
 VOID
-EFIAPI
+ANXAPI
 RtlPrefetchForWrite (
     IN VOID  *Address
     );

@@ -14,7 +14,7 @@
   Fill memory with zeros.
 **/
 VOID
-EFIAPI
+ANXAPI
 RtlZeroMemory (
     OUT VOID   *Destination,
     IN  UINTN  Length
@@ -27,7 +27,7 @@ RtlZeroMemory (
   Fill memory with a specified byte value.
 **/
 VOID
-EFIAPI
+ANXAPI
 RtlFillMemory (
     OUT VOID   *Destination,
     IN  UINTN  Length,
@@ -41,7 +41,7 @@ RtlFillMemory (
   Securely zero memory (cannot be optimized away).
 **/
 VOID
-EFIAPI
+ANXAPI
 RtlSecureZeroMemory (
     OUT VOID   *Destination,
     IN  UINTN  Length
@@ -60,7 +60,7 @@ RtlSecureZeroMemory (
   Fill memory with a pattern (32-bit).
 **/
 VOID
-EFIAPI
+ANXAPI
 RtlFillMemoryUlong (
     OUT VOID    *Destination,
     IN  UINTN   Length,
@@ -79,7 +79,7 @@ RtlFillMemoryUlong (
   Fill memory with a pattern (native word size).
 **/
 VOID
-EFIAPI
+ANXAPI
 RtlFillMemoryUintn (
     OUT VOID   *Destination,
     IN  UINTN  Length,
@@ -98,7 +98,7 @@ RtlFillMemoryUintn (
   Copy memory (buffers must not overlap).
 **/
 VOID
-EFIAPI
+ANXAPI
 RtlCopyMemory (
     OUT VOID        *Destination,
     IN  CONST VOID  *Source,
@@ -112,7 +112,7 @@ RtlCopyMemory (
   Move memory (buffers may overlap).
 **/
 VOID
-EFIAPI
+ANXAPI
 RtlMoveMemory (
     OUT VOID        *Destination,
     IN  CONST VOID  *Source,
@@ -126,7 +126,7 @@ RtlMoveMemory (
   Copy memory in non-temporal way (bypass cache).
 **/
 VOID
-EFIAPI
+ANXAPI
 RtlCopyMemoryNonTemporal (
     OUT VOID        *Destination,
     IN  CONST VOID  *Source,
@@ -142,7 +142,7 @@ RtlCopyMemoryNonTemporal (
   Compare two memory buffers.
 **/
 UINTN
-EFIAPI
+ANXAPI
 RtlCompareMemory (
     IN CONST VOID  *Source1,
     IN CONST VOID  *Source2,
@@ -166,7 +166,7 @@ RtlCompareMemory (
   Check if two memory buffers are equal.
 **/
 BOOLEAN
-EFIAPI
+ANXAPI
 RtlEqualMemory (
     IN CONST VOID  *Source1,
     IN CONST VOID  *Source2,
@@ -180,7 +180,7 @@ RtlEqualMemory (
   Compare two memory buffers (byte-by-byte).
 **/
 INT32
-EFIAPI
+ANXAPI
 RtlCompareMemoryUlong (
     IN CONST VOID  *Source1,
     IN CONST VOID  *Source2,
@@ -194,7 +194,7 @@ RtlCompareMemoryUlong (
   Prefetch memory for reading.
 **/
 VOID
-EFIAPI
+ANXAPI
 RtlPrefetchForRead (
     IN CONST VOID  *Address
     )
@@ -206,7 +206,7 @@ RtlPrefetchForRead (
   Prefetch memory for writing.
 **/
 VOID
-EFIAPI
+ANXAPI
 RtlPrefetchForWrite (
     IN VOID  *Address
     )

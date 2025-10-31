@@ -41,7 +41,7 @@ typedef struct _RTL_AVL_TREE_NODE {
 **/
 typedef
 INTN
-(EFIAPI *PRTL_AVL_COMPARE_ROUTINE) (
+(ANXAPI *PRTL_AVL_COMPARE_ROUTINE) (
   IN PRTL_AVL_TREE_NODE  Node1,
   IN PRTL_AVL_TREE_NODE  Node2,
   IN VOID                *Context OPTIONAL
@@ -57,7 +57,7 @@ INTN
 **/
 typedef
 VOID *
-(EFIAPI *PRTL_AVL_ALLOCATE_ROUTINE) (
+(ANXAPI *PRTL_AVL_ALLOCATE_ROUTINE) (
   IN UINTN  Size,
   IN VOID   *Context OPTIONAL
   );
@@ -70,7 +70,7 @@ VOID *
 **/
 typedef
 VOID
-(EFIAPI *PRTL_AVL_FREE_ROUTINE) (
+(ANXAPI *PRTL_AVL_FREE_ROUTINE) (
   IN VOID  *Buffer,
   IN VOID  *Context OPTIONAL
   );
@@ -123,7 +123,7 @@ typedef struct _RTL_GENERIC_TREE {
   @param[in]  Context           Context to pass to routines (optional)
 **/
 VOID
-EFIAPI
+ANXAPI
 RtlInitializeAvlTree (
   OUT PRTL_AVL_TREE                Tree,
   IN  PRTL_AVL_COMPARE_ROUTINE     CompareRoutine,
@@ -163,7 +163,7 @@ RtlInitializeAvlTreeNode (
   @retval FALSE  Node already exists or error occurred
 **/
 BOOLEAN
-EFIAPI
+ANXAPI
 RtlInsertAvlTreeNode (
   IN OUT PRTL_AVL_TREE       Tree,
   IN     PRTL_AVL_TREE_NODE  Node,
@@ -181,7 +181,7 @@ RtlInsertAvlTreeNode (
   @retval FALSE  Node not found or error occurred
 **/
 BOOLEAN
-EFIAPI
+ANXAPI
 RtlRemoveAvlTreeNode (
   IN OUT PRTL_AVL_TREE       Tree,
   IN     PRTL_AVL_TREE_NODE  Node,
@@ -197,7 +197,7 @@ RtlRemoveAvlTreeNode (
   @return Pointer to found node, or NULL if not found
 **/
 PRTL_AVL_TREE_NODE
-EFIAPI
+ANXAPI
 RtlFindAvlTreeNode (
   IN PRTL_AVL_TREE       Tree,
   IN PRTL_AVL_TREE_NODE  SearchNode
@@ -211,7 +211,7 @@ RtlFindAvlTreeNode (
   @return Pointer to minimum node, or NULL if tree is empty
 **/
 PRTL_AVL_TREE_NODE
-EFIAPI
+ANXAPI
 RtlFindMinimumAvlTreeNode (
   IN PRTL_AVL_TREE  Tree
   );
@@ -224,7 +224,7 @@ RtlFindMinimumAvlTreeNode (
   @return Pointer to maximum node, or NULL if tree is empty
 **/
 PRTL_AVL_TREE_NODE
-EFIAPI
+ANXAPI
 RtlFindMaximumAvlTreeNode (
   IN PRTL_AVL_TREE  Tree
   );
@@ -237,7 +237,7 @@ RtlFindMaximumAvlTreeNode (
   @return Pointer to predecessor node, or NULL if none
 **/
 PRTL_AVL_TREE_NODE
-EFIAPI
+ANXAPI
 RtlAvlTreePredecessor (
   IN PRTL_AVL_TREE_NODE  Node
   );
@@ -250,7 +250,7 @@ RtlAvlTreePredecessor (
   @return Pointer to successor node, or NULL if none
 **/
 PRTL_AVL_TREE_NODE
-EFIAPI
+ANXAPI
 RtlAvlTreeSuccessor (
   IN PRTL_AVL_TREE_NODE  Node
   );
@@ -261,7 +261,7 @@ RtlAvlTreeSuccessor (
   @param[in,out] Tree  Tree to clear
 **/
 VOID
-EFIAPI
+ANXAPI
 RtlClearAvlTree (
   IN OUT PRTL_AVL_TREE  Tree
   );
@@ -344,7 +344,7 @@ RtlInitializeGenericTreeNode (
   @retval FALSE  Error occurred
 **/
 BOOLEAN
-EFIAPI
+ANXAPI
 RtlAddGenericTreeNode (
   IN OUT PRTL_GENERIC_TREE       Tree,
   IN OUT PRTL_GENERIC_TREE_NODE  Parent OPTIONAL,
@@ -361,7 +361,7 @@ RtlAddGenericTreeNode (
   @retval FALSE  Node not found or error occurred
 **/
 BOOLEAN
-EFIAPI
+ANXAPI
 RtlRemoveGenericTreeNode (
   IN OUT PRTL_GENERIC_TREE       Tree,
   IN     PRTL_GENERIC_TREE_NODE  Node
@@ -376,7 +376,7 @@ RtlRemoveGenericTreeNode (
   @return Pointer to found node, or NULL if not found
 **/
 PRTL_GENERIC_TREE_NODE
-EFIAPI
+ANXAPI
 RtlFindGenericTreeNode (
   IN PRTL_GENERIC_TREE  Tree,
   IN VOID               *Data
@@ -388,7 +388,7 @@ RtlFindGenericTreeNode (
   @param[in,out] Tree  Tree to clear
 **/
 VOID
-EFIAPI
+ANXAPI
 RtlClearGenericTree (
   IN OUT PRTL_GENERIC_TREE  Tree
   );

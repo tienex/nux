@@ -22,7 +22,7 @@
   @param[in]  SourceString       Source null-terminated string (optional)
 **/
 VOID
-EFIAPI
+ANXAPI
 RtlInitString (
     OUT PSTRING     DestinationString,
     IN  CONST CHAR8 *SourceString OPTIONAL
@@ -37,7 +37,7 @@ RtlInitString (
   @param[in]  MaximumLength      Maximum length of buffer
 **/
 VOID
-EFIAPI
+ANXAPI
 RtlInitStringEx (
     OUT PSTRING     DestinationString,
     IN  CHAR8       *SourceString,
@@ -55,7 +55,7 @@ RtlInitStringEx (
   @retval STATUS_BUFFER_TOO_SMALL  Destination buffer too small
 **/
 STATUS
-EFIAPI
+ANXAPI
 RtlCopyString (
     OUT PSTRING  DestinationString,
     IN  PSTRING  SourceString OPTIONAL
@@ -71,7 +71,7 @@ RtlCopyString (
   @return <0 if String1 < String2, 0 if equal, >0 if String1 > String2
 **/
 INT32
-EFIAPI
+ANXAPI
 RtlCompareString (
     IN PSTRING  String1,
     IN PSTRING  String2,
@@ -89,7 +89,7 @@ RtlCompareString (
   @retval FALSE  Strings are not equal
 **/
 BOOLEAN
-EFIAPI
+ANXAPI
 RtlEqualString (
     IN PSTRING  String1,
     IN PSTRING  String2,
@@ -105,7 +105,7 @@ RtlEqualString (
   @retval STATUS_SUCCESS  Conversion successful
 **/
 STATUS
-EFIAPI
+ANXAPI
 RtlUpperString (
     IN OUT PSTRING  DestinationString,
     IN     PSTRING  SourceString
@@ -121,7 +121,7 @@ RtlUpperString (
   @retval STATUS_BUFFER_TOO_SMALL  Destination buffer too small
 **/
 STATUS
-EFIAPI
+ANXAPI
 RtlAppendStringToString (
     IN OUT PSTRING  Destination,
     IN     PSTRING  Source
@@ -138,7 +138,7 @@ RtlAppendStringToString (
   @param[in]  SourceString       Source null-terminated string (optional)
 **/
 VOID
-EFIAPI
+ANXAPI
 RtlInitUnicodeString (
     OUT PUNICODE_STRING  DestinationString,
     IN  CONST CHAR16     *SourceString OPTIONAL
@@ -153,7 +153,7 @@ RtlInitUnicodeString (
   @param[in]  MaximumLength      Maximum length of buffer in bytes
 **/
 VOID
-EFIAPI
+ANXAPI
 RtlInitUnicodeStringEx (
     OUT PUNICODE_STRING  DestinationString,
     IN  CHAR16           *SourceString,
@@ -171,7 +171,7 @@ RtlInitUnicodeStringEx (
   @retval STATUS_BUFFER_TOO_SMALL  Destination buffer too small
 **/
 STATUS
-EFIAPI
+ANXAPI
 RtlCopyUnicodeString (
     OUT PUNICODE_STRING  DestinationString,
     IN  PUNICODE_STRING  SourceString OPTIONAL
@@ -187,7 +187,7 @@ RtlCopyUnicodeString (
   @return <0 if String1 < String2, 0 if equal, >0 if String1 > String2
 **/
 INT32
-EFIAPI
+ANXAPI
 RtlCompareUnicodeString (
     IN PUNICODE_STRING  String1,
     IN PUNICODE_STRING  String2,
@@ -205,7 +205,7 @@ RtlCompareUnicodeString (
   @retval FALSE  Strings are not equal
 **/
 BOOLEAN
-EFIAPI
+ANXAPI
 RtlEqualUnicodeString (
     IN PUNICODE_STRING  String1,
     IN PUNICODE_STRING  String2,
@@ -221,7 +221,7 @@ RtlEqualUnicodeString (
   @retval STATUS_SUCCESS  Conversion successful
 **/
 STATUS
-EFIAPI
+ANXAPI
 RtlUpcaseUnicodeString (
     IN OUT PUNICODE_STRING  DestinationString,
     IN     PUNICODE_STRING  SourceString
@@ -237,7 +237,7 @@ RtlUpcaseUnicodeString (
   @retval STATUS_BUFFER_TOO_SMALL  Destination buffer too small
 **/
 STATUS
-EFIAPI
+ANXAPI
 RtlAppendUnicodeStringToString (
     IN OUT PUNICODE_STRING  Destination,
     IN     PUNICODE_STRING  Source
@@ -253,7 +253,7 @@ RtlAppendUnicodeStringToString (
   @retval STATUS_BUFFER_TOO_SMALL  Destination buffer too small
 **/
 STATUS
-EFIAPI
+ANXAPI
 RtlAppendUnicodeToString (
     IN OUT PUNICODE_STRING  Destination,
     IN     CONST CHAR16     *Source OPTIONAL
@@ -274,7 +274,7 @@ RtlAppendUnicodeToString (
   @retval STATUS_BUFFER_TOO_SMALL  Destination buffer too small
 **/
 STATUS
-EFIAPI
+ANXAPI
 RtlUnicodeStringToAnsiString (
     OUT PANSI_STRING     DestinationString,
     IN  PUNICODE_STRING  SourceString,
@@ -292,7 +292,7 @@ RtlUnicodeStringToAnsiString (
   @retval STATUS_BUFFER_TOO_SMALL  Destination buffer too small
 **/
 STATUS
-EFIAPI
+ANXAPI
 RtlAnsiStringToUnicodeString (
     OUT PUNICODE_STRING      DestinationString,
     IN  PANSI_STRING         SourceString,
@@ -310,7 +310,7 @@ RtlAnsiStringToUnicodeString (
   @retval STATUS_BUFFER_TOO_SMALL  String buffer too small
 **/
 STATUS
-EFIAPI
+ANXAPI
 RtlIntegerToUnicodeString (
     IN     UINTN             Value,
     IN     UINT32            Base OPTIONAL,
@@ -328,7 +328,7 @@ RtlIntegerToUnicodeString (
   @retval STATUS_BUFFER_TOO_SMALL  String buffer too small
 **/
 STATUS
-EFIAPI
+ANXAPI
 RtlIntegerToString (
     IN     UINTN    Value,
     IN     UINT32   Base OPTIONAL,
@@ -346,7 +346,7 @@ RtlIntegerToString (
   @retval STATUS_INVALID  Invalid string format
 **/
 STATUS
-EFIAPI
+ANXAPI
 RtlUnicodeStringToInteger (
     IN  PUNICODE_STRING  String,
     IN  UINT32           Base OPTIONAL,
@@ -364,7 +364,7 @@ RtlUnicodeStringToInteger (
   @retval STATUS_INVALID  Invalid string format
 **/
 STATUS
-EFIAPI
+ANXAPI
 RtlStringToInteger (
     IN  PSTRING  String,
     IN  UINT32   Base OPTIONAL,
@@ -380,7 +380,7 @@ RtlStringToInteger (
   @return Hash value
 **/
 UINT32
-EFIAPI
+ANXAPI
 RtlHashUnicodeString (
     IN PUNICODE_STRING  String,
     IN BOOLEAN          CaseInSensitive
@@ -395,7 +395,7 @@ RtlHashUnicodeString (
   @return Hash value
 **/
 UINT32
-EFIAPI
+ANXAPI
 RtlHashString (
     IN PSTRING  String,
     IN BOOLEAN  CaseInSensitive

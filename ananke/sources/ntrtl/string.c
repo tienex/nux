@@ -77,7 +77,7 @@ UnicodeToUpper (
  * --------------------------------------------------------------- */
 
 VOID
-EFIAPI
+ANXAPI
 RtlInitString (
     OUT PSTRING      DestinationString,
     IN  CONST CHAR8  *SourceString OPTIONAL
@@ -96,7 +96,7 @@ RtlInitString (
 }
 
 VOID
-EFIAPI
+ANXAPI
 RtlInitStringEx (
     OUT PSTRING  DestinationString,
     IN  CHAR8    *SourceString,
@@ -110,7 +110,7 @@ RtlInitStringEx (
 }
 
 STATUS
-EFIAPI
+ANXAPI
 RtlCopyString (
     OUT PSTRING  DestinationString,
     IN  PSTRING  SourceString OPTIONAL
@@ -132,7 +132,7 @@ RtlCopyString (
 }
 
 INT32
-EFIAPI
+ANXAPI
 RtlCompareString (
     IN PSTRING  String1,
     IN PSTRING  String2,
@@ -164,7 +164,7 @@ RtlCompareString (
 }
 
 BOOLEAN
-EFIAPI
+ANXAPI
 RtlEqualString (
     IN PSTRING  String1,
     IN PSTRING  String2,
@@ -179,7 +179,7 @@ RtlEqualString (
 }
 
 STATUS
-EFIAPI
+ANXAPI
 RtlUpperString (
     IN OUT PSTRING  DestinationString,
     IN     PSTRING  SourceString
@@ -201,7 +201,7 @@ RtlUpperString (
 }
 
 STATUS
-EFIAPI
+ANXAPI
 RtlAppendStringToString (
     IN OUT PSTRING  Destination,
     IN     PSTRING  Source
@@ -224,7 +224,7 @@ RtlAppendStringToString (
  * --------------------------------------------------------------- */
 
 VOID
-EFIAPI
+ANXAPI
 RtlInitUnicodeString (
     OUT PUNICODE_STRING  DestinationString,
     IN  CONST CHAR16     *SourceString OPTIONAL
@@ -243,7 +243,7 @@ RtlInitUnicodeString (
 }
 
 VOID
-EFIAPI
+ANXAPI
 RtlInitUnicodeStringEx (
     OUT PUNICODE_STRING  DestinationString,
     IN  CHAR16           *SourceString,
@@ -257,7 +257,7 @@ RtlInitUnicodeStringEx (
 }
 
 STATUS
-EFIAPI
+ANXAPI
 RtlCopyUnicodeString (
     OUT PUNICODE_STRING  DestinationString,
     IN  PUNICODE_STRING  SourceString OPTIONAL
@@ -279,7 +279,7 @@ RtlCopyUnicodeString (
 }
 
 INT32
-EFIAPI
+ANXAPI
 RtlCompareUnicodeString (
     IN PUNICODE_STRING  String1,
     IN PUNICODE_STRING  String2,
@@ -312,7 +312,7 @@ RtlCompareUnicodeString (
 }
 
 BOOLEAN
-EFIAPI
+ANXAPI
 RtlEqualUnicodeString (
     IN PUNICODE_STRING  String1,
     IN PUNICODE_STRING  String2,
@@ -327,7 +327,7 @@ RtlEqualUnicodeString (
 }
 
 STATUS
-EFIAPI
+ANXAPI
 RtlUpcaseUnicodeString (
     IN OUT PUNICODE_STRING  DestinationString,
     IN     PUNICODE_STRING  SourceString
@@ -350,7 +350,7 @@ RtlUpcaseUnicodeString (
 }
 
 STATUS
-EFIAPI
+ANXAPI
 RtlAppendUnicodeStringToString (
     IN OUT PUNICODE_STRING  Destination,
     IN     PUNICODE_STRING  Source
@@ -373,7 +373,7 @@ RtlAppendUnicodeStringToString (
 }
 
 STATUS
-EFIAPI
+ANXAPI
 RtlAppendUnicodeToString (
     IN OUT PUNICODE_STRING  Destination,
     IN     CONST CHAR16     *Source OPTIONAL
@@ -405,7 +405,7 @@ RtlAppendUnicodeToString (
  * --------------------------------------------------------------- */
 
 STATUS
-EFIAPI
+ANXAPI
 RtlUnicodeStringToAnsiString (
     OUT PANSI_STRING     DestinationString,
     IN  PUNICODE_STRING  SourceString,
@@ -435,7 +435,7 @@ RtlUnicodeStringToAnsiString (
 }
 
 STATUS
-EFIAPI
+ANXAPI
 RtlAnsiStringToUnicodeString (
     OUT PUNICODE_STRING  DestinationString,
     IN  PANSI_STRING     SourceString,
@@ -465,7 +465,7 @@ RtlAnsiStringToUnicodeString (
 }
 
 STATUS
-EFIAPI
+ANXAPI
 RtlIntegerToUnicodeString (
     IN     UINTN             Value,
     IN     UINT32            Base OPTIONAL,
@@ -517,7 +517,7 @@ RtlIntegerToUnicodeString (
 }
 
 STATUS
-EFIAPI
+ANXAPI
 RtlIntegerToString (
     IN     UINTN    Value,
     IN     UINT32   Base OPTIONAL,
@@ -564,7 +564,7 @@ RtlIntegerToString (
 }
 
 STATUS
-EFIAPI
+ANXAPI
 RtlUnicodeStringToInteger (
     IN  PUNICODE_STRING  String,
     IN  UINT32           Base OPTIONAL,
@@ -633,7 +633,7 @@ RtlUnicodeStringToInteger (
 }
 
 STATUS
-EFIAPI
+ANXAPI
 RtlStringToInteger (
     IN  PSTRING  String,
     IN  UINT32   Base OPTIONAL,
@@ -702,7 +702,7 @@ RtlStringToInteger (
  * --------------------------------------------------------------- */
 
 UINT32
-EFIAPI
+ANXAPI
 RtlHashUnicodeString (
     IN PUNICODE_STRING  String,
     IN BOOLEAN          CaseInSensitive
@@ -726,7 +726,7 @@ RtlHashUnicodeString (
 }
 
 UINT32
-EFIAPI
+ANXAPI
 RtlHashString (
     IN PSTRING  String,
     IN BOOLEAN  CaseInSensitive

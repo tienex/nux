@@ -23,7 +23,7 @@
   @param[in]  SizeOfBitMap Number of bits in bitmap
 **/
 VOID
-EFIAPI
+ANXAPI
 RtlInitializeBitMap (
     OUT PRTL_BITMAP  BitMap,
     IN  UINTN        *Buffer,
@@ -56,7 +56,7 @@ RtlBitmapBufferSize (
   @param[in]     BitNumber Bit number to set (0-based)
 **/
 VOID
-EFIAPI
+ANXAPI
 RtlSetBit (
     IN OUT PRTL_BITMAP  BitMap,
     IN     UINTN        BitNumber
@@ -69,7 +69,7 @@ RtlSetBit (
   @param[in]     BitNumber  Bit number to clear (0-based)
 **/
 VOID
-EFIAPI
+ANXAPI
 RtlClearBit (
     IN OUT PRTL_BITMAP  BitMap,
     IN     UINTN        BitNumber
@@ -85,7 +85,7 @@ RtlClearBit (
   @retval FALSE  Bit is clear
 **/
 BOOLEAN
-EFIAPI
+ANXAPI
 RtlTestBit (
     IN PRTL_BITMAP  BitMap,
     IN UINTN        BitNumber
@@ -99,7 +99,7 @@ RtlTestBit (
   @param[in]     NumberToSet   Number of bits to set
 **/
 VOID
-EFIAPI
+ANXAPI
 RtlSetBits (
     IN OUT PRTL_BITMAP  BitMap,
     IN     UINTN        StartingIndex,
@@ -114,7 +114,7 @@ RtlSetBits (
   @param[in]     NumberToClear Number of bits to clear
 **/
 VOID
-EFIAPI
+ANXAPI
 RtlClearBits (
     IN OUT PRTL_BITMAP  BitMap,
     IN     UINTN        StartingIndex,
@@ -127,7 +127,7 @@ RtlClearBits (
   @param[in,out] BitMap  Bitmap descriptor
 **/
 VOID
-EFIAPI
+ANXAPI
 RtlSetAllBits (
     IN OUT PRTL_BITMAP  BitMap
     );
@@ -138,7 +138,7 @@ RtlSetAllBits (
   @param[in,out] BitMap  Bitmap descriptor
 **/
 VOID
-EFIAPI
+ANXAPI
 RtlClearAllBits (
     IN OUT PRTL_BITMAP  BitMap
     );
@@ -155,7 +155,7 @@ RtlClearAllBits (
   @return Bit number of first set bit, or -1 if no bits are set
 **/
 INTN
-EFIAPI
+ANXAPI
 RtlFindFirstSetBit (
     IN PRTL_BITMAP  BitMap
     );
@@ -168,7 +168,7 @@ RtlFindFirstSetBit (
   @return Bit number of first clear bit, or -1 if no bits are clear
 **/
 INTN
-EFIAPI
+ANXAPI
 RtlFindFirstClearBit (
     IN PRTL_BITMAP  BitMap
     );
@@ -181,7 +181,7 @@ RtlFindFirstClearBit (
   @return Bit number of last set bit, or -1 if no bits are set
 **/
 INTN
-EFIAPI
+ANXAPI
 RtlFindLastSetBit (
     IN PRTL_BITMAP  BitMap
     );
@@ -194,7 +194,7 @@ RtlFindLastSetBit (
   @return Bit number of last clear bit, or -1 if no bits are clear
 **/
 INTN
-EFIAPI
+ANXAPI
 RtlFindLastClearBit (
     IN PRTL_BITMAP  BitMap
     );
@@ -209,7 +209,7 @@ RtlFindLastClearBit (
   @return Starting bit number of run, or -1 if not found
 **/
 INTN
-EFIAPI
+ANXAPI
 RtlFindSetBits (
     IN PRTL_BITMAP  BitMap,
     IN UINTN        NumberToFind,
@@ -226,7 +226,7 @@ RtlFindSetBits (
   @return Starting bit number of run, or -1 if not found
 **/
 INTN
-EFIAPI
+ANXAPI
 RtlFindClearBits (
     IN PRTL_BITMAP  BitMap,
     IN UINTN        NumberToFind,
@@ -245,7 +245,7 @@ RtlFindClearBits (
   @return Starting bit number of run, or -1 if not found
 **/
 INTN
-EFIAPI
+ANXAPI
 RtlFindClearBitsAndSet (
     IN OUT PRTL_BITMAP  BitMap,
     IN     UINTN        NumberToFind,
@@ -261,7 +261,7 @@ RtlFindClearBitsAndSet (
   @return Bit number of next set bit, or -1 if no more set bits
 **/
 INTN
-EFIAPI
+ANXAPI
 RtlFindNextSetBit (
     IN PRTL_BITMAP  BitMap,
     IN UINTN        StartingIndex
@@ -276,7 +276,7 @@ RtlFindNextSetBit (
   @return Bit number of next clear bit, or -1 if no more clear bits
 **/
 INTN
-EFIAPI
+ANXAPI
 RtlFindNextClearBit (
     IN PRTL_BITMAP  BitMap,
     IN UINTN        StartingIndex
@@ -294,7 +294,7 @@ RtlFindNextClearBit (
   @return Number of set bits
 **/
 UINTN
-EFIAPI
+ANXAPI
 RtlNumberOfSetBits (
     IN PRTL_BITMAP  BitMap
     );
@@ -307,7 +307,7 @@ RtlNumberOfSetBits (
   @return Number of clear bits
 **/
 UINTN
-EFIAPI
+ANXAPI
 RtlNumberOfClearBits (
     IN PRTL_BITMAP  BitMap
     );
@@ -322,7 +322,7 @@ RtlNumberOfClearBits (
   @return Number of set bits in range
 **/
 UINTN
-EFIAPI
+ANXAPI
 RtlNumberOfSetBitsInRange (
     IN PRTL_BITMAP  BitMap,
     IN UINTN        StartingIndex,
@@ -338,7 +338,7 @@ RtlNumberOfSetBitsInRange (
   @retval FALSE  At least one bit is clear
 **/
 BOOLEAN
-EFIAPI
+ANXAPI
 RtlAreBitsSet (
     IN PRTL_BITMAP  BitMap
     );
@@ -352,7 +352,7 @@ RtlAreBitsSet (
   @retval FALSE  At least one bit is set
 **/
 BOOLEAN
-EFIAPI
+ANXAPI
 RtlAreBitsClear (
     IN PRTL_BITMAP  BitMap
     );
@@ -368,7 +368,7 @@ RtlAreBitsClear (
   @retval FALSE  At least one bit in range is clear
 **/
 BOOLEAN
-EFIAPI
+ANXAPI
 RtlAreRangeBitsSet (
     IN PRTL_BITMAP  BitMap,
     IN UINTN        StartingIndex,
@@ -386,7 +386,7 @@ RtlAreRangeBitsSet (
   @retval FALSE  At least one bit in range is set
 **/
 BOOLEAN
-EFIAPI
+ANXAPI
 RtlAreRangeBitsClear (
     IN PRTL_BITMAP  BitMap,
     IN UINTN        StartingIndex,

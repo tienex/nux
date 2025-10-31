@@ -25,7 +25,7 @@
   @param[in] Line        Line number
 **/
 VOID
-EFIAPI
+ANXAPI
 RtlAssert (
   IN CONST CHAR8  *Expression,
   IN CONST CHAR8  *File,
@@ -63,7 +63,7 @@ RtlAssert (
   @return Number of frames captured
 **/
 UINTN
-EFIAPI
+ANXAPI
 RtlCaptureStackBackTrace (
   IN  UINT32  FramesToSkip,
   IN  UINT32  FramesToCapture,
@@ -167,7 +167,7 @@ InitializeCrc32Table (
   @return CRC32 checksum
 **/
 UINT32
-EFIAPI
+ANXAPI
 RtlComputeCrc32 (
   IN UINT32       InitialCrc,
   IN CONST VOID   *Buffer,
@@ -202,7 +202,7 @@ RtlComputeCrc32 (
   @return Version number (major << 16 | minor)
 **/
 UINT32
-EFIAPI
+ANXAPI
 RtlGetVersion (
   VOID
   )

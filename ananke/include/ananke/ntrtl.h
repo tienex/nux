@@ -4,6 +4,9 @@
   Provides comprehensive runtime library functions following Windows NT
   conventions for use by APXH bootloader and NUX kernel.
 
+  All NTRTL functions use the ANXAPI calling convention for consistency
+  across all supported platforms and compilers.
+
   Copyright (C) 2025 A•NUX Project
 
   SPDX-License-Identifier: BSD-2-Clause
@@ -163,7 +166,7 @@ typedef union _ULARGE_INTEGER {
   @param[in] Line        Line number
 **/
 VOID
-EFIAPI
+ANXAPI
 RtlAssert (
     IN CONST CHAR8  *Expression,
     IN CONST CHAR8  *File,
@@ -181,7 +184,7 @@ RtlAssert (
   @return Number of frames captured
 **/
 UINTN
-EFIAPI
+ANXAPI
 RtlCaptureStackBackTrace (
     IN  UINT32  FramesToSkip,
     IN  UINT32  FramesToCapture,
@@ -199,7 +202,7 @@ RtlCaptureStackBackTrace (
   @return CRC32 checksum
 **/
 UINT32
-EFIAPI
+ANXAPI
 RtlComputeCrc32 (
     IN UINT32       InitialCrc,
     IN CONST VOID   *Buffer,
@@ -212,7 +215,7 @@ RtlComputeCrc32 (
   @return Version number (major << 16 | minor)
 **/
 UINT32
-EFIAPI
+ANXAPI
 RtlGetVersion (
     VOID
     );
