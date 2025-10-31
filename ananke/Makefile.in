@@ -1,0 +1,28 @@
+#
+# ANANKE: Foundation Library
+# Copyright (C) 2025 ANANKE Project
+#
+# SPDX-License-Identifier: BSD-2-Clause
+#
+
+# This Makefile builds the ANANKE NT RTL library
+# It can be built for different architectures as needed
+
+LIBDIR=lib
+LIBRARY=ananke
+
+# NT RTL sources (architecture-independent)
+SRCS = sources/ntrtl/memory.c \
+       sources/ntrtl/string.c \
+       sources/ntrtl/list.c \
+       sources/ntrtl/bitmap.c \
+       sources/ntrtl/tree.c \
+       sources/ntrtl/utility.c
+
+# Include directories
+CFLAGS += -I$(SRCDIR)/include
+
+# Headers to install
+INCDIR=include/ananke
+INCS += $(wildcard include/ananke/*.h)
+INCS += $(wildcard include/ananke/ntrtl/*.h)
