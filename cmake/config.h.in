@@ -1,0 +1,31 @@
+/* NUX Build Configuration */
+#ifndef NUX_BUILD_CONFIG_H
+#define NUX_BUILD_CONFIG_H
+
+/* CMake-generated configuration */
+#define NUX_VERSION_MAJOR @PROJECT_VERSION_MAJOR@
+#define NUX_VERSION_MINOR @PROJECT_VERSION_MINOR@
+#define NUX_VERSION_PATCH @PROJECT_VERSION_PATCH@
+#define NUX_VERSION_STRING "@PROJECT_VERSION@"
+
+/* Compiler information */
+#define NUX_COMPILER_ID "@CMAKE_C_COMPILER_ID@"
+#define NUX_COMPILER_VERSION "@CMAKE_C_COMPILER_VERSION@"
+#define NUX_COMPILER_VENDOR "@NUX_COMPILER_VENDOR@"
+
+/* Build configuration */
+#define NUX_IMAGE_FORMAT "@NUX_IMAGE_FORMAT@"
+#cmakedefine NUX_UNIVERSAL_BINARY
+#cmakedefine NUX_USE_LINKER_SCRIPTS
+
+/* Target architectures */
+#define NUX_TARGET_ARCH "@CMAKE_SYSTEM_PROCESSOR@"
+
+/* Build type */
+#define NUX_BUILD_TYPE "@CMAKE_BUILD_TYPE@"
+
+/* Host system */
+#define NUX_HOST_SYSTEM "@CMAKE_HOST_SYSTEM@"
+#define NUX_HOST_SYSTEM_NAME "@CMAKE_HOST_SYSTEM_NAME@"
+
+#endif /* NUX_BUILD_CONFIG_H */
