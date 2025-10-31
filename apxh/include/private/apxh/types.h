@@ -190,5 +190,15 @@ typedef enum _ARCH {
   ArchIa64_32 = 47,       ///< 32-bit compatibility on Itanium
   ArchPpc64_32 = 48,      ///< 32-bit mode on PowerPC 64
   ArchS390x_32 = 49,      ///< 32-bit mode on s390x
-  ArchSparc64_32 = 50     ///< 32-bit mode on SPARC 64
+  ArchSparc64_32 = 50,    ///< 32-bit mode on SPARC 64
+
+  // Pseudo-endian variants (software emulated byte order)
+  ArchM68kPseudoLe = 51,  ///< M68K in pseudo little-endian mode
+  Arch386PseudoBe = 52,   ///< x86 in pseudo big-endian mode
+  ArchAmd64PseudoBe = 53, ///< x86-64 in pseudo big-endian mode
+
+  // Educational and specialized architectures
+  ArchMmix = 54,          ///< Donald Knuth's MMIX (64-bit RISC)
+  ArchDlx = 55,           ///< DLX (educational MIPS-like RISC)
+  ArchMoxie = 56          ///< Moxie (lightweight RISC)
 } ARCH;

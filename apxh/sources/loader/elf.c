@@ -107,6 +107,11 @@
 #define EM_RISCV    0xF3 ///< RISC-V
 #define EM_LOONGARCH 258 ///< LoongArch
 
+// Educational and specialized architectures
+#define EM_MMIX     80   ///< Donald Knuth's MMIX
+#define EM_DLX      0x5aa5 ///< DLX (unofficial)
+#define EM_MOXIE    223  ///< Moxie (official assignment)
+
 //
 // ELF Processor-Specific Flags (e_flags field)
 //
@@ -838,18 +843,27 @@ GetElfArch (
   ELF32_HDR *ElfHeader = (ELF32_HDR *)ElfImg;
   UINT8 *Ident = (UINT8 *)ElfImg;
   UINT8 ElfClass;
+  UINT8 ElfData;  // EI_DATA - endianness
 
   if (memcmp(ElfHeader->Id, ElfId, 4) != 0)
     return ArchInvalid;
 
   ElfClass = Ident[4];  // EI_CLASS
+  ElfData = Ident[5];   // EI_DATA (ELFDATA2LSB=1 or ELFDATA2MSB=2)
 
   // Handle machine types
   switch (ElfHeader->Mach) {
     case EM_386:
+      // Check for pseudo big-endian (normally little-endian)
+      if (ElfData == ELFDATA2MSB)
+        return Arch386PseudoBe;
       return Arch386;
 
     case EM_X86_64:
+      // Check for pseudo big-endian first (normally little-endian)
+      if (ElfData == ELFDATA2MSB)
+        return ArchAmd64PseudoBe;
+
       // Check for x32 ABI (ELFCLASS32 with x86-64 or EF_X86_64_X32 flag)
       // x32 is the ILP32 ABI on x86-64 (32-bit pointers, 64-bit registers)
       if (ElfClass == ELFCLASS32) {
@@ -944,10 +958,22 @@ GetElfArch (
       return ArchLoongArch64;
 
     case EM_68K:
+      // M68K is normally big-endian, check for pseudo little-endian
+      if (ElfData == ELFDATA2LSB)
+        return ArchM68kPseudoLe;
       return ArchM68k;
 
     case EM_SH:
       return ArchSh;
+
+    case EM_MMIX:
+      return ArchMmix;
+
+    case EM_DLX:
+      return ArchDlx;
+
+    case EM_MOXIE:
+      return ArchMoxie;
 
     default:
       return ArchUnsupported;
