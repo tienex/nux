@@ -61,6 +61,21 @@ set(ANXCONFIG_SOURCES
     yaml_parser.c
     expr_eval.c
     ui_composer.c
+    # Widget implementations
+    widget_button.c
+    widget_checkbox.c
+    widget_input.c
+    widget_label.c
+    widget_hyperlink.c
+    widget_groupbox.c
+    widget_elastic.c
+    widget_listbox.c
+    widget_scrollbar.c
+    widget_menubar.c
+    widget_statusbar.c
+    widget_combobox.c
+    widget_messagebox.c
+    focus_manager.c
     ${TUI_BACKEND}
 )
 
