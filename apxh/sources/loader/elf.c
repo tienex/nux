@@ -1743,7 +1743,7 @@ ElfGetOs2PmType (
   }
 
   // Default to console/CLI for OS/2
-  return ImgSubsystemUnixCli;
+  return ImgSubsystemCli;
 }
 
 /**
@@ -1775,7 +1775,7 @@ ElfGetTargetSubsystem (
   }
 
   // For other Unix systems, default to CLI
-  *TargetSubsystem = ImgSubsystemUnixCli;
+  *TargetSubsystem = ImgSubsystemCli;
   return S_OK;
 }
 

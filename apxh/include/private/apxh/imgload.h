@@ -90,7 +90,7 @@ typedef enum _IMGLOAD_TARGET_SUBSYSTEM {
   ImgSubsystemPosix              = 10,  ///< POSIX console application
   ImgSubsystemWindowsBootApp     = 11,  ///< Windows boot application
   ImgSubsystemXbox               = 12,  ///< Xbox system
-  ImgSubsystemUnixCli            = 13,  ///< Unix command-line interface
+  ImgSubsystemCli                = 13,  ///< Command-line interface (console application)
   ImgSubsystemUnixDaemon         = 14,  ///< Unix daemon/service
   ImgSubsystemSharedLibrary      = 15,  ///< Shared library/DLL
   ImgSubsystemKernelModule       = 16,  ///< Kernel module/driver
@@ -105,7 +105,12 @@ typedef enum _IMGLOAD_TARGET_SUBSYSTEM {
   ImgSubsystemDriverKit          = 25,  ///< DriverKit driver
   ImgSubsystemNextStep           = 26,  ///< NeXTSTEP application
   ImgSubsystemOpenStep           = 27,  ///< OpenStep application
-  ImgSubsystemRhapsody           = 28   ///< Rhapsody application
+  ImgSubsystemRhapsody           = 28,  ///< Rhapsody application
+  ImgSubsystemBeOsGui            = 29,  ///< BeOS GUI application
+  ImgSubsystemBeOsCui            = 30,  ///< BeOS console application
+  ImgSubsystemMacOsClassic       = 31,  ///< Classic Mac OS (System 1-9) GUI
+  ImgSubsystemAmigaWorkbench     = 32,  ///< Amiga Workbench GUI
+  ImgSubsystemAtariGem           = 33   ///< Atari TOS GEM GUI
 } IMGLOAD_TARGET_SUBSYSTEM;
 
 //

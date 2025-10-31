@@ -957,7 +957,8 @@ HunkGetTargetSubsystem (
     return E_POINTER;
   }
 
-  *TargetSubsystem = ImgSubsystemUnixCli;
+  // Amiga OS used Workbench as its GUI environment
+  *TargetSubsystem = ImgSubsystemAmigaWorkbench;
   return S_OK;
 }
 

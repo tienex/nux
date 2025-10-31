@@ -58,6 +58,7 @@
 #define IMAGE_SUBSYSTEM_WINDOWS_CUI              3   ///< Windows console
 #define IMAGE_SUBSYSTEM_OS2_GUI                  4   ///< OS/2 GUI (Presentation Manager)
 #define IMAGE_SUBSYSTEM_OS2_CUI                  5   ///< OS/2 console
+#define IMAGE_SUBSYSTEM_BEOS_GUI                 6   ///< BeOS GUI (x86 version)
 #define IMAGE_SUBSYSTEM_POSIX_CUI                7   ///< POSIX console
 #define IMAGE_SUBSYSTEM_NATIVE_WINDOWS           8   ///< Native Win9x driver
 #define IMAGE_SUBSYSTEM_WINDOWS_CE_GUI           9   ///< Windows CE GUI
@@ -869,11 +870,32 @@ PeGetTargetSystem (
   OUT IMGLOAD_TARGET_SYSTEM  *TargetSystem
   )
 {
+  DOS_HEADER *DosHeader;
+  PE_OPTIONAL_HEADER32 *OptHeader32;
+  PE_OPTIONAL_HEADER64 *OptHeader64;
+  COFF_HEADER *CoffHeader;
+  UINT16 Subsystem;
+  BOOLEAN Is64Bit;
+
   if (TargetSystem == NULL) {
     return E_POINTER;
   }
 
-  // PE format is specific to Windows NT family
+  DosHeader = (DOS_HEADER *)ImageBase;
+  CoffHeader = (COFF_HEADER *)((UINT8 *)ImageBase + DosHeader->NewHeaderOffset + 4);
+  OptHeader32 = (PE_OPTIONAL_HEADER32 *)(CoffHeader + 1);
+  OptHeader64 = (PE_OPTIONAL_HEADER64 *)(CoffHeader + 1);
+
+  Is64Bit = (OptHeader32->Magic == PE_OPT_MAGIC_PE32PLUS);
+  Subsystem = Is64Bit ? OptHeader64->Subsystem : OptHeader32->Subsystem;
+
+  // Check for BeOS (x86 version used PE format with subsystem 6)
+  if (Subsystem == IMAGE_SUBSYSTEM_BEOS_GUI) {
+    *TargetSystem = ImgSystemBeOs;
+    return S_OK;
+  }
+
+  // PE format is primarily used by Windows NT family
   *TargetSystem = ImgSystemWindowsNt;
   return S_OK;
 }
@@ -966,6 +988,9 @@ PeGetTargetSubsystem (
       break;
     case IMAGE_SUBSYSTEM_OS2_CUI:
       *TargetSubsystem = ImgSubsystemOs2Cui;
+      break;
+    case IMAGE_SUBSYSTEM_BEOS_GUI:
+      *TargetSubsystem = ImgSubsystemBeOsGui;
       break;
     case IMAGE_SUBSYSTEM_WINDOWS_CE_GUI:
       *TargetSubsystem = ImgSubsystemWindowsCeGui;

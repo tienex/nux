@@ -696,7 +696,8 @@ AtariGetTargetSubsystem (
     return E_POINTER;
   }
 
-  *TargetSubsystem = ImgSubsystemUnixCli;
+  // Atari TOS used GEM (Graphical Environment Manager) as its GUI
+  *TargetSubsystem = ImgSubsystemAtariGem;
   return S_OK;
 }
 

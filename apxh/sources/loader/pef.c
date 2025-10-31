@@ -552,6 +552,73 @@ PefRelease (
   return 1;
 }
 
+/**
+  Detect if a PEF binary is for BeOS by checking for BeOS-specific characteristics.
+
+  Checks for BeOS-specific library imports in the loader section.
+  BeOS libraries typically include: libroot.so, libbe.so, libstdc++.r4.so
+
+  @param[in]  ImageBase  Base address of the PEF image.
+
+  @retval TRUE   Binary appears to be for BeOS.
+  @retval FALSE  Binary appears to be for Mac OS or cannot determine.
+**/
+static
+BOOLEAN
+PefIsBeOsBinary (
+  IN VOID  *ImageBase
+  )
+{
+  PEF_CONTAINER_HEADER *Container;
+  PEF_SECTION_HEADER *Sections;
+  PEF_LOADER_INFO_HEADER *LoaderInfo;
+  UINT32 I;
+  UINT8 *LoaderSection;
+  CHAR8 *LibName;
+  UINT32 *ImportLibOffsets;
+
+  Container = (PEF_CONTAINER_HEADER *)ImageBase;
+  Sections = (PEF_SECTION_HEADER *)((UINT8 *)ImageBase + sizeof(PEF_CONTAINER_HEADER));
+
+  // Look for loader section
+  LoaderSection = NULL;
+  for (I = 0; I < Container->SectionCount; I++) {
+    if (Sections[I].SectionKind == kPEFLoaderSection) {
+      LoaderSection = (UINT8 *)ImageBase + Sections[I].ContainerOffset;
+      break;
+    }
+  }
+
+  if (LoaderSection == NULL) {
+    return FALSE;  // No loader section, default to Mac OS
+  }
+
+  LoaderInfo = (PEF_LOADER_INFO_HEADER *)LoaderSection;
+  if (LoaderInfo->ImportedLibraryCount == 0) {
+    return FALSE;  // No imports, default to Mac OS
+  }
+
+  // Get pointer to imported library name offsets
+  // They're stored after the loader info header
+  ImportLibOffsets = (UINT32 *)(LoaderInfo + 1);
+
+  // Check first few library names for BeOS-specific libraries
+  for (I = 0; I < LoaderInfo->ImportedLibraryCount && I < 5; I++) {
+    // Library names are stored in the loader strings section
+    LibName = (CHAR8 *)LoaderSection + LoaderInfo->LoaderStringsOffset + ImportLibOffsets[I];
+
+    // Check for BeOS-specific library names
+    if (memcmp(LibName, "libroot.so", 10) == 0 ||
+        memcmp(LibName, "libbe.so", 8) == 0 ||
+        memcmp(LibName, "libstdc++.r4.so", 15) == 0 ||
+        memcmp(LibName, "libnet.so", 9) == 0) {
+      return TRUE;  // Found BeOS library
+    }
+  }
+
+  return FALSE;  // No BeOS libraries found, assume Mac OS
+}
+
 //
 // PEF Loader VTable
 //
@@ -574,7 +641,14 @@ PefGetTargetSystem (
     return E_POINTER;
   }
 
-  *TargetSystem = ImgSystemMacOs;
+  // PEF was used on both Mac OS and BeOS PowerPC
+  // Detect based on imported libraries
+  if (PefIsBeOsBinary(ImageBase)) {
+    *TargetSystem = ImgSystemBeOs;
+  } else {
+    *TargetSystem = ImgSystemMacOs;
+  }
+
   return S_OK;
 }
 
@@ -614,7 +688,15 @@ PefGetTargetSubsystem (
     return E_POINTER;
   }
 
-  *TargetSubsystem = ImgSubsystemUnixCli;
+  // Detect BeOS vs Mac OS
+  if (PefIsBeOsBinary(ImageBase)) {
+    // BeOS PEF binaries are typically GUI applications
+    *TargetSubsystem = ImgSubsystemBeOsGui;
+  } else {
+    // Mac OS classic applications (GUI-based operating system)
+    *TargetSubsystem = ImgSubsystemMacOsClassic;
+  }
+
   return S_OK;
 }
 

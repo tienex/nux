@@ -779,7 +779,7 @@ FatelfGetTargetSubsystem (
     return E_POINTER;
   }
 
-  *TargetSubsystem = ImgSubsystemUnixCli;
+  *TargetSubsystem = ImgSubsystemCli;
   return S_OK;
 }
 

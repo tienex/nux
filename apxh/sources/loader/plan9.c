@@ -736,7 +736,7 @@ Plan9GetTargetSubsystem (
     return E_POINTER;
   }
 
-  *TargetSubsystem = ImgSubsystemUnixCli;
+  *TargetSubsystem = ImgSubsystemCli;
   return S_OK;
 }
 

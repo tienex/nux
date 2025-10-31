@@ -899,11 +899,36 @@ LeGetTargetSubsystem (
   OUT IMGLOAD_TARGET_SUBSYSTEM  *TargetSubsystem
   )
 {
+  LE_HEADER *Header;
+  UINT32 PmFlags;
+
   if (TargetSubsystem == NULL) {
     return E_POINTER;
   }
 
-  *TargetSubsystem = ImgSubsystemOs2Cui;
+  Header = (LE_HEADER *)ImageBase;
+
+  // Check PM (Presentation Manager) compatibility flags
+  PmFlags = Header->ModuleFlags & 0x00000300;
+
+  switch (PmFlags) {
+    case LE_MODULE_PM_ONLY:
+      // PM-only application (GUI required)
+      *TargetSubsystem = ImgSubsystemOs2Gui;
+      break;
+
+    case LE_MODULE_PM_COMPATIBLE:
+      // PM-compatible application (can run in PM, typically GUI)
+      *TargetSubsystem = ImgSubsystemOs2Gui;
+      break;
+
+    case LE_MODULE_PM_INCOMPATIBLE:
+    default:
+      // PM-incompatible or no PM flags (console/text mode)
+      *TargetSubsystem = ImgSubsystemOs2Cui;
+      break;
+  }
+
   return S_OK;
 }
 
