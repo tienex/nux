@@ -125,6 +125,21 @@
 #define PT_GNU_EH_FRAME  0x6474e550  ///< GCC .eh_frame_hdr segment
 
 //
+// APXH-Specific ELF Program Header Types (OS-specific range)
+//
+
+#define ELF_APXH_INFO              0xAF100000  ///< Boot info page
+#define ELF_APXH_EMPTY             0xAF100001  ///< Empty VA allocation
+#define ELF_APXH_PHYSICAL_MAP      0xAF100002  ///< 1:1 physical memory map
+#define ELF_APXH_PFN_MAP           0xAF100003  ///< Page frame number map
+#define ELF_APXH_BATREE            0xAF100004  ///< Allocated pages bitmap
+#define ELF_APXH_PT_ALLOC          0xAF100005  ///< Page table allocation
+#define ELF_APXH_FRAMEBUFFER       0xAF100006  ///< Framebuffer mapping
+#define ELF_APXH_REGIONS           0xAF100007  ///< Region list
+#define ELF_APXH_TOP_PT_ALLOC      0xAF100008  ///< Top-level PT allocation
+#define ELF_APXH_LINEAR            0xAF100009  ///< Linear page table map
+
+//
 // ELF Program Header Flags
 //
 
@@ -320,14 +335,61 @@ ANX_PACK_POP()
 //
 
 /**
+  Map ELF program header type to generic segment type.
+
+  @param[in] ElfType  ELF program header type value.
+
+  @return Generic SEGMENT_TYPE.
+**/
+static
+SEGMENT_TYPE
+MapElfTypeToSegmentType (
+  IN UINT32  ElfType
+  )
+{
+  switch (ElfType) {
+    case PHT_NULL:
+      return SegmentNull;
+    case PHT_LOAD:
+      return SegmentLoad;
+    case PHT_DYNAMIC:
+      return SegmentDynamic;
+    case PHT_TLS:
+      return SegmentTls;
+    case ELF_APXH_INFO:
+      return SegmentInfo;
+    case ELF_APXH_EMPTY:
+      return SegmentEmpty;
+    case ELF_APXH_PHYSICAL_MAP:
+      return SegmentPhysicalMap;
+    case ELF_APXH_PFN_MAP:
+      return SegmentPfnMap;
+    case ELF_APXH_BATREE:
+      return SegmentBatree;
+    case ELF_APXH_PT_ALLOC:
+      return SegmentPageTableAlloc;
+    case ELF_APXH_TOP_PT_ALLOC:
+      return SegmentTopPageTableAlloc;
+    case ELF_APXH_FRAMEBUFFER:
+      return SegmentFramebuffer;
+    case ELF_APXH_REGIONS:
+      return SegmentRegions;
+    case ELF_APXH_LINEAR:
+      return SegmentLinear;
+    default:
+      return SegmentNull;  // Ignore unknown types
+  }
+}
+
+/**
   Load user-space program header.
 
-  Processes ELF program header for user-space segments (LOAD, TLS).
+  Processes program header for user-space segments (LOAD, TLS).
   Copies or zeros memory as needed and sets up virtual address mappings.
 
   @param[in] ElfImg  Pointer to ELF image.
-  @param[in] Type     Program header type.
-  @param[in] Flags    Program header flags (PHF_R/PHF_W/PHF_X).
+  @param[in] Type     Generic segment type.
+  @param[in] Flags    Segment flags (PHF_R/PHF_W/PHF_X).
   @param[in] Va       Virtual address.
   @param[in] MSize    Memory size.
   @param[in] Off      File offset.
@@ -336,17 +398,17 @@ ANX_PACK_POP()
 static
 VOID
 PhUload (
-  IN VOID    *ElfImg,
-  IN UINT32  Type,
-  IN UINT32  Flags,
-  IN UINT64  Va,
-  IN UINT64  MSize,
-  IN UINT64  Off,
-  IN UINT64  FSize
+  IN VOID          *ElfImg,
+  IN SEGMENT_TYPE  Type,
+  IN UINT32        Flags,
+  IN UINT64        Va,
+  IN UINT64        MSize,
+  IN UINT64        Off,
+  IN UINT64        FSize
   )
 {
   switch (Type) {
-    case PHT_LOAD:
+    case SegmentLoad:
       // Normal load segment
       if (Va + MSize < Va) {
         printf("size of PH too big.");
@@ -366,7 +428,7 @@ PhUload (
       }
       break;
 
-    case PHT_TLS:
+    case SegmentTls:
       // User Thread Local Storage
       if (MSize != 0) {
         printf("USER TLS area at %08" PRIx64 " (initsize: %" PRId64
@@ -394,12 +456,12 @@ PhUload (
 /**
   Load kernel program header.
 
-  Processes ELF program header for kernel segments (LOAD, TLS, and
+  Processes program header for kernel segments (LOAD, TLS, and
   custom APXH types for boot information, physical mappings, etc).
 
   @param[in] ElfImg  Pointer to ELF image.
-  @param[in] Type     Program header type.
-  @param[in] Flags    Program header flags (PHF_R/PHF_W/PHF_X).
+  @param[in] Type     Generic segment type.
+  @param[in] Flags    Segment flags (PHF_R/PHF_W/PHF_X).
   @param[in] Va       Virtual address.
   @param[in] MSize    Memory size.
   @param[in] Off      File offset.
@@ -408,17 +470,17 @@ PhUload (
 static
 VOID
 PhKload (
-  IN VOID    *ElfImg,
-  IN UINT32  Type,
-  IN UINT32  Flags,
-  IN UINT64  Va,
-  IN UINT64  MSize,
-  IN UINT64  Off,
-  IN UINT64  FSize
+  IN VOID          *ElfImg,
+  IN SEGMENT_TYPE  Type,
+  IN UINT32        Flags,
+  IN UINT64        Va,
+  IN UINT64        MSize,
+  IN UINT64        Off,
+  IN UINT64        FSize
   )
 {
   switch (Type) {
-    case PHT_LOAD:
+    case SegmentLoad:
       // Normal load segment
       if (Va + MSize < Va) {
         printf("size of PH too big.");
@@ -438,7 +500,7 @@ PhKload (
       }
       break;
 
-    case PHT_TLS:
+    case SegmentTls:
       // Thread Local Storage
       if (MSize != 0) {
         printf("TLS area at %08" PRIx64 " (initsize: %" PRId64 " size: %"
@@ -455,59 +517,59 @@ PhKload (
       }
       break;
 
-    case ApxhProgramHeaderInfo:
+    case SegmentInfo:
       // Boot Information segment
       printf("Boot Information area at %" PRIx64 " (size: %" PRId64 "d).\n",
              Va, MSize);
       VirtualAddressMapInfo(Va, MSize);
       break;
 
-    case ApxhProgramHeaderPhysicalMap:
+    case SegmentPhysicalMap:
       // Direct 1:1 PA mapping
       printf("Physmap VA area at %" PRIx64 " (size: %" PRId64 ").\n", Va,
              MSize);
       VirtualAddressMapPhysical(Va, MSize, MEMTYPE_WB);
       break;
 
-    case ApxhProgramHeaderEmpty:
+    case SegmentEmpty:
       printf("Empty VA area at %" PRIx64 " (size: %" PRId64 ").\n", Va,
              MSize);
       // Just VA allocation. Leave it.
       break;
 
-    case ApxhProgramHeaderPageTableAlloc:
+    case SegmentPageTableAlloc:
       printf("PT Alloc VA area at %" PRIx64 " (size: %" PRId64 ").\n", Va,
              MSize);
       VirtualAddressAllocatePageTable(Va, MSize);
       break;
 
-    case ApxhProgramHeaderPfnMap:
+    case SegmentPfnMap:
       printf("PFN Map at %" PRIx64 " (size: %" PRId64 ").\n", Va, MSize);
       VirtualAddressMapPageFrameNumbers(Va, MSize);
       break;
 
-    case ApxhProgramHeaderBatree:
+    case SegmentBatree:
       printf("S-Tree at %" PRIx64 " (size: %" PRId64 ").\n", Va, MSize);
       VirtualAddressMapBatree(Va, MSize);
       break;
 
-    case ApxhProgramHeaderLinear:
+    case SegmentLinear:
       printf("Linear Map at %" PRIx64 " (size: %" PRId64 ").\n", Va, MSize);
       VirtualAddressMapLinear(Va, MSize);
       break;
 
-    case ApxhProgramHeaderFramebuffer:
+    case SegmentFramebuffer:
       printf("Framebuffer Map at %" PRIx64 " (size: %" PRId64 ").\n", Va,
              MSize);
       VirtualAddressMapFramebuffer(Va, MSize, MEMTYPE_WC);
       break;
 
-    case ApxhProgramHeaderRegions:
+    case SegmentRegions:
       printf("Region Map at %" PRIx64 " (size: %" PRId64 ").\n", Va, MSize);
       VirtualAddressMapRegions(Va, MSize);
       break;
 
-    case ApxhProgramHeaderTopPageTableAlloc:
+    case SegmentTopPageTableAlloc:
       printf("TOP PT Alloc VA area at %" PRIx64 " (size: %" PRId64 ").\n",
              Va, MSize);
       VirtualAddressAllocateTopPageTable(Va, MSize);
@@ -549,12 +611,14 @@ LoadElf32 (
     return (UINTN)-1;
 
   for (i = 0; i < ElfHeader->Phs; i++, ProgramHeader++) {
+    SEGMENT_TYPE SegType = MapElfTypeToSegmentType(ProgramHeader->Type);
+
     if (User)
-      PhUload(ElfImg, ProgramHeader->Type, ProgramHeader->Flags,
+      PhUload(ElfImg, SegType, ProgramHeader->Flags,
               ProgramHeader->Va, ProgramHeader->Msize,
               ProgramHeader->Off, ProgramHeader->Fsize);
     else
-      PhKload(ElfImg, ProgramHeader->Type, ProgramHeader->Flags,
+      PhKload(ElfImg, SegType, ProgramHeader->Flags,
               ProgramHeader->Va, ProgramHeader->Msize,
               ProgramHeader->Off, ProgramHeader->Fsize);
   }
@@ -592,12 +656,14 @@ LoadElf64 (
     return (UINTN)-1;
 
   for (i = 0; i < ElfHeader->Phs; i++, ProgramHeader++) {
+    SEGMENT_TYPE SegType = MapElfTypeToSegmentType(ProgramHeader->Type);
+
     if (User)
-      PhUload(ElfImg, ProgramHeader->Type, ProgramHeader->Flags,
+      PhUload(ElfImg, SegType, ProgramHeader->Flags,
               ProgramHeader->Va, ProgramHeader->Msize,
               ProgramHeader->Off, ProgramHeader->Fsize);
     else
-      PhKload(ElfImg, ProgramHeader->Type, ProgramHeader->Flags,
+      PhKload(ElfImg, SegType, ProgramHeader->Flags,
               ProgramHeader->Va, ProgramHeader->Msize,
               ProgramHeader->Off, ProgramHeader->Fsize);
   }

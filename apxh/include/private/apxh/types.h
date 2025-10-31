@@ -60,23 +60,27 @@ typedef enum _MEMORY_TYPE
 #define MemTypeUncached       MEMTYPE_UC
 
 /**
-  APXH-specific program header types (ELF extension).
+  Generic segment type abstraction for multi-format image loading.
 
-  Custom segment types for boot-time information that extend the
-  standard ELF PT_* types for kernel loading requirements.
+  Maps format-specific segment types (ELF program headers, PE sections,
+  Mach-O segments) to a common representation for bootloader operations.
 **/
-typedef enum _APXH_PROGRAM_HEADER_TYPE {
-  ApxhProgramHeaderInfo          = 0xAF100000,  ///< Info Page
-  ApxhProgramHeaderEmpty         = 0xAF100001,  ///< Empty (no page tables)
-  ApxhProgramHeaderPhysicalMap   = 0xAF100002,  ///< 1:1 Memory Map
-  ApxhProgramHeaderPfnMap        = 0xAF100003,  ///< PFN Map
-  ApxhProgramHeaderBatree        = 0xAF100004,  ///< Allocated Pages Bitmap
-  ApxhProgramHeaderPageTableAlloc = 0xAF100005, ///< Empty (alloc all page tables)
-  ApxhProgramHeaderFramebuffer   = 0xAF100006,  ///< Frame Buffer
-  ApxhProgramHeaderRegions       = 0xAF100007,  ///< Region List
-  ApxhProgramHeaderTopPageTableAlloc = 0xAF100008, ///< Empty (alloc all top-level PTs)
-  ApxhProgramHeaderLinear        = 0xAF100009   ///< Linear (recursive) page table map
-} APXH_PROGRAM_HEADER_TYPE;
+typedef enum _SEGMENT_TYPE {
+  SegmentNull           = 0,   ///< Unused/ignored segment
+  SegmentLoad           = 1,   ///< Loadable code/data segment
+  SegmentTls            = 2,   ///< Thread-local storage
+  SegmentDynamic        = 3,   ///< Dynamic linking information
+  SegmentInfo           = 4,   ///< Boot information page (APXH)
+  SegmentEmpty          = 5,   ///< Empty VA allocation (APXH)
+  SegmentPhysicalMap    = 6,   ///< 1:1 physical memory mapping (APXH)
+  SegmentPfnMap         = 7,   ///< Page frame number map (APXH)
+  SegmentBatree         = 8,   ///< Allocated pages bitmap (APXH)
+  SegmentPageTableAlloc = 9,   ///< Page table allocation (APXH)
+  SegmentTopPageTableAlloc = 10, ///< Top-level PT allocation (APXH)
+  SegmentFramebuffer    = 11,  ///< Framebuffer mapping (APXH)
+  SegmentRegions        = 12,  ///< Region list (APXH)
+  SegmentLinear         = 13   ///< Linear/recursive page table mapping (APXH)
+} SEGMENT_TYPE;
 
 /**
   Payload Identifier
