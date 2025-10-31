@@ -3045,10 +3045,6 @@ struct _ITuiTabControl {
     CONST ITuiTabControl_Vtbl *Vtbl;
 };
 
-// {E7F8A9B0-C1D2-4E3F-4A5B-6C7D8E9F0A1B}
-DEFINE_GUID(IID_ITuiProgressBar,
-    0xE7F8A9B0, 0xC1D2, 0x4E3F, 0x4A, 0x5B, 0x6C, 0x7D, 0x8E, 0x9F, 0x0A, 0x1B);
-
 /**
   Progress Bar Style
 **/
@@ -3060,16 +3056,129 @@ typedef enum _TUI_PROGRESS_STYLE {
     TuiProgressSpinner      /* Spinning animation */
 } TUI_PROGRESS_STYLE;
 
+// {9D0E1F2A-3B4C-5D6E-7F8A-9B0C1D2E3F4A}
+DEFINE_GUID(IID_ITuiThemedProgressBar,
+    0x9D0E1F2A, 0x3B4C, 0x5D6E, 0x7F, 0x8A, 0x9B, 0x0C, 0x1D, 0x2E, 0x3F, 0x4A);
+
+/**
+  ITuiThemedProgressBar Interface
+
+  Progress bar theming interface. Inherits from ITuiThemedWidget.
+**/
+typedef struct _ITuiThemedProgressBar_Vtbl {
+    // ITuiSerializable methods
+    HRESULT (ANXAPI *QueryInterface)(ITuiThemedProgressBar *This, REFIID riid, VOID **ppvObject);
+    UINTN (ANXAPI *AddRef)(ITuiThemedProgressBar *This);
+    UINTN (ANXAPI *Release)(ITuiThemedProgressBar *This);
+    HRESULT (ANXAPI *SerializeToYaml)(ITuiThemedProgressBar *This, CHAR8 **OutYaml, UINTN *OutLength);
+    HRESULT (ANXAPI *DeserializeFromYaml)(ITuiThemedProgressBar *This, CONST CHAR8 *Yaml, UINTN Length);
+    HRESULT (ANXAPI *GetTypeName)(ITuiThemedProgressBar *This, CONST CHAR8 **OutTypeName);
+    HRESULT (ANXAPI *Clone)(ITuiThemedProgressBar *This, ITuiSerializable **OutClone);
+
+    // ITuiResponder methods
+    HRESULT (ANXAPI *GetNextResponder)(ITuiThemedProgressBar *This, ITuiResponder **NextResponder);
+    HRESULT (ANXAPI *SetNextResponder)(ITuiThemedProgressBar *This, ITuiResponder *NextResponder);
+    BOOLEAN (ANXAPI *AcceptsFirstResponder)(ITuiThemedProgressBar *This);
+    HRESULT (ANXAPI *BecomeFirstResponder)(ITuiThemedProgressBar *This);
+    HRESULT (ANXAPI *ResignFirstResponder)(ITuiThemedProgressBar *This);
+
+    // ITuiWidget methods
+    HRESULT (ANXAPI *SetBounds)(ITuiThemedProgressBar *This, CONST TUI_RECT *Bounds);
+    HRESULT (ANXAPI *GetBounds)(ITuiThemedProgressBar *This, TUI_RECT *Bounds);
+    HRESULT (ANXAPI *SetVisible)(ITuiThemedProgressBar *This, BOOLEAN Visible);
+    BOOLEAN (ANXAPI *IsVisible)(ITuiThemedProgressBar *This);
+    HRESULT (ANXAPI *SetEnabled)(ITuiThemedProgressBar *This, BOOLEAN Enabled);
+    BOOLEAN (ANXAPI *IsEnabled)(ITuiThemedProgressBar *This);
+    HRESULT (ANXAPI *SetParent)(ITuiThemedProgressBar *This, ITuiWidget *Parent);
+    HRESULT (ANXAPI *GetParent)(ITuiThemedProgressBar *This, ITuiWidget **Parent);
+    HRESULT (ANXAPI *AddChild)(ITuiThemedProgressBar *This, ITuiWidget *Child);
+    HRESULT (ANXAPI *RemoveChild)(ITuiThemedProgressBar *This, ITuiWidget *Child);
+    HRESULT (ANXAPI *SetNeedsDisplay)(ITuiThemedProgressBar *This, BOOLEAN Needed);
+
+    // ITuiThemedWidget methods
+    HRESULT (ANXAPI *ApplyTheme)(ITuiThemedProgressBar *This, ITuiTheme *Theme);
+    HRESULT (ANXAPI *GetColors)(ITuiThemedProgressBar *This, TUI_COLOR *Foreground, TUI_COLOR *Background);
+    HRESULT (ANXAPI *SetColors)(ITuiThemedProgressBar *This, TUI_COLOR Foreground, TUI_COLOR Background);
+    HRESULT (ANXAPI *OnMouseEvent)(ITuiThemedProgressBar *This, CONST TUI_MOUSE_EVENT *Event, BOOLEAN *Handled);
+    HRESULT (ANXAPI *OnKeyEvent)(ITuiThemedProgressBar *This, TUI_KEY Key, UINT32 Modifiers, BOOLEAN *Handled);
+    HRESULT (ANXAPI *Draw)(ITuiThemedProgressBar *This, ITuiSurface *Surface, CONST TUI_RECT *DirtyRect);
+
+    // ITuiThemedProgressBar methods
+    /**
+      Get filled/empty colors for progress bar.
+    **/
+    HRESULT (ANXAPI *GetProgressColors)(
+        ITuiThemedProgressBar *This,
+        TUI_COLOR *FilledColor,
+        TUI_COLOR *EmptyColor
+    );
+
+    /**
+      Set filled/empty colors for progress bar.
+    **/
+    HRESULT (ANXAPI *SetProgressColors)(
+        ITuiThemedProgressBar *This,
+        TUI_COLOR FilledColor,
+        TUI_COLOR EmptyColor
+    );
+} ITuiThemedProgressBar_Vtbl;
+
+struct _ITuiThemedProgressBar {
+    CONST ITuiThemedProgressBar_Vtbl *Vtbl;
+};
+
+// {E7F8A9B0-C1D2-4E3F-4A5B-6C7D8E9F0A1B}
+DEFINE_GUID(IID_ITuiProgressBar,
+    0xE7F8A9B0, 0xC1D2, 0x4E3F, 0x4A, 0x5B, 0x6C, 0x7D, 0x8E, 0x9F, 0x0A, 0x1B);
+
 /**
   ITuiProgressBar Interface
 
-  Progress indicator with multiple styles.
+  Progress indicator widget with multiple styles. Inherits from ITuiThemedProgressBar.
 **/
 typedef struct _ITuiProgressBar_Vtbl {
+    // ITuiSerializable methods
     HRESULT (ANXAPI *QueryInterface)(ITuiProgressBar *This, REFIID riid, VOID **ppvObject);
     UINTN (ANXAPI *AddRef)(ITuiProgressBar *This);
     UINTN (ANXAPI *Release)(ITuiProgressBar *This);
+    HRESULT (ANXAPI *SerializeToYaml)(ITuiProgressBar *This, CHAR8 **OutYaml, UINTN *OutLength);
+    HRESULT (ANXAPI *DeserializeFromYaml)(ITuiProgressBar *This, CONST CHAR8 *Yaml, UINTN Length);
+    HRESULT (ANXAPI *GetTypeName)(ITuiProgressBar *This, CONST CHAR8 **OutTypeName);
+    HRESULT (ANXAPI *Clone)(ITuiProgressBar *This, ITuiSerializable **OutClone);
 
+    // ITuiResponder methods
+    HRESULT (ANXAPI *GetNextResponder)(ITuiProgressBar *This, ITuiResponder **NextResponder);
+    HRESULT (ANXAPI *SetNextResponder)(ITuiProgressBar *This, ITuiResponder *NextResponder);
+    BOOLEAN (ANXAPI *AcceptsFirstResponder)(ITuiProgressBar *This);
+    HRESULT (ANXAPI *BecomeFirstResponder)(ITuiProgressBar *This);
+    HRESULT (ANXAPI *ResignFirstResponder)(ITuiProgressBar *This);
+
+    // ITuiWidget methods
+    HRESULT (ANXAPI *SetBounds)(ITuiProgressBar *This, CONST TUI_RECT *Bounds);
+    HRESULT (ANXAPI *GetBounds)(ITuiProgressBar *This, TUI_RECT *Bounds);
+    HRESULT (ANXAPI *SetVisible)(ITuiProgressBar *This, BOOLEAN Visible);
+    BOOLEAN (ANXAPI *IsVisible)(ITuiProgressBar *This);
+    HRESULT (ANXAPI *SetEnabled)(ITuiProgressBar *This, BOOLEAN Enabled);
+    BOOLEAN (ANXAPI *IsEnabled)(ITuiProgressBar *This);
+    HRESULT (ANXAPI *SetParent)(ITuiProgressBar *This, ITuiWidget *Parent);
+    HRESULT (ANXAPI *GetParent)(ITuiProgressBar *This, ITuiWidget **Parent);
+    HRESULT (ANXAPI *AddChild)(ITuiProgressBar *This, ITuiWidget *Child);
+    HRESULT (ANXAPI *RemoveChild)(ITuiProgressBar *This, ITuiWidget *Child);
+    HRESULT (ANXAPI *SetNeedsDisplay)(ITuiProgressBar *This, BOOLEAN Needed);
+
+    // ITuiThemedWidget methods
+    HRESULT (ANXAPI *ApplyTheme)(ITuiProgressBar *This, ITuiTheme *Theme);
+    HRESULT (ANXAPI *GetColors)(ITuiProgressBar *This, TUI_COLOR *Foreground, TUI_COLOR *Background);
+    HRESULT (ANXAPI *SetColors)(ITuiProgressBar *This, TUI_COLOR Foreground, TUI_COLOR Background);
+    HRESULT (ANXAPI *OnMouseEvent)(ITuiProgressBar *This, CONST TUI_MOUSE_EVENT *Event, BOOLEAN *Handled);
+    HRESULT (ANXAPI *OnKeyEvent)(ITuiProgressBar *This, TUI_KEY Key, UINT32 Modifiers, BOOLEAN *Handled);
+    HRESULT (ANXAPI *Draw)(ITuiProgressBar *This, ITuiSurface *Surface, CONST TUI_RECT *DirtyRect);
+
+    // ITuiThemedProgressBar methods
+    HRESULT (ANXAPI *GetProgressColors)(ITuiProgressBar *This, TUI_COLOR *FilledColor, TUI_COLOR *EmptyColor);
+    HRESULT (ANXAPI *SetProgressColors)(ITuiProgressBar *This, TUI_COLOR FilledColor, TUI_COLOR EmptyColor);
+
+    // ITuiProgressBar methods
     /**
       Set progress value (0-100).
     **/
@@ -3084,6 +3193,13 @@ typedef struct _ITuiProgressBar_Vtbl {
     HRESULT (ANXAPI *GetValue)(
         ITuiProgressBar *This,
         UINT32 *Value
+    );
+
+    /**
+      Get progress bar style.
+    **/
+    TUI_PROGRESS_STYLE (ANXAPI *GetStyle)(
+        ITuiProgressBar *This
     );
 
     /**
@@ -3103,33 +3219,28 @@ typedef struct _ITuiProgressBar_Vtbl {
     );
 
     /**
+      Get custom label text.
+    **/
+    HRESULT (ANXAPI *GetLabel)(
+        ITuiProgressBar *This,
+        CHAR8 *Buffer,
+        UINTN BufferSize
+    );
+
+    /**
+      Check if indeterminate mode is enabled.
+    **/
+    BOOLEAN (ANXAPI *IsIndeterminate)(
+        ITuiProgressBar *This
+    );
+
+    /**
       Set indeterminate mode (for unknown duration).
     **/
     HRESULT (ANXAPI *SetIndeterminate)(
         ITuiProgressBar *This,
         BOOLEAN Indeterminate
     );
-
-    /**
-      Set color scheme.
-    **/
-    HRESULT (ANXAPI *SetColors)(
-        ITuiProgressBar *This,
-        TUI_COLOR FilledColor,
-        TUI_COLOR EmptyColor
-    );
-
-    /**
-      Render progress bar.
-    **/
-    HRESULT (ANXAPI *Render)(
-        ITuiProgressBar *This,
-        ITuiScreen *Screen,
-        INT32 X,
-        INT32 Y,
-        UINT32 Width
-    );
-
 } ITuiProgressBar_Vtbl;
 
 struct _ITuiProgressBar {
