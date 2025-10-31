@@ -75,6 +75,129 @@ For formats that lack section headers, use symbol-based resource location:
 
 See `aout.c` for a complete symbol-based implementation example.
 
+---
+
+## Initialization and Termination Functions
+
+APXH loaders support extracting initialization and termination function information from
+executable formats, enabling proper startup/shutdown sequences for libraries and applications.
+
+### Init/Fini Support Status
+
+| Format | Init/Fini Mechanism | Status | Sections/Mechanisms |
+|--------|---------------------|--------|---------------------|
+| Mach-O | ✅ Sections | ✅ Implemented | `__DATA,__mod_init_func`, `__DATA,__mod_term_func` |
+| PE     | ✅ TLS Callbacks | ✅ Implemented | TLS directory (`AddressOfCallBacks`) |
+| ELF (OS/2) | ✅ Dynamic Tags | ✅ Implemented | `DT_INIT`, `DT_FINI`, `DT_INITTERM`, `DT_IT` |
+| ELF (generic) | ✅ Sections | ✅ Implemented | `.init`, `.fini`, `.ctors`, `.dtors` |
+| COFF   | ✅ Sections | ✅ Implemented | `.init`, `.fini`, `.ctors`, `.dtors` |
+| XCOFF  | ✅ Sections | ✅ Implemented | `.init`, `.fini`, `.ctors`, `.dtors` (AIX) |
+| ECOFF  | ✅ Sections | ✅ Implemented | `.init`, `.fini`, `.ctors`, `.dtors` (DEC/SGI) |
+| a.out  | ⚠️ Limited | ⚠️ Partial | Dynamic linker support via `__DYNAMIC` |
+| LE/LX  | ⚠️ OS/2 | ⚠️ TODO | OS/2 DLL initialization/termination |
+| PEF    | ⚠️ PowerPC | ⚠️ TODO | PowerPC fragment init/term |
+
+### Implementation Patterns
+
+#### 1. **Mach-O (macOS/iOS)**: Function Pointer Arrays
+```c
+// __DATA,__mod_init_func: Array of init function pointers (called before main)
+// __DATA,__mod_term_func: Array of term function pointers (called at exit)
+MachoGetInitFini(ImageBase, &InitFuncs, &NumInitFuncs, &TermFuncs, &NumTermFuncs);
+```
+
+#### 2. **PE (Windows)**: TLS Callbacks
+```c
+// TLS directory contains AddressOfCallBacks (array of callback functions)
+// Callbacks are called on process/thread attach/detach
+PeGetTlsInfo(ImageBase, &TlsInfo);  // TlsInfo.CallbacksAddr points to callback array
+```
+
+#### 3. **ELF**: Multiple Mechanisms
+**OS/2 PowerPC ELF** (dynamic tags):
+```c
+// DT_INIT:     Single init function address
+// DT_FINI:     Single fini function address
+// DT_INITTERM: Combined init/term function (OS/2 specific)
+// DT_IT:       Init/term type (IT_GLOBAL, IT_INSTANCE, IT_THREAD)
+// DT_ITPRTY:   Priority (0 = highest)
+GetOs2InitFiniInfo(ImageBase, &InitAddr, &FiniAddr, &InitTermAddr, &InitType, &TermType, &Priority);
+```
+
+**Generic ELF** (sections):
+```c
+// .init:  Initialization code section
+// .fini:  Finalization code section
+// .ctors: Constructor function pointer array (C++)
+// .dtors: Destructor function pointer array (C++)
+```
+
+#### 4. **COFF Family** (COFF/XCOFF/ECOFF): Standard Sections
+```c
+// All three formats use identical section-based approach:
+CoffGetInitFini(ImageBase, &InitSection, &InitSize, &FiniSection, &FiniSize,
+                &CtorsArray, &NumCtors, &DtorsArray, &NumDtors);
+```
+
+**Section Types:**
+- `.init` / `.fini`: Code sections containing initialization/finalization code
+- `.ctors` / `.dtors`: Arrays of function pointers (C++ global constructors/destructors)
+
+#### 5. **a.out**: Dynamic Linker Support
+```c
+// If __DYNAMIC symbol present, dynamic linker handles init/fini
+// Static executables may use custom sections (non-standard)
+AoutGetDynamic(ImageBase, &Dynamic);  // Returns AOUT_LINK_DYNAMIC structure
+```
+
+### Execution Order
+
+Typical initialization sequence (loader responsibility):
+1. **Load executable and dependencies**
+2. **Apply relocations**
+3. **Execute init functions** (in dependency order):
+   - Library-level init (IT_GLOBAL for OS/2)
+   - Per-instance init (IT_INSTANCE for OS/2)
+   - TLS callbacks with DLL_PROCESS_ATTACH (PE)
+   - C++ global constructors (.ctors)
+4. **Call entry point** (main/WinMain/etc.)
+
+Typical termination sequence:
+1. **Return from entry point**
+2. **Execute fini functions** (reverse dependency order):
+   - C++ global destructors (.dtors)
+   - TLS callbacks with DLL_PROCESS_DETACH (PE)
+   - Per-instance term (IT_INSTANCE for OS/2)
+   - Library-level term (IT_GLOBAL for OS/2)
+3. **Unload libraries**
+
+### Platform-Specific Notes
+
+**macOS/iOS (Mach-O):**
+- `__mod_init_func` runs before `main()` or library use
+- `__mod_term_func` runs at process exit via `atexit()`
+- Used by C++ constructors and `__attribute__((constructor))`
+
+**Windows (PE):**
+- TLS callbacks run on every thread creation/destruction
+- `DllMain(DLL_PROCESS_ATTACH)` for DLL initialization
+- `DllMain(DLL_PROCESS_DETACH)` for DLL termination
+
+**OS/2 (LE/LX and ELF):**
+- Init/term types control when functions run:
+  - `IT_GLOBAL`: First load / final unload (library-level)
+  - `IT_INSTANCE`: Each process attach / detach
+  - `IT_THREAD`: Each thread (reserved in Release 1)
+- Priority determines execution order (0 = highest priority)
+
+**Unix (ELF/COFF/ECOFF/XCOFF):**
+- `.init` / `.fini` sections contain arbitrary code
+- `.ctors` / `.dtors` are NULL-terminated function pointer arrays
+- Linker combines all `.ctors` from object files into one array
+- C++ runtime calls each constructor/destructor in order
+
+---
+
 ## ELF (Executable and Linkable Format)
 
 **Status:** ✅ Fully implemented with unwinding/symbol support
