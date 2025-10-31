@@ -5340,6 +5340,72 @@ struct _ITuiListView {
     CONST ITuiListView_Vtbl *Vtbl;
 };
 
+// {1A2B3C4D-5E6F-7A8B-9C0D-1E2F3A4B5C6D}
+DEFINE_GUID(IID_ITuiThemedWizard,
+    0x1A2B3C4D, 0x5E6F, 0x7A8B, 0x9C, 0x0D, 0x1E, 0x2F, 0x3A, 0x4B, 0x5C, 0x6D);
+
+/**
+  ITuiThemedWizard Interface
+
+  Wizard theming interface. Inherits from ITuiThemedWidget.
+**/
+typedef struct _ITuiThemedWizard_Vtbl {
+    // ITuiSerializable methods
+    HRESULT (ANXAPI *QueryInterface)(ITuiThemedWizard *This, REFIID riid, VOID **ppvObject);
+    UINTN (ANXAPI *AddRef)(ITuiThemedWizard *This);
+    UINTN (ANXAPI *Release)(ITuiThemedWizard *This);
+    HRESULT (ANXAPI *SerializeToYaml)(ITuiThemedWizard *This, CHAR8 **OutYaml, UINTN *OutLength);
+    HRESULT (ANXAPI *DeserializeFromYaml)(ITuiThemedWizard *This, CONST CHAR8 *Yaml, UINTN Length);
+    HRESULT (ANXAPI *GetTypeName)(ITuiThemedWizard *This, CONST CHAR8 **OutTypeName);
+    HRESULT (ANXAPI *Clone)(ITuiThemedWizard *This, ITuiSerializable **OutClone);
+
+    // ITuiResponder methods
+    HRESULT (ANXAPI *GetNextResponder)(ITuiThemedWizard *This, ITuiResponder **NextResponder);
+    HRESULT (ANXAPI *SetNextResponder)(ITuiThemedWizard *This, ITuiResponder *NextResponder);
+    BOOLEAN (ANXAPI *AcceptsFirstResponder)(ITuiThemedWizard *This);
+    HRESULT (ANXAPI *BecomeFirstResponder)(ITuiThemedWizard *This);
+    HRESULT (ANXAPI *ResignFirstResponder)(ITuiThemedWizard *This);
+
+    // ITuiWidget methods
+    HRESULT (ANXAPI *SetBounds)(ITuiThemedWizard *This, CONST TUI_RECT *Bounds);
+    HRESULT (ANXAPI *GetBounds)(ITuiThemedWizard *This, TUI_RECT *Bounds);
+    HRESULT (ANXAPI *SetVisible)(ITuiThemedWizard *This, BOOLEAN Visible);
+    BOOLEAN (ANXAPI *IsVisible)(ITuiThemedWizard *This);
+    HRESULT (ANXAPI *SetEnabled)(ITuiThemedWizard *This, BOOLEAN Enabled);
+    BOOLEAN (ANXAPI *IsEnabled)(ITuiThemedWizard *This);
+    HRESULT (ANXAPI *SetParent)(ITuiThemedWizard *This, ITuiWidget *Parent);
+    HRESULT (ANXAPI *GetParent)(ITuiThemedWizard *This, ITuiWidget **Parent);
+    HRESULT (ANXAPI *AddChild)(ITuiThemedWizard *This, ITuiWidget *Child);
+    HRESULT (ANXAPI *RemoveChild)(ITuiThemedWizard *This, ITuiWidget *Child);
+    HRESULT (ANXAPI *SetNeedsDisplay)(ITuiThemedWizard *This, BOOLEAN Needed);
+
+    // ITuiThemedWidget methods
+    HRESULT (ANXAPI *ApplyTheme)(ITuiThemedWizard *This, ITuiTheme *Theme);
+    HRESULT (ANXAPI *GetColors)(ITuiThemedWizard *This, TUI_COLOR *Foreground, TUI_COLOR *Background);
+    HRESULT (ANXAPI *SetColors)(ITuiThemedWizard *This, TUI_COLOR Foreground, TUI_COLOR Background);
+    HRESULT (ANXAPI *OnMouseEvent)(ITuiThemedWizard *This, CONST TUI_MOUSE_EVENT *Event, BOOLEAN *Handled);
+    HRESULT (ANXAPI *OnKeyEvent)(ITuiThemedWizard *This, TUI_KEY Key, UINT32 Modifiers, BOOLEAN *Handled);
+    HRESULT (ANXAPI *Draw)(ITuiThemedWizard *This, ITuiSurface *Surface, CONST TUI_RECT *DirtyRect);
+
+    // ITuiThemedWizard methods
+    HRESULT (ANXAPI *GetButtonColors)(ITuiThemedWizard *This, TUI_COLOR *Foreground, TUI_COLOR *Background);
+    HRESULT (ANXAPI *SetButtonColors)(ITuiThemedWizard *This, TUI_COLOR Foreground, TUI_COLOR Background);
+    HRESULT (ANXAPI *GetDisabledButtonColors)(ITuiThemedWizard *This, TUI_COLOR *Foreground, TUI_COLOR *Background);
+    HRESULT (ANXAPI *SetDisabledButtonColors)(ITuiThemedWizard *This, TUI_COLOR Foreground, TUI_COLOR Background);
+    HRESULT (ANXAPI *GetProgressColors)(ITuiThemedWizard *This, TUI_COLOR *Foreground, TUI_COLOR *Background);
+    HRESULT (ANXAPI *SetProgressColors)(ITuiThemedWizard *This, TUI_COLOR Foreground, TUI_COLOR Background);
+    HRESULT (ANXAPI *GetTitleColors)(ITuiThemedWizard *This, TUI_COLOR *Foreground, TUI_COLOR *Background);
+    HRESULT (ANXAPI *SetTitleColors)(ITuiThemedWizard *This, TUI_COLOR Foreground, TUI_COLOR Background);
+    HRESULT (ANXAPI *GetDescriptionColors)(ITuiThemedWizard *This, TUI_COLOR *Foreground, TUI_COLOR *Background);
+    HRESULT (ANXAPI *SetDescriptionColors)(ITuiThemedWizard *This, TUI_COLOR Foreground, TUI_COLOR Background);
+    CHAR8 (ANXAPI *GetProgressChar)(ITuiThemedWizard *This);
+    HRESULT (ANXAPI *SetProgressChar)(ITuiThemedWizard *This, CHAR8 ProgressChar);
+} ITuiThemedWizard_Vtbl;
+
+struct _ITuiThemedWizard {
+    CONST ITuiThemedWizard_Vtbl *Vtbl;
+};
+
 // {8E9F0A1B-2C3D-4E5F-6A7B-8C9D0E1F2A3B}
 DEFINE_GUID(IID_ITuiWizard,
     0x8E9F0A1B, 0x2C3D, 0x4E5F, 0x6A, 0x7B, 0x8C, 0x9D, 0x0E, 0x1F, 0x2A, 0x3B);
@@ -5348,52 +5414,61 @@ DEFINE_GUID(IID_ITuiWizard,
   ITuiWizard Interface
 
   Multi-step workflow dialog with Back/Next/Finish/Cancel buttons,
-  progress indicator, and page validation.
+  progress indicator, and page validation. Inherits from ITuiThemedWizard.
 **/
 typedef struct _ITuiWizard_Vtbl {
+    // ITuiSerializable methods
     HRESULT (ANXAPI *QueryInterface)(ITuiWizard *This, REFIID riid, VOID **ppvObject);
     UINTN (ANXAPI *AddRef)(ITuiWizard *This);
     UINTN (ANXAPI *Release)(ITuiWizard *This);
+    HRESULT (ANXAPI *SerializeToYaml)(ITuiWizard *This, CHAR8 **OutYaml, UINTN *OutLength);
+    HRESULT (ANXAPI *DeserializeFromYaml)(ITuiWizard *This, CONST CHAR8 *Yaml, UINTN Length);
+    HRESULT (ANXAPI *GetTypeName)(ITuiWizard *This, CONST CHAR8 **OutTypeName);
+    HRESULT (ANXAPI *Clone)(ITuiWizard *This, ITuiSerializable **OutClone);
 
-    /**
-      Render the wizard.
-    **/
-    HRESULT (ANXAPI *Render)(
-        ITuiWizard *This,
-        ITuiScreen *Screen,
-        INT32 X,
-        INT32 Y
-    );
+    // ITuiResponder methods
+    HRESULT (ANXAPI *GetNextResponder)(ITuiWizard *This, ITuiResponder **NextResponder);
+    HRESULT (ANXAPI *SetNextResponder)(ITuiWizard *This, ITuiResponder *NextResponder);
+    BOOLEAN (ANXAPI *AcceptsFirstResponder)(ITuiWizard *This);
+    HRESULT (ANXAPI *BecomeFirstResponder)(ITuiWizard *This);
+    HRESULT (ANXAPI *ResignFirstResponder)(ITuiWizard *This);
 
-    /**
-      Handle keyboard input.
-    **/
-    HRESULT (ANXAPI *HandleKey)(
-        ITuiWizard *This,
-        TUI_KEY Key
-    );
-
-    /**
-      Standard widget methods.
-    **/
+    // ITuiWidget methods
     HRESULT (ANXAPI *SetBounds)(ITuiWizard *This, CONST TUI_RECT *Bounds);
     HRESULT (ANXAPI *GetBounds)(ITuiWizard *This, TUI_RECT *Bounds);
     HRESULT (ANXAPI *SetVisible)(ITuiWizard *This, BOOLEAN Visible);
     BOOLEAN (ANXAPI *IsVisible)(ITuiWizard *This);
     HRESULT (ANXAPI *SetEnabled)(ITuiWizard *This, BOOLEAN Enabled);
     BOOLEAN (ANXAPI *IsEnabled)(ITuiWizard *This);
+    HRESULT (ANXAPI *SetParent)(ITuiWizard *This, ITuiWidget *Parent);
+    HRESULT (ANXAPI *GetParent)(ITuiWizard *This, ITuiWidget **Parent);
+    HRESULT (ANXAPI *AddChild)(ITuiWizard *This, ITuiWidget *Child);
+    HRESULT (ANXAPI *RemoveChild)(ITuiWizard *This, ITuiWidget *Child);
+    HRESULT (ANXAPI *SetNeedsDisplay)(ITuiWizard *This, BOOLEAN Needed);
 
-    /**
-      Add a page to the wizard.
+    // ITuiThemedWidget methods
+    HRESULT (ANXAPI *ApplyTheme)(ITuiWizard *This, ITuiTheme *Theme);
+    HRESULT (ANXAPI *GetColors)(ITuiWizard *This, TUI_COLOR *Foreground, TUI_COLOR *Background);
+    HRESULT (ANXAPI *SetColors)(ITuiWizard *This, TUI_COLOR Foreground, TUI_COLOR Background);
+    HRESULT (ANXAPI *OnMouseEvent)(ITuiWizard *This, CONST TUI_MOUSE_EVENT *Event, BOOLEAN *Handled);
+    HRESULT (ANXAPI *OnKeyEvent)(ITuiWizard *This, TUI_KEY Key, UINT32 Modifiers, BOOLEAN *Handled);
+    HRESULT (ANXAPI *Draw)(ITuiWizard *This, ITuiSurface *Surface, CONST TUI_RECT *DirtyRect);
 
-      @param[in] Title        Page title.
-      @param[in] Description  Page description.
-      @param[in] PageWidget   Page content widget (can be NULL).
-      @param[in] OnEnter      Callback when entering page (can be NULL).
-      @param[in] OnLeave      Callback when leaving page (can be NULL).
-      @param[in] OnValidate   Callback to validate page (can be NULL).
-      @param[in] UserData     User data for callbacks.
-    **/
+    // ITuiThemedWizard methods
+    HRESULT (ANXAPI *GetButtonColors)(ITuiWizard *This, TUI_COLOR *Foreground, TUI_COLOR *Background);
+    HRESULT (ANXAPI *SetButtonColors)(ITuiWizard *This, TUI_COLOR Foreground, TUI_COLOR Background);
+    HRESULT (ANXAPI *GetDisabledButtonColors)(ITuiWizard *This, TUI_COLOR *Foreground, TUI_COLOR *Background);
+    HRESULT (ANXAPI *SetDisabledButtonColors)(ITuiWizard *This, TUI_COLOR Foreground, TUI_COLOR Background);
+    HRESULT (ANXAPI *GetProgressColors)(ITuiWizard *This, TUI_COLOR *Foreground, TUI_COLOR *Background);
+    HRESULT (ANXAPI *SetProgressColors)(ITuiWizard *This, TUI_COLOR Foreground, TUI_COLOR Background);
+    HRESULT (ANXAPI *GetTitleColors)(ITuiWizard *This, TUI_COLOR *Foreground, TUI_COLOR *Background);
+    HRESULT (ANXAPI *SetTitleColors)(ITuiWizard *This, TUI_COLOR Foreground, TUI_COLOR Background);
+    HRESULT (ANXAPI *GetDescriptionColors)(ITuiWizard *This, TUI_COLOR *Foreground, TUI_COLOR *Background);
+    HRESULT (ANXAPI *SetDescriptionColors)(ITuiWizard *This, TUI_COLOR Foreground, TUI_COLOR Background);
+    CHAR8 (ANXAPI *GetProgressChar)(ITuiWizard *This);
+    HRESULT (ANXAPI *SetProgressChar)(ITuiWizard *This, CHAR8 ProgressChar);
+
+    // ITuiWizard methods
     HRESULT (ANXAPI *AddPage)(
         ITuiWizard *This,
         CONST CHAR8 *Title,
@@ -5404,40 +5479,78 @@ typedef struct _ITuiWizard_Vtbl {
         HRESULT (*OnValidate)(VOID *PageWidget, VOID *UserData, BOOLEAN *IsValid),
         VOID *UserData
     );
-
-    /**
-      Go to next page.
-    **/
     HRESULT (ANXAPI *GoNext)(ITuiWizard *This);
-
-    /**
-      Go to previous page.
-    **/
     HRESULT (ANXAPI *GoBack)(ITuiWizard *This);
-
-    /**
-      Finish the wizard.
-    **/
     HRESULT (ANXAPI *Finish)(ITuiWizard *This);
-
-    /**
-      Reset wizard to first page.
-    **/
     HRESULT (ANXAPI *Reset)(ITuiWizard *This);
-
-    /**
-      Set finish callback.
-    **/
     HRESULT (ANXAPI *SetFinishCallback)(
         ITuiWizard *This,
         HRESULT (*Callback)(VOID *UserData),
         VOID *UserData
     );
-
+    UINT32 (ANXAPI *GetCurrentPage)(ITuiWizard *This);
+    UINT32 (ANXAPI *GetPageCount)(ITuiWizard *This);
+    HRESULT (ANXAPI *SetCurrentPage)(ITuiWizard *This, UINT32 PageIndex);
 } ITuiWizard_Vtbl;
 
 struct _ITuiWizard {
     CONST ITuiWizard_Vtbl *Vtbl;
+};
+
+// {2B3C4D5E-6F7A-8B9C-0D1E-2F3A4B5C6D7E}
+DEFINE_GUID(IID_ITuiThemedFlexContainer,
+    0x2B3C4D5E, 0x6F7A, 0x8B9C, 0x0D, 0x1E, 0x2F, 0x3A, 0x4B, 0x5C, 0x6D, 0x7E);
+
+/**
+  ITuiThemedFlexContainer Interface
+
+  FlexContainer theming interface. Inherits from ITuiThemedWidget.
+**/
+typedef struct _ITuiThemedFlexContainer_Vtbl {
+    // ITuiSerializable methods
+    HRESULT (ANXAPI *QueryInterface)(ITuiThemedFlexContainer *This, REFIID riid, VOID **ppvObject);
+    UINTN (ANXAPI *AddRef)(ITuiThemedFlexContainer *This);
+    UINTN (ANXAPI *Release)(ITuiThemedFlexContainer *This);
+    HRESULT (ANXAPI *SerializeToYaml)(ITuiThemedFlexContainer *This, CHAR8 **OutYaml, UINTN *OutLength);
+    HRESULT (ANXAPI *DeserializeFromYaml)(ITuiThemedFlexContainer *This, CONST CHAR8 *Yaml, UINTN Length);
+    HRESULT (ANXAPI *GetTypeName)(ITuiThemedFlexContainer *This, CONST CHAR8 **OutTypeName);
+    HRESULT (ANXAPI *Clone)(ITuiThemedFlexContainer *This, ITuiSerializable **OutClone);
+
+    // ITuiResponder methods
+    HRESULT (ANXAPI *GetNextResponder)(ITuiThemedFlexContainer *This, ITuiResponder **NextResponder);
+    HRESULT (ANXAPI *SetNextResponder)(ITuiThemedFlexContainer *This, ITuiResponder *NextResponder);
+    BOOLEAN (ANXAPI *AcceptsFirstResponder)(ITuiThemedFlexContainer *This);
+    HRESULT (ANXAPI *BecomeFirstResponder)(ITuiThemedFlexContainer *This);
+    HRESULT (ANXAPI *ResignFirstResponder)(ITuiThemedFlexContainer *This);
+
+    // ITuiWidget methods
+    HRESULT (ANXAPI *SetBounds)(ITuiThemedFlexContainer *This, CONST TUI_RECT *Bounds);
+    HRESULT (ANXAPI *GetBounds)(ITuiThemedFlexContainer *This, TUI_RECT *Bounds);
+    HRESULT (ANXAPI *SetVisible)(ITuiThemedFlexContainer *This, BOOLEAN Visible);
+    BOOLEAN (ANXAPI *IsVisible)(ITuiThemedFlexContainer *This);
+    HRESULT (ANXAPI *SetEnabled)(ITuiThemedFlexContainer *This, BOOLEAN Enabled);
+    BOOLEAN (ANXAPI *IsEnabled)(ITuiThemedFlexContainer *This);
+    HRESULT (ANXAPI *SetParent)(ITuiThemedFlexContainer *This, ITuiWidget *Parent);
+    HRESULT (ANXAPI *GetParent)(ITuiThemedFlexContainer *This, ITuiWidget **Parent);
+    HRESULT (ANXAPI *AddChild)(ITuiThemedFlexContainer *This, ITuiWidget *Child);
+    HRESULT (ANXAPI *RemoveChild)(ITuiThemedFlexContainer *This, ITuiWidget *Child);
+    HRESULT (ANXAPI *SetNeedsDisplay)(ITuiThemedFlexContainer *This, BOOLEAN Needed);
+
+    // ITuiThemedWidget methods
+    HRESULT (ANXAPI *ApplyTheme)(ITuiThemedFlexContainer *This, ITuiTheme *Theme);
+    HRESULT (ANXAPI *GetColors)(ITuiThemedFlexContainer *This, TUI_COLOR *Foreground, TUI_COLOR *Background);
+    HRESULT (ANXAPI *SetColors)(ITuiThemedFlexContainer *This, TUI_COLOR Foreground, TUI_COLOR Background);
+    HRESULT (ANXAPI *OnMouseEvent)(ITuiThemedFlexContainer *This, CONST TUI_MOUSE_EVENT *Event, BOOLEAN *Handled);
+    HRESULT (ANXAPI *OnKeyEvent)(ITuiThemedFlexContainer *This, TUI_KEY Key, UINT32 Modifiers, BOOLEAN *Handled);
+    HRESULT (ANXAPI *Draw)(ITuiThemedFlexContainer *This, ITuiSurface *Surface, CONST TUI_RECT *DirtyRect);
+
+    // ITuiThemedFlexContainer methods (minimal for containers)
+    HRESULT (ANXAPI *GetBorderColors)(ITuiThemedFlexContainer *This, TUI_COLOR *Foreground, TUI_COLOR *Background);
+    HRESULT (ANXAPI *SetBorderColors)(ITuiThemedFlexContainer *This, TUI_COLOR Foreground, TUI_COLOR Background);
+} ITuiThemedFlexContainer_Vtbl;
+
+struct _ITuiThemedFlexContainer {
+    CONST ITuiThemedFlexContainer_Vtbl *Vtbl;
 };
 
 // {9F0A1B2C-3D4E-5F6A-7B8C-9D0E1F2A3B4C}
@@ -5449,29 +5562,123 @@ DEFINE_GUID(IID_ITuiFlexContainer,
 
   Flexbox-like layout container with support for row/column direction,
   flex-grow/shrink, alignment, justify content, wrapping, and gaps.
+  Inherits from ITuiThemedFlexContainer.
 **/
 typedef struct _ITuiFlexContainer_Vtbl {
+    // ITuiSerializable methods
     HRESULT (ANXAPI *QueryInterface)(ITuiFlexContainer *This, REFIID riid, VOID **ppvObject);
     UINTN (ANXAPI *AddRef)(ITuiFlexContainer *This);
     UINTN (ANXAPI *Release)(ITuiFlexContainer *This);
-    HRESULT (ANXAPI *Render)(ITuiFlexContainer *This, ITuiScreen *Screen, INT32 X, INT32 Y);
+    HRESULT (ANXAPI *SerializeToYaml)(ITuiFlexContainer *This, CHAR8 **OutYaml, UINTN *OutLength);
+    HRESULT (ANXAPI *DeserializeFromYaml)(ITuiFlexContainer *This, CONST CHAR8 *Yaml, UINTN Length);
+    HRESULT (ANXAPI *GetTypeName)(ITuiFlexContainer *This, CONST CHAR8 **OutTypeName);
+    HRESULT (ANXAPI *Clone)(ITuiFlexContainer *This, ITuiSerializable **OutClone);
+
+    // ITuiResponder methods
+    HRESULT (ANXAPI *GetNextResponder)(ITuiFlexContainer *This, ITuiResponder **NextResponder);
+    HRESULT (ANXAPI *SetNextResponder)(ITuiFlexContainer *This, ITuiResponder *NextResponder);
+    BOOLEAN (ANXAPI *AcceptsFirstResponder)(ITuiFlexContainer *This);
+    HRESULT (ANXAPI *BecomeFirstResponder)(ITuiFlexContainer *This);
+    HRESULT (ANXAPI *ResignFirstResponder)(ITuiFlexContainer *This);
+
+    // ITuiWidget methods
     HRESULT (ANXAPI *SetBounds)(ITuiFlexContainer *This, CONST TUI_RECT *Bounds);
     HRESULT (ANXAPI *GetBounds)(ITuiFlexContainer *This, TUI_RECT *Bounds);
     HRESULT (ANXAPI *SetVisible)(ITuiFlexContainer *This, BOOLEAN Visible);
     BOOLEAN (ANXAPI *IsVisible)(ITuiFlexContainer *This);
     HRESULT (ANXAPI *SetEnabled)(ITuiFlexContainer *This, BOOLEAN Enabled);
     BOOLEAN (ANXAPI *IsEnabled)(ITuiFlexContainer *This);
-    HRESULT (ANXAPI *AddChild)(ITuiFlexContainer *This, VOID *Widget, UINT32 FlexGrow, UINT32 FlexShrink, INT32 FlexBasis);
-    HRESULT (ANXAPI *RemoveChild)(ITuiFlexContainer *This, VOID *Widget);
+    HRESULT (ANXAPI *SetParent)(ITuiFlexContainer *This, ITuiWidget *Parent);
+    HRESULT (ANXAPI *GetParent)(ITuiFlexContainer *This, ITuiWidget **Parent);
+    HRESULT (ANXAPI *AddChild)(ITuiFlexContainer *This, ITuiWidget *Child);
+    HRESULT (ANXAPI *RemoveChild)(ITuiFlexContainer *This, ITuiWidget *Child);
+    HRESULT (ANXAPI *SetNeedsDisplay)(ITuiFlexContainer *This, BOOLEAN Needed);
+
+    // ITuiThemedWidget methods
+    HRESULT (ANXAPI *ApplyTheme)(ITuiFlexContainer *This, ITuiTheme *Theme);
+    HRESULT (ANXAPI *GetColors)(ITuiFlexContainer *This, TUI_COLOR *Foreground, TUI_COLOR *Background);
+    HRESULT (ANXAPI *SetColors)(ITuiFlexContainer *This, TUI_COLOR Foreground, TUI_COLOR Background);
+    HRESULT (ANXAPI *OnMouseEvent)(ITuiFlexContainer *This, CONST TUI_MOUSE_EVENT *Event, BOOLEAN *Handled);
+    HRESULT (ANXAPI *OnKeyEvent)(ITuiFlexContainer *This, TUI_KEY Key, UINT32 Modifiers, BOOLEAN *Handled);
+    HRESULT (ANXAPI *Draw)(ITuiFlexContainer *This, ITuiSurface *Surface, CONST TUI_RECT *DirtyRect);
+
+    // ITuiThemedFlexContainer methods
+    HRESULT (ANXAPI *GetBorderColors)(ITuiFlexContainer *This, TUI_COLOR *Foreground, TUI_COLOR *Background);
+    HRESULT (ANXAPI *SetBorderColors)(ITuiFlexContainer *This, TUI_COLOR Foreground, TUI_COLOR Background);
+
+    // ITuiFlexContainer methods
+    HRESULT (ANXAPI *AddFlexChild)(ITuiFlexContainer *This, VOID *Widget, UINT32 FlexGrow, UINT32 FlexShrink, INT32 FlexBasis);
+    HRESULT (ANXAPI *RemoveFlexChild)(ITuiFlexContainer *This, VOID *Widget);
     HRESULT (ANXAPI *SetDirection)(ITuiFlexContainer *This, UINT32 Direction);
+    UINT32 (ANXAPI *GetDirection)(ITuiFlexContainer *This);
     HRESULT (ANXAPI *SetJustifyContent)(ITuiFlexContainer *This, UINT32 Justify);
+    UINT32 (ANXAPI *GetJustifyContent)(ITuiFlexContainer *This);
     HRESULT (ANXAPI *SetAlignItems)(ITuiFlexContainer *This, UINT32 Align);
+    UINT32 (ANXAPI *GetAlignItems)(ITuiFlexContainer *This);
     HRESULT (ANXAPI *SetGap)(ITuiFlexContainer *This, UINT32 Gap);
+    UINT32 (ANXAPI *GetGap)(ITuiFlexContainer *This);
     HRESULT (ANXAPI *SetPadding)(ITuiFlexContainer *This, UINT32 Top, UINT32 Right, UINT32 Bottom, UINT32 Left);
+    HRESULT (ANXAPI *GetPadding)(ITuiFlexContainer *This, UINT32 *Top, UINT32 *Right, UINT32 *Bottom, UINT32 *Left);
 } ITuiFlexContainer_Vtbl;
 
 struct _ITuiFlexContainer {
     CONST ITuiFlexContainer_Vtbl *Vtbl;
+};
+
+// {3C4D5E6F-7A8B-9C0D-1E2F-3A4B5C6D7E8F}
+DEFINE_GUID(IID_ITuiThemedVBox,
+    0x3C4D5E6F, 0x7A8B, 0x9C0D, 0x1E, 0x2F, 0x3A, 0x4B, 0x5C, 0x6D, 0x7E, 0x8F);
+
+/**
+  ITuiThemedVBox Interface
+
+  VBox theming interface. Inherits from ITuiThemedWidget.
+**/
+typedef struct _ITuiThemedVBox_Vtbl {
+    // ITuiSerializable methods
+    HRESULT (ANXAPI *QueryInterface)(ITuiThemedVBox *This, REFIID riid, VOID **ppvObject);
+    UINTN (ANXAPI *AddRef)(ITuiThemedVBox *This);
+    UINTN (ANXAPI *Release)(ITuiThemedVBox *This);
+    HRESULT (ANXAPI *SerializeToYaml)(ITuiThemedVBox *This, CHAR8 **OutYaml, UINTN *OutLength);
+    HRESULT (ANXAPI *DeserializeFromYaml)(ITuiThemedVBox *This, CONST CHAR8 *Yaml, UINTN Length);
+    HRESULT (ANXAPI *GetTypeName)(ITuiThemedVBox *This, CONST CHAR8 **OutTypeName);
+    HRESULT (ANXAPI *Clone)(ITuiThemedVBox *This, ITuiSerializable **OutClone);
+
+    // ITuiResponder methods
+    HRESULT (ANXAPI *GetNextResponder)(ITuiThemedVBox *This, ITuiResponder **NextResponder);
+    HRESULT (ANXAPI *SetNextResponder)(ITuiThemedVBox *This, ITuiResponder *NextResponder);
+    BOOLEAN (ANXAPI *AcceptsFirstResponder)(ITuiThemedVBox *This);
+    HRESULT (ANXAPI *BecomeFirstResponder)(ITuiThemedVBox *This);
+    HRESULT (ANXAPI *ResignFirstResponder)(ITuiThemedVBox *This);
+
+    // ITuiWidget methods
+    HRESULT (ANXAPI *SetBounds)(ITuiThemedVBox *This, CONST TUI_RECT *Bounds);
+    HRESULT (ANXAPI *GetBounds)(ITuiThemedVBox *This, TUI_RECT *Bounds);
+    HRESULT (ANXAPI *SetVisible)(ITuiThemedVBox *This, BOOLEAN Visible);
+    BOOLEAN (ANXAPI *IsVisible)(ITuiThemedVBox *This);
+    HRESULT (ANXAPI *SetEnabled)(ITuiThemedVBox *This, BOOLEAN Enabled);
+    BOOLEAN (ANXAPI *IsEnabled)(ITuiThemedVBox *This);
+    HRESULT (ANXAPI *SetParent)(ITuiThemedVBox *This, ITuiWidget *Parent);
+    HRESULT (ANXAPI *GetParent)(ITuiThemedVBox *This, ITuiWidget **Parent);
+    HRESULT (ANXAPI *AddChild)(ITuiThemedVBox *This, ITuiWidget *Child);
+    HRESULT (ANXAPI *RemoveChild)(ITuiThemedVBox *This, ITuiWidget *Child);
+    HRESULT (ANXAPI *SetNeedsDisplay)(ITuiThemedVBox *This, BOOLEAN Needed);
+
+    // ITuiThemedWidget methods
+    HRESULT (ANXAPI *ApplyTheme)(ITuiThemedVBox *This, ITuiTheme *Theme);
+    HRESULT (ANXAPI *GetColors)(ITuiThemedVBox *This, TUI_COLOR *Foreground, TUI_COLOR *Background);
+    HRESULT (ANXAPI *SetColors)(ITuiThemedVBox *This, TUI_COLOR Foreground, TUI_COLOR Background);
+    HRESULT (ANXAPI *OnMouseEvent)(ITuiThemedVBox *This, CONST TUI_MOUSE_EVENT *Event, BOOLEAN *Handled);
+    HRESULT (ANXAPI *OnKeyEvent)(ITuiThemedVBox *This, TUI_KEY Key, UINT32 Modifiers, BOOLEAN *Handled);
+    HRESULT (ANXAPI *Draw)(ITuiThemedVBox *This, ITuiSurface *Surface, CONST TUI_RECT *DirtyRect);
+
+    // ITuiThemedVBox methods
+    HRESULT (ANXAPI *GetSeparatorColors)(ITuiThemedVBox *This, TUI_COLOR *Foreground, TUI_COLOR *Background);
+    HRESULT (ANXAPI *SetSeparatorColors)(ITuiThemedVBox *This, TUI_COLOR Foreground, TUI_COLOR Background);
+} ITuiThemedVBox_Vtbl;
+
+struct _ITuiThemedVBox {
+    CONST ITuiThemedVBox_Vtbl *Vtbl;
 };
 
 // {A0B1C2D3-4E5F-6A7B-8C9D-0E1F2A3B4C5D}
@@ -5482,25 +5689,116 @@ DEFINE_GUID(IID_ITuiVBox,
   ITuiVBox Interface
 
   Vertical box container for simple top-to-bottom stacking.
+  Inherits from ITuiThemedVBox.
 **/
 typedef struct _ITuiVBox_Vtbl {
+    // ITuiSerializable methods
     HRESULT (ANXAPI *QueryInterface)(ITuiVBox *This, REFIID riid, VOID **ppvObject);
     UINTN (ANXAPI *AddRef)(ITuiVBox *This);
     UINTN (ANXAPI *Release)(ITuiVBox *This);
-    HRESULT (ANXAPI *Render)(ITuiVBox *This, ITuiScreen *Screen, INT32 X, INT32 Y);
+    HRESULT (ANXAPI *SerializeToYaml)(ITuiVBox *This, CHAR8 **OutYaml, UINTN *OutLength);
+    HRESULT (ANXAPI *DeserializeFromYaml)(ITuiVBox *This, CONST CHAR8 *Yaml, UINTN Length);
+    HRESULT (ANXAPI *GetTypeName)(ITuiVBox *This, CONST CHAR8 **OutTypeName);
+    HRESULT (ANXAPI *Clone)(ITuiVBox *This, ITuiSerializable **OutClone);
+
+    // ITuiResponder methods
+    HRESULT (ANXAPI *GetNextResponder)(ITuiVBox *This, ITuiResponder **NextResponder);
+    HRESULT (ANXAPI *SetNextResponder)(ITuiVBox *This, ITuiResponder *NextResponder);
+    BOOLEAN (ANXAPI *AcceptsFirstResponder)(ITuiVBox *This);
+    HRESULT (ANXAPI *BecomeFirstResponder)(ITuiVBox *This);
+    HRESULT (ANXAPI *ResignFirstResponder)(ITuiVBox *This);
+
+    // ITuiWidget methods
     HRESULT (ANXAPI *SetBounds)(ITuiVBox *This, CONST TUI_RECT *Bounds);
     HRESULT (ANXAPI *GetBounds)(ITuiVBox *This, TUI_RECT *Bounds);
     HRESULT (ANXAPI *SetVisible)(ITuiVBox *This, BOOLEAN Visible);
     BOOLEAN (ANXAPI *IsVisible)(ITuiVBox *This);
     HRESULT (ANXAPI *SetEnabled)(ITuiVBox *This, BOOLEAN Enabled);
     BOOLEAN (ANXAPI *IsEnabled)(ITuiVBox *This);
+    HRESULT (ANXAPI *SetParent)(ITuiVBox *This, ITuiWidget *Parent);
+    HRESULT (ANXAPI *GetParent)(ITuiVBox *This, ITuiWidget **Parent);
+    HRESULT (ANXAPI *AddChild)(ITuiVBox *This, ITuiWidget *Child);
+    HRESULT (ANXAPI *RemoveChild)(ITuiVBox *This, ITuiWidget *Child);
+    HRESULT (ANXAPI *SetNeedsDisplay)(ITuiVBox *This, BOOLEAN Needed);
+
+    // ITuiThemedWidget methods
+    HRESULT (ANXAPI *ApplyTheme)(ITuiVBox *This, ITuiTheme *Theme);
+    HRESULT (ANXAPI *GetColors)(ITuiVBox *This, TUI_COLOR *Foreground, TUI_COLOR *Background);
+    HRESULT (ANXAPI *SetColors)(ITuiVBox *This, TUI_COLOR Foreground, TUI_COLOR Background);
+    HRESULT (ANXAPI *OnMouseEvent)(ITuiVBox *This, CONST TUI_MOUSE_EVENT *Event, BOOLEAN *Handled);
+    HRESULT (ANXAPI *OnKeyEvent)(ITuiVBox *This, TUI_KEY Key, UINT32 Modifiers, BOOLEAN *Handled);
+    HRESULT (ANXAPI *Draw)(ITuiVBox *This, ITuiSurface *Surface, CONST TUI_RECT *DirtyRect);
+
+    // ITuiThemedVBox methods
+    HRESULT (ANXAPI *GetSeparatorColors)(ITuiVBox *This, TUI_COLOR *Foreground, TUI_COLOR *Background);
+    HRESULT (ANXAPI *SetSeparatorColors)(ITuiVBox *This, TUI_COLOR Foreground, TUI_COLOR Background);
+
+    // ITuiVBox methods
     HRESULT (ANXAPI *PackStart)(ITuiVBox *This, VOID *Widget, BOOLEAN Expand, BOOLEAN Fill, UINT32 Padding);
     HRESULT (ANXAPI *SetSpacing)(ITuiVBox *This, UINT32 Spacing);
+    UINT32 (ANXAPI *GetSpacing)(ITuiVBox *This);
     HRESULT (ANXAPI *SetHomogeneous)(ITuiVBox *This, BOOLEAN Homogeneous);
+    BOOLEAN (ANXAPI *GetHomogeneous)(ITuiVBox *This);
 } ITuiVBox_Vtbl;
 
 struct _ITuiVBox {
     CONST ITuiVBox_Vtbl *Vtbl;
+};
+
+// {4D5E6F7A-8B9C-0D1E-2F3A-4B5C6D7E8F9A}
+DEFINE_GUID(IID_ITuiThemedHBox,
+    0x4D5E6F7A, 0x8B9C, 0x0D1E, 0x2F, 0x3A, 0x4B, 0x5C, 0x6D, 0x7E, 0x8F, 0x9A);
+
+/**
+  ITuiThemedHBox Interface
+
+  HBox theming interface. Inherits from ITuiThemedWidget.
+**/
+typedef struct _ITuiThemedHBox_Vtbl {
+    // ITuiSerializable methods
+    HRESULT (ANXAPI *QueryInterface)(ITuiThemedHBox *This, REFIID riid, VOID **ppvObject);
+    UINTN (ANXAPI *AddRef)(ITuiThemedHBox *This);
+    UINTN (ANXAPI *Release)(ITuiThemedHBox *This);
+    HRESULT (ANXAPI *SerializeToYaml)(ITuiThemedHBox *This, CHAR8 **OutYaml, UINTN *OutLength);
+    HRESULT (ANXAPI *DeserializeFromYaml)(ITuiThemedHBox *This, CONST CHAR8 *Yaml, UINTN Length);
+    HRESULT (ANXAPI *GetTypeName)(ITuiThemedHBox *This, CONST CHAR8 **OutTypeName);
+    HRESULT (ANXAPI *Clone)(ITuiThemedHBox *This, ITuiSerializable **OutClone);
+
+    // ITuiResponder methods
+    HRESULT (ANXAPI *GetNextResponder)(ITuiThemedHBox *This, ITuiResponder **NextResponder);
+    HRESULT (ANXAPI *SetNextResponder)(ITuiThemedHBox *This, ITuiResponder *NextResponder);
+    BOOLEAN (ANXAPI *AcceptsFirstResponder)(ITuiThemedHBox *This);
+    HRESULT (ANXAPI *BecomeFirstResponder)(ITuiThemedHBox *This);
+    HRESULT (ANXAPI *ResignFirstResponder)(ITuiThemedHBox *This);
+
+    // ITuiWidget methods
+    HRESULT (ANXAPI *SetBounds)(ITuiThemedHBox *This, CONST TUI_RECT *Bounds);
+    HRESULT (ANXAPI *GetBounds)(ITuiThemedHBox *This, TUI_RECT *Bounds);
+    HRESULT (ANXAPI *SetVisible)(ITuiThemedHBox *This, BOOLEAN Visible);
+    BOOLEAN (ANXAPI *IsVisible)(ITuiThemedHBox *This);
+    HRESULT (ANXAPI *SetEnabled)(ITuiThemedHBox *This, BOOLEAN Enabled);
+    BOOLEAN (ANXAPI *IsEnabled)(ITuiThemedHBox *This);
+    HRESULT (ANXAPI *SetParent)(ITuiThemedHBox *This, ITuiWidget *Parent);
+    HRESULT (ANXAPI *GetParent)(ITuiThemedHBox *This, ITuiWidget **Parent);
+    HRESULT (ANXAPI *AddChild)(ITuiThemedHBox *This, ITuiWidget *Child);
+    HRESULT (ANXAPI *RemoveChild)(ITuiThemedHBox *This, ITuiWidget *Child);
+    HRESULT (ANXAPI *SetNeedsDisplay)(ITuiThemedHBox *This, BOOLEAN Needed);
+
+    // ITuiThemedWidget methods
+    HRESULT (ANXAPI *ApplyTheme)(ITuiThemedHBox *This, ITuiTheme *Theme);
+    HRESULT (ANXAPI *GetColors)(ITuiThemedHBox *This, TUI_COLOR *Foreground, TUI_COLOR *Background);
+    HRESULT (ANXAPI *SetColors)(ITuiThemedHBox *This, TUI_COLOR Foreground, TUI_COLOR Background);
+    HRESULT (ANXAPI *OnMouseEvent)(ITuiThemedHBox *This, CONST TUI_MOUSE_EVENT *Event, BOOLEAN *Handled);
+    HRESULT (ANXAPI *OnKeyEvent)(ITuiThemedHBox *This, TUI_KEY Key, UINT32 Modifiers, BOOLEAN *Handled);
+    HRESULT (ANXAPI *Draw)(ITuiThemedHBox *This, ITuiSurface *Surface, CONST TUI_RECT *DirtyRect);
+
+    // ITuiThemedHBox methods
+    HRESULT (ANXAPI *GetSeparatorColors)(ITuiThemedHBox *This, TUI_COLOR *Foreground, TUI_COLOR *Background);
+    HRESULT (ANXAPI *SetSeparatorColors)(ITuiThemedHBox *This, TUI_COLOR Foreground, TUI_COLOR Background);
+} ITuiThemedHBox_Vtbl;
+
+struct _ITuiThemedHBox {
+    CONST ITuiThemedHBox_Vtbl *Vtbl;
 };
 
 // {B1C2D3E4-5F6A-7B8C-9D0E-1F2A3B4C5D6E}
@@ -5511,21 +5809,56 @@ DEFINE_GUID(IID_ITuiHBox,
   ITuiHBox Interface
 
   Horizontal box container for simple left-to-right stacking.
+  Inherits from ITuiThemedHBox.
 **/
 typedef struct _ITuiHBox_Vtbl {
+    // ITuiSerializable methods
     HRESULT (ANXAPI *QueryInterface)(ITuiHBox *This, REFIID riid, VOID **ppvObject);
     UINTN (ANXAPI *AddRef)(ITuiHBox *This);
     UINTN (ANXAPI *Release)(ITuiHBox *This);
-    HRESULT (ANXAPI *Render)(ITuiHBox *This, ITuiScreen *Screen, INT32 X, INT32 Y);
+    HRESULT (ANXAPI *SerializeToYaml)(ITuiHBox *This, CHAR8 **OutYaml, UINTN *OutLength);
+    HRESULT (ANXAPI *DeserializeFromYaml)(ITuiHBox *This, CONST CHAR8 *Yaml, UINTN Length);
+    HRESULT (ANXAPI *GetTypeName)(ITuiHBox *This, CONST CHAR8 **OutTypeName);
+    HRESULT (ANXAPI *Clone)(ITuiHBox *This, ITuiSerializable **OutClone);
+
+    // ITuiResponder methods
+    HRESULT (ANXAPI *GetNextResponder)(ITuiHBox *This, ITuiResponder **NextResponder);
+    HRESULT (ANXAPI *SetNextResponder)(ITuiHBox *This, ITuiResponder *NextResponder);
+    BOOLEAN (ANXAPI *AcceptsFirstResponder)(ITuiHBox *This);
+    HRESULT (ANXAPI *BecomeFirstResponder)(ITuiHBox *This);
+    HRESULT (ANXAPI *ResignFirstResponder)(ITuiHBox *This);
+
+    // ITuiWidget methods
     HRESULT (ANXAPI *SetBounds)(ITuiHBox *This, CONST TUI_RECT *Bounds);
     HRESULT (ANXAPI *GetBounds)(ITuiHBox *This, TUI_RECT *Bounds);
     HRESULT (ANXAPI *SetVisible)(ITuiHBox *This, BOOLEAN Visible);
     BOOLEAN (ANXAPI *IsVisible)(ITuiHBox *This);
     HRESULT (ANXAPI *SetEnabled)(ITuiHBox *This, BOOLEAN Enabled);
     BOOLEAN (ANXAPI *IsEnabled)(ITuiHBox *This);
+    HRESULT (ANXAPI *SetParent)(ITuiHBox *This, ITuiWidget *Parent);
+    HRESULT (ANXAPI *GetParent)(ITuiHBox *This, ITuiWidget **Parent);
+    HRESULT (ANXAPI *AddChild)(ITuiHBox *This, ITuiWidget *Child);
+    HRESULT (ANXAPI *RemoveChild)(ITuiHBox *This, ITuiWidget *Child);
+    HRESULT (ANXAPI *SetNeedsDisplay)(ITuiHBox *This, BOOLEAN Needed);
+
+    // ITuiThemedWidget methods
+    HRESULT (ANXAPI *ApplyTheme)(ITuiHBox *This, ITuiTheme *Theme);
+    HRESULT (ANXAPI *GetColors)(ITuiHBox *This, TUI_COLOR *Foreground, TUI_COLOR *Background);
+    HRESULT (ANXAPI *SetColors)(ITuiHBox *This, TUI_COLOR Foreground, TUI_COLOR Background);
+    HRESULT (ANXAPI *OnMouseEvent)(ITuiHBox *This, CONST TUI_MOUSE_EVENT *Event, BOOLEAN *Handled);
+    HRESULT (ANXAPI *OnKeyEvent)(ITuiHBox *This, TUI_KEY Key, UINT32 Modifiers, BOOLEAN *Handled);
+    HRESULT (ANXAPI *Draw)(ITuiHBox *This, ITuiSurface *Surface, CONST TUI_RECT *DirtyRect);
+
+    // ITuiThemedHBox methods
+    HRESULT (ANXAPI *GetSeparatorColors)(ITuiHBox *This, TUI_COLOR *Foreground, TUI_COLOR *Background);
+    HRESULT (ANXAPI *SetSeparatorColors)(ITuiHBox *This, TUI_COLOR Foreground, TUI_COLOR Background);
+
+    // ITuiHBox methods
     HRESULT (ANXAPI *PackStart)(ITuiHBox *This, VOID *Widget, BOOLEAN Expand, BOOLEAN Fill, UINT32 Padding);
     HRESULT (ANXAPI *SetSpacing)(ITuiHBox *This, UINT32 Spacing);
+    UINT32 (ANXAPI *GetSpacing)(ITuiHBox *This);
     HRESULT (ANXAPI *SetHomogeneous)(ITuiHBox *This, BOOLEAN Homogeneous);
+    BOOLEAN (ANXAPI *GetHomogeneous)(ITuiHBox *This);
 } ITuiHBox_Vtbl;
 
 struct _ITuiHBox {
