@@ -25,26 +25,26 @@ typedef struct _MINIMAL_ELF_HEADER {
 ANX_PACK_POP()
 
 /**
-  Load image using IMGLOADER COM interface.
+  Load executable image using IMGLOADER COM interface.
 
-  Wrapper function that uses the COM-based IMGLOADER interface to
-  load executable images in any supported format (ELF, PE, LE/LX, etc).
+  Uses the COM-based IMGLOADER interface to load executable images
+  in any supported format (ELF, PE, LE/LX, Mach-O, etc). Automatically
+  detects format and bitness (32-bit vs 64-bit).
 
   @param[in] ImageBase  Pointer to image in memory.
-  @param[in] ImageSize  Size of image in bytes.
   @param[in] IsUserMode TRUE for user-space, FALSE for kernel.
 
   @return Entry point virtual address, or -1 on error.
 **/
 VIRTUAL_ADDRESS
-LoadImage (
+LoadExecutable (
   IN VOID     *ImageBase,
-  IN UINTN    ImageSize,
   IN BOOLEAN  IsUserMode
   )
 {
   IMGLOAD_CONTEXT Context;
   HRESULT Status;
+  UINTN ImageSize = 64 * 1024 * 1024; // Assume 64MB max for detection
 
   // Initialize load context
   memset(&Context, 0, sizeof(Context));
@@ -52,7 +52,7 @@ LoadImage (
   Context.ImageSize = ImageSize;
   Context.IsUserMode = IsUserMode;
 
-  // Use COM interface to load image
+  // Use COM interface to load image (handles format/bitness detection)
   Status = ImageLoad(&Context);
   if (FAILED(Status)) {
     printf("Failed to load image: HRESULT 0x%08x\n", Status);
@@ -60,54 +60,6 @@ LoadImage (
   }
 
   return Context.EntryPoint;
-}
-
-/**
-  Load 32-bit ELF image (legacy wrapper).
-
-  Wrapper for backward compatibility. Internally uses the COM-based
-  IMGLOADER interface.
-
-  @param[in] ElfImage  Pointer to ELF image.
-  @param[in] User      TRUE for user-space, FALSE for kernel.
-
-  @return Entry point virtual address, or -1 on error.
-**/
-VIRTUAL_ADDRESS
-LoadImage32 (
-  IN VOID    *ElfImage,
-  IN INT32   User
-  )
-{
-  // Assume a reasonable default image size for legacy callers
-  // The loader will validate the actual size during detection
-  UINTN ImageSize = 64 * 1024 * 1024; // 64MB max
-
-  return LoadImage(ElfImage, ImageSize, (BOOLEAN)User);
-}
-
-/**
-  Load 64-bit ELF image (legacy wrapper).
-
-  Wrapper for backward compatibility. Internally uses the COM-based
-  IMGLOADER interface.
-
-  @param[in] ElfImage  Pointer to ELF image.
-  @param[in] User      TRUE for user-space, FALSE for kernel.
-
-  @return Entry point virtual address, or -1 on error.
-**/
-VIRTUAL_ADDRESS
-LoadImage64 (
-  IN VOID    *ElfImage,
-  IN INT32   User
-  )
-{
-  // Assume a reasonable default image size for legacy callers
-  // The loader will validate the actual size during detection
-  UINTN ImageSize = 64 * 1024 * 1024; // 64MB max
-
-  return LoadImage(ElfImage, ImageSize, (BOOLEAN)User);
 }
 
 /**

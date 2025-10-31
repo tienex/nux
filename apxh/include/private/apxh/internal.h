@@ -324,9 +324,9 @@ typedef enum _PAYLOAD_ID
 VOID *GetPayloadStart (IN INT32 ArgumentCount, IN char *ArgumentVector[], IN PAYLOAD_ID PayloadId);
 UINTN GetPayloadSize (IN PAYLOAD_ID PayloadId);
 
-ARCH GetImageArch (IN VOID *ElfImage);
-VIRTUAL_ADDRESS LoadImage32 (IN VOID *ElfImage, IN INT32 IsUserMode);
-VIRTUAL_ADDRESS LoadImage64 (IN VOID *ElfImage, IN INT32 IsUserMode);
+// Image Loading (imgload.c)
+ARCH GetImageArch (IN VOID *ImageBase);
+VIRTUAL_ADDRESS LoadExecutable (IN VOID *ImageBase, IN BOOLEAN IsUserMode);
 
 UINTN GetPage (VOID);
 UINTN GetPayloadPage (VOID);

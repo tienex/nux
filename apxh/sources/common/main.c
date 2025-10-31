@@ -1113,30 +1113,34 @@ main (
   ElfStart = GetPayloadStart (ArgumentCount, ArgumentVector, PayloadKernel);
   ElfSize = GetPayloadSize (PayloadKernel);
   gElfArch = GetImageArch (ElfStart);
-  printf ("Kernel payload %s ELF at addr %p (%d bytes)\n",
+  printf ("Kernel payload %s at addr %p (%d bytes)\n",
 	  GetArchName (gElfArch), ElfStart, ElfSize);
 
-  VasInitialize ();
-
+  // Verify architecture is supported before initializing VAS
   switch (gElfArch)
     {
 #if EC_MACHINE_I386 || EC_MACHINE_AMD64
     case Arch386:
-      KEntry = LoadImage32 (ElfStart, 0);
-      break;
     case ArchAmd64:
-      KEntry = LoadImage64 (ElfStart, 0);
       break;
 #endif
 #if EC_MACHINE_RISCV64
     case ArchRiscV64:
-      KEntry = LoadImage64 (ElfStart, 0);
       break;
 #endif
     default:
-      printf ("Unsupported ELF architecture");
+      printf ("Unsupported architecture for this platform");
       exit (-1);
     }
+
+  VasInitialize ();
+
+  // Load kernel image (format and bitness detected automatically)
+  KEntry = LoadExecutable (ElfStart, FALSE);
+  if (KEntry == (VIRTUAL_ADDRESS)-1) {
+    printf ("Failed to load kernel image");
+    exit (-1);
+  }
 
   printf ("Kernel entry: %llx\n", KEntry);
 
@@ -1148,28 +1152,15 @@ main (
   if (ElfStart != NULL && ElfSize != 0)
     {
       gElfArch = GetImageArch (ElfStart);
-      printf ("User payload %s ELF at addr %p (%d bytes)\n",
+      printf ("User payload %s at addr %p (%d bytes)\n",
 	      GetArchName (gElfArch), ElfStart, ElfSize);
 
-      switch (gElfArch)
-	{
-#if EC_MACHINE_I386 || EC_MACHINE_AMD64
-	case Arch386:
-	  UEntry = LoadImage32 (ElfStart, 1);
-	  break;
-	case ArchAmd64:
-	  UEntry = LoadImage64 (ElfStart, 1);
-	  break;
-#endif
-#if EC_MACHINE_RISCV64
-	case ArchRiscV64:
-	  UEntry = LoadImage64 (ElfStart, 1);
-	  break;
-#endif
-	default:
-	  printf ("Unsupported ELF architecture");
-	  exit (-1);
-	}
+      // Load user image (format and bitness detected automatically)
+      UEntry = LoadExecutable (ElfStart, TRUE);
+      if (UEntry == (VIRTUAL_ADDRESS)-1) {
+        printf ("Failed to load user image");
+        exit (-1);
+      }
       printf ("User entry: %llx\n", UEntry);
     }
   else
