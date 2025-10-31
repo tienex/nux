@@ -163,3 +163,53 @@
 #   define ANX_LIKELY(x)               (x)
 #   define ANX_UNLIKELY(x)             (x)
 #endif
+
+/* --------------------------------------------------------------- */
+/*  Extended attributes for more advanced use cases.               */
+/* --------------------------------------------------------------- */
+
+#undef ANX_ATTR_USED
+#undef ANX_ATTR_UNUSED
+#undef ANX_ATTR_ALIAS
+#undef ANX_ATTR_WEAKREF
+#undef ANX_ATTR_WEAK
+#undef ANX_ATTR_CONSTRUCTOR
+#undef ANX_ATTR_DESTRUCTOR
+#undef ANX_ATTR_VISIBILITY
+#undef ANX_ATTR_MODE
+#undef ANX_PACKED
+
+#if defined(__GNUC__) || defined(__clang__)
+#   define ANX_ATTR_USED               __attribute__((__used__))
+#   define ANX_ATTR_UNUSED             __attribute__((__unused__))
+#   define ANX_ATTR_ALIAS(target)      __attribute__((__alias__(target)))
+#   define ANX_ATTR_WEAKREF(target)    __attribute__((__weakref__(target)))
+#   define ANX_ATTR_WEAK               __attribute__((__weak__))
+#   define ANX_ATTR_CONSTRUCTOR        __attribute__((__constructor__))
+#   define ANX_ATTR_DESTRUCTOR         __attribute__((__destructor__))
+#   define ANX_ATTR_VISIBILITY(v)      __attribute__((__visibility__(v)))
+#   define ANX_ATTR_MODE(m)            __attribute__((__mode__(m)))
+#   define ANX_PACKED                  __attribute__((__packed__))
+#elif defined(_MSC_VER)
+#   define ANX_ATTR_USED               /* MSVC keeps all non-static symbols */
+#   define ANX_ATTR_UNUSED             /* no equivalent */
+#   define ANX_ATTR_ALIAS(target)      /* use #pragma comment(linker, "/alternatename:...") */
+#   define ANX_ATTR_WEAKREF(target)    /* no equivalent */
+#   define ANX_ATTR_WEAK               __declspec(selectany)
+#   define ANX_ATTR_CONSTRUCTOR        /* use .CRT$XCU section or manual init */
+#   define ANX_ATTR_DESTRUCTOR         /* use .CRT$XPU section or manual deinit */
+#   define ANX_ATTR_VISIBILITY(v)      /* use __declspec(dllexport/dllimport) */
+#   define ANX_ATTR_MODE(m)            /* no equivalent */
+#   define ANX_PACKED                  /* use #pragma pack instead */
+#else
+#   define ANX_ATTR_USED
+#   define ANX_ATTR_UNUSED
+#   define ANX_ATTR_ALIAS(target)
+#   define ANX_ATTR_WEAKREF(target)
+#   define ANX_ATTR_WEAK
+#   define ANX_ATTR_CONSTRUCTOR
+#   define ANX_ATTR_DESTRUCTOR
+#   define ANX_ATTR_VISIBILITY(v)
+#   define ANX_ATTR_MODE(m)
+#   define ANX_PACKED
+#endif

@@ -14,7 +14,7 @@
 
 static ARCH gElfArch;
 static UINT8 gBootPagemap[PAGEMAP_SZ (BOOTMEM)]
-  __attribute__((aligned (4096)));
+  ANX_ATTR_ALIGN(4096);
 static VIRTUAL_ADDRESS gReqPfnmapVa, gReqInfoVa, gReqBatreeVa, gReqRegionVa,
   gKtlsVa, gUtlsVa;
 static SIZE64 gReqPfnmapSize, gReqInfoSize, gReqBatreeSize,

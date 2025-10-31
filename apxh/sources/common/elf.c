@@ -81,7 +81,7 @@ typedef struct elf32hdr
   UINT16 ShentSize;
   UINT16 Shs;
   UINT16 Shstrndx;
-} __packed ELF32_HDR;
+} ANX_PACKED ELF32_HDR;
 
 typedef struct elf64hdr
 {
@@ -99,7 +99,7 @@ typedef struct elf64hdr
   UINT16 ShentSize;
   UINT16 Shs;
   UINT16 Shstrndx;
-} __packed ELF64_HDR;
+} ANX_PACKED ELF64_HDR;
 
 #define ET_EXEC		2
 #define EM_386		3

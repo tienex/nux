@@ -61,7 +61,7 @@ PfnCacheFill (
      Save the new TLB generation target for pfn cache.
    */
   TlbGen = KtlbGenNormal ();
-  __atomic_store (&gPfncTlbGen, &TlbGen, __ATOMIC_RELEASE);
+  ANX_ATOMIC_STORE (&gPfncTlbGen, &TlbGen, __ATOMIC_RELEASE);
 }
 
 /**
@@ -91,7 +91,7 @@ PfnGet (
   Slot = CacheGet (&gCache, Pfn);
 
   /* Update tlb if we have stale entries in our PFN cache. */
-  __atomic_load (&gPfncTlbGen, &Target, __ATOMIC_ACQUIRE);
+  ANX_ATOMIC_LOAD (&gPfncTlbGen, &Target, __ATOMIC_ACQUIRE);
   CpuKtlbReach (Target);
   return (VOID *) gPfnCacheBase + (Slot << PAGE_SHIFT);
 }

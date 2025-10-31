@@ -721,12 +721,12 @@ VOID kmeminit (VOID) {
 }
 
 // Legacy global variable aliases
-static SPINLOCK brklock __attribute__((alias("gBrkLock")));
-static VIRTUAL_ADDRESS base[2] __attribute__((alias("gBase")));
-static VIRTUAL_ADDRESS brk[2] __attribute__((alias("gBrk")));
-static VIRTUAL_ADDRESS maxbrk[2] __attribute__((alias("gMaxBrk")));
+static SPINLOCK brklock ANX_ATTR_ALIAS("gBrkLock");
+static VIRTUAL_ADDRESS base[2] ANX_ATTR_ALIAS("gBase");
+static VIRTUAL_ADDRESS brk[2] ANX_ATTR_ALIAS("gBrk");
+static VIRTUAL_ADDRESS maxbrk[2] ANX_ATTR_ALIAS("gMaxBrk");
 #ifdef HAL_PAGED
-static int kmem_trim __attribute__((alias("gKmemTrim")));
+static int kmem_trim ANX_ATTR_ALIAS("gKmemTrim");
 #endif
-static SPINLOCK lockz[2] __attribute__((alias("gLockZ")));
-static struct zone kmemz[2] __attribute__((alias("gKmemZ")));
+static SPINLOCK lockz[2] ANX_ATTR_ALIAS("gLockZ");
+static struct zone kmemz[2] ANX_ATTR_ALIAS("gKmemZ");

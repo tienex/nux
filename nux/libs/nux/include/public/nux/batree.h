@@ -73,20 +73,20 @@
 
 #ifdef BATREE_USE_INT
 #define WORDSIZE WORD_BIT
-#define ctz(_x)   __builtin_ctz(_x)
-#define clz(_x)   __builtin_clz(_x)
+#define ctz(_x)   ANX_CTZ32(_x)
+#define clz(_x)   ANX_CLZ32(_x)
 #endif
 
 #ifdef BATREE_USE_LONG
 #define WORDSIZE LONG_BIT
-#define ctz(_x)   __builtin_ctzl(_x)
-#define clz(_x)   __builtin_clzl(_x)
+#define ctz(_x)   ANX_CTZL(_x)
+#define clz(_x)   ANX_CLZL(_x)
 #endif
 
 #ifdef BATREE_USE_LONG_LONG
 #define WORDSIZE  64
-#define ctz(_x)   __builtin_ctzll(_x)
-#define clz(_x)   __builtin_clzll(_x)
+#define ctz(_x)   ANX_CTZ64(_x)
+#define clz(_x)   ANX_CLZ64(_x)
 #endif
 
 #ifndef WORDSIZE
@@ -97,14 +97,14 @@
 #define WORD_T    UINT8
 #define WORDLOG2  3
 #define WORDMASK  0x7
-#define ctz(_x)   (__builtin_ctz(_x))
-#define clz(_x)   (__builtin_clz(_x) - WORD_BIT + 8)
+#define ctz(_x)   (ANX_CTZ32(_x))
+#define clz(_x)   (ANX_CLZ32(_x) - WORD_BIT + 8)
 #elif WORDSIZE==16
 #define WORD_T    UINT16
 #define WORDLOG2  4
 #define WORDMASK  0xf
-#define ctz(_x)   (__builtin_ctz(_x))
-#define clz(_x)   (__builtin_clz(_x) - WORD_BIT + 16)
+#define ctz(_x)   (ANX_CTZ32(_x))
+#define clz(_x)   (ANX_CLZ32(_x) - WORD_BIT + 16)
 #elif WORDSIZE==32
 #define WORD_T    UINT32
 #define WORDLOG2  5
@@ -120,8 +120,8 @@
 #define CEIL_DIV(_n,_d) (((_n) + (_d) - 1)/(_d))
 #define LOGWORD(_x) (((_x) + (WORDLOG2-1)) / WORDLOG2)
 
-//#define clz(_x) __builtin_clz(_x)
-//#define ctz(_x) __builtin_ctz(_x)
+//#define clz(_x) ANX_CLZ32(_x)
+//#define ctz(_x) ANX_CTZ32(_x)
 
 /*
   The size of a searcheable bitmap.
@@ -150,11 +150,11 @@
 static INLINE UINTN
 BatreeOrder (UINTN N)
 {
-  long Log2N = (LONG_BIT - 1 - __builtin_clzl ((long) N));
+  long Log2N = (LONG_BIT - 1 - ANX_CLZL ((long) N));
   long R = Log2N;
 
   /* Is the number a power of two? If not, add 1 */
-  R += __builtin_popcount (N) > 1 ? 1 : 0;
+  R += ANX_POPCOUNT32 (N) > 1 ? 1 : 0;
 
   return R;
 }
@@ -309,7 +309,7 @@ BatreeCount (WORD_T *Batree, UINT32 O)
 
   for (INT32 i = 0; i < (1LL << O); i += (1 << WORDLOG2))
     {
-      Size += __builtin_popcountl (Lmap[i >> WORDLOG2]);
+      Size += ANX_POPCOUNTL (Lmap[i >> WORDLOG2]);
     }
 
   return Size;

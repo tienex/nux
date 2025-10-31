@@ -86,7 +86,7 @@ struct i386_tss
   UINT16 gs, tmp9;
   UINT16 ldt, tmpA;
   UINT16 t_flag, iomap;
-} __packed;
+} ANX_PACKED;
 
 struct hal_cpu
 {
@@ -128,7 +128,7 @@ struct hal_frame
   UINT32 eflags;
   UINT32 esp;
   UINT32 ss;
-} __packed;
+} ANX_PACKED;
 
 
 #endif

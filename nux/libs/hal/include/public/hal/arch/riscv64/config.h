@@ -115,7 +115,7 @@ struct hal_frame
   unsigned INTN gp;
   unsigned INTN sp;
   unsigned INTN ra;
-} __packed;
+} ANX_PACKED;
 
 
 #endif

@@ -481,9 +481,9 @@ VOID kvainit (VOID) {
 }
 
 // Legacy global variable aliases
-static rb_tree_t vmap_rbtree __attribute__((alias("gVmapRbTree")));
-static VIRTUAL_ADDRESS kvabase __attribute__((alias("gKvaBase")));
-static UINTN kvasize __attribute__((alias("gKvaSize")));
-static UINTN vmap_size __attribute__((alias("gVmapSize")));
-static SPINLOCK vmap_lock __attribute__((alias("gVmapLock")));
-static struct zone vmap_zone __attribute__((alias("gVmapZone")));
+static rb_tree_t vmap_rbtree ANX_ATTR_ALIAS("gVmapRbTree");
+static VIRTUAL_ADDRESS kvabase ANX_ATTR_ALIAS("gKvaBase");
+static UINTN kvasize ANX_ATTR_ALIAS("gKvaSize");
+static UINTN vmap_size ANX_ATTR_ALIAS("gVmapSize");
+static SPINLOCK vmap_lock ANX_ATTR_ALIAS("gVmapLock");
+static struct zone vmap_zone ANX_ATTR_ALIAS("gVmapZone");

@@ -29,7 +29,7 @@ typedef struct _ACPI_RSDP_THDR
   UINT64 Xsdt;
   UINT8 XChecksum;
   UINT8 Reserved[3];
-} __packed ACPI_RSDP_THDR;
+} ANX_PACKED ACPI_RSDP_THDR;
 
 
 /**

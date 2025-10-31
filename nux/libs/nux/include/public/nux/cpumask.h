@@ -34,7 +34,7 @@ AtomicCpuMaskSet (
   IN     UINTN     CpuId
   )
 {
-  __sync_fetch_and_or (CpuMask, (CPU_MASK)1 << CpuId);
+  ANX_SYNC_FETCH_AND_OR (CpuMask, (CPU_MASK)1 << CpuId);
 }
 
 /**
@@ -52,7 +52,7 @@ AtomicCpuMaskAnd (
   IN     CPU_MASK  Mask
   )
 {
-  __sync_fetch_and_and (CpuMask, Mask);
+  ANX_SYNC_FETCH_AND_AND (CpuMask, Mask);
 }
 
 /**
@@ -91,7 +91,7 @@ AtomicCpuMaskRead (
   IN CPU_MASK  *CpuMask
   )
 {
-  return __sync_add_and_fetch (CpuMask, 0);
+  return ANX_SYNC_ADD_AND_FETCH (CpuMask, 0);
 }
 
 //

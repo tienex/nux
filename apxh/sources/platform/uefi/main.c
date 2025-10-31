@@ -168,7 +168,7 @@ EfiGetFramebuffer (
 
 	Mask = (RMask | GMask | BMask
 		| Info->PixelInformation.ReservedMask);
-	Bpp = __builtin_popcountl ((long) Mask);
+	Bpp = ANX_POPCOUNTL ((long) Mask);
 	break;
       }
     case PixelBltOnly:

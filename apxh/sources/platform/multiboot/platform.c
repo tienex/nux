@@ -465,7 +465,7 @@ PlatformVerify (
     }
 }
 
-static UINT64 gPae64Gdt[3] __attribute__((aligned (64))) = {
+static UINT64 gPae64Gdt[3] ANX_ATTR_ALIGN(64) = {
   0,
   0x00a09a0000000000LL,
 };
@@ -474,7 +474,7 @@ typedef struct _GDTREG
 {
   UINT16 Size;
   UINT32 Base;
-} __attribute__((aligned (64))) __packed GDTREG;
+} ANX_ATTR_ALIGN(64) ANX_PACKED GDTREG;
 
 static GDTREG gGdtReg = {
   .Size = 15,

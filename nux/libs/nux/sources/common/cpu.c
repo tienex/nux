@@ -517,8 +517,8 @@ CpuKernelTlbUpdate (
   CPU_INFO *Ci = CpuGetCurrentInfo ();
   TLB_GENERATION CpuGlobal, CpuNormal;
 
-  __atomic_load (&Ci->Ktlb.Global, &CpuGlobal, __ATOMIC_RELAXED);
-  __atomic_load (&Ci->Ktlb.Normal, &CpuNormal, __ATOMIC_RELAXED);
+  ANX_ATOMIC_LOAD (&Ci->Ktlb.Global, &CpuGlobal, __ATOMIC_RELAXED);
+  ANX_ATOMIC_LOAD (&Ci->Ktlb.Normal, &CpuNormal, __ATOMIC_RELAXED);
   TLB_GENERATION KGlobal = KtlbGenGlobal ();
   TLB_GENERATION KNormal = KtlbGenNormal ();
 
@@ -532,15 +532,15 @@ CpuKernelTlbUpdate (
          Both failure and success case are relaxed because these
          variable are per cpu and accessed with relaxed order.
        */
-      __atomic_compare_exchange (&Ci->Ktlb.Global, &CpuGlobal, &KGlobal,
+      ANX_ATOMIC_COMPARE_EXCHANGE (&Ci->Ktlb.Global, &CpuGlobal, &KGlobal,
                                  FALSE, __ATOMIC_RELAXED, __ATOMIC_RELAXED);
-      __atomic_compare_exchange (&Ci->Ktlb.Normal, &CpuNormal, &KNormal,
+      ANX_ATOMIC_COMPARE_EXCHANGE (&Ci->Ktlb.Normal, &CpuNormal, &KNormal,
                                  FALSE, __ATOMIC_RELAXED, __ATOMIC_RELAXED);
     }
   else if (TlbGenCompare (KNormal, CpuNormal) > 0)
     {
       hal_cpu_tlbop (HAL_TLBOP_FLUSH);
-      __atomic_compare_exchange (&Ci->Ktlb.Normal, &CpuNormal, &KNormal,
+      ANX_ATOMIC_COMPARE_EXCHANGE (&Ci->Ktlb.Normal, &CpuNormal, &KNormal,
                                  FALSE, __ATOMIC_RELAXED, __ATOMIC_RELAXED);
     }
 }
@@ -568,7 +568,7 @@ CpuKernelTlbReach (
   CPU_INFO *Ci = CpuGetCurrentInfo ();
   TLB_GENERATION CpuKtlb;
 
-  __atomic_load (&Ci->Ktlb.Normal, &CpuKtlb, __ATOMIC_RELAXED);
+  ANX_ATOMIC_LOAD (&Ci->Ktlb.Normal, &CpuKtlb, __ATOMIC_RELAXED);
 
   if (TlbGenCompare (Target, CpuKtlb) > 0)
     {
@@ -591,9 +591,9 @@ CpuTlbFlushLocal (
   TLB_GENERATION KNormal = KtlbGenNormal ();
   TLB_GENERATION CpuNormal;
 
-  __atomic_load (&Ci->Ktlb.Normal, &CpuNormal, __ATOMIC_RELAXED);
+  ANX_ATOMIC_LOAD (&Ci->Ktlb.Normal, &CpuNormal, __ATOMIC_RELAXED);
   hal_cpu_tlbop (HAL_TLBOP_FLUSH);
-  __atomic_compare_exchange (&Ci->Ktlb.Normal, &CpuNormal, &KNormal,
+  ANX_ATOMIC_COMPARE_EXCHANGE (&Ci->Ktlb.Normal, &CpuNormal, &KNormal,
                              FALSE, __ATOMIC_RELAXED, __ATOMIC_RELAXED);
 }
 
@@ -641,7 +641,7 @@ CpuKernelMapUpdate (
   if (Ci != NULL)
     return;
 
-  __atomic_or_fetch (&Ci->NmiOp, NMIOP_KMAPUPDATE, __ATOMIC_RELAXED);
+  ANX_ATOMIC_OR_FETCH (&Ci->NmiOp, NMIOP_KMAPUPDATE, __ATOMIC_RELAXED);
   CpuSendNmi (Cpu);
 }
 
@@ -688,7 +688,7 @@ CpuTlbFlush (
   if (Ci == NULL)
     return;
 
-  __atomic_or_fetch (&Ci->NmiOp, NMIOP_TLBFLUSH, __ATOMIC_RELAXED);
+  ANX_ATOMIC_OR_FETCH (&Ci->NmiOp, NMIOP_TLBFLUSH, __ATOMIC_RELAXED);
   CpuSendNmi (Cpu);
 }
 
@@ -995,7 +995,7 @@ CpuEnterUserMap (
   if (CurUmap != NULL)
     atomic_cpumask_clear (&CurUmap->cpumask, CpuGetId ());
 
-  __atomic_store (&CpuGetCurrentInfo ()->umap, &Umap, __ATOMIC_RELEASE);
+  ANX_ATOMIC_STORE (&CpuGetCurrentInfo ()->umap, &Umap, __ATOMIC_RELEASE);
   atomic_cpumask_set (&Umap->cpumask, CpuGetId ());
   hal_cpu_tlbop (hal_umap_load (&Umap->hal));
 }
@@ -1019,7 +1019,7 @@ CpuExitUserMap (
   if (CurUmap == NULL)
     return NULL;
 
-  __atomic_clear (&CpuGetCurrentInfo ()->umap, __ATOMIC_RELEASE);
+  ANX_ATOMIC_CLEAR (&CpuGetCurrentInfo ()->umap, __ATOMIC_RELEASE);
   atomic_cpumask_clear (&CurUmap->cpumask, CpuGetId ());
   CpuGetCurrentInfo ()->umap = NULL;
   return CurUmap;
@@ -1243,8 +1243,8 @@ struct umap *cpu_umap_exit (VOID) {
 }
 
 // Legacy global variable aliases
-static UINT32 number_cpus __attribute__((alias("gNumberCpus")));
-static UINT32 cpu_phys_to_id[HAL_MAXCPUS] __attribute__((alias("gCpuPhysToId")));
-static CPU_INFO *cpus[HAL_MAXCPUS] __attribute__((alias("gCpus")));
-static CPU_MASK tlbmap __attribute__((alias("gTlbMap")));
-static CPU_MASK cpus_active __attribute__((alias("gCpusActive")));
+static UINT32 number_cpus ANX_ATTR_ALIAS("gNumberCpus");
+static UINT32 cpu_phys_to_id[HAL_MAXCPUS] ANX_ATTR_ALIAS("gCpuPhysToId");
+static CPU_INFO *cpus[HAL_MAXCPUS] ANX_ATTR_ALIAS("gCpus");
+static CPU_MASK tlbmap ANX_ATTR_ALIAS("gTlbMap");
+static CPU_MASK cpus_active ANX_ATTR_ALIAS("gCpusActive");

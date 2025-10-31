@@ -236,10 +236,10 @@ unsigned long PfnAvail (VOID) {
 }
 
 // Legacy global variable aliases
-static SPINLOCK pglock __attribute__((alias("gPgLock")));
-static WORD_T *stree __attribute__((alias("gStree")));
-static UINT32 order __attribute__((alias("gOrder")));
-static unsigned long free_pages __attribute__((alias("gFreePages")));
-rwlock_t _nux_pfnalloc_lock __attribute__((alias("gNuxPfnAllocLock")));
-PFN (*_nux_pfnalloc) (int) __attribute__((alias("gNuxPfnAlloc")));
-VOID (*_nux_pfnfree) (PFN) __attribute__((alias("gNuxPfnFree")));
+static SPINLOCK pglock ANX_ATTR_ALIAS("gPgLock");
+static WORD_T *stree ANX_ATTR_ALIAS("gStree");
+static UINT32 order ANX_ATTR_ALIAS("gOrder");
+static unsigned long free_pages ANX_ATTR_ALIAS("gFreePages");
+rwlock_t _nux_pfnalloc_lock ANX_ATTR_ALIAS("gNuxPfnAllocLock");
+PFN (*_nux_pfnalloc) (int) ANX_ATTR_ALIAS("gNuxPfnAlloc");
+VOID (*_nux_pfnfree) (PFN) ANX_ATTR_ALIAS("gNuxPfnFree");

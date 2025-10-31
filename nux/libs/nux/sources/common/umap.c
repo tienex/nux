@@ -53,7 +53,7 @@ UmapSetL1e (
       return FALSE;
     }
   OldL1e = hal_l1e_set (L1p, L1e);
-  __atomic_or_fetch (&Umap->tlbop, hal_l1e_tlbop (OldL1e, L1e),
+  ANX_ATOMIC_OR_FETCH (&Umap->tlbop, hal_l1e_tlbop (OldL1e, L1e),
 		     __ATOMIC_RELEASE);
 
   hal_l1e_unbox (OldL1e, &OldPfn, &OldProt);
@@ -99,7 +99,7 @@ UmapChangeFlags (
   Flags &= ~ProtClr;
   L1e = hal_l1e_box (Pfn, Flags);
   OldL1e = hal_l1e_set (L1p, L1e);
-  __atomic_or_fetch (&Umap->tlbop, hal_l1e_tlbop (OldL1e, L1e),
+  ANX_ATOMIC_OR_FETCH (&Umap->tlbop, hal_l1e_tlbop (OldL1e, L1e),
 		     __ATOMIC_RELEASE);
   return OldFlags;
 }
@@ -163,7 +163,7 @@ UmapUnmap (
 
   L1e = hal_l1e_box (PFN_INVALID, 0);
   OldL1e = hal_l1e_set (L1p, L1e);
-  __atomic_or_fetch (&Umap->tlbop, hal_l1e_tlbop (OldL1e, L1e),
+  ANX_ATOMIC_OR_FETCH (&Umap->tlbop, hal_l1e_tlbop (OldL1e, L1e),
 		     __ATOMIC_RELEASE);
 
   hal_l1e_unbox (OldL1e, &OldPfn, &OldProt);
@@ -184,7 +184,7 @@ UmapCommit (
   IN struct umap  *Umap
   )
 {
-  __atomic_clear (&Umap->tlbop, __ATOMIC_RELEASE);
+  ANX_ATOMIC_CLEAR (&Umap->tlbop, __ATOMIC_RELEASE);
   CpuTlbFlushMask (Umap->cpumask);
 }
 

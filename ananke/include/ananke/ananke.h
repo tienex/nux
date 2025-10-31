@@ -48,4 +48,5 @@
 #include <ananke/callconv.h>      /* Calling conventions, NOVTABLE, UUID attributes, __uuidof */
 #include <ananke/atomics.h>       /* Atomic operations and interlocked functions */
 #include <ananke/attributes.h>    /* Compiler attributes (noinline, deprecated, etc.) */
+#include <ananke/intrinsics.h>    /* Bit manipulation and overflow checking intrinsics */
 #include <ananke/com.h>           /* IUnknown, IClassFactory, COM interface macros */

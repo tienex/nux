@@ -187,3 +187,88 @@ typedef struct _REFOBJ { VOLATILE INT32 RefCount; } REFOBJ;
 #   define ANX_INTERLOCKED_XOR64(p,v)              AnxInterlockedXor64((p),(v))
 #   define ANX_INTERLOCKED_CMPXCHG64(p,nv,ov)      AnxInterlockedCompareAndExchange64((p),(nv),(ov))
 #endif
+
+/* --------------------------------------------------------------- */
+/*  Low-level atomic intrinsics with memory ordering support.      */
+/*  These map directly to __atomic_* on modern compilers.          */
+/* --------------------------------------------------------------- */
+
+#if defined(__ATOMIC_RELAXED) && (defined(__GNUC__) || defined(__clang__))
+    /* Memory ordering constants */
+#   define ANX_ATOMIC_RELAXED  __ATOMIC_RELAXED
+#   define ANX_ATOMIC_CONSUME  __ATOMIC_CONSUME
+#   define ANX_ATOMIC_ACQUIRE  __ATOMIC_ACQUIRE
+#   define ANX_ATOMIC_RELEASE  __ATOMIC_RELEASE
+#   define ANX_ATOMIC_ACQ_REL  __ATOMIC_ACQ_REL
+#   define ANX_ATOMIC_SEQ_CST  __ATOMIC_SEQ_CST
+
+    /* Atomic load/store */
+#   define ANX_ATOMIC_LOAD(ptr, valptr, order)        __atomic_load((ptr), (valptr), (order))
+#   define ANX_ATOMIC_LOAD_N(ptr, order)              __atomic_load_n((ptr), (order))
+#   define ANX_ATOMIC_STORE(ptr, valptr, order)       __atomic_store((ptr), (valptr), (order))
+#   define ANX_ATOMIC_STORE_N(ptr, val, order)        __atomic_store_n((ptr), (val), (order))
+
+    /* Atomic exchange */
+#   define ANX_ATOMIC_EXCHANGE(ptr, valptr, retptr, order)  __atomic_exchange((ptr), (valptr), (retptr), (order))
+#   define ANX_ATOMIC_EXCHANGE_N(ptr, val, order)           __atomic_exchange_n((ptr), (val), (order))
+
+    /* Atomic compare-exchange */
+#   define ANX_ATOMIC_COMPARE_EXCHANGE(ptr, expected, desired, weak, success_order, failure_order) \
+        __atomic_compare_exchange((ptr), (expected), (desired), (weak), (success_order), (failure_order))
+#   define ANX_ATOMIC_COMPARE_EXCHANGE_N(ptr, expected, desired, weak, success_order, failure_order) \
+        __atomic_compare_exchange_n((ptr), (expected), (desired), (weak), (success_order), (failure_order))
+
+    /* Atomic arithmetic */
+#   define ANX_ATOMIC_FETCH_ADD(ptr, val, order)      __atomic_fetch_add((ptr), (val), (order))
+#   define ANX_ATOMIC_FETCH_SUB(ptr, val, order)      __atomic_fetch_sub((ptr), (val), (order))
+#   define ANX_ATOMIC_FETCH_OR(ptr, val, order)       __atomic_fetch_or((ptr), (val), (order))
+#   define ANX_ATOMIC_FETCH_AND(ptr, val, order)      __atomic_fetch_and((ptr), (val), (order))
+#   define ANX_ATOMIC_FETCH_XOR(ptr, val, order)      __atomic_fetch_xor((ptr), (val), (order))
+#   define ANX_ATOMIC_ADD_FETCH(ptr, val, order)      __atomic_add_fetch((ptr), (val), (order))
+#   define ANX_ATOMIC_SUB_FETCH(ptr, val, order)      __atomic_sub_fetch((ptr), (val), (order))
+#   define ANX_ATOMIC_OR_FETCH(ptr, val, order)       __atomic_or_fetch((ptr), (val), (order))
+#   define ANX_ATOMIC_AND_FETCH(ptr, val, order)      __atomic_and_fetch((ptr), (val), (order))
+#   define ANX_ATOMIC_XOR_FETCH(ptr, val, order)      __atomic_xor_fetch((ptr), (val), (order))
+#   define ANX_ATOMIC_CLEAR(ptr, order)               __atomic_clear((ptr), (order))
+
+    /* Legacy __sync primitives */
+#   define ANX_SYNC_FETCH_AND_ADD(ptr, val)           __sync_fetch_and_add((ptr), (val))
+#   define ANX_SYNC_FETCH_AND_SUB(ptr, val)           __sync_fetch_and_sub((ptr), (val))
+#   define ANX_SYNC_FETCH_AND_OR(ptr, val)            __sync_fetch_and_or((ptr), (val))
+#   define ANX_SYNC_FETCH_AND_AND(ptr, val)           __sync_fetch_and_and((ptr), (val))
+#   define ANX_SYNC_FETCH_AND_XOR(ptr, val)           __sync_fetch_and_xor((ptr), (val))
+#   define ANX_SYNC_ADD_AND_FETCH(ptr, val)           __sync_add_and_fetch((ptr), (val))
+#   define ANX_SYNC_SUB_AND_FETCH(ptr, val)           __sync_sub_and_fetch((ptr), (val))
+#   define ANX_SYNC_OR_AND_FETCH(ptr, val)            __sync_or_and_fetch((ptr), (val))
+#   define ANX_SYNC_AND_AND_FETCH(ptr, val)           __sync_and_and_fetch((ptr), (val))
+#   define ANX_SYNC_XOR_AND_FETCH(ptr, val)           __sync_xor_and_fetch((ptr), (val))
+#   define ANX_SYNC_BOOL_COMPARE_AND_SWAP(ptr, oldval, newval) \
+        __sync_bool_compare_and_swap((ptr), (oldval), (newval))
+#   define ANX_SYNC_VAL_COMPARE_AND_SWAP(ptr, oldval, newval) \
+        __sync_val_compare_and_swap((ptr), (oldval), (newval))
+#   define ANX_SYNC_LOCK_TEST_AND_SET(ptr, val)       __sync_lock_test_and_set((ptr), (val))
+#   define ANX_SYNC_LOCK_RELEASE(ptr)                 __sync_lock_release(ptr)
+
+#else
+    /* Fallback for compilers without __atomic support */
+#   define ANX_ATOMIC_RELAXED  0
+#   define ANX_ATOMIC_CONSUME  1
+#   define ANX_ATOMIC_ACQUIRE  2
+#   define ANX_ATOMIC_RELEASE  3
+#   define ANX_ATOMIC_ACQ_REL  4
+#   define ANX_ATOMIC_SEQ_CST  5
+
+#   define ANX_ATOMIC_LOAD_N(ptr, order)              (*(ptr))
+#   define ANX_ATOMIC_STORE_N(ptr, val, order)        (*(ptr) = (val))
+#   define ANX_ATOMIC_FETCH_ADD(ptr, val, order)      (AnxInterlockedAdd((volatile INT32*)(ptr), (INT32)(val)) - (val))
+#   define ANX_ATOMIC_FETCH_OR(ptr, val, order)       AnxInterlockedOr((volatile INT32*)(ptr), (INT32)(val))
+#   define ANX_ATOMIC_FETCH_AND(ptr, val, order)      AnxInterlockedAnd((volatile INT32*)(ptr), (INT32)(val))
+#   define ANX_ATOMIC_ADD_FETCH(ptr, val, order)      AnxInterlockedAdd((volatile INT32*)(ptr), (INT32)(val))
+#   define ANX_ATOMIC_SUB_FETCH(ptr, val, order)      AnxInterlockedAdd((volatile INT32*)(ptr), -(INT32)(val))
+#   define ANX_ATOMIC_CLEAR(ptr, order)               (*(ptr) = 0)
+#   define ANX_SYNC_FETCH_AND_OR(ptr, val)            AnxInterlockedOr((volatile INT32*)(ptr), (INT32)(val))
+#   define ANX_SYNC_FETCH_AND_AND(ptr, val)           AnxInterlockedAnd((volatile INT32*)(ptr), (INT32)(val))
+#   define ANX_SYNC_ADD_AND_FETCH(ptr, val)           AnxInterlockedAdd((volatile INT32*)(ptr), (INT32)(val))
+#   define ANX_SYNC_LOCK_TEST_AND_SET(ptr, val)       AnxInterlockedExchange((volatile INT32*)(ptr), (INT32)(val))
+#   define ANX_SYNC_LOCK_RELEASE(ptr)                 (*(ptr) = 0)
+#endif

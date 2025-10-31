@@ -73,7 +73,7 @@ struct amd64_tss
   UINT64 res2;
   UINT16 res3;
   UINT16 iomap;
-} __packed;
+} ANX_PACKED;
 
 struct hal_cpu
 {
@@ -81,7 +81,7 @@ struct hal_cpu
   UINT64 kstack;		/* syscall kstack. Must be at %gs:8 */
   UINT64 scratch;		/* syscall scratch. Must be at %gs:16 */
   struct amd64_tss tss;
-} __packed;
+} ANX_PACKED;
 
 /*
   HAL Frame definition.

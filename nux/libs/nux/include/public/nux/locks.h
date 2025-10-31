@@ -84,7 +84,7 @@ SpinLockAcquire (
     //
     // Spin while lock is held
     //
-    while (__atomic_load_n (&Lock->Lock, __ATOMIC_RELAXED)) {
+    while (ANX_ATOMIC_LOAD_N (&Lock->Lock, __ATOMIC_RELAXED)) {
       hal_cpu_relax ();
     }
 
@@ -92,7 +92,7 @@ SpinLockAcquire (
     // Attempt to acquire lock
     //
     INT32 Expected = 0;
-    if (__atomic_compare_exchange_n (
+    if (ANX_ATOMIC_COMPARE_EXCHANGE_N (
           &Lock->Lock,
           &Expected,
           1,
@@ -144,7 +144,7 @@ SpinLockRelease (
   IN OUT SPINLOCK  *Lock
   )
 {
-  __atomic_store_n (&Lock->Lock, 0, __ATOMIC_RELEASE);
+  ANX_ATOMIC_STORE_N (&Lock->Lock, 0, __ATOMIC_RELEASE);
 }
 
 /**
