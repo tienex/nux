@@ -438,3 +438,6 @@ static CONST IImageLoaderVtbl gElfVtbl = {
 IImageLoader gElfLoader = {
   &gElfVtbl
 };
+
+// Auto-register this loader
+ANX_REGISTER_IMGLOADER(gElfLoader);

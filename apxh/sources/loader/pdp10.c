@@ -41,6 +41,7 @@
 #define PDP10_WORD_SIZE    36   ///< PDP-10 word size in bits
 #define PDP10_ADDR_MASK    0777777  ///< 18-bit address mask (octal)
 #define PDP10_JRST_OPCODE  0254  ///< JRST (Jump and Restore) opcode
+#define PDP10_WORD_MASK    0xFFFFFFFFFULL  ///< 36-bit mask
 
 //
 // PDP-10 Word Structure (36 bits stored in 64-bit for alignment)
@@ -49,6 +50,175 @@
 typedef struct _PDP10_WORD {
   UINT64  Value;  ///< 36-bit word (upper 28 bits unused)
 } PDP10_WORD;
+
+//
+// PDP-10 36-bit Word Encoding Formats
+//
+
+typedef enum _PDP10_ENCODING {
+  Pdp10Encoding5Byte,    ///< 5-byte encoding (36 bits + 4 pad bits)
+  Pdp10Encoding4Byte,    ///< 4-byte encoding (32 bits, truncated)
+  Pdp10EncodingCore,     ///< Core dump format (binary)
+} PDP10_ENCODING;
+
+/**
+  Read 36-bit word from PDP-10 5-byte encoding.
+
+  Standard encoding: 5 bytes contain exactly 36 bits with 4 padding bits.
+  Byte layout (big-endian):
+    Byte 0: bits 35-28 (8 bits)
+    Byte 1: bits 27-20 (8 bits)
+    Byte 2: bits 19-12 (8 bits)
+    Byte 3: bits 11-4  (8 bits)
+    Byte 4: bits 3-0 + 4 pad bits (upper 4 bits are word bits)
+
+  @param[in]  Buffer  Pointer to 5-byte buffer
+  @param[out] Word    Receives 36-bit word value
+
+  @return S_OK on success, error code otherwise.
+**/
+static
+HRESULT
+Pdp10Read36BitWord5Byte (
+  IN  CONST UINT8  *Buffer,
+  OUT UINT64       *Word
+  )
+{
+  if (Buffer == NULL || Word == NULL) {
+    return E_POINTER;
+  }
+
+  // Reconstruct 36-bit word from 5 bytes (big-endian)
+  *Word = ((UINT64)Buffer[0] << 28) |  // Bits 35-28
+          ((UINT64)Buffer[1] << 20) |  // Bits 27-20
+          ((UINT64)Buffer[2] << 12) |  // Bits 19-12
+          ((UINT64)Buffer[3] << 4)  |  // Bits 11-4
+          ((UINT64)(Buffer[4] >> 4));  // Bits 3-0 (upper 4 bits of byte 4)
+
+  *Word &= PDP10_WORD_MASK;  // Ensure only 36 bits
+  return S_OK;
+}
+
+/**
+  Read 36-bit word from PDP-10 4-byte encoding.
+
+  Truncated encoding: Only 32 bits stored, upper 4 bits lost.
+  Used in some transfer formats where full precision not needed.
+
+  @param[in]  Buffer  Pointer to 4-byte buffer
+  @param[out] Word    Receives 32-bit value (bits 35-32 = 0)
+
+  @return S_OK on success, error code otherwise.
+**/
+static
+HRESULT
+Pdp10Read36BitWord4Byte (
+  IN  CONST UINT8  *Buffer,
+  OUT UINT64       *Word
+  )
+{
+  if (Buffer == NULL || Word == NULL) {
+    return E_POINTER;
+  }
+
+  // Reconstruct 32-bit value (upper 4 bits = 0)
+  *Word = ((UINT64)Buffer[0] << 24) |
+          ((UINT64)Buffer[1] << 16) |
+          ((UINT64)Buffer[2] << 8)  |
+          ((UINT64)Buffer[3]);
+
+  return S_OK;
+}
+
+/**
+  Read multiple 36-bit words from buffer.
+
+  @param[in]  Buffer    Source buffer
+  @param[in]  Count     Number of words to read
+  @param[in]  Encoding  Word encoding format
+  @param[out] Words     Output array (must hold Count elements)
+
+  @return S_OK on success, error code otherwise.
+**/
+static
+HRESULT
+Pdp10ReadWords (
+  IN  CONST UINT8       *Buffer,
+  IN  UINTN             Count,
+  IN  PDP10_ENCODING    Encoding,
+  OUT UINT64            *Words
+  )
+{
+  UINTN i;
+  UINTN BytesPerWord;
+  HRESULT Status;
+
+  if (Buffer == NULL || Words == NULL) {
+    return E_POINTER;
+  }
+
+  switch (Encoding) {
+    case Pdp10Encoding5Byte:
+      BytesPerWord = 5;
+      break;
+    case Pdp10Encoding4Byte:
+      BytesPerWord = 4;
+      break;
+    default:
+      return E_INVALIDARG;
+  }
+
+  for (i = 0; i < Count; i++) {
+    if (Encoding == Pdp10Encoding5Byte) {
+      Status = Pdp10Read36BitWord5Byte(&Buffer[i * BytesPerWord], &Words[i]);
+    } else {
+      Status = Pdp10Read36BitWord4Byte(&Buffer[i * BytesPerWord], &Words[i]);
+    }
+
+    if (FAILED(Status)) {
+      return Status;
+    }
+  }
+
+  return S_OK;
+}
+
+/**
+  Extract field from 36-bit word.
+
+  PDP-10 instructions and data use various field formats:
+  - Opcode: bits 35-27 (9 bits)
+  - AC (accumulator): bits 26-23 (4 bits)
+  - Index: bits 22-18 (5 bits)
+  - Indirect bit: bit 17 (1 bit)
+  - Address: bits 17-0 or 17-0 depending on format
+
+  @param[in] Word    36-bit word value
+  @param[in] Start   Starting bit position (0-35, MSB = 35)
+  @param[in] Length  Number of bits to extract
+
+  @return Extracted field value.
+**/
+static
+UINT64
+Pdp10ExtractField (
+  IN UINT64  Word,
+  IN UINT32  Start,
+  IN UINT32  Length
+  )
+{
+  UINT64 Mask;
+  UINT32 Shift;
+
+  if (Length == 0 || Length > 36 || Start >= 36) {
+    return 0;
+  }
+
+  Mask = (1ULL << Length) - 1;
+  Shift = (35 - Start - Length + 1);
+
+  return (Word >> Shift) & Mask;
+}
 
 //
 // IImageLoader Implementation for PDP-10 SAV

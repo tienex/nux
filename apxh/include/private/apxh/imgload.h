@@ -104,6 +104,17 @@ typedef struct _IImageLoader IImageLoader;
 ANX_DEFINE_GUID(IID_IImageLoader, 0xA57F0B12,0x8D4E,0x4F1A,0x9C,0x3B,0x2E,0x6F,0x8A,0x4D,0x7C,0x91);
 
 //
+// Image Loader Auto-Registration Support
+//
+// Loaders place a pointer in the .imgloaders section which the registry
+// will discover at initialization. Use ANX_REGISTER_IMGLOADER() macro.
+//
+
+#define ANX_REGISTER_IMGLOADER(LoaderVar) \
+  ANX_ATTR_SECTION(".imgloaders") ANX_ATTR_USED \
+  static IImageLoader * CONST _imgloader_ptr_##LoaderVar = &LoaderVar
+
+//
 // Image Loader Interface (COM-style with ANX macros)
 //
 
