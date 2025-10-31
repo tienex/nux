@@ -39,6 +39,17 @@
 #define ELFDATA2MSB  2  ///< Big-endian
 
 //
+// ELF OS/ABI Identification
+//
+
+#define EI_OSABI         7   ///< OS/ABI identification index in e_ident
+#define ELFOSABI_NONE    0   ///< UNIX System V ABI
+#define ELFOSABI_LINUX   3   ///< Linux
+#define ELFOSABI_FREEBSD 9   ///< FreeBSD
+#define ELFOSABI_OPENBSD 12  ///< OpenBSD
+#define ELFOSABI_OS2     48  ///< OS/2 (unofficial value used by OS/2 PowerPC)
+
+//
 // ELF File Types
 //
 
@@ -69,6 +80,14 @@
 #define SHT_NOBITS    8  ///< BSS section
 #define SHT_REL       9  ///< Relocation entries without addends
 #define SHT_DYNSYM    11 ///< Dynamic symbol table
+
+//
+// OS/2 Presentation Manager Application Types (from NOTE sections)
+//
+
+#define OS2_PM_WINDOWED       0x00  ///< PM windowed application
+#define OS2_PM_WINDOWCOMPAT   0x01  ///< PM compatible (windowed or console)
+#define OS2_PM_WINDOWNOCOMPAT 0x02  ///< Non-PM application (console only)
 
 //
 // ELF Program Header Types
@@ -1561,6 +1580,162 @@ ElfRelease (
   return 1;
 }
 
+/**
+  Get target operating system from ELF image.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+ElfGetTargetSystem (
+  IN  IImageLoader           *This,
+  IN  VOID                   *ImageBase,
+  OUT IMGLOAD_TARGET_SYSTEM  *TargetSystem
+  )
+{
+  ELF32_HDR *Elf32;
+  ELF64_HDR *Elf64;
+  UINT8 OsAbi;
+  UINT8 ElfClass;
+
+  if (TargetSystem == NULL) {
+    return E_POINTER;
+  }
+
+  Elf32 = (ELF32_HDR *)ImageBase;
+  Elf64 = (ELF64_HDR *)ImageBase;
+
+  ElfClass = Elf32->Id[4];  // EI_CLASS
+  OsAbi = Elf32->Id[EI_OSABI];
+
+  // Determine OS from OSABI
+  switch (OsAbi) {
+    case ELFOSABI_LINUX:
+      *TargetSystem = ImgSystemLinux;
+      break;
+    case ELFOSABI_FREEBSD:
+      *TargetSystem = ImgSystemFreeBsd;
+      break;
+    case ELFOSABI_OPENBSD:
+      *TargetSystem = ImgSystemOpenBsd;
+      break;
+    case ELFOSABI_OS2:
+      *TargetSystem = ImgSystemOs2;
+      break;
+    case ELFOSABI_NONE:
+    default:
+      // Generic Unix for SYSV ABI
+      *TargetSystem = ImgSystemUnix;
+      break;
+  }
+
+  return S_OK;
+}
+
+/**
+  Get minimum required system version from ELF image.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+ElfGetMinimumSystemVersion (
+  IN  IImageLoader            *This,
+  IN  VOID                    *ImageBase,
+  OUT IMGLOAD_SYSTEM_VERSION  *MinimumVersion
+  )
+{
+  if (MinimumVersion == NULL) {
+    return E_POINTER;
+  }
+
+  // ELF doesn't typically encode minimum system version
+  memset(MinimumVersion, 0, sizeof(IMGLOAD_SYSTEM_VERSION));
+  return S_FALSE;
+}
+
+/**
+  Get PM application type from OS/2 ELF NOTE section.
+**/
+static
+IMGLOAD_TARGET_SUBSYSTEM
+ElfGetOs2PmType (
+  IN VOID  *ImageBase
+  )
+{
+  ELF32_HDR *Elf32;
+  ELF32_SHDR *Sections;
+  UINT16 i;
+
+  Elf32 = (ELF32_HDR *)ImageBase;
+  Sections = (ELF32_SHDR *)((UINT8 *)ImageBase + Elf32->Shoff);
+
+  // Search for NOTE sections containing PM application type
+  for (i = 0; i < Elf32->Shnum; i++) {
+    if (Sections[i].Type == PHT_NOTE) {
+      // OS/2 PM type is typically in a NOTE section
+      // This would need actual NOTE section parsing which varies by implementation
+      // For now, default to console application
+      break;
+    }
+  }
+
+  // Default to console/CLI for OS/2
+  return ImgSubsystemUnixCli;
+}
+
+/**
+  Get target subsystem from ELF image.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+ElfGetTargetSubsystem (
+  IN  IImageLoader              *This,
+  IN  VOID                      *ImageBase,
+  OUT IMGLOAD_TARGET_SUBSYSTEM  *TargetSubsystem
+  )
+{
+  ELF32_HDR *Elf32;
+  UINT8 OsAbi;
+
+  if (TargetSubsystem == NULL) {
+    return E_POINTER;
+  }
+
+  Elf32 = (ELF32_HDR *)ImageBase;
+  OsAbi = Elf32->Id[EI_OSABI];
+
+  // For OS/2, check PM application type
+  if (OsAbi == ELFOSABI_OS2) {
+    *TargetSubsystem = ElfGetOs2PmType(ImageBase);
+    return S_OK;
+  }
+
+  // For other Unix systems, default to CLI
+  *TargetSubsystem = ImgSubsystemUnixCli;
+  return S_OK;
+}
+
+/**
+  Get minimum required subsystem version from ELF image.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+ElfGetMinimumSubsystemVersion (
+  IN  IImageLoader            *This,
+  IN  VOID                    *ImageBase,
+  OUT IMGLOAD_SYSTEM_VERSION  *MinimumVersion
+  )
+{
+  if (MinimumVersion == NULL) {
+    return E_POINTER;
+  }
+
+  // ELF doesn't typically encode minimum subsystem version
+  memset(MinimumVersion, 0, sizeof(IMGLOAD_SYSTEM_VERSION));
+  return S_FALSE;
+}
+
 //
 // ELF Loader VTable
 //
@@ -1579,7 +1754,11 @@ static CONST IImageLoaderVtbl gElfVtbl = {
   ElfGetSymbolByAddress,
   ElfGetSymbolByName,
   ElfGetRelocInfo,
-  ElfApplyRelocations
+  ElfApplyRelocations,
+  ElfGetTargetSystem,
+  ElfGetMinimumSystemVersion,
+  ElfGetTargetSubsystem,
+  ElfGetMinimumSubsystemVersion
 };
 
 //

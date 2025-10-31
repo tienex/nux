@@ -56,6 +56,7 @@
 #define IMAGE_SUBSYSTEM_NATIVE                   1   ///< Native (kernel mode)
 #define IMAGE_SUBSYSTEM_WINDOWS_GUI              2   ///< Windows GUI
 #define IMAGE_SUBSYSTEM_WINDOWS_CUI              3   ///< Windows console
+#define IMAGE_SUBSYSTEM_OS2_GUI                  4   ///< OS/2 GUI (Presentation Manager)
 #define IMAGE_SUBSYSTEM_OS2_CUI                  5   ///< OS/2 console
 #define IMAGE_SUBSYSTEM_POSIX_CUI                7   ///< POSIX console
 #define IMAGE_SUBSYSTEM_NATIVE_WINDOWS           8   ///< Native Win9x driver
@@ -959,6 +960,12 @@ PeGetTargetSubsystem (
       break;
     case IMAGE_SUBSYSTEM_WINDOWS_CUI:
       *TargetSubsystem = ImgSubsystemWindowsCui;
+      break;
+    case IMAGE_SUBSYSTEM_OS2_GUI:
+      *TargetSubsystem = ImgSubsystemOs2Gui;
+      break;
+    case IMAGE_SUBSYSTEM_OS2_CUI:
+      *TargetSubsystem = ImgSubsystemOs2Cui;
       break;
     case IMAGE_SUBSYSTEM_WINDOWS_CE_GUI:
       *TargetSubsystem = ImgSubsystemWindowsCeGui;

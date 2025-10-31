@@ -96,7 +96,9 @@ typedef enum _IMGLOAD_TARGET_SUBSYSTEM {
   ImgSubsystemSharedLibrary      = 15,  ///< Shared library/DLL
   ImgSubsystemKernelModule       = 16,  ///< Kernel module/driver
   ImgSubsystemFirmware           = 17,  ///< Firmware component
-  ImgSubsystemBootLoader         = 18   ///< Boot loader
+  ImgSubsystemBootLoader         = 18,  ///< Boot loader
+  ImgSubsystemOs2Gui             = 19,  ///< OS/2 Presentation Manager GUI
+  ImgSubsystemOs2Cui             = 20   ///< OS/2 console application
 } IMGLOAD_TARGET_SUBSYSTEM;
 
 //
