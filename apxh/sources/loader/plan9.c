@@ -762,6 +762,55 @@ Plan9GetMinimumSubsystemVersion (
 // Plan 9 a.out Loader VTable
 //
 
+
+/**
+  Get resource from Plan 9 image.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+Plan9GetResource (
+  IN  IImageLoader   *This,
+  IN  VOID           *ImageBase,
+  IN  UINT32         TypeCode,
+  IN  UINT32         Id,
+  IN  CONST CHAR8    *Name,
+  OUT IImageResource **Resource
+  )
+{
+  if (Resource == NULL) {
+    return E_POINTER;
+  }
+
+  *Resource = NULL;
+
+  // Plan 9 format does not have native resources
+  return S_FALSE;
+}
+
+/**
+  Get resource enumerator for Plan 9 image.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+Plan9GetResourceEnumerator (
+  IN  IImageLoader        *This,
+  IN  VOID                *ImageBase,
+  IN  UINT32              TypeCode,
+  OUT IEnumImageResource  **Enumerator
+  )
+{
+  if (Enumerator == NULL) {
+    return E_POINTER;
+  }
+
+  *Enumerator = NULL;
+
+  // Plan 9 format does not have native resources
+  return S_FALSE;
+}
+
 static CONST IImageLoaderVtbl gPlan9Vtbl = {
   // IUnknown
   Plan9QueryInterface,
@@ -783,6 +832,9 @@ static CONST IImageLoaderVtbl gPlan9Vtbl = {
   Plan9GetMinimumSystemVersion,
   Plan9GetTargetSubsystem,
   Plan9GetMinimumSubsystemVersion
+,
+  Plan9GetResource,
+  Plan9GetResourceEnumerator
 };
 
 //

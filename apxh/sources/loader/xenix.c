@@ -783,6 +783,55 @@ XenixGetMinimumSubsystemVersion (
 // XENIX X.OUT Loader VTable
 //
 
+
+/**
+  Get resource from Xenix COFF image.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+XenixGetResource (
+  IN  IImageLoader   *This,
+  IN  VOID           *ImageBase,
+  IN  UINT32         TypeCode,
+  IN  UINT32         Id,
+  IN  CONST CHAR8    *Name,
+  OUT IImageResource **Resource
+  )
+{
+  if (Resource == NULL) {
+    return E_POINTER;
+  }
+
+  *Resource = NULL;
+
+  // Xenix COFF format does not have native resources
+  return S_FALSE;
+}
+
+/**
+  Get resource enumerator for Xenix COFF image.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+XenixGetResourceEnumerator (
+  IN  IImageLoader        *This,
+  IN  VOID                *ImageBase,
+  IN  UINT32              TypeCode,
+  OUT IEnumImageResource  **Enumerator
+  )
+{
+  if (Enumerator == NULL) {
+    return E_POINTER;
+  }
+
+  *Enumerator = NULL;
+
+  // Xenix COFF format does not have native resources
+  return S_FALSE;
+}
+
 static CONST IImageLoaderVtbl gXenixVtbl = {
   // IUnknown
   XenixQueryInterface,
@@ -804,6 +853,9 @@ static CONST IImageLoaderVtbl gXenixVtbl = {
   XenixGetMinimumSystemVersion,
   XenixGetTargetSubsystem,
   XenixGetMinimumSubsystemVersion
+,
+  XenixGetResource,
+  XenixGetResourceEnumerator
 };
 
 //

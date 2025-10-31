@@ -17,6 +17,8 @@
 
 #include <apxh/internal.h>
 #include <apxh/imgload.h>
+#include <ananke/resource.h>
+#include "imgresource.h"
 
 //
 // Atari PRG Magic Number
@@ -179,9 +181,15 @@ AtariGetArch (
     return E_POINTER;
   }
 
-  // Atari TOS is 68K only, which is not supported by APXH
-  *Architecture = ArchUnsupported;
-  return IMGLOAD_E_UNSUPPORTED_ARCH;
+  // Atari TOS is 68K only (Motorola 68000)
+  *Architecture = ArchM68k;
+  return S_OK;
+  // Atari TOS is 68K only (Motorola 68000)
+  *Architecture = ArchM68k;
+  return S_OK;
+  // Atari TOS is 68K only (Motorola 68000)
+  *Architecture = ArchM68k;
+  return S_OK;
 }
 
 /**
@@ -723,6 +731,55 @@ AtariGetMinimumSubsystemVersion (
 // Atari PRG Loader VTable
 //
 
+
+/**
+  Get resource from Atari TOS image.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+AtariGetResource (
+  IN  IImageLoader   *This,
+  IN  VOID           *ImageBase,
+  IN  UINT32         TypeCode,
+  IN  UINT32         Id,
+  IN  CONST CHAR8    *Name,
+  OUT IImageResource **Resource
+  )
+{
+  if (Resource == NULL) {
+    return E_POINTER;
+  }
+
+  *Resource = NULL;
+
+  // Atari TOS format does not have native resources
+  return S_FALSE;
+}
+
+/**
+  Get resource enumerator for Atari TOS image.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+AtariGetResourceEnumerator (
+  IN  IImageLoader        *This,
+  IN  VOID                *ImageBase,
+  IN  UINT32              TypeCode,
+  OUT IEnumImageResource  **Enumerator
+  )
+{
+  if (Enumerator == NULL) {
+    return E_POINTER;
+  }
+
+  *Enumerator = NULL;
+
+  // Atari TOS format does not have native resources
+  return S_FALSE;
+}
+
 static CONST IImageLoaderVtbl gAtariVtbl = {
   // IUnknown
   AtariQueryInterface,
@@ -744,6 +801,9 @@ static CONST IImageLoaderVtbl gAtariVtbl = {
   AtariGetMinimumSystemVersion,
   AtariGetTargetSubsystem,
   AtariGetMinimumSubsystemVersion
+,
+  AtariGetResource,
+  AtariGetResourceEnumerator
 };
 
 //
