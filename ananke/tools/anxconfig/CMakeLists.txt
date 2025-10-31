@@ -79,7 +79,15 @@ set(ANXCONFIG_SOURCES
     widget_slider.c
     widget_spinner.c
     widget_progressbar.c
+    widget_fkeybar.c
     focus_manager.c
+    # Common dialogs
+    dialog_fileopensave.c
+    dialog_about.c
+    # Markdown parser (COM component)
+    markdown_parser.c
+    # Desk accessories
+    deskapp_calculator.c
     ${TUI_BACKEND}
 )
 
