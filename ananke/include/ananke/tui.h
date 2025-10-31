@@ -2090,6 +2090,93 @@ struct _ITuiRadioGroup {
     CONST ITuiRadioGroup_Vtbl *Vtbl;
 };
 
+// {6A7B8C9D-0E1F-2A3B-4C5D-6E7F8A9B0C1D}
+DEFINE_GUID(IID_ITuiThemedButton,
+    0x6A7B8C9D, 0x0E1F, 0x2A3B, 0x4C, 0x5D, 0x6E, 0x7F, 0x8A, 0x9B, 0x0C, 0x1D);
+
+/**
+  ITuiThemedButton Interface
+
+  Button theming interface. Inherits from ITuiThemedWidget.
+**/
+typedef struct _ITuiThemedButton_Vtbl {
+    // ITuiSerializable methods
+    HRESULT (ANXAPI *QueryInterface)(ITuiThemedButton *This, REFIID riid, VOID **ppvObject);
+    UINTN (ANXAPI *AddRef)(ITuiThemedButton *This);
+    UINTN (ANXAPI *Release)(ITuiThemedButton *This);
+    HRESULT (ANXAPI *SerializeToYaml)(ITuiThemedButton *This, CHAR8 **OutYaml, UINTN *OutLength);
+    HRESULT (ANXAPI *DeserializeFromYaml)(ITuiThemedButton *This, CONST CHAR8 *Yaml, UINTN Length);
+    HRESULT (ANXAPI *GetTypeName)(ITuiThemedButton *This, CONST CHAR8 **OutTypeName);
+    HRESULT (ANXAPI *Clone)(ITuiThemedButton *This, ITuiSerializable **OutClone);
+
+    // ITuiResponder methods
+    HRESULT (ANXAPI *GetNextResponder)(ITuiThemedButton *This, ITuiResponder **NextResponder);
+    HRESULT (ANXAPI *SetNextResponder)(ITuiThemedButton *This, ITuiResponder *NextResponder);
+    BOOLEAN (ANXAPI *AcceptsFirstResponder)(ITuiThemedButton *This);
+    HRESULT (ANXAPI *BecomeFirstResponder)(ITuiThemedButton *This);
+    HRESULT (ANXAPI *ResignFirstResponder)(ITuiThemedButton *This);
+
+    // ITuiWidget methods
+    HRESULT (ANXAPI *SetBounds)(ITuiThemedButton *This, CONST TUI_RECT *Bounds);
+    HRESULT (ANXAPI *GetBounds)(ITuiThemedButton *This, TUI_RECT *Bounds);
+    HRESULT (ANXAPI *SetVisible)(ITuiThemedButton *This, BOOLEAN Visible);
+    BOOLEAN (ANXAPI *IsVisible)(ITuiThemedButton *This);
+    HRESULT (ANXAPI *SetEnabled)(ITuiThemedButton *This, BOOLEAN Enabled);
+    BOOLEAN (ANXAPI *IsEnabled)(ITuiThemedButton *This);
+    HRESULT (ANXAPI *SetParent)(ITuiThemedButton *This, ITuiWidget *Parent);
+    HRESULT (ANXAPI *GetParent)(ITuiThemedButton *This, ITuiWidget **Parent);
+    HRESULT (ANXAPI *AddChild)(ITuiThemedButton *This, ITuiWidget *Child);
+    HRESULT (ANXAPI *RemoveChild)(ITuiThemedButton *This, ITuiWidget *Child);
+    HRESULT (ANXAPI *SetNeedsDisplay)(ITuiThemedButton *This, BOOLEAN Needed);
+
+    // ITuiThemedWidget methods
+    HRESULT (ANXAPI *ApplyTheme)(ITuiThemedButton *This, ITuiTheme *Theme);
+    HRESULT (ANXAPI *GetColors)(ITuiThemedButton *This, TUI_COLOR *Foreground, TUI_COLOR *Background);
+    HRESULT (ANXAPI *SetColors)(ITuiThemedButton *This, TUI_COLOR Foreground, TUI_COLOR Background);
+    HRESULT (ANXAPI *OnMouseEvent)(ITuiThemedButton *This, CONST TUI_MOUSE_EVENT *Event, BOOLEAN *Handled);
+    HRESULT (ANXAPI *OnKeyEvent)(ITuiThemedButton *This, TUI_KEY Key, UINT32 Modifiers, BOOLEAN *Handled);
+    HRESULT (ANXAPI *Draw)(ITuiThemedButton *This, ITuiSurface *Surface, CONST TUI_RECT *DirtyRect);
+
+    // ITuiThemedButton methods
+    /**
+      Get button style (border, flat, 3D, etc).
+    **/
+    HRESULT (ANXAPI *GetButtonStyle)(
+        ITuiThemedButton *This,
+        TUI_BORDER_STYLE *Style
+    );
+
+    /**
+      Set button style (border, flat, 3D, etc).
+    **/
+    HRESULT (ANXAPI *SetButtonStyle)(
+        ITuiThemedButton *This,
+        TUI_BORDER_STYLE Style
+    );
+
+    /**
+      Get focused/highlighted colors.
+    **/
+    HRESULT (ANXAPI *GetFocusedColors)(
+        ITuiThemedButton *This,
+        TUI_COLOR *Foreground,
+        TUI_COLOR *Background
+    );
+
+    /**
+      Set focused/highlighted colors.
+    **/
+    HRESULT (ANXAPI *SetFocusedColors)(
+        ITuiThemedButton *This,
+        TUI_COLOR Foreground,
+        TUI_COLOR Background
+    );
+} ITuiThemedButton_Vtbl;
+
+struct _ITuiThemedButton {
+    CONST ITuiThemedButton_Vtbl *Vtbl;
+};
+
 // {A7B8C9D0-E1F2-4A3B-4C5D-6E7F8A9B0C1D}
 DEFINE_GUID(IID_ITuiButton,
     0xA7B8C9D0, 0xE1F2, 0x4A3B, 0x4C, 0x5D, 0x6E, 0x7F, 0x8A, 0x9B, 0x0C, 0x1D);
@@ -2097,30 +2184,53 @@ DEFINE_GUID(IID_ITuiButton,
 /**
   ITuiButton Interface
 
-  Represents a clickable button widget.
+  Clickable button widget. Inherits from ITuiThemedButton.
 **/
 typedef struct _ITuiButton_Vtbl {
-    //
-    // IUnknown methods
-    //
-    HRESULT (ANXAPI *QueryInterface)(
-        ITuiButton *This,
-        REFIID riid,
-        VOID **ppvObject
-    );
+    // ITuiSerializable methods
+    HRESULT (ANXAPI *QueryInterface)(ITuiButton *This, REFIID riid, VOID **ppvObject);
+    UINTN (ANXAPI *AddRef)(ITuiButton *This);
+    UINTN (ANXAPI *Release)(ITuiButton *This);
+    HRESULT (ANXAPI *SerializeToYaml)(ITuiButton *This, CHAR8 **OutYaml, UINTN *OutLength);
+    HRESULT (ANXAPI *DeserializeFromYaml)(ITuiButton *This, CONST CHAR8 *Yaml, UINTN Length);
+    HRESULT (ANXAPI *GetTypeName)(ITuiButton *This, CONST CHAR8 **OutTypeName);
+    HRESULT (ANXAPI *Clone)(ITuiButton *This, ITuiSerializable **OutClone);
 
-    UINTN (ANXAPI *AddRef)(
-        ITuiButton *This
-    );
+    // ITuiResponder methods
+    HRESULT (ANXAPI *GetNextResponder)(ITuiButton *This, ITuiResponder **NextResponder);
+    HRESULT (ANXAPI *SetNextResponder)(ITuiButton *This, ITuiResponder *NextResponder);
+    BOOLEAN (ANXAPI *AcceptsFirstResponder)(ITuiButton *This);
+    HRESULT (ANXAPI *BecomeFirstResponder)(ITuiButton *This);
+    HRESULT (ANXAPI *ResignFirstResponder)(ITuiButton *This);
 
-    UINTN (ANXAPI *Release)(
-        ITuiButton *This
-    );
+    // ITuiWidget methods
+    HRESULT (ANXAPI *SetBounds)(ITuiButton *This, CONST TUI_RECT *Bounds);
+    HRESULT (ANXAPI *GetBounds)(ITuiButton *This, TUI_RECT *Bounds);
+    HRESULT (ANXAPI *SetVisible)(ITuiButton *This, BOOLEAN Visible);
+    BOOLEAN (ANXAPI *IsVisible)(ITuiButton *This);
+    HRESULT (ANXAPI *SetEnabled)(ITuiButton *This, BOOLEAN Enabled);
+    BOOLEAN (ANXAPI *IsEnabled)(ITuiButton *This);
+    HRESULT (ANXAPI *SetParent)(ITuiButton *This, ITuiWidget *Parent);
+    HRESULT (ANXAPI *GetParent)(ITuiButton *This, ITuiWidget **Parent);
+    HRESULT (ANXAPI *AddChild)(ITuiButton *This, ITuiWidget *Child);
+    HRESULT (ANXAPI *RemoveChild)(ITuiButton *This, ITuiWidget *Child);
+    HRESULT (ANXAPI *SetNeedsDisplay)(ITuiButton *This, BOOLEAN Needed);
 
-    //
+    // ITuiThemedWidget methods
+    HRESULT (ANXAPI *ApplyTheme)(ITuiButton *This, ITuiTheme *Theme);
+    HRESULT (ANXAPI *GetColors)(ITuiButton *This, TUI_COLOR *Foreground, TUI_COLOR *Background);
+    HRESULT (ANXAPI *SetColors)(ITuiButton *This, TUI_COLOR Foreground, TUI_COLOR Background);
+    HRESULT (ANXAPI *OnMouseEvent)(ITuiButton *This, CONST TUI_MOUSE_EVENT *Event, BOOLEAN *Handled);
+    HRESULT (ANXAPI *OnKeyEvent)(ITuiButton *This, TUI_KEY Key, UINT32 Modifiers, BOOLEAN *Handled);
+    HRESULT (ANXAPI *Draw)(ITuiButton *This, ITuiSurface *Surface, CONST TUI_RECT *DirtyRect);
+
+    // ITuiThemedButton methods
+    HRESULT (ANXAPI *GetButtonStyle)(ITuiButton *This, TUI_BORDER_STYLE *Style);
+    HRESULT (ANXAPI *SetButtonStyle)(ITuiButton *This, TUI_BORDER_STYLE Style);
+    HRESULT (ANXAPI *GetFocusedColors)(ITuiButton *This, TUI_COLOR *Foreground, TUI_COLOR *Background);
+    HRESULT (ANXAPI *SetFocusedColors)(ITuiButton *This, TUI_COLOR Foreground, TUI_COLOR Background);
+
     // ITuiButton methods
-    //
-
     /**
       Set button label.
     **/
@@ -2130,7 +2240,16 @@ typedef struct _ITuiButton_Vtbl {
     );
 
     /**
-      Set button callback.
+      Get button label.
+    **/
+    HRESULT (ANXAPI *GetLabel)(
+        ITuiButton *This,
+        CHAR8 *Buffer,
+        UINTN BufferSize
+    );
+
+    /**
+      Set button callback (called when activated).
     **/
     HRESULT (ANXAPI *SetCallback)(
         ITuiButton *This,
@@ -2139,25 +2258,19 @@ typedef struct _ITuiButton_Vtbl {
     );
 
     /**
-      Render button at position.
+      Check if button is default (activated by Enter anywhere in window).
     **/
-    HRESULT (ANXAPI *Render)(
-        ITuiButton *This,
-        ITuiScreen *Screen,
-        INT32 X,
-        INT32 Y,
-        BOOLEAN Focused
+    BOOLEAN (ANXAPI *IsDefault)(
+        ITuiButton *This
     );
 
     /**
-      Handle key input (Enter activates button).
+      Set button as default button.
     **/
-    HRESULT (ANXAPI *HandleKey)(
+    HRESULT (ANXAPI *SetDefault)(
         ITuiButton *This,
-        TUI_KEY Key,
-        BOOLEAN *Handled
+        BOOLEAN IsDefault
     );
-
 } ITuiButton_Vtbl;
 
 struct _ITuiButton {
