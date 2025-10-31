@@ -12,7 +12,7 @@
 
 #include <apxh/types.h>
 
-#if EC_MACHINE_I386 || EC_MACHINE_AMD64
+#if ANX_ARCH_X86 || ANX_ARCH_X86_64
 
 //
 // PAE64 Initialization and Management
@@ -37,4 +37,4 @@ VOID Pae64DirectMap (IN VOID *PageTable, IN UINT64 PhysicalAddress, IN VIRTUAL_A
 VOID Pae64MapPage (IN VOID *PageTable, IN VIRTUAL_ADDRESS VirtualAddress, IN UINTN PhysicalAddress, IN INT32 IsPayload, IN INT32 IsWritable,
                    IN INT32 IsExecutable, IN INT32 IsUserMode);
 
-#endif // EC_MACHINE_I386 || EC_MACHINE_AMD64
+#endif // ANX_ARCH_X86 || ANX_ARCH_X86_64

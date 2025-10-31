@@ -95,7 +95,7 @@ PlatformVerify (
   /* Nothing to verify. */
 }
 
-#if EC_MACHINE_AMD64
+#if ANX_ARCH_X86_64
 /**
   Enter kernel (AMD64).
 
@@ -149,7 +149,7 @@ PlatformEntry (
      "jmp *%%rax\n"::"m" (TrampEntry), "m" (Entry), "m" (PageTable),
      "m" (pTrampCr3));
 }
-#elif EC_MACHINE_RISCV64
+#elif ANX_ARCH_RISCV
 /**
   Enter kernel (RISC-V64).
 

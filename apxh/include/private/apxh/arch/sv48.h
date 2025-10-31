@@ -12,7 +12,7 @@
 
 #include <apxh/types.h>
 
-#if EC_MACHINE_RISCV64
+#if ANX_ARCH_RISCV
 
 //
 // Sv48 Initialization and Management
@@ -37,4 +37,4 @@ VOID Sv48DirectMap (IN VOID *PageTable, IN UINT64 PhysicalAddress, IN VIRTUAL_AD
 VOID Sv48MapPage (IN VOID *PageTable, IN VIRTUAL_ADDRESS VirtualAddress, IN UINTN PhysicalAddress, IN INT32 IsPayload, IN INT32 IsWritable,
                   IN INT32 IsExecutable, IN INT32 IsUserMode);
 
-#endif // EC_MACHINE_RISCV64
+#endif // ANX_ARCH_RISCV

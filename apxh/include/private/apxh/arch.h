@@ -231,11 +231,11 @@ ArchitecturesInit (
 // Specific Architecture Instances
 //
 
-#if EC_MACHINE_I386 || EC_MACHINE_AMD64
+#if ANX_ARCH_X86 || ANX_ARCH_X86_64
 extern IArchitecture gPaeArch;
 extern IArchitecture gPae64Arch;
 #endif
 
-#if EC_MACHINE_RISCV64
+#if ANX_ARCH_RISCV
 extern IArchitecture gSv48Arch;
 #endif
