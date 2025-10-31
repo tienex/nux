@@ -3,7 +3,8 @@
 
   Provides virtual address space management functions for bootloader.
   Handles page table setup, memory mapping, and virtual-to-physical
-  address translation for all supported architectures.
+  address translation for all supported architectures using COM-based
+  IArchitecture interface.
 
   Copyright (C) 2019 Gianluca Guida, glguida@tlbflush.org
   Copyright (C) 2025 A•NUX Project
@@ -12,6 +13,7 @@
 **/
 
 #include <apxh/internal.h>
+#include <apxh/arch.h>
 
 // External references to main.c globals
 extern ARCH gImageArch;
@@ -27,41 +29,45 @@ VOID PlatformVerify(IN VIRTUAL_ADDRESS Va, IN SIZE64 Size);
 UINTN GetPayloadPage(VOID);
 UINT32 CheckPayloadPage(IN UINT32 Addr);
 
+//
+// Current architecture handler
+//
+
+static IArchitecture *gCurrentArch = NULL;
+
 /**
   Initialize virtual address subsystem.
 
-  Sets up paging structures for the target architecture.
+  Sets up paging structures for the target architecture using
+  IArchitecture COM interface.
 **/
 VOID
 VasInitialize (
   VOID
   )
 {
-  switch (gImageArch)
-    {
-#if (EC_MACHINE_I386) || (EC_MACHINE_AMD64)
-    case Arch386:
-      PaeInitialize ();
-      break;
-    case ArchAmd64:
-      Pae64Initialize ();
-      break;
-#endif
-#if EC_MACHINE_RISCV64
-    case ArchRiscV64:
-      Sv48Initialize ();
-      break;
-#endif
-    default:
-      printf ("Unsupported VM architecture.\n");
-      exit (-1);
-    }
+  HRESULT Status;
+
+  // Get architecture handler for target architecture
+  gCurrentArch = ArchitectureGet(gImageArch);
+  if (gCurrentArch == NULL) {
+    printf("ERROR: No architecture handler for %s\n", ArchitectureGetName(gImageArch));
+    exit(-1);
+  }
+
+  // Initialize architecture-specific paging
+  Status = gCurrentArch->lpVtbl->Initialize(gCurrentArch);
+  if (FAILED(Status)) {
+    printf("ERROR: Architecture initialization failed: 0x%08x\n", Status);
+    exit(-1);
+  }
 }
 
 /**
   Get architecture name.
 
   Returns human-readable architecture name for display.
+  Delegates to ArchitectureGetName from arch.c.
 
   @param[in] Arch  Architecture enumeration value.
 
@@ -72,28 +78,14 @@ GetArchName (
   IN ARCH  Arch
   )
 {
-  switch (Arch)
-    {
-    case ArchInvalid:
-      return "invalid";
-    case ArchUnsupported:
-      return "unsupported";
-    case Arch386:
-      return "i386";
-    case ArchAmd64:
-      return "AMD64";
-    case ArchRiscV64:
-      return "RISCV64";
-    default:
-      return "unknown";
-    }
+  return ArchitectureGetName(Arch);
 }
 
 /**
   Verify virtual address range.
 
   Validates that virtual address range is suitable for target
-  architecture.
+  architecture using IArchitecture interface.
 
   @param[in] Va    Virtual address.
   @param[in] Size  Size of region.
@@ -104,32 +96,19 @@ VasVerify (
   IN SIZE64  Size
   )
 {
-  switch (gImageArch)
-    {
-#if EC_MACHINE_I386 || EC_MACHINE_AMD64
-    case Arch386:
-      PaeVerify (Va, Size);
-      break;
-    case ArchAmd64:
-      Pae64Verify (Va, Size);
-      break;
-#endif
-#if EC_MACHINE_RISCV64
-    case ArchRiscV64:
-      Sv48Verify (Va, Size);
-      break;
-#endif
-    default:
-      printf ("Unsupported VM architecture.\n");
-      exit (-1);
-    }
+  if (gCurrentArch == NULL) {
+    printf("ERROR: Architecture not initialized\n");
+    exit(-1);
+  }
+
+  gCurrentArch->lpVtbl->Verify(gCurrentArch, Va, Size);
 }
 
 /**
   Get physical address from virtual.
 
   Translates virtual address to physical address using current
-  page tables.
+  page tables via IArchitecture interface.
 
   @param[in] Va  Virtual address.
 
@@ -140,32 +119,28 @@ VasGetPhysical (
   IN VIRTUAL_ADDRESS  Va
   )
 {
-  switch (gImageArch)
-    {
-#if EC_MACHINE_I386 || EC_MACHINE_AMD64
-    case Arch386:
-      return PaeGetPhysical (Va);
-      break;
-    case ArchAmd64:
-      return Pae64GetPhysical (Va);
-      break;
-#endif
-#if EC_MACHINE_RISCV64
-    case ArchRiscV64:
-      return Sv48GetPhysical (Va);
-      break;
-#endif
-    default:
-      printf ("Unsupported VM architecture.\n");
-      exit (-1);
-    }
+  HRESULT Status;
+  UINTN PhysicalAddress;
+
+  if (gCurrentArch == NULL) {
+    printf("ERROR: Architecture not initialized\n");
+    exit(-1);
+  }
+
+  Status = gCurrentArch->lpVtbl->GetPhysical(gCurrentArch, Va, &PhysicalAddress);
+  if (FAILED(Status)) {
+    printf("ERROR: GetPhysical failed: 0x%08x\n", Status);
+    exit(-1);
+  }
+
+  return PhysicalAddress;
 }
 
 /**
   Populate virtual address range.
 
   Allocates and maps pages for the specified virtual address range
-  with given permissions.
+  with given permissions using IArchitecture interface.
 
   @param[in] Va    Virtual address.
   @param[in] Size  Size of region.
@@ -182,28 +157,21 @@ VasPopulate (
   IN INT32       X
   )
 {
+  HRESULT Status;
+
   PlatformVerify (Va, Size);
   VasVerify (Va, Size);
 
-  switch (gImageArch)
-    {
-#if EC_MACHINE_I386 || EC_MACHINE_AMD64
-    case Arch386:
-      PaePopulate (Va, Size, U, W, X);
-      break;
-    case ArchAmd64:
-      Pae64Populate (Va, Size, U, W, X);
-      break;
-#endif
-#if EC_MACHINE_RISCV64
-    case ArchRiscV64:
-      Sv48Populate (Va, Size, U, W, X);
-      break;
-#endif
-    default:
-      printf ("Unsupported VM architecture.\n");
-      exit (-1);
-    }
+  if (gCurrentArch == NULL) {
+    printf("ERROR: Architecture not initialized\n");
+    exit(-1);
+  }
+
+  Status = gCurrentArch->lpVtbl->Populate(gCurrentArch, Va, Size, U, W, X);
+  if (FAILED(Status)) {
+    printf("ERROR: Populate failed: 0x%08x\n", Status);
+    exit(-1);
+  }
 }
 
 /**
@@ -307,7 +275,8 @@ VasFill (
 /**
   Map physical memory at virtual address.
 
-  Creates identity mapping of physical memory starting at PA 0.
+  Creates identity mapping of physical memory starting at PA 0
+  using IArchitecture interface.
 
   @param[in] Va    Virtual address.
   @param[in] Size  Size of region.
@@ -320,35 +289,28 @@ VasMapPhysical (
   IN MEMORY_TYPE  Mt
   )
 {
+  HRESULT Status;
+
   PlatformVerify (Va, Size);
   VasVerify (Va, Size);
 
-  switch (gImageArch)
-    {
-#if EC_MACHINE_I386 || EC_MACHINE_AMD64
-    case Arch386:
-      PaeMapPhysical (Va, Size, 0, Mt);
-      break;
-    case ArchAmd64:
-      Pae64MapPhysical (Va, Size, 0, Mt);
-      break;
-#endif
-#if EC_MACHINE_RISCV64
-    case ArchRiscV64:
-      Sv48MapPhysical (Va, Size, 0, Mt);
-      break;
-#endif
-    default:
-      printf ("Unsupported VM architecture.\n");
-      exit (-1);
-    }
+  if (gCurrentArch == NULL) {
+    printf("ERROR: Architecture not initialized\n");
+    exit(-1);
+  }
+
+  Status = gCurrentArch->lpVtbl->MapPhysical(gCurrentArch, Va, Size, 0, Mt);
+  if (FAILED(Status)) {
+    printf("ERROR: MapPhysical failed: 0x%08x\n", Status);
+    exit(-1);
+  }
 }
 
 /**
   Map framebuffer at virtual address.
 
   Maps platform framebuffer memory to specified virtual address
-  with appropriate memory type.
+  with appropriate memory type using IArchitecture interface.
 
   @param[in] Va    Virtual address.
   @param[in] Size  Size of region.
@@ -363,6 +325,7 @@ VasMapFramebuffer (
 {
   UINT64 Pa;
   FRAMEBUFFER_DESC *FbPtr;
+  HRESULT Status;
 
   PlatformVerify (Va, Size);
   VasVerify (Va, Size);
@@ -380,33 +343,23 @@ VasMapFramebuffer (
 
   Pa = FbPtr->Addr;
 
-  switch (gImageArch)
-    {
-#if EC_MACHINE_I386 || EC_MACHINE_AMD64
-    case Arch386:
-      PaeMapPhysical (Va, Size, Pa, Mt);
-      break;
-    case ArchAmd64:
-      Pae64MapPhysical (Va, Size, Pa, Mt);
-      break;
-#endif
-#if EC_MACHINE_RISCV64
-    case ArchRiscV64:
-      Sv48MapPhysical (Va, Size, Pa, Mt);
-      break;
-#endif
-    default:
-      (VOID) Pa;
-      printf ("Unsupported VM architecture.\n");
-      exit (-1);
-    }
+  if (gCurrentArch == NULL) {
+    printf("ERROR: Architecture not initialized\n");
+    exit(-1);
+  }
+
+  Status = gCurrentArch->lpVtbl->MapPhysical(gCurrentArch, Va, Size, Pa, Mt);
+  if (FAILED(Status)) {
+    printf("ERROR: MapPhysical (framebuffer) failed: 0x%08x\n", Status);
+    exit(-1);
+  }
 }
 
 /**
   Set up linear (recursive) mapping.
 
   Creates recursive page table mapping allowing page tables to be
-  accessed as regular memory.
+  accessed as regular memory using IArchitecture interface.
 
   @param[in] Va    Virtual address for linear mapping.
   @param[in] Size  Size of region.
@@ -417,34 +370,28 @@ VasMapLinear (
   IN SIZE64  Size
   )
 {
+  HRESULT Status;
+
   PlatformVerify (Va, Size);
   VasVerify (Va, Size);
 
-  switch (gImageArch)
-    {
-#if EC_MACHINE_I386 || EC_MACHINE_AMD64
-    case Arch386:
-      PaeMapLinear (Va, Size);
-      break;
-    case ArchAmd64:
-      Pae64MapLinear (Va, Size);
-      break;
-#endif
-#if EC_MACHINE_RISCV64
-    case ArchRiscV64:
-      Sv48MapLinear (Va, Size);
-      break;
-#endif
-    default:
-      printf ("Unsupported VM architecture.\n");
-      exit (-1);
-    }
+  if (gCurrentArch == NULL) {
+    printf("ERROR: Architecture not initialized\n");
+    exit(-1);
+  }
+
+  Status = gCurrentArch->lpVtbl->MapLinear(gCurrentArch, Va, Size);
+  if (FAILED(Status)) {
+    printf("ERROR: MapLinear failed: 0x%08x\n", Status);
+    exit(-1);
+  }
 }
 
 /**
   Allocate top-level page tables.
 
-  Pre-allocates top-level page table structures for address range.
+  Pre-allocates top-level page table structures for address range
+  using IArchitecture interface.
 
   @param[in] Va    Virtual address.
   @param[in] Size  Size of region.
@@ -455,34 +402,28 @@ VasAllocTopPageTable (
   IN SIZE64  Size
   )
 {
+  HRESULT Status;
+
   PlatformVerify (Va, Size);
   VasVerify (Va, Size);
 
-  switch (gImageArch)
-    {
-#if EC_MACHINE_I386 || EC_MACHINE_AMD64
-    case Arch386:
-      PaeAllocateTopPageTable (Va, Size);
-      break;
-    case ArchAmd64:
-      Pae64AllocateTopPageTable (Va, Size);
-      break;
-#endif
-#if EC_MACHINE_RISCV64
-    case ArchRiscV64:
-      Sv48AllocateTopPageTable (Va, Size);
-      break;
-#endif
-    default:
-      printf ("Unsupported VM architecture.\n");
-      exit (-1);
-    }
+  if (gCurrentArch == NULL) {
+    printf("ERROR: Architecture not initialized\n");
+    exit(-1);
+  }
+
+  Status = gCurrentArch->lpVtbl->AllocateTopPageTable(gCurrentArch, Va, Size);
+  if (FAILED(Status)) {
+    printf("ERROR: AllocateTopPageTable failed: 0x%08x\n", Status);
+    exit(-1);
+  }
 }
 
 /**
   Allocate page tables.
 
-  Pre-allocates page table structures for address range.
+  Pre-allocates page table structures for address range
+  using IArchitecture interface.
 
   @param[in] Va    Virtual address.
   @param[in] Size  Size of region.
@@ -493,35 +434,28 @@ VasAllocPageTable (
   IN SIZE64  Size
   )
 {
+  HRESULT Status;
+
   PlatformVerify (Va, Size);
   VasVerify (Va, Size);
 
-  switch (gImageArch)
-    {
-#if EC_MACHINE_I386 || EC_MACHINE_AMD64
-    case Arch386:
-      PaeAllocatePageTable (Va, Size);
-      break;
-    case ArchAmd64:
-      Pae64AllocatePageTable (Va, Size);
-      break;
-#endif
-#if EC_MACHINE_RISCV64
-    case ArchRiscV64:
-      Sv48AllocatePageTable (Va, Size);
-      break;
-#endif
-    default:
-      printf ("Unsupported VM architecture.\n");
-      exit (-1);
-    }
+  if (gCurrentArch == NULL) {
+    printf("ERROR: Architecture not initialized\n");
+    exit(-1);
+  }
+
+  Status = gCurrentArch->lpVtbl->AllocatePageTable(gCurrentArch, Va, Size);
+  if (FAILED(Status)) {
+    printf("ERROR: AllocatePageTable failed: 0x%08x\n", Status);
+    exit(-1);
+  }
 }
 
 /**
   Transfer control to kernel.
 
   Performs final setup and transfers control to loaded kernel
-  entry point. Does not return.
+  entry point using IArchitecture interface. Does not return.
 
   @param[in] Entry  Kernel entry point address.
 **/
@@ -530,25 +464,17 @@ VasSetEntry (
   IN VIRTUAL_ADDRESS  Entry
   )
 {
-  switch (gImageArch)
-    {
-#if EC_MACHINE_I386 || EC_MACHINE_AMD64
-    case Arch386:
-      PaeEntry (Entry);
-      break;
-    case ArchAmd64:
-      Pae64Entry (Entry);
-      break;
-#endif
-#if EC_MACHINE_RISCV64
-    case ArchRiscV64:
-      Sv48Entry (Entry);
-      break;
-#endif
-    default:
-      printf ("Unsupported VM architecture.\n");
-      exit (-1);
-    }
+  if (gCurrentArch == NULL) {
+    printf("ERROR: Architecture not initialized\n");
+    exit(-1);
+  }
+
+  // This call never returns
+  gCurrentArch->lpVtbl->Entry(gCurrentArch, Entry);
+
+  // Should never reach here
+  printf("ERROR: Entry function returned unexpectedly\n");
+  exit(-1);
 }
 
 /**
