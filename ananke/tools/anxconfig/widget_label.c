@@ -1,5 +1,8 @@
 /*
  * Label Widget Implementation
+ *
+ * Static text label with hotkey and linked widget support.
+ * Follows the new architecture: ITuiSerializable > ITuiResponder > ITuiWidget > ITuiThemedWidget > ITuiThemedLabel > ITuiLabel
  */
 
 #include <stdio.h>
@@ -7,565 +10,489 @@
 #include <string.h>
 #include "widgets_common.h"
 
-typedef struct {
-    ITuiWidget WidgetInterface;
-    ITuiKeyListener KeyListener;
-    ITuiMouseListener MouseListener;
-    ITuiDrawListener DrawListener;
+#define MAX_TEXT_LENGTH 512
 
+typedef struct {
+    ITuiLabel Interface;
     WIDGET_STATE State;
-    CHAR8 Text[512];
+
+    /* Label data */
+    CHAR8 Text[MAX_TEXT_LENGTH];
     CHAR8 Hotkey;
     TUI_TEXT_ALIGNMENT Alignment;
-    BOOLEAN Wrap;
+    TUI_TEXT_DIRECTION Direction;
+    TUI_COLOR HotkeyColor;
     ITuiWidget *LinkedWidget;
-    ITuiResponder *NextResponder;
-    ITuiSurface *Surface;
 } TuiLabelImpl;
 
-/* Helper macros for interface conversions */
-#define LABEL_FROM_WIDGET(w) ((TuiLabelImpl*)((UINT8*)(w) - offsetof(TuiLabelImpl, WidgetInterface)))
-#define LABEL_FROM_KEY(k) ((TuiLabelImpl*)((UINT8*)(k) - offsetof(TuiLabelImpl, KeyListener)))
-#define LABEL_FROM_MOUSE(m) ((TuiLabelImpl*)((UINT8*)(m) - offsetof(TuiLabelImpl, MouseListener)))
-#define LABEL_FROM_DRAW(d) ((TuiLabelImpl*)((UINT8*)(d) - offsetof(TuiLabelImpl, DrawListener)))
+/* Helper to get impl from interface */
+#define LABEL_FROM_INTERFACE(iface) ((TuiLabelImpl*)((CHAR8*)(iface) - offsetof(TuiLabelImpl, Interface)))
 
-/* Helper: Find hotkey position in text */
-static INT32 FindHotkeyPos(CONST CHAR8 *Text, CHAR8 Hotkey)
+/* Forward declarations */
+static HRESULT ANXAPI Label_QueryInterface(ITuiLabel *This, REFIID riid, VOID **ppvObject);
+static UINTN ANXAPI Label_AddRef(ITuiLabel *This);
+static UINTN ANXAPI Label_Release(ITuiLabel *This);
+
+/* ITuiSerializable methods */
+static HRESULT ANXAPI Label_SerializeToYaml(ITuiLabel *This, CHAR8 **OutYaml, UINTN *OutLength)
 {
-    INT32 i;
-    if (Hotkey == '\0') return -1;
-
-    for (i = 0; Text[i] != '\0'; i++) {
-        if (Text[i] == Hotkey || Text[i] == (Hotkey + 32) || Text[i] == (Hotkey - 32)) {
-            return i;
-        }
-    }
-    return -1;
+    return E_NOTIMPL; /* Framework wrapper handles this */
 }
 
-/*=============================================================================
- * ITuiWidget Implementation
- *===========================================================================*/
-
-static HRESULT ANXAPI LabelWidget_QueryInterface(ITuiWidget *This, REFIID riid, VOID **ppvObject)
+static HRESULT ANXAPI Label_DeserializeFromYaml(ITuiLabel *This, CONST CHAR8 *Yaml, UINTN Length)
 {
-    TuiLabelImpl *impl = LABEL_FROM_WIDGET(This);
-    if (!ppvObject) return E_POINTER;
-
-    if (IsEqualGUID(riid, &IID_IUnknown) || IsEqualGUID(riid, &IID_ITuiWidget)) {
-        *ppvObject = &impl->WidgetInterface;
-        impl->State.RefCount++;
-        return S_OK;
-    }
-    if (IsEqualGUID(riid, &IID_ITuiKeyListener)) {
-        *ppvObject = &impl->KeyListener;
-        impl->State.RefCount++;
-        return S_OK;
-    }
-    if (IsEqualGUID(riid, &IID_ITuiMouseListener)) {
-        *ppvObject = &impl->MouseListener;
-        impl->State.RefCount++;
-        return S_OK;
-    }
-    if (IsEqualGUID(riid, &IID_ITuiDrawListener)) {
-        *ppvObject = &impl->DrawListener;
-        impl->State.RefCount++;
-        return S_OK;
-    }
-    if (IsEqualGUID(riid, &IID_ITuiSerializable)) {
-        *ppvObject = &impl->WidgetInterface;
-        impl->State.RefCount++;
-        return S_OK;
-    }
-    if (IsEqualGUID(riid, &IID_ITuiResponder)) {
-        *ppvObject = &impl->WidgetInterface;
-        impl->State.RefCount++;
-        return S_OK;
-    }
-    *ppvObject = NULL;
-    return E_NOINTERFACE;
+    return E_NOTIMPL; /* Framework wrapper handles this */
 }
 
-static UINTN ANXAPI LabelWidget_AddRef(ITuiWidget *This)
+static HRESULT ANXAPI Label_GetTypeName(ITuiLabel *This, CONST CHAR8 **OutTypeName)
 {
-    TuiLabelImpl *impl = LABEL_FROM_WIDGET(This);
-    return ++impl->State.RefCount;
-}
-
-static UINTN ANXAPI LabelWidget_Release(ITuiWidget *This)
-{
-    TuiLabelImpl *impl = LABEL_FROM_WIDGET(This);
-    UINTN refCount = --impl->State.RefCount;
-    if (refCount == 0) {
-        if (impl->Surface) impl->Surface->Vtbl->Release(impl->Surface);
-        free(impl);
-    }
-    return refCount;
-}
-
-static HRESULT ANXAPI LabelWidget_GetBounds(ITuiWidget *This, TUI_RECT *Bounds)
-{
-    TuiLabelImpl *impl = LABEL_FROM_WIDGET(This);
-    if (!Bounds) return E_POINTER;
-    *Bounds = impl->State.Bounds;
+    if (OutTypeName == NULL) return E_POINTER;
+    *OutTypeName = "Label";
     return S_OK;
 }
 
-static HRESULT ANXAPI LabelWidget_SetBounds(ITuiWidget *This, CONST TUI_RECT *Bounds)
+static HRESULT ANXAPI Label_Clone(ITuiLabel *This, ITuiSerializable **OutClone)
 {
-    TuiLabelImpl *impl = LABEL_FROM_WIDGET(This);
-    if (!Bounds) return E_POINTER;
-    impl->State.Bounds = *Bounds;
-    return S_OK;
+    return E_NOTIMPL; /* Framework wrapper handles this */
 }
 
-static HRESULT ANXAPI LabelWidget_GetPreferredSize(ITuiWidget *This, UINT32 *Width, UINT32 *Height)
+/* ITuiResponder methods */
+static HRESULT ANXAPI Label_GetNextResponder(ITuiLabel *This, ITuiResponder **NextResponder)
 {
-    TuiLabelImpl *impl = LABEL_FROM_WIDGET(This);
-    if (!Width || !Height) return E_POINTER;
-    *Width = strlen(impl->Text);
-    *Height = 1;
-    return S_OK;
+    return E_NOTIMPL; /* Framework wrapper handles this */
 }
 
-static HRESULT ANXAPI LabelWidget_SetVisible(ITuiWidget *This, BOOLEAN Visible)
+static HRESULT ANXAPI Label_SetNextResponder(ITuiLabel *This, ITuiResponder *NextResponder)
 {
-    TuiLabelImpl *impl = LABEL_FROM_WIDGET(This);
-    impl->State.Visible = Visible;
-    return S_OK;
+    return E_NOTIMPL; /* Framework wrapper handles this */
 }
 
-static HRESULT ANXAPI LabelWidget_IsVisible(ITuiWidget *This, BOOLEAN *Visible)
+static BOOLEAN ANXAPI Label_AcceptsFirstResponder(ITuiLabel *This)
 {
-    TuiLabelImpl *impl = LABEL_FROM_WIDGET(This);
-    if (!Visible) return E_POINTER;
-    *Visible = impl->State.Visible;
-    return S_OK;
+    TuiLabelImpl *impl = LABEL_FROM_INTERFACE(This);
+    /* Labels accept first responder only if they have a linked widget or hotkey */
+    return (impl->LinkedWidget != NULL || impl->Hotkey != '\0');
 }
 
-static HRESULT ANXAPI LabelWidget_SetEnabled(ITuiWidget *This, BOOLEAN Enabled)
+static HRESULT ANXAPI Label_BecomeFirstResponder(ITuiLabel *This)
 {
-    TuiLabelImpl *impl = LABEL_FROM_WIDGET(This);
-    impl->State.Enabled = Enabled;
-    return S_OK;
+    return E_NOTIMPL; /* Framework wrapper handles this */
 }
 
-static HRESULT ANXAPI LabelWidget_IsEnabled(ITuiWidget *This, BOOLEAN *Enabled)
+static HRESULT ANXAPI Label_ResignFirstResponder(ITuiLabel *This)
 {
-    TuiLabelImpl *impl = LABEL_FROM_WIDGET(This);
-    if (!Enabled) return E_POINTER;
-    *Enabled = impl->State.Enabled;
-    return S_OK;
+    return E_NOTIMPL; /* Framework wrapper handles this */
 }
 
-static HRESULT ANXAPI LabelWidget_SetFocused(ITuiWidget *This, BOOLEAN Focused)
+/* ITuiWidget methods */
+static HRESULT ANXAPI Label_SetBounds(ITuiLabel *This, CONST TUI_RECT *Bounds)
 {
-    TuiLabelImpl *impl = LABEL_FROM_WIDGET(This);
-    impl->State.Focused = Focused;
-    return S_OK;
+    return E_NOTIMPL; /* Framework wrapper handles this */
 }
 
-static HRESULT ANXAPI LabelWidget_IsFocused(ITuiWidget *This, BOOLEAN *Focused)
+static HRESULT ANXAPI Label_GetBounds(ITuiLabel *This, TUI_RECT *Bounds)
 {
-    TuiLabelImpl *impl = LABEL_FROM_WIDGET(This);
-    if (!Focused) return E_POINTER;
-    *Focused = impl->State.Focused;
-    return S_OK;
+    return E_NOTIMPL; /* Framework wrapper handles this */
 }
 
-static HRESULT ANXAPI LabelWidget_SetColors(ITuiWidget *This, TUI_COLOR Foreground, TUI_COLOR Background)
+static HRESULT ANXAPI Label_SetVisible(ITuiLabel *This, BOOLEAN Visible)
 {
-    TuiLabelImpl *impl = LABEL_FROM_WIDGET(This);
-    impl->State.ForegroundColor = Foreground;
-    impl->State.BackgroundColor = Background;
-    return S_OK;
+    return E_NOTIMPL; /* Framework wrapper handles this */
 }
 
-static HRESULT ANXAPI LabelWidget_GetColors(ITuiWidget *This, TUI_COLOR *Foreground, TUI_COLOR *Background)
+static BOOLEAN ANXAPI Label_IsVisible(ITuiLabel *This)
 {
-    TuiLabelImpl *impl = LABEL_FROM_WIDGET(This);
+    TuiLabelImpl *impl = LABEL_FROM_INTERFACE(This);
+    return impl->State.Visible;
+}
+
+static HRESULT ANXAPI Label_SetEnabled(ITuiLabel *This, BOOLEAN Enabled)
+{
+    return E_NOTIMPL; /* Framework wrapper handles this */
+}
+
+static BOOLEAN ANXAPI Label_IsEnabled(ITuiLabel *This)
+{
+    TuiLabelImpl *impl = LABEL_FROM_INTERFACE(This);
+    return impl->State.Enabled;
+}
+
+static HRESULT ANXAPI Label_SetParent(ITuiLabel *This, ITuiWidget *Parent)
+{
+    return E_NOTIMPL; /* Framework wrapper handles this */
+}
+
+static HRESULT ANXAPI Label_GetParent(ITuiLabel *This, ITuiWidget **Parent)
+{
+    return E_NOTIMPL; /* Framework wrapper handles this */
+}
+
+static HRESULT ANXAPI Label_AddChild(ITuiLabel *This, ITuiWidget *Child)
+{
+    return E_NOTIMPL; /* Labels don't have children */
+}
+
+static HRESULT ANXAPI Label_RemoveChild(ITuiLabel *This, ITuiWidget *Child)
+{
+    return E_NOTIMPL; /* Labels don't have children */
+}
+
+static HRESULT ANXAPI Label_SetNeedsDisplay(ITuiLabel *This, BOOLEAN Needed)
+{
+    return E_NOTIMPL; /* Framework wrapper handles this */
+}
+
+/* ITuiThemedWidget methods */
+static HRESULT ANXAPI Label_ApplyTheme(ITuiLabel *This, ITuiTheme *Theme)
+{
+    return E_NOTIMPL; /* Framework wrapper handles this */
+}
+
+static HRESULT ANXAPI Label_GetColors(ITuiLabel *This, TUI_COLOR *Foreground, TUI_COLOR *Background)
+{
+    TuiLabelImpl *impl = LABEL_FROM_INTERFACE(This);
     if (Foreground) *Foreground = impl->State.ForegroundColor;
     if (Background) *Background = impl->State.BackgroundColor;
     return S_OK;
 }
 
-static HRESULT ANXAPI LabelWidget_Invalidate(ITuiWidget *This, CONST TUI_RECT *Region)
+static HRESULT ANXAPI Label_SetColors(ITuiLabel *This, TUI_COLOR Foreground, TUI_COLOR Background)
 {
-    TuiLabelImpl *impl = LABEL_FROM_WIDGET(This);
-    if (impl->Surface) {
-        return impl->Surface->Vtbl->Invalidate(impl->Surface, Region);
-    }
+    TuiLabelImpl *impl = LABEL_FROM_INTERFACE(This);
+    impl->State.ForegroundColor = Foreground;
+    impl->State.BackgroundColor = Background;
     return S_OK;
 }
 
-static HRESULT ANXAPI LabelWidget_SetSurface(ITuiWidget *This, ITuiSurface *Surface)
+static HRESULT ANXAPI Label_OnMouseEvent(ITuiLabel *This, CONST TUI_MOUSE_EVENT *Event, BOOLEAN *Handled)
 {
-    TuiLabelImpl *impl = LABEL_FROM_WIDGET(This);
-    if (impl->Surface) impl->Surface->Vtbl->Release(impl->Surface);
-    impl->Surface = Surface;
-    if (Surface) Surface->Vtbl->AddRef(Surface);
-    return S_OK;
-}
+    TuiLabelImpl *impl = LABEL_FROM_INTERFACE(This);
 
-static HRESULT ANXAPI LabelWidget_GetSurface(ITuiWidget *This, ITuiSurface **Surface)
-{
-    TuiLabelImpl *impl = LABEL_FROM_WIDGET(This);
-    if (!Surface) return E_POINTER;
-    *Surface = impl->Surface;
-    if (impl->Surface) impl->Surface->Vtbl->AddRef(impl->Surface);
-    return S_OK;
-}
-
-static HRESULT ANXAPI LabelWidget_GetNextResponder(ITuiWidget *This, ITuiResponder **NextResponder)
-{
-    TuiLabelImpl *impl = LABEL_FROM_WIDGET(This);
-    if (!NextResponder) return E_POINTER;
-    *NextResponder = impl->NextResponder;
-    return S_OK;
-}
-
-static HRESULT ANXAPI LabelWidget_SetNextResponder(ITuiWidget *This, ITuiResponder *NextResponder)
-{
-    TuiLabelImpl *impl = LABEL_FROM_WIDGET(This);
-    impl->NextResponder = NextResponder;
-    return S_OK;
-}
-
-static CONST ITuiWidget_Vtbl LabelWidgetVtbl = {
-    LabelWidget_QueryInterface,
-    LabelWidget_AddRef,
-    LabelWidget_Release,
-    LabelWidget_GetBounds,
-    LabelWidget_SetBounds,
-    LabelWidget_GetPreferredSize,
-    LabelWidget_SetVisible,
-    LabelWidget_IsVisible,
-    LabelWidget_SetEnabled,
-    LabelWidget_IsEnabled,
-    LabelWidget_SetFocused,
-    LabelWidget_IsFocused,
-    LabelWidget_SetColors,
-    LabelWidget_GetColors,
-    LabelWidget_Invalidate,
-    LabelWidget_SetSurface,
-    LabelWidget_GetSurface,
-    LabelWidget_GetNextResponder,
-    LabelWidget_SetNextResponder
-};
-
-/*=============================================================================
- * ITuiKeyListener Implementation
- *===========================================================================*/
-
-static HRESULT ANXAPI LabelKey_QueryInterface(ITuiKeyListener *This, REFIID riid, VOID **ppvObject)
-{
-    TuiLabelImpl *impl = LABEL_FROM_KEY(This);
-    return LabelWidget_QueryInterface(&impl->WidgetInterface, riid, ppvObject);
-}
-
-static UINTN ANXAPI LabelKey_AddRef(ITuiKeyListener *This)
-{
-    TuiLabelImpl *impl = LABEL_FROM_KEY(This);
-    return ++impl->State.RefCount;
-}
-
-static UINTN ANXAPI LabelKey_Release(ITuiKeyListener *This)
-{
-    TuiLabelImpl *impl = LABEL_FROM_KEY(This);
-    return LabelWidget_Release(&impl->WidgetInterface);
-}
-
-static HRESULT ANXAPI LabelKey_OnKeyDown(ITuiKeyListener *This, TUI_KEY Key, UINT32 Modifiers, BOOLEAN *Handled)
-{
-    TuiLabelImpl *impl = LABEL_FROM_KEY(This);
+    if (!Handled) return E_POINTER;
     *Handled = FALSE;
 
-    /* Check if pressed key matches hotkey (case insensitive) */
+    /* Handle mouse click to focus linked widget */
+    if (Event->Type == TuiMouseButtonDown && Event->Button == TuiMouseButtonLeft) {
+        if (impl->LinkedWidget != NULL) {
+            ITuiResponder *responder = NULL;
+            HRESULT hr = impl->LinkedWidget->Vtbl->QueryInterface(
+                impl->LinkedWidget,
+                &IID_ITuiResponder,
+                (VOID**)&responder
+            );
+
+            if (SUCCEEDED(hr) && responder != NULL) {
+                responder->Vtbl->BecomeFirstResponder(responder);
+                responder->Vtbl->Release(responder);
+                *Handled = TRUE;
+                return S_OK;
+            }
+        }
+    }
+
+    return S_OK;
+}
+
+static HRESULT ANXAPI Label_OnKeyEvent(ITuiLabel *This, TUI_KEY Key, UINT32 Modifiers, BOOLEAN *Handled)
+{
+    TuiLabelImpl *impl = LABEL_FROM_INTERFACE(This);
+
+    if (!Handled) return E_POINTER;
+    *Handled = FALSE;
+
+    /* Handle hotkey to focus linked widget */
     if (impl->Hotkey != '\0' && impl->LinkedWidget != NULL) {
         CHAR8 upperKey = (Key >= 'a' && Key <= 'z') ? (Key - 32) : Key;
         CHAR8 upperHotkey = (impl->Hotkey >= 'a' && impl->Hotkey <= 'z') ? (impl->Hotkey - 32) : impl->Hotkey;
 
         if (upperKey == upperHotkey) {
-            /* Focus the linked widget */
             ITuiResponder *responder = NULL;
-            HRESULT hr = impl->LinkedWidget->Vtbl->QueryInterface(impl->LinkedWidget, &IID_ITuiResponder, (VOID**)&responder);
+            HRESULT hr = impl->LinkedWidget->Vtbl->QueryInterface(
+                impl->LinkedWidget,
+                &IID_ITuiResponder,
+                (VOID**)&responder
+            );
+
             if (SUCCEEDED(hr) && responder != NULL) {
                 responder->Vtbl->BecomeFirstResponder(responder);
                 responder->Vtbl->Release(responder);
+                *Handled = TRUE;
+                return S_OK;
             }
-            *Handled = TRUE;
-            return S_OK;
         }
     }
 
     return S_OK;
 }
 
-static HRESULT ANXAPI LabelKey_OnKeyUp(ITuiKeyListener *This, TUI_KEY Key, UINT32 Modifiers, BOOLEAN *Handled)
+static HRESULT ANXAPI Label_Draw(ITuiLabel *This, ITuiSurface *Surface, CONST TUI_RECT *DirtyRect)
 {
-    *Handled = FALSE;
-    return S_OK;
-}
+    TuiLabelImpl *impl = LABEL_FROM_INTERFACE(This);
 
-static HRESULT ANXAPI LabelKey_OnChar(ITuiKeyListener *This, CHAR16 Character, BOOLEAN *Handled)
-{
-    *Handled = FALSE;
-    return S_OK;
-}
-
-static CONST ITuiKeyListener_Vtbl LabelKeyVtbl = {
-    LabelKey_QueryInterface,
-    LabelKey_AddRef,
-    LabelKey_Release,
-    LabelKey_OnKeyDown,
-    LabelKey_OnKeyUp,
-    LabelKey_OnChar
-};
-
-/*=============================================================================
- * ITuiMouseListener Implementation
- *===========================================================================*/
-
-static HRESULT ANXAPI LabelMouse_QueryInterface(ITuiMouseListener *This, REFIID riid, VOID **ppvObject)
-{
-    TuiLabelImpl *impl = LABEL_FROM_MOUSE(This);
-    return LabelWidget_QueryInterface(&impl->WidgetInterface, riid, ppvObject);
-}
-
-static UINTN ANXAPI LabelMouse_AddRef(ITuiMouseListener *This)
-{
-    TuiLabelImpl *impl = LABEL_FROM_MOUSE(This);
-    return ++impl->State.RefCount;
-}
-
-static UINTN ANXAPI LabelMouse_Release(ITuiMouseListener *This)
-{
-    TuiLabelImpl *impl = LABEL_FROM_MOUSE(This);
-    return LabelWidget_Release(&impl->WidgetInterface);
-}
-
-static HRESULT ANXAPI LabelMouse_OnMouseEvent(ITuiMouseListener *This, CONST TUI_MOUSE_EVENT *Event, BOOLEAN *Handled)
-{
-    TuiLabelImpl *impl = LABEL_FROM_MOUSE(This);
-    BOOLEAN isOver;
-
-    *Handled = FALSE;
-
-    /* Only handle if we have a linked widget */
-    if (impl->LinkedWidget == NULL) return S_OK;
-
-    isOver = IsPointInWidget(&impl->State, Event->X, Event->Y);
-    if (!isOver) return S_OK;
-
-    /* Click to focus linked widget */
-    if (Event->Type == TuiMouseLeftDown) {
-        ITuiResponder *responder = NULL;
-        HRESULT hr = impl->LinkedWidget->Vtbl->QueryInterface(impl->LinkedWidget, &IID_ITuiResponder, (VOID**)&responder);
-        if (SUCCEEDED(hr) && responder != NULL) {
-            responder->Vtbl->BecomeFirstResponder(responder);
-            responder->Vtbl->Release(responder);
-        }
-        *Handled = TRUE;
-    }
-
-    return S_OK;
-}
-
-static CONST ITuiMouseListener_Vtbl LabelMouseVtbl = {
-    LabelMouse_QueryInterface,
-    LabelMouse_AddRef,
-    LabelMouse_Release,
-    LabelMouse_OnMouseEvent
-};
-
-/*=============================================================================
- * ITuiDrawListener Implementation
- *===========================================================================*/
-
-static HRESULT ANXAPI LabelDraw_QueryInterface(ITuiDrawListener *This, REFIID riid, VOID **ppvObject)
-{
-    TuiLabelImpl *impl = LABEL_FROM_DRAW(This);
-    return LabelWidget_QueryInterface(&impl->WidgetInterface, riid, ppvObject);
-}
-
-static UINTN ANXAPI LabelDraw_AddRef(ITuiDrawListener *This)
-{
-    TuiLabelImpl *impl = LABEL_FROM_DRAW(This);
-    return ++impl->State.RefCount;
-}
-
-static UINTN ANXAPI LabelDraw_Release(ITuiDrawListener *This)
-{
-    TuiLabelImpl *impl = LABEL_FROM_DRAW(This);
-    return LabelWidget_Release(&impl->WidgetInterface);
-}
-
-static HRESULT ANXAPI LabelDraw_OnDraw(ITuiDrawListener *This, ITuiSurface *Surface, CONST TUI_RECT *DirtyRect)
-{
-    TuiLabelImpl *impl = LABEL_FROM_DRAW(This);
-    TUI_COLOR fg, bg;
-    INT32 hotkeyPos;
-    INT32 startX;
-    UINT32 textLen;
-    UINT32 width;
-
+    if (Surface == NULL) return E_POINTER;
     if (!impl->State.Visible) return S_OK;
 
-    fg = impl->State.Enabled ? impl->State.ForegroundColor : TuiColorBrightBlack;
-    bg = impl->State.BackgroundColor;
+    /* Get bounds */
+    TUI_RECT bounds = impl->State.Bounds;
+    if (bounds.Width == 0) return S_OK;
 
-    textLen = strlen(impl->Text);
-    width = impl->State.Bounds.Right - impl->State.Bounds.Left;
+    /* Draw label text */
+    UINT32 textLen = (UINT32)strlen(impl->Text);
+    INT32 x = bounds.X;
+    INT32 y = bounds.Y;
 
-    /* Calculate starting X position based on alignment */
-    startX = 0;
-    if (width > 0) {
-        if (impl->Alignment == TuiAlignCenter) {
-            startX = (width - textLen) / 2;
-        } else if (impl->Alignment == TuiAlignRight) {
-            startX = width - textLen;
-        }
+    /* Calculate alignment offset */
+    if (impl->Alignment == TuiTextAlignmentCenter && textLen < bounds.Width) {
+        x += (bounds.Width - textLen) / 2;
+    } else if (impl->Alignment == TuiTextAlignmentRight && textLen < bounds.Width) {
+        x += bounds.Width - textLen;
     }
 
-    /* Render text */
-    if (impl->Wrap && width > 0) {
-        /* Word wrap implementation (simple version) */
-        CHAR8 line[256];
-        CONST CHAR8 *p = impl->Text;
-        INT32 currentY = 0;
-        UINT32 linePos = 0;
+    /* Draw each character */
+    for (UINT32 i = 0; i < textLen && i < bounds.Width; i++) {
+        TUI_COLOR fg = impl->State.ForegroundColor;
 
-        while (*p != '\0') {
-            if (*p == '\n' || linePos >= width - 1) {
-                line[linePos] = '\0';
-                Surface->Vtbl->WriteText(Surface, 0, currentY, line, fg, bg);
-                currentY++;
-                linePos = 0;
-                if (*p == '\n') {
-                    p++;
-                    continue;
-                }
-            }
-            line[linePos++] = *p++;
-        }
-        if (linePos > 0) {
-            line[linePos] = '\0';
-            Surface->Vtbl->WriteText(Surface, 0, currentY, line, fg, bg);
-        }
-    } else {
-        /* Single line, no wrap */
-        Surface->Vtbl->WriteText(Surface, startX, 0, impl->Text, fg, bg);
+        /* Highlight hotkey character */
+        if (impl->Hotkey != '\0') {
+            CHAR8 upperChar = (impl->Text[i] >= 'a' && impl->Text[i] <= 'z') ? (impl->Text[i] - 32) : impl->Text[i];
+            CHAR8 upperHotkey = (impl->Hotkey >= 'a' && impl->Hotkey <= 'z') ? (impl->Hotkey - 32) : impl->Hotkey;
 
-        /* Underline hotkey character if present */
-        if (impl->State.Enabled) {
-            hotkeyPos = FindHotkeyPos(impl->Text, impl->Hotkey);
-            if (hotkeyPos >= 0) {
-                CHAR8 hotChar[2] = { impl->Text[hotkeyPos], '\0' };
-                Surface->Vtbl->WriteText(Surface, startX + hotkeyPos, 0, hotChar,
-                                        TuiColorYellow, bg);
+            if (upperChar == upperHotkey) {
+                fg = impl->HotkeyColor;
             }
         }
+
+        /* Use surface to draw character */
+        Surface->Vtbl->WriteChar(Surface, x + i, y, impl->Text[i], fg, impl->State.BackgroundColor);
     }
 
     return S_OK;
 }
 
-static CONST ITuiDrawListener_Vtbl LabelDrawVtbl = {
-    LabelDraw_QueryInterface,
-    LabelDraw_AddRef,
-    LabelDraw_Release,
-    LabelDraw_OnDraw
+/* ITuiThemedLabel methods */
+static HRESULT ANXAPI Label_GetHotkeyColor(ITuiLabel *This, TUI_COLOR *HotkeyColor)
+{
+    TuiLabelImpl *impl = LABEL_FROM_INTERFACE(This);
+    if (HotkeyColor == NULL) return E_POINTER;
+    *HotkeyColor = impl->HotkeyColor;
+    return S_OK;
+}
+
+static HRESULT ANXAPI Label_SetHotkeyColor(ITuiLabel *This, TUI_COLOR HotkeyColor)
+{
+    TuiLabelImpl *impl = LABEL_FROM_INTERFACE(This);
+    impl->HotkeyColor = HotkeyColor;
+    return S_OK;
+}
+
+/* ITuiLabel methods */
+static HRESULT ANXAPI Label_SetText(ITuiLabel *This, CONST CHAR8 *Text)
+{
+    TuiLabelImpl *impl = LABEL_FROM_INTERFACE(This);
+
+    if (Text == NULL) return E_POINTER;
+
+    strncpy(impl->Text, Text, MAX_TEXT_LENGTH - 1);
+    impl->Text[MAX_TEXT_LENGTH - 1] = '\0';
+
+    return S_OK;
+}
+
+static HRESULT ANXAPI Label_GetText(ITuiLabel *This, CHAR8 *Buffer, UINTN BufferSize)
+{
+    TuiLabelImpl *impl = LABEL_FROM_INTERFACE(This);
+
+    if (Buffer == NULL) return E_POINTER;
+    if (BufferSize == 0) return E_INVALIDARG;
+
+    strncpy(Buffer, impl->Text, BufferSize - 1);
+    Buffer[BufferSize - 1] = '\0';
+
+    return S_OK;
+}
+
+static HRESULT ANXAPI Label_SetHotkey(ITuiLabel *This, CHAR8 Hotkey)
+{
+    TuiLabelImpl *impl = LABEL_FROM_INTERFACE(This);
+    impl->Hotkey = Hotkey;
+    return S_OK;
+}
+
+static HRESULT ANXAPI Label_SetTextDirection(ITuiLabel *This, TUI_TEXT_DIRECTION Direction)
+{
+    TuiLabelImpl *impl = LABEL_FROM_INTERFACE(This);
+    impl->Direction = Direction;
+    return S_OK;
+}
+
+static HRESULT ANXAPI Label_SetAlignment(ITuiLabel *This, INT32 Alignment)
+{
+    TuiLabelImpl *impl = LABEL_FROM_INTERFACE(This);
+
+    if (Alignment < 0 || Alignment > 2) return E_INVALIDARG;
+
+    impl->Alignment = (TUI_TEXT_ALIGNMENT)Alignment;
+    return S_OK;
+}
+
+static HRESULT ANXAPI Label_SetLinkedWidget(ITuiLabel *This, ITuiWidget *LinkedWidget)
+{
+    TuiLabelImpl *impl = LABEL_FROM_INTERFACE(This);
+    impl->LinkedWidget = LinkedWidget;
+    return S_OK;
+}
+
+/* IUnknown methods */
+static HRESULT ANXAPI Label_QueryInterface(ITuiLabel *This, REFIID riid, VOID **ppvObject)
+{
+    if (ppvObject == NULL) return E_POINTER;
+
+    if (memcmp(riid, &IID_ITuiLabel, sizeof(GUID)) == 0) {
+        *ppvObject = This;
+        This->Vtbl->AddRef(This);
+        return S_OK;
+    }
+
+    if (memcmp(riid, &IID_ITuiThemedLabel, sizeof(GUID)) == 0) {
+        *ppvObject = This;
+        This->Vtbl->AddRef(This);
+        return S_OK;
+    }
+
+    if (memcmp(riid, &IID_ITuiThemedWidget, sizeof(GUID)) == 0) {
+        *ppvObject = This;
+        This->Vtbl->AddRef(This);
+        return S_OK;
+    }
+
+    if (memcmp(riid, &IID_ITuiWidget, sizeof(GUID)) == 0) {
+        *ppvObject = This;
+        This->Vtbl->AddRef(This);
+        return S_OK;
+    }
+
+    if (memcmp(riid, &IID_ITuiResponder, sizeof(GUID)) == 0) {
+        *ppvObject = This;
+        This->Vtbl->AddRef(This);
+        return S_OK;
+    }
+
+    *ppvObject = NULL;
+    return E_NOINTERFACE;
+}
+
+static UINTN ANXAPI Label_AddRef(ITuiLabel *This)
+{
+    TuiLabelImpl *impl = LABEL_FROM_INTERFACE(This);
+    return ++impl->State.RefCount;
+}
+
+static UINTN ANXAPI Label_Release(ITuiLabel *This)
+{
+    TuiLabelImpl *impl = LABEL_FROM_INTERFACE(This);
+    UINTN refCount = --impl->State.RefCount;
+
+    if (refCount == 0) {
+        free(impl);
+    }
+
+    return refCount;
+}
+
+/* Vtable */
+static CONST ITuiLabel_Vtbl LabelVtbl = {
+    /* ITuiSerializable */
+    Label_QueryInterface,
+    Label_AddRef,
+    Label_Release,
+    Label_SerializeToYaml,
+    Label_DeserializeFromYaml,
+    Label_GetTypeName,
+    Label_Clone,
+
+    /* ITuiResponder */
+    Label_GetNextResponder,
+    Label_SetNextResponder,
+    Label_AcceptsFirstResponder,
+    Label_BecomeFirstResponder,
+    Label_ResignFirstResponder,
+
+    /* ITuiWidget */
+    Label_SetBounds,
+    Label_GetBounds,
+    Label_SetVisible,
+    Label_IsVisible,
+    Label_SetEnabled,
+    Label_IsEnabled,
+    Label_SetParent,
+    Label_GetParent,
+    Label_AddChild,
+    Label_RemoveChild,
+    Label_SetNeedsDisplay,
+
+    /* ITuiThemedWidget */
+    Label_ApplyTheme,
+    Label_GetColors,
+    Label_SetColors,
+    Label_OnMouseEvent,
+    Label_OnKeyEvent,
+    Label_Draw,
+
+    /* ITuiThemedLabel */
+    Label_GetHotkeyColor,
+    Label_SetHotkeyColor,
+
+    /* ITuiLabel */
+    Label_SetText,
+    Label_GetText,
+    Label_SetHotkey,
+    Label_SetTextDirection,
+    Label_SetAlignment,
+    Label_SetLinkedWidget
 };
 
-/*=============================================================================
- * Factory Function
- *===========================================================================*/
-
-HRESULT ANXAPI AnxTuiCreateLabel(IN CONST CHAR8 *Text, OUT ITuiWidget **Widget)
+/* Factory function */
+HRESULT ANXAPI AnxTuiCreateLabel(
+    IN  ITuiWidget *Parent,
+    IN  CONST CHAR8 *Text,
+    OUT ITuiLabel **OutLabel
+)
 {
     TuiLabelImpl *impl;
 
-    if (Widget == NULL) return E_POINTER;
+    if (OutLabel == NULL) return E_POINTER;
 
     impl = (TuiLabelImpl *)calloc(1, sizeof(TuiLabelImpl));
     if (impl == NULL) {
-        *Widget = NULL;
+        *OutLabel = NULL;
         return E_OUTOFMEMORY;
     }
 
-    /* Initialize vtables */
-    impl->WidgetInterface.Vtbl = &LabelWidgetVtbl;
-    impl->KeyListener.Vtbl = &LabelKeyVtbl;
-    impl->MouseListener.Vtbl = &LabelMouseVtbl;
-    impl->DrawListener.Vtbl = &LabelDrawVtbl;
+    /* Initialize interface */
+    impl->Interface.Vtbl = &LabelVtbl;
 
-    /* Initialize widget state */
+    /* Initialize state */
     InitWidgetState(&impl->State);
 
-    /* Initialize label-specific state */
+    /* Initialize label data */
     if (Text != NULL) {
-        strncpy(impl->Text, Text, sizeof(impl->Text) - 1);
-        impl->Text[sizeof(impl->Text) - 1] = '\0';
+        strncpy(impl->Text, Text, MAX_TEXT_LENGTH - 1);
+        impl->Text[MAX_TEXT_LENGTH - 1] = '\0';
     } else {
         impl->Text[0] = '\0';
     }
 
     impl->Hotkey = '\0';
-    impl->Alignment = TuiAlignLeft;
-    impl->Wrap = FALSE;
+    impl->Alignment = TuiTextAlignmentLeft;
+    impl->Direction = TuiTextDirectionLeftToRight;
+    impl->HotkeyColor = TuiColorYellow; /* Default hotkey color */
     impl->LinkedWidget = NULL;
-    impl->NextResponder = NULL;
-    impl->Surface = NULL;
 
-    *Widget = &impl->WidgetInterface;
-    return S_OK;
-}
+    /* Set parent if provided */
+    if (Parent != NULL) {
+        Parent->Vtbl->AddChild(Parent, (ITuiWidget*)&impl->Interface);
+    }
 
-/* Convenience methods for label-specific functionality */
-HRESULT ANXAPI AnxTuiLabelSetText(ITuiWidget *Widget, CONST CHAR8 *Text)
-{
-    TuiLabelImpl *impl = LABEL_FROM_WIDGET(Widget);
-    if (Text == NULL) return E_POINTER;
-
-    strncpy(impl->Text, Text, sizeof(impl->Text) - 1);
-    impl->Text[sizeof(impl->Text) - 1] = '\0';
-    return S_OK;
-}
-
-HRESULT ANXAPI AnxTuiLabelGetText(ITuiWidget *Widget, CHAR8 *Buffer, UINTN BufferSize)
-{
-    TuiLabelImpl *impl = LABEL_FROM_WIDGET(Widget);
-    if (Buffer == NULL) return E_POINTER;
-
-    strncpy(Buffer, impl->Text, BufferSize - 1);
-    Buffer[BufferSize - 1] = '\0';
-    return S_OK;
-}
-
-HRESULT ANXAPI AnxTuiLabelSetHotkey(ITuiWidget *Widget, CHAR8 Hotkey)
-{
-    TuiLabelImpl *impl = LABEL_FROM_WIDGET(Widget);
-    impl->Hotkey = Hotkey;
-    return S_OK;
-}
-
-HRESULT ANXAPI AnxTuiLabelSetAlignment(ITuiWidget *Widget, TUI_TEXT_ALIGNMENT Alignment)
-{
-    TuiLabelImpl *impl = LABEL_FROM_WIDGET(Widget);
-    impl->Alignment = Alignment;
-    return S_OK;
-}
-
-HRESULT ANXAPI AnxTuiLabelSetWordWrap(ITuiWidget *Widget, BOOLEAN Wrap)
-{
-    TuiLabelImpl *impl = LABEL_FROM_WIDGET(Widget);
-    impl->Wrap = Wrap;
-    return S_OK;
-}
-
-HRESULT ANXAPI AnxTuiLabelSetLinkedWidget(ITuiWidget *Widget, ITuiWidget *LinkedWidget)
-{
-    TuiLabelImpl *impl = LABEL_FROM_WIDGET(Widget);
-    impl->LinkedWidget = LinkedWidget;
+    *OutLabel = &impl->Interface;
     return S_OK;
 }

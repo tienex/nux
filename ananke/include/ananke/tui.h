@@ -718,6 +718,138 @@ struct _ITuiWidget {
 #define ITuiWidget_SetNeedsDisplay(This,Needed) (This)->Vtbl->SetNeedsDisplay(This,Needed)
 #endif
 
+// {4E5F6A7B-8C9D-0E1F-2A3B-4C5D6E7F8A9B}
+DEFINE_GUID(IID_ITuiThemedWidget,
+    0x4E5F6A7B, 0x8C9D, 0x0E1F, 0x2A, 0x3B, 0x4C, 0x5D, 0x6E, 0x7F, 0x8A, 0x9B);
+
+/**
+  ITuiThemedWidget Interface
+
+  Base interface for all themed widgets. Inherits from ITuiWidget.
+  Provides theming support for widgets.
+**/
+typedef struct _ITuiThemedWidget_Vtbl {
+    // ITuiSerializable methods
+    HRESULT (ANXAPI *QueryInterface)(ITuiThemedWidget *This, REFIID riid, VOID **ppvObject);
+    UINTN (ANXAPI *AddRef)(ITuiThemedWidget *This);
+    UINTN (ANXAPI *Release)(ITuiThemedWidget *This);
+    HRESULT (ANXAPI *SerializeToYaml)(ITuiThemedWidget *This, CHAR8 **OutYaml, UINTN *OutLength);
+    HRESULT (ANXAPI *DeserializeFromYaml)(ITuiThemedWidget *This, CONST CHAR8 *Yaml, UINTN Length);
+    HRESULT (ANXAPI *GetTypeName)(ITuiThemedWidget *This, CONST CHAR8 **OutTypeName);
+    HRESULT (ANXAPI *Clone)(ITuiThemedWidget *This, ITuiSerializable **OutClone);
+
+    // ITuiResponder methods
+    HRESULT (ANXAPI *GetNextResponder)(ITuiThemedWidget *This, ITuiResponder **NextResponder);
+    HRESULT (ANXAPI *SetNextResponder)(ITuiThemedWidget *This, ITuiResponder *NextResponder);
+    BOOLEAN (ANXAPI *AcceptsFirstResponder)(ITuiThemedWidget *This);
+    HRESULT (ANXAPI *BecomeFirstResponder)(ITuiThemedWidget *This);
+    HRESULT (ANXAPI *ResignFirstResponder)(ITuiThemedWidget *This);
+
+    // ITuiWidget methods
+    HRESULT (ANXAPI *SetBounds)(ITuiThemedWidget *This, CONST TUI_RECT *Bounds);
+    HRESULT (ANXAPI *GetBounds)(ITuiThemedWidget *This, TUI_RECT *Bounds);
+    HRESULT (ANXAPI *SetVisible)(ITuiThemedWidget *This, BOOLEAN Visible);
+    BOOLEAN (ANXAPI *IsVisible)(ITuiThemedWidget *This);
+    HRESULT (ANXAPI *SetEnabled)(ITuiThemedWidget *This, BOOLEAN Enabled);
+    BOOLEAN (ANXAPI *IsEnabled)(ITuiThemedWidget *This);
+    HRESULT (ANXAPI *SetParent)(ITuiThemedWidget *This, ITuiWidget *Parent);
+    HRESULT (ANXAPI *GetParent)(ITuiThemedWidget *This, ITuiWidget **Parent);
+    HRESULT (ANXAPI *AddChild)(ITuiThemedWidget *This, ITuiWidget *Child);
+    HRESULT (ANXAPI *RemoveChild)(ITuiThemedWidget *This, ITuiWidget *Child);
+    HRESULT (ANXAPI *SetNeedsDisplay)(ITuiThemedWidget *This, BOOLEAN Needed);
+
+    // ITuiThemedWidget methods
+    /**
+      Apply a theme to this widget.
+    **/
+    HRESULT (ANXAPI *ApplyTheme)(
+        ITuiThemedWidget *This,
+        ITuiTheme *Theme
+    );
+
+    /**
+      Get the current foreground and background colors.
+    **/
+    HRESULT (ANXAPI *GetColors)(
+        ITuiThemedWidget *This,
+        TUI_COLOR *Foreground,
+        TUI_COLOR *Background
+    );
+
+    /**
+      Set the foreground and background colors.
+    **/
+    HRESULT (ANXAPI *SetColors)(
+        ITuiThemedWidget *This,
+        TUI_COLOR Foreground,
+        TUI_COLOR Background
+    );
+
+    /**
+      Handle mouse events.
+    **/
+    HRESULT (ANXAPI *OnMouseEvent)(
+        ITuiThemedWidget *This,
+        CONST TUI_MOUSE_EVENT *Event,
+        BOOLEAN *Handled
+    );
+
+    /**
+      Handle key events.
+    **/
+    HRESULT (ANXAPI *OnKeyEvent)(
+        ITuiThemedWidget *This,
+        TUI_KEY Key,
+        UINT32 Modifiers,
+        BOOLEAN *Handled
+    );
+
+    /**
+      Draw the widget.
+    **/
+    HRESULT (ANXAPI *Draw)(
+        ITuiThemedWidget *This,
+        ITuiSurface *Surface,
+        CONST TUI_RECT *DirtyRect
+    );
+} ITuiThemedWidget_Vtbl;
+
+struct _ITuiThemedWidget {
+    CONST ITuiThemedWidget_Vtbl *Vtbl;
+};
+
+#ifdef COBJMACROS
+#define ITuiThemedWidget_QueryInterface(This,riid,ppvObject) (This)->Vtbl->QueryInterface(This,riid,ppvObject)
+#define ITuiThemedWidget_AddRef(This) (This)->Vtbl->AddRef(This)
+#define ITuiThemedWidget_Release(This) (This)->Vtbl->Release(This)
+#define ITuiThemedWidget_SerializeToYaml(This,OutYaml,OutLength) (This)->Vtbl->SerializeToYaml(This,OutYaml,OutLength)
+#define ITuiThemedWidget_DeserializeFromYaml(This,Yaml,Length) (This)->Vtbl->DeserializeFromYaml(This,Yaml,Length)
+#define ITuiThemedWidget_GetTypeName(This,OutTypeName) (This)->Vtbl->GetTypeName(This,OutTypeName)
+#define ITuiThemedWidget_Clone(This,OutClone) (This)->Vtbl->Clone(This,OutClone)
+#define ITuiThemedWidget_GetNextResponder(This,NextResponder) (This)->Vtbl->GetNextResponder(This,NextResponder)
+#define ITuiThemedWidget_SetNextResponder(This,NextResponder) (This)->Vtbl->SetNextResponder(This,NextResponder)
+#define ITuiThemedWidget_AcceptsFirstResponder(This) (This)->Vtbl->AcceptsFirstResponder(This)
+#define ITuiThemedWidget_BecomeFirstResponder(This) (This)->Vtbl->BecomeFirstResponder(This)
+#define ITuiThemedWidget_ResignFirstResponder(This) (This)->Vtbl->ResignFirstResponder(This)
+#define ITuiThemedWidget_SetBounds(This,Bounds) (This)->Vtbl->SetBounds(This,Bounds)
+#define ITuiThemedWidget_GetBounds(This,Bounds) (This)->Vtbl->GetBounds(This,Bounds)
+#define ITuiThemedWidget_SetVisible(This,Visible) (This)->Vtbl->SetVisible(This,Visible)
+#define ITuiThemedWidget_IsVisible(This) (This)->Vtbl->IsVisible(This)
+#define ITuiThemedWidget_SetEnabled(This,Enabled) (This)->Vtbl->SetEnabled(This,Enabled)
+#define ITuiThemedWidget_IsEnabled(This) (This)->Vtbl->IsEnabled(This)
+#define ITuiThemedWidget_SetParent(This,Parent) (This)->Vtbl->SetParent(This,Parent)
+#define ITuiThemedWidget_GetParent(This,Parent) (This)->Vtbl->GetParent(This,Parent)
+#define ITuiThemedWidget_AddChild(This,Child) (This)->Vtbl->AddChild(This,Child)
+#define ITuiThemedWidget_RemoveChild(This,Child) (This)->Vtbl->RemoveChild(This,Child)
+#define ITuiThemedWidget_SetNeedsDisplay(This,Needed) (This)->Vtbl->SetNeedsDisplay(This,Needed)
+#define ITuiThemedWidget_ApplyTheme(This,Theme) (This)->Vtbl->ApplyTheme(This,Theme)
+#define ITuiThemedWidget_GetColors(This,Foreground,Background) (This)->Vtbl->GetColors(This,Foreground,Background)
+#define ITuiThemedWidget_SetColors(This,Foreground,Background) (This)->Vtbl->SetColors(This,Foreground,Background)
+#define ITuiThemedWidget_OnMouseEvent(This,Event,Handled) (This)->Vtbl->OnMouseEvent(This,Event,Handled)
+#define ITuiThemedWidget_OnKeyEvent(This,Key,Modifiers,Handled) (This)->Vtbl->OnKeyEvent(This,Key,Modifiers,Handled)
+#define ITuiThemedWidget_Draw(This,Surface,DirtyRect) (This)->Vtbl->Draw(This,Surface,DirtyRect)
+#endif
+
 //
 // Event Listener Interfaces
 //
@@ -2970,6 +3102,75 @@ struct _ITuiFocusManager {
     CONST ITuiFocusManager_Vtbl *Vtbl;
 };
 
+// {5F6A7B8C-9D0E-1F2A-3B4C-5D6E7F8A9B0C}
+DEFINE_GUID(IID_ITuiThemedLabel,
+    0x5F6A7B8C, 0x9D0E, 0x1F2A, 0x3B, 0x4C, 0x5D, 0x6E, 0x7F, 0x8A, 0x9B, 0x0C);
+
+/**
+  ITuiThemedLabel Interface
+
+  Label theming interface. Inherits from ITuiThemedWidget.
+**/
+typedef struct _ITuiThemedLabel_Vtbl {
+    // ITuiSerializable methods
+    HRESULT (ANXAPI *QueryInterface)(ITuiThemedLabel *This, REFIID riid, VOID **ppvObject);
+    UINTN (ANXAPI *AddRef)(ITuiThemedLabel *This);
+    UINTN (ANXAPI *Release)(ITuiThemedLabel *This);
+    HRESULT (ANXAPI *SerializeToYaml)(ITuiThemedLabel *This, CHAR8 **OutYaml, UINTN *OutLength);
+    HRESULT (ANXAPI *DeserializeFromYaml)(ITuiThemedLabel *This, CONST CHAR8 *Yaml, UINTN Length);
+    HRESULT (ANXAPI *GetTypeName)(ITuiThemedLabel *This, CONST CHAR8 **OutTypeName);
+    HRESULT (ANXAPI *Clone)(ITuiThemedLabel *This, ITuiSerializable **OutClone);
+
+    // ITuiResponder methods
+    HRESULT (ANXAPI *GetNextResponder)(ITuiThemedLabel *This, ITuiResponder **NextResponder);
+    HRESULT (ANXAPI *SetNextResponder)(ITuiThemedLabel *This, ITuiResponder *NextResponder);
+    BOOLEAN (ANXAPI *AcceptsFirstResponder)(ITuiThemedLabel *This);
+    HRESULT (ANXAPI *BecomeFirstResponder)(ITuiThemedLabel *This);
+    HRESULT (ANXAPI *ResignFirstResponder)(ITuiThemedLabel *This);
+
+    // ITuiWidget methods
+    HRESULT (ANXAPI *SetBounds)(ITuiThemedLabel *This, CONST TUI_RECT *Bounds);
+    HRESULT (ANXAPI *GetBounds)(ITuiThemedLabel *This, TUI_RECT *Bounds);
+    HRESULT (ANXAPI *SetVisible)(ITuiThemedLabel *This, BOOLEAN Visible);
+    BOOLEAN (ANXAPI *IsVisible)(ITuiThemedLabel *This);
+    HRESULT (ANXAPI *SetEnabled)(ITuiThemedLabel *This, BOOLEAN Enabled);
+    BOOLEAN (ANXAPI *IsEnabled)(ITuiThemedLabel *This);
+    HRESULT (ANXAPI *SetParent)(ITuiThemedLabel *This, ITuiWidget *Parent);
+    HRESULT (ANXAPI *GetParent)(ITuiThemedLabel *This, ITuiWidget **Parent);
+    HRESULT (ANXAPI *AddChild)(ITuiThemedLabel *This, ITuiWidget *Child);
+    HRESULT (ANXAPI *RemoveChild)(ITuiThemedLabel *This, ITuiWidget *Child);
+    HRESULT (ANXAPI *SetNeedsDisplay)(ITuiThemedLabel *This, BOOLEAN Needed);
+
+    // ITuiThemedWidget methods
+    HRESULT (ANXAPI *ApplyTheme)(ITuiThemedLabel *This, ITuiTheme *Theme);
+    HRESULT (ANXAPI *GetColors)(ITuiThemedLabel *This, TUI_COLOR *Foreground, TUI_COLOR *Background);
+    HRESULT (ANXAPI *SetColors)(ITuiThemedLabel *This, TUI_COLOR Foreground, TUI_COLOR Background);
+    HRESULT (ANXAPI *OnMouseEvent)(ITuiThemedLabel *This, CONST TUI_MOUSE_EVENT *Event, BOOLEAN *Handled);
+    HRESULT (ANXAPI *OnKeyEvent)(ITuiThemedLabel *This, TUI_KEY Key, UINT32 Modifiers, BOOLEAN *Handled);
+    HRESULT (ANXAPI *Draw)(ITuiThemedLabel *This, ITuiSurface *Surface, CONST TUI_RECT *DirtyRect);
+
+    // ITuiThemedLabel methods
+    /**
+      Get hotkey color for theming.
+    **/
+    HRESULT (ANXAPI *GetHotkeyColor)(
+        ITuiThemedLabel *This,
+        TUI_COLOR *HotkeyColor
+    );
+
+    /**
+      Set hotkey color for theming.
+    **/
+    HRESULT (ANXAPI *SetHotkeyColor)(
+        ITuiThemedLabel *This,
+        TUI_COLOR HotkeyColor
+    );
+} ITuiThemedLabel_Vtbl;
+
+struct _ITuiThemedLabel {
+    CONST ITuiThemedLabel_Vtbl *Vtbl;
+};
+
 // {C1D2E3F4-A5B6-4C7D-8E9F-0A1B2C3D4E5F}
 DEFINE_GUID(IID_ITuiLabel,
     0xC1D2E3F4, 0xA5B6, 0x4C7D, 0x8E, 0x9F, 0x0A, 0x1B, 0x2C, 0x3D, 0x4E, 0x5F);
@@ -2977,20 +3178,100 @@ DEFINE_GUID(IID_ITuiLabel,
 /**
   ITuiLabel Interface
 
-  Static text label with hotkey support.
+  Static text label with hotkey support. Inherits from ITuiThemedLabel.
 **/
 typedef struct _ITuiLabel_Vtbl {
+    // ITuiSerializable methods
     HRESULT (ANXAPI *QueryInterface)(ITuiLabel *This, REFIID riid, VOID **ppvObject);
     UINTN (ANXAPI *AddRef)(ITuiLabel *This);
     UINTN (ANXAPI *Release)(ITuiLabel *This);
+    HRESULT (ANXAPI *SerializeToYaml)(ITuiLabel *This, CHAR8 **OutYaml, UINTN *OutLength);
+    HRESULT (ANXAPI *DeserializeFromYaml)(ITuiLabel *This, CONST CHAR8 *Yaml, UINTN Length);
+    HRESULT (ANXAPI *GetTypeName)(ITuiLabel *This, CONST CHAR8 **OutTypeName);
+    HRESULT (ANXAPI *Clone)(ITuiLabel *This, ITuiSerializable **OutClone);
 
-    HRESULT (ANXAPI *SetText)(ITuiLabel *This, CONST CHAR8 *Text);
-    HRESULT (ANXAPI *GetText)(ITuiLabel *This, CHAR8 *Buffer, UINTN BufferSize);
-    HRESULT (ANXAPI *SetHotkey)(ITuiLabel *This, CHAR8 Hotkey);  /* Underlined char */
-    HRESULT (ANXAPI *SetTextDirection)(ITuiLabel *This, TUI_TEXT_DIRECTION Direction);
-    HRESULT (ANXAPI *SetColors)(ITuiLabel *This, TUI_COLOR Fg, TUI_COLOR Bg);
-    HRESULT (ANXAPI *SetAlignment)(ITuiLabel *This, INT32 Alignment);  /* 0=left, 1=center, 2=right */
-    HRESULT (ANXAPI *Render)(ITuiLabel *This, ITuiScreen *Screen, INT32 X, INT32 Y, UINT32 Width);
+    // ITuiResponder methods
+    HRESULT (ANXAPI *GetNextResponder)(ITuiLabel *This, ITuiResponder **NextResponder);
+    HRESULT (ANXAPI *SetNextResponder)(ITuiLabel *This, ITuiResponder *NextResponder);
+    BOOLEAN (ANXAPI *AcceptsFirstResponder)(ITuiLabel *This);
+    HRESULT (ANXAPI *BecomeFirstResponder)(ITuiLabel *This);
+    HRESULT (ANXAPI *ResignFirstResponder)(ITuiLabel *This);
+
+    // ITuiWidget methods
+    HRESULT (ANXAPI *SetBounds)(ITuiLabel *This, CONST TUI_RECT *Bounds);
+    HRESULT (ANXAPI *GetBounds)(ITuiLabel *This, TUI_RECT *Bounds);
+    HRESULT (ANXAPI *SetVisible)(ITuiLabel *This, BOOLEAN Visible);
+    BOOLEAN (ANXAPI *IsVisible)(ITuiLabel *This);
+    HRESULT (ANXAPI *SetEnabled)(ITuiLabel *This, BOOLEAN Enabled);
+    BOOLEAN (ANXAPI *IsEnabled)(ITuiLabel *This);
+    HRESULT (ANXAPI *SetParent)(ITuiLabel *This, ITuiWidget *Parent);
+    HRESULT (ANXAPI *GetParent)(ITuiLabel *This, ITuiWidget **Parent);
+    HRESULT (ANXAPI *AddChild)(ITuiLabel *This, ITuiWidget *Child);
+    HRESULT (ANXAPI *RemoveChild)(ITuiLabel *This, ITuiWidget *Child);
+    HRESULT (ANXAPI *SetNeedsDisplay)(ITuiLabel *This, BOOLEAN Needed);
+
+    // ITuiThemedWidget methods
+    HRESULT (ANXAPI *ApplyTheme)(ITuiLabel *This, ITuiTheme *Theme);
+    HRESULT (ANXAPI *GetColors)(ITuiLabel *This, TUI_COLOR *Foreground, TUI_COLOR *Background);
+    HRESULT (ANXAPI *SetColors)(ITuiLabel *This, TUI_COLOR Foreground, TUI_COLOR Background);
+    HRESULT (ANXAPI *OnMouseEvent)(ITuiLabel *This, CONST TUI_MOUSE_EVENT *Event, BOOLEAN *Handled);
+    HRESULT (ANXAPI *OnKeyEvent)(ITuiLabel *This, TUI_KEY Key, UINT32 Modifiers, BOOLEAN *Handled);
+    HRESULT (ANXAPI *Draw)(ITuiLabel *This, ITuiSurface *Surface, CONST TUI_RECT *DirtyRect);
+
+    // ITuiThemedLabel methods
+    HRESULT (ANXAPI *GetHotkeyColor)(ITuiLabel *This, TUI_COLOR *HotkeyColor);
+    HRESULT (ANXAPI *SetHotkeyColor)(ITuiLabel *This, TUI_COLOR HotkeyColor);
+
+    // ITuiLabel methods
+    /**
+      Set label text.
+    **/
+    HRESULT (ANXAPI *SetText)(
+        ITuiLabel *This,
+        CONST CHAR8 *Text
+    );
+
+    /**
+      Get label text.
+    **/
+    HRESULT (ANXAPI *GetText)(
+        ITuiLabel *This,
+        CHAR8 *Buffer,
+        UINTN BufferSize
+    );
+
+    /**
+      Set hotkey character (will be underlined).
+    **/
+    HRESULT (ANXAPI *SetHotkey)(
+        ITuiLabel *This,
+        CHAR8 Hotkey
+    );
+
+    /**
+      Set text direction.
+    **/
+    HRESULT (ANXAPI *SetTextDirection)(
+        ITuiLabel *This,
+        TUI_TEXT_DIRECTION Direction
+    );
+
+    /**
+      Set text alignment (0=left, 1=center, 2=right).
+    **/
+    HRESULT (ANXAPI *SetAlignment)(
+        ITuiLabel *This,
+        INT32 Alignment
+    );
+
+    /**
+      Link this label to another widget for focus control.
+      When the hotkey is pressed or label is clicked, the linked widget receives focus.
+    **/
+    HRESULT (ANXAPI *SetLinkedWidget)(
+        ITuiLabel *This,
+        ITuiWidget *LinkedWidget
+    );
 } ITuiLabel_Vtbl;
 
 struct _ITuiLabel {
