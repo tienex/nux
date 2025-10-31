@@ -31,7 +31,7 @@
 
 /* See comments in strlen.S about checking words for byte values */
 
-#include <machine/asm.h>
+#include <ananke/asmdefs.h>
 
 #if defined(LIBC_SCCS)
 	RCSID("$NetBSD: strchr.S,v 1.7 2014/03/22 19:16:34 jakllsch Exp $")
@@ -49,9 +49,9 @@
 /* #define TEST_STRCHR */
 
 #ifdef TEST_STRCHR
-ENTRY(test_strchr)
+ANX_ASM_FUNCTION_BEGIN(test_strchr)
 #else
-ENTRY(strchr)
+ANX_ASM_FUNCTION_BEGIN(strchr)
 #endif
 	movabsq	$0x0101010101010101,%r8
 
@@ -133,14 +133,14 @@ ENTRY(strchr)
 	and	%r10,%rax	/* clear lsb from unwanted low bytes */
 	jmp	21b
 #ifdef TEST_STRCHR
-END(test_strchr)
+ANX_ASM_FUNCTION_END(test_strchr)
 #else
-END(strchr)
+ANX_ASM_FUNCTION_END(strchr)
 #endif
 
 #ifdef TEST_STRCHR
 /* Trivial version for bug-fixing above */
-ENTRY(strchr)
+ANX_ASM_FUNCTION_BEGIN(strchr)
 	movq	%rsi,%rdx
 	movq	%rdi,%rsi
 1:
@@ -153,7 +153,7 @@ ENTRY(strchr)
 	ret
 2:	lea	-1(%rsi),%rax
 	ret
-END(strchr)
+ANX_ASM_FUNCTION_END(strchr)
 #endif
 
 STRONG_ALIAS(index,strchr)

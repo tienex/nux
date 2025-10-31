@@ -5,13 +5,13 @@
  * Public domain.
  */
 
-#include <machine/asm.h>
+#include <ananke/asmdefs.h>
 
 #if defined(LIBC_SCCS)
 	RCSID("$NetBSD: strlen.S,v 1.2 2014/03/22 19:38:46 jakllsch Exp $")
 #endif
 
-ENTRY(strlen)
+ANX_ASM_FUNCTION_BEGIN(strlen)
 	movl	4(%esp),%eax
 
 .Lalign:
@@ -141,4 +141,4 @@ ENTRY(strlen)
 .Ldone:
 	subl	4(%esp),%eax
 	ret
-END(strlen)
+ANX_ASM_FUNCTION_END(strlen)

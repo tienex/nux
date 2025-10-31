@@ -27,9 +27,9 @@
  */
 
 
-#include <machine/asm.h>
+#include <ananke/asmdefs.h>
 
-ENTRY(fls)
+ANX_ASM_FUNCTION_BEGIN(fls)
 	push %ebp
 	mov %esp, %ebp
 

@@ -34,7 +34,7 @@
  * (Only the long comment really remains his work!)
  */
 
-#include <machine/asm.h>
+#include <ananke/asmdefs.h>
 
 #if defined(LIBC_SCCS)
 	RCSID("$NetBSD: strlen.S,v 1.6 2014/03/22 19:16:34 jakllsch Exp $")
@@ -115,9 +115,9 @@
  */
 
 #ifdef TEST_STRLEN
-ENTRY(test_strlen)
+ANX_ASM_FUNCTION_BEGIN(test_strlen)
 #else
-ENTRY(strlen)
+ANX_ASM_FUNCTION_BEGIN(strlen)
 #endif
 	movabsq	$0x0101010101010101,%r8
 
@@ -162,14 +162,14 @@ ENTRY(strlen)
 	or	%rsi,%rdx		/* low bytes now non-zero */
 	jmp	2b
 #ifdef TEST_STRLEN
-END(test_strlen)
+ANX_ASM_FUNCTION_END(test_strlen)
 #else
-END(strlen)
+ANX_ASM_FUNCTION_END(strlen)
 #endif
 
 #ifdef TEST_STRLEN
 /* trivial implementation when testing above! */
-ENTRY(strlen)
+ANX_ASM_FUNCTION_BEGIN(strlen)
 	mov	%rdi,%rax
 1:
 	cmpb	$0,(%rax)
@@ -178,5 +178,5 @@ ENTRY(strlen)
 	jmp	1b
 2:	sub	%rdi,%rax
 	ret
-END(strlen)
+ANX_ASM_FUNCTION_END(strlen)
 #endif

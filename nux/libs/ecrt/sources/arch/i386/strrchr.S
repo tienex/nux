@@ -3,13 +3,13 @@
  * Public domain.
  */
 
-#include <machine/asm.h>
+#include <ananke/asmdefs.h>
 
 #if defined(LIBC_SCCS)
 	RCSID("$NetBSD: strrchr.S,v 1.3 2014/03/22 19:38:46 jakllsch Exp $")
 #endif
 
-ENTRY(strrchr)
+ANX_ASM_FUNCTION_BEGIN(strrchr)
 	pushl	%esi
 	pushl	%edi
 	pushl	%ebx
@@ -92,6 +92,6 @@ ENTRY(strrchr)
 	popl	%edi
 	popl	%esi
 	ret
-END(strrchr)
+ANX_ASM_FUNCTION_END(strrchr)
 
 STRONG_ALIAS(rindex,strrchr)

@@ -1,4 +1,4 @@
-#include <machine/asm.h>
+#include <ananke/asmdefs.h>
 #include <hal/arch/riscv64/riscv.h>
 
 	.globl _start

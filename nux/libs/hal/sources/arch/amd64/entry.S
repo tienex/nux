@@ -5,7 +5,7 @@
   SPDX-License-Identifier: BSD-2-Clause
 */
 
-#include <machine/asm.h>
+#include <ananke/asmdefs.h>
 #include <hal/arch/amd64/config.h>
 #include <hal/arch/amd64/amd64.h>
 #include <hal/internal.h>
@@ -69,7 +69,7 @@ _syscall_frame_entry:
 	mov $MSR_IA32_GS_BASE, %rcx
 	wrmsr
 
-	call _C_LABEL(do_syscall_entry)
+	call ANX_ASM_MANGLE(do_syscall_entry)
 	mov %rax, %rsp
 
 	// switch to IRET if frame type is intr
@@ -165,7 +165,7 @@ _syscall_frame_entry:
 	mov $MSR_IA32_GS_BASE, %rcx
 	wrmsr
 
-	call _C_LABEL(do_intr_entry)
+	call ANX_ASM_MANGLE(do_intr_entry)
 	mov %rax, %rsp
 
 	jmp _intr_frame_return

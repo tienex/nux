@@ -3,13 +3,13 @@
  * Public domain.
  */
 
-#include <machine/asm.h>
+#include <ananke/asmdefs.h>
 
 #if defined(LIBC_SCCS)
 	RCSID("$NetBSD: memchr.S,v 1.2 2014/03/22 19:38:46 jakllsch Exp $")
 #endif
 
-ENTRY(memchr)
+ANX_ASM_FUNCTION_BEGIN(memchr)
 	pushl	%esi
 	movl	8(%esp),%eax
 	movzbl	12(%esp),%ecx
@@ -107,4 +107,4 @@ ENTRY(memchr)
 .Ldone:
 	popl	%esi
 	ret
-END(memchr)
+ANX_ASM_FUNCTION_END(memchr)

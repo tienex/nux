@@ -32,7 +32,7 @@
  * SUCH DAMAGE.
  */
 
-#include <machine/asm.h>
+#include <ananke/asmdefs.h>
 	.section .init,"ax",@progbits
 	ld	ra, 0(sp)
 	addi	sp, sp, 16

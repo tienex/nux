@@ -5,13 +5,13 @@
  * Public domain.
  */
 
-#include <machine/asm.h>
+#include <ananke/asmdefs.h>
 
 #if defined(LIBC_SCCS)
 	RCSID("$NetBSD: memcmp.S,v 1.3 2014/03/22 19:38:46 jakllsch Exp $")
 #endif
 
-ENTRY(memcmp)
+ANX_ASM_FUNCTION_BEGIN(memcmp)
 	pushl	%edi
 	pushl	%esi
 	movl	12(%esp),%edi
@@ -47,4 +47,4 @@ L6:	xorl	%eax,%eax		/* Perform unsigned comparison	*/
 	popl	%esi
 	popl	%edi
 	ret
-END(memcmp)
+ANX_ASM_FUNCTION_END(memcmp)

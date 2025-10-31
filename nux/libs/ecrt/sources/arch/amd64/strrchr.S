@@ -3,13 +3,13 @@
  * Public domain.
  */
 
-#include <machine/asm.h>
+#include <ananke/asmdefs.h>
 
 #if defined(LIBC_SCCS)
 	RCSID("$NetBSD: strrchr.S,v 1.3 2014/03/22 19:16:34 jakllsch Exp $")
 #endif
 
-ENTRY(strrchr)
+ANX_ASM_FUNCTION_BEGIN(strrchr)
 	movzbq	%sil,%rcx
 
 	/* zero return value */
@@ -120,6 +120,6 @@ ENTRY(strrchr)
 
 .Ldone:
 	ret
-END(strrchr)
+ANX_ASM_FUNCTION_END(strrchr)
 
 STRONG_ALIAS(rindex,strrchr)

@@ -29,7 +29,7 @@
  * SUCH DAMAGE.
  */
 
-#include <machine/asm.h>
+#include <ananke/asmdefs.h>
 
 #if defined(LIBC_SCCS)
 	RCSID("$NetBSD: bcopy.S,v 1.5 2014/03/22 19:16:34 jakllsch Exp $")
@@ -43,13 +43,13 @@
 	 */
 
 #ifdef MEMCOPY
-ENTRY(memcpy)
+ANX_ASM_FUNCTION_BEGIN(memcpy)
 #define NO_OVERLAP
 #else
 #ifdef MEMMOVE
-ENTRY(memmove)
+ANX_ASM_FUNCTION_BEGIN(memmove)
 #else
-ENTRY(bcopy)
+ANX_ASM_FUNCTION_BEGIN(bcopy)
 #endif
 #endif
 	movq	%rdx,%rcx
@@ -160,11 +160,11 @@ ENTRY(bcopy)
 #endif
 
 #ifdef MEMCOPY
-END(memcpy)
+ANX_ASM_FUNCTION_END(memcpy)
 #else
 #ifdef MEMMOVE
-END(memmove)
+ANX_ASM_FUNCTION_END(memmove)
 #else
-END(bcopy)
+ANX_ASM_FUNCTION_END(bcopy)
 #endif
 #endif

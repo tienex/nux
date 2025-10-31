@@ -31,16 +31,16 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <machine/asm.h>
+#include <ananke/asmdefs.h>
 
 #if defined(LIBC_SCCS)
 	RCSID("$NetBSD: memset.S,v 1.5 2014/05/23 03:17:31 uebayasi Exp $")
 #endif
 
 #ifdef BZERO
-ENTRY(bzero)
+ANX_ASM_FUNCTION_BEGIN(bzero)
 #else
-ENTRY(memset)
+ANX_ASM_FUNCTION_BEGIN(memset)
 #endif
 #ifdef BZERO
 	movl	8(%esp),%ecx
@@ -107,7 +107,7 @@ ENTRY(memset)
 	popl	%edi
 	ret
 #ifdef BZERO
-END(bzero)
+ANX_ASM_FUNCTION_END(bzero)
 #else
-END(memset)
+ANX_ASM_FUNCTION_END(memset)
 #endif

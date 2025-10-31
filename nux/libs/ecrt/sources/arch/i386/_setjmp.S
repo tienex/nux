@@ -34,7 +34,7 @@
  *	from: @(#)_setjmp.s	5.1 (Berkeley) 4/23/90
  */
 
-#include <machine/asm.h>
+#include <ananke/asmdefs.h>
 #if defined(LIBC_SCCS)
 	RCSID("$NetBSD: _setjmp.S,v 1.9 2014/05/23 02:34:19 uebayasi Exp $")
 #endif
@@ -49,7 +49,7 @@
  * The previous signal state is NOT restored.
  */
 
-ENTRY(_setjmp)
+ANX_ASM_FUNCTION_BEGIN(_setjmp)
 	movl	4(%esp),%eax
 	movl	0(%esp),%edx
 	movl	%edx, 0(%eax)		/* rta */
@@ -60,9 +60,9 @@ ENTRY(_setjmp)
 	movl	%edi,20(%eax)
 	xorl	%eax,%eax
 	ret
-END(_setjmp)
+ANX_ASM_FUNCTION_END(_setjmp)
 
-ENTRY(_longjmp)
+ANX_ASM_FUNCTION_BEGIN(_longjmp)
 	movl	4(%esp),%edx
 	movl	8(%esp),%eax
 	movl	0(%edx),%ecx
@@ -76,9 +76,9 @@ ENTRY(_longjmp)
 	incl	%eax
 1:	movl	%ecx,0(%esp)
 	ret
-END(_longjmp)
+ANX_ASM_FUNCTION_END(_longjmp)
 
-ENTRY(_setupjmp)
+ANX_ASM_FUNCTION_BEGIN(_setupjmp)
 	push %ebp
 	mov %esp, %ebp
 	mov 0x8(%ebp), %edx
@@ -90,4 +90,4 @@ ENTRY(_setupjmp)
 	mov %ecx, 8(%edx)
 	pop %ebp
 	ret
-END(_setupjmp)
+ANX_ASM_FUNCTION_END(_setupjmp)

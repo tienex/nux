@@ -32,10 +32,10 @@
  */
 
 #ifdef _EC_SOURCE
-#include <machine/asm.h>
+#include <ananke/asmdefs.h>
 #else
 #include <sys/param.h>
-#include <machine/asm.h>
+#include <ananke/asmdefs.h>
 #endif
 
 /*
@@ -59,15 +59,15 @@
 
 	.text
 
-ENTRY(_atomic_add_32)
+ANX_ASM_FUNCTION_BEGIN(_atomic_add_32)
 	movl	4(%esp), %edx
 	movl	8(%esp), %eax
 	LOCK(1)
 	addl	%eax, (%edx)
 	ret
-END(_atomic_add_32)
+ANX_ASM_FUNCTION_END(_atomic_add_32)
 
-ENTRY(_atomic_add_32_nv)
+ANX_ASM_FUNCTION_BEGIN(_atomic_add_32_nv)
 	movl	4(%esp), %edx
 	movl	8(%esp), %eax
 	movl	%eax, %ecx
@@ -75,17 +75,17 @@ ENTRY(_atomic_add_32_nv)
 	xaddl	%eax, (%edx)
 	addl	%ecx, %eax
 	ret
-END(_atomic_add_32_nv)
+ANX_ASM_FUNCTION_END(_atomic_add_32_nv)
 
-ENTRY(_atomic_and_32)
+ANX_ASM_FUNCTION_BEGIN(_atomic_and_32)
 	movl	4(%esp), %edx
 	movl	8(%esp), %eax
 	LOCK(3)
 	andl	%eax, (%edx)
 	ret
-END(_atomic_and_32)
+ANX_ASM_FUNCTION_END(_atomic_and_32)
 
-ENTRY(_atomic_and_32_nv)
+ANX_ASM_FUNCTION_BEGIN(_atomic_and_32_nv)
 	movl	4(%esp), %edx
 	movl	(%edx), %eax
 0:
@@ -98,49 +98,49 @@ ENTRY(_atomic_and_32_nv)
 	ret
 1:
 	jmp	0b
-END(_atomic_and_32_nv)
+ANX_ASM_FUNCTION_END(_atomic_and_32_nv)
 
-ENTRY(_atomic_dec_32)
+ANX_ASM_FUNCTION_BEGIN(_atomic_dec_32)
 	movl	4(%esp), %edx
 	LOCK(5)
 	decl	(%edx)
 	ret
-END(_atomic_dec_32)
+ANX_ASM_FUNCTION_END(_atomic_dec_32)
 
-ENTRY(_atomic_dec_32_nv)
+ANX_ASM_FUNCTION_BEGIN(_atomic_dec_32_nv)
 	movl	4(%esp), %edx
 	movl	$-1, %eax
 	LOCK(6)
 	xaddl	%eax, (%edx)
 	decl	%eax
 	ret
-END(_atomic_dec_32_nv)
+ANX_ASM_FUNCTION_END(_atomic_dec_32_nv)
 
-ENTRY(_atomic_inc_32)
+ANX_ASM_FUNCTION_BEGIN(_atomic_inc_32)
 	movl	4(%esp), %edx
 	LOCK(7)
 	incl	(%edx)
 	ret
-END(_atomic_inc_32)
+ANX_ASM_FUNCTION_END(_atomic_inc_32)
 
-ENTRY(_atomic_inc_32_nv)
+ANX_ASM_FUNCTION_BEGIN(_atomic_inc_32_nv)
 	movl	4(%esp), %edx
 	movl	$1, %eax
 	LOCK(8)
 	xaddl	%eax, (%edx)
 	incl	%eax
 	ret
-END(_atomic_inc_32_nv)
+ANX_ASM_FUNCTION_END(_atomic_inc_32_nv)
 
-ENTRY(_atomic_or_32)
+ANX_ASM_FUNCTION_BEGIN(_atomic_or_32)
 	movl	4(%esp), %edx
 	movl	8(%esp), %eax
 	LOCK(9)
 	orl	%eax, (%edx)
 	ret
-END(_atomic_or_32)
+ANX_ASM_FUNCTION_END(_atomic_or_32)
 
-ENTRY(_atomic_or_32_nv)
+ANX_ASM_FUNCTION_BEGIN(_atomic_or_32_nv)
 	movl	4(%esp), %edx
 	movl	(%edx), %eax
 0:
@@ -153,16 +153,16 @@ ENTRY(_atomic_or_32_nv)
 	ret
 1:
 	jmp	0b
-END(_atomic_or_32_nv)
+ANX_ASM_FUNCTION_END(_atomic_or_32_nv)
 
-ENTRY(_atomic_swap_32)
+ANX_ASM_FUNCTION_BEGIN(_atomic_swap_32)
 	movl	4(%esp), %edx
 	movl	8(%esp), %eax
 	xchgl	%eax, (%edx)
 	ret
-END(_atomic_swap_32)
+ANX_ASM_FUNCTION_END(_atomic_swap_32)
 
-ENTRY(_atomic_cas_32)
+ANX_ASM_FUNCTION_BEGIN(_atomic_cas_32)
 	movl	4(%esp), %edx
 	movl	8(%esp), %eax
 	movl	12(%esp), %ecx
@@ -170,18 +170,18 @@ ENTRY(_atomic_cas_32)
 	cmpxchgl %ecx, (%edx)
 	/* %eax now contains the old value */
 	ret
-END(_atomic_cas_32)
+ANX_ASM_FUNCTION_END(_atomic_cas_32)
 
-ENTRY(_atomic_cas_32_ni)
+ANX_ASM_FUNCTION_BEGIN(_atomic_cas_32_ni)
 	movl	4(%esp), %edx
 	movl	8(%esp), %eax
 	movl	12(%esp), %ecx
 	cmpxchgl %ecx, (%edx)
 	/* %eax now contains the old value */
 	ret
-END(_atomic_cas_32_ni)
+ANX_ASM_FUNCTION_END(_atomic_cas_32_ni)
 
-ENTRY(_membar_consumer)
+ANX_ASM_FUNCTION_BEGIN(_membar_consumer)
 #if defined(_EC_SOURCE)
 	lfence
 #else
@@ -189,10 +189,10 @@ ENTRY(_membar_consumer)
 	addl	$0, -4(%esp)
 #endif
 	ret
-END(_membar_consumer)
+ANX_ASM_FUNCTION_END(_membar_consumer)
 ENDLABEL(membar_consumer_end)
 
-ENTRY(_membar_producer)
+ANX_ASM_FUNCTION_BEGIN(_membar_producer)
 #if defined(_EC_SOURCE)
 	sfence
 #else
@@ -200,10 +200,10 @@ ENTRY(_membar_producer)
 	movl	$0, -4(%esp)
 #endif
 	ret
-END(_membar_producer)
+ANX_ASM_FUNCTION_END(_membar_producer)
 ENDLABEL(membar_producer_end)
 
-ENTRY(_membar_sync)
+ANX_ASM_FUNCTION_BEGIN(_membar_sync)
 #if defined(_EC_SOURCE)
 	mfence
 #else
@@ -211,11 +211,11 @@ ENTRY(_membar_sync)
 	addl	$0, -4(%esp)
 #endif
 	ret
-END(_membar_sync)
+ANX_ASM_FUNCTION_END(_membar_sync)
 ENDLABEL(membar_sync_end)
 
 #if defined(__HAVE_ATOMIC64_OPS) || defined(_KERNEL)
-ENTRY(_atomic_cas_64)
+ANX_ASM_FUNCTION_BEGIN(_atomic_cas_64)
 #ifdef _HARDKERNEL
 	pushf
 	cli
@@ -244,10 +244,10 @@ ENTRY(_atomic_cas_64)
 	movl	0(%edi), %eax
 	movl	4(%edi), %edx
 	jmp	1b
-END(_atomic_cas_64)
+ANX_ASM_FUNCTION_END(_atomic_cas_64)
 ENDLABEL(_atomic_cas_64_end)
 
-ENTRY(_atomic_cas_cx8)
+ANX_ASM_FUNCTION_BEGIN(_atomic_cas_cx8)
 	pushl	%edi
 	pushl	%ebx
 	movl	12(%esp), %edi
@@ -267,21 +267,21 @@ ENTRY(_atomic_cas_cx8)
 	.space	32, 0x90
 #endif
 #endif /* _HARDKERNEL */
-END(_atomic_cas_cx8)
+ANX_ASM_FUNCTION_END(_atomic_cas_cx8)
 ENDLABEL(_atomic_cas_cx8_end)
 #endif /* __HAVE_ATOMIC64_OPS || _KERNEL */
 
 #ifdef _HARDKERNEL
-ENTRY(sse2_lfence)
+ANX_ASM_FUNCTION_BEGIN(sse2_lfence)
 	lfence
 	ret
-END(sse2_lfence)
+ANX_ASM_FUNCTION_END(sse2_lfence)
 ENDLABEL(sse2_lfence_end)
 
-ENTRY(sse2_mfence)
+ANX_ASM_FUNCTION_BEGIN(sse2_mfence)
 	mfence
 	ret
-END(sse2_mfence)
+ANX_ASM_FUNCTION_END(sse2_mfence)
 ENDLABEL(sse2_mfence_end)
 
 atomic_lockpatch:

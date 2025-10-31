@@ -5,7 +5,7 @@
   SPDX-License-Identifier:	BSD-2-Clause
 */
 
-#include <machine/asm.h>
+#include <ananke/asmdefs.h>
 	
 #define MULTIBOOT_HDRSIGN 0x1badb002 
 #define MULTIBOOT_REGSIGN 0x2badb002
@@ -15,8 +15,8 @@
 #define _MBIF_CMDLINE     (1 << 2)
 #define MBIOFFSET_CMDLINE 16
 
-ENTRY(start)
-ENTRY(_start)
+ANX_ASM_FUNCTION_BEGIN(start)
+ANX_ASM_FUNCTION_BEGIN(_start)
 	jmp multiboot_entry
 
 	.align 4
@@ -54,15 +54,15 @@ multiboot_entry:
 	mov $256, %ecx
 	rep movsb
 
-	call _C_LABEL(_clear_bss)
+	call ANX_ASM_MANGLE(_clear_bss)
 
 
 	push %ebx
-	call _C_LABEL(parse_multiboot)
+	call ANX_ASM_MANGLE(parse_multiboot)
 	add $4, %esp
 
 	/* init hal */
-//	call _C_LABEL(i386_init)
+//	call ANX_ASM_MANGLE(i386_init)
 
 	push $__cmdline
 	call ___start
@@ -92,7 +92,7 @@ print:
 	loopne 1b
 	ret
 
-ENTRY(_clear_bss)
+ANX_ASM_FUNCTION_BEGIN(_clear_bss)
 	push %edi
 	mov $0x0, %eax
 	mov $_ebss, %ecx
@@ -101,7 +101,7 @@ ENTRY(_clear_bss)
 	rep stosb
 	pop %edi
 	ret
-END(_clear_bss)
+ANX_ASM_FUNCTION_END(_clear_bss)
 
 	.align 64
 _bios_idtr:

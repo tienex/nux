@@ -718,8 +718,328 @@ static INLINE VOID Anx_LoadGdt(VOID* Ptr) {
 #       define ANX_CPU_STI_HLT()  __asm__ __volatile__("sti; hlt")
 #       define ANX_CPU_UD2()      __asm__ __volatile__("ud2")
 
-#   endif /* __GNUC__ || __clang__ */
+#   elif defined(__WATCOMC__)
+/* Watcom C/C++ Compiler Support for x86 */
+
+/* Control Register Access - Watcom uses auxiliary pragmas */
+UINTN Anx_Watcom_ReadCr0(VOID);
+VOID Anx_Watcom_WriteCr0(UINTN Val);
+UINTN Anx_Watcom_ReadCr3(VOID);
+VOID Anx_Watcom_WriteCr3(UINTN Val);
+UINTN Anx_Watcom_ReadCr4(VOID);
+VOID Anx_Watcom_WriteCr4(UINTN Val);
+
+#       pragma aux Anx_Watcom_ReadCr0 = \
+            "mov eax, cr0"              \
+            value [eax]                 \
+            modify exact [eax];
+
+#       pragma aux Anx_Watcom_WriteCr0 = \
+            "mov cr0, eax"                \
+            parm [eax]                    \
+            modify exact [];
+
+#       pragma aux Anx_Watcom_ReadCr3 = \
+            "mov eax, cr3"              \
+            value [eax]                 \
+            modify exact [eax];
+
+#       pragma aux Anx_Watcom_WriteCr3 = \
+            "mov cr3, eax"                \
+            parm [eax]                    \
+            modify exact [];
+
+#       pragma aux Anx_Watcom_ReadCr4 = \
+            "mov eax, cr4"              \
+            value [eax]                 \
+            modify exact [eax];
+
+#       pragma aux Anx_Watcom_WriteCr4 = \
+            "mov cr4, eax"                \
+            parm [eax]                    \
+            modify exact [];
+
+#       define ANX_CPU_READ_CR0()       Anx_Watcom_ReadCr0()
+#       define ANX_CPU_WRITE_CR0(val)   Anx_Watcom_WriteCr0(val)
+#       define ANX_CPU_READ_CR3()       Anx_Watcom_ReadCr3()
+#       define ANX_CPU_WRITE_CR3(val)   Anx_Watcom_WriteCr3(val)
+#       define ANX_CPU_READ_CR4()       Anx_Watcom_ReadCr4()
+#       define ANX_CPU_WRITE_CR4(val)   Anx_Watcom_WriteCr4(val)
+
+/* MSR Access */
+UINT64 Anx_Watcom_ReadMsr(UINT32 Msr);
+VOID Anx_Watcom_WriteMsr(UINT32 Msr, UINT32 Lo, UINT32 Hi);
+
+#       pragma aux Anx_Watcom_ReadMsr = \
+            "rdmsr"                      \
+            parm [ecx]                   \
+            value [edx eax]              \
+            modify exact [eax edx];
+
+#       pragma aux Anx_Watcom_WriteMsr = \
+            "wrmsr"                       \
+            parm [ecx] [eax] [edx]        \
+            modify exact [];
+
+static INLINE UINT64 Anx_Watcom_ReadMsrWrapper(UINT32 Msr) {
+    return Anx_Watcom_ReadMsr(Msr);
+}
+
+static INLINE VOID Anx_Watcom_WriteMsrWrapper(UINT32 Msr, UINT64 Val) {
+    Anx_Watcom_WriteMsr(Msr, (UINT32)Val, (UINT32)(Val >> 32));
+}
+
+#       define ANX_CPU_RDMSR(msr)       Anx_Watcom_ReadMsrWrapper(msr)
+#       define ANX_CPU_WRMSR(msr, val)  Anx_Watcom_WriteMsrWrapper(msr, val)
+
+/* I/O Port Access */
+UINT8 Anx_Watcom_Inb(UINT16 Port);
+VOID Anx_Watcom_Outb(UINT16 Port, UINT8 Val);
+UINT16 Anx_Watcom_Inw(UINT16 Port);
+VOID Anx_Watcom_Outw(UINT16 Port, UINT16 Val);
+UINT32 Anx_Watcom_Inl(UINT16 Port);
+VOID Anx_Watcom_Outl(UINT16 Port, UINT32 Val);
+
+#       pragma aux Anx_Watcom_Inb = \
+            "in al, dx"             \
+            parm [dx]               \
+            value [al]              \
+            modify exact [al];
+
+#       pragma aux Anx_Watcom_Outb = \
+            "out dx, al"              \
+            parm [dx] [al]            \
+            modify exact [];
+
+#       pragma aux Anx_Watcom_Inw = \
+            "in ax, dx"             \
+            parm [dx]               \
+            value [ax]              \
+            modify exact [ax];
+
+#       pragma aux Anx_Watcom_Outw = \
+            "out dx, ax"              \
+            parm [dx] [ax]            \
+            modify exact [];
+
+#       pragma aux Anx_Watcom_Inl = \
+            "in eax, dx"            \
+            parm [dx]               \
+            value [eax]             \
+            modify exact [eax];
+
+#       pragma aux Anx_Watcom_Outl = \
+            "out dx, eax"             \
+            parm [dx] [eax]           \
+            modify exact [];
+
+#       define ANX_CPU_INB(port)        Anx_Watcom_Inb(port)
+#       define ANX_CPU_OUTB(port, val)  Anx_Watcom_Outb(port, val)
+#       define ANX_CPU_INW(port)        Anx_Watcom_Inw(port)
+#       define ANX_CPU_OUTW(port, val)  Anx_Watcom_Outw(port, val)
+#       define ANX_CPU_INL(port)        Anx_Watcom_Inl(port)
+#       define ANX_CPU_OUTL(port, val)  Anx_Watcom_Outl(port, val)
+
+/* CPUID */
+VOID Anx_Watcom_Cpuid(UINT32 Leaf, UINT32 SubLeaf, UINT32* Eax, UINT32* Ebx, UINT32* Ecx, UINT32* Edx);
+
+#       pragma aux Anx_Watcom_Cpuid =   \
+            "cpuid"                      \
+            parm [eax] [ecx] [esi] [edi] [ebx] [edx] \
+            modify exact [eax ebx ecx edx];
+
+static INLINE VOID Anx_Watcom_CpuidWrapper(UINT32* Eax, UINT32* Ebx, UINT32* Ecx, UINT32* Edx) {
+    UINT32 InEax = *Eax;
+    UINT32 InEcx = *Ecx;
+    Anx_Watcom_Cpuid(InEax, InEcx, Eax, Ebx, Ecx, Edx);
+}
+
+#       define ANX_CPU_CPUID(eax, ebx, ecx, edx)  Anx_Watcom_CpuidWrapper(eax, ebx, ecx, edx)
+
+/* Special Instructions */
+#       define ANX_CPU_CLI_HLT()  do { _disable(); _asm { hlt } } while(0)
+#       define ANX_CPU_STI_HLT()  do { _enable(); _asm { hlt } } while(0)
+#       define ANX_CPU_UD2()      _asm { ud2 }
+
+/* Load TR */
+VOID Anx_Watcom_LoadTr(UINT16 Selector);
+
+#       pragma aux Anx_Watcom_LoadTr = \
+            "ltr ax"                    \
+            parm [ax]                   \
+            modify exact [];
+
+#       define ANX_CPU_LOAD_TR(sel)  Anx_Watcom_LoadTr(sel)
+
+#       if defined(__i386__)
+/* 32-bit specific - Load FS and GDT */
+VOID Anx_Watcom_LoadFs(UINT16 Selector);
+VOID Anx_Watcom_LoadGdt(VOID* Ptr);
+VOID Anx_Watcom_WriteFsBase(UINT32 Val);
+UINT32 Anx_Watcom_ReadFsBase(VOID);
+
+#           pragma aux Anx_Watcom_LoadFs = \
+                "mov fs, ax"                \
+                parm [ax]                   \
+                modify exact [];
+
+#           pragma aux Anx_Watcom_LoadGdt = \
+                "lgdt [eax]"                 \
+                parm [eax]                   \
+                modify exact [];
+
+#           pragma aux Anx_Watcom_WriteFsBase = \
+                "mov fs:[0], eax"                \
+                parm [eax]                       \
+                modify exact [];
+
+#           pragma aux Anx_Watcom_ReadFsBase = \
+                "mov eax, fs:[0]"               \
+                value [eax]                     \
+                modify exact [eax];
+
+#           define ANX_CPU_LOAD_FS(sel)       Anx_Watcom_LoadFs(sel)
+#           define ANX_CPU_LOAD_GDT(ptr)      Anx_Watcom_LoadGdt(ptr)
+#           define ANX_CPU_WRITE_FSBASE(val)  Anx_Watcom_WriteFsBase(val)
+#           define ANX_CPU_READ_FSBASE()      Anx_Watcom_ReadFsBase()
+#       endif
+
+#       if defined(__x86_64__)
+/* 64-bit specific - GS base access */
+VOID Anx_Watcom_WriteGsBase(UINTN Val);
+UINTN Anx_Watcom_ReadGsBase(VOID);
+
+#           pragma aux Anx_Watcom_WriteGsBase = \
+                "mov gs:[0], rax"                \
+                parm [rax]                       \
+                modify exact [];
+
+#           pragma aux Anx_Watcom_ReadGsBase = \
+                "mov rax, gs:[0]"               \
+                value [rax]                     \
+                modify exact [rax];
+
+#           define ANX_CPU_WRITE_GSBASE(val)  Anx_Watcom_WriteGsBase(val)
+#           define ANX_CPU_READ_GSBASE()      Anx_Watcom_ReadGsBase()
+#       endif
+
+#   elif defined(_MSC_VER)
+/* Microsoft Visual C++ Compiler Support for x86/x64 */
+
+#       include <intrin.h>
+
+/* Control Register Access - MSVC provides __readcr/__ writecr intrinsics */
+#       define ANX_CPU_READ_CR0()       __readcr0()
+#       define ANX_CPU_WRITE_CR0(val)   __writecr0(val)
+#       define ANX_CPU_READ_CR3()       __readcr3()
+#       define ANX_CPU_WRITE_CR3(val)   __writecr3(val)
+#       define ANX_CPU_READ_CR4()       __readcr4()
+#       define ANX_CPU_WRITE_CR4(val)   __writecr4(val)
+
+/* MSR Access */
+#       define ANX_CPU_RDMSR(msr)       __readmsr(msr)
+#       define ANX_CPU_WRMSR(msr, val)  __writemsr(msr, val)
+
+/* I/O Port Access */
+#       define ANX_CPU_INB(port)        __inbyte(port)
+#       define ANX_CPU_OUTB(port, val)  __outbyte(port, val)
+#       define ANX_CPU_INW(port)        __inword(port)
+#       define ANX_CPU_OUTW(port, val)  __outword(port, val)
+#       define ANX_CPU_INL(port)        __indword(port)
+#       define ANX_CPU_OUTL(port, val)  __outdword(port, val)
+
+/* CPUID */
+static INLINE VOID Anx_Msvc_Cpuid(UINT32* Eax, UINT32* Ebx, UINT32* Ecx, UINT32* Edx) {
+    INT32 CpuInfo[4];
+    __cpuidex(CpuInfo, *Eax, *Ecx);
+    *Eax = CpuInfo[0];
+    *Ebx = CpuInfo[1];
+    *Ecx = CpuInfo[2];
+    *Edx = CpuInfo[3];
+}
+
+#       define ANX_CPU_CPUID(eax, ebx, ecx, edx)  Anx_Msvc_Cpuid(eax, ebx, ecx, edx)
+
+/* Special Instructions */
+#       define ANX_CPU_CLI_HLT()  do { _disable(); __halt(); } while(0)
+#       define ANX_CPU_STI_HLT()  do { _enable(); __halt(); } while(0)
+#       define ANX_CPU_UD2()      __ud2()
+
+/* Load TR */
+#       pragma intrinsic(__ltr)
+static INLINE VOID Anx_Msvc_LoadTr(UINT16 Selector) {
+    __ltr(Selector);
+}
+
+#       define ANX_CPU_LOAD_TR(sel)  Anx_Msvc_LoadTr(sel)
+
+#       if defined(_M_IX86)
+/* 32-bit specific - Load FS and GDT */
+static INLINE VOID Anx_Msvc_LoadFs(UINT16 Selector) {
+    __asm mov ax, Selector
+    __asm mov fs, ax
+}
+
+static INLINE VOID Anx_Msvc_LoadGdt(VOID* Ptr) {
+    __asm {
+        mov eax, Ptr
+        lgdt [eax]
+    }
+}
+
+#           define ANX_CPU_LOAD_FS(sel)       Anx_Msvc_LoadFs(sel)
+#           define ANX_CPU_LOAD_GDT(ptr)      Anx_Msvc_LoadGdt(ptr)
+#           define ANX_CPU_WRITE_FSBASE(val)  (__writefsdword(0, val))
+#           define ANX_CPU_READ_FSBASE()      (__readfsdword(0))
+#       endif
+
+#       if defined(_M_X64)
+/* 64-bit specific - GS base access */
+#           define ANX_CPU_WRITE_GSBASE(val)  (__writegsqword(0, val))
+#           define ANX_CPU_READ_GSBASE()      (__readgsqword(0))
+#       endif
+
+#   endif /* _MSC_VER */
 #endif /* __x86_64__ || __i386__ */
+
+/* ---------------------------------------------------------------
+ *  ARM/ARM64-Specific CPU Operations (MSVC)
+ * --------------------------------------------------------------- */
+
+#if (defined(_M_ARM) || defined(_M_ARM64)) && defined(_MSC_VER)
+#   include <intrin.h>
+
+/* Memory Barriers */
+#   define ANX_CPU_ARM_DMB()  __dmb(_ARM_BARRIER_SY)
+#   define ANX_CPU_ARM_DSB()  __dsb(_ARM_BARRIER_SY)
+#   define ANX_CPU_ARM_ISB()  __isb(_ARM_BARRIER_SY)
+
+/* Wait for interrupt/event */
+#   define ANX_CPU_ARM_WFI()  __wfi()
+#   define ANX_CPU_ARM_WFE()  __wfe()
+#   define ANX_CPU_ARM_SEV()  __sev()
+
+/* Breakpoint */
+#   if defined(_M_ARM64)
+#       define ANX_CPU_BREAKPOINT()  __break(0)
+#   elif defined(_M_ARM)
+#       define ANX_CPU_BREAKPOINT()  __debugbreak()
+#   endif
+
+/* Yield */
+#   define ANX_CPU_ARM_YIELD()  __yield()
+
+#   if defined(_M_ARM64)
+/* ARM64-specific system register access */
+#       define ANX_CPU_ARM64_READ_SYSREG(reg)   _ReadStatusReg(reg)
+#       define ANX_CPU_ARM64_WRITE_SYSREG(reg, val)  _WriteStatusReg(reg, val)
+
+/* Common ARM64 system registers */
+#       define ANX_CPU_ARM64_READ_TPIDR_EL0()   _ReadStatusReg(ARM64_TPIDR_EL0)
+#       define ANX_CPU_ARM64_WRITE_TPIDR_EL0(val)  _WriteStatusReg(ARM64_TPIDR_EL0, val)
+#   endif
+
+#endif /* (_M_ARM || _M_ARM64) && _MSC_VER */
 
 /* ---------------------------------------------------------------
  *  RISC-V Specific CPU Operations

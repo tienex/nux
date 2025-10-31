@@ -28,7 +28,7 @@
  * SUCH DAMAGE.
  */
 
-#include <machine/asm.h>
+#include <ananke/asmdefs.h>
 
 //RCSID("$NetBSD: crtend.S,v 1.1 2010/08/07 18:01:34 joerg Exp $")
 

@@ -1,4 +1,4 @@
-#include <machine/asm.h>
+#include <ananke/asmdefs.h>
 
 	.globl _start
 _start:
