@@ -4643,23 +4643,129 @@ struct _ITuiLabel {
 DEFINE_GUID(IID_ITuiTextEditor,
     0xD2E3F4A5, 0xB6C7, 0x4D8E, 0x9F, 0x0A, 0x1B, 0x2C, 0x3D, 0x4E, 0x5F, 0x6A);
 
+// {2F3A4B5C-6D7E-8F9A-0B1C-2D3E4F5A6B7C}
+DEFINE_GUID(IID_ITuiThemedTextEditor,
+    0x2F3A4B5C, 0x6D7E, 0x8F9A, 0x0B, 0x1C, 0x2D, 0x3E, 0x4F, 0x5A, 0x6B, 0x7C);
+
+/**
+  ITuiThemedTextEditor Interface
+
+  TextEditor theming interface. Inherits from ITuiThemedWidget.
+**/
+typedef struct _ITuiThemedTextEditor_Vtbl {
+    // ITuiSerializable methods
+    HRESULT (ANXAPI *QueryInterface)(ITuiThemedTextEditor *This, REFIID riid, VOID **ppvObject);
+    UINTN (ANXAPI *AddRef)(ITuiThemedTextEditor *This);
+    UINTN (ANXAPI *Release)(ITuiThemedTextEditor *This);
+    HRESULT (ANXAPI *SerializeToYaml)(ITuiThemedTextEditor *This, CHAR8 **OutYaml, UINTN *OutLength);
+    HRESULT (ANXAPI *DeserializeFromYaml)(ITuiThemedTextEditor *This, CONST CHAR8 *Yaml, UINTN Length);
+    HRESULT (ANXAPI *GetTypeName)(ITuiThemedTextEditor *This, CONST CHAR8 **OutTypeName);
+    HRESULT (ANXAPI *Clone)(ITuiThemedTextEditor *This, ITuiSerializable **OutClone);
+
+    // ITuiResponder methods
+    HRESULT (ANXAPI *GetNextResponder)(ITuiThemedTextEditor *This, ITuiResponder **NextResponder);
+    HRESULT (ANXAPI *SetNextResponder)(ITuiThemedTextEditor *This, ITuiResponder *NextResponder);
+    BOOLEAN (ANXAPI *AcceptsFirstResponder)(ITuiThemedTextEditor *This);
+    HRESULT (ANXAPI *BecomeFirstResponder)(ITuiThemedTextEditor *This);
+    HRESULT (ANXAPI *ResignFirstResponder)(ITuiThemedTextEditor *This);
+
+    // ITuiWidget methods
+    HRESULT (ANXAPI *SetBounds)(ITuiThemedTextEditor *This, CONST TUI_RECT *Bounds);
+    HRESULT (ANXAPI *GetBounds)(ITuiThemedTextEditor *This, TUI_RECT *Bounds);
+    HRESULT (ANXAPI *SetVisible)(ITuiThemedTextEditor *This, BOOLEAN Visible);
+    BOOLEAN (ANXAPI *IsVisible)(ITuiThemedTextEditor *This);
+    HRESULT (ANXAPI *SetEnabled)(ITuiThemedTextEditor *This, BOOLEAN Enabled);
+    BOOLEAN (ANXAPI *IsEnabled)(ITuiThemedTextEditor *This);
+    HRESULT (ANXAPI *SetParent)(ITuiThemedTextEditor *This, ITuiWidget *Parent);
+    HRESULT (ANXAPI *GetParent)(ITuiThemedTextEditor *This, ITuiWidget **Parent);
+    HRESULT (ANXAPI *AddChild)(ITuiThemedTextEditor *This, ITuiWidget *Child);
+    HRESULT (ANXAPI *RemoveChild)(ITuiThemedTextEditor *This, ITuiWidget *Child);
+    HRESULT (ANXAPI *SetNeedsDisplay)(ITuiThemedTextEditor *This, BOOLEAN Needed);
+
+    // ITuiThemedWidget methods
+    HRESULT (ANXAPI *ApplyTheme)(ITuiThemedTextEditor *This, ITuiTheme *Theme);
+    HRESULT (ANXAPI *GetColors)(ITuiThemedTextEditor *This, TUI_COLOR *Foreground, TUI_COLOR *Background);
+    HRESULT (ANXAPI *SetColors)(ITuiThemedTextEditor *This, TUI_COLOR Foreground, TUI_COLOR Background);
+    HRESULT (ANXAPI *OnMouseEvent)(ITuiThemedTextEditor *This, CONST TUI_MOUSE_EVENT *Event, BOOLEAN *Handled);
+    HRESULT (ANXAPI *OnKeyEvent)(ITuiThemedTextEditor *This, TUI_KEY Key, UINT32 Modifiers, BOOLEAN *Handled);
+    HRESULT (ANXAPI *Draw)(ITuiThemedTextEditor *This, ITuiSurface *Surface, CONST TUI_RECT *DirtyRect);
+
+    // ITuiThemedTextEditor methods
+    HRESULT (ANXAPI *GetSelectionColors)(ITuiThemedTextEditor *This, TUI_COLOR *Foreground, TUI_COLOR *Background);
+    HRESULT (ANXAPI *SetSelectionColors)(ITuiThemedTextEditor *This, TUI_COLOR Foreground, TUI_COLOR Background);
+    HRESULT (ANXAPI *GetLineNumberColors)(ITuiThemedTextEditor *This, TUI_COLOR *Foreground, TUI_COLOR *Background);
+    HRESULT (ANXAPI *SetLineNumberColors)(ITuiThemedTextEditor *This, TUI_COLOR Foreground, TUI_COLOR Background);
+    HRESULT (ANXAPI *GetCurrentLineColor)(ITuiThemedTextEditor *This, TUI_COLOR *Background);
+    HRESULT (ANXAPI *SetCurrentLineColor)(ITuiThemedTextEditor *This, TUI_COLOR Background);
+} ITuiThemedTextEditor_Vtbl;
+
+struct _ITuiThemedTextEditor {
+    CONST ITuiThemedTextEditor_Vtbl *Vtbl;
+};
+
 /**
   ITuiTextEditor Interface
 
   Multi-line text editor with scrolling and syntax highlighting.
+  Inherits from ITuiThemedTextEditor.
 **/
 typedef struct _ITuiTextEditor_Vtbl {
+    // ITuiSerializable methods
     HRESULT (ANXAPI *QueryInterface)(ITuiTextEditor *This, REFIID riid, VOID **ppvObject);
     UINTN (ANXAPI *AddRef)(ITuiTextEditor *This);
     UINTN (ANXAPI *Release)(ITuiTextEditor *This);
+    HRESULT (ANXAPI *SerializeToYaml)(ITuiTextEditor *This, CHAR8 **OutYaml, UINTN *OutLength);
+    HRESULT (ANXAPI *DeserializeFromYaml)(ITuiTextEditor *This, CONST CHAR8 *Yaml, UINTN Length);
+    HRESULT (ANXAPI *GetTypeName)(ITuiTextEditor *This, CONST CHAR8 **OutTypeName);
+    HRESULT (ANXAPI *Clone)(ITuiTextEditor *This, ITuiSerializable **OutClone);
 
+    // ITuiResponder methods
+    HRESULT (ANXAPI *GetNextResponder)(ITuiTextEditor *This, ITuiResponder **NextResponder);
+    HRESULT (ANXAPI *SetNextResponder)(ITuiTextEditor *This, ITuiResponder *NextResponder);
+    BOOLEAN (ANXAPI *AcceptsFirstResponder)(ITuiTextEditor *This);
+    HRESULT (ANXAPI *BecomeFirstResponder)(ITuiTextEditor *This);
+    HRESULT (ANXAPI *ResignFirstResponder)(ITuiTextEditor *This);
+
+    // ITuiWidget methods
+    HRESULT (ANXAPI *SetBounds)(ITuiTextEditor *This, CONST TUI_RECT *Bounds);
+    HRESULT (ANXAPI *GetBounds)(ITuiTextEditor *This, TUI_RECT *Bounds);
+    HRESULT (ANXAPI *SetVisible)(ITuiTextEditor *This, BOOLEAN Visible);
+    BOOLEAN (ANXAPI *IsVisible)(ITuiTextEditor *This);
+    HRESULT (ANXAPI *SetEnabled)(ITuiTextEditor *This, BOOLEAN Enabled);
+    BOOLEAN (ANXAPI *IsEnabled)(ITuiTextEditor *This);
+    HRESULT (ANXAPI *SetParent)(ITuiTextEditor *This, ITuiWidget *Parent);
+    HRESULT (ANXAPI *GetParent)(ITuiTextEditor *This, ITuiWidget **Parent);
+    HRESULT (ANXAPI *AddChild)(ITuiTextEditor *This, ITuiWidget *Child);
+    HRESULT (ANXAPI *RemoveChild)(ITuiTextEditor *This, ITuiWidget *Child);
+    HRESULT (ANXAPI *SetNeedsDisplay)(ITuiTextEditor *This, BOOLEAN Needed);
+
+    // ITuiThemedWidget methods
+    HRESULT (ANXAPI *ApplyTheme)(ITuiTextEditor *This, ITuiTheme *Theme);
+    HRESULT (ANXAPI *GetColors)(ITuiTextEditor *This, TUI_COLOR *Foreground, TUI_COLOR *Background);
+    HRESULT (ANXAPI *SetColors)(ITuiTextEditor *This, TUI_COLOR Foreground, TUI_COLOR Background);
+    HRESULT (ANXAPI *OnMouseEvent)(ITuiTextEditor *This, CONST TUI_MOUSE_EVENT *Event, BOOLEAN *Handled);
+    HRESULT (ANXAPI *OnKeyEvent)(ITuiTextEditor *This, TUI_KEY Key, UINT32 Modifiers, BOOLEAN *Handled);
+    HRESULT (ANXAPI *Draw)(ITuiTextEditor *This, ITuiSurface *Surface, CONST TUI_RECT *DirtyRect);
+
+    // ITuiThemedTextEditor methods
+    HRESULT (ANXAPI *GetSelectionColors)(ITuiTextEditor *This, TUI_COLOR *Foreground, TUI_COLOR *Background);
+    HRESULT (ANXAPI *SetSelectionColors)(ITuiTextEditor *This, TUI_COLOR Foreground, TUI_COLOR Background);
+    HRESULT (ANXAPI *GetLineNumberColors)(ITuiTextEditor *This, TUI_COLOR *Foreground, TUI_COLOR *Background);
+    HRESULT (ANXAPI *SetLineNumberColors)(ITuiTextEditor *This, TUI_COLOR Foreground, TUI_COLOR Background);
+    HRESULT (ANXAPI *GetCurrentLineColor)(ITuiTextEditor *This, TUI_COLOR *Background);
+    HRESULT (ANXAPI *SetCurrentLineColor)(ITuiTextEditor *This, TUI_COLOR Background);
+
+    // ITuiTextEditor methods
     HRESULT (ANXAPI *SetText)(ITuiTextEditor *This, CONST CHAR8 *Text);
     HRESULT (ANXAPI *GetText)(ITuiTextEditor *This, CHAR8 *Buffer, UINTN BufferSize);
     HRESULT (ANXAPI *LoadFile)(ITuiTextEditor *This, CONST CHAR8 *FilePath);
     HRESULT (ANXAPI *SaveFile)(ITuiTextEditor *This, CONST CHAR8 *FilePath);
     HRESULT (ANXAPI *SetReadOnly)(ITuiTextEditor *This, BOOLEAN ReadOnly);
+    BOOLEAN (ANXAPI *GetReadOnly)(ITuiTextEditor *This);
     HRESULT (ANXAPI *SetWordWrap)(ITuiTextEditor *This, BOOLEAN WordWrap);
+    BOOLEAN (ANXAPI *GetWordWrap)(ITuiTextEditor *This);
     HRESULT (ANXAPI *SetTabSize)(ITuiTextEditor *This, UINT32 TabSize);
+    UINT32 (ANXAPI *GetTabSize)(ITuiTextEditor *This);
     HRESULT (ANXAPI *SetSyntaxHighlighting)(ITuiTextEditor *This, CONST CHAR8 *Language);
     HRESULT (ANXAPI *GetCursorPosition)(ITuiTextEditor *This, UINT32 *Line, UINT32 *Column);
     HRESULT (ANXAPI *SetCursorPosition)(ITuiTextEditor *This, UINT32 Line, UINT32 Column);
@@ -4676,8 +4782,7 @@ typedef struct _ITuiTextEditor_Vtbl {
     HRESULT (ANXAPI *Find)(ITuiTextEditor *This, CONST CHAR8 *SearchText, BOOLEAN CaseSensitive);
     HRESULT (ANXAPI *Replace)(ITuiTextEditor *This, CONST CHAR8 *SearchText, CONST CHAR8 *ReplaceText);
     HRESULT (ANXAPI *SetTextDirection)(ITuiTextEditor *This, TUI_TEXT_DIRECTION Direction);
-    HRESULT (ANXAPI *Render)(ITuiTextEditor *This, ITuiScreen *Screen, INT32 X, INT32 Y, UINT32 Width, UINT32 Height);
-    HRESULT (ANXAPI *HandleInput)(ITuiTextEditor *This, CONST TUI_INPUT_EVENT *Event, BOOLEAN *Handled);
+    TUI_TEXT_DIRECTION (ANXAPI *GetTextDirection)(ITuiTextEditor *This);
 } ITuiTextEditor_Vtbl;
 
 struct _ITuiTextEditor {
