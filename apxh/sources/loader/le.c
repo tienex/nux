@@ -969,6 +969,72 @@ LeGetMinimumSubsystemVersion (
 }
 
 /**
+  Get LE/LX init/fini information.
+
+  OS/2 LE/LX uses entry point and module flags for initialization:
+  - InitObjectNum/InitEip: Entry point for DLL initialization
+  - LE_MODULE_INIT_GLOBAL: Global initialization flag
+  - LE_MODULE_IS_DLL: Indicates library vs executable
+
+  @param[in]  ImageBase       Pointer to LE/LX image.
+  @param[out] InitAddress     Receives init entry point address (0 if none).
+  @param[out] FiniAddress     Receives fini address (0 if none - not supported in LE/LX).
+  @param[out] IsGlobalInit    Receives TRUE if global initialization.
+  @param[out] IsDll           Receives TRUE if DLL/driver.
+
+  @return S_OK if init info found, S_FALSE if not found.
+**/
+static
+HRESULT
+LeGetInitFini (
+  IN  VOID     *ImageBase,
+  OUT UINT64   *InitAddress,
+  OUT UINT64   *FiniAddress,
+  OUT BOOLEAN  *IsGlobalInit,
+  OUT BOOLEAN  *IsDll
+  )
+{
+  DOS_HEADER_SHORT       *DosHeader;
+  LE_HEADER              *LeHeader;
+  LE_OBJECT_TABLE_ENTRY  *Objects;
+
+  if (ImageBase == NULL) {
+    return E_POINTER;
+  }
+
+  // Initialize outputs
+  if (InitAddress != NULL) *InitAddress = 0;
+  if (FiniAddress != NULL) *FiniAddress = 0;  // LE/LX doesn't have explicit fini
+  if (IsGlobalInit != NULL) *IsGlobalInit = FALSE;
+  if (IsDll != NULL) *IsDll = FALSE;
+
+  DosHeader = (DOS_HEADER_SHORT *)ImageBase;
+  LeHeader = (LE_HEADER *)LE_OFF(DosHeader->NewHeaderOffset);
+
+  // Check if this is a DLL
+  if (IsDll != NULL) {
+    *IsDll = (LeHeader->ModuleFlags & LE_MODULE_IS_DLL) != 0;
+  }
+
+  // Check if global initialization is required
+  if (IsGlobalInit != NULL) {
+    *IsGlobalInit = (LeHeader->ModuleFlags & LE_MODULE_INIT_GLOBAL) != 0;
+  }
+
+  // Get initialization entry point (for DLLs)
+  if (InitAddress != NULL && LeHeader->InitObjectNum > 0 &&
+      LeHeader->InitObjectNum <= LeHeader->NumObjects) {
+    Objects = (LE_OBJECT_TABLE_ENTRY *)
+      LE_OFF(DosHeader->NewHeaderOffset + LeHeader->ObjectTableOffset);
+
+    LE_OBJECT_TABLE_ENTRY *InitObj = &Objects[LeHeader->InitObjectNum - 1];
+    *InitAddress = InitObj->BaseAddress + LeHeader->InitEip;
+  }
+
+  return S_OK;
+}
+
+/**
   Find native resource in LE/LX image.
 
   Searches the LE/LX resource table for the specified resource.
