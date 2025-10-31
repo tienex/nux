@@ -623,6 +623,109 @@ TeApplyRelocations (
   return S_OK;
 }
 
+/**
+  Get target operating system from TE image.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+TeGetTargetSystem (
+  IN  IImageLoader           *This,
+  IN  VOID                   *ImageBase,
+  OUT IMGLOAD_TARGET_SYSTEM  *TargetSystem
+  )
+{
+  if (TargetSystem == NULL) {
+    return E_POINTER;
+  }
+
+  // TE format is specific to UEFI
+  *TargetSystem = ImgSystemUefi;
+  return S_OK;
+}
+
+/**
+  Get minimum required system version from TE image.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+TeGetMinimumSystemVersion (
+  IN  IImageLoader            *This,
+  IN  VOID                    *ImageBase,
+  OUT IMGLOAD_SYSTEM_VERSION  *MinimumVersion
+  )
+{
+  if (MinimumVersion == NULL) {
+    return E_POINTER;
+  }
+
+  // TE doesn't encode system version
+  memset(MinimumVersion, 0, sizeof(IMGLOAD_SYSTEM_VERSION));
+  return S_FALSE;
+}
+
+/**
+  Get target subsystem from TE image.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+TeGetTargetSubsystem (
+  IN  IImageLoader              *This,
+  IN  VOID                      *ImageBase,
+  OUT IMGLOAD_TARGET_SUBSYSTEM  *TargetSubsystem
+  )
+{
+  TE_IMAGE_HEADER *Header;
+
+  if (TargetSubsystem == NULL) {
+    return E_POINTER;
+  }
+
+  Header = (TE_IMAGE_HEADER *)ImageBase;
+
+  // Map TE subsystem to standard subsystem
+  switch (Header->Subsystem) {
+    case TE_IMAGE_SUBSYSTEM_EFI_APPLICATION:
+      *TargetSubsystem = ImgSubsystemEfiApplication;
+      break;
+    case TE_IMAGE_SUBSYSTEM_EFI_BOOT_SERVICE_DRIVER:
+      *TargetSubsystem = ImgSubsystemEfiBootDriver;
+      break;
+    case TE_IMAGE_SUBSYSTEM_EFI_RUNTIME_DRIVER:
+      *TargetSubsystem = ImgSubsystemEfiRuntimeDriver;
+      break;
+    default:
+      // Default to EFI application for TE images
+      *TargetSubsystem = ImgSubsystemEfiApplication;
+      break;
+  }
+
+  return S_OK;
+}
+
+/**
+  Get minimum required subsystem version from TE image.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+TeGetMinimumSubsystemVersion (
+  IN  IImageLoader            *This,
+  IN  VOID                    *ImageBase,
+  OUT IMGLOAD_SYSTEM_VERSION  *MinimumVersion
+  )
+{
+  if (MinimumVersion == NULL) {
+    return E_POINTER;
+  }
+
+  // TE doesn't encode subsystem version
+  memset(MinimumVersion, 0, sizeof(IMGLOAD_SYSTEM_VERSION));
+  return S_FALSE;
+}
+
 //
 // TE Loader VTable
 //
@@ -643,7 +746,11 @@ static CONST IImageLoaderVtbl gTeVtbl = {
   TeGetSymbolByAddress,
   TeGetSymbolByName,
   TeGetRelocInfo,
-  TeApplyRelocations
+  TeApplyRelocations,
+  TeGetTargetSystem,
+  TeGetMinimumSystemVersion,
+  TeGetTargetSubsystem,
+  TeGetMinimumSubsystemVersion
 };
 
 //

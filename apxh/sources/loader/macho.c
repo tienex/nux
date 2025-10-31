@@ -49,7 +49,10 @@
 // Mach-O File Types
 //
 
+#define MH_OBJECT     0x1   ///< Relocatable object file
 #define MH_EXECUTE    0x2   ///< Executable file
+#define MH_DYLIB      0x6   ///< Dynamic shared library
+#define MH_BUNDLE     0x8   ///< Dynamically bound bundle
 
 //
 // Mach-O CPU Types
@@ -1079,6 +1082,119 @@ MachoRelease (
   return 1;
 }
 
+/**
+  Get target operating system from Mach-O image.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+MachoGetTargetSystem (
+  IN  IImageLoader           *This,
+  IN  VOID                   *ImageBase,
+  OUT IMGLOAD_TARGET_SYSTEM  *TargetSystem
+  )
+{
+  if (TargetSystem == NULL) {
+    return E_POINTER;
+  }
+
+  // Mach-O is used by Apple systems
+  // Could parse LC_VERSION_MIN_* or LC_BUILD_VERSION load commands for precise detection
+  // For now, default to macOS (most common)
+  *TargetSystem = ImgSystemMacOsX;
+  return S_OK;
+}
+
+/**
+  Get minimum required system version from Mach-O image.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+MachoGetMinimumSystemVersion (
+  IN  IImageLoader            *This,
+  IN  VOID                    *ImageBase,
+  OUT IMGLOAD_SYSTEM_VERSION  *MinimumVersion
+  )
+{
+  if (MinimumVersion == NULL) {
+    return E_POINTER;
+  }
+
+  // Would require parsing LC_VERSION_MIN_* or LC_BUILD_VERSION load commands
+  memset(MinimumVersion, 0, sizeof(IMGLOAD_SYSTEM_VERSION));
+  return S_FALSE;
+}
+
+/**
+  Get target subsystem from Mach-O image.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+MachoGetTargetSubsystem (
+  IN  IImageLoader              *This,
+  IN  VOID                      *ImageBase,
+  OUT IMGLOAD_TARGET_SUBSYSTEM  *TargetSubsystem
+  )
+{
+  MACHO_HEADER *Header;
+  VOID *ActualHeader;
+  UINTN ActualSize;
+  HRESULT Status;
+
+  if (TargetSubsystem == NULL) {
+    return E_POINTER;
+  }
+
+  // Handle universal binaries
+  Status = MachoGetActualHeader(ImageBase, 0xFFFFFFFF, &ActualHeader, &ActualSize);
+  if (FAILED(Status)) {
+    return Status;
+  }
+
+  Header = (MACHO_HEADER *)ActualHeader;
+
+  // Determine subsystem from file type
+  switch (Header->FileType) {
+    case MH_EXECUTE:
+      *TargetSubsystem = ImgSubsystemUnixCli;  // macOS CLI application
+      break;
+    case MH_DYLIB:
+      *TargetSubsystem = ImgSubsystemSharedLibrary;
+      break;
+    case MH_BUNDLE:
+      *TargetSubsystem = ImgSubsystemSharedLibrary;  // Bundle is like a library
+      break;
+    default:
+      *TargetSubsystem = ImgSubsystemUnknown;
+      break;
+  }
+
+  return S_OK;
+}
+
+/**
+  Get minimum required subsystem version from Mach-O image.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+MachoGetMinimumSubsystemVersion (
+  IN  IImageLoader            *This,
+  IN  VOID                    *ImageBase,
+  OUT IMGLOAD_SYSTEM_VERSION  *MinimumVersion
+  )
+{
+  if (MinimumVersion == NULL) {
+    return E_POINTER;
+  }
+
+  // Mach-O doesn't typically encode subsystem version separately
+  memset(MinimumVersion, 0, sizeof(IMGLOAD_SYSTEM_VERSION));
+  return S_FALSE;
+}
+
 //
 // Mach-O Loader VTable
 //
@@ -1097,7 +1213,11 @@ static CONST IImageLoaderVtbl gMachoVtbl = {
   MachoGetSymbolByAddress,
   MachoGetSymbolByName,
   MachoGetRelocInfo,
-  MachoApplyRelocations
+  MachoApplyRelocations,
+  MachoGetTargetSystem,
+  MachoGetMinimumSystemVersion,
+  MachoGetTargetSubsystem,
+  MachoGetMinimumSubsystemVersion
 };
 
 //
