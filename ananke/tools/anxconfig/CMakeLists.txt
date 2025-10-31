@@ -75,6 +75,10 @@ set(ANXCONFIG_SOURCES
     widget_statusbar.c
     widget_combobox.c
     widget_messagebox.c
+    widget_menu.c
+    widget_slider.c
+    widget_spinner.c
+    widget_progressbar.c
     focus_manager.c
     ${TUI_BACKEND}
 )
