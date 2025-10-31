@@ -9,6 +9,8 @@
 
 typedef struct {
     ITuiWidget WidgetInterface;
+    ITuiKeyListener KeyListener;
+    ITuiMouseListener MouseListener;
     ITuiDrawListener DrawListener;
 
     WIDGET_STATE State;
@@ -16,12 +18,15 @@ typedef struct {
     CHAR8 Hotkey;
     TUI_TEXT_ALIGNMENT Alignment;
     BOOLEAN Wrap;
+    ITuiWidget *LinkedWidget;
     ITuiResponder *NextResponder;
     ITuiSurface *Surface;
 } TuiLabelImpl;
 
 /* Helper macros for interface conversions */
 #define LABEL_FROM_WIDGET(w) ((TuiLabelImpl*)((UINT8*)(w) - offsetof(TuiLabelImpl, WidgetInterface)))
+#define LABEL_FROM_KEY(k) ((TuiLabelImpl*)((UINT8*)(k) - offsetof(TuiLabelImpl, KeyListener)))
+#define LABEL_FROM_MOUSE(m) ((TuiLabelImpl*)((UINT8*)(m) - offsetof(TuiLabelImpl, MouseListener)))
 #define LABEL_FROM_DRAW(d) ((TuiLabelImpl*)((UINT8*)(d) - offsetof(TuiLabelImpl, DrawListener)))
 
 /* Helper: Find hotkey position in text */
@@ -49,6 +54,16 @@ static HRESULT ANXAPI LabelWidget_QueryInterface(ITuiWidget *This, REFIID riid, 
 
     if (IsEqualGUID(riid, &IID_IUnknown) || IsEqualGUID(riid, &IID_ITuiWidget)) {
         *ppvObject = &impl->WidgetInterface;
+        impl->State.RefCount++;
+        return S_OK;
+    }
+    if (IsEqualGUID(riid, &IID_ITuiKeyListener)) {
+        *ppvObject = &impl->KeyListener;
+        impl->State.RefCount++;
+        return S_OK;
+    }
+    if (IsEqualGUID(riid, &IID_ITuiMouseListener)) {
+        *ppvObject = &impl->MouseListener;
         impl->State.RefCount++;
         return S_OK;
     }
@@ -239,6 +254,131 @@ static CONST ITuiWidget_Vtbl LabelWidgetVtbl = {
 };
 
 /*=============================================================================
+ * ITuiKeyListener Implementation
+ *===========================================================================*/
+
+static HRESULT ANXAPI LabelKey_QueryInterface(ITuiKeyListener *This, REFIID riid, VOID **ppvObject)
+{
+    TuiLabelImpl *impl = LABEL_FROM_KEY(This);
+    return LabelWidget_QueryInterface(&impl->WidgetInterface, riid, ppvObject);
+}
+
+static UINTN ANXAPI LabelKey_AddRef(ITuiKeyListener *This)
+{
+    TuiLabelImpl *impl = LABEL_FROM_KEY(This);
+    return ++impl->State.RefCount;
+}
+
+static UINTN ANXAPI LabelKey_Release(ITuiKeyListener *This)
+{
+    TuiLabelImpl *impl = LABEL_FROM_KEY(This);
+    return LabelWidget_Release(&impl->WidgetInterface);
+}
+
+static HRESULT ANXAPI LabelKey_OnKeyDown(ITuiKeyListener *This, TUI_KEY Key, UINT32 Modifiers, BOOLEAN *Handled)
+{
+    TuiLabelImpl *impl = LABEL_FROM_KEY(This);
+    *Handled = FALSE;
+
+    /* Check if pressed key matches hotkey (case insensitive) */
+    if (impl->Hotkey != '\0' && impl->LinkedWidget != NULL) {
+        CHAR8 upperKey = (Key >= 'a' && Key <= 'z') ? (Key - 32) : Key;
+        CHAR8 upperHotkey = (impl->Hotkey >= 'a' && impl->Hotkey <= 'z') ? (impl->Hotkey - 32) : impl->Hotkey;
+
+        if (upperKey == upperHotkey) {
+            /* Focus the linked widget */
+            ITuiResponder *responder = NULL;
+            HRESULT hr = impl->LinkedWidget->Vtbl->QueryInterface(impl->LinkedWidget, &IID_ITuiResponder, (VOID**)&responder);
+            if (SUCCEEDED(hr) && responder != NULL) {
+                responder->Vtbl->BecomeFirstResponder(responder);
+                responder->Vtbl->Release(responder);
+            }
+            *Handled = TRUE;
+            return S_OK;
+        }
+    }
+
+    return S_OK;
+}
+
+static HRESULT ANXAPI LabelKey_OnKeyUp(ITuiKeyListener *This, TUI_KEY Key, UINT32 Modifiers, BOOLEAN *Handled)
+{
+    *Handled = FALSE;
+    return S_OK;
+}
+
+static HRESULT ANXAPI LabelKey_OnChar(ITuiKeyListener *This, CHAR16 Character, BOOLEAN *Handled)
+{
+    *Handled = FALSE;
+    return S_OK;
+}
+
+static CONST ITuiKeyListener_Vtbl LabelKeyVtbl = {
+    LabelKey_QueryInterface,
+    LabelKey_AddRef,
+    LabelKey_Release,
+    LabelKey_OnKeyDown,
+    LabelKey_OnKeyUp,
+    LabelKey_OnChar
+};
+
+/*=============================================================================
+ * ITuiMouseListener Implementation
+ *===========================================================================*/
+
+static HRESULT ANXAPI LabelMouse_QueryInterface(ITuiMouseListener *This, REFIID riid, VOID **ppvObject)
+{
+    TuiLabelImpl *impl = LABEL_FROM_MOUSE(This);
+    return LabelWidget_QueryInterface(&impl->WidgetInterface, riid, ppvObject);
+}
+
+static UINTN ANXAPI LabelMouse_AddRef(ITuiMouseListener *This)
+{
+    TuiLabelImpl *impl = LABEL_FROM_MOUSE(This);
+    return ++impl->State.RefCount;
+}
+
+static UINTN ANXAPI LabelMouse_Release(ITuiMouseListener *This)
+{
+    TuiLabelImpl *impl = LABEL_FROM_MOUSE(This);
+    return LabelWidget_Release(&impl->WidgetInterface);
+}
+
+static HRESULT ANXAPI LabelMouse_OnMouseEvent(ITuiMouseListener *This, CONST TUI_MOUSE_EVENT *Event, BOOLEAN *Handled)
+{
+    TuiLabelImpl *impl = LABEL_FROM_MOUSE(This);
+    BOOLEAN isOver;
+
+    *Handled = FALSE;
+
+    /* Only handle if we have a linked widget */
+    if (impl->LinkedWidget == NULL) return S_OK;
+
+    isOver = IsPointInWidget(&impl->State, Event->X, Event->Y);
+    if (!isOver) return S_OK;
+
+    /* Click to focus linked widget */
+    if (Event->Type == TuiMouseLeftDown) {
+        ITuiResponder *responder = NULL;
+        HRESULT hr = impl->LinkedWidget->Vtbl->QueryInterface(impl->LinkedWidget, &IID_ITuiResponder, (VOID**)&responder);
+        if (SUCCEEDED(hr) && responder != NULL) {
+            responder->Vtbl->BecomeFirstResponder(responder);
+            responder->Vtbl->Release(responder);
+        }
+        *Handled = TRUE;
+    }
+
+    return S_OK;
+}
+
+static CONST ITuiMouseListener_Vtbl LabelMouseVtbl = {
+    LabelMouse_QueryInterface,
+    LabelMouse_AddRef,
+    LabelMouse_Release,
+    LabelMouse_OnMouseEvent
+};
+
+/*=============================================================================
  * ITuiDrawListener Implementation
  *===========================================================================*/
 
@@ -355,6 +495,8 @@ HRESULT ANXAPI AnxTuiCreateLabel(IN CONST CHAR8 *Text, OUT ITuiWidget **Widget)
 
     /* Initialize vtables */
     impl->WidgetInterface.Vtbl = &LabelWidgetVtbl;
+    impl->KeyListener.Vtbl = &LabelKeyVtbl;
+    impl->MouseListener.Vtbl = &LabelMouseVtbl;
     impl->DrawListener.Vtbl = &LabelDrawVtbl;
 
     /* Initialize widget state */
@@ -371,6 +513,7 @@ HRESULT ANXAPI AnxTuiCreateLabel(IN CONST CHAR8 *Text, OUT ITuiWidget **Widget)
     impl->Hotkey = '\0';
     impl->Alignment = TuiAlignLeft;
     impl->Wrap = FALSE;
+    impl->LinkedWidget = NULL;
     impl->NextResponder = NULL;
     impl->Surface = NULL;
 
@@ -417,5 +560,12 @@ HRESULT ANXAPI AnxTuiLabelSetWordWrap(ITuiWidget *Widget, BOOLEAN Wrap)
 {
     TuiLabelImpl *impl = LABEL_FROM_WIDGET(Widget);
     impl->Wrap = Wrap;
+    return S_OK;
+}
+
+HRESULT ANXAPI AnxTuiLabelSetLinkedWidget(ITuiWidget *Widget, ITuiWidget *LinkedWidget)
+{
+    TuiLabelImpl *impl = LABEL_FROM_WIDGET(Widget);
+    impl->LinkedWidget = LinkedWidget;
     return S_OK;
 }
