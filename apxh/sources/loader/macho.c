@@ -753,7 +753,7 @@ MachoLoadSegment (
 
   if (FileSize > 0) {
     // Copy file data to virtual address
-    VirtualAddressCopy(
+    VasCopy(
       VmAddr,
       (VOID *)((UINT8 *)MachoBase + FileOff),
       FileSize,
@@ -765,7 +765,7 @@ MachoLoadSegment (
 
   if (VmSize > FileSize) {
     // Zero-fill remainder (BSS)
-    VirtualAddressMemset(
+    VasFill(
       VmAddr + FileSize,
       0,
       VmSize - FileSize,

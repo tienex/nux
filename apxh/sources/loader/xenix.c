@@ -621,7 +621,7 @@ XenixLoadSegmented (
 
     // Load physical data from file
     if (Seg->xs_psize > 0) {
-      VirtualAddressCopy(
+      VasCopy(
         Seg->xs_rbase,
         XOUT_OFF(Seg->xs_filpos),
         Seg->xs_psize,
@@ -633,7 +633,7 @@ XenixLoadSegmented (
 
     // Zero-fill remaining virtual space (BSS-like)
     if (Seg->xs_vsize > Seg->xs_psize) {
-      VirtualAddressMemset(
+      VasFill(
         Seg->xs_rbase + Seg->xs_psize,
         0,
         Seg->xs_vsize - Seg->xs_psize,
@@ -673,7 +673,7 @@ XenixLoadNonSegmented (
     info("  Text segment at 0x%08x (size: 0x%08x)",
          XOUT_TEXT_START, Header->x_text);
 
-    VirtualAddressCopy(
+    VasCopy(
       XOUT_TEXT_START,
       XOUT_OFF(TextOffset),
       Header->x_text,
@@ -688,7 +688,7 @@ XenixLoadNonSegmented (
     info("  Data segment at 0x%08x (size: 0x%08x)",
          XOUT_DATA_START, Header->x_data);
 
-    VirtualAddressCopy(
+    VasCopy(
       XOUT_DATA_START,
       XOUT_OFF(DataOffset),
       Header->x_data,
@@ -703,7 +703,7 @@ XenixLoadNonSegmented (
     info("  BSS segment at 0x%08x (size: 0x%08x)",
          XOUT_DATA_START + Header->x_data, Header->x_bss);
 
-    VirtualAddressMemset(
+    VasFill(
       XOUT_DATA_START + Header->x_data,
       0,
       Header->x_bss,

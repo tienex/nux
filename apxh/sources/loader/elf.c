@@ -508,13 +508,13 @@ PhUload (
 
       if (FSize) {
         // Copy from file to virtual address (user mode)
-        VirtualAddressCopy(Va, ELFOFF(Off), FSize, 1,
+        VasCopy(Va, ELFOFF(Off), FSize, 1,
                           !!(Flags & PHF_W), !!(Flags & PHF_X));
       }
 
       if (MSize - FSize > 0) {
         // Zero-fill remainder (BSS)
-        VirtualAddressMemset(Va + FSize, 0, MSize - FSize, 1,
+        VasFill(Va + FSize, 0, MSize - FSize, 1,
                             !!(Flags & PHF_W), !!(Flags & PHF_X));
       }
       break;
@@ -531,7 +531,7 @@ PhUload (
         }
 
         if (FSize != 0) {
-          VirtualAddressCopy(Va, ELFOFF(Off), FSize, 0,
+          VasCopy(Va, ELFOFF(Off), FSize, 0,
                             !!(Flags & PHF_W), !!(Flags & PHF_X));
         }
         VirtualAddressMapUserTls(Va, FSize, MSize);
@@ -580,13 +580,13 @@ PhKload (
 
       if (FSize) {
         // Copy from file to virtual address (kernel mode)
-        VirtualAddressCopy(Va, ELFOFF(Off), FSize, 0,
+        VasCopy(Va, ELFOFF(Off), FSize, 0,
                           !!(Flags & PHF_W), !!(Flags & PHF_X));
       }
 
       if (MSize - FSize > 0) {
         // Zero-fill remainder (BSS)
-        VirtualAddressMemset(Va + FSize, 0, MSize - FSize, 0,
+        VasFill(Va + FSize, 0, MSize - FSize, 0,
                             !!(Flags & PHF_W), !!(Flags & PHF_X));
       }
       break;
@@ -601,7 +601,7 @@ PhKload (
           exit(-1);
         }
         if (FSize != 0) {
-          VirtualAddressCopy(Va, ELFOFF(Off), FSize, 0,
+          VasCopy(Va, ELFOFF(Off), FSize, 0,
                             !!(Flags & PHF_W), !!(Flags & PHF_X));
         }
         VirtualAddressMapKernelTls(Va, FSize, MSize);

@@ -304,7 +304,7 @@ HunkParseFile (
           return IMGLOAD_E_INVALID_FORMAT;
         }
 
-        VirtualAddressCopy(
+        VasCopy(
           State->NextAddr,
           Ptr,
           Size,
@@ -331,7 +331,7 @@ HunkParseFile (
 
         info("  HUNK_BSS at 0x%08x (size: 0x%08x)", State->NextAddr, Size);
 
-        VirtualAddressMemset(
+        VasFill(
           State->NextAddr,
           0,
           Size,

@@ -375,7 +375,7 @@ AoutLoadImage (
 
   // Load text segment (executable)
   if (Header->TextSize > 0) {
-    VirtualAddressCopy(
+    VasCopy(
       TextAddr,
       AOUT_OFF(TextOffset),
       Header->TextSize,
@@ -387,7 +387,7 @@ AoutLoadImage (
 
   // Load data segment (writable)
   if (Header->DataSize > 0) {
-    VirtualAddressCopy(
+    VasCopy(
       DataAddr,
       AOUT_OFF(DataOffset),
       Header->DataSize,
@@ -399,7 +399,7 @@ AoutLoadImage (
 
   // Zero-fill BSS
   if (Header->BssSize > 0) {
-    VirtualAddressMemset(
+    VasFill(
       BssAddr,
       0,
       Header->BssSize,

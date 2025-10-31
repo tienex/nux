@@ -329,7 +329,7 @@ Plan9LoadImage (
   if (TextSize > 0) {
     info("  Text segment at 0x%08x (size: 0x%08x)", TextAddr, TextSize);
 
-    VirtualAddressCopy(
+    VasCopy(
       TextAddr,
       PLAN9_OFF(TextOffset),
       TextSize,
@@ -343,7 +343,7 @@ Plan9LoadImage (
   if (DataSize > 0) {
     info("  Data segment at 0x%08x (size: 0x%08x)", DataAddr, DataSize);
 
-    VirtualAddressCopy(
+    VasCopy(
       DataAddr,
       PLAN9_OFF(DataOffset),
       DataSize,
@@ -357,7 +357,7 @@ Plan9LoadImage (
   if (BssSize > 0) {
     info("  BSS segment at 0x%08x (size: 0x%08x)", BssAddr, BssSize);
 
-    VirtualAddressMemset(
+    VasFill(
       BssAddr,
       0,
       BssSize,

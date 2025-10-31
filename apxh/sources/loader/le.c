@@ -405,7 +405,7 @@ LeLoadObject (
     switch (PageEntry->Type) {
       case LE_PAGE_LEGAL:
         // Normal page with data
-        VirtualAddressCopy(
+        VasCopy(
           PageVa,
           LE_OFF(DataPagesBase + PageEntry->PageDataOffset),
           PageDataSize,
@@ -416,7 +416,7 @@ LeLoadObject (
 
         // Zero remainder if partial page
         if (PageDataSize < PageSize) {
-          VirtualAddressMemset(
+          VasFill(
             PageVa + PageDataSize,
             0,
             PageSize - PageDataSize,
@@ -429,7 +429,7 @@ LeLoadObject (
 
       case LE_PAGE_ZEROED:
         // Zero-filled page
-        VirtualAddressMemset(
+        VasFill(
           PageVa,
           0,
           PageSize,

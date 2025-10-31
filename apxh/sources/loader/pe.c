@@ -602,7 +602,7 @@ PeLoadSection (
 
   if (Section->SizeOfRawData > 0) {
     // Copy section data from file
-    VirtualAddressCopy(
+    VasCopy(
       VirtualAddr,
       PE_OFF(Section->PointerToRawData),
       Section->SizeOfRawData,
@@ -614,7 +614,7 @@ PeLoadSection (
 
   if (Section->VirtualSize > Section->SizeOfRawData) {
     // Zero-fill remainder
-    VirtualAddressMemset(
+    VasFill(
       VirtualAddr + Section->SizeOfRawData,
       0,
       Section->VirtualSize - Section->SizeOfRawData,

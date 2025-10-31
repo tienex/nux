@@ -375,7 +375,7 @@ TeLoadImage (
          Section->Name, SectionVa, Section->SizeOfRawData, Section->Characteristics);
 
     // Copy section data
-    VirtualAddressCopy(
+    VasCopy(
       SectionVa,
       TE_OFF(Section->PointerToRawData + Adjustment),
       Section->SizeOfRawData,
@@ -388,7 +388,7 @@ TeLoadImage (
     if (Section->VirtualSize > Section->SizeOfRawData) {
       UINT32 ZeroSize = Section->VirtualSize - Section->SizeOfRawData;
 
-      VirtualAddressMemset(
+      VasFill(
         SectionVa + Section->SizeOfRawData,
         0,
         ZeroSize,

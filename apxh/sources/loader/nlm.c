@@ -349,7 +349,7 @@ NlmLoadImage (
     info("  Code segment at 0x%016llx (size: 0x%llx)",
          NLM_DEFAULT_CODE_BASE, CodeSize);
 
-    VirtualAddressCopy(
+    VasCopy(
       NLM_DEFAULT_CODE_BASE,
       NLM_OFF(CodeOffset),
       CodeSize,
@@ -364,7 +364,7 @@ NlmLoadImage (
     info("  Data segment at 0x%016llx (size: 0x%llx)",
          NLM_DEFAULT_DATA_BASE, DataSize);
 
-    VirtualAddressCopy(
+    VasCopy(
       NLM_DEFAULT_DATA_BASE,
       NLM_OFF(DataOffset),
       DataSize,
@@ -379,7 +379,7 @@ NlmLoadImage (
     info("  BSS segment at 0x%016llx (size: 0x%llx)",
          NLM_DEFAULT_DATA_BASE + DataSize, BssSize);
 
-    VirtualAddressMemset(
+    VasFill(
       NLM_DEFAULT_DATA_BASE + DataSize,
       0,
       BssSize,
@@ -436,7 +436,7 @@ NlmGetTlsInfo (
 
       // Copy TLS initialization data if present
       if (HeaderV5->TlsDataSize > 0) {
-        VirtualAddressCopy(
+        VasCopy(
           TlsInfo->InitDataAddr,
           NLM_OFF(HeaderV5->TlsDataOffset),
           HeaderV5->TlsDataSize,

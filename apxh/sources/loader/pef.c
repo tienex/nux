@@ -295,7 +295,7 @@ PefLoadSection (
 
   if (Section->UnpackedSize > 0 && Section->ContainerOffset != 0) {
     // Copy section data
-    VirtualAddressCopy(
+    VasCopy(
       Section->DefaultAddress,
       PEF_OFF(Section->ContainerOffset),
       Section->UnpackedSize,
@@ -307,7 +307,7 @@ PefLoadSection (
 
   if (Section->TotalSize > Section->UnpackedSize) {
     // Zero-fill remainder
-    VirtualAddressMemset(
+    VasFill(
       Section->DefaultAddress + Section->UnpackedSize,
       0,
       Section->TotalSize - Section->UnpackedSize,

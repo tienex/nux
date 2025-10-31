@@ -271,7 +271,7 @@ AtariLoadImage (
   if (Header->TextSize > 0) {
     info("  Text segment at 0x%08x (size: 0x%08x)", TextAddr, Header->TextSize);
 
-    VirtualAddressCopy(
+    VasCopy(
       TextAddr,
       ATARI_OFF(TextOffset),
       Header->TextSize,
@@ -285,7 +285,7 @@ AtariLoadImage (
   if (Header->DataSize > 0) {
     info("  Data segment at 0x%08x (size: 0x%08x)", DataAddr, Header->DataSize);
 
-    VirtualAddressCopy(
+    VasCopy(
       DataAddr,
       ATARI_OFF(DataOffset),
       Header->DataSize,
@@ -299,7 +299,7 @@ AtariLoadImage (
   if (Header->BssSize > 0) {
     info("  BSS segment at 0x%08x (size: 0x%08x)", BssAddr, Header->BssSize);
 
-    VirtualAddressMemset(
+    VasFill(
       BssAddr,
       0,
       Header->BssSize,

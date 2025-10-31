@@ -292,7 +292,7 @@ VmsLoadImage (
           // For now, create zero-filled pages
           // Full implementation would need to load actual data from image
           if (SectionSize > 0) {
-            VirtualAddressMemset(
+            VasFill(
               SectionVa,
               0,
               SectionSize,

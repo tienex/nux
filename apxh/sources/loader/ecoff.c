@@ -330,7 +330,7 @@ EcoffLoadSection32 (
 
   if (Section->Flags & (STYP_BSS | STYP_SBSS)) {
     // Zero-filled BSS section
-    VirtualAddressMemset(
+    VasFill(
       Section->VirtAddr,
       0,
       Section->Size,
@@ -340,7 +340,7 @@ EcoffLoadSection32 (
     );
   } else {
     // Data section
-    VirtualAddressCopy(
+    VasCopy(
       Section->VirtAddr,
       ECOFF_OFF(Section->DataPtr),
       Section->Size,
@@ -374,7 +374,7 @@ EcoffLoadSection64 (
 
   if (Section->Flags & (STYP_BSS | STYP_SBSS)) {
     // Zero-filled BSS section
-    VirtualAddressMemset(
+    VasFill(
       Section->VirtAddr,
       0,
       Section->Size,
@@ -384,7 +384,7 @@ EcoffLoadSection64 (
     );
   } else {
     // Data section
-    VirtualAddressCopy(
+    VasCopy(
       Section->VirtAddr,
       ECOFF_OFF(Section->DataPtr),
       Section->Size,

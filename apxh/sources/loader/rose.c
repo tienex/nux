@@ -442,7 +442,7 @@ RoseLoadImage (
           BOOLEAN Writable = (InitProt & MO_PROT_WRITE) != 0;
           BOOLEAN Executable = (InitProt & MO_PROT_EXECUTE) != 0;
 
-          VirtualAddressCopy(
+          VasCopy(
             VmAddr,
             SrcData,
             VmSize,

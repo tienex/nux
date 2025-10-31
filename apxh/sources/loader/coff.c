@@ -785,7 +785,7 @@ CoffLoadImage (
 
     if (IsBss) {
       // BSS: zero-filled, writable
-      VirtualAddressMemset(
+      VasFill(
         Sec->VirtualAddr,
         0,
         Sec->Size,
@@ -795,7 +795,7 @@ CoffLoadImage (
       );
     } else if (Sec->DataPtr > 0) {
       // Normal section with data
-      VirtualAddressCopy(
+      VasCopy(
         Sec->VirtualAddr,
         COFF_OFF(Sec->DataPtr),
         Sec->Size,

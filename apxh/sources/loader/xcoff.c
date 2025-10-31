@@ -317,7 +317,7 @@ XcoffLoadSection32 (
 
   if (Section->Flags & (STYP_BSS | STYP_TBSS)) {
     // Zero-filled BSS section
-    VirtualAddressMemset(
+    VasFill(
       Section->VirtAddr,
       0,
       Section->Size,
@@ -327,7 +327,7 @@ XcoffLoadSection32 (
     );
   } else if (!(Section->Flags & (STYP_INFO | STYP_DEBUG | STYP_LOADER))) {
     // Data/Text section (skip info/debug/loader sections)
-    VirtualAddressCopy(
+    VasCopy(
       Section->VirtAddr,
       XCOFF_OFF(Section->DataPtr),
       Section->Size,
@@ -361,7 +361,7 @@ XcoffLoadSection64 (
 
   if (Section->Flags & (STYP_BSS | STYP_TBSS)) {
     // Zero-filled BSS section
-    VirtualAddressMemset(
+    VasFill(
       Section->VirtAddr,
       0,
       Section->Size,
@@ -371,7 +371,7 @@ XcoffLoadSection64 (
     );
   } else if (!(Section->Flags & (STYP_INFO | STYP_DEBUG | STYP_LOADER))) {
     // Data/Text section (skip info/debug/loader sections)
-    VirtualAddressCopy(
+    VasCopy(
       Section->VirtAddr,
       XCOFF_OFF(Section->DataPtr),
       Section->Size,
