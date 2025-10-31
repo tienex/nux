@@ -5198,6 +5198,68 @@ struct _ITuiTreeView {
     CONST ITuiTreeView_Vtbl *Vtbl;
 };
 
+// {4B5C6D7E-8F9A-0B1C-2D3E-4F5A6B7C8D9E}
+DEFINE_GUID(IID_ITuiThemedListView,
+    0x4B5C6D7E, 0x8F9A, 0x0B1C, 0x2D, 0x3E, 0x4F, 0x5A, 0x6B, 0x7C, 0x8D, 0x9E);
+
+/**
+  ITuiThemedListView Interface
+
+  ListView theming interface. Inherits from ITuiThemedWidget.
+**/
+typedef struct _ITuiThemedListView_Vtbl {
+    // ITuiSerializable methods
+    HRESULT (ANXAPI *QueryInterface)(ITuiThemedListView *This, REFIID riid, VOID **ppvObject);
+    UINTN (ANXAPI *AddRef)(ITuiThemedListView *This);
+    UINTN (ANXAPI *Release)(ITuiThemedListView *This);
+    HRESULT (ANXAPI *SerializeToYaml)(ITuiThemedListView *This, CHAR8 **OutYaml, UINTN *OutLength);
+    HRESULT (ANXAPI *DeserializeFromYaml)(ITuiThemedListView *This, CONST CHAR8 *Yaml, UINTN Length);
+    HRESULT (ANXAPI *GetTypeName)(ITuiThemedListView *This, CONST CHAR8 **OutTypeName);
+    HRESULT (ANXAPI *Clone)(ITuiThemedListView *This, ITuiSerializable **OutClone);
+
+    // ITuiResponder methods
+    HRESULT (ANXAPI *GetNextResponder)(ITuiThemedListView *This, ITuiResponder **NextResponder);
+    HRESULT (ANXAPI *SetNextResponder)(ITuiThemedListView *This, ITuiResponder *NextResponder);
+    BOOLEAN (ANXAPI *AcceptsFirstResponder)(ITuiThemedListView *This);
+    HRESULT (ANXAPI *BecomeFirstResponder)(ITuiThemedListView *This);
+    HRESULT (ANXAPI *ResignFirstResponder)(ITuiThemedListView *This);
+
+    // ITuiWidget methods
+    HRESULT (ANXAPI *SetBounds)(ITuiThemedListView *This, CONST TUI_RECT *Bounds);
+    HRESULT (ANXAPI *GetBounds)(ITuiThemedListView *This, TUI_RECT *Bounds);
+    HRESULT (ANXAPI *SetVisible)(ITuiThemedListView *This, BOOLEAN Visible);
+    BOOLEAN (ANXAPI *IsVisible)(ITuiThemedListView *This);
+    HRESULT (ANXAPI *SetEnabled)(ITuiThemedListView *This, BOOLEAN Enabled);
+    BOOLEAN (ANXAPI *IsEnabled)(ITuiThemedListView *This);
+    HRESULT (ANXAPI *SetParent)(ITuiThemedListView *This, ITuiWidget *Parent);
+    HRESULT (ANXAPI *GetParent)(ITuiThemedListView *This, ITuiWidget **Parent);
+    HRESULT (ANXAPI *AddChild)(ITuiThemedListView *This, ITuiWidget *Child);
+    HRESULT (ANXAPI *RemoveChild)(ITuiThemedListView *This, ITuiWidget *Child);
+    HRESULT (ANXAPI *SetNeedsDisplay)(ITuiThemedListView *This, BOOLEAN Needed);
+
+    // ITuiThemedWidget methods
+    HRESULT (ANXAPI *ApplyTheme)(ITuiThemedListView *This, ITuiTheme *Theme);
+    HRESULT (ANXAPI *GetColors)(ITuiThemedListView *This, TUI_COLOR *Foreground, TUI_COLOR *Background);
+    HRESULT (ANXAPI *SetColors)(ITuiThemedListView *This, TUI_COLOR Foreground, TUI_COLOR Background);
+    HRESULT (ANXAPI *OnMouseEvent)(ITuiThemedListView *This, CONST TUI_MOUSE_EVENT *Event, BOOLEAN *Handled);
+    HRESULT (ANXAPI *OnKeyEvent)(ITuiThemedListView *This, TUI_KEY Key, UINT32 Modifiers, BOOLEAN *Handled);
+    HRESULT (ANXAPI *Draw)(ITuiThemedListView *This, ITuiSurface *Surface, CONST TUI_RECT *DirtyRect);
+
+    // ITuiThemedListView methods
+    HRESULT (ANXAPI *GetSelectedColors)(ITuiThemedListView *This, TUI_COLOR *Foreground, TUI_COLOR *Background);
+    HRESULT (ANXAPI *SetSelectedColors)(ITuiThemedListView *This, TUI_COLOR Foreground, TUI_COLOR Background);
+    HRESULT (ANXAPI *GetAlternateRowColors)(ITuiThemedListView *This, TUI_COLOR *Foreground, TUI_COLOR *Background);
+    HRESULT (ANXAPI *SetAlternateRowColors)(ITuiThemedListView *This, TUI_COLOR Foreground, TUI_COLOR Background);
+    HRESULT (ANXAPI *GetHeaderColors)(ITuiThemedListView *This, TUI_COLOR *Foreground, TUI_COLOR *Background);
+    HRESULT (ANXAPI *SetHeaderColors)(ITuiThemedListView *This, TUI_COLOR Foreground, TUI_COLOR Background);
+    CHAR8 (ANXAPI *GetColumnSeparator)(ITuiThemedListView *This);
+    HRESULT (ANXAPI *SetColumnSeparator)(ITuiThemedListView *This, CHAR8 Separator);
+} ITuiThemedListView_Vtbl;
+
+struct _ITuiThemedListView {
+    CONST ITuiThemedListView_Vtbl *Vtbl;
+};
+
 // {7D8E9F0A-1B2C-3D4E-5F6A-7B8C9D0E1F2A}
 DEFINE_GUID(IID_ITuiListView,
     0x7D8E9F0A, 0x1B2C, 0x3D4E, 0x5F, 0x6A, 0x7B, 0x8C, 0x9D, 0x0E, 0x1F, 0x2A);
@@ -5206,97 +5268,72 @@ DEFINE_GUID(IID_ITuiListView,
   ITuiListView Interface
 
   Multi-column list control with resizable columns, different view modes,
-  alternating rows, checkboxes, and inline editing.
+  alternating rows, checkboxes, and inline editing. Inherits from ITuiThemedListView.
 **/
 typedef struct _ITuiListView_Vtbl {
+    // ITuiSerializable methods
     HRESULT (ANXAPI *QueryInterface)(ITuiListView *This, REFIID riid, VOID **ppvObject);
     UINTN (ANXAPI *AddRef)(ITuiListView *This);
     UINTN (ANXAPI *Release)(ITuiListView *This);
+    HRESULT (ANXAPI *SerializeToYaml)(ITuiListView *This, CHAR8 **OutYaml, UINTN *OutLength);
+    HRESULT (ANXAPI *DeserializeFromYaml)(ITuiListView *This, CONST CHAR8 *Yaml, UINTN Length);
+    HRESULT (ANXAPI *GetTypeName)(ITuiListView *This, CONST CHAR8 **OutTypeName);
+    HRESULT (ANXAPI *Clone)(ITuiListView *This, ITuiSerializable **OutClone);
 
-    /**
-      Render the list view.
-    **/
-    HRESULT (ANXAPI *Render)(
-        ITuiListView *This,
-        ITuiScreen *Screen,
-        INT32 X,
-        INT32 Y,
-        UINT32 Width,
-        UINT32 Height
-    );
+    // ITuiResponder methods
+    HRESULT (ANXAPI *GetNextResponder)(ITuiListView *This, ITuiResponder **NextResponder);
+    HRESULT (ANXAPI *SetNextResponder)(ITuiListView *This, ITuiResponder *NextResponder);
+    BOOLEAN (ANXAPI *AcceptsFirstResponder)(ITuiListView *This);
+    HRESULT (ANXAPI *BecomeFirstResponder)(ITuiListView *This);
+    HRESULT (ANXAPI *ResignFirstResponder)(ITuiListView *This);
 
-    /**
-      Handle keyboard input.
-    **/
-    HRESULT (ANXAPI *HandleKey)(
-        ITuiListView *This,
-        TUI_KEY Key
-    );
-
-    /**
-      Standard widget methods.
-    **/
+    // ITuiWidget methods
     HRESULT (ANXAPI *SetBounds)(ITuiListView *This, CONST TUI_RECT *Bounds);
     HRESULT (ANXAPI *GetBounds)(ITuiListView *This, TUI_RECT *Bounds);
     HRESULT (ANXAPI *SetVisible)(ITuiListView *This, BOOLEAN Visible);
     BOOLEAN (ANXAPI *IsVisible)(ITuiListView *This);
     HRESULT (ANXAPI *SetEnabled)(ITuiListView *This, BOOLEAN Enabled);
     BOOLEAN (ANXAPI *IsEnabled)(ITuiListView *This);
+    HRESULT (ANXAPI *SetParent)(ITuiListView *This, ITuiWidget *Parent);
+    HRESULT (ANXAPI *GetParent)(ITuiListView *This, ITuiWidget **Parent);
+    HRESULT (ANXAPI *AddChild)(ITuiListView *This, ITuiWidget *Child);
+    HRESULT (ANXAPI *RemoveChild)(ITuiListView *This, ITuiWidget *Child);
+    HRESULT (ANXAPI *SetNeedsDisplay)(ITuiListView *This, BOOLEAN Needed);
 
-    /**
-      Add a column.
-    **/
-    HRESULT (ANXAPI *AddColumn)(
-        ITuiListView *This,
-        CONST CHAR8 *Header,
-        UINT32 Width
-    );
+    // ITuiThemedWidget methods
+    HRESULT (ANXAPI *ApplyTheme)(ITuiListView *This, ITuiTheme *Theme);
+    HRESULT (ANXAPI *GetColors)(ITuiListView *This, TUI_COLOR *Foreground, TUI_COLOR *Background);
+    HRESULT (ANXAPI *SetColors)(ITuiListView *This, TUI_COLOR Foreground, TUI_COLOR Background);
+    HRESULT (ANXAPI *OnMouseEvent)(ITuiListView *This, CONST TUI_MOUSE_EVENT *Event, BOOLEAN *Handled);
+    HRESULT (ANXAPI *OnKeyEvent)(ITuiListView *This, TUI_KEY Key, UINT32 Modifiers, BOOLEAN *Handled);
+    HRESULT (ANXAPI *Draw)(ITuiListView *This, ITuiSurface *Surface, CONST TUI_RECT *DirtyRect);
 
-    /**
-      Add an item with cell data.
-    **/
-    HRESULT (ANXAPI *AddItem)(
-        ITuiListView *This,
-        CONST CHAR8 **Cells,
-        UINT32 CellCount,
-        VOID *UserData,
-        UINT32 *OutIndex
-    );
+    // ITuiThemedListView methods
+    HRESULT (ANXAPI *GetSelectedColors)(ITuiListView *This, TUI_COLOR *Foreground, TUI_COLOR *Background);
+    HRESULT (ANXAPI *SetSelectedColors)(ITuiListView *This, TUI_COLOR Foreground, TUI_COLOR Background);
+    HRESULT (ANXAPI *GetAlternateRowColors)(ITuiListView *This, TUI_COLOR *Foreground, TUI_COLOR *Background);
+    HRESULT (ANXAPI *SetAlternateRowColors)(ITuiListView *This, TUI_COLOR Foreground, TUI_COLOR Background);
+    HRESULT (ANXAPI *GetHeaderColors)(ITuiListView *This, TUI_COLOR *Foreground, TUI_COLOR *Background);
+    HRESULT (ANXAPI *SetHeaderColors)(ITuiListView *This, TUI_COLOR Foreground, TUI_COLOR Background);
+    CHAR8 (ANXAPI *GetColumnSeparator)(ITuiListView *This);
+    HRESULT (ANXAPI *SetColumnSeparator)(ITuiListView *This, CHAR8 Separator);
 
-    /**
-      Clear all items.
-    **/
+    // ITuiListView methods
+    HRESULT (ANXAPI *AddColumn)(ITuiListView *This, CONST CHAR8 *Header, UINT32 Width);
+    HRESULT (ANXAPI *RemoveColumn)(ITuiListView *This, UINT32 ColumnIndex);
+    UINT32 (ANXAPI *GetColumnCount)(ITuiListView *This);
+    HRESULT (ANXAPI *SetColumnWidth)(ITuiListView *This, UINT32 ColumnIndex, UINT32 Width);
+    HRESULT (ANXAPI *GetColumnWidth)(ITuiListView *This, UINT32 ColumnIndex, UINT32 *Width);
+    HRESULT (ANXAPI *AddItem)(ITuiListView *This, CONST CHAR8 **Cells, UINT32 CellCount, VOID *UserData, UINT32 *OutIndex);
+    HRESULT (ANXAPI *RemoveItem)(ITuiListView *This, UINT32 ItemIndex);
+    UINT32 (ANXAPI *GetItemCount)(ITuiListView *This);
     HRESULT (ANXAPI *Clear)(ITuiListView *This);
-
-    /**
-      Set view mode (list, details, icons, column browse).
-    **/
-    HRESULT (ANXAPI *SetMode)(
-        ITuiListView *This,
-        UINT32 Mode
-    );
-
-    /**
-      Set column width.
-    **/
-    HRESULT (ANXAPI *SetColumnWidth)(
-        ITuiListView *This,
-        UINT32 ColumnIndex,
-        UINT32 Width
-    );
-
-    /**
-      Enable virtual mode for handling millions of items.
-      When enabled, list data is fetched via callback on-demand.
-    **/
-    HRESULT (ANXAPI *SetVirtualMode)(
-        ITuiListView *This,
-        BOOLEAN Enable,
-        UINT32 ItemCount,
-        HRESULT (*Callback)(VOID *UserData, UINT32 Index, CHAR8 **OutCells, UINT32 *OutCellCount, BOOLEAN *OutChecked),
-        VOID *UserData
-    );
-
+    HRESULT (ANXAPI *SetMode)(ITuiListView *This, UINT32 Mode);
+    UINT32 (ANXAPI *GetMode)(ITuiListView *This);
+    HRESULT (ANXAPI *SetVirtualMode)(ITuiListView *This, BOOLEAN Enable, UINT32 ItemCount, HRESULT (*Callback)(VOID *UserData, UINT32 Index, CHAR8 **OutCells, UINT32 *OutCellCount, BOOLEAN *OutChecked), VOID *UserData);
+    HRESULT (ANXAPI *GetSelectedItem)(ITuiListView *This, INT32 *ItemIndex);
+    HRESULT (ANXAPI *SetSelectedItem)(ITuiListView *This, INT32 ItemIndex);
+    HRESULT (ANXAPI *GetItemUserData)(ITuiListView *This, UINT32 ItemIndex, VOID **UserData);
 } ITuiListView_Vtbl;
 
 struct _ITuiListView {
