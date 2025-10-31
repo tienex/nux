@@ -1164,3 +1164,35 @@ static INLINE VOID Anx_WriteSscratchTp(VOID) {
 #   endif /* __GNUC__ || __clang__ */
 #endif /* __riscv */
 
+/* ---------------------------------------------------------------
+ *  Memory Prefetch Instructions
+ * --------------------------------------------------------------- */
+
+/**
+  Prefetch memory for reading.
+
+  @param[in] addr  Address to prefetch
+**/
+#if defined(__GNUC__) || defined(__clang__)
+#   define ANX_CPU_PREFETCH_READ(addr)  __builtin_prefetch((addr), 0, 3)
+#elif defined(_MSC_VER) && (defined(_M_IX86) || defined(_M_X64) || defined(_M_AMD64))
+#   include <intrin.h>
+#   define ANX_CPU_PREFETCH_READ(addr)  _mm_prefetch((const char *)(addr), _MM_HINT_T0)
+#else
+#   define ANX_CPU_PREFETCH_READ(addr)  ((void)(addr))
+#endif
+
+/**
+  Prefetch memory for writing.
+
+  @param[in] addr  Address to prefetch
+**/
+#if defined(__GNUC__) || defined(__clang__)
+#   define ANX_CPU_PREFETCH_WRITE(addr)  __builtin_prefetch((addr), 1, 3)
+#elif defined(_MSC_VER) && (defined(_M_IX86) || defined(_M_X64) || defined(_M_AMD64))
+#   include <intrin.h>
+#   define ANX_CPU_PREFETCH_WRITE(addr)  _mm_prefetch((const char *)(addr), _MM_HINT_T0)
+#else
+#   define ANX_CPU_PREFETCH_WRITE(addr)  ((void)(addr))
+#endif
+

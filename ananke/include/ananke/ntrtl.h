@@ -4,7 +4,7 @@
   Provides comprehensive runtime library functions following Windows NT
   conventions for use by APXH bootloader and NUX kernel.
 
-  Copyright (C) 2025 ANANKE Project
+  Copyright (C) 2025 A•NUX Project
 
   SPDX-License-Identifier: BSD-2-Clause
 **/

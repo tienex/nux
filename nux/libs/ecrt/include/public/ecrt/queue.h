@@ -6,7 +6,7 @@
 
   Original BSD queue.h from NetBSD - now implemented using NTRTL.
 
-  Copyright (C) 2025 ANANKE Project
+  Copyright (C) 2025 A•NUX Project
   Copyright (c) 1991, 1993 The Regents of the University of California
 
   SPDX-License-Identifier: BSD-2-Clause

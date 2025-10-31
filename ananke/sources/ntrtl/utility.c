@@ -3,7 +3,7 @@
 
   Miscellaneous utility functions for debugging and system information.
 
-  Copyright (C) 2025 ANANKE Project
+  Copyright (C) 2025 A•NUX Project
 
   SPDX-License-Identifier: BSD-2-Clause
 **/
@@ -41,11 +41,7 @@ RtlAssert (
   // Actual implementation would use platform-specific debugging
 
   // Attempt to trigger a breakpoint if available
-#if defined(__GNUC__) || defined(__clang__)
-  __asm__ __volatile__("int3" : : : "memory");
-#elif defined(_MSC_VER)
-  __debugbreak();
-#endif
+  ANX_CPU_BREAKPOINT();
 
   // Halt
   while (1) {

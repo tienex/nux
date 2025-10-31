@@ -1,7 +1,7 @@
 /** @file
   NT RTL Memory Functions Implementation
 
-  Copyright (C) 2025 ANANKE Project
+  Copyright (C) 2025 A•NUX Project
 
   SPDX-License-Identifier: BSD-2-Clause
 **/
@@ -199,13 +199,7 @@ RtlPrefetchForRead (
     IN CONST VOID  *Address
     )
 {
-#if defined(__GNUC__) || defined(__clang__)
-    __builtin_prefetch(Address, 0, 3);
-#elif defined(_MSC_VER) && (defined(_M_IX86) || defined(_M_X64))
-    _mm_prefetch((const char *)Address, _MM_HINT_T0);
-#else
-    (VOID)Address;
-#endif
+    ANX_CPU_PREFETCH_READ(Address);
 }
 
 /**
@@ -217,11 +211,5 @@ RtlPrefetchForWrite (
     IN VOID  *Address
     )
 {
-#if defined(__GNUC__) || defined(__clang__)
-    __builtin_prefetch(Address, 1, 3);
-#elif defined(_MSC_VER) && (defined(_M_IX86) || defined(_M_X64))
-    _mm_prefetch((const char *)Address, _MM_HINT_T0);
-#else
-    (VOID)Address;
-#endif
+    ANX_CPU_PREFETCH_WRITE(Address);
 }

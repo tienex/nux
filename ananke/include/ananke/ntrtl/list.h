@@ -4,7 +4,7 @@
   Intrusive doubly-linked and single-linked list functions following
   Windows NT RTL conventions.
 
-  Copyright (C) 2025 ANANKE Project
+  Copyright (C) 2025 A•NUX Project
 
   SPDX-License-Identifier: BSD-2-Clause
 **/

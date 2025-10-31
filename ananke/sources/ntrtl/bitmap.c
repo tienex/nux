@@ -3,7 +3,7 @@
 
   Bitmap manipulation functions following Windows NT RTL conventions.
 
-  Copyright (C) 2025 ANANKE Project
+  Copyright (C) 2025 A•NUX Project
 
   SPDX-License-Identifier: BSD-2-Clause
 **/
@@ -66,22 +66,8 @@ FindFirstSetBitInElement (
     return -1;
   }
 
-  UINTN Position = 0;
-
-  // Use bit scan forward if available
-#if defined(__GNUC__) || defined(__clang__)
-  if (sizeof(UINTN) == 8) {
-    Position = (UINTN)__builtin_ctzll((unsigned long long)Value);
-  } else {
-    Position = (UINTN)__builtin_ctz((unsigned int)Value);
-  }
-#else
-  // Fallback implementation
-  while ((Value & 1) == 0) {
-    Value >>= 1;
-    Position++;
-  }
-#endif
+  // Use ANX_CTZN for portable count trailing zeros
+  UINTN Position = (UINTN)ANX_CTZN(Value);
 
   return (INTN)Position;
 }
@@ -117,22 +103,8 @@ FindLastSetBitInElement (
     return -1;
   }
 
-  UINTN Position = 0;
-
-  // Use bit scan reverse if available
-#if defined(__GNUC__) || defined(__clang__)
-  if (sizeof(UINTN) == 8) {
-    Position = (UINTN)(63 - __builtin_clzll((unsigned long long)Value));
-  } else {
-    Position = (UINTN)(31 - __builtin_clz((unsigned int)Value));
-  }
-#else
-  // Fallback implementation
-  Position = BitsPerElement() - 1;
-  while ((Value & ((UINTN)1 << Position)) == 0) {
-    Position--;
-  }
-#endif
+  // Use ANX_CLZN for portable count leading zeros
+  UINTN Position = (sizeof(UINTN) * 8 - 1) - (UINTN)ANX_CLZN(Value);
 
   return (INTN)Position;
 }

@@ -6,7 +6,7 @@
 
   Original BSD rbtree.h from NetBSD - now implemented using NTRTL AVL trees.
 
-  Copyright (C) 2025 ANANKE Project
+  Copyright (C) 2025 A•NUX Project
   Copyright (c) 2001 The NetBSD Foundation, Inc.
 
   SPDX-License-Identifier: BSD-2-Clause

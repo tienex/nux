@@ -6,7 +6,7 @@
 
   Original BATREE by Gianluca Guida - now implemented using NTRTL bitmaps.
 
-  Copyright (C) 2025 ANANKE Project
+  Copyright (C) 2025 A•NUX Project
   Copyright (C) 2019 Gianluca Guida
 
   SPDX-License-Identifier: BSD-2-Clause
