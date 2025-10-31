@@ -45,20 +45,20 @@ UINT64 RsdpFind (VOID);
 **/
 static VOID
 ParseMultibootFramebuffer (
-  IN struct multiboot_info  *Info
+  IN struct MULTIBOOT_INFO  *Info
   )
 {
-  if (Info->framebuffer_type == MULTIBOOT_FRAMEBUFFER_TYPE_RGB)
+  if (Info->FramebufferType == MULTIBOOT_FRAMEBUFFER_TYPE_RGB)
     {
       gFbDesc.Type = FB_RGB;
-      gFbDesc.Addr = Info->framebuffer_addr;
+      gFbDesc.Addr = Info->FramebufferAddr;
       gFbDesc.Size =
-	(UINT64) Info->framebuffer_pitch * Info->framebuffer_height;
+	(UINT64) Info->FramebufferPitch * Info->FramebufferHeight;
 
-      gFbDesc.Pitch = Info->framebuffer_pitch;
-      gFbDesc.Width = Info->framebuffer_width;
-      gFbDesc.Height = Info->framebuffer_height;
-      gFbDesc.Bpp = Info->framebuffer_bpp;
+      gFbDesc.Pitch = Info->FramebufferPitch;
+      gFbDesc.Width = Info->FramebufferWidth;
+      gFbDesc.Height = Info->FramebufferHeight;
+      gFbDesc.Bpp = Info->FramebufferBpp;
 
 #define MB2MASK(_p, _s)  (((1 << (_s)) - 1) << (1 << (_p)))
       gFbDesc.RMask = MB2MASK (Info->rpos, Info->rsize);
@@ -66,7 +66,7 @@ ParseMultibootFramebuffer (
       gFbDesc.BMask = MB2MASK (Info->bpos, Info->bsize);
 #undef MB2MASK
     }
-  else if (Info->framebuffer_type == MULTIBOOT_FRAMEBUFFER_TYPE_INDEXED)
+  else if (Info->FramebufferType == MULTIBOOT_FRAMEBUFFER_TYPE_INDEXED)
     {
       /*
          Indexed Frame Buffer not supported!
@@ -75,14 +75,14 @@ ParseMultibootFramebuffer (
          to frame buffer and we have no way (yet!) to handle it.
        */
       gFbDesc.Type = FB_RGB;
-      gFbDesc.Addr = Info->framebuffer_addr;
+      gFbDesc.Addr = Info->FramebufferAddr;
       gFbDesc.Size =
-	(UINT64) Info->framebuffer_pitch * Info->framebuffer_height;
+	(UINT64) Info->FramebufferPitch * Info->FramebufferHeight;
 
-      gFbDesc.Pitch = Info->framebuffer_pitch;
-      gFbDesc.Width = Info->framebuffer_width;
-      gFbDesc.Height = Info->framebuffer_height;
-      gFbDesc.Bpp = Info->framebuffer_bpp;
+      gFbDesc.Pitch = Info->FramebufferPitch;
+      gFbDesc.Width = Info->FramebufferWidth;
+      gFbDesc.Height = Info->FramebufferHeight;
+      gFbDesc.Bpp = Info->FramebufferBpp;
 
       gFbDesc.RMask = 0xff;
       gFbDesc.GMask = 0xff;
@@ -105,12 +105,12 @@ ParseMultibootFramebuffer (
 **/
 static VOID
 ParseMultibootMmap (
-  IN struct multiboot_info  *Info
+  IN struct MULTIBOOT_INFO  *Info
   )
 {
   UINTN MmapLength;
 
-  MmapLength = Info->mmap_length;
+  MmapLength = Info->MmapLength;
 
   /*
      Step 1: check that we'll fit in the area allocated for the memory
@@ -126,7 +126,7 @@ ParseMultibootMmap (
      the kernel offset and the beginning of virtual memory: we can
      dereference multiboot pointers safely.
    */
-  memmove ((VOID *) BOOTMEM_MMAP, (VOID *) (UINTN) Info->mmap_addr,
+  memmove ((VOID *) BOOTMEM_MMAP, (VOID *) (UINTN) Info->MmapAddr,
 	   MmapLength);
   /* Unsafe to use multiboot info after this. */
 
@@ -140,14 +140,14 @@ ParseMultibootMmap (
      don't have an early allocator and can't move it really anywhere.
    */
   assert (sizeof (BOOTINFO_REGION) <=
-	  sizeof (struct multiboot_mmap_entry));
+	  sizeof (struct MULTIBOOT_MMAP_ENTRY));
 
   UINT64 MaxPageFrameNumber = 0;
   UINT64 MaxRamPageFrameNumber = 0;
   UINT32 Regions = 0;
   UINTN CurrentOffset;
-  VOLATILE struct multiboot_mmap_entry *MultibootPtr =
-    (struct multiboot_mmap_entry *) BOOTMEM_MMAP;
+  VOLATILE struct MULTIBOOT_MMAP_ENTRY *MultibootPtr =
+    (struct MULTIBOOT_MMAP_ENTRY *) BOOTMEM_MMAP;
   VOLATILE BOOTINFO_REGION *BootinfoRegionPtr =
     (BOOTINFO_REGION *) BOOTMEM_MMAP;
   printf ("Multiboot memory map:\n");
@@ -156,15 +156,15 @@ ParseMultibootMmap (
       UINTN MultibootEntrySize;
       BOOTINFO_REGION BootinfoRegion;
 
-      printf ("%016llx:%016llx:%d\n", MultibootPtr->addr, MultibootPtr->len, MultibootPtr->type);
-      if (MultibootPtr->type == MULTIBOOT_MEMORY_AVAILABLE)
+      printf ("%016llx:%016llx:%d\n", MultibootPtr->Addr, MultibootPtr->Len, MultibootPtr->Type);
+      if (MultibootPtr->Type == MULTIBOOT_MEMORY_AVAILABLE)
 	BootinfoRegion.Type = BootInfoRegionRam;
       else
 	BootinfoRegion.Type = BootInfoRegionOther;
 
-      BootinfoRegion.PageFrameNumber = MultibootPtr->addr >> PAGE_SHIFT;
-      BootinfoRegion.Length = (MultibootPtr->len + PAGE_SIZE - 1) >> PAGE_SHIFT;
-      MultibootEntrySize = MultibootPtr->size + sizeof (MultibootPtr->size);
+      BootinfoRegion.PageFrameNumber = MultibootPtr->Addr >> PAGE_SHIFT;
+      BootinfoRegion.Length = (MultibootPtr->Len + PAGE_SIZE - 1) >> PAGE_SHIFT;
+      MultibootEntrySize = MultibootPtr->Size + sizeof (MultibootPtr->Size);
 
       /* Count all memory as maxpfn */
       if (MaxPageFrameNumber < BootinfoRegion.PageFrameNumber + BootinfoRegion.Length)
@@ -200,13 +200,13 @@ ParseMultibootMmap (
 **/
 VOID
 ParseMultiboot (
-  IN struct multiboot_info  *Info
+  IN struct MULTIBOOT_INFO  *Info
   )
 {
-  if (Info->flags & MULTIBOOT_INFO_FRAMEBUFFER_INFO)
+  if (Info->Flags & MULTIBOOT_INFO_FRAMEBUFFER_INFO)
     ParseMultibootFramebuffer (Info);
 
-  assert (Info->flags & MULTIBOOT_INFO_MEM_MAP);
+  assert (Info->Flags & MULTIBOOT_INFO_MEM_MAP);
   ParseMultibootMmap (Info);
 }
 
@@ -471,10 +471,13 @@ static UINT64 gPae64Gdt[3] ANX_ATTR_ALIGN(64) = {
 };
 
 typedef struct _GDTREG
+
+ANX_PACK_PUSH(1)
 {
   UINT16 Size;
   UINT32 Base;
-} ANX_ATTR_ALIGN(64) ANX_PACKED GDTREG;
+} ANX_ATTR_ALIGN(64) GDTREG;
+ANX_PACK_POP()
 
 static GDTREG gGdtReg = {
   .Size = 15,

@@ -17,6 +17,7 @@
 #define KB (1 << 10)
 
 typedef struct _ACPI_RSDP_THDR
+ANX_PACK_PUSH(1)
 {
   CHAR8 Signature[8];
   UINT8 Checksum;
@@ -29,7 +30,8 @@ typedef struct _ACPI_RSDP_THDR
   UINT64 Xsdt;
   UINT8 XChecksum;
   UINT8 Reserved[3];
-} ANX_PACKED ACPI_RSDP_THDR;
+} ACPI_RSDP_THDR;
+ANX_PACK_POP()
 
 
 /**

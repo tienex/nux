@@ -204,12 +204,6 @@
 #   define ANX_POPCOUNTN(x) ANX_POPCOUNT32(x)
 #endif
 
-/* Long variants (map to native width) */
-#define ANX_CTZL(x)      ANX_CTZN((UINTN)(x))
-#define ANX_CLZL(x)      ANX_CLZN((UINTN)(x))
-#define ANX_FFSL(x)      ANX_FFSN((UINTN)(x))
-#define ANX_POPCOUNTL(x) ANX_POPCOUNTN((UINTN)(x))
-
 /* --------------------------------------------------------------- */
 /*  Varargs intrinsics - portable across all compilers.            */
 /* --------------------------------------------------------------- */
@@ -270,22 +264,47 @@
 /*  Architecture-specific intrinsics.                              */
 /* --------------------------------------------------------------- */
 
+/* Get thread-local storage pointer (TLS/TIB) */
 #if defined(__riscv) && (defined(__GNUC__) || defined(__clang__))
+    /* RISC-V: tp register via __builtin_thread_pointer() */
 #   define ANX_THREAD_POINTER()  __builtin_thread_pointer()
+
 #elif defined(__x86_64__) && (defined(__GNUC__) || defined(__clang__))
+    /* x86-64: Read from GS segment register offset 0 */
     static INLINE VOID* Anx_GetThreadPointer(VOID) {
         VOID* Ptr;
-        __asm__ __volatile__("mov %%fs:0, %0" : "=r"(Ptr));
+        __asm__ __volatile__("mov %%gs:0, %0" : "=r"(Ptr));
         return Ptr;
     }
 #   define ANX_THREAD_POINTER()  Anx_GetThreadPointer()
+
+#elif (defined(__i386__) || defined(__i686__)) && (defined(__GNUC__) || defined(__clang__))
+    /* x86 32-bit: Read from GS segment register offset 0 */
+    static INLINE VOID* Anx_GetThreadPointer(VOID) {
+        VOID* Ptr;
+        __asm__ __volatile__("mov %%gs:0, %0" : "=r"(Ptr));
+        return Ptr;
+    }
+#   define ANX_THREAD_POINTER()  Anx_GetThreadPointer()
+
 #elif defined(_M_X64) && defined(_MSC_VER)
+    /* MSVC x86-64: Use __readgsqword intrinsic */
 #   include <intrin.h>
     static INLINE VOID* Anx_GetThreadPointer(VOID) {
         return (VOID*)__readgsqword(0);
     }
 #   define ANX_THREAD_POINTER()  Anx_GetThreadPointer()
+
+#elif defined(_M_IX86) && defined(_MSC_VER)
+    /* MSVC x86 32-bit: Use __readfsdword intrinsic */
+#   include <intrin.h>
+    static INLINE VOID* Anx_GetThreadPointer(VOID) {
+        return (VOID*)__readfsdword(0x18); /* NT_TIB.Self */
+    }
+#   define ANX_THREAD_POINTER()  Anx_GetThreadPointer()
+
 #else
+    /* Unsupported architecture - return NULL */
 #   define ANX_THREAD_POINTER()  ((VOID*)0)
 #endif
 

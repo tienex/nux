@@ -66,6 +66,8 @@ typedef struct elf64sh
 } ELF64_SH;
 
 typedef struct elf32hdr
+
+ANX_PACK_PUSH(1)
 {
   UINT8  Id[16];
   UINT16 Type;
@@ -81,9 +83,12 @@ typedef struct elf32hdr
   UINT16 ShentSize;
   UINT16 Shs;
   UINT16 Shstrndx;
-} ANX_PACKED ELF32_HDR;
+} ELF32_HDR;
+ANX_PACK_POP()
 
 typedef struct elf64hdr
+
+ANX_PACK_PUSH(1)
 {
   UINT8  Id[16];
   UINT16 Type;
@@ -99,7 +104,8 @@ typedef struct elf64hdr
   UINT16 ShentSize;
   UINT16 Shs;
   UINT16 Shstrndx;
-} ANX_PACKED ELF64_HDR;
+} ELF64_HDR;
+ANX_PACK_POP()
 
 #define ET_EXEC		2
 #define EM_386		3

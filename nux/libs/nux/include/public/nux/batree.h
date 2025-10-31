@@ -79,8 +79,8 @@
 
 #ifdef BATREE_USE_LONG
 #define WORDSIZE LONG_BIT
-#define ctz(_x)   ANX_CTZL(_x)
-#define clz(_x)   ANX_CLZL(_x)
+#define ctz(_x)   ANX_CTZN(_x)
+#define clz(_x)   ANX_CLZN(_x)
 #endif
 
 #ifdef BATREE_USE_LONG_LONG
@@ -150,7 +150,7 @@
 static INLINE UINTN
 BatreeOrder (UINTN N)
 {
-  long Log2N = (LONG_BIT - 1 - ANX_CLZL ((long) N));
+  long Log2N = (LONG_BIT - 1 - ANX_CLZN ((long) N));
   long R = Log2N;
 
   /* Is the number a power of two? If not, add 1 */
@@ -309,7 +309,7 @@ BatreeCount (WORD_T *Batree, UINT32 O)
 
   for (INT32 i = 0; i < (1LL << O); i += (1 << WORDLOG2))
     {
-      Size += ANX_POPCOUNTL (Lmap[i >> WORDLOG2]);
+      Size += ANX_POPCOUNTN (Lmap[i >> WORDLOG2]);
     }
 
   return Size;
