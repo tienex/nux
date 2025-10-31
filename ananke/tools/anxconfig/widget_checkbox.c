@@ -1,8 +1,7 @@
 /*
  * Checkbox Widget Implementation
  *
- * Uses new event dispatching architecture with ITuiWidget, ITuiKeyListener, ITuiDrawListener
- * Maintains backward compatibility with ITuiCheckbox interface
+ * Uses new event dispatching architecture with ITuiWidget, ITuiKeyListener, ITuiMouseListener, ITuiDrawListener
  */
 
 #include <stdio.h>
@@ -11,14 +10,9 @@
 #include "widgets_common.h"
 
 typedef struct {
-    /* Main interface - ITuiWidget */
     ITuiWidget WidgetInterface;
-
-    /* Backward compatibility - ITuiCheckbox */
-    ITuiCheckbox CheckboxInterface;
-
-    /* Listener interfaces */
     ITuiKeyListener KeyListener;
+    ITuiMouseListener MouseListener;
     ITuiDrawListener DrawListener;
 
     /* Implementation data */
@@ -37,9 +31,21 @@ typedef struct {
 
 /* Helper macros for getting impl from any interface */
 #define CHECKBOX_FROM_WIDGET(w) ((TuiCheckboxImpl*)((UINT8*)(w) - offsetof(TuiCheckboxImpl, WidgetInterface)))
-#define CHECKBOX_FROM_CHECKBOX(c) ((TuiCheckboxImpl*)((UINT8*)(c) - offsetof(TuiCheckboxImpl, CheckboxInterface)))
 #define CHECKBOX_FROM_KEY(k) ((TuiCheckboxImpl*)((UINT8*)(k) - offsetof(TuiCheckboxImpl, KeyListener)))
+#define CHECKBOX_FROM_MOUSE(m) ((TuiCheckboxImpl*)((UINT8*)(m) - offsetof(TuiCheckboxImpl, MouseListener)))
 #define CHECKBOX_FROM_DRAW(d) ((TuiCheckboxImpl*)((UINT8*)(d) - offsetof(TuiCheckboxImpl, DrawListener)))
+
+/* Helper: Toggle checkbox state */
+static VOID ToggleCheckbox(TuiCheckboxImpl *impl)
+{
+    if (impl->Tristate) {
+        impl->TristateValue = (impl->TristateValue + 1) % 3;
+        impl->Checked = (impl->TristateValue != 0);
+    } else {
+        impl->Checked = !impl->Checked;
+        impl->TristateValue = impl->Checked ? 2 : 0;
+    }
+}
 
 /*
  * ITuiWidget Implementation
@@ -67,14 +73,14 @@ static HRESULT ANXAPI CheckboxWidget_QueryInterface(
         return S_OK;
     }
 
-    if (IsEqualGUID(riid, &IID_ITuiDrawListener)) {
-        *ppvObject = &impl->DrawListener;
+    if (IsEqualGUID(riid, &IID_ITuiMouseListener)) {
+        *ppvObject = &impl->MouseListener;
         impl->State.RefCount++;
         return S_OK;
     }
 
-    if (IsEqualGUID(riid, &IID_ITuiCheckbox)) {
-        *ppvObject = &impl->CheckboxInterface;
+    if (IsEqualGUID(riid, &IID_ITuiDrawListener)) {
+        *ppvObject = &impl->DrawListener;
         impl->State.RefCount++;
         return S_OK;
     }
@@ -254,14 +260,14 @@ static HRESULT ANXAPI CheckboxWidget_GetTypeName(ITuiWidget *This, CONST CHAR8 *
 static HRESULT ANXAPI CheckboxWidget_Clone(ITuiWidget *This, ITuiSerializable **OutClone)
 {
     TuiCheckboxImpl *impl = CHECKBOX_FROM_WIDGET(This);
-    ITuiCheckbox *newCheckbox = NULL;
+    ITuiWidget *newCheckbox = NULL;
     HRESULT hr = AnxTuiCreateCheckbox(&newCheckbox);
     if (FAILED(hr)) return hr;
 
-    newCheckbox->Vtbl->SetLabel(newCheckbox, impl->Label);
-    newCheckbox->Vtbl->SetChecked(newCheckbox, impl->Checked);
-    newCheckbox->Vtbl->SetTristate(newCheckbox, impl->Tristate);
-    newCheckbox->Vtbl->SetTristateValue(newCheckbox, impl->TristateValue);
+    AnxTuiCheckboxSetLabel(newCheckbox, impl->Label);
+    AnxTuiCheckboxSetChecked(newCheckbox, impl->Checked);
+    AnxTuiCheckboxSetTristate(newCheckbox, impl->Tristate);
+    AnxTuiCheckboxSetTristateValue(newCheckbox, impl->TristateValue);
 
     *OutClone = (ITuiSerializable *)newCheckbox;
     return S_OK;
@@ -306,13 +312,7 @@ static HRESULT ANXAPI CheckboxKey_OnKeyDown(ITuiKeyListener *This, TUI_KEY Key, 
     if (!impl->State.Enabled) return S_OK;
 
     if (Key == TuiKeyEnter || Key == ' ') {
-        if (impl->Tristate) {
-            impl->TristateValue = (impl->TristateValue + 1) % 3;
-            impl->Checked = (impl->TristateValue != 0);
-        } else {
-            impl->Checked = !impl->Checked;
-            impl->TristateValue = impl->Checked ? 2 : 0;
-        }
+        ToggleCheckbox(impl);
         *Handled = TRUE;
         return S_OK;
     }
@@ -335,6 +335,55 @@ static HRESULT ANXAPI CheckboxKey_OnChar(ITuiKeyListener *This, CHAR16 Character
 static ITuiKeyListener_Vtbl CheckboxKeyVtbl = {
     CheckboxKey_QueryInterface, CheckboxKey_AddRef, CheckboxKey_Release,
     CheckboxKey_OnKeyDown, CheckboxKey_OnKeyUp, CheckboxKey_OnChar
+};
+
+/*
+ * ITuiMouseListener Implementation
+ */
+
+static HRESULT ANXAPI CheckboxMouse_QueryInterface(ITuiMouseListener *This, REFIID riid, VOID **ppvObject)
+{
+    TuiCheckboxImpl *impl = CHECKBOX_FROM_MOUSE(This);
+    return CheckboxWidget_QueryInterface(&impl->WidgetInterface, riid, ppvObject);
+}
+
+static UINTN ANXAPI CheckboxMouse_AddRef(ITuiMouseListener *This)
+{
+    TuiCheckboxImpl *impl = CHECKBOX_FROM_MOUSE(This);
+    return ++impl->State.RefCount;
+}
+
+static UINTN ANXAPI CheckboxMouse_Release(ITuiMouseListener *This)
+{
+    TuiCheckboxImpl *impl = CHECKBOX_FROM_MOUSE(This);
+    return CheckboxWidget_Release(&impl->WidgetInterface);
+}
+
+static HRESULT ANXAPI CheckboxMouse_OnMouseEvent(ITuiMouseListener *This, CONST TUI_MOUSE_EVENT *Event, BOOLEAN *Handled)
+{
+    TuiCheckboxImpl *impl = CHECKBOX_FROM_MOUSE(This);
+
+    *Handled = FALSE;
+
+    if (!impl->State.Enabled) return S_OK;
+
+    /* Check if mouse is over checkbox */
+    BOOLEAN isOver = IsPointInWidget(&impl->State, Event->X, Event->Y);
+
+    if (!isOver) return S_OK;
+
+    if (Event->Type == TuiMouseLeftDown) {
+        ToggleCheckbox(impl);
+        *Handled = TRUE;
+        return S_OK;
+    }
+
+    return S_OK;
+}
+
+static ITuiMouseListener_Vtbl CheckboxMouseVtbl = {
+    CheckboxMouse_QueryInterface, CheckboxMouse_AddRef, CheckboxMouse_Release,
+    CheckboxMouse_OnMouseEvent
 };
 
 /*
@@ -413,152 +462,24 @@ static ITuiDrawListener_Vtbl CheckboxDrawVtbl = {
 };
 
 /*
- * ITuiCheckbox Implementation (backward compatibility)
- */
-
-static HRESULT ANXAPI Checkbox_QueryInterface(ITuiCheckbox *This, REFIID riid, VOID **ppvObject)
-{
-    TuiCheckboxImpl *impl = CHECKBOX_FROM_CHECKBOX(This);
-    return CheckboxWidget_QueryInterface(&impl->WidgetInterface, riid, ppvObject);
-}
-
-static UINTN ANXAPI Checkbox_AddRef(ITuiCheckbox *This)
-{
-    TuiCheckboxImpl *impl = CHECKBOX_FROM_CHECKBOX(This);
-    return ++impl->State.RefCount;
-}
-
-static UINTN ANXAPI Checkbox_Release(ITuiCheckbox *This)
-{
-    TuiCheckboxImpl *impl = CHECKBOX_FROM_CHECKBOX(This);
-    return CheckboxWidget_Release(&impl->WidgetInterface);
-}
-
-static HRESULT ANXAPI Checkbox_SetLabel(ITuiCheckbox *This, CONST CHAR8 *Label)
-{
-    TuiCheckboxImpl *impl = CHECKBOX_FROM_CHECKBOX(This);
-    if (!Label) return E_POINTER;
-
-    strncpy(impl->Label, Label, sizeof(impl->Label) - 1);
-    impl->Label[sizeof(impl->Label) - 1] = '\0';
-    return S_OK;
-}
-
-static HRESULT ANXAPI Checkbox_GetChecked(ITuiCheckbox *This, BOOLEAN *Checked)
-{
-    TuiCheckboxImpl *impl = CHECKBOX_FROM_CHECKBOX(This);
-    if (!Checked) return E_POINTER;
-
-    *Checked = impl->Checked;
-    return S_OK;
-}
-
-static HRESULT ANXAPI Checkbox_SetChecked(ITuiCheckbox *This, BOOLEAN Checked)
-{
-    TuiCheckboxImpl *impl = CHECKBOX_FROM_CHECKBOX(This);
-    impl->Checked = Checked;
-    if (!impl->Tristate) {
-        impl->TristateValue = Checked ? 2 : 0;
-    }
-    return S_OK;
-}
-
-static HRESULT ANXAPI Checkbox_SetTristate(ITuiCheckbox *This, BOOLEAN Tristate)
-{
-    TuiCheckboxImpl *impl = CHECKBOX_FROM_CHECKBOX(This);
-    impl->Tristate = Tristate;
-    return S_OK;
-}
-
-static HRESULT ANXAPI Checkbox_GetTristateValue(ITuiCheckbox *This, UINT8 *Value)
-{
-    TuiCheckboxImpl *impl = CHECKBOX_FROM_CHECKBOX(This);
-    if (!Value) return E_POINTER;
-
-    *Value = impl->TristateValue;
-    return S_OK;
-}
-
-static HRESULT ANXAPI Checkbox_SetTristateValue(ITuiCheckbox *This, UINT8 Value)
-{
-    TuiCheckboxImpl *impl = CHECKBOX_FROM_CHECKBOX(This);
-    if (Value > 2) return E_INVALIDARG;
-
-    impl->TristateValue = Value;
-    impl->Checked = (Value != 0);
-    return S_OK;
-}
-
-static HRESULT ANXAPI Checkbox_Render(ITuiCheckbox *This, ITuiScreen *Screen, INT32 X, INT32 Y, BOOLEAN Focused)
-{
-    TuiCheckboxImpl *impl = CHECKBOX_FROM_CHECKBOX(This);
-    CHAR8 display[300], mark;
-    TUI_COLOR fg, bg;
-
-    if (!impl->State.Visible) return S_OK;
-
-    impl->State.Focused = Focused;
-
-    if (impl->Tristate) {
-        switch (impl->TristateValue) {
-            case 0: mark = ' '; break;
-            case 1: mark = 'M'; break;
-            case 2: mark = 'X'; break;
-            default: mark = ' '; break;
-        }
-    } else {
-        mark = impl->Checked ? 'X' : ' ';
-    }
-
-    if (!impl->State.Enabled) {
-        fg = TuiColorBrightBlack;
-        bg = TuiColorBlack;
-    } else if (Focused) {
-        fg = TuiColorBlack;
-        bg = TuiColorCyan;
-    } else {
-        fg = impl->State.ForegroundColor;
-        bg = impl->State.BackgroundColor;
-    }
-
-    snprintf(display, sizeof(display), "[%c] %s", mark, impl->Label);
-    Screen->Vtbl->WriteText(Screen, X, Y, display, fg, bg);
-
-    return S_OK;
-}
-
-static HRESULT ANXAPI Checkbox_HandleKey(ITuiCheckbox *This, TUI_KEY Key, BOOLEAN *Handled)
-{
-    TuiCheckboxImpl *impl = CHECKBOX_FROM_CHECKBOX(This);
-    ITuiKeyListener *keyListener = &impl->KeyListener;
-    return keyListener->Vtbl->OnKeyDown(keyListener, Key, 0, Handled);
-}
-
-static CONST ITuiCheckbox_Vtbl CheckboxVtbl = {
-    Checkbox_QueryInterface, Checkbox_AddRef, Checkbox_Release, Checkbox_SetLabel,
-    Checkbox_GetChecked, Checkbox_SetChecked, Checkbox_SetTristate,
-    Checkbox_GetTristateValue, Checkbox_SetTristateValue, Checkbox_Render, Checkbox_HandleKey
-};
-
-/*
  * Factory Function
  */
 
-HRESULT ANXAPI AnxTuiCreateCheckbox(OUT ITuiCheckbox **Checkbox)
+HRESULT ANXAPI AnxTuiCreateCheckbox(OUT ITuiWidget **Widget)
 {
     TuiCheckboxImpl *impl;
 
-    if (!Checkbox) return E_POINTER;
+    if (!Widget) return E_POINTER;
 
     impl = (TuiCheckboxImpl *)calloc(1, sizeof(TuiCheckboxImpl));
     if (!impl) {
-        *Checkbox = NULL;
+        *Widget = NULL;
         return E_OUTOFMEMORY;
     }
 
     impl->WidgetInterface.Vtbl = &CheckboxWidgetVtbl;
-    impl->CheckboxInterface.Vtbl = &CheckboxVtbl;
     impl->KeyListener.Vtbl = &CheckboxKeyVtbl;
+    impl->MouseListener.Vtbl = &CheckboxMouseVtbl;
     impl->DrawListener.Vtbl = &CheckboxDrawVtbl;
 
     InitWidgetState(&impl->State);
@@ -569,6 +490,62 @@ HRESULT ANXAPI AnxTuiCreateCheckbox(OUT ITuiCheckbox **Checkbox)
     impl->NextResponder = NULL;
     impl->Surface = NULL;
 
-    *Checkbox = &impl->CheckboxInterface;
+    *Widget = &impl->WidgetInterface;
+    return S_OK;
+}
+
+/* Convenience methods for checkbox-specific functionality */
+HRESULT ANXAPI AnxTuiCheckboxSetLabel(ITuiWidget *Widget, CONST CHAR8 *Label)
+{
+    TuiCheckboxImpl *impl = CHECKBOX_FROM_WIDGET(Widget);
+    if (!Label) return E_POINTER;
+
+    strncpy(impl->Label, Label, sizeof(impl->Label) - 1);
+    impl->Label[sizeof(impl->Label) - 1] = '\0';
+    return S_OK;
+}
+
+HRESULT ANXAPI AnxTuiCheckboxGetChecked(ITuiWidget *Widget, BOOLEAN *Checked)
+{
+    TuiCheckboxImpl *impl = CHECKBOX_FROM_WIDGET(Widget);
+    if (!Checked) return E_POINTER;
+
+    *Checked = impl->Checked;
+    return S_OK;
+}
+
+HRESULT ANXAPI AnxTuiCheckboxSetChecked(ITuiWidget *Widget, BOOLEAN Checked)
+{
+    TuiCheckboxImpl *impl = CHECKBOX_FROM_WIDGET(Widget);
+    impl->Checked = Checked;
+    if (!impl->Tristate) {
+        impl->TristateValue = Checked ? 2 : 0;
+    }
+    return S_OK;
+}
+
+HRESULT ANXAPI AnxTuiCheckboxSetTristate(ITuiWidget *Widget, BOOLEAN Tristate)
+{
+    TuiCheckboxImpl *impl = CHECKBOX_FROM_WIDGET(Widget);
+    impl->Tristate = Tristate;
+    return S_OK;
+}
+
+HRESULT ANXAPI AnxTuiCheckboxGetTristateValue(ITuiWidget *Widget, UINT8 *Value)
+{
+    TuiCheckboxImpl *impl = CHECKBOX_FROM_WIDGET(Widget);
+    if (!Value) return E_POINTER;
+
+    *Value = impl->TristateValue;
+    return S_OK;
+}
+
+HRESULT ANXAPI AnxTuiCheckboxSetTristateValue(ITuiWidget *Widget, UINT8 Value)
+{
+    TuiCheckboxImpl *impl = CHECKBOX_FROM_WIDGET(Widget);
+    if (Value > 2) return E_INVALIDARG;
+
+    impl->TristateValue = Value;
+    impl->Checked = (Value != 0);
     return S_OK;
 }
