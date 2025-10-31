@@ -144,6 +144,52 @@ static CONST TUI_THEME_COLORS TurboVisionTheme[] = {
     /* TuiThemeDisabled */         {TuiColorBrightBlack, TuiColorBlue, TuiAttrNormal}
 };
 
+/* Norton Utilities Theme - Classic Norton Commander/Utilities look */
+static CONST TUI_THEME_COLORS NortonUtilitiesTheme[] = {
+    /* TuiThemeMenuBar */         {TuiColorBlack, TuiColorCyan, TuiAttrNormal},
+    /* TuiThemeMenu */             {TuiColorBlack, TuiColorCyan, TuiAttrNormal},
+    /* TuiThemeMenuItem */         {TuiColorBlack, TuiColorCyan, TuiAttrNormal},
+    /* TuiThemeMenuItemSelected */ {TuiColorYellow, TuiColorBlue, TuiAttrBold},
+    /* TuiThemeWindow */           {TuiColorWhite, TuiColorBlue, TuiAttrNormal},
+    /* TuiThemeWindowBorder */     {TuiColorWhite, TuiColorBlue, TuiAttrBold},
+    /* TuiThemeWindowTitle */      {TuiColorYellow, TuiColorBlue, TuiAttrBold},
+    /* TuiThemeButton */           {TuiColorBlack, TuiColorCyan, TuiAttrNormal},
+    /* TuiThemeButtonFocused */    {TuiColorYellow, TuiColorBlue, TuiAttrBold},
+    /* TuiThemeInput */            {TuiColorBlack, TuiColorCyan, TuiAttrNormal},
+    /* TuiThemeInputFocused */     {TuiColorBlack, TuiColorWhite, TuiAttrBold},
+    /* TuiThemeCheckbox */         {TuiColorWhite, TuiColorBlue, TuiAttrNormal},
+    /* TuiThemeCheckboxFocused */  {TuiColorYellow, TuiColorBlue, TuiAttrBold},
+    /* TuiThemeListBox */          {TuiColorWhite, TuiColorBlue, TuiAttrNormal},
+    /* TuiThemeListBoxSelected */  {TuiColorYellow, TuiColorCyan, TuiAttrBold},
+    /* TuiThemeStatusBar */        {TuiColorBlack, TuiColorCyan, TuiAttrNormal},
+    /* TuiThemeDesktop */          {TuiColorCyan, TuiColorBlue, TuiAttrNormal},
+    /* TuiThemeSelection */        {TuiColorYellow, TuiColorBlue, TuiAttrBold},
+    /* TuiThemeDisabled */         {TuiColorBrightBlack, TuiColorBlue, TuiAttrNormal}
+};
+
+/* Central Point (PC Tools) Theme - Classic PC Tools Desktop look */
+static CONST TUI_THEME_COLORS CentralPointTheme[] = {
+    /* TuiThemeMenuBar */         {TuiColorWhite, TuiColorMagenta, TuiAttrBold},
+    /* TuiThemeMenu */             {TuiColorBlack, TuiColorCyan, TuiAttrNormal},
+    /* TuiThemeMenuItem */         {TuiColorBlack, TuiColorCyan, TuiAttrNormal},
+    /* TuiThemeMenuItemSelected */ {TuiColorWhite, TuiColorBlue, TuiAttrBold},
+    /* TuiThemeWindow */           {TuiColorYellow, TuiColorBlue, TuiAttrBold},
+    /* TuiThemeWindowBorder */     {TuiColorWhite, TuiColorBlue, TuiAttrBold},
+    /* TuiThemeWindowTitle */      {TuiColorWhite, TuiColorMagenta, TuiAttrBold},
+    /* TuiThemeButton */           {TuiColorBlack, TuiColorCyan, TuiAttrBold},
+    /* TuiThemeButtonFocused */    {TuiColorYellow, TuiColorRed, TuiAttrBold},
+    /* TuiThemeInput */            {TuiColorBlack, TuiColorCyan, TuiAttrNormal},
+    /* TuiThemeInputFocused */     {TuiColorYellow, TuiColorBlue, TuiAttrBold},
+    /* TuiThemeCheckbox */         {TuiColorYellow, TuiColorBlue, TuiAttrBold},
+    /* TuiThemeCheckboxFocused */  {TuiColorWhite, TuiColorRed, TuiAttrBold},
+    /* TuiThemeListBox */          {TuiColorYellow, TuiColorBlue, TuiAttrBold},
+    /* TuiThemeListBoxSelected */  {TuiColorWhite, TuiColorCyan, TuiAttrBold},
+    /* TuiThemeStatusBar */        {TuiColorWhite, TuiColorMagenta, TuiAttrBold},
+    /* TuiThemeDesktop */          {TuiColorCyan, TuiColorBlue, TuiAttrNormal},
+    /* TuiThemeSelection */        {TuiColorWhite, TuiColorRed, TuiAttrBold},
+    /* TuiThemeDisabled */         {TuiColorBrightBlack, TuiColorBlue, TuiAttrNormal}
+};
+
 /* IUnknown methods */
 static HRESULT ANXAPI Theme_QueryInterface(
     ITuiTheme *This,
@@ -537,6 +583,42 @@ HRESULT AnxTuiCreateTurboVisionTheme(ITuiTheme **OutTheme)
         impl->ButtonStyle = TuiBorderSunken;        /* 3D sunken buttons */
         impl->WindowShadowEnabled = TRUE;           /* Windows cast shadows */
         impl->ShadowChar = 0xB0;                    /* ░ medium shade */
+        impl->UseUnicode = TRUE;                    /* Use box drawing chars */
+    }
+    return hr;
+}
+
+/* Create Norton Utilities theme */
+HRESULT AnxTuiCreateNortonUtilitiesTheme(ITuiTheme **OutTheme)
+{
+    HRESULT hr = AnxTuiCreateTheme("Norton Utilities", OutTheme);
+    if (SUCCEEDED(hr)) {
+        ThemeImpl *impl = (ThemeImpl *)*OutTheme;
+        memcpy(impl->Colors, NortonUtilitiesTheme, sizeof(impl->Colors));
+
+        /* Norton Utilities visual style */
+        impl->BorderStyle = TuiBorderSingle;        /* Single-line borders (Norton Commander style) */
+        impl->ButtonStyle = TuiBorder3D;            /* 3D effect buttons */
+        impl->WindowShadowEnabled = TRUE;           /* Classic Norton shadows */
+        impl->ShadowChar = 0xB1;                    /* ░ light shade (Norton style) */
+        impl->UseUnicode = TRUE;                    /* Use box drawing chars */
+    }
+    return hr;
+}
+
+/* Create Central Point (PC Tools) theme */
+HRESULT AnxTuiCreateCentralPointTheme(ITuiTheme **OutTheme)
+{
+    HRESULT hr = AnxTuiCreateTheme("Central Point PC Tools", OutTheme);
+    if (SUCCEEDED(hr)) {
+        ThemeImpl *impl = (ThemeImpl *)*OutTheme;
+        memcpy(impl->Colors, CentralPointTheme, sizeof(impl->Colors));
+
+        /* PC Tools visual style */
+        impl->BorderStyle = TuiBorderDouble;        /* Double-line borders (PC Tools style) */
+        impl->ButtonStyle = TuiBorderRisen;         /* Raised 3D buttons */
+        impl->WindowShadowEnabled = TRUE;           /* PC Tools had shadows */
+        impl->ShadowChar = 0xB2;                    /* ▒ dark shade (PC Tools style) */
         impl->UseUnicode = TRUE;                    /* Use box drawing chars */
     }
     return hr;
