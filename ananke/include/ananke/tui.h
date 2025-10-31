@@ -28,6 +28,13 @@ typedef struct _ITuiCheckbox ITuiCheckbox;
 typedef struct _ITuiRadioGroup ITuiRadioGroup;
 typedef struct _ITuiButton ITuiButton;
 typedef struct _ITuiHelpViewer ITuiHelpViewer;
+typedef struct _ITuiListBox ITuiListBox;
+typedef struct _ITuiComboBox ITuiComboBox;
+typedef struct _ITuiDropDown ITuiDropDown;
+typedef struct _ITuiMenuBar ITuiMenuBar;
+typedef struct _ITuiStatusBar ITuiStatusBar;
+typedef struct _ITuiDesktop ITuiDesktop;
+typedef struct _ITuiTheme ITuiTheme;
 
 //
 // TUI Color Attributes
@@ -913,6 +920,238 @@ struct _ITuiHelpViewer {
     CONST ITuiHelpViewer_Vtbl *Vtbl;
 };
 
+// {C9D0E1F2-A3B4-4C5D-6E7F-8A9B0C1D2E3F}
+DEFINE_GUID(IID_ITuiListBox,
+    0xC9D0E1F2, 0xA3B4, 0x4C5D, 0x6E, 0x7F, 0x8A, 0x9B, 0x0C, 0x1D, 0x2E, 0x3F);
+
+/**
+  ITuiListBox Interface
+
+  Scrollable list of selectable items.
+**/
+typedef struct _ITuiListBox_Vtbl {
+    HRESULT (ANXAPI *QueryInterface)(ITuiListBox *This, REFIID riid, VOID **ppvObject);
+    UINTN (ANXAPI *AddRef)(ITuiListBox *This);
+    UINTN (ANXAPI *Release)(ITuiListBox *This);
+
+    HRESULT (ANXAPI *AddItem)(ITuiListBox *This, CONST CHAR8 *Text, VOID *UserData);
+    HRESULT (ANXAPI *RemoveItem)(ITuiListBox *This, UINT32 Index);
+    HRESULT (ANXAPI *Clear)(ITuiListBox *This);
+    HRESULT (ANXAPI *GetItemCount)(ITuiListBox *This, UINT32 *Count);
+    HRESULT (ANXAPI *GetSelectedIndex)(ITuiListBox *This, INT32 *Index);
+    HRESULT (ANXAPI *SetSelectedIndex)(ITuiListBox *This, INT32 Index);
+    HRESULT (ANXAPI *GetItemText)(ITuiListBox *This, UINT32 Index, CHAR8 *Buffer, UINTN BufferSize);
+    HRESULT (ANXAPI *SetMultiSelect)(ITuiListBox *This, BOOLEAN Enabled);
+    HRESULT (ANXAPI *Render)(ITuiListBox *This, ITuiScreen *Screen, INT32 X, INT32 Y, UINT32 Width, UINT32 Height, BOOLEAN Focused);
+    HRESULT (ANXAPI *HandleInput)(ITuiListBox *This, CONST TUI_INPUT_EVENT *Event, BOOLEAN *Handled);
+} ITuiListBox_Vtbl;
+
+struct _ITuiListBox {
+    CONST ITuiListBox_Vtbl *Vtbl;
+};
+
+// {D0E1F2A3-B4C5-4D6E-7F8A-9B0C1D2E3F4A}
+DEFINE_GUID(IID_ITuiComboBox,
+    0xD0E1F2A3, 0xB4C5, 0x4D6E, 0x7F, 0x8A, 0x9B, 0x0C, 0x1D, 0x2E, 0x3F, 0x4A);
+
+/**
+  ITuiComboBox Interface
+
+  Editable dropdown with autocomplete.
+**/
+typedef struct _ITuiComboBox_Vtbl {
+    HRESULT (ANXAPI *QueryInterface)(ITuiComboBox *This, REFIID riid, VOID **ppvObject);
+    UINTN (ANXAPI *AddRef)(ITuiComboBox *This);
+    UINTN (ANXAPI *Release)(ITuiComboBox *This);
+
+    HRESULT (ANXAPI *AddItem)(ITuiComboBox *This, CONST CHAR8 *Text);
+    HRESULT (ANXAPI *GetText)(ITuiComboBox *This, CHAR8 *Buffer, UINTN BufferSize);
+    HRESULT (ANXAPI *SetText)(ITuiComboBox *This, CONST CHAR8 *Text);
+    HRESULT (ANXAPI *SetEditable)(ITuiComboBox *This, BOOLEAN Editable);
+    HRESULT (ANXAPI *SetAutocomplete)(ITuiComboBox *This, BOOLEAN Enabled);
+    HRESULT (ANXAPI *Render)(ITuiComboBox *This, ITuiScreen *Screen, INT32 X, INT32 Y, UINT32 Width, BOOLEAN Focused);
+    HRESULT (ANXAPI *HandleInput)(ITuiComboBox *This, CONST TUI_INPUT_EVENT *Event, BOOLEAN *Handled);
+} ITuiComboBox_Vtbl;
+
+struct _ITuiComboBox {
+    CONST ITuiComboBox_Vtbl *Vtbl;
+};
+
+// {E1F2A3B4-C5D6-4E7F-8A9B-0C1D2E3F4A5B}
+DEFINE_GUID(IID_ITuiDropDown,
+    0xE1F2A3B4, 0xC5D6, 0x4E7F, 0x8A, 0x9B, 0x0C, 0x1D, 0x2E, 0x3F, 0x4A, 0x5B);
+
+/**
+  ITuiDropDown Interface
+
+  Dropdown menu (non-editable selection).
+**/
+typedef struct _ITuiDropDown_Vtbl {
+    HRESULT (ANXAPI *QueryInterface)(ITuiDropDown *This, REFIID riid, VOID **ppvObject);
+    UINTN (ANXAPI *AddRef)(ITuiDropDown *This);
+    UINTN (ANXAPI *Release)(ITuiDropDown *This);
+
+    HRESULT (ANXAPI *AddItem)(ITuiDropDown *This, CONST CHAR8 *Text, VOID *UserData);
+    HRESULT (ANXAPI *GetSelectedIndex)(ITuiDropDown *This, INT32 *Index);
+    HRESULT (ANXAPI *SetSelectedIndex)(ITuiDropDown *This, INT32 Index);
+    HRESULT (ANXAPI *Render)(ITuiDropDown *This, ITuiScreen *Screen, INT32 X, INT32 Y, UINT32 Width, BOOLEAN Focused);
+    HRESULT (ANXAPI *HandleInput)(ITuiDropDown *This, CONST TUI_INPUT_EVENT *Event, BOOLEAN *Handled);
+} ITuiDropDown_Vtbl;
+
+struct _ITuiDropDown {
+    CONST ITuiDropDown_Vtbl *Vtbl;
+};
+
+// {F2A3B4C5-D6E7-4F8A-9B0C-1D2E3F4A5B6C}
+DEFINE_GUID(IID_ITuiMenuBar,
+    0xF2A3B4C5, 0xD6E7, 0x4F8A, 0x9B, 0x0C, 0x1D, 0x2E, 0x3F, 0x4A, 0x5B, 0x6C);
+
+/**
+  ITuiMenuBar Interface
+
+  Top menu bar with dropdown menus.
+**/
+typedef struct _ITuiMenuBar_Vtbl {
+    HRESULT (ANXAPI *QueryInterface)(ITuiMenuBar *This, REFIID riid, VOID **ppvObject);
+    UINTN (ANXAPI *AddRef)(ITuiMenuBar *This);
+    UINTN (ANXAPI *Release)(ITuiMenuBar *This);
+
+    HRESULT (ANXAPI *AddMenu)(ITuiMenuBar *This, CONST CHAR8 *Title, ITuiMenu *Menu);
+    HRESULT (ANXAPI *SetHotkey)(ITuiMenuBar *This, UINT32 MenuIndex, CHAR8 Hotkey);
+    HRESULT (ANXAPI *Render)(ITuiMenuBar *This, ITuiScreen *Screen);
+    HRESULT (ANXAPI *HandleInput)(ITuiMenuBar *This, CONST TUI_INPUT_EVENT *Event, BOOLEAN *Handled);
+} ITuiMenuBar_Vtbl;
+
+struct _ITuiMenuBar {
+    CONST ITuiMenuBar_Vtbl *Vtbl;
+};
+
+// {A3B4C5D6-E7F8-4A9B-0C1D-2E3F4A5B6C7D}
+DEFINE_GUID(IID_ITuiStatusBar,
+    0xA3B4C5D6, 0xE7F8, 0x4A9B, 0x0C, 0x1D, 0x2E, 0x3F, 0x4A, 0x5B, 0x6C, 0x7D);
+
+/**
+  ITuiStatusBar Interface
+
+  Bottom status bar with panels.
+**/
+typedef struct _ITuiStatusBar_Vtbl {
+    HRESULT (ANXAPI *QueryInterface)(ITuiStatusBar *This, REFIID riid, VOID **ppvObject);
+    UINTN (ANXAPI *AddRef)(ITuiStatusBar *This);
+    UINTN (ANXAPI *Release)(ITuiStatusBar *This);
+
+    HRESULT (ANXAPI *SetText)(ITuiStatusBar *This, UINT32 Panel, CONST CHAR8 *Text);
+    HRESULT (ANXAPI *SetPanelCount)(ITuiStatusBar *This, UINT32 Count);
+    HRESULT (ANXAPI *SetPanelWidth)(ITuiStatusBar *This, UINT32 Panel, UINT32 Width);
+    HRESULT (ANXAPI *Render)(ITuiStatusBar *This, ITuiScreen *Screen);
+} ITuiStatusBar_Vtbl;
+
+struct _ITuiStatusBar {
+    CONST ITuiStatusBar_Vtbl *Vtbl;
+};
+
+// {B4C5D6E7-F8A9-4B0C-1D2E-3F4A5B6C7D8E}
+DEFINE_GUID(IID_ITuiDesktop,
+    0xB4C5D6E7, 0xF8A9, 0x4B0C, 0x1D, 0x2E, 0x3F, 0x4A, 0x5B, 0x6C, 0x7D, 0x8E);
+
+/**
+  ITuiDesktop Interface
+
+  Window manager for TUI applications.
+**/
+typedef struct _ITuiDesktop_Vtbl {
+    HRESULT (ANXAPI *QueryInterface)(ITuiDesktop *This, REFIID riid, VOID **ppvObject);
+    UINTN (ANXAPI *AddRef)(ITuiDesktop *This);
+    UINTN (ANXAPI *Release)(ITuiDesktop *This);
+
+    HRESULT (ANXAPI *AddWindow)(ITuiDesktop *This, ITuiWindow *Window);
+    HRESULT (ANXAPI *RemoveWindow)(ITuiDesktop *This, ITuiWindow *Window);
+    HRESULT (ANXAPI *SetActiveWindow)(ITuiDesktop *This, ITuiWindow *Window);
+    HRESULT (ANXAPI *GetActiveWindow)(ITuiDesktop *This, ITuiWindow **Window);
+    HRESULT (ANXAPI *SetMenuBar)(ITuiDesktop *This, ITuiMenuBar *MenuBar);
+    HRESULT (ANXAPI *SetStatusBar)(ITuiDesktop *This, ITuiStatusBar *StatusBar);
+    HRESULT (ANXAPI *Render)(ITuiDesktop *This, ITuiScreen *Screen);
+    HRESULT (ANXAPI *HandleInput)(ITuiDesktop *This, CONST TUI_INPUT_EVENT *Event, BOOLEAN *Handled);
+    HRESULT (ANXAPI *Run)(ITuiDesktop *This, ITuiScreen *Screen);  /* Main event loop */
+} ITuiDesktop_Vtbl;
+
+struct _ITuiDesktop {
+    CONST ITuiDesktop_Vtbl *Vtbl;
+};
+
+// {C5D6E7F8-A9B0-4C1D-2E3F-4A5B6C7D8E9F}
+DEFINE_GUID(IID_ITuiTheme,
+    0xC5D6E7F8, 0xA9B0, 0x4C1D, 0x2E, 0x3F, 0x4A, 0x5B, 0x6C, 0x7D, 0x8E, 0x9F);
+
+/**
+  TUI Theme Components
+**/
+typedef enum _TUI_THEME_COMPONENT {
+    TuiThemeMenuBar,
+    TuiThemeMenu,
+    TuiThemeMenuItem,
+    TuiThemeMenuItemSelected,
+    TuiThemeWindow,
+    TuiThemeWindowBorder,
+    TuiThemeWindowTitle,
+    TuiThemeButton,
+    TuiThemeButtonFocused,
+    TuiThemeInput,
+    TuiThemeInputFocused,
+    TuiThemeCheckbox,
+    TuiThemeCheckboxFocused,
+    TuiThemeListBox,
+    TuiThemeListBoxSelected,
+    TuiThemeStatusBar,
+    TuiThemeDesktop,
+    TuiThemeSelection,
+    TuiThemeDisabled
+} TUI_THEME_COMPONENT;
+
+/**
+  TUI Theme Color Scheme
+**/
+typedef struct _TUI_THEME_COLORS {
+    TUI_COLOR Foreground;
+    TUI_COLOR Background;
+    UINT32 Attributes;  /* Bold, underline, etc. */
+} TUI_THEME_COLORS;
+
+/**
+  TUI Border Style
+**/
+typedef enum _TUI_BORDER_STYLE {
+    TuiBorderNone,
+    TuiBorderSingle,     /* ┌─┐ │ └─┘ */
+    TuiBorderDouble,     /* ╔═╗ ║ ╚═╝ */
+    TuiBorderRounded,    /* ╭─╮ │ ╰─╯ */
+    TuiBorderAscii       /* +-+ | +-+ */
+} TUI_BORDER_STYLE;
+
+/**
+  ITuiTheme Interface
+
+  Customizable UI theme (colors, borders, styles).
+**/
+typedef struct _ITuiTheme_Vtbl {
+    HRESULT (ANXAPI *QueryInterface)(ITuiTheme *This, REFIID riid, VOID **ppvObject);
+    UINTN (ANXAPI *AddRef)(ITuiTheme *This);
+    UINTN (ANXAPI *Release)(ITuiTheme *This);
+
+    HRESULT (ANXAPI *SetColors)(ITuiTheme *This, TUI_THEME_COMPONENT Component, CONST TUI_THEME_COLORS *Colors);
+    HRESULT (ANXAPI *GetColors)(ITuiTheme *This, TUI_THEME_COMPONENT Component, TUI_THEME_COLORS *Colors);
+    HRESULT (ANXAPI *SetBorderStyle)(ITuiTheme *This, TUI_BORDER_STYLE Style);
+    HRESULT (ANXAPI *GetBorderStyle)(ITuiTheme *This, TUI_BORDER_STYLE *Style);
+    HRESULT (ANXAPI *LoadFromFile)(ITuiTheme *This, CONST CHAR8 *FilePath);
+    HRESULT (ANXAPI *SaveToFile)(ITuiTheme *This, CONST CHAR8 *FilePath);
+    HRESULT (ANXAPI *SetName)(ITuiTheme *This, CONST CHAR8 *Name);
+    HRESULT (ANXAPI *GetName)(ITuiTheme *This, CHAR8 *Buffer, UINTN BufferSize);
+} ITuiTheme_Vtbl;
+
+struct _ITuiTheme {
+    CONST ITuiTheme_Vtbl *Vtbl;
+};
+
 //
 // Factory functions
 //
@@ -1037,6 +1276,123 @@ HRESULT
 ANXAPI
 AnxTuiCreateHelpViewer(
     OUT ITuiHelpViewer **HelpViewer
+);
+
+/**
+  Create a TUI List Box instance.
+
+  @param[out] ListBox  Pointer to receive the list box interface.
+
+  @retval S_OK        List box created successfully.
+  @retval E_OUTOFMEMORY  Memory allocation failed.
+**/
+HRESULT
+ANXAPI
+AnxTuiCreateListBox(
+    OUT ITuiListBox **ListBox
+);
+
+/**
+  Create a TUI Combo Box instance.
+
+  @param[out] ComboBox  Pointer to receive the combo box interface.
+
+  @retval S_OK        Combo box created successfully.
+  @retval E_OUTOFMEMORY  Memory allocation failed.
+**/
+HRESULT
+ANXAPI
+AnxTuiCreateComboBox(
+    OUT ITuiComboBox **ComboBox
+);
+
+/**
+  Create a TUI Drop Down instance.
+
+  @param[out] DropDown  Pointer to receive the dropdown interface.
+
+  @retval S_OK        Dropdown created successfully.
+  @retval E_OUTOFMEMORY  Memory allocation failed.
+**/
+HRESULT
+ANXAPI
+AnxTuiCreateDropDown(
+    OUT ITuiDropDown **DropDown
+);
+
+/**
+  Create a TUI Menu Bar instance.
+
+  @param[out] MenuBar  Pointer to receive the menu bar interface.
+
+  @retval S_OK        Menu bar created successfully.
+  @retval E_OUTOFMEMORY  Memory allocation failed.
+**/
+HRESULT
+ANXAPI
+AnxTuiCreateMenuBar(
+    OUT ITuiMenuBar **MenuBar
+);
+
+/**
+  Create a TUI Status Bar instance.
+
+  @param[out] StatusBar  Pointer to receive the status bar interface.
+
+  @retval S_OK        Status bar created successfully.
+  @retval E_OUTOFMEMORY  Memory allocation failed.
+**/
+HRESULT
+ANXAPI
+AnxTuiCreateStatusBar(
+    OUT ITuiStatusBar **StatusBar
+);
+
+/**
+  Create a TUI Desktop instance.
+
+  @param[in]  Screen   Parent screen for the desktop.
+  @param[out] Desktop  Pointer to receive the desktop interface.
+
+  @retval S_OK        Desktop created successfully.
+  @retval E_OUTOFMEMORY  Memory allocation failed.
+**/
+HRESULT
+ANXAPI
+AnxTuiCreateDesktop(
+    IN  ITuiScreen *Screen,
+    OUT ITuiDesktop **Desktop
+);
+
+/**
+  Create a TUI Theme instance.
+
+  @param[out] Theme  Pointer to receive the theme interface.
+
+  @retval S_OK        Theme created successfully.
+  @retval E_OUTOFMEMORY  Memory allocation failed.
+**/
+HRESULT
+ANXAPI
+AnxTuiCreateTheme(
+    OUT ITuiTheme **Theme
+);
+
+/**
+  Load a predefined theme by name.
+
+  @param[in]  Name   Theme name ("Default", "Dark", "Light", "Classic", etc.).
+  @param[out] Theme  Pointer to receive the theme interface.
+
+  @retval S_OK        Theme loaded successfully.
+  @retval E_NOTFOUND  Theme not found.
+  @retval E_OUTOFMEMORY  Memory allocation failed.
+**/
+HRESULT
+ANXAPI
+AnxTuiLoadTheme(
+    IN  CONST CHAR8 *Name,
+    OUT ITuiTheme **Theme
 );
 
 #ifdef __cplusplus
