@@ -109,6 +109,8 @@ set(ANXCONFIG_SOURCES
     theme_manager.c
     # Widget refactored versions (v2 with new architecture)
     widget_button_v2.c
+    widget_input_v2.c
+    widget_checkbox_v2.c
     # Common dialogs
     dialog_fileopensave.c
     dialog_about.c
