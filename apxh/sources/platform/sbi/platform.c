@@ -484,7 +484,7 @@ PlatformGetDescriptor (
   Sets up trampoline page table and transfers control to kernel
   entry point using RISC-V SV48 paging.
 
-  @param[in] Arch   Architecture (must be ARCH_RISCV64).
+  @param[in] Arch   Architecture (must be ArchRiscV64).
   @param[in] Pt     Page table root physical address.
   @param[in] Entry  Kernel entry point virtual address.
 **/
@@ -500,7 +500,7 @@ PlatformEntry (
   extern char trampoline_start asm ("__rv64_tstart");
   extern char trampoline_end asm ("__rv64_tend");
 
-  assert (Arch == ARCH_RISCV64);
+  assert (Arch == ArchRiscV64);
 
   printf ("Entry called.\n");
 

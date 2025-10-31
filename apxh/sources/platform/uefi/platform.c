@@ -103,7 +103,7 @@ PlatformVerify (
   trampoline page tables, exits EFI boot services, and switches to
   long mode before jumping to kernel entry point.
 
-  @param[in] Arch   Target architecture (must be ARCH_AMD64).
+  @param[in] Arch   Target architecture (must be ArchAmd64).
   @param[in] Pt     Root page table physical address.
   @param[in] Entry  Kernel entry point virtual address.
 **/
@@ -119,7 +119,7 @@ PlatformEntry (
   VIRTUAL_ADDRESS TrampEntry;
   UINT64 TrampCode = 0xe7ffd9220fL;	/* mov %rcx, %cr3; jmp *%rdi */
 
-  assert (Arch == ARCH_AMD64);
+  assert (Arch == ArchAmd64);
 
   printf ("Entry called.\n");
 
@@ -157,7 +157,7 @@ PlatformEntry (
   trampoline page tables, exits EFI boot services, and switches SATP
   register before jumping to kernel entry point.
 
-  @param[in] Arch   Target architecture (must be ARCH_RISCV64).
+  @param[in] Arch   Target architecture (must be ArchRiscV64).
   @param[in] Pt     Root page table physical address.
   @param[in] Entry  Kernel entry point virtual address.
 **/
@@ -173,7 +173,7 @@ PlatformEntry (
   extern char trampoline_start asm ("__rv64_tstart");
   extern char trampoline_end asm ("__rv64_tend");
 
-  assert (Arch == ARCH_RISCV64);
+  assert (Arch == ArchRiscV64);
 
   printf ("Entry called.\n");
 

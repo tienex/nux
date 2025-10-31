@@ -2,14 +2,16 @@
   APXH PE/COFF Loader
 
   Provides PE (Portable Executable) and COFF (Common Object File Format)
-  parsing and loading for Windows executables. Handles sections, imports,
-  exports, and Thread-Local Storage (TLS) for Win32/Win64 binaries.
+  parsing and loading for Windows executables using COM-style interface.
+  Handles sections, imports, exports, TLS, and unwinding information for
+  Win32/Win64 binaries.
 
   Supports:
   - PE32 (32-bit Windows executables)
   - PE32+ (64-bit Windows executables)
-  - x86, x86-64 architectures
+  - x86, x86-64, ARM, ARM64, RISC-V architectures
   - TLS callbacks and initialization
+  - .pdata unwinding information
 
   Copyright (C) 2025 A•NUX Project
 
@@ -45,6 +47,27 @@
 #define IMAGE_SCN_MEM_EXECUTE   0x20000000  ///< Executable
 #define IMAGE_SCN_MEM_READ      0x40000000  ///< Readable
 #define IMAGE_SCN_MEM_WRITE     0x80000000  ///< Writable
+
+//
+// Subsystem Types
+//
+
+#define IMAGE_SUBSYSTEM_UNKNOWN                  0   ///< Unknown subsystem
+#define IMAGE_SUBSYSTEM_NATIVE                   1   ///< Native (kernel mode)
+#define IMAGE_SUBSYSTEM_WINDOWS_GUI              2   ///< Windows GUI
+#define IMAGE_SUBSYSTEM_WINDOWS_CUI              3   ///< Windows console
+#define IMAGE_SUBSYSTEM_OS2_GUI                  4   ///< OS/2 GUI (Presentation Manager)
+#define IMAGE_SUBSYSTEM_OS2_CUI                  5   ///< OS/2 console
+#define IMAGE_SUBSYSTEM_BEOS_GUI                 6   ///< BeOS GUI (x86 version)
+#define IMAGE_SUBSYSTEM_POSIX_CUI                7   ///< POSIX console
+#define IMAGE_SUBSYSTEM_NATIVE_WINDOWS           8   ///< Native Win9x driver
+#define IMAGE_SUBSYSTEM_WINDOWS_CE_GUI           9   ///< Windows CE GUI
+#define IMAGE_SUBSYSTEM_EFI_APPLICATION          10  ///< UEFI application
+#define IMAGE_SUBSYSTEM_EFI_BOOT_SERVICE_DRIVER  11  ///< UEFI boot service driver
+#define IMAGE_SUBSYSTEM_EFI_RUNTIME_DRIVER       12  ///< UEFI runtime driver
+#define IMAGE_SUBSYSTEM_EFI_ROM                  13  ///< UEFI ROM image
+#define IMAGE_SUBSYSTEM_XBOX                     14  ///< Xbox system
+#define IMAGE_SUBSYSTEM_WINDOWS_BOOT_APPLICATION 16  ///< Windows boot application
 
 //
 // PE/COFF Structures
@@ -183,8 +206,10 @@ typedef struct _PE_SECTION_HEADER {
   UINT32  Characteristics;      ///< Section characteristics
 } PE_SECTION_HEADER;
 
-// TLS Directory Entry (Data Directory index 9)
-#define IMAGE_DIRECTORY_ENTRY_TLS 9
+// Data Directory Indices
+#define IMAGE_DIRECTORY_ENTRY_EXCEPTION  3  ///< Exception (.pdata)
+#define IMAGE_DIRECTORY_ENTRY_BASERELOC  5  ///< Base relocations (.reloc)
+#define IMAGE_DIRECTORY_ENTRY_TLS        9  ///< TLS
 
 typedef struct _PE_TLS_DIRECTORY32 {
   UINT32  StartAddressOfRawData;  ///< Start of TLS data
@@ -204,6 +229,16 @@ typedef struct _PE_TLS_DIRECTORY64 {
   UINT32  Characteristics;        ///< Alignment (low 4 bits)
 } PE_TLS_DIRECTORY64;
 
+typedef struct _PE_BASE_RELOCATION {
+  UINT32  VirtualAddress;  ///< Page RVA
+  UINT32  SizeOfBlock;     ///< Block size including this header
+} PE_BASE_RELOCATION;
+
+// Relocation types
+#define IMAGE_REL_BASED_ABSOLUTE  0  ///< No-op
+#define IMAGE_REL_BASED_HIGHLOW   3  ///< 32-bit fixup
+#define IMAGE_REL_BASED_DIR64    10  ///< 64-bit fixup
+
 ANX_PACK_POP()
 
 //
@@ -213,17 +248,17 @@ ANX_PACK_POP()
 #define PE_OFF(_o) ((VOID *)(UINTN)((UINT8 *)ImageBase + (_o)))
 
 //
-// Internal Functions
+// IImageLoader Implementation for PE/COFF
 //
 
 /**
-  Check if image is PE/COFF format.
+  Detect if image is PE/COFF format.
 **/
 static
-BOOLEAN
-ANXAPI
+HRESULT
+STDMETHODCALLTYPE
 PeDetect (
-  IN IMAGE_LOADER  *This,
+  IN IImageLoader  *This,
   IN VOID          *ImageBase,
   IN UINTN         ImageSize
   )
@@ -232,74 +267,125 @@ PeDetect (
   PE_NT_HEADERS32 *NtHeaders;
 
   if (ImageSize < sizeof(DOS_HEADER)) {
-    return FALSE;
+    return S_FALSE;
   }
 
   DosHeader = (DOS_HEADER *)ImageBase;
   if (DosHeader->Signature != PE_DOS_SIGNATURE) {
-    return FALSE;
+    return S_FALSE;
   }
 
   if (DosHeader->NewHeaderOffset >= ImageSize - sizeof(PE_NT_HEADERS32)) {
-    return FALSE;
+    return S_FALSE;
   }
 
   NtHeaders = (PE_NT_HEADERS32 *)PE_OFF(DosHeader->NewHeaderOffset);
-  return (NtHeaders->Signature == PE_NT_SIGNATURE);
+  return (NtHeaders->Signature == PE_NT_SIGNATURE) ? S_OK : S_FALSE;
 }
 
 /**
   Get architecture from PE image.
 **/
 static
-ARCH
-ANXAPI
+HRESULT
+STDMETHODCALLTYPE
 PeGetArch (
-  IN IMAGE_LOADER  *This,
-  IN VOID          *ImageBase
+  IN  IImageLoader  *This,
+  IN  VOID          *ImageBase,
+  OUT ARCH          *Architecture
   )
 {
-  DOS_HEADER *DosHeader = (DOS_HEADER *)ImageBase;
-  PE_NT_HEADERS32 *NtHeaders = (PE_NT_HEADERS32 *)PE_OFF(DosHeader->NewHeaderOffset);
+  DOS_HEADER *DosHeader;
+  PE_NT_HEADERS32 *NtHeaders;
+
+  if (Architecture == NULL) {
+    return E_POINTER;
+  }
+
+  DosHeader = (DOS_HEADER *)ImageBase;
+  NtHeaders = (PE_NT_HEADERS32 *)PE_OFF(DosHeader->NewHeaderOffset);
 
   switch (NtHeaders->FileHeader.Machine) {
     case IMAGE_FILE_MACHINE_I386:
-      return ARCH_386;
+      *Architecture = Arch386;
+      break;
     case IMAGE_FILE_MACHINE_AMD64:
-      return ARCH_AMD64;
+      *Architecture = ArchAmd64;
+      break;
     case IMAGE_FILE_MACHINE_RISCV64:
-      return ARCH_RISCV64;
+      *Architecture = ArchRiscV64;
+      break;
     case IMAGE_FILE_MACHINE_ARM64:
-      return ARCH_UNSUPPORTED;
+      *Architecture = ArchArm64;
+      break;
     default:
-      return ARCH_UNSUPPORTED;
+      *Architecture = ArchUnsupported;
+      return IMGLOAD_E_UNSUPPORTED_ARCH;
   }
+
+  return S_OK;
+}
+
+/**
+  Get endianness from PE image.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+PeGetEndianness (
+  IN  IImageLoader    *This,
+  IN  VOID            *ImageBase,
+  OUT IMGLOAD_ENDIAN  *Endianness
+  )
+{
+  if (Endianness == NULL) {
+    return E_POINTER;
+  }
+
+  // All Windows architectures are little-endian
+  *Endianness = ImgEndianLittle;
+  return S_OK;
 }
 
 /**
   Get entry point from PE image.
 **/
 static
-VIRTUAL_ADDRESS
-ANXAPI
+HRESULT
+STDMETHODCALLTYPE
 PeGetEntryPoint (
-  IN IMAGE_LOADER  *This,
-  IN VOID          *ImageBase
+  IN  IImageLoader      *This,
+  IN  VOID              *ImageBase,
+  OUT VIRTUAL_ADDRESS   *EntryPoint
   )
 {
-  DOS_HEADER *DosHeader = (DOS_HEADER *)ImageBase;
-  PE_NT_HEADERS32 *NtHeaders32 = (PE_NT_HEADERS32 *)PE_OFF(DosHeader->NewHeaderOffset);
-  PE_NT_HEADERS64 *NtHeaders64 = (PE_NT_HEADERS64 *)NtHeaders32;
+  DOS_HEADER *DosHeader;
+  PE_NT_HEADERS32 *NtHeaders32;
+  PE_NT_HEADERS64 *NtHeaders64;
 
-  if (NtHeaders32->OptionalHeader.Magic == PE_OPT_MAGIC_PE32) {
-    return (VIRTUAL_ADDRESS)NtHeaders32->OptionalHeader.ImageBase +
-           NtHeaders32->OptionalHeader.EntryPointRVA;
-  } else if (NtHeaders32->OptionalHeader.Magic == PE_OPT_MAGIC_PE32PLUS) {
-    return (VIRTUAL_ADDRESS)NtHeaders64->OptionalHeader.ImageBase +
-           NtHeaders64->OptionalHeader.EntryPointRVA;
+  if (EntryPoint == NULL) {
+    return E_POINTER;
   }
 
-  return 0;
+  DosHeader = (DOS_HEADER *)ImageBase;
+  NtHeaders32 = (PE_NT_HEADERS32 *)PE_OFF(DosHeader->NewHeaderOffset);
+  NtHeaders64 = (PE_NT_HEADERS64 *)NtHeaders32;
+
+  if (NtHeaders32->OptionalHeader.Magic == PE_OPT_MAGIC_PE32) {
+    *EntryPoint = (VIRTUAL_ADDRESS)NtHeaders32->OptionalHeader.ImageBase +
+                  NtHeaders32->OptionalHeader.EntryPointRVA;
+  } else if (NtHeaders32->OptionalHeader.Magic == PE_OPT_MAGIC_PE32PLUS) {
+    *EntryPoint = (VIRTUAL_ADDRESS)NtHeaders64->OptionalHeader.ImageBase +
+                  NtHeaders64->OptionalHeader.EntryPointRVA;
+  } else {
+    return IMGLOAD_E_INVALID_FORMAT;
+  }
+
+  if (*EntryPoint == 0 || *EntryPoint == (VIRTUAL_ADDRESS)-1) {
+    return IMGLOAD_E_INVALID_HEADER;
+  }
+
+  return S_OK;
 }
 
 /**
@@ -347,22 +433,32 @@ PeLoadSection (
   Load PE image.
 **/
 static
-IMGLOAD_STATUS
-ANXAPI
+HRESULT
+STDMETHODCALLTYPE
 PeLoadImage (
-  IN     IMAGE_LOADER     *This,
+  IN     IImageLoader     *This,
   IN OUT IMGLOAD_CONTEXT  *Context
   )
 {
-  VOID *ImageBase = Context->ImageBase;
-  DOS_HEADER *DosHeader = (DOS_HEADER *)ImageBase;
-  PE_NT_HEADERS32 *NtHeaders32 = (PE_NT_HEADERS32 *)PE_OFF(DosHeader->NewHeaderOffset);
-  PE_NT_HEADERS64 *NtHeaders64 = (PE_NT_HEADERS64 *)NtHeaders32;
+  VOID *ImageBase;
+  DOS_HEADER *DosHeader;
+  PE_NT_HEADERS32 *NtHeaders32;
+  PE_NT_HEADERS64 *NtHeaders64;
   PE_SECTION_HEADER *Sections;
   UINT16 NumSections;
   UINT64 ImageBaseVA;
   BOOLEAN Is64Bit;
   UINT16 i;
+  HRESULT Status;
+
+  if (Context == NULL) {
+    return E_POINTER;
+  }
+
+  ImageBase = Context->ImageBase;
+  DosHeader = (DOS_HEADER *)ImageBase;
+  NtHeaders32 = (PE_NT_HEADERS32 *)PE_OFF(DosHeader->NewHeaderOffset);
+  NtHeaders64 = (PE_NT_HEADERS64 *)NtHeaders32;
 
   Is64Bit = (NtHeaders32->OptionalHeader.Magic == PE_OPT_MAGIC_PE32PLUS);
   NumSections = NtHeaders32->FileHeader.NumSections;
@@ -371,7 +467,21 @@ PeLoadImage (
     NtHeaders64->OptionalHeader.ImageBase :
     (UINT64)NtHeaders32->OptionalHeader.ImageBase;
 
-  info("Loading PE%s executable...", Is64Bit ? "32+" : "32");
+  // Populate context
+  Status = PeGetArch(This, ImageBase, &Context->Architecture);
+  if (FAILED(Status)) {
+    return Status;
+  }
+
+  Status = PeGetEndianness(This, ImageBase, &Context->Endianness);
+  if (FAILED(Status)) {
+    return Status;
+  }
+
+  Status = PeGetEntryPoint(This, ImageBase, &Context->EntryPoint);
+  if (FAILED(Status)) {
+    return Status;
+  }
 
   // Section headers follow the optional header
   Sections = (PE_SECTION_HEADER *)((UINT8 *)&NtHeaders32->OptionalHeader +
@@ -380,35 +490,39 @@ PeLoadImage (
   // Load all sections
   for (i = 0; i < NumSections; i++) {
     PE_SECTION_HEADER *Sec = &Sections[i];
-    info("  Section %.8s at 0x%08x (size: 0x%08x, chars: 0x%08x)",
-         Sec->Name, Sec->VirtualAddress, Sec->VirtualSize, Sec->Characteristics);
-
     PeLoadSection(ImageBase, ImageBaseVA, Sec, Context->IsUserMode);
   }
 
-  Context->EntryPoint = PeGetEntryPoint(This, ImageBase);
-  return ImgLoadSuccess;
+  return S_OK;
 }
 
 /**
   Extract TLS information from PE image.
 **/
 static
-IMGLOAD_STATUS
-ANXAPI
+HRESULT
+STDMETHODCALLTYPE
 PeGetTlsInfo (
-  IN  IMAGE_LOADER      *This,
+  IN  IImageLoader      *This,
   IN  VOID              *ImageBase,
   OUT IMGLOAD_TLS_INFO  *TlsInfo
   )
 {
-  DOS_HEADER *DosHeader = (DOS_HEADER *)ImageBase;
-  PE_NT_HEADERS32 *NtHeaders32 = (PE_NT_HEADERS32 *)PE_OFF(DosHeader->NewHeaderOffset);
-  PE_NT_HEADERS64 *NtHeaders64 = (PE_NT_HEADERS64 *)NtHeaders32;
+  DOS_HEADER *DosHeader;
+  PE_NT_HEADERS32 *NtHeaders32;
+  PE_NT_HEADERS64 *NtHeaders64;
   PE_DATA_DIRECTORY *TlsDir;
   BOOLEAN Is64Bit;
 
+  if (TlsInfo == NULL) {
+    return E_POINTER;
+  }
+
   memset(TlsInfo, 0, sizeof(IMGLOAD_TLS_INFO));
+
+  DosHeader = (DOS_HEADER *)ImageBase;
+  NtHeaders32 = (PE_NT_HEADERS32 *)PE_OFF(DosHeader->NewHeaderOffset);
+  NtHeaders64 = (PE_NT_HEADERS64 *)NtHeaders32;
 
   Is64Bit = (NtHeaders32->OptionalHeader.Magic == PE_OPT_MAGIC_PE32PLUS);
 
@@ -419,14 +533,11 @@ PeGetTlsInfo (
 
   if (TlsDir->VirtualAddress == 0 || TlsDir->Size == 0) {
     // No TLS - not an error
-    return ImgLoadSuccess;
+    return S_FALSE;
   }
 
   if (Is64Bit) {
-    PE_TLS_DIRECTORY64 *TlsDirectory;
-    UINT64 ImageBaseVA = NtHeaders64->OptionalHeader.ImageBase;
-
-    TlsDirectory = (PE_TLS_DIRECTORY64 *)PE_OFF(TlsDir->VirtualAddress);
+    PE_TLS_DIRECTORY64 *TlsDirectory = (PE_TLS_DIRECTORY64 *)PE_OFF(TlsDir->VirtualAddress);
 
     TlsInfo->InitDataAddr = TlsDirectory->StartAddressOfRawData;
     TlsInfo->InitDataSize = TlsDirectory->EndAddressOfRawData -
@@ -436,10 +547,7 @@ PeGetTlsInfo (
     TlsInfo->CallbacksAddr = TlsDirectory->AddressOfCallBacks;
     TlsInfo->Alignment = 1 << (TlsDirectory->Characteristics & 0xF);
   } else {
-    PE_TLS_DIRECTORY32 *TlsDirectory;
-    UINT32 ImageBaseVA = NtHeaders32->OptionalHeader.ImageBase;
-
-    TlsDirectory = (PE_TLS_DIRECTORY32 *)PE_OFF(TlsDir->VirtualAddress);
+    PE_TLS_DIRECTORY32 *TlsDirectory = (PE_TLS_DIRECTORY32 *)PE_OFF(TlsDir->VirtualAddress);
 
     TlsInfo->InitDataAddr = TlsDirectory->StartAddressOfRawData;
     TlsInfo->InitDataSize = TlsDirectory->EndAddressOfRawData -
@@ -450,27 +558,546 @@ PeGetTlsInfo (
     TlsInfo->Alignment = 1 << (TlsDirectory->Characteristics & 0xF);
   }
 
-  return ImgLoadSuccess;
+  return S_OK;
+}
+
+/**
+  Extract unwinding information from PE image.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+PeGetUnwindInfo (
+  IN  IImageLoader         *This,
+  IN  VOID                 *ImageBase,
+  OUT IMGLOAD_UNWIND_INFO  *UnwindInfo
+  )
+{
+  DOS_HEADER *DosHeader;
+  PE_NT_HEADERS32 *NtHeaders32;
+  PE_NT_HEADERS64 *NtHeaders64;
+  PE_DATA_DIRECTORY *ExceptionDir;
+  BOOLEAN Is64Bit;
+
+  if (UnwindInfo == NULL) {
+    return E_POINTER;
+  }
+
+  memset(UnwindInfo, 0, sizeof(IMGLOAD_UNWIND_INFO));
+
+  DosHeader = (DOS_HEADER *)ImageBase;
+  NtHeaders32 = (PE_NT_HEADERS32 *)PE_OFF(DosHeader->NewHeaderOffset);
+  NtHeaders64 = (PE_NT_HEADERS64 *)NtHeaders32;
+
+  Is64Bit = (NtHeaders32->OptionalHeader.Magic == PE_OPT_MAGIC_PE32PLUS);
+
+  // Get Exception data directory (.pdata)
+  ExceptionDir = Is64Bit ?
+    &NtHeaders64->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_EXCEPTION] :
+    &NtHeaders32->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_EXCEPTION];
+
+  if (ExceptionDir->VirtualAddress == 0 || ExceptionDir->Size == 0) {
+    // No unwinding info - not an error
+    return S_FALSE;
+  }
+
+  UnwindInfo->UnwindDataAddr = ExceptionDir->VirtualAddress;
+  UnwindInfo->UnwindDataSize = ExceptionDir->Size;
+  UnwindInfo->Format = ImgUnwindFormatPeExceptionTable;
+
+  return S_OK;
+}
+
+/**
+  Look up symbol by virtual address.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+PeGetSymbolByAddress (
+  IN  IImageLoader         *This,
+  IN  VOID                 *ImageBase,
+  IN  VIRTUAL_ADDRESS      Address,
+  OUT IMGLOAD_SYMBOL_INFO  *SymbolInfo
+  )
+{
+  if (SymbolInfo == NULL) {
+    return E_POINTER;
+  }
+
+  // PE symbol table parsing would go here
+  // For now, return S_FALSE (not found)
+  memset(SymbolInfo, 0, sizeof(IMGLOAD_SYMBOL_INFO));
+  return S_FALSE;
+}
+
+/**
+  Look up symbol by name.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+PeGetSymbolByName (
+  IN  IImageLoader         *This,
+  IN  VOID                 *ImageBase,
+  IN  CONST CHAR8          *Name,
+  OUT IMGLOAD_SYMBOL_INFO  *SymbolInfo
+  )
+{
+  if (Name == NULL || SymbolInfo == NULL) {
+    return E_POINTER;
+  }
+
+  // PE symbol table parsing would go here
+  memset(SymbolInfo, 0, sizeof(IMGLOAD_SYMBOL_INFO));
+  return S_FALSE;
+}
+
+/**
+  Extract relocation information from PE image.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+PeGetRelocInfo (
+  IN  IImageLoader         *This,
+  IN  VOID                 *ImageBase,
+  OUT IMGLOAD_RELOC_INFO   *RelocInfo
+  )
+{
+  DOS_HEADER *DosHeader;
+  PE_NT_HEADERS32 *NtHeaders32;
+  PE_NT_HEADERS64 *NtHeaders64;
+  PE_DATA_DIRECTORY *RelocDir;
+  BOOLEAN Is64Bit;
+
+  if (RelocInfo == NULL) {
+    return E_POINTER;
+  }
+
+  memset(RelocInfo, 0, sizeof(IMGLOAD_RELOC_INFO));
+
+  DosHeader = (DOS_HEADER *)ImageBase;
+  NtHeaders32 = (PE_NT_HEADERS32 *)PE_OFF(DosHeader->NewHeaderOffset);
+  NtHeaders64 = (PE_NT_HEADERS64 *)NtHeaders32;
+
+  Is64Bit = (NtHeaders32->OptionalHeader.Magic == PE_OPT_MAGIC_PE32PLUS);
+
+  // Get preferred base address
+  if (Is64Bit) {
+    RelocInfo->PreferredBase = NtHeaders64->OptionalHeader.ImageBase;
+  } else {
+    RelocInfo->PreferredBase = NtHeaders32->OptionalHeader.ImageBase;
+  }
+
+  // Get base relocation directory
+  RelocDir = Is64Bit ?
+    &NtHeaders64->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_BASERELOC] :
+    &NtHeaders32->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_BASERELOC];
+
+  if (RelocDir->VirtualAddress == 0 || RelocDir->Size == 0) {
+    RelocInfo->RequiresReloc = FALSE;
+    return S_FALSE;  // No relocations
+  }
+
+  RelocInfo->RelocTableAddr = RelocDir->VirtualAddress;
+  RelocInfo->RelocTableSize = RelocDir->Size;
+  RelocInfo->Format = ImgRelocFormatPe;
+  RelocInfo->RequiresReloc = TRUE;
+
+  return S_OK;
+}
+
+/**
+  Apply relocations to PE image loaded at different address.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+PeApplyRelocations (
+  IN VOID              *ImageBase,
+  IN VIRTUAL_ADDRESS   LoadAddress,
+  IN VIRTUAL_ADDRESS   PreferredBase
+  )
+{
+  DOS_HEADER *DosHeader;
+  PE_NT_HEADERS32 *NtHeaders32;
+  PE_NT_HEADERS64 *NtHeaders64;
+  PE_DATA_DIRECTORY *RelocDir;
+  PE_BASE_RELOCATION *RelocBlock;
+  UINT16 *RelocEntry;
+  UINTN RelocOffset;
+  UINTN BlockSize;
+  UINTN NumEntries;
+  UINTN i;
+  INT64 Delta;
+  BOOLEAN Is64Bit;
+  UINT32 *Fixup32;
+  UINT64 *Fixup64;
+  UINT16 Type;
+  UINT16 Offset;
+
+  DosHeader = (DOS_HEADER *)ImageBase;
+  NtHeaders32 = (PE_NT_HEADERS32 *)PE_OFF(DosHeader->NewHeaderOffset);
+  NtHeaders64 = (PE_NT_HEADERS64 *)NtHeaders32;
+
+  Is64Bit = (NtHeaders32->OptionalHeader.Magic == PE_OPT_MAGIC_PE32PLUS);
+
+  // Calculate relocation delta
+  Delta = (INT64)LoadAddress - (INT64)PreferredBase;
+
+  if (Delta == 0) {
+    return S_OK;  // No relocation needed
+  }
+
+  // Get base relocation directory
+  RelocDir = Is64Bit ?
+    &NtHeaders64->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_BASERELOC] :
+    &NtHeaders32->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_BASERELOC];
+
+  if (RelocDir->VirtualAddress == 0 || RelocDir->Size == 0) {
+    return S_OK;  // No relocations to apply
+  }
+
+  // Process each relocation block
+  RelocOffset = 0;
+  while (RelocOffset < RelocDir->Size) {
+    RelocBlock = (PE_BASE_RELOCATION *)PE_OFF(RelocDir->VirtualAddress + RelocOffset);
+
+    if (RelocBlock->SizeOfBlock == 0) {
+      break;  // End of relocation data
+    }
+
+    BlockSize = RelocBlock->SizeOfBlock - sizeof(PE_BASE_RELOCATION);
+    NumEntries = BlockSize / sizeof(UINT16);
+    RelocEntry = (UINT16 *)((UINT8 *)RelocBlock + sizeof(PE_BASE_RELOCATION));
+
+    for (i = 0; i < NumEntries; i++) {
+      Type = (RelocEntry[i] >> 12) & 0xF;
+      Offset = RelocEntry[i] & 0xFFF;
+
+      switch (Type) {
+        case IMAGE_REL_BASED_ABSOLUTE:
+          // No-op, used for padding
+          break;
+
+        case IMAGE_REL_BASED_HIGHLOW:
+          // 32-bit fixup
+          Fixup32 = (UINT32 *)PE_OFF(RelocBlock->VirtualAddress + Offset);
+          *Fixup32 = (UINT32)(*Fixup32 + Delta);
+          break;
+
+        case IMAGE_REL_BASED_DIR64:
+          // 64-bit fixup
+          Fixup64 = (UINT64 *)PE_OFF(RelocBlock->VirtualAddress + Offset);
+          *Fixup64 = *Fixup64 + Delta;
+          break;
+
+        default:
+          // Unknown relocation type, skip
+          break;
+      }
+    }
+
+    RelocOffset += RelocBlock->SizeOfBlock;
+  }
+
+  return S_OK;
+}
+
+/**
+  IUnknown::QueryInterface implementation.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+PeQueryInterface (
+  IN  IImageLoader  *This,
+  IN  REFIID        riid,
+  OUT VOID          **ppvObject
+  )
+{
+  if (ppvObject == NULL) {
+    return E_POINTER;
+  }
+
+  *ppvObject = NULL;
+
+  if (memcmp(riid, &IID_IImageLoader, sizeof(GUID)) == 0 ||
+      memcmp(riid, &IID_IUnknown, sizeof(GUID)) == 0) {
+    *ppvObject = This;
+    return S_OK;
+  }
+
+  return E_NOINTERFACE;
+}
+
+/**
+  IUnknown::AddRef implementation.
+**/
+static
+UINT32
+STDMETHODCALLTYPE
+PeAddRef (
+  IN IImageLoader  *This
+  )
+{
+  return 1;
+}
+
+/**
+  IUnknown::Release implementation.
+**/
+static
+UINT32
+STDMETHODCALLTYPE
+PeRelease (
+  IN IImageLoader  *This
+  )
+{
+  return 1;
+}
+
+/**
+  Get target operating system from PE image.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+PeGetTargetSystem (
+  IN  IImageLoader           *This,
+  IN  VOID                   *ImageBase,
+  OUT IMGLOAD_TARGET_SYSTEM  *TargetSystem
+  )
+{
+  DOS_HEADER *DosHeader;
+  PE_OPTIONAL_HEADER32 *OptHeader32;
+  PE_OPTIONAL_HEADER64 *OptHeader64;
+  COFF_HEADER *CoffHeader;
+  UINT16 Subsystem;
+  BOOLEAN Is64Bit;
+
+  if (TargetSystem == NULL) {
+    return E_POINTER;
+  }
+
+  DosHeader = (DOS_HEADER *)ImageBase;
+  CoffHeader = (COFF_HEADER *)((UINT8 *)ImageBase + DosHeader->NewHeaderOffset + 4);
+  OptHeader32 = (PE_OPTIONAL_HEADER32 *)(CoffHeader + 1);
+  OptHeader64 = (PE_OPTIONAL_HEADER64 *)(CoffHeader + 1);
+
+  Is64Bit = (OptHeader32->Magic == PE_OPT_MAGIC_PE32PLUS);
+  Subsystem = Is64Bit ? OptHeader64->Subsystem : OptHeader32->Subsystem;
+
+  // Check for BeOS (x86 version used PE format with subsystem 6)
+  if (Subsystem == IMAGE_SUBSYSTEM_BEOS_GUI) {
+    *TargetSystem = ImgSystemBeOs;
+    return S_OK;
+  }
+
+  // PE format is primarily used by Windows NT family
+  *TargetSystem = ImgSystemWindowsNt;
+  return S_OK;
+}
+
+/**
+  Get minimum required system version from PE image.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+PeGetMinimumSystemVersion (
+  IN  IImageLoader            *This,
+  IN  VOID                    *ImageBase,
+  OUT IMGLOAD_SYSTEM_VERSION  *MinimumVersion
+  )
+{
+  DOS_HEADER *DosHeader;
+  PE_OPTIONAL_HEADER32 *OptHeader32;
+  PE_OPTIONAL_HEADER64 *OptHeader64;
+  COFF_HEADER *CoffHeader;
+  BOOLEAN Is64Bit;
+
+  if (MinimumVersion == NULL) {
+    return E_POINTER;
+  }
+
+  memset(MinimumVersion, 0, sizeof(IMGLOAD_SYSTEM_VERSION));
+
+  DosHeader = (DOS_HEADER *)ImageBase;
+  CoffHeader = (COFF_HEADER *)((UINT8 *)ImageBase + DosHeader->NewHeaderOffset + 4);
+  OptHeader32 = (PE_OPTIONAL_HEADER32 *)(CoffHeader + 1);
+  OptHeader64 = (PE_OPTIONAL_HEADER64 *)(CoffHeader + 1);
+
+  Is64Bit = (OptHeader32->Magic == PE_OPT_MAGIC_PE32PLUS);
+
+  if (Is64Bit) {
+    MinimumVersion->Major = OptHeader64->MajorOperatingSystemVersion;
+    MinimumVersion->Minor = OptHeader64->MinorOperatingSystemVersion;
+  } else {
+    MinimumVersion->Major = OptHeader32->MajorOperatingSystemVersion;
+    MinimumVersion->Minor = OptHeader32->MinorOperatingSystemVersion;
+  }
+
+  return (MinimumVersion->Major > 0) ? S_OK : S_FALSE;
+}
+
+/**
+  Get target subsystem from PE image.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+PeGetTargetSubsystem (
+  IN  IImageLoader              *This,
+  IN  VOID                      *ImageBase,
+  OUT IMGLOAD_TARGET_SUBSYSTEM  *TargetSubsystem
+  )
+{
+  DOS_HEADER *DosHeader;
+  PE_OPTIONAL_HEADER32 *OptHeader32;
+  PE_OPTIONAL_HEADER64 *OptHeader64;
+  COFF_HEADER *CoffHeader;
+  UINT16 Subsystem;
+  BOOLEAN Is64Bit;
+
+  if (TargetSubsystem == NULL) {
+    return E_POINTER;
+  }
+
+  DosHeader = (DOS_HEADER *)ImageBase;
+  CoffHeader = (COFF_HEADER *)((UINT8 *)ImageBase + DosHeader->NewHeaderOffset + 4);
+  OptHeader32 = (PE_OPTIONAL_HEADER32 *)(CoffHeader + 1);
+  OptHeader64 = (PE_OPTIONAL_HEADER64 *)(CoffHeader + 1);
+
+  Is64Bit = (OptHeader32->Magic == PE_OPT_MAGIC_PE32PLUS);
+  Subsystem = Is64Bit ? OptHeader64->Subsystem : OptHeader32->Subsystem;
+
+  switch (Subsystem) {
+    case IMAGE_SUBSYSTEM_NATIVE:
+      *TargetSubsystem = ImgSubsystemNative;
+      break;
+    case IMAGE_SUBSYSTEM_WINDOWS_GUI:
+      *TargetSubsystem = ImgSubsystemWindowsGui;
+      break;
+    case IMAGE_SUBSYSTEM_WINDOWS_CUI:
+      *TargetSubsystem = ImgSubsystemWindowsCui;
+      break;
+    case IMAGE_SUBSYSTEM_OS2_GUI:
+      *TargetSubsystem = ImgSubsystemOs2Gui;
+      break;
+    case IMAGE_SUBSYSTEM_OS2_CUI:
+      *TargetSubsystem = ImgSubsystemOs2Cui;
+      break;
+    case IMAGE_SUBSYSTEM_BEOS_GUI:
+      *TargetSubsystem = ImgSubsystemBeOsGui;
+      break;
+    case IMAGE_SUBSYSTEM_WINDOWS_CE_GUI:
+      *TargetSubsystem = ImgSubsystemWindowsCeGui;
+      break;
+    case IMAGE_SUBSYSTEM_EFI_APPLICATION:
+      *TargetSubsystem = ImgSubsystemEfiApplication;
+      break;
+    case IMAGE_SUBSYSTEM_EFI_BOOT_SERVICE_DRIVER:
+      *TargetSubsystem = ImgSubsystemEfiBootDriver;
+      break;
+    case IMAGE_SUBSYSTEM_EFI_RUNTIME_DRIVER:
+      *TargetSubsystem = ImgSubsystemEfiRuntimeDriver;
+      break;
+    case IMAGE_SUBSYSTEM_EFI_ROM:
+      *TargetSubsystem = ImgSubsystemEfiRom;
+      break;
+    case IMAGE_SUBSYSTEM_POSIX_CUI:
+      *TargetSubsystem = ImgSubsystemPosix;
+      break;
+    case IMAGE_SUBSYSTEM_WINDOWS_BOOT_APPLICATION:
+      *TargetSubsystem = ImgSubsystemWindowsBootApp;
+      break;
+    case IMAGE_SUBSYSTEM_XBOX:
+      *TargetSubsystem = ImgSubsystemXbox;
+      break;
+    default:
+      *TargetSubsystem = ImgSubsystemUnknown;
+      break;
+  }
+
+  return S_OK;
+}
+
+/**
+  Get minimum required subsystem version from PE image.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+PeGetMinimumSubsystemVersion (
+  IN  IImageLoader            *This,
+  IN  VOID                    *ImageBase,
+  OUT IMGLOAD_SYSTEM_VERSION  *MinimumVersion
+  )
+{
+  DOS_HEADER *DosHeader;
+  PE_OPTIONAL_HEADER32 *OptHeader32;
+  PE_OPTIONAL_HEADER64 *OptHeader64;
+  COFF_HEADER *CoffHeader;
+  BOOLEAN Is64Bit;
+
+  if (MinimumVersion == NULL) {
+    return E_POINTER;
+  }
+
+  memset(MinimumVersion, 0, sizeof(IMGLOAD_SYSTEM_VERSION));
+
+  DosHeader = (DOS_HEADER *)ImageBase;
+  CoffHeader = (COFF_HEADER *)((UINT8 *)ImageBase + DosHeader->NewHeaderOffset + 4);
+  OptHeader32 = (PE_OPTIONAL_HEADER32 *)(CoffHeader + 1);
+  OptHeader64 = (PE_OPTIONAL_HEADER64 *)(CoffHeader + 1);
+
+  Is64Bit = (OptHeader32->Magic == PE_OPT_MAGIC_PE32PLUS);
+
+  if (Is64Bit) {
+    MinimumVersion->Major = OptHeader64->SubsystemMajorVersion;
+    MinimumVersion->Minor = OptHeader64->SubsystemMinorVersion;
+  } else {
+    MinimumVersion->Major = OptHeader32->SubsystemMajorVersion;
+    MinimumVersion->Minor = OptHeader32->SubsystemMinorVersion;
+  }
+
+  return (MinimumVersion->Major > 0) ? S_OK : S_FALSE;
 }
 
 //
 // PE Loader VTable
 //
 
-static CONST IMAGE_LOADER_VTBL gPeVtbl = {
+static CONST IImageLoaderVtbl gPeVtbl = {
+  PeQueryInterface,
+  PeAddRef,
+  PeRelease,
   PeDetect,
   PeGetArch,
+  PeGetEndianness,
   PeGetEntryPoint,
   PeLoadImage,
-  PeGetTlsInfo
+  PeGetTlsInfo,
+  PeGetUnwindInfo,
+  PeGetSymbolByAddress,
+  PeGetSymbolByName,
+  PeGetRelocInfo,
+  PeApplyRelocations,
+  PeGetTargetSystem,
+  PeGetMinimumSystemVersion,
+  PeGetTargetSubsystem,
+  PeGetMinimumSubsystemVersion
 };
 
 //
 // PE Loader Instance
 //
 
-IMAGE_LOADER gPeLoader = {
-  &gPeVtbl,
-  "PE/COFF",
-  NULL
+IImageLoader gPeLoader = {
+  &gPeVtbl
 };
+
+// Auto-register this loader
+APXH_REGISTER_IMGLOADER(gPeLoader);

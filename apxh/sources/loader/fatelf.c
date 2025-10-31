@@ -2,8 +2,9 @@
   APXH FatELF Loader
 
   Provides FatELF (multi-architecture ELF container) format parsing and
-  loading. FatELF embeds multiple ELF binaries for different architectures
-  into one file, similar to macOS Universal Binaries.
+  loading using COM-style interface. FatELF embeds multiple ELF binaries
+  for different architectures into one file, similar to macOS Universal
+  Binaries.
 
   Supports:
   - FatELF version 1
@@ -99,36 +100,11 @@ ANX_PACK_POP()
 // External ELF loader
 //
 
-extern IMAGE_LOADER gElfLoader;
+extern IImageLoader gElfLoader;
 
 //
 // Internal Functions
 //
-
-/**
-  Check if image is FatELF format.
-**/
-static
-BOOLEAN
-ANXAPI
-FatElfDetect (
-  IN IMAGE_LOADER  *This,
-  IN VOID          *ImageBase,
-  IN UINTN         ImageSize
-  )
-{
-  FATELF_HEADER *Header;
-
-  if (ImageSize < sizeof(FATELF_HEADER)) {
-    return FALSE;
-  }
-
-  Header = (FATELF_HEADER *)ImageBase;
-
-  return (Header->Magic == FATELF_MAGIC &&
-          Header->Version == FATELF_VERSION &&
-          Header->NumRecords > 0);
-}
 
 /**
   Map APXH architecture to ELF machine type and word size.
@@ -142,18 +118,23 @@ ArchToElfMachine (
   )
 {
   switch (Arch) {
-    case ARCH_386:
+    case Arch386:
       *MachineType = EM_386;
       *WordSize = FATELF_WORDSIZE_32;
       return TRUE;
 
-    case ARCH_AMD64:
+    case ArchAmd64:
       *MachineType = EM_X86_64;
       *WordSize = FATELF_WORDSIZE_64;
       return TRUE;
 
-    case ARCH_RISCV64:
+    case ArchRiscV64:
       *MachineType = EM_RISCV;
+      *WordSize = FATELF_WORDSIZE_64;
+      return TRUE;
+
+    case ArchArm64:
+      *MachineType = EM_AARCH64;
       *WordSize = FATELF_WORDSIZE_64;
       return TRUE;
 
@@ -172,11 +153,14 @@ FindMatchingRecord (
   IN ARCH   TargetArch
   )
 {
-  FATELF_HEADER *Header = (FATELF_HEADER *)ImageBase;
-  FATELF_RECORD *Records = (FATELF_RECORD *)(Header + 1);
+  FATELF_HEADER *Header;
+  FATELF_RECORD *Records;
   UINT16 TargetMachine;
   UINT8 TargetWordSize;
   UINT32 i;
+
+  Header = (FATELF_HEADER *)ImageBase;
+  Records = (FATELF_RECORD *)(Header + 1);
 
   if (!ArchToElfMachine(TargetArch, &TargetMachine, &TargetWordSize)) {
     return NULL;
@@ -196,6 +180,39 @@ FindMatchingRecord (
   return NULL;
 }
 
+//
+// IImageLoader Implementation for FatELF
+//
+
+/**
+  Detect if image is FatELF format.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+FatElfDetect (
+  IN IImageLoader  *This,
+  IN VOID          *ImageBase,
+  IN UINTN         ImageSize
+  )
+{
+  FATELF_HEADER *Header;
+
+  if (ImageSize < sizeof(FATELF_HEADER)) {
+    return S_FALSE;
+  }
+
+  Header = (FATELF_HEADER *)ImageBase;
+
+  if (Header->Magic == FATELF_MAGIC &&
+      Header->Version == FATELF_VERSION &&
+      Header->NumRecords > 0) {
+    return S_OK;
+  }
+
+  return S_FALSE;
+}
+
 /**
   Get architecture from FatELF image.
 
@@ -203,84 +220,147 @@ FindMatchingRecord (
   supported architecture, with preference for the current platform.
 **/
 static
-ARCH
-ANXAPI
+HRESULT
+STDMETHODCALLTYPE
 FatElfGetArch (
-  IN IMAGE_LOADER  *This,
-  IN VOID          *ImageBase
+  IN  IImageLoader  *This,
+  IN  VOID          *ImageBase,
+  OUT ARCH          *Architecture
   )
 {
-  FATELF_HEADER *Header = (FATELF_HEADER *)ImageBase;
-  FATELF_RECORD *Records = (FATELF_RECORD *)(Header + 1);
+  FATELF_HEADER *Header;
+  FATELF_RECORD *Records;
+  FATELF_RECORD *Rec;
   UINT32 i;
 
+  if (Architecture == NULL) {
+    return E_POINTER;
+  }
+
+  Header = (FATELF_HEADER *)ImageBase;
+  Records = (FATELF_RECORD *)(Header + 1);
+
   // Try to find current architecture first
-  #if defined(ANANKE_ARCH_X64)
-    FATELF_RECORD *Rec = FindMatchingRecord(ImageBase, ARCH_AMD64);
-    if (Rec != NULL) {
-      return ARCH_AMD64;
-    }
-  #elif defined(ANANKE_ARCH_X86)
-    FATELF_RECORD *Rec = FindMatchingRecord(ImageBase, ARCH_386);
-    if (Rec != NULL) {
-      return ARCH_386;
-    }
-  #elif defined(ANANKE_ARCH_RISCV64)
-    FATELF_RECORD *Rec = FindMatchingRecord(ImageBase, ARCH_RISCV64);
-    if (Rec != NULL) {
-      return ARCH_RISCV64;
-    }
-  #endif
+#if defined(ANANKE_ARCH_X64)
+  Rec = FindMatchingRecord(ImageBase, ArchAmd64);
+  if (Rec != NULL) {
+    *Architecture = ArchAmd64;
+    return S_OK;
+  }
+#elif defined(ANANKE_ARCH_X86)
+  Rec = FindMatchingRecord(ImageBase, Arch386);
+  if (Rec != NULL) {
+    *Architecture = Arch386;
+    return S_OK;
+  }
+#elif defined(ANANKE_ArchRiscV64)
+  Rec = FindMatchingRecord(ImageBase, ArchRiscV64);
+  if (Rec != NULL) {
+    *Architecture = ArchRiscV64;
+    return S_OK;
+  }
+#endif
 
   // Return first supported architecture
   for (i = 0; i < Header->NumRecords; i++) {
-    FATELF_RECORD *Rec = &Records[i];
+    Rec = &Records[i];
 
     switch (Rec->MachineType) {
       case EM_386:
-        return ARCH_386;
+        *Architecture = Arch386;
+        return S_OK;
       case EM_X86_64:
-        return ARCH_AMD64;
+        *Architecture = ArchAmd64;
+        return S_OK;
       case EM_RISCV:
-        return ARCH_RISCV64;
+        *Architecture = ArchRiscV64;
+        return S_OK;
+      case EM_AARCH64:
+        *Architecture = ArchArm64;
+        return S_OK;
       default:
         continue;
     }
   }
 
-  return ARCH_UNSUPPORTED;
+  *Architecture = ArchUnsupported;
+  return IMGLOAD_E_UNSUPPORTED_ARCH;
+}
+
+/**
+  Get endianness from FatELF image.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+FatElfGetEndianness (
+  IN  IImageLoader    *This,
+  IN  VOID            *ImageBase,
+  OUT IMGLOAD_ENDIAN  *Endianness
+  )
+{
+  FATELF_RECORD *Rec;
+  VOID *ElfImage;
+  ARCH TargetArch;
+  HRESULT Status;
+
+  if (Endianness == NULL) {
+    return E_POINTER;
+  }
+
+  // Get target architecture
+  Status = FatElfGetArch(This, ImageBase, &TargetArch);
+  if (FAILED(Status)) {
+    return Status;
+  }
+
+  // Find matching record
+  Rec = FindMatchingRecord(ImageBase, TargetArch);
+  if (Rec == NULL) {
+    return IMGLOAD_E_UNSUPPORTED_ARCH;
+  }
+
+  // Get endianness from embedded ELF
+  ElfImage = FATELF_OFF(Rec->Offset);
+  return gElfLoader.lpVtbl->GetEndianness(&gElfLoader, ElfImage, Endianness);
 }
 
 /**
   Get entry point from FatELF image.
 **/
 static
-VIRTUAL_ADDRESS
-ANXAPI
+HRESULT
+STDMETHODCALLTYPE
 FatElfGetEntryPoint (
-  IN IMAGE_LOADER  *This,
-  IN VOID          *ImageBase
+  IN  IImageLoader      *This,
+  IN  VOID              *ImageBase,
+  OUT VIRTUAL_ADDRESS   *EntryPoint
   )
 {
   FATELF_RECORD *Rec;
   VOID *ElfImage;
   ARCH TargetArch;
+  HRESULT Status;
+
+  if (EntryPoint == NULL) {
+    return E_POINTER;
+  }
 
   // Get target architecture
-  TargetArch = FatElfGetArch(This, ImageBase);
-  if (TargetArch == ARCH_UNSUPPORTED) {
-    return 0;
+  Status = FatElfGetArch(This, ImageBase, &TargetArch);
+  if (FAILED(Status)) {
+    return Status;
   }
 
   // Find matching record
   Rec = FindMatchingRecord(ImageBase, TargetArch);
   if (Rec == NULL) {
-    return 0;
+    return IMGLOAD_E_UNSUPPORTED_ARCH;
   }
 
   // Get entry point from embedded ELF
   ElfImage = FATELF_OFF(Rec->Offset);
-  return gElfLoader.Vtbl->GetEntryPoint(&gElfLoader, ElfImage);
+  return gElfLoader.lpVtbl->GetEntryPoint(&gElfLoader, ElfImage, EntryPoint);
 }
 
 /**
@@ -290,34 +370,29 @@ FatElfGetEntryPoint (
   and loads it using the ELF loader.
 **/
 static
-IMGLOAD_STATUS
-ANXAPI
+HRESULT
+STDMETHODCALLTYPE
 FatElfLoadImage (
-  IN     IMAGE_LOADER     *This,
+  IN     IImageLoader     *This,
   IN OUT IMGLOAD_CONTEXT  *Context
   )
 {
-  VOID *ImageBase = Context->ImageBase;
-  FATELF_HEADER *Header = (FATELF_HEADER *)ImageBase;
+  VOID *ImageBase;
   FATELF_RECORD *Rec;
   IMGLOAD_CONTEXT ElfContext;
-  IMGLOAD_STATUS Status;
+  HRESULT Status;
 
-  info("Loading FatELF multi-architecture executable...");
-  info("  Container has %d architecture(s)", Header->NumRecords);
+  if (Context == NULL) {
+    return E_POINTER;
+  }
+
+  ImageBase = Context->ImageBase;
 
   // Find matching record for target architecture
   Rec = FindMatchingRecord(ImageBase, Context->Architecture);
   if (Rec == NULL) {
-    warn("No matching architecture found in FatELF container");
-    return ImgLoadUnsupportedArch;
+    return IMGLOAD_E_UNSUPPORTED_ARCH;
   }
-
-  info("  Selected architecture: machine=%d, wordsize=%s",
-       Rec->MachineType,
-       Rec->WordSize == FATELF_WORDSIZE_64 ? "64-bit" : "32-bit");
-  info("  Embedded ELF at offset 0x%llx (size: 0x%llx)",
-       Rec->Offset, Rec->Size);
 
   // Create context for embedded ELF
   memcpy(&ElfContext, Context, sizeof(IMGLOAD_CONTEXT));
@@ -325,28 +400,27 @@ FatElfLoadImage (
   ElfContext.ImageSize = Rec->Size;
 
   // Load the embedded ELF binary
-  Status = gElfLoader.Vtbl->LoadImage(&gElfLoader, &ElfContext);
-  if (Status != ImgLoadSuccess) {
-    warn("Failed to load embedded ELF binary");
+  Status = gElfLoader.lpVtbl->LoadImage(&gElfLoader, &ElfContext);
+  if (FAILED(Status)) {
     return Status;
   }
 
   // Copy results back
+  Context->Architecture = ElfContext.Architecture;
+  Context->Endianness = ElfContext.Endianness;
   Context->EntryPoint = ElfContext.EntryPoint;
-  Context->KernelTls = ElfContext.KernelTls;
-  Context->UserTls = ElfContext.UserTls;
 
-  return ImgLoadSuccess;
+  return S_OK;
 }
 
 /**
   Extract TLS information from FatELF image.
 **/
 static
-IMGLOAD_STATUS
-ANXAPI
+HRESULT
+STDMETHODCALLTYPE
 FatElfGetTlsInfo (
-  IN  IMAGE_LOADER      *This,
+  IN  IImageLoader      *This,
   IN  VOID              *ImageBase,
   OUT IMGLOAD_TLS_INFO  *TlsInfo
   )
@@ -354,44 +428,411 @@ FatElfGetTlsInfo (
   FATELF_RECORD *Rec;
   VOID *ElfImage;
   ARCH TargetArch;
+  HRESULT Status;
+
+  if (TlsInfo == NULL) {
+    return E_POINTER;
+  }
 
   // Get target architecture
-  TargetArch = FatElfGetArch(This, ImageBase);
-  if (TargetArch == ARCH_UNSUPPORTED) {
+  Status = FatElfGetArch(This, ImageBase, &TargetArch);
+  if (FAILED(Status)) {
     memset(TlsInfo, 0, sizeof(IMGLOAD_TLS_INFO));
-    return ImgLoadUnsupportedArch;
+    return Status;
   }
 
   // Find matching record
   Rec = FindMatchingRecord(ImageBase, TargetArch);
   if (Rec == NULL) {
     memset(TlsInfo, 0, sizeof(IMGLOAD_TLS_INFO));
-    return ImgLoadUnsupportedArch;
+    return IMGLOAD_E_UNSUPPORTED_ARCH;
   }
 
   // Get TLS info from embedded ELF
   ElfImage = FATELF_OFF(Rec->Offset);
-  return gElfLoader.Vtbl->GetTlsInfo(&gElfLoader, ElfImage, TlsInfo);
+  return gElfLoader.lpVtbl->GetTlsInfo(&gElfLoader, ElfImage, TlsInfo);
+}
+
+/**
+  Extract unwinding information from FatELF image.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+FatElfGetUnwindInfo (
+  IN  IImageLoader         *This,
+  IN  VOID                 *ImageBase,
+  OUT IMGLOAD_UNWIND_INFO  *UnwindInfo
+  )
+{
+  FATELF_RECORD *Rec;
+  VOID *ElfImage;
+  ARCH TargetArch;
+  HRESULT Status;
+
+  if (UnwindInfo == NULL) {
+    return E_POINTER;
+  }
+
+  // Get target architecture
+  Status = FatElfGetArch(This, ImageBase, &TargetArch);
+  if (FAILED(Status)) {
+    memset(UnwindInfo, 0, sizeof(IMGLOAD_UNWIND_INFO));
+    return Status;
+  }
+
+  // Find matching record
+  Rec = FindMatchingRecord(ImageBase, TargetArch);
+  if (Rec == NULL) {
+    memset(UnwindInfo, 0, sizeof(IMGLOAD_UNWIND_INFO));
+    return IMGLOAD_E_UNSUPPORTED_ARCH;
+  }
+
+  // Get unwinding info from embedded ELF
+  ElfImage = FATELF_OFF(Rec->Offset);
+  return gElfLoader.lpVtbl->GetUnwindInfo(&gElfLoader, ElfImage, UnwindInfo);
+}
+
+/**
+  Look up symbol by virtual address.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+FatElfGetSymbolByAddress (
+  IN  IImageLoader         *This,
+  IN  VOID                 *ImageBase,
+  IN  VIRTUAL_ADDRESS      Address,
+  OUT IMGLOAD_SYMBOL_INFO  *SymbolInfo
+  )
+{
+  FATELF_RECORD *Rec;
+  VOID *ElfImage;
+  ARCH TargetArch;
+  HRESULT Status;
+
+  if (SymbolInfo == NULL) {
+    return E_POINTER;
+  }
+
+  // Get target architecture
+  Status = FatElfGetArch(This, ImageBase, &TargetArch);
+  if (FAILED(Status)) {
+    memset(SymbolInfo, 0, sizeof(IMGLOAD_SYMBOL_INFO));
+    return Status;
+  }
+
+  // Find matching record
+  Rec = FindMatchingRecord(ImageBase, TargetArch);
+  if (Rec == NULL) {
+    memset(SymbolInfo, 0, sizeof(IMGLOAD_SYMBOL_INFO));
+    return IMGLOAD_E_UNSUPPORTED_ARCH;
+  }
+
+  // Get symbol from embedded ELF
+  ElfImage = FATELF_OFF(Rec->Offset);
+  return gElfLoader.lpVtbl->GetSymbolByAddress(&gElfLoader, ElfImage, Address, SymbolInfo);
+}
+
+/**
+  Look up symbol by name.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+FatElfGetSymbolByName (
+  IN  IImageLoader         *This,
+  IN  VOID                 *ImageBase,
+  IN  CONST CHAR8          *Name,
+  OUT IMGLOAD_SYMBOL_INFO  *SymbolInfo
+  )
+{
+  FATELF_RECORD *Rec;
+  VOID *ElfImage;
+  ARCH TargetArch;
+  HRESULT Status;
+
+  if (Name == NULL || SymbolInfo == NULL) {
+    return E_POINTER;
+  }
+
+  // Get target architecture
+  Status = FatElfGetArch(This, ImageBase, &TargetArch);
+  if (FAILED(Status)) {
+    memset(SymbolInfo, 0, sizeof(IMGLOAD_SYMBOL_INFO));
+    return Status;
+  }
+
+  // Find matching record
+  Rec = FindMatchingRecord(ImageBase, TargetArch);
+  if (Rec == NULL) {
+    memset(SymbolInfo, 0, sizeof(IMGLOAD_SYMBOL_INFO));
+    return IMGLOAD_E_UNSUPPORTED_ARCH;
+  }
+
+  // Get symbol from embedded ELF
+  ElfImage = FATELF_OFF(Rec->Offset);
+  return gElfLoader.lpVtbl->GetSymbolByName(&gElfLoader, ElfImage, Name, SymbolInfo);
+}
+
+/**
+  Extract relocation information from FatELF image.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+FatElfGetRelocInfo (
+  IN  IImageLoader         *This,
+  IN  VOID                 *ImageBase,
+  OUT IMGLOAD_RELOC_INFO   *RelocInfo
+  )
+{
+  FATELF_RECORD *Rec;
+  VOID *ElfImage;
+  ARCH TargetArch;
+  HRESULT Status;
+
+  if (RelocInfo == NULL) {
+    return E_POINTER;
+  }
+
+  // Get target architecture
+  Status = FatElfGetArch(This, ImageBase, &TargetArch);
+  if (FAILED(Status)) {
+    memset(RelocInfo, 0, sizeof(IMGLOAD_RELOC_INFO));
+    return Status;
+  }
+
+  // Find matching record
+  Rec = FindMatchingRecord(ImageBase, TargetArch);
+  if (Rec == NULL) {
+    memset(RelocInfo, 0, sizeof(IMGLOAD_RELOC_INFO));
+    return IMGLOAD_E_UNSUPPORTED_ARCH;
+  }
+
+  // Delegate to embedded ELF loader
+  ElfImage = FATELF_OFF(Rec->Offset);
+  return gElfLoader.lpVtbl->GetRelocInfo(&gElfLoader, ElfImage, RelocInfo);
+}
+
+/**
+  Apply relocations to FatELF image loaded at different address.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+FatElfApplyRelocations (
+  IN VOID              *ImageBase,
+  IN VIRTUAL_ADDRESS   LoadAddress,
+  IN VIRTUAL_ADDRESS   PreferredBase
+  )
+{
+  FATELF_HEADER *Header;
+  FATELF_RECORD *Records;
+  FATELF_RECORD *Rec;
+  VOID *ElfImage;
+  ARCH TargetArch;
+  HRESULT Status;
+  UINTN i;
+
+  Header = (FATELF_HEADER *)ImageBase;
+  Records = (FATELF_RECORD *)FATELF_OFF(sizeof(FATELF_HEADER));
+
+  // Determine target architecture
+  TargetArch = ArchInvalid;
+#if defined(ANANKE_ARCH_X64)
+  TargetArch = ArchAmd64;
+#elif defined(ANANKE_ArchArm64)
+  TargetArch = ARCH_AARCH64;
+#elif defined(ANANKE_ArchRiscV64)
+  TargetArch = ArchRiscV64;
+#elif defined(ANANKE_ARCH_IA32)
+  TargetArch = Arch386;
+#endif
+
+  // Find matching record
+  Rec = NULL;
+  for (i = 0; i < ANX_BSWAP16(Header->NumRecords); i++) {
+    if (GetArchFromMachine(ANX_BSWAP16(Records[i].MachineType)) == TargetArch) {
+      Rec = &Records[i];
+      break;
+    }
+  }
+
+  if (Rec == NULL) {
+    return IMGLOAD_E_UNSUPPORTED_ARCH;
+  }
+
+  // Delegate to embedded ELF loader
+  ElfImage = FATELF_OFF(ANX_BSWAP64(Rec->Offset));
+  return gElfLoader.lpVtbl->ApplyRelocations(ElfImage, LoadAddress, PreferredBase);
+}
+
+/**
+  IUnknown::QueryInterface implementation.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+FatElfQueryInterface (
+  IN  IImageLoader  *This,
+  IN  REFIID        riid,
+  OUT VOID          **ppvObject
+  )
+{
+  if (ppvObject == NULL) {
+    return E_POINTER;
+  }
+
+  *ppvObject = NULL;
+
+  if (memcmp(riid, &IID_IImageLoader, sizeof(GUID)) == 0 ||
+      memcmp(riid, &IID_IUnknown, sizeof(GUID)) == 0) {
+    *ppvObject = This;
+    return S_OK;
+  }
+
+  return E_NOINTERFACE;
+}
+
+/**
+  IUnknown::AddRef implementation.
+**/
+static
+UINT32
+STDMETHODCALLTYPE
+FatElfAddRef (
+  IN IImageLoader  *This
+  )
+{
+  return 1;
+}
+
+/**
+  IUnknown::Release implementation.
+**/
+static
+UINT32
+STDMETHODCALLTYPE
+FatElfRelease (
+  IN IImageLoader  *This
+  )
+{
+  return 1;
 }
 
 //
+
+/**
+  Get target operating system from Fatelf image.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+FatelfGetTargetSystem (
+  IN  IImageLoader           *This,
+  IN  VOID                   *ImageBase,
+  OUT IMGLOAD_TARGET_SYSTEM  *TargetSystem
+  )
+{
+  if (TargetSystem == NULL) {
+    return E_POINTER;
+  }
+
+  *TargetSystem = ImgSystemUnix;
+  return S_OK;
+}
+
+/**
+  Get minimum required system version from Fatelf image.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+FatelfGetMinimumSystemVersion (
+  IN  IImageLoader            *This,
+  IN  VOID                    *ImageBase,
+  OUT IMGLOAD_SYSTEM_VERSION  *MinimumVersion
+  )
+{
+  if (MinimumVersion == NULL) {
+    return E_POINTER;
+  }
+
+  memset(MinimumVersion, 0, sizeof(IMGLOAD_SYSTEM_VERSION));
+  return S_FALSE;
+}
+
+/**
+  Get target subsystem from Fatelf image.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+FatelfGetTargetSubsystem (
+  IN  IImageLoader              *This,
+  IN  VOID                      *ImageBase,
+  OUT IMGLOAD_TARGET_SUBSYSTEM  *TargetSubsystem
+  )
+{
+  if (TargetSubsystem == NULL) {
+    return E_POINTER;
+  }
+
+  *TargetSubsystem = ImgSubsystemCli;
+  return S_OK;
+}
+
+/**
+  Get minimum required subsystem version from Fatelf image.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+FatelfGetMinimumSubsystemVersion (
+  IN  IImageLoader            *This,
+  IN  VOID                    *ImageBase,
+  OUT IMGLOAD_SYSTEM_VERSION  *MinimumVersion
+  )
+{
+  if (MinimumVersion == NULL) {
+    return E_POINTER;
+  }
+
+  memset(MinimumVersion, 0, sizeof(IMGLOAD_SYSTEM_VERSION));
+  return S_FALSE;
+}
 // FatELF Loader VTable
 //
 
-static CONST IMAGE_LOADER_VTBL gFatElfVtbl = {
+static CONST IImageLoaderVtbl gFatElfVtbl = {
+  FatElfQueryInterface,
+  FatElfAddRef,
+  FatElfRelease,
   FatElfDetect,
   FatElfGetArch,
+  FatElfGetEndianness,
   FatElfGetEntryPoint,
   FatElfLoadImage,
-  FatElfGetTlsInfo
+  FatElfGetTlsInfo,
+  FatElfGetUnwindInfo,
+  FatElfGetSymbolByAddress,
+  FatElfGetSymbolByName,
+  FatElfGetRelocInfo,
+  FatElfApplyRelocations,
+  FatelfGetTargetSystem,
+  FatelfGetMinimumSystemVersion,
+  FatelfGetTargetSubsystem,
+  FatelfGetMinimumSubsystemVersion
 };
 
 //
 // FatELF Loader Instance
 //
 
-IMAGE_LOADER gFatElfLoader = {
-  &gFatElfVtbl,
-  "FatELF",
-  NULL
+IImageLoader gFatElfLoader = {
+  &gFatElfVtbl
 };
+
+// Auto-register this loader
+APXH_REGISTER_IMGLOADER(gFatElfLoader);

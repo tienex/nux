@@ -31,7 +31,7 @@
 //
 
 #define PEF_ARCH_PWPC   0x70777063  ///< "pwpc" - PowerPC
-#define PEF_ARCH_M68K   0x6D36386B  ///< "m68k" - Motorola 68K
+#define PEF_ArchM68k   0x6D36386B  ///< "m68k" - Motorola 68K
 
 //
 // PEF Section Types
@@ -121,10 +121,10 @@ ANX_PACK_POP()
   Check if image is PEF format.
 **/
 static
-BOOLEAN
-ANXAPI
+HRESULT
+STDMETHODCALLTYPE
 PefDetect (
-  IN IMAGE_LOADER  *This,
+  IN IImageLoader  *This,
   IN VOID          *ImageBase,
   IN UINTN         ImageSize
   )
@@ -132,58 +132,95 @@ PefDetect (
   PEF_CONTAINER_HEADER *Header;
 
   if (ImageSize < sizeof(PEF_CONTAINER_HEADER)) {
-    return FALSE;
+    return S_FALSE;
   }
 
   Header = (PEF_CONTAINER_HEADER *)ImageBase;
 
   return (Header->Tag1 == PEF_TAG1 &&
-          Header->Tag2 == PEF_TAG2);
+          Header->Tag2 == PEF_TAG2) ? S_OK : S_FALSE;
 }
 
 /**
   Get architecture from PEF image.
 **/
 static
-ARCH
-ANXAPI
+HRESULT
+STDMETHODCALLTYPE
 PefGetArch (
-  IN IMAGE_LOADER  *This,
-  IN VOID          *ImageBase
+  IN  IImageLoader  *This,
+  IN  VOID          *ImageBase,
+  OUT ARCH          *Architecture
   )
 {
-  PEF_CONTAINER_HEADER *Header = (PEF_CONTAINER_HEADER *)ImageBase;
+  PEF_CONTAINER_HEADER *Header;
+
+  if (Architecture == NULL) {
+    return E_POINTER;
+  }
+
+  Header = (PEF_CONTAINER_HEADER *)ImageBase;
 
   switch (Header->Architecture) {
     case PEF_ARCH_PWPC:
       // PowerPC not supported by APXH
-      return ARCH_UNSUPPORTED;
+      *Architecture = ArchUnsupported;
+      return IMGLOAD_E_UNSUPPORTED_ARCH;
 
-    case PEF_ARCH_M68K:
+    case PEF_ArchM68k:
       // Motorola 68K not supported by APXH
-      return ARCH_UNSUPPORTED;
+      *Architecture = ArchUnsupported;
+      return IMGLOAD_E_UNSUPPORTED_ARCH;
 
     default:
-      return ARCH_UNSUPPORTED;
+      *Architecture = ArchUnsupported;
+      return IMGLOAD_E_UNSUPPORTED_ARCH;
   }
+}
+
+/**
+  Get endianness from PEF image.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+PefGetEndianness (
+  IN  IImageLoader    *This,
+  IN  VOID            *ImageBase,
+  OUT IMGLOAD_ENDIAN  *Endianness
+  )
+{
+  if (Endianness == NULL) {
+    return E_POINTER;
+  }
+
+  // PEF is always big-endian (PowerPC and 68K are big-endian architectures)
+  *Endianness = ImgEndianBig;
+  return S_OK;
 }
 
 /**
   Get entry point from PEF image.
 **/
 static
-VIRTUAL_ADDRESS
-ANXAPI
+HRESULT
+STDMETHODCALLTYPE
 PefGetEntryPoint (
-  IN IMAGE_LOADER  *This,
-  IN VOID          *ImageBase
+  IN  IImageLoader      *This,
+  IN  VOID              *ImageBase,
+  OUT VIRTUAL_ADDRESS   *EntryPoint
   )
 {
-  PEF_CONTAINER_HEADER *Header = (PEF_CONTAINER_HEADER *)ImageBase;
+  PEF_CONTAINER_HEADER *Header;
   PEF_SECTION_HEADER *Sections;
   PEF_LOADER_INFO_HEADER *LoaderInfo = NULL;
   UINT32 i;
 
+  if (EntryPoint == NULL) {
+    return E_POINTER;
+  }
+
+  Header = (PEF_CONTAINER_HEADER *)ImageBase;
   Sections = (PEF_SECTION_HEADER *)(Header + 1);
 
   // Find loader section
@@ -195,11 +232,13 @@ PefGetEntryPoint (
   }
 
   if (LoaderInfo == NULL || LoaderInfo->MainSection < 0) {
-    return 0;
+    *EntryPoint = 0;
+    return IMGLOAD_E_INVALID_HEADER;
   }
 
   // Calculate entry point from main section and offset
-  return Sections[LoaderInfo->MainSection].DefaultAddress + LoaderInfo->MainOffset;
+  *EntryPoint = Sections[LoaderInfo->MainSection].DefaultAddress + LoaderInfo->MainOffset;
+  return S_OK;
 }
 
 /**
@@ -283,20 +322,39 @@ PefLoadSection (
   Load PEF image.
 **/
 static
-IMGLOAD_STATUS
-ANXAPI
+HRESULT
+STDMETHODCALLTYPE
 PefLoadImage (
-  IN     IMAGE_LOADER     *This,
+  IN     IImageLoader     *This,
   IN OUT IMGLOAD_CONTEXT  *Context
   )
 {
-  VOID *ImageBase = Context->ImageBase;
-  PEF_CONTAINER_HEADER *Header = (PEF_CONTAINER_HEADER *)ImageBase;
+  VOID *ImageBase;
+  PEF_CONTAINER_HEADER *Header;
   PEF_SECTION_HEADER *Sections;
   UINT32 i;
+  HRESULT Status;
+
+  if (Context == NULL) {
+    return E_POINTER;
+  }
+
+  ImageBase = Context->ImageBase;
+  Header = (PEF_CONTAINER_HEADER *)ImageBase;
 
   info("Loading PEF %s executable...",
        Header->Architecture == PEF_ARCH_PWPC ? "PowerPC" : "68K");
+
+  // Populate architecture and endianness
+  Status = PefGetArch(This, ImageBase, &Context->Architecture);
+  if (FAILED(Status)) {
+    return Status;
+  }
+
+  Status = PefGetEndianness(This, ImageBase, &Context->Endianness);
+  if (FAILED(Status)) {
+    return Status;
+  }
 
   Sections = (PEF_SECTION_HEADER *)(Header + 1);
 
@@ -305,45 +363,394 @@ PefLoadImage (
     PefLoadSection(ImageBase, &Sections[i], Context->IsUserMode);
   }
 
-  Context->EntryPoint = PefGetEntryPoint(This, ImageBase);
-  return ImgLoadSuccess;
+  Status = PefGetEntryPoint(This, ImageBase, &Context->EntryPoint);
+  if (FAILED(Status)) {
+    return Status;
+  }
+
+  return S_OK;
 }
 
 /**
   Extract TLS information from PEF image.
 **/
 static
-IMGLOAD_STATUS
-ANXAPI
+HRESULT
+STDMETHODCALLTYPE
 PefGetTlsInfo (
-  IN  IMAGE_LOADER      *This,
+  IN  IImageLoader      *This,
   IN  VOID              *ImageBase,
   OUT IMGLOAD_TLS_INFO  *TlsInfo
   )
 {
+  if (TlsInfo == NULL) {
+    return E_POINTER;
+  }
+
   // PEF doesn't have explicit TLS support
   memset(TlsInfo, 0, sizeof(IMGLOAD_TLS_INFO));
-  return ImgLoadSuccess;
+  return S_FALSE;
+}
+
+/**
+  Extract unwinding information from PEF image.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+PefGetUnwindInfo (
+  IN  IImageLoader         *This,
+  IN  VOID                 *ImageBase,
+  OUT IMGLOAD_UNWIND_INFO  *UnwindInfo
+  )
+{
+  if (UnwindInfo == NULL) {
+    return E_POINTER;
+  }
+
+  // PEF doesn't have standardized unwind information
+  memset(UnwindInfo, 0, sizeof(IMGLOAD_UNWIND_INFO));
+  return S_FALSE;
+}
+
+/**
+  Look up symbol by virtual address.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+PefGetSymbolByAddress (
+  IN  IImageLoader         *This,
+  IN  VOID                 *ImageBase,
+  IN  VIRTUAL_ADDRESS      Address,
+  OUT IMGLOAD_SYMBOL_INFO  *SymbolInfo
+  )
+{
+  if (SymbolInfo == NULL) {
+    return E_POINTER;
+  }
+
+  // PEF symbol lookup not implemented
+  memset(SymbolInfo, 0, sizeof(IMGLOAD_SYMBOL_INFO));
+  return S_FALSE;
+}
+
+/**
+  Look up symbol by name.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+PefGetSymbolByName (
+  IN  IImageLoader         *This,
+  IN  VOID                 *ImageBase,
+  IN  CONST CHAR8          *Name,
+  OUT IMGLOAD_SYMBOL_INFO  *SymbolInfo
+  )
+{
+  if (Name == NULL || SymbolInfo == NULL) {
+    return E_POINTER;
+  }
+
+  // PEF symbol lookup not implemented
+  memset(SymbolInfo, 0, sizeof(IMGLOAD_SYMBOL_INFO));
+  return S_FALSE;
+}
+
+/**
+  Extract relocation information from PEF image.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+PefGetRelocInfo (
+  IN  IImageLoader         *This,
+  IN  VOID                 *ImageBase,
+  OUT IMGLOAD_RELOC_INFO   *RelocInfo
+  )
+{
+  if (RelocInfo == NULL) {
+    return E_POINTER;
+  }
+
+  // PEF has relocations but they're handled internally
+  memset(RelocInfo, 0, sizeof(IMGLOAD_RELOC_INFO));
+  return S_FALSE;
+}
+
+/**
+  Apply relocations to PEF image loaded at different address.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+PefApplyRelocations (
+  IN VOID              *ImageBase,
+  IN VIRTUAL_ADDRESS   LoadAddress,
+  IN VIRTUAL_ADDRESS   PreferredBase
+  )
+{
+  // PEF relocations are applied during load
+  // No additional relocation needed
+  return S_OK;
+}
+
+/**
+  IUnknown::QueryInterface implementation (stub).
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+PefQueryInterface (
+  IN  IImageLoader  *This,
+  IN  REFIID        riid,
+  OUT VOID          **ppvObject
+  )
+{
+  // Simple implementation - only support IImageLoader and IUnknown
+  if (ppvObject == NULL) {
+    return E_POINTER;
+  }
+
+  *ppvObject = NULL;
+
+  // Compare GUIDs (simplified)
+  if (memcmp(riid, &IID_IImageLoader, sizeof(GUID)) == 0 ||
+      memcmp(riid, &IID_IUnknown, sizeof(GUID)) == 0) {
+    *ppvObject = This;
+    return S_OK;
+  }
+
+  return E_NOINTERFACE;
+}
+
+/**
+  IUnknown::AddRef implementation (stub - static object).
+**/
+static
+UINT32
+STDMETHODCALLTYPE
+PefAddRef (
+  IN IImageLoader  *This
+  )
+{
+  // Static object, no reference counting
+  return 1;
+}
+
+/**
+  IUnknown::Release implementation (stub - static object).
+**/
+static
+UINT32
+STDMETHODCALLTYPE
+PefRelease (
+  IN IImageLoader  *This
+  )
+{
+  // Static object, no reference counting
+  return 1;
+}
+
+/**
+  Detect if a PEF binary is for BeOS by checking for BeOS-specific characteristics.
+
+  Checks for BeOS-specific library imports in the loader section.
+  BeOS libraries typically include: libroot.so, libbe.so, libstdc++.r4.so
+
+  @param[in]  ImageBase  Base address of the PEF image.
+
+  @retval TRUE   Binary appears to be for BeOS.
+  @retval FALSE  Binary appears to be for Mac OS or cannot determine.
+**/
+static
+BOOLEAN
+PefIsBeOsBinary (
+  IN VOID  *ImageBase
+  )
+{
+  PEF_CONTAINER_HEADER *Container;
+  PEF_SECTION_HEADER *Sections;
+  PEF_LOADER_INFO_HEADER *LoaderInfo;
+  UINT32 I;
+  UINT8 *LoaderSection;
+  CHAR8 *LibName;
+  UINT32 *ImportLibOffsets;
+
+  Container = (PEF_CONTAINER_HEADER *)ImageBase;
+  Sections = (PEF_SECTION_HEADER *)((UINT8 *)ImageBase + sizeof(PEF_CONTAINER_HEADER));
+
+  // Look for loader section
+  LoaderSection = NULL;
+  for (I = 0; I < Container->SectionCount; I++) {
+    if (Sections[I].SectionKind == kPEFLoaderSection) {
+      LoaderSection = (UINT8 *)ImageBase + Sections[I].ContainerOffset;
+      break;
+    }
+  }
+
+  if (LoaderSection == NULL) {
+    return FALSE;  // No loader section, default to Mac OS
+  }
+
+  LoaderInfo = (PEF_LOADER_INFO_HEADER *)LoaderSection;
+  if (LoaderInfo->ImportedLibraryCount == 0) {
+    return FALSE;  // No imports, default to Mac OS
+  }
+
+  // Get pointer to imported library name offsets
+  // They're stored after the loader info header
+  ImportLibOffsets = (UINT32 *)(LoaderInfo + 1);
+
+  // Check first few library names for BeOS-specific libraries
+  for (I = 0; I < LoaderInfo->ImportedLibraryCount && I < 5; I++) {
+    // Library names are stored in the loader strings section
+    LibName = (CHAR8 *)LoaderSection + LoaderInfo->LoaderStringsOffset + ImportLibOffsets[I];
+
+    // Check for BeOS-specific library names
+    if (memcmp(LibName, "libroot.so", 10) == 0 ||
+        memcmp(LibName, "libbe.so", 8) == 0 ||
+        memcmp(LibName, "libstdc++.r4.so", 15) == 0 ||
+        memcmp(LibName, "libnet.so", 9) == 0) {
+      return TRUE;  // Found BeOS library
+    }
+  }
+
+  return FALSE;  // No BeOS libraries found, assume Mac OS
 }
 
 //
 // PEF Loader VTable
 //
 
-static CONST IMAGE_LOADER_VTBL gPefVtbl = {
+#ifdef __cplusplus
+
+/**
+  Get target operating system from Pef image.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+PefGetTargetSystem (
+  IN  IImageLoader           *This,
+  IN  VOID                   *ImageBase,
+  OUT IMGLOAD_TARGET_SYSTEM  *TargetSystem
+  )
+{
+  if (TargetSystem == NULL) {
+    return E_POINTER;
+  }
+
+  // PEF was used on both Mac OS and BeOS PowerPC
+  // Detect based on imported libraries
+  if (PefIsBeOsBinary(ImageBase)) {
+    *TargetSystem = ImgSystemBeOs;
+  } else {
+    *TargetSystem = ImgSystemMacOs;
+  }
+
+  return S_OK;
+}
+
+/**
+  Get minimum required system version from Pef image.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+PefGetMinimumSystemVersion (
+  IN  IImageLoader            *This,
+  IN  VOID                    *ImageBase,
+  OUT IMGLOAD_SYSTEM_VERSION  *MinimumVersion
+  )
+{
+  if (MinimumVersion == NULL) {
+    return E_POINTER;
+  }
+
+  memset(MinimumVersion, 0, sizeof(IMGLOAD_SYSTEM_VERSION));
+  return S_FALSE;
+}
+
+/**
+  Get target subsystem from Pef image.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+PefGetTargetSubsystem (
+  IN  IImageLoader              *This,
+  IN  VOID                      *ImageBase,
+  OUT IMGLOAD_TARGET_SUBSYSTEM  *TargetSubsystem
+  )
+{
+  if (TargetSubsystem == NULL) {
+    return E_POINTER;
+  }
+
+  // Detect BeOS vs Mac OS
+  if (PefIsBeOsBinary(ImageBase)) {
+    // BeOS PEF binaries are typically GUI applications
+    *TargetSubsystem = ImgSubsystemBeOsGui;
+  } else {
+    // Mac OS classic applications (GUI-based operating system)
+    *TargetSubsystem = ImgSubsystemMacOsClassic;
+  }
+
+  return S_OK;
+}
+
+/**
+  Get minimum required subsystem version from Pef image.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+PefGetMinimumSubsystemVersion (
+  IN  IImageLoader            *This,
+  IN  VOID                    *ImageBase,
+  OUT IMGLOAD_SYSTEM_VERSION  *MinimumVersion
+  )
+{
+  if (MinimumVersion == NULL) {
+    return E_POINTER;
+  }
+
+  memset(MinimumVersion, 0, sizeof(IMGLOAD_SYSTEM_VERSION));
+  return S_FALSE;
+}
+// C++ mode not supported in this implementation
+#error "C++ mode not implemented"
+#else
+static CONST IImageLoaderVtbl gPefVtbl = {
+  PefQueryInterface,
+  PefAddRef,
+  PefRelease,
   PefDetect,
   PefGetArch,
+  PefGetEndianness,
   PefGetEntryPoint,
   PefLoadImage,
-  PefGetTlsInfo
+  PefGetTlsInfo,
+  PefGetUnwindInfo,
+  PefGetSymbolByAddress,
+  PefGetSymbolByName,
+  PefGetRelocInfo,
+  PefApplyRelocations,
+  PefGetTargetSystem,
+  PefGetMinimumSystemVersion,
+  PefGetTargetSubsystem,
+  PefGetMinimumSubsystemVersion
 };
+#endif
 
 //
 // PEF Loader Instance
 //
 
-IMAGE_LOADER gPefLoader = {
-  &gPefVtbl,
-  "PEF",
-  NULL
+IImageLoader gPefLoader = {
+  &gPefVtbl
 };
+
+// Auto-register this loader
+APXH_REGISTER_IMGLOADER(gPefLoader)

@@ -152,10 +152,10 @@ ANX_PACK_POP()
   Check if image is ECOFF format.
 **/
 static
-BOOLEAN
-ANXAPI
+HRESULT
+STDMETHODCALLTYPE
 EcoffDetect (
-  IN IMAGE_LOADER  *This,
+  IN IImageLoader  *This,
   IN VOID          *ImageBase,
   IN UINTN         ImageSize
   )
@@ -163,77 +163,146 @@ EcoffDetect (
   ECOFF32_FILEHDR *Header;
 
   if (ImageSize < sizeof(ECOFF32_FILEHDR)) {
-    return FALSE;
+    return S_FALSE;
   }
 
   Header = (ECOFF32_FILEHDR *)ImageBase;
 
-  return (Header->Magic == ECOFF_MAGIC_MIPSEL ||
-          Header->Magic == ECOFF_MAGIC_MIPSEB ||
-          Header->Magic == ECOFF_MAGIC_MIPS64EL ||
-          Header->Magic == ECOFF_MAGIC_MIPS64EB ||
-          Header->Magic == ECOFF_MAGIC_ALPHA);
+  if (Header->Magic == ECOFF_MAGIC_MIPSEL ||
+      Header->Magic == ECOFF_MAGIC_MIPSEB ||
+      Header->Magic == ECOFF_MAGIC_MIPS64EL ||
+      Header->Magic == ECOFF_MAGIC_MIPS64EB ||
+      Header->Magic == ECOFF_MAGIC_ALPHA) {
+    return S_OK;
+  }
+
+  return S_FALSE;
 }
 
 /**
   Get architecture from ECOFF image.
 **/
 static
-ARCH
-ANXAPI
+HRESULT
+STDMETHODCALLTYPE
 EcoffGetArch (
-  IN IMAGE_LOADER  *This,
-  IN VOID          *ImageBase
+  IN  IImageLoader  *This,
+  IN  VOID          *ImageBase,
+  OUT ARCH          *Architecture
   )
 {
-  ECOFF32_FILEHDR *Header = (ECOFF32_FILEHDR *)ImageBase;
+  ECOFF32_FILEHDR *Header;
+
+  if (Architecture == NULL) {
+    return E_POINTER;
+  }
+
+  Header = (ECOFF32_FILEHDR *)ImageBase;
 
   switch (Header->Magic) {
     case ECOFF_MAGIC_MIPSEL:
     case ECOFF_MAGIC_MIPSEB:
-      // MIPS 32-bit is not directly supported by APXH
-      // but could be emulated or run in compatibility mode
-      return ARCH_UNSUPPORTED;
+      *Architecture = ArchMips32;
+      break;
 
     case ECOFF_MAGIC_MIPS64EL:
     case ECOFF_MAGIC_MIPS64EB:
-      return ARCH_RISCV64;  // Use RISC-V64 as closest match for MIPS64
+      *Architecture = ArchMips64;
+      break;
 
     case ECOFF_MAGIC_ALPHA:
-      return ARCH_AMD64;  // Use AMD64 as closest match for Alpha (both 64-bit RISC)
+      *Architecture = ArchAlpha;
+      break;
 
     default:
-      return ARCH_UNSUPPORTED;
+      *Architecture = ArchUnsupported;
+      return IMGLOAD_E_UNSUPPORTED_ARCH;
   }
+
+  return S_OK;
+}
+
+/**
+  Get endianness from ECOFF image.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+EcoffGetEndianness (
+  IN  IImageLoader    *This,
+  IN  VOID            *ImageBase,
+  OUT IMGLOAD_ENDIAN  *Endianness
+  )
+{
+  ECOFF32_FILEHDR *Header;
+
+  if (Endianness == NULL) {
+    return E_POINTER;
+  }
+
+  Header = (ECOFF32_FILEHDR *)ImageBase;
+
+  switch (Header->Magic) {
+    case ECOFF_MAGIC_MIPSEB:
+    case ECOFF_MAGIC_MIPS64EB:
+      *Endianness = ImgEndianBig;
+      break;
+
+    case ECOFF_MAGIC_MIPSEL:
+    case ECOFF_MAGIC_MIPS64EL:
+    case ECOFF_MAGIC_ALPHA:
+      *Endianness = ImgEndianLittle;
+      break;
+
+    default:
+      *Endianness = ImgEndianUnknown;
+      return IMGLOAD_E_INVALID_FORMAT;
+  }
+
+  return S_OK;
 }
 
 /**
   Get entry point from ECOFF image.
 **/
 static
-VIRTUAL_ADDRESS
-ANXAPI
+HRESULT
+STDMETHODCALLTYPE
 EcoffGetEntryPoint (
-  IN IMAGE_LOADER  *This,
-  IN VOID          *ImageBase
+  IN  IImageLoader      *This,
+  IN  VOID              *ImageBase,
+  OUT VIRTUAL_ADDRESS   *EntryPoint
   )
 {
-  ECOFF32_FILEHDR *FileHdr32 = (ECOFF32_FILEHDR *)ImageBase;
+  ECOFF32_FILEHDR *FileHdr32;
   ECOFF32_AOUTHDR *AoutHdr32;
   ECOFF64_FILEHDR *FileHdr64;
   ECOFF64_AOUTHDR *AoutHdr64;
+
+  if (EntryPoint == NULL) {
+    return E_POINTER;
+  }
+
+  FileHdr32 = (ECOFF32_FILEHDR *)ImageBase;
+
+  if (FileHdr32->OptHeaderSize == 0) {
+    *EntryPoint = 0;
+    return IMGLOAD_E_INVALID_HEADER;
+  }
 
   if (FileHdr32->Magic == ECOFF_MAGIC_MIPS64EL ||
       FileHdr32->Magic == ECOFF_MAGIC_MIPS64EB) {
     // 64-bit ECOFF
     FileHdr64 = (ECOFF64_FILEHDR *)ImageBase;
     AoutHdr64 = (ECOFF64_AOUTHDR *)(FileHdr64 + 1);
-    return AoutHdr64->Entry;
+    *EntryPoint = AoutHdr64->Entry;
   } else {
     // 32-bit ECOFF
     AoutHdr32 = (ECOFF32_AOUTHDR *)(FileHdr32 + 1);
-    return AoutHdr32->Entry;
+    *EntryPoint = AoutHdr32->Entry;
   }
+
+  return S_OK;
 }
 
 /**
@@ -328,16 +397,39 @@ EcoffLoadSection64 (
   Load ECOFF image.
 **/
 static
-IMGLOAD_STATUS
-ANXAPI
+HRESULT
+STDMETHODCALLTYPE
 EcoffLoadImage (
-  IN     IMAGE_LOADER     *This,
   IN OUT IMGLOAD_CONTEXT  *Context
   )
 {
-  VOID *ImageBase = Context->ImageBase;
-  ECOFF32_FILEHDR *FileHdr32 = (ECOFF32_FILEHDR *)ImageBase;
+  VOID *ImageBase;
+  ECOFF32_FILEHDR *FileHdr32;
   UINT32 i;
+  HRESULT Status;
+
+  if (Context == NULL) {
+    return E_POINTER;
+  }
+
+  ImageBase = Context->ImageBase;
+  FileHdr32 = (ECOFF32_FILEHDR *)ImageBase;
+
+  // Populate context
+  Status = EcoffGetArch(NULL, ImageBase, &Context->Architecture);
+  if (FAILED(Status)) {
+    return Status;
+  }
+
+  Status = EcoffGetEndianness(NULL, ImageBase, &Context->Endianness);
+  if (FAILED(Status)) {
+    return Status;
+  }
+
+  Status = EcoffGetEntryPoint(NULL, ImageBase, &Context->EntryPoint);
+  if (FAILED(Status)) {
+    return Status;
+  }
 
   if (FileHdr32->Magic == ECOFF_MAGIC_MIPS64EL ||
       FileHdr32->Magic == ECOFF_MAGIC_MIPS64EB) {
@@ -358,7 +450,7 @@ EcoffLoadImage (
     // 32-bit ECOFF
     ECOFF32_SCNHDR *Sections;
 
-    info("Loading ECOFF 32-bit MIPS executable...");
+    info("Loading ECOFF 32-bit MIPS/Alpha executable...");
 
     Sections = (ECOFF32_SCNHDR *)ECOFF_OFF(
       sizeof(ECOFF32_FILEHDR) + FileHdr32->OptHeaderSize
@@ -369,45 +461,299 @@ EcoffLoadImage (
     }
   }
 
-  Context->EntryPoint = EcoffGetEntryPoint(This, ImageBase);
-  return ImgLoadSuccess;
+  return S_OK;
 }
 
 /**
   Extract TLS information from ECOFF image.
 **/
 static
-IMGLOAD_STATUS
-ANXAPI
+HRESULT
+STDMETHODCALLTYPE
 EcoffGetTlsInfo (
-  IN  IMAGE_LOADER      *This,
+  IN  IImageLoader      *This,
   IN  VOID              *ImageBase,
   OUT IMGLOAD_TLS_INFO  *TlsInfo
   )
 {
+  if (TlsInfo == NULL) {
+    return E_POINTER;
+  }
+
   // ECOFF doesn't have explicit TLS support
   memset(TlsInfo, 0, sizeof(IMGLOAD_TLS_INFO));
-  return ImgLoadSuccess;
+  return S_FALSE;
+}
+
+/**
+  Extract unwinding information from ECOFF image.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+EcoffGetUnwindInfo (
+  IN  IImageLoader         *This,
+  IN  VOID                 *ImageBase,
+  OUT IMGLOAD_UNWIND_INFO  *UnwindInfo
+  )
+{
+  if (UnwindInfo == NULL) {
+    return E_POINTER;
+  }
+
+  // ECOFF doesn't have standard unwinding information
+  memset(UnwindInfo, 0, sizeof(IMGLOAD_UNWIND_INFO));
+  return S_FALSE;
+}
+
+/**
+  Look up symbol by virtual address.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+EcoffGetSymbolByAddress (
+  IN  IImageLoader         *This,
+  IN  VOID                 *ImageBase,
+  IN  VIRTUAL_ADDRESS      Address,
+  OUT IMGLOAD_SYMBOL_INFO  *SymbolInfo
+  )
+{
+  if (SymbolInfo == NULL) {
+    return E_POINTER;
+  }
+
+  // Symbol table parsing would go here
+  memset(SymbolInfo, 0, sizeof(IMGLOAD_SYMBOL_INFO));
+  return S_FALSE;
+}
+
+/**
+  Look up symbol by name.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+EcoffGetSymbolByName (
+  IN  IImageLoader         *This,
+  IN  VOID                 *ImageBase,
+  IN  CONST CHAR8          *Name,
+  OUT IMGLOAD_SYMBOL_INFO  *SymbolInfo
+  )
+{
+  if (Name == NULL || SymbolInfo == NULL) {
+    return E_POINTER;
+  }
+
+  // Symbol table parsing would go here
+  memset(SymbolInfo, 0, sizeof(IMGLOAD_SYMBOL_INFO));
+  return S_FALSE;
+}
+
+/**
+  Extract relocation information from ECOFF image.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+EcoffGetRelocInfo (
+  IN  IImageLoader         *This,
+  IN  VOID                 *ImageBase,
+  OUT IMGLOAD_RELOC_INFO   *RelocInfo
+  )
+{
+  if (RelocInfo == NULL) {
+    return E_POINTER;
+  }
+
+  memset(RelocInfo, 0, sizeof(IMGLOAD_RELOC_INFO));
+
+  // ECOFF typically doesn't have base relocations for static executables
+  RelocInfo->RequiresReloc = FALSE;
+  return S_FALSE;
+}
+
+/**
+  Apply relocations to ECOFF image.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+EcoffApplyRelocations (
+  IN VOID              *ImageBase,
+  IN VIRTUAL_ADDRESS   LoadAddress,
+  IN VIRTUAL_ADDRESS   PreferredBase
+  )
+{
+  // ECOFF doesn't support relocation for static executables
+  return S_OK;
+}
+
+/**
+  IUnknown::QueryInterface implementation.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+EcoffQueryInterface (
+  IN  IImageLoader  *This,
+  IN  REFIID        riid,
+  OUT VOID          **ppvObject
+  )
+{
+  if (ppvObject == NULL) {
+    return E_POINTER;
+  }
+
+  *ppvObject = NULL;
+
+  if (memcmp(riid, &IID_IImageLoader, sizeof(GUID)) == 0 ||
+      memcmp(riid, &IID_IUnknown, sizeof(GUID)) == 0) {
+    *ppvObject = This;
+    return S_OK;
+  }
+
+  return E_NOINTERFACE;
+}
+
+/**
+  IUnknown::AddRef implementation.
+**/
+static
+UINT32
+STDMETHODCALLTYPE
+EcoffAddRef (
+  IN IImageLoader  *This
+  )
+{
+  return 1;
+}
+
+/**
+  IUnknown::Release implementation.
+**/
+static
+UINT32
+STDMETHODCALLTYPE
+EcoffRelease (
+  IN IImageLoader  *This
+  )
+{
+  return 1;
 }
 
 //
+
+/**
+  Get target operating system from Ecoff image.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+EcoffGetTargetSystem (
+  IN  IImageLoader           *This,
+  IN  VOID                   *ImageBase,
+  OUT IMGLOAD_TARGET_SYSTEM  *TargetSystem
+  )
+{
+  if (TargetSystem == NULL) {
+    return E_POINTER;
+  }
+
+  *TargetSystem = ImgSystemUnix;
+  return S_OK;
+}
+
+/**
+  Get minimum required system version from Ecoff image.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+EcoffGetMinimumSystemVersion (
+  IN  IImageLoader            *This,
+  IN  VOID                    *ImageBase,
+  OUT IMGLOAD_SYSTEM_VERSION  *MinimumVersion
+  )
+{
+  if (MinimumVersion == NULL) {
+    return E_POINTER;
+  }
+
+  memset(MinimumVersion, 0, sizeof(IMGLOAD_SYSTEM_VERSION));
+  return S_FALSE;
+}
+
+/**
+  Get target subsystem from Ecoff image.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+EcoffGetTargetSubsystem (
+  IN  IImageLoader              *This,
+  IN  VOID                      *ImageBase,
+  OUT IMGLOAD_TARGET_SUBSYSTEM  *TargetSubsystem
+  )
+{
+  if (TargetSubsystem == NULL) {
+    return E_POINTER;
+  }
+
+  *TargetSubsystem = ImgSubsystemCli;
+  return S_OK;
+}
+
+/**
+  Get minimum required subsystem version from Ecoff image.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+EcoffGetMinimumSubsystemVersion (
+  IN  IImageLoader            *This,
+  IN  VOID                    *ImageBase,
+  OUT IMGLOAD_SYSTEM_VERSION  *MinimumVersion
+  )
+{
+  if (MinimumVersion == NULL) {
+    return E_POINTER;
+  }
+
+  memset(MinimumVersion, 0, sizeof(IMGLOAD_SYSTEM_VERSION));
+  return S_FALSE;
+}
 // ECOFF Loader VTable
 //
 
-static CONST IMAGE_LOADER_VTBL gEcoffVtbl = {
+static CONST IImageLoaderVtbl gEcoffVtbl = {
+  EcoffQueryInterface,
+  EcoffAddRef,
+  EcoffRelease,
   EcoffDetect,
   EcoffGetArch,
+  EcoffGetEndianness,
   EcoffGetEntryPoint,
   EcoffLoadImage,
-  EcoffGetTlsInfo
+  EcoffGetTlsInfo,
+  EcoffGetUnwindInfo,
+  EcoffGetSymbolByAddress,
+  EcoffGetSymbolByName,
+  EcoffGetRelocInfo,
+  EcoffApplyRelocations,
+  EcoffGetTargetSystem,
+  EcoffGetMinimumSystemVersion,
+  EcoffGetTargetSubsystem,
+  EcoffGetMinimumSubsystemVersion
 };
 
 //
 // ECOFF Loader Instance
 //
 
-IMAGE_LOADER gEcoffLoader = {
-  &gEcoffVtbl,
-  "ECOFF",
-  NULL
+IImageLoader gEcoffLoader = {
+  &gEcoffVtbl
 };
+
+// Auto-register this loader
+APXH_REGISTER_IMGLOADER(gEcoffLoader);

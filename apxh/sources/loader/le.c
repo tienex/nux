@@ -145,6 +145,29 @@ ANX_PACK_POP()
 #define LE_PAGE_RANGE           0x04  ///< Range of pages
 
 //
+// LE/LX Fixup Source Types
+//
+
+#define FIXUP_SRC_BYTE          0x00  ///< Low byte
+#define FIXUP_SRC_SEL           0x02  ///< 16-bit selector
+#define FIXUP_SRC_PTR16         0x03  ///< 16:16 pointer
+#define FIXUP_SRC_OFF16         0x05  ///< 16-bit offset
+#define FIXUP_SRC_PTR32         0x06  ///< 16:32 pointer
+#define FIXUP_SRC_OFF32         0x07  ///< 32-bit offset
+#define FIXUP_SRC_REL32         0x08  ///< 32-bit relative offset
+
+//
+// LE/LX Fixup Flags
+//
+
+#define FIXUP_FLAGS_TARGET_MASK 0x03  ///< Target type mask
+#define FIXUP_FLAGS_ADDITIVE    0x04  ///< Additive fixup
+#define FIXUP_FLAGS_32BIT       0x10  ///< 32-bit target
+#define FIXUP_FLAGS_16BIT       0x20  ///< 16-bit target
+#define FIXUP_FLAGS_8BIT        0x00  ///< 8-bit target
+#define FIXUP_FLAGS_ALIAS       0x10  ///< Alias flag
+
+//
 // Helper Macros
 //
 
@@ -155,13 +178,65 @@ ANX_PACK_POP()
 //
 
 /**
+  IUnknown: QueryInterface
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+LeQueryInterface (
+  IN  IImageLoader  *This,
+  IN  CONST GUID    *Iid,
+  OUT VOID          **Interface
+  )
+{
+  if (Interface == NULL) {
+    return E_POINTER;
+  }
+
+  if (memcmp(Iid, &IID_IImageLoader, sizeof(GUID)) == 0 ||
+      memcmp(Iid, &IID_IUnknown, sizeof(GUID)) == 0) {
+    *Interface = This;
+    return S_OK;
+  }
+
+  *Interface = NULL;
+  return E_NOINTERFACE;
+}
+
+/**
+  IUnknown: AddRef
+**/
+static
+UINTN
+STDMETHODCALLTYPE
+LeAddRef (
+  IN IImageLoader  *This
+  )
+{
+  return 1;  // Static instance
+}
+
+/**
+  IUnknown: Release
+**/
+static
+UINTN
+STDMETHODCALLTYPE
+LeRelease (
+  IN IImageLoader  *This
+  )
+{
+  return 1;  // Static instance
+}
+
+/**
   Check if image is LE/LX format.
 **/
 static
-BOOLEAN
-ANXAPI
+HRESULT
+STDMETHODCALLTYPE
 LeDetect (
-  IN IMAGE_LOADER  *This,
+  IN IImageLoader  *This,
   IN VOID          *ImageBase,
   IN UINTN         ImageSize
   )
@@ -170,59 +245,98 @@ LeDetect (
   LE_HEADER *LeHeader;
 
   if (ImageSize < sizeof(DOS_HEADER_SHORT)) {
-    return FALSE;
+    return S_FALSE;
   }
 
   DosHeader = (DOS_HEADER_SHORT *)ImageBase;
   if (DosHeader->Signature != DOS_SIGNATURE) {
-    return FALSE;
+    return S_FALSE;
   }
 
   if (DosHeader->NewHeaderOffset >= ImageSize - sizeof(LE_HEADER)) {
-    return FALSE;
+    return S_FALSE;
   }
 
   LeHeader = (LE_HEADER *)LE_OFF(DosHeader->NewHeaderOffset);
   return (LeHeader->Signature == LE_SIGNATURE ||
-          LeHeader->Signature == LX_SIGNATURE);
+          LeHeader->Signature == LX_SIGNATURE) ? S_OK : S_FALSE;
 }
 
 /**
   Get architecture from LE/LX image.
 **/
 static
-ARCH
-ANXAPI
+HRESULT
+STDMETHODCALLTYPE
 LeGetArch (
-  IN IMAGE_LOADER  *This,
-  IN VOID          *ImageBase
+  IN  IImageLoader  *This,
+  IN  VOID          *ImageBase,
+  OUT ARCH          *Architecture
   )
 {
-  DOS_HEADER_SHORT *DosHeader = (DOS_HEADER_SHORT *)ImageBase;
-  LE_HEADER *LeHeader = (LE_HEADER *)LE_OFF(DosHeader->NewHeaderOffset);
+  DOS_HEADER_SHORT *DosHeader;
+  LE_HEADER *LeHeader;
+
+  if (Architecture == NULL) {
+    return E_POINTER;
+  }
+
+  DosHeader = (DOS_HEADER_SHORT *)ImageBase;
+  LeHeader = (LE_HEADER *)LE_OFF(DosHeader->NewHeaderOffset);
 
   // LE/LX is x86 32-bit only
   if (LeHeader->CpuType >= 2) {  // 386 or higher
-    return ARCH_386;
+    *Architecture = Arch386;
+    return S_OK;
   }
 
-  return ARCH_UNSUPPORTED;
+  *Architecture = ArchUnsupported;
+  return IMGLOAD_E_UNSUPPORTED_ARCH;
+}
+
+/**
+  Get endianness from LE/LX image.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+LeGetEndianness (
+  IN  IImageLoader    *This,
+  IN  VOID            *ImageBase,
+  OUT IMGLOAD_ENDIAN  *Endianness
+  )
+{
+  if (Endianness == NULL) {
+    return E_POINTER;
+  }
+
+  // LE/LX is x86 little-endian
+  *Endianness = ImgEndianLittle;
+  return S_OK;
 }
 
 /**
   Get entry point from LE/LX image.
 **/
 static
-VIRTUAL_ADDRESS
-ANXAPI
+HRESULT
+STDMETHODCALLTYPE
 LeGetEntryPoint (
-  IN IMAGE_LOADER  *This,
-  IN VOID          *ImageBase
+  IN  IImageLoader     *This,
+  IN  VOID             *ImageBase,
+  OUT VIRTUAL_ADDRESS  *EntryPoint
   )
 {
-  DOS_HEADER_SHORT *DosHeader = (DOS_HEADER_SHORT *)ImageBase;
-  LE_HEADER *LeHeader = (LE_HEADER *)LE_OFF(DosHeader->NewHeaderOffset);
+  DOS_HEADER_SHORT *DosHeader;
+  LE_HEADER *LeHeader;
   LE_OBJECT_TABLE_ENTRY *Objects;
+
+  if (EntryPoint == NULL) {
+    return E_POINTER;
+  }
+
+  DosHeader = (DOS_HEADER_SHORT *)ImageBase;
+  LeHeader = (LE_HEADER *)LE_OFF(DosHeader->NewHeaderOffset);
 
   Objects = (LE_OBJECT_TABLE_ENTRY *)LE_OFF(DosHeader->NewHeaderOffset +
                                              LeHeader->ObjectTableOffset);
@@ -230,10 +344,12 @@ LeGetEntryPoint (
   // Entry point is in object InitObjectNum at offset InitEip
   if (LeHeader->InitObjectNum > 0 && LeHeader->InitObjectNum <= LeHeader->NumObjects) {
     LE_OBJECT_TABLE_ENTRY *InitObj = &Objects[LeHeader->InitObjectNum - 1];
-    return InitObj->BaseAddress + LeHeader->InitEip;
+    *EntryPoint = InitObj->BaseAddress + LeHeader->InitEip;
+    return S_OK;
   }
 
-  return 0;
+  *EntryPoint = 0;
+  return S_OK;
 }
 
 /**
@@ -318,19 +434,27 @@ LeLoadObject (
   Load LE/LX image.
 **/
 static
-IMGLOAD_STATUS
-ANXAPI
+HRESULT
+STDMETHODCALLTYPE
 LeLoadImage (
-  IN     IMAGE_LOADER     *This,
   IN OUT IMGLOAD_CONTEXT  *Context
   )
 {
-  VOID *ImageBase = Context->ImageBase;
-  DOS_HEADER_SHORT *DosHeader = (DOS_HEADER_SHORT *)ImageBase;
-  LE_HEADER *LeHeader = (LE_HEADER *)LE_OFF(DosHeader->NewHeaderOffset);
+  VOID *ImageBase;
+  DOS_HEADER_SHORT *DosHeader;
+  LE_HEADER *LeHeader;
   LE_OBJECT_TABLE_ENTRY *Objects;
   LE_PAGE_TABLE_ENTRY *PageTable;
   UINT32 i;
+  HRESULT Hr;
+
+  if (Context == NULL) {
+    return E_POINTER;
+  }
+
+  ImageBase = Context->ImageBase;
+  DosHeader = (DOS_HEADER_SHORT *)ImageBase;
+  LeHeader = (LE_HEADER *)LE_OFF(DosHeader->NewHeaderOffset);
 
   info("Loading %s executable...",
        LeHeader->Signature == LE_SIGNATURE ? "LE" : "LX");
@@ -345,45 +469,520 @@ LeLoadImage (
     LeLoadObject(ImageBase, LeHeader, &Objects[i], PageTable, Context->IsUserMode);
   }
 
-  Context->EntryPoint = LeGetEntryPoint(This, ImageBase);
-  return ImgLoadSuccess;
+  Hr = LeGetEntryPoint(&gLeLoader, ImageBase, &Context->EntryPoint);
+  if (FAILED(Hr)) {
+    return Hr;
+  }
+
+  return S_OK;
 }
 
 /**
   Extract TLS information from LE/LX image.
 **/
 static
-IMGLOAD_STATUS
-ANXAPI
+HRESULT
+STDMETHODCALLTYPE
 LeGetTlsInfo (
-  IN  IMAGE_LOADER      *This,
+  IN  IImageLoader      *This,
   IN  VOID              *ImageBase,
   OUT IMGLOAD_TLS_INFO  *TlsInfo
   )
 {
+  if (TlsInfo == NULL) {
+    return E_POINTER;
+  }
+
   // LE/LX doesn't have explicit TLS support
   memset(TlsInfo, 0, sizeof(IMGLOAD_TLS_INFO));
-  return ImgLoadSuccess;
+  return S_FALSE;
+}
+
+/**
+  Extract unwinding information from LE/LX image.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+LeGetUnwindInfo (
+  IN  IImageLoader         *This,
+  IN  VOID                 *ImageBase,
+  OUT IMGLOAD_UNWIND_INFO  *UnwindInfo
+  )
+{
+  if (UnwindInfo == NULL) {
+    return E_POINTER;
+  }
+
+  memset(UnwindInfo, 0, sizeof(IMGLOAD_UNWIND_INFO));
+
+  // LE/LX does not have unwinding information
+  return S_FALSE;
+}
+
+/**
+  Look up symbol by virtual address.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+LeGetSymbolByAddress (
+  IN  IImageLoader         *This,
+  IN  VOID                 *ImageBase,
+  IN  VIRTUAL_ADDRESS      Address,
+  OUT IMGLOAD_SYMBOL_INFO  *SymbolInfo
+  )
+{
+  if (SymbolInfo == NULL) {
+    return E_POINTER;
+  }
+
+  memset(SymbolInfo, 0, sizeof(IMGLOAD_SYMBOL_INFO));
+
+  // LE/LX entry table uses bundle-based encoding with complex ordinal mapping
+  // See LeGetSymbolByName for resident names table parsing
+  // Full entry table parsing not implemented
+  return S_FALSE;
+}
+
+/**
+  Look up symbol by name.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+LeGetSymbolByName (
+  IN  IImageLoader         *This,
+  IN  VOID                 *ImageBase,
+  IN  CONST CHAR8          *Name,
+  OUT IMGLOAD_SYMBOL_INFO  *SymbolInfo
+  )
+{
+  DOS_HEADER_SHORT *DosHeader;
+  LE_HEADER *LeHeader;
+  UINT8 *ResidentNames;
+  UINT8 *Ptr, *End;
+  UINTN SearchLen;
+
+  if (SymbolInfo == NULL || Name == NULL) {
+    return E_POINTER;
+  }
+
+  memset(SymbolInfo, 0, sizeof(IMGLOAD_SYMBOL_INFO));
+
+  SearchLen = strlen(Name);
+  DosHeader = (DOS_HEADER_SHORT *)ImageBase;
+  LeHeader = (LE_HEADER *)LE_OFF(DosHeader->NewHeaderOffset);
+
+  // Parse resident names table (length-prefixed names with ordinal numbers)
+  ResidentNames = (UINT8 *)LE_OFF(DosHeader->NewHeaderOffset + LeHeader->ResidentNamesTableOffset);
+  Ptr = ResidentNames;
+  End = Ptr + 4096;  // Reasonable upper bound
+
+  // First entry is module name, skip it
+  if (Ptr < End) {
+    UINT8 NameLen = *Ptr++;
+    Ptr += NameLen + 2;  // Skip name and ordinal
+  }
+
+  // Parse remaining entries
+  while (Ptr < End) {
+    UINT8 NameLen = *Ptr++;
+    if (NameLen == 0) break;  // End of table
+
+    CHAR8 *SymName = (CHAR8 *)Ptr;
+    Ptr += NameLen;
+
+    if (Ptr + 2 > End) break;
+    UINT16 Ordinal = *(UINT16 *)Ptr;
+    Ptr += 2;
+
+    // Check if name matches
+    if (NameLen == SearchLen && memcmp(SymName, Name, SearchLen) == 0) {
+      // Found - ordinal would need to be looked up in entry table for actual address
+      // Simplified: return ordinal as address
+      UINTN CopyLen = (NameLen < sizeof(SymbolInfo->Name) - 1) ?
+                      NameLen : (sizeof(SymbolInfo->Name) - 1);
+      memcpy(SymbolInfo->Name, SymName, CopyLen);
+      SymbolInfo->Name[CopyLen] = '\0';
+      SymbolInfo->Address = Ordinal;  // Simplified
+      SymbolInfo->Size = 0;
+      return S_OK;
+    }
+  }
+
+  // Note: Full implementation would also search non-resident names table
+  // and map ordinals through entry table to actual addresses
+  return S_FALSE;
+}
+
+/**
+  Extract relocation information from LE/LX image.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+LeGetRelocInfo (
+  IN  IImageLoader        *This,
+  IN  VOID                *ImageBase,
+  OUT IMGLOAD_RELOC_INFO  *RelocInfo
+  )
+{
+  DOS_HEADER_SHORT *DosHeader;
+  LE_HEADER *LeHeader;
+
+  if (RelocInfo == NULL) {
+    return E_POINTER;
+  }
+
+  memset(RelocInfo, 0, sizeof(IMGLOAD_RELOC_INFO));
+
+  DosHeader = (DOS_HEADER_SHORT *)ImageBase;
+  LeHeader = (LE_HEADER *)LE_OFF(DosHeader->NewHeaderOffset);
+
+  // LE/LX has fixup records
+  if (LeHeader->FixupSize > 0) {
+    RelocInfo->RequiresReloc = TRUE;
+    RelocInfo->Format = ImgRelocFormatLe;
+    return S_OK;
+  }
+
+  return S_FALSE;
+}
+
+/**
+  Apply relocations to LE/LX image loaded at different address.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+LeApplyRelocations (
+  IN IImageLoader     *This,
+  IN VOID             *ImageBase,
+  IN VIRTUAL_ADDRESS  LoadAddress,
+  IN VIRTUAL_ADDRESS  PreferredBase
+  )
+{
+  DOS_HEADER_SHORT *DosHeader;
+  LE_HEADER *LeHeader;
+  LE_OBJECT_TABLE_ENTRY *Objects;
+  UINT32 *FixupPageTable;
+  UINT8 *FixupRecords;
+  INT32 Delta;
+  UINT32 i;
+
+  DosHeader = (DOS_HEADER_SHORT *)ImageBase;
+  LeHeader = (LE_HEADER *)LE_OFF(DosHeader->NewHeaderOffset);
+
+  if (LeHeader->FixupSize == 0) {
+    return S_FALSE;  // No fixups
+  }
+
+  Delta = (INT32)((INT64)LoadAddress - (INT64)PreferredBase);
+  if (Delta == 0) {
+    return S_OK;  // Already at preferred base
+  }
+
+  // Get object table for address calculations
+  Objects = (LE_OBJECT_TABLE_ENTRY *)LE_OFF(
+    DosHeader->NewHeaderOffset + LeHeader->ObjectTableOffset
+  );
+
+  // Get fixup page table and records
+  FixupPageTable = (UINT32 *)LE_OFF(
+    DosHeader->NewHeaderOffset + LeHeader->FixupPageTableOffset
+  );
+  FixupRecords = (UINT8 *)LE_OFF(
+    DosHeader->NewHeaderOffset + LeHeader->FixupRecordTableOffset
+  );
+
+  // Process fixups for each page
+  for (i = 0; i < LeHeader->NumPages; i++) {
+    UINT32 FixupStart = FixupPageTable[i];
+    UINT32 FixupEnd = FixupPageTable[i + 1];
+    UINT8 *Fixup = FixupRecords + FixupStart;
+
+    if (FixupStart == FixupEnd) {
+      continue;  // No fixups for this page
+    }
+
+    // Parse fixup records for this page
+    while (Fixup < FixupRecords + FixupEnd) {
+      UINT8 SourceType = *Fixup++;
+      UINT8 Flags = *Fixup++;
+      UINT16 SourceOffset = *(UINT16 *)Fixup;
+      Fixup += 2;
+
+      UINT8 TargetType = Flags & FIXUP_FLAGS_TARGET_MASK;
+      UINT32 TargetAddr = 0;
+      BOOLEAN ApplyFixup = FALSE;
+
+      // Parse target based on type
+      switch (TargetType) {
+        case 0: {  // Internal reference
+          UINT8 ObjectNum = *Fixup++;
+          UINT32 TargetOffset;
+
+          if (!(Flags & FIXUP_FLAGS_16BIT)) {
+            TargetOffset = *(UINT32 *)Fixup;
+            Fixup += 4;
+          } else {
+            TargetOffset = *(UINT16 *)Fixup;
+            Fixup += 2;
+          }
+
+          // Calculate target address from object table
+          if (ObjectNum > 0 && ObjectNum <= LeHeader->NumObjects) {
+            LE_OBJECT_TABLE_ENTRY *TargetObj = &Objects[ObjectNum - 1];
+            TargetAddr = TargetObj->BaseAddress + TargetOffset;
+            ApplyFixup = TRUE;
+          }
+          break;
+        }
+
+        case 1: {  // Imported by ordinal
+          Fixup++;  // Module ordinal
+          if (Flags & FIXUP_FLAGS_16BIT) {
+            Fixup += 2;
+          } else {
+            Fixup++;
+          }
+          if (Flags & FIXUP_FLAGS_ADDITIVE) {
+            Fixup += 4;
+          }
+          // Skip import fixups (require external resolution)
+          break;
+        }
+
+        case 2:  // Imported by name
+          Fixup++;  // Module ordinal
+          Fixup += 4;  // Procedure name offset
+          if (Flags & FIXUP_FLAGS_ADDITIVE) {
+            Fixup += 4;
+          }
+          break;
+
+        case 3: {  // Internal entry table
+          UINT8 ObjectNum = *Fixup++;
+          if (Flags & FIXUP_FLAGS_16BIT) {
+            Fixup += 2;  // Ordinal
+          } else {
+            Fixup++;
+          }
+          if (Flags & FIXUP_FLAGS_ADDITIVE) {
+            Fixup += 4;
+          }
+          // Could resolve through entry table, skip for now
+          break;
+        }
+      }
+
+      // Apply fixup if we have a valid target
+      if (ApplyFixup) {
+        // Calculate source address in loaded image
+        UINT32 PageAddr = i * LeHeader->PageSize;
+        UINT8 *SourcePtr = (UINT8 *)ImageBase + PageAddr + SourceOffset;
+
+        // Apply fixup based on source type
+        switch (SourceType) {
+          case FIXUP_SRC_OFF32: {
+            UINT32 *Ptr = (UINT32 *)SourcePtr;
+            if (Flags & FIXUP_FLAGS_ADDITIVE) {
+              *Ptr += TargetAddr + Delta;
+            } else {
+              *Ptr = TargetAddr + Delta;
+            }
+            break;
+          }
+
+          case FIXUP_SRC_OFF16: {
+            UINT16 *Ptr = (UINT16 *)SourcePtr;
+            if (Flags & FIXUP_FLAGS_ADDITIVE) {
+              *Ptr += (UINT16)(TargetAddr + Delta);
+            } else {
+              *Ptr = (UINT16)(TargetAddr + Delta);
+            }
+            break;
+          }
+
+          case FIXUP_SRC_BYTE: {
+            if (Flags & FIXUP_FLAGS_ADDITIVE) {
+              *SourcePtr += (UINT8)(TargetAddr + Delta);
+            } else {
+              *SourcePtr = (UINT8)(TargetAddr + Delta);
+            }
+            break;
+          }
+
+          case FIXUP_SRC_SEL: {
+            // Selector fixup (16-bit segment selector)
+            UINT16 *Ptr = (UINT16 *)SourcePtr;
+            *Ptr = (UINT16)((TargetAddr + Delta) >> 16);
+            break;
+          }
+
+          case FIXUP_SRC_PTR32: {
+            // 16:32 pointer fixup
+            UINT16 *Sel = (UINT16 *)SourcePtr;
+            UINT32 *Off = (UINT32 *)(SourcePtr + 2);
+            *Sel = (UINT16)((TargetAddr + Delta) >> 16);
+            *Off = (TargetAddr + Delta) & 0xFFFFFFFF;
+            break;
+          }
+
+          case FIXUP_SRC_REL32: {
+            // 32-bit relative offset
+            UINT32 *Ptr = (UINT32 *)SourcePtr;
+            UINT32 SourceAddr = PageAddr + SourceOffset;
+            *Ptr = (TargetAddr + Delta) - (SourceAddr + 4);
+            break;
+          }
+        }
+      }
+    }
+  }
+
+  return S_OK;
 }
 
 //
+
+/**
+  Get target operating system from Le image.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+LeGetTargetSystem (
+  IN  IImageLoader           *This,
+  IN  VOID                   *ImageBase,
+  OUT IMGLOAD_TARGET_SYSTEM  *TargetSystem
+  )
+{
+  if (TargetSystem == NULL) {
+    return E_POINTER;
+  }
+
+  *TargetSystem = ImgSystemOs2;
+  return S_OK;
+}
+
+/**
+  Get minimum required system version from Le image.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+LeGetMinimumSystemVersion (
+  IN  IImageLoader            *This,
+  IN  VOID                    *ImageBase,
+  OUT IMGLOAD_SYSTEM_VERSION  *MinimumVersion
+  )
+{
+  if (MinimumVersion == NULL) {
+    return E_POINTER;
+  }
+
+  memset(MinimumVersion, 0, sizeof(IMGLOAD_SYSTEM_VERSION));
+  return S_FALSE;
+}
+
+/**
+  Get target subsystem from Le image.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+LeGetTargetSubsystem (
+  IN  IImageLoader              *This,
+  IN  VOID                      *ImageBase,
+  OUT IMGLOAD_TARGET_SUBSYSTEM  *TargetSubsystem
+  )
+{
+  LE_HEADER *Header;
+  UINT32 PmFlags;
+
+  if (TargetSubsystem == NULL) {
+    return E_POINTER;
+  }
+
+  Header = (LE_HEADER *)ImageBase;
+
+  // Check PM (Presentation Manager) compatibility flags
+  PmFlags = Header->ModuleFlags & 0x00000300;
+
+  switch (PmFlags) {
+    case LE_MODULE_PM_ONLY:
+      // PM-only application (GUI required)
+      *TargetSubsystem = ImgSubsystemOs2Gui;
+      break;
+
+    case LE_MODULE_PM_COMPATIBLE:
+      // PM-compatible application (can run in PM, typically GUI)
+      *TargetSubsystem = ImgSubsystemOs2Gui;
+      break;
+
+    case LE_MODULE_PM_INCOMPATIBLE:
+    default:
+      // PM-incompatible or no PM flags (console/text mode)
+      *TargetSubsystem = ImgSubsystemOs2Cui;
+      break;
+  }
+
+  return S_OK;
+}
+
+/**
+  Get minimum required subsystem version from Le image.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+LeGetMinimumSubsystemVersion (
+  IN  IImageLoader            *This,
+  IN  VOID                    *ImageBase,
+  OUT IMGLOAD_SYSTEM_VERSION  *MinimumVersion
+  )
+{
+  if (MinimumVersion == NULL) {
+    return E_POINTER;
+  }
+
+  memset(MinimumVersion, 0, sizeof(IMGLOAD_SYSTEM_VERSION));
+  return S_FALSE;
+}
 // LE/LX Loader VTable
 //
 
-static CONST IMAGE_LOADER_VTBL gLeVtbl = {
+static CONST IImageLoaderVtbl gLeVtbl = {
+  // IUnknown
+  LeQueryInterface,
+  LeAddRef,
+  LeRelease,
+  // IImageLoader
   LeDetect,
   LeGetArch,
+  LeGetEndianness,
   LeGetEntryPoint,
   LeLoadImage,
-  LeGetTlsInfo
+  LeGetTlsInfo,
+  LeGetUnwindInfo,
+  LeGetSymbolByAddress,
+  LeGetSymbolByName,
+  LeGetRelocInfo,
+  LeApplyRelocations,
+  LeGetTargetSystem,
+  LeGetMinimumSystemVersion,
+  LeGetTargetSubsystem,
+  LeGetMinimumSubsystemVersion
 };
 
 //
 // LE/LX Loader Instance
 //
 
-IMAGE_LOADER gLeLoader = {
-  &gLeVtbl,
-  "LE/LX",
-  NULL
+IImageLoader gLeLoader = {
+  &gLeVtbl
 };
+
+APXH_REGISTER_IMGLOADER(gLeLoader);

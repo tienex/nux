@@ -575,7 +575,7 @@ PaeEntry (
   IN VIRTUAL_ADDRESS  Entry
   )
 {
-  PlatformEntry (ARCH_386, (VIRTUAL_ADDRESS) (UINTN) gPaeCr3, Entry);
+  PlatformEntry (Arch386, (VIRTUAL_ADDRESS) (UINTN) gPaeCr3, Entry);
 }
 
 

@@ -643,5 +643,5 @@ Sv48Entry (
   IN VIRTUAL_ADDRESS  Entry
   )
 {
-  PlatformEntry (ARCH_RISCV64, (VIRTUAL_ADDRESS) (UINTN) gSv48Root, Entry);
+  PlatformEntry (ArchRiscV64, (VIRTUAL_ADDRESS) (UINTN) gSv48Root, Entry);
 }

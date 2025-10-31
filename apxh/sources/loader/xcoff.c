@@ -188,10 +188,10 @@ ANX_PACK_POP()
   Check if image is XCOFF format.
 **/
 static
-BOOLEAN
-ANXAPI
+HRESULT
+STDMETHODCALLTYPE
 XcoffDetect (
-  IN IMAGE_LOADER  *This,
+  IN IImageLoader  *This,
   IN VOID          *ImageBase,
   IN UINTN         ImageSize
   )
@@ -199,56 +199,97 @@ XcoffDetect (
   XCOFF32_FILEHDR *Header;
 
   if (ImageSize < sizeof(XCOFF32_FILEHDR)) {
-    return FALSE;
+    return S_FALSE;
   }
 
   Header = (XCOFF32_FILEHDR *)ImageBase;
 
   return (Header->Magic == XCOFF32_MAGIC ||
-          Header->Magic == XCOFF64_MAGIC);
+          Header->Magic == XCOFF64_MAGIC) ? S_OK : S_FALSE;
 }
 
 /**
   Get architecture from XCOFF image.
 **/
 static
-ARCH
-ANXAPI
+HRESULT
+STDMETHODCALLTYPE
 XcoffGetArch (
-  IN IMAGE_LOADER  *This,
-  IN VOID          *ImageBase
+  IN  IImageLoader  *This,
+  IN  VOID          *ImageBase,
+  OUT ARCH          *Architecture
   )
 {
+  if (Architecture == NULL) {
+    return E_POINTER;
+  }
+
   // XCOFF is PowerPC/POWER only, which is not supported by APXH
-  return ARCH_UNSUPPORTED;
+  *Architecture = ArchUnsupported;
+  return IMGLOAD_E_UNSUPPORTED_ARCH;
+}
+
+/**
+  Get endianness from XCOFF image.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+XcoffGetEndianness (
+  IN  IImageLoader    *This,
+  IN  VOID            *ImageBase,
+  OUT IMGLOAD_ENDIAN  *Endianness
+  )
+{
+  if (Endianness == NULL) {
+    return E_POINTER;
+  }
+
+  // XCOFF is typically big-endian for PowerPC/POWER architectures
+  // (AIX traditionally used big-endian PowerPC)
+  *Endianness = ImgEndianBig;
+  return S_OK;
 }
 
 /**
   Get entry point from XCOFF image.
 **/
 static
-VIRTUAL_ADDRESS
-ANXAPI
+HRESULT
+STDMETHODCALLTYPE
 XcoffGetEntryPoint (
-  IN IMAGE_LOADER  *This,
-  IN VOID          *ImageBase
+  IN  IImageLoader      *This,
+  IN  VOID              *ImageBase,
+  OUT VIRTUAL_ADDRESS   *EntryPoint
   )
 {
-  XCOFF32_FILEHDR *FileHdr32 = (XCOFF32_FILEHDR *)ImageBase;
+  XCOFF32_FILEHDR *FileHdr32;
   XCOFF32_AOUTHDR *AoutHdr32;
   XCOFF64_FILEHDR *FileHdr64;
   XCOFF64_AOUTHDR *AoutHdr64;
+
+  if (EntryPoint == NULL) {
+    return E_POINTER;
+  }
+
+  FileHdr32 = (XCOFF32_FILEHDR *)ImageBase;
 
   if (FileHdr32->Magic == XCOFF64_MAGIC) {
     // 64-bit XCOFF
     FileHdr64 = (XCOFF64_FILEHDR *)ImageBase;
     AoutHdr64 = (XCOFF64_AOUTHDR *)(FileHdr64 + 1);
-    return AoutHdr64->Entry;
+    *EntryPoint = AoutHdr64->Entry;
   } else {
     // 32-bit XCOFF
     AoutHdr32 = (XCOFF32_AOUTHDR *)(FileHdr32 + 1);
-    return AoutHdr32->Entry;
+    *EntryPoint = AoutHdr32->Entry;
   }
+
+  if (*EntryPoint == 0) {
+    return IMGLOAD_E_INVALID_HEADER;
+  }
+
+  return S_OK;
 }
 
 /**
@@ -343,16 +384,35 @@ XcoffLoadSection64 (
   Load XCOFF image.
 **/
 static
-IMGLOAD_STATUS
-ANXAPI
+HRESULT
+STDMETHODCALLTYPE
 XcoffLoadImage (
-  IN     IMAGE_LOADER     *This,
+  IN     IImageLoader     *This,
   IN OUT IMGLOAD_CONTEXT  *Context
   )
 {
-  VOID *ImageBase = Context->ImageBase;
-  XCOFF32_FILEHDR *FileHdr32 = (XCOFF32_FILEHDR *)ImageBase;
+  VOID *ImageBase;
+  XCOFF32_FILEHDR *FileHdr32;
   UINT32 i;
+  HRESULT Status;
+
+  if (Context == NULL) {
+    return E_POINTER;
+  }
+
+  ImageBase = Context->ImageBase;
+  FileHdr32 = (XCOFF32_FILEHDR *)ImageBase;
+
+  // Populate architecture and endianness
+  Status = XcoffGetArch(This, ImageBase, &Context->Architecture);
+  if (FAILED(Status)) {
+    return Status;
+  }
+
+  Status = XcoffGetEndianness(This, ImageBase, &Context->Endianness);
+  if (FAILED(Status)) {
+    return Status;
+  }
 
   if (FileHdr32->Magic == XCOFF64_MAGIC) {
     // 64-bit XCOFF
@@ -383,25 +443,35 @@ XcoffLoadImage (
     }
   }
 
-  Context->EntryPoint = XcoffGetEntryPoint(This, ImageBase);
-  return ImgLoadSuccess;
+  Status = XcoffGetEntryPoint(This, ImageBase, &Context->EntryPoint);
+  if (FAILED(Status)) {
+    return Status;
+  }
+
+  return S_OK;
 }
 
 /**
   Extract TLS information from XCOFF image.
 **/
 static
-IMGLOAD_STATUS
-ANXAPI
+HRESULT
+STDMETHODCALLTYPE
 XcoffGetTlsInfo (
-  IN  IMAGE_LOADER      *This,
+  IN  IImageLoader      *This,
   IN  VOID              *ImageBase,
   OUT IMGLOAD_TLS_INFO  *TlsInfo
   )
 {
-  XCOFF32_FILEHDR *FileHdr32 = (XCOFF32_FILEHDR *)ImageBase;
+  XCOFF32_FILEHDR *FileHdr32;
   UINT32 i;
+  BOOLEAN HasTls = FALSE;
 
+  if (TlsInfo == NULL) {
+    return E_POINTER;
+  }
+
+  FileHdr32 = (XCOFF32_FILEHDR *)ImageBase;
   memset(TlsInfo, 0, sizeof(IMGLOAD_TLS_INFO));
 
   if (FileHdr32->Magic == XCOFF64_MAGIC) {
@@ -416,9 +486,11 @@ XcoffGetTlsInfo (
         TlsInfo->InitDataAddr = Sections[i].VirtAddr;
         TlsInfo->InitDataSize = Sections[i].Size;
         TlsInfo->Alignment = 16;  // Default alignment
+        HasTls = TRUE;
       }
       if (Sections[i].Flags & STYP_TBSS) {
         TlsInfo->TotalSize = TlsInfo->InitDataSize + Sections[i].Size;
+        HasTls = TRUE;
       }
     }
   } else {
@@ -432,34 +504,295 @@ XcoffGetTlsInfo (
         TlsInfo->InitDataAddr = Sections[i].VirtAddr;
         TlsInfo->InitDataSize = Sections[i].Size;
         TlsInfo->Alignment = 16;  // Default alignment
+        HasTls = TRUE;
       }
       if (Sections[i].Flags & STYP_TBSS) {
         TlsInfo->TotalSize = TlsInfo->InitDataSize + Sections[i].Size;
+        HasTls = TRUE;
       }
     }
   }
 
-  return ImgLoadSuccess;
+  return HasTls ? S_OK : S_FALSE;
+}
+
+/**
+  Extract unwinding information from XCOFF image.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+XcoffGetUnwindInfo (
+  IN  IImageLoader         *This,
+  IN  VOID                 *ImageBase,
+  OUT IMGLOAD_UNWIND_INFO  *UnwindInfo
+  )
+{
+  if (UnwindInfo == NULL) {
+    return E_POINTER;
+  }
+
+  // XCOFF doesn't have standardized unwind information
+  memset(UnwindInfo, 0, sizeof(IMGLOAD_UNWIND_INFO));
+  return S_FALSE;
+}
+
+/**
+  Look up symbol by virtual address.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+XcoffGetSymbolByAddress (
+  IN  IImageLoader         *This,
+  IN  VOID                 *ImageBase,
+  IN  VIRTUAL_ADDRESS      Address,
+  OUT IMGLOAD_SYMBOL_INFO  *SymbolInfo
+  )
+{
+  if (SymbolInfo == NULL) {
+    return E_POINTER;
+  }
+
+  // XCOFF symbol lookup not implemented
+  memset(SymbolInfo, 0, sizeof(IMGLOAD_SYMBOL_INFO));
+  return S_FALSE;
+}
+
+/**
+  Look up symbol by name.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+XcoffGetSymbolByName (
+  IN  IImageLoader         *This,
+  IN  VOID                 *ImageBase,
+  IN  CONST CHAR8          *Name,
+  OUT IMGLOAD_SYMBOL_INFO  *SymbolInfo
+  )
+{
+  if (Name == NULL || SymbolInfo == NULL) {
+    return E_POINTER;
+  }
+
+  // XCOFF symbol lookup not implemented
+  memset(SymbolInfo, 0, sizeof(IMGLOAD_SYMBOL_INFO));
+  return S_FALSE;
+}
+
+/**
+  Extract relocation information from XCOFF image.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+XcoffGetRelocInfo (
+  IN  IImageLoader         *This,
+  IN  VOID                 *ImageBase,
+  OUT IMGLOAD_RELOC_INFO   *RelocInfo
+  )
+{
+  if (RelocInfo == NULL) {
+    return E_POINTER;
+  }
+
+  // XCOFF has relocations but they're handled internally
+  memset(RelocInfo, 0, sizeof(IMGLOAD_RELOC_INFO));
+  return S_FALSE;
+}
+
+/**
+  Apply relocations to XCOFF image loaded at different address.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+XcoffApplyRelocations (
+  IN VOID              *ImageBase,
+  IN VIRTUAL_ADDRESS   LoadAddress,
+  IN VIRTUAL_ADDRESS   PreferredBase
+  )
+{
+  // XCOFF relocations are applied during load
+  // No additional relocation needed
+  return S_OK;
+}
+
+/**
+  IUnknown::QueryInterface implementation (stub).
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+XcoffQueryInterface (
+  IN  IImageLoader  *This,
+  IN  REFIID        riid,
+  OUT VOID          **ppvObject
+  )
+{
+  // Simple implementation - only support IImageLoader and IUnknown
+  if (ppvObject == NULL) {
+    return E_POINTER;
+  }
+
+  *ppvObject = NULL;
+
+  // Compare GUIDs (simplified)
+  if (memcmp(riid, &IID_IImageLoader, sizeof(GUID)) == 0 ||
+      memcmp(riid, &IID_IUnknown, sizeof(GUID)) == 0) {
+    *ppvObject = This;
+    return S_OK;
+  }
+
+  return E_NOINTERFACE;
+}
+
+/**
+  IUnknown::AddRef implementation (stub - static object).
+**/
+static
+UINT32
+STDMETHODCALLTYPE
+XcoffAddRef (
+  IN IImageLoader  *This
+  )
+{
+  // Static object, no reference counting
+  return 1;
+}
+
+/**
+  IUnknown::Release implementation (stub - static object).
+**/
+static
+UINT32
+STDMETHODCALLTYPE
+XcoffRelease (
+  IN IImageLoader  *This
+  )
+{
+  // Static object, no reference counting
+  return 1;
 }
 
 //
 // XCOFF Loader VTable
 //
 
-static CONST IMAGE_LOADER_VTBL gXcoffVtbl = {
+#ifdef __cplusplus
+
+/**
+  Get target operating system from Xcoff image.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+XcoffGetTargetSystem (
+  IN  IImageLoader           *This,
+  IN  VOID                   *ImageBase,
+  OUT IMGLOAD_TARGET_SYSTEM  *TargetSystem
+  )
+{
+  if (TargetSystem == NULL) {
+    return E_POINTER;
+  }
+
+  *TargetSystem = ImgSystemAix;
+  return S_OK;
+}
+
+/**
+  Get minimum required system version from Xcoff image.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+XcoffGetMinimumSystemVersion (
+  IN  IImageLoader            *This,
+  IN  VOID                    *ImageBase,
+  OUT IMGLOAD_SYSTEM_VERSION  *MinimumVersion
+  )
+{
+  if (MinimumVersion == NULL) {
+    return E_POINTER;
+  }
+
+  memset(MinimumVersion, 0, sizeof(IMGLOAD_SYSTEM_VERSION));
+  return S_FALSE;
+}
+
+/**
+  Get target subsystem from Xcoff image.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+XcoffGetTargetSubsystem (
+  IN  IImageLoader              *This,
+  IN  VOID                      *ImageBase,
+  OUT IMGLOAD_TARGET_SUBSYSTEM  *TargetSubsystem
+  )
+{
+  if (TargetSubsystem == NULL) {
+    return E_POINTER;
+  }
+
+  *TargetSubsystem = ImgSubsystemCli;
+  return S_OK;
+}
+
+/**
+  Get minimum required subsystem version from Xcoff image.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+XcoffGetMinimumSubsystemVersion (
+  IN  IImageLoader            *This,
+  IN  VOID                    *ImageBase,
+  OUT IMGLOAD_SYSTEM_VERSION  *MinimumVersion
+  )
+{
+  if (MinimumVersion == NULL) {
+    return E_POINTER;
+  }
+
+  memset(MinimumVersion, 0, sizeof(IMGLOAD_SYSTEM_VERSION));
+  return S_FALSE;
+}
+// C++ mode not supported in this implementation
+#error "C++ mode not implemented"
+#else
+static CONST IImageLoaderVtbl gXcoffVtbl = {
+  XcoffQueryInterface,
+  XcoffAddRef,
+  XcoffRelease,
   XcoffDetect,
   XcoffGetArch,
+  XcoffGetEndianness,
   XcoffGetEntryPoint,
   XcoffLoadImage,
-  XcoffGetTlsInfo
+  XcoffGetTlsInfo,
+  XcoffGetUnwindInfo,
+  XcoffGetSymbolByAddress,
+  XcoffGetSymbolByName,
+  XcoffGetRelocInfo,
+  XcoffApplyRelocations,
+  XcoffGetTargetSystem,
+  XcoffGetMinimumSystemVersion,
+  XcoffGetTargetSubsystem,
+  XcoffGetMinimumSubsystemVersion
 };
+#endif
 
 //
 // XCOFF Loader Instance
 //
 
-IMAGE_LOADER gXcoffLoader = {
-  &gXcoffVtbl,
-  "XCOFF",
-  NULL
+IImageLoader gXcoffLoader = {
+  &gXcoffVtbl
 };
+
+// Auto-register this loader
+APXH_REGISTER_IMGLOADER(gXcoffLoader)
