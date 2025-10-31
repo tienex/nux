@@ -46,6 +46,17 @@ typedef struct _TreeNode {
 
 } TreeNode;
 
+/* Virtual data callback structure */
+typedef struct {
+    CHAR8 Text[MAX_NODE_TEXT];
+    UINT32 Depth;
+    BOOLEAN HasChildren;
+    BOOLEAN Expanded;
+    BOOLEAN HasCheckbox;
+    UINT8 CheckState;
+    UINT32 Icon;
+} VirtualTreeItemData;
+
 typedef struct {
     ITuiTreeView Interface;
     WIDGET_STATE State;
@@ -67,6 +78,12 @@ typedef struct {
     BOOLEAN ShowIcons;
     BOOLEAN AllowCheckboxes;
     BOOLEAN AllowEditing;
+
+    /* Virtual mode */
+    BOOLEAN VirtualMode;
+    UINT32 VirtualItemCount;
+    HRESULT (*OnGetVirtualItem)(VOID *UserData, UINT32 Index, VirtualTreeItemData *OutData);
+    VOID *VirtualUserData;
 
     /* Colors */
     TUI_COLOR TreeLineColor;
@@ -234,24 +251,60 @@ static HRESULT ANXAPI TreeView_Render(
 
     if (!impl->State.Visible) return S_OK;
 
-    /* Ensure visible list is up to date */
-    RebuildVisibleList(impl);
+    /* Ensure visible list is up to date (non-virtual mode) */
+    if (!impl->VirtualMode) {
+        RebuildVisibleList(impl);
+    }
 
     /* Render each visible node */
     for (UINT32 i = 0; i < Height && (impl->ScrollOffset + i) < impl->VisibleCount; i++) {
-        TreeNode *node = impl->VisibleNodes[impl->ScrollOffset + i];
-        if (!node) continue;
+        CHAR8 line[512];
+        UINTN pos = 0;
+        UINT32 depth = 0;
+        BOOLEAN hasChildren = FALSE;
+        BOOLEAN expanded = FALSE;
+        BOOLEAN hasCheckbox = FALSE;
+        UINT8 checkState = 0;
+        UINT32 icon = 0;
+        CONST CHAR8 *text = NULL;
+        BOOLEAN isEditing = FALSE;
 
         BOOLEAN isSelected = (impl->SelectedIndex == (INT32)(impl->ScrollOffset + i));
         TUI_COLOR fg = isSelected ? impl->SelectedFgColor : impl->State.ForegroundColor;
         TUI_COLOR bg = isSelected ? impl->SelectedBgColor : impl->State.BackgroundColor;
 
-        CHAR8 line[512];
-        UINTN pos = 0;
+        /* Get data from virtual mode or normal mode */
+        if (impl->VirtualMode) {
+            if (impl->OnGetVirtualItem) {
+                VirtualTreeItemData virtualData;
+                if (SUCCEEDED(impl->OnGetVirtualItem(impl->VirtualUserData, impl->ScrollOffset + i, &virtualData))) {
+                    text = virtualData.Text;
+                    depth = virtualData.Depth;
+                    hasChildren = virtualData.HasChildren;
+                    expanded = virtualData.Expanded;
+                    hasCheckbox = virtualData.HasCheckbox;
+                    checkState = virtualData.CheckState;
+                    icon = virtualData.Icon;
+                } else {
+                    continue;
+                }
+            } else {
+                continue;
+            }
+        } else {
+            TreeNode *node = impl->VisibleNodes[impl->ScrollOffset + i];
+            if (!node) continue;
 
-        /* Calculate indentation */
-        UINT32 depth = GetNodeDepth(node, impl->Root);
-        if (!impl->ShowRoot) depth--;
+            text = node->IsEditing ? node->EditBuffer : node->Text;
+            depth = GetNodeDepth(node, impl->Root);
+            if (!impl->ShowRoot) depth--;
+            hasChildren = (node->ChildCount > 0);
+            expanded = node->Expanded;
+            hasCheckbox = node->HasCheckbox;
+            checkState = node->CheckState;
+            icon = node->Icon;
+            isEditing = node->IsEditing;
+        }
 
         /* Indent */
         for (UINT32 d = 0; d < depth && pos < sizeof(line) - 1; d++) {
@@ -267,8 +320,8 @@ static HRESULT ANXAPI TreeView_Render(
         }
 
         /* Expand/collapse indicator */
-        if (node->ChildCount > 0) {
-            if (node->Expanded) {
+        if (hasChildren) {
+            if (expanded) {
                 line[pos++] = 0x25BC;  /* ▼ */
             } else {
                 line[pos++] = 0x25B6;  /* ▶ */
@@ -280,11 +333,11 @@ static HRESULT ANXAPI TreeView_Render(
         }
 
         /* Checkbox */
-        if (impl->AllowCheckboxes && node->HasCheckbox) {
+        if (impl->AllowCheckboxes && hasCheckbox) {
             line[pos++] = '[';
-            if (node->CheckState == 0) {
+            if (checkState == 0) {
                 line[pos++] = ' ';  /* Unchecked */
-            } else if (node->CheckState == 1) {
+            } else if (checkState == 1) {
                 line[pos++] = '~';  /* Partial */
             } else {
                 line[pos++] = 'X';  /* Checked */
@@ -294,13 +347,12 @@ static HRESULT ANXAPI TreeView_Render(
         }
 
         /* Icon */
-        if (impl->ShowIcons && node->Icon) {
-            line[pos++] = (CHAR8)node->Icon;
+        if (impl->ShowIcons && icon) {
+            line[pos++] = (CHAR8)icon;
             line[pos++] = ' ';
         }
 
         /* Node text */
-        CONST CHAR8 *text = node->IsEditing ? node->EditBuffer : node->Text;
         UINTN textLen = strlen(text);
         UINTN maxText = sizeof(line) - pos - 1;
         if (textLen > maxText) textLen = maxText;
@@ -618,6 +670,29 @@ static BOOLEAN ANXAPI TreeView_IsEnabled(ITuiTreeView *This)
     return impl->State.Enabled;
 }
 
+/* Enable virtual mode */
+static HRESULT ANXAPI TreeView_SetVirtualMode(
+    ITuiTreeView *This,
+    BOOLEAN Enable,
+    UINT32 ItemCount,
+    HRESULT (*Callback)(VOID *UserData, UINT32 Index, VOID *OutData),
+    VOID *UserData
+)
+{
+    TuiTreeViewImpl *impl = (TuiTreeViewImpl *)This;
+
+    impl->VirtualMode = Enable;
+    impl->VirtualItemCount = ItemCount;
+    impl->OnGetVirtualItem = (HRESULT (*)(VOID *, UINT32, VirtualTreeItemData *))Callback;
+    impl->VirtualUserData = UserData;
+
+    if (Enable) {
+        impl->VisibleCount = ItemCount;
+    }
+
+    return S_OK;
+}
+
 /* VTable */
 static ITuiTreeViewVtbl TreeViewVtbl = {
     TreeView_QueryInterface,
@@ -636,7 +711,8 @@ static ITuiTreeViewVtbl TreeViewVtbl = {
     TreeView_SetNodeCheckbox,
     TreeView_SetNodeIcon,
     TreeView_ExpandNode,
-    TreeView_Clear
+    TreeView_Clear,
+    TreeView_SetVirtualMode
 };
 
 /* Factory function */

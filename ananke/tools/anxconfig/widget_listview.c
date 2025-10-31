@@ -96,6 +96,12 @@ typedef struct {
     HRESULT (*OnItemSelected)(VOID *UserData, UINT32 Index);
     VOID *CallbackUserData;
 
+    /* Virtual mode */
+    BOOLEAN VirtualMode;
+    UINT32 VirtualItemCount;
+    HRESULT (*OnGetVirtualItem)(VOID *UserData, UINT32 Index, CHAR8 **OutCells, UINT32 *OutCellCount, BOOLEAN *OutChecked);
+    VOID *VirtualUserData;
+
 } TuiListViewImpl;
 
 /* Helper: Allocate item */
@@ -242,9 +248,14 @@ static HRESULT ANXAPI ListView_Render(
 
     /* Render items */
     UINT32 visibleHeight = Height - (currentY - Y);
-    for (UINT32 i = 0; i < visibleHeight && (impl->ScrollOffsetY + i) < impl->ItemCount; i++) {
-        ListViewItem *item = impl->Items[impl->ScrollOffsetY + i];
-        if (!item) continue;
+    UINT32 actualItemCount = impl->VirtualMode ? impl->VirtualItemCount : impl->ItemCount;
+
+    for (UINT32 i = 0; i < visibleHeight && (impl->ScrollOffsetY + i) < actualItemCount; i++) {
+        CHAR8 line[1024];
+        UINTN pos = 0;
+        BOOLEAN itemChecked = FALSE;
+        CHAR8 *virtualCells[MAX_COLUMNS] = {0};
+        UINT32 virtualCellCount = 0;
 
         BOOLEAN isSelected = (impl->SelectedIndex == (INT32)(impl->ScrollOffsetY + i));
         BOOLEAN isAlternate = ((impl->ScrollOffsetY + i) % 2 == 1);
@@ -258,21 +269,41 @@ static HRESULT ANXAPI ListView_Render(
             bg = (impl->AlternatingColors && isAlternate) ? impl->AlternateBgColor : impl->State.BackgroundColor;
         }
 
-        CHAR8 line[1024];
-        UINTN pos = 0;
+        /* Get data from virtual mode or normal mode */
+        if (impl->VirtualMode) {
+            if (impl->OnGetVirtualItem) {
+                if (FAILED(impl->OnGetVirtualItem(impl->VirtualUserData, impl->ScrollOffsetY + i,
+                                                  virtualCells, &virtualCellCount, &itemChecked))) {
+                    continue;
+                }
+            } else {
+                continue;
+            }
+        } else {
+            ListViewItem *item = impl->Items[impl->ScrollOffsetY + i];
+            if (!item) continue;
+            itemChecked = item->Checked;
+        }
 
         /* Checkbox */
         if (impl->ShowCheckboxes) {
             line[pos++] = ' ';
             line[pos++] = '[';
-            line[pos++] = item->Checked ? 'X' : ' ';
+            line[pos++] = itemChecked ? 'X' : ' ';
             line[pos++] = ']';
         }
 
         /* Cells */
         for (UINT32 col = 0; col < impl->ColumnCount && pos < sizeof(line) - 10; col++) {
-            CONST CHAR8 *text = (item->IsEditing && item->EditColumn == col) ?
-                item->EditBuffer : item->Cells[col];
+            CONST CHAR8 *text = NULL;
+
+            if (impl->VirtualMode) {
+                text = (col < virtualCellCount && virtualCells[col]) ? virtualCells[col] : "";
+            } else {
+                ListViewItem *item = impl->Items[impl->ScrollOffsetY + i];
+                text = (item->IsEditing && item->EditColumn == col) ?
+                    item->EditBuffer : item->Cells[col];
+            }
 
             UINTN textLen = strlen(text);
             UINT32 colWidth = impl->Columns[col].Width;
@@ -597,6 +628,25 @@ static BOOLEAN ANXAPI ListView_IsEnabled(ITuiListView *This)
     return impl->State.Enabled;
 }
 
+/* Enable virtual mode */
+static HRESULT ANXAPI ListView_SetVirtualMode(
+    ITuiListView *This,
+    BOOLEAN Enable,
+    UINT32 ItemCount,
+    HRESULT (*Callback)(VOID *UserData, UINT32 Index, CHAR8 **OutCells, UINT32 *OutCellCount, BOOLEAN *OutChecked),
+    VOID *UserData
+)
+{
+    TuiListViewImpl *impl = (TuiListViewImpl *)This;
+
+    impl->VirtualMode = Enable;
+    impl->VirtualItemCount = ItemCount;
+    impl->OnGetVirtualItem = Callback;
+    impl->VirtualUserData = UserData;
+
+    return S_OK;
+}
+
 /* VTable */
 static ITuiListViewVtbl ListViewVtbl = {
     ListView_QueryInterface,
@@ -614,7 +664,8 @@ static ITuiListViewVtbl ListViewVtbl = {
     ListView_AddItem,
     ListView_Clear,
     ListView_SetMode,
-    ListView_SetColumnWidth
+    ListView_SetColumnWidth,
+    ListView_SetVirtualMode
 };
 
 /* Factory function */

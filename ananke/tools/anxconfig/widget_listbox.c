@@ -23,6 +23,12 @@ typedef struct {
     BOOLEAN Selected[MAX_LIST_ITEMS];  /* For multi-select */
     HRESULT (*SelectionCallback)(VOID *UserData, INT32 Index);
     VOID *UserData;
+
+    /* Virtual mode */
+    BOOLEAN VirtualMode;
+    UINT32 VirtualItemCount;
+    HRESULT (*OnGetVirtualItem)(VOID *UserData, UINT32 Index, CHAR8 *OutText, UINTN TextSize);
+    VOID *VirtualUserData;
 } TuiListBoxImpl;
 
 /* IUnknown methods */
@@ -224,16 +230,34 @@ static HRESULT ANXAPI ListBox_Render(
     }
 
     /* Render visible items */
-    for (line = 0; line < impl->VisibleLines && line < impl->ItemCount; line++) {
+    UINT32 actualItemCount = impl->VirtualMode ? impl->VirtualItemCount : impl->ItemCount;
+
+    for (line = 0; line < impl->VisibleLines && line < actualItemCount; line++) {
         i = impl->ScrollOffset + line;
-        if (i >= impl->ItemCount) break;
+        if (i >= actualItemCount) break;
+
+        CHAR8 itemText[MAX_ITEM_LENGTH];
+
+        /* Get item text from virtual mode or normal mode */
+        if (impl->VirtualMode) {
+            if (impl->OnGetVirtualItem) {
+                if (FAILED(impl->OnGetVirtualItem(impl->VirtualUserData, i, itemText, sizeof(itemText)))) {
+                    strcpy(itemText, "");
+                }
+            } else {
+                strcpy(itemText, "");
+            }
+        } else {
+            strncpy(itemText, impl->Items[i], sizeof(itemText) - 1);
+            itemText[sizeof(itemText) - 1] = '\0';
+        }
 
         /* Choose colors */
         if ((INT32)i == impl->SelectedIndex) {
             /* Selected item */
             fg = TuiColorBlack;
             bg = TuiColorCyan;
-        } else if (impl->MultiSelect && impl->Selected[i]) {
+        } else if (impl->MultiSelect && i < MAX_LIST_ITEMS && impl->Selected[i]) {
             /* Multi-selected item */
             fg = TuiColorBlack;
             bg = TuiColorYellow;
@@ -246,13 +270,13 @@ static HRESULT ANXAPI ListBox_Render(
         }
 
         /* Format item text */
-        if (impl->MultiSelect) {
+        if (impl->MultiSelect && i < MAX_LIST_ITEMS) {
             snprintf(display, sizeof(display), "[%c] %-*s",
                      impl->Selected[i] ? 'X' : ' ',
-                     (int)(Width - 4), impl->Items[i]);
+                     (int)(Width - 4), itemText);
         } else {
             snprintf(display, sizeof(display), "%-*s",
-                     (int)Width, impl->Items[i]);
+                     (int)Width, itemText);
         }
 
         Screen->Vtbl->WriteText(Screen, X, Y + line, display, fg, bg);
