@@ -5,12 +5,17 @@
   3-level page tables (PDPT, PD, PT). Supports 36-bit physical addressing
   with 4KB pages on 32-bit x86 processors.
 
+  Supports configurable kernel/user address space splits:
+  - 0.5GB/3.5GB, 1GB/3GB, 2GB/2GB, 3GB/1GB, 3.5GB/0.5GB
+  - 4GB/4GB (special mode with separate page tables)
+
   Copyright (C) 2019 Gianluca Guida, glguida@tlbflush.org
 
   SPDX-License-Identifier: BSD-2-Clause
 **/
 
 #include <apxh/x86/pae.h>
+#include <apxh/x86/split.h>
 #include <apxh/arch.h>
 
 /* 1 Gb direct map in the Payload Page Table. */
@@ -155,6 +160,8 @@ PaeVerify (
 
   If PAE is not supported, prints a warning but continues with
   initialization to allow basic operation on legacy systems.
+
+  Also initializes address space split configuration (default 1GB/3GB).
 **/
 static VOID
 PaeInitialize (
@@ -162,6 +169,9 @@ PaeInitialize (
   )
 {
 INT32 i;
+
+  /* Initialize address space split configuration */
+  AddressSpaceSplitInit();
 
   /* Check for PAE support */
   if (!CpuSupportsPae ()) {
@@ -270,7 +280,8 @@ PaeGetL1p (
 /**
   Map page with PAE.
 
-  Creates a page mapping with specified permissions.
+  Creates a page mapping with specified permissions. Automatically
+  determines user vs kernel based on address space split configuration.
 
   @param[in] Pt      Page table root.
   @param[in] Va       Virtual address.
@@ -292,11 +303,22 @@ PaeMapPage (
   PTE *L1Entry, *Cr3;
   UINT64 L1F;
   UINTN Page;
+  ADDR_SPACE_SPLIT CurrentSplit;
+  BOOLEAN IsUser;
 
   Cr3 = (PTE *) PageTable;
 
+  // Determine if this is a user space address based on split configuration
+  CurrentSplit = GetCurrentAddressSpaceSplit();
+  IsUser = IsUserSpaceAddress(VirtualAddress, CurrentSplit);
+
   L1Entry = PaeGetL1p (Cr3, VirtualAddress, IsPayload);
   L1F = (IsWritable ? PTE_W : 0) | (IsExecutable ? 0 : PTE_NX) | PTE_P;
+
+  // Set user-accessible bit for user space addresses
+  if (IsUser) {
+    L1F |= PTE_U;
+  }
 
   Page = (UINTN) PteGetAddr (L1Entry);
   assert (Page == 0);
