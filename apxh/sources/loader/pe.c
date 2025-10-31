@@ -582,7 +582,7 @@ PeGetUnwindInfo (
 
   UnwindInfo->UnwindDataAddr = ExceptionDir->VirtualAddress;
   UnwindInfo->UnwindDataSize = ExceptionDir->Size;
-  UnwindInfo->Format = 1;  // PE .pdata format
+  UnwindInfo->Format = ImgUnwindFormatPeExceptionTable;
 
   return S_OK;
 }

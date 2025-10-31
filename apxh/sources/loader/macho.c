@@ -908,7 +908,7 @@ MachoGetUnwindInfo (
       if (memcmp(Seg->SegName, "__unwind_info", 13) == 0) {
         UnwindInfo->UnwindDataAddr = Seg->VmAddr;
         UnwindInfo->UnwindDataSize = Seg->VmSize;
-        UnwindInfo->Format = 2;  // Mach-O compact unwinding format
+        UnwindInfo->Format = ImgUnwindFormatMachOCompactUnwind;
         return S_OK;
       }
     } else if (Cmd->Cmd == LC_SEGMENT) {
@@ -917,7 +917,7 @@ MachoGetUnwindInfo (
       if (memcmp(Seg->SegName, "__unwind_info", 13) == 0) {
         UnwindInfo->UnwindDataAddr = Seg->VmAddr;
         UnwindInfo->UnwindDataSize = Seg->VmSize;
-        UnwindInfo->Format = 2;  // Mach-O compact unwinding format
+        UnwindInfo->Format = ImgUnwindFormatMachOCompactUnwind;
         return S_OK;
       }
     }

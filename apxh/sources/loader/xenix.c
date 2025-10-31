@@ -37,6 +37,12 @@
 #define XOUT_F_KER      0x0800  ///< Kernel format
 
 //
+// XENIX CPU Types
+//
+
+#define XOUT_CPU_386    3       ///< Intel 386
+
+//
 // XENIX X.OUT Structures
 //
 
@@ -219,7 +225,7 @@ XenixGetArch (
 
   Header = (XOUT_HEADER *)ImageBase;
 
-  if (Header->CpuType == 3) {  // 386
+  if (Header->CpuType == XOUT_CPU_386) {
     *Architecture = Arch386;
     return S_OK;
   }

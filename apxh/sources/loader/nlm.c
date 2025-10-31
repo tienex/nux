@@ -52,6 +52,15 @@
 #define NLM_FLAG_OS_DOMAIN     0x00000010  ///< OS domain module
 
 //
+// NLM Relocation Fixup Types
+//
+
+#define NLM_FIXUP_INTERNAL     0x00  ///< Internal reference (offset adjustment)
+#define NLM_FIXUP_EXTERNAL     0x01  ///< External symbol reference
+#define NLM_FIXUP_FAR_CALL     0x02  ///< Far call fixup
+#define NLM_FIXUP_SEGMENT      0x03  ///< Segment fixup
+
+//
 // NLM Structures
 //
 
@@ -682,7 +691,7 @@ NlmApplyRelocations (
     UINT32 Offset;
 
     switch (FixupType) {
-      case 0x00:  // Internal reference (most common)
+      case NLM_FIXUP_INTERNAL:
         // Read 4-byte offset
         Offset = *(UINT32 *)Ptr;
         Ptr += 4;
@@ -694,12 +703,12 @@ NlmApplyRelocations (
         }
         break;
 
-      case 0x01:  // External reference
+      case NLM_FIXUP_EXTERNAL:
         // Skip: 4-byte offset + 4-byte external symbol index
         Ptr += 8;
         break;
 
-      case 0x02:  // Far call fixup
+      case NLM_FIXUP_FAR_CALL:
         // Read 4-byte offset
         Offset = *(UINT32 *)Ptr;
         Ptr += 4;
@@ -710,7 +719,7 @@ NlmApplyRelocations (
         }
         break;
 
-      case 0x03:  // Segment fixup
+      case NLM_FIXUP_SEGMENT:
         // Skip: 4-byte offset + 2-byte segment
         Ptr += 6;
         break;
