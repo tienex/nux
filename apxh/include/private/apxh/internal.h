@@ -324,31 +324,32 @@ typedef enum _PAYLOAD_ID
 VOID *GetPayloadStart (IN INT32 ArgumentCount, IN char *ArgumentVector[], IN PAYLOAD_ID PayloadId);
 UINTN GetPayloadSize (IN PAYLOAD_ID PayloadId);
 
-ARCH GetElfArch (IN VOID *ElfImage);
-VIRTUAL_ADDRESS LoadElf32 (IN VOID *ElfImage, IN INT32 IsUserMode);
-VIRTUAL_ADDRESS LoadElf64 (IN VOID *ElfImage, IN INT32 IsUserMode);
+ARCH GetImageArch (IN VOID *ElfImage);
+VIRTUAL_ADDRESS LoadImage32 (IN VOID *ElfImage, IN INT32 IsUserMode);
+VIRTUAL_ADDRESS LoadImage64 (IN VOID *ElfImage, IN INT32 IsUserMode);
 
 UINTN GetPage (VOID);
 UINTN GetPayloadPage (VOID);
 
-VOID VirtualAddressInit (VOID);
-UINTN VirtualAddressGetPhysical (IN VIRTUAL_ADDRESS VirtualAddress);
-VOID VirtualAddressVerify (IN VIRTUAL_ADDRESS VirtualAddress, IN SIZE64 Size);
-VOID VirtualAddressPopulate (IN VIRTUAL_ADDRESS VirtualAddress, IN SIZE64 Size, IN INT32 IsUserMode, IN INT32 IsWritable, IN INT32 IsExecutable);
-VOID VirtualAddressCopy (IN VIRTUAL_ADDRESS VirtualAddress, IN VOID *SourceAddress, IN SIZE64 Size, IN INT32 IsUserMode, IN INT32 IsWritable, IN INT32 IsExecutable);
-VOID VirtualAddressMemset (IN VIRTUAL_ADDRESS VirtualAddress, IN INT32 FillChar, IN SIZE64 Size, IN INT32 IsUserMode, IN INT32 IsWritable, IN INT32 IsExecutable);
-VOID VirtualAddressMapPhysical (IN VIRTUAL_ADDRESS VirtualAddress, IN SIZE64 Size, IN MEMORY_TYPE Type);
-VOID VirtualAddressMapLinear (IN VIRTUAL_ADDRESS VirtualAddress, IN SIZE64 Size);
-VOID VirtualAddressMapInfo (IN VIRTUAL_ADDRESS VirtualAddress, IN SIZE64 Size);
-VOID VirtualAddressMapPageFrameNumbers (IN VIRTUAL_ADDRESS VirtualAddress, IN SIZE64 Size);
-VOID VirtualAddressMapBatree (IN VIRTUAL_ADDRESS VirtualAddress, IN SIZE64 Size);
-VOID VirtualAddressAllocateTopPageTable (IN VIRTUAL_ADDRESS VirtualAddress, IN SIZE64 Size);
-VOID VirtualAddressAllocatePageTable (IN VIRTUAL_ADDRESS VirtualAddress, IN SIZE64 Size);
-VOID VirtualAddressMapFramebuffer (IN VIRTUAL_ADDRESS VirtualAddress, IN SIZE64 Size, IN MEMORY_TYPE Type);
-VOID VirtualAddressMapRegions (IN VIRTUAL_ADDRESS VirtualAddress, IN SIZE64 Size);
-VOID VirtualAddressMapKernelTls (IN VIRTUAL_ADDRESS VirtualAddress, IN SIZE64 InitializedSize, IN SIZE64 TotalSize);
-VOID VirtualAddressMapUserTls (IN VIRTUAL_ADDRESS VirtualAddress, IN SIZE64 InitializedSize, IN SIZE64 TotalSize);
-VOID VirtualAddressSetEntry (IN VIRTUAL_ADDRESS EntryPoint);
+// Virtual Address Space Management (vas.c)
+VOID VasInitialize (VOID);
+UINTN VasGetPhysical (IN VIRTUAL_ADDRESS VirtualAddress);
+VOID VasVerify (IN VIRTUAL_ADDRESS VirtualAddress, IN SIZE64 Size);
+VOID VasPopulate (IN VIRTUAL_ADDRESS VirtualAddress, IN SIZE64 Size, IN INT32 IsUserMode, IN INT32 IsWritable, IN INT32 IsExecutable);
+VOID VasCopy (IN VIRTUAL_ADDRESS VirtualAddress, IN VOID *SourceAddress, IN SIZE64 Size, IN INT32 IsUserMode, IN INT32 IsWritable, IN INT32 IsExecutable);
+VOID VasFill (IN VIRTUAL_ADDRESS VirtualAddress, IN INT32 FillChar, IN SIZE64 Size, IN INT32 IsUserMode, IN INT32 IsWritable, IN INT32 IsExecutable);
+VOID VasMapPhysical (IN VIRTUAL_ADDRESS VirtualAddress, IN SIZE64 Size, IN MEMORY_TYPE Type);
+VOID VasMapLinear (IN VIRTUAL_ADDRESS VirtualAddress, IN SIZE64 Size);
+VOID VasMapInfo (IN VIRTUAL_ADDRESS VirtualAddress, IN SIZE64 Size);
+VOID VasMapPageFrameNumbers (IN VIRTUAL_ADDRESS VirtualAddress, IN SIZE64 Size);
+VOID VasMapBatree (IN VIRTUAL_ADDRESS VirtualAddress, IN SIZE64 Size);
+VOID VasAllocTopPageTable (IN VIRTUAL_ADDRESS VirtualAddress, IN SIZE64 Size);
+VOID VasAllocPageTable (IN VIRTUAL_ADDRESS VirtualAddress, IN SIZE64 Size);
+VOID VasMapFramebuffer (IN VIRTUAL_ADDRESS VirtualAddress, IN SIZE64 Size, IN MEMORY_TYPE Type);
+VOID VasMapRegions (IN VIRTUAL_ADDRESS VirtualAddress, IN SIZE64 Size);
+VOID VasMapKernelTls (IN VIRTUAL_ADDRESS VirtualAddress, IN SIZE64 InitializedSize, IN SIZE64 TotalSize);
+VOID VasMapUserTls (IN VIRTUAL_ADDRESS VirtualAddress, IN SIZE64 InitializedSize, IN SIZE64 TotalSize);
+VOID VasSetEntry (IN VIRTUAL_ADDRESS EntryPoint);
 
 VOID PaeInit (VOID);
 UINTN PaeGetPhysical (IN VIRTUAL_ADDRESS VirtualAddress);

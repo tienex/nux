@@ -74,7 +74,7 @@ LoadImage (
   @return Entry point virtual address, or -1 on error.
 **/
 VIRTUAL_ADDRESS
-LoadElf32 (
+LoadImage32 (
   IN VOID    *ElfImage,
   IN INT32   User
   )
@@ -98,7 +98,7 @@ LoadElf32 (
   @return Entry point virtual address, or -1 on error.
 **/
 VIRTUAL_ADDRESS
-LoadElf64 (
+LoadImage64 (
   IN VOID    *ElfImage,
   IN INT32   User
   )
@@ -121,7 +121,7 @@ LoadElf64 (
   @return Architecture type, or ArchInvalid/ArchUnsupported.
 **/
 ARCH
-GetElfArch (
+GetImageArch (
   IN VOID  *ImageBase
   )
 {
