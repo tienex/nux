@@ -2,7 +2,7 @@
   NUX Kernel Virtual Address (KVA) Allocator
 
   Provides kernel virtual address space allocation and mapping services.
-  Uses a red-black tree to track free virtual address ranges and integrates
+  Uses NTRTL AVL trees to track free virtual address ranges and integrates
   with the kernel mapping layer for physical page mapping.
 
   Copyright (C) 2019 Gianluca Guida, glguida@tlbflush.org
@@ -11,9 +11,9 @@
 **/
 
 #include <stddef.h>
-#include <rbtree.h>
 #include <assert.h>
 
+#include <ananke/ntrtl.h>
 #include <nux/internal.h>
 #include <nux/nux.h>
 
@@ -21,7 +21,7 @@
 // VM allocator
 //
 
-static rb_tree_t gVmapRbTree;
+static RTL_AVL_TREE gVmapAvlTree;
 static VIRTUAL_ADDRESS gKvaBase;
 static UINTN gKvaSize;
 static UINTN gVmapSize;
@@ -33,21 +33,21 @@ static UINTN gVmapSize;
 **/
 struct vme
 {
-  struct rb_node rb_node;      ///< Red-black tree node
-  LIST_ENTRY (vme) list;       ///< List entry
-  VIRTUAL_ADDRESS addr;                ///< Starting virtual address
-  UINTN size;                 ///< Size in bytes
+  RTL_AVL_TREE_NODE AvlNode;   ///< NTRTL AVL tree node
+  LIST_ENTRY        ListEntry; ///< List entry
+  VIRTUAL_ADDRESS   addr;      ///< Starting virtual address
+  UINTN             size;      ///< Size in bytes
 };
 
 /**
   Virtual memory map structure.
 
-  Contains a red-black tree of virtual memory entries.
+  Contains an NTRTL AVL tree of virtual memory entries.
 **/
 struct vmap
 {
-  rb_tree_t rbtree;            ///< Red-black tree root
-  UINTN size;                 ///< Total size managed
+  RTL_AVL_TREE AvlTree;        ///< NTRTL AVL tree root
+  UINTN        size;           ///< Total size managed
 };
 
 /**
@@ -60,14 +60,13 @@ VmapRemove (
   IN struct vme  *Vme
   )
 {
-  /* ASSERT ISA(vme) XXX: */
-  rb_tree_remove_node (&gVmapRbTree, (VOID *) Vme);
+  RtlRemoveAvlTreeNode (&gVmapAvlTree, &Vme->AvlNode, TRUE);
   gVmapSize -= Vme->size;
   KmemAlloc (0, sizeof (struct vme));
 }
 
 /**
-  Find virtual memory entry containing specified address.
+  Find virtual memory entry containing specified address using AVL tree traversal.
 
   @param[in] Va  Virtual address to search for.
 
@@ -78,10 +77,21 @@ VmapFind (
   IN VIRTUAL_ADDRESS  Va
   )
 {
-  struct vme;
+  PRTL_AVL_TREE_NODE Current = gVmapAvlTree.Root;
 
-  /* ASSERT ISA(vme returned) XXX: */
-  return rb_tree_find_node (&gVmapRbTree, (VOID *) &Va);
+  while (Current != NULL) {
+    struct vme *Vme = CONTAINING_RECORD(Current, struct vme, AvlNode);
+
+    if (Va < Vme->addr) {
+      Current = Current->Left;
+    } else if (Va > Vme->addr + (Vme->size - 1)) {
+      Current = Current->Right;
+    } else {
+      return Vme;
+    }
+  }
+
+  return NULL;
 }
 
 /**
@@ -103,59 +113,33 @@ VmapInsert (
   Vme = (struct vme *) KmemAlloc (0, sizeof (struct vme));
   Vme->addr = Start;
   Vme->size = Len;
-  rb_tree_insert_node (&gVmapRbTree, (VOID *) Vme);
+  RtlInitializeAvlTreeNode (&Vme->AvlNode);
+  RtlInsertAvlTreeNode (&gVmapAvlTree, &Vme->AvlNode, TRUE);
   gVmapSize += Vme->size;
   return Vme;
 }
 
 /**
-  Compare virtual memory entry with key for red-black tree lookup.
+  Compare two virtual memory entry nodes for NTRTL AVL tree ordering.
 
-  @param[in] Ctx  Context pointer (unused).
-  @param[in] N    Node pointer.
-  @param[in] Key  Key pointer (virtual address).
-
-  @retval  1  Key is less than node range.
-  @retval -1  Key is greater than node range.
-  @retval  0  Key is within node range.
-**/
-static INT32
-VmapCompareKey (
-  IN VOID        *Ctx,
-  IN CONST VOID  *N,
-  IN CONST VOID  *Key
-  )
-{
-  CONST struct vme *Vme = N;
-  CONST VIRTUAL_ADDRESS Va = *(CONST VIRTUAL_ADDRESS *) Key;
-
-  if (Va < Vme->addr)
-    return 1;
-  if (Va > Vme->addr + (Vme->size - 1))
-    return -1;
-  return 0;
-}
-
-/**
-  Compare two virtual memory entry nodes for red-black tree ordering.
-
-  @param[in] Ctx  Context pointer (unused).
-  @param[in] pN1   First node pointer.
-  @param[in] pN2   Second node pointer.
+  @param[in] Node1    First AVL tree node.
+  @param[in] Node2    Second AVL tree node.
+  @param[in] Context  Context pointer (unused).
 
   @retval -1  First node address is less than second.
   @retval  1  First node address is greater than second.
   @retval  0  Addresses are equal (should not happen).
 **/
-static INT32
+static INTN
+ANXAPI
 VmapCompareNodes (
-  IN VOID        *Ctx,
-  IN CONST VOID  *pN1,
-  IN CONST VOID  *pN2
+  IN PRTL_AVL_TREE_NODE  Node1,
+  IN PRTL_AVL_TREE_NODE  Node2,
+  IN VOID                *Context OPTIONAL
   )
 {
-  CONST struct vme *pVmap1 = pN1;
-  CONST struct vme *pVmap2 = pN2;
+  CONST struct vme *pVmap1 = CONTAINING_RECORD(Node1, struct vme, AvlNode);
+  CONST struct vme *pVmap2 = CONTAINING_RECORD(Node2, struct vme, AvlNode);
 
   /* Assert non overlapping */
   assert (pVmap1->addr < pVmap2->addr
@@ -169,13 +153,6 @@ VmapCompareNodes (
     return 1;
   return 0;
 }
-
-static CONST rb_tree_ops_t gVmapTreeOps = {
-  .rbto_compare_nodes = VmapCompareNodes,
-  .rbto_compare_key = VmapCompareKey,
-  .rbto_node_offset = offsetof (struct vme, rb_node),
-  .rbto_context = NULL
-};
 
 //
 // VM allocator.
@@ -402,7 +379,7 @@ KvaUnmap (
 /**
   Initialize kernel virtual address allocator.
 
-  Sets up red-black tree, zone allocator, and initializes with
+  Sets up NTRTL AVL tree, zone allocator, and initializes with
   available kernel virtual address range from HAL.
 **/
 VOID
@@ -410,7 +387,7 @@ KvaInitialize (
   VOID
   )
 {
-  rb_tree_init (&gVmapRbTree, &gVmapTreeOps);
+  RtlInitializeAvlTree (&gVmapAvlTree, VmapCompareNodes, NULL, NULL, NULL);
   zone_init (&gVmapZone, 0);
   spinlock_init (&gVmapLock);
   gVmapSize = 0;
@@ -420,70 +397,3 @@ KvaInitialize (
   KvaFree (gKvaBase, gKvaSize);
   info ("KVA Area from %lx to %lx", gKvaBase, gKvaBase + gKvaSize);
 }
-
-//
-// Legacy Function Wrappers (for backward compatibility)
-//
-
-/** @deprecated Use VmapRemove instead **/
-static VOID vmap_remove (struct vme *vme) {
-  VmapRemove (vme);
-}
-
-/** @deprecated Use VmapFind instead **/
-static struct vme *vmap_find (VIRTUAL_ADDRESS va) {
-  return VmapFind (va);
-}
-
-/** @deprecated Use VmapInsert instead **/
-static struct vme *vmap_insert (VIRTUAL_ADDRESS start, UINTN len) {
-  return VmapInsert (start, len);
-}
-
-/** @deprecated Use VmapCompareKey instead **/
-static int vmap_compare_key (VOID *ctx, CONST VOID *n, CONST VOID *key) {
-  return VmapCompareKey (ctx, n, key);
-}
-
-/** @deprecated Use VmapCompareNodes instead **/
-static int vmap_compare_nodes (VOID *ctx, CONST VOID *n1, CONST VOID *n2) {
-  return VmapCompareNodes (ctx, n1, n2);
-}
-
-/** @deprecated Use KvaAllocate instead **/
-VIRTUAL_ADDRESS KvaAlloc (UINTN size) {
-  return KvaAllocate (size);
-}
-
-/** @deprecated Use KvaFree instead **/
-VOID KvaFree (VIRTUAL_ADDRESS va, UINTN size) {
-  KvaFree (va, size);
-}
-
-/** @deprecated Use KvaMap instead **/
-VOID *KvaMap (PFN pfn, UINT32 prot) {
-  return KvaMap (pfn, prot);
-}
-
-/** @deprecated Use KvaMapPhysical instead **/
-VOID *KvaPhysMap (PHYSICAL_ADDRESS paddr, UINTN size, UINT32 prot) {
-  return KvaMapPhysical (paddr, size, prot);
-}
-
-/** @deprecated Use KvaUnmap instead **/
-VOID KvaUnmap (VOID *ptr, UINTN size) {
-  KvaUnmap (ptr, size);
-}
-
-/** @deprecated Use KvaInitialize instead **/
-VOID kvainit (VOID) {
-  KvaInitialize ();
-}
-
-// Legacy global variable aliases
-static rb_tree_t vmap_rbtree ANX_ATTR_ALIAS("gVmapRbTree");
-static VIRTUAL_ADDRESS kvabase ANX_ATTR_ALIAS("gKvaBase");
-static UINTN kvasize ANX_ATTR_ALIAS("gKvaSize");
-static UINTN vmap_size ANX_ATTR_ALIAS("gVmapSize");
-static SPINLOCK vmap_lock ANX_ATTR_ALIAS("gVmapLock");
-static struct zone vmap_zone ANX_ATTR_ALIAS("gVmapZone");
