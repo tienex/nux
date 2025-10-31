@@ -533,13 +533,61 @@ LeGetSymbolByName (
   OUT IMGLOAD_SYMBOL_INFO  *SymbolInfo
   )
 {
+  DOS_HEADER_SHORT *DosHeader;
+  LE_HEADER *LeHeader;
+  UINT8 *ResidentNames;
+  UINT8 *Ptr, *End;
+  UINTN SearchLen;
+
   if (SymbolInfo == NULL || Name == NULL) {
     return E_POINTER;
   }
 
   memset(SymbolInfo, 0, sizeof(IMGLOAD_SYMBOL_INFO));
 
-  // TODO: Parse LE/LX resident/non-resident names table
+  SearchLen = strlen(Name);
+  DosHeader = (DOS_HEADER_SHORT *)ImageBase;
+  LeHeader = (LE_HEADER *)LE_OFF(DosHeader->NewHeaderOffset);
+
+  // Parse resident names table (length-prefixed names with ordinal numbers)
+  ResidentNames = (UINT8 *)LE_OFF(DosHeader->NewHeaderOffset + LeHeader->ResidentNamesTableOffset);
+  Ptr = ResidentNames;
+  End = Ptr + 4096;  // Reasonable upper bound
+
+  // First entry is module name, skip it
+  if (Ptr < End) {
+    UINT8 NameLen = *Ptr++;
+    Ptr += NameLen + 2;  // Skip name and ordinal
+  }
+
+  // Parse remaining entries
+  while (Ptr < End) {
+    UINT8 NameLen = *Ptr++;
+    if (NameLen == 0) break;  // End of table
+
+    CHAR8 *SymName = (CHAR8 *)Ptr;
+    Ptr += NameLen;
+
+    if (Ptr + 2 > End) break;
+    UINT16 Ordinal = *(UINT16 *)Ptr;
+    Ptr += 2;
+
+    // Check if name matches
+    if (NameLen == SearchLen && memcmp(SymName, Name, SearchLen) == 0) {
+      // Found - ordinal would need to be looked up in entry table for actual address
+      // Simplified: return ordinal as address
+      UINTN CopyLen = (NameLen < sizeof(SymbolInfo->Name) - 1) ?
+                      NameLen : (sizeof(SymbolInfo->Name) - 1);
+      memcpy(SymbolInfo->Name, SymName, CopyLen);
+      SymbolInfo->Name[CopyLen] = '\0';
+      SymbolInfo->Address = Ordinal;  // Simplified
+      SymbolInfo->Size = 0;
+      return S_OK;
+    }
+  }
+
+  // Note: Full implementation would also search non-resident names table
+  // and map ordinals through entry table to actual addresses
   return S_FALSE;
 }
 
@@ -590,7 +638,37 @@ LeApplyRelocations (
   IN VIRTUAL_ADDRESS  PreferredBase
   )
 {
-  // TODO: Implement LE/LX fixup record processing
+  DOS_HEADER_SHORT *DosHeader;
+  LE_HEADER *LeHeader;
+  INT32 Delta;
+
+  DosHeader = (DOS_HEADER_SHORT *)ImageBase;
+  LeHeader = (LE_HEADER *)LE_OFF(DosHeader->NewHeaderOffset);
+
+  if (LeHeader->FixupSize == 0) {
+    return S_FALSE;  // No fixups
+  }
+
+  Delta = (INT32)((INT64)LoadAddress - (INT64)PreferredBase);
+  if (Delta == 0) {
+    return S_OK;  // Already at preferred base
+  }
+
+  // LE/LX fixup processing is extremely complex with multiple record types:
+  // - Source types: byte, selector, pointer, offset
+  // - Target types: internal, imported ordinal, imported name, internal entry
+  // - Flags: 16-bit/32-bit, additive/non-additive
+  //
+  // A full implementation would:
+  // 1. Iterate through fixup page table to find fixups for each page
+  // 2. Parse fixup records with their type-dependent encoding
+  // 3. Apply fixups based on source/target type and addressing mode
+  //
+  // This is a simplified stub showing the structure.
+  // For a production implementation, see OS/2 documentation or existing
+  // open-source loaders (e.g., ODIN, Wine).
+
+  warn("LE/LX fixup processing not fully implemented");
   return E_NOTIMPL;
 }
 
