@@ -56,6 +56,10 @@ enabling cross-platform resource embedding in all executable formats.
 | HP SOM | ❌ No  | ⚠️ Stub | Stub implementation (PA-RISC) |
 | OpenVMS | ❌ No  | ⚠️ Stub | Stub implementation (VAX/Alpha/Itanium) |
 | PDP-10 SAV | ❌ No  | ⚠️ Stub | Stub implementation (PDP-10 36-bit) |
+| EPOC32 | ✅ Yes | ⚠️ Partial | Native resources (Symbian OS ARM E32Image) |
+| PalmOS PRC | ✅ Yes | ⚠️ Partial | Native resource database (Palm OS 68K/ARM) |
+| RISC OS AIF | ❌ No  | ⚠️ Partial | No native resources (Acorn ARM) |
+| Mac OS 68K | ✅ Yes | ⚠️ Partial | Native resource fork with CODE resources |
 
 ### Implementation Guide
 
@@ -119,6 +123,10 @@ executable formats, enabling proper startup/shutdown sequences for libraries and
 | HP SOM | ⚠️ Stub | ⚠️ Stub | Stub implementation |
 | OpenVMS | ⚠️ Stub | ⚠️ Stub | Stub implementation |
 | PDP-10 SAV | ⚠️ Stub | ⚠️ Stub | Stub implementation |
+| EPOC32 | ❌ No  | ⚠️ N/A | No explicit init/fini (Symbian OS E32Image) |
+| PalmOS PRC | ❌ No  | ⚠️ N/A | No explicit init/fini (Palm OS handles initialization) |
+| RISC OS AIF | ❌ No  | ⚠️ N/A | No explicit init/fini (RISC OS handles initialization) |
+| Mac OS 68K | ❌ No  | ⚠️ N/A | No explicit init/fini (Mac OS handles CODE resource loading) |
 
 ### Implementation Patterns
 
@@ -535,6 +543,35 @@ Typical termination sequence:
 - **Implementation:** `plan9.c`
 - **Status:** Detection implemented
 - Plan 9 a.out variant
+
+### EPOC32 (Symbian OS)
+- **Implementation:** `epoc32.c`
+- **Status:** Detection implemented
+- E32Image format for Symbian OS
+- ARM architecture (ARMv4, ARMv5)
+- UID verification support
+
+### PalmOS PRC
+- **Implementation:** `palmos.c`
+- **Status:** Detection implemented
+- Palm Resource Code (PRC) database format
+- M68K architecture (Palm OS 1.0-4.x) and ARM (Palm OS 5.x+)
+- Native resource database support
+
+### RISC OS AIF
+- **Implementation:** `acorn.c`
+- **Status:** Detection implemented
+- Acorn Image Format for RISC OS
+- ARM architecture
+- Relocatable executable format
+
+### Classic Mac OS 68K
+- **Implementation:** `macos68k.c`
+- **Status:** Detection implemented
+- Classic Macintosh 68K resource-based executable (pre-PEF)
+- M68K architecture (68000, 68020, 68030, 68040)
+- Resource fork with CODE resources
+- Jump table and A5 world support
 
 ---
 
