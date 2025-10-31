@@ -27,12 +27,16 @@ ARCH GetKernelArchitecture (VOID);
 ARCH GetUserArchitecture (VOID);
 ARCH GetHostArchitecture (VOID);
 UINT32 GetMixedModeFlags (VOID);
+IMGLOAD_ENDIAN GetKernelEndianness (VOID);
+IMGLOAD_ENDIAN GetUserEndianness (VOID);
+BOOLEAN GetMixedEndianMode (VOID);
 
 //
 // Image Loading
 //
 
 ARCH GetImageArch (IN VOID *ImageBase);
+IMGLOAD_ENDIAN GetImageEndian (IN VOID *ImageBase);
 VIRTUAL_ADDRESS LoadExecutable (IN VOID *ImageBase, IN BOOLEAN IsUserMode);
 
 //

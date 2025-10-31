@@ -187,6 +187,26 @@ typedef struct _APXH_BOOT_INFO {
   /// Bit 3: General mixed-mode (kernel and user have different bitness)
   ///
   UINT32  MixedModeFlags;
+
+  ///
+  /// Kernel endianness.
+  /// 0 = Unknown, 1 = Little-endian, 2 = Big-endian
+  ///
+  UINT32  KernelEndianness;
+
+  ///
+  /// User endianness.
+  /// 0 = Unknown, 1 = Little-endian, 2 = Big-endian
+  /// May be 0 (Unknown) if no user-space program is loaded.
+  ///
+  UINT32  UserEndianness;
+
+  ///
+  /// Mixed-endian flag.
+  /// TRUE if kernel and user have different endianness.
+  /// Kernel must handle endianness conversion for syscalls and data transfer.
+  ///
+  UINT32  MixedEndian;
 } APXH_BOOT_INFO;
 
 //

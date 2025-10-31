@@ -105,3 +105,38 @@ GetImageArch (
 
   return Architecture;
 }
+
+/**
+  Get image endianness.
+
+  Determines the endianness from any supported executable format
+  using the COM-based IMGLOADER interface.
+
+  @param[in] ImageBase  Pointer to image in memory.
+
+  @return Endianness type.
+**/
+IMGLOAD_ENDIAN
+GetImageEndian (
+  IN VOID  *ImageBase
+  )
+{
+  IImageLoader *Loader;
+  IMGLOAD_ENDIAN Endianness;
+  HRESULT Status;
+  UINTN ImageSize = 64 * 1024 * 1024; // Assume reasonable max size
+
+  // Find appropriate loader for this image
+  Loader = ImageLoaderFind(ImageBase, ImageSize);
+  if (Loader == NULL) {
+    return ImgEndianUnknown;
+  }
+
+  // Get endianness from loader
+  Status = Loader->lpVtbl->GetEndianness(Loader, ImageBase, &Endianness);
+  if (FAILED(Status)) {
+    return ImgEndianUnknown;
+  }
+
+  return Endianness;
+}

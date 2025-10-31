@@ -14,12 +14,15 @@
 #include <apxh/internal.h>
 
 static ARCH gImageArch;
-static ARCH gKernelArch = ArchInvalid;  ///< Kernel architecture
-static ARCH gUserArch = ArchInvalid;    ///< User architecture
-static ARCH gHostArch = ArchInvalid;    ///< Host/CPU architecture
-static BOOLEAN gMixedMode = FALSE;      ///< TRUE if kernel/user have different bitness
-static BOOLEAN g32on64Mode = FALSE;     ///< TRUE if 32-bit on 64-bit CPU
-static BOOLEAN g64Uon32KMode = FALSE;   ///< TRUE if 64-bit user on 32-bit kernel
+static ARCH gKernelArch = ArchInvalid;       ///< Kernel architecture
+static ARCH gUserArch = ArchInvalid;         ///< User architecture
+static ARCH gHostArch = ArchInvalid;         ///< Host/CPU architecture
+static IMGLOAD_ENDIAN gKernelEndian = ImgEndianUnknown;  ///< Kernel endianness
+static IMGLOAD_ENDIAN gUserEndian = ImgEndianUnknown;    ///< User endianness
+static BOOLEAN gMixedMode = FALSE;           ///< TRUE if kernel/user have different bitness
+static BOOLEAN g32on64Mode = FALSE;          ///< TRUE if 32-bit on 64-bit CPU
+static BOOLEAN g64Uon32KMode = FALSE;        ///< TRUE if 64-bit user on 32-bit kernel
+static BOOLEAN gMixedEndian = FALSE;         ///< TRUE if kernel/user have different endianness
 
 /**
   Get kernel architecture.
@@ -84,6 +87,46 @@ GetMixedModeFlags (
     Flags |= APXH_MIXEDMODE_32UON64K;
 
   return Flags;
+}
+
+/**
+  Get kernel endianness.
+
+  @return Kernel endianness.
+**/
+IMGLOAD_ENDIAN
+GetKernelEndianness (
+  VOID
+  )
+{
+  return gKernelEndian;
+}
+
+/**
+  Get user endianness.
+
+  @return User endianness (ImgEndianUnknown if no user).
+**/
+IMGLOAD_ENDIAN
+GetUserEndianness (
+  VOID
+  )
+{
+  return gUserEndian;
+}
+
+/**
+  Check if mixed-endian mode is active.
+
+  @retval TRUE  Kernel and user have different endianness.
+  @retval FALSE Kernel and user have same endianness.
+**/
+BOOLEAN
+GetMixedEndianMode (
+  VOID
+  )
+{
+  return gMixedEndian;
 }
 static UINT8 gBootPagemap[PAGEMAP_SZ (BOOTMEM)]
   ANX_ATTR_ALIGN(4096);
@@ -199,12 +242,36 @@ Is64BitArch (
 }
 
 /**
-  Analyze kernel/user architecture combination.
+  Get endianness name.
+
+  @param[in] Endian  Endianness type.
+
+  @return String name of endianness.
+**/
+static CONST CHAR *
+GetEndianName (
+  IN IMGLOAD_ENDIAN  Endian
+  )
+{
+  switch (Endian) {
+    case ImgEndianLittle:
+      return "little-endian";
+    case ImgEndianBig:
+      return "big-endian";
+    case ImgEndianUnknown:
+    default:
+      return "unknown";
+  }
+}
+
+/**
+  Analyze kernel/user architecture and endianness combination.
 
   Detects mixed-mode scenarios:
   - 32-bit kernel/user on 64-bit CPU (32-on-64)
   - 64-bit user on 32-bit kernel (64U-on-32K)
   - 32-bit user on 64-bit kernel (32U-on-64K)
+  - Mixed-endian (kernel and user have different endianness)
 
   Sets global flags accordingly.
 **/
@@ -221,6 +288,7 @@ AnalyzeArchitectureCombination (
   gMixedMode = FALSE;
   g32on64Mode = FALSE;
   g64Uon32KMode = FALSE;
+  gMixedEndian = FALSE;
 
   // Check for 64-bit user on 32-bit kernel
   if (!KernelIs64 && UserIs64) {
@@ -254,6 +322,22 @@ AnalyzeArchitectureCombination (
     info("Kernel and user have different architectures:");
     info("  Kernel: %s", ArchitectureGetName(gKernelArch));
     info("  User:   %s", ArchitectureGetName(gUserArch));
+  }
+
+  // Check for mixed-endian mode
+  if (gUserArch != ArchInvalid &&
+      gKernelEndian != ImgEndianUnknown &&
+      gUserEndian != ImgEndianUnknown &&
+      gKernelEndian != gUserEndian) {
+    gMixedEndian = TRUE;
+    info("Detected mixed-endian execution mode:");
+    info("  Kernel: %s (%s)", ArchitectureGetName(gKernelArch), GetEndianName(gKernelEndian));
+    info("  User:   %s (%s)", ArchitectureGetName(gUserArch), GetEndianName(gUserEndian));
+    info("Kernel must handle endianness conversion for user space");
+  } else if (gUserArch != ArchInvalid) {
+    // Report matching endianness
+    info("Kernel and user endianness: %s / %s",
+         GetEndianName(gKernelEndian), GetEndianName(gUserEndian));
   }
 }
 
@@ -441,6 +525,11 @@ VasMapInfoCopy (
   BootInfo.UserArchitecture = (UINT32)gUserArch;
   BootInfo.HostArchitecture = (UINT32)gHostArch;
   BootInfo.MixedModeFlags = GetMixedModeFlags();
+
+  // Endianness information
+  BootInfo.KernelEndianness = (UINT32)gKernelEndian;
+  BootInfo.UserEndianness = (UINT32)gUserEndian;
+  BootInfo.MixedEndian = (UINT32)gMixedEndian;
 
   VasCopy (Va, &BootInfo, MIN (Size, sizeof (APXH_BOOT_INFO)), 0, 0, 0);
 #undef MIN
@@ -850,20 +939,24 @@ main (
   Initialize ();
 
   /*
-     Peek at both payloads to determine architecture before VAS initialization.
+     Peek at both payloads to determine architecture and endianness before VAS initialization.
      This is critical for mixed-mode scenarios like 64U-on-32K where we need
-     64-bit page tables even though the kernel is 32-bit.
+     64-bit page tables even though the kernel is 32-bit, and for mixed-endian
+     scenarios where kernel and user may have different byte ordering.
    */
   KernelImageStart = GetPayloadStart (ArgumentCount, ArgumentVector, PayloadKernel);
   KernelImageSize = GetPayloadSize (PayloadKernel);
   gKernelArch = GetImageArch (KernelImageStart);
+  gKernelEndian = GetImageEndian (KernelImageStart);
 
   UserImageStart = GetPayloadStart (ArgumentCount, ArgumentVector, PayloadUser);
   UserImageSize = GetPayloadSize (PayloadUser);
   if (UserImageStart != NULL && UserImageSize != 0) {
     gUserArch = GetImageArch (UserImageStart);
+    gUserEndian = GetImageEndian (UserImageStart);
   } else {
     gUserArch = ArchInvalid;
+    gUserEndian = ImgEndianUnknown;
   }
 
   /*
