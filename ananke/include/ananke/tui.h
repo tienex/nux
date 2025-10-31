@@ -1778,6 +1778,79 @@ struct _ITuiMenu {
     CONST ITuiMenu_Vtbl *Vtbl;
 };
 
+// {7B8C9D0E-1F2A-3B4C-5D6E-7F8A9B0C1D2E}
+DEFINE_GUID(IID_ITuiThemedCheckbox,
+    0x7B8C9D0E, 0x1F2A, 0x3B4C, 0x5D, 0x6E, 0x7F, 0x8A, 0x9B, 0x0C, 0x1D, 0x2E);
+
+/**
+  ITuiThemedCheckbox Interface
+
+  Checkbox theming interface. Inherits from ITuiThemedWidget.
+**/
+typedef struct _ITuiThemedCheckbox_Vtbl {
+    // ITuiSerializable methods
+    HRESULT (ANXAPI *QueryInterface)(ITuiThemedCheckbox *This, REFIID riid, VOID **ppvObject);
+    UINTN (ANXAPI *AddRef)(ITuiThemedCheckbox *This);
+    UINTN (ANXAPI *Release)(ITuiThemedCheckbox *This);
+    HRESULT (ANXAPI *SerializeToYaml)(ITuiThemedCheckbox *This, CHAR8 **OutYaml, UINTN *OutLength);
+    HRESULT (ANXAPI *DeserializeFromYaml)(ITuiThemedCheckbox *This, CONST CHAR8 *Yaml, UINTN Length);
+    HRESULT (ANXAPI *GetTypeName)(ITuiThemedCheckbox *This, CONST CHAR8 **OutTypeName);
+    HRESULT (ANXAPI *Clone)(ITuiThemedCheckbox *This, ITuiSerializable **OutClone);
+
+    // ITuiResponder methods
+    HRESULT (ANXAPI *GetNextResponder)(ITuiThemedCheckbox *This, ITuiResponder **NextResponder);
+    HRESULT (ANXAPI *SetNextResponder)(ITuiThemedCheckbox *This, ITuiResponder *NextResponder);
+    BOOLEAN (ANXAPI *AcceptsFirstResponder)(ITuiThemedCheckbox *This);
+    HRESULT (ANXAPI *BecomeFirstResponder)(ITuiThemedCheckbox *This);
+    HRESULT (ANXAPI *ResignFirstResponder)(ITuiThemedCheckbox *This);
+
+    // ITuiWidget methods
+    HRESULT (ANXAPI *SetBounds)(ITuiThemedCheckbox *This, CONST TUI_RECT *Bounds);
+    HRESULT (ANXAPI *GetBounds)(ITuiThemedCheckbox *This, TUI_RECT *Bounds);
+    HRESULT (ANXAPI *SetVisible)(ITuiThemedCheckbox *This, BOOLEAN Visible);
+    BOOLEAN (ANXAPI *IsVisible)(ITuiThemedCheckbox *This);
+    HRESULT (ANXAPI *SetEnabled)(ITuiThemedCheckbox *This, BOOLEAN Enabled);
+    BOOLEAN (ANXAPI *IsEnabled)(ITuiThemedCheckbox *This);
+    HRESULT (ANXAPI *SetParent)(ITuiThemedCheckbox *This, ITuiWidget *Parent);
+    HRESULT (ANXAPI *GetParent)(ITuiThemedCheckbox *This, ITuiWidget **Parent);
+    HRESULT (ANXAPI *AddChild)(ITuiThemedCheckbox *This, ITuiWidget *Child);
+    HRESULT (ANXAPI *RemoveChild)(ITuiThemedCheckbox *This, ITuiWidget *Child);
+    HRESULT (ANXAPI *SetNeedsDisplay)(ITuiThemedCheckbox *This, BOOLEAN Needed);
+
+    // ITuiThemedWidget methods
+    HRESULT (ANXAPI *ApplyTheme)(ITuiThemedCheckbox *This, ITuiTheme *Theme);
+    HRESULT (ANXAPI *GetColors)(ITuiThemedCheckbox *This, TUI_COLOR *Foreground, TUI_COLOR *Background);
+    HRESULT (ANXAPI *SetColors)(ITuiThemedCheckbox *This, TUI_COLOR Foreground, TUI_COLOR Background);
+    HRESULT (ANXAPI *OnMouseEvent)(ITuiThemedCheckbox *This, CONST TUI_MOUSE_EVENT *Event, BOOLEAN *Handled);
+    HRESULT (ANXAPI *OnKeyEvent)(ITuiThemedCheckbox *This, TUI_KEY Key, UINT32 Modifiers, BOOLEAN *Handled);
+    HRESULT (ANXAPI *Draw)(ITuiThemedCheckbox *This, ITuiSurface *Surface, CONST TUI_RECT *DirtyRect);
+
+    // ITuiThemedCheckbox methods
+    /**
+      Get checkbox character style ([ ], [X], etc).
+    **/
+    HRESULT (ANXAPI *GetCheckboxStyle)(
+        ITuiThemedCheckbox *This,
+        CHAR8 *UncheckedChar,
+        CHAR8 *CheckedChar,
+        CHAR8 *TristateChar
+    );
+
+    /**
+      Set checkbox character style.
+    **/
+    HRESULT (ANXAPI *SetCheckboxStyle)(
+        ITuiThemedCheckbox *This,
+        CHAR8 UncheckedChar,
+        CHAR8 CheckedChar,
+        CHAR8 TristateChar
+    );
+} ITuiThemedCheckbox_Vtbl;
+
+struct _ITuiThemedCheckbox {
+    CONST ITuiThemedCheckbox_Vtbl *Vtbl;
+};
+
 // {D4E5F6A7-B8C9-4D0E-1F2A-3B4C5D6E7F8A}
 DEFINE_GUID(IID_ITuiCheckbox,
     0xD4E5F6A7, 0xB8C9, 0x4D0E, 0x1F, 0x2A, 0x3B, 0x4C, 0x5D, 0x6E, 0x7F, 0x8A);
@@ -1785,36 +1858,66 @@ DEFINE_GUID(IID_ITuiCheckbox,
 /**
   ITuiCheckbox Interface
 
-  Represents a checkbox widget (boolean on/off toggle).
+  Checkbox widget with tristate support. Inherits from ITuiThemedCheckbox.
 **/
 typedef struct _ITuiCheckbox_Vtbl {
-    //
-    // IUnknown methods
-    //
-    HRESULT (ANXAPI *QueryInterface)(
-        ITuiCheckbox *This,
-        REFIID riid,
-        VOID **ppvObject
-    );
+    // ITuiSerializable methods
+    HRESULT (ANXAPI *QueryInterface)(ITuiCheckbox *This, REFIID riid, VOID **ppvObject);
+    UINTN (ANXAPI *AddRef)(ITuiCheckbox *This);
+    UINTN (ANXAPI *Release)(ITuiCheckbox *This);
+    HRESULT (ANXAPI *SerializeToYaml)(ITuiCheckbox *This, CHAR8 **OutYaml, UINTN *OutLength);
+    HRESULT (ANXAPI *DeserializeFromYaml)(ITuiCheckbox *This, CONST CHAR8 *Yaml, UINTN Length);
+    HRESULT (ANXAPI *GetTypeName)(ITuiCheckbox *This, CONST CHAR8 **OutTypeName);
+    HRESULT (ANXAPI *Clone)(ITuiCheckbox *This, ITuiSerializable **OutClone);
 
-    UINTN (ANXAPI *AddRef)(
-        ITuiCheckbox *This
-    );
+    // ITuiResponder methods
+    HRESULT (ANXAPI *GetNextResponder)(ITuiCheckbox *This, ITuiResponder **NextResponder);
+    HRESULT (ANXAPI *SetNextResponder)(ITuiCheckbox *This, ITuiResponder *NextResponder);
+    BOOLEAN (ANXAPI *AcceptsFirstResponder)(ITuiCheckbox *This);
+    HRESULT (ANXAPI *BecomeFirstResponder)(ITuiCheckbox *This);
+    HRESULT (ANXAPI *ResignFirstResponder)(ITuiCheckbox *This);
 
-    UINTN (ANXAPI *Release)(
-        ITuiCheckbox *This
-    );
+    // ITuiWidget methods
+    HRESULT (ANXAPI *SetBounds)(ITuiCheckbox *This, CONST TUI_RECT *Bounds);
+    HRESULT (ANXAPI *GetBounds)(ITuiCheckbox *This, TUI_RECT *Bounds);
+    HRESULT (ANXAPI *SetVisible)(ITuiCheckbox *This, BOOLEAN Visible);
+    BOOLEAN (ANXAPI *IsVisible)(ITuiCheckbox *This);
+    HRESULT (ANXAPI *SetEnabled)(ITuiCheckbox *This, BOOLEAN Enabled);
+    BOOLEAN (ANXAPI *IsEnabled)(ITuiCheckbox *This);
+    HRESULT (ANXAPI *SetParent)(ITuiCheckbox *This, ITuiWidget *Parent);
+    HRESULT (ANXAPI *GetParent)(ITuiCheckbox *This, ITuiWidget **Parent);
+    HRESULT (ANXAPI *AddChild)(ITuiCheckbox *This, ITuiWidget *Child);
+    HRESULT (ANXAPI *RemoveChild)(ITuiCheckbox *This, ITuiWidget *Child);
+    HRESULT (ANXAPI *SetNeedsDisplay)(ITuiCheckbox *This, BOOLEAN Needed);
 
-    //
+    // ITuiThemedWidget methods
+    HRESULT (ANXAPI *ApplyTheme)(ITuiCheckbox *This, ITuiTheme *Theme);
+    HRESULT (ANXAPI *GetColors)(ITuiCheckbox *This, TUI_COLOR *Foreground, TUI_COLOR *Background);
+    HRESULT (ANXAPI *SetColors)(ITuiCheckbox *This, TUI_COLOR Foreground, TUI_COLOR Background);
+    HRESULT (ANXAPI *OnMouseEvent)(ITuiCheckbox *This, CONST TUI_MOUSE_EVENT *Event, BOOLEAN *Handled);
+    HRESULT (ANXAPI *OnKeyEvent)(ITuiCheckbox *This, TUI_KEY Key, UINT32 Modifiers, BOOLEAN *Handled);
+    HRESULT (ANXAPI *Draw)(ITuiCheckbox *This, ITuiSurface *Surface, CONST TUI_RECT *DirtyRect);
+
+    // ITuiThemedCheckbox methods
+    HRESULT (ANXAPI *GetCheckboxStyle)(ITuiCheckbox *This, CHAR8 *UncheckedChar, CHAR8 *CheckedChar, CHAR8 *TristateChar);
+    HRESULT (ANXAPI *SetCheckboxStyle)(ITuiCheckbox *This, CHAR8 UncheckedChar, CHAR8 CheckedChar, CHAR8 TristateChar);
+
     // ITuiCheckbox methods
-    //
-
     /**
       Set checkbox label.
     **/
     HRESULT (ANXAPI *SetLabel)(
         ITuiCheckbox *This,
         CONST CHAR8 *Label
+    );
+
+    /**
+      Get checkbox label.
+    **/
+    HRESULT (ANXAPI *GetLabel)(
+        ITuiCheckbox *This,
+        CHAR8 *Buffer,
+        UINTN BufferSize
     );
 
     /**
@@ -1831,6 +1934,13 @@ typedef struct _ITuiCheckbox_Vtbl {
     HRESULT (ANXAPI *SetChecked)(
         ITuiCheckbox *This,
         BOOLEAN Checked
+    );
+
+    /**
+      Check if tristate mode is enabled.
+    **/
+    BOOLEAN (ANXAPI *IsTristate)(
+        ITuiCheckbox *This
     );
 
     /**
@@ -1856,36 +1966,11 @@ typedef struct _ITuiCheckbox_Vtbl {
         ITuiCheckbox *This,
         UINT8 Value
     );
-
-    /**
-      Render checkbox at position.
-    **/
-    HRESULT (ANXAPI *Render)(
-        ITuiCheckbox *This,
-        ITuiScreen *Screen,
-        INT32 X,
-        INT32 Y,
-        BOOLEAN Focused
-    );
-
-    /**
-      Handle key input.
-    **/
-    HRESULT (ANXAPI *HandleKey)(
-        ITuiCheckbox *This,
-        TUI_KEY Key,
-        BOOLEAN *Handled
-    );
-
 } ITuiCheckbox_Vtbl;
 
 struct _ITuiCheckbox {
     CONST ITuiCheckbox_Vtbl *Vtbl;
 };
-
-// {E5F6A7B8-C9D0-4E1F-2A3B-4C5D6E7F8A9B}
-DEFINE_GUID(IID_ITuiInput,
-    0xE5F6A7B8, 0xC9D0, 0x4E1F, 0x2A, 0x3B, 0x4C, 0x5D, 0x6E, 0x7F, 0x8A, 0x9B);
 
 /**
   Input Field Type
@@ -1896,32 +1981,155 @@ typedef enum _TUI_INPUT_TYPE {
     TuiInputHex
 } TUI_INPUT_TYPE;
 
+// {8C9D0E1F-2A3B-4C5D-6E7F-8A9B0C1D2E3F}
+DEFINE_GUID(IID_ITuiThemedInput,
+    0x8C9D0E1F, 0x2A3B, 0x4C5D, 0x6E, 0x7F, 0x8A, 0x9B, 0x0C, 0x1D, 0x2E, 0x3F);
+
+/**
+  ITuiThemedInput Interface
+
+  Input field theming interface. Inherits from ITuiThemedWidget.
+**/
+typedef struct _ITuiThemedInput_Vtbl {
+    // ITuiSerializable methods
+    HRESULT (ANXAPI *QueryInterface)(ITuiThemedInput *This, REFIID riid, VOID **ppvObject);
+    UINTN (ANXAPI *AddRef)(ITuiThemedInput *This);
+    UINTN (ANXAPI *Release)(ITuiThemedInput *This);
+    HRESULT (ANXAPI *SerializeToYaml)(ITuiThemedInput *This, CHAR8 **OutYaml, UINTN *OutLength);
+    HRESULT (ANXAPI *DeserializeFromYaml)(ITuiThemedInput *This, CONST CHAR8 *Yaml, UINTN Length);
+    HRESULT (ANXAPI *GetTypeName)(ITuiThemedInput *This, CONST CHAR8 **OutTypeName);
+    HRESULT (ANXAPI *Clone)(ITuiThemedInput *This, ITuiSerializable **OutClone);
+
+    // ITuiResponder methods
+    HRESULT (ANXAPI *GetNextResponder)(ITuiThemedInput *This, ITuiResponder **NextResponder);
+    HRESULT (ANXAPI *SetNextResponder)(ITuiThemedInput *This, ITuiResponder *NextResponder);
+    BOOLEAN (ANXAPI *AcceptsFirstResponder)(ITuiThemedInput *This);
+    HRESULT (ANXAPI *BecomeFirstResponder)(ITuiThemedInput *This);
+    HRESULT (ANXAPI *ResignFirstResponder)(ITuiThemedInput *This);
+
+    // ITuiWidget methods
+    HRESULT (ANXAPI *SetBounds)(ITuiThemedInput *This, CONST TUI_RECT *Bounds);
+    HRESULT (ANXAPI *GetBounds)(ITuiThemedInput *This, TUI_RECT *Bounds);
+    HRESULT (ANXAPI *SetVisible)(ITuiThemedInput *This, BOOLEAN Visible);
+    BOOLEAN (ANXAPI *IsVisible)(ITuiThemedInput *This);
+    HRESULT (ANXAPI *SetEnabled)(ITuiThemedInput *This, BOOLEAN Enabled);
+    BOOLEAN (ANXAPI *IsEnabled)(ITuiThemedInput *This);
+    HRESULT (ANXAPI *SetParent)(ITuiThemedInput *This, ITuiWidget *Parent);
+    HRESULT (ANXAPI *GetParent)(ITuiThemedInput *This, ITuiWidget **Parent);
+    HRESULT (ANXAPI *AddChild)(ITuiThemedInput *This, ITuiWidget *Child);
+    HRESULT (ANXAPI *RemoveChild)(ITuiThemedInput *This, ITuiWidget *Child);
+    HRESULT (ANXAPI *SetNeedsDisplay)(ITuiThemedInput *This, BOOLEAN Needed);
+
+    // ITuiThemedWidget methods
+    HRESULT (ANXAPI *ApplyTheme)(ITuiThemedInput *This, ITuiTheme *Theme);
+    HRESULT (ANXAPI *GetColors)(ITuiThemedInput *This, TUI_COLOR *Foreground, TUI_COLOR *Background);
+    HRESULT (ANXAPI *SetColors)(ITuiThemedInput *This, TUI_COLOR Foreground, TUI_COLOR Background);
+    HRESULT (ANXAPI *OnMouseEvent)(ITuiThemedInput *This, CONST TUI_MOUSE_EVENT *Event, BOOLEAN *Handled);
+    HRESULT (ANXAPI *OnKeyEvent)(ITuiThemedInput *This, TUI_KEY Key, UINT32 Modifiers, BOOLEAN *Handled);
+    HRESULT (ANXAPI *Draw)(ITuiThemedInput *This, ITuiSurface *Surface, CONST TUI_RECT *DirtyRect);
+
+    // ITuiThemedInput methods
+    /**
+      Get cursor style and color.
+    **/
+    HRESULT (ANXAPI *GetCursorStyle)(
+        ITuiThemedInput *This,
+        TUI_COLOR *CursorColor,
+        BOOLEAN *BlockCursor
+    );
+
+    /**
+      Set cursor style and color.
+    **/
+    HRESULT (ANXAPI *SetCursorStyle)(
+        ITuiThemedInput *This,
+        TUI_COLOR CursorColor,
+        BOOLEAN BlockCursor
+    );
+
+    /**
+      Get selection colors.
+    **/
+    HRESULT (ANXAPI *GetSelectionColors)(
+        ITuiThemedInput *This,
+        TUI_COLOR *Foreground,
+        TUI_COLOR *Background
+    );
+
+    /**
+      Set selection colors.
+    **/
+    HRESULT (ANXAPI *SetSelectionColors)(
+        ITuiThemedInput *This,
+        TUI_COLOR Foreground,
+        TUI_COLOR Background
+    );
+} ITuiThemedInput_Vtbl;
+
+struct _ITuiThemedInput {
+    CONST ITuiThemedInput_Vtbl *Vtbl;
+};
+
+// {E5F6A7B8-C9D0-4E1F-2A3B-4C5D6E7F8A9B}
+DEFINE_GUID(IID_ITuiInput,
+    0xE5F6A7B8, 0xC9D0, 0x4E1F, 0x2A, 0x3B, 0x4C, 0x5D, 0x6E, 0x7F, 0x8A, 0x9B);
+
 /**
   ITuiInput Interface
 
-  Represents an input field widget (string, integer, hex).
+  Text input field widget (string, integer, hex). Inherits from ITuiThemedInput.
 **/
 typedef struct _ITuiInput_Vtbl {
-    //
-    // IUnknown methods
-    //
-    HRESULT (ANXAPI *QueryInterface)(
-        ITuiInput *This,
-        REFIID riid,
-        VOID **ppvObject
-    );
+    // ITuiSerializable methods
+    HRESULT (ANXAPI *QueryInterface)(ITuiInput *This, REFIID riid, VOID **ppvObject);
+    UINTN (ANXAPI *AddRef)(ITuiInput *This);
+    UINTN (ANXAPI *Release)(ITuiInput *This);
+    HRESULT (ANXAPI *SerializeToYaml)(ITuiInput *This, CHAR8 **OutYaml, UINTN *OutLength);
+    HRESULT (ANXAPI *DeserializeFromYaml)(ITuiInput *This, CONST CHAR8 *Yaml, UINTN Length);
+    HRESULT (ANXAPI *GetTypeName)(ITuiInput *This, CONST CHAR8 **OutTypeName);
+    HRESULT (ANXAPI *Clone)(ITuiInput *This, ITuiSerializable **OutClone);
 
-    UINTN (ANXAPI *AddRef)(
-        ITuiInput *This
-    );
+    // ITuiResponder methods
+    HRESULT (ANXAPI *GetNextResponder)(ITuiInput *This, ITuiResponder **NextResponder);
+    HRESULT (ANXAPI *SetNextResponder)(ITuiInput *This, ITuiResponder *NextResponder);
+    BOOLEAN (ANXAPI *AcceptsFirstResponder)(ITuiInput *This);
+    HRESULT (ANXAPI *BecomeFirstResponder)(ITuiInput *This);
+    HRESULT (ANXAPI *ResignFirstResponder)(ITuiInput *This);
 
-    UINTN (ANXAPI *Release)(
-        ITuiInput *This
-    );
+    // ITuiWidget methods
+    HRESULT (ANXAPI *SetBounds)(ITuiInput *This, CONST TUI_RECT *Bounds);
+    HRESULT (ANXAPI *GetBounds)(ITuiInput *This, TUI_RECT *Bounds);
+    HRESULT (ANXAPI *SetVisible)(ITuiInput *This, BOOLEAN Visible);
+    BOOLEAN (ANXAPI *IsVisible)(ITuiInput *This);
+    HRESULT (ANXAPI *SetEnabled)(ITuiInput *This, BOOLEAN Enabled);
+    BOOLEAN (ANXAPI *IsEnabled)(ITuiInput *This);
+    HRESULT (ANXAPI *SetParent)(ITuiInput *This, ITuiWidget *Parent);
+    HRESULT (ANXAPI *GetParent)(ITuiInput *This, ITuiWidget **Parent);
+    HRESULT (ANXAPI *AddChild)(ITuiInput *This, ITuiWidget *Child);
+    HRESULT (ANXAPI *RemoveChild)(ITuiInput *This, ITuiWidget *Child);
+    HRESULT (ANXAPI *SetNeedsDisplay)(ITuiInput *This, BOOLEAN Needed);
 
-    //
+    // ITuiThemedWidget methods
+    HRESULT (ANXAPI *ApplyTheme)(ITuiInput *This, ITuiTheme *Theme);
+    HRESULT (ANXAPI *GetColors)(ITuiInput *This, TUI_COLOR *Foreground, TUI_COLOR *Background);
+    HRESULT (ANXAPI *SetColors)(ITuiInput *This, TUI_COLOR Foreground, TUI_COLOR Background);
+    HRESULT (ANXAPI *OnMouseEvent)(ITuiInput *This, CONST TUI_MOUSE_EVENT *Event, BOOLEAN *Handled);
+    HRESULT (ANXAPI *OnKeyEvent)(ITuiInput *This, TUI_KEY Key, UINT32 Modifiers, BOOLEAN *Handled);
+    HRESULT (ANXAPI *Draw)(ITuiInput *This, ITuiSurface *Surface, CONST TUI_RECT *DirtyRect);
+
+    // ITuiThemedInput methods
+    HRESULT (ANXAPI *GetCursorStyle)(ITuiInput *This, TUI_COLOR *CursorColor, BOOLEAN *BlockCursor);
+    HRESULT (ANXAPI *SetCursorStyle)(ITuiInput *This, TUI_COLOR CursorColor, BOOLEAN BlockCursor);
+    HRESULT (ANXAPI *GetSelectionColors)(ITuiInput *This, TUI_COLOR *Foreground, TUI_COLOR *Background);
+    HRESULT (ANXAPI *SetSelectionColors)(ITuiInput *This, TUI_COLOR Foreground, TUI_COLOR Background);
+
     // ITuiInput methods
-    //
+    /**
+      Get input type.
+    **/
+    TUI_INPUT_TYPE (ANXAPI *GetType)(
+        ITuiInput *This
+    );
 
     /**
       Set input type.
@@ -1937,6 +2145,15 @@ typedef struct _ITuiInput_Vtbl {
     HRESULT (ANXAPI *SetLabel)(
         ITuiInput *This,
         CONST CHAR8 *Label
+    );
+
+    /**
+      Get input label.
+    **/
+    HRESULT (ANXAPI *GetLabel)(
+        ITuiInput *This,
+        CHAR8 *Buffer,
+        UINTN BufferSize
     );
 
     /**
@@ -1966,23 +2183,35 @@ typedef struct _ITuiInput_Vtbl {
     );
 
     /**
-      Render input field at position.
+      Get integer range.
     **/
-    HRESULT (ANXAPI *Render)(
+    HRESULT (ANXAPI *GetRange)(
         ITuiInput *This,
-        ITuiScreen *Screen,
-        INT32 X,
-        INT32 Y,
-        BOOLEAN Focused
+        INT64 *Min,
+        INT64 *Max
     );
 
     /**
-      Handle key input.
+      Set maximum input length.
     **/
-    HRESULT (ANXAPI *HandleKey)(
+    HRESULT (ANXAPI *SetMaxLength)(
         ITuiInput *This,
-        TUI_KEY Key,
-        BOOLEAN *Handled
+        UINTN MaxLength
+    );
+
+    /**
+      Set password mode (display asterisks).
+    **/
+    HRESULT (ANXAPI *SetPasswordMode)(
+        ITuiInput *This,
+        BOOLEAN PasswordMode
+    );
+
+    /**
+      Check if password mode is enabled.
+    **/
+    BOOLEAN (ANXAPI *IsPasswordMode)(
+        ITuiInput *This
     );
 
 } ITuiInput_Vtbl;
