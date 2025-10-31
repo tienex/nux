@@ -22,6 +22,7 @@ extern "C" {
 //
 
 // Base interfaces
+typedef struct _ITuiSerializable ITuiSerializable;
 typedef struct _ITuiResponder ITuiResponder;
 typedef struct _ITuiWidget ITuiWidget;
 
@@ -238,6 +239,70 @@ typedef struct _TUI_CELL {
 // Base Responder and Widget Architecture (Cocoa-style)
 //
 
+// {0A1B2C3D-4E5F-6A7B-8C9D-0E1F2A3B4C5D}
+DEFINE_GUID(IID_ITuiSerializable,
+    0x0A1B2C3D, 0x4E5F, 0x6A7B, 0x8C, 0x9D, 0x0E, 0x1F, 0x2A, 0x3B, 0x4C, 0x5D);
+
+/**
+  ITuiSerializable Interface
+
+  Base interface for objects that can be serialized/deserialized.
+  Enables YAML persistence and universal resource storage/retrieval.
+**/
+typedef struct _ITuiSerializable_Vtbl {
+    HRESULT (ANXAPI *QueryInterface)(ITuiSerializable *This, REFIID riid, VOID **ppvObject);
+    UINTN (ANXAPI *AddRef)(ITuiSerializable *This);
+    UINTN (ANXAPI *Release)(ITuiSerializable *This);
+
+    /**
+      Serialize object to YAML string.
+    **/
+    HRESULT (ANXAPI *SerializeToYaml)(
+        ITuiSerializable *This,
+        CHAR8 **OutYaml,
+        UINTN *OutLength
+    );
+
+    /**
+      Deserialize object from YAML string.
+    **/
+    HRESULT (ANXAPI *DeserializeFromYaml)(
+        ITuiSerializable *This,
+        CONST CHAR8 *Yaml,
+        UINTN Length
+    );
+
+    /**
+      Get object type name for serialization.
+    **/
+    HRESULT (ANXAPI *GetTypeName)(
+        ITuiSerializable *This,
+        CONST CHAR8 **OutTypeName
+    );
+
+    /**
+      Clone the object.
+    **/
+    HRESULT (ANXAPI *Clone)(
+        ITuiSerializable *This,
+        ITuiSerializable **OutClone
+    );
+} ITuiSerializable_Vtbl;
+
+struct _ITuiSerializable {
+    CONST ITuiSerializable_Vtbl *Vtbl;
+};
+
+#ifdef COBJMACROS
+#define ITuiSerializable_QueryInterface(This,riid,ppvObject) (This)->Vtbl->QueryInterface(This,riid,ppvObject)
+#define ITuiSerializable_AddRef(This) (This)->Vtbl->AddRef(This)
+#define ITuiSerializable_Release(This) (This)->Vtbl->Release(This)
+#define ITuiSerializable_SerializeToYaml(This,OutYaml,OutLength) (This)->Vtbl->SerializeToYaml(This,OutYaml,OutLength)
+#define ITuiSerializable_DeserializeFromYaml(This,Yaml,Length) (This)->Vtbl->DeserializeFromYaml(This,Yaml,Length)
+#define ITuiSerializable_GetTypeName(This,OutTypeName) (This)->Vtbl->GetTypeName(This,OutTypeName)
+#define ITuiSerializable_Clone(This,OutClone) (This)->Vtbl->Clone(This,OutClone)
+#endif
+
 // {1A2B3C4D-5E6F-7A8B-9C0D-1E2F3A4B5C6D}
 DEFINE_GUID(IID_ITuiResponder,
     0x1A2B3C4D, 0x5E6F, 0x7A8B, 0x9C, 0x0D, 0x1E, 0x2F, 0x3A, 0x4B, 0x5C, 0x6D);
@@ -246,13 +311,19 @@ DEFINE_GUID(IID_ITuiResponder,
   ITuiResponder Interface
 
   Base interface for objects that respond to events.
-  Similar to NSResponder in Cocoa - handles event dispatching.
+  Inherits from ITuiSerializable. Similar to NSResponder in Cocoa - handles event dispatching.
 **/
 typedef struct _ITuiResponder_Vtbl {
+    // ITuiSerializable methods
     HRESULT (ANXAPI *QueryInterface)(ITuiResponder *This, REFIID riid, VOID **ppvObject);
     UINTN (ANXAPI *AddRef)(ITuiResponder *This);
     UINTN (ANXAPI *Release)(ITuiResponder *This);
+    HRESULT (ANXAPI *SerializeToYaml)(ITuiResponder *This, CHAR8 **OutYaml, UINTN *OutLength);
+    HRESULT (ANXAPI *DeserializeFromYaml)(ITuiResponder *This, CONST CHAR8 *Yaml, UINTN Length);
+    HRESULT (ANXAPI *GetTypeName)(ITuiResponder *This, CONST CHAR8 **OutTypeName);
+    HRESULT (ANXAPI *Clone)(ITuiResponder *This, ITuiSerializable **OutClone);
 
+    // ITuiResponder methods
     /**
       Get the next responder in the responder chain.
     **/
@@ -299,6 +370,10 @@ struct _ITuiResponder {
 #define ITuiResponder_QueryInterface(This,riid,ppvObject) (This)->Vtbl->QueryInterface(This,riid,ppvObject)
 #define ITuiResponder_AddRef(This) (This)->Vtbl->AddRef(This)
 #define ITuiResponder_Release(This) (This)->Vtbl->Release(This)
+#define ITuiResponder_SerializeToYaml(This,OutYaml,OutLength) (This)->Vtbl->SerializeToYaml(This,OutYaml,OutLength)
+#define ITuiResponder_DeserializeFromYaml(This,Yaml,Length) (This)->Vtbl->DeserializeFromYaml(This,Yaml,Length)
+#define ITuiResponder_GetTypeName(This,OutTypeName) (This)->Vtbl->GetTypeName(This,OutTypeName)
+#define ITuiResponder_Clone(This,OutClone) (This)->Vtbl->Clone(This,OutClone)
 #define ITuiResponder_GetNextResponder(This,NextResponder) (This)->Vtbl->GetNextResponder(This,NextResponder)
 #define ITuiResponder_SetNextResponder(This,NextResponder) (This)->Vtbl->SetNextResponder(This,NextResponder)
 #define ITuiResponder_AcceptsFirstResponder(This) (This)->Vtbl->AcceptsFirstResponder(This)
@@ -317,10 +392,16 @@ DEFINE_GUID(IID_ITuiWidget,
   Provides common widget functionality (bounds, visibility, enable state).
 **/
 typedef struct _ITuiWidget_Vtbl {
-    // ITuiResponder methods
+    // ITuiSerializable methods
     HRESULT (ANXAPI *QueryInterface)(ITuiWidget *This, REFIID riid, VOID **ppvObject);
     UINTN (ANXAPI *AddRef)(ITuiWidget *This);
     UINTN (ANXAPI *Release)(ITuiWidget *This);
+    HRESULT (ANXAPI *SerializeToYaml)(ITuiWidget *This, CHAR8 **OutYaml, UINTN *OutLength);
+    HRESULT (ANXAPI *DeserializeFromYaml)(ITuiWidget *This, CONST CHAR8 *Yaml, UINTN Length);
+    HRESULT (ANXAPI *GetTypeName)(ITuiWidget *This, CONST CHAR8 **OutTypeName);
+    HRESULT (ANXAPI *Clone)(ITuiWidget *This, ITuiSerializable **OutClone);
+
+    // ITuiResponder methods
     HRESULT (ANXAPI *GetNextResponder)(ITuiWidget *This, ITuiResponder **NextResponder);
     HRESULT (ANXAPI *SetNextResponder)(ITuiWidget *This, ITuiResponder *NextResponder);
     BOOLEAN (ANXAPI *AcceptsFirstResponder)(ITuiWidget *This);
@@ -349,6 +430,10 @@ struct _ITuiWidget {
 #define ITuiWidget_QueryInterface(This,riid,ppvObject) (This)->Vtbl->QueryInterface(This,riid,ppvObject)
 #define ITuiWidget_AddRef(This) (This)->Vtbl->AddRef(This)
 #define ITuiWidget_Release(This) (This)->Vtbl->Release(This)
+#define ITuiWidget_SerializeToYaml(This,OutYaml,OutLength) (This)->Vtbl->SerializeToYaml(This,OutYaml,OutLength)
+#define ITuiWidget_DeserializeFromYaml(This,Yaml,Length) (This)->Vtbl->DeserializeFromYaml(This,Yaml,Length)
+#define ITuiWidget_GetTypeName(This,OutTypeName) (This)->Vtbl->GetTypeName(This,OutTypeName)
+#define ITuiWidget_Clone(This,OutClone) (This)->Vtbl->Clone(This,OutClone)
 #define ITuiWidget_GetNextResponder(This,NextResponder) (This)->Vtbl->GetNextResponder(This,NextResponder)
 #define ITuiWidget_SetNextResponder(This,NextResponder) (This)->Vtbl->SetNextResponder(This,NextResponder)
 #define ITuiWidget_AcceptsFirstResponder(This) (This)->Vtbl->AcceptsFirstResponder(This)
