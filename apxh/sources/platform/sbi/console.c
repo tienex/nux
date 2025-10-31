@@ -24,7 +24,7 @@ Putchar (
   IN INT32 Ch
   )
 {
-  asm volatile ("mv a0, %0\n" "li a7, 1\n" "ecall\n"::"r" (Ch):"a0", "a7");
+  ANX_CPU_SBI_PUTCHAR(Ch);
 }
 
 /**

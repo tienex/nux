@@ -27,10 +27,7 @@ Inb (
   IN INT32 Port
   )
 {
-INT32 Ret;
-
-  asm volatile ("xor %%eax, %%eax; inb %%dx, %%al":"=a" (Ret):"d" (Port));
-  return Ret;
+  return ANX_CPU_INB(Port);
 }
 
 /**
@@ -47,7 +44,7 @@ Outb (
   IN INT32 Val
   )
 {
-  asm volatile ("outb %%al, %%dx"::"d" (Port), "a" (Val));
+  ANX_CPU_OUTB(Port, Val);
 }
 
 /**

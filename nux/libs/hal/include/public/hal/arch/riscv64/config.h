@@ -13,7 +13,7 @@ typedef UINT64 hal_l1e_t;
 static INLINE VOID
 hal_debug (VOID)
 {
-  asm volatile ("ebreak\n");
+  ANX_CPU_BREAKPOINT();
 }
 
 #endif

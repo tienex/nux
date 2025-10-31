@@ -116,7 +116,7 @@ HalCpuSetData (
   IN VOID  *Data
   )
 {
-  asm volatile ("movq %0, %%gs:0\n"::"r" (Data));
+  ANX_CPU_WRITE_GSBASE((UINTN)Data);
 }
 
 /**
@@ -129,10 +129,7 @@ HalCpuGetData (
   VOID
   )
 {
-  VOID *Data;
-
-  asm volatile ("movq %%gs:0, %0\n":"=r" (Data));
-  return Data;
+  return (VOID*)ANX_CPU_READ_GSBASE();
 }
 
 /**
@@ -317,7 +314,7 @@ HalPcpuEnter (
   SetGsBase (gPcpuHalData[PcpuId]);
   SetKernelGsBase (gPcpuHalData[PcpuId]);
 
-  asm volatile ("ltr %%ax"::"a" (TSS_GDTIDX (PcpuId) << 3));
+  ANX_CPU_LOAD_TR(TSS_GDTIDX (PcpuId) << 3);
 }
 
 /**
