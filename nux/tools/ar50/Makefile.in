@@ -5,7 +5,7 @@ vpath %.c $(SRCDIR)
 ar50: ar50.c squoze.c
 	$(HOST_CC) $^ -o $@ $(CFLAGS) $(LDFLAGS)
 
-ar64: ar64.c zoo64.c bwt.c mtf.c lz78.c range.c compress.c
+ar64: ar64.c zoo64.c bwt.c mtf.c rad50rle.c lz78.c range.c compress.c
 	$(HOST_CC) $^ -o $@ $(CFLAGS) $(LDFLAGS)
 
 sq: sq.c squoze.c

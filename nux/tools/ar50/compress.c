@@ -1,14 +1,15 @@
 /** @file
   Compression Pipeline Implementation
 
-  Implements a complete compression pipeline combining BWT, MTF, LZ78,
-  and Range encoding for maximum compression.
+  Implements a complete compression pipeline combining BWT, MTF, RAD50RLE,
+  LZ78, and Range encoding for maximum compression.
 
   Pipeline stages:
   1. BWT (Burrows-Wheeler Transform) - Groups similar characters
   2. MTF (Move-To-Front) - Converts to small values
-  3. LZ78 (Dictionary Compression) - Compresses repetitive patterns
-  4. Range Encoding - Final entropy compression
+  3. RAD50RLE - RAD-50 encoding with LEB128 + RLE + bit transposition
+  4. LZ78 (Dictionary Compression) - Compresses repetitive patterns
+  5. Range Encoding - Final entropy compression
 
   Copyright (C) 2015-2025 Gianluca Guida
 
@@ -22,11 +23,12 @@
 #include "compress.h"
 #include "bwt.h"
 #include "mtf.h"
+#include "rad50rle.h"
 #include "lz78.h"
 #include "range.h"
 
 /**
-  Compress data using full pipeline (BWT -> MTF -> LZ78 -> Range).
+  Compress data using full pipeline (BWT -> MTF -> RAD50RLE -> LZ78 -> Range).
 
   @param[in]  pInput      Input data buffer.
   @param[in]  InputSize   Size of input data.
@@ -47,8 +49,9 @@ CompressFull (
 {
   UINT8 *pBWTOutput;
   UINT8 *pMTFOutput;
+  UINT8 *pRAD50Output;
   UINT8 *pLZ78Output;
-  size_t BWTSize, MTFSize, LZ78Size, RangeSize;
+  size_t BWTSize, MTFSize, RAD50Size, LZ78Size, RangeSize;
   UINT32 BWTIndex;
   BOOLEAN Result;
 
@@ -62,18 +65,21 @@ CompressFull (
     }
 
   // Minimum output size needed for headers
-  if (OutputSize < 16)
+  if (OutputSize < 20)
     return FALSE;
 
   // Allocate temporary buffers (generous sizing)
   pBWTOutput = (UINT8 *) malloc (InputSize);
   pMTFOutput = (UINT8 *) malloc (InputSize);
-  pLZ78Output = (UINT8 *) malloc (InputSize * 2);
+  pRAD50Output = (UINT8 *) malloc (InputSize * 3);  // RAD50RLE may expand
+  pLZ78Output = (UINT8 *) malloc (InputSize * 3);
 
-  if (pBWTOutput == NULL || pMTFOutput == NULL || pLZ78Output == NULL)
+  if (pBWTOutput == NULL || pMTFOutput == NULL ||
+      pRAD50Output == NULL || pLZ78Output == NULL)
     {
       free (pBWTOutput);
       free (pMTFOutput);
+      free (pRAD50Output);
       free (pLZ78Output);
       return FALSE;
     }
@@ -83,6 +89,7 @@ CompressFull (
     {
       free (pBWTOutput);
       free (pMTFOutput);
+      free (pRAD50Output);
       free (pLZ78Output);
       return FALSE;
     }
@@ -94,22 +101,34 @@ CompressFull (
     {
       free (pBWTOutput);
       free (pMTFOutput);
+      free (pRAD50Output);
       free (pLZ78Output);
       return FALSE;
     }
 
   MTFSize = BWTSize;
 
-  // Stage 3: LZ78 Compression
-  if (!LZ78Compress (pMTFOutput, MTFSize, pLZ78Output, InputSize * 2, &LZ78Size))
+  // Stage 3: RAD50RLE Encoding (RAD-50 + LEB128 + RLE + bit transposition)
+  if (!RAD50RLEEncode (pMTFOutput, MTFSize, pRAD50Output, InputSize * 3, &RAD50Size))
     {
       free (pBWTOutput);
       free (pMTFOutput);
+      free (pRAD50Output);
       free (pLZ78Output);
       return FALSE;
     }
 
-  // Write header: original size, BWT index, LZ78 size
+  // Stage 4: LZ78 Compression
+  if (!LZ78Compress (pRAD50Output, RAD50Size, pLZ78Output, InputSize * 3, &LZ78Size))
+    {
+      free (pBWTOutput);
+      free (pMTFOutput);
+      free (pRAD50Output);
+      free (pLZ78Output);
+      return FALSE;
+    }
+
+  // Write header: original size, BWT index, RAD50 size, LZ78 size
   pOutput[0] = (InputSize >> 24) & 0xFF;
   pOutput[1] = (InputSize >> 16) & 0xFF;
   pOutput[2] = (InputSize >> 8) & 0xFF;
@@ -120,24 +139,30 @@ CompressFull (
   pOutput[6] = (BWTIndex >> 8) & 0xFF;
   pOutput[7] = BWTIndex & 0xFF;
 
-  pOutput[8] = (LZ78Size >> 24) & 0xFF;
-  pOutput[9] = (LZ78Size >> 16) & 0xFF;
-  pOutput[10] = (LZ78Size >> 8) & 0xFF;
-  pOutput[11] = LZ78Size & 0xFF;
+  pOutput[8] = (RAD50Size >> 24) & 0xFF;
+  pOutput[9] = (RAD50Size >> 16) & 0xFF;
+  pOutput[10] = (RAD50Size >> 8) & 0xFF;
+  pOutput[11] = RAD50Size & 0xFF;
 
-  // Stage 4: Range Encoding
+  pOutput[12] = (LZ78Size >> 24) & 0xFF;
+  pOutput[13] = (LZ78Size >> 16) & 0xFF;
+  pOutput[14] = (LZ78Size >> 8) & 0xFF;
+  pOutput[15] = LZ78Size & 0xFF;
+
+  // Stage 5: Range Encoding
   Result = RangeEncode (pLZ78Output, LZ78Size,
-                        pOutput + 12, OutputSize - 12,
+                        pOutput + 16, OutputSize - 16,
                         &RangeSize);
 
   free (pBWTOutput);
   free (pMTFOutput);
+  free (pRAD50Output);
   free (pLZ78Output);
 
   if (!Result)
     return FALSE;
 
-  *pCompSize = 12 + RangeSize;
+  *pCompSize = 16 + RangeSize;
   return TRUE;
 }
 
@@ -163,16 +188,17 @@ DecompressFull (
 {
   UINT8 *pRangeOutput;
   UINT8 *pLZ78Output;
+  UINT8 *pRAD50Output;
   UINT8 *pMTFOutput;
   UINT8 *pBWTOutput;
-  UINT32 OrigSize, LZ78Size, BWTIndex;
-  size_t RangeSize, DecompLZ78Size, MTFSize, BWTSize;
+  UINT32 OrigSize, RAD50Size, LZ78Size, BWTIndex;
+  size_t RangeSize, DecompLZ78Size, DecompRAD50Size, MTFSize, BWTSize;
   BOOLEAN Result;
 
   if (pInput == NULL || pOutput == NULL || pDecompSize == NULL)
     return FALSE;
 
-  if (InputSize < 12)
+  if (InputSize < 16)
     return FALSE;
 
   // Read header
@@ -182,35 +208,41 @@ DecompressFull (
   BWTIndex = ((UINT32)pInput[4] << 24) | ((UINT32)pInput[5] << 16) |
              ((UINT32)pInput[6] << 8) | pInput[7];
 
-  LZ78Size = ((UINT32)pInput[8] << 24) | ((UINT32)pInput[9] << 16) |
-             ((UINT32)pInput[10] << 8) | pInput[11];
+  RAD50Size = ((UINT32)pInput[8] << 24) | ((UINT32)pInput[9] << 16) |
+              ((UINT32)pInput[10] << 8) | pInput[11];
+
+  LZ78Size = ((UINT32)pInput[12] << 24) | ((UINT32)pInput[13] << 16) |
+             ((UINT32)pInput[14] << 8) | pInput[15];
 
   if (OrigSize > OutputSize)
     return FALSE;
 
   // Allocate temporary buffers
   pRangeOutput = (UINT8 *) malloc (LZ78Size * 2);
-  pLZ78Output = (UINT8 *) malloc (OrigSize * 2);
+  pLZ78Output = (UINT8 *) malloc (RAD50Size * 2);
+  pRAD50Output = (UINT8 *) malloc (OrigSize * 2);
   pMTFOutput = (UINT8 *) malloc (OrigSize);
   pBWTOutput = (UINT8 *) malloc (OrigSize);
 
   if (pRangeOutput == NULL || pLZ78Output == NULL ||
-      pMTFOutput == NULL || pBWTOutput == NULL)
+      pRAD50Output == NULL || pMTFOutput == NULL || pBWTOutput == NULL)
     {
       free (pRangeOutput);
       free (pLZ78Output);
+      free (pRAD50Output);
       free (pMTFOutput);
       free (pBWTOutput);
       return FALSE;
     }
 
   // Stage 1: Range Decoding
-  if (!RangeDecode (pInput + 12, InputSize - 12,
+  if (!RangeDecode (pInput + 16, InputSize - 16,
                     pRangeOutput, LZ78Size * 2,
                     &RangeSize))
     {
       free (pRangeOutput);
       free (pLZ78Output);
+      free (pRAD50Output);
       free (pMTFOutput);
       free (pBWTOutput);
       return FALSE;
@@ -221,6 +253,7 @@ DecompressFull (
     {
       free (pRangeOutput);
       free (pLZ78Output);
+      free (pRAD50Output);
       free (pMTFOutput);
       free (pBWTOutput);
       return FALSE;
@@ -228,23 +261,49 @@ DecompressFull (
 
   // Stage 2: LZ78 Decompression
   if (!LZ78Decompress (pRangeOutput, LZ78Size,
-                       pLZ78Output, OrigSize * 2,
+                       pLZ78Output, RAD50Size * 2,
                        &DecompLZ78Size))
     {
       free (pRangeOutput);
       free (pLZ78Output);
+      free (pRAD50Output);
       free (pMTFOutput);
       free (pBWTOutput);
       return FALSE;
     }
 
-  MTFSize = DecompLZ78Size;
-
-  // Stage 3: MTF Decoding
-  if (!MTFDecode (pLZ78Output, MTFSize, pMTFOutput))
+  // Verify RAD50 size matches
+  if (DecompLZ78Size != RAD50Size)
     {
       free (pRangeOutput);
       free (pLZ78Output);
+      free (pRAD50Output);
+      free (pMTFOutput);
+      free (pBWTOutput);
+      return FALSE;
+    }
+
+  // Stage 3: RAD50RLE Decoding
+  if (!RAD50RLEDecode (pLZ78Output, RAD50Size,
+                       pRAD50Output, OrigSize * 2,
+                       &DecompRAD50Size))
+    {
+      free (pRangeOutput);
+      free (pLZ78Output);
+      free (pRAD50Output);
+      free (pMTFOutput);
+      free (pBWTOutput);
+      return FALSE;
+    }
+
+  MTFSize = DecompRAD50Size;
+
+  // Stage 4: MTF Decoding
+  if (!MTFDecode (pRAD50Output, MTFSize, pMTFOutput))
+    {
+      free (pRangeOutput);
+      free (pLZ78Output);
+      free (pRAD50Output);
       free (pMTFOutput);
       free (pBWTOutput);
       return FALSE;
@@ -252,11 +311,12 @@ DecompressFull (
 
   BWTSize = MTFSize;
 
-  // Stage 4: Inverse BWT
+  // Stage 5: Inverse BWT
   if (!BWTInverse (pMTFOutput, BWTSize, BWTIndex, pBWTOutput))
     {
       free (pRangeOutput);
       free (pLZ78Output);
+      free (pRAD50Output);
       free (pMTFOutput);
       free (pBWTOutput);
       return FALSE;
@@ -267,6 +327,7 @@ DecompressFull (
     {
       free (pRangeOutput);
       free (pLZ78Output);
+      free (pRAD50Output);
       free (pMTFOutput);
       free (pBWTOutput);
       return FALSE;
@@ -277,6 +338,7 @@ DecompressFull (
 
   free (pRangeOutput);
   free (pLZ78Output);
+  free (pRAD50Output);
   free (pMTFOutput);
   free (pBWTOutput);
 
