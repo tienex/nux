@@ -38,6 +38,29 @@ typedef struct _ITuiTheme ITuiTheme;
 typedef struct _ITuiTabControl ITuiTabControl;
 typedef struct _ITuiProgressBar ITuiProgressBar;
 typedef struct _ITuiColorPicker ITuiColorPicker;
+typedef struct _ITuiGroupBox ITuiGroupBox;
+typedef struct _ITuiFocusManager ITuiFocusManager;
+typedef struct _ITuiTextEditor ITuiTextEditor;
+typedef struct _ITuiScrollView ITuiScrollView;
+typedef struct _ITuiLabel ITuiLabel;
+
+//
+// Text Direction for BiDi Support
+//
+typedef enum _TUI_TEXT_DIRECTION {
+    TuiTextLTR,         /* Left-to-right (Latin, Cyrillic, etc.) */
+    TuiTextRTL,         /* Right-to-left (Hebrew, Arabic, etc.) */
+    TuiTextAuto         /* Auto-detect based on content */
+} TUI_TEXT_DIRECTION;
+
+//
+// Unicode Support Level
+//
+typedef enum _TUI_UNICODE_LEVEL {
+    TuiUnicodeNone,     /* ASCII only */
+    TuiUnicodeBasic,    /* Basic Multilingual Plane (BMP) */
+    TuiUnicodeFull      /* Full Unicode with supplementary planes */
+} TUI_UNICODE_LEVEL;
 
 //
 // TUI Color Attributes
@@ -293,11 +316,102 @@ typedef struct _ITuiScreen_Vtbl {
         INT32 *Y
     );
 
+    /**
+      Set Unicode support level.
+    **/
+    HRESULT (ANXAPI *SetUnicodeLevel)(
+        ITuiScreen *This,
+        TUI_UNICODE_LEVEL Level
+    );
+
+    /**
+      Get Unicode support level.
+    **/
+    HRESULT (ANXAPI *GetUnicodeLevel)(
+        ITuiScreen *This,
+        TUI_UNICODE_LEVEL *Level
+    );
+
+    /**
+      Set default text direction.
+    **/
+    HRESULT (ANXAPI *SetTextDirection)(
+        ITuiScreen *This,
+        TUI_TEXT_DIRECTION Direction
+    );
+
+    /**
+      Get default text direction.
+    **/
+    HRESULT (ANXAPI *GetTextDirection)(
+        ITuiScreen *This,
+        TUI_TEXT_DIRECTION *Direction
+    );
+
+    /**
+      Write Unicode text with optional BiDi override.
+    **/
+    HRESULT (ANXAPI *WriteTextUnicode)(
+        ITuiScreen *This,
+        INT32 X,
+        INT32 Y,
+        CONST CHAR16 *Text,
+        TUI_COLOR Foreground,
+        TUI_COLOR Background,
+        TUI_TEXT_DIRECTION Direction
+    );
+
+    /**
+      Write UTF-8 text with BiDi support.
+    **/
+    HRESULT (ANXAPI *WriteTextUTF8)(
+        ITuiScreen *This,
+        INT32 X,
+        INT32 Y,
+        CONST CHAR8 *Text,
+        TUI_COLOR Foreground,
+        TUI_COLOR Background,
+        TUI_TEXT_DIRECTION Direction
+    );
+
+    /**
+      Get text width in columns (accounting for wide chars).
+    **/
+    HRESULT (ANXAPI *GetTextWidth)(
+        ITuiScreen *This,
+        CONST CHAR8 *Text,
+        UINT32 *Width
+    );
+
 } ITuiScreen_Vtbl;
 
 struct _ITuiScreen {
     CONST ITuiScreen_Vtbl *Vtbl;
 };
+
+/**
+  Window State
+**/
+typedef enum _TUI_WINDOW_STATE {
+    TuiWindowNormal,      /* Normal state */
+    TuiWindowMinimized,   /* Minimized to taskbar/title only */
+    TuiWindowMaximized,   /* Maximized to full screen */
+    TuiWindowFolded       /* Folded (title bar only, collapsible) */
+} TUI_WINDOW_STATE;
+
+/**
+  Window Flags
+**/
+typedef enum _TUI_WINDOW_FLAGS {
+    TuiWindowResizable   = 0x0001,  /* Window can be resized */
+    TuiWindowDraggable   = 0x0002,  /* Window can be moved */
+    TuiWindowMinimizable = 0x0004,  /* Window can be minimized */
+    TuiWindowMaximizable = 0x0008,  /* Window can be maximized */
+    TuiWindowFoldable    = 0x0010,  /* Window can be folded */
+    TuiWindowClosable    = 0x0020,  /* Window has close button */
+    TuiWindowModal       = 0x0040,  /* Modal window (blocks others) */
+    TuiWindowTopmost     = 0x0080   /* Always on top */
+} TUI_WINDOW_FLAGS;
 
 // {B2C3D4E5-F6A7-4B8C-9D0E-1F2A3B4C5D6E}
 DEFINE_GUID(IID_ITuiWindow,
@@ -369,6 +483,130 @@ typedef struct _ITuiWindow_Vtbl {
     HRESULT (ANXAPI *Scroll)(
         ITuiWindow *This,
         INT32 Lines
+    );
+
+    /**
+      Set window title.
+    **/
+    HRESULT (ANXAPI *SetTitle)(
+        ITuiWindow *This,
+        CONST CHAR8 *Title
+    );
+
+    /**
+      Get window title.
+    **/
+    HRESULT (ANXAPI *GetTitle)(
+        ITuiWindow *This,
+        CHAR8 *Buffer,
+        UINTN BufferSize
+    );
+
+    /**
+      Set window flags (resizable, draggable, etc.).
+    **/
+    HRESULT (ANXAPI *SetFlags)(
+        ITuiWindow *This,
+        UINT32 Flags
+    );
+
+    /**
+      Get window flags.
+    **/
+    HRESULT (ANXAPI *GetFlags)(
+        ITuiWindow *This,
+        UINT32 *Flags
+    );
+
+    /**
+      Set window state (normal, minimized, maximized, folded).
+    **/
+    HRESULT (ANXAPI *SetState)(
+        ITuiWindow *This,
+        TUI_WINDOW_STATE State
+    );
+
+    /**
+      Get window state.
+    **/
+    HRESULT (ANXAPI *GetState)(
+        ITuiWindow *This,
+        TUI_WINDOW_STATE *State
+    );
+
+    /**
+      Set window border style.
+    **/
+    HRESULT (ANXAPI *SetBorderStyle)(
+        ITuiWindow *This,
+        TUI_BORDER_STYLE Style
+    );
+
+    /**
+      Start interactive resize mode (user drags edge).
+    **/
+    HRESULT (ANXAPI *BeginResize)(
+        ITuiWindow *This
+    );
+
+    /**
+      Start interactive move mode (user drags window).
+    **/
+    HRESULT (ANXAPI *BeginMove)(
+        ITuiWindow *This
+    );
+
+    /**
+      Minimize window.
+    **/
+    HRESULT (ANXAPI *Minimize)(
+        ITuiWindow *This
+    );
+
+    /**
+      Maximize window.
+    **/
+    HRESULT (ANXAPI *Maximize)(
+        ITuiWindow *This
+    );
+
+    /**
+      Restore window to normal state.
+    **/
+    HRESULT (ANXAPI *Restore)(
+        ITuiWindow *This
+    );
+
+    /**
+      Fold/unfold window (collapse to title bar only).
+    **/
+    HRESULT (ANXAPI *Fold)(
+        ITuiWindow *This,
+        BOOLEAN Folded
+    );
+
+    /**
+      Bring window to front.
+    **/
+    HRESULT (ANXAPI *BringToFront)(
+        ITuiWindow *This
+    );
+
+    /**
+      Send window to back.
+    **/
+    HRESULT (ANXAPI *SendToBack)(
+        ITuiWindow *This
+    );
+
+    /**
+      Handle mouse event (for dragging, resizing, etc.).
+      Returns TRUE if event was handled.
+    **/
+    HRESULT (ANXAPI *HandleMouse)(
+        ITuiWindow *This,
+        CONST TUI_MOUSE_EVENT *Event,
+        BOOLEAN *Handled
     );
 
 } ITuiWindow_Vtbl;
@@ -459,6 +697,55 @@ typedef struct _ITuiMenu_Vtbl {
         INT32 Index,
         CONST VOID *Value,
         UINTN ValueSize
+    );
+
+    /**
+      Set hotkey for menu item (e.g., 'F' for "File").
+      Pressing Alt+F will activate this item.
+    **/
+    HRESULT (ANXAPI *SetItemHotkey)(
+        ITuiMenu *This,
+        INT32 Index,
+        CHAR8 Hotkey
+    );
+
+    /**
+      Set accelerator key for menu item (e.g., Ctrl+S for Save).
+    **/
+    HRESULT (ANXAPI *SetItemAccelerator)(
+        ITuiMenu *This,
+        INT32 Index,
+        TUI_KEY Key,
+        BOOLEAN Ctrl,
+        BOOLEAN Alt,
+        BOOLEAN Shift
+    );
+
+    /**
+      Get item hotkey.
+    **/
+    HRESULT (ANXAPI *GetItemHotkey)(
+        ITuiMenu *This,
+        INT32 Index,
+        CHAR8 *Hotkey
+    );
+
+    /**
+      Enable/disable menu item.
+    **/
+    HRESULT (ANXAPI *SetItemEnabled)(
+        ITuiMenu *This,
+        INT32 Index,
+        BOOLEAN Enabled
+    );
+
+    /**
+      Check/uncheck menu item (for toggle items).
+    **/
+    HRESULT (ANXAPI *SetItemChecked)(
+        ITuiMenu *This,
+        INT32 Index,
+        BOOLEAN Checked
     );
 
 } ITuiMenu_Vtbl;
@@ -1125,10 +1412,31 @@ typedef struct _TUI_THEME_COLORS {
 **/
 typedef enum _TUI_BORDER_STYLE {
     TuiBorderNone,
-    TuiBorderSingle,     /* ┌─┐ │ └─┘ */
-    TuiBorderDouble,     /* ╔═╗ ║ ╚═╝ */
-    TuiBorderRounded,    /* ╭─╮ │ ╰─╯ */
-    TuiBorderAscii       /* +-+ | +-+ */
+
+    /* Basic styles */
+    TuiBorderSingle,        /* ┌─┐ │ └─┘ */
+    TuiBorderDouble,        /* ╔═╗ ║ ╚═╝ */
+    TuiBorderRounded,       /* ╭─╮ │ ╰─╯ */
+    TuiBorderAscii,         /* +-+ | +-+ */
+
+    /* Mixed styles */
+    TuiBorderSingleDouble,  /* ╓─╖ ║ ╙─╜ (single horiz, double vert) */
+    TuiBorderDoubleSingle,  /* ╒═╕ │ ╘═╛ (double horiz, single vert) */
+    TuiBorderRoundedSingle, /* ╭─╮ │ ╰─╯ (rounded corners, single) */
+
+    /* 3D effects */
+    TuiBorderFlat,          /* Simple flat appearance */
+    TuiBorderSunken,        /* Appears recessed (dark top/left, light bottom/right) */
+    TuiBorderRisen,         /* Appears raised (light top/left, dark bottom/right) */
+    TuiBorder3D,            /* Full 3D effect with shadows */
+    TuiBorderEtched,        /* Etched/engraved appearance */
+    TuiBorderRidge,         /* Ridge (opposite of etched) */
+
+    /* Special styles */
+    TuiBorderDashed,        /* ┌ ─ ┐ (dashed lines) */
+    TuiBorderDotted,        /* ┌···┐ (dotted lines) */
+    TuiBorderThick,         /* ┏━┓ ┃ ┗━┛ (thick lines) */
+    TuiBorderBlock          /* ▛▀▜ █ ▙▄▟ (block characters) */
 } TUI_BORDER_STYLE;
 
 /**
@@ -1458,6 +1766,312 @@ struct _ITuiColorPicker {
     CONST ITuiColorPicker_Vtbl *Vtbl;
 };
 
+// {A9B0C1D2-E3F4-4A5B-6C7D-8E9F0A1B2C3D}
+DEFINE_GUID(IID_ITuiGroupBox,
+    0xA9B0C1D2, 0xE3F4, 0x4A5B, 0x6C, 0x7D, 0x8E, 0x9F, 0x0A, 0x1B, 0x2C, 0x3D);
+
+/**
+  ITuiGroupBox Interface
+
+  Container widget for grouping related controls.
+**/
+typedef struct _ITuiGroupBox_Vtbl {
+    HRESULT (ANXAPI *QueryInterface)(ITuiGroupBox *This, REFIID riid, VOID **ppvObject);
+    UINTN (ANXAPI *AddRef)(ITuiGroupBox *This);
+    UINTN (ANXAPI *Release)(ITuiGroupBox *This);
+
+    /**
+      Set group box title.
+    **/
+    HRESULT (ANXAPI *SetTitle)(
+        ITuiGroupBox *This,
+        CONST CHAR8 *Title
+    );
+
+    /**
+      Get group box title.
+    **/
+    HRESULT (ANXAPI *GetTitle)(
+        ITuiGroupBox *This,
+        CHAR8 *Buffer,
+        UINTN BufferSize
+    );
+
+    /**
+      Set border style.
+    **/
+    HRESULT (ANXAPI *SetBorderStyle)(
+        ITuiGroupBox *This,
+        TUI_BORDER_STYLE Style
+    );
+
+    /**
+      Add a child widget.
+    **/
+    HRESULT (ANXAPI *AddChild)(
+        ITuiGroupBox *This,
+        VOID *Widget,
+        INT32 X,
+        INT32 Y
+    );
+
+    /**
+      Remove a child widget.
+    **/
+    HRESULT (ANXAPI *RemoveChild)(
+        ITuiGroupBox *This,
+        VOID *Widget
+    );
+
+    /**
+      Clear all children.
+    **/
+    HRESULT (ANXAPI *ClearChildren)(
+        ITuiGroupBox *This
+    );
+
+    /**
+      Set content padding.
+    **/
+    HRESULT (ANXAPI *SetPadding)(
+        ITuiGroupBox *This,
+        UINT32 Top,
+        UINT32 Right,
+        UINT32 Bottom,
+        UINT32 Left
+    );
+
+    /**
+      Render group box.
+    **/
+    HRESULT (ANXAPI *Render)(
+        ITuiGroupBox *This,
+        ITuiScreen *Screen,
+        INT32 X,
+        INT32 Y,
+        UINT32 Width,
+        UINT32 Height
+    );
+
+    /**
+      Handle input events.
+    **/
+    HRESULT (ANXAPI *HandleInput)(
+        ITuiGroupBox *This,
+        CONST TUI_INPUT_EVENT *Event,
+        BOOLEAN *Handled
+    );
+
+} ITuiGroupBox_Vtbl;
+
+struct _ITuiGroupBox {
+    CONST ITuiGroupBox_Vtbl *Vtbl;
+};
+
+// {B0C1D2E3-F4A5-4B6C-7D8E-9F0A1B2C3D4E}
+DEFINE_GUID(IID_ITuiFocusManager,
+    0xB0C1D2E3, 0xF4A5, 0x4B6C, 0x7D, 0x8E, 0x9F, 0x0A, 0x1B, 0x2C, 0x3D, 0x4E);
+
+/**
+  ITuiFocusManager Interface
+
+  Manages focus and tab navigation between widgets.
+**/
+typedef struct _ITuiFocusManager_Vtbl {
+    HRESULT (ANXAPI *QueryInterface)(ITuiFocusManager *This, REFIID riid, VOID **ppvObject);
+    UINTN (ANXAPI *AddRef)(ITuiFocusManager *This);
+    UINTN (ANXAPI *Release)(ITuiFocusManager *This);
+
+    /**
+      Register a focusable widget.
+    **/
+    HRESULT (ANXAPI *RegisterWidget)(
+        ITuiFocusManager *This,
+        VOID *Widget,
+        UINT32 TabOrder
+    );
+
+    /**
+      Unregister a widget.
+    **/
+    HRESULT (ANXAPI *UnregisterWidget)(
+        ITuiFocusManager *This,
+        VOID *Widget
+    );
+
+    /**
+      Set focus to a specific widget.
+    **/
+    HRESULT (ANXAPI *SetFocus)(
+        ITuiFocusManager *This,
+        VOID *Widget
+    );
+
+    /**
+      Get currently focused widget.
+    **/
+    HRESULT (ANXAPI *GetFocus)(
+        ITuiFocusManager *This,
+        VOID **Widget
+    );
+
+    /**
+      Move focus to next widget (Tab key).
+    **/
+    HRESULT (ANXAPI *FocusNext)(
+        ITuiFocusManager *This
+    );
+
+    /**
+      Move focus to previous widget (Shift+Tab).
+    **/
+    HRESULT (ANXAPI *FocusPrevious)(
+        ITuiFocusManager *This
+    );
+
+    /**
+      Set widget tab order.
+    **/
+    HRESULT (ANXAPI *SetTabOrder)(
+        ITuiFocusManager *This,
+        VOID *Widget,
+        UINT32 TabOrder
+    );
+
+    /**
+      Get widget tab order.
+    **/
+    HRESULT (ANXAPI *GetTabOrder)(
+        ITuiFocusManager *This,
+        VOID *Widget,
+        UINT32 *TabOrder
+    );
+
+    /**
+      Enable/disable tab navigation.
+    **/
+    HRESULT (ANXAPI *SetTabNavigationEnabled)(
+        ITuiFocusManager *This,
+        BOOLEAN Enabled
+    );
+
+    /**
+      Handle keyboard input for focus management.
+    **/
+    HRESULT (ANXAPI *HandleKey)(
+        ITuiFocusManager *This,
+        TUI_KEY Key,
+        BOOLEAN *Handled
+    );
+
+} ITuiFocusManager_Vtbl;
+
+struct _ITuiFocusManager {
+    CONST ITuiFocusManager_Vtbl *Vtbl;
+};
+
+// {C1D2E3F4-A5B6-4C7D-8E9F-0A1B2C3D4E5F}
+DEFINE_GUID(IID_ITuiLabel,
+    0xC1D2E3F4, 0xA5B6, 0x4C7D, 0x8E, 0x9F, 0x0A, 0x1B, 0x2C, 0x3D, 0x4E, 0x5F);
+
+/**
+  ITuiLabel Interface
+
+  Static text label with hotkey support.
+**/
+typedef struct _ITuiLabel_Vtbl {
+    HRESULT (ANXAPI *QueryInterface)(ITuiLabel *This, REFIID riid, VOID **ppvObject);
+    UINTN (ANXAPI *AddRef)(ITuiLabel *This);
+    UINTN (ANXAPI *Release)(ITuiLabel *This);
+
+    HRESULT (ANXAPI *SetText)(ITuiLabel *This, CONST CHAR8 *Text);
+    HRESULT (ANXAPI *GetText)(ITuiLabel *This, CHAR8 *Buffer, UINTN BufferSize);
+    HRESULT (ANXAPI *SetHotkey)(ITuiLabel *This, CHAR8 Hotkey);  /* Underlined char */
+    HRESULT (ANXAPI *SetTextDirection)(ITuiLabel *This, TUI_TEXT_DIRECTION Direction);
+    HRESULT (ANXAPI *SetColors)(ITuiLabel *This, TUI_COLOR Fg, TUI_COLOR Bg);
+    HRESULT (ANXAPI *SetAlignment)(ITuiLabel *This, INT32 Alignment);  /* 0=left, 1=center, 2=right */
+    HRESULT (ANXAPI *Render)(ITuiLabel *This, ITuiScreen *Screen, INT32 X, INT32 Y, UINT32 Width);
+} ITuiLabel_Vtbl;
+
+struct _ITuiLabel {
+    CONST ITuiLabel_Vtbl *Vtbl;
+};
+
+// {D2E3F4A5-B6C7-4D8E-9F0A-1B2C3D4E5F6A}
+DEFINE_GUID(IID_ITuiTextEditor,
+    0xD2E3F4A5, 0xB6C7, 0x4D8E, 0x9F, 0x0A, 0x1B, 0x2C, 0x3D, 0x4E, 0x5F, 0x6A);
+
+/**
+  ITuiTextEditor Interface
+
+  Multi-line text editor with scrolling and syntax highlighting.
+**/
+typedef struct _ITuiTextEditor_Vtbl {
+    HRESULT (ANXAPI *QueryInterface)(ITuiTextEditor *This, REFIID riid, VOID **ppvObject);
+    UINTN (ANXAPI *AddRef)(ITuiTextEditor *This);
+    UINTN (ANXAPI *Release)(ITuiTextEditor *This);
+
+    HRESULT (ANXAPI *SetText)(ITuiTextEditor *This, CONST CHAR8 *Text);
+    HRESULT (ANXAPI *GetText)(ITuiTextEditor *This, CHAR8 *Buffer, UINTN BufferSize);
+    HRESULT (ANXAPI *LoadFile)(ITuiTextEditor *This, CONST CHAR8 *FilePath);
+    HRESULT (ANXAPI *SaveFile)(ITuiTextEditor *This, CONST CHAR8 *FilePath);
+    HRESULT (ANXAPI *SetReadOnly)(ITuiTextEditor *This, BOOLEAN ReadOnly);
+    HRESULT (ANXAPI *SetWordWrap)(ITuiTextEditor *This, BOOLEAN WordWrap);
+    HRESULT (ANXAPI *SetTabSize)(ITuiTextEditor *This, UINT32 TabSize);
+    HRESULT (ANXAPI *SetSyntaxHighlighting)(ITuiTextEditor *This, CONST CHAR8 *Language);
+    HRESULT (ANXAPI *GetCursorPosition)(ITuiTextEditor *This, UINT32 *Line, UINT32 *Column);
+    HRESULT (ANXAPI *SetCursorPosition)(ITuiTextEditor *This, UINT32 Line, UINT32 Column);
+    HRESULT (ANXAPI *GetLineCount)(ITuiTextEditor *This, UINT32 *Count);
+    HRESULT (ANXAPI *GetLine)(ITuiTextEditor *This, UINT32 LineNumber, CHAR8 *Buffer, UINTN BufferSize);
+    HRESULT (ANXAPI *InsertText)(ITuiTextEditor *This, CONST CHAR8 *Text);
+    HRESULT (ANXAPI *DeleteSelection)(ITuiTextEditor *This);
+    HRESULT (ANXAPI *SelectAll)(ITuiTextEditor *This);
+    HRESULT (ANXAPI *Undo)(ITuiTextEditor *This);
+    HRESULT (ANXAPI *Redo)(ITuiTextEditor *This);
+    HRESULT (ANXAPI *Cut)(ITuiTextEditor *This);
+    HRESULT (ANXAPI *Copy)(ITuiTextEditor *This);
+    HRESULT (ANXAPI *Paste)(ITuiTextEditor *This);
+    HRESULT (ANXAPI *Find)(ITuiTextEditor *This, CONST CHAR8 *SearchText, BOOLEAN CaseSensitive);
+    HRESULT (ANXAPI *Replace)(ITuiTextEditor *This, CONST CHAR8 *SearchText, CONST CHAR8 *ReplaceText);
+    HRESULT (ANXAPI *SetTextDirection)(ITuiTextEditor *This, TUI_TEXT_DIRECTION Direction);
+    HRESULT (ANXAPI *Render)(ITuiTextEditor *This, ITuiScreen *Screen, INT32 X, INT32 Y, UINT32 Width, UINT32 Height);
+    HRESULT (ANXAPI *HandleInput)(ITuiTextEditor *This, CONST TUI_INPUT_EVENT *Event, BOOLEAN *Handled);
+} ITuiTextEditor_Vtbl;
+
+struct _ITuiTextEditor {
+    CONST ITuiTextEditor_Vtbl *Vtbl;
+};
+
+// {E3F4A5B6-C7D8-4E9F-0A1B-2C3D4E5F6A7B}
+DEFINE_GUID(IID_ITuiScrollView,
+    0xE3F4A5B6, 0xC7D8, 0x4E9F, 0x0A, 0x1B, 0x2C, 0x3D, 0x4E, 0x5F, 0x6A, 0x7B);
+
+/**
+  ITuiScrollView Interface
+
+  Scrollable container for widgets or content.
+**/
+typedef struct _ITuiScrollView_Vtbl {
+    HRESULT (ANXAPI *QueryInterface)(ITuiScrollView *This, REFIID riid, VOID **ppvObject);
+    UINTN (ANXAPI *AddRef)(ITuiScrollView *This);
+    UINTN (ANXAPI *Release)(ITuiScrollView *This);
+
+    HRESULT (ANXAPI *SetContentSize)(ITuiScrollView *This, UINT32 Width, UINT32 Height);
+    HRESULT (ANXAPI *GetContentSize)(ITuiScrollView *This, UINT32 *Width, UINT32 *Height);
+    HRESULT (ANXAPI *SetScrollPosition)(ITuiScrollView *This, INT32 X, INT32 Y);
+    HRESULT (ANXAPI *GetScrollPosition)(ITuiScrollView *This, INT32 *X, INT32 *Y);
+    HRESULT (ANXAPI *ScrollBy)(ITuiScrollView *This, INT32 DeltaX, INT32 DeltaY);
+    HRESULT (ANXAPI *SetShowScrollbars)(ITuiScrollView *This, BOOLEAN Horizontal, BOOLEAN Vertical);
+    HRESULT (ANXAPI *AddChild)(ITuiScrollView *This, VOID *Widget, INT32 X, INT32 Y);
+    HRESULT (ANXAPI *RemoveChild)(ITuiScrollView *This, VOID *Widget);
+    HRESULT (ANXAPI *Render)(ITuiScrollView *This, ITuiScreen *Screen, INT32 X, INT32 Y, UINT32 Width, UINT32 Height);
+    HRESULT (ANXAPI *HandleInput)(ITuiScrollView *This, CONST TUI_INPUT_EVENT *Event, BOOLEAN *Handled);
+} ITuiScrollView_Vtbl;
+
+struct _ITuiScrollView {
+    CONST ITuiScrollView_Vtbl *Vtbl;
+};
+
 //
 // Factory functions
 //
@@ -1741,6 +2355,80 @@ HRESULT
 ANXAPI
 AnxTuiCreateColorPicker(
     OUT ITuiColorPicker **ColorPicker
+);
+
+/**
+  Create a TUI Group Box instance.
+
+  @param[in]  Title     Group box title.
+  @param[out] GroupBox  Pointer to receive the group box interface.
+
+  @retval S_OK        Group box created successfully.
+  @retval E_OUTOFMEMORY  Memory allocation failed.
+**/
+HRESULT
+ANXAPI
+AnxTuiCreateGroupBox(
+    IN  CONST CHAR8 *Title,
+    OUT ITuiGroupBox **GroupBox
+);
+
+/**
+  Create a TUI Focus Manager instance.
+
+  @param[out] FocusManager  Pointer to receive the focus manager interface.
+
+  @retval S_OK        Focus manager created successfully.
+  @retval E_OUTOFMEMORY  Memory allocation failed.
+**/
+HRESULT
+ANXAPI
+AnxTuiCreateFocusManager(
+    OUT ITuiFocusManager **FocusManager
+);
+
+/**
+  Create a TUI Label instance.
+
+  @param[in]  Text   Label text.
+  @param[out] Label  Pointer to receive the label interface.
+
+  @retval S_OK        Label created successfully.
+  @retval E_OUTOFMEMORY  Memory allocation failed.
+**/
+HRESULT
+ANXAPI
+AnxTuiCreateLabel(
+    IN  CONST CHAR8 *Text,
+    OUT ITuiLabel **Label
+);
+
+/**
+  Create a TUI Text Editor instance.
+
+  @param[out] Editor  Pointer to receive the text editor interface.
+
+  @retval S_OK        Text editor created successfully.
+  @retval E_OUTOFMEMORY  Memory allocation failed.
+**/
+HRESULT
+ANXAPI
+AnxTuiCreateTextEditor(
+    OUT ITuiTextEditor **Editor
+);
+
+/**
+  Create a TUI Scroll View instance.
+
+  @param[out] ScrollView  Pointer to receive the scroll view interface.
+
+  @retval S_OK        Scroll view created successfully.
+  @retval E_OUTOFMEMORY  Memory allocation failed.
+**/
+HRESULT
+ANXAPI
+AnxTuiCreateScrollView(
+    OUT ITuiScrollView **ScrollView
 );
 
 #ifdef __cplusplus

@@ -60,6 +60,7 @@ set(ANXCONFIG_SOURCES
     config_generator.c
     yaml_parser.c
     expr_eval.c
+    ui_composer.c
     ${TUI_BACKEND}
 )
 
