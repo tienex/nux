@@ -17,7 +17,6 @@ typedef enum {
 
 typedef struct {
     ITuiWidget WidgetInterface;
-    ITuiSlider SliderInterface;
     ITuiKeyListener KeyListener;
     ITuiMouseListener MouseListener;
     ITuiDrawListener DrawListener;
@@ -39,7 +38,6 @@ typedef struct {
 
 /* Helper macros for interface conversions */
 #define SLIDER_FROM_WIDGET(w) ((TuiSliderImpl*)((UINT8*)(w) - offsetof(TuiSliderImpl, WidgetInterface)))
-#define SLIDER_FROM_SLIDER(s) ((TuiSliderImpl*)((UINT8*)(s) - offsetof(TuiSliderImpl, SliderInterface)))
 #define SLIDER_FROM_KEY(k) ((TuiSliderImpl*)((UINT8*)(k) - offsetof(TuiSliderImpl, KeyListener)))
 #define SLIDER_FROM_MOUSE(m) ((TuiSliderImpl*)((UINT8*)(m) - offsetof(TuiSliderImpl, MouseListener)))
 #define SLIDER_FROM_DRAW(d) ((TuiSliderImpl*)((UINT8*)(d) - offsetof(TuiSliderImpl, DrawListener)))
@@ -79,11 +77,6 @@ static HRESULT ANXAPI SliderWidget_QueryInterface(ITuiWidget *This, REFIID riid,
     }
     if (IsEqualGUID(riid, &IID_ITuiDrawListener)) {
         *ppvObject = &impl->DrawListener;
-        impl->State.RefCount++;
-        return S_OK;
-    }
-    if (IsEqualGUID(riid, &IID_ITuiSlider)) {
-        *ppvObject = &impl->SliderInterface;
         impl->State.RefCount++;
         return S_OK;
     }
@@ -542,156 +535,23 @@ static CONST ITuiDrawListener_Vtbl SliderDrawVtbl = {
 };
 
 /*=============================================================================
- * ITuiSlider Implementation (Backward Compatibility)
- *===========================================================================*/
-
-static HRESULT ANXAPI Slider_QueryInterface(ITuiSlider *This, REFIID riid, VOID **ppvObject)
-{
-    TuiSliderImpl *impl = SLIDER_FROM_SLIDER(This);
-    return SliderWidget_QueryInterface(&impl->WidgetInterface, riid, ppvObject);
-}
-
-static UINTN ANXAPI Slider_AddRef(ITuiSlider *This)
-{
-    TuiSliderImpl *impl = SLIDER_FROM_SLIDER(This);
-    return ++impl->State.RefCount;
-}
-
-static UINTN ANXAPI Slider_Release(ITuiSlider *This)
-{
-    TuiSliderImpl *impl = SLIDER_FROM_SLIDER(This);
-    return SliderWidget_Release(&impl->WidgetInterface);
-}
-
-static HRESULT ANXAPI Slider_SetOrientation(ITuiSlider *This, BOOLEAN Horizontal)
-{
-    TuiSliderImpl *impl = SLIDER_FROM_SLIDER(This);
-    impl->Orientation = Horizontal ? SliderHorizontal : SliderVertical;
-    return S_OK;
-}
-
-static HRESULT ANXAPI Slider_SetRange(ITuiSlider *This, INT32 MinValue, INT32 MaxValue)
-{
-    TuiSliderImpl *impl = SLIDER_FROM_SLIDER(This);
-
-    if (MinValue >= MaxValue) return E_INVALIDARG;
-
-    impl->MinValue = MinValue;
-    impl->MaxValue = MaxValue;
-
-    /* Clamp current value */
-    if (impl->CurrentValue < MinValue) impl->CurrentValue = MinValue;
-    if (impl->CurrentValue > MaxValue) impl->CurrentValue = MaxValue;
-
-    return S_OK;
-}
-
-static HRESULT ANXAPI Slider_SetValue(ITuiSlider *This, INT32 Value)
-{
-    TuiSliderImpl *impl = SLIDER_FROM_SLIDER(This);
-
-    if (Value < impl->MinValue) Value = impl->MinValue;
-    if (Value > impl->MaxValue) Value = impl->MaxValue;
-
-    impl->CurrentValue = Value;
-
-    /* Call change callback */
-    if (impl->ChangeCallback != NULL) {
-        impl->ChangeCallback(impl->UserData, Value);
-    }
-
-    return S_OK;
-}
-
-static HRESULT ANXAPI Slider_GetValue(ITuiSlider *This, INT32 *Value)
-{
-    TuiSliderImpl *impl = SLIDER_FROM_SLIDER(This);
-    if (Value == NULL) return E_POINTER;
-    *Value = impl->CurrentValue;
-    return S_OK;
-}
-
-static HRESULT ANXAPI Slider_SetStep(ITuiSlider *This, INT32 Step)
-{
-    TuiSliderImpl *impl = SLIDER_FROM_SLIDER(This);
-    impl->Step = Step;
-    return S_OK;
-}
-
-static HRESULT ANXAPI Slider_SetLength(ITuiSlider *This, UINT32 Length)
-{
-    TuiSliderImpl *impl = SLIDER_FROM_SLIDER(This);
-    impl->Length = Length;
-    return S_OK;
-}
-
-static HRESULT ANXAPI Slider_SetShowValue(ITuiSlider *This, BOOLEAN ShowValue)
-{
-    TuiSliderImpl *impl = SLIDER_FROM_SLIDER(This);
-    impl->ShowValue = ShowValue;
-    return S_OK;
-}
-
-static HRESULT ANXAPI Slider_SetChangeCallback(ITuiSlider *This, HRESULT (*Callback)(VOID *UserData, INT32 NewValue), VOID *UserData)
-{
-    TuiSliderImpl *impl = SLIDER_FROM_SLIDER(This);
-    impl->ChangeCallback = Callback;
-    impl->UserData = UserData;
-    return S_OK;
-}
-
-static HRESULT ANXAPI Slider_Render(ITuiSlider *This, ITuiScreen *Screen, INT32 X, INT32 Y)
-{
-    TuiSliderImpl *impl = SLIDER_FROM_SLIDER(This);
-
-    /* Legacy render method - delegate to OnDraw */
-    if (impl->Surface) {
-        TUI_RECT rect = { X, Y, X + impl->Length + 10, Y + impl->Length + 10 };
-        return SliderDraw_OnDraw(&impl->DrawListener, impl->Surface, &rect);
-    }
-
-    return S_OK;
-}
-
-static HRESULT ANXAPI Slider_HandleKey(ITuiSlider *This, TUI_KEY Key, BOOLEAN *Handled)
-{
-    TuiSliderImpl *impl = SLIDER_FROM_SLIDER(This);
-    return SliderKey_OnKeyDown(&impl->KeyListener, Key, 0, Handled);
-}
-
-static HRESULT ANXAPI Slider_HandleMouse(ITuiSlider *This, CONST TUI_MOUSE_EVENT *Event, BOOLEAN *Handled)
-{
-    TuiSliderImpl *impl = SLIDER_FROM_SLIDER(This);
-    return SliderMouse_OnMouseEvent(&impl->MouseListener, Event, Handled);
-}
-
-static CONST ITuiSlider_Vtbl SliderVtbl = {
-    Slider_QueryInterface, Slider_AddRef, Slider_Release,
-    Slider_SetOrientation, Slider_SetRange, Slider_SetValue,
-    Slider_GetValue, Slider_SetStep, Slider_SetLength,
-    Slider_SetShowValue, Slider_SetChangeCallback,
-    Slider_Render, Slider_HandleKey, Slider_HandleMouse
-};
-
-/*=============================================================================
  * Factory Function
  *===========================================================================*/
 
-HRESULT ANXAPI AnxTuiCreateSlider(IN BOOLEAN Horizontal, IN UINT32 Length, OUT ITuiSlider **Slider)
+HRESULT ANXAPI AnxTuiCreateSlider(IN BOOLEAN Horizontal, IN UINT32 Length, OUT ITuiWidget **Widget)
 {
     TuiSliderImpl *impl;
 
-    if (Slider == NULL) return E_POINTER;
+    if (Widget == NULL) return E_POINTER;
 
     impl = (TuiSliderImpl *)calloc(1, sizeof(TuiSliderImpl));
     if (impl == NULL) {
-        *Slider = NULL;
+        *Widget = NULL;
         return E_OUTOFMEMORY;
     }
 
     /* Initialize vtables */
     impl->WidgetInterface.Vtbl = &SliderWidgetVtbl;
-    impl->SliderInterface.Vtbl = &SliderVtbl;
     impl->KeyListener.Vtbl = &SliderKeyVtbl;
     impl->MouseListener.Vtbl = &SliderMouseVtbl;
     impl->DrawListener.Vtbl = &SliderDrawVtbl;
@@ -713,6 +573,84 @@ HRESULT ANXAPI AnxTuiCreateSlider(IN BOOLEAN Horizontal, IN UINT32 Length, OUT I
     impl->NextResponder = NULL;
     impl->Surface = NULL;
 
-    *Slider = &impl->SliderInterface;
+    *Widget = &impl->WidgetInterface;
+    return S_OK;
+}
+
+/* Convenience functions for slider-specific operations */
+HRESULT ANXAPI AnxTuiSliderSetOrientation(ITuiWidget *Widget, BOOLEAN Horizontal)
+{
+    TuiSliderImpl *impl = SLIDER_FROM_WIDGET(Widget);
+    impl->Orientation = Horizontal ? SliderHorizontal : SliderVertical;
+    return S_OK;
+}
+
+HRESULT ANXAPI AnxTuiSliderSetRange(ITuiWidget *Widget, INT32 MinValue, INT32 MaxValue)
+{
+    TuiSliderImpl *impl = SLIDER_FROM_WIDGET(Widget);
+
+    if (MinValue >= MaxValue) return E_INVALIDARG;
+
+    impl->MinValue = MinValue;
+    impl->MaxValue = MaxValue;
+
+    /* Clamp current value */
+    if (impl->CurrentValue < MinValue) impl->CurrentValue = MinValue;
+    if (impl->CurrentValue > MaxValue) impl->CurrentValue = MaxValue;
+
+    return S_OK;
+}
+
+HRESULT ANXAPI AnxTuiSliderSetValue(ITuiWidget *Widget, INT32 Value)
+{
+    TuiSliderImpl *impl = SLIDER_FROM_WIDGET(Widget);
+
+    if (Value < impl->MinValue) Value = impl->MinValue;
+    if (Value > impl->MaxValue) Value = impl->MaxValue;
+
+    impl->CurrentValue = Value;
+
+    /* Call change callback */
+    if (impl->ChangeCallback != NULL) {
+        impl->ChangeCallback(impl->UserData, Value);
+    }
+
+    return S_OK;
+}
+
+HRESULT ANXAPI AnxTuiSliderGetValue(ITuiWidget *Widget, INT32 *Value)
+{
+    TuiSliderImpl *impl = SLIDER_FROM_WIDGET(Widget);
+    if (Value == NULL) return E_POINTER;
+    *Value = impl->CurrentValue;
+    return S_OK;
+}
+
+HRESULT ANXAPI AnxTuiSliderSetStep(ITuiWidget *Widget, INT32 Step)
+{
+    TuiSliderImpl *impl = SLIDER_FROM_WIDGET(Widget);
+    impl->Step = Step;
+    return S_OK;
+}
+
+HRESULT ANXAPI AnxTuiSliderSetLength(ITuiWidget *Widget, UINT32 Length)
+{
+    TuiSliderImpl *impl = SLIDER_FROM_WIDGET(Widget);
+    impl->Length = Length;
+    return S_OK;
+}
+
+HRESULT ANXAPI AnxTuiSliderSetShowValue(ITuiWidget *Widget, BOOLEAN ShowValue)
+{
+    TuiSliderImpl *impl = SLIDER_FROM_WIDGET(Widget);
+    impl->ShowValue = ShowValue;
+    return S_OK;
+}
+
+HRESULT ANXAPI AnxTuiSliderSetChangeCallback(ITuiWidget *Widget, HRESULT (*Callback)(VOID *UserData, INT32 NewValue), VOID *UserData)
+{
+    TuiSliderImpl *impl = SLIDER_FROM_WIDGET(Widget);
+    impl->ChangeCallback = Callback;
+    impl->UserData = UserData;
     return S_OK;
 }
