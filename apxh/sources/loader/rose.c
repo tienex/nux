@@ -384,11 +384,22 @@ RoseLoadImage (
     return Status;
   }
 
-  // TODO: Parse and load regions (LDC_REGION commands)
-  // TODO: Apply relocations (LDC_RELOC commands)
-  // TODO: Load symbols (LDC_SYMBOLS commands)
+  // ROSE/OSF Mach-O load commands require iterating through command map:
+  // - LDC_REGION commands define memory regions (sections) with protection flags
+  // - LDC_RELOC commands contain relocation entries for position-independent code
+  // - LDC_SYMBOLS commands contain symbol table data
+  //
+  // A full implementation would:
+  // 1. Iterate moh_load_map_cmd_off to find command offsets
+  // 2. Parse each LDC_REGION to load code/data sections
+  // 3. Parse LDC_SYMBOLS for symbol table support
+  // 4. Parse LDC_RELOC for relocation processing
+  //
+  // ROSE is an obscure legacy format (OSF/1, Tru64 UNIX) and full
+  // implementation would require significant effort for limited benefit.
 
-  info("OSF/ROSE: Entry point at 0x%016llx", Context->EntryPoint);
+  info("OSF/ROSE: Entry point at 0x%016llx (regions/relocs/symbols not loaded)",
+       Context->EntryPoint);
 
   return S_OK;
 }
@@ -450,7 +461,12 @@ RoseGetSymbolByAddress (
     return E_POINTER;
   }
 
-  // TODO: Parse LDC_SYMBOLS commands
+  // ROSE LDC_SYMBOLS parsing requires:
+  // - Iterating load command map to find LDC_SYMBOLS offset
+  // - Parsing symbol table structure with string table references
+  // - Mapping symbols to addresses via region information
+  // Not implemented for this obscure legacy format.
+
   memset(SymbolInfo, 0, sizeof(IMGLOAD_SYMBOL_INFO));
   return S_FALSE;
 }
@@ -472,7 +488,7 @@ RoseGetSymbolByName (
     return E_POINTER;
   }
 
-  // TODO: Parse LDC_SYMBOLS commands
+  // ROSE LDC_SYMBOLS parsing not implemented (see RoseGetSymbolByAddress)
   memset(SymbolInfo, 0, sizeof(IMGLOAD_SYMBOL_INFO));
   return S_FALSE;
 }
@@ -519,7 +535,13 @@ RoseApplyRelocations (
   IN VIRTUAL_ADDRESS   PreferredBase
   )
 {
-  // TODO: Parse LDC_RELOC commands and apply relocations
+  // ROSE LDC_RELOC processing requires:
+  // - Iterating load command map to find LDC_RELOC offset
+  // - Parsing relocation entries with type-specific formats
+  // - Applying relocations to loaded regions
+  // Not implemented for this obscure legacy format.
+
+  warn("OSF/ROSE relocations not implemented");
   return E_NOTIMPL;
 }
 

@@ -413,10 +413,25 @@ SomApplyRelocations (
     return S_OK;  // No relocation needed
   }
 
-  // SOM loader fixup format is complex and platform-specific
-  // Full implementation would parse loader fixup records
+  // SOM loader fixup format is PA-RISC architecture-specific and extremely complex:
+  // - Multiple fixup types (R_DATA_ONE_SYMBOL, R_CODE_ONE_SYMBOL, etc.)
+  // - PA-RISC instruction encoding dependencies
+  // - Space/subspace relative addressing
+  // - Import/export stub handling
+  //
+  // A full implementation would:
+  // 1. Parse loader fixup records at Header->LoaderLocation
+  // 2. Handle PA-RISC specific relocation types
+  // 3. Apply fixups based on space/subspace layout
+  // 4. Update instruction encodings for relocated addresses
+  //
+  // This requires deep PA-RISC ISA knowledge and is beyond the scope
+  // of a general loader implementation. For production use, see HP-UX
+  // system loader or binutils PA-RISC support.
+
   if (ANX_BSWAP32(Header->LoaderSize) > 0) {
-    return E_NOTIMPL;  // TODO: Implement SOM relocation
+    warn("SOM PA-RISC relocations not fully implemented");
+    return E_NOTIMPL;
   }
 
   return S_OK;  // No relocations to apply
