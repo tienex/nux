@@ -87,6 +87,9 @@ set(ANXCONFIG_SOURCES
     dialog_about.c
     dialog_color.c
     dialog_find.c
+    dialog_print.c
+    dialog_longop.c
+    dialog_directory.c
     # Markdown parser (COM component)
     markdown_parser.c
     # Desk accessories

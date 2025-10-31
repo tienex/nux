@@ -43,6 +43,17 @@ typedef struct _ITuiFocusManager ITuiFocusManager;
 typedef struct _ITuiTextEditor ITuiTextEditor;
 typedef struct _ITuiScrollView ITuiScrollView;
 typedef struct _ITuiLabel ITuiLabel;
+typedef struct _ITuiHyperlink ITuiHyperlink;
+typedef struct _ITuiElastic ITuiElastic;
+typedef struct _ITuiScrollBar ITuiScrollBar;
+typedef struct _ITuiMessageBox ITuiMessageBox;
+typedef struct _ITuiSlider ITuiSlider;
+typedef struct _ITuiSpinner ITuiSpinner;
+typedef struct _ITuiFKeyBar ITuiFKeyBar;
+typedef struct _ITuiMarkdownViewer ITuiMarkdownViewer;
+typedef struct _ITuiPrintDialog ITuiPrintDialog;
+typedef struct _ITuiLongOpDialog ITuiLongOpDialog;
+typedef struct _ITuiDirectoryDialog ITuiDirectoryDialog;
 
 //
 // Text Direction for BiDi Support
@@ -2072,6 +2083,178 @@ struct _ITuiScrollView {
     CONST ITuiScrollView_Vtbl *Vtbl;
 };
 
+// {3F4E5D6C-7B8A-9C0D-1E2F-3A4B5C6D7E8F}
+DEFINE_GUID(IID_ITuiLongOpDialog,
+    0x3F4E5D6C, 0x7B8A, 0x9C0D, 0x1E, 0x2F, 0x3A, 0x4B, 0x5C, 0x6D, 0x7E, 0x8F);
+
+/**
+  ITuiLongOpDialog Interface
+
+  Modal dialog for long-running operations with progress tracking,
+  time estimation, and cancel support.
+**/
+typedef struct _ITuiLongOpDialog_Vtbl {
+    HRESULT (ANXAPI *QueryInterface)(ITuiLongOpDialog *This, REFIID riid, VOID **ppvObject);
+    UINTN (ANXAPI *AddRef)(ITuiLongOpDialog *This);
+    UINTN (ANXAPI *Release)(ITuiLongOpDialog *This);
+
+    /**
+      Render the dialog.
+    **/
+    HRESULT (ANXAPI *Render)(
+        ITuiLongOpDialog *This,
+        ITuiScreen *Screen,
+        INT32 X,
+        INT32 Y
+    );
+
+    /**
+      Handle keyboard input.
+    **/
+    HRESULT (ANXAPI *HandleKey)(
+        ITuiLongOpDialog *This,
+        TUI_KEY Key
+    );
+
+    /**
+      Standard widget methods.
+    **/
+    HRESULT (ANXAPI *SetBounds)(ITuiLongOpDialog *This, CONST TUI_RECT *Bounds);
+    HRESULT (ANXAPI *GetBounds)(ITuiLongOpDialog *This, TUI_RECT *Bounds);
+    HRESULT (ANXAPI *SetVisible)(ITuiLongOpDialog *This, BOOLEAN Visible);
+    BOOLEAN (ANXAPI *IsVisible)(ITuiLongOpDialog *This);
+    HRESULT (ANXAPI *SetEnabled)(ITuiLongOpDialog *This, BOOLEAN Enabled);
+    BOOLEAN (ANXAPI *IsEnabled)(ITuiLongOpDialog *This);
+
+    /**
+      Set dialog title.
+    **/
+    HRESULT (ANXAPI *SetTitle)(
+        ITuiLongOpDialog *This,
+        CONST CHAR8 *Title
+    );
+
+    /**
+      Update progress (0-100 percent) and status text.
+    **/
+    HRESULT (ANXAPI *UpdateProgress)(
+        ITuiLongOpDialog *This,
+        UINT32 Percent,
+        CONST CHAR8 *StatusText
+    );
+
+    /**
+      Set indeterminate mode (for operations with unknown duration).
+    **/
+    HRESULT (ANXAPI *SetIndeterminate)(
+        ITuiLongOpDialog *This,
+        BOOLEAN Indeterminate
+    );
+
+    /**
+      Check if user cancelled the operation.
+    **/
+    BOOLEAN (ANXAPI *IsCancelled)(ITuiLongOpDialog *This);
+
+    /**
+      Set callback for cancel button.
+    **/
+    HRESULT (ANXAPI *SetCancelCallback)(
+        ITuiLongOpDialog *This,
+        HRESULT (*Callback)(VOID *UserData),
+        VOID *UserData
+    );
+
+    /**
+      Start the operation (resets timers).
+    **/
+    HRESULT (ANXAPI *Start)(ITuiLongOpDialog *This);
+
+    /**
+      Mark operation as complete.
+    **/
+    HRESULT (ANXAPI *Complete)(ITuiLongOpDialog *This);
+
+} ITuiLongOpDialog_Vtbl;
+
+struct _ITuiLongOpDialog {
+    CONST ITuiLongOpDialog_Vtbl *Vtbl;
+};
+
+// {4A5B6C7D-8E9F-0A1B-2C3D-4E5F6A7B8C9D}
+DEFINE_GUID(IID_ITuiDirectoryDialog,
+    0x4A5B6C7D, 0x8E9F, 0x0A1B, 0x2C, 0x3D, 0x4E, 0x5F, 0x6A, 0x7B, 0x8C, 0x9D);
+
+/**
+  ITuiDirectoryDialog Interface
+
+  Modal dialog for selecting directories with tree navigation.
+**/
+typedef struct _ITuiDirectoryDialog_Vtbl {
+    HRESULT (ANXAPI *QueryInterface)(ITuiDirectoryDialog *This, REFIID riid, VOID **ppvObject);
+    UINTN (ANXAPI *AddRef)(ITuiDirectoryDialog *This);
+    UINTN (ANXAPI *Release)(ITuiDirectoryDialog *This);
+
+    /**
+      Render the dialog.
+    **/
+    HRESULT (ANXAPI *Render)(
+        ITuiDirectoryDialog *This,
+        ITuiScreen *Screen,
+        INT32 X,
+        INT32 Y
+    );
+
+    /**
+      Handle keyboard input.
+    **/
+    HRESULT (ANXAPI *HandleKey)(
+        ITuiDirectoryDialog *This,
+        TUI_KEY Key
+    );
+
+    /**
+      Standard widget methods.
+    **/
+    HRESULT (ANXAPI *SetBounds)(ITuiDirectoryDialog *This, CONST TUI_RECT *Bounds);
+    HRESULT (ANXAPI *GetBounds)(ITuiDirectoryDialog *This, TUI_RECT *Bounds);
+    HRESULT (ANXAPI *SetVisible)(ITuiDirectoryDialog *This, BOOLEAN Visible);
+    BOOLEAN (ANXAPI *IsVisible)(ITuiDirectoryDialog *This);
+    HRESULT (ANXAPI *SetEnabled)(ITuiDirectoryDialog *This, BOOLEAN Enabled);
+    BOOLEAN (ANXAPI *IsEnabled)(ITuiDirectoryDialog *This);
+
+    /**
+      Set initial directory to display.
+    **/
+    HRESULT (ANXAPI *SetInitialDirectory)(
+        ITuiDirectoryDialog *This,
+        CONST CHAR8 *Path
+    );
+
+    /**
+      Get selected directory path.
+    **/
+    HRESULT (ANXAPI *GetSelectedDirectory)(
+        ITuiDirectoryDialog *This,
+        CHAR8 *Buffer,
+        UINTN BufferSize
+    );
+
+    /**
+      Show dialog modally and return result.
+    **/
+    HRESULT (ANXAPI *Show)(
+        ITuiDirectoryDialog *This,
+        ITuiScreen *Screen,
+        BOOLEAN *Result
+    );
+
+} ITuiDirectoryDialog_Vtbl;
+
+struct _ITuiDirectoryDialog {
+    CONST ITuiDirectoryDialog_Vtbl *Vtbl;
+};
+
 //
 // Factory functions
 //
@@ -2429,6 +2612,38 @@ HRESULT
 ANXAPI
 AnxTuiCreateScrollView(
     OUT ITuiScrollView **ScrollView
+);
+
+/**
+  Create a TUI Long Operation Dialog instance.
+
+  @param[in]  Title       Dialog title.
+  @param[out] OutDialog   Pointer to receive the dialog interface.
+
+  @retval S_OK        Dialog created successfully.
+  @retval E_OUTOFMEMORY  Memory allocation failed.
+**/
+HRESULT
+ANXAPI
+AnxTuiCreateLongOpDialog(
+    IN  CONST CHAR8 *Title,
+    OUT ITuiLongOpDialog **OutDialog
+);
+
+/**
+  Create a TUI Directory Dialog instance.
+
+  @param[in]  Title       Dialog title.
+  @param[out] OutDialog   Pointer to receive the dialog interface.
+
+  @retval S_OK        Dialog created successfully.
+  @retval E_OUTOFMEMORY  Memory allocation failed.
+**/
+HRESULT
+ANXAPI
+AnxTuiCreateDirectoryDialog(
+    IN  CONST CHAR8 *Title,
+    OUT ITuiDirectoryDialog **OutDialog
 );
 
 #ifdef __cplusplus
