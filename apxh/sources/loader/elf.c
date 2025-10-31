@@ -105,6 +105,13 @@
 #define SHT_DYNSYM    11 ///< Dynamic symbol table
 
 //
+// OS/2 PowerPC ELF Section Types (from OS/2 ABI)
+//
+
+#define SHT_RES       0x65735263  ///< OS/2 Resource section
+#define SHT_EXPORTS   0x65787073  ///< OS/2 Export table
+
+//
 // OS/2 Presentation Manager Application Types (from NOTE sections)
 //
 
@@ -126,6 +133,13 @@
 #define PHT_TLS      7  ///< Thread-local storage
 
 #define PT_GNU_EH_FRAME  0x6474e550  ///< GCC .eh_frame_hdr segment
+
+//
+// OS/2 PowerPC ELF Program Header Types (from OS/2 ABI)
+//
+
+#define PT_OS        0x65000000  ///< OS/2 OS info segment
+#define PT_RES       0x65000001  ///< OS/2 Resource segment
 
 //
 // APXH-Specific ELF Program Header Types (OS-specific range)
@@ -1005,6 +1019,79 @@ typedef struct _OS2_EXPORT_ENTRY {
   UINT32  Address;     ///< Symbol address/offset
   UINT32  NameOffset;  ///< Offset to symbol name in .export string table
 } OS2_EXPORT_ENTRY;
+ANX_PACK_POP()
+
+//
+// OS/2 ELF Resource Structures (from OS/2 ABI Chapter 8)
+// These structures are used for both 32-bit and 64-bit ELF
+//
+
+#define RES_MAGIC_0  0x02
+#define RES_MAGIC_1  'R'
+#define RES_MAGIC_2  'E'
+#define RES_MAGIC_3  'S'
+
+#define RES_IDENT_SIZE  16
+
+#define RESCLASS32      1
+#define RESCLASS64      2
+
+#define RESDATA2LSB     1  ///< Little-endian
+#define RESDATA2MSB     2  ///< Big-endian
+
+/**
+  Resource file header (OS/2 ABI Figure 8-1)
+**/
+ANX_PACK_PUSH(1)
+typedef struct _RES_FILE {
+  UINT8   Ident[RES_IDENT_SIZE];  ///< Identification (magic, class, endian, version)
+  UINT32  HeaderSize;             ///< Size of this header in bytes
+  UINT32  NumCollections;         ///< Number of resource collections
+  UINT32  CollectionOffset;       ///< Offset to collection array
+} RES_FILE;
+
+/**
+  Resource collection index entry (OS/2 ABI Figure 8-2)
+**/
+typedef struct _RES_COLLECTION {
+  UINT32  Offset;  ///< Offset to collection (word-aligned)
+  UINT32  Size;    ///< Size of collection in bytes
+} RES_COLLECTION;
+
+/**
+  Resource locale information (OS/2 ABI Figure 8-4)
+**/
+typedef struct _RES_LOCALE {
+  UINT16  Country[2];   ///< 2-character Unicode country code
+  UINT16  Language[2];  ///< 2-character Unicode language code
+} RES_LOCALE;
+
+/**
+  Resource collection header (OS/2 ABI Figure 8-3)
+**/
+typedef struct _RES_HEADER {
+  UINT16  Version;          ///< Version (current: 1)
+  UINT16  Flags;            ///< Flags (none defined, must be 0)
+  UINT32  NameOffset;       ///< Offset to name in string table
+  UINT32  ItemOffset;       ///< Offset to resource item array (word-aligned)
+  UINT32  ItemSize;         ///< Size of each item entry
+  UINT32  NumItems;         ///< Number of resources in this collection
+  UINT32  HeaderSize;       ///< Size of this header
+  UINT32  StringTableOffset;///< Offset to string table
+  UINT32  LocaleOffset;     ///< Offset to locale info (0 if none)
+} RES_HEADER;
+
+/**
+  Resource item entry (OS/2 ABI Figure 8-5)
+  Items are sorted by type, then ordinal
+**/
+typedef struct _RES_ITEM {
+  UINT32  Type;        ///< OS-specific resource type
+  UINT32  Ordinal;     ///< Unique within type
+  UINT32  NameOffset;  ///< Offset to name in string table (0 if unnamed)
+  UINT32  DataOffset;  ///< Offset to resource data (word-aligned)
+  UINT32  Size;        ///< Size of resource data in bytes
+} RES_ITEM;
 ANX_PACK_POP()
 
 /**
@@ -2039,6 +2126,213 @@ ElfGetMinimumSubsystemVersion (
 }
 
 /**
+  Find OS/2 native resource in ELF image.
+
+  Searches for SHT_RES sections or PT_RES program headers and parses
+  OS/2 resource collections to find the requested resource.
+
+  Supports both 32-bit and 64-bit ELF formats (generalized for both).
+
+  @param[in]  ImageBase    Pointer to ELF image.
+  @param[in]  TypeCode     4-character resource type code.
+  @param[in]  Id           Resource ID (0 if using name).
+  @param[in]  Name         Resource name (NULL if using ID).
+  @param[out] Data         Receives pointer to resource data.
+  @param[out] Size         Receives size of resource data.
+
+  @return S_OK if found, S_FALSE if not found, error code otherwise.
+**/
+static
+HRESULT
+ElfFindNativeResource (
+  IN  VOID         *ImageBase,
+  IN  UINT32       TypeCode,
+  IN  UINT32       Id,
+  IN  CONST CHAR8  *Name,
+  OUT VOID         **Data,
+  OUT UINT64       *Size
+  )
+{
+  UINT8          *Ident;
+  UINT8          ElfClass;
+  VOID           *ResData;
+  UINT64         ResSize;
+  RES_FILE       *ResFile;
+  RES_COLLECTION *Collections;
+  UINT32         i, j;
+  HRESULT        Status;
+
+  if (ImageBase == NULL || Data == NULL || Size == NULL) {
+    return E_POINTER;
+  }
+
+  *Data = NULL;
+  *Size = 0;
+
+  Ident = (UINT8 *)ImageBase;
+  ElfClass = Ident[4];  // EI_CLASS
+  ResData = NULL;
+  ResSize = 0;
+
+  //
+  // Search for SHT_RES section in both 32-bit and 64-bit ELF
+  //
+  if (ElfClass == ELFCLASS32) {
+    ELF32_HDR  *Hdr = (ELF32_HDR *)ImageBase;
+    ELF32_SH   *Sections;
+    INT32      k;
+
+    if (Hdr->Shoff != 0 && Hdr->Shs > 0) {
+      Sections = (ELF32_SH *)((UINT8 *)ImageBase + Hdr->Shoff);
+
+      for (k = 0; k < Hdr->Shs; k++) {
+        if (Sections[k].Type == SHT_RES) {
+          ResData = (VOID *)((UINT8 *)ImageBase + Sections[k].Off);
+          ResSize = Sections[k].Size;
+          break;
+        }
+      }
+    }
+
+    //
+    // If not found in sections, try PT_RES program header
+    //
+    if (ResData == NULL && Hdr->Phoff != 0 && Hdr->Phs > 0) {
+      ELF32_PH *ProgramHeaders = (ELF32_PH *)((UINT8 *)ImageBase + Hdr->Phoff);
+
+      for (k = 0; k < Hdr->Phs; k++) {
+        if (ProgramHeaders[k].Type == PT_RES) {
+          ResData = (VOID *)((UINT8 *)ImageBase + ProgramHeaders[k].Off);
+          ResSize = ProgramHeaders[k].Filesz;
+          break;
+        }
+      }
+    }
+  } else if (ElfClass == ELFCLASS64) {
+    ELF64_HDR  *Hdr = (ELF64_HDR *)ImageBase;
+    ELF64_SH   *Sections;
+    INT32      k;
+
+    if (Hdr->Shoff != 0 && Hdr->Shs > 0) {
+      Sections = (ELF64_SH *)((UINT8 *)ImageBase + Hdr->Shoff);
+
+      for (k = 0; k < Hdr->Shs; k++) {
+        if (Sections[k].Type == SHT_RES) {
+          ResData = (VOID *)((UINT8 *)ImageBase + Sections[k].Off);
+          ResSize = Sections[k].Size;
+          break;
+        }
+      }
+    }
+
+    //
+    // If not found in sections, try PT_RES program header
+    //
+    if (ResData == NULL && Hdr->Phoff != 0 && Hdr->Phs > 0) {
+      ELF64_PH *ProgramHeaders = (ELF64_PH *)((UINT8 *)ImageBase + Hdr->Phoff);
+
+      for (k = 0; k < Hdr->Phs; k++) {
+        if (ProgramHeaders[k].Type == PT_RES) {
+          ResData = (VOID *)((UINT8 *)ImageBase + ProgramHeaders[k].Off);
+          ResSize = ProgramHeaders[k].Filesz;
+          break;
+        }
+      }
+    }
+  } else {
+    return IMGLOAD_E_INVALID_FORMAT;
+  }
+
+  if (ResData == NULL) {
+    return S_FALSE;  // No OS/2 resource section/segment
+  }
+
+  //
+  // Validate resource file header
+  //
+  if (ResSize < sizeof(RES_FILE)) {
+    return E_FAIL;  // Too small
+  }
+
+  ResFile = (RES_FILE *)ResData;
+
+  if (ResFile->Ident[0] != RES_MAGIC_0 ||
+      ResFile->Ident[1] != RES_MAGIC_1 ||
+      ResFile->Ident[2] != RES_MAGIC_2 ||
+      ResFile->Ident[3] != RES_MAGIC_3) {
+    return E_FAIL;  // Invalid magic
+  }
+
+  if (ResFile->CollectionOffset == 0 || ResFile->NumCollections == 0) {
+    return S_FALSE;  // No collections
+  }
+
+  //
+  // Iterate through resource collections
+  //
+  Collections = (RES_COLLECTION *)((UINT8 *)ResData + ResFile->CollectionOffset);
+
+  for (i = 0; i < ResFile->NumCollections; i++) {
+    RES_HEADER  *Header;
+    RES_ITEM    *Items;
+    CHAR8       *StringTable;
+
+    if (Collections[i].Offset == 0 || Collections[i].Size == 0) {
+      continue;  // Empty collection
+    }
+
+    Header = (RES_HEADER *)((UINT8 *)ResData + Collections[i].Offset);
+
+    if (Header->NumItems == 0 || Header->ItemOffset == 0) {
+      continue;  // No items
+    }
+
+    Items = (RES_ITEM *)((UINT8 *)ResData + Collections[i].Offset + Header->ItemOffset);
+    StringTable = (CHAR8 *)((UINT8 *)ResData + Collections[i].Offset + Header->StringTableOffset);
+
+    //
+    // Search for matching resource
+    // Items are sorted by type, then ordinal, so we could binary search,
+    // but linear search is simpler for now
+    //
+    for (j = 0; j < Header->NumItems; j++) {
+      BOOLEAN  TypeMatch;
+      BOOLEAN  IdMatch;
+
+      // Check type match
+      TypeMatch = (Items[j].Type == TypeCode);
+
+      if (!TypeMatch) {
+        continue;
+      }
+
+      // Check ID/name match
+      if (Name != NULL) {
+        // Match by name
+        if (Items[j].NameOffset != 0) {
+          CHAR8 *ItemName = &StringTable[Items[j].NameOffset];
+          IdMatch = (strcmp(ItemName, Name) == 0);
+        } else {
+          IdMatch = FALSE;
+        }
+      } else {
+        // Match by ordinal/ID
+        IdMatch = (Items[j].Ordinal == Id);
+      }
+
+      if (TypeMatch && IdMatch) {
+        // Found it!
+        *Data = (VOID *)((UINT8 *)ResData + Collections[i].Offset + Items[j].DataOffset);
+        *Size = Items[j].Size;
+        return S_OK;
+      }
+    }
+  }
+
+  return S_FALSE;  // Resource not found
+}
+
+/**
   Find .axursrc section in ELF image.
 
   Looks for APXH Universal Resource section containing Classic Mac resource fork.
@@ -2144,11 +2438,13 @@ ElfGetResource (
     return E_POINTER;
   }
 
-  // Find universal resource fork (.axursrc section)
+  // Find universal resource fork
+  // For OS/2 ELF: Try native OS/2 resources (SHT_RES/PT_RES) first, then .axursrc
+  // For other ELF: Just .axursrc section
   Status = FindUniversalResourceFork(
              ImageBase,
-             ResourceStrategyDirect,
-             NULL,  // No native resources in ELF
+             ResourceStrategyBoth,  // Try native first, fallback to direct
+             ElfFindNativeResource, // OS/2 native resource finder
              ElfFindSection,
              ".axursrc",
              &ResourceFork,
@@ -2209,10 +2505,12 @@ ElfGetResourceEnumerator (
   }
 
   // Find universal resource fork
+  // For OS/2 ELF: Try native OS/2 resources (SHT_RES/PT_RES) first, then .axursrc
+  // For other ELF: Just .axursrc section
   Status = FindUniversalResourceFork(
              ImageBase,
-             ResourceStrategyDirect,
-             NULL,
+             ResourceStrategyBoth,  // Try native first, fallback to direct
+             ElfFindNativeResource, // OS/2 native resource finder
              ElfFindSection,
              ".axursrc",
              &ResourceFork,

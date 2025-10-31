@@ -9,16 +9,23 @@ enabling cross-platform resource embedding in all executable formats.
 
 ### Resource Embedding Strategies
 
-**Formats WITH Native Resources** (e.g., PE, Mach-O):
+**Formats WITH Native Resources** (e.g., PE, Mach-O, OS/2 ELF):
 - Embed universal resource fork as AUR (APXH Universal Resource) resource within native system
 - Use hybrid strategy that exposes both native and universal resources
 - AUR type codes: "AUR " (32-bit), "Au" (16-bit), "APXHURSC" (64-bit)
 - Implementation: `ResourceStrategyBoth` with `FindUniversalResourceFork()`
 
-**Formats WITHOUT Native Resources** (e.g., ELF, COFF, a.out):
+**Formats WITHOUT Native Resources** (e.g., generic ELF, COFF, a.out):
 - Store universal resource fork in dedicated section/segment
 - Section names: `.axursrc` (ELF), `.rsrc` (COFF), `__apxh_uresource` (Mach-O segment)
 - Implementation: `ResourceStrategyDirect` with `FindUniversalResourceFork()`
+
+**Special Case: OS/2 PowerPC ELF** (hybrid):
+- Native resources via `SHT_RES` sections or `PT_RES` program headers
+- OS/2 resource format with collections, items, and locale information
+- Supports both 32-bit and 64-bit ELF
+- Fallback to `.axursrc` section for universal resources
+- Implementation: `ResourceStrategyBoth` with OS/2 resource parser
 
 ### Resource Support Status
 
@@ -26,7 +33,7 @@ enabling cross-platform resource embedding in all executable formats.
 |--------|------------------|--------|---------------------|
 | PE     | ✅ Yes | ✅ Implemented | Resource directory (native) + `.axursrc` |
 | Mach-O | ✅ Yes | ✅ Implemented | `__RSRC` segment (native) + `__apxh_uresource` |
-| ELF    | ❌ No  | ✅ Implemented | `.axursrc` section |
+| ELF    | ✅ OS/2 | ✅ Implemented | `SHT_RES`/`PT_RES` (OS/2 native) + `.axursrc` |
 | COFF   | ❌ No  | ✅ Implemented | `.axursrc` section |
 | XCOFF  | ❌ No  | ✅ Implemented | `.axursrc` section (AIX) |
 | ECOFF  | ❌ No  | ✅ Implemented | `.axursrc` section (DEC/SGI) |
