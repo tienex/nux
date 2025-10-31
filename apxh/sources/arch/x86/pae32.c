@@ -11,6 +11,7 @@
 **/
 
 #include <apxh/x86/pae.h>
+#include <apxh/arch.h>
 
 /* 1 Gb direct map in the Payload Page Table. */
 #define PAE_DIRECTMAP_START 0
@@ -577,6 +578,179 @@ PaeEntry (
 {
   PlatformEntry (Arch386, (VIRTUAL_ADDRESS) (UINTN) gPaeCr3, Entry);
 }
+
+//
+// IArchitecture COM Interface Implementation
+//
+
+static HRESULT STDMETHODCALLTYPE
+PaeQueryInterface (
+  IN  IArchitecture  *This,
+  IN  CONST GUID     *Iid,
+  OUT VOID           **Object
+  )
+{
+  if (memcmp (Iid, &IID_IArchitecture, sizeof (GUID)) == 0 ||
+      memcmp (Iid, &IID_IUnknown, sizeof (GUID)) == 0)
+    {
+      *Object = This;
+      return S_OK;
+    }
+
+  *Object = NULL;
+  return E_NOINTERFACE;
+}
+
+static UINT32 STDMETHODCALLTYPE
+PaeAddRef (
+  IN IArchitecture  *This
+  )
+{
+  return 1;  // Static instance, no reference counting
+}
+
+static UINT32 STDMETHODCALLTYPE
+PaeRelease (
+  IN IArchitecture  *This
+  )
+{
+  return 1;  // Static instance, no reference counting
+}
+
+static HRESULT STDMETHODCALLTYPE
+PaeIInitialize (
+  IN IArchitecture  *This
+  )
+{
+  PaeInitialize ();
+  return S_OK;
+}
+
+static HRESULT STDMETHODCALLTYPE
+PaeIGetPhysical (
+  IN  IArchitecture    *This,
+  IN  VIRTUAL_ADDRESS  VirtualAddress,
+  OUT UINTN            *PhysicalAddress
+  )
+{
+  if (PhysicalAddress == NULL) {
+    return E_POINTER;
+  }
+
+  *PhysicalAddress = PaeGetPhysical (VirtualAddress);
+  return S_OK;
+}
+
+static HRESULT STDMETHODCALLTYPE
+PaeIVerify (
+  IN IArchitecture    *This,
+  IN VIRTUAL_ADDRESS  VirtualAddress,
+  IN SIZE64           Size
+  )
+{
+  PaeVerify (VirtualAddress, Size);
+  return S_OK;
+}
+
+static HRESULT STDMETHODCALLTYPE
+PaeIPopulate (
+  IN IArchitecture    *This,
+  IN VIRTUAL_ADDRESS  VirtualAddress,
+  IN SIZE64           Size,
+  IN INT32            IsUserMode,
+  IN INT32            IsWritable,
+  IN INT32            IsExecutable
+  )
+{
+  PaePopulate (VirtualAddress, Size, IsUserMode, IsWritable, IsExecutable);
+  return S_OK;
+}
+
+static HRESULT STDMETHODCALLTYPE
+PaeIMapPhysical (
+  IN IArchitecture    *This,
+  IN VIRTUAL_ADDRESS  VirtualAddress,
+  IN SIZE64           Size,
+  IN UINT64           PhysicalAddress,
+  IN MEMORY_TYPE      Type
+  )
+{
+  PaeMapPhysical (VirtualAddress, Size, PhysicalAddress, Type);
+  return S_OK;
+}
+
+static HRESULT STDMETHODCALLTYPE
+PaeIAllocatePageTable (
+  IN IArchitecture    *This,
+  IN VIRTUAL_ADDRESS  VirtualAddress,
+  IN SIZE64           Size
+  )
+{
+  PaeAllocatePageTable (VirtualAddress, Size);
+  return S_OK;
+}
+
+static HRESULT STDMETHODCALLTYPE
+PaeIAllocateTopPageTable (
+  IN IArchitecture    *This,
+  IN VIRTUAL_ADDRESS  VirtualAddress,
+  IN SIZE64           Size
+  )
+{
+  PaeAllocateTopPageTable (VirtualAddress, Size);
+  return S_OK;
+}
+
+static HRESULT STDMETHODCALLTYPE
+PaeIMapLinear (
+  IN IArchitecture    *This,
+  IN VIRTUAL_ADDRESS  VirtualAddress,
+  IN SIZE64           Size
+  )
+{
+  PaeMapLinear (VirtualAddress, Size);
+  return S_OK;
+}
+
+static HRESULT STDMETHODCALLTYPE
+PaeIEntry (
+  IN IArchitecture    *This,
+  IN VIRTUAL_ADDRESS  EntryPoint
+  )
+{
+  PaeEntry (EntryPoint);
+  return S_OK;  // Never returns
+}
+
+//
+// PAE Architecture VTable
+//
+
+static CONST IArchitectureVtbl gPaeVtbl = {
+  PaeQueryInterface,
+  PaeAddRef,
+  PaeRelease,
+  PaeIInitialize,
+  PaeIGetPhysical,
+  PaeIVerify,
+  PaeIPopulate,
+  PaeIMapPhysical,
+  PaeIAllocatePageTable,
+  PaeIAllocateTopPageTable,
+  PaeIMapLinear,
+  PaeIEntry
+};
+
+//
+// PAE Architecture Instance
+//
+
+IArchitecture gPaeArch = {
+  &gPaeVtbl
+};
+
+// Auto-register this architecture
+APXH_REGISTER_ARCH(gPaeArch);
 
 
 /*
