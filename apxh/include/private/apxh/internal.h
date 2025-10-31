@@ -92,6 +92,7 @@ typedef enum
   // RISC-V
   ARCH_RISCV32,
   ARCH_RISCV64,
+  ARCH_RISCV128,
 
   // ARM family
   ARCH_ARM,
@@ -119,8 +120,13 @@ typedef enum
   // Itanium
   ARCH_IA64,
 
-  // 68k
+  // 68k and 88k
   ARCH_M68K,
+  ARCH_M88K,
+
+  // LoongArch
+  ARCH_LOONGARCH32,
+  ARCH_LOONGARCH64,
 
   // VAX
   ARCH_VAX,

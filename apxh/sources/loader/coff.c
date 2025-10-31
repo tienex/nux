@@ -2,15 +2,25 @@
   APXH COFF Loader Implementation
 
   Provides COFF (Common Object File Format) parsing and loading for
-  Unix System V and early Windows executables using COM-style interface.
-  Handles sections, optional headers, and relocations for x86 and other
-  architectures.
+  Unix System V executables and object files using COM-style interface.
+  Handles sections, optional headers, and relocations for multiple
+  architectures with proper endianness detection.
 
-  Supports:
-  - SCO Unix COFF
-  - System V Release 3/4 COFF
-  - x86 (32-bit and 64-bit)
-  - MIPS, ARM, Alpha architectures
+  COFF is the predecessor of ELF and can be either big-endian or little-endian
+  depending on the target architecture.
+
+  Supported Architectures:
+  - x86: i386, i860, AMD64/x86-64
+  - ARM: ARMv4, ARMv4T, ARMv7, ARM64 (multiple ABIs)
+  - MIPS: R3000, R4000, R10000, MIPS16, WCE (BE and LE variants)
+  - PowerPC: 32-bit LE/BE, 64-bit BE
+  - Alpha: 32-bit and 64-bit
+  - Motorola: 68000
+  - Hitachi SH: SH, SH3, SH4, SH5 (BE and LE variants)
+  - Itanium (IA-64)
+  - PA-RISC
+  - RISC-V: 32-bit, 64-bit, 128-bit
+  - LoongArch: 32-bit, 64-bit
 
   Copyright (C) 2025 A•NUX Project
 
@@ -21,23 +31,68 @@
 #include <apxh/imgload.h>
 
 //
-// COFF Magic Numbers
+// COFF Magic Numbers (Common Object File Format)
+// Sourced from binutils/libbfd and file magic database
 //
 
-#define COFF_MAGIC_I386      0x014C  ///< Intel 386 (little-endian)
-#define COFF_MAGIC_I860      0x014D  ///< Intel 860 (little-endian)
-#define COFF_MAGIC_R3000_LE  0x0162  ///< MIPS R3000 (little-endian)
-#define COFF_MAGIC_R3000_BE  0x0160  ///< MIPS R3000 (big-endian)
-#define COFF_MAGIC_R4000_LE  0x0166  ///< MIPS R4000 (little-endian)
-#define COFF_MAGIC_R4000_BE  0x0160  ///< MIPS R4000 (big-endian)
-#define COFF_MAGIC_ALPHA     0x0184  ///< Alpha AXP (little-endian)
-#define COFF_MAGIC_ARM       0x01C0  ///< ARM (little-endian)
-#define COFF_MAGIC_AMD64     0x8664  ///< AMD64 (little-endian)
-#define COFF_MAGIC_M68K      0x0150  ///< Motorola 68000 (big-endian)
-#define COFF_MAGIC_M88K      0x0155  ///< Motorola 88000 (big-endian)
-#define COFF_MAGIC_SPARC     0x0540  ///< SPARC (big-endian)
-#define COFF_MAGIC_POWERPC   0x01F0  ///< PowerPC (big-endian)
-#define COFF_MAGIC_SH        0x01A2  ///< Hitachi SH (little-endian)
+// x86/x64 Architectures
+#define COFF_MAGIC_I386      0x014C  ///< Intel 386
+#define COFF_MAGIC_I860      0x014D  ///< Intel 860
+#define COFF_MAGIC_AMD64     0x8664  ///< AMD64/x86-64
+
+// ARM Architectures
+#define COFF_MAGIC_ARMV4     0x01C0  ///< ARMv4 little-endian
+#define COFF_MAGIC_ARMV4T    0x01C2  ///< ARMv4T (Thumb)
+#define COFF_MAGIC_ARMV7     0x01C4  ///< ARMv7
+#define COFF_MAGIC_ARM64     0xAA64  ///< ARM64
+#define COFF_MAGIC_ARM64X64  0xA641  ///< ARM64 (x86-64 ABI)
+#define COFF_MAGIC_ARM64CLS  0xA64E  ///< ARM64 (classic + x86-64 ABI)
+#define COFF_MAGIC_ARM64I386 0x3A64  ///< ARM64 (i386 ABI)
+
+// MIPS Architectures
+#define COFF_MAGIC_MIPS_R3000_BE  0x0160  ///< MIPS R3000 big-endian
+#define COFF_MAGIC_MIPS_R3000     0x0162  ///< MIPS R3000 little-endian
+#define COFF_MAGIC_MIPS_R4000     0x0166  ///< MIPS R4000
+#define COFF_MAGIC_MIPS_R10000    0x0168  ///< MIPS R10000
+#define COFF_MAGIC_MIPS_WCE       0x0169  ///< MIPS WCE v2
+#define COFF_MAGIC_MIPS16         0x0266  ///< MIPS16
+#define COFF_MAGIC_MIPS_FPU       0x0366  ///< MIPS with FPU
+#define COFF_MAGIC_MIPS16_FPU     0x0466  ///< MIPS16 with FPU
+
+// Alpha Architectures
+#define COFF_MAGIC_ALPHA32   0x0184  ///< Alpha AXP 32-bit
+#define COFF_MAGIC_ALPHA64   0x0284  ///< Alpha AXP 64-bit
+
+// PowerPC Architectures
+#define COFF_MAGIC_POWERPC_LE    0x01F0  ///< PowerPC 32-bit little-endian
+#define COFF_MAGIC_POWERPC_FPU   0x01F1  ///< PowerPC 32-bit with FPU (LE)
+#define COFF_MAGIC_POWERPC64_BE  0x01F2  ///< PowerPC 64-bit big-endian
+#define COFF_MAGIC_POWERPC_BE    0x0601  ///< PowerPC 32-bit big-endian
+
+// Motorola Architectures
+#define COFF_MAGIC_M68K      0x0268  ///< Motorola 68000
+
+// Hitachi SH Architectures
+#define COFF_MAGIC_SH        0x01A2  ///< Hitachi SH
+#define COFF_MAGIC_SH3       0x01A3  ///< Hitachi SH3
+#define COFF_MAGIC_SH3DSP    0x01A4  ///< Hitachi SH3 DSP
+#define COFF_MAGIC_SH4       0x01A6  ///< Hitachi SH4
+#define COFF_MAGIC_SH5       0x01A8  ///< Hitachi SH5
+#define COFF_MAGIC_SH_BE     0x0500  ///< Hitachi SH big-endian
+#define COFF_MAGIC_SH_LE     0x0550  ///< Hitachi SH little-endian
+
+// Other Architectures
+#define COFF_MAGIC_ITANIUM   0x0200  ///< Intel Itanium
+#define COFF_MAGIC_PARISC    0x0290  ///< HP PA-RISC
+
+// RISC-V Architectures
+#define COFF_MAGIC_RISCV32   0x5032  ///< RISC-V 32-bit
+#define COFF_MAGIC_RISCV64   0x5064  ///< RISC-V 64-bit
+#define COFF_MAGIC_RISCV128  0x5128  ///< RISC-V 128-bit
+
+// LoongArch Architectures
+#define COFF_MAGIC_LOONGARCH32  0x6232  ///< LoongArch 32-bit
+#define COFF_MAGIC_LOONGARCH64  0x6264  ///< LoongArch 64-bit
 
 //
 // COFF File Header Flags
@@ -105,21 +160,139 @@ typedef struct _COFF_RELOC {
 ANX_PACK_POP()
 
 //
-// COFF Relocation Types (x86)
+// COFF Relocation Types
 //
 
-#define COFF_RELOC_I386_ABSOLUTE  0x0000  ///< No relocation
-#define COFF_RELOC_I386_DIR32     0x0006  ///< Direct 32-bit reference
-#define COFF_RELOC_I386_REL32     0x0014  ///< PC-relative 32-bit reference
+// Generic/Common
+#define COFF_RELOC_ABSOLUTE      0x0000  ///< No relocation
 
-//
-// COFF Relocation Types (AMD64)
-//
+// x86 (i386)
+#define COFF_RELOC_I386_DIR32    0x0006  ///< Direct 32-bit reference
+#define COFF_RELOC_I386_DIR32NB  0x0007  ///< Direct 32-bit ref (no base)
+#define COFF_RELOC_I386_SEG12    0x0009  ///< 16-bit segment reference
+#define COFF_RELOC_I386_SECTION  0x000A  ///< Section index
+#define COFF_RELOC_I386_SECREL   0x000B  ///< Section-relative
+#define COFF_RELOC_I386_REL32    0x0014  ///< PC-relative 32-bit reference
 
-#define COFF_RELOC_AMD64_ABSOLUTE 0x0000  ///< No relocation
-#define COFF_RELOC_AMD64_ADDR64   0x0001  ///< Direct 64-bit reference
-#define COFF_RELOC_AMD64_ADDR32   0x0002  ///< Direct 32-bit reference
-#define COFF_RELOC_AMD64_REL32    0x0004  ///< PC-relative 32-bit reference
+// AMD64 (x86-64)
+#define COFF_RELOC_AMD64_ADDR64  0x0001  ///< Direct 64-bit reference
+#define COFF_RELOC_AMD64_ADDR32  0x0002  ///< Direct 32-bit reference
+#define COFF_RELOC_AMD64_ADDR32NB 0x0003 ///< Direct 32-bit ref (no base)
+#define COFF_RELOC_AMD64_REL32   0x0004  ///< PC-relative 32-bit reference
+#define COFF_RELOC_AMD64_REL32_1 0x0005  ///< PC-relative 32-bit +1
+#define COFF_RELOC_AMD64_REL32_2 0x0006  ///< PC-relative 32-bit +2
+#define COFF_RELOC_AMD64_REL32_3 0x0007  ///< PC-relative 32-bit +3
+#define COFF_RELOC_AMD64_REL32_4 0x0008  ///< PC-relative 32-bit +4
+#define COFF_RELOC_AMD64_REL32_5 0x0009  ///< PC-relative 32-bit +5
+#define COFF_RELOC_AMD64_SECTION 0x000A  ///< Section index
+#define COFF_RELOC_AMD64_SECREL  0x000B  ///< Section-relative
+#define COFF_RELOC_AMD64_SECREL7 0x000C  ///< 7-bit section offset
+#define COFF_RELOC_AMD64_TOKEN   0x000D  ///< CLR token
+#define COFF_RELOC_AMD64_SREL32  0x000E  ///< 32-bit signed span-dependent
+#define COFF_RELOC_AMD64_PAIR    0x000F  ///< Relocation pair
+#define COFF_RELOC_AMD64_SSPAN32 0x0010  ///< 32-bit signed span
+
+// ARM
+#define COFF_RELOC_ARM_ABSOLUTE  0x0000  ///< No relocation
+#define COFF_RELOC_ARM_ADDR32    0x0001  ///< 32-bit address
+#define COFF_RELOC_ARM_ADDR32NB  0x0002  ///< 32-bit address (no base)
+#define COFF_RELOC_ARM_BRANCH24  0x0003  ///< 24-bit relative branch
+#define COFF_RELOC_ARM_BRANCH11  0x0004  ///< Thumb 11-bit branch
+#define COFF_RELOC_ARM_SECTION   0x000E  ///< Section index
+#define COFF_RELOC_ARM_SECREL    0x000F  ///< Section-relative
+
+// ARM64
+#define COFF_RELOC_ARM64_ABSOLUTE 0x0000 ///< No relocation
+#define COFF_RELOC_ARM64_ADDR32   0x0001 ///< 32-bit address
+#define COFF_RELOC_ARM64_ADDR32NB 0x0002 ///< 32-bit address (no base)
+#define COFF_RELOC_ARM64_BRANCH26 0x0003 ///< 26-bit relative branch
+#define COFF_RELOC_ARM64_PAGEBASE_REL21 0x0004 ///< Page base + 21-bit offset
+#define COFF_RELOC_ARM64_REL21    0x0005 ///< 21-bit relative
+#define COFF_RELOC_ARM64_PAGEOFFSET_12A 0x0006 ///< 12-bit page offset (ADD)
+#define COFF_RELOC_ARM64_PAGEOFFSET_12L 0x0007 ///< 12-bit page offset (LD/ST)
+#define COFF_RELOC_ARM64_SECREL   0x0008 ///< Section-relative
+#define COFF_RELOC_ARM64_SECREL_LOW12A 0x0009 ///< Low 12 bits of section offset (ADD)
+#define COFF_RELOC_ARM64_SECREL_HIGH12A 0x000A ///< High 12 bits of section offset (ADD)
+#define COFF_RELOC_ARM64_SECREL_LOW12L 0x000B ///< Low 12 bits of section offset (LD/ST)
+#define COFF_RELOC_ARM64_ADDR64   0x000E ///< 64-bit address
+
+// MIPS
+#define COFF_RELOC_MIPS_ABSOLUTE  0x0000 ///< No relocation
+#define COFF_RELOC_MIPS_REFHALF   0x0001 ///< 16-bit reference
+#define COFF_RELOC_MIPS_REFWORD   0x0002 ///< 32-bit reference
+#define COFF_RELOC_MIPS_JMPADDR   0x0003 ///< 26-bit jump address
+#define COFF_RELOC_MIPS_REFHI     0x0004 ///< High 16 bits
+#define COFF_RELOC_MIPS_REFLO     0x0005 ///< Low 16 bits
+#define COFF_RELOC_MIPS_GPREL     0x0006 ///< GP-relative
+#define COFF_RELOC_MIPS_LITERAL   0x0007 ///< Literal reference
+#define COFF_RELOC_MIPS_SECTION   0x000A ///< Section index
+#define COFF_RELOC_MIPS_SECREL    0x000B ///< Section-relative
+#define COFF_RELOC_MIPS_REFWORDNB 0x0022 ///< 32-bit ref (no base)
+#define COFF_RELOC_MIPS_PAIR      0x0025 ///< Relocation pair
+
+// Alpha
+#define COFF_RELOC_ALPHA_ABSOLUTE 0x0000 ///< No relocation
+#define COFF_RELOC_ALPHA_REFLONG  0x0001 ///< 32-bit reference
+#define COFF_RELOC_ALPHA_REFQUAD  0x0002 ///< 64-bit reference
+#define COFF_RELOC_ALPHA_GPREL32  0x0003 ///< 32-bit GP-relative
+#define COFF_RELOC_ALPHA_LITERAL  0x0004 ///< 16-bit literal
+#define COFF_RELOC_ALPHA_LITUSE   0x0005 ///< Literal usage hint
+#define COFF_RELOC_ALPHA_GPDISP   0x0006 ///< GP displacement
+#define COFF_RELOC_ALPHA_BRADDR   0x0007 ///< 21-bit branch address
+#define COFF_RELOC_ALPHA_HINT     0x0008 ///< Branch hint
+#define COFF_RELOC_ALPHA_INLINE_RELOC_1 0x0009 ///< Inline reloc 1
+#define COFF_RELOC_ALPHA_INLINE_RELOC_2 0x000A ///< Inline reloc 2
+#define COFF_RELOC_ALPHA_INLINE_RELOC_3 0x000B ///< Inline reloc 3
+#define COFF_RELOC_ALPHA_SECTION  0x000C ///< Section index
+#define COFF_RELOC_ALPHA_SECREL   0x000D ///< Section-relative
+#define COFF_RELOC_ALPHA_REFLONGNB 0x0010 ///< 32-bit ref (no base)
+#define COFF_RELOC_ALPHA_PAIR     0x0012 ///< Relocation pair
+
+// PowerPC
+#define COFF_RELOC_PPC_ABSOLUTE   0x0000 ///< No relocation
+#define COFF_RELOC_PPC_ADDR64     0x0001 ///< 64-bit address
+#define COFF_RELOC_PPC_ADDR32     0x0002 ///< 32-bit address
+#define COFF_RELOC_PPC_ADDR24     0x0003 ///< 24-bit address
+#define COFF_RELOC_PPC_ADDR16     0x0004 ///< 16-bit address
+#define COFF_RELOC_PPC_ADDR14     0x0005 ///< 14-bit address
+#define COFF_RELOC_PPC_REL24      0x0006 ///< 24-bit relative branch
+#define COFF_RELOC_PPC_REL14      0x0007 ///< 14-bit relative branch
+#define COFF_RELOC_PPC_ADDR32NB   0x000A ///< 32-bit address (no base)
+#define COFF_RELOC_PPC_SECREL     0x000B ///< Section-relative
+#define COFF_RELOC_PPC_SECTION    0x000C ///< Section index
+#define COFF_RELOC_PPC_SECREL16   0x000F ///< 16-bit section offset
+#define COFF_RELOC_PPC_PAIR       0x0012 ///< Relocation pair
+
+// Hitachi SH
+#define COFF_RELOC_SH_ABSOLUTE    0x0000 ///< No relocation
+#define COFF_RELOC_SH_DIRECT32    0x0001 ///< Direct 32-bit
+#define COFF_RELOC_SH_PCREL8      0x0002 ///< PC-relative 8-bit
+#define COFF_RELOC_SH_PCREL16     0x0003 ///< PC-relative 16-bit
+#define COFF_RELOC_SH_HIGH16      0x0004 ///< High 16 bits
+#define COFF_RELOC_SH_LOW16       0x0005 ///< Low 16 bits
+#define COFF_RELOC_SH_PCREL32     0x0006 ///< PC-relative 32-bit
+#define COFF_RELOC_SH_SECTION     0x000A ///< Section index
+#define COFF_RELOC_SH_SECREL      0x000B ///< Section-relative
+#define COFF_RELOC_SH_DIRECT32NB  0x0010 ///< Direct 32-bit (no base)
+
+// Itanium (IA-64)
+#define COFF_RELOC_IA64_ABSOLUTE  0x0000 ///< No relocation
+#define COFF_RELOC_IA64_IMM14     0x0001 ///< 14-bit immediate
+#define COFF_RELOC_IA64_IMM22     0x0002 ///< 22-bit immediate
+#define COFF_RELOC_IA64_IMM64     0x0003 ///< 64-bit immediate
+#define COFF_RELOC_IA64_DIR32     0x0004 ///< Direct 32-bit
+#define COFF_RELOC_IA64_DIR64     0x0005 ///< Direct 64-bit
+#define COFF_RELOC_IA64_PCREL21B  0x0006 ///< PC-relative 21-bit branch
+#define COFF_RELOC_IA64_PCREL21M  0x0007 ///< PC-relative 21-bit move
+#define COFF_RELOC_IA64_PCREL21F  0x0008 ///< PC-relative 21-bit float
+#define COFF_RELOC_IA64_GPREL22   0x0009 ///< GP-relative 22-bit
+#define COFF_RELOC_IA64_LTOFF22   0x000A ///< LT-relative 22-bit
+#define COFF_RELOC_IA64_SECTION   0x000B ///< Section index
+#define COFF_RELOC_IA64_SECREL22  0x000C ///< Section-relative 22-bit
+#define COFF_RELOC_IA64_SECREL64I 0x000D ///< Section-relative 64-bit (immediate)
+#define COFF_RELOC_IA64_SECREL32  0x000E ///< Section-relative 32-bit
+#define COFF_RELOC_IA64_DIR32NB   0x0010 ///< Direct 32-bit (no base)
+#define COFF_RELOC_IA64_ADDEND    0x001F ///< Addend relocation
 
 //
 // Helper Macros
@@ -158,20 +331,55 @@ CoffDetect (
 
   // Check for known COFF machine types in both endianness
   switch (Magic) {
+    // x86/x64
     case COFF_MAGIC_I386:
-    case COFF_MAGIC_AMD64:
-    case COFF_MAGIC_R3000_LE:
-    case COFF_MAGIC_R3000_BE:
-    case COFF_MAGIC_R4000_LE:
-    case COFF_MAGIC_R4000_BE:
-    case COFF_MAGIC_ALPHA:
-    case COFF_MAGIC_ARM:
-    case COFF_MAGIC_M68K:
-    case COFF_MAGIC_M88K:
-    case COFF_MAGIC_SPARC:
-    case COFF_MAGIC_POWERPC:
-    case COFF_MAGIC_SH:
     case COFF_MAGIC_I860:
+    case COFF_MAGIC_AMD64:
+    // ARM
+    case COFF_MAGIC_ARMV4:
+    case COFF_MAGIC_ARMV4T:
+    case COFF_MAGIC_ARMV7:
+    case COFF_MAGIC_ARM64:
+    case COFF_MAGIC_ARM64X64:
+    case COFF_MAGIC_ARM64CLS:
+    case COFF_MAGIC_ARM64I386:
+    // MIPS
+    case COFF_MAGIC_MIPS_R3000_BE:
+    case COFF_MAGIC_MIPS_R3000:
+    case COFF_MAGIC_MIPS_R4000:
+    case COFF_MAGIC_MIPS_R10000:
+    case COFF_MAGIC_MIPS_WCE:
+    case COFF_MAGIC_MIPS16:
+    case COFF_MAGIC_MIPS_FPU:
+    case COFF_MAGIC_MIPS16_FPU:
+    // Alpha
+    case COFF_MAGIC_ALPHA32:
+    case COFF_MAGIC_ALPHA64:
+    // PowerPC
+    case COFF_MAGIC_POWERPC_LE:
+    case COFF_MAGIC_POWERPC_FPU:
+    case COFF_MAGIC_POWERPC64_BE:
+    case COFF_MAGIC_POWERPC_BE:
+    // Motorola
+    case COFF_MAGIC_M68K:
+    // Hitachi SH
+    case COFF_MAGIC_SH:
+    case COFF_MAGIC_SH3:
+    case COFF_MAGIC_SH3DSP:
+    case COFF_MAGIC_SH4:
+    case COFF_MAGIC_SH5:
+    case COFF_MAGIC_SH_BE:
+    case COFF_MAGIC_SH_LE:
+    // Other
+    case COFF_MAGIC_ITANIUM:
+    case COFF_MAGIC_PARISC:
+    // RISC-V
+    case COFF_MAGIC_RISCV32:
+    case COFF_MAGIC_RISCV64:
+    case COFF_MAGIC_RISCV128:
+    // LoongArch
+    case COFF_MAGIC_LOONGARCH32:
+    case COFF_MAGIC_LOONGARCH64:
       if (Header->Flags & COFF_F_EXEC) {
         return S_OK;
       }
@@ -180,20 +388,55 @@ CoffDetect (
 
   // Try swapped endianness
   switch (MagicSwapped) {
+    // x86/x64
     case COFF_MAGIC_I386:
-    case COFF_MAGIC_AMD64:
-    case COFF_MAGIC_R3000_LE:
-    case COFF_MAGIC_R3000_BE:
-    case COFF_MAGIC_R4000_LE:
-    case COFF_MAGIC_R4000_BE:
-    case COFF_MAGIC_ALPHA:
-    case COFF_MAGIC_ARM:
-    case COFF_MAGIC_M68K:
-    case COFF_MAGIC_M88K:
-    case COFF_MAGIC_SPARC:
-    case COFF_MAGIC_POWERPC:
-    case COFF_MAGIC_SH:
     case COFF_MAGIC_I860:
+    case COFF_MAGIC_AMD64:
+    // ARM
+    case COFF_MAGIC_ARMV4:
+    case COFF_MAGIC_ARMV4T:
+    case COFF_MAGIC_ARMV7:
+    case COFF_MAGIC_ARM64:
+    case COFF_MAGIC_ARM64X64:
+    case COFF_MAGIC_ARM64CLS:
+    case COFF_MAGIC_ARM64I386:
+    // MIPS
+    case COFF_MAGIC_MIPS_R3000_BE:
+    case COFF_MAGIC_MIPS_R3000:
+    case COFF_MAGIC_MIPS_R4000:
+    case COFF_MAGIC_MIPS_R10000:
+    case COFF_MAGIC_MIPS_WCE:
+    case COFF_MAGIC_MIPS16:
+    case COFF_MAGIC_MIPS_FPU:
+    case COFF_MAGIC_MIPS16_FPU:
+    // Alpha
+    case COFF_MAGIC_ALPHA32:
+    case COFF_MAGIC_ALPHA64:
+    // PowerPC
+    case COFF_MAGIC_POWERPC_LE:
+    case COFF_MAGIC_POWERPC_FPU:
+    case COFF_MAGIC_POWERPC64_BE:
+    case COFF_MAGIC_POWERPC_BE:
+    // Motorola
+    case COFF_MAGIC_M68K:
+    // Hitachi SH
+    case COFF_MAGIC_SH:
+    case COFF_MAGIC_SH3:
+    case COFF_MAGIC_SH3DSP:
+    case COFF_MAGIC_SH4:
+    case COFF_MAGIC_SH5:
+    case COFF_MAGIC_SH_BE:
+    case COFF_MAGIC_SH_LE:
+    // Other
+    case COFF_MAGIC_ITANIUM:
+    case COFF_MAGIC_PARISC:
+    // RISC-V
+    case COFF_MAGIC_RISCV32:
+    case COFF_MAGIC_RISCV64:
+    case COFF_MAGIC_RISCV128:
+    // LoongArch
+    case COFF_MAGIC_LOONGARCH32:
+    case COFF_MAGIC_LOONGARCH64:
       if (ANX_BSWAP16(Header->Flags) & COFF_F_EXEC) {
         return S_OK;
       }
@@ -205,6 +448,7 @@ CoffDetect (
 
 /**
   Determine if COFF image is byte-swapped.
+  Returns TRUE if the file is in a different endianness than the host.
 **/
 static
 BOOLEAN
@@ -215,30 +459,28 @@ CoffIsSwapped (
   COFF_FILE_HEADER *Header = (COFF_FILE_HEADER *)ImageBase;
   UINT16 Magic = Header->Magic;
 
-  // Big-endian architectures
+  // Big-endian architectures (on LE host, these need swap)
   switch (Magic) {
     case COFF_MAGIC_M68K:
-    case COFF_MAGIC_M88K:
-    case COFF_MAGIC_SPARC:
-    case COFF_MAGIC_POWERPC:
-    case COFF_MAGIC_R3000_BE:
-    case COFF_MAGIC_R4000_BE:
-      return FALSE;  // Native big-endian
+    case COFF_MAGIC_MIPS_R3000_BE:
+    case COFF_MAGIC_POWERPC64_BE:
+    case COFF_MAGIC_POWERPC_BE:
+    case COFF_MAGIC_SH_BE:
+      return FALSE;  // Native big-endian on BE host
   }
 
   // Check if we need to swap (magic appears in wrong endianness)
   UINT16 MagicSwapped = ANX_BSWAP16(Magic);
   switch (MagicSwapped) {
     case COFF_MAGIC_M68K:
-    case COFF_MAGIC_M88K:
-    case COFF_MAGIC_SPARC:
-    case COFF_MAGIC_POWERPC:
-    case COFF_MAGIC_R3000_BE:
-    case COFF_MAGIC_R4000_BE:
+    case COFF_MAGIC_MIPS_R3000_BE:
+    case COFF_MAGIC_POWERPC64_BE:
+    case COFF_MAGIC_POWERPC_BE:
+    case COFF_MAGIC_SH_BE:
       return TRUE;  // Needs byte swap
   }
 
-  return FALSE;  // Little-endian
+  return FALSE;  // Little-endian or matches host
 }
 
 /**
@@ -269,51 +511,101 @@ CoffGetArch (
   }
 
   switch (Magic) {
+    // x86/x64
     case COFF_MAGIC_I386:
       *Architecture = ARCH_386;
       break;
-
+    case COFF_MAGIC_I860:
+      *Architecture = ARCH_I860;
+      break;
     case COFF_MAGIC_AMD64:
       *Architecture = ARCH_AMD64;
       break;
 
-    case COFF_MAGIC_R3000_LE:
-    case COFF_MAGIC_R3000_BE:
-    case COFF_MAGIC_R4000_LE:
-    case COFF_MAGIC_R4000_BE:
-      *Architecture = ARCH_MIPS;
+    // ARM
+    case COFF_MAGIC_ARMV4:
+    case COFF_MAGIC_ARMV4T:
+    case COFF_MAGIC_ARMV7:
+      *Architecture = ARCH_ARM;
+      break;
+    case COFF_MAGIC_ARM64:
+    case COFF_MAGIC_ARM64X64:
+    case COFF_MAGIC_ARM64CLS:
+    case COFF_MAGIC_ARM64I386:
+      *Architecture = ARCH_ARM64;
       break;
 
-    case COFF_MAGIC_ALPHA:
+    // MIPS
+    case COFF_MAGIC_MIPS_R3000_BE:
+    case COFF_MAGIC_MIPS_R3000:
+    case COFF_MAGIC_MIPS16:
+      *Architecture = ARCH_MIPS32;
+      break;
+    case COFF_MAGIC_MIPS_R4000:
+    case COFF_MAGIC_MIPS_R10000:
+    case COFF_MAGIC_MIPS_WCE:
+    case COFF_MAGIC_MIPS_FPU:
+    case COFF_MAGIC_MIPS16_FPU:
+      *Architecture = ARCH_MIPS64;
+      break;
+
+    // Alpha
+    case COFF_MAGIC_ALPHA32:
+    case COFF_MAGIC_ALPHA64:
       *Architecture = ARCH_ALPHA;
       break;
 
-    case COFF_MAGIC_ARM:
-      *Architecture = ARCH_ARM;
+    // PowerPC
+    case COFF_MAGIC_POWERPC_LE:
+    case COFF_MAGIC_POWERPC_FPU:
+    case COFF_MAGIC_POWERPC_BE:
+      *Architecture = ARCH_PPC32;
+      break;
+    case COFF_MAGIC_POWERPC64_BE:
+      *Architecture = ARCH_PPC64;
       break;
 
+    // Motorola
     case COFF_MAGIC_M68K:
       *Architecture = ARCH_M68K;
       break;
 
-    case COFF_MAGIC_M88K:
-      *Architecture = ARCH_M88K;
-      break;
-
-    case COFF_MAGIC_SPARC:
-      *Architecture = ARCH_SPARC;
-      break;
-
-    case COFF_MAGIC_POWERPC:
-      *Architecture = ARCH_POWERPC;
-      break;
-
+    // Hitachi SH
     case COFF_MAGIC_SH:
+    case COFF_MAGIC_SH3:
+    case COFF_MAGIC_SH3DSP:
+    case COFF_MAGIC_SH4:
+    case COFF_MAGIC_SH5:
+    case COFF_MAGIC_SH_BE:
+    case COFF_MAGIC_SH_LE:
       *Architecture = ARCH_SH;
       break;
 
-    case COFF_MAGIC_I860:
-      *Architecture = ARCH_I860;
+    // Other
+    case COFF_MAGIC_ITANIUM:
+      *Architecture = ARCH_IA64;
+      break;
+    case COFF_MAGIC_PARISC:
+      *Architecture = ARCH_PARISC;
+      break;
+
+    // RISC-V
+    case COFF_MAGIC_RISCV32:
+      *Architecture = ARCH_RISCV32;
+      break;
+    case COFF_MAGIC_RISCV64:
+      *Architecture = ARCH_RISCV64;
+      break;
+    case COFF_MAGIC_RISCV128:
+      *Architecture = ARCH_RISCV128;
+      break;
+
+    // LoongArch
+    case COFF_MAGIC_LOONGARCH32:
+      *Architecture = ARCH_LOONGARCH32;
+      break;
+    case COFF_MAGIC_LOONGARCH64:
+      *Architecture = ARCH_LOONGARCH64;
       break;
 
     default:
@@ -355,23 +647,48 @@ CoffGetEndianness (
   switch (Magic) {
     // Big-endian architectures
     case COFF_MAGIC_M68K:
-    case COFF_MAGIC_M88K:
-    case COFF_MAGIC_SPARC:
-    case COFF_MAGIC_POWERPC:
-    case COFF_MAGIC_R3000_BE:
-    case COFF_MAGIC_R4000_BE:
+    case COFF_MAGIC_MIPS_R3000_BE:
+    case COFF_MAGIC_POWERPC64_BE:
+    case COFF_MAGIC_POWERPC_BE:
+    case COFF_MAGIC_SH_BE:
       *Endianness = ImgEndianBig;
       break;
 
     // Little-endian architectures
     case COFF_MAGIC_I386:
-    case COFF_MAGIC_AMD64:
-    case COFF_MAGIC_R3000_LE:
-    case COFF_MAGIC_R4000_LE:
-    case COFF_MAGIC_ALPHA:
-    case COFF_MAGIC_ARM:
-    case COFF_MAGIC_SH:
     case COFF_MAGIC_I860:
+    case COFF_MAGIC_AMD64:
+    case COFF_MAGIC_ARMV4:
+    case COFF_MAGIC_ARMV4T:
+    case COFF_MAGIC_ARMV7:
+    case COFF_MAGIC_ARM64:
+    case COFF_MAGIC_ARM64X64:
+    case COFF_MAGIC_ARM64CLS:
+    case COFF_MAGIC_ARM64I386:
+    case COFF_MAGIC_MIPS_R3000:
+    case COFF_MAGIC_MIPS_R4000:
+    case COFF_MAGIC_MIPS_R10000:
+    case COFF_MAGIC_MIPS_WCE:
+    case COFF_MAGIC_MIPS16:
+    case COFF_MAGIC_MIPS_FPU:
+    case COFF_MAGIC_MIPS16_FPU:
+    case COFF_MAGIC_ALPHA32:
+    case COFF_MAGIC_ALPHA64:
+    case COFF_MAGIC_POWERPC_LE:
+    case COFF_MAGIC_POWERPC_FPU:
+    case COFF_MAGIC_SH:
+    case COFF_MAGIC_SH3:
+    case COFF_MAGIC_SH3DSP:
+    case COFF_MAGIC_SH4:
+    case COFF_MAGIC_SH5:
+    case COFF_MAGIC_SH_LE:
+    case COFF_MAGIC_ITANIUM:
+    case COFF_MAGIC_PARISC:
+    case COFF_MAGIC_RISCV32:
+    case COFF_MAGIC_RISCV64:
+    case COFF_MAGIC_RISCV128:
+    case COFF_MAGIC_LOONGARCH32:
+    case COFF_MAGIC_LOONGARCH64:
       *Endianness = ImgEndianLittle;
       break;
 
@@ -672,35 +989,194 @@ CoffApplyRelocations (
       UINT16 RelocType = NeedSwap ? ANX_BSWAP16(Relocs[j].Type) : Relocs[j].Type;
 
       // Apply relocation based on type and architecture
-      if (Arch == ARCH_386) {
-        switch (RelocType) {
-          case COFF_RELOC_I386_DIR32: {
-            UINT32 *Target = (UINT32 *)COFF_OFF(RelocVa);
-            *Target = (UINT32)(*Target + Delta);
-            break;
+      switch (Arch) {
+        case ARCH_386:
+          switch (RelocType) {
+            case COFF_RELOC_I386_DIR32:
+            case COFF_RELOC_I386_DIR32NB: {
+              UINT32 *Target = (UINT32 *)COFF_OFF(RelocVa);
+              *Target = (UINT32)(*Target + Delta);
+              break;
+            }
+            case COFF_RELOC_ABSOLUTE:
+              // No operation
+              break;
           }
-          case COFF_RELOC_I386_ABSOLUTE:
-            // No operation
-            break;
-        }
-      } else if (Arch == ARCH_AMD64) {
-        switch (RelocType) {
-          case COFF_RELOC_AMD64_ADDR64: {
-            UINT64 *Target = (UINT64 *)COFF_OFF(RelocVa);
-            *Target = *Target + Delta;
-            break;
+          break;
+
+        case ARCH_AMD64:
+          switch (RelocType) {
+            case COFF_RELOC_AMD64_ADDR64: {
+              UINT64 *Target = (UINT64 *)COFF_OFF(RelocVa);
+              *Target = *Target + Delta;
+              break;
+            }
+            case COFF_RELOC_AMD64_ADDR32:
+            case COFF_RELOC_AMD64_ADDR32NB: {
+              UINT32 *Target = (UINT32 *)COFF_OFF(RelocVa);
+              *Target = (UINT32)(*Target + Delta);
+              break;
+            }
+            case COFF_RELOC_ABSOLUTE:
+              // No operation
+              break;
           }
-          case COFF_RELOC_AMD64_ADDR32: {
-            UINT32 *Target = (UINT32 *)COFF_OFF(RelocVa);
-            *Target = (UINT32)(*Target + Delta);
-            break;
+          break;
+
+        case ARCH_ARM:
+          switch (RelocType) {
+            case COFF_RELOC_ARM_ADDR32:
+            case COFF_RELOC_ARM_ADDR32NB: {
+              UINT32 *Target = (UINT32 *)COFF_OFF(RelocVa);
+              *Target = (UINT32)(*Target + Delta);
+              break;
+            }
+            case COFF_RELOC_ARM_ABSOLUTE:
+              // No operation
+              break;
           }
-          case COFF_RELOC_AMD64_ABSOLUTE:
-            // No operation
-            break;
-        }
+          break;
+
+        case ARCH_ARM64:
+          switch (RelocType) {
+            case COFF_RELOC_ARM64_ADDR64: {
+              UINT64 *Target = (UINT64 *)COFF_OFF(RelocVa);
+              *Target = *Target + Delta;
+              break;
+            }
+            case COFF_RELOC_ARM64_ADDR32:
+            case COFF_RELOC_ARM64_ADDR32NB: {
+              UINT32 *Target = (UINT32 *)COFF_OFF(RelocVa);
+              *Target = (UINT32)(*Target + Delta);
+              break;
+            }
+            case COFF_RELOC_ARM64_ABSOLUTE:
+              // No operation
+              break;
+          }
+          break;
+
+        case ARCH_MIPS32:
+        case ARCH_MIPS64:
+          switch (RelocType) {
+            case COFF_RELOC_MIPS_REFWORD:
+            case COFF_RELOC_MIPS_REFWORDNB: {
+              UINT32 *Target = (UINT32 *)COFF_OFF(RelocVa);
+              *Target = (UINT32)(*Target + Delta);
+              break;
+            }
+            case COFF_RELOC_MIPS_REFHALF: {
+              UINT16 *Target = (UINT16 *)COFF_OFF(RelocVa);
+              *Target = (UINT16)(*Target + Delta);
+              break;
+            }
+            case COFF_RELOC_MIPS_ABSOLUTE:
+              // No operation
+              break;
+          }
+          break;
+
+        case ARCH_ALPHA:
+          switch (RelocType) {
+            case COFF_RELOC_ALPHA_REFQUAD: {
+              UINT64 *Target = (UINT64 *)COFF_OFF(RelocVa);
+              *Target = *Target + Delta;
+              break;
+            }
+            case COFF_RELOC_ALPHA_REFLONG:
+            case COFF_RELOC_ALPHA_REFLONGNB: {
+              UINT32 *Target = (UINT32 *)COFF_OFF(RelocVa);
+              *Target = (UINT32)(*Target + Delta);
+              break;
+            }
+            case COFF_RELOC_ALPHA_ABSOLUTE:
+              // No operation
+              break;
+          }
+          break;
+
+        case ARCH_PPC32:
+          switch (RelocType) {
+            case COFF_RELOC_PPC_ADDR32:
+            case COFF_RELOC_PPC_ADDR32NB: {
+              UINT32 *Target = (UINT32 *)COFF_OFF(RelocVa);
+              *Target = (UINT32)(*Target + Delta);
+              break;
+            }
+            case COFF_RELOC_PPC_ADDR24: {
+              // 24-bit address relocation
+              UINT32 *Target = (UINT32 *)COFF_OFF(RelocVa);
+              UINT32 Addr = (*Target & 0x03FFFFFC) + (UINT32)Delta;
+              *Target = (*Target & 0xFC000003) | (Addr & 0x03FFFFFC);
+              break;
+            }
+            case COFF_RELOC_PPC_ADDR16: {
+              UINT16 *Target = (UINT16 *)COFF_OFF(RelocVa);
+              *Target = (UINT16)(*Target + Delta);
+              break;
+            }
+            case COFF_RELOC_PPC_ABSOLUTE:
+              // No operation
+              break;
+          }
+          break;
+
+        case ARCH_PPC64:
+          switch (RelocType) {
+            case COFF_RELOC_PPC_ADDR64: {
+              UINT64 *Target = (UINT64 *)COFF_OFF(RelocVa);
+              *Target = *Target + Delta;
+              break;
+            }
+            case COFF_RELOC_PPC_ADDR32:
+            case COFF_RELOC_PPC_ADDR32NB: {
+              UINT32 *Target = (UINT32 *)COFF_OFF(RelocVa);
+              *Target = (UINT32)(*Target + Delta);
+              break;
+            }
+            case COFF_RELOC_PPC_ABSOLUTE:
+              // No operation
+              break;
+          }
+          break;
+
+        case ARCH_SH:
+          switch (RelocType) {
+            case COFF_RELOC_SH_DIRECT32:
+            case COFF_RELOC_SH_DIRECT32NB: {
+              UINT32 *Target = (UINT32 *)COFF_OFF(RelocVa);
+              *Target = (UINT32)(*Target + Delta);
+              break;
+            }
+            case COFF_RELOC_SH_ABSOLUTE:
+              // No operation
+              break;
+          }
+          break;
+
+        case ARCH_IA64:
+          switch (RelocType) {
+            case COFF_RELOC_IA64_DIR64: {
+              UINT64 *Target = (UINT64 *)COFF_OFF(RelocVa);
+              *Target = *Target + Delta;
+              break;
+            }
+            case COFF_RELOC_IA64_DIR32:
+            case COFF_RELOC_IA64_DIR32NB: {
+              UINT32 *Target = (UINT32 *)COFF_OFF(RelocVa);
+              *Target = (UINT32)(*Target + Delta);
+              break;
+            }
+            case COFF_RELOC_IA64_ABSOLUTE:
+              // No operation
+              break;
+          }
+          break;
+
+        default:
+          // Unsupported architecture for relocations
+          break;
       }
-      // Other architectures would be handled here
     }
   }
 
