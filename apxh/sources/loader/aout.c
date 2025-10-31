@@ -18,6 +18,8 @@
 
 #include <apxh/internal.h>
 #include <apxh/imgload.h>
+#include <ananke/resource.h>
+#include "imgresource.h"
 
 //
 // a.out Magic Numbers
@@ -676,6 +678,205 @@ AoutGetMinimumSubsystemVersion (
   memset(MinimumVersion, 0, sizeof(IMGLOAD_SYSTEM_VERSION));
   return S_FALSE;
 }
+
+/**
+  Find resource fork by symbol in a.out image.
+
+  a.out doesn't have sections, so we use special symbols to locate the
+  resource fork:
+  - __apxh_uresource_start: Start address of resource fork
+  - __apxh_uresource_size: Size of resource fork
+
+  @param[in]  ImageBase    Pointer to a.out image.
+  @param[in]  SectionName  Ignored (for compatibility with FindSectionFunc).
+  @param[out] Data         Receives pointer to resource fork data.
+  @param[out] Size         Receives size of resource fork.
+
+  @return S_OK if found, S_FALSE if not found, error code otherwise.
+**/
+static
+HRESULT
+AoutFindResourceBySymbol (
+  IN  VOID         *ImageBase,
+  IN  CONST CHAR8  *SectionName,
+  OUT VOID         **Data,
+  OUT UINT64       *Size
+  )
+{
+  IMGLOAD_SYMBOL_INFO StartSymbol;
+  IMGLOAD_SYMBOL_INFO SizeSymbol;
+  HRESULT Status;
+  UINT32 ResourceSize;
+
+  if (ImageBase == NULL || Data == NULL || Size == NULL) {
+    return E_POINTER;
+  }
+
+  // Look up start symbol
+  Status = AoutGetSymbolByName(NULL, ImageBase, "__apxh_uresource_start", &StartSymbol);
+  if (Status != S_OK) {
+    return S_FALSE;  // Symbol not found
+  }
+
+  // Look up size symbol
+  Status = AoutGetSymbolByName(NULL, ImageBase, "__apxh_uresource_size", &SizeSymbol);
+  if (Status != S_OK) {
+    return S_FALSE;  // Symbol not found
+  }
+
+  // Size symbol contains the size as its address
+  ResourceSize = (UINT32)SizeSymbol.Address;
+
+  // Calculate pointer to resource fork
+  *Data = (VOID *)(UINTN)StartSymbol.Address;
+  *Size = ResourceSize;
+
+  return S_OK;
+}
+
+/**
+  Get resource from a.out image.
+
+  a.out uses symbol-based resource location since it has no section headers.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+AoutGetResource (
+  IN  IImageLoader        *This,
+  IN  VOID                *ImageBase,
+  IN  IMGLOAD_RESOURCE_ID *ResourceId,
+  IN  IMGLOAD_RESOURCE_ID *ResourceType,
+  OUT IImageResource      **Resource
+  )
+{
+  VOID *ResourceFork;
+  UINT64 Size;
+  BOOLEAN NeedsFree;
+  HRESULT Status;
+  UINT32 TypeCode;
+  UINT16 Id;
+  CONST CHAR8 *Name;
+
+  if (ImageBase == NULL || Resource == NULL) {
+    return E_POINTER;
+  }
+
+  *Resource = NULL;
+
+  // Extract type code from ResourceType
+  if (ResourceType != NULL) {
+    if (ResourceType->IsNumeric) {
+      TypeCode = ResourceType->Id;
+    } else {
+      TypeCode = ANX_MAKE_TYPE(ResourceType->Name);
+    }
+  } else {
+    TypeCode = 0;
+  }
+
+  // Extract resource ID/name from ResourceId
+  if (ResourceId != NULL) {
+    if (ResourceId->IsNumeric) {
+      Id = (UINT16)ResourceId->Id;
+      Name = NULL;
+    } else {
+      Id = 0;
+      Name = ResourceId->Name;
+    }
+  } else {
+    Id = 0;
+    Name = NULL;
+  }
+
+  // Find universal resource fork using symbol lookup
+  Status = FindUniversalResourceFork(
+    ImageBase,
+    ResourceStrategyDirect,
+    NULL,  // No native resources in a.out
+    AoutFindResourceBySymbol,
+    NULL,  // Section name not used for symbol lookup
+    &ResourceFork,
+    &Size,
+    &NeedsFree
+  );
+
+  if (FAILED(Status) || Status == S_FALSE) {
+    return Status;
+  }
+
+  // Create resource object
+  Status = CreateImageResource(ResourceFork, TypeCode, Id, Name, Resource);
+
+  if (NeedsFree && ResourceFork != NULL) {
+    free(ResourceFork);
+  }
+
+  return Status;
+}
+
+/**
+  Get resource enumerator for a.out image.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+AoutGetResourceEnumerator (
+  IN  IImageLoader        *This,
+  IN  VOID                *ImageBase,
+  IN  IMGLOAD_RESOURCE_ID *ResourceType,
+  OUT IEnumImageResource  **Enumerator
+  )
+{
+  VOID *ResourceFork;
+  UINT64 Size;
+  BOOLEAN NeedsFree;
+  HRESULT Status;
+  UINT32 TypeCode;
+
+  if (ImageBase == NULL || Enumerator == NULL) {
+    return E_POINTER;
+  }
+
+  *Enumerator = NULL;
+
+  // Extract type code from ResourceType
+  if (ResourceType != NULL) {
+    if (ResourceType->IsNumeric) {
+      TypeCode = ResourceType->Id;
+    } else {
+      TypeCode = ANX_MAKE_TYPE(ResourceType->Name);
+    }
+  } else {
+    TypeCode = 0;
+  }
+
+  // Find universal resource fork using symbol lookup
+  Status = FindUniversalResourceFork(
+    ImageBase,
+    ResourceStrategyDirect,
+    NULL,
+    AoutFindResourceBySymbol,
+    NULL,
+    &ResourceFork,
+    &Size,
+    &NeedsFree
+  );
+
+  if (FAILED(Status) || Status == S_FALSE) {
+    return Status;
+  }
+
+  // Create enumerator
+  Status = CreateImageResourceEnumerator(ResourceFork, TypeCode, Enumerator);
+
+  if (NeedsFree && ResourceFork != NULL) {
+    free(ResourceFork);
+  }
+
+  return Status;
+}
+
 // a.out Loader VTable
 //
 
@@ -697,7 +898,9 @@ static CONST IImageLoaderVtbl gAoutVtbl = {
   AoutGetTargetSystem,
   AoutGetMinimumSystemVersion,
   AoutGetTargetSubsystem,
-  AoutGetMinimumSubsystemVersion
+  AoutGetMinimumSubsystemVersion,
+  AoutGetResource,
+  AoutGetResourceEnumerator
 };
 
 //
