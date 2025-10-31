@@ -14,6 +14,12 @@
 #include <apxh/internal.h>
 
 static ARCH gImageArch;
+static ARCH gKernelArch = ArchInvalid;  ///< Kernel architecture
+static ARCH gUserArch = ArchInvalid;    ///< User architecture
+static ARCH gHostArch = ArchInvalid;    ///< Host/CPU architecture
+static BOOLEAN gMixedMode = FALSE;      ///< TRUE if kernel/user have different bitness
+static BOOLEAN g32on64Mode = FALSE;     ///< TRUE if 32-bit on 64-bit CPU
+static BOOLEAN g64Uon32KMode = FALSE;   ///< TRUE if 64-bit user on 32-bit kernel
 static UINT8 gBootPagemap[PAGEMAP_SZ (BOOTMEM)]
   ANX_ATTR_ALIGN(4096);
 static VIRTUAL_ADDRESS gReqPfnmapVa, gReqInfoVa, gReqBatreeVa, gReqRegionVa,
@@ -92,6 +98,98 @@ Initialize (
 {
   PlatformInit ();
   gMinRamAddr = PlatformGetMinRamPageFrameNumber () << PAGE_SHIFT;
+
+  // Detect host CPU architecture
+  gHostArch = ArchitectureGetNative();
+}
+
+/**
+  Check if architecture is 64-bit.
+
+  @param[in] Arch  Architecture to check.
+
+  @retval TRUE   Architecture is 64-bit.
+  @retval FALSE  Architecture is 32-bit or invalid.
+**/
+static BOOLEAN
+Is64BitArch (
+  IN ARCH  Arch
+  )
+{
+  switch (Arch) {
+    case ArchAmd64:
+    case ArchArm64:
+    case ArchRiscV64:
+    case ArchPpc64:
+    case ArchMips64:
+    case ArchIa64:
+    case ArchSparc64:
+    case ArchS390x:
+    case ArchPaRisc64:
+    case ArchLoongArch64:
+      return TRUE;
+    default:
+      return FALSE;
+  }
+}
+
+/**
+  Analyze kernel/user architecture combination.
+
+  Detects mixed-mode scenarios:
+  - 32-bit kernel/user on 64-bit CPU (32-on-64)
+  - 64-bit user on 32-bit kernel (64U-on-32K)
+  - 32-bit user on 64-bit kernel (32U-on-64K)
+
+  Sets global flags accordingly.
+**/
+static VOID
+AnalyzeArchitectureCombination (
+  VOID
+  )
+{
+  BOOLEAN KernelIs64 = Is64BitArch(gKernelArch);
+  BOOLEAN UserIs64 = Is64BitArch(gUserArch);
+  BOOLEAN HostIs64 = Is64BitArch(gHostArch);
+
+  // Reset flags
+  gMixedMode = FALSE;
+  g32on64Mode = FALSE;
+  g64Uon32KMode = FALSE;
+
+  // Check for 64-bit user on 32-bit kernel
+  if (!KernelIs64 && UserIs64) {
+    g64Uon32KMode = TRUE;
+    gMixedMode = TRUE;
+    info("Detected 64-bit user on 32-bit kernel (64U-on-32K mode)");
+    info("  Kernel: %s (32-bit)", ArchitectureGetName(gKernelArch));
+    info("  User:   %s (64-bit)", ArchitectureGetName(gUserArch));
+
+    if (!HostIs64) {
+      warn("64U-on-32K requires 64-bit capable CPU!");
+      warn("Host CPU is: %s", ArchitectureGetName(gHostArch));
+    }
+  }
+  // Check for 32-bit kernel on 64-bit host
+  else if (!KernelIs64 && HostIs64) {
+    g32on64Mode = TRUE;
+    info("Detected 32-bit kernel on 64-bit CPU (32-on-64 mode)");
+    info("  Kernel: %s (32-bit)", ArchitectureGetName(gKernelArch));
+    info("  Host:   %s (64-bit)", ArchitectureGetName(gHostArch));
+  }
+  // Check for 32-bit user on 64-bit kernel
+  else if (KernelIs64 && !UserIs64 && gUserArch != ArchInvalid) {
+    gMixedMode = TRUE;
+    info("Detected 32-bit user on 64-bit kernel (32U-on-64K mode)");
+    info("  Kernel: %s (64-bit)", ArchitectureGetName(gKernelArch));
+    info("  User:   %s (32-bit)", ArchitectureGetName(gUserArch));
+  }
+  // Check if both are same bitness but different architectures
+  else if (gKernelArch != gUserArch && gUserArch != ArchInvalid) {
+    info("Kernel and user have different architectures:");
+    info("  Kernel: %s", ArchitectureGetName(gKernelArch));
+    info("  User:   %s", ArchitectureGetName(gUserArch));
+  }
 }
 
 /**
@@ -684,9 +782,10 @@ main (
    */
   ImageStart = GetPayloadStart (ArgumentCount, ArgumentVector, PayloadKernel);
   ImageSize = GetPayloadSize (PayloadKernel);
-  gImageArch = GetImageArch (ImageStart);
+  gKernelArch = GetImageArch (ImageStart);
+  gImageArch = gKernelArch;  // For backwards compatibility
   printf ("Kernel payload %s at addr %p (%d bytes)\n",
-	  GetArchName (gImageArch), ImageStart, ImageSize);
+	  GetArchName (gKernelArch), ImageStart, ImageSize);
 
   // Initialize architecture handlers and VAS
   ArchitecturesInit ();
@@ -708,9 +807,10 @@ main (
   ImageSize = GetPayloadSize (PayloadUser);
   if (ImageStart != NULL && ImageSize != 0)
     {
-      gImageArch = GetImageArch (ImageStart);
+      gUserArch = GetImageArch (ImageStart);
+      gImageArch = gUserArch;  // For backwards compatibility
       printf ("User payload %s at addr %p (%d bytes)\n",
-	      GetArchName (gImageArch), ImageStart, ImageSize);
+	      GetArchName (gUserArch), ImageStart, ImageSize);
 
       // Load user image (format and bitness detected automatically)
       UEntry = LoadExecutable (ImageStart, TRUE);
@@ -723,7 +823,12 @@ main (
   else
     {
       UEntry = 0;
+      gUserArch = ArchInvalid;  // No user payload
     }
+
+  // Analyze kernel/user architecture combination
+  // Detects 32-on-64, 64U-on-32K, and other mixed modes
+  AnalyzeArchitectureCombination();
 
   /* Stop allocations as we're copying boot-time allocation. */
   gStopPayloadAllocation = TRUE;
