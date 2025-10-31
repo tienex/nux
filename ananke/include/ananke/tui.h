@@ -4020,10 +4020,6 @@ struct _ITuiProgressBar {
     CONST ITuiProgressBar_Vtbl *Vtbl;
 };
 
-// {F8A9B0C1-D2E3-4F4A-5B6C-7D8E9F0A1B2C}
-DEFINE_GUID(IID_ITuiColorPicker,
-    0xF8A9B0C1, 0xD2E3, 0x4F4A, 0x5B, 0x6C, 0x7D, 0x8E, 0x9F, 0x0A, 0x1B, 0x2C);
-
 /**
   Color Picker Mode
 **/
@@ -4034,90 +4030,125 @@ typedef enum _TUI_COLOR_PICKER_MODE {
     TuiColorPickerHSV          /* HSV color wheel (if supported) */
 } TUI_COLOR_PICKER_MODE;
 
+// {6C7D8E9F-0A1B-2C3D-4E5F-6A7B8C9D0E1F}
+DEFINE_GUID(IID_ITuiThemedColorPicker,
+    0x6C7D8E9F, 0x0A1B, 0x2C3D, 0x4E, 0x5F, 0x6A, 0x7B, 0x8C, 0x9D, 0x0E, 0x1F);
+
+/**
+  ITuiThemedColorPicker Interface
+
+  ColorPicker theming interface. Inherits from ITuiThemedWidget.
+**/
+typedef struct _ITuiThemedColorPicker_Vtbl {
+    // ITuiSerializable methods
+    HRESULT (ANXAPI *QueryInterface)(ITuiThemedColorPicker *This, REFIID riid, VOID **ppvObject);
+    UINTN (ANXAPI *AddRef)(ITuiThemedColorPicker *This);
+    UINTN (ANXAPI *Release)(ITuiThemedColorPicker *This);
+    HRESULT (ANXAPI *SerializeToYaml)(ITuiThemedColorPicker *This, CHAR8 **OutYaml, UINTN *OutLength);
+    HRESULT (ANXAPI *DeserializeFromYaml)(ITuiThemedColorPicker *This, CONST CHAR8 *Yaml, UINTN Length);
+    HRESULT (ANXAPI *GetTypeName)(ITuiThemedColorPicker *This, CONST CHAR8 **OutTypeName);
+    HRESULT (ANXAPI *Clone)(ITuiThemedColorPicker *This, ITuiSerializable **OutClone);
+
+    // ITuiResponder methods
+    HRESULT (ANXAPI *GetNextResponder)(ITuiThemedColorPicker *This, ITuiResponder **NextResponder);
+    HRESULT (ANXAPI *SetNextResponder)(ITuiThemedColorPicker *This, ITuiResponder *NextResponder);
+    BOOLEAN (ANXAPI *AcceptsFirstResponder)(ITuiThemedColorPicker *This);
+    HRESULT (ANXAPI *BecomeFirstResponder)(ITuiThemedColorPicker *This);
+    HRESULT (ANXAPI *ResignFirstResponder)(ITuiThemedColorPicker *This);
+
+    // ITuiWidget methods
+    HRESULT (ANXAPI *SetBounds)(ITuiThemedColorPicker *This, CONST TUI_RECT *Bounds);
+    HRESULT (ANXAPI *GetBounds)(ITuiThemedColorPicker *This, TUI_RECT *Bounds);
+    HRESULT (ANXAPI *SetVisible)(ITuiThemedColorPicker *This, BOOLEAN Visible);
+    BOOLEAN (ANXAPI *IsVisible)(ITuiThemedColorPicker *This);
+    HRESULT (ANXAPI *SetEnabled)(ITuiThemedColorPicker *This, BOOLEAN Enabled);
+    BOOLEAN (ANXAPI *IsEnabled)(ITuiThemedColorPicker *This);
+    HRESULT (ANXAPI *SetParent)(ITuiThemedColorPicker *This, ITuiWidget *Parent);
+    HRESULT (ANXAPI *GetParent)(ITuiThemedColorPicker *This, ITuiWidget **Parent);
+    HRESULT (ANXAPI *AddChild)(ITuiThemedColorPicker *This, ITuiWidget *Child);
+    HRESULT (ANXAPI *RemoveChild)(ITuiThemedColorPicker *This, ITuiWidget *Child);
+    HRESULT (ANXAPI *SetNeedsDisplay)(ITuiThemedColorPicker *This, BOOLEAN Needed);
+
+    // ITuiThemedWidget methods
+    HRESULT (ANXAPI *ApplyTheme)(ITuiThemedColorPicker *This, ITuiTheme *Theme);
+    HRESULT (ANXAPI *GetColors)(ITuiThemedColorPicker *This, TUI_COLOR *Foreground, TUI_COLOR *Background);
+    HRESULT (ANXAPI *SetColors)(ITuiThemedColorPicker *This, TUI_COLOR Foreground, TUI_COLOR Background);
+    HRESULT (ANXAPI *OnMouseEvent)(ITuiThemedColorPicker *This, CONST TUI_MOUSE_EVENT *Event, BOOLEAN *Handled);
+    HRESULT (ANXAPI *OnKeyEvent)(ITuiThemedColorPicker *This, TUI_KEY Key, UINT32 Modifiers, BOOLEAN *Handled);
+    HRESULT (ANXAPI *Draw)(ITuiThemedColorPicker *This, ITuiSurface *Surface, CONST TUI_RECT *DirtyRect);
+
+    // ITuiThemedColorPicker methods
+    HRESULT (ANXAPI *GetSelectedCellColors)(ITuiThemedColorPicker *This, TUI_COLOR *Foreground, TUI_COLOR *Background);
+    HRESULT (ANXAPI *SetSelectedCellColors)(ITuiThemedColorPicker *This, TUI_COLOR Foreground, TUI_COLOR Background);
+    HRESULT (ANXAPI *GetBorderColors)(ITuiThemedColorPicker *This, TUI_COLOR *BorderColor);
+    HRESULT (ANXAPI *SetBorderColors)(ITuiThemedColorPicker *This, TUI_COLOR BorderColor);
+} ITuiThemedColorPicker_Vtbl;
+
+struct _ITuiThemedColorPicker {
+    CONST ITuiThemedColorPicker_Vtbl *Vtbl;
+};
+
+// {F8A9B0C1-D2E3-4F4A-5B6C-7D8E9F0A1B2C}
+DEFINE_GUID(IID_ITuiColorPicker,
+    0xF8A9B0C1, 0xD2E3, 0x4F4A, 0x5B, 0x6C, 0x7D, 0x8E, 0x9F, 0x0A, 0x1B, 0x2C);
+
 /**
   ITuiColorPicker Interface
 
-  Interactive color selection widget.
+  Interactive color selection widget. Inherits from ITuiThemedColorPicker.
 **/
 typedef struct _ITuiColorPicker_Vtbl {
+    // ITuiSerializable methods
     HRESULT (ANXAPI *QueryInterface)(ITuiColorPicker *This, REFIID riid, VOID **ppvObject);
     UINTN (ANXAPI *AddRef)(ITuiColorPicker *This);
     UINTN (ANXAPI *Release)(ITuiColorPicker *This);
+    HRESULT (ANXAPI *SerializeToYaml)(ITuiColorPicker *This, CHAR8 **OutYaml, UINTN *OutLength);
+    HRESULT (ANXAPI *DeserializeFromYaml)(ITuiColorPicker *This, CONST CHAR8 *Yaml, UINTN Length);
+    HRESULT (ANXAPI *GetTypeName)(ITuiColorPicker *This, CONST CHAR8 **OutTypeName);
+    HRESULT (ANXAPI *Clone)(ITuiColorPicker *This, ITuiSerializable **OutClone);
 
-    /**
-      Set picker mode.
-    **/
-    HRESULT (ANXAPI *SetMode)(
-        ITuiColorPicker *This,
-        TUI_COLOR_PICKER_MODE Mode
-    );
+    // ITuiResponder methods
+    HRESULT (ANXAPI *GetNextResponder)(ITuiColorPicker *This, ITuiResponder **NextResponder);
+    HRESULT (ANXAPI *SetNextResponder)(ITuiColorPicker *This, ITuiResponder *NextResponder);
+    BOOLEAN (ANXAPI *AcceptsFirstResponder)(ITuiColorPicker *This);
+    HRESULT (ANXAPI *BecomeFirstResponder)(ITuiColorPicker *This);
+    HRESULT (ANXAPI *ResignFirstResponder)(ITuiColorPicker *This);
 
-    /**
-      Get selected color.
-    **/
-    HRESULT (ANXAPI *GetColor)(
-        ITuiColorPicker *This,
-        TUI_COLOR *Color
-    );
+    // ITuiWidget methods
+    HRESULT (ANXAPI *SetBounds)(ITuiColorPicker *This, CONST TUI_RECT *Bounds);
+    HRESULT (ANXAPI *GetBounds)(ITuiColorPicker *This, TUI_RECT *Bounds);
+    HRESULT (ANXAPI *SetVisible)(ITuiColorPicker *This, BOOLEAN Visible);
+    BOOLEAN (ANXAPI *IsVisible)(ITuiColorPicker *This);
+    HRESULT (ANXAPI *SetEnabled)(ITuiColorPicker *This, BOOLEAN Enabled);
+    BOOLEAN (ANXAPI *IsEnabled)(ITuiColorPicker *This);
+    HRESULT (ANXAPI *SetParent)(ITuiColorPicker *This, ITuiWidget *Parent);
+    HRESULT (ANXAPI *GetParent)(ITuiColorPicker *This, ITuiWidget **Parent);
+    HRESULT (ANXAPI *AddChild)(ITuiColorPicker *This, ITuiWidget *Child);
+    HRESULT (ANXAPI *RemoveChild)(ITuiColorPicker *This, ITuiWidget *Child);
+    HRESULT (ANXAPI *SetNeedsDisplay)(ITuiColorPicker *This, BOOLEAN Needed);
 
-    /**
-      Set selected color.
-    **/
-    HRESULT (ANXAPI *SetColor)(
-        ITuiColorPicker *This,
-        TUI_COLOR Color
-    );
+    // ITuiThemedWidget methods
+    HRESULT (ANXAPI *ApplyTheme)(ITuiColorPicker *This, ITuiTheme *Theme);
+    HRESULT (ANXAPI *GetColors)(ITuiColorPicker *This, TUI_COLOR *Foreground, TUI_COLOR *Background);
+    HRESULT (ANXAPI *SetColors)(ITuiColorPicker *This, TUI_COLOR Foreground, TUI_COLOR Background);
+    HRESULT (ANXAPI *OnMouseEvent)(ITuiColorPicker *This, CONST TUI_MOUSE_EVENT *Event, BOOLEAN *Handled);
+    HRESULT (ANXAPI *OnKeyEvent)(ITuiColorPicker *This, TUI_KEY Key, UINT32 Modifiers, BOOLEAN *Handled);
+    HRESULT (ANXAPI *Draw)(ITuiColorPicker *This, ITuiSurface *Surface, CONST TUI_RECT *DirtyRect);
 
-    /**
-      Get RGB values (0-255 each).
-    **/
-    HRESULT (ANXAPI *GetRGB)(
-        ITuiColorPicker *This,
-        UINT8 *Red,
-        UINT8 *Green,
-        UINT8 *Blue
-    );
+    // ITuiThemedColorPicker methods
+    HRESULT (ANXAPI *GetSelectedCellColors)(ITuiColorPicker *This, TUI_COLOR *Foreground, TUI_COLOR *Background);
+    HRESULT (ANXAPI *SetSelectedCellColors)(ITuiColorPicker *This, TUI_COLOR Foreground, TUI_COLOR Background);
+    HRESULT (ANXAPI *GetBorderColors)(ITuiColorPicker *This, TUI_COLOR *BorderColor);
+    HRESULT (ANXAPI *SetBorderColors)(ITuiColorPicker *This, TUI_COLOR BorderColor);
 
-    /**
-      Set RGB values.
-    **/
-    HRESULT (ANXAPI *SetRGB)(
-        ITuiColorPicker *This,
-        UINT8 Red,
-        UINT8 Green,
-        UINT8 Blue
-    );
-
-    /**
-      Show picker dialog.
-    **/
-    HRESULT (ANXAPI *Show)(
-        ITuiColorPicker *This,
-        ITuiScreen *Screen,
-        TUI_COLOR *SelectedColor
-    );
-
-    /**
-      Render color picker inline.
-    **/
-    HRESULT (ANXAPI *Render)(
-        ITuiColorPicker *This,
-        ITuiScreen *Screen,
-        INT32 X,
-        INT32 Y,
-        UINT32 Width,
-        UINT32 Height
-    );
-
-    /**
-      Handle input events.
-    **/
-    HRESULT (ANXAPI *HandleInput)(
-        ITuiColorPicker *This,
-        CONST TUI_INPUT_EVENT *Event,
-        BOOLEAN *Handled
-    );
-
+    // ITuiColorPicker methods
+    HRESULT (ANXAPI *SetMode)(ITuiColorPicker *This, TUI_COLOR_PICKER_MODE Mode);
+    TUI_COLOR_PICKER_MODE (ANXAPI *GetMode)(ITuiColorPicker *This);
+    HRESULT (ANXAPI *GetColor)(ITuiColorPicker *This, TUI_COLOR *Color);
+    HRESULT (ANXAPI *SetColor)(ITuiColorPicker *This, TUI_COLOR Color);
+    HRESULT (ANXAPI *GetRGB)(ITuiColorPicker *This, UINT8 *Red, UINT8 *Green, UINT8 *Blue);
+    HRESULT (ANXAPI *SetRGB)(ITuiColorPicker *This, UINT8 Red, UINT8 Green, UINT8 Blue);
+    HRESULT (ANXAPI *Show)(ITuiColorPicker *This, ITuiScreen *Screen, TUI_COLOR *SelectedColor);
 } ITuiColorPicker_Vtbl;
 
 struct _ITuiColorPicker {
