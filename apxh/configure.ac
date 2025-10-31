@@ -74,6 +74,31 @@ AC_ARG_WITH([toolchain-suffix],
 	[toolchain_suffix=$withval],
 	[toolchain_suffix=])
 
+# Image format selection
+AC_ARG_WITH([image],
+	[AS_HELP_STRING([--with-image=FORMAT],
+		[image format: elf, macho, or pecoff @<:@default: elf@:>@])],
+	[with_image=$withval],
+	[with_image=elf])
+
+case "$with_image" in
+	elf|macho|pecoff) ;;
+	*) AC_MSG_ERROR([Invalid image format: $with_image. Use 'elf', 'macho', or 'pecoff']) ;;
+esac
+
+# Validate universal binary support based on image format
+# PE/COFF only supports single target, ELF and Mach-O support multiple targets
+if test $target_count -gt 1 ; then
+	case "$with_image" in
+		pecoff)
+			AC_MSG_ERROR([PE/COFF format does not support multiple targets. Only ELF and Mach-O formats support universal binaries. Please specify a single target with --enable-targets=<target>])
+			;;
+		elf|macho)
+			# Universal binary is allowed
+			;;
+	esac
+fi
+
 # Determine tool names based on toolchain type
 if test x"$with_toolchain" = x"llvm"; then
 	cc_name="clang"
@@ -129,9 +154,18 @@ fi
 machine=${primary_target}
 
 # Determine build type and subdirectories
+# Universal binaries are only supported for ELF and Mach-O with multiple targets
 universal_binary=no
 if test $target_count -gt 1 ; then
-	universal_binary=yes
+	case "$with_image" in
+		elf|macho)
+			universal_binary=yes
+			;;
+		pecoff)
+			# Should never reach here due to earlier validation
+			universal_binary=no
+			;;
+	esac
 fi
 
 AS_CASE([$primary_target],
@@ -157,6 +191,7 @@ AC_SUBST(TOOLCHAIN_32, ${tool_prefix_32})
 AC_SUBST(TOOLCHAIN_TYPE, ${with_toolchain})
 AC_SUBST(TOOLCHAIN_PREFIX, ${toolchain_prefix})
 AC_SUBST(TOOLCHAIN_SUFFIX, ${toolchain_suffix})
+AC_SUBST(IMAGE_FORMAT, ${with_image})
 AC_SUBST(ENABLE_TARGETS, ${enable_targets})
 AC_SUBST(UNIVERSAL_BINARY, ${universal_binary})
 AC_SUBST(CONFIGURE_FLAGS, ["${optflags} ${wflags} -I\$(SRCROOT)../include -I\$(BUILDROOT)../include"])

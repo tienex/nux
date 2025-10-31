@@ -192,7 +192,31 @@ If you need to specify a custom toolchain prefix or suffix:
   --with-toolchain-suffix=-17
 ```
 
-**Examples:**
+**Image Format Selection:**
+
+Specify the output image format using `--with-image`:
+
+```bash
+# ELF format (default) - supports universal binaries
+../configure --enable-targets=i386,amd64 --with-image=elf
+
+# Mach-O format (Apple/macOS) - supports universal binaries
+../configure --enable-targets=i386,amd64 --with-image=macho
+
+# PE/COFF format (Windows) - single target only
+../configure --enable-targets=amd64 --with-image=pecoff
+
+# Note: PE/COFF does not support multiple targets
+# This will fail:
+../configure --enable-targets=i386,amd64 --with-image=pecoff  # ERROR!
+```
+
+**Important Notes:**
+- **ELF and Mach-O**: Support universal/fat binaries with multiple targets
+- **PE/COFF**: Only supports a single target architecture
+- If you specify multiple targets with `--enable-targets` and PE/COFF format, configure will error
+
+**Complete Examples:**
 
 ```bash
 # GNU toolchain with custom prefix
@@ -201,8 +225,21 @@ If you need to specify a custom toolchain prefix or suffix:
 # LLVM toolchain with version suffix
 ../configure --enable-targets=i386 --with-toolchain=llvm --with-toolchain-suffix=-17
 
-# Universal binary for x86 (ELF)
-../configure --enable-targets=i386,amd64 --with-toolchain=gnu
+# Universal binary for x86 (ELF format)
+../configure --enable-targets=i386,amd64 --with-image=elf
+
+# Universal binary for x86 (Mach-O format)
+../configure --enable-targets=i386,amd64 --with-image=macho --with-toolchain=llvm
+
+# PE/COFF build with LLVM for Windows x64
+../configure --enable-targets=amd64 --with-image=pecoff --with-toolchain=llvm
+
+# Full-featured example with all options
+../configure --enable-targets=amd64 \
+  --with-image=elf \
+  --with-toolchain=llvm \
+  --with-toolchain-prefix=x86_64-linux-gnu- \
+  --with-toolchain-suffix=-17
 ```
 
 **Note for RISCV64:**
