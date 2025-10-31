@@ -12,6 +12,7 @@
 **/
 
 #include <apxh/internal.h>
+#include <apxh/endian.h>
 
 static ARCH gImageArch;
 static ARCH gKernelArch = ArchInvalid;       ///< Kernel architecture
@@ -557,6 +558,10 @@ VasMapInfoCopy (
   // Reserved field for alignment
   BootInfo.Reserved1 = 0;
 
+  // Convert boot info to kernel's endianness if needed
+  // This ensures the kernel receives boot structures in its native byte order
+  ConvertBootInfoEndianness(&BootInfo, gKernelEndian);
+
   VasCopy (Va, &BootInfo, MIN (Size, sizeof (APXH_BOOT_INFO)), 0, 0, 0);
 #undef MIN
 }
@@ -613,6 +618,10 @@ VasMapBatree (
   BatreeHeader.Order = Order;
   BatreeHeader.Offset = sizeof (BatreeHeader);
   BatreeHeader.Size = 8 * BATREE_SIZE (Order);
+
+  // Convert BAtree header to kernel's endianness if needed
+  ConvertBatreeHeaderEndianness(&BatreeHeader, gKernelEndian);
+
   VasCopy (Va, &BatreeHeader, sizeof (BatreeHeader), 0, 1, 0);
 
   /* Fill the S-Tree with all RAM regions. */
@@ -781,6 +790,9 @@ VasMapRegionsCopy (
 #if 0
       printf ("Copying %d %d %d\n", ApxhReg.Type, ApxhReg.Pfn, ApxhReg.Length);
 #endif
+      // Convert region to kernel's endianness if needed
+      ConvertRegionEndianness(&ApxhReg, gKernelEndian);
+
       VasCopy (Va + i * sizeof (APXH_REGION), &ApxhReg,
 	       sizeof (APXH_REGION), 0, 0, 0);
     }
