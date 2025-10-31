@@ -80,10 +80,13 @@ set(ANXCONFIG_SOURCES
     widget_spinner.c
     widget_progressbar.c
     widget_fkeybar.c
+    widget_markdown_viewer.c
     focus_manager.c
     # Common dialogs
     dialog_fileopensave.c
     dialog_about.c
+    dialog_color.c
+    dialog_find.c
     # Markdown parser (COM component)
     markdown_parser.c
     # Desk accessories
