@@ -344,6 +344,7 @@ extern IImageLoader gPlan9Loader;
 extern IImageLoader gVmsLoader;
 extern IImageLoader gSomLoader;
 extern IImageLoader gPdp10Loader;
+extern IImageLoader gTeLoader;
 
 //
 // Initialization
