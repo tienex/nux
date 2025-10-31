@@ -4,7 +4,7 @@
   Provides virtual address space management functions for bootloader.
   Handles page table setup, memory mapping, and virtual-to-physical
   address translation for all supported architectures using COM-based
-  IArchitecture interface.
+  IVirtualAddressSpace interface.
 
   Copyright (C) 2019 Gianluca Guida, glguida@tlbflush.org
   Copyright (C) 2025 A•NUX Project
@@ -33,13 +33,13 @@ UINT32 CheckPayloadPage(IN UINT32 Addr);
 // Current architecture handler
 //
 
-static IArchitecture *gCurrentArch = NULL;
+static IVirtualAddressSpace *gCurrentArch = NULL;
 
 /**
   Initialize virtual address subsystem.
 
   Sets up paging structures for the target architecture using
-  IArchitecture COM interface.
+  IVirtualAddressSpace COM interface.
 **/
 VOID
 VasInitialize (
@@ -85,7 +85,7 @@ GetArchName (
   Verify virtual address range.
 
   Validates that virtual address range is suitable for target
-  architecture using IArchitecture interface.
+  architecture using IVirtualAddressSpace interface.
 
   @param[in] Va    Virtual address.
   @param[in] Size  Size of region.
@@ -108,7 +108,7 @@ VasVerify (
   Get physical address from virtual.
 
   Translates virtual address to physical address using current
-  page tables via IArchitecture interface.
+  page tables via IVirtualAddressSpace interface.
 
   @param[in] Va  Virtual address.
 
@@ -140,7 +140,7 @@ VasGetPhysical (
   Populate virtual address range.
 
   Allocates and maps pages for the specified virtual address range
-  with given permissions using IArchitecture interface.
+  with given permissions using IVirtualAddressSpace interface.
 
   @param[in] Va    Virtual address.
   @param[in] Size  Size of region.
@@ -276,7 +276,7 @@ VasFill (
   Map physical memory at virtual address.
 
   Creates identity mapping of physical memory starting at PA 0
-  using IArchitecture interface.
+  using IVirtualAddressSpace interface.
 
   @param[in] Va    Virtual address.
   @param[in] Size  Size of region.
@@ -310,7 +310,7 @@ VasMapPhysical (
   Map framebuffer at virtual address.
 
   Maps platform framebuffer memory to specified virtual address
-  with appropriate memory type using IArchitecture interface.
+  with appropriate memory type using IVirtualAddressSpace interface.
 
   @param[in] Va    Virtual address.
   @param[in] Size  Size of region.
@@ -359,7 +359,7 @@ VasMapFramebuffer (
   Set up linear (recursive) mapping.
 
   Creates recursive page table mapping allowing page tables to be
-  accessed as regular memory using IArchitecture interface.
+  accessed as regular memory using IVirtualAddressSpace interface.
 
   @param[in] Va    Virtual address for linear mapping.
   @param[in] Size  Size of region.
@@ -391,7 +391,7 @@ VasMapLinear (
   Allocate top-level page tables.
 
   Pre-allocates top-level page table structures for address range
-  using IArchitecture interface.
+  using IVirtualAddressSpace interface.
 
   @param[in] Va    Virtual address.
   @param[in] Size  Size of region.
@@ -423,7 +423,7 @@ VasAllocTopPageTable (
   Allocate page tables.
 
   Pre-allocates page table structures for address range
-  using IArchitecture interface.
+  using IVirtualAddressSpace interface.
 
   @param[in] Va    Virtual address.
   @param[in] Size  Size of region.
@@ -455,7 +455,7 @@ VasAllocPageTable (
   Transfer control to kernel.
 
   Performs final setup and transfers control to loaded kernel
-  entry point using IArchitecture interface. Does not return.
+  entry point using IVirtualAddressSpace interface. Does not return.
 
   @param[in] Entry  Kernel entry point address.
 **/

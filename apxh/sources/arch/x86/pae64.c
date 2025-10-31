@@ -558,17 +558,17 @@ Pae64Entry (
 }
 
 //
-// IArchitecture COM Interface Implementation
+// IVirtualAddressSpace COM Interface Implementation
 //
 
 static HRESULT STDMETHODCALLTYPE
 Pae64QueryInterface (
-  IN  IArchitecture  *This,
+  IN  IVirtualAddressSpace  *This,
   IN  CONST GUID     *Iid,
   OUT VOID           **Object
   )
 {
-  if (memcmp (Iid, &IID_IArchitecture, sizeof (GUID)) == 0 ||
+  if (memcmp (Iid, &IID_IVirtualAddressSpace, sizeof (GUID)) == 0 ||
       memcmp (Iid, &IID_IUnknown, sizeof (GUID)) == 0)
     {
       *Object = This;
@@ -581,7 +581,7 @@ Pae64QueryInterface (
 
 static UINT32 STDMETHODCALLTYPE
 Pae64AddRef (
-  IN IArchitecture  *This
+  IN IVirtualAddressSpace  *This
   )
 {
   return 1;  // Static instance, no reference counting
@@ -589,7 +589,7 @@ Pae64AddRef (
 
 static UINT32 STDMETHODCALLTYPE
 Pae64Release (
-  IN IArchitecture  *This
+  IN IVirtualAddressSpace  *This
   )
 {
   return 1;  // Static instance, no reference counting
@@ -597,7 +597,7 @@ Pae64Release (
 
 static HRESULT STDMETHODCALLTYPE
 Pae64IInitialize (
-  IN IArchitecture  *This
+  IN IVirtualAddressSpace  *This
   )
 {
   Pae64Initialize ();
@@ -606,7 +606,7 @@ Pae64IInitialize (
 
 static HRESULT STDMETHODCALLTYPE
 Pae64IGetPhysical (
-  IN  IArchitecture    *This,
+  IN  IVirtualAddressSpace    *This,
   IN  VIRTUAL_ADDRESS  VirtualAddress,
   OUT UINTN            *PhysicalAddress
   )
@@ -621,7 +621,7 @@ Pae64IGetPhysical (
 
 static HRESULT STDMETHODCALLTYPE
 Pae64IVerify (
-  IN IArchitecture    *This,
+  IN IVirtualAddressSpace    *This,
   IN VIRTUAL_ADDRESS  VirtualAddress,
   IN SIZE64           Size
   )
@@ -632,7 +632,7 @@ Pae64IVerify (
 
 static HRESULT STDMETHODCALLTYPE
 Pae64IPopulate (
-  IN IArchitecture    *This,
+  IN IVirtualAddressSpace    *This,
   IN VIRTUAL_ADDRESS  VirtualAddress,
   IN SIZE64           Size,
   IN INT32            IsUserMode,
@@ -646,7 +646,7 @@ Pae64IPopulate (
 
 static HRESULT STDMETHODCALLTYPE
 Pae64IMapPhysical (
-  IN IArchitecture    *This,
+  IN IVirtualAddressSpace    *This,
   IN VIRTUAL_ADDRESS  VirtualAddress,
   IN SIZE64           Size,
   IN UINT64           PhysicalAddress,
@@ -659,7 +659,7 @@ Pae64IMapPhysical (
 
 static HRESULT STDMETHODCALLTYPE
 Pae64IAllocatePageTable (
-  IN IArchitecture    *This,
+  IN IVirtualAddressSpace    *This,
   IN VIRTUAL_ADDRESS  VirtualAddress,
   IN SIZE64           Size
   )
@@ -670,7 +670,7 @@ Pae64IAllocatePageTable (
 
 static HRESULT STDMETHODCALLTYPE
 Pae64IAllocateTopPageTable (
-  IN IArchitecture    *This,
+  IN IVirtualAddressSpace    *This,
   IN VIRTUAL_ADDRESS  VirtualAddress,
   IN SIZE64           Size
   )
@@ -681,7 +681,7 @@ Pae64IAllocateTopPageTable (
 
 static HRESULT STDMETHODCALLTYPE
 Pae64IMapLinear (
-  IN IArchitecture    *This,
+  IN IVirtualAddressSpace    *This,
   IN VIRTUAL_ADDRESS  VirtualAddress,
   IN SIZE64           Size
   )
@@ -692,7 +692,7 @@ Pae64IMapLinear (
 
 static HRESULT STDMETHODCALLTYPE
 Pae64IEntry (
-  IN IArchitecture    *This,
+  IN IVirtualAddressSpace    *This,
   IN VIRTUAL_ADDRESS  EntryPoint
   )
 {
@@ -704,7 +704,7 @@ Pae64IEntry (
 // PAE64 Architecture VTable
 //
 
-static CONST IArchitectureVtbl gPae64Vtbl = {
+static CONST IVirtualAddressSpaceVtbl gPae64Vtbl = {
   Pae64QueryInterface,
   Pae64AddRef,
   Pae64Release,
@@ -723,7 +723,7 @@ static CONST IArchitectureVtbl gPae64Vtbl = {
 // PAE64 Architecture Instance
 //
 
-IArchitecture gPae64Arch = {
+IVirtualAddressSpace gPae64Arch = {
   &gPae64Vtbl
 };
 

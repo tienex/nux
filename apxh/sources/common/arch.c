@@ -21,7 +21,7 @@
 // Architecture Registry
 //
 
-static IArchitecture *gArchitectures[MAX_ARCHITECTURES];
+static IVirtualAddressSpace *gArchitectures[MAX_ARCHITECTURES];
 static ARCH gArchTypes[MAX_ARCHITECTURES];
 static UINT32 gNumArchitectures = 0;
 
@@ -29,7 +29,7 @@ static UINT32 gNumArchitectures = 0;
 // Current active architecture
 //
 
-static IArchitecture *gCurrentArchitecture = NULL;
+static IVirtualAddressSpace *gCurrentArchitecture = NULL;
 
 /**
   Register an architecture handler.
@@ -41,7 +41,7 @@ static IArchitecture *gCurrentArchitecture = NULL;
 **/
 HRESULT
 ArchitectureRegister (
-  IN IArchitecture  *Architecture,
+  IN IVirtualAddressSpace  *Architecture,
   IN ARCH           ArchType
   )
 {
@@ -57,10 +57,10 @@ ArchitectureRegister (
     return E_OUTOFMEMORY;
   }
 
-  // Verify architecture implements IArchitecture
-  Status = Architecture->lpVtbl->QueryInterface(Architecture, &IID_IArchitecture, &TestInterface);
+  // Verify architecture implements IVirtualAddressSpace
+  Status = Architecture->lpVtbl->QueryInterface(Architecture, &IID_IVirtualAddressSpace, &TestInterface);
   if (FAILED(Status) || TestInterface == NULL) {
-    printf("WARNING: Architecture does not implement IArchitecture interface\n");
+    printf("WARNING: Architecture does not implement IVirtualAddressSpace interface\n");
     return E_NOINTERFACE;
   }
 
@@ -80,7 +80,7 @@ ArchitectureRegister (
 
   @return Pointer to architecture instance, or NULL if not found.
 **/
-IArchitecture *
+IVirtualAddressSpace *
 ArchitectureGet (
   IN ARCH  Arch
   )
@@ -122,7 +122,7 @@ ArchitectureSetCurrent (
 
   @return Pointer to current architecture instance, or NULL if none set.
 **/
-IArchitecture *
+IVirtualAddressSpace *
 ArchitectureGetCurrent (
   VOID
   )

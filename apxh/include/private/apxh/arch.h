@@ -17,22 +17,22 @@
 // Forward declarations
 //
 
-typedef struct _IArchitecture IArchitecture;
+typedef struct _IVirtualAddressSpace IVirtualAddressSpace;
 
 //
 // Architecture Interface GUID
 // {B8F3C4D2-9E1A-4F7B-8C2D-3E5F9A6D8B7C}
 //
 
-#define ANX_IID_IArchitecture "B8F3C4D2-9E1A-4F7B-8C2D-3E5F9A6D8B7C"
-ANX_DEFINE_GUID(IID_IArchitecture, 0xB8F3C4D2,0x9E1A,0x4F7B,0x8C,0x2D,0x3E,0x5F,0x9A,0x6D,0x8B,0x7C);
+#define ANX_IID_IVirtualAddressSpace "B8F3C4D2-9E1A-4F7B-8C2D-3E5F9A6D8B7C"
+ANX_DEFINE_GUID(IID_IVirtualAddressSpace, 0xB8F3C4D2,0x9E1A,0x4F7B,0x8C,0x2D,0x3E,0x5F,0x9A,0x6D,0x8B,0x7C);
 
 //
 // Architecture Auto-Registration Support
 //
 
 typedef struct _ARCHITECTURE_REGISTRATION {
-  IArchitecture  *Architecture;
+  IVirtualAddressSpace  *Architecture;
   ARCH           ArchType;
 } ARCHITECTURE_REGISTRATION;
 
@@ -47,14 +47,14 @@ typedef struct _ARCHITECTURE_REGISTRATION {
 // Architecture Interface (COM-style with ANX macros)
 //
 
-ANX_BEGIN_INTERFACE(IArchitecture, IUnknown, IID_IArchitecture, ANX_IID_IArchitecture)
+ANX_BEGIN_INTERFACE(IVirtualAddressSpace, IUnknown, IID_IVirtualAddressSpace, ANX_IID_IVirtualAddressSpace)
   /**
     Initialize architecture-specific paging structures.
 
     @return S_OK on success, error code otherwise.
   **/
   ANX_IFACE_METHOD(HRESULT, Initialize, (
-    IN IArchitecture  *This
+    IN IVirtualAddressSpace  *This
     ))
 
   /**
@@ -66,7 +66,7 @@ ANX_BEGIN_INTERFACE(IArchitecture, IUnknown, IID_IArchitecture, ANX_IID_IArchite
     @return S_OK on success, error code otherwise.
   **/
   ANX_IFACE_METHOD(HRESULT, GetPhysical, (
-    IN  IArchitecture      *This,
+    IN  IVirtualAddressSpace      *This,
     IN  VIRTUAL_ADDRESS    VirtualAddress,
     OUT UINTN              *PhysicalAddress
     ))
@@ -80,7 +80,7 @@ ANX_BEGIN_INTERFACE(IArchitecture, IUnknown, IID_IArchitecture, ANX_IID_IArchite
     @return S_OK if valid, error code otherwise.
   **/
   ANX_IFACE_METHOD(HRESULT, Verify, (
-    IN IArchitecture     *This,
+    IN IVirtualAddressSpace     *This,
     IN VIRTUAL_ADDRESS   VirtualAddress,
     IN SIZE64            Size
     ))
@@ -97,7 +97,7 @@ ANX_BEGIN_INTERFACE(IArchitecture, IUnknown, IID_IArchitecture, ANX_IID_IArchite
     @return S_OK on success, error code otherwise.
   **/
   ANX_IFACE_METHOD(HRESULT, Populate, (
-    IN IArchitecture     *This,
+    IN IVirtualAddressSpace     *This,
     IN VIRTUAL_ADDRESS   VirtualAddress,
     IN SIZE64            Size,
     IN INT32             IsUserMode,
@@ -116,7 +116,7 @@ ANX_BEGIN_INTERFACE(IArchitecture, IUnknown, IID_IArchitecture, ANX_IID_IArchite
     @return S_OK on success, error code otherwise.
   **/
   ANX_IFACE_METHOD(HRESULT, MapPhysical, (
-    IN IArchitecture     *This,
+    IN IVirtualAddressSpace     *This,
     IN VIRTUAL_ADDRESS   VirtualAddress,
     IN SIZE64            Size,
     IN UINT64            PhysicalAddress,
@@ -132,7 +132,7 @@ ANX_BEGIN_INTERFACE(IArchitecture, IUnknown, IID_IArchitecture, ANX_IID_IArchite
     @return S_OK on success, error code otherwise.
   **/
   ANX_IFACE_METHOD(HRESULT, AllocatePageTable, (
-    IN IArchitecture     *This,
+    IN IVirtualAddressSpace     *This,
     IN VIRTUAL_ADDRESS   VirtualAddress,
     IN SIZE64            Size
     ))
@@ -146,7 +146,7 @@ ANX_BEGIN_INTERFACE(IArchitecture, IUnknown, IID_IArchitecture, ANX_IID_IArchite
     @return S_OK on success, error code otherwise.
   **/
   ANX_IFACE_METHOD(HRESULT, AllocateTopPageTable, (
-    IN IArchitecture     *This,
+    IN IVirtualAddressSpace     *This,
     IN VIRTUAL_ADDRESS   VirtualAddress,
     IN SIZE64            Size
     ))
@@ -160,7 +160,7 @@ ANX_BEGIN_INTERFACE(IArchitecture, IUnknown, IID_IArchitecture, ANX_IID_IArchite
     @return S_OK on success, error code otherwise.
   **/
   ANX_IFACE_METHOD(HRESULT, MapLinear, (
-    IN IArchitecture     *This,
+    IN IVirtualAddressSpace     *This,
     IN VIRTUAL_ADDRESS   VirtualAddress,
     IN SIZE64            Size
     ))
@@ -173,11 +173,11 @@ ANX_BEGIN_INTERFACE(IArchitecture, IUnknown, IID_IArchitecture, ANX_IID_IArchite
     @return Does not return.
   **/
   ANX_IFACE_METHOD(HRESULT, Entry, (
-    IN IArchitecture     *This,
+    IN IVirtualAddressSpace     *This,
     IN VIRTUAL_ADDRESS   EntryPoint
     ))
 
-ANX_END_INTERFACE(IArchitecture)
+ANX_END_INTERFACE(IVirtualAddressSpace)
 
 //
 // Architecture Management
@@ -192,7 +192,7 @@ ANX_END_INTERFACE(IArchitecture)
 **/
 HRESULT
 ArchitectureRegister (
-  IN IArchitecture  *Architecture
+  IN IVirtualAddressSpace  *Architecture
   );
 
 /**
@@ -202,7 +202,7 @@ ArchitectureRegister (
 
   @return Pointer to architecture instance, or NULL if not found.
 **/
-IArchitecture *
+IVirtualAddressSpace *
 ArchitectureGet (
   IN ARCH  Arch
   );
@@ -232,10 +232,10 @@ ArchitecturesInit (
 //
 
 #if ANX_ARCH_X86 || ANX_ARCH_X86_64
-extern IArchitecture gPaeArch;
-extern IArchitecture gPae64Arch;
+extern IVirtualAddressSpace gPaeArch;
+extern IVirtualAddressSpace gPae64Arch;
 #endif
 
 #if ANX_ARCH_RISCV
-extern IArchitecture gSv48Arch;
+extern IVirtualAddressSpace gSv48Arch;
 #endif

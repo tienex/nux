@@ -648,17 +648,17 @@ Sv48Entry (
 }
 
 //
-// IArchitecture COM Interface Implementation
+// IVirtualAddressSpace COM Interface Implementation
 //
 
 static HRESULT STDMETHODCALLTYPE
 Sv48QueryInterface (
-  IN  IArchitecture  *This,
+  IN  IVirtualAddressSpace  *This,
   IN  CONST GUID     *Iid,
   OUT VOID           **Object
   )
 {
-  if (memcmp (Iid, &IID_IArchitecture, sizeof (GUID)) == 0 ||
+  if (memcmp (Iid, &IID_IVirtualAddressSpace, sizeof (GUID)) == 0 ||
       memcmp (Iid, &IID_IUnknown, sizeof (GUID)) == 0)
     {
       *Object = This;
@@ -671,7 +671,7 @@ Sv48QueryInterface (
 
 static UINT32 STDMETHODCALLTYPE
 Sv48AddRef (
-  IN IArchitecture  *This
+  IN IVirtualAddressSpace  *This
   )
 {
   return 1;  // Static instance, no reference counting
@@ -679,7 +679,7 @@ Sv48AddRef (
 
 static UINT32 STDMETHODCALLTYPE
 Sv48Release (
-  IN IArchitecture  *This
+  IN IVirtualAddressSpace  *This
   )
 {
   return 1;  // Static instance, no reference counting
@@ -687,7 +687,7 @@ Sv48Release (
 
 static HRESULT STDMETHODCALLTYPE
 Sv48IInitialize (
-  IN IArchitecture  *This
+  IN IVirtualAddressSpace  *This
   )
 {
   Sv48Initialize ();
@@ -696,7 +696,7 @@ Sv48IInitialize (
 
 static HRESULT STDMETHODCALLTYPE
 Sv48IGetPhysical (
-  IN  IArchitecture    *This,
+  IN  IVirtualAddressSpace    *This,
   IN  VIRTUAL_ADDRESS  VirtualAddress,
   OUT UINTN            *PhysicalAddress
   )
@@ -711,7 +711,7 @@ Sv48IGetPhysical (
 
 static HRESULT STDMETHODCALLTYPE
 Sv48IVerify (
-  IN IArchitecture    *This,
+  IN IVirtualAddressSpace    *This,
   IN VIRTUAL_ADDRESS  VirtualAddress,
   IN SIZE64           Size
   )
@@ -722,7 +722,7 @@ Sv48IVerify (
 
 static HRESULT STDMETHODCALLTYPE
 Sv48IPopulate (
-  IN IArchitecture    *This,
+  IN IVirtualAddressSpace    *This,
   IN VIRTUAL_ADDRESS  VirtualAddress,
   IN SIZE64           Size,
   IN INT32            IsUserMode,
@@ -736,7 +736,7 @@ Sv48IPopulate (
 
 static HRESULT STDMETHODCALLTYPE
 Sv48IMapPhysical (
-  IN IArchitecture    *This,
+  IN IVirtualAddressSpace    *This,
   IN VIRTUAL_ADDRESS  VirtualAddress,
   IN SIZE64           Size,
   IN UINT64           PhysicalAddress,
@@ -749,7 +749,7 @@ Sv48IMapPhysical (
 
 static HRESULT STDMETHODCALLTYPE
 Sv48IAllocatePageTable (
-  IN IArchitecture    *This,
+  IN IVirtualAddressSpace    *This,
   IN VIRTUAL_ADDRESS  VirtualAddress,
   IN SIZE64           Size
   )
@@ -760,7 +760,7 @@ Sv48IAllocatePageTable (
 
 static HRESULT STDMETHODCALLTYPE
 Sv48IAllocateTopPageTable (
-  IN IArchitecture    *This,
+  IN IVirtualAddressSpace    *This,
   IN VIRTUAL_ADDRESS  VirtualAddress,
   IN SIZE64           Size
   )
@@ -771,7 +771,7 @@ Sv48IAllocateTopPageTable (
 
 static HRESULT STDMETHODCALLTYPE
 Sv48IMapLinear (
-  IN IArchitecture    *This,
+  IN IVirtualAddressSpace    *This,
   IN VIRTUAL_ADDRESS  VirtualAddress,
   IN SIZE64           Size
   )
@@ -782,7 +782,7 @@ Sv48IMapLinear (
 
 static HRESULT STDMETHODCALLTYPE
 Sv48IEntry (
-  IN IArchitecture    *This,
+  IN IVirtualAddressSpace    *This,
   IN VIRTUAL_ADDRESS  EntryPoint
   )
 {
@@ -794,7 +794,7 @@ Sv48IEntry (
 // Sv48 Architecture VTable
 //
 
-static CONST IArchitectureVtbl gSv48Vtbl = {
+static CONST IVirtualAddressSpaceVtbl gSv48Vtbl = {
   Sv48QueryInterface,
   Sv48AddRef,
   Sv48Release,
@@ -813,7 +813,7 @@ static CONST IArchitectureVtbl gSv48Vtbl = {
 // Sv48 Architecture Instance
 //
 
-IArchitecture gSv48Arch = {
+IVirtualAddressSpace gSv48Arch = {
   &gSv48Vtbl
 };
 
