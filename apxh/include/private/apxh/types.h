@@ -174,4 +174,21 @@ typedef enum _ARCH {
   // LoongArch
   ArchLoongArch32 = 36,   ///< LoongArch 32-bit
   ArchLoongArch64 = 37,   ///< LoongArch 64-bit
+
+  // IBM s390x
+  ArchS390x = 38,         ///< IBM s390x (64-bit)
+  ArchSparc64 = 39,       ///< SPARC 64-bit
+
+  // Hybrid/Compatibility architectures (32-bit on 64-bit hardware)
+  ArchAmd64_32 = 40,      ///< x32 ABI (32-bit pointers on x86-64)
+  ArchArm64_32 = 41,      ///< ILP32 (32-bit pointers on AArch64)
+  ArchLoongArch64_32 = 42, ///< LA32 on LA64 (32-bit mode on LoongArch64)
+  ArchMips64_32 = 43,     ///< n32 ABI (32-bit pointers on MIPS64)
+  ArchRiscV64_32 = 44,    ///< ILP32 (32-bit pointers on RISC-V 64)
+  ArchAlpha32 = 45,       ///< 32-bit mode on Alpha
+  ArchPaRisc64_32 = 46,   ///< 32-bit mode on PA-RISC 64
+  ArchIa64_32 = 47,       ///< 32-bit compatibility on Itanium
+  ArchPpc64_32 = 48,      ///< 32-bit mode on PowerPC 64
+  ArchS390x_32 = 49,      ///< 32-bit mode on s390x
+  ArchSparc64_32 = 50     ///< 32-bit mode on SPARC 64
 } ARCH;
