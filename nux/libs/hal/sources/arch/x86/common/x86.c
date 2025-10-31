@@ -51,9 +51,9 @@ extern INT32 _memregs_end;
 //
 struct apxh_region _memregs_pinned[] = {
   // Remove me after getting ACPI pointer from kernel.
-  {.type = APXH_REGION_MMIO,.pfn = 0,.len = 1,},
+  {.type = ApxhRegionMmio,.pfn = 0,.len = 1,},
   // Mark the whole 0xA0000-0x100000 area as MMIO.
-  {.type = APXH_REGION_MMIO,.pfn = 0xa0,.len = 96,},
+  {.type = ApxhRegionMmio,.pfn = 0xa0,.len = 96,},
 };
 
 #define PINNED_MEMREGS (sizeof(_memregs_pinned)/sizeof(struct apxh_region))
@@ -681,7 +681,7 @@ X86Initialize (
   for (INT32 i = 0; i < PINNED_MEMREGS; i++)
     {
       struct apxh_region *r = _memregs_pinned + i;
-      if (r->type != APXH_REGION_RAM)
+      if (r->type != ApxhRegionRam)
 	for (INT32 j = 0; j < r->len; j++)
 	  stree_clrbit (gHalStreePtr, gHalStreeOrder, r->pfn + j);
     }

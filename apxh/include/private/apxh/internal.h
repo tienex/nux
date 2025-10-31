@@ -29,12 +29,6 @@ typedef enum _BOOTINFO_REGION_TYPE {
   BootInfoRegionBusy    = 3   ///< Boot allocated RAM
 } BOOTINFO_REGION_TYPE;
 
-/** Legacy compatibility **/
-#define BOOTINFO_REGION_UNKNOWN BootInfoRegionUnknown
-#define BOOTINFO_REGION_RAM     BootInfoRegionRam
-#define BOOTINFO_REGION_OTHER   BootInfoRegionOther
-#define BOOTINFO_REGION_BSY     BootInfoRegionBusy
-
 /**
   Boot Info Region Descriptor
 **/
@@ -68,18 +62,6 @@ typedef enum _APXH_PROGRAM_HEADER_TYPE {
   ApxhProgramHeaderTopPageTableAlloc = 0xAF100008, ///< Empty (alloc all top-level PTs)
   ApxhProgramHeaderLinear        = 0xAF10FFFF   ///< Linear map
 } APXH_PROGRAM_HEADER_TYPE;
-
-// Legacy compatibility
-#define PHT_APXH_INFO       ApxhProgramHeaderInfo
-#define PHT_APXH_EMPTY      ApxhProgramHeaderEmpty
-#define PHT_APXH_PHYSMAP    ApxhProgramHeaderPhysicalMap
-#define PHT_APXH_PFNMAP     ApxhProgramHeaderPfnMap
-#define PHT_APXH_BATREE     ApxhProgramHeaderBatree
-#define PHT_APXH_PTALLOC    ApxhProgramHeaderPageTableAlloc
-#define PHT_APXH_FRAMEBUF   ApxhProgramHeaderFramebuffer
-#define PHT_APXH_REGIONS    ApxhProgramHeaderRegions
-#define PHT_APXH_TOPPTALLOC ApxhProgramHeaderTopPageTableAlloc
-#define PHT_APXH_LINEAR     ApxhProgramHeaderLinear
 
 #define PFNMAP_ENTRY_SIZE 64
 

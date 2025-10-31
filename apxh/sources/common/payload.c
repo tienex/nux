@@ -31,7 +31,7 @@ PayloadGet (
   OUT OPTIONAL UINTN  *Size
   )
 {
-  struct payload_hdr *Ptr = (struct payload_hdr *) &_end;
+  PAYLOAD_HDR *Ptr = (PAYLOAD_HDR *) &_end;
   UINT32 j;
 
   j = 0;
@@ -39,7 +39,7 @@ PayloadGet (
     {
       if (j != Index)
 	{
-	  Ptr = (struct payload_hdr *) ((VOID *) (Ptr + 1) + Ptr->Size);
+	  Ptr = (PAYLOAD_HDR *) ((VOID *) (Ptr + 1) + Ptr->Size);
 	  j++;
 	  continue;
 	}

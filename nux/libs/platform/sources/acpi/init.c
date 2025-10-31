@@ -37,7 +37,7 @@ PlatformInitialize (
   if (Desc == NULL)
     fatal ("Invalid Platform Boot Table.");
 
-  if (Desc->Type != PLATFORM_ACPI)
+  if (Desc->Type != ApxhPlatformAcpi)
     fatal ("No ACPI RSDP found.");
 
   printf ("RSDP: %llx\n", Desc->PlatformPointer);

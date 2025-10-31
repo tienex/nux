@@ -30,11 +30,6 @@ typedef enum _APXH_PLATFORM_TYPE {
   ApxhPlatformDtb     = 2   ///< Device Tree Blob platform (RISC-V, ARM)
 } APXH_PLATFORM_TYPE;
 
-// Legacy compatibility
-#define PLATFORM_UNKNOWN ApxhPlatformUnknown
-#define PLATFORM_ACPI    ApxhPlatformAcpi
-#define PLATFORM_DTB     ApxhPlatformDtb
-
 //
 // APXH Magic Numbers
 //
@@ -59,12 +54,6 @@ typedef enum _APXH_REGION_TYPE {
   ApxhRegionBusy    = 3   ///< Busy/in-use region
 } APXH_REGION_TYPE;
 
-// Legacy compatibility
-#define APXH_REGION_UNKNOWN ApxhRegionUnknown
-#define APXH_REGION_RAM     ApxhRegionRam
-#define APXH_REGION_MMIO    ApxhRegionMmio
-#define APXH_REGION_BSY     ApxhRegionBusy
-
 //
 // APXH_PLATFORM_DESCRIPTOR - Platform Firmware Information
 //
@@ -73,14 +62,14 @@ ANX_PACK_PUSH(1)
 
 typedef struct _APXH_PLATFORM_DESCRIPTOR {
   ///
-  /// Platform type (PLATFORM_UNKNOWN, PLATFORM_ACPI, PLATFORM_DTB).
+  /// Platform type (ApxhPlatformUnknown, ApxhPlatformAcpi, ApxhPlatformDtb).
   ///
   UINT64  Type;
 
   ///
   /// Pointer to platform-specific data:
-  /// - For PLATFORM_ACPI: Physical address of ACPI RSDP
-  /// - For PLATFORM_DTB: Physical address of Device Tree Blob
+  /// - For ApxhPlatformAcpi: Physical address of ACPI RSDP
+  /// - For ApxhPlatformDtb: Physical address of Device Tree Blob
   ///
   UINT64  PlatformPointer;
 } APXH_PLATFORM_DESCRIPTOR;

@@ -576,7 +576,7 @@ VirtualAddressMapInfoCopy (
     BootInfo.PlatformDesc = *PlatformDesc;
   else
     BootInfo.PlatformDesc = (APXH_PLATFORM_DESCRIPTOR)
-    {.Type = PLATFORM_UNKNOWN,.PlatformPointer = 0 };
+    {.Type = ApxhPlatformUnknown,.PlatformPointer = 0 };
 
   FbPtr = PlatformGetFramebuffer ();
   if (FbPtr != NULL)
@@ -659,7 +659,7 @@ VirtualAddressMapBatree (
 
       Region = PlatformGetMemoryRegion (RegionIndex);
 
-      if (Region->Type != BOOTINFO_REGION_RAM)
+      if (Region->Type != BootInfoRegionRam)
 	continue;
 
 
@@ -684,7 +684,7 @@ VirtualAddressMapBatree (
 
       Region = PlatformGetMemoryRegion (RegionIndex);
 
-      if (Region->Type == BOOTINFO_REGION_RAM)
+      if (Region->Type == BootInfoRegionRam)
 	continue;
 
 
@@ -924,7 +924,7 @@ VirtualAddressMapPageFrameNumbersCopy (
 	    (UINT8 *) VirtualAddressGetPhysical (Va + Frame * PFNMAP_ENTRY_SIZE);
 	  assert (Ptr != NULL);
 
-	  *Ptr = BOOTINFO_REGION_BSY;
+	  *Ptr = BootInfoRegionBusy;
 	}
     }
 #undef MIN

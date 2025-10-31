@@ -247,13 +247,13 @@ PHDRS
     kstack3 PT_LOAD;
     kstack4 PT_LOAD;
     ksyms   PT_LOAD;
-    info    0xAF100000; /* PHT_APXH_INFO */
-    kmem    0xAF100008; /* PHT_APXH_TOPPTALLOC */
-    kva     0xAF100008; /* PHT_APXH_TOPPTALLOC */
-    pfncache 0xAF100005; /* PHT_APXH_PTALLOC */
-    physmap 0xAF100002; /* PHT_APXH_PHYSMAP */
-    stree   0xAF100004; /* PHT_APXH_STREE */
-    fbuf    0xAF100006; /* PHT_APXH_FRAMEBUF */
-    memregs 0xAF100007; /* PHT_APXH_REGIONS */
-    linear  0xAF10FFFF; /* PHT_APXH_LINEAR */
+    info    0xAF100000; /* ApxhProgramHeaderInfo */
+    kmem    0xAF100008; /* ApxhProgramHeaderTopPageTableAlloc */
+    kva     0xAF100008; /* ApxhProgramHeaderTopPageTableAlloc */
+    pfncache 0xAF100005; /* ApxhProgramHeaderPageTableAlloc */
+    physmap 0xAF100002; /* ApxhProgramHeaderPhysicalMap */
+    stree   0xAF100004; /* ApxhProgramHeaderBatree */
+    fbuf    0xAF100006; /* ApxhProgramHeaderFramebuffer */
+    memregs 0xAF100007; /* ApxhProgramHeaderRegions */
+    linear  0xAF10FFFF; /* ApxhProgramHeaderLinear */
 }

@@ -277,50 +277,50 @@ PhKload (
 	}
       break;
 
-    case PHT_APXH_INFO:
+    case ApxhProgramHeaderInfo:
       /* Boot Information segment. */
       printf ("Boot Information area at %" PRIx64 " (size: %" PRId64 "d).\n",
 	      Va, MSize);
       VirtualAddressMapInfo (Va, MSize);
       break;
-    case PHT_APXH_PHYSMAP:
+    case ApxhProgramHeaderPhysicalMap:
       /* Direct 1:1 PA mapping. */
       printf ("Physmap VA area at %" PRIx64 " (size: %" PRId64 ").\n", Va,
 	      MSize);
       VirtualAddressMapPhysical (Va, MSize, MEMTYPE_WB);
       break;
-    case PHT_APXH_EMPTY:
+    case ApxhProgramHeaderEmpty:
       printf ("Empty VA area at %" PRIx64 " (size: %" PRId64 ").\n", Va,
 	      MSize);
       /* Just VA allocation. Leave it. */
       break;
-    case PHT_APXH_PTALLOC:
+    case ApxhProgramHeaderPageTableAlloc:
       printf ("PT Alloc VA area at %" PRIx64 " (size: %" PRId64 ").\n", Va,
 	      MSize);
       VirtualAddressAllocatePageTable (Va, MSize);
       break;
-    case PHT_APXH_PFNMAP:
+    case ApxhProgramHeaderPfnMap:
       printf ("PFN Map at %" PRIx64 " (size: %" PRId64 ").\n", Va, MSize);
       VirtualAddressMapPageFrameNumbers (Va, MSize);
       break;
-    case PHT_APXH_BATREE:
+    case ApxhProgramHeaderBatree:
       printf ("S-Tree at %" PRIx64 " (size: %" PRId64 ").\n", Va, MSize);
       VirtualAddressMapBatree (Va, MSize);
       break;
-    case PHT_APXH_LINEAR:
+    case ApxhProgramHeaderLinear:
       printf ("Linear Map at %" PRIx64 " (size: %" PRId64 ").\n", Va, MSize);
       VirtualAddressMapLinear (Va, MSize);
       break;
-    case PHT_APXH_FRAMEBUF:
+    case ApxhProgramHeaderFramebuffer:
       printf ("Framebuffer Map at %" PRIx64 " (size: %" PRId64 ").\n", Va,
 	      MSize);
       VirtualAddressMapFramebuffer (Va, MSize, MEMTYPE_WC);
       break;
-    case PHT_APXH_REGIONS:
+    case ApxhProgramHeaderRegions:
       printf ("Region Map at %" PRIx64 " (size: %" PRId64 ").\n", Va, MSize);
       VirtualAddressMapRegions (Va, MSize);
       break;
-    case PHT_APXH_TOPPTALLOC:
+    case ApxhProgramHeaderTopPageTableAlloc:
       printf ("TOP PT Alloc VA area at %" PRIx64 " (size: %" PRId64 ").\n",
 	      Va, MSize);
       VirtualAddressAllocateTopPageTable (Va, MSize);

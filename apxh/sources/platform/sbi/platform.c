@@ -290,7 +290,7 @@ AddRamRegion (
     gMaxAddr = Base + Len;
 
   Region = gRamRegions + gRegions++;
-  Region->Type = Busy ? BOOTINFO_REGION_BSY : BOOTINFO_REGION_RAM;
+  Region->Type = Busy ? BootInfoRegionBusy : BootInfoRegionRam;
   Region->Pfn = Base >> PAGE_SHIFT;
   Region->Len = Len >> PAGE_SHIFT;
 
@@ -473,7 +473,7 @@ PlatformGetDescriptor (
   )
 {
   /* Only DTB supported. */
-  gPlatformDesc.Type = PLATFORM_DTB;
+  gPlatformDesc.Type = ApxhPlatformDtb;
   gPlatformDesc.PlatformPointer = (UINT64) (UINTN) dtbptr;
   return &gPlatformDesc;
 }

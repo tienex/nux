@@ -158,9 +158,9 @@ ParseMultibootMmap (
 
       printf ("%016llx:%016llx:%d\n", MultibootPtr->addr, MultibootPtr->len, MultibootPtr->type);
       if (MultibootPtr->type == MULTIBOOT_MEMORY_AVAILABLE)
-	BootinfoRegion.Type = BOOTINFO_REGION_RAM;
+	BootinfoRegion.Type = BootInfoRegionRam;
       else
-	BootinfoRegion.Type = BOOTINFO_REGION_OTHER;
+	BootinfoRegion.Type = BootInfoRegionOther;
 
       BootinfoRegion.PageFrameNumber = MultibootPtr->addr >> PAGE_SHIFT;
       BootinfoRegion.Length = (MultibootPtr->len + PAGE_SIZE - 1) >> PAGE_SHIFT;
@@ -171,7 +171,7 @@ ParseMultibootMmap (
 	MaxPageFrameNumber = BootinfoRegion.PageFrameNumber + BootinfoRegion.Length;
 
       /* Count RAM maxrampfn */
-      if ((BootinfoRegion.Type == BOOTINFO_REGION_RAM)
+      if ((BootinfoRegion.Type == BootInfoRegionRam)
 	  && (MaxRamPageFrameNumber < BootinfoRegion.PageFrameNumber + BootinfoRegion.Length))
 	MaxRamPageFrameNumber = BootinfoRegion.PageFrameNumber + BootinfoRegion.Length;
 
@@ -436,7 +436,7 @@ PlatformGetDescriptor (
   )
 {
   /* Only ACPI supported. */
-  gPlatformDesc.Type = PLATFORM_ACPI;
+  gPlatformDesc.Type = ApxhPlatformAcpi;
   gPlatformDesc.PlatformPointer = RsdpFind ();
   return &gPlatformDesc;
 }

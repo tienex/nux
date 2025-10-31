@@ -318,7 +318,7 @@ PlatformGetDescriptor (
   )
 {
   /* Only ACPI supported. */
-  gPlatformDesc.Type = PLATFORM_ACPI;
+  gPlatformDesc.Type = ApxhPlatformAcpi;
   gPlatformDesc.PlatformPointer = (UINT64) (UINTN) gpEfiRsdp;
   return &gPlatformDesc;
 }
@@ -472,16 +472,16 @@ ApxhEfiAddMemRegion (
 
   if (Ram && !Bsy)
     {
-      gMemRegions[CurrentRegionIndex].Type = BOOTINFO_REGION_RAM;
+      gMemRegions[CurrentRegionIndex].Type = BootInfoRegionRam;
       if (Pfn + Len > gMaxRamPfn)
 	gMaxRamPfn = Pfn + Len;
       if (Pfn < gMinRamPfn)
 	gMinRamPfn = Pfn;
     }
   else if (Ram && Bsy)
-    gMemRegions[CurrentRegionIndex].Type = BOOTINFO_REGION_BSY;
+    gMemRegions[CurrentRegionIndex].Type = BootInfoRegionBusy;
   else
-    gMemRegions[CurrentRegionIndex].Type = BOOTINFO_REGION_OTHER;
+    gMemRegions[CurrentRegionIndex].Type = BootInfoRegionOther;
 
 
   gNumRegions++;
