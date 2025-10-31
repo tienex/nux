@@ -132,85 +132,183 @@ ANX_PACK_POP()
 //
 
 /**
+  IUnknown: QueryInterface
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+NlmQueryInterface (
+  IN  IImageLoader  *This,
+  IN  CONST GUID    *Iid,
+  OUT VOID          **Interface
+  )
+{
+  if (Interface == NULL) {
+    return E_POINTER;
+  }
+
+  if (memcmp(Iid, &IID_IImageLoader, sizeof(GUID)) == 0 ||
+      memcmp(Iid, &IID_IUnknown, sizeof(GUID)) == 0) {
+    *Interface = This;
+    return S_OK;
+  }
+
+  *Interface = NULL;
+  return E_NOINTERFACE;
+}
+
+/**
+  IUnknown: AddRef
+**/
+static
+UINTN
+STDMETHODCALLTYPE
+NlmAddRef (
+  IN IImageLoader  *This
+  )
+{
+  return 1;  // Static instance
+}
+
+/**
+  IUnknown: Release
+**/
+static
+UINTN
+STDMETHODCALLTYPE
+NlmRelease (
+  IN IImageLoader  *This
+  )
+{
+  return 1;  // Static instance
+}
+
+/**
   Check if image is NLM format.
 **/
 static
-BOOLEAN
-ANXAPI
+HRESULT
+STDMETHODCALLTYPE
 NlmDetect (
-  IN IMAGE_LOADER  *This,
+  IN IImageLoader  *This,
   IN VOID          *ImageBase,
   IN UINTN         ImageSize
   )
 {
   if (ImageSize < sizeof(NLM_HEADER_V4)) {
-    return FALSE;
+    return S_FALSE;
   }
 
-  return (memcmp(ImageBase, NLM_SIGNATURE, NLM_SIGNATURE_LEN) == 0);
+  return (memcmp(ImageBase, NLM_SIGNATURE, NLM_SIGNATURE_LEN) == 0) ? S_OK : S_FALSE;
 }
 
 /**
   Get architecture from NLM image.
 **/
 static
-ARCH
-ANXAPI
+HRESULT
+STDMETHODCALLTYPE
 NlmGetArch (
-  IN IMAGE_LOADER  *This,
-  IN VOID          *ImageBase
+  IN  IImageLoader  *This,
+  IN  VOID          *ImageBase,
+  OUT ARCH          *Architecture
   )
 {
-  NLM_HEADER_V4 *Header = (NLM_HEADER_V4 *)ImageBase;
+  NLM_HEADER_V4 *Header;
+
+  if (Architecture == NULL) {
+    return E_POINTER;
+  }
+
+  Header = (NLM_HEADER_V4 *)ImageBase;
 
   if (Header->Version == NLM_VERSION_5) {
     NLM_HEADER_V5 *HeaderV5 = (NLM_HEADER_V5 *)ImageBase;
     if (HeaderV5->Is64Bit) {
-      return ARCH_AMD64;
+      *Architecture = ARCH_AMD64;
+      return S_OK;
     }
   }
 
   // Default to 32-bit x86 for NLM v4 and v5 32-bit
-  return ARCH_386;
+  *Architecture = ARCH_386;
+  return S_OK;
+}
+
+/**
+  Get endianness from NLM image.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+NlmGetEndianness (
+  IN  IImageLoader    *This,
+  IN  VOID            *ImageBase,
+  OUT IMGLOAD_ENDIAN  *Endianness
+  )
+{
+  if (Endianness == NULL) {
+    return E_POINTER;
+  }
+
+  // NLM is x86/x86-64 only, always little-endian
+  *Endianness = ImgEndianLittle;
+  return S_OK;
 }
 
 /**
   Get entry point from NLM image.
 **/
 static
-VIRTUAL_ADDRESS
-ANXAPI
+HRESULT
+STDMETHODCALLTYPE
 NlmGetEntryPoint (
-  IN IMAGE_LOADER  *This,
-  IN VOID          *ImageBase
+  IN  IImageLoader     *This,
+  IN  VOID             *ImageBase,
+  OUT VIRTUAL_ADDRESS  *EntryPoint
   )
 {
-  NLM_HEADER_V4 *Header = (NLM_HEADER_V4 *)ImageBase;
+  NLM_HEADER_V4 *Header;
+
+  if (EntryPoint == NULL) {
+    return E_POINTER;
+  }
+
+  Header = (NLM_HEADER_V4 *)ImageBase;
 
   if (Header->Version == NLM_VERSION_5) {
     NLM_HEADER_V5 *HeaderV5 = (NLM_HEADER_V5 *)ImageBase;
-    return NLM_DEFAULT_CODE_BASE + HeaderV5->CodeStartOffset;
+    *EntryPoint = NLM_DEFAULT_CODE_BASE + HeaderV5->CodeStartOffset;
+    return S_OK;
   }
 
-  return NLM_DEFAULT_CODE_BASE + Header->CodeStartOffset;
+  *EntryPoint = NLM_DEFAULT_CODE_BASE + Header->CodeStartOffset;
+  return S_OK;
 }
 
 /**
   Load NLM image.
 **/
 static
-IMGLOAD_STATUS
-ANXAPI
+HRESULT
+STDMETHODCALLTYPE
 NlmLoadImage (
-  IN     IMAGE_LOADER     *This,
   IN OUT IMGLOAD_CONTEXT  *Context
   )
 {
-  VOID *ImageBase = Context->ImageBase;
-  NLM_HEADER_V4 *Header = (NLM_HEADER_V4 *)ImageBase;
+  VOID *ImageBase;
+  NLM_HEADER_V4 *Header;
   UINT64 CodeOffset, CodeSize;
   UINT64 DataOffset, DataSize, BssSize;
   BOOLEAN Is64Bit = FALSE;
+  HRESULT Hr;
+
+  if (Context == NULL) {
+    return E_POINTER;
+  }
+
+  ImageBase = Context->ImageBase;
+  Header = (NLM_HEADER_V4 *)ImageBase;
 
   if (Header->Version == NLM_VERSION_5) {
     NLM_HEADER_V5 *HeaderV5 = (NLM_HEADER_V5 *)ImageBase;
@@ -232,7 +330,7 @@ NlmLoadImage (
 
     info("Loading NLM v4 32-bit module: %.14s", Header->ModuleName);
   } else {
-    return ImgLoadUnsupportedVersion;
+    return IMGLOAD_E_UNSUPPORTED_VERSION;
   }
 
   // Load code segment
@@ -280,25 +378,35 @@ NlmLoadImage (
     );
   }
 
-  Context->EntryPoint = NlmGetEntryPoint(This, ImageBase);
-  return ImgLoadSuccess;
+  Hr = NlmGetEntryPoint(&gNlmLoader, ImageBase, &Context->EntryPoint);
+  if (FAILED(Hr)) {
+    return Hr;
+  }
+
+  return S_OK;
 }
 
 /**
   Extract TLS information from NLM image.
 **/
 static
-IMGLOAD_STATUS
-ANXAPI
+HRESULT
+STDMETHODCALLTYPE
 NlmGetTlsInfo (
-  IN  IMAGE_LOADER      *This,
+  IN  IImageLoader      *This,
   IN  VOID              *ImageBase,
   OUT IMGLOAD_TLS_INFO  *TlsInfo
   )
 {
-  NLM_HEADER_V4 *Header = (NLM_HEADER_V4 *)ImageBase;
+  NLM_HEADER_V4 *Header;
+
+  if (TlsInfo == NULL) {
+    return E_POINTER;
+  }
 
   memset(TlsInfo, 0, sizeof(IMGLOAD_TLS_INFO));
+
+  Header = (NLM_HEADER_V4 *)ImageBase;
 
   // Only NLM v5 supports TLS
   if (Header->Version == NLM_VERSION_5) {
@@ -326,30 +434,163 @@ NlmGetTlsInfo (
           FALSE   // Not executable
         );
       }
+
+      return S_OK;
     }
   }
 
-  return ImgLoadSuccess;
+  return S_FALSE;  // No TLS information
+}
+
+/**
+  Extract unwinding information from NLM image.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+NlmGetUnwindInfo (
+  IN  IImageLoader         *This,
+  IN  VOID                 *ImageBase,
+  OUT IMGLOAD_UNWIND_INFO  *UnwindInfo
+  )
+{
+  if (UnwindInfo == NULL) {
+    return E_POINTER;
+  }
+
+  memset(UnwindInfo, 0, sizeof(IMGLOAD_UNWIND_INFO));
+
+  // NLM does not have standard unwinding information in the format
+  return S_FALSE;
+}
+
+/**
+  Look up symbol by virtual address.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+NlmGetSymbolByAddress (
+  IN  IImageLoader         *This,
+  IN  VOID                 *ImageBase,
+  IN  VIRTUAL_ADDRESS      Address,
+  OUT IMGLOAD_SYMBOL_INFO  *SymbolInfo
+  )
+{
+  if (SymbolInfo == NULL) {
+    return E_POINTER;
+  }
+
+  memset(SymbolInfo, 0, sizeof(IMGLOAD_SYMBOL_INFO));
+
+  // TODO: Parse NLM public symbol table
+  return S_FALSE;
+}
+
+/**
+  Look up symbol by name.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+NlmGetSymbolByName (
+  IN  IImageLoader         *This,
+  IN  VOID                 *ImageBase,
+  IN  CONST CHAR8          *Name,
+  OUT IMGLOAD_SYMBOL_INFO  *SymbolInfo
+  )
+{
+  if (SymbolInfo == NULL || Name == NULL) {
+    return E_POINTER;
+  }
+
+  memset(SymbolInfo, 0, sizeof(IMGLOAD_SYMBOL_INFO));
+
+  // TODO: Parse NLM public symbol table
+  return S_FALSE;
+}
+
+/**
+  Extract relocation information from NLM image.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+NlmGetRelocInfo (
+  IN  IImageLoader        *This,
+  IN  VOID                *ImageBase,
+  OUT IMGLOAD_RELOC_INFO  *RelocInfo
+  )
+{
+  NLM_HEADER_V4 *Header;
+
+  if (RelocInfo == NULL) {
+    return E_POINTER;
+  }
+
+  memset(RelocInfo, 0, sizeof(IMGLOAD_RELOC_INFO));
+
+  Header = (NLM_HEADER_V4 *)ImageBase;
+
+  if (Header->NumRelocationFixups > 0) {
+    RelocInfo->PreferredBase = NLM_DEFAULT_CODE_BASE;
+    RelocInfo->RelocTableAddr = Header->RelocationFixupOffset;
+    RelocInfo->RelocTableSize = Header->NumRelocationFixups * sizeof(UINT32);  // Approximate
+    RelocInfo->Format = 5;  // Custom NLM format
+    RelocInfo->RequiresReloc = TRUE;
+    return S_OK;
+  }
+
+  return S_FALSE;
+}
+
+/**
+  Apply relocations to NLM image loaded at different address.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+NlmApplyRelocations (
+  IN IImageLoader     *This,
+  IN VOID             *ImageBase,
+  IN VIRTUAL_ADDRESS  LoadAddress,
+  IN VIRTUAL_ADDRESS  PreferredBase
+  )
+{
+  // TODO: Implement NLM relocation fixups
+  // NLM uses custom relocation format with fixup records
+  return E_NOTIMPL;
 }
 
 //
 // NLM Loader VTable
 //
 
-static CONST IMAGE_LOADER_VTBL gNlmVtbl = {
+static CONST IImageLoaderVtbl gNlmVtbl = {
+  // IUnknown
+  NlmQueryInterface,
+  NlmAddRef,
+  NlmRelease,
+  // IImageLoader
   NlmDetect,
   NlmGetArch,
+  NlmGetEndianness,
   NlmGetEntryPoint,
   NlmLoadImage,
-  NlmGetTlsInfo
+  NlmGetTlsInfo,
+  NlmGetUnwindInfo,
+  NlmGetSymbolByAddress,
+  NlmGetSymbolByName,
+  NlmGetRelocInfo,
+  NlmApplyRelocations
 };
 
 //
 // NLM Loader Instance
 //
 
-IMAGE_LOADER gNlmLoader = {
-  &gNlmVtbl,
-  "NLM",
-  NULL
+IImageLoader gNlmLoader = {
+  &gNlmVtbl
 };
+
+ANX_REGISTER_IMGLOADER(gNlmLoader);

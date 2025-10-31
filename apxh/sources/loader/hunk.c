@@ -82,13 +82,65 @@ typedef struct _HUNK_LOAD_STATE {
 //
 
 /**
+  IUnknown: QueryInterface
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+HunkQueryInterface (
+  IN  IImageLoader  *This,
+  IN  CONST GUID    *Iid,
+  OUT VOID          **Interface
+  )
+{
+  if (Interface == NULL) {
+    return E_POINTER;
+  }
+
+  if (memcmp(Iid, &IID_IImageLoader, sizeof(GUID)) == 0 ||
+      memcmp(Iid, &IID_IUnknown, sizeof(GUID)) == 0) {
+    *Interface = This;
+    return S_OK;
+  }
+
+  *Interface = NULL;
+  return E_NOINTERFACE;
+}
+
+/**
+  IUnknown: AddRef
+**/
+static
+UINTN
+STDMETHODCALLTYPE
+HunkAddRef (
+  IN IImageLoader  *This
+  )
+{
+  return 1;  // Static instance
+}
+
+/**
+  IUnknown: Release
+**/
+static
+UINTN
+STDMETHODCALLTYPE
+HunkRelease (
+  IN IImageLoader  *This
+  )
+{
+  return 1;  // Static instance
+}
+
+/**
   Check if image is Amiga HUNK format.
 **/
 static
-BOOLEAN
-ANXAPI
+HRESULT
+STDMETHODCALLTYPE
 HunkDetect (
-  IN IMAGE_LOADER  *This,
+  IN IImageLoader  *This,
   IN VOID          *ImageBase,
   IN UINTN         ImageSize
   )
@@ -96,50 +148,84 @@ HunkDetect (
   UINT32 *Magic;
 
   if (ImageSize < 4) {
-    return FALSE;
+    return S_FALSE;
   }
 
   Magic = (UINT32 *)ImageBase;
 
-  return (*Magic == HUNK_HEADER ||
-          *Magic == HUNK_UNIT);
+  return (*Magic == HUNK_HEADER || *Magic == HUNK_UNIT) ? S_OK : S_FALSE;
 }
 
 /**
   Get architecture from HUNK image.
 **/
 static
-ARCH
-ANXAPI
+HRESULT
+STDMETHODCALLTYPE
 HunkGetArch (
-  IN IMAGE_LOADER  *This,
-  IN VOID          *ImageBase
+  IN  IImageLoader  *This,
+  IN  VOID          *ImageBase,
+  OUT ARCH          *Architecture
   )
 {
-  // Amiga HUNK is 68K only, which is not supported by APXH
-  return ARCH_UNSUPPORTED;
+  if (Architecture == NULL) {
+    return E_POINTER;
+  }
+
+  // Traditional Amiga HUNK is 68K only, which is not supported by APXH
+  // Note: AROS may extend HUNK to host x86 code, but no standard detection method exists
+  *Architecture = ARCH_UNSUPPORTED;
+  return IMGLOAD_E_UNSUPPORTED_ARCH;
+}
+
+/**
+  Get endianness from HUNK image.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+HunkGetEndianness (
+  IN  IImageLoader    *This,
+  IN  VOID            *ImageBase,
+  OUT IMGLOAD_ENDIAN  *Endianness
+  )
+{
+  if (Endianness == NULL) {
+    return E_POINTER;
+  }
+
+  // Traditional Amiga HUNK is 68K big-endian
+  // Note: AROS x86 would be little-endian, but we can't detect that from standard HUNK
+  *Endianness = ImgEndianBig;
+  return S_OK;
 }
 
 /**
   Get entry point from HUNK image.
 **/
 static
-VIRTUAL_ADDRESS
-ANXAPI
+HRESULT
+STDMETHODCALLTYPE
 HunkGetEntryPoint (
-  IN IMAGE_LOADER  *This,
-  IN VOID          *ImageBase
+  IN  IImageLoader     *This,
+  IN  VOID             *ImageBase,
+  OUT VIRTUAL_ADDRESS  *EntryPoint
   )
 {
+  if (EntryPoint == NULL) {
+    return E_POINTER;
+  }
+
   // Entry point is at the start of first code hunk
-  return AMIGA_BASE_ADDR;
+  *EntryPoint = AMIGA_BASE_ADDR;
+  return S_OK;
 }
 
 /**
   Parse and load HUNK file.
 **/
 static
-IMGLOAD_STATUS
+HRESULT
 HunkParseFile (
   IN     VOID                *ImageBase,
   IN     UINTN               ImageSize,
@@ -154,7 +240,7 @@ HunkParseFile (
 
   // Read HUNK_HEADER
   if (Ptr >= End || *Ptr != HUNK_HEADER) {
-    return ImgLoadInvalidFormat;
+    return IMGLOAD_E_INVALID_FORMAT;
   }
   Ptr++;
 
@@ -167,7 +253,7 @@ HunkParseFile (
 
   // Read hunk table
   if (Ptr + 3 > End) {
-    return ImgLoadInvalidFormat;
+    return IMGLOAD_E_INVALID_FORMAT;
   }
 
   NumHunks = *Ptr++;
@@ -187,7 +273,7 @@ HunkParseFile (
   // Read hunk sizes
   for (i = 0; i < State->NumHunks; i++) {
     if (Ptr >= End) {
-      return ImgLoadInvalidFormat;
+      return IMGLOAD_E_INVALID_FORMAT;
     }
     State->HunkSizes[i] = HUNK_SIZE(*Ptr++) * 4;  // Convert longwords to bytes
   }
@@ -204,7 +290,7 @@ HunkParseFile (
 
         if (State->CurrentHunk >= State->NumHunks) {
           warn("Too many hunks in file");
-          return ImgLoadInvalidFormat;
+          return IMGLOAD_E_INVALID_FORMAT;
         }
 
         State->HunkAddrs[State->CurrentHunk] = State->NextAddr;
@@ -213,7 +299,7 @@ HunkParseFile (
              IsExec ? "CODE" : "DATA", State->NextAddr, Size);
 
         if (Ptr + (Size / 4) > End) {
-          return ImgLoadInvalidFormat;
+          return IMGLOAD_E_INVALID_FORMAT;
         }
 
         VirtualAddressCopy(
@@ -236,7 +322,7 @@ HunkParseFile (
 
         if (State->CurrentHunk >= State->NumHunks) {
           warn("Too many hunks in file");
-          return ImgLoadInvalidFormat;
+          return IMGLOAD_E_INVALID_FORMAT;
         }
 
         State->HunkAddrs[State->CurrentHunk] = State->NextAddr;
@@ -288,30 +374,33 @@ HunkParseFile (
 
       default:
         warn("Unknown hunk type 0x%08x", Magic);
-        return ImgLoadInvalidFormat;
+        return IMGLOAD_E_INVALID_FORMAT;
     }
   }
 
-  return ImgLoadSuccess;
+  return S_OK;
 }
 
 /**
   Load Amiga HUNK image.
 **/
 static
-IMGLOAD_STATUS
-ANXAPI
+HRESULT
+STDMETHODCALLTYPE
 HunkLoadImage (
-  IN     IMAGE_LOADER     *This,
   IN OUT IMGLOAD_CONTEXT  *Context
   )
 {
   HUNK_LOAD_STATE State = {0};
-  IMGLOAD_STATUS Status;
+  HRESULT Hr;
+
+  if (Context == NULL) {
+    return E_POINTER;
+  }
 
   info("Loading Amiga HUNK executable...");
 
-  Status = HunkParseFile(
+  Hr = HunkParseFile(
     Context->ImageBase,
     Context->ImageSize,
     Context->IsUserMode,
@@ -325,49 +414,179 @@ HunkLoadImage (
     free(State.HunkSizes);
   }
 
-  if (Status != ImgLoadSuccess) {
-    return Status;
+  if (FAILED(Hr)) {
+    return Hr;
   }
 
-  Context->EntryPoint = HunkGetEntryPoint(This, Context->ImageBase);
-  return ImgLoadSuccess;
+  Hr = HunkGetEntryPoint(&gHunkLoader, Context->ImageBase, &Context->EntryPoint);
+  if (FAILED(Hr)) {
+    return Hr;
+  }
+
+  return S_OK;
 }
 
 /**
   Extract TLS information from HUNK image.
 **/
 static
-IMGLOAD_STATUS
-ANXAPI
+HRESULT
+STDMETHODCALLTYPE
 HunkGetTlsInfo (
-  IN  IMAGE_LOADER      *This,
+  IN  IImageLoader      *This,
   IN  VOID              *ImageBase,
   OUT IMGLOAD_TLS_INFO  *TlsInfo
   )
 {
+  if (TlsInfo == NULL) {
+    return E_POINTER;
+  }
+
   // Amiga HUNK doesn't support TLS
   memset(TlsInfo, 0, sizeof(IMGLOAD_TLS_INFO));
-  return ImgLoadSuccess;
+  return S_FALSE;
+}
+
+/**
+  Extract unwinding information from HUNK image.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+HunkGetUnwindInfo (
+  IN  IImageLoader         *This,
+  IN  VOID                 *ImageBase,
+  OUT IMGLOAD_UNWIND_INFO  *UnwindInfo
+  )
+{
+  if (UnwindInfo == NULL) {
+    return E_POINTER;
+  }
+
+  memset(UnwindInfo, 0, sizeof(IMGLOAD_UNWIND_INFO));
+
+  // Amiga HUNK does not have unwinding information
+  return S_FALSE;
+}
+
+/**
+  Look up symbol by virtual address.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+HunkGetSymbolByAddress (
+  IN  IImageLoader         *This,
+  IN  VOID                 *ImageBase,
+  IN  VIRTUAL_ADDRESS      Address,
+  OUT IMGLOAD_SYMBOL_INFO  *SymbolInfo
+  )
+{
+  if (SymbolInfo == NULL) {
+    return E_POINTER;
+  }
+
+  memset(SymbolInfo, 0, sizeof(IMGLOAD_SYMBOL_INFO));
+
+  // TODO: Parse HUNK_SYMBOL hunks
+  return S_FALSE;
+}
+
+/**
+  Look up symbol by name.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+HunkGetSymbolByName (
+  IN  IImageLoader         *This,
+  IN  VOID                 *ImageBase,
+  IN  CONST CHAR8          *Name,
+  OUT IMGLOAD_SYMBOL_INFO  *SymbolInfo
+  )
+{
+  if (SymbolInfo == NULL || Name == NULL) {
+    return E_POINTER;
+  }
+
+  memset(SymbolInfo, 0, sizeof(IMGLOAD_SYMBOL_INFO));
+
+  // TODO: Parse HUNK_SYMBOL hunks
+  return S_FALSE;
+}
+
+/**
+  Extract relocation information from HUNK image.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+HunkGetRelocInfo (
+  IN  IImageLoader        *This,
+  IN  VOID                *ImageBase,
+  OUT IMGLOAD_RELOC_INFO  *RelocInfo
+  )
+{
+  if (RelocInfo == NULL) {
+    return E_POINTER;
+  }
+
+  memset(RelocInfo, 0, sizeof(IMGLOAD_RELOC_INFO));
+
+  // TODO: Detect HUNK_RELOC32/HUNK_DREL* hunks
+  // For now, assume no relocations needed (position-independent)
+  RelocInfo->PreferredBase = AMIGA_BASE_ADDR;
+  RelocInfo->RequiresReloc = FALSE;
+
+  return S_FALSE;
+}
+
+/**
+  Apply relocations to HUNK image loaded at different address.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+HunkApplyRelocations (
+  IN IImageLoader     *This,
+  IN VOID             *ImageBase,
+  IN VIRTUAL_ADDRESS  LoadAddress,
+  IN VIRTUAL_ADDRESS  PreferredBase
+  )
+{
+  // TODO: Implement HUNK_RELOC32/HUNK_DREL* relocation processing
+  return E_NOTIMPL;
 }
 
 //
 // Amiga HUNK Loader VTable
 //
 
-static CONST IMAGE_LOADER_VTBL gHunkVtbl = {
+static CONST IImageLoaderVtbl gHunkVtbl = {
+  // IUnknown
+  HunkQueryInterface,
+  HunkAddRef,
+  HunkRelease,
+  // IImageLoader
   HunkDetect,
   HunkGetArch,
+  HunkGetEndianness,
   HunkGetEntryPoint,
   HunkLoadImage,
-  HunkGetTlsInfo
+  HunkGetTlsInfo,
+  HunkGetUnwindInfo,
+  HunkGetSymbolByAddress,
+  HunkGetSymbolByName,
+  HunkGetRelocInfo,
+  HunkApplyRelocations
 };
 
 //
 // Amiga HUNK Loader Instance
 //
 
-IMAGE_LOADER gHunkLoader = {
-  &gHunkVtbl,
-  "HUNK",
-  NULL
+IImageLoader gHunkLoader = {
+  &gHunkVtbl
 };
+
+ANX_REGISTER_IMGLOADER(gHunkLoader);
