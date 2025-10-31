@@ -66,6 +66,94 @@ typedef struct _AOUT_RELOC {
   UINT32  Type   : 4;     ///< Relocation type
 } AOUT_RELOC;
 
+/**
+  a.out symbol table entry (nlist structure).
+
+  The symbol table follows text + data segments in the file.
+  String table follows symbol table.
+**/
+typedef struct _AOUT_NLIST {
+  union {
+    UINT32  Offset;  ///< Offset into string table
+  } Name;
+  UINT8   Type;      ///< Symbol type and binding
+  INT8    Other;     ///< Reserved (usually 0)
+  UINT16  Desc;      ///< Description field
+  UINT32  Value;     ///< Symbol value (address or offset)
+} AOUT_NLIST;
+
+//
+// a.out Symbol Types (n_type field)
+//
+
+#define N_UNDF   0x00  ///< Undefined
+#define N_ABS    0x02  ///< Absolute
+#define N_TEXT   0x04  ///< Text segment
+#define N_DATA   0x06  ///< Data segment
+#define N_BSS    0x08  ///< BSS segment
+#define N_COMM   0x12  ///< Common symbol
+#define N_FN     0x1E  ///< File name
+#define N_EXT    0x01  ///< External symbol flag (OR'd with type)
+#define N_TYPE   0x1E  ///< Mask for symbol type
+
+//
+// a.out Dynamic Linking Structures
+//
+// These structures are used when __DYNAMIC symbol is present.
+// The __DYNAMIC symbol points to a link_dynamic structure.
+//
+
+/**
+  Runtime linking structure (pointed to by __DYNAMIC).
+
+  This is the main structure for dynamic linking in a.out.
+  It contains version information and pointers to various
+  dynamic linking tables.
+**/
+typedef struct _AOUT_LINK_DYNAMIC {
+  INT32   Version;        ///< Version number (usually 2 or 3)
+  UINT32  LinkMapPtr;     ///< Pointer to link_map (for ld.so)
+  UINT32  SymbolsPtr;     ///< Pointer to link_dynamic_2
+  UINT32  DebugPtr;       ///< Reserved for debugger
+} AOUT_LINK_DYNAMIC;
+
+/**
+  Secondary dynamic linking structure.
+
+  Contains pointers to actual dynamic tables.
+**/
+typedef struct _AOUT_LINK_DYNAMIC2 {
+  UINT32  SymTabPtr;      ///< Pointer to symbol table (nlist array)
+  UINT32  SymTabSize;     ///< Size of symbol table
+  UINT32  StrTabPtr;      ///< Pointer to string table
+  UINT32  StrTabSize;     ///< Size of string table
+  UINT32  TextRelocPtr;   ///< Pointer to text relocations
+  UINT32  TextRelocSize;  ///< Size of text relocations
+  UINT32  DataRelocPtr;   ///< Pointer to data relocations
+  UINT32  DataRelocSize;  ///< Size of data relocations
+  UINT32  GotPtr;         ///< Pointer to GOT (Global Offset Table)
+  UINT32  GotSize;        ///< Size of GOT
+  UINT32  PltPtr;         ///< Pointer to PLT (Procedure Linkage Table)
+  UINT32  PltSize;        ///< Size of PLT
+} AOUT_LINK_DYNAMIC2;
+
+/**
+  Dynamic relocation entry.
+
+  Used for runtime relocations in dynamically linked a.out.
+**/
+typedef struct _AOUT_RUNTIME_RELOC {
+  UINT32  Address;        ///< Relocation address
+  UINT32  SymNum : 24;    ///< Symbol index
+  UINT32  PcRel  : 1;     ///< PC-relative flag
+  UINT32  Length : 2;     ///< Relocation length
+  UINT32  Extern : 1;     ///< External flag
+  UINT32  Copy   : 1;     ///< Copy relocation flag
+  UINT32  JmpSlot: 1;     ///< Jump slot flag (PLT)
+  UINT32  Relative: 1;    ///< Relative to base flag
+  UINT32  Symbolic: 1;    ///< Symbolic flag
+} AOUT_RUNTIME_RELOC;
+
 ANX_PACK_POP()
 
 //
@@ -367,6 +455,70 @@ AoutGetUnwindInfo (
 }
 
 /**
+  Get __DYNAMIC structure from a.out image.
+
+  Searches the static symbol table for the __DYNAMIC symbol and
+  returns pointer to the dynamic linking structure if found.
+
+  @param[in]  ImageBase  Pointer to a.out image.
+  @param[out] Dynamic    Receives pointer to AOUT_LINK_DYNAMIC (NULL if not found).
+
+  @return S_OK if found, S_FALSE if not dynamically linked.
+**/
+static
+HRESULT
+AoutGetDynamic (
+  IN  VOID                 *ImageBase,
+  OUT AOUT_LINK_DYNAMIC    **Dynamic
+  )
+{
+  AOUT_HEADER    *Header;
+  AOUT_NLIST     *Symbols;
+  CHAR8          *StringTable;
+  UINT32         NumSymbols;
+  UINT32         i;
+  UINT32         SymbolOffset;
+
+  if (ImageBase == NULL || Dynamic == NULL) {
+    return E_POINTER;
+  }
+
+  *Dynamic = NULL;
+  Header = (AOUT_HEADER *)ImageBase;
+
+  if (Header->SymbolSize == 0) {
+    return S_FALSE;  // No symbol table
+  }
+
+  // Symbol table is at: header + text + data
+  SymbolOffset = sizeof(AOUT_HEADER) + Header->TextSize + Header->DataSize;
+  Symbols = (AOUT_NLIST *)AOUT_OFF(SymbolOffset);
+  NumSymbols = Header->SymbolSize / sizeof(AOUT_NLIST);
+
+  // String table follows symbol table
+  StringTable = (CHAR8 *)AOUT_OFF(SymbolOffset + Header->SymbolSize);
+
+  // Search for __DYNAMIC symbol
+  for (i = 0; i < NumSymbols; i++) {
+    CHAR8 *SymName;
+
+    if (Symbols[i].Name.Offset == 0) {
+      continue;  // No name
+    }
+
+    SymName = &StringTable[Symbols[i].Name.Offset];
+
+    if (strcmp(SymName, "___DYNAMIC") == 0 || strcmp(SymName, "__DYNAMIC") == 0) {
+      // Found __DYNAMIC symbol
+      *Dynamic = (AOUT_LINK_DYNAMIC *)(UINTN)Symbols[i].Value;
+      return S_OK;
+    }
+  }
+
+  return S_FALSE;  // Not dynamically linked
+}
+
+/**
   Look up symbol by virtual address.
 **/
 static
@@ -379,13 +531,80 @@ AoutGetSymbolByAddress (
   OUT IMGLOAD_SYMBOL_INFO  *SymbolInfo
   )
 {
+  AOUT_HEADER        *Header;
+  AOUT_NLIST         *Symbols;
+  CHAR8              *StringTable;
+  UINT32             NumSymbols;
+  UINT32             i;
+  UINT32             SymbolOffset;
+  AOUT_LINK_DYNAMIC  *Dynamic;
+  AOUT_LINK_DYNAMIC2 *Dynamic2;
+  HRESULT            Status;
+
   if (SymbolInfo == NULL) {
     return E_POINTER;
   }
 
-  // a.out symbol table parsing would go here
   memset(SymbolInfo, 0, sizeof(IMGLOAD_SYMBOL_INFO));
-  return S_FALSE;
+  Header = (AOUT_HEADER *)ImageBase;
+
+  //
+  // Try dynamic symbol table first if __DYNAMIC is present
+  //
+  Status = AoutGetDynamic(ImageBase, &Dynamic);
+  if (Status == S_OK && Dynamic != NULL && Dynamic->SymbolsPtr != 0) {
+    Dynamic2 = (AOUT_LINK_DYNAMIC2 *)(UINTN)Dynamic->SymbolsPtr;
+
+    if (Dynamic2->SymTabPtr != 0 && Dynamic2->SymTabSize > 0) {
+      Symbols = (AOUT_NLIST *)(UINTN)Dynamic2->SymTabPtr;
+      StringTable = (CHAR8 *)(UINTN)Dynamic2->StrTabPtr;
+      NumSymbols = Dynamic2->SymTabSize / sizeof(AOUT_NLIST);
+
+      for (i = 0; i < NumSymbols; i++) {
+        if (Symbols[i].Value == (UINT32)Address) {
+          SymbolInfo->Address = Symbols[i].Value;
+          SymbolInfo->Size = 0;  // a.out doesn't encode symbol size
+
+          if (Symbols[i].Name.Offset != 0 && StringTable != NULL) {
+            SymbolInfo->Name = &StringTable[Symbols[i].Name.Offset];
+          } else {
+            SymbolInfo->Name = NULL;
+          }
+
+          return S_OK;
+        }
+      }
+    }
+  }
+
+  //
+  // Fall back to static symbol table
+  //
+  if (Header->SymbolSize == 0) {
+    return S_FALSE;  // No symbols
+  }
+
+  SymbolOffset = sizeof(AOUT_HEADER) + Header->TextSize + Header->DataSize;
+  Symbols = (AOUT_NLIST *)AOUT_OFF(SymbolOffset);
+  StringTable = (CHAR8 *)AOUT_OFF(SymbolOffset + Header->SymbolSize);
+  NumSymbols = Header->SymbolSize / sizeof(AOUT_NLIST);
+
+  for (i = 0; i < NumSymbols; i++) {
+    if (Symbols[i].Value == (UINT32)Address) {
+      SymbolInfo->Address = Symbols[i].Value;
+      SymbolInfo->Size = 0;  // a.out doesn't encode symbol size
+
+      if (Symbols[i].Name.Offset != 0) {
+        SymbolInfo->Name = &StringTable[Symbols[i].Name.Offset];
+      } else {
+        SymbolInfo->Name = NULL;
+      }
+
+      return S_OK;
+    }
+  }
+
+  return S_FALSE;  // Symbol not found
 }
 
 /**
@@ -401,13 +620,86 @@ AoutGetSymbolByName (
   OUT IMGLOAD_SYMBOL_INFO  *SymbolInfo
   )
 {
+  AOUT_HEADER        *Header;
+  AOUT_NLIST         *Symbols;
+  CHAR8              *StringTable;
+  UINT32             NumSymbols;
+  UINT32             i;
+  UINT32             SymbolOffset;
+  AOUT_LINK_DYNAMIC  *Dynamic;
+  AOUT_LINK_DYNAMIC2 *Dynamic2;
+  HRESULT            Status;
+  UINTN              NameLen;
+
   if (Name == NULL || SymbolInfo == NULL) {
     return E_POINTER;
   }
 
-  // a.out symbol table parsing would go here
   memset(SymbolInfo, 0, sizeof(IMGLOAD_SYMBOL_INFO));
-  return S_FALSE;
+  Header = (AOUT_HEADER *)ImageBase;
+  NameLen = strlen(Name);
+
+  //
+  // Try dynamic symbol table first if __DYNAMIC is present
+  //
+  Status = AoutGetDynamic(ImageBase, &Dynamic);
+  if (Status == S_OK && Dynamic != NULL && Dynamic->SymbolsPtr != 0) {
+    Dynamic2 = (AOUT_LINK_DYNAMIC2 *)(UINTN)Dynamic->SymbolsPtr;
+
+    if (Dynamic2->SymTabPtr != 0 && Dynamic2->SymTabSize > 0) {
+      Symbols = (AOUT_NLIST *)(UINTN)Dynamic2->SymTabPtr;
+      StringTable = (CHAR8 *)(UINTN)Dynamic2->StrTabPtr;
+      NumSymbols = Dynamic2->SymTabSize / sizeof(AOUT_NLIST);
+
+      for (i = 0; i < NumSymbols; i++) {
+        CHAR8 *SymName;
+
+        if (Symbols[i].Name.Offset == 0 || StringTable == NULL) {
+          continue;  // No name
+        }
+
+        SymName = &StringTable[Symbols[i].Name.Offset];
+
+        if (strcmp(SymName, Name) == 0) {
+          SymbolInfo->Address = Symbols[i].Value;
+          SymbolInfo->Size = 0;  // a.out doesn't encode symbol size
+          SymbolInfo->Name = SymName;
+          return S_OK;
+        }
+      }
+    }
+  }
+
+  //
+  // Fall back to static symbol table
+  //
+  if (Header->SymbolSize == 0) {
+    return S_FALSE;  // No symbols
+  }
+
+  SymbolOffset = sizeof(AOUT_HEADER) + Header->TextSize + Header->DataSize;
+  Symbols = (AOUT_NLIST *)AOUT_OFF(SymbolOffset);
+  StringTable = (CHAR8 *)AOUT_OFF(SymbolOffset + Header->SymbolSize);
+  NumSymbols = Header->SymbolSize / sizeof(AOUT_NLIST);
+
+  for (i = 0; i < NumSymbols; i++) {
+    CHAR8 *SymName;
+
+    if (Symbols[i].Name.Offset == 0) {
+      continue;  // No name
+    }
+
+    SymName = &StringTable[Symbols[i].Name.Offset];
+
+    if (strcmp(SymName, Name) == 0) {
+      SymbolInfo->Address = Symbols[i].Value;
+      SymbolInfo->Size = 0;  // a.out doesn't encode symbol size
+      SymbolInfo->Name = SymName;
+      return S_OK;
+    }
+  }
+
+  return S_FALSE;  // Symbol not found
 }
 
 /**
