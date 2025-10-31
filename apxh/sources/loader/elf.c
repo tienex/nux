@@ -17,6 +17,9 @@
 
 #include <apxh/internal.h>
 #include <apxh/imgload.h>
+#include <apxh/vas.h>
+#include <ananke/resource.h>
+#include "imgresource.h"
 
 //
 // ELF Magic Numbers
@@ -2033,144 +2036,70 @@ ElfGetMinimumSubsystemVersion (
 }
 
 /**
-  Get resource from ELF image using OS/2 PowerPC ELF specification.
-
-  OS/2 PowerPC ELF stores resources in .rsrc.* sections where the section
-  name indicates the resource type. Resources are identified by numeric ID
-  or name.
+  Find .rsrc section in ELF image.
 **/
 static
 HRESULT
-STDMETHODCALLTYPE
-ElfGetResource (
-  IN  IImageLoader          *This,
-  IN  VOID                  *ImageBase,
-  IN  IMGLOAD_RESOURCE_ID   *ResourceId,
-  IN  IMGLOAD_RESOURCE_ID   *ResourceType,
-  OUT IMGLOAD_RESOURCE_INFO *ResourceInfo
+ElfFindResourceFork (
+  IN  VOID    *ImageBase,
+  OUT VOID    **ResourceFork,
+  OUT UINT64  *Size
   )
 {
-  ELF32_HDR *Elf32Hdr;
-  ELF64_HDR *Elf64Hdr;
-  UINT8 *Ident;
-  UINT8 ElfClass;
-  INT32 i;
+  UINT8  *Ident;
+  UINT8  ElfClass;
+  INT32  i;
 
-  if (ResourceId == NULL || ResourceType == NULL || ResourceInfo == NULL) {
+  if (ImageBase == NULL || ResourceFork == NULL || Size == NULL) {
     return E_POINTER;
   }
-
-  memset(ResourceInfo, 0, sizeof(IMGLOAD_RESOURCE_INFO));
 
   Ident = (UINT8 *)ImageBase;
   ElfClass = Ident[4];  // EI_CLASS
 
-  // OS/2 PowerPC ELF uses 32-bit format
   if (ElfClass == ELFCLASS32) {
-    Elf32Hdr = (ELF32_HDR *)ImageBase;
+    ELF32_HDR  *Hdr = (ELF32_HDR *)ImageBase;
+    ELF32_SH   *Sections;
+    ELF32_SH   *StrTabSec;
+    CHAR8      *StrTab;
 
-    if (Elf32Hdr->Shoff == 0 || Elf32Hdr->Shs == 0) {
+    if (Hdr->Shoff == 0 || Hdr->Shs == 0) {
       return S_FALSE;  // No sections
     }
 
-    ELF32_SH *Sections = (ELF32_SH *)((UINT8 *)ImageBase + Elf32Hdr->Shoff);
-    ELF32_SH *StrTabSec = &Sections[Elf32Hdr->Shstrndx];
-    CHAR8 *StrTab = (CHAR8 *)((UINT8 *)ImageBase + StrTabSec->Off);
+    Sections = (ELF32_SH *)((UINT8 *)ImageBase + Hdr->Shoff);
+    StrTabSec = &Sections[Hdr->Shstrndx];
+    StrTab = (CHAR8 *)((UINT8 *)ImageBase + StrTabSec->Off);
 
-    // Search for .rsrc.* sections
-    for (i = 0; i < Elf32Hdr->Shs; i++) {
-      CHAR8 *SectionName = &StrTab[Sections[i].Name];
+    for (i = 0; i < Hdr->Shs; i++) {
+      CHAR8 *SecName = &StrTab[Sections[i].Name];
 
-      // Check if section starts with .rsrc
-      if (memcmp(SectionName, ".rsrc", 5) == 0) {
-        // Extract resource type from section name (e.g., .rsrc.bitmap)
-        CHAR8 *TypeName = SectionName + 5;
-        if (*TypeName == '.') {
-          TypeName++;
-        } else if (*TypeName == '\0') {
-          TypeName = "";  // Generic .rsrc section
-        } else {
-          continue;  // Not a valid .rsrc.* section
-        }
-
-        // Match resource type
-        BOOLEAN TypeMatches = FALSE;
-        if (ResourceType->IsNumeric) {
-          // Numeric type matching not implemented for ELF
-          // Could use section type field or other mechanism
-          continue;
-        } else {
-          // Match by name
-          if (strcmp(TypeName, ResourceType->Name) == 0 ||
-              strlen(TypeName) == 0) {
-            TypeMatches = TRUE;
-          }
-        }
-
-        if (!TypeMatches) {
-          continue;
-        }
-
-        // Found matching resource type section
-        // For simplicity, return entire section as resource
-        // A full implementation would parse the section for individual resources
-        ResourceInfo->Data = (VOID *)((UINT8 *)ImageBase + Sections[i].Off);
-        ResourceInfo->Size = Sections[i].Size;
-        ResourceInfo->Type = Sections[i].Type;
-        ResourceInfo->IsLoaded = TRUE;
-
+      if (strcmp(SecName, ".rsrc") == 0) {
+        *ResourceFork = (VOID *)((UINT8 *)ImageBase + Sections[i].Off);
+        *Size = Sections[i].Size;
         return S_OK;
       }
     }
   } else if (ElfClass == ELFCLASS64) {
-    // 64-bit ELF resource loading
-    Elf64Hdr = (ELF64_HDR *)ImageBase;
+    ELF64_HDR  *Hdr = (ELF64_HDR *)ImageBase;
+    ELF64_SH   *Sections;
+    ELF64_SH   *StrTabSec;
+    CHAR8      *StrTab;
 
-    if (Elf64Hdr->Shoff == 0 || Elf64Hdr->Shs == 0) {
+    if (Hdr->Shoff == 0 || Hdr->Shs == 0) {
       return S_FALSE;  // No sections
     }
 
-    ELF64_SH *Sections = (ELF64_SH *)((UINT8 *)ImageBase + Elf64Hdr->Shoff);
-    ELF64_SH *StrTabSec = &Sections[Elf64Hdr->Shstrndx];
-    CHAR8 *StrTab = (CHAR8 *)((UINT8 *)ImageBase + StrTabSec->Off);
+    Sections = (ELF64_SH *)((UINT8 *)ImageBase + Hdr->Shoff);
+    StrTabSec = &Sections[Hdr->Shstrndx];
+    StrTab = (CHAR8 *)((UINT8 *)ImageBase + StrTabSec->Off);
 
-    // Search for .rsrc.* sections
-    for (i = 0; i < Elf64Hdr->Shs; i++) {
-      CHAR8 *SectionName = &StrTab[Sections[i].Name];
+    for (i = 0; i < Hdr->Shs; i++) {
+      CHAR8 *SecName = &StrTab[Sections[i].Name];
 
-      // Check if section starts with .rsrc
-      if (memcmp(SectionName, ".rsrc", 5) == 0) {
-        // Extract resource type from section name
-        CHAR8 *TypeName = SectionName + 5;
-        if (*TypeName == '.') {
-          TypeName++;
-        } else if (*TypeName == '\0') {
-          TypeName = "";
-        } else {
-          continue;
-        }
-
-        // Match resource type
-        BOOLEAN TypeMatches = FALSE;
-        if (ResourceType->IsNumeric) {
-          continue;  // Numeric matching not implemented
-        } else {
-          if (strcmp(TypeName, ResourceType->Name) == 0 ||
-              strlen(TypeName) == 0) {
-            TypeMatches = TRUE;
-          }
-        }
-
-        if (!TypeMatches) {
-          continue;
-        }
-
-        // Return entire section as resource
-        ResourceInfo->Data = (VOID *)((UINT8 *)ImageBase + Sections[i].Off);
-        ResourceInfo->Size = Sections[i].Size;
-        ResourceInfo->Type = Sections[i].Type;
-        ResourceInfo->IsLoaded = TRUE;
-
+      if (strcmp(SecName, ".rsrc") == 0) {
+        *ResourceFork = (VOID *)((UINT8 *)ImageBase + Sections[i].Off);
+        *Size = Sections[i].Size;
         return S_OK;
       }
     }
@@ -2178,7 +2107,120 @@ ElfGetResource (
     return IMGLOAD_E_INVALID_FORMAT;
   }
 
-  return S_FALSE;  // Resource not found
+  return S_FALSE;  // No .rsrc section
+}
+
+/**
+  Get resource from ELF image.
+
+  Uses Classic Mac resource fork in .rsrc section.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+ElfGetResource (
+  IN  IImageLoader        *This,
+  IN  VOID                *ImageBase,
+  IN  IMGLOAD_RESOURCE_ID *ResourceId,
+  IN  IMGLOAD_RESOURCE_ID *ResourceType,
+  OUT IImageResource      **Resource
+  )
+{
+  VOID     *ResourceFork;
+  UINT64   Size;
+  UINT32   TypeCode;
+  UINT16   Id;
+  CONST CHAR8  *Name;
+  HRESULT  Status;
+
+  if (ImageBase == NULL || ResourceType == NULL || Resource == NULL) {
+    return E_POINTER;
+  }
+
+  // Find .rsrc section
+  Status = ElfFindResourceFork(ImageBase, &ResourceFork, &Size);
+  if (FAILED(Status) || Status == S_FALSE) {
+    return Status;
+  }
+
+  // Validate resource fork
+  Status = AnxResourceValidate(ResourceFork, Size);
+  if (FAILED(Status)) {
+    return Status;
+  }
+
+  // Get type code
+  if (ResourceType->IsNumeric) {
+    TypeCode = ResourceType->Id;
+  } else {
+    TypeCode = ANX_MAKE_TYPE(ResourceType->Name);
+  }
+
+  // Get ID/Name
+  if (ResourceId != NULL) {
+    if (ResourceId->IsNumeric) {
+      Id = (UINT16)ResourceId->Id;
+      Name = NULL;
+    } else {
+      Id = 0;
+      Name = ResourceId->Name;
+    }
+  } else {
+    Id = 0;
+    Name = NULL;
+  }
+
+  // Create resource object
+  return CreateImageResource(ResourceFork, TypeCode, Id, Name, Resource);
+}
+
+/**
+  Get resource enumerator for ELF image.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+ElfGetResourceEnumerator (
+  IN  IImageLoader        *This,
+  IN  VOID                *ImageBase,
+  IN  IMGLOAD_RESOURCE_ID *ResourceType,
+  OUT IEnumImageResource  **Enumerator
+  )
+{
+  VOID     *ResourceFork;
+  UINT64   Size;
+  UINT32   TypeCode;
+  HRESULT  Status;
+
+  if (ImageBase == NULL || Enumerator == NULL) {
+    return E_POINTER;
+  }
+
+  // Find .rsrc section
+  Status = ElfFindResourceFork(ImageBase, &ResourceFork, &Size);
+  if (FAILED(Status) || Status == S_FALSE) {
+    return Status;
+  }
+
+  // Validate resource fork
+  Status = AnxResourceValidate(ResourceFork, Size);
+  if (FAILED(Status)) {
+    return Status;
+  }
+
+  // Get type code
+  if (ResourceType != NULL) {
+    if (ResourceType->IsNumeric) {
+      TypeCode = ResourceType->Id;
+    } else {
+      TypeCode = ANX_MAKE_TYPE(ResourceType->Name);
+    }
+  } else {
+    TypeCode = 0;  // All types
+  }
+
+  // Create enumerator
+  return CreateImageResourceEnumerator(ResourceFork, TypeCode, Enumerator);
 }
 
 //
@@ -2204,7 +2246,8 @@ static CONST IImageLoaderVtbl gElfVtbl = {
   ElfGetMinimumSystemVersion,
   ElfGetTargetSubsystem,
   ElfGetMinimumSubsystemVersion,
-  ElfGetResource
+  ElfGetResource,
+  ElfGetResourceEnumerator
 };
 
 //
