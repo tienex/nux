@@ -871,8 +871,8 @@ VOID Anx_Watcom_LoadTr(UINT16 Selector);
 
 #       define ANX_CPU_LOAD_TR(sel)  Anx_Watcom_LoadTr(sel)
 
-#       if defined(__i386__)
-/* 32-bit specific - Load FS and GDT */
+#       if defined(_M_IX86) || defined(__386__) || defined(__486__) || defined(__586__) || defined(__686__)
+/* 32-bit x86 specific - Load FS and GDT */
 VOID Anx_Watcom_LoadFs(UINT16 Selector);
 VOID Anx_Watcom_LoadGdt(VOID* Ptr);
 VOID Anx_Watcom_WriteFsBase(UINT32 Val);
@@ -884,7 +884,7 @@ UINT32 Anx_Watcom_ReadFsBase(VOID);
                 modify exact [];
 
 #           pragma aux Anx_Watcom_LoadGdt = \
-                "lgdt [eax]"                 \
+                "lgdt fword ptr [eax]"       \
                 parm [eax]                   \
                 modify exact [];
 
@@ -902,10 +902,28 @@ UINT32 Anx_Watcom_ReadFsBase(VOID);
 #           define ANX_CPU_LOAD_GDT(ptr)      Anx_Watcom_LoadGdt(ptr)
 #           define ANX_CPU_WRITE_FSBASE(val)  Anx_Watcom_WriteFsBase(val)
 #           define ANX_CPU_READ_FSBASE()      Anx_Watcom_ReadFsBase()
-#       endif
 
-#       if defined(__x86_64__)
-/* 64-bit specific - GS base access */
+/* Additional x86-32 operations */
+VOID Anx_Watcom_WriteGs(UINT16 Selector);
+UINT16 Anx_Watcom_ReadGs(VOID);
+
+#           pragma aux Anx_Watcom_WriteGs = \
+                "mov gs, ax"                 \
+                parm [ax]                    \
+                modify exact [];
+
+#           pragma aux Anx_Watcom_ReadGs = \
+                "mov ax, gs"                \
+                value [ax]                  \
+                modify exact [ax];
+
+#           define ANX_CPU_WRITE_GS(sel)  Anx_Watcom_WriteGs(sel)
+#           define ANX_CPU_READ_GS()      Anx_Watcom_ReadGs()
+
+#       endif /* _M_IX86 */
+
+#       if defined(_M_X64) || defined(__X86_64__)
+/* 64-bit x86 specific - GS base access */
 VOID Anx_Watcom_WriteGsBase(UINTN Val);
 UINTN Anx_Watcom_ReadGsBase(VOID);
 
@@ -921,7 +939,7 @@ UINTN Anx_Watcom_ReadGsBase(VOID);
 
 #           define ANX_CPU_WRITE_GSBASE(val)  Anx_Watcom_WriteGsBase(val)
 #           define ANX_CPU_READ_GSBASE()      Anx_Watcom_ReadGsBase()
-#       endif
+#       endif /* _M_X64 */
 
 #   elif defined(_MSC_VER)
 /* Microsoft Visual C++ Compiler Support for x86/x64 */
