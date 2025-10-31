@@ -2435,6 +2435,34 @@ struct _ITuiTheme {
     CONST ITuiTheme_Vtbl *Vtbl;
 };
 
+#ifdef COBJMACROS
+#define ITuiTheme_QueryInterface(This,riid,ppvObject) (This)->Vtbl->QueryInterface(This,riid,ppvObject)
+#define ITuiTheme_AddRef(This) (This)->Vtbl->AddRef(This)
+#define ITuiTheme_Release(This) (This)->Vtbl->Release(This)
+#define ITuiTheme_SetColors(This,Component,Colors) (This)->Vtbl->SetColors(This,Component,Colors)
+#define ITuiTheme_GetColors(This,Component,Colors) (This)->Vtbl->GetColors(This,Component,Colors)
+#define ITuiTheme_SetBorderStyle(This,Style) (This)->Vtbl->SetBorderStyle(This,Style)
+#define ITuiTheme_GetBorderStyle(This,Style) (This)->Vtbl->GetBorderStyle(This,Style)
+#define ITuiTheme_SetWindowShadow(This,Enabled,ShadowChar) (This)->Vtbl->SetWindowShadow(This,Enabled,ShadowChar)
+#define ITuiTheme_GetWindowShadow(This,Enabled,ShadowChar) (This)->Vtbl->GetWindowShadow(This,Enabled,ShadowChar)
+#define ITuiTheme_SetButtonStyle(This,Style) (This)->Vtbl->SetButtonStyle(This,Style)
+#define ITuiTheme_GetButtonStyle(This,Style) (This)->Vtbl->GetButtonStyle(This,Style)
+#define ITuiTheme_SetUseUnicode(This,UseUnicode) (This)->Vtbl->SetUseUnicode(This,UseUnicode)
+#define ITuiTheme_GetUseUnicode(This,UseUnicode) (This)->Vtbl->GetUseUnicode(This,UseUnicode)
+#define ITuiTheme_SetButtonRenderer(This,Renderer,Sizer) (This)->Vtbl->SetButtonRenderer(This,Renderer,Sizer)
+#define ITuiTheme_GetButtonRenderer(This,Renderer,Sizer) (This)->Vtbl->GetButtonRenderer(This,Renderer,Sizer)
+#define ITuiTheme_SetCheckboxRenderer(This,Renderer,Sizer) (This)->Vtbl->SetCheckboxRenderer(This,Renderer,Sizer)
+#define ITuiTheme_GetCheckboxRenderer(This,Renderer,Sizer) (This)->Vtbl->GetCheckboxRenderer(This,Renderer,Sizer)
+#define ITuiTheme_SetInputRenderer(This,Renderer) (This)->Vtbl->SetInputRenderer(This,Renderer)
+#define ITuiTheme_GetInputRenderer(This,Renderer) (This)->Vtbl->GetInputRenderer(This,Renderer)
+#define ITuiTheme_SetWindowRenderer(This,Renderer) (This)->Vtbl->SetWindowRenderer(This,Renderer)
+#define ITuiTheme_GetWindowRenderer(This,Renderer) (This)->Vtbl->GetWindowRenderer(This,Renderer)
+#define ITuiTheme_LoadFromFile(This,FilePath) (This)->Vtbl->LoadFromFile(This,FilePath)
+#define ITuiTheme_SaveToFile(This,FilePath) (This)->Vtbl->SaveToFile(This,FilePath)
+#define ITuiTheme_SetName(This,Name) (This)->Vtbl->SetName(This,Name)
+#define ITuiTheme_GetName(This,Buffer,BufferSize) (This)->Vtbl->GetName(This,Buffer,BufferSize)
+#endif /* COBJMACROS */
+
 // {D6E7F8A9-B0C1-4D2E-3F4A-5B6C7D8E9F0A}
 DEFINE_GUID(IID_ITuiTabControl,
     0xD6E7F8A9, 0xB0C1, 0x4D2E, 0x3F, 0x4A, 0x5B, 0x6C, 0x7D, 0x8E, 0x9F, 0x0A);
