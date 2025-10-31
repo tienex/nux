@@ -27,6 +27,66 @@
 #define IMGLOAD_E_TLS_ERROR            ((HRESULT)0x80090006L)  ///< TLS setup failed
 
 //
+// Symbol Type Enumeration
+//
+
+typedef enum _IMGLOAD_SYMBOL_TYPE {
+  ImgSymbolTypeNone    = 0,  ///< No type specified
+  ImgSymbolTypeObject  = 1,  ///< Data object (variable)
+  ImgSymbolTypeFunc    = 2,  ///< Function or executable code
+  ImgSymbolTypeSection = 3,  ///< Section symbol
+  ImgSymbolTypeFile    = 4,  ///< File name symbol
+  ImgSymbolTypeCommon  = 5,  ///< Common data object
+  ImgSymbolTypeTls     = 6   ///< Thread-local storage object
+} IMGLOAD_SYMBOL_TYPE;
+
+//
+// Symbol Binding Enumeration
+//
+
+typedef enum _IMGLOAD_SYMBOL_BINDING {
+  ImgSymbolBindLocal  = 0,  ///< Local symbol
+  ImgSymbolBindGlobal = 1,  ///< Global symbol
+  ImgSymbolBindWeak   = 2   ///< Weak symbol
+} IMGLOAD_SYMBOL_BINDING;
+
+//
+// Unwinding Format Enumeration
+//
+
+typedef enum _IMGLOAD_UNWIND_FORMAT {
+  ImgUnwindFormatNone       = 0,  ///< No unwinding information
+  ImgUnwindFormatDwarfEhFrame = 1,  ///< DWARF .eh_frame format
+  ImgUnwindFormatPeExceptionTable = 2,  ///< PE .pdata exception table
+  ImgUnwindFormatMachOCompactUnwind = 3,  ///< Mach-O __unwind_info
+  ImgUnwindFormatArm = 4  ///< ARM Exception Index Table (.ARM.exidx)
+} IMGLOAD_UNWIND_FORMAT;
+
+//
+// Relocation Format Enumeration
+//
+
+typedef enum _IMGLOAD_RELOC_FORMAT {
+  ImgRelocFormatNone    = 0,  ///< No relocations
+  ImgRelocFormatElfRel  = 1,  ///< ELF REL (without addend)
+  ImgRelocFormatElfRela = 2,  ///< ELF RELA (with addend)
+  ImgRelocFormatPe      = 3,  ///< PE/COFF base relocations
+  ImgRelocFormatMachO   = 4,  ///< Mach-O relocations
+  ImgRelocFormatCoff    = 5,  ///< COFF relocations
+  ImgRelocFormatAout    = 6   ///< a.out relocations
+} IMGLOAD_RELOC_FORMAT;
+
+//
+// Endianness Enumeration
+//
+
+typedef enum _IMGLOAD_ENDIAN {
+  ImgEndianUnknown = 0,  ///< Unknown endianness
+  ImgEndianLittle  = 1,  ///< Little-endian
+  ImgEndianBig     = 2   ///< Big-endian
+} IMGLOAD_ENDIAN;
+
+//
 // TLS Information Structure
 //
 
@@ -44,11 +104,11 @@ typedef struct _IMGLOAD_TLS_INFO {
 //
 
 typedef struct _IMGLOAD_UNWIND_INFO {
-  VIRTUAL_ADDRESS  UnwindDataAddr;   ///< Address of unwinding data (.eh_frame, .pdata)
-  UINT64           UnwindDataSize;   ///< Size of unwinding data
-  VIRTUAL_ADDRESS  UnwindIndexAddr;  ///< Address of unwinding index (optional)
-  UINT64           UnwindIndexSize;  ///< Size of unwinding index
-  UINT32           Format;           ///< Unwinding format (0=DWARF eh_frame, 1=PE .pdata)
+  VIRTUAL_ADDRESS        UnwindDataAddr;   ///< Address of unwinding data (.eh_frame, .pdata)
+  UINT64                 UnwindDataSize;   ///< Size of unwinding data
+  VIRTUAL_ADDRESS        UnwindIndexAddr;  ///< Address of unwinding index (optional)
+  UINT64                 UnwindIndexSize;  ///< Size of unwinding index
+  IMGLOAD_UNWIND_FORMAT  Format;           ///< Unwinding information format
 } IMGLOAD_UNWIND_INFO, *PIMGLOAD_UNWIND_INFO;
 
 //
@@ -56,11 +116,11 @@ typedef struct _IMGLOAD_UNWIND_INFO {
 //
 
 typedef struct _IMGLOAD_SYMBOL_INFO {
-  CONST CHAR8      *Name;            ///< Symbol name (null-terminated)
-  VIRTUAL_ADDRESS  Address;          ///< Symbol virtual address
-  UINT64           Size;             ///< Symbol size
-  UINT32           Type;             ///< Symbol type (0=unknown, 1=function, 2=data, 3=section)
-  UINT32           Binding;          ///< Symbol binding (0=local, 1=global, 2=weak)
+  CONST CHAR8              *Name;     ///< Symbol name (null-terminated)
+  VIRTUAL_ADDRESS          Address;   ///< Symbol virtual address
+  UINT64                   Size;      ///< Symbol size
+  IMGLOAD_SYMBOL_TYPE      Type;      ///< Symbol type
+  IMGLOAD_SYMBOL_BINDING   Binding;   ///< Symbol binding
 } IMGLOAD_SYMBOL_INFO, *PIMGLOAD_SYMBOL_INFO;
 
 //
@@ -68,22 +128,12 @@ typedef struct _IMGLOAD_SYMBOL_INFO {
 //
 
 typedef struct _IMGLOAD_RELOC_INFO {
-  VIRTUAL_ADDRESS  PreferredBase;    ///< Preferred load base address
-  VIRTUAL_ADDRESS  RelocTableAddr;   ///< Address of relocation table
-  UINT64           RelocTableSize;   ///< Size of relocation table
-  UINT32           Format;           ///< Relocation format (0=none, 1=ELF REL, 2=ELF RELA, 3=PE, 4=Mach-O)
-  BOOLEAN          RequiresReloc;    ///< TRUE if image requires relocation
+  VIRTUAL_ADDRESS      PreferredBase;    ///< Preferred load base address
+  VIRTUAL_ADDRESS      RelocTableAddr;   ///< Address of relocation table
+  UINT64               RelocTableSize;   ///< Size of relocation table
+  IMGLOAD_RELOC_FORMAT Format;           ///< Relocation format
+  BOOLEAN              RequiresReloc;    ///< TRUE if image requires relocation
 } IMGLOAD_RELOC_INFO, *PIMGLOAD_RELOC_INFO;
-
-//
-// Endianness
-//
-
-typedef enum _IMGLOAD_ENDIAN {
-  ImgEndianUnknown = 0,     ///< Unknown endianness
-  ImgEndianLittle  = 1,     ///< Little-endian
-  ImgEndianBig     = 2      ///< Big-endian
-} IMGLOAD_ENDIAN;
 
 //
 // Image Load Context

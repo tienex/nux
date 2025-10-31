@@ -660,7 +660,7 @@ GetElf32UnwindInfo (
     if (ProgramHeader->Type == PT_GNU_EH_FRAME) {
       UnwindInfo->UnwindDataAddr = ProgramHeader->Va;
       UnwindInfo->UnwindDataSize = ProgramHeader->Msize;
-      UnwindInfo->Format = 0;  // DWARF eh_frame
+      UnwindInfo->Format = ImgUnwindFormatDwarfEhFrame;
       return S_OK;
     }
   }
@@ -676,7 +676,7 @@ GetElf32UnwindInfo (
       if (strcmp(SectionName, ".eh_frame") == 0) {
         UnwindInfo->UnwindDataAddr = SectionHeader[i].Addr;
         UnwindInfo->UnwindDataSize = SectionHeader[i].Size;
-        UnwindInfo->Format = 0;  // DWARF eh_frame
+        UnwindInfo->Format = ImgUnwindFormatDwarfEhFrame;
         return S_OK;
       }
     }
@@ -713,7 +713,7 @@ GetElf64UnwindInfo (
     if (ProgramHeader->Type == PT_GNU_EH_FRAME) {
       UnwindInfo->UnwindDataAddr = ProgramHeader->Va;
       UnwindInfo->UnwindDataSize = ProgramHeader->Msize;
-      UnwindInfo->Format = 0;  // DWARF eh_frame
+      UnwindInfo->Format = ImgUnwindFormatDwarfEhFrame;
       return S_OK;
     }
   }
@@ -729,7 +729,7 @@ GetElf64UnwindInfo (
       if (strcmp(SectionName, ".eh_frame") == 0) {
         UnwindInfo->UnwindDataAddr = SectionHeader[i].Addr;
         UnwindInfo->UnwindDataSize = SectionHeader[i].Size;
-        UnwindInfo->Format = 0;  // DWARF eh_frame
+        UnwindInfo->Format = ImgUnwindFormatDwarfEhFrame;
         return S_OK;
       }
     }
@@ -776,12 +776,30 @@ GetElf32SymbolByAddress (
       for (j = 0; j < NumSymbols; j++) {
         if (Symbols[j].Value <= Address &&
             Address < Symbols[j].Value + Symbols[j].Size) {
-          // Found symbol
+          // Found symbol - map ELF types to IMGLOAD types
+          UINT8 ElfType = ELF_ST_TYPE(Symbols[j].Info);
+          UINT8 ElfBind = ELF_ST_BIND(Symbols[j].Info);
+
           SymbolInfo->Name = &StringTable[Symbols[j].Name];
           SymbolInfo->Address = Symbols[j].Value;
           SymbolInfo->Size = Symbols[j].Size;
-          SymbolInfo->Type = ELF_ST_TYPE(Symbols[j].Info);
-          SymbolInfo->Binding = ELF_ST_BIND(Symbols[j].Info);
+
+          // Map ELF symbol type to IMGLOAD_SYMBOL_TYPE
+          switch (ElfType) {
+            case STT_OBJECT:  SymbolInfo->Type = ImgSymbolTypeObject; break;
+            case STT_FUNC:    SymbolInfo->Type = ImgSymbolTypeFunc; break;
+            case STT_SECTION: SymbolInfo->Type = ImgSymbolTypeSection; break;
+            default:          SymbolInfo->Type = ImgSymbolTypeNone; break;
+          }
+
+          // Map ELF symbol binding to IMGLOAD_SYMBOL_BINDING
+          switch (ElfBind) {
+            case STB_LOCAL:  SymbolInfo->Binding = ImgSymbolBindLocal; break;
+            case STB_GLOBAL: SymbolInfo->Binding = ImgSymbolBindGlobal; break;
+            case STB_WEAK:   SymbolInfo->Binding = ImgSymbolBindWeak; break;
+            default:         SymbolInfo->Binding = ImgSymbolBindLocal; break;
+          }
+
           return S_OK;
         }
       }
@@ -829,12 +847,30 @@ GetElf64SymbolByAddress (
       for (j = 0; j < NumSymbols; j++) {
         if (Symbols[j].Value <= Address &&
             Address < Symbols[j].Value + Symbols[j].Size) {
-          // Found symbol
+          // Found symbol - map ELF types to IMGLOAD types
+          UINT8 ElfType = ELF_ST_TYPE(Symbols[j].Info);
+          UINT8 ElfBind = ELF_ST_BIND(Symbols[j].Info);
+
           SymbolInfo->Name = &StringTable[Symbols[j].Name];
           SymbolInfo->Address = Symbols[j].Value;
           SymbolInfo->Size = Symbols[j].Size;
-          SymbolInfo->Type = ELF_ST_TYPE(Symbols[j].Info);
-          SymbolInfo->Binding = ELF_ST_BIND(Symbols[j].Info);
+
+          // Map ELF symbol type to IMGLOAD_SYMBOL_TYPE
+          switch (ElfType) {
+            case STT_OBJECT:  SymbolInfo->Type = ImgSymbolTypeObject; break;
+            case STT_FUNC:    SymbolInfo->Type = ImgSymbolTypeFunc; break;
+            case STT_SECTION: SymbolInfo->Type = ImgSymbolTypeSection; break;
+            default:          SymbolInfo->Type = ImgSymbolTypeNone; break;
+          }
+
+          // Map ELF symbol binding to IMGLOAD_SYMBOL_BINDING
+          switch (ElfBind) {
+            case STB_LOCAL:  SymbolInfo->Binding = ImgSymbolBindLocal; break;
+            case STB_GLOBAL: SymbolInfo->Binding = ImgSymbolBindGlobal; break;
+            case STB_WEAK:   SymbolInfo->Binding = ImgSymbolBindWeak; break;
+            default:         SymbolInfo->Binding = ImgSymbolBindLocal; break;
+          }
+
           return S_OK;
         }
       }
@@ -882,12 +918,30 @@ GetElf32SymbolByName (
       for (j = 0; j < NumSymbols; j++) {
         CHAR8 *SymbolName = &StringTable[Symbols[j].Name];
         if (strcmp(SymbolName, Name) == 0) {
-          // Found symbol
+          // Found symbol - map ELF types to IMGLOAD types
+          UINT8 ElfType = ELF_ST_TYPE(Symbols[j].Info);
+          UINT8 ElfBind = ELF_ST_BIND(Symbols[j].Info);
+
           SymbolInfo->Name = SymbolName;
           SymbolInfo->Address = Symbols[j].Value;
           SymbolInfo->Size = Symbols[j].Size;
-          SymbolInfo->Type = ELF_ST_TYPE(Symbols[j].Info);
-          SymbolInfo->Binding = ELF_ST_BIND(Symbols[j].Info);
+
+          // Map ELF symbol type to IMGLOAD_SYMBOL_TYPE
+          switch (ElfType) {
+            case STT_OBJECT:  SymbolInfo->Type = ImgSymbolTypeObject; break;
+            case STT_FUNC:    SymbolInfo->Type = ImgSymbolTypeFunc; break;
+            case STT_SECTION: SymbolInfo->Type = ImgSymbolTypeSection; break;
+            default:          SymbolInfo->Type = ImgSymbolTypeNone; break;
+          }
+
+          // Map ELF symbol binding to IMGLOAD_SYMBOL_BINDING
+          switch (ElfBind) {
+            case STB_LOCAL:  SymbolInfo->Binding = ImgSymbolBindLocal; break;
+            case STB_GLOBAL: SymbolInfo->Binding = ImgSymbolBindGlobal; break;
+            case STB_WEAK:   SymbolInfo->Binding = ImgSymbolBindWeak; break;
+            default:         SymbolInfo->Binding = ImgSymbolBindLocal; break;
+          }
+
           return S_OK;
         }
       }
@@ -935,12 +989,30 @@ GetElf64SymbolByName (
       for (j = 0; j < NumSymbols; j++) {
         CHAR8 *SymbolName = &StringTable[Symbols[j].Name];
         if (strcmp(SymbolName, Name) == 0) {
-          // Found symbol
+          // Found symbol - map ELF types to IMGLOAD types
+          UINT8 ElfType = ELF_ST_TYPE(Symbols[j].Info);
+          UINT8 ElfBind = ELF_ST_BIND(Symbols[j].Info);
+
           SymbolInfo->Name = SymbolName;
           SymbolInfo->Address = Symbols[j].Value;
           SymbolInfo->Size = Symbols[j].Size;
-          SymbolInfo->Type = ELF_ST_TYPE(Symbols[j].Info);
-          SymbolInfo->Binding = ELF_ST_BIND(Symbols[j].Info);
+
+          // Map ELF symbol type to IMGLOAD_SYMBOL_TYPE
+          switch (ElfType) {
+            case STT_OBJECT:  SymbolInfo->Type = ImgSymbolTypeObject; break;
+            case STT_FUNC:    SymbolInfo->Type = ImgSymbolTypeFunc; break;
+            case STT_SECTION: SymbolInfo->Type = ImgSymbolTypeSection; break;
+            default:          SymbolInfo->Type = ImgSymbolTypeNone; break;
+          }
+
+          // Map ELF symbol binding to IMGLOAD_SYMBOL_BINDING
+          switch (ElfBind) {
+            case STB_LOCAL:  SymbolInfo->Binding = ImgSymbolBindLocal; break;
+            case STB_GLOBAL: SymbolInfo->Binding = ImgSymbolBindGlobal; break;
+            case STB_WEAK:   SymbolInfo->Binding = ImgSymbolBindWeak; break;
+            default:         SymbolInfo->Binding = ImgSymbolBindLocal; break;
+          }
+
           return S_OK;
         }
       }
@@ -1393,8 +1465,7 @@ ElfGetRelocInfo (
   memset(RelocInfo, 0, sizeof(IMGLOAD_RELOC_INFO));
 
   // ELF executables may have relocations in dynamic sections
-  // Format: 1=REL, 2=RELA (we'll determine this dynamically)
-  RelocInfo->Format = 0;  // Will be set when we parse sections
+  RelocInfo->Format = ImgRelocFormatNone;
   RelocInfo->RequiresReloc = FALSE;  // Most ELF executables don't need relocation
 
   return S_FALSE;  // Relocation support to be implemented
