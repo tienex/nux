@@ -40,7 +40,20 @@
 
 ## Conformance Levels
 
-Zoo64 defines six conformance levels to support implementations ranging from ultra-compact streaming to full-featured enterprise archival solutions.
+Zoo64 defines seven conformance levels to support implementations ranging from ultra-tiny parsers to full-featured enterprise archival solutions.
+
+### Tiny Conformance
+Absolute bare minimum for parsing:
+- Archive Header (magic, version only)
+- File Entry (path, size, offset)
+- **NO Central Directory** (sequential scan only)
+- **NO timestamps** (optional modification time only)
+- **NO compression** (stored files only)
+- **NO checksums** (CRC32 optional)
+- **NO End of Archive marker** (optional)
+- UTF-8 paths (basic support, no validation)
+
+**Target**: Minimal parsers, toy implementations, learning/testing, absolute smallest code footprint (< 1KB)
 
 ### Compact Conformance
 Ultra-minimal streaming implementation without random access:
@@ -117,16 +130,39 @@ Complete feature set implementations MAY include:
 
 ### Table 1: Conformance Levels Overview
 
-| Level | Designation | Random Access | Compression | Metadata | Target Use Cases |
-|-------|-------------|---------------|-------------|----------|------------------|
-| **Compact** | Optional | No (Stream only) | None (Stored) | Minimal (CRC32) | Network streaming, pipes, stdin/stdout |
-| **Embedded** | Optional | Yes (Central Dir) | None (Stored) | Basic (CRC32, mtime) | Microcontrollers, firmware, IoT, ROM FS |
-| **Minimal** | REQUIRED | Yes (Central Dir) | None (Stored) | Standard (CRC32, 4×timestamps) | Simple archiving, minimal dependencies |
-| **Standard** | RECOMMENDED | Yes + Quick Dir | ZSTD/LZMA2 | SHA-256 + basic extended | General-purpose, backup, distribution |
-| **Enhanced** | Optional | Yes + Seekable | Multiple algorithms | Encryption + core metadata | Professional backup, compliance |
-| **Full** | OPTIONAL | All modes | All algorithms | All metadata + FEC | Enterprise, preservation, migration |
+| Level | Designation | Random Access | Compression | Metadata | Checksums | Target Use Cases |
+|-------|-------------|---------------|-------------|----------|-----------|------------------|
+| **Tiny** | Optional | No | None | None (size only) | Optional | Minimal parsers, learning, testing |
+| **Compact** | Optional | No (Stream only) | None (Stored) | Minimal | CRC32 | Network streaming, pipes, stdin/stdout |
+| **Embedded** | Optional | Yes (Central Dir) | None (Stored) | Basic (mtime) | CRC32 | Microcontrollers, firmware, IoT, ROM FS |
+| **Minimal** | REQUIRED | Yes (Central Dir) | None (Stored) | Standard (4×timestamps) | CRC32 | Simple archiving, minimal dependencies |
+| **Standard** | RECOMMENDED | Yes + Quick Dir | ZSTD/LZMA2 | Extended | SHA-256 | General-purpose, backup, distribution |
+| **Enhanced** | Optional | Yes + Seekable | Multiple algorithms | Encryption + core | SHA-512/BLAKE3 | Professional backup, compliance |
+| **Full** | OPTIONAL | All modes | All algorithms | All metadata + FEC | All algorithms | Enterprise, preservation, migration |
 
 ### Table 2: Core Features by Conformance Level
+
+#### Tiny Conformance (Absolute Minimum for Parsing)
+
+| Category | Feature | Section | Description |
+|----------|---------|---------|-------------|
+| **Archive Structure** | Archive Header | 3 | Magic (0x5A4F4F3634415243) and version only |
+| | File Entry | 5 | Path, size, offset to data |
+| **Compression** | Stored Mode | 4 | Uncompressed only (Algorithm ID 0x0000) |
+| **Path Support** | UTF-8 Paths (Basic) | 5.3 | UTF-8 support (no validation) |
+| **Metadata** | File Size | 5.1 | Uncompressed size only |
+| **OMITTED** | Central Directory | - | Not required (sequential scan) |
+| | Timestamps | - | Optional (modification time if present) |
+| | Checksums | - | Optional (CRC32 if present) |
+| | End of Archive Marker | - | Optional |
+
+**Implementation Guidance**: Tiny conformance is intended for:
+- Educational implementations (learning the format)
+- Minimal test parsers
+- Proof-of-concept code
+- Embedded systems with extreme constraints (< 1KB code)
+
+**Note**: Tiny implementations should be able to *read* archives but not necessarily *create* them. Writing should target at least Compact level.
 
 #### Compact Conformance (Streaming Only)
 
@@ -858,6 +894,120 @@ typedef struct _ZOO64_VOLUME_FOOTER {
 #pragma pack(pop)
 ```
 
+## 3.5 Overlay Archives [OPTIONAL]
+
+Overlay archives reference a base archive and store only differences (deltas), making them ideal for incremental backups, tape archives, and HSM systems.
+
+```c
+//
+// Overlay archive header (extends standard archive header)
+// When archive flags bit 19 is set (Overlay Mode)
+//
+typedef struct _ZOO64_OVERLAY_HEADER {
+  UINT64  Magic;              // 0x4F5645524C415920 ("OVERLAY ")
+  UINT32  OverlayVersion;     // Overlay format version
+  UINT32  Flags;              // Overlay flags
+
+  // Base archive identification
+  UINT8   BaseArchiveUUID[16];  // UUID of base archive
+  UINT64  BaseArchiveTimestamp; // Timestamp of base archive
+  UINT32  BaseArchiveCRC32;     // CRC32 of base archive header
+
+  // Overlay metadata
+  UINT64  OverlayTimestamp;     // When this overlay was created
+  UINT32  OverlaySequence;      // Sequence number (for chaining)
+  UINT32  FileCount;            // Number of files in overlay
+  UINT32  NewFiles;             // Number of completely new files
+  UINT32  ModifiedFiles;        // Number of modified files (delta stored)
+  UINT32  DeletedFiles;         // Number of deleted files (tombstones)
+  UINT32  UnchangedFiles;       // Number of unchanged files (references only)
+
+  // Base archive location (for tape/HSM)
+  UINT16  BaseVolumeNumber;     // Volume number where base resides
+  UINT16  BaseTapeNumber;       // Tape number (0 if same tape)
+  UINT64  BaseArchiveOffset;    // Offset to base archive
+
+  UINT32  DescriptionLength;    // Length of description
+  // [DescriptionLength bytes: UTF-8 description]
+} ZOO64_OVERLAY_HEADER;
+```
+
+### 3.5.1 Overlay File Entry
+
+Files in overlay archives use extended file headers to reference base archive:
+
+```c
+//
+// Overlay file entry types
+//
+typedef enum _ZOO64_OVERLAY_TYPE {
+  OverlayTypeNew       = 0,  // New file (not in base)
+  OverlayTypeModified  = 1,  // Modified (delta stored)
+  OverlayTypeDeleted   = 2,  // Deleted (tombstone)
+  OverlayTypeUnchanged = 3,  // Unchanged (reference only)
+  OverlayTypeMoved     = 4,  // Moved/renamed
+} ZOO64_OVERLAY_TYPE;
+
+//
+// Overlay file metadata (follows file header)
+//
+typedef struct _ZOO64_OVERLAY_FILE_METADATA {
+  UINT8   Type;                 // ZOO64_OVERLAY_TYPE
+  UINT8   Reserved[3];
+
+  // Reference to base archive file
+  UINT64  BaseFileOffset;       // Offset in base archive (0 if new)
+  UINT32  BaseFileCRC32;        // CRC32 of base file
+  UINT64  BaseFileSize;         // Size of base file
+
+  // Delta compression info (if Type == Modified)
+  UINT16  DeltaAlgorithm;       // 0=xdelta3, 1=bsdiff, 2=zdelta, 3=vcdiff
+  UINT64  DeltaSize;            // Size of delta
+
+  // Move/rename info (if Type == Moved)
+  UINT16  OldPathLength;        // Length of old path
+  // [OldPathLength bytes: old UTF-8 path]
+} ZOO64_OVERLAY_FILE_METADATA;
+```
+
+### 3.5.2 Overlay Archive Use Cases
+
+**Incremental Tape Backup**:
+```
+Base Archive: Full backup to tape 1
+Overlay 1:    Changes after 1 day  → tape 1
+Overlay 2:    Changes after 2 days → tape 1
+Overlay 3:    Changes after 3 days → tape 2 (tape 1 full)
+```
+
+**HSM Tiered Storage**:
+```
+Base Archive: Archived to slow tier (tape/cloud)
+Overlay 1:    Recent changes on fast tier (disk)
+Overlay 2:    Today's changes on fast tier
+→ Restore by applying overlays to base
+```
+
+**Delta Storage for Large Files**:
+```
+Base:    database-2025-01-01.db (1 TB)
+Overlay: database-2025-01-02.db (50 MB delta)
+Overlay: database-2025-01-03.db (30 MB delta)
+```
+
+### 3.5.3 Overlay Flags
+
+```
+Bit 0:  Delta compression enabled
+Bit 1:  Store tombstones for deleted files
+Bit 2:  Store references for unchanged files
+Bit 3:  Cross-volume base reference
+Bit 4:  Cross-tape base reference
+Bit 5:  Chained overlay (references another overlay)
+Bit 6:  Compressed overlay header
+Bit 7-31: Reserved
+```
+
 ## 4. Compression (REQUIRED: Minimum "stored" mode)
 
 Describes the compression algorithm and parameters.
@@ -1263,6 +1413,61 @@ typedef struct _ZOO64_FILE_HEADER {
 
 All four timestamps use NTP extended format for maximum precision and consistency.
 
+### 5.1a Extended File Header (Zettabyte Support)
+
+For archives containing files larger than 16 EiB (exbibytes), Zoo64 supports extended 128-bit file sizes. When bit 26 of file flags is set (Large File), the header is extended:
+
+```c
+//
+// Extended file header for files >= 16 EiB
+// Uses 128-bit integers for size fields
+//
+typedef struct _ZOO64_FILE_HEADER_EXTENDED {
+  UINT64  Magic;              // 0x46494C45454E5452 ("FILEENTR")
+  UINT32  HeaderSize;         // Total size of header + path
+  UINT32  Flags;              // File flags (bit 26 set = Large File)
+
+  // Extended 128-bit size fields for ZB support
+  UINT128 UncompressedSize;   // Original file size (up to 16 ZiB)
+  UINT128 CompressedSize;     // Compressed size
+
+  UINT64  DataOffset;         // Offset to file data (or use extended if needed)
+  UINT64  MetadataOffset;     // Offset to metadata (0 if none)
+  UINT32  MetadataSize;       // Size of metadata block
+  UINT16  PathLength;         // Length of UTF-8 path in bytes
+  UINT16  CompressionMethod;  // Compression method for this file
+  UINT32  CRC32;              // CRC32 of uncompressed data (or streaming CRC)
+  UINT64  SHA256[4];          // SHA-256 hash of uncompressed data
+  UINT64  BirthTime;          // File birth/creation time (NTP extended format)
+  UINT64  ModificationTime;   // File modification time
+  UINT64  AccessTime;         // File access time
+  UINT64  ChangeTime;         // File metadata change time
+  UINT32  UID;                // User ID
+  UINT32  GID;                // Group ID
+  UINT32  Mode;               // File mode/permissions
+  UINT32  Attributes;         // Platform-specific attributes
+} ZOO64_FILE_HEADER_EXTENDED;
+
+//
+// 128-bit integer type for ZB support
+//
+typedef struct _UINT128 {
+  UINT64 Low;   // Lower 64 bits
+  UINT64 High;  // Upper 64 bits
+} UINT128;
+```
+
+**Size Ranges**:
+- **Standard (64-bit)**: 0 to 16 EiB (2^64 bytes)
+- **Extended (128-bit)**: 0 to 16 ZiB (zebibytes, 2^128 bytes)
+
+**Usage**: Extended headers are required when archiving:
+- Large databases (> 16 EiB)
+- Data center tape archives
+- Exascale computing datasets
+- Large-scale scientific data (astronomy, genomics, climate)
+- Aggregate HSM archives spanning petabytes
+
 ### 5.2 File Flags
 
 ```
@@ -1291,7 +1496,11 @@ Bit 21:    Text file (detected or specified)
 Bit 22:    Binary file (detected or specified)
 Bit 23:    Sparse file (has sparse regions)
 Bit 24:    Delta-compressed (stored as delta)
-Bit 25-31: Platform-specific
+Bit 25:    Overlay reference (references base archive)
+Bit 26:    Large file (uses 128-bit sizes for ZB support)
+Bit 27:    Hybrid compression (auto-select algorithm per block)
+Bit 28:    Variable block sizes
+Bit 29-31: Reserved for future use
 ```
 
 ### 5.3 Variable-Length UTF-8 Path
@@ -7311,6 +7520,110 @@ typedef struct _ZOO64_BLOCK_HEADER {
   UINT32  CRC32;              /// CRC32 of uncompressed block
 } ZOO64_BLOCK_HEADER;
 #pragma pack(pop)
+```
+
+### 7.4 Variable Block Sizes [OPTIONAL]
+
+When file flag bit 28 is set (Variable Block Sizes), blocks can have different sizes within the same file. This allows optimal compression by adapting block size to content characteristics.
+
+```c
+//
+// Variable block size table
+// Replaces standard fixed-size block table
+//
+typedef struct _ZOO64_VARIABLE_BLOCK_TABLE {
+  UINT32  Magic;              // 0x56424C4B544C ("VBLKTBL")
+  UINT32  BlockCount;         // Number of blocks
+  UINT32  MinBlockSize;       // Minimum block size (power of 2)
+  UINT32  MaxBlockSize;       // Maximum block size (power of 2)
+  UINT32  Flags;              // Flags
+
+  // Followed by BlockCount entries:
+  // For each block:
+  //   [LEB128: uncompressed size]
+  //   [LEB128: compressed size delta]
+  //   [LEB128: offset delta]
+} ZOO64_VARIABLE_BLOCK_TABLE;
+```
+
+**Variable Block Size Selection Algorithm**:
+1. Analyze content characteristics (entropy, redundancy)
+2. High entropy (random/compressed) → smaller blocks (4KB-64KB)
+3. Low entropy (text, repetitive) → larger blocks (256KB-4MB)
+4. Streaming data → adaptive sizing based on compression ratio
+
+**Benefits**:
+- Better compression for heterogeneous files
+- Faster seeks for high-entropy regions (smaller blocks)
+- Higher compression for low-entropy regions (larger dictionary)
+
+**Use Cases**:
+- Database files with mixed data and indexes
+- Multimedia files with metadata and streams
+- Virtual machine images with sparse and dense regions
+- Scientific datasets with varying compression characteristics
+
+### 7.5 Hybrid Compression Mode [OPTIONAL]
+
+When file flag bit 27 is set (Hybrid Compression), different compression algorithms are automatically selected per block for optimal size. This is very slow but produces the best compression.
+
+```c
+//
+// Hybrid compression block header
+//
+typedef struct _ZOO64_HYBRID_BLOCK_HEADER {
+  UINT16  Algorithm;          // Compression algorithm for THIS block
+  UINT32  UncompressedSize;   // Size before compression
+  UINT32  CompressedSize;     // Size after compression
+  UINT32  CRC32;              // CRC32 of uncompressed block
+} ZOO64_HYBRID_BLOCK_HEADER;
+```
+
+**Algorithm Selection Process**:
+1. For each block, try multiple compression algorithms:
+   - LZ4 (fast baseline)
+   - ZSTD (balanced)
+   - LZMA2 (high compression)
+   - BWT+MTF+LZ78+Range (text-optimized)
+   - Custom/PAQ (maximum compression)
+
+2. Select algorithm producing smallest compressed size
+
+3. Store algorithm ID in block header
+
+4. If no algorithm beats stored, use stored (0x0000)
+
+**Performance Characteristics**:
+- Compression speed: **Very slow** (5-20x slower than single algorithm)
+- Decompression speed: **Moderate** (depends on selected algorithms)
+- Compression ratio: **Maximum possible** for heterogeneous data
+
+**Best Use Cases**:
+- Long-term archival where compression time doesn't matter
+- Highly mixed content (text + binary + multimedia)
+- Maximum space savings required
+- Datasets with unknown or varying characteristics
+
+**Example Compression Ratios**:
+```
+Mixed dataset (10 GB):
+  ZSTD alone:       4.2 GB (58% reduction)
+  LZMA2 alone:      3.8 GB (62% reduction)
+  Hybrid mode:      3.1 GB (69% reduction) ← 18% better than LZMA2
+  Time:             12x slower than LZMA2
+```
+
+**Hybrid Compression Flags**:
+```
+Bit 0:  Try LZ4
+Bit 1:  Try ZSTD
+Bit 2:  Try LZMA2
+Bit 3:  Try BWT pipeline
+Bit 4:  Try PAQ
+Bit 5:  Try all algorithms (exhaustive search)
+Bit 6:  Cache compression results (for parallel compression)
+Bit 7:  Use machine learning predictor (experimental)
+Bit 8-31: Reserved
 ```
 
 ## 8. Solid Compression [OPTIONAL]
