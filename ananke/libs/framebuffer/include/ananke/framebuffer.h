@@ -44,14 +44,11 @@ typedef enum _FB_PIXEL_FORMAT {
     FbPixelFormatPlanar6      = 22,  /* 6 planes (64 colors) */
     FbPixelFormatPlanar8      = 23,  /* 8 planes (256 colors) */
 
-    /* RGB formats - direct color */
-    FbPixelFormatRgb332       = 30,  /* 8-bit RGB (3:3:2) */
-    FbPixelFormatRgb555       = 31,  /* 15-bit RGB (5:5:5) */
-    FbPixelFormatRgb565       = 32,  /* 16-bit RGB (5:6:5) */
-    FbPixelFormatRgb888       = 33,  /* 24-bit RGB (8:8:8) */
-    FbPixelFormatRgba8888     = 34,  /* 32-bit RGBA (8:8:8:8) */
-    FbPixelFormatBgr888       = 35,  /* 24-bit BGR (8:8:8) */
-    FbPixelFormatBgra8888     = 36,  /* 32-bit BGRA (8:8:8:8) */
+    /* RGB formats - direct color (use descriptor masks for exact layout) */
+    FbPixelFormatRgb8         = 30,  /* 8-bit RGB */
+    FbPixelFormatRgb16        = 31,  /* 16-bit RGB (e.g., 555, 565) */
+    FbPixelFormatRgb24        = 32,  /* 24-bit RGB */
+    FbPixelFormatRgb32        = 33,  /* 32-bit RGB/RGBA */
 } FB_PIXEL_FORMAT;
 
 /* --------------------------------------------------------------- */

@@ -25,8 +25,10 @@
 #include <ananke/framebuffer/backend_ext.h>
 #include <ananke/framebuffer/pixelformat.h>
 #include <ananke/framebuffer/dither.h>
+#include <ananke/framebuffer/screen.h>
 #include <ananke/atomics.h>
 #include <ananke/hresult.h>
+#include <ananke/intrinsics.h>
 
 /* --------------------------------------------------------------- */
 /*  VGA I/O Ports                                                   */
@@ -69,6 +71,9 @@ typedef struct _PC_GRAPHICS_BACKEND {
 
     /* Bank switching function (for VESA banked modes) */
     VOID (*BankSwitchFunc)(UINT32 BankNumber);
+
+    /* Runtime RtlCopyMemory support (if available) */
+    VOID (*RtlCopyMemoryFunc)(VOID *Dest, CONST VOID *Src, SIZE_T Size);
 
     /* Palette (for indexed modes) */
     FB_PALETTE_ENTRY            Palette[256];
@@ -120,6 +125,41 @@ static CONST IFramebufferBackendVtbl gPcGraphicsVtbl = {
 };
 
 /* --------------------------------------------------------------- */
+/*  Mode Definitions                                                */
+/* --------------------------------------------------------------- */
+
+typedef struct _PC_GRAPHICS_MODE {
+    UINT32              ModeNumber;
+    UINT32              Width;
+    UINT32              Height;
+    FB_PIXEL_FORMAT     PixelFormat;
+    FB_MEMORY_ORGANIZATION MemoryOrganization;
+    UINT32              NumPlanes;
+    UINT64              PhysicalBase;
+    UINT32              Pitch;
+} PC_GRAPHICS_MODE;
+
+static CONST PC_GRAPHICS_MODE gPcGraphicsModes[] = {
+    /* CGA modes */
+    { 0x04, 320, 200, FbPixelFormatIndexed4, FbMemoryInterleaved, 0, 0xB8000, 80 },
+    { 0x06, 640, 200, FbPixelFormat1Bpp, FbMemoryInterleaved, 0, 0xB8000, 80 },
+
+    /* EGA modes */
+    { 0x0D, 320, 200, FbPixelFormatIndexed16, FbMemoryPlanar, 4, 0xA0000, 40 },
+    { 0x0E, 640, 200, FbPixelFormatIndexed16, FbMemoryPlanar, 4, 0xA0000, 80 },
+    { 0x10, 640, 350, FbPixelFormatIndexed16, FbMemoryPlanar, 4, 0xA0000, 80 },
+
+    /* VGA modes */
+    { 0x12, 640, 480, FbPixelFormatIndexed16, FbMemoryPlanar, 4, 0xA0000, 80 },
+    { 0x13, 320, 200, FbPixelFormatIndexed256, FbMemoryLinear, 0, 0xA0000, 320 },
+
+    /* Mode-X (tweaked mode 13h) */
+    { 0x100, 320, 240, FbPixelFormatIndexed256, FbMemoryLinear, 0, 0xA0000, 320 },
+};
+
+#define PC_GRAPHICS_MODE_COUNT (sizeof(gPcGraphicsModes) / sizeof(gPcGraphicsModes[0]))
+
+/* --------------------------------------------------------------- */
 /*  Standard VGA Palette                                            */
 /* --------------------------------------------------------------- */
 
@@ -153,8 +193,8 @@ PcGraphics_SetMapMask(
     )
 {
     if (Backend->Descriptor.RequiresIoAccess && Backend->CurrentMapMask != Mask) {
-        /* In a real implementation: outb(VGA_SEQ_INDEX, VGA_SEQ_MAP_MASK);
-         * outb(VGA_SEQ_DATA, Mask); */
+        ANX_CPU_OUTB(VGA_SEQ_INDEX, VGA_SEQ_MAP_MASK);
+        ANX_CPU_OUTB(VGA_SEQ_DATA, Mask);
         Backend->CurrentMapMask = Mask;
     }
 }
@@ -166,8 +206,8 @@ PcGraphics_SetReadMap(
     )
 {
     if (Backend->Descriptor.RequiresIoAccess && Backend->CurrentReadMap != Plane) {
-        /* In a real implementation: outb(VGA_GC_INDEX, VGA_GC_READ_MAP);
-         * outb(VGA_GC_DATA, Plane); */
+        ANX_CPU_OUTB(VGA_GC_INDEX, VGA_GC_READ_MAP);
+        ANX_CPU_OUTB(VGA_GC_DATA, Plane);
         Backend->CurrentReadMap = Plane;
     }
 }
@@ -304,6 +344,134 @@ PcGraphics_MapColorToIndex(
 }
 
 /* --------------------------------------------------------------- */
+/*  ROP2/ROP3 Operations                                            */
+/* --------------------------------------------------------------- */
+
+static INLINE UINT8
+PcGraphics_ApplyRop2(
+    UINT8 Source,
+    UINT8 Dest,
+    FB_ROP2 Rop
+    )
+{
+    switch (Rop) {
+        case FbRop2Black:          return 0x00;
+        case FbRop2NotMergePen:    return ~(Source | Dest);
+        case FbRop2MaskNotPen:     return Dest & ~Source;
+        case FbRop2NotCopyPen:     return ~Source;
+        case FbRop2MaskPenNot:     return Source & ~Dest;
+        case FbRop2Not:            return ~Dest;
+        case FbRop2XorPen:         return Source ^ Dest;
+        case FbRop2NotMaskPen:     return ~(Source & Dest);
+        case FbRop2MaskPen:        return Source & Dest;
+        case FbRop2NotXorPen:      return ~(Source ^ Dest);
+        case FbRop2Nop:            return Dest;
+        case FbRop2MergeNotPen:    return ~Source | Dest;
+        case FbRop2CopyPen:        return Source;
+        case FbRop2MergePenNot:    return Source | ~Dest;
+        case FbRop2MergePen:       return Source | Dest;
+        case FbRop2White:          return 0xFF;
+        default:                   return Source;
+    }
+}
+
+static INLINE UINT8
+PcGraphics_ApplyRop3(
+    UINT8 Source,
+    UINT8 Dest,
+    UINT8 Pattern,
+    FB_ROP3 Rop
+    )
+{
+    /* ROP3 truth table: for each bit position, apply the 8-bit ROP code
+     * based on S (bit 0), D (bit 1), P (bit 2) */
+    UINT8 Result = 0;
+    for (UINT32 Bit = 0; Bit < 8; Bit++) {
+        UINT8 S = (Source >> Bit) & 1;
+        UINT8 D = (Dest >> Bit) & 1;
+        UINT8 P = (Pattern >> Bit) & 1;
+        UINT8 Index = (P << 2) | (D << 1) | S;
+        UINT8 OutBit = (Rop >> Index) & 1;
+        Result |= (OutBit << Bit);
+    }
+    return Result;
+}
+
+/* --------------------------------------------------------------- */
+/*  Optimized Memory Operations                                     */
+/* --------------------------------------------------------------- */
+
+static INLINE VOID
+PcGraphics_FastCopy(
+    PC_GRAPHICS_BACKEND *Backend,
+    VOID *Dest,
+    CONST VOID *Src,
+    SIZE_T Size
+    )
+{
+    if (Backend->RtlCopyMemoryFunc != NULL) {
+        Backend->RtlCopyMemoryFunc(Dest, Src, Size);
+    } else {
+        ANX_MEMCPY(Dest, Src, Size);
+    }
+}
+
+static VOID
+PcGraphics_FillLinear(
+    PC_GRAPHICS_BACKEND *Backend,
+    UINT32 X,
+    UINT32 Y,
+    UINT32 Width,
+    UINT32 Height,
+    UINT8 ColorIndex
+    )
+{
+    /* Fast fill for linear indexed modes using memset */
+    for (UINT32 Row = 0; Row < Height; Row++) {
+        UINT32 Offset = (Y + Row) * Backend->Descriptor.Pitch + X;
+        ANX_MEMSET(&Backend->FramebufferBase[Offset], ColorIndex, Width);
+    }
+}
+
+static HRESULT
+PcGraphics_BlitLinearSameFormat(
+    PC_GRAPHICS_BACKEND *Backend,
+    INT32 X,
+    INT32 Y,
+    UINT32 Width,
+    UINT32 Height,
+    CONST UINT8 *Bitmap,
+    UINT32 SourcePitch
+    )
+{
+    /* Fast blit for matching linear formats using memcpy */
+    for (UINT32 Row = 0; Row < Height; Row++) {
+        if ((Y + (INT32)Row) < 0 || (Y + (INT32)Row) >= (INT32)Backend->Descriptor.Height) {
+            continue;
+        }
+        if (X < 0 || X >= (INT32)Backend->Descriptor.Width) {
+            continue;
+        }
+
+        UINT32 DestOffset = (Y + Row) * Backend->Descriptor.Pitch + X;
+        UINT32 SrcOffset = Row * SourcePitch;
+        UINT32 CopyWidth = Width;
+
+        /* Clip to screen bounds */
+        if (X + (INT32)CopyWidth > (INT32)Backend->Descriptor.Width) {
+            CopyWidth = Backend->Descriptor.Width - X;
+        }
+
+        PcGraphics_FastCopy(Backend,
+                           &Backend->FramebufferBase[DestOffset],
+                           &Bitmap[SrcOffset],
+                           CopyWidth);
+    }
+
+    return S_OK;
+}
+
+/* --------------------------------------------------------------- */
 /*  IUnknown Implementation                                         */
 /* --------------------------------------------------------------- */
 
@@ -406,7 +574,6 @@ PcGraphics_Clear(
 {
     PC_GRAPHICS_BACKEND *Backend = (PC_GRAPHICS_BACKEND *)This;
     UINT8 ColorIndex;
-    UINT32 x, y;
 
     if (!Backend->Initialized) {
         return E_FAIL;
@@ -414,9 +581,21 @@ PcGraphics_Clear(
 
     ColorIndex = PcGraphics_MapColorToIndex(Backend, Color);
 
-    for (y = 0; y < Backend->Descriptor.Height; y++) {
-        for (x = 0; x < Backend->Descriptor.Width; x++) {
-            PcGraphics_WritePixel(Backend, x, y, ColorIndex);
+    /* Use optimized fill for linear indexed modes */
+    if (Backend->Descriptor.MemoryOrganization == FbMemoryLinear &&
+        (Backend->Descriptor.PixelFormat == FbPixelFormatIndexed4 ||
+         Backend->Descriptor.PixelFormat == FbPixelFormatIndexed16 ||
+         Backend->Descriptor.PixelFormat == FbPixelFormatIndexed256)) {
+        PcGraphics_FillLinear(Backend, 0, 0,
+                             Backend->Descriptor.Width,
+                             Backend->Descriptor.Height,
+                             ColorIndex);
+    } else {
+        /* Fallback to pixel-by-pixel for planar/banked modes */
+        for (UINT32 y = 0; y < Backend->Descriptor.Height; y++) {
+            for (UINT32 x = 0; x < Backend->Descriptor.Width; x++) {
+                PcGraphics_WritePixel(Backend, x, y, ColorIndex);
+            }
         }
     }
 
@@ -470,7 +649,6 @@ PcGraphics_FillRect(
 {
     PC_GRAPHICS_BACKEND *Backend = (PC_GRAPHICS_BACKEND *)This;
     UINT8 ColorIndex;
-    INT32 x, y;
 
     if (!Backend->Initialized || Rect == NULL) {
         return E_POINTER;
@@ -478,9 +656,31 @@ PcGraphics_FillRect(
 
     ColorIndex = PcGraphics_MapColorToIndex(Backend, Color);
 
-    for (y = Rect->Top; y < Rect->Bottom && y < (INT32)Backend->Descriptor.Height; y++) {
-        for (x = Rect->Left; x < Rect->Right && x < (INT32)Backend->Descriptor.Width; x++) {
-            if (x >= 0 && y >= 0) {
+    /* Clip to screen bounds */
+    INT32 Left = Rect->Left < 0 ? 0 : Rect->Left;
+    INT32 Top = Rect->Top < 0 ? 0 : Rect->Top;
+    INT32 Right = Rect->Right > (INT32)Backend->Descriptor.Width ?
+                  (INT32)Backend->Descriptor.Width : Rect->Right;
+    INT32 Bottom = Rect->Bottom > (INT32)Backend->Descriptor.Height ?
+                   (INT32)Backend->Descriptor.Height : Rect->Bottom;
+
+    if (Left >= Right || Top >= Bottom) {
+        return S_OK;  /* Nothing to draw */
+    }
+
+    UINT32 Width = Right - Left;
+    UINT32 Height = Bottom - Top;
+
+    /* Use optimized fill for linear indexed modes */
+    if (Backend->Descriptor.MemoryOrganization == FbMemoryLinear &&
+        (Backend->Descriptor.PixelFormat == FbPixelFormatIndexed4 ||
+         Backend->Descriptor.PixelFormat == FbPixelFormatIndexed16 ||
+         Backend->Descriptor.PixelFormat == FbPixelFormatIndexed256)) {
+        PcGraphics_FillLinear(Backend, Left, Top, Width, Height, ColorIndex);
+    } else {
+        /* Fallback to pixel-by-pixel for planar/banked modes */
+        for (INT32 y = Top; y < Bottom; y++) {
+            for (INT32 x = Left; x < Right; x++) {
                 PcGraphics_WritePixel(Backend, x, y, ColorIndex);
             }
         }
@@ -537,6 +737,32 @@ PcGraphics_BlitBitmap(
     FB_PIXEL_FORMAT SourceFormat
     )
 {
+    PC_GRAPHICS_BACKEND *Backend = (PC_GRAPHICS_BACKEND *)This;
+
+    if (!Backend->Initialized || Bitmap == NULL) {
+        return E_POINTER;
+    }
+
+    /* Fast path: matching format and linear memory organization */
+    if (SourceFormat == Backend->Descriptor.PixelFormat &&
+        Backend->Descriptor.MemoryOrganization == FbMemoryLinear &&
+        (SourceFormat == FbPixelFormatIndexed4 ||
+         SourceFormat == FbPixelFormatIndexed16 ||
+         SourceFormat == FbPixelFormatIndexed256 ||
+         SourceFormat == FbPixelFormatRgb8 ||
+         SourceFormat == FbPixelFormatRgb16 ||
+         SourceFormat == FbPixelFormatRgb24 ||
+         SourceFormat == FbPixelFormatRgb32)) {
+
+        UINT32 BytesPerPixel = 1;
+        if (SourceFormat == FbPixelFormatRgb16) BytesPerPixel = 2;
+        else if (SourceFormat == FbPixelFormatRgb24) BytesPerPixel = 3;
+        else if (SourceFormat == FbPixelFormatRgb32) BytesPerPixel = 4;
+
+        return PcGraphics_BlitLinearSameFormat(Backend, X, Y, Width, Height,
+                                              Bitmap, Width * BytesPerPixel);
+    }
+
     /* Format conversion handled by engine */
     return E_NOTIMPL;
 }
@@ -578,6 +804,7 @@ static PC_GRAPHICS_BACKEND gPcGraphicsBackendInstance = {
     .Initialized        = FALSE,
     .DitherMethod       = FbDitherNone,
     .BankSwitchFunc     = NULL,
+    .RtlCopyMemoryFunc  = NULL,
 };
 
 IFramebufferBackend *
@@ -599,4 +826,94 @@ FbPcGraphicsSetBankFunction(
 {
     PC_GRAPHICS_BACKEND *PcBackend = (PC_GRAPHICS_BACKEND *)Backend;
     PcBackend->BankSwitchFunc = BankSwitchFunc;
+}
+
+/*
+ * Set RtlCopyMemory function for optimized memory operations.
+ */
+VOID
+FbPcGraphicsSetRtlCopyMemory(
+    IN IFramebufferBackend *Backend,
+    IN VOID (*RtlCopyMemoryFunc)(VOID *, CONST VOID *, SIZE_T)
+    )
+{
+    PC_GRAPHICS_BACKEND *PcBackend = (PC_GRAPHICS_BACKEND *)Backend;
+    PcBackend->RtlCopyMemoryFunc = RtlCopyMemoryFunc;
+}
+
+/*
+ * Query the number of available video modes.
+ */
+UINT32
+FbPcGraphicsGetModeCount(
+    VOID
+    )
+{
+    return PC_GRAPHICS_MODE_COUNT;
+}
+
+/*
+ * Query information about a specific video mode.
+ */
+HRESULT
+FbPcGraphicsQueryMode(
+    IN UINT32 ModeIndex,
+    OUT FRAMEBUFFER_DESC *ModeDesc
+    )
+{
+    if (ModeIndex >= PC_GRAPHICS_MODE_COUNT || ModeDesc == NULL) {
+        return E_INVALIDARG;
+    }
+
+    CONST PC_GRAPHICS_MODE *Mode = &gPcGraphicsModes[ModeIndex];
+
+    ANX_MEMSET(ModeDesc, 0, sizeof(FRAMEBUFFER_DESC));
+    ModeDesc->Width = Mode->Width;
+    ModeDesc->Height = Mode->Height;
+    ModeDesc->Pitch = Mode->Pitch;
+    ModeDesc->PixelFormat = Mode->PixelFormat;
+    ModeDesc->MemoryOrganization = Mode->MemoryOrganization;
+    ModeDesc->PhysicalBase = Mode->PhysicalBase;
+    ModeDesc->NumPlanes = Mode->NumPlanes;
+    ModeDesc->IoPortBase = 0x3C0;
+    ModeDesc->RequiresIoAccess = (Mode->MemoryOrganization == FbMemoryPlanar ||
+                                  Mode->MemoryOrganization == FbMemoryInterleaved);
+
+    /* Set appropriate bit masks and parameters based on format */
+    switch (Mode->PixelFormat) {
+        case FbPixelFormatIndexed4:
+        case FbPixelFormatIndexed16:
+        case FbPixelFormatIndexed256:
+            ModeDesc->BankInterleave = (Mode->MemoryOrganization == FbMemoryInterleaved) ? 2 : 1;
+            ModeDesc->BankOffset = (Mode->MemoryOrganization == FbMemoryInterleaved) ? 0x2000 : 0;
+            break;
+
+        default:
+            break;
+    }
+
+    return S_OK;
+}
+
+/*
+ * Set a specific video mode.
+ */
+HRESULT
+FbPcGraphicsSetMode(
+    IN IFramebufferBackend *Backend,
+    IN UINT32 ModeNumber
+    )
+{
+    PC_GRAPHICS_BACKEND *PcBackend = (PC_GRAPHICS_BACKEND *)Backend;
+
+    /* Find the mode */
+    for (UINT32 i = 0; i < PC_GRAPHICS_MODE_COUNT; i++) {
+        if (gPcGraphicsModes[i].ModeNumber == ModeNumber) {
+            FRAMEBUFFER_DESC Desc;
+            FbPcGraphicsQueryMode(i, &Desc);
+            return PcGraphics_Initialize(Backend, &Desc);
+        }
+    }
+
+    return E_INVALIDARG;
 }

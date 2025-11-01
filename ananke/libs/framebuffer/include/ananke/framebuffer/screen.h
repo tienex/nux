@@ -9,6 +9,9 @@
         IFramebufferScreen represents a hardware framebuffer.
         IFramebufferSurface represents a software surface.
 
+        Both IFramebufferScreen and IFramebufferSurface inherit from
+        IFramebufferBitmap to provide common blitting operations.
+
     Environment:
 
         C and C++ compatible.
@@ -22,6 +25,7 @@
 #include <ananke/guid.h>
 #include <ananke/framebuffer.h>
 #include <ananke/framebuffer/manager.h>
+#include <ananke/framebuffer/bitmap.h>
 
 /* Forward declarations */
 typedef struct _IFramebufferImage IFramebufferImage;
@@ -31,16 +35,69 @@ typedef struct _IFramebufferCursor IFramebufferCursor;
 /*  ROP (Raster Operation) Codes                                    */
 /* --------------------------------------------------------------- */
 
-typedef enum _FB_ROP {
-    FbRopCopy           = 0,    /* Destination = Source */
-    FbRopXor            = 1,    /* Destination ^= Source */
-    FbRopOr             = 2,    /* Destination |= Source */
-    FbRopAnd            = 3,    /* Destination &= Source */
-    FbRopNot            = 4,    /* Destination = ~Source */
-    FbRopBlend          = 5,    /* Alpha blend (if supported) */
-    FbRopAdd            = 6,    /* Additive blend */
-    FbRopSubtract       = 7,    /* Subtractive blend */
-} FB_ROP;
+/*
+ * ROP2 - Binary Raster Operations (16 codes)
+ * Operate on Source (S) and Destination (D)
+ */
+typedef enum _FB_ROP2 {
+    FbRop2Black         = 0x00,  /* 0 */
+    FbRop2NotMergePen   = 0x01,  /* ~(D | S) */
+    FbRop2MaskNotPen    = 0x02,  /* D & ~S */
+    FbRop2NotCopyPen    = 0x03,  /* ~S */
+    FbRop2MaskPenNot    = 0x04,  /* S & ~D */
+    FbRop2Not           = 0x05,  /* ~D */
+    FbRop2XorPen        = 0x06,  /* D ^ S */
+    FbRop2NotMaskPen    = 0x07,  /* ~(D & S) */
+    FbRop2MaskPen       = 0x08,  /* D & S */
+    FbRop2NotXorPen     = 0x09,  /* ~(D ^ S) */
+    FbRop2Nop           = 0x0A,  /* D (no operation) */
+    FbRop2MergeNotPen   = 0x0B,  /* D | ~S */
+    FbRop2CopyPen       = 0x0C,  /* S (copy) */
+    FbRop2MergePenNot   = 0x0D,  /* S | ~D */
+    FbRop2MergePen      = 0x0E,  /* D | S */
+    FbRop2White         = 0x0F,  /* 1 */
+} FB_ROP2;
+
+/*
+ * ROP3 - Ternary Raster Operations (256 codes)
+ * Operate on Source (S), Destination (D), and Pattern/Brush (P)
+ *
+ * ROP3 codes are 8-bit values where each bit represents the output
+ * for a specific combination of S, D, P inputs (truth table).
+ *
+ * Common ROP3 codes (compatible with Windows GDI):
+ */
+typedef enum _FB_ROP3 {
+    FbRop3Blackness     = 0x00,  /* 0 */
+    FbRop3DPSoon        = 0x01,  /* ~(D | (P | S)) */
+    FbRop3DPSona        = 0x02,  /* D & ~(P | S) */
+    FbRop3PSon          = 0x03,  /* ~(P | S) */
+    FbRop3SDPona        = 0x04,  /* S & ~(D | P) */
+    FbRop3DPon          = 0x05,  /* ~(D | P) */
+    FbRop3PDSxnon       = 0x06,  /* ~(P | ~(D ^ S)) */
+    FbRop3PDSaon        = 0x07,  /* ~(P | (D & S)) */
+    FbRop3SDPnaa        = 0x08,  /* S & (D & ~P) */
+    FbRop3PDSxon        = 0x09,  /* ~(P | (D ^ S)) */
+
+    /* Common operations */
+    FbRop3NoOp          = 0xAA,  /* D (no operation) */
+    FbRop3MergeCopy     = 0xC0,  /* P & S */
+    FbRop3SrcCopy       = 0xCC,  /* S (source copy) */
+    FbRop3SrcPaint      = 0xEE,  /* D | S */
+    FbRop3SrcAnd        = 0x88,  /* D & S */
+    FbRop3SrcInvert     = 0x66,  /* D ^ S */
+    FbRop3SrcErase      = 0x44,  /* S & ~D */
+    FbRop3NotSrcCopy    = 0x33,  /* ~S */
+    FbRop3NotSrcErase   = 0x11,  /* ~(S | D) */
+    FbRop3DstInvert     = 0x55,  /* ~D */
+    FbRop3PatCopy       = 0xF0,  /* P (pattern copy) */
+    FbRop3PatPaint      = 0xFB,  /* D | ~S | P */
+    FbRop3PatInvert     = 0x5A,  /* D ^ P */
+    FbRop3Whiteness     = 0xFF,  /* 1 */
+} FB_ROP3;
+
+/* Generic ROP type for simple operations */
+typedef UINT8 FB_ROP;
 
 /* --------------------------------------------------------------- */
 /*  IFramebufferScreen - Hardware framebuffer                       */
