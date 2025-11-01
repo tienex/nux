@@ -813,6 +813,9 @@ typedef struct _ZOO64_METADATA_CHUNK {
 0x0049: High Sierra metadata
 0x004A: Block deduplication metadata (chunk hashes)
 0x004B: Reserved filename metadata (Windows/DOS/OS2 device names)
+0x004C: DR-DOS file password metadata
+0x004D: CP/M USER DIR metadata
+0x004E: Olivetti pcos metadata
 ```
 
 ### 6.3 Universal ACL Format
@@ -5527,6 +5530,507 @@ Attackers may use reserved names to cause denial-of-service:
 - Archive with `LPT1` attempts to access parallel port (privilege escalation)
 
 Zoo64 implementations **must** detect and handle reserved names safely.
+
+### 6.72 DR-DOS File Password Metadata (0x004C)
+
+DR-DOS (Digital Research DOS) featured built-in file-level password protection at the filesystem level, a unique capability not present in MS-DOS. This metadata preserves DR-DOS password information for archives containing password-protected files.
+
+```c
+typedef struct _ZOO64_DRDOS_PASSWORD_ATTR {
+  UINT8   PasswordType;       // Password type: 0=None, 1=Read, 2=Write, 3=Read+Write
+  UINT8   HashAlgorithm;      // Hash algorithm: 0=Original DR-DOS, 1=MD5, 2=SHA-256
+  UINT16  HashLength;         // Length of password hash
+  UINT32  Flags;              // DR-DOS password flags
+  UINT32  Reserved;           // Reserved for future use
+  // Followed by:
+  //   [HashLength bytes: password hash]
+  //   [Optional: salt for modern hash algorithms]
+} __attribute__((packed)) ZOO64_DRDOS_PASSWORD_ATTR;
+```
+
+**Password Type Values**:
+```
+0: NONE              // No password protection
+1: READ_PROTECTED    // Password required to read file
+2: WRITE_PROTECTED   // Password required to write/modify file
+3: READ_WRITE        // Password required for both read and write
+```
+
+**Hash Algorithm Values**:
+```
+0: DRDOS_ORIGINAL    // Original DR-DOS password algorithm (weak, for compatibility)
+1: MD5               // MD5 hash (better, still weak by modern standards)
+2: SHA256            // SHA-256 hash (recommended for modern archives)
+```
+
+**DR-DOS Password Flags**:
+```
+0x00000001: PASSWORD_ENCRYPTED      // File data is encrypted with password
+0x00000002: PASSWORD_HASH_ONLY      // Only hash stored (data not encrypted)
+0x00000004: CASE_SENSITIVE          // Password is case-sensitive
+0x00000008: CASE_INSENSITIVE        // Password is case-insensitive (DR-DOS default)
+0x00000010: LEGACY_COMPATIBILITY    // Use DR-DOS 3.x/5.x/6.x compatibility mode
+0x00000020: SALT_PRESENT            // Hash includes salt
+0x00000040: ENHANCED_SECURITY       // Use enhanced security (multiple rounds)
+```
+
+**DR-DOS Password System**:
+
+DR-DOS versions 3.40 and later supported password protection at the filesystem level:
+
+1. **Read passwords**: Required to open file for reading
+2. **Write passwords**: Required to open file for writing
+3. **Delete passwords**: Required to delete file
+4. **Both passwords**: Separate read/write passwords
+
+The passwords were stored in the directory entry's reserved bytes, making them filesystem-level protection rather than application-level.
+
+**Original Algorithm** (DR-DOS 3.x-6.x):
+```c
+// Simplified DR-DOS password hash (original algorithm)
+uint16_t drdos_password_hash(const char* password) {
+    uint16_t hash = 0;
+    for (const char* p = password; *p; p++) {
+        hash = ((hash << 1) | (hash >> 15)) ^ toupper(*p);
+    }
+    return hash;
+}
+```
+
+**Security Note**: The original DR-DOS password algorithm was simple and not cryptographically secure. For archival purposes, Zoo64 can store the original hash for compatibility, but should also store a modern hash (SHA-256) and optionally encrypt the file data using proper encryption (see Section 6a).
+
+**Archiving Behavior**:
+
+When archiving DR-DOS password-protected files:
+
+1. **Detect password**: Check DR-DOS directory entry for password bytes
+2. **Extract hash**: Read password hash from directory entry
+3. **Store metadata**: Create DRDOS_PASSWORD_ATTR metadata chunk
+4. **Optional encryption**: If file data was encrypted, include encryption metadata (0x004E)
+5. **Compatibility**: Store both original hash and modern hash for round-trip
+
+**Extraction Behavior**:
+
+When extracting to different platforms:
+
+**Extracting to DR-DOS**:
+- Restore password hash to directory entry
+- Preserve read/write protection flags
+- Maintain compatibility with DR-DOS filesystem
+
+**Extracting to other DOS variants (MS-DOS, PC DOS)**:
+- Cannot restore passwords (not supported)
+- Warn user that password protection will be lost
+- Extract file normally without protection
+
+**Extracting to modern systems (Windows/Linux/macOS)**:
+- Cannot restore DR-DOS passwords
+- If file data is encrypted, require password for decryption
+- Extract as normal file
+
+**Round-Trip Preservation**:
+
+DR-DOS → Archive → DR-DOS:
+```
+Original:    PASSWORD.DAT (read password: "secret", write password: "admin")
+Archived as: PASSWORD.DAT with DRDOS_PASSWORD_ATTR
+             PasswordType: READ_WRITE
+             HashAlgorithm: DRDOS_ORIGINAL
+             Hash: 0xA5C3 (read), 0x7B21 (write)
+Extracted:   PASSWORD.DAT (passwords restored to directory entry)
+```
+
+**Example Metadata**:
+```c
+// File with DR-DOS read password
+DRDOS_PASSWORD_ATTR {
+  PasswordType: READ_PROTECTED
+  HashAlgorithm: SHA256
+  HashLength: 32
+  Flags: CASE_INSENSITIVE | SALT_PRESENT
+  Reserved: 0
+  Hash: [32 bytes SHA-256 hash]
+  Salt: [16 bytes random salt]
+}
+```
+
+**Historical Context**:
+
+DR-DOS was developed by Digital Research as a competitor to MS-DOS. Its password protection feature was one of several enhancements over MS-DOS, along with:
+- Task switching (DR-DOS 5.0, 1990)
+- Memory management improvements
+- Disk compression (SuperStor/Stacker integration)
+- Network support
+
+Novell acquired Digital Research in 1991 and continued DR-DOS development through version 7.x. Later versions (OpenDOS, Caldera DR-DOS, DRDOS 8.x) maintained password compatibility.
+
+**Compatibility Matrix**:
+
+| DR-DOS Version | Password Support | Algorithm         | Notes                     |
+|----------------|------------------|-------------------|---------------------------|
+| 3.40           | Read/Write       | 16-bit hash       | First version with passwords |
+| 3.41           | Read/Write       | 16-bit hash       | Improved algorithm        |
+| 5.0            | Read/Write/Del   | 16-bit hash       | Added delete passwords    |
+| 6.0            | Read/Write/Del   | 16-bit hash       | Enhanced security mode    |
+| 7.x (Novell)   | Read/Write/Del   | 16-bit hash       | Maintained compatibility  |
+| 8.x (Caldera)  | Read/Write/Del   | 16-bit hash       | Legacy support            |
+
+### 6.73 CP/M USER DIR Metadata (0x004D)
+
+CP/M (Control Program for Microcomputers) used a USER number system (0-15) to provide basic multi-user directory separation. Each file had an associated USER number, and only files matching the current USER number were visible. This metadata preserves CP/M USER directory information.
+
+```c
+typedef struct _ZOO64_CPM_USER_ATTR {
+  UINT8   UserNumber;         // CP/M USER number (0-15)
+  UINT8   SystemAttribute;    // System file attribute (visible to all users if set)
+  UINT8   ReadOnly;           // Read-only attribute
+  UINT8   ArchiveFlag;        // Archive flag (for backup software)
+  UINT32  ExtentNumber;       // Extent number (for large files split across extents)
+  UINT32  RecordCount;        // Number of 128-byte records in extent
+  UINT16  BlockAllocation[8]; // CP/M block allocation map
+  UINT32  Flags;              // CP/M flags
+} __attribute__((packed)) ZOO64_CPM_USER_ATTR;
+```
+
+**User Number Values**:
+```
+0-15: Valid USER numbers
+  0:  Default user (visible when USER 0 is active)
+  1-15: Additional users
+255: Special marker for deleted files (internal CP/M use)
+```
+
+**CP/M Attributes**:
+```
+0x01: READ_ONLY      // File cannot be modified or deleted
+0x02: SYSTEM         // System file (visible regardless of USER number)
+0x04: ARCHIVE        // Archive flag (set when file modified)
+0x80: REQUIRES_PASSWORD // File requires password (some CP/M variants)
+```
+
+**CP/M USER System**:
+
+The CP/M USER number system provided primitive multi-user file organization:
+
+1. **USER command**: Switch between USER numbers (USER 0 through USER 15)
+2. **File visibility**: Only files with matching USER number are visible
+3. **System files**: Files with System attribute (F2) visible to all users
+4. **Cross-user access**: Special utilities could access files across USER numbers
+
+**Example CP/M Session**:
+```
+A>USER 0              ; Switch to USER 0
+A>DIR                 ; Shows only USER 0 files + system files
+A>USER 5              ; Switch to USER 5
+A>DIR                 ; Shows only USER 5 files + system files
+A>USER 0              ; Back to USER 0
+A>DIR B: [USER 5]     ; Special syntax to view USER 5 files on drive B:
+```
+
+**CP/M Extent System**:
+
+CP/M files larger than the maximum extent size were split across multiple directory entries (extents). Each extent contained up to 16K bytes (128 records of 128 bytes each).
+
+**Extent Structure**:
+- **Extent Number**: Sequential number (0, 1, 2, ...) for file parts
+- **Record Count**: Number of 128-byte records in this extent
+- **Block Allocation**: Map of disk blocks used by this extent
+
+**Archiving Behavior**:
+
+When archiving CP/M files:
+
+1. **Read USER number**: Extract from directory entry byte 0
+2. **Read attributes**: Extract System/ReadOnly/Archive bits from filename bytes
+3. **Read extent info**: Extract extent number and record count
+4. **Combine extents**: Merge multiple extents into single file
+5. **Store metadata**: Create CPM_USER_ATTR metadata chunk
+
+**Extraction Behavior**:
+
+**Extracting to CP/M**:
+- Restore USER number to directory entry
+- Restore System/ReadOnly/Archive attributes
+- Split large files into extents if necessary
+- Recreate block allocation map
+
+**Extracting to other systems**:
+- Map USER number to directory: `/user0/`, `/user5/`, etc.
+- Preserve attributes as file permissions (ReadOnly → chmod 444)
+- Extract as normal file (no extent splitting needed)
+
+**USER Number Directory Mapping**:
+```
+CP/M USER 0  → /user0/  or /default/
+CP/M USER 1  → /user1/
+CP/M USER 5  → /user5/
+...
+CP/M USER 15 → /user15/
+```
+
+**Round-Trip Preservation**:
+
+CP/M → Archive → CP/M:
+```
+Original:    USER 5: REPORT.TXT (read-only, system file)
+             Directory entry: User=5, Attrs=0x03 (RO|SYS)
+Archived as: REPORT.TXT with CPM_USER_ATTR
+             UserNumber: 5
+             SystemAttribute: 1
+             ReadOnly: 1
+Extracted:   USER 5: REPORT.TXT (attributes restored)
+```
+
+CP/M → Archive → Modern OS:
+```
+Original:    USER 5: REPORT.TXT
+Archived as: REPORT.TXT with CPM_USER_ATTR (UserNumber: 5)
+Extracted:   /user5/REPORT.TXT (or REPORT.TXT with xattr: user.cpm.user=5)
+```
+
+**Example Metadata**:
+```c
+// CP/M file in USER 5, system file, read-only
+CPM_USER_ATTR {
+  UserNumber: 5
+  SystemAttribute: 1     // Visible to all users
+  ReadOnly: 1            // Cannot be modified
+  ArchiveFlag: 0         // Not modified since last backup
+  ExtentNumber: 0        // First extent
+  RecordCount: 64        // 64 * 128 = 8192 bytes
+  BlockAllocation: [0x0010, 0x0011, 0x0012, 0x0013, 0x0000, ...]
+  Flags: 0
+}
+```
+
+**CP/M Flags**:
+```
+0x00000001: MULTI_EXTENT        // File spans multiple extents
+0x00000002: PASSWORD_PROTECTED  // File requires password (CP/M Plus)
+0x00000004: TIMESTAMP_PRESENT   // File has timestamps (CP/M Plus, DateStamper)
+0x00000008: FILE_LABEL          // Special file label entry
+```
+
+**Historical Context**:
+
+CP/M was created by Gary Kildall at Digital Research in 1974 and became the dominant microcomputer operating system in the late 1970s. The USER number system was a simple but effective way to provide file organization on single-user systems.
+
+**CP/M Versions and USER Support**:
+
+| Version  | Year | USER Support | Max Users | Notes                        |
+|----------|------|--------------|-----------|------------------------------|
+| CP/M 1.x | 1974 | No           | 1         | No USER number support       |
+| CP/M 2.x | 1979 | Yes          | 16        | USER 0-15 supported          |
+| CP/M 3.x | 1983 | Yes          | 16        | CP/M Plus, enhanced features |
+| CP/M-86  | 1981 | Yes          | 16        | 8086/8088 version            |
+
+**Compatibility Notes**:
+- MP/M (Multi-user CP/M) used true user accounts instead of USER numbers
+- CP/NET added network file access across USER numbers
+- Some CP/M clones (TurboDOS, CDOS) extended USER numbers beyond 15
+
+### 6.74 Olivetti pcos Metadata (0x004E)
+
+Olivetti pcos (Personal Computer Operating System) was the operating system used on Olivetti M20 and similar personal computers in the early 1980s. pcos had unique features for file protection, versioning, and structured files.
+
+```c
+typedef struct _ZOO64_PCOS_ATTR {
+  UINT8   FileClass;          // File class: 0=Temporary, 1=Permanent, 2=System
+  UINT8   ProtectionLevel;    // Protection level (0-7)
+  UINT8   VersionNumber;      // File version number (1-255)
+  UINT8   GenerationNumber;   // File generation number
+  UINT16  FileOrganization;   // File organization type
+  UINT16  RecordLength;       // Logical record length (for structured files)
+  UINT32  RecordCount;        // Number of logical records
+  UINT32  AllocationSize;     // Allocated size (may be larger than used)
+  UINT32  Flags;              // pcos-specific flags
+  UINT32  OwnerID;            // Owner user ID
+  UINT32  GroupID;            // Group ID
+  UINT64  CreationTime;       // pcos creation timestamp
+  UINT64  ExpirationTime;     // File expiration time (0 = no expiration)
+  // Followed by:
+  //   [Optional: structured file header]
+  //   [Optional: index structure for indexed files]
+} __attribute__((packed)) ZOO64_PCOS_ATTR;
+```
+
+**File Class Values**:
+```
+0: TEMPORARY    // Temporary file (deleted on system restart)
+1: PERMANENT    // Permanent file (normal file)
+2: SYSTEM       // System file (protected, elevated access)
+3: SHARED       // Shared file (multi-user access)
+```
+
+**Protection Level** (0-7, octal-style like Unix):
+```
+0: No access
+1: Execute only
+2: Write only
+3: Write + Execute
+4: Read only
+5: Read + Execute
+6: Read + Write
+7: Read + Write + Execute (full access)
+```
+
+**File Organization Types**:
+```
+0: SEQUENTIAL           // Sequential access (like tape)
+1: RELATIVE             // Direct access by record number
+2: INDEXED_SEQUENTIAL   // ISAM (Indexed Sequential Access Method)
+3: KEYED                // Keyed access (B-tree index)
+4: STREAM               // Byte stream (like Unix)
+```
+
+**pcos Flags**:
+```
+0x00000001: VERSIONING_ENABLED    // File uses version numbers
+0x00000002: EXPIRATION_SET        // File has expiration date
+0x00000004: BACKUP_REQUIRED       // File should be backed up
+0x00000008: ARCHIVE_BIT           // File modified since last backup
+0x00000010: LOCKED                // File is locked (in use)
+0x00000020: STRUCTURED_FILE       // File has structured records
+0x00000040: INDEXED_FILE          // File has index structure
+0x00000080: COMPRESSED            // File is compressed by pcos
+0x00000100: ENCRYPTED             // File is encrypted by pcos
+0x00000200: REMOTE_FILE           // File is on remote system (pcos networking)
+```
+
+**pcos Versioning System**:
+
+Olivetti pcos supported automatic file versioning similar to VMS:
+
+1. **Version numbers**: Files had explicit version numbers (FILE.TXT;1, FILE.TXT;2, etc.)
+2. **Automatic versioning**: Opening file for write created new version
+3. **Version retention**: System could retain multiple versions
+4. **Version purge**: Old versions could be purged to save space
+
+**Example pcos Versioning**:
+```
+$ CREATE FILE.TXT           ; Creates FILE.TXT;1
+$ EDIT FILE.TXT             ; Creates FILE.TXT;2 (new version)
+$ EDIT FILE.TXT             ; Creates FILE.TXT;3
+$ DIR FILE.TXT
+  FILE.TXT;3  1024 bytes  2025-01-15 10:30
+  FILE.TXT;2   512 bytes  2025-01-14 14:20
+  FILE.TXT;1   256 bytes  2025-01-13 09:00
+$ PURGE FILE.TXT /KEEP=1    ; Delete all but latest version
+```
+
+**Structured File Support**:
+
+pcos supported structured files with fixed-length or variable-length records:
+
+1. **Sequential files**: Records accessed sequentially
+2. **Relative files**: Records accessed by record number (like array)
+3. **Indexed files**: Records accessed by key (like database)
+4. **Keyed files**: Multiple indexes per file (B-tree)
+
+**Archiving Behavior**:
+
+When archiving pcos files:
+
+1. **Read file class**: Extract from pcos directory entry
+2. **Read protection**: Extract protection level
+3. **Read version info**: Extract version and generation numbers
+4. **Read organization**: Determine file structure type
+5. **Store metadata**: Create PCOS_ATTR metadata chunk
+6. **Preserve structure**: For structured files, preserve record boundaries
+
+**Extraction Behavior**:
+
+**Extracting to pcos**:
+- Restore file class and protection level
+- Restore version and generation numbers
+- Restore file organization type
+- Recreate index structures for indexed files
+- Set owner/group IDs
+
+**Extracting to modern systems**:
+- Map file class to file attributes
+- Map protection level to Unix permissions:
+  ```
+  pcos 7 (RWX) → Unix 0700
+  pcos 6 (RW)  → Unix 0600
+  pcos 4 (R)   → Unix 0400
+  ```
+- Store version number in filename: `FILE.TXT` → `FILE.TXT.v3`
+- Convert structured files to plain files (lose record structure)
+
+**Round-Trip Preservation**:
+
+pcos → Archive → pcos:
+```
+Original:    REPORT.TXT;3 (Permanent, Protection=6, Indexed file)
+Archived as: REPORT.TXT with PCOS_ATTR
+             FileClass: PERMANENT
+             ProtectionLevel: 6 (RW)
+             VersionNumber: 3
+             FileOrganization: INDEXED_SEQUENTIAL
+Extracted:   REPORT.TXT;3 (all attributes restored)
+```
+
+pcos → Archive → Unix/Linux:
+```
+Original:    REPORT.TXT;3
+Archived as: REPORT.TXT with PCOS_ATTR (VersionNumber: 3)
+Extracted:   REPORT.TXT.v3 or REPORT.TXT (with xattr: user.pcos.version=3)
+             Permissions: 0600 (from ProtectionLevel: 6)
+```
+
+**Example Metadata**:
+```c
+// pcos indexed file with versioning
+PCOS_ATTR {
+  FileClass: PERMANENT
+  ProtectionLevel: 6              // Read + Write
+  VersionNumber: 5                // Version 5 of file
+  GenerationNumber: 1             // First generation
+  FileOrganization: INDEXED_SEQUENTIAL
+  RecordLength: 256               // 256-byte records
+  RecordCount: 1024               // 1024 records = 256KB
+  AllocationSize: 262144          // Allocated space
+  Flags: VERSIONING_ENABLED | INDEXED_FILE | BACKUP_REQUIRED
+  OwnerID: 42                     // User 42
+  GroupID: 10                     // Group 10
+  CreationTime: [timestamp]
+  ExpirationTime: 0               // No expiration
+  // Followed by index structure...
+}
+```
+
+**Historical Context**:
+
+Olivetti M20 was released in 1982 and used a Zilog Z8000 processor. Unlike most personal computers of the era (which used 8080, Z80, or 8086), the M20 required a unique operating system. pcos was developed by Olivetti and featured:
+
+- Multi-user support (via terminal connections)
+- File versioning (similar to DEC VMS)
+- Structured file support (like COBOL/RPG record files)
+- Protection levels (more sophisticated than DOS)
+- File expiration (automatic cleanup)
+- Built-in networking (pcos-NET)
+
+**Olivetti pcos Features**:
+
+| Feature              | Description                                | Similar to          |
+|----------------------|--------------------------------------------|--------------------|
+| File versioning      | Automatic version numbers                  | VMS, TOPS-20       |
+| Structured files     | ISAM, keyed access                         | COBOL, RPG         |
+| Protection levels    | 0-7 access control                         | Unix permissions   |
+| File expiration      | Automatic deletion after date              | VMS expiration     |
+| File classes         | Temporary/Permanent/System                 | VMS file types     |
+| Owner/Group IDs      | Multi-user ownership                       | Unix UID/GID       |
+
+**Compatibility Notes**:
+- Olivetti M20 also ran MS-DOS via Z8000-to-8086 emulation (slower)
+- pcos files could be exported to MS-DOS format (losing structure)
+- Later Olivetti systems (M24, M28) used standard MS-DOS
+
+**Security Considerations**:
+- Protection levels should be mapped to modern ACLs on extraction
+- Expired files should be flagged or automatically removed
+- Encrypted pcos files should trigger Zoo64 encryption metadata
 
 ## 6a. Encryption Support
 
