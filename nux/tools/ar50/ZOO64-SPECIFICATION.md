@@ -12705,39 +12705,67 @@ All enumerations follow NT/UEFI PascalCase naming conventions (not underscore st
 // Comprehensive list of all known compression methods
 //
 typedef enum _ZOO64_COMPRESSION_ALGORITHM {
-  // 0x0000-0x000F: Basic & Statistical
+  // 0x0000-0x000F: Basic & Statistical (1950s-1970s)
   Zoo64CompressStored               = 0x00000000,  // No compression
-  Zoo64CompressZoz                  = 0x00000001,  // ZOZ adaptive pipeline
-  Zoo64CompressRle                  = 0x00000002,  // Run-Length Encoding
-  Zoo64CompressHuffman              = 0x00000003,  // Huffman coding only
-  Zoo64CompressBitSquish            = 0x00000004,  // Bit squishing (reduced alphabet)
-  Zoo64CompressArithmetic           = 0x00000005,  // Arithmetic coding
-  Zoo64CompressRangeCoding          = 0x00000006,  // Range coding
-  Zoo64CompressAns                  = 0x00000007,  // Asymmetric Numeral Systems
+  Zoo64CompressRle                  = 0x00000001,  // Run-Length Encoding (1967)
+  Zoo64CompressHuffman              = 0x00000002,  // Huffman coding (1952)
+  Zoo64CompressShannonFano          = 0x00000003,  // Shannon-Fano coding (1949)
+  Zoo64CompressArithmetic           = 0x00000004,  // Arithmetic coding (1976, Rissanen)
+  Zoo64CompressRangeCoding          = 0x00000005,  // Range coding (1979, Martin)
+  Zoo64CompressAns                  = 0x00000006,  // Asymmetric Numeral Systems (2009, Duda)
+  Zoo64CompressGolomb               = 0x00000007,  // Golomb coding (1966)
+  Zoo64CompressRice                 = 0x00000008,  // Rice coding (1971, subset of Golomb)
+  Zoo64CompressElias                = 0x00000009,  // Elias coding (1975)
+  Zoo64CompressFibonacci            = 0x0000000A,  // Fibonacci coding (1960s)
+  Zoo64CompressUnary                = 0x0000000B,  // Unary coding
+  Zoo64CompressTruncatedBinary      = 0x0000000C,  // Truncated binary encoding
+  Zoo64CompressExpGolomb            = 0x0000000D,  // Exponential-Golomb coding (H.264)
+  Zoo64CompressZoz                  = 0x0000000E,  // ZOZ adaptive pipeline (2024)
+  Zoo64CompressBitSquish            = 0x0000000F,  // Bit squishing (reduced alphabet, 2024)
 
-  // 0x0010-0x002F: LZ77 Family
-  Zoo64CompressLz77                 = 0x00000010,  // Lempel-Ziv 1977
-  Zoo64CompressLzss                 = 0x00000011,  // LZSS (LZ77 variant)
-  Zoo64CompressDeflate              = 0x00000012,  // DEFLATE (RFC 1951)
-  Zoo64CompressZlib                 = 0x00000013,  // ZLIB (RFC 1950, DEFLATE + wrapper)
-  Zoo64CompressGzip                 = 0x00000014,  // GZIP (RFC 1952)
-  Zoo64CompressLzo                  = 0x00000015,  // LZO (fast)
-  Zoo64CompressLz4                  = 0x00000016,  // LZ4 (extremely fast)
-  Zoo64CompressLz4Hc                = 0x00000017,  // LZ4 High Compression
-  Zoo64CompressSnappy               = 0x00000018,  // Google Snappy
-  Zoo64CompressLzf                  = 0x00000019,  // LibLZF
-  Zoo64CompressLzrw                 = 0x0000001A,  // LZRW1/3/4
-  Zoo64CompressLzjb                 = 0x0000001B,  // LZJB (ZFS)
-  Zoo64CompressLzp                  = 0x0000001C,  // LZP (Lempel-Ziv-Predict)
-  Zoo64CompressQuickLz              = 0x0000001D,  // QuickLZ
-  Zoo64CompressLzham                = 0x0000001E,  // LZHAM
-  Zoo64CompressLzx                  = 0x0000001F,  // Microsoft LZX (CAB)
+  // 0x0010-0x002F: LZ77 Family (1977-2010s)
+  Zoo64CompressLz77                 = 0x00000010,  // Lempel-Ziv 1977 (original)
+  Zoo64CompressLzss                 = 0x00000011,  // LZSS (1982, Storer & Szymanski)
+  Zoo64CompressDeflate              = 0x00000012,  // DEFLATE (1993, RFC 1951, Deutsch)
+  Zoo64CompressZlib                 = 0x00000013,  // ZLIB (1995, RFC 1950)
+  Zoo64CompressGzip                 = 0x00000014,  // GZIP (1992, RFC 1952, Gailly)
+  Zoo64CompressLzo                  = 0x00000015,  // LZO (1996, Oberhumer)
+  Zoo64CompressLz4                  = 0x00000016,  // LZ4 (2011, Collet, extremely fast)
+  Zoo64CompressLz4Hc                = 0x00000017,  // LZ4 High Compression (2011)
+  Zoo64CompressSnappy               = 0x00000018,  // Snappy (2011, Google)
+  Zoo64CompressLzf                  = 0x00000019,  // LibLZF (2000-2007)
+  Zoo64CompressLzrw                 = 0x0000001A,  // LZRW1/3/4 (1991, Williams)
+  Zoo64CompressLzjb                 = 0x0000001B,  // LZJB (2005, ZFS, Bonwick)
+  Zoo64CompressLzp                  = 0x0000001C,  // LZP (1995, Charles Bloom)
+  Zoo64CompressQuickLz              = 0x0000001D,  // QuickLZ (2006-2009)
+  Zoo64CompressLzham                = 0x0000001E,  // LZHAM (2009, Tranchida)
+  Zoo64CompressLzx                  = 0x0000001F,  // Microsoft LZX (1996, CAB)
+  Zoo64CompressLzma1                = 0x00000020,  // LZMA1 (1998, Pavlov, 7-Zip)
+  Zoo64CompressLzd                  = 0x00000021,  // LZD (Digital Research)
+  Zoo64CompressLzh1                 = 0x00000022,  // LZH1 (early LHA method)
+  Zoo64CompressLzb                  = 0x00000023,  // LZB
+  Zoo64CompressLzari                = 0x00000024,  // LZARI (1988, Haruhiko Okumura)
+  Zoo64CompressLzhuf                = 0x00000025,  // LZHUF (1989, Okumura/Yoshizaki)
+  Zoo64CompressLzs                  = 0x00000026,  // LZS (Stac Electronics, 1990s)
+  Zoo64CompressLzw12                = 0x00000027,  // LZW 12-bit
+  Zoo64CompressLzw13                = 0x00000028,  // LZW 13-bit
+  Zoo64CompressLzw14                = 0x00000029,  // LZW 14-bit
+  Zoo64CompressLzw15                = 0x0000002A,  // LZW 15-bit
+  Zoo64CompressLzw16                = 0x0000002B,  // LZW 16-bit
 
-  // 0x0030-0x003F: LZ78 Family
-  Zoo64CompressLz78                 = 0x00000030,  // Lempel-Ziv 1978
-  Zoo64CompressLzw                  = 0x00000031,  // Lempel-Ziv-Welch (GIF/TIFF)
-  Zoo64CompressLzc                  = 0x00000032,  // UNIX compress (.Z)
-  Zoo64CompressGif                  = 0x00000033,  // GIF LZW variant
+  // 0x0030-0x003F: LZ78 Family (1978-1990s)
+  Zoo64CompressLz78                 = 0x00000030,  // Lempel-Ziv 1978 (original)
+  Zoo64CompressLzw                  = 0x00000031,  // LZW (1984, Welch)
+  Zoo64CompressLzc                  = 0x00000032,  // UNIX compress (1985, .Z files)
+  Zoo64CompressGifLzw               = 0x00000033,  // GIF LZW variant (1987, CompuServe)
+  Zoo64CompressTiffLzw              = 0x00000034,  // TIFF LZW (1988)
+  Zoo64CompressPostScriptLzw        = 0x00000035,  // PostScript LZW
+  Zoo64CompressPdfLzw               = 0x00000036,  // PDF LZW
+  Zoo64CompressLzc12                = 0x00000037,  // UNIX compress 12-bit
+  Zoo64CompressLzc13                = 0x00000038,  // UNIX compress 13-bit
+  Zoo64CompressLzc14                = 0x00000039,  // UNIX compress 14-bit
+  Zoo64CompressLzc15                = 0x0000003A,  // UNIX compress 15-bit
+  Zoo64CompressLzc16                = 0x0000003B,  // UNIX compress 16-bit
 
   // 0x0040-0x005F: LZMA Family
   Zoo64CompressLzma                 = 0x00000040,  // LZMA (7-Zip)
@@ -12782,82 +12810,228 @@ typedef enum _ZOO64_COMPRESSION_ALGORITHM {
   Zoo64CompressLh6                  = 0x000000D5,  // LH6 method
   Zoo64CompressLh7                  = 0x000000D6,  // LH7 method
 
-  // 0x0100-0x011F: Legacy Archive Formats
-  Zoo64CompressArc                  = 0x00000100,  // ARC (Squashing, Crunching, etc.)
-  Zoo64CompressZoo                  = 0x00000101,  // ZOO archiver
-  Zoo64CompressArj                  = 0x00000102,  // ARJ
-  Zoo64CompressAce                  = 0x00000103,  // ACE
-  Zoo64CompressRar                  = 0x00000104,  // RAR
-  Zoo64CompressRar5                 = 0x00000105,  // RAR 5
-  Zoo64CompressCab                  = 0x00000106,  // Microsoft Cabinet
-  Zoo64CompressChm                  = 0x00000107,  // Microsoft CHM (LZX)
-  Zoo64CompressSit                  = 0x00000108,  // StuffIt (Macintosh)
-  Zoo64CompressSit5                 = 0x00000109,  // StuffIt 5
-  Zoo64CompressCompact              = 0x0000010A,  // Compact
-  Zoo64CompressPack                 = 0x0000010B,  // Pack
-  Zoo64CompressCrunch               = 0x0000010C,  // Apple II Crunch
-  Zoo64CompressSqueeze              = 0x0000010D,  // Squeeze (CP/M)
-  Zoo64CompressSquash               = 0x0000010E,  // ARC Squash method
-  Zoo64CompressImplode              = 0x0000010F,  // ZIP Implode
-  Zoo64CompressShrink               = 0x00000110,  // ZIP Shrink
-  Zoo64CompressReduce1              = 0x00000111,  // ZIP Reduce method 1
-  Zoo64CompressReduce2              = 0x00000112,  // ZIP Reduce method 2
-  Zoo64CompressReduce3              = 0x00000113,  // ZIP Reduce method 3
-  Zoo64CompressReduce4              = 0x00000114,  // ZIP Reduce method 4
+  // 0x0100-0x013F: Legacy Archive Formats & Early Compressors (1970s-1990s)
 
-  // 0x0120-0x013F: Quantum/IBM
-  Zoo64CompressQuantum              = 0x00000120,  // Quantum compression
-  Zoo64CompressAlz                  = 0x00000121,  // ALZip
-  Zoo64CompressUharc                = 0x00000122,  // UHARC
-  Zoo64CompressFreeze               = 0x00000123,  // Freeze
+  // 0x0100-0x010F: Early Unix/CP/M (1970s-1980s)
+  Zoo64CompressPack                 = 0x00000100,  // pack (1979, Huffman, Unix)
+  Zoo64CompressCompact              = 0x00000101,  // compact (1985, Unix)
+  Zoo64CompressSqueeze              = 0x00000102,  // SQ/USQ (1981, CP/M, Huffman)
+  Zoo64CompressCrunch               = 0x00000103,  // crunch (1986, LZW, CP/M)
+  Zoo64CompressLbr                  = 0x00000104,  // LBR (1982, CP/M Library)
+  Zoo64CompressCrash                = 0x00000105,  // CRUSH/CRASH (CP/M)
+  Zoo64CompressCpm                  = 0x00000106,  // Various CP/M methods
 
-  // 0x0140-0x015F: Platform-Specific
-  Zoo64CompressNsis                 = 0x00000140,  // NSIS (LZMA variant)
-  Zoo64CompressMszip                = 0x00000141,  // Microsoft MSZIP
-  Zoo64CompressXpress               = 0x00000142,  // Microsoft Xpress (LZ77 + Huffman)
-  Zoo64CompressXpressHuffman        = 0x00000143,  // Microsoft Xpress Huffman
-  Zoo64CompressAplib                = 0x00000144,  // aPLib
-  Zoo64CompressExepack              = 0x00000145,  // EXEPACK (DOS)
-  Zoo64CompressLhark                = 0x00000146,  // LHARK
-  Zoo64CompressPklite               = 0x00000147,  // PKLITE
-  Zoo64CompressUpx                  = 0x00000148,  // UPX (executable packer)
+  // 0x0110-0x011F: ARC Family (1985-1988)
+  Zoo64CompressArc                  = 0x00000110,  // ARC (1985, SEA)
+  Zoo64CompressArc1                 = 0x00000111,  // ARC method 1 (Packed, RLE)
+  Zoo64CompressArc2                 = 0x00000112,  // ARC method 2 (Squeezed, Huffman)
+  Zoo64CompressArc3                 = 0x00000113,  // ARC method 3 (Crunched, LZW)
+  Zoo64CompressArc4                 = 0x00000114,  // ARC method 4 (Squashed, LZW)
+  Zoo64CompressArc5                 = 0x00000115,  // ARC method 5 (Crunched, LZW 12-bit)
+  Zoo64CompressArc6                 = 0x00000116,  // ARC method 6 (Squashed, LZW 13-bit)
+  Zoo64CompressArc7                 = 0x00000117,  // ARC method 7 (Crushed, LZW)
+  Zoo64CompressArc8                 = 0x00000118,  // ARC method 8 (Distilled)
+  Zoo64CompressArc9                 = 0x00000119,  // ARC method 9 (Squashed, LZW 14-bit)
+  Zoo64CompressPak                  = 0x0000011A,  // PAK (1988, NoGate Consulting)
+  Zoo64CompressPkarc                = 0x0000011B,  // PKARC (1987, PKWare)
+  Zoo64CompressPkpak                = 0x0000011C,  // PKPAK
 
-  // 0x0160-0x017F: Game/Proprietary
-  Zoo64CompressRefpack              = 0x00000160,  // RefPack (EA Games)
-  Zoo64CompressOodle                = 0x00000161,  // Oodle (RAD Game Tools)
-  Zoo64CompressKraken               = 0x00000162,  // Oodle Kraken
-  Zoo64CompressMermaid              = 0x00000163,  // Oodle Mermaid
-  Zoo64CompressSelkie               = 0x00000164,  // Oodle Selkie
-  Zoo64CompressLeviathan            = 0x00000165,  // Oodle Leviathan
+  // 0x0120-0x012F: ZIP Family (1989-1993)
+  Zoo64CompressZipStore             = 0x00000120,  // ZIP method 0 (stored, 1989)
+  Zoo64CompressShrink               = 0x00000121,  // ZIP method 1 (Shrink, LZW, 1989)
+  Zoo64CompressReduce1              = 0x00000122,  // ZIP method 2 (Reduce factor 1, 1989)
+  Zoo64CompressReduce2              = 0x00000123,  // ZIP method 3 (Reduce factor 2, 1989)
+  Zoo64CompressReduce3              = 0x00000124,  // ZIP method 4 (Reduce factor 3, 1989)
+  Zoo64CompressReduce4              = 0x00000125,  // ZIP method 5 (Reduce factor 4, 1989)
+  Zoo64CompressImplode              = 0x00000126,  // ZIP method 6 (Implode, 1989)
+  Zoo64CompressTokenize             = 0x00000127,  // ZIP method 7 (Tokenize, reserved)
+  Zoo64CompressZipDeflate           = 0x00000128,  // ZIP method 8 (Deflate, 1993, PKZIP 2.0)
+  Zoo64CompressDeflate64            = 0x00000129,  // ZIP method 9 (Deflate64/Enhanced)
+  Zoo64CompressZipBzip2             = 0x0000012A,  // ZIP method 12 (BZIP2)
+  Zoo64CompressZipLzma              = 0x0000012B,  // ZIP method 14 (LZMA)
+  Zoo64CompressZipXz                = 0x0000012C,  // ZIP method 95 (XZ)
+  Zoo64CompressZipZstd              = 0x0000012D,  // ZIP method 93 (ZSTD)
 
-  // 0x0180-0x019F: Specialized
-  Zoo64CompressShrinker             = 0x00000180,  // Text-optimized
-  Zoo64CompressBcm                  = 0x00000181,  // BCM (BWT-based)
-  Zoo64CompressCm                   = 0x00000182,  // Context Mixing
-  Zoo64CompressDmC                  = 0x00000183,  // Dynamic Markov Compression
-  Zoo64CompressFse                  = 0x00000184,  // Finite State Entropy
-  Zoo64CompressHuff0                = 0x00000185,  // Huff0 (FSE variant)
-  Zoo64CompressTans                 = 0x00000186,  // tANS
+  // 0x0130-0x013F: LHA/LZH Family (1988-1992, Haruyasu Yoshizaki)
+  Zoo64CompressLh0                  = 0x00000130,  // LH0 (stored)
+  Zoo64CompressLh1                  = 0x00000131,  // LH1 (1988, LZSS + 4KB window)
+  Zoo64CompressLh2                  = 0x00000132,  // LH2 (dynamic Huffman)
+  Zoo64CompressLh3                  = 0x00000133,  // LH3 (static Huffman)
+  Zoo64CompressLh4                  = 0x00000134,  // LH4 (1991, 4KB window)
+  Zoo64CompressLh5                  = 0x00000135,  // LH5 (1991, 8KB window)
+  Zoo64CompressLh6                  = 0x00000136,  // LH6 (1992, 32KB window)
+  Zoo64CompressLh7                  = 0x00000137,  // LH7 (1993, 64KB window)
+  Zoo64CompressLhd                  = 0x00000138,  // LHD (directory)
+  Zoo64CompressLh0e                 = 0x00000139,  // LH0 (OS/2 extended)
+  Zoo64CompressLh1e                 = 0x0000013A,  // LH1 (OS/2 extended)
+  Zoo64CompressLharc                = 0x0000013B,  // LHARC (original 1988)
 
-  // 0x01A0-0x01BF: Experimental/Research
-  Zoo64CompressZling                = 0x000001A0,  // ZLING
-  Zoo64CompressTornado              = 0x000001A1,  // Tornado
-  Zoo64CompressBriggs               = 0x000001A2,  // Briggs
-  Zoo64CompressCsc                  = 0x000001A3,  // CSC (Context Sorting Compression)
-  Zoo64CompressNanozip              = 0x000001A4,  // NanoZip
-  Zoo64CompressSrep                 = 0x000001A5,  // SREP
-  Zoo64CompressBcj                  = 0x000001A6,  // BCJ (x86 filter)
-  Zoo64CompressBcj2                 = 0x000001A7,  // BCJ2
+  // 0x0140-0x014F: ARJ Family (1990-1998, Robert K. Jung)
+  Zoo64CompressArj                  = 0x00000140,  // ARJ (1990, Archived by Robert Jung)
+  Zoo64CompressArj1                 = 0x00000141,  // ARJ method 1 (stored)
+  Zoo64CompressArj2                 = 0x00000142,  // ARJ method 2 (compressed, fastest)
+  Zoo64CompressArj3                 = 0x00000143,  // ARJ method 3 (compressed, fast)
+  Zoo64CompressArj4                 = 0x00000144,  // ARJ method 4 (compressed, normal)
+  Zoo64CompressArjm                 = 0x00000145,  // ARJ-M (1998, multimedia optimized)
 
-  // 0x01C0-0x01CF: Video/Image-Specific
-  Zoo64CompressJpeg                 = 0x000001C0,  // JPEG compression
-  Zoo64CompressPng                  = 0x000001C1,  // PNG (DEFLATE-based)
-  Zoo64CompressFlac                 = 0x000001C2,  // FLAC (audio)
-  Zoo64CompressAlac                 = 0x000001C3,  // Apple Lossless
-  Zoo64CompressWebp                 = 0x000001C4,  // WebP
-  Zoo64CompressAvif                 = 0x000001C5,  // AVIF
-  Zoo64CompressJxl                  = 0x000001C6,  // JPEG XL
-  Zoo64CompressHeif                 = 0x000001C7,  // HEIF
+  // 0x0150-0x015F: RAR Family (1993-2023, Eugene Roshal)
+  Zoo64CompressRar                  = 0x00000150,  // RAR (1993, Roshal Archive)
+  Zoo64CompressRar15                = 0x00000151,  // RAR 1.5 (1995)
+  Zoo64CompressRar20                = 0x00000152,  // RAR 2.0 (1996)
+  Zoo64CompressRar29                = 0x00000153,  // RAR 2.9 (2002)
+  Zoo64CompressRar30                = 0x00000154,  // RAR 3.0 (2002)
+  Zoo64CompressRar50                = 0x00000155,  // RAR 5.0 (2013)
+
+  // 0x0160-0x016F: Microsoft CAB & Related (1996-2000s)
+  Zoo64CompressCab                  = 0x00000160,  // CAB (1996, Microsoft Cabinet)
+  Zoo64CompressMszip                = 0x00000161,  // MSZIP (CAB method, DEFLATE variant)
+  Zoo64CompressQuantum              = 0x00000162,  // Quantum (CAB method, 1996)
+  Zoo64CompressLzx                  = 0x00000163,  // LZX (CAB method, 1996)
+  Zoo64CompressXpress               = 0x00000164,  // Microsoft Xpress (LZ77 + Huffman, 2004)
+  Zoo64CompressXpressHuffman        = 0x00000165,  // Microsoft Xpress Huffman (2012)
+
+  // 0x0170-0x017F: ACE & Other 1990s Formats
+  Zoo64CompressAce                  = 0x00000170,  // ACE (1998, Marcel Lemke)
+  Zoo64CompressUharc                = 0x00000171,  // UHARC (1997, Uwe Herklotz)
+  Zoo64CompressFreeze               = 0x00000172,  // Freeze (1992, Unix)
+  Zoo64CompressAlz                  = 0x00000173,  // ALZip (1999, South Korea)
+  Zoo64CompressZoo                  = 0x00000174,  // ZOO (1986, Rahul Dhesi)
+  Zoo64CompressStuffit              = 0x00000175,  // StuffIt (1987, Macintosh)
+  Zoo64CompressStuffit5             = 0x00000176,  // StuffIt 5 (1997)
+  Zoo64CompressStuffitx             = 0x00000177,  // StuffIt X (2002)
+  Zoo64CompressSit                  = 0x00000178,  // SIT (StuffIt archive)
+
+  // 0x0180-0x018F: Executable Packers (1980s-2000s)
+  Zoo64CompressExepack              = 0x00000180,  // EXEPACK (1985, Microsoft DOS)
+  Zoo64CompressLzexe                = 0x00000181,  // LZEXE (1989, Fabrice Bellard)
+  Zoo64CompressPklite               = 0x00000182,  // PKLITE (1990, PKWare)
+  Zoo64CompressDiet                 = 0x00000183,  // DIET (1992, Teddy Matsumoto)
+  Zoo64CompressWwpack               = 0x00000184,  // WWPACK (1993)
+  Zoo64CompressUpx                  = 0x00000185,  // UPX (1998, Ultimate Packer for eXecutables)
+  Zoo64CompressAspack               = 0x00000186,  // ASPack (1999)
+  Zoo64CompressPetite               = 0x00000187,  // PEtite (1999)
+  Zoo64CompressFsg                  = 0x00000188,  // FSG (2000, Fast Small Good)
+  Zoo64CompressMew                  = 0x00000189,  // MEW (Northfox)
+  Zoo64CompressNspack               = 0x0000018A,  // NSPack
+  Zoo64CompressAplib                = 0x0000018B,  // aPLib (1998, Jørgen Ibsen)
+
+  // 0x0190-0x019F: LZMA Family & 7-Zip (1998-2000s)
+  Zoo64CompressLzma                 = 0x00000190,  // LZMA (1998-2001, Igor Pavlov)
+  Zoo64Compress7z                   = 0x00000191,  // 7z (1999, Igor Pavlov)
+  Zoo64CompressLzma2                = 0x00000192,  // LZMA2 (2009, multithreaded)
+  Zoo64CompressXz                   = 0x00000193,  // XZ (2009, Lasse Collin)
+  Zoo64CompressPpmd                 = 0x00000194,  // PPMd (Dmitry Shkarin)
+  Zoo64CompressPpmdH                = 0x00000195,  // PPMd H (LZMA SDK)
+  Zoo64CompressPpmdJ                = 0x00000196,  // PPMd J (7-Zip)
+  Zoo64CompressPpmdI                = 0x00000197,  // PPMd I
+
+  // 0x01A0-0x01AF: BWT-Based Compression (1994-2000s)
+  Zoo64CompressBzip2                = 0x000001A0,  // bzip2 (1996, Julian Seward)
+  Zoo64CompressBzip                 = 0x000001A1,  // bzip (1996, original)
+  Zoo64CompressBzip3                = 0x000001A2,  // bzip3 (2022)
+  Zoo64CompressBcm                  = 0x000001A3,  // BCM (BWT-based)
+  Zoo64CompressDivsufsort           = 0x000001A4,  // divsufsort BWT
+
+  // 0x01B0-0x01BF: Context Modeling & PAQ Family (2000s-2010s)
+  Zoo64CompressPaq6                 = 0x000001B0,  // PAQ6 (2003, Matt Mahoney)
+  Zoo64CompressPaq7                 = 0x000001B1,  // PAQ7 (2006)
+  Zoo64CompressPaq8                 = 0x000001B2,  // PAQ8 (2007)
+  Zoo64CompressPaq9                 = 0x000001B3,  // PAQ9 (2009)
+  Zoo64CompressLpaq                 = 0x000001B4,  // LPAQ (Large Text Benchmark winner)
+  Zoo64CompressFpaq                 = 0x000001B5,  // FPAQ (Fast PAQ)
+  Zoo64CompressZpaq                 = 0x000001B6,  // ZPAQ (2009, Matt Mahoney)
+  Zoo64CompressCm                   = 0x000001B7,  // Context Mixing
+  Zoo64CompressDmC                  = 0x000001B8,  // Dynamic Markov Compression
+
+  // 0x01C0-0x01CF: Modern Fast Compressors (2006-2015)
+  Zoo64CompressQuicklz              = 0x000001C0,  // QuickLZ (2006)
+  Zoo64CompressFastlz               = 0x000001C1,  // FastLZ (2007)
+  Zoo64CompressLz4                  = 0x000001C2,  // LZ4 (2011, Yann Collet)
+  Zoo64CompressLz4Hc                = 0x000001C3,  // LZ4 HC (High Compression)
+  Zoo64CompressSnappy               = 0x000001C4,  // Snappy (2011, Google)
+  Zoo64CompressLzo                  = 0x000001C5,  // LZO (1996, Markus Oberhumer)
+  Zoo64CompressLzo1x                = 0x000001C6,  // LZO1X
+  Zoo64CompressLzo2a                = 0x000001C7,  // LZO2A
+  Zoo64CompressLzf                  = 0x000001C8,  // LZF (2000-2008)
+  Zoo64CompressLzfse                = 0x000001C9,  // LZFSE (2015, Apple)
+  Zoo64CompressLizard               = 0x000001CA,  // Lizard (2015-2017, formerly LZ5)
+  Zoo64CompressDensity              = 0x000001CB,  // Density (2015)
+  Zoo64CompressShrinker             = 0x000001CC,  // Shrinker (2016)
+  Zoo64CompressCsc                  = 0x000001CD,  // CSC (2011, Fu Siyuan)
+
+  // 0x01D0-0x01DF: Modern High-Ratio Compressors (2013-2020s)
+  Zoo64CompressZstd                 = 0x000001D0,  // Zstandard (2015, Facebook/Meta)
+  Zoo64CompressBrotli               = 0x000001D1,  // Brotli (2015, Google)
+  Zoo64CompressBrotli11             = 0x000001D2,  // Brotli quality 11 (max)
+  Zoo64CompressLzham                = 0x000001D3,  // LZHAM (2009-2012, Rich Geldreich)
+  Zoo64CompressLzsse                = 0x000001D4,  // LZSSE (2016, Conor Stokes)
+  Zoo64CompressZling                = 0x000001D5,  // ZLING (2014, Zhang Li)
+  Zoo64CompressTornado              = 0x000001D6,  // Tornado (2013)
+  Zoo64CompressOrz                  = 0x000001D7,  // ORZ (2014)
+
+  // 0x01E0-0x01EF: Specialized & Entropy Coders (2013-2020s)
+  Zoo64CompressFse                  = 0x000001E0,  // Finite State Entropy (2013, Yann Collet)
+  Zoo64CompressHuff0                = 0x000001E1,  // Huff0 (FSE variant)
+  Zoo64CompressTans                 = 0x000001E2,  // tANS (Asymmetric Numeral Systems)
+  Zoo64CompressAns                  = 0x000001E3,  // ANS (Jarek Duda, 2009-2013)
+  Zoo64CompressBcj                  = 0x000001E4,  // BCJ (x86 filter)
+  Zoo64CompressBcj2                 = 0x000001E5,  // BCJ2
+  Zoo64CompressDelta                = 0x000001E6,  // Delta filter
+  Zoo64CompressNanozip              = 0x000001E7,  // NanoZip
+  Zoo64CompressSrep                 = 0x000001E8,  // SREP (2010s)
+  Zoo64CompressBriggs               = 0x000001E9,  // Briggs (research)
+
+  // 0x01F0-0x01FF: Video/Image/Audio-Specific (1990s-2020s)
+  Zoo64CompressJpeg                 = 0x000001F0,  // JPEG compression (1992)
+  Zoo64CompressPng                  = 0x000001F1,  // PNG (1996, DEFLATE-based)
+  Zoo64CompressFlac                 = 0x000001F2,  // FLAC (2001, audio)
+  Zoo64CompressAlac                 = 0x000001F3,  // Apple Lossless (2004)
+  Zoo64CompressWebp                 = 0x000001F4,  // WebP (2010, Google)
+  Zoo64CompressAvif                 = 0x000001F5,  // AVIF (2019, AV1 Image)
+  Zoo64CompressJxl                  = 0x000001F6,  // JPEG XL (2021)
+  Zoo64CompressHeif                 = 0x000001F7,  // HEIF (2015, HEVC-based)
+  Zoo64CompressH264                 = 0x000001F8,  // H.264/AVC (2003)
+  Zoo64CompressH265                 = 0x000001F9,  // H.265/HEVC (2013)
+  Zoo64CompressAv1                  = 0x000001FA,  // AV1 (2018)
+  Zoo64CompressVp8                  = 0x000001FB,  // VP8 (2008, Google)
+  Zoo64CompressVp9                  = 0x000001FC,  // VP9 (2013, Google)
+
+  // 0x0200-0x021F: Game/Proprietary (1990s-2020s)
+  Zoo64CompressRefpack              = 0x00000200,  // RefPack (1997, EA Games)
+  Zoo64CompressEapack               = 0x00000201,  // EA compression
+  Zoo64CompressOodle                = 0x00000202,  // Oodle (2012, RAD Game Tools)
+  Zoo64CompressOodleKraken          = 0x00000203,  // Oodle Kraken (2016)
+  Zoo64CompressOodleMermaid         = 0x00000204,  // Oodle Mermaid (2013)
+  Zoo64CompressOodleSelkie          = 0x00000205,  // Oodle Selkie (2014)
+  Zoo64CompressOodleLeviathan       = 0x00000206,  // Oodle Leviathan (2018)
+  Zoo64CompressOodleBitknit         = 0x00000207,  // Oodle BitKnit
+  Zoo64CompressOodleLzna            = 0x00000208,  // Oodle LZNA
+  Zoo64CompressUnityLz4             = 0x00000209,  // Unity LZ4 variant
+  Zoo64CompressUnityLzma            = 0x0000020A,  // Unity LZMA variant
+  Zoo64CompressUnrealZlib           = 0x0000020B,  // Unreal Engine zlib
+  Zoo64CompressUnrealGzip           = 0x0000020C,  // Unreal Engine gzip
+  Zoo64CompressUnrealLz4            = 0x0000020D,  // Unreal Engine LZ4
+  Zoo64CompressCrytek               = 0x0000020E,  // Crytek compression
+  Zoo64CompressHavok                = 0x0000020F,  // Havok compression
+  Zoo64CompressPsarc                = 0x00000210,  // PSARC (PlayStation Archive)
+  Zoo64CompressNintendo             = 0x00000211,  // Nintendo compression
+  Zoo64CompressYaz0                 = 0x00000212,  // Yaz0 (Nintendo, N64)
+  Zoo64CompressYay0                 = 0x00000213,  // Yay0 (Nintendo, N64)
+  Zoo64CompressLzx5                 = 0x00000214,  // LZX5 (Nintendo DS)
+  Zoo64CompressMio0                 = 0x00000215,  // MIO0 (Nintendo 64)
+
+  // 0x0220-0x023F: Platform-Specific Compression (2000s-2020s)
+  Zoo64CompressNsis                 = 0x00000220,  // NSIS (2001, LZMA variant)
+  Zoo64CompressWim                  = 0x00000221,  // WIM (Windows Imaging)
+  Zoo64CompressDmc                  = 0x00000222,  // DMC (Disk Mount Compression)
+  Zoo64CompressCompact              = 0x00000223,  // Windows Compact compression
+  Zoo64CompressWofCompressed        = 0x00000224,  // WOF (Windows Overlay Filter)
+  Zoo64CompressZfs                  = 0x00000225,  // ZFS compression
+  Zoo64CompressBtrfs                = 0x00000226,  // Btrfs compression
+  Zoo64CompressSquashfs             = 0x00000227,  // SquashFS (2002)
+  Zoo64CompressCramfs               = 0x00000228,  // CramFS (1999)
+  Zoo64CompressJffs2                = 0x00000229,  // JFFS2 (2001)
+  Zoo64CompressF2fs                 = 0x0000022A,  // F2FS (2012)
 
   // 0xF0000000-0xFFFEFFFF: Third-Party Algorithms (~268 million IDs)
   // This range is available for third-party compression algorithms
