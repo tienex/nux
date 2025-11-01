@@ -387,16 +387,254 @@ typedef struct _ZOO64_METADATA_CHUNK {
 
 ### 6.3 ACL Format
 
+Zoo64 supports multiple ACL formats in a single metadata chunk to preserve cross-platform ACL semantics.
+
 ```c
-typedef struct _ZOO64_ACL_ENTRY {
-  UINT32  EntryType;          // ACE type (allow/deny/audit)
-  UINT32  Permissions;        // Permission mask
-  UINT32  Flags;              // ACE flags
-  UINT16  IdentifierType;     // User/Group/SID type
-  UINT16  IdentifierLength;   // Length of identifier
-  // Followed by identifier (UTF-8 username, SID, etc.)
-} __attribute__((packed)) ZOO64_ACL_ENTRY;
+typedef struct _ZOO64_ACL_HEADER {
+  UINT16  ACLType;            // ACL format type (NFS4, NT, macOS, POSIX)
+  UINT16  EntryCount;         // Number of ACL entries
+  UINT32  TotalSize;          // Total size of ACL data
+  UINT32  Flags;              // ACL flags
+  // Followed by ACL entries in format specified by ACLType
+} __attribute__((packed)) ZOO64_ACL_HEADER;
 ```
+
+#### 6.3.1 ACL Types
+
+```
+0x0001: POSIX ACL (POSIX.1e - user/group/other/mask)
+0x0002: NFS4 ACL (NFSv4 ACLs - RFC 7530)
+0x0003: NT ACL (Windows DACL/SACL with SIDs)
+0x0004: macOS ACL (macOS extended ACLs - NFSv4-based)
+```
+
+**Note**: A file may have multiple ACL headers if it needs to preserve ACLs from multiple systems (e.g., when transferring between platforms). The primary ACL should be listed first.
+
+#### 6.3.2 POSIX ACL Format
+
+Traditional POSIX.1e ACLs (Linux, FreeBSD, etc.)
+
+```c
+typedef struct _ZOO64_POSIX_ACL_ENTRY {
+  UINT16  Tag;                // ACL_USER_OBJ, ACL_USER, ACL_GROUP_OBJ, etc.
+  UINT16  Permissions;        // rwx bits (3 bits: read=4, write=2, execute=1)
+  UINT32  ID;                 // User/group ID (or -1 for _OBJ entries)
+} __attribute__((packed)) ZOO64_POSIX_ACL_ENTRY;
+```
+
+POSIX ACL tags:
+```
+0x0001: ACL_USER_OBJ        // Owner permissions
+0x0002: ACL_USER            // Named user
+0x0004: ACL_GROUP_OBJ       // Owning group permissions
+0x0008: ACL_GROUP           // Named group
+0x0010: ACL_MASK            // Maximum permissions
+0x0020: ACL_OTHER           // Other permissions
+```
+
+#### 6.3.3 NFS4 ACL Format
+
+NFSv4 ACLs (RFC 7530) - used on Solaris, FreeBSD, NFSv4 exports
+
+```c
+typedef struct _ZOO64_NFS4_ACL_ENTRY {
+  UINT32  Type;               // ALLOW, DENY, AUDIT, ALARM
+  UINT32  Flags;              // Inheritance and other flags
+  UINT32  AccessMask;         // Permission bits
+  UINT16  WhoType;            // OWNER@, GROUP@, EVERYONE@, or named
+  UINT16  WhoLength;          // Length of who string (0 for special)
+  // Followed by:
+  //   [WhoLength bytes: UTF-8 username/group] (if WhoType is named)
+} __attribute__((packed)) ZOO64_NFS4_ACL_ENTRY;
+```
+
+NFS4 ACE types:
+```
+0x00000000: ACCESS_ALLOWED_ACE_TYPE
+0x00000001: ACCESS_DENIED_ACE_TYPE
+0x00000002: SYSTEM_AUDIT_ACE_TYPE
+0x00000003: SYSTEM_ALARM_ACE_TYPE
+```
+
+NFS4 ACE flags:
+```
+0x00000001: FILE_INHERIT_ACE
+0x00000002: DIRECTORY_INHERIT_ACE
+0x00000004: NO_PROPAGATE_INHERIT_ACE
+0x00000008: INHERIT_ONLY_ACE
+0x00000010: SUCCESSFUL_ACCESS_ACE_FLAG
+0x00000020: FAILED_ACCESS_ACE_FLAG
+0x00000040: IDENTIFIER_GROUP
+0x00000080: INHERITED_ACE
+```
+
+NFS4 access mask:
+```
+0x00000001: READ_DATA / LIST_DIRECTORY
+0x00000002: WRITE_DATA / ADD_FILE
+0x00000004: APPEND_DATA / ADD_SUBDIRECTORY
+0x00000008: READ_NAMED_ATTRS
+0x00000010: WRITE_NAMED_ATTRS
+0x00000020: EXECUTE / TRAVERSE
+0x00000040: DELETE_CHILD
+0x00000080: READ_ATTRIBUTES
+0x00000100: WRITE_ATTRIBUTES
+0x00010000: DELETE
+0x00020000: READ_ACL
+0x00040000: WRITE_ACL
+0x00080000: WRITE_OWNER
+0x00100000: SYNCHRONIZE
+```
+
+NFS4 special identities (WhoType):
+```
+0x0001: OWNER@              // File owner
+0x0002: GROUP@              // File group
+0x0003: EVERYONE@           // All users
+0x0004: NAMED_USER          // Specific user (WhoLength > 0)
+0x0005: NAMED_GROUP         // Specific group (WhoLength > 0)
+```
+
+#### 6.3.4 NT ACL Format
+
+Windows NT ACLs with Security Identifiers (SIDs)
+
+```c
+typedef struct _ZOO64_NT_ACL_ENTRY {
+  UINT32  Type;               // ACCESS_ALLOWED, ACCESS_DENIED, AUDIT, etc.
+  UINT32  Flags;              // Inheritance flags
+  UINT32  AccessMask;         // Permission bits
+  UINT16  SIDLength;          // Length of SID
+  // Followed by:
+  //   [SIDLength bytes: binary SID structure]
+} __attribute__((packed)) ZOO64_NT_ACL_ENTRY;
+```
+
+NT ACE types:
+```
+0x00: ACCESS_ALLOWED_ACE_TYPE
+0x01: ACCESS_DENIED_ACE_TYPE
+0x02: SYSTEM_AUDIT_ACE_TYPE
+0x03: SYSTEM_ALARM_ACE_TYPE (reserved)
+0x04: ACCESS_ALLOWED_COMPOUND_ACE_TYPE (reserved)
+0x05: ACCESS_ALLOWED_OBJECT_ACE_TYPE
+0x06: ACCESS_DENIED_OBJECT_ACE_TYPE
+0x07: SYSTEM_AUDIT_OBJECT_ACE_TYPE
+0x08: SYSTEM_ALARM_OBJECT_ACE_TYPE (reserved)
+```
+
+NT ACE flags:
+```
+0x01: OBJECT_INHERIT_ACE
+0x02: CONTAINER_INHERIT_ACE
+0x04: NO_PROPAGATE_INHERIT_ACE
+0x08: INHERIT_ONLY_ACE
+0x10: INHERITED_ACE
+0x40: SUCCESSFUL_ACCESS_ACE_FLAG
+0x80: FAILED_ACCESS_ACE_FLAG
+```
+
+NT access mask (generic):
+```
+0x00000001: FILE_READ_DATA
+0x00000002: FILE_WRITE_DATA
+0x00000004: FILE_APPEND_DATA
+0x00000008: FILE_READ_EA
+0x00000010: FILE_WRITE_EA
+0x00000020: FILE_EXECUTE
+0x00000040: FILE_DELETE_CHILD
+0x00000080: FILE_READ_ATTRIBUTES
+0x00000100: FILE_WRITE_ATTRIBUTES
+0x00010000: DELETE
+0x00020000: READ_CONTROL
+0x00040000: WRITE_DAC
+0x00080000: WRITE_OWNER
+0x00100000: SYNCHRONIZE
+0x01000000: ACCESS_SYSTEM_SECURITY
+0x10000000: GENERIC_ALL
+0x20000000: GENERIC_EXECUTE
+0x40000000: GENERIC_WRITE
+0x80000000: GENERIC_READ
+```
+
+NT SID format (stored as-is):
+```c
+typedef struct _NT_SID {
+  UINT8   Revision;           // Always 1
+  UINT8   SubAuthorityCount;  // Number of sub-authorities (1-15)
+  UINT8   Authority[6];       // 48-bit authority value
+  UINT32  SubAuthority[];     // Variable number of 32-bit values
+} __attribute__((packed)) NT_SID;
+```
+
+#### 6.3.5 macOS ACL Format
+
+macOS extended ACLs (based on NFSv4 with macOS extensions)
+
+```c
+typedef struct _ZOO64_MACOS_ACL_ENTRY {
+  UINT8   UUID[16];           // User/group UUID (128-bit)
+  UINT32  Type;               // ALLOW, DENY
+  UINT32  Flags;              // Inheritance flags
+  UINT32  Permissions;        // Permission bits
+  UINT32  Reserved;           // Reserved for future use
+} __attribute__((packed)) ZOO64_MACOS_ACL_ENTRY;
+```
+
+macOS ACE types:
+```
+0x00000000: KAUTH_ACE_PERMIT
+0x00000001: KAUTH_ACE_DENY
+```
+
+macOS ACE flags:
+```
+0x00000001: KAUTH_ACE_FILE_INHERIT
+0x00000002: KAUTH_ACE_DIRECTORY_INHERIT
+0x00000004: KAUTH_ACE_LIMIT_INHERIT
+0x00000008: KAUTH_ACE_ONLY_INHERIT
+0x00000010: KAUTH_ACE_SUCCESS
+0x00000020: KAUTH_ACE_FAILURE
+0x00000040: KAUTH_ACE_INHERITED
+```
+
+macOS permissions:
+```
+0x00000001: KAUTH_VNODE_READ_DATA
+0x00000002: KAUTH_VNODE_LIST_DIRECTORY
+0x00000004: KAUTH_VNODE_WRITE_DATA
+0x00000008: KAUTH_VNODE_ADD_FILE
+0x00000010: KAUTH_VNODE_EXECUTE
+0x00000020: KAUTH_VNODE_SEARCH
+0x00000040: KAUTH_VNODE_DELETE
+0x00000080: KAUTH_VNODE_APPEND_DATA
+0x00000100: KAUTH_VNODE_ADD_SUBDIRECTORY
+0x00000200: KAUTH_VNODE_DELETE_CHILD
+0x00000400: KAUTH_VNODE_READ_ATTRIBUTES
+0x00000800: KAUTH_VNODE_WRITE_ATTRIBUTES
+0x00001000: KAUTH_VNODE_READ_EXTATTRIBUTES
+0x00002000: KAUTH_VNODE_WRITE_EXTATTRIBUTES
+0x00004000: KAUTH_VNODE_READ_SECURITY
+0x00008000: KAUTH_VNODE_WRITE_SECURITY
+0x00010000: KAUTH_VNODE_TAKE_OWNERSHIP
+0x00020000: KAUTH_VNODE_SYNCHRONIZE
+0x00040000: KAUTH_VNODE_LINKTARGET
+0x00080000: KAUTH_VNODE_CHECKIMMUTABLE
+```
+
+#### 6.3.6 Multiple ACL Storage
+
+When a file has ACLs from multiple systems (e.g., during cross-platform archival), store them as separate ACL chunks or as multiple ACL headers within a single ACL chunk:
+
+```
+[ZOO64_METADATA_CHUNK: type=0x0001 (ACL)]
+  [ZOO64_ACL_HEADER: type=NFS4]
+    [NFS4 ACL entries...]
+  [ZOO64_ACL_HEADER: type=NT]
+    [NT ACL entries...]
+```
+
+This allows perfect preservation and restoration of ACLs regardless of source platform.
 
 ### 6.4 Extended Attributes Format
 
