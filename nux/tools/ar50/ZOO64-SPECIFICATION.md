@@ -363,46 +363,53 @@ typedef struct _ZOO64_HSM_METADATA {
 - Media asset management (MAM)
 - Compliance archival with fast recall
 
-### 3.2b Path Separator Handling
+### 3.2b Path Normalization and Separator Handling
 
-Zoo64 uses a universal path representation to support any platform's path separator:
+**CRITICAL: All paths are internally normalized** before storage in Zoo64 archives.
 
-**Internal Format**:
-- Path components separated by `\0` (null byte)
-- Path terminated by `\0\0` (double null)
-- No leading or trailing separators in components
+**Normalization Process**:
+1. Unicode normalization to NFC (Canonical Composition)
+2. All path separators (`/`, `\`, `:`, etc.) converted to `\0` (null byte)
+3. Redundant separators collapsed (`//` → `/`)
+4. Dot components resolved (`.` removed, `..` resolved)
+5. Trailing separators removed (except root)
+6. Case preserved (no case folding)
+7. Whitespace preserved (no trimming)
 
-**Examples**:
+**Internal Storage Format**:
 ```
-POSIX path:     /home/user/documents/file.txt
-Internal:       home\0user\0documents\0file.txt\0\0
-
-Windows path:   C:\Users\user\Documents\file.txt
-Internal:       C:\0Users\0user\0Documents\0file.txt\0\0
-
-macOS path:     /Users/user/Documents/file.txt
-Internal:       Users\0user\0Documents\0file.txt\0\0
-
-VMS path:       DISK:[DIR.SUBDIR]FILE.TXT
-Internal:       DISK:\0[DIR.SUBDIR]\0FILE.TXT\0\0
+[component1]\0[component2]\0...[componentN]\0\0
 ```
 
-**Root indicator**:
-- POSIX: First component empty (starts with \0)
-- Windows: Drive letter with colon in first component
-- UNC: First two components form \\server\share
+**Normalization Examples**:
+```
+Input:          /home//user/./docs/../file.txt
+Normalized:     \0home\0user\0file.txt\0\0
 
-**Conversion on extraction**:
-- Split on \0, rejoin with platform separator
-- Preserve absolute vs relative nature
-- Handle special cases (drive letters, UNC paths)
+Input:          C:\Users\John\..\Public\file.txt
+Normalized:     C:\0Users\0Public\0file.txt\0\0
 
-**Benefits**:
+Input:          docs/./readme.md
+Normalized:     docs\0readme.md\0\0
+
+Input:          \\server\share\dir\file
+Normalized:     \0\0server\0share\0dir\0file\0\0
+```
+
+**Path Types**:
+- **Absolute POSIX**: First component empty → `/home/user` = `\0home\0user\0\0`
+- **Absolute Windows**: Drive letter → `C:\Users` = `C:\0Users\0\0`
+- **UNC Path**: Double empty start → `\\server\share` = `\0\0server\0share\0\0`
+- **Relative Path**: First component non-empty → `docs/file` = `docs\0file\0\0`
+
+**Benefits of Normalization**:
+- Consistent representation across all platforms
+- Duplicate path detection (binary comparison)
+- Security (path traversal prevention via `..` resolution)
+- Better compression (eliminates separator variance)
 - Platform-agnostic archive format
-- Preserves original path structure
-- Supports any path separator (/, \, :, etc.)
-- No escaping needed
-- Efficient binary storage
+
+**See Section 5.3** for complete normalization rules and examples.
 
 ## 3.3 Volume Header
 
@@ -601,29 +608,108 @@ Bit 25-31: Platform-specific
 
 Immediately follows file header. Length specified in `PathLength` field.
 
-**Path Format**:
-- Path components separated by `\0` (null byte)
+**IMPORTANT: Paths are internally normalized** before storage in the archive.
+
+**Path Normalization Rules**:
+
+1. **Unicode Normalization**: All paths converted to NFC (Canonical Composition)
+   - Ensures consistent comparison across systems
+   - Example: é (U+00E9) vs e+´ (U+0065 U+0301) → both become U+00E9
+
+2. **Separator Normalization**: All path separators converted to `\0` (null byte)
+   - `/` (POSIX) → `\0`
+   - `\` (Windows) → `\0`
+   - `:` (Classic Mac) → `\0`
+   - Any platform separator → `\0`
+
+3. **Redundant Separator Removal**: Multiple consecutive separators collapsed
+   - `dir//file` → `dir\0file\0\0`
+   - `\\server\\share` → `\0\0server\0share\0\0` (UNC preserved)
+
+4. **Dot Component Resolution**:
+   - `.` (current directory) removed from path
+   - `..` (parent directory) resolved during archiving
+   - Example: `dir/./subdir/../file` → `dir\0file\0\0`
+   - **Exception**: Leading `..` in relative paths preserved
+
+5. **Trailing Separator Removal**:
+   - `dir/subdir/` → `dir\0subdir\0\0`
+   - Except for root paths
+
+6. **Case Preservation**:
+   - Original case **always preserved** in archive
+   - Case sensitivity flag stored in metadata
+   - No case folding during normalization
+
+7. **Whitespace Normalization**:
+   - Leading/trailing whitespace in path components **preserved**
+   - Internal whitespace **preserved**
+   - No trimming applied
+
+**Internal Format**:
+```
+[component1]\0[component2]\0...[componentN]\0\0
+```
+
+- Each component is UTF-8 encoded
+- Components separated by `\0` (null byte)
 - Path terminated by `\0\0` (double null)
-- UTF-8 encoding
-- Platform-agnostic (supports any original separator)
+- No separators within components
+- Empty first component indicates absolute path
 
-**Examples**:
+**Normalization Examples**:
+
 ```
-POSIX:   /home/user/file.txt  →  \0home\0user\0file.txt\0\0
-Windows: C:\Users\file.txt    →  C:\0Users\0file.txt\0\0
-Relative: docs/readme.md      →  docs\0readme.md\0\0
+Input:     /home//user/./docs/../file.txt
+Normalized: \0home\0user\0file.txt\0\0
+
+Input:     C:\Users\John\..\Public\file.txt
+Normalized: C:\0Users\0Public\0file.txt\0\0
+
+Input:     docs/./readme.md
+Normalized: docs\0readme.md\0\0
+
+Input:     ../../config/app.conf
+Normalized: ..\0..\0config\0app.conf\0\0
 ```
 
-**Path Components**:
-- No leading/trailing separators in components
-- Root indicated by empty first component (starts with \0)
-- Drive letters preserved (Windows: C:\, D:\, etc.)
-- UNC paths: First two components form \\server\share
+**Path Component Structure**:
+- **Absolute POSIX**: First component empty (starts with `\0`)
+  - `/home/user` → `\0home\0user\0\0`
+
+- **Absolute Windows**: Drive letter with colon in first component
+  - `C:\Users` → `C:\0Users\0\0`
+
+- **UNC Path**: First two components form `\\server\share`
+  - `\\server\share\dir` → `\0\0server\0share\0dir\0\0`
+
+- **Relative Path**: First component non-empty
+  - `docs/file` → `docs\0file\0\0`
 
 **Length Calculation**:
-PathLength includes all bytes from first character to final \0\0 terminator.
+PathLength includes all bytes from first byte to final `\0` of the `\0\0` terminator.
 
-**Historical Note**: Earlier documentation mentioned forward slash separators. This has been superseded by null-byte separation for true platform independence.
+Example:
+```
+Path: "docs\0readme.md\0\0"
+Bytes: 'd' 'o' 'c' 's' '\0' 'r' 'e' 'a' 'd' 'm' 'e' '.' 'm' 'd' '\0' '\0'
+Length: 16 bytes
+```
+
+**Denormalization on Extraction**:
+When extracting, paths are denormalized to target platform format:
+- Split on `\0` to get components
+- Rejoin with platform separator (`/` on POSIX, `\` on Windows)
+- Preserve absolute/relative nature
+- Handle special cases (drive letters, UNC paths)
+
+**Benefits of Normalization**:
+- **Consistency**: Same logical path has same representation
+- **Deduplication**: Duplicate paths detected reliably
+- **Comparison**: Binary comparison of normalized paths
+- **Platform-agnostic**: Archive format independent of source OS
+- **Security**: Prevents path traversal attacks (.. resolved)
+- **Compression**: Better compression ratio (no separator variance)
 
 ## 6. Metadata Block Format
 
