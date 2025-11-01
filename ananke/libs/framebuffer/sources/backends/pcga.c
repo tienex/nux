@@ -35,30 +35,68 @@
 #include <ananke/intrinsics.h>
 
 /* --------------------------------------------------------------- */
-/*  VGA I/O Ports                                                   */
+/*  VGA I/O Ports and Registers                                     */
 /* --------------------------------------------------------------- */
 
+/* VGA I/O Port Addresses */
 #define VGA_SEQ_INDEX       0x3C4     /* Sequencer Index */
 #define VGA_SEQ_DATA        0x3C5     /* Sequencer Data */
 #define VGA_GC_INDEX        0x3CE     /* Graphics Controller Index */
 #define VGA_GC_DATA         0x3CF     /* Graphics Controller Data */
-#define VGA_DAC_WRITE       0x3C8     /* DAC Write Index */
+#define VGA_CRTC_INDEX      0x3D4     /* CRTC Index (color modes) */
+#define VGA_CRTC_DATA       0x3D5     /* CRTC Data (color modes) */
+#define VGA_ATTR_INDEX      0x3C0     /* Attribute Controller Index */
+#define VGA_ATTR_DATA_W     0x3C0     /* Attribute Controller Data Write */
+#define VGA_ATTR_DATA_R     0x3C1     /* Attribute Controller Data Read */
+#define VGA_MISC_WRITE      0x3C2     /* Miscellaneous Output Write */
+#define VGA_MISC_READ       0x3CC     /* Miscellaneous Output Read */
+#define VGA_DAC_READ_INDEX  0x3C7     /* DAC Read Index */
+#define VGA_DAC_WRITE_INDEX 0x3C8     /* DAC Write Index */
 #define VGA_DAC_DATA        0x3C9     /* DAC Data */
-#define VGA_INPUT_STATUS    0x3DA     /* Input Status Register */
+#define VGA_INPUT_STATUS_0  0x3C2     /* Input Status Register 0 */
+#define VGA_INPUT_STATUS_1  0x3DA     /* Input Status Register 1 */
 
-/* Sequencer Registers */
-#define VGA_SEQ_MAP_MASK    0x02      /* Map Mask Register */
+/* Sequencer Register Indices */
+#define VGA_SEQ_RESET           0x00  /* Reset */
+#define VGA_SEQ_CLOCKING_MODE   0x01  /* Clocking Mode */
+#define VGA_SEQ_MAP_MASK        0x02  /* Map Mask (Plane Write Enable) */
+#define VGA_SEQ_CHAR_MAP        0x03  /* Character Map Select */
+#define VGA_SEQ_MEMORY_MODE     0x04  /* Memory Mode */
 
-/* Graphics Controller Registers */
-#define VGA_GC_READ_MAP     0x04      /* Read Map Select */
-#define VGA_GC_MODE         0x05      /* Mode Register */
-#define VGA_GC_BIT_MASK     0x08      /* Bit Mask */
+/* Graphics Controller Register Indices */
+#define VGA_GC_SET_RESET        0x00  /* Set/Reset */
+#define VGA_GC_ENABLE_SET_RESET 0x01  /* Enable Set/Reset */
+#define VGA_GC_COLOR_COMPARE    0x02  /* Color Compare */
+#define VGA_GC_DATA_ROTATE      0x03  /* Data Rotate */
+#define VGA_GC_READ_MAP_SELECT  0x04  /* Read Map Select */
+#define VGA_GC_GRAPHICS_MODE    0x05  /* Graphics Mode */
+#define VGA_GC_MISCELLANEOUS    0x06  /* Miscellaneous */
+#define VGA_GC_COLOR_DONT_CARE  0x07  /* Color Don't Care */
+#define VGA_GC_BIT_MASK         0x08  /* Bit Mask */
+
+/* VGA Write Modes (bits 0-1 of Graphics Mode register) */
+#define VGA_WRITE_MODE_0        0x00  /* Normal write */
+#define VGA_WRITE_MODE_1        0x01  /* Latch copy (fastest) */
+#define VGA_WRITE_MODE_2        0x02  /* Fill with color */
+#define VGA_WRITE_MODE_3        0x03  /* Set/reset with bitmask */
+
+/* VGA Read Mode (bit 3 of Graphics Mode register) */
+#define VGA_READ_MODE_0         0x00  /* Read from selected plane */
+#define VGA_READ_MODE_1         0x08  /* Color compare */
+
+/* Attribute Controller Register Indices */
+#define VGA_ATTR_PALETTE_0      0x00  /* Palette registers 0-15 */
+#define VGA_ATTR_MODE_CONTROL   0x10  /* Mode Control */
+#define VGA_ATTR_OVERSCAN       0x11  /* Overscan Color (Border) */
+#define VGA_ATTR_COLOR_PLANE_EN 0x12  /* Color Plane Enable */
+#define VGA_ATTR_HORIZ_PEL_PAN  0x13  /* Horizontal Pel Panning */
+#define VGA_ATTR_COLOR_SELECT   0x14  /* Color Select */
 
 /* --------------------------------------------------------------- */
 /*  PC Graphics Backend Structure                                   */
 /* --------------------------------------------------------------- */
 
-typedef struct _PC_GRAPHICS_BACKEND {
+typedef struct _PCGA_BACKEND {
     IFramebufferBackend         Base;
     REFOBJ                      RefCount;
     FRAMEBUFFER_DESC            Descriptor;
@@ -67,21 +105,258 @@ typedef struct _PC_GRAPHICS_BACKEND {
 
     /* Framebuffer access */
     UINT8                       *FramebufferBase;
+    BOOLEAN                     IsAddressable;      /* Can use direct pointer */
 
-    /* Hardware state */
-    UINT8                       CurrentMapMask;     /* For planar modes */
-    UINT8                       CurrentReadMap;     /* For planar modes */
-    UINT32                      CurrentBank;        /* For banked modes */
+    /* VGA Register State (for planar modes with latching) */
+    UINT8                       CurrentWriteMode;   /* Current write mode (0-3) */
+    UINT8                       CurrentReadMode;    /* Current read mode (0-1) */
+    UINT8                       CurrentMapMask;     /* Plane write mask */
+    UINT8                       CurrentReadMap;     /* Read plane select */
+    UINT8                       CurrentSetReset;    /* Set/Reset value */
+    UINT8                       CurrentEnableSetReset; /* Enable Set/Reset */
+    UINT8                       CurrentBitMask;     /* Bit Mask register */
+    UINT8                       CurrentDataRotate;  /* Data Rotate/Function Select */
 
-    /* Bank switching function (for VESA banked modes) */
+    /* Bank switching (for VESA banked modes) */
+    UINT32                      CurrentBank;
     VOID (*BankSwitchFunc)(UINT32 BankNumber);
 
-    /* Runtime RtlCopyMemory support (if available) */
+    /* Runtime optimizations */
     VOID (*RtlCopyMemoryFunc)(VOID *Dest, CONST VOID *Src, SIZE_T Size);
 
     /* Palette (for indexed modes) */
     FB_PALETTE_ENTRY            Palette[256];
-} PC_GRAPHICS_BACKEND;
+    UINT8                       BorderColor;        /* VGA overscan/border color */
+
+    /* Font data (for text modes) */
+    UINT8                       *FontData;          /* Custom font or NULL for ROM */
+    UINT32                      FontHeight;         /* Character height in pixels */
+    UINT32                      FontBank;           /* VGA font bank (0 or 1) */
+
+    /* Cursor (for hardware cursor support) */
+    BOOLEAN                     CursorVisible;
+    INT32                       CursorX;
+    INT32                       CursorY;
+    UINT32                      CursorStart;        /* Cursor start scanline */
+    UINT32                      CursorEnd;          /* Cursor end scanline */
+} PCGA_BACKEND;
+
+/* --------------------------------------------------------------- */
+/*  VGA Register Manipulation (with state caching)                 */
+/* --------------------------------------------------------------- */
+
+static INLINE VOID
+Pcga_WriteSeq(
+    UINT8 Index,
+    UINT8 Value
+    )
+{
+    ANX_CPU_OUTB(VGA_SEQ_INDEX, Index);
+    ANX_CPU_OUTB(VGA_SEQ_DATA, Value);
+}
+
+static INLINE UINT8
+Pcga_ReadSeq(
+    UINT8 Index
+    )
+{
+    ANX_CPU_OUTB(VGA_SEQ_INDEX, Index);
+    return ANX_CPU_INB(VGA_SEQ_DATA);
+}
+
+static INLINE VOID
+Pcga_WriteGc(
+    UINT8 Index,
+    UINT8 Value
+    )
+{
+    ANX_CPU_OUTB(VGA_GC_INDEX, Index);
+    ANX_CPU_OUTB(VGA_GC_DATA, Value);
+}
+
+static INLINE UINT8
+Pcga_ReadGc(
+    UINT8 Index
+    )
+{
+    ANX_CPU_OUTB(VGA_GC_INDEX, Index);
+    return ANX_CPU_INB(VGA_GC_DATA);
+}
+
+/* Set VGA write mode (0-3) with state caching */
+static INLINE VOID
+Pcga_SetWriteMode(
+    PCGA_BACKEND *Backend,
+    UINT8 WriteMode
+    )
+{
+    if (Backend->CurrentWriteMode != WriteMode) {
+        UINT8 Mode = Pcga_ReadGc(VGA_GC_GRAPHICS_MODE);
+        Mode = (Mode & ~0x03) | (WriteMode & 0x03);
+        Pcga_WriteGc(VGA_GC_GRAPHICS_MODE, Mode);
+        Backend->CurrentWriteMode = WriteMode;
+    }
+}
+
+/* Set plane write mask (Map Mask) */
+static INLINE VOID
+Pcga_SetMapMask(
+    PCGA_BACKEND *Backend,
+    UINT8 Mask
+    )
+{
+    if (Backend->CurrentMapMask != Mask) {
+        Pcga_WriteSeq(VGA_SEQ_MAP_MASK, Mask);
+        Backend->CurrentMapMask = Mask;
+    }
+}
+
+/* Set read plane select */
+static INLINE VOID
+Pcga_SetReadMap(
+    PCGA_BACKEND *Backend,
+    UINT8 Plane
+    )
+{
+    if (Backend->CurrentReadMap != Plane) {
+        Pcga_WriteGc(VGA_GC_READ_MAP_SELECT, Plane & 0x03);
+        Backend->CurrentReadMap = Plane;
+    }
+}
+
+/* Set Set/Reset registers for fast planar fill */
+static INLINE VOID
+Pcga_SetSetReset(
+    PCGA_BACKEND *Backend,
+    UINT8 Color,
+    UINT8 EnableMask
+    )
+{
+    if (Backend->CurrentSetReset != Color) {
+        Pcga_WriteGc(VGA_GC_SET_RESET, Color);
+        Backend->CurrentSetReset = Color;
+    }
+    if (Backend->CurrentEnableSetReset != EnableMask) {
+        Pcga_WriteGc(VGA_GC_ENABLE_SET_RESET, EnableMask);
+        Backend->CurrentEnableSetReset = EnableMask;
+    }
+}
+
+/* Set Bit Mask register */
+static INLINE VOID
+Pcga_SetBitMask(
+    PCGA_BACKEND *Backend,
+    UINT8 Mask
+    )
+{
+    if (Backend->CurrentBitMask != Mask) {
+        Pcga_WriteGc(VGA_GC_BIT_MASK, Mask);
+        Backend->CurrentBitMask = Mask;
+    }
+}
+
+/* Set Data Rotate and hardware ROP function */
+static INLINE VOID
+Pcga_SetDataRotate(
+    PCGA_BACKEND *Backend,
+    UINT8 RotateCount,
+    UINT8 Function  /* 0=unmodified, 1=AND, 2=OR, 3=XOR */
+    )
+{
+    UINT8 Value = (Function << 3) | (RotateCount & 0x07);
+    if (Backend->CurrentDataRotate != Value) {
+        Pcga_WriteGc(VGA_GC_DATA_ROTATE, Value);
+        Backend->CurrentDataRotate = Value;
+    }
+}
+
+/* --------------------------------------------------------------- */
+/*  VGA Latching Operations (Fast Planar Graphics)                 */
+/* --------------------------------------------------------------- */
+
+/*
+ * Fast planar fill using Write Mode 0 with Set/Reset enabled.
+ * This fills all planes simultaneously with the specified color.
+ */
+static VOID
+Pcga_FillPlanar(
+    PCGA_BACKEND *Backend,
+    UINT32 Offset,
+    UINT32 Count,
+    UINT8 Color
+    )
+{
+    /* Set write mode 0 with set/reset enabled for all planes */
+    Pcga_SetWriteMode(Backend, VGA_WRITE_MODE_0);
+    Pcga_SetMapMask(Backend, 0x0F);         /* Write all planes */
+    Pcga_SetSetReset(Backend, Color, 0x0F); /* Set/Reset for all planes */
+    Pcga_SetBitMask(Backend, 0xFF);         /* All bits */
+    Pcga_SetDataRotate(Backend, 0, 0);      /* No rotation, unmodified */
+
+    /* Write to framebuffer - VGA hardware uses Set/Reset value */
+    volatile UINT8 *Dest = Backend->FramebufferBase + Offset;
+    for (UINT32 i = 0; i < Count; i++) {
+        /* Read to load latches, then write (hardware uses Set/Reset value) */
+        volatile UINT8 Dummy = Dest[i];
+        (VOID)Dummy;
+        Dest[i] = 0; /* Value doesn't matter, Set/Reset is used */
+    }
+}
+
+/*
+ * Fast planar copy using Write Mode 1 (latch copy).
+ * This is the fastest way to copy planar memory - one read, one write per byte.
+ */
+static VOID
+Pcga_CopyPlanar(
+    PCGA_BACKEND *Backend,
+    UINT32 DestOffset,
+    UINT32 SrcOffset,
+    UINT32 Count
+    )
+{
+    /* Set write mode 1 (latch copy) */
+    Pcga_SetWriteMode(Backend, VGA_WRITE_MODE_1);
+    Pcga_SetMapMask(Backend, 0x0F);     /* Write all planes */
+    Pcga_SetBitMask(Backend, 0xFF);     /* All bits */
+
+    volatile UINT8 *Src = Backend->FramebufferBase + SrcOffset;
+    volatile UINT8 *Dest = Backend->FramebufferBase + DestOffset;
+
+    /* Read loads all 4 planes into latches, write copies latches */
+    for (UINT32 i = 0; i < Count; i++) {
+        volatile UINT8 LatchData = Src[i];  /* Load latches from all 4 planes */
+        (VOID)LatchData;
+        Dest[i] = 0;  /* Value doesn't matter, latches are copied */
+    }
+}
+
+/*
+ * Fast planar line fill with hardware ROP.
+ * Uses Write Mode 0 with optional AND/OR/XOR operation.
+ */
+static VOID
+Pcga_FillPlanarWithRop(
+    PCGA_BACKEND *Backend,
+    UINT32 Offset,
+    UINT32 Count,
+    UINT8 Color,
+    UINT8 RopFunction  /* 0=replace, 1=AND, 2=OR, 3=XOR */
+    )
+{
+    Pcga_SetWriteMode(Backend, VGA_WRITE_MODE_0);
+    Pcga_SetMapMask(Backend, 0x0F);
+    Pcga_SetSetReset(Backend, Color, 0x0F);
+    Pcga_SetBitMask(Backend, 0xFF);
+    Pcga_SetDataRotate(Backend, 0, RopFunction);  /* Hardware ROP */
+
+    volatile UINT8 *Dest = Backend->FramebufferBase + Offset;
+    for (UINT32 i = 0; i < Count; i++) {
+        volatile UINT8 Dummy = Dest[i];  /* Load latches */
+        (VOID)Dummy;
+        Dest[i] = 0;  /* Hardware applies ROP with Set/Reset value */
+    }
+}
 
 /* Forward declarations */
 static HRESULT STDMETHODCALLTYPE PcGraphics_QueryInterface(
