@@ -78,6 +78,25 @@
 ** --------------------------------------------------------------------------
 */
 
+/* Control flow stack for nested structures */
+#define MAX_CONTROL_FLOW_DEPTH 32
+
+typedef enum {
+	CONTROL_FLOW_IF,
+	CONTROL_FLOW_LOOP,
+	CONTROL_FLOW_REP
+} ControlFlowType;
+
+typedef struct {
+	ControlFlowType type;
+	struct sljit_label *startLabel;		/* Loop start or if condition */
+	struct sljit_label *endLabel;		/* Loop end or endif */
+	struct sljit_label *elseLabel;		/* Else branch for IF */
+	struct sljit_jump *condJump;		/* Conditional jump */
+	struct sljit_jump *breakJumps[16];	/* Pending break jumps */
+	GLint numBreaks;					/* Number of pending breaks */
+} ControlFlowFrame;
+
 typedef struct JitContext {
 	struct sljit_compiler *compiler;
 	Linker *linker;
@@ -89,6 +108,10 @@ typedef struct JitContext {
 
 	/* Shader type */
 	GLboolean isFragmentShader;		/* TRUE for fragment, FALSE for vertex */
+
+	/* Control flow stack */
+	ControlFlowFrame controlStack[MAX_CONTROL_FLOW_DEPTH];
+	GLint controlDepth;
 } JitContext;
 
 /*
@@ -111,6 +134,7 @@ static GLboolean InitJitContext(JitContext *ctx, Linker *linker, GLboolean isFra
 	ctx->program = NULL;
 	ctx->nextTempReg = SLJIT_R2;  /* Start after REG_TEMP1 and REG_TEMP2 */
 	ctx->isFragmentShader = isFragmentShader;
+	ctx->controlDepth = 0;
 
 	return GL_TRUE;
 }
@@ -1683,19 +1707,248 @@ static GLboolean TranslateInstruction(JitContext *ctx, Inst *inst) {
 			break;
 		}
 
-		/* Control flow and other complex operations - fall back to interpreter */
+		case OpcodeIF: {
+			/* IF: Begin conditional block - test condition register
+			 * If condition.x == 0, skip to ELSE or ENDIF
+			 */
+			InstCond *cond = &inst->cond;
+
+			if (ctx->controlDepth >= MAX_CONTROL_FLOW_DEPTH) {
+				return GL_FALSE;
+			}
+
+			/* Load condition (typically from a comparison result) */
+			if (!LoadComponent(ctx, SLJIT_FR0, &cond->arg, 0, ctx->isFragmentShader)) {
+				return GL_FALSE;
+			}
+
+			/* Compare with 0.0 (false) */
+			sljit_emit_fop1(C, SLJIT_MOV_F32, SLJIT_FR1, 0, SLJIT_IMM, 0);
+			sljit_emit_fop1(C, SLJIT_CMP_F32 | SLJIT_SET_EQUAL_F, SLJIT_FR0, 0, SLJIT_FR1, 0);
+
+			/* Jump to else/endif if condition is false (== 0) */
+			struct sljit_jump *jumpToElse = sljit_emit_jump(C, SLJIT_EQUAL_F);
+
+			/* Push control flow frame */
+			ControlFlowFrame *frame = &ctx->controlStack[ctx->controlDepth++];
+			frame->type = CONTROL_FLOW_IF;
+			frame->condJump = jumpToElse;
+			frame->elseLabel = NULL;
+			frame->endLabel = NULL;
+			frame->numBreaks = 0;
+
+			break;
+		}
+
+		case OpcodeELSE: {
+			/* ELSE: Else branch of conditional */
+			if (ctx->controlDepth == 0) {
+				return GL_FALSE;
+			}
+
+			ControlFlowFrame *frame = &ctx->controlStack[ctx->controlDepth - 1];
+			if (frame->type != CONTROL_FLOW_IF) {
+				return GL_FALSE;
+			}
+
+			/* Jump from end of IF block to ENDIF */
+			struct sljit_jump *jumpToEnd = sljit_emit_jump(C, SLJIT_JUMP);
+
+			/* Set ELSE label (target of IF's conditional jump) */
+			frame->elseLabel = sljit_emit_label(C);
+			sljit_set_label(frame->condJump, frame->elseLabel);
+
+			/* Store jump to endif for later */
+			frame->condJump = jumpToEnd;
+
+			break;
+		}
+
+		case OpcodeENDIF: {
+			/* ENDIF: End conditional block */
+			if (ctx->controlDepth == 0) {
+				return GL_FALSE;
+			}
+
+			ControlFlowFrame *frame = &ctx->controlStack[--ctx->controlDepth];
+			if (frame->type != CONTROL_FLOW_IF) {
+				return GL_FALSE;
+			}
+
+			/* Set ENDIF label */
+			frame->endLabel = sljit_emit_label(C);
+
+			/* Point conditional jump or else-to-end jump here */
+			sljit_set_label(frame->condJump, frame->endLabel);
+
+			break;
+		}
+
+		case OpcodeLOOP: {
+			/* LOOP: Begin loop block */
+			if (ctx->controlDepth >= MAX_CONTROL_FLOW_DEPTH) {
+				return GL_FALSE;
+			}
+
+			/* Create loop start label */
+			struct sljit_label *loopStart = sljit_emit_label(C);
+
+			/* Push control flow frame */
+			ControlFlowFrame *frame = &ctx->controlStack[ctx->controlDepth++];
+			frame->type = CONTROL_FLOW_LOOP;
+			frame->startLabel = loopStart;
+			frame->endLabel = NULL;
+			frame->numBreaks = 0;
+
+			break;
+		}
+
+		case OpcodeENDLOOP: {
+			/* ENDLOOP: End loop block - jump back to start */
+			if (ctx->controlDepth == 0) {
+				return GL_FALSE;
+			}
+
+			ControlFlowFrame *frame = &ctx->controlStack[--ctx->controlDepth];
+			if (frame->type != CONTROL_FLOW_LOOP) {
+				return GL_FALSE;
+			}
+
+			/* Jump back to loop start */
+			struct sljit_jump *jumpToStart = sljit_emit_jump(C, SLJIT_JUMP);
+			sljit_set_label(jumpToStart, frame->startLabel);
+
+			/* Set end label for breaks */
+			frame->endLabel = sljit_emit_label(C);
+
+			/* Fix up all break jumps to point here */
+			for (GLint i = 0; i < frame->numBreaks; i++) {
+				sljit_set_label(frame->breakJumps[i], frame->endLabel);
+			}
+
+			break;
+		}
+
+		case OpcodeREP: {
+			/* REP: Begin repeat block (repeat N times) */
+			InstRep *rep = &inst->rep;
+
+			if (ctx->controlDepth >= MAX_CONTROL_FLOW_DEPTH) {
+				return GL_FALSE;
+			}
+
+			/* Load repeat count into integer register */
+			if (!LoadComponent(ctx, SLJIT_FR0, &rep->arg, 0, ctx->isFragmentShader)) {
+				return GL_FALSE;
+			}
+
+			/* Convert to integer */
+			sljit_emit_fop1(C, SLJIT_CONV_S32_FROM_F32, REG_TEMP1, 0, SLJIT_FR0, 0);
+
+			/* Create loop start label */
+			struct sljit_label *repStart = sljit_emit_label(C);
+
+			/* Push control flow frame */
+			ControlFlowFrame *frame = &ctx->controlStack[ctx->controlDepth++];
+			frame->type = CONTROL_FLOW_REP;
+			frame->startLabel = repStart;
+			frame->endLabel = NULL;
+			frame->numBreaks = 0;
+
+			break;
+		}
+
+		case OpcodeENDREP: {
+			/* ENDREP: End repeat block - decrement and loop */
+			if (ctx->controlDepth == 0) {
+				return GL_FALSE;
+			}
+
+			ControlFlowFrame *frame = &ctx->controlStack[--ctx->controlDepth];
+			if (frame->type != CONTROL_FLOW_REP) {
+				return GL_FALSE;
+			}
+
+			/* Decrement counter */
+			sljit_emit_op2(C, SLJIT_SUB, REG_TEMP1, 0, REG_TEMP1, 0, SLJIT_IMM, 1);
+
+			/* Check if counter > 0 */
+			sljit_emit_op2(C, SLJIT_SUB | SLJIT_SET_GREATER, SLJIT_UNUSED, 0, REG_TEMP1, 0, SLJIT_IMM, 0);
+
+			/* Jump back if counter > 0 */
+			struct sljit_jump *jumpToStart = sljit_emit_jump(C, SLJIT_GREATER);
+			sljit_set_label(jumpToStart, frame->startLabel);
+
+			/* Set end label for breaks */
+			frame->endLabel = sljit_emit_label(C);
+
+			/* Fix up all break jumps to point here */
+			for (GLint i = 0; i < frame->numBreaks; i++) {
+				sljit_set_label(frame->breakJumps[i], frame->endLabel);
+			}
+
+			break;
+		}
+
+		case OpcodeBRK: {
+			/* BRK: Break out of loop */
+			if (ctx->controlDepth == 0) {
+				return GL_FALSE;
+			}
+
+			/* Find enclosing loop/rep */
+			ControlFlowFrame *frame = NULL;
+			for (GLint i = ctx->controlDepth - 1; i >= 0; i--) {
+				if (ctx->controlStack[i].type == CONTROL_FLOW_LOOP ||
+					ctx->controlStack[i].type == CONTROL_FLOW_REP) {
+					frame = &ctx->controlStack[i];
+					break;
+				}
+			}
+
+			if (!frame || frame->numBreaks >= 16) {
+				return GL_FALSE;
+			}
+
+			/* Create jump to end of loop (will be fixed up at ENDLOOP/ENDREP) */
+			frame->breakJumps[frame->numBreaks++] = sljit_emit_jump(C, SLJIT_JUMP);
+
+			break;
+		}
+
+		case OpcodeBRA: {
+			/* BRA: Conditional branch - not commonly used, treat as NOP for now */
+			break;
+		}
+
+		case OpcodeKIL: {
+			/* KIL: Kill fragment (discard) - return false to discard fragment */
+			InstCond *cond = &inst->cond;
+
+			/* Load condition */
+			if (!LoadComponent(ctx, SLJIT_FR0, &cond->arg, 0, ctx->isFragmentShader)) {
+				return GL_FALSE;
+			}
+
+			/* Compare with 0.0 */
+			sljit_emit_fop1(C, SLJIT_MOV_F32, SLJIT_FR1, 0, SLJIT_IMM, 0);
+			sljit_emit_fop1(C, SLJIT_CMP_F32 | SLJIT_SET_LESS_F, SLJIT_FR0, 0, SLJIT_FR1, 0);
+
+			/* If any component < 0, discard by returning FALSE */
+			struct sljit_jump *jump = sljit_emit_jump(C, SLJIT_LESS_F);
+
+			/* Return GL_FALSE to discard fragment */
+			sljit_emit_return(C, SLJIT_MOV, SLJIT_IMM, GL_FALSE);
+
+			sljit_set_label(jump, sljit_emit_label(C));
+
+			break;
+		}
+
+		/* Subroutine calls - fall back to interpreter for now */
 		case OpcodeCAL:
 		case OpcodeRET:
-		case OpcodeBRK:
-		case OpcodeIF:
-		case OpcodeELSE:
-		case OpcodeENDIF:
-		case OpcodeLOOP:
-		case OpcodeENDLOOP:
-		case OpcodeREP:
-		case OpcodeENDREP:
-		case OpcodeBRA:
-		case OpcodeKIL:
+		/* Complex control flow - fall back to interpreter */
 		case OpcodeSCC:
 		case OpcodePHI:
 			return GL_FALSE;
