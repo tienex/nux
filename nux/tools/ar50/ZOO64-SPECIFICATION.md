@@ -722,6 +722,10 @@ typedef struct _ZOO64_METADATA_CHUNK {
 0x0044: File type detection metadata (text/binary/MIME)
 0x0045: Sparse file metadata (hole map)
 0x0046: Delta revision metadata (base + delta)
+0x0047: UDF (Universal Disk Format) metadata
+0x0048: ISO 9660 metadata (with Rock Ridge/Joliet/El Torito)
+0x0049: High Sierra metadata
+0x004A: Block deduplication metadata (chunk hashes)
 ```
 
 ### 6.3 Universal ACL Format
@@ -4815,6 +4819,358 @@ When extracting Version 2:
 Total storage: 100 KB (V1 full) + 5 KB (V2 delta) = 105 KB
 Without delta: 100 KB + 102 KB = 202 KB
 Space savings: 48%
+
+### 6.67 UDF (Universal Disk Format) Metadata (0x0047)
+
+Preserves UDF filesystem metadata for optical media (CD/DVD/BD) and flash media.
+
+```c
+typedef struct _ZOO64_UDF_ATTR {
+  UINT16  UDFRevision;        // UDF revision (0x0102, 0x0150, 0x0200, 0x0201, 0x0250, 0x0260)
+  UINT16  MinReadRevision;    // Minimum UDF revision for reading
+  UINT16  MinWriteRevision;   // Minimum UDF revision for writing
+  UINT16  MaxWriteRevision;   // Maximum UDF revision for writing
+  UINT64  UniqueID;           // Unique ID (48-bit)
+  UINT32  Flags;              // UDF-specific flags
+  UINT32  FileType;           // UDF file type
+  UINT32  PartitionNumber;    // Partition number
+  UINT64  LogicalBlockNumber; // Logical block number
+  UINT32  ExtendedAttrLength; // Length of extended attributes
+  UINT32  StreamDirCount;     // Number of stream directories
+  // Followed by:
+  //   [ExtendedAttrLength bytes: UDF extended attributes]
+  //   [StreamDirCount * variable: stream directory entries]
+} __attribute__((packed)) ZOO64_UDF_ATTR;
+```
+
+**UDF Revisions**:
+```
+0x0102: UDF 1.02  // DVD-Video
+0x0150: UDF 1.50  // DVD-RAM, DVD±R/RW
+0x0200: UDF 2.00  // DVD+RW, BDAV
+0x0201: UDF 2.01  // Blu-ray
+0x0250: UDF 2.50  // Blu-ray additions
+0x0260: UDF 2.60  // Latest (BD-R, flash media)
+```
+
+**UDF Flags**:
+```
+0x00000001: HARD_WRITE_PROTECT     // Hardware write-protected
+0x00000002: SOFT_WRITE_PROTECT     // Software write-protected
+0x00000004: REWRITABLE             // Rewritable media
+0x00000008: OVERWRITABLE           // Overwritable once written
+0x00000010: NAMED_STREAMS          // Supports named streams
+0x00000020: METADATA_PARTITION     // Metadata partition present
+0x00000040: SPARED_PARTITION       // Sparing table present
+0x00000080: VAT_PRESENT            // Virtual allocation table
+```
+
+**UDF File Types**:
+```
+0: UNSPECIFIED
+1: UNALLOCATED_SPACE_ENTRY
+2: PARTITION_INTEGRITY_ENTRY
+3: INDIRECT_ENTRY
+4: DIRECTORY
+5: REGULAR_FILE
+6: BLOCK_SPECIAL
+7: CHAR_SPECIAL
+8: EXTENDED_ATTR_FILE
+9: FIFO
+10: SOCKET
+11: TERMINAL_ENTRY
+12: SYMBOLIC_LINK
+13: STREAM_DIRECTORY
+```
+
+**Use Cases**: DVD-Video, Blu-ray discs, BD-R/BD-RE, flash drives with UDF
+
+### 6.68 ISO 9660 Metadata (0x0048)
+
+ISO 9660 with extensions (Rock Ridge, Joliet, El Torito) for CD-ROM/DVD.
+
+```c
+typedef struct _ZOO64_ISO9660_ATTR {
+  UINT32  Flags;              // ISO 9660 flags
+  UINT32  ExtensionFlags;     // Extension flags (RockRidge/Joliet)
+  UINT64  LogicalBlockNumber; // Logical block number (LBA)
+  UINT32  FileUnitSize;       // File unit size
+  UINT8   InterleaveGapSize;  // Interleave gap size
+  UINT16  VolumeSequenceNumber; // Volume sequence number
+  UINT8   FileFlags;          // ISO 9660 file flags
+  UINT8   NameType;           // Filename type
+  UINT16  VersionNumber;      // File version number ;n
+  UINT16  RockRidgeLength;    // Length of Rock Ridge data
+  UINT16  JolietNameLength;   // Length of Joliet name
+  UINT32  ElToritoFlags;      // El Torito boot flags
+  // Followed by:
+  //   [RockRidgeLength bytes: Rock Ridge extensions]
+  //   [JolietNameLength bytes: Unicode Joliet name]
+} __attribute__((packed)) ZOO64_ISO9660_ATTR;
+```
+
+**ISO 9660 Flags**:
+```
+0x00000001: LEVEL_1            // ISO 9660 Level 1 (8.3 filenames)
+0x00000002: LEVEL_2            // ISO 9660 Level 2 (30 char names)
+0x00000004: LEVEL_3            // ISO 9660 Level 3 (non-sequential)
+0x00000008: INTERCHANGE_LEVEL_4 // ISO 9660:1999
+0x00000010: VERSION_2          // ISO 9660:1999 version
+```
+
+**Extension Flags**:
+```
+0x00000001: ROCK_RIDGE         // POSIX Rock Ridge extensions
+0x00000002: JOLIET             // Microsoft Joliet (Unicode)
+0x00000004: EL_TORITO          // El Torito bootable CD
+0x00000008: APPLE_EXTENSIONS   // Apple ISO 9660 extensions
+0x00000010: AMIGA_EXTENSIONS   // Amiga Rock Ridge extensions
+```
+
+**ISO 9660 File Flags**:
+```
+0x01: HIDDEN              // Hidden file
+0x02: DIRECTORY           // Directory
+0x04: ASSOCIATED_FILE     // Associated file
+0x08: RECORD_FORMAT       // Record format in extended attribute
+0x10: PERMISSIONS         // Permissions in extended attribute
+0x80: NOT_FINAL           // Not final directory record
+```
+
+**Rock Ridge Extensions** (RRIP):
+- **PX**: POSIX file attributes (mode, links, UID, GID)
+- **PN**: POSIX device number (major/minor)
+- **SL**: Symbolic link
+- **NM**: Alternate name (long filename)
+- **CL**: Child link (deep directory relocation)
+- **PL**: Parent link
+- **RE**: Relocated directory
+- **TF**: Timestamps (access, modify, attributes, backup, creation, expiration)
+- **SF**: Sparse file
+- **SP**: System Use Sharing Protocol indicator
+- **ER**: Extensions reference
+
+**Joliet Extensions**:
+- Unicode UCS-2 filenames (up to 64 chars)
+- Three supplementary volume descriptors
+- Path table for fast directory access
+
+**El Torito Bootable CD**:
+```
+0x00000001: BOOTABLE           // Bootable media
+0x00000002: NO_EMULATION       // No emulation mode
+0x00000004: FLOPPY_1_2MB       // 1.2 MB floppy emulation
+0x00000008: FLOPPY_1_44MB      // 1.44 MB floppy emulation
+0x00000010: FLOPPY_2_88MB      // 2.88 MB floppy emulation
+0x00000020: HARD_DISK_EMULATION // Hard disk emulation
+0x00000040: BOOT_INFO_TABLE    // Boot information table present
+```
+
+**Use Cases**: CD-ROM, DVD-ROM, bootable CDs, Linux LiveCDs
+
+### 6.69 High Sierra Metadata (0x0049)
+
+High Sierra filesystem (predecessor to ISO 9660).
+
+```c
+typedef struct _ZOO64_HIGH_SIERRA_ATTR {
+  UINT32  Flags;              // High Sierra flags
+  UINT64  LogicalBlockNumber; // Logical block number
+  UINT32  ExtentLength;       // Extent length
+  UINT8   InterleaveSize;     // Interleave file unit size
+  UINT8   InterleaveSkip;     // Interleave gap size
+  UINT16  VolumeSequence;     // Volume sequence number
+  UINT8   FileFlags;          // File flags
+  UINT16  VersionNumber;      // File version number
+  UINT16  OwnerID;            // Owner ID (if supported)
+  UINT16  GroupID;            // Group ID (if supported)
+  UINT32  Reserved;           // Reserved
+} __attribute__((packed)) ZOO64_HIGH_SIERRA_ATTR;
+```
+
+**High Sierra Flags**:
+```
+0x00000001: DIRECTORY_RECORD   // Directory record
+0x00000002: INTERLEAVED        // File is interleaved
+0x00000004: EXTENDED_ATTR      // Has extended attributes
+0x00000008: PERMISSIONS_PRESENT // POSIX permissions present
+```
+
+**High Sierra File Flags**:
+```
+0x01: HIDDEN              // Hidden file
+0x02: DIRECTORY           // Directory entry
+0x04: ASSOCIATED          // Associated file
+0x08: RECORD_FORMAT       // Has record format
+0x10: PERMISSIONS         // Has permissions
+0x80: MULTI_EXTENT        // Multi-extent file
+```
+
+**Historical Note**:
+High Sierra was the working group format (1985-1986) that became ISO 9660 (1988). Rare in modern use but may appear in archival CDs from the mid-1980s.
+
+**Differences from ISO 9660**:
+- Different magic numbers
+- Different directory record format
+- Limited to 8 levels of directories (ISO 9660 has 8, but enforced differently)
+- No Rock Ridge or Joliet equivalents
+
+**Use Cases**: Archival 1980s CD-ROMs, legacy systems
+
+### 6.70 Block Deduplication Metadata (0x004A)
+
+Content-defined chunking with hash-based block deduplication for storage optimization.
+
+```c
+typedef struct _ZOO64_DEDUP_ATTR {
+  UINT32  ChunkingAlgorithm;  // Chunking algorithm
+  UINT32  HashAlgorithm;      // Hash algorithm for dedup
+  UINT32  MinChunkSize;       // Minimum chunk size
+  UINT32  AvgChunkSize;       // Average chunk size target
+  UINT32  MaxChunkSize;       // Maximum chunk size
+  UINT32  ChunkCount;         // Number of chunks
+  UINT64  LogicalSize;        // Logical file size
+  UINT64  PhysicalSize;       // Physical size after dedup
+  UINT32  Flags;              // Deduplication flags
+  UINT32  Reserved;           // Reserved
+  // Followed by ChunkCount * sizeof(DEDUP_CHUNK) structures
+} __attribute__((packed)) ZOO64_DEDUP_ATTR;
+
+typedef struct _DEDUP_CHUNK {
+  UINT8   Hash[32];           // Chunk hash (SHA-256 or BLAKE2b)
+  UINT64  Offset;             // Offset in logical file
+  UINT32  Length;             // Chunk length
+  UINT32  RefCount;           // Reference count (how many times chunk appears)
+  // If RefCount == 1: Unique chunk, data follows in archive
+  // If RefCount > 1: Deduplicated, points to first occurrence
+} __attribute__((packed)) DEDUP_CHUNK;
+```
+
+**Chunking Algorithms**:
+```
+0: FIXED_SIZE          // Fixed-size chunks (simple but inefficient)
+1: RABIN_FINGERPRINT   // Rabin fingerprinting (CDC)
+2: FASTCDC             // FastCDC (optimized CDC)
+3: GEAR_HASH           // Gear hash-based chunking
+4: BUZZHASH            // BuzzHash rolling hash
+5: SUPER_FEATURE       // SuperFeature-based chunking
+6: RSYNC_ROLLING       // rsync rolling checksum
+```
+
+**Hash Algorithms**:
+```
+0: SHA256              // SHA-256 (default, good balance)
+1: SHA1                // SHA-1 (legacy, faster but weaker)
+2: BLAKE2B             // BLAKE2b (fast, secure)
+3: XXHASH64            // xxHash (very fast, not cryptographic)
+4: BLAKE3              // BLAKE3 (fastest cryptographic)
+```
+
+**Deduplication Flags**:
+```
+0x00000001: GLOBAL_DEDUP       // Global dedup across all files
+0x00000002: FILE_LEVEL_DEDUP   // Dedup within single file only
+0x00000004: INLINE_DEDUP       // Inline dedup (during archiving)
+0x00000008: POST_PROCESS_DEDUP // Post-process dedup
+0x00000010: COMPRESS_CHUNKS    // Compress chunks after dedup
+0x00000020: ENCRYPT_CHUNKS     // Encrypt chunks after dedup
+0x00000040: VERIFY_HASHES      // Verify chunk hashes on read
+```
+
+**Content-Defined Chunking (CDC)**:
+- Variable-size chunks based on content
+- Shift-resistant: insertions don't affect other chunks
+- Better dedup ratio than fixed-size
+
+**Rabin Fingerprinting**:
+- Rolling hash window (typically 48-64 bytes)
+- Chunk boundary when hash % avg_chunk_size == 0
+- Produces chunk sizes in range [min_size, max_size]
+
+**Example**:
+```
+File: backup.tar (1 GB, highly repetitive)
+  ChunkingAlgorithm: FASTCDC
+  AvgChunkSize: 64 KB
+  ChunkCount: 16384
+
+  After dedup:
+  Unique chunks: 2048 (12.5% of total)
+  Logical size: 1 GB
+  Physical size: 128 MB
+  Dedup ratio: 87.5%
+```
+
+**Use Cases**:
+- Backup systems (daily incrementals)
+- Virtual machine images (similar VMs)
+- Source code repositories (many similar files)
+- Document archives (templates, boilerplate)
+- Container images (shared layers)
+
+**Storage Strategy**:
+1. Chunk file using CDC algorithm
+2. Hash each chunk (SHA-256/BLAKE2b)
+3. Check if hash exists in dedup table
+4. If exists: Store reference only
+5. If new: Store chunk data + add to table
+
+**Extraction Process**:
+1. Read dedup metadata
+2. For each chunk:
+   - If RefCount == 1: Read chunk data directly
+   - If RefCount > 1: Lookup chunk by hash in dedup pool
+3. Reconstruct file by concatenating chunks
+
+**Dedup Pool Structure**:
+```
+[Dedup Pool Header]
+[Chunk Hash → Data Offset Map]
+[Chunk Data Block 1]
+[Chunk Data Block 2]
+...
+[Chunk Data Block N]
+```
+
+**Optimization**:
+- **Compression**: Apply after chunking (better ratio)
+- **Encryption**: Encrypt individual chunks (allows dedup of encrypted data if same key)
+- **Reference counting**: Track chunk usage for garbage collection
+
+**Dedup Ratios** (typical):
+```
+VM backups: 50-90% dedup
+Source code: 30-60% dedup
+Documents: 40-70% dedup
+Databases: 10-30% dedup
+Media files: 5-10% dedup (low, already compressed)
+```
+
+**Example Metadata**:
+```c
+// File with high duplication (e.g., VM snapshot)
+DEDUP_ATTR {
+  ChunkingAlgorithm: FASTCDC
+  HashAlgorithm: SHA256
+  AvgChunkSize: 65536        // 64 KB
+  ChunkCount: 1000
+  LogicalSize: 67108864      // 64 MB
+  PhysicalSize: 16777216     // 16 MB (75% dedup)
+  Flags: GLOBAL_DEDUP | COMPRESS_CHUNKS
+
+  Chunks:
+  [0]: Hash=ABC..., Offset=0, Length=65432, RefCount=1    // Unique
+  [1]: Hash=DEF..., Offset=65432, Length=66102, RefCount=5 // Dedup 5x
+  [2]: Hash=ABC..., Offset=131534, Length=65432, RefCount=1 // Ref to [0]
+  ...
+}
+```
+
+Benefits:
+- **Space savings**: 50-90% reduction for repetitive data
+- **Bandwidth**: Reduced network transfer for backups
+- **Incremental**: Only new chunks stored
+- **Scalable**: Works at file, archive, or global level
 
 ## 6a. Encryption Support
 
