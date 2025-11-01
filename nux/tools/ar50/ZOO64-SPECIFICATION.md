@@ -449,55 +449,375 @@ typedef struct _ZOO64_METADATA_CHUNK {
 0x0023: DFS (Distributed File System) attributes
 ```
 
-### 6.3 ACL Format
+### 6.3 Universal ACL Format
 
-Zoo64 supports multiple ACL formats in a single metadata chunk to preserve cross-platform ACL semantics.
+Zoo64 uses a **normalized universal ACL format** that can represent ACLs from any system while preserving full semantic information for round-trip conversion.
 
 ```c
 typedef struct _ZOO64_ACL_HEADER {
-  UINT16  ACLType;            // ACL format type (NFS4, NT, macOS, POSIX)
-  UINT16  EntryCount;         // Number of ACL entries
+  UINT32  EntryCount;         // Number of ACL entries
   UINT32  TotalSize;          // Total size of ACL data
-  UINT32  Flags;              // ACL flags
-  // Followed by ACL entries in format specified by ACLType
+  UINT32  Flags;              // ACL header flags
+  UINT32  SourceSystem;       // Original ACL system (for optimization)
 } __attribute__((packed)) ZOO64_ACL_HEADER;
 ```
 
-#### 6.3.1 ACL Types
+#### 6.3.1 Universal ACL Entry
 
-```
-0x0001: POSIX ACL (POSIX.1e - user/group/other/mask)
-0x0002: NFS4 ACL (NFSv4 ACLs - RFC 7530)
-0x0003: NT ACL (Windows DACL/SACL with SIDs)
-0x0004: macOS ACL (macOS extended ACLs - NFSv4-based)
-0x0005: OpenVMS ACL (UIC and identifier-based ACLs)
-0x0006: OS/400 ACL (Object authorities and authorization lists)
-0x0007: MVS/RACF ACL (RACF resource permissions)
-0x0008: Netware ACL (Trustee rights and IRF)
-0x0009: VINES ACL (StreetTalk directory rights)
-0x000A: AFS ACL (Andrew File System ACLs)
-0x000B: CODA ACL (CODA distributed filesystem ACLs)
-```
-
-**Note**: A file may have multiple ACL headers if it needs to preserve ACLs from multiple systems (e.g., when transferring between platforms). The primary ACL should be listed first.
-
-#### 6.3.2 POSIX ACL Format
-
-Traditional POSIX.1e ACLs (Linux, FreeBSD, etc.)
+Each ACL entry uses a universal format that can represent any ACL system:
 
 ```c
-typedef struct _ZOO64_POSIX_ACL_ENTRY {
-  UINT16  Tag;                // ACL_USER_OBJ, ACL_USER, ACL_GROUP_OBJ, etc.
-  UINT16  Permissions;        // rwx bits (3 bits: read=4, write=2, execute=1)
-  UINT32  ID;                 // User/group ID (or -1 for _OBJ entries)
-} __attribute__((packed)) ZOO64_POSIX_ACL_ENTRY;
+typedef struct _ZOO64_ACL_ENTRY {
+  UINT32  ACEType;            // Universal ACE type
+  UINT32  Flags;              // Universal flags
+  UINT64  Permissions;        // Universal permission bitmap (64 bits)
+  UINT16  PrincipalType;      // Type of principal identifier
+  UINT16  PrincipalLength;    // Length of principal identifier
+  UINT32  SourceSystem;       // Original ACL system
+  UINT32  SourceSpecific[4];  // System-specific metadata (16 bytes)
+  // Followed by principal identifier (variable length)
+} __attribute__((packed)) ZOO64_ACL_ENTRY;
 ```
 
-POSIX ACL tags:
+#### 6.3.2 Source ACL Systems
+
 ```
-0x0001: ACL_USER_OBJ        // Owner permissions
-0x0002: ACL_USER            // Named user
-0x0004: ACL_GROUP_OBJ       // Owning group permissions
+0x0000: Unknown/Generic
+0x0001: POSIX.1e (Linux, FreeBSD, etc.)
+0x0002: NFSv4 (RFC 7530)
+0x0003: Windows NT (DACL/SACL)
+0x0004: macOS Extended ACLs
+0x0005: OpenVMS ACLs
+0x0006: OS/400 Object Authorities
+0x0007: MVS/RACF
+0x0008: Novell Netware
+0x0009: Banyan VINES
+0x000A: AFS (Andrew File System)
+0x000B: CODA Distributed FS
+```
+
+**Design Rationale**: Storing the source system allows optimized round-trip conversion while the universal format enables cross-platform ACL translation.
+
+#### 6.3.3 Universal ACE Types
+
+```
+0x00000000: ACCESS_ALLOWED      // Grant permissions
+0x00000001: ACCESS_DENIED       // Deny permissions
+0x00000002: SYSTEM_AUDIT        // Audit access
+0x00000003: SYSTEM_ALARM        // Alarm on access
+0x00000004: ACCESS_ALLOWED_OBJECT    // Object-specific allow
+0x00000005: ACCESS_DENIED_OBJECT     // Object-specific deny
+0x00000006: SYSTEM_AUDIT_OBJECT      // Object-specific audit
+0x00000007: ACCESS_ALLOWED_CALLBACK  // Callback allow
+0x00000008: ACCESS_DENIED_CALLBACK   // Callback deny
+```
+
+#### 6.3.4 Universal Flags
+
+```
+Inheritance Flags:
+  0x00000001: FILE_INHERIT          // Inherit to files
+  0x00000002: DIRECTORY_INHERIT     // Inherit to directories
+  0x00000004: NO_PROPAGATE_INHERIT  // Don't propagate beyond immediate children
+  0x00000008: INHERIT_ONLY          // ACE only for inheritance, not this object
+  0x00000010: INHERITED_ACE         // This ACE was inherited
+
+Audit Flags:
+  0x00000040: SUCCESSFUL_ACCESS     // Audit successful access
+  0x00000080: FAILED_ACCESS         // Audit failed access
+
+Special Flags:
+  0x00000100: IDENTIFIER_GROUP      // Principal is a group
+  0x00000200: PROTECTED             // Protected from modification
+  0x00000400: CRITICAL              // Critical ACE
+  0x00000800: DEFAULT_ACL           // Default ACL (for new objects)
+```
+
+#### 6.3.5 Universal Permissions (64-bit bitmap)
+
+```
+Basic Permissions (bits 0-7):
+  0x0000000000000001: READ_DATA / LIST_DIRECTORY
+  0x0000000000000002: WRITE_DATA / ADD_FILE
+  0x0000000000000004: APPEND_DATA / ADD_SUBDIRECTORY
+  0x0000000000000008: READ_EXTENDED_ATTR
+  0x0000000000000010: WRITE_EXTENDED_ATTR
+  0x0000000000000020: EXECUTE / TRAVERSE
+  0x0000000000000040: DELETE_CHILD
+  0x0000000000000080: READ_ATTRIBUTES
+
+Object Permissions (bits 8-15):
+  0x0000000000000100: WRITE_ATTRIBUTES
+  0x0000000000000200: DELETE
+  0x0000000000000400: READ_PERMISSIONS
+  0x0000000000000800: WRITE_PERMISSIONS
+  0x0000000000001000: CHANGE_OWNER
+  0x0000000000002000: SYNCHRONIZE
+  0x0000000000004000: ACCESS_SYSTEM_SECURITY
+  0x0000000000008000: MAXIMUM_ALLOWED
+
+Extended Permissions (bits 16-31):
+  0x0000000000010000: LOCK / CREATE_LINK
+  0x0000000000020000: EXTEND_FILE
+  0x0000000000040000: READ_NAMED_ATTRS
+  0x0000000000080000: WRITE_NAMED_ATTRS
+  0x0000000000100000: MODIFY_METADATA
+  0x0000000000200000: REPLICATE
+  0x0000000000400000: OBJECT_MANAGEMENT
+  0x0000000000800000: OBJECT_EXISTENCE
+
+Control Permissions (bits 32-39):
+  0x0000000001000000: OBJECT_ALTER
+  0x0000000002000000: OBJECT_REFERENCE
+  0x0000000004000000: OBJECT_OPERATIONAL
+  0x0000000008000000: AUTHORIZATION_LIST
+  0x0000000010000000: TRUSTEE_RIGHTS
+  0x0000000020000000: INHERITED_RIGHTS_FILTER
+  0x0000000040000000: SUPERVISOR
+  0x0000000080000000: TAKE_OWNERSHIP
+
+Audit/Security (bits 40-47):
+  0x0000000100000000: READ_AUDIT
+  0x0000000200000000: WRITE_AUDIT
+  0x0000000400000000: SECURITY_LEVEL_0
+  0x0000000800000000: SECURITY_LEVEL_1
+  0x0000001000000000: SECURITY_LEVEL_2
+  0x0000002000000000: SECURITY_LEVEL_3
+  0x0000004000000000: CONTROL_ACCESS
+  0x0000008000000000: ALTER_ACCESS
+
+System-Specific (bits 48-63):
+  Reserved for system-specific permissions
+```
+
+#### 6.3.6 Principal Types
+
+```
+0x0001: USER_ID              // Numeric user ID (POSIX UID)
+0x0002: GROUP_ID             // Numeric group ID (POSIX GID)
+0x0003: USER_NAME            // UTF-8 username
+0x0004: GROUP_NAME           // UTF-8 group name
+0x0005: SID                  // Windows SID (binary)
+0x0006: UUID                 // macOS UUID (128-bit)
+0x0007: UIC                  // OpenVMS UIC (32-bit)
+0x0008: IDENTIFIER_NAME      // OpenVMS identifier name
+0x0009: NETWARE_OBJECT_ID    // Netware object ID (32-bit)
+0x000A: STREETTALK_NAME      // VINES StreetTalk name (item@group@org)
+0x000B: AFS_PRINCIPAL        // AFS principal name
+0x000C: RACF_USER            // RACF user ID (8 chars)
+0x000D: OS400_PROFILE        // OS/400 user profile (10 chars)
+0x000E: AUTHORIZATION_LIST   // OS/400 authorization list name
+0x000F: SPECIAL_PRINCIPAL    // Special (OWNER@, GROUP@, EVERYONE@, etc.)
+```
+
+#### 6.3.7 Special Principals
+
+For SPECIAL_PRINCIPAL type, the principal data is a 4-byte identifier:
+
+```
+0x00000001: OWNER@           // File owner
+0x00000002: GROUP@           // File group
+0x00000003: EVERYONE@        // All users
+0x00000004: INTERACTIVE@     // Interactive users
+0x00000005: NETWORK@         // Network users
+0x00000006: DIALUP@          // Dial-up users
+0x00000007: BATCH@           // Batch jobs
+0x00000008: ANONYMOUS@       // Anonymous users
+0x00000009: AUTHENTICATED@   // Authenticated users
+0x0000000A: SERVICE@         // Service accounts
+0x0000000B: SYSTEM@          // System processes
+```
+
+#### 6.3.8 System-Specific Metadata
+
+The `SourceSpecific[4]` field (16 bytes) stores system-specific information:
+
+**POSIX (0x0001)**:
+- `[0]`: ACL tag (USER_OBJ, USER, GROUP_OBJ, GROUP, MASK, OTHER)
+- `[1]`: Reserved
+- `[2]`: Reserved
+- `[3]`: Reserved
+
+**NFSv4 (0x0002)**:
+- `[0]`: Original NFSv4 flags
+- `[1]`: Reserved
+- `[2]`: Reserved
+- `[3]`: Reserved
+
+**Windows NT (0x0003)**:
+- `[0]`: Original ACE type (DACL vs SACL)
+- `[1]`: Object type GUID (if object ACE)
+- `[2]`: Inherited object type GUID
+- `[3]`: Reserved
+
+**macOS (0x0004)**:
+- `[0]`: Original KAUTH flags
+- `[1-3]`: Reserved
+
+**OpenVMS (0x0005)**:
+- `[0]`: ACE type (FILE, KEYID, ADDACC, DEFAULT)
+- `[1]`: OpenVMS-specific flags
+- `[2-3]`: Reserved
+
+**OS/400 (0x0006)**:
+- `[0]`: Authorization type (user, group, *PUBLIC)
+- `[1]`: Object authority flags
+- `[2]`: Data authority flags
+- `[3]`: Reserved
+
+**MVS/RACF (0x0007)**:
+- `[0]`: Access level (NONE, READ, UPDATE, CONTROL, ALTER)
+- `[1]`: Access type (UNIVERSAL, CONDITIONAL, GROUP)
+- `[2]`: Security level (0-255)
+- `[3]`: Security categories bitmap (first 32 bits)
+
+**Netware (0x0008)**:
+- `[0]`: Trustee rights bitmap
+- `[1]`: Inherited rights filter
+- `[2]`: Object type
+- `[3]`: Reserved
+
+**VINES (0x0009)**:
+- `[0]`: Entry type (user, group, list)
+- `[1-3]`: Reserved
+
+**AFS (0x000A)**:
+- `[0]`: Entry type (POSITIVE or NEGATIVE)
+- `[1-3]`: Reserved
+
+**CODA (0x000B)**:
+- `[0]`: Entry type (POSITIVE or NEGATIVE)
+- `[1]`: Replication policy
+- `[2-3]`: Reserved
+
+#### 6.3.9 ACL Mapping Examples
+
+**Example 1: POSIX ACL → Universal**
+```
+POSIX: user:alice:rwx
+→ Universal:
+  ACEType: ACCESS_ALLOWED
+  Flags: 0
+  Permissions: 0x0000000000000007 (READ_DATA | WRITE_DATA | EXECUTE)
+  PrincipalType: USER_NAME
+  Principal: "alice" (UTF-8)
+  SourceSystem: POSIX
+  SourceSpecific[0]: ACL_USER
+```
+
+**Example 2: Windows NT → Universal**
+```
+NT: Allow BUILTIN\Administrators Full Control
+→ Universal:
+  ACEType: ACCESS_ALLOWED
+  Flags: 0
+  Permissions: 0x00000000FFFFFFFF (all basic + object permissions)
+  PrincipalType: SID
+  Principal: S-1-5-32-544 (binary SID)
+  SourceSystem: NT
+  SourceSpecific[0]: ACCESS_ALLOWED_ACE_TYPE
+```
+
+**Example 3: NFS4 → Universal**
+```
+NFS4: A::OWNER@:rwatTnNcCoy
+→ Universal:
+  ACEType: ACCESS_ALLOWED
+  Flags: 0
+  Permissions: 0x0000000000001F87 (mapped from NFSv4 rights)
+  PrincipalType: SPECIAL_PRINCIPAL
+  Principal: 0x00000001 (OWNER@)
+  SourceSystem: NFSv4
+```
+
+**Example 4: OS/400 → Universal**
+```
+OS/400: QSECOFR *ALL
+→ Universal:
+  ACEType: ACCESS_ALLOWED
+  Flags: 0
+  Permissions: 0x000000000000FFFF (all basic permissions)
+  PrincipalType: OS400_PROFILE
+  Principal: "QSECOFR   " (10 chars, space-padded)
+  SourceSystem: OS/400
+  SourceSpecific[0]: USER
+  SourceSpecific[1]: *OBJMGT | *OBJEXIST | *OBJALTER | *OBJREF | *OBJOPER
+  SourceSpecific[2]: *READ | *ADD | *UPD | *DLT | *EXECUTE
+```
+
+#### 6.3.10 ACL Translation Guidelines
+
+When converting between ACL systems:
+
+1. **Preserve semantics**: Map permissions to closest equivalent
+2. **Record source**: Always set SourceSystem for round-trip accuracy
+3. **Use SourceSpecific**: Store system-specific data for lossless conversion
+4. **Flag incompatibility**: If exact mapping impossible, document in YAML metadata
+5. **Special principals**: Map owner/group/everyone consistently across systems
+
+### 6.4 Hard Link Support
+
+Zoo64 supports hard links for both files and directories (like HFS+).
+
+```c
+typedef struct _ZOO64_HARDLINK {
+  UINT64  InodeNumber;        // Inode number (for grouping hard links)
+  UINT64  DeviceId;           // Device ID (for uniqueness)
+  UINT16  TargetPathLength;   // Length of target path
+  UINT32  Flags;              // Hard link flags
+  // Followed by UTF-8 target path (first occurrence of this inode in archive)
+} __attribute__((packed)) ZOO64_HARDLINK;
+```
+
+#### Hard Link Flags
+
+```
+0x00000001: DIRECTORY_HARDLINK  // Hard link to directory (HFS+, APFS)
+0x00000002: CROSS_VOLUME        // Cross-volume hard link (rare)
+0x00000004: PRESERVED_ON_COPY   // Preserve link on copy
+```
+
+**Note on Directory Hard Links**:
+- Most Unix systems don't support directory hard links (to prevent cycles)
+- HFS+ (Mac OS X) and APFS support directory hard links
+- When archiving directory hard links:
+  1. First occurrence stores full directory contents
+  2. Subsequent hard links reference first occurrence via inode/device
+  3. On restoration to non-supporting filesystems, create separate copies
+
+**Deduplication Strategy**:
+Files/directories with same inode+device are stored once, with multiple path entries pointing to the same data. This saves space while preserving link semantics.
+
+### 6.5 Symbolic Link Support
+
+```c
+typedef struct _ZOO64_SYMLINK {
+  UINT16  TargetPathLength;   // Length of target path
+  UINT32  Flags;              // Symlink flags
+  // Followed by UTF-8 target path
+} __attribute__((packed)) ZOO64_SYMLINK;
+```
+
+#### Symbolic Link Flags
+
+```
+0x00000001: ABSOLUTE_PATH    // Absolute path (vs relative)
+0x00000002: DIRECTORY_TARGET // Target is a directory
+0x00000003: BROKEN_LINK      // Target doesn't exist
+0x00000004: PRESERVED_ON_COPY // Preserve symlink on copy
+```
+
+### 6.6 Extended Attributes Format
+
+```c
+typedef struct _ZOO64_XATTR {
+  UINT16  NameLength;         // Length of attribute name
+  UINT32  ValueLength;        // Length of attribute value
+  UINT16  Namespace;          // Namespace (user, system, security, trusted)
+  // Followed by:
+  //   [NameLength bytes: UTF-8 name]
+  //   [ValueLength bytes: binary value]
+} __attribute__((packed)) ZOO64_XATTR;
 0x0008: ACL_GROUP           // Named group
 0x0010: ACL_MASK            // Maximum permissions
 0x0020: ACL_OTHER           // Other permissions
@@ -1338,20 +1658,57 @@ typedef struct _ZOO64_OS400_ATTR {
 #### OS/400 CCSID (common values)
 
 ```
-37:    EBCDIC US/Canada
-273:   EBCDIC Germany
-277:   EBCDIC Denmark/Norway
-278:   EBCDIC Sweden/Finland
-280:   EBCDIC Italy
-284:   EBCDIC Spain
-285:   EBCDIC UK
-297:   EBCDIC France
-500:   EBCDIC International
-819:   ASCII ISO 8859-1
-850:   PC Latin-1
-1208:  UTF-8
-13488: UCS-2
+Single-Byte EBCDIC:
+  37:    EBCDIC US/Canada
+  273:   EBCDIC Germany
+  277:   EBCDIC Denmark/Norway
+  278:   EBCDIC Sweden/Finland
+  280:   EBCDIC Italy
+  284:   EBCDIC Spain
+  285:   EBCDIC UK
+  297:   EBCDIC France
+  500:   EBCDIC International
+
+Mixed EBCDIC (DBCS):
+  930:   Japanese EBCDIC/Katakana
+  933:   Korean EBCDIC
+  935:   Simplified Chinese EBCDIC
+  937:   Traditional Chinese EBCDIC
+  939:   Japanese EBCDIC/Latin
+
+ASCII/PC:
+  819:   ASCII ISO 8859-1
+  850:   PC Latin-1
+  858:   PC Latin-1 + Euro
+
+Unicode (UTF-8):
+  1208:  UTF-8
+  1252:  Windows Latin-1 (often used with UTF-8)
+
+Unicode (UTF-16):
+  1200:  UTF-16 (big-endian)
+  1201:  UTF-16 (little-endian)
+  13488: UCS-2 (IBM i native)
+
+Unicode (UTF-32):
+  1232:  UTF-32 (big-endian)
+  1233:  UTF-32 (little-endian)
+
+UTF-EBCDIC (Unicode in EBCDIC encoding):
+  4133:  UTF-EBCDIC (primary)
+  5039:  Japanese UTF-EBCDIC
 ```
+
+**Note on UTF-EBCDIC**: IBM i systems often use UTF-EBCDIC (CCSID 4133) for Unicode support while maintaining EBCDIC compatibility. When archiving from IBM i:
+- **Archive format**: File paths and text stored as UTF-8 (Zoo64 standard)
+- **CCSID preserved**: Original CCSID (including UTF-EBCDIC) stored in OS/400 attributes
+- **Round-trip**: Converting UTF-EBCDIC → UTF-8 (archive) → UTF-EBCDIC (restore) preserves data
+
+UTF-EBCDIC advantages on IBM i:
+- Compatible with existing EBCDIC tooling
+- Single-byte ASCII/EBCDIC characters unchanged (0x00-0xFF)
+- Full Unicode support via multi-byte sequences
+- Native support in IBM i V5R4+
 
 ### 6.16 Lisa Office System Attributes
 
