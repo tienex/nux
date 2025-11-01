@@ -202,6 +202,7 @@ Complete feature set implementations MAY include:
 | | Central Directory | 10 | Fast access directory with all file entries |
 | | End of Archive Marker | 11 | Archive terminator with integrity checks |
 | **Compression** | Stored Mode | 4 | Uncompressed file storage (Algorithm ID 0x0000) |
+| | Bit Squishing | 12.7 | Reduced alphabet compression (Algorithm ID 0x0010) |
 | **Path Support** | UTF-8 Paths | 5.3 | Variable-length Unicode paths with full normalization |
 | | NFC Normalization | 5.3 | Unicode NFC normalization required |
 | | Path Separator Normalization | 5.3 | All separators to \0 |
@@ -249,9 +250,9 @@ Includes all Enhanced features, plus:
 
 | Category | Feature | Section | Description |
 |----------|---------|---------|-------------|
-| **Compression** | All Algorithms | 4.1 | Full support for 21+ compression algorithms |
+| **Compression** | All Algorithms | 4.1 | Full support for 20+ compression algorithms |
 | | Solid Compression | 8 | Multi-file compression streams |
-| | Legacy Algorithms | 4.1 | PAQ, Squoze, RAD50, SIXBIT, etc. |
+| | Legacy Algorithms | 4.1 | PAQ, Crunch, ACE, ARJ, StuffIt, LTO, etc. |
 | **Encryption** | All Encryption Methods | 6a | All 6 encryption algorithms |
 | | All KDFs | 6a | All 5 key derivation functions |
 | | Header Encryption | 6a | Encrypted archive headers |
@@ -292,10 +293,7 @@ Includes all Enhanced features, plus:
 | **PAQ** | 0x000E | Full | Maximum compression | Very Slow | Maximum |
 | **Huffman** | 0x000F | Full | Simple compression | Fast | Low-Medium |
 | **BWT+MTF+RAD50RLE+LZ78+Range** | 0x0001 | Full | Text files, source code | Medium | High |
-| **Squoze (6-bit ASCII)** | 0x0010 | Full | Legacy uppercase ASCII | Fast | Medium |
-| **RAD50 (PDP-11)** | 0x0011 | Full | Legacy PDP-11 systems | Fast | Medium |
-| **SIXBIT (DEC)** | 0x0012 | Full | Legacy DEC systems | Fast | Medium |
-| **SQUOZE8 (8-bit)** | 0x0013 | Full | Legacy 8-bit systems | Fast | Medium |
+| **Bit Squishing** | 0x0010 | **Minimal** | Reduced alphabet (text, logs) | Fast | High |
 
 ### Table 4: Encryption & Security Features Matrix
 
@@ -1044,12 +1042,13 @@ typedef struct _ZOO64_COMPRESSION_DESC {
 0x000D: BZIP2 (bzip2)
 0x000E: PAQ (PAQ family, maximum compression)
 0x000F: HUFFMAN (Huffman coding only)
-0x0010: Crunch (Apple II Crunch)
-0x0011: ACE (ACE archiver)
-0x0012: ARJ (ARJ archiver)
-0x0013: StuffIt (Macintosh StuffIt)
-0x0014: MSCAB (Microsoft Cabinet format)
-0x0015: LTO (LTO tape compression)
+0x0010: BIT_SQUISH (Reduced alphabet bit-packing)
+0x0011: Crunch (Apple II Crunch)
+0x0012: ACE (ACE archiver)
+0x0013: ARJ (ARJ archiver)
+0x0014: StuffIt (Macintosh StuffIt)
+0x0015: MSCAB (Microsoft Cabinet format)
+0x0016: LTO (LTO tape compression)
 0x0100: Custom (parameters in descriptor)
 ```
 
@@ -1070,6 +1069,7 @@ typedef struct _ZOO64_COMPRESSION_DESC {
 | LZW       | Fast   | Low   | Low    | GIF/TIFF, patent-free since 2004         |
 | PAQ       | Slowest| Max   | Huge   | Maximum compression, impractical         |
 | HUFFMAN   | Fastest| Low   | Tiny   | Encoding only, no dictionary             |
+| BIT_SQUISH| Fast   | High  | Low    | Reduced alphabet, excellent for text     |
 | Crunch    | Medium | Med   | Low    | Apple II classic                         |
 | ACE       | Slow   | High  | Med    | ACE 2.0 format                           |
 | ARJ       | Medium | Med   | Low    | Classic DOS archiver                     |
@@ -8470,6 +8470,614 @@ B# Tree (with prefix compression):
 
 B# tree is an **alternative representation**, not a replacement. Archives can be converted between path-based and B# tree modes without data loss.
 
+### 12.7 Bit Squishing Compression (Algorithm 0x0010)
+
+Bit squishing is a specialized compression algorithm optimized for data with reduced symbol alphabets. It analyzes blocks to determine unique symbol count and uses bit-packing to achieve excellent compression ratios for text, source code, and structured data.
+
+#### 12.7.1 Algorithm Overview
+
+The bit squishing algorithm operates in the following stages:
+
+1. **Alphabet Analysis**: Count unique symbols in the block
+2. **Symbol Reduction**: If unique symbols ≤ 128, proceed with compression
+3. **Minimum Subtraction**: Subtract minimum symbol value from all symbols
+4. **Encoding Selection**: Choose encoding based on alphabet size:
+   - ≤ 8 symbols: Emit symbol table (RAD50 or raw), pack indexes using 1-3 bits
+   - ≤ 16 symbols: Emit symbol table, pack indexes using 4 bits
+   - ≤ 32 symbols: Emit symbol table, pack indexes using 5 bits
+   - ≤ 64 symbols: Emit symbol table, pack indexes using 6 bits
+   - ≤ 128 symbols: Emit symbol table, pack indexes using 7 bits
+   - > 128 symbols: Use alternative compression (no benefit)
+
+5. **Bitmap vs Table**: For larger alphabets, emit bitmap (0 to max value) where bit 1 = symbol used
+
+#### 12.7.2 Data Structures
+
+```c
+//
+// Bit squish block header
+//
+typedef struct _ZOO64_BITSQUISH_HEADER {
+  UINT32  Magic;              // 0x42535148 ("BSQH")
+  UINT32  UncompressedSize;   // Original block size
+  UINT32  CompressedSize;     // Compressed size (including header)
+  UINT16  AlphabetSize;       // Number of unique symbols (1-128)
+  UINT8   MinSymbol;          // Minimum symbol value (for subtraction)
+  UINT8   BitsPerSymbol;      // Bits per symbol index (1-7)
+  UINT32  Flags;              // Encoding flags
+  UINT32  Reserved;
+} ZOO64_BITSQUISH_HEADER;
+
+//
+// Bit squish encoding flags
+//
+#define ZOO64_BITSQUISH_USE_BITMAP    0x00000001  // Use bitmap encoding
+#define ZOO64_BITSQUISH_USE_RAD50     0x00000002  // Use RAD50 for symbol table
+#define ZOO64_BITSQUISH_USE_RLE       0x00000004  // Apply RLE to bit stream
+```
+
+**Encoding Format**:
+
+For alphabet ≤ 8 symbols (small table):
+```
+[ZOO64_BITSQUISH_HEADER]
+[Symbol count: UINT8]
+[Symbol table: UINT8[AlphabetSize]] (subtracted values, or RAD50 encoded)
+[Packed bit stream] (indexes using BitsPerSymbol bits each)
+```
+
+For alphabet > 8 symbols (bitmap):
+```
+[ZOO64_BITSQUISH_HEADER]
+[Bitmap size: UINT16] (in bytes)
+[Bitmap: UINT8[]] (bit 1 = symbol present, covers range MinSymbol to MaxSymbol)
+[Symbol count: UINT8]
+[Packed bit stream] (indexes into bitmap using BitsPerSymbol bits each)
+```
+
+#### 12.7.3 Compression Examples
+
+**Example 1: ASCII Text (uppercase only)**
+- Input: "HELLO WORLD" (11 bytes)
+- Unique symbols: 8 (' ', 'D', 'E', 'H', 'L', 'O', 'R', 'W')
+- MinSymbol: 0x20 (space)
+- Alphabet after subtraction: [0, 36, 37, 40, 44, 47, 50, 55]
+- BitsPerSymbol: 3 (can represent 0-7)
+- Symbol mapping: {' ':0, 'D':1, 'E':2, 'H':3, 'L':4, 'O':5, 'R':6, 'W':7}
+- Encoded: 3-5-4-4-5-0-7-5-6-4-1 (33 bits = 5 bytes vs 11 bytes original)
+- Compression ratio: ~54%
+
+**Example 2: Binary Data (4 values)**
+- Input: byte stream with only values {0x00, 0x01, 0x10, 0x11}
+- AlphabetSize: 4
+- MinSymbol: 0x00
+- BitsPerSymbol: 2
+- Symbol mapping: {0x00:0, 0x01:1, 0x10:2, 0x11:3}
+- Compression ratio: ~25% (2 bits per byte vs 8 bits)
+
+**Example 3: Source Code**
+- Input: C source code (alphanumeric + symbols)
+- Typical unique symbols: 40-60 characters
+- BitsPerSymbol: 6 (can represent 0-63)
+- Compression ratio: ~75% (6 bits per byte vs 8 bits)
+
+#### 12.7.4 Implementation (NT/UEFI Style)
+
+Complete implementation of bit squishing compression:
+
+```c
+//
+// Zoo64 Bit Squishing Implementation
+// Copyright (c) 2025. All rights reserved.
+//
+// SPDX-License-Identifier: BSD-3-Clause
+//
+
+#include "zoo64_compress.h"
+
+//
+// Analyze block to determine unique symbols
+//
+BOOLEAN
+AnalyzeAlphabet (
+  IN     CONST UINT8   *Input,
+  IN     UINTN         InputSize,
+  OUT    UINT8         *SymbolTable,
+  OUT    UINT16        *AlphabetSize,
+  OUT    UINT8         *MinSymbol,
+  OUT    UINT8         *MaxSymbol
+  )
+{
+  BOOLEAN  SymbolPresent[256];
+  UINTN    Index;
+  UINT16   Count;
+  UINT8    Min;
+  UINT8    Max;
+
+  //
+  // Initialize symbol presence array
+  //
+  SetMem (SymbolPresent, sizeof(SymbolPresent), 0);
+
+  Min = 0xFF;
+  Max = 0x00;
+
+  //
+  // Scan input to find unique symbols
+  //
+  for (Index = 0; Index < InputSize; Index++) {
+    UINT8 Symbol = Input[Index];
+    SymbolPresent[Symbol] = TRUE;
+
+    if (Symbol < Min) {
+      Min = Symbol;
+    }
+    if (Symbol > Max) {
+      Max = Symbol;
+    }
+  }
+
+  //
+  // Build symbol table
+  //
+  Count = 0;
+  for (Index = 0; Index < 256; Index++) {
+    if (SymbolPresent[Index]) {
+      SymbolTable[Count++] = (UINT8)Index;
+    }
+  }
+
+  *AlphabetSize = Count;
+  *MinSymbol = Min;
+  *MaxSymbol = Max;
+
+  return TRUE;
+}
+
+//
+// Build symbol-to-index mapping
+//
+BOOLEAN
+BuildSymbolMap (
+  IN     CONST UINT8   *SymbolTable,
+  IN     UINT16        AlphabetSize,
+  OUT    UINT8         *SymbolToIndex
+  )
+{
+  UINT16  Index;
+
+  //
+  // Initialize mapping to 0xFF (invalid)
+  //
+  SetMem (SymbolToIndex, 256, 0xFF);
+
+  //
+  // Map each symbol to its index
+  //
+  for (Index = 0; Index < AlphabetSize; Index++) {
+    SymbolToIndex[SymbolTable[Index]] = (UINT8)Index;
+  }
+
+  return TRUE;
+}
+
+//
+// Pack symbols using specified bits per symbol
+//
+BOOLEAN
+PackBitStream (
+  IN     CONST UINT8   *Input,
+  IN     UINTN         InputSize,
+  IN     CONST UINT8   *SymbolToIndex,
+  IN     UINT8         BitsPerSymbol,
+  OUT    UINT8         *Output,
+  OUT    UINTN         *OutputSize
+  )
+{
+  UINT64  BitBuffer;
+  UINT32  BitsInBuffer;
+  UINTN   InputIndex;
+  UINTN   OutputIndex;
+  UINT8   SymbolIndex;
+
+  BitBuffer = 0;
+  BitsInBuffer = 0;
+  OutputIndex = 0;
+
+  //
+  // Process each input symbol
+  //
+  for (InputIndex = 0; InputIndex < InputSize; InputIndex++) {
+    SymbolIndex = SymbolToIndex[Input[InputIndex]];
+    if (SymbolIndex == 0xFF) {
+      return FALSE;  // Invalid symbol
+    }
+
+    //
+    // Add symbol index to bit buffer
+    //
+    BitBuffer |= ((UINT64)SymbolIndex << BitsInBuffer);
+    BitsInBuffer += BitsPerSymbol;
+
+    //
+    // Flush complete bytes
+    //
+    while (BitsInBuffer >= 8) {
+      Output[OutputIndex++] = (UINT8)(BitBuffer & 0xFF);
+      BitBuffer >>= 8;
+      BitsInBuffer -= 8;
+    }
+  }
+
+  //
+  // Flush remaining bits
+  //
+  if (BitsInBuffer > 0) {
+    Output[OutputIndex++] = (UINT8)(BitBuffer & 0xFF);
+  }
+
+  *OutputSize = OutputIndex;
+  return TRUE;
+}
+
+//
+// Unpack bit stream back to symbols
+//
+BOOLEAN
+UnpackBitStream (
+  IN     CONST UINT8   *Input,
+  IN     UINTN         InputSize,
+  IN     CONST UINT8   *SymbolTable,
+  IN     UINT8         BitsPerSymbol,
+  IN     UINTN         OutputSize,
+  OUT    UINT8         *Output
+  )
+{
+  UINT64  BitBuffer;
+  UINT32  BitsInBuffer;
+  UINTN   InputIndex;
+  UINTN   OutputIndex;
+  UINT8   SymbolIndex;
+  UINT8   IndexMask;
+
+  //
+  // Calculate mask for extracting symbol indexes
+  //
+  IndexMask = (UINT8)((1 << BitsPerSymbol) - 1);
+
+  BitBuffer = 0;
+  BitsInBuffer = 0;
+  InputIndex = 0;
+  OutputIndex = 0;
+
+  //
+  // Process until output complete
+  //
+  while (OutputIndex < OutputSize) {
+    //
+    // Refill bit buffer if needed
+    //
+    while (BitsInBuffer < BitsPerSymbol && InputIndex < InputSize) {
+      BitBuffer |= ((UINT64)Input[InputIndex++] << BitsInBuffer);
+      BitsInBuffer += 8;
+    }
+
+    if (BitsInBuffer < BitsPerSymbol) {
+      return FALSE;  // Truncated input
+    }
+
+    //
+    // Extract symbol index
+    //
+    SymbolIndex = (UINT8)(BitBuffer & IndexMask);
+    BitBuffer >>= BitsPerSymbol;
+    BitsInBuffer -= BitsPerSymbol;
+
+    //
+    // Emit symbol
+    //
+    Output[OutputIndex++] = SymbolTable[SymbolIndex];
+  }
+
+  return TRUE;
+}
+
+//
+// Compress block using bit squishing
+//
+BOOLEAN
+BitSquishCompress (
+  IN     CONST UINT8   *Input,
+  IN     UINTN         InputSize,
+  OUT    UINT8         *Output,
+  OUT    UINTN         *OutputSize
+  )
+{
+  ZOO64_BITSQUISH_HEADER  Header;
+  UINT8                   SymbolTable[256];
+  UINT8                   SymbolToIndex[256];
+  UINT16                  AlphabetSize;
+  UINT8                   MinSymbol;
+  UINT8                   MaxSymbol;
+  UINT8                   BitsPerSymbol;
+  UINT8                   *PackedData;
+  UINTN                   PackedSize;
+  UINTN                   TotalSize;
+  BOOLEAN                 Status;
+
+  //
+  // Analyze alphabet
+  //
+  Status = AnalyzeAlphabet (
+             Input,
+             InputSize,
+             SymbolTable,
+             &AlphabetSize,
+             &MinSymbol,
+             &MaxSymbol
+             );
+  if (!Status || AlphabetSize > 128) {
+    return FALSE;  // Not suitable for bit squishing
+  }
+
+  //
+  // Determine bits per symbol
+  //
+  if (AlphabetSize <= 2) {
+    BitsPerSymbol = 1;
+  } else if (AlphabetSize <= 4) {
+    BitsPerSymbol = 2;
+  } else if (AlphabetSize <= 8) {
+    BitsPerSymbol = 3;
+  } else if (AlphabetSize <= 16) {
+    BitsPerSymbol = 4;
+  } else if (AlphabetSize <= 32) {
+    BitsPerSymbol = 5;
+  } else if (AlphabetSize <= 64) {
+    BitsPerSymbol = 6;
+  } else {
+    BitsPerSymbol = 7;
+  }
+
+  //
+  // Build symbol mapping
+  //
+  Status = BuildSymbolMap (SymbolTable, AlphabetSize, SymbolToIndex);
+  if (!Status) {
+    return FALSE;
+  }
+
+  //
+  // Allocate temporary buffer for packed data
+  //
+  PackedData = AllocatePool (InputSize);
+  if (PackedData == NULL) {
+    return FALSE;
+  }
+
+  //
+  // Pack bit stream
+  //
+  Status = PackBitStream (
+             Input,
+             InputSize,
+             SymbolToIndex,
+             BitsPerSymbol,
+             PackedData,
+             &PackedSize
+             );
+  if (!Status) {
+    FreePool (PackedData);
+    return FALSE;
+  }
+
+  //
+  // Build header
+  //
+  Header.Magic = 0x42535148;  // "BSQH"
+  Header.UncompressedSize = (UINT32)InputSize;
+  Header.AlphabetSize = AlphabetSize;
+  Header.MinSymbol = MinSymbol;
+  Header.BitsPerSymbol = BitsPerSymbol;
+  Header.Flags = 0;
+  Header.Reserved = 0;
+
+  //
+  // Determine encoding method
+  //
+  if (AlphabetSize <= 8) {
+    //
+    // Small alphabet: use symbol table
+    //
+    Header.Flags &= ~ZOO64_BITSQUISH_USE_BITMAP;
+    TotalSize = sizeof(Header) + 1 + AlphabetSize + PackedSize;
+  } else {
+    //
+    // Larger alphabet: use bitmap
+    //
+    UINT16 BitmapSize = (MaxSymbol - MinSymbol + 8) / 8;
+    Header.Flags |= ZOO64_BITSQUISH_USE_BITMAP;
+    TotalSize = sizeof(Header) + 2 + BitmapSize + 1 + PackedSize;
+  }
+
+  Header.CompressedSize = (UINT32)TotalSize;
+
+  //
+  // Check if compression is beneficial
+  //
+  if (TotalSize >= InputSize) {
+    FreePool (PackedData);
+    return FALSE;  // Not worth compressing
+  }
+
+  //
+  // Write output
+  //
+  CopyMem (Output, &Header, sizeof(Header));
+  UINTN Offset = sizeof(Header);
+
+  if (AlphabetSize <= 8) {
+    //
+    // Write symbol table
+    //
+    Output[Offset++] = (UINT8)AlphabetSize;
+    CopyMem (&Output[Offset], SymbolTable, AlphabetSize);
+    Offset += AlphabetSize;
+  } else {
+    //
+    // Write bitmap
+    //
+    UINT16 BitmapSize = (MaxSymbol - MinSymbol + 8) / 8;
+    UINT8  *Bitmap = AllocateZeroPool (BitmapSize);
+
+    if (Bitmap == NULL) {
+      FreePool (PackedData);
+      return FALSE;
+    }
+
+    //
+    // Build bitmap
+    //
+    for (UINT16 i = 0; i < AlphabetSize; i++) {
+      UINT8 Symbol = SymbolTable[i];
+      UINT8 BitIndex = Symbol - MinSymbol;
+      Bitmap[BitIndex / 8] |= (1 << (BitIndex % 8));
+    }
+
+    *((UINT16*)&Output[Offset]) = BitmapSize;
+    Offset += 2;
+    CopyMem (&Output[Offset], Bitmap, BitmapSize);
+    Offset += BitmapSize;
+    Output[Offset++] = (UINT8)AlphabetSize;
+
+    FreePool (Bitmap);
+  }
+
+  //
+  // Write packed data
+  //
+  CopyMem (&Output[Offset], PackedData, PackedSize);
+  Offset += PackedSize;
+
+  *OutputSize = Offset;
+  FreePool (PackedData);
+
+  return TRUE;
+}
+
+//
+// Decompress bit squished block
+//
+BOOLEAN
+BitSquishDecompress (
+  IN     CONST UINT8   *Input,
+  IN     UINTN         InputSize,
+  OUT    UINT8         *Output,
+  OUT    UINTN         *OutputSize
+  )
+{
+  ZOO64_BITSQUISH_HEADER  *Header;
+  UINT8                   SymbolTable[256];
+  UINTN                   Offset;
+  UINT16                  AlphabetSize;
+  UINT8                   *PackedData;
+  UINTN                   PackedSize;
+  BOOLEAN                 Status;
+
+  if (InputSize < sizeof(ZOO64_BITSQUISH_HEADER)) {
+    return FALSE;
+  }
+
+  Header = (ZOO64_BITSQUISH_HEADER*)Input;
+
+  if (Header->Magic != 0x42535148) {
+    return FALSE;
+  }
+
+  Offset = sizeof(ZOO64_BITSQUISH_HEADER);
+
+  if ((Header->Flags & ZOO64_BITSQUISH_USE_BITMAP) == 0) {
+    //
+    // Read symbol table
+    //
+    AlphabetSize = Input[Offset++];
+    CopyMem (SymbolTable, &Input[Offset], AlphabetSize);
+    Offset += AlphabetSize;
+  } else {
+    //
+    // Read bitmap and reconstruct symbol table
+    //
+    UINT16 BitmapSize = *((UINT16*)&Input[Offset]);
+    Offset += 2;
+
+    CONST UINT8 *Bitmap = &Input[Offset];
+    Offset += BitmapSize;
+
+    AlphabetSize = Input[Offset++];
+
+    UINT16 TableIndex = 0;
+    for (UINT16 BitIndex = 0; BitIndex < BitmapSize * 8; BitIndex++) {
+      if (Bitmap[BitIndex / 8] & (1 << (BitIndex % 8))) {
+        SymbolTable[TableIndex++] = Header->MinSymbol + BitIndex;
+      }
+    }
+  }
+
+  //
+  // Unpack bit stream
+  //
+  PackedData = (UINT8*)&Input[Offset];
+  PackedSize = InputSize - Offset;
+
+  Status = UnpackBitStream (
+             PackedData,
+             PackedSize,
+             SymbolTable,
+             Header->BitsPerSymbol,
+             Header->UncompressedSize,
+             Output
+             );
+
+  if (Status) {
+    *OutputSize = Header->UncompressedSize;
+  }
+
+  return Status;
+}
+```
+
+#### 12.7.5 Use Cases
+
+**Optimal for**:
+- ASCII text files (typical alphabet: 70-90 characters)
+- Source code (40-80 unique characters)
+- Log files with limited symbol sets
+- Structured data (CSV, JSON with consistent formatting)
+- Binary data with limited value ranges
+
+**Not recommended for**:
+- Pre-compressed data (JPEG, PNG, MP4)
+- Encrypted data (full 0-255 alphabet)
+- Binary executables (high entropy)
+- Random data
+
+**Typical Compression Ratios**:
+- English text: 60-75% (6 bits/char for ~64 unique chars)
+- Source code: 50-70% (depends on language)
+- Log files: 40-60% (limited vocabulary)
+- Binary with 16 values: 50% (4 bits/byte)
+- Binary with 4 values: 25% (2 bits/byte)
+
+#### 12.7.6 Conformance Levels
+
+- **Tiny**: Decompression only
+- **Compact**: Decompression only
+- **Embedded**: Decompression only
+- **Minimal**: Full support (compress + decompress)
+- **Standard**: Full support with auto-detection
+- **Enhanced**: Full support with hybrid mode
+- **Full**: Full support with all optimizations
+
 ## 13. COM Component Interface
 
 Zoo64 is designed as a COM component for cross-language interoperability.
@@ -8990,6 +9598,7 @@ typedef enum _ZOO64_COMPRESSION_ALGORITHM {
   Zoo64CompressBzip2                = 0x000D,  // bzip2
   Zoo64CompressPaq                  = 0x000E,  // PAQ family
   Zoo64CompressHuffman              = 0x000F,  // Huffman only
+  Zoo64CompressBitSquish            = 0x0010,  // Bit squishing (reduced alphabet)
   Zoo64CompressCustom               = 0x0100   // Custom algorithm
 } ZOO64_COMPRESSION_ALGORITHM;
 
