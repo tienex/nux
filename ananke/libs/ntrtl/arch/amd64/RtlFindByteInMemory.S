@@ -53,7 +53,7 @@
  * I don't think aligning any of the other branch targets is useful.
  */
 
-ANX_ASM_FUNCTION_BEGIN(memchr)
+ANX_ASM_FUNCTION_BEGIN(RtlFindByteInMemory)
 	movabsq	$0x0101010101010101,%r8
 	lea	(%rdi,%rdx),%r10	/* limit of buffer to scan */
 	movzbq	%sil,%rsi	/* mask high bits! */
@@ -114,4 +114,4 @@ ANX_ASM_FUNCTION_BEGIN(memchr)
 /* Not found */
 30:	xorq	%rax,%rax
 	ret
-ANX_ASM_FUNCTION_END(memchr)
+ANX_ASM_FUNCTION_END(RtlFindByteInMemory)

@@ -1,5 +1,5 @@
 /* @file
- * eCRT - An embedded C runtime library
+ * NTRTL - NT Runtime Library
  *
  * Copyright (C) 2025 A•NUX Project
  *
@@ -54,7 +54,7 @@ ANX_ASM_FUNCTION_BEGIN(bzero)
 
 /* memset, %rdi is buffer, %rsi char to fill, %rdx length */
 
-ANX_ASM_FUNCTION_BEGIN(memset)
+ANX_ASM_FUNCTION_BEGIN(RtlFillMemory)
 	movzbq	%sil,%rax		/* byte value to fill */
 	mov	%rdx,%rsi		/* copy of length */
 	mov	$0x0101010101010101,%r9
@@ -97,7 +97,7 @@ ANX_ASM_FUNCTION_BEGIN(memset)
 	sub	%rdx,%rcx		/* adjust length ... */
 	add	%rdx,%rdi		/* ... and target */
 	jmp	2b
-ANX_ASM_FUNCTION_END(memset)
+ANX_ASM_FUNCTION_END(RtlFillMemory)
 
 #ifndef _KERNEL
 ANX_ASM_FUNCTION_END(bzero)

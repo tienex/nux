@@ -1,19 +1,14 @@
 /* @file
- * eCRT - An embedded C runtime library
+ * NTRTL - NT Runtime Library
  *
  * Copyright (C) 2025 A•NUX Project
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-/*	$NetBSD: _setjmp.S,v 1.9 2014/05/23 02:34:19 uebayasi Exp $	*/
-
 /*-
  * Copyright (c) 1990 The Regents of the University of California.
  * All rights reserved.
- *
- * This code is derived from software contributed to Berkeley by
- * William Jolitz.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -38,64 +33,126 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	from: @(#)_setjmp.s	5.1 (Berkeley) 4/23/90
  */
 
 #include <ananke/asmdefs.h>
-#if defined(LIBC_SCCS)
-	RCSID("$NetBSD: _setjmp.S,v 1.9 2014/05/23 02:34:19 uebayasi Exp $")
-#endif
 
 /*
- * C library -- _setjmp, _longjmp
+ * RtlCopyMemory - Copy memory (non-overlapping buffers)
+ * RtlMoveMemory - Move memory (may overlap)
  *
- *	_longjmp(a,v)
- * will generate a "return(v)" from the last call to
- *	_setjmp(a)
- * by restoring registers from the stack.
- * The previous signal state is NOT restored.
+ * Optimized memory copy/move for AMD64
  */
 
-ANX_ASM_FUNCTION_BEGIN(_setjmp)
-	movl	4(%esp),%eax
-	movl	0(%esp),%edx
-	movl	%edx, 0(%eax)		/* rta */
-	movl	%ebx, 4(%eax)
-	movl	%esp, 8(%eax)
-	movl	%ebp,12(%eax)
-	movl	%esi,16(%eax)
-	movl	%edi,20(%eax)
-	xorl	%eax,%eax
-	ret
-ANX_ASM_FUNCTION_END(_setjmp)
+/* RtlCopyMemory - buffers must not overlap */
+ANX_ASM_FUNCTION_BEGIN(RtlCopyMemory)
+	movq	%rdx,%rcx
+	movq	%rdi,%rax	/* return destination */
+	mov	%rdi,%r11
 
-ANX_ASM_FUNCTION_BEGIN(_longjmp)
-	movl	4(%esp),%edx
-	movl	8(%esp),%eax
-	movl	0(%edx),%ecx
-	movl	4(%edx),%ebx
-	movl	8(%edx),%esp
-	movl	12(%edx),%ebp
-	movl	16(%edx),%esi
-	movl	20(%edx),%edi
-	testl	%eax,%eax
-	jnz	1f
-	incl	%eax
-1:	movl	%ecx,0(%esp)
-	ret
-ANX_ASM_FUNCTION_END(_longjmp)
+	shrq	$3,%rcx
+	jz	8f
 
-ANX_ASM_FUNCTION_BEGIN(_setupjmp)
-	push %ebp
-	mov %esp, %ebp
-	mov 0x8(%ebp), %edx
-	/* EIP */
-	mov 0xc(%ebp), %ecx
-	mov %ecx, 0(%edx)
-	/* ESP */
-	mov 0x10(%ebp), %ecx
-	mov %ecx, 8(%edx)
-	pop %ebp
+	lea	-8(%rdi,%rdx),%r9
+	mov	-8(%rsi,%rdx),%r8
+	lea	-8(%rsi,%rdx),%r10
+
+	/* Check for partial overlap (dest < src) */
+	cmpq	%rdi,%r9
+	j b	10f
+
+	/* Copy forwards */
+	rep
+	movsq
+	movq	%r8,(%r9)
 	ret
-ANX_ASM_FUNCTION_END(_setupjmp)
+
+8:	/* Less than 8 bytes */
+	testb	$4,%dl
+	jz	1f
+	movsl
+1:	testb	$2,%dl
+	jz	1f
+	movsw
+1:	testb	$1,%dl
+	jz	1f
+	movsb
+1:	ret
+
+10:	/* Potential overlap - use memmove logic */
+	cmpq	%rsi,%r10
+	jae	12f
+
+	/* Copy backwards */
+	leaq	-8(%rdi,%rdx),%rdi
+	leaq	-8(%rsi,%rdx),%rsi
+	std
+	rep
+	movsq
+	cld
+	movq	%r8,(%r9)
+	ret
+
+12:	/* No overlap, copy forwards */
+	rep
+	movsq
+	movq	%r8,(%r9)
+	ret
+ANX_ASM_FUNCTION_END(RtlCopyMemory)
+
+/* RtlMoveMemory - buffers may overlap */
+ANX_ASM_FUNCTION_BEGIN(RtlMoveMemory)
+	movq	%rdx,%rcx
+	movq	%rdi,%rax	/* return destination */
+	mov	%rdi,%r11
+
+	movq	%rdi,%r8
+	subq	%rsi,%r8
+
+	shrq	$3,%rcx
+	jz	8f
+
+	lea	-8(%rdi,%rdx),%r9
+	mov	-8(%rsi,%rdx),%r8
+	lea	-8(%rsi,%rdx),%r10
+
+	cmpq	%rdi,%r9
+	jb	10f
+
+	cmpq	%rsi,%r10
+	jae	12f
+
+	/* Copy backwards */
+	leaq	-8(%rdi,%rdx),%rdi
+	leaq	-8(%rsi,%rdx),%rsi
+	std
+	rep
+	movsq
+	cld
+	movq	%r8,(%r9)
+	ret
+
+8:	/* Less than 8 bytes */
+	testb	$4,%dl
+	jz	1f
+	movsl
+1:	testb	$2,%dl
+	jz	1f
+	movsw
+1:	testb	$1,%dl
+	jz	1f
+	movsb
+1:	ret
+
+10:	/* Copy forwards */
+	rep
+	movsq
+	movq	%r8,(%r9)
+	ret
+
+12:	/* Copy forwards */
+	rep
+	movsq
+	movq	%r8,(%r9)
+	ret
+ANX_ASM_FUNCTION_END(RtlMoveMemory)
