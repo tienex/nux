@@ -27,12 +27,53 @@
 
 typedef enum _FB_PIXEL_FORMAT {
     FbPixelFormatInvalid      = 0,
-    FbPixelFormatRgb888       = 1,  /* 24-bit RGB (8:8:8) */
-    FbPixelFormatRgb555       = 2,  /* 15-bit RGB (5:5:5) */
-    FbPixelFormatRgb565       = 3,  /* 16-bit RGB (5:6:5) */
-    FbPixelFormatIndexed256   = 4,  /* 8-bit indexed color */
-    FbPixelFormatVga16Planar  = 5,  /* 4-bit planar VGA */
-    FbPixelFormat1Bpp         = 6,  /* 1-bit monochrome (Hercules) */
+
+    /* Monochrome formats */
+    FbPixelFormat1Bpp         = 1,   /* 1-bit monochrome (Hercules, Mac, Atari mono) */
+    FbPixelFormat2Bpp         = 2,   /* 2-bit grayscale (NeXT) */
+
+    /* CGA formats */
+    FbPixelFormatCga4Indexed  = 10,  /* CGA 4-color indexed (320x200) */
+    FbPixelFormatCga2Mono     = 11,  /* CGA 2-color monochrome (640x200) */
+
+    /* EGA/VGA planar formats */
+    FbPixelFormatEga16Planar  = 20,  /* EGA 16-color planar (640x350) */
+    FbPixelFormatVga16Planar  = 21,  /* VGA 16-color planar (640x480) */
+
+    /* VGA linear indexed formats */
+    FbPixelFormatVga256       = 30,  /* VGA Mode 13h (320x200x256) */
+    FbPixelFormatIndexed256   = 31,  /* 8-bit indexed color (general) */
+    FbPixelFormatIndexed16    = 32,  /* 4-bit indexed color */
+    FbPixelFormatIndexed4     = 33,  /* 2-bit indexed color */
+
+    /* RGB formats */
+    FbPixelFormatRgb332       = 40,  /* 8-bit RGB (3:3:2) */
+    FbPixelFormatRgb555       = 41,  /* 15-bit RGB (5:5:5) */
+    FbPixelFormatRgb565       = 42,  /* 16-bit RGB (5:6:5) */
+    FbPixelFormatRgb888       = 43,  /* 24-bit RGB (8:8:8) */
+    FbPixelFormatRgba8888     = 44,  /* 32-bit RGBA (8:8:8:8) */
+    FbPixelFormatBgr888       = 45,  /* 24-bit BGR (8:8:8) - Apple quirk */
+    FbPixelFormatBgra8888     = 46,  /* 32-bit BGRA (8:8:8:8) */
+
+    /* Amiga formats */
+    FbPixelFormatAmigaOcs     = 50,  /* Amiga OCS planar (up to 32 colors) */
+    FbPixelFormatAmigaEcs     = 51,  /* Amiga ECS planar (up to 64 colors) */
+    FbPixelFormatAmigaAga     = 52,  /* Amiga AGA chunky (8-bit) or HAM8 */
+
+    /* Atari formats */
+    FbPixelFormatAtariSt      = 60,  /* Atari ST 16-color planar */
+    FbPixelFormatAtariTt      = 61,  /* Atari TT high color */
+    FbPixelFormatAtariFalcon  = 62,  /* Atari Falcon true color */
+
+    /* Sun SPARC formats */
+    FbPixelFormatSunCgThree   = 70,  /* Sun cgthree 8-bit indexed */
+    FbPixelFormatSunCgSix     = 71,  /* Sun cgsix 8-bit indexed */
+
+    /* SGI formats */
+    FbPixelFormatSgiRgb       = 80,  /* SGI RGB format */
+
+    /* Acorn VIDC formats */
+    FbPixelFormatVidc         = 90,  /* Acorn VIDC palette modes */
 } FB_PIXEL_FORMAT;
 
 /* --------------------------------------------------------------- */

@@ -21,13 +21,52 @@
 /* --------------------------------------------------------------- */
 
 typedef enum _FB_BACKEND_TYPE {
+    /* Generic and modern backends */
     FbBackendGeneric        = 0,  /* Generic software renderer */
-    FbBackendHercules       = 1,  /* Hercules Graphics Card (720x348, 1BPP) */
-    FbBackendVga16          = 2,  /* VGA 16-color planar mode */
-    FbBackendVesaLinear     = 3,  /* VESA linear framebuffer */
-    FbBackendVesaBanked     = 4,  /* VESA banked/segmented mode */
-    FbBackendUefiGop        = 5,  /* UEFI Graphics Output Protocol */
-    FbBackendAppleEfi       = 6,  /* Apple EFI framebuffer */
+    FbBackendUefiGop        = 1,  /* UEFI Graphics Output Protocol */
+    FbBackendVesaLinear     = 2,  /* VESA linear framebuffer */
+    FbBackendVesaBanked     = 3,  /* VESA banked/segmented mode */
+
+    /* IBM PC graphics adapters */
+    FbBackendCga            = 10, /* CGA (320x200x4, 640x200x2) */
+    FbBackendEga            = 11, /* EGA (640x350x16 planar) */
+    FbBackendVga            = 12, /* VGA (Mode 13h, planar modes) */
+    FbBackendVga16          = 13, /* VGA 16-color planar mode */
+    FbBackendSvga           = 14, /* SVGA extended modes */
+    FbBackendXga            = 15, /* XGA modes */
+    FbBackendHercules       = 16, /* Hercules Graphics Card (720x348, 1BPP) */
+
+    /* Apple platforms */
+    FbBackendAppleEfi       = 20, /* Apple EFI framebuffer */
+    FbBackendMacClassic     = 21, /* Classic Macintosh framebuffer */
+    FbBackendMacValkyrie    = 22, /* Mac Valkyrie video */
+    FbBackendAppleLisa      = 23, /* Apple Lisa framebuffer */
+
+    /* Commodore Amiga */
+    FbBackendAmigaOcs       = 30, /* Amiga OCS chipset */
+    FbBackendAmigaEcs       = 31, /* Amiga ECS chipset */
+    FbBackendAmigaAga       = 32, /* Amiga AGA chipset */
+
+    /* Atari */
+    FbBackendAtariSt        = 40, /* Atari ST */
+    FbBackendAtariTt        = 41, /* Atari TT */
+    FbBackendAtariFalcon    = 42, /* Atari Falcon */
+
+    /* Sun Microsystems */
+    FbBackendSunCgThree     = 50, /* Sun cgthree */
+    FbBackendSunCgSix       = 51, /* Sun cgsix */
+    FbBackendSunBwTwo       = 52, /* Sun bwtwo (monochrome) */
+    FbBackendSunCgFour      = 53, /* Sun cgfour */
+
+    /* SGI */
+    FbBackendSgiNewport     = 60, /* SGI Newport graphics */
+    FbBackendSgiImpact      = 61, /* SGI Impact graphics */
+
+    /* NeXT */
+    FbBackendNext           = 70, /* NeXT Display */
+
+    /* Acorn */
+    FbBackendAcornVidc      = 80, /* Acorn VIDC (ARM) */
 } FB_BACKEND_TYPE;
 
 /* --------------------------------------------------------------- */
@@ -114,6 +153,236 @@ FbUefiGopSetProtocol(
  */
 IFramebufferBackend *
 FbCreateAppleEfiBackend(
+    VOID
+    );
+
+/* --------------------------------------------------------------- */
+/*  IBM PC Graphics Adapters                                        */
+/* --------------------------------------------------------------- */
+
+/*
+ * Create a CGA backend.
+ * Supports 320x200x4 and 640x200x2 modes.
+ */
+IFramebufferBackend *
+FbCreateCgaBackend(
+    VOID
+    );
+
+/*
+ * Create an EGA backend.
+ * Supports 640x350x16 planar mode.
+ */
+IFramebufferBackend *
+FbCreateEgaBackend(
+    VOID
+    );
+
+/*
+ * Create a VGA backend with Mode 13h support.
+ * Supports 320x200x256 linear mode.
+ */
+IFramebufferBackend *
+FbCreateVgaBackend(
+    VOID
+    );
+
+/*
+ * Create an SVGA backend.
+ * Supports extended SVGA modes.
+ */
+IFramebufferBackend *
+FbCreateSvgaBackend(
+    VOID
+    );
+
+/*
+ * Create an XGA backend.
+ * Supports XGA extended modes.
+ */
+IFramebufferBackend *
+FbCreateXgaBackend(
+    VOID
+    );
+
+/* --------------------------------------------------------------- */
+/*  Apple Platforms                                                 */
+/* --------------------------------------------------------------- */
+
+/*
+ * Create a classic Macintosh framebuffer backend.
+ * Supports 1-bit monochrome display.
+ */
+IFramebufferBackend *
+FbCreateMacClassicBackend(
+    VOID
+    );
+
+/*
+ * Create a Macintosh Valkyrie video backend.
+ * Supports color modes on later compact Macs.
+ */
+IFramebufferBackend *
+FbCreateMacValkyrieBackend(
+    VOID
+    );
+
+/*
+ * Create an Apple Lisa framebuffer backend.
+ * Supports Lisa's 720x364 monochrome display.
+ */
+IFramebufferBackend *
+FbCreateAppleLisaBackend(
+    VOID
+    );
+
+/* --------------------------------------------------------------- */
+/*  Commodore Amiga                                                 */
+/* --------------------------------------------------------------- */
+
+/*
+ * Create an Amiga OCS chipset backend.
+ * Supports planar modes up to 32 colors.
+ */
+IFramebufferBackend *
+FbCreateAmigaOcsBackend(
+    VOID
+    );
+
+/*
+ * Create an Amiga ECS chipset backend.
+ * Supports planar modes up to 64 colors.
+ */
+IFramebufferBackend *
+FbCreateAmigaEcsBackend(
+    VOID
+    );
+
+/*
+ * Create an Amiga AGA chipset backend.
+ * Supports chunky modes and HAM8.
+ */
+IFramebufferBackend *
+FbCreateAmigaAgaBackend(
+    VOID
+    );
+
+/* --------------------------------------------------------------- */
+/*  Atari                                                           */
+/* --------------------------------------------------------------- */
+
+/*
+ * Create an Atari ST backend.
+ * Supports ST low/medium/high resolution modes.
+ */
+IFramebufferBackend *
+FbCreateAtariStBackend(
+    VOID
+    );
+
+/*
+ * Create an Atari TT backend.
+ * Supports TT high color modes.
+ */
+IFramebufferBackend *
+FbCreateAtariTtBackend(
+    VOID
+    );
+
+/*
+ * Create an Atari Falcon backend.
+ * Supports Falcon true color modes.
+ */
+IFramebufferBackend *
+FbCreateAtariFalconBackend(
+    VOID
+    );
+
+/* --------------------------------------------------------------- */
+/*  Sun Microsystems                                                */
+/* --------------------------------------------------------------- */
+
+/*
+ * Create a Sun cgthree backend.
+ * 8-bit color framebuffer.
+ */
+IFramebufferBackend *
+FbCreateSunCgThreeBackend(
+    VOID
+    );
+
+/*
+ * Create a Sun cgsix backend.
+ * Accelerated 8-bit color framebuffer.
+ */
+IFramebufferBackend *
+FbCreateSunCgSixBackend(
+    VOID
+    );
+
+/*
+ * Create a Sun bwtwo backend.
+ * 1-bit monochrome framebuffer.
+ */
+IFramebufferBackend *
+FbCreateSunBwTwoBackend(
+    VOID
+    );
+
+/*
+ * Create a Sun cgfour backend.
+ * 8-bit color framebuffer.
+ */
+IFramebufferBackend *
+FbCreateSunCgFourBackend(
+    VOID
+    );
+
+/* --------------------------------------------------------------- */
+/*  SGI                                                             */
+/* --------------------------------------------------------------- */
+
+/*
+ * Create an SGI Newport graphics backend.
+ * Supports SGI Indy/Indigo2 graphics.
+ */
+IFramebufferBackend *
+FbCreateSgiNewportBackend(
+    VOID
+    );
+
+/*
+ * Create an SGI Impact graphics backend.
+ * Supports high-end SGI workstation graphics.
+ */
+IFramebufferBackend *
+FbCreateSgiImpactBackend(
+    VOID
+    );
+
+/* --------------------------------------------------------------- */
+/*  NeXT                                                            */
+/* --------------------------------------------------------------- */
+
+/*
+ * Create a NeXT Display backend.
+ * Supports 2-bit grayscale display.
+ */
+IFramebufferBackend *
+FbCreateNextBackend(
+    VOID
+    );
+
+/* --------------------------------------------------------------- */
+/*  Acorn                                                           */
+/* --------------------------------------------------------------- */
+
+/*
+ * Create an Acorn VIDC backend.
+ * Supports ARM-based Acorn machines.
+ */
+IFramebufferBackend *
+FbCreateAcornVidcBackend(
     VOID
     );
 
