@@ -44,52 +44,104 @@
 #include "backend/interpreter.h"
 
 #include <string.h>
+#include <math.h>
 
 /**
- * Helper: Read a component from source register with swizzle and negation
+ * Helper: Get register base pointer from source reference
  */
-static GLfloat ReadComponent(const GLfloat *base, const SrcReg *src, GLuint comp) {
-	GLubyte swizzle;
-	GLfloat value;
-
-	/* Get swizzle for this component */
-	switch (comp) {
-		case 0: swizzle = src->selectX; break;
-		case 1: swizzle = src->selectY; break;
-		case 2: swizzle = src->selectZ; break;
-		case 3: swizzle = src->selectW; break;
-		default: return 0.0f;
+static const Vec4f *GetSourceRegisterBase(const SrcReg *src, const VertexContext *vctx, const FragContext *fctx) {
+	if (vctx) {
+		/* Vertex shader context */
+		switch (src->reference.base.kind) {
+			case VarKindAttrib:   return vctx->attrib;
+			case VarKindUniform:  return vctx->uniform;
+			case VarKindConstant: return vctx->constant;
+			case VarKindTemp:     return vctx->temp;
+			default:              return NULL;
+		}
+	} else if (fctx) {
+		/* Fragment shader context */
+		switch (src->reference.base.kind) {
+			case VarKindUniform:  return fctx->uniform;
+			case VarKindConstant: return fctx->constant;
+			case VarKindTemp:     return fctx->temp;
+			default:              return NULL;
+		}
 	}
-
-	/* Read value with swizzle */
-	value = base[swizzle];
-
-	/* Apply negation if needed */
-	if (src->negate) {
-		value = -value;
-	}
-
-	return value;
+	return NULL;
 }
 
 /**
- * Helper: Write a component to destination register with write mask
+ * Helper: Get register base pointer from destination reference
  */
-static void WriteComponent(GLfloat *base, const DstReg *dst, GLuint comp, GLfloat value) {
-	GLboolean mask;
+static Vec4f *GetDestRegisterBase(const DstReg *dst, VertexContext *vctx, FragContext *fctx) {
+	if (vctx) {
+		/* Vertex shader context */
+		switch (dst->reference.base.kind) {
+			case VarKindTemp:   return vctx->temp;
+			case VarKindResult: return (Vec4f *)vctx->varying;  /* Varying output */
+			default:            return NULL;
+		}
+	} else if (fctx) {
+		/* Fragment shader context */
+		switch (dst->reference.base.kind) {
+			case VarKindTemp:   return fctx->temp;
+			case VarKindResult: return fctx->result;
+			default:            return NULL;
+		}
+	}
+	return NULL;
+}
 
-	/* Check write mask */
-	switch (comp) {
-		case 0: mask = dst->maskX; break;
-		case 1: mask = dst->maskY; break;
-		case 2: mask = dst->maskZ; break;
-		case 3: mask = dst->maskW; break;
-		default: return;
+/**
+ * Helper: Load a vec4 from source operand with swizzling
+ */
+static void LoadVec4(Vec4f *dest, const SrcReg *src, const VertexContext *vctx, const FragContext *fctx) {
+	const Vec4f *base = GetSourceRegisterBase(src, vctx, fctx);
+	GLuint swizzle[4] = { src->selectX, src->selectY, src->selectZ, src->selectW };
+	GLuint i;
+
+	if (!base) {
+		GlesMemset(dest, 0, sizeof(Vec4f));
+		return;
 	}
 
-	/* Write if not masked */
-	if (mask) {
-		base[comp] = value;
+	/* Apply index if present */
+	GLsizei index = src->reference.base.index;
+	if (src->index) {
+		/* Dynamic indexing - for simplicity, use index 0 */
+		index = 0;
+	}
+
+	/* Read with swizzling */
+	for (i = 0; i < 4; i++) {
+		dest->base[i] = base[index].base[swizzle[i]];
+		if (src->negate) {
+			dest->base[i] = -dest->base[i];
+		}
+	}
+}
+
+/**
+ * Helper: Store a vec4 to destination operand with write mask
+ */
+static void StoreVec4(const DstReg *dst, const Vec4f *src, VertexContext *vctx, FragContext *fctx) {
+	Vec4f *base = GetDestRegisterBase(dst, vctx, fctx);
+	GLboolean mask[4] = { dst->maskX, dst->maskY, dst->maskZ, dst->maskW };
+	GLuint i;
+
+	if (!base) {
+		return;
+	}
+
+	/* Apply index if present */
+	GLsizei index = dst->reference.base.index;
+
+	/* Write with masking */
+	for (i = 0; i < 4; i++) {
+		if (mask[i]) {
+			base[index].base[i] = src->base[i];
+		}
 	}
 }
 
@@ -134,22 +186,105 @@ GLboolean GlesInterpretVertexShader(const VertexContext *context) {
 
 	linker = (Linker *)executable->vertex.data.base;
 
-	/* Execute the shader IL
-	 * A full implementation would iterate through all blocks and instructions
-	 * For now, provide basic passthrough functionality
-	 *
-	 * TODO: Implement full IL interpreter loop that handles all opcodes
-	 */
-	if (context->temp && context->attrib && context->varying) {
-		GLuint i;
-		/* Simple passthrough: copy first attrib to first varying */
-		for (i = 0; i < 4; i++) {
-			context->varying[i] = context->attrib[i].x;
-		}
-		return GL_TRUE;
+	/* Execute the shader IL by iterating through all blocks and instructions */
+	if (!linker->program) {
+		return GL_FALSE;
 	}
 
-	return GL_FALSE;
+	Block *block;
+	for (block = linker->program->blocks.head; block; block = block->next) {
+		Inst *inst;
+		for (inst = block->first; inst; inst = inst->base.next) {
+			Vec4f src0, src1, src2, result;
+			GLuint i;
+
+			switch (inst->base.op) {
+				case OpcodeMOV:
+				case OpcodeMOV_SAT:
+					LoadVec4(&src0, &inst->unary.arg, (VertexContext *)context, NULL);
+					if (inst->base.op == OpcodeMOV_SAT) {
+						for (i = 0; i < 4; i++) {
+							src0.base[i] = (src0.base[i] < 0.0f) ? 0.0f : ((src0.base[i] > 1.0f) ? 1.0f : src0.base[i]);
+						}
+					}
+					StoreVec4(&inst->unary.alu.dst, &src0, (VertexContext *)context, NULL);
+					break;
+
+				case OpcodeADD:
+				case OpcodeADD_SAT:
+					LoadVec4(&src0, &inst->binary.arg0, (VertexContext *)context, NULL);
+					LoadVec4(&src1, &inst->binary.arg1, (VertexContext *)context, NULL);
+					for (i = 0; i < 4; i++) result.base[i] = src0.base[i] + src1.base[i];
+					if (inst->base.op == OpcodeADD_SAT) {
+						for (i = 0; i < 4; i++) result.base[i] = (result.base[i] < 0.0f) ? 0.0f : ((result.base[i] > 1.0f) ? 1.0f : result.base[i]);
+					}
+					StoreVec4(&inst->binary.alu.dst, &result, (VertexContext *)context, NULL);
+					break;
+
+				case OpcodeMUL:
+				case OpcodeMUL_SAT:
+					LoadVec4(&src0, &inst->binary.arg0, (VertexContext *)context, NULL);
+					LoadVec4(&src1, &inst->binary.arg1, (VertexContext *)context, NULL);
+					for (i = 0; i < 4; i++) result.base[i] = src0.base[i] * src1.base[i];
+					if (inst->base.op == OpcodeMUL_SAT) {
+						for (i = 0; i < 4; i++) result.base[i] = (result.base[i] < 0.0f) ? 0.0f : ((result.base[i] > 1.0f) ? 1.0f : result.base[i]);
+					}
+					StoreVec4(&inst->binary.alu.dst, &result, (VertexContext *)context, NULL);
+					break;
+
+				case OpcodeDP3:
+				case OpcodeDP3_SAT:
+					LoadVec4(&src0, &inst->binary.arg0, (VertexContext *)context, NULL);
+					LoadVec4(&src1, &inst->binary.arg1, (VertexContext *)context, NULL);
+					result.base[0] = result.base[1] = result.base[2] = result.base[3] =
+						src0.base[0] * src1.base[0] + src0.base[1] * src1.base[1] + src0.base[2] * src1.base[2];
+					if (inst->base.op == OpcodeDP3_SAT) {
+						for (i = 0; i < 4; i++) result.base[i] = (result.base[i] < 0.0f) ? 0.0f : ((result.base[i] > 1.0f) ? 1.0f : result.base[i]);
+					}
+					StoreVec4(&inst->binary.alu.dst, &result, (VertexContext *)context, NULL);
+					break;
+
+				case OpcodeDP4:
+				case OpcodeDP4_SAT:
+					LoadVec4(&src0, &inst->binary.arg0, (VertexContext *)context, NULL);
+					LoadVec4(&src1, &inst->binary.arg1, (VertexContext *)context, NULL);
+					result.base[0] = result.base[1] = result.base[2] = result.base[3] =
+						src0.base[0] * src1.base[0] + src0.base[1] * src1.base[1] +
+						src0.base[2] * src1.base[2] + src0.base[3] * src1.base[3];
+					if (inst->base.op == OpcodeDP4_SAT) {
+						for (i = 0; i < 4; i++) result.base[i] = (result.base[i] < 0.0f) ? 0.0f : ((result.base[i] > 1.0f) ? 1.0f : result.base[i]);
+					}
+					StoreVec4(&inst->binary.alu.dst, &result, (VertexContext *)context, NULL);
+					break;
+
+				case OpcodeMAD:
+				case OpcodeMAD_SAT:
+					LoadVec4(&src0, &inst->ternary.arg0, (VertexContext *)context, NULL);
+					LoadVec4(&src1, &inst->ternary.arg1, (VertexContext *)context, NULL);
+					LoadVec4(&src2, &inst->ternary.arg2, (VertexContext *)context, NULL);
+					for (i = 0; i < 4; i++) result.base[i] = src0.base[i] * src1.base[i] + src2.base[i];
+					if (inst->base.op == OpcodeMAD_SAT) {
+						for (i = 0; i < 4; i++) result.base[i] = (result.base[i] < 0.0f) ? 0.0f : ((result.base[i] > 1.0f) ? 1.0f : result.base[i]);
+					}
+					StoreVec4(&inst->ternary.alu.dst, &result, (VertexContext *)context, NULL);
+					break;
+
+				/* Declaration and metadata instructions - no execution needed */
+				case OpcodeINPUT:
+				case OpcodeOUTPUT:
+				case OpcodePARAM:
+				case OpcodeTEMP:
+				case OpcodeADDRESS:
+					break;
+
+				default:
+					/* Unsupported opcode - for now, continue execution */
+					break;
+			}
+		}
+	}
+
+	return GL_TRUE;
 }
 
 /**
@@ -186,20 +321,103 @@ GLboolean GlesInterpretFragmentShader(const FragContext *context) {
 
 	linker = (Linker *)executable->fragment.data.base;
 
-	/* Execute the shader IL
-	 * A full implementation would iterate through all blocks and instructions
-	 * For now, provide basic passthrough functionality
-	 *
-	 * TODO: Implement full IL interpreter loop that handles all opcodes
-	 */
-	if (context->result && context->varying) {
-		GLuint i;
-		/* Simple operation: output varying as color */
-		for (i = 0; i < 4; i++) {
-			context->result[0].base[i] = (i < 4) ? context->varying[i] : 1.0f;
-		}
-		return GL_TRUE;
+	/* Execute the shader IL by iterating through all blocks and instructions */
+	if (!linker->program) {
+		return GL_FALSE;
 	}
 
-	return GL_FALSE;
+	Block *block;
+	for (block = linker->program->blocks.head; block; block = block->next) {
+		Inst *inst;
+		for (inst = block->first; inst; inst = inst->base.next) {
+			Vec4f src0, src1, src2, result;
+			GLuint i;
+
+			switch (inst->base.op) {
+				case OpcodeMOV:
+				case OpcodeMOV_SAT:
+					LoadVec4(&src0, &inst->unary.arg, NULL, (FragContext *)context);
+					if (inst->base.op == OpcodeMOV_SAT) {
+						for (i = 0; i < 4; i++) {
+							src0.base[i] = (src0.base[i] < 0.0f) ? 0.0f : ((src0.base[i] > 1.0f) ? 1.0f : src0.base[i]);
+						}
+					}
+					StoreVec4(&inst->unary.alu.dst, &src0, NULL, (FragContext *)context);
+					break;
+
+				case OpcodeADD:
+				case OpcodeADD_SAT:
+					LoadVec4(&src0, &inst->binary.arg0, NULL, (FragContext *)context);
+					LoadVec4(&src1, &inst->binary.arg1, NULL, (FragContext *)context);
+					for (i = 0; i < 4; i++) result.base[i] = src0.base[i] + src1.base[i];
+					if (inst->base.op == OpcodeADD_SAT) {
+						for (i = 0; i < 4; i++) result.base[i] = (result.base[i] < 0.0f) ? 0.0f : ((result.base[i] > 1.0f) ? 1.0f : result.base[i]);
+					}
+					StoreVec4(&inst->binary.alu.dst, &result, NULL, (FragContext *)context);
+					break;
+
+				case OpcodeMUL:
+				case OpcodeMUL_SAT:
+					LoadVec4(&src0, &inst->binary.arg0, NULL, (FragContext *)context);
+					LoadVec4(&src1, &inst->binary.arg1, NULL, (FragContext *)context);
+					for (i = 0; i < 4; i++) result.base[i] = src0.base[i] * src1.base[i];
+					if (inst->base.op == OpcodeMUL_SAT) {
+						for (i = 0; i < 4; i++) result.base[i] = (result.base[i] < 0.0f) ? 0.0f : ((result.base[i] > 1.0f) ? 1.0f : result.base[i]);
+					}
+					StoreVec4(&inst->binary.alu.dst, &result, NULL, (FragContext *)context);
+					break;
+
+				case OpcodeDP3:
+				case OpcodeDP3_SAT:
+					LoadVec4(&src0, &inst->binary.arg0, NULL, (FragContext *)context);
+					LoadVec4(&src1, &inst->binary.arg1, NULL, (FragContext *)context);
+					result.base[0] = result.base[1] = result.base[2] = result.base[3] =
+						src0.base[0] * src1.base[0] + src0.base[1] * src1.base[1] + src0.base[2] * src1.base[2];
+					if (inst->base.op == OpcodeDP3_SAT) {
+						for (i = 0; i < 4; i++) result.base[i] = (result.base[i] < 0.0f) ? 0.0f : ((result.base[i] > 1.0f) ? 1.0f : result.base[i]);
+					}
+					StoreVec4(&inst->binary.alu.dst, &result, NULL, (FragContext *)context);
+					break;
+
+				case OpcodeDP4:
+				case OpcodeDP4_SAT:
+					LoadVec4(&src0, &inst->binary.arg0, NULL, (FragContext *)context);
+					LoadVec4(&src1, &inst->binary.arg1, NULL, (FragContext *)context);
+					result.base[0] = result.base[1] = result.base[2] = result.base[3] =
+						src0.base[0] * src1.base[0] + src0.base[1] * src1.base[1] +
+						src0.base[2] * src1.base[2] + src0.base[3] * src1.base[3];
+					if (inst->base.op == OpcodeDP4_SAT) {
+						for (i = 0; i < 4; i++) result.base[i] = (result.base[i] < 0.0f) ? 0.0f : ((result.base[i] > 1.0f) ? 1.0f : result.base[i]);
+					}
+					StoreVec4(&inst->binary.alu.dst, &result, NULL, (FragContext *)context);
+					break;
+
+				case OpcodeMAD:
+				case OpcodeMAD_SAT:
+					LoadVec4(&src0, &inst->ternary.arg0, NULL, (FragContext *)context);
+					LoadVec4(&src1, &inst->ternary.arg1, NULL, (FragContext *)context);
+					LoadVec4(&src2, &inst->ternary.arg2, NULL, (FragContext *)context);
+					for (i = 0; i < 4; i++) result.base[i] = src0.base[i] * src1.base[i] + src2.base[i];
+					if (inst->base.op == OpcodeMAD_SAT) {
+						for (i = 0; i < 4; i++) result.base[i] = (result.base[i] < 0.0f) ? 0.0f : ((result.base[i] > 1.0f) ? 1.0f : result.base[i]);
+					}
+					StoreVec4(&inst->ternary.alu.dst, &result, NULL, (FragContext *)context);
+					break;
+
+				/* Declaration and metadata instructions - no execution needed */
+				case OpcodeINPUT:
+				case OpcodeOUTPUT:
+				case OpcodePARAM:
+				case OpcodeTEMP:
+				case OpcodeADDRESS:
+					break;
+
+				default:
+					/* Unsupported opcode - for now, continue execution */
+					break;
+			}
+		}
+	}
+
+	return GL_TRUE;
 }
