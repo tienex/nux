@@ -12702,75 +12702,104 @@ All enumerations follow NT/UEFI PascalCase naming conventions (not underscore st
 //
 //
 // Compression Algorithm Enumeration (32-bit IDs)
-// Comprehensive list of all known compression methods
+// Comprehensive list of all known compression methods from any OS, processor, system vendor, or era
+//
+// DESIGN PHILOSOPHY:
+// This enum identifies the ALGORITHM only. Configuration parameters (compression level, window size,
+// dictionary bits, block size, method variant, etc.) should be specified separately in metadata.
+//
+// EXAMPLES of parameter-based design:
+//   - LZW: Use Zoo64CompressLzw + param for bit size (9-16), NOT separate LZW12/LZW13/LZW14 enums
+//   - LHA: Use Zoo64CompressLha + param for method (LH0-LH7), NOT separate Lh0/Lh1/Lh2 enums
+//   - RAR: Use Zoo64CompressRar + param for version (1.5/2.0/3.0/5.0), NOT separate Rar15/Rar20 enums
+//   - ZIP: Use Zoo64CompressZip + param for method (0=stored, 8=deflate), NOT separate ZipStore/ZipDeflate enums
+//   - ARC: Use Zoo64CompressArc + param for method (1-9), NOT separate Arc1/Arc2/Arc3 enums
 //
 typedef enum _ZOO64_COMPRESSION_ALGORITHM {
-  // 0x0000-0x000F: Basic & Statistical (1950s-1970s)
-  Zoo64CompressStored               = 0x00000000,  // No compression
+  // 0x0000-0x000F: No Compression & Basic Transforms
+  Zoo64CompressStored               = 0x00000000,  // No compression (stored)
   Zoo64CompressRle                  = 0x00000001,  // Run-Length Encoding (1967)
-  Zoo64CompressHuffman              = 0x00000002,  // Huffman coding (1952)
-  Zoo64CompressShannonFano          = 0x00000003,  // Shannon-Fano coding (1949)
-  Zoo64CompressArithmetic           = 0x00000004,  // Arithmetic coding (1976, Rissanen)
-  Zoo64CompressRangeCoding          = 0x00000005,  // Range coding (1979, Martin)
-  Zoo64CompressAns                  = 0x00000006,  // Asymmetric Numeral Systems (2009, Duda)
-  Zoo64CompressGolomb               = 0x00000007,  // Golomb coding (1966)
-  Zoo64CompressRice                 = 0x00000008,  // Rice coding (1971, subset of Golomb)
-  Zoo64CompressElias                = 0x00000009,  // Elias coding (1975)
-  Zoo64CompressFibonacci            = 0x0000000A,  // Fibonacci coding (1960s)
-  Zoo64CompressUnary                = 0x0000000B,  // Unary coding
-  Zoo64CompressTruncatedBinary      = 0x0000000C,  // Truncated binary encoding
-  Zoo64CompressExpGolomb            = 0x0000000D,  // Exponential-Golomb coding (H.264)
-  Zoo64CompressZoz                  = 0x0000000E,  // ZOZ adaptive pipeline (2024)
-  Zoo64CompressBitSquish            = 0x0000000F,  // Bit squishing (reduced alphabet, 2024)
+  Zoo64CompressMoveToFront          = 0x00000002,  // Move-To-Front transform (BWT component)
+  Zoo64CompressDelta                = 0x00000003,  // Delta encoding (first-order)
+  Zoo64CompressDelta2               = 0x00000004,  // Second-order delta
+  Zoo64CompressXor                  = 0x00000005,  // XOR filter
+  Zoo64CompressPackbits             = 0x00000006,  // PackBits RLE (1984, Macintosh)
+  Zoo64CompressRadix50              = 0x00000007,  // RADIX-50 encoding (DEC, 1970s)
+  Zoo64CompressSixbit               = 0x00000008,  // 6-bit character encoding
+  Zoo64CompressBcd                  = 0x00000009,  // BCD (Binary Coded Decimal)
+  Zoo64CompressBitSquish            = 0x0000000A,  // Bit squishing/reduced alphabet (2024)
+  Zoo64CompressZoz                  = 0x0000000B,  // ZOZ adaptive pipeline (BWT+MTF+RAD50RLE+LZ78+Range, 2024)
 
-  // 0x0010-0x002F: LZ77 Family (1977-2010s)
-  Zoo64CompressLz77                 = 0x00000010,  // Lempel-Ziv 1977 (original)
-  Zoo64CompressLzss                 = 0x00000011,  // LZSS (1982, Storer & Szymanski)
-  Zoo64CompressDeflate              = 0x00000012,  // DEFLATE (1993, RFC 1951, Deutsch)
-  Zoo64CompressZlib                 = 0x00000013,  // ZLIB (1995, RFC 1950)
-  Zoo64CompressGzip                 = 0x00000014,  // GZIP (1992, RFC 1952, Gailly)
-  Zoo64CompressLzo                  = 0x00000015,  // LZO (1996, Oberhumer)
-  Zoo64CompressLz4                  = 0x00000016,  // LZ4 (2011, Collet, extremely fast)
-  Zoo64CompressLz4Hc                = 0x00000017,  // LZ4 High Compression (2011)
-  Zoo64CompressSnappy               = 0x00000018,  // Snappy (2011, Google)
-  Zoo64CompressLzf                  = 0x00000019,  // LibLZF (2000-2007)
-  Zoo64CompressLzrw                 = 0x0000001A,  // LZRW1/3/4 (1991, Williams)
-  Zoo64CompressLzjb                 = 0x0000001B,  // LZJB (2005, ZFS, Bonwick)
-  Zoo64CompressLzp                  = 0x0000001C,  // LZP (1995, Charles Bloom)
-  Zoo64CompressQuickLz              = 0x0000001D,  // QuickLZ (2006-2009)
-  Zoo64CompressLzham                = 0x0000001E,  // LZHAM (2009, Tranchida)
-  Zoo64CompressLzx                  = 0x0000001F,  // Microsoft LZX (1996, CAB)
-  Zoo64CompressLzma1                = 0x00000020,  // LZMA1 (1998, Pavlov, 7-Zip)
-  Zoo64CompressLzd                  = 0x00000021,  // LZD (Digital Research)
-  Zoo64CompressLzh1                 = 0x00000022,  // LZH1 (early LHA method)
-  Zoo64CompressLzb                  = 0x00000023,  // LZB
-  Zoo64CompressLzari                = 0x00000024,  // LZARI (1988, Haruhiko Okumura)
-  Zoo64CompressLzhuf                = 0x00000025,  // LZHUF (1989, Okumura/Yoshizaki)
-  Zoo64CompressLzs                  = 0x00000026,  // LZS (Stac Electronics, 1990s)
-  Zoo64CompressLzw12                = 0x00000027,  // LZW 12-bit
-  Zoo64CompressLzw13                = 0x00000028,  // LZW 13-bit
-  Zoo64CompressLzw14                = 0x00000029,  // LZW 14-bit
-  Zoo64CompressLzw15                = 0x0000002A,  // LZW 15-bit
-  Zoo64CompressLzw16                = 0x0000002B,  // LZW 16-bit
+  // 0x0010-0x002F: Statistical & Entropy Coding (1949-2015)
+  Zoo64CompressShannonFano          = 0x00000010,  // Shannon-Fano (1949)
+  Zoo64CompressHuffman              = 0x00000011,  // Huffman (1952, params: adaptive/canonical/static)
+  Zoo64CompressArithmetic           = 0x00000012,  // Arithmetic coding (1976, Rissanen/Pasco)
+  Zoo64CompressRangeCoding          = 0x00000013,  // Range coding (1979, G.N.N. Martin)
+  Zoo64CompressAns                  = 0x00000014,  // ANS (2009, Jarek Duda, params: tANS/rANS)
+  Zoo64CompressFse                  = 0x00000015,  // Finite State Entropy (2013, Yann Collet)
+  Zoo64CompressHuff0                = 0x00000016,  // Huff0 (FSE-Huffman hybrid)
+  Zoo64CompressGolomb               = 0x00000017,  // Golomb (1966)
+  Zoo64CompressRice                 = 0x00000018,  // Rice (1971)
+  Zoo64CompressElias                = 0x00000019,  // Elias gamma/delta/omega (1975)
+  Zoo64CompressFibonacci            = 0x0000001A,  // Fibonacci coding
+  Zoo64CompressUnary                = 0x0000001B,  // Unary
+  Zoo64CompressTruncatedBinary      = 0x0000001C,  // Truncated binary
+  Zoo64CompressExpGolomb            = 0x0000001D,  // Exp-Golomb (H.264/AVC)
+  Zoo64CompressLevenstein           = 0x0000001E,  // Levenstein coding
 
-  // 0x0030-0x003F: LZ78 Family (1978-1990s)
-  Zoo64CompressLz78                 = 0x00000030,  // Lempel-Ziv 1978 (original)
-  Zoo64CompressLzw                  = 0x00000031,  // LZW (1984, Welch)
-  Zoo64CompressLzc                  = 0x00000032,  // UNIX compress (1985, .Z files)
-  Zoo64CompressGifLzw               = 0x00000033,  // GIF LZW variant (1987, CompuServe)
-  Zoo64CompressTiffLzw              = 0x00000034,  // TIFF LZW (1988)
-  Zoo64CompressPostScriptLzw        = 0x00000035,  // PostScript LZW
-  Zoo64CompressPdfLzw               = 0x00000036,  // PDF LZW
-  Zoo64CompressLzc12                = 0x00000037,  // UNIX compress 12-bit
-  Zoo64CompressLzc13                = 0x00000038,  // UNIX compress 13-bit
-  Zoo64CompressLzc14                = 0x00000039,  // UNIX compress 14-bit
-  Zoo64CompressLzc15                = 0x0000003A,  // UNIX compress 15-bit
-  Zoo64CompressLzc16                = 0x0000003B,  // UNIX compress 16-bit
+  // 0x0030-0x006F: LZ77 Family (1977-2020s) - Use params for window/match/level
+  Zoo64CompressLz77                 = 0x00000030,  // Lempel-Ziv 1977 (original)
+  Zoo64CompressLzss                 = 0x00000031,  // LZSS (1982, Storer & Szymanski)
+  Zoo64CompressLzh                  = 0x00000032,  // LZH/LHA (LZSS + Huffman, params: LH0-LH7 method)
+  Zoo64CompressDeflate              = 0x00000033,  // DEFLATE (1993, RFC 1951, params: level 1-9)
+  Zoo64CompressZlib                 = 0x00000034,  // zlib (1995, RFC 1950)
+  Zoo64CompressGzip                 = 0x00000035,  // gzip (1992, RFC 1952)
+  Zoo64CompressLzo                  = 0x00000036,  // LZO (1996, Oberhumer, params: LZO1X/1Y/2A)
+  Zoo64CompressLz4                  = 0x00000037,  // LZ4 (2011, Collet, params: fast/HC mode)
+  Zoo64CompressSnappy               = 0x00000038,  // Snappy (2011, Google)
+  Zoo64CompressLzf                  = 0x00000039,  // LibLZF (2000-2007)
+  Zoo64CompressLzrw                 = 0x0000003A,  // LZRW (1991, Williams, params: variant 1/3/4/5)
+  Zoo64CompressLzjb                 = 0x0000003B,  // LZJB (2005, ZFS, James A. Bonwick)
+  Zoo64CompressLzp                  = 0x0000003C,  // LZP (1995, Charles Bloom)
+  Zoo64CompressQuickLz              = 0x0000003D,  // QuickLZ (2006-2009, params: level 1/2/3)
+  Zoo64CompressLzham                = 0x0000003E,  // LZHAM (2009-2012, Rich Geldreich)
+  Zoo64CompressLzx                  = 0x0000003F,  // Microsoft LZX (1996, CAB, params: window 15-21)
+  Zoo64CompressLzd                  = 0x00000040,  // LZD (Digital Research)
+  Zoo64CompressLzari                = 0x00000041,  // LZARI (1988, Haruhiko Okumura)
+  Zoo64CompressLzhuf                = 0x00000042,  // LZHUF (1989, Okumura/Yoshizaki)
+  Zoo64CompressLzs                  = 0x00000043,  // LZS (Stac Electronics, 1990s, modem/PPP)
+  Zoo64CompressLzb                  = 0x00000044,  // LZB
+  Zoo64CompressFastlz               = 0x00000045,  // FastLZ (2007, Ariya Hidayat)
+  Zoo64CompressLzfse                = 0x00000046,  // LZFSE (2015, Apple)
+  Zoo64CompressLizard               = 0x00000047,  // Lizard (2015-2017, formerly LZ5)
+  Zoo64CompressDensity              = 0x00000048,  // Density (2015, params: Chameleon/Lion)
+  Zoo64CompressLzsse                = 0x00000049,  // LZSSE (2016, Conor Stokes)
+  Zoo64CompressShrinker             = 0x0000004A,  // Shrinker (2016)
+  Zoo64CompressBriefLz              = 0x0000004B,  // BriefLZ (Joergen Ibsen)
+  Zoo64CompressLzmat                = 0x0000004C,  // LZMAT
+  Zoo64CompressLzg                  = 0x0000004D,  // LZG
+  Zoo64CompressLzv                  = 0x0000004E,  // LZV
+  Zoo64CompressLznib                = 0x0000004F,  // LZNIB
+  Zoo64CompressLzwf                 = 0x00000050,  // LZWF
+  Zoo64CompressOrz                  = 0x00000051,  // ORZ (2014)
+  Zoo64CompressZling                = 0x00000052,  // ZLING (2014, Zhang Li)
+  Zoo64CompressTornado              = 0x00000053,  // Tornado (2013)
 
-  // 0x0040-0x005F: LZMA Family
-  Zoo64CompressLzma                 = 0x00000040,  // LZMA (7-Zip)
-  Zoo64CompressLzma2                = 0x00000041,  // LZMA2 (multi-threaded)
-  Zoo64CompressXz                   = 0x00000042,  // XZ Utils (LZMA2-based)
+  // 0x0070-0x008F: LZ78/LZW Family (1978-1990s) - Use params for bit size (9-16)
+  Zoo64CompressLz78                 = 0x00000070,  // Lempel-Ziv 1978 (original)
+  Zoo64CompressLzw                  = 0x00000071,  // LZW (1984, Welch, params: bits 9-16)
+  Zoo64CompressLzc                  = 0x00000072,  // UNIX compress (1985, .Z files, params: bits 9-16)
+  Zoo64CompressGifLzw               = 0x00000073,  // GIF LZW variant (1987, CompuServe)
+  Zoo64CompressTiffLzw              = 0x00000074,  // TIFF LZW (1988)
+  Zoo64CompressPostScriptLzw        = 0x00000075,  // PostScript LZW
+  Zoo64CompressPdfLzw               = 0x00000076,  // PDF LZW
+  Zoo64CompressLzap                 = 0x00000077,  // LZAP
+
+  // 0x0090-0x009F: LZMA Family (1998-2010s)
+  Zoo64CompressLzma                 = 0x00000090,  // LZMA (1998-2001, Igor Pavlov, params: level/dict)
+  Zoo64CompressLzma2                = 0x00000091,  // LZMA2 (2009, multithreaded)
+  Zoo64Compress7z                   = 0x00000092,  // 7z (1999, Igor Pavlov)
+  Zoo64CompressXz                   = 0x00000093,  // XZ (2009, Lasse Collin, LZMA2-based)
 
   // 0x0060-0x007F: Modern General-Purpose
   Zoo64CompressZstd                 = 0x00000060,  // Zstandard (Facebook, recommended)
