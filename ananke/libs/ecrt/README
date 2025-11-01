@@ -1,0 +1,8 @@
+libeCRT -- An Embedded Small, Self Contained, Non Standard C Runtime library.
+
+This is a collection of libraries, mostly taken from NetBSD, aimed at
+providing a simple embedded libc to a program. This library has been
+integrated into the A•NUX Project and can optionally reuse code from the
+NT Runtime Library (ntrtl) for enhanced functionality.
+
+

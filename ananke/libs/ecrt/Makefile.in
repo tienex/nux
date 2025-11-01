@@ -1,0 +1,32 @@
+## @file
+#  eCRT - An embedded C runtime library
+#
+#  Copyright (C) 2025 A•NUX Project
+#
+#  SPDX-License-Identifier: BSD-2-Clause
+##
+
+eCRT_DIR=@eCRTSRCDIR@
+
+INCSUBDIRS= sys machine i386 amd64 riscv64
+
+INCDIR=include
+INCS= \
+	assert.h \
+	cdefs.h \
+	cdefs_elf.h \
+	ctype.h \
+	errno.h \
+	inttypes.h \
+	limits.h \
+	ntrtl_compat.h \
+	queue.h \
+	rbtree.h \
+	setjmp.h \
+	stdarg.h \
+	stdbool.h \
+	stddef.h \
+	stdint.h \
+	stdio.h \
+	stdlib.h \
+	string.h

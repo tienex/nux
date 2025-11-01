@@ -1,0 +1,28 @@
+## @file
+#  eCRT - An embedded C runtime library
+#
+#  Copyright (C) 2025 A•NUX Project
+#
+#  SPDX-License-Identifier: BSD-2-Clause
+##
+
+ifeq (z$(eCRT_MACHINE),z)
+eCRT_MACHINE=@MACHINE@
+endif
+
+CFLAGS+= -Wall -nostdinc -fno-builtin -ffreestanding -fno-strict-aliasing -fshort-wchar
+LDFLAGS+= -nostdlib
+CPPFLAGS+= -D_eCRT_SOURCE -I@LIBeCRT_SRCDIR@
+ASFLAGS+= -D_ASSEMBLER
+
+
+ifeq ($(eCRT_MACHINE),amd64)
+CPPFLAGS+= -DeCRT_MACHINE_AMD64=1
+endif
+ifeq ($(eCRT_MACHINE),i386)
+CPPFLAGS+= -DeCRT_MACHINE_I386=1
+endif
+ifeq ($(eCRT_MACHINE),riscv64)
+CPPFLAGS+= -DeCRT_MACHINE_RISCV64=1
+CFLAGS+= -mcmodel=medany
+endif
