@@ -7,18 +7,18 @@
 ##
 #
 # To embed libecrt in your target, include this file,
-# and add $(eCRT_SRCS) to your sources.
+# and add $(ECRT_SRCS) to your sources.
 #
 
-ifeq (z$(eCRT_MACHINE),z)
-eCRT_MACHINE=@MACHINE@
+ifeq (z$(ECRT_MACHINE),z)
+ECRT_MACHINE=@MACHINE@
 endif
 
-eCRT_DIR=@LIBeCRT_SRCDIR@
+ECRT_DIR=@LIBECRT_SRCDIR@
 
-eCRT_ARCH_DIR= $(eCRT_MACHINE)
+ECRT_ARCH_DIR= $(ECRT_MACHINE)
 
-include $(eCRT_DIR)/ec_sources.mk
+include $(ECRT_DIR)/ec_sources.mk
 
-SRCS+= $(addprefix $(eCRT_DIR)/,$(eCRT_SRCS))
+SRCS+= $(addprefix $(ECRT_DIR)/,$(ECRT_SRCS))
 

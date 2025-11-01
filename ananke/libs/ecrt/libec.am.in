@@ -15,39 +15,39 @@
 # i.e., only if they are under your own configure script.
 #
 # To embed libecrt in your target, include this file,
-# and add $(eCRT_SRCS) to your sources.
+# and add $(ECRT_SRCS) to your sources.
 #
 
-eCRT_ARCH_DIR=@MACHINE@
+ECRT_ARCH_DIR=@MACHINE@
 
-eCRT_ARCH_SRCS= 	$(eCRT_DIR)/$(eCRT_ARCH_DIR)/_setjmp.S \
-		$(eCRT_DIR)/$(eCRT_ARCH_DIR)/atomic.S \
-		$(eCRT_DIR)/$(eCRT_ARCH_DIR)/ffs.S \
-		$(eCRT_DIR)/$(eCRT_ARCH_DIR)/fls.S \
-		$(eCRT_DIR)/$(eCRT_ARCH_DIR)/memcmp.S \
-		$(eCRT_DIR)/$(eCRT_ARCH_DIR)/memcpy.S \
-		$(eCRT_DIR)/$(eCRT_ARCH_DIR)/memmove.S \
-		$(eCRT_DIR)/$(eCRT_ARCH_DIR)/memset.S \
-		$(eCRT_DIR)/$(eCRT_ARCH_DIR)/strlen.S \
-		$(eCRT_DIR)/$(eCRT_ARCH_DIR)/strncmp.S
+ECRT_ARCH_SRCS= 	$(ECRT_DIR)/$(ECRT_ARCH_DIR)/_setjmp.S \
+		$(ECRT_DIR)/$(ECRT_ARCH_DIR)/atomic.S \
+		$(ECRT_DIR)/$(ECRT_ARCH_DIR)/ffs.S \
+		$(ECRT_DIR)/$(ECRT_ARCH_DIR)/fls.S \
+		$(ECRT_DIR)/$(ECRT_ARCH_DIR)/memcmp.S \
+		$(ECRT_DIR)/$(ECRT_ARCH_DIR)/memcpy.S \
+		$(ECRT_DIR)/$(ECRT_ARCH_DIR)/memmove.S \
+		$(ECRT_DIR)/$(ECRT_ARCH_DIR)/memset.S \
+		$(ECRT_DIR)/$(ECRT_ARCH_DIR)/strlen.S \
+		$(ECRT_DIR)/$(ECRT_ARCH_DIR)/strncmp.S
 
 
-eCRT_CFLAGS= -nostdinc -fno-builtin
-eCRT_LDFLAGS= -nostdlib
-eCRT_CPPFLAGS= -D_eCRT_SOURCE -I $(eCRT_DIR)
-eCRT_CCASFLAGS= -D_ASSEMBLER
+ECRT_CFLAGS= -nostdinc -fno-builtin
+ECRT_LDFLAGS= -nostdlib
+ECRT_CPPFLAGS= -D_eCRT_SOURCE -I $(ECRT_DIR)
+ECRT_CCASFLAGS= -D_ASSEMBLER
 
-eCRT_SRCS = 	$(eCRT_DIR)/crt0-common.c \
-		$(eCRT_DIR)/printf.c \
-		$(eCRT_DIR)/rb.c \
-		$(eCRT_DIR)/strcspn.c \
-		$(eCRT_DIR)/strlcpy.c \
-		$(eCRT_DIR)/atexit.c \
-		$(eCRT_ARCH_SRCS)
+ECRT_SRCS = 	$(ECRT_DIR)/crt0-common.c \
+		$(ECRT_DIR)/printf.c \
+		$(ECRT_DIR)/rb.c \
+		$(ECRT_DIR)/strcspn.c \
+		$(ECRT_DIR)/strlcpy.c \
+		$(ECRT_DIR)/atexit.c \
+		$(ECRT_ARCH_SRCS)
 
 # Used for crt* asm files
-%.o: $(eCRT_DIR)/$(eCRT_ARCH_DIR)/%.S
-	$(CCAS) -c $(eCRT_CPPFLAGS) $(eCRT_CCASFLAGS)  $< -o $@
+%.o: $(ECRT_DIR)/$(ECRT_ARCH_DIR)/%.S
+	$(CCAS) -c $(ECRT_CPPFLAGS) $(ECRT_CCASFLAGS)  $< -o $@
 
 
 #
@@ -59,7 +59,7 @@ eCRT_SRCS = 	$(eCRT_DIR)/crt0-common.c \
 #
 %$(EXEEXT): lib%.a crt0.o crti.o crtbegin.o crtend.o crtn.o
 	$(CC) crt0.o crti.o crtbegin.o \
-	$(AM_LDFLAGS) $(eCRT_LDFLAGS) $(LDFLAGS) \
+	$(AM_LDFLAGS) $(ECRT_LDFLAGS) $(LDFLAGS) \
 	-Wl,--start-group $< $(AM_LDADD) -Wl,--end-group \
 	crtend.o crtn.o \
 	-o $@

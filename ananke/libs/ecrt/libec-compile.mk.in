@@ -6,23 +6,23 @@
 #  SPDX-License-Identifier: BSD-2-Clause
 ##
 
-ifeq (z$(eCRT_MACHINE),z)
-eCRT_MACHINE=@MACHINE@
+ifeq (z$(ECRT_MACHINE),z)
+ECRT_MACHINE=@MACHINE@
 endif
 
 CFLAGS+= -Wall -nostdinc -fno-builtin -ffreestanding -fno-strict-aliasing -fshort-wchar
 LDFLAGS+= -nostdlib
-CPPFLAGS+= -D_eCRT_SOURCE -I@LIBeCRT_SRCDIR@
+CPPFLAGS+= -D_eCRT_SOURCE -I@LIBECRT_SRCDIR@
 ASFLAGS+= -D_ASSEMBLER
 
 
-ifeq ($(eCRT_MACHINE),amd64)
-CPPFLAGS+= -DeCRT_MACHINE_AMD64=1
+ifeq ($(ECRT_MACHINE),amd64)
+CPPFLAGS+= -DECRT_MACHINE_AMD64=1
 endif
-ifeq ($(eCRT_MACHINE),i386)
-CPPFLAGS+= -DeCRT_MACHINE_I386=1
+ifeq ($(ECRT_MACHINE),i386)
+CPPFLAGS+= -DECRT_MACHINE_I386=1
 endif
-ifeq ($(eCRT_MACHINE),riscv64)
-CPPFLAGS+= -DeCRT_MACHINE_RISCV64=1
+ifeq ($(ECRT_MACHINE),riscv64)
+CPPFLAGS+= -DECRT_MACHINE_RISCV64=1
 CFLAGS+= -mcmodel=medany
 endif

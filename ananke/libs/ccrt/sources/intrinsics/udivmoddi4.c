@@ -18,7 +18,7 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include <ecrt/intrinsics/int_lib.h>
+#include <ccrt/intrinsics/int_lib.h>
 
 // Effects: if rem != 0, *rem = a % b
 // Returns: a / b

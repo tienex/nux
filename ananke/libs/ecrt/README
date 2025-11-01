@@ -2,7 +2,14 @@ libeCRT -- An Embedded Small, Self Contained, Non Standard C Runtime library.
 
 This is a collection of libraries, mostly taken from NetBSD, aimed at
 providing a simple embedded libc to a program. This library has been
-integrated into the A•NUX Project and can optionally reuse code from the
-NT Runtime Library (ntrtl) for enhanced functionality.
+integrated into the A•NUX Project.
 
+eCRT uses NTRTL (ananke/libs/ntrtl) for optimized string and memory
+operations by default, providing better performance through
+architecture-specific assembly implementations.
 
+Compiler intrinsics have been moved to cCRT (ananke/libs/ccrt), which
+provides multi-compiler support for GCC, Clang, MSVC, and Open Watcom.
+
+Copyright (C) 2025 A•NUX Project
+SPDX-License-Identifier: BSD-2-Clause

@@ -18,7 +18,7 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include <ecrt/intrinsics/int_lib.h>
+#include <ccrt/intrinsics/int_lib.h>
 
 // Returns: count of 1 bits
 
