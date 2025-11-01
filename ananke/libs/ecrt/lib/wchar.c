@@ -184,6 +184,70 @@ wcsrchr (const wchar_t *s, wchar_t c)
     return (wchar_t *)last;
 }
 
+size_t
+wcsnlen (const wchar_t *s, size_t maxlen)
+{
+    const wchar_t *p = s;
+
+    while (maxlen > 0 && *p != 0) {
+        p++;
+        maxlen--;
+    }
+
+    return (size_t)(p - s);
+}
+
+size_t
+wcscspn (const wchar_t *s, const wchar_t *charset)
+{
+    const wchar_t *p, *spanp;
+    wchar_t c, sc;
+
+    for (p = s;;) {
+        c = *p++;
+        spanp = charset;
+        do {
+            sc = *spanp++;
+            if (sc == c) {
+                return (size_t)(p - 1 - s);
+            }
+        } while (sc != 0);
+        if (c == 0) {
+            break;
+        }
+    }
+
+    return (size_t)(p - 1 - s);
+}
+
+size_t
+wcslcpy (wchar_t *dst, const wchar_t *src, size_t siz)
+{
+    wchar_t *d = dst;
+    const wchar_t *s = src;
+    size_t n = siz;
+
+    /* Copy as many characters as will fit */
+    if (n != 0) {
+        while (--n != 0) {
+            if ((*d++ = *s++) == 0) {
+                break;
+            }
+        }
+    }
+
+    /* Not enough room in dst, add null and traverse rest of src */
+    if (n == 0) {
+        if (siz != 0) {
+            *d = 0;  /* Null terminate dst */
+        }
+        while (*s++)
+            ;
+    }
+
+    return (size_t)(s - src - 1);  /* Count does not include null */
+}
+
 #endif /* USE_NTRTL */
 
 #endif /* _KERNEL */

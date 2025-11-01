@@ -42,12 +42,15 @@ unsigned long ffs (unsigned long);
 typedef unsigned short wchar_t;
 
 size_t wcslen (const wchar_t *s);
+size_t wcsnlen (const wchar_t *s, size_t maxlen);
 wchar_t *wcscpy (wchar_t *dest, const wchar_t *src);
 wchar_t *wcsncpy (wchar_t *dest, const wchar_t *src, size_t n);
+size_t wcslcpy (wchar_t *dst, const wchar_t *src, size_t siz);
 int wcscmp (const wchar_t *s1, const wchar_t *s2);
 int wcsncmp (const wchar_t *s1, const wchar_t *s2, size_t n);
 wchar_t *wcschr (const wchar_t *s, wchar_t c);
 wchar_t *wcsrchr (const wchar_t *s, wchar_t c);
+size_t wcscspn (const wchar_t *s, const wchar_t *charset);
 
 /* Optional: Integration with NT RTL if available */
 #ifdef USE_NTRTL
