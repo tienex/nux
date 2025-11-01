@@ -9692,6 +9692,807 @@ BitSquishDecompress (
 - **Enhanced**: Full support with hybrid mode
 - **Full**: Full support with all optimizations
 
+## 12.8 WASM32 Embeddable Modules for Custom Algorithms
+
+Zoo64 supports embedding WASM32 (WebAssembly 32-bit) modules directly into archives. This allows archives to be self-contained with custom implementations of compression, encryption, hashing, and signing algorithms that may not be available on the target system.
+
+**Use Cases**:
+- Proprietary compression algorithms
+- Custom encryption schemes
+- Domain-specific hashing functions
+- Organization-specific digital signatures
+- Experimental or research algorithms
+- Legacy algorithm support
+- Cross-platform algorithm portability
+
+### 12.8.1 WASM32 Module Overview
+
+WASM32 modules embedded in Zoo64 archives provide custom algorithm implementations using the WebAssembly standard. Modules are stored as metadata chunks and can be loaded dynamically when the archive is opened.
+
+**Benefits**:
+- **Self-Contained**: Archive includes all code needed to process it
+- **Platform-Independent**: WASM runs on any system with a WASM runtime
+- **Secure**: WASM sandboxing prevents malicious code execution
+- **Efficient**: Near-native performance
+- **Standardized**: Uses W3C WebAssembly specification
+
+**Security Model**:
+- WASM modules run in isolated sandbox
+- No file system access (except through API)
+- No network access
+- Limited memory (configurable, default 16MB max)
+- Deterministic execution
+- Resource limits (CPU time, memory allocation)
+
+### 12.8.2 Data Structures
+
+```c
+//
+// WASM32 module metadata chunk
+// Metadata type: 0x0100 (Zoo64MetaWasm32Module)
+//
+typedef struct _ZOO64_WASM32_MODULE {
+  UINT64  Magic;              // 0x5741534D33320000 ("WASM32\0\0")
+  UINT32  ModuleSize;         // Size of WASM binary
+  UINT32  Flags;              // Module flags
+  UINT8   ModuleUuid[16];     // Unique identifier for this module
+  UINT32  Version;            // Module version (major.minor.patch.build)
+  UINT32  ApiVersion;         // Zoo64 WASM API version required
+  UINT32  ModuleType;         // Type of algorithm(s) provided
+  UINT32  AlgorithmId;        // Custom algorithm ID
+  CHAR8   ModuleName[64];     // UTF-8 module name
+  CHAR8   Author[64];         // UTF-8 author/organization
+  UINT32  MaxMemoryMB;        // Maximum memory in MB (default 16, max 256)
+  UINT32  MaxExecutionMs;     // Maximum execution time per call (ms)
+  UINT8   Sha256Hash[32];     // SHA-256 hash of WASM binary
+  UINT32  Reserved[8];
+  // Followed by WASM binary (ModuleSize bytes)
+} ZOO64_WASM32_MODULE;
+
+//
+// WASM32 module flags
+//
+#define ZOO64_WASM32_REQUIRED         0x00000001  // Required for archive access
+#define ZOO64_WASM32_OPTIONAL         0x00000002  // Optional enhancement
+#define ZOO64_WASM32_COMPRESSION      0x00000010  // Provides compression
+#define ZOO64_WASM32_ENCRYPTION       0x00000020  // Provides encryption
+#define ZOO64_WASM32_HASHING          0x00000040  // Provides hashing
+#define ZOO64_WASM32_SIGNING          0x00000080  // Provides signing
+#define ZOO64_WASM32_VERIFIED         0x00000100  // Digitally signed module
+#define ZOO64_WASM32_TRUSTED          0x00000200  // From trusted source
+
+//
+// WASM32 module types
+//
+typedef enum _ZOO64_WASM32_MODULE_TYPE {
+  Zoo64Wasm32TypeCompression    = 0x0001,  // Compression algorithm
+  Zoo64Wasm32TypeEncryption     = 0x0002,  // Encryption algorithm
+  Zoo64Wasm32TypeHashing        = 0x0003,  // Hashing algorithm
+  Zoo64Wasm32TypeSigning        = 0x0004,  // Digital signature
+  Zoo64Wasm32TypeKdf            = 0x0005,  // Key derivation function
+  Zoo64Wasm32TypeMulti          = 0x00FF   // Multiple algorithms
+} ZOO64_WASM32_MODULE_TYPE;
+```
+
+### 12.8.3 WASM32 API Interface
+
+Zoo64 defines a standard API for WASM modules to implement. The API uses the WASM import/export mechanism.
+
+**Memory Model**:
+- Linear memory allocated by host
+- Modules use `malloc`/`free` exported by host
+- Data passed via memory pointers
+- No shared memory between modules
+
+**Imported Functions** (provided by host to WASM module):
+
+```c
+//
+// Memory allocation (imported by module from host)
+//
+void* zoo64_malloc(uint32_t size);
+void  zoo64_free(void* ptr);
+
+//
+// Logging and debugging (imported by module)
+//
+void zoo64_log(const char* message, uint32_t length);
+void zoo64_error(const char* message, uint32_t length);
+
+//
+// Get module configuration
+//
+uint32_t zoo64_get_config(const char* key, char* value, uint32_t max_len);
+```
+
+**Exported Functions** (implemented by WASM module, called by host):
+
+#### Compression Module API
+
+```c
+//
+// Initialize compression module
+// Returns: 0 on success, error code otherwise
+//
+int32_t zoo64_compress_init(void);
+
+//
+// Get algorithm information
+//
+void zoo64_compress_get_info(
+  char* name,           // Output: algorithm name
+  uint32_t name_len,    // Input: max name length
+  uint32_t* flags       // Output: algorithm flags
+);
+
+//
+// Compress data
+// Returns: compressed size, or negative error code
+//
+int32_t zoo64_compress(
+  const uint8_t* input,     // Input data
+  uint32_t input_size,      // Input size
+  uint8_t* output,          // Output buffer
+  uint32_t output_max,      // Output buffer size
+  uint32_t level            // Compression level (0-9)
+);
+
+//
+// Decompress data
+// Returns: decompressed size, or negative error code
+//
+int32_t zoo64_decompress(
+  const uint8_t* input,     // Compressed data
+  uint32_t input_size,      // Compressed size
+  uint8_t* output,          // Output buffer
+  uint32_t output_max       // Output buffer size
+);
+
+//
+// Cleanup
+//
+void zoo64_compress_cleanup(void);
+```
+
+#### Encryption Module API
+
+```c
+//
+// Initialize encryption module
+//
+int32_t zoo64_encrypt_init(void);
+
+//
+// Get algorithm information
+//
+void zoo64_encrypt_get_info(
+  char* name,
+  uint32_t name_len,
+  uint32_t* key_size,      // Key size in bits
+  uint32_t* block_size,    // Block size in bytes
+  uint32_t* flags
+);
+
+//
+// Encrypt data
+// Returns: encrypted size (may include IV, tag), or negative error code
+//
+int32_t zoo64_encrypt(
+  const uint8_t* input,     // Plaintext
+  uint32_t input_size,
+  const uint8_t* key,       // Encryption key
+  uint32_t key_size,
+  const uint8_t* iv,        // Initialization vector (may be NULL)
+  uint32_t iv_size,
+  uint8_t* output,          // Output buffer (ciphertext)
+  uint32_t output_max
+);
+
+//
+// Decrypt data
+// Returns: decrypted size, or negative error code
+//
+int32_t zoo64_decrypt(
+  const uint8_t* input,     // Ciphertext
+  uint32_t input_size,
+  const uint8_t* key,       // Decryption key
+  uint32_t key_size,
+  const uint8_t* iv,        // Initialization vector (may be NULL)
+  uint32_t iv_size,
+  uint8_t* output,          // Output buffer (plaintext)
+  uint32_t output_max
+);
+
+//
+// Cleanup
+//
+void zoo64_encrypt_cleanup(void);
+```
+
+#### Hashing Module API
+
+```c
+//
+// Initialize hashing module
+//
+int32_t zoo64_hash_init(void);
+
+//
+// Get algorithm information
+//
+void zoo64_hash_get_info(
+  char* name,
+  uint32_t name_len,
+  uint32_t* hash_size,     // Hash output size in bytes
+  uint32_t* flags
+);
+
+//
+// Hash data (one-shot)
+// Returns: hash size, or negative error code
+//
+int32_t zoo64_hash(
+  const uint8_t* input,     // Data to hash
+  uint32_t input_size,
+  uint8_t* output,          // Hash output buffer
+  uint32_t output_max
+);
+
+//
+// Incremental hashing (for large files)
+//
+void* zoo64_hash_create_context(void);
+int32_t zoo64_hash_update(void* ctx, const uint8_t* data, uint32_t size);
+int32_t zoo64_hash_finalize(void* ctx, uint8_t* output, uint32_t output_max);
+void zoo64_hash_destroy_context(void* ctx);
+
+//
+// Cleanup
+//
+void zoo64_hash_cleanup(void);
+```
+
+#### Signing Module API
+
+```c
+//
+// Initialize signing module
+//
+int32_t zoo64_sign_init(void);
+
+//
+// Get algorithm information
+//
+void zoo64_sign_get_info(
+  char* name,
+  uint32_t name_len,
+  uint32_t* signature_size, // Signature size in bytes
+  uint32_t* flags
+);
+
+//
+// Sign data
+// Returns: signature size, or negative error code
+//
+int32_t zoo64_sign(
+  const uint8_t* data,      // Data to sign
+  uint32_t data_size,
+  const uint8_t* private_key, // Private key
+  uint32_t key_size,
+  uint8_t* signature,       // Signature output
+  uint32_t signature_max
+);
+
+//
+// Verify signature
+// Returns: 1 if valid, 0 if invalid, negative on error
+//
+int32_t zoo64_verify(
+  const uint8_t* data,      // Signed data
+  uint32_t data_size,
+  const uint8_t* signature, // Signature to verify
+  uint32_t signature_size,
+  const uint8_t* public_key, // Public key
+  uint32_t key_size
+);
+
+//
+// Cleanup
+//
+void zoo64_sign_cleanup(void);
+```
+
+### 12.8.4 Module Loading and Execution
+
+**Loading Process**:
+
+1. **Discovery**: Scan archive metadata for WASM32 modules
+2. **Validation**: Verify SHA-256 hash of WASM binary
+3. **Parse**: Parse WASM binary header
+4. **Instantiate**: Load WASM module into runtime
+5. **Initialize**: Call module's init function
+6. **Register**: Register custom algorithm with Zoo64
+
+**Example Implementation (NT/UEFI Style)**:
+
+```c
+//
+// Load WASM32 module from archive metadata
+//
+BOOLEAN
+LoadWasm32Module (
+  IN     ZOO64_WASM32_MODULE  *ModuleMetadata,
+  OUT    WASM_MODULE_HANDLE   *Handle
+  )
+{
+  UINT8    *WasmBinary;
+  UINT8    ComputedHash[32];
+  BOOLEAN  Status;
+
+  //
+  // Allocate buffer for WASM binary
+  //
+  WasmBinary = AllocatePool (ModuleMetadata->ModuleSize);
+  if (WasmBinary == NULL) {
+    return FALSE;
+  }
+
+  //
+  // Copy WASM binary from metadata
+  //
+  CopyMem (
+    WasmBinary,
+    (UINT8*)ModuleMetadata + sizeof(ZOO64_WASM32_MODULE),
+    ModuleMetadata->ModuleSize
+    );
+
+  //
+  // Verify SHA-256 hash
+  //
+  Sha256Hash (WasmBinary, ModuleMetadata->ModuleSize, ComputedHash);
+  if (CompareMem (ComputedHash, ModuleMetadata->Sha256Hash, 32) != 0) {
+    FreePool (WasmBinary);
+    return FALSE;  // Hash mismatch - security violation
+  }
+
+  //
+  // Check API version compatibility
+  //
+  if (ModuleMetadata->ApiVersion > ZOO64_WASM_API_VERSION) {
+    FreePool (WasmBinary);
+    return FALSE;  // Unsupported API version
+  }
+
+  //
+  // Load WASM module into runtime
+  //
+  Status = WasmRuntimeLoad (
+             WasmBinary,
+             ModuleMetadata->ModuleSize,
+             ModuleMetadata->MaxMemoryMB * 1024 * 1024,
+             Handle
+             );
+
+  if (!Status) {
+    FreePool (WasmBinary);
+    return FALSE;
+  }
+
+  //
+  // Call module initialization function
+  //
+  switch (ModuleMetadata->ModuleType) {
+    case Zoo64Wasm32TypeCompression:
+      Status = WasmCall (*Handle, "zoo64_compress_init", NULL, 0);
+      break;
+
+    case Zoo64Wasm32TypeEncryption:
+      Status = WasmCall (*Handle, "zoo64_encrypt_init", NULL, 0);
+      break;
+
+    case Zoo64Wasm32TypeHashing:
+      Status = WasmCall (*Handle, "zoo64_hash_init", NULL, 0);
+      break;
+
+    case Zoo64Wasm32TypeSigning:
+      Status = WasmCall (*Handle, "zoo64_sign_init", NULL, 0);
+      break;
+
+    default:
+      FreePool (WasmBinary);
+      WasmRuntimeUnload (*Handle);
+      return FALSE;
+  }
+
+  FreePool (WasmBinary);
+
+  if (!Status) {
+    WasmRuntimeUnload (*Handle);
+    return FALSE;
+  }
+
+  return TRUE;
+}
+
+//
+// Call WASM compression function
+//
+BOOLEAN
+CallWasmCompress (
+  IN     WASM_MODULE_HANDLE  Handle,
+  IN     CONST UINT8         *Input,
+  IN     UINTN               InputSize,
+  OUT    UINT8               *Output,
+  OUT    UINTN               *OutputSize,
+  IN     UINT32              Level
+  )
+{
+  WASM_VALUE  Args[5];
+  WASM_VALUE  Result;
+  INT32       CompressedSize;
+  UINT8       *WasmInput;
+  UINT8       *WasmOutput;
+
+  //
+  // Allocate memory in WASM linear memory
+  //
+  WasmInput = WasmMalloc (Handle, (UINT32)InputSize);
+  WasmOutput = WasmMalloc (Handle, (UINT32)*OutputSize);
+
+  if (WasmInput == NULL || WasmOutput == NULL) {
+    if (WasmInput != NULL) WasmFree (Handle, WasmInput);
+    if (WasmOutput != NULL) WasmFree (Handle, WasmOutput);
+    return FALSE;
+  }
+
+  //
+  // Copy input data to WASM memory
+  //
+  WasmMemWrite (Handle, WasmInput, Input, InputSize);
+
+  //
+  // Prepare arguments: zoo64_compress(input, input_size, output, output_max, level)
+  //
+  Args[0].Type = WASM_TYPE_I32;
+  Args[0].Value.I32 = (UINT32)(UINTN)WasmInput;
+  Args[1].Type = WASM_TYPE_I32;
+  Args[1].Value.I32 = (UINT32)InputSize;
+  Args[2].Type = WASM_TYPE_I32;
+  Args[2].Value.I32 = (UINT32)(UINTN)WasmOutput;
+  Args[3].Type = WASM_TYPE_I32;
+  Args[3].Value.I32 = (UINT32)*OutputSize;
+  Args[4].Type = WASM_TYPE_I32;
+  Args[4].Value.I32 = Level;
+
+  //
+  // Call WASM function
+  //
+  if (!WasmCall (Handle, "zoo64_compress", Args, 5, &Result, 1)) {
+    WasmFree (Handle, WasmInput);
+    WasmFree (Handle, WasmOutput);
+    return FALSE;
+  }
+
+  CompressedSize = Result.Value.I32;
+
+  if (CompressedSize < 0) {
+    //
+    // Compression failed (error code returned)
+    //
+    WasmFree (Handle, WasmInput);
+    WasmFree (Handle, WasmOutput);
+    return FALSE;
+  }
+
+  //
+  // Copy compressed data from WASM memory
+  //
+  WasmMemRead (Handle, Output, WasmOutput, CompressedSize);
+  *OutputSize = CompressedSize;
+
+  //
+  // Free WASM memory
+  //
+  WasmFree (Handle, WasmInput);
+  WasmFree (Handle, WasmOutput);
+
+  return TRUE;
+}
+```
+
+### 12.8.5 Custom Algorithm IDs
+
+When using WASM32 modules, custom algorithm IDs are used:
+
+**Compression Algorithms**:
+- `0x0100` - `0x01FF`: Custom compression (via WASM32)
+- Specific ID stored in `ZOO64_WASM32_MODULE.AlgorithmId`
+
+**Encryption Methods**:
+- `0x0100` - `0x01FF`: Custom encryption (via WASM32)
+
+**Hash Algorithms**:
+- `0x0100` - `0x01FF`: Custom hashing (via WASM32)
+
+**Signature Types**:
+- `0x0100` - `0x01FF`: Custom signing (via WASM32)
+
+**Module Reference**:
+```c
+//
+// Reference to WASM32 module in algorithm descriptor
+//
+typedef struct _ZOO64_WASM_ALGORITHM_REF {
+  UINT8   ModuleUuid[16];     // UUID of WASM32 module
+  UINT32  AlgorithmId;        // Custom algorithm ID (0x0100-0x01FF)
+  UINT32  Reserved;
+} ZOO64_WASM_ALGORITHM_REF;
+```
+
+### 12.8.6 Security Considerations
+
+**Sandboxing**:
+- All WASM modules execute in isolated sandbox
+- No access to file system outside provided buffers
+- No network access
+- Memory limits enforced (default 16MB, max 256MB)
+- CPU time limits enforced (default 30s per operation)
+
+**Validation**:
+- SHA-256 hash verification before loading
+- WASM binary validation (magic number, structure)
+- API version compatibility check
+- Resource limit verification
+
+**Trust Model**:
+- **Required modules** (flag `ZOO64_WASM32_REQUIRED`): User must explicitly trust
+- **Optional modules**: Can be disabled via policy
+- **Verified modules** (flag `ZOO64_WASM32_VERIFIED`): Digitally signed by author
+- **Trusted modules** (flag `ZOO64_WASM32_TRUSTED`): From organization-trusted sources
+
+**User Consent**:
+```
+Warning: This archive contains a custom compression algorithm
+implemented as a WASM32 module.
+
+Module: "CorpCompress v2.1"
+Author: "ACME Corporation"
+SHA-256: 3d4f2bf07dc1be38b20cd6e46949a1071f9fc9c03e...
+Type: Compression (required)
+
+The module requests:
+- Maximum memory: 64 MB
+- Maximum execution time: 60 seconds per operation
+
+Allow this module to execute? [Yes/No/Always/Never for this author]
+```
+
+**Denial of Service Protection**:
+- Watchdog timer terminates long-running modules
+- Memory allocation limits prevent OOM
+- Infinite loop detection via instruction counting
+
+### 12.8.7 Example WASM32 Module (C Source)
+
+Complete example of a simple compression module:
+
+```c
+//
+// example_compress.c - Simple RLE compression WASM32 module for Zoo64
+//
+// Compile: clang --target=wasm32 -O2 -nostdlib -Wl,--no-entry \
+//          -Wl,--export-all -o example_compress.wasm example_compress.c
+//
+
+#include <stdint.h>
+#include <stddef.h>
+
+//
+// Import functions from host
+//
+__attribute__((import_module("zoo64"), import_name("malloc")))
+extern void* zoo64_malloc(uint32_t size);
+
+__attribute__((import_module("zoo64"), import_name("free")))
+extern void zoo64_free(void* ptr);
+
+__attribute__((import_module("zoo64"), import_name("log")))
+extern void zoo64_log(const char* msg, uint32_t len);
+
+//
+// Simple string length (no libc)
+//
+static uint32_t strlen_simple(const char* s) {
+  uint32_t len = 0;
+  while (s[len]) len++;
+  return len;
+}
+
+//
+// Simple memory copy (no libc)
+//
+static void memcpy_simple(void* dst, const void* src, uint32_t n) {
+  uint8_t* d = (uint8_t*)dst;
+  const uint8_t* s = (const uint8_t*)src;
+  for (uint32_t i = 0; i < n; i++) {
+    d[i] = s[i];
+  }
+}
+
+//
+// Initialize module
+//
+__attribute__((export_name("zoo64_compress_init")))
+int32_t zoo64_compress_init(void) {
+  const char* msg = "Simple RLE compressor initialized";
+  zoo64_log(msg, strlen_simple(msg));
+  return 0;  // Success
+}
+
+//
+// Get algorithm information
+//
+__attribute__((export_name("zoo64_compress_get_info")))
+void zoo64_compress_get_info(
+  char* name,
+  uint32_t name_len,
+  uint32_t* flags
+) {
+  const char* algo_name = "SimpleRLE";
+  uint32_t len = strlen_simple(algo_name);
+  if (len >= name_len) len = name_len - 1;
+  memcpy_simple(name, algo_name, len);
+  name[len] = '\0';
+  *flags = 0x00000001;  // Fast compression
+}
+
+//
+// Compress data (simple RLE)
+//
+__attribute__((export_name("zoo64_compress")))
+int32_t zoo64_compress(
+  const uint8_t* input,
+  uint32_t input_size,
+  uint8_t* output,
+  uint32_t output_max,
+  uint32_t level
+) {
+  uint32_t in_pos = 0;
+  uint32_t out_pos = 0;
+
+  while (in_pos < input_size) {
+    uint8_t value = input[in_pos];
+    uint32_t run_length = 1;
+
+    //
+    // Count run
+    //
+    while (in_pos + run_length < input_size &&
+           input[in_pos + run_length] == value &&
+           run_length < 255) {
+      run_length++;
+    }
+
+    if (run_length >= 3) {
+      //
+      // Encode run: [255][length][value]
+      //
+      if (out_pos + 3 > output_max) return -1;  // Buffer too small
+      output[out_pos++] = 255;  // RLE marker
+      output[out_pos++] = (uint8_t)run_length;
+      output[out_pos++] = value;
+      in_pos += run_length;
+    } else {
+      //
+      // Literal byte
+      //
+      if (out_pos + 1 > output_max) return -1;
+      output[out_pos++] = value;
+      in_pos++;
+    }
+  }
+
+  return out_pos;  // Return compressed size
+}
+
+//
+// Decompress data
+//
+__attribute__((export_name("zoo64_decompress")))
+int32_t zoo64_decompress(
+  const uint8_t* input,
+  uint32_t input_size,
+  uint8_t* output,
+  uint32_t output_max
+) {
+  uint32_t in_pos = 0;
+  uint32_t out_pos = 0;
+
+  while (in_pos < input_size) {
+    if (input[in_pos] == 255) {
+      //
+      // RLE run
+      //
+      if (in_pos + 2 >= input_size) return -2;  // Truncated data
+      uint32_t run_length = input[in_pos + 1];
+      uint8_t value = input[in_pos + 2];
+
+      if (out_pos + run_length > output_max) return -1;  // Buffer too small
+
+      for (uint32_t i = 0; i < run_length; i++) {
+        output[out_pos++] = value;
+      }
+
+      in_pos += 3;
+    } else {
+      //
+      // Literal byte
+      //
+      if (out_pos >= output_max) return -1;
+      output[out_pos++] = input[in_pos++];
+    }
+  }
+
+  return out_pos;  // Return decompressed size
+}
+
+//
+// Cleanup
+//
+__attribute__((export_name("zoo64_compress_cleanup")))
+void zoo64_compress_cleanup(void) {
+  const char* msg = "Simple RLE compressor cleanup";
+  zoo64_log(msg, strlen_simple(msg));
+}
+```
+
+### 12.8.8 Conformance Levels
+
+- **Tiny**: No WASM support
+- **Compact**: No WASM support
+- **Embedded**: No WASM support
+- **Minimal**: No WASM support
+- **Standard**: No WASM support
+- **Enhanced**: WASM32 decompression/decryption only (read-only)
+- **Full**: Complete WASM32 support (read and write)
+
+**Implementation Requirements (Full)**:
+- WASM32 runtime (e.g., wasm3, wasmer, wasmtime)
+- Sandboxing support
+- Resource limit enforcement
+- Module validation
+- Hash verification
+
+### 12.8.9 Best Practices
+
+**For Archive Creators**:
+1. Only embed WASM modules when necessary (proprietary/custom algorithms)
+2. Keep modules small (< 1MB recommended)
+3. Set appropriate resource limits
+4. Include fallback to standard algorithms when possible
+5. Document algorithm in module metadata
+6. Sign modules for verification
+7. Test modules thoroughly before embedding
+
+**For Archive Consumers**:
+1. Verify module hashes before loading
+2. Enforce resource limits strictly
+3. Provide user consent UI for required modules
+4. Allow disabling optional modules via policy
+5. Maintain whitelist/blacklist of module authors
+6. Log all WASM module executions
+7. Consider using read-only mode for untrusted archives
+
+**Security Checklist**:
+- [ ] SHA-256 hash verified
+- [ ] API version compatible
+- [ ] Resource limits set appropriately
+- [ ] User consent obtained (for required modules)
+- [ ] Module runs in sandbox
+- [ ] Watchdog timer enabled
+- [ ] Memory limits enforced
+- [ ] Execution logged
+
 ## 13. COM Component Interface
 
 Zoo64 is designed as a COM component for cross-language interoperability.
@@ -10312,7 +11113,8 @@ typedef enum _ZOO64_METADATA_TYPE {
   Zoo64MetaMercurial                = 0x0037,  // Mercurial metadata
   Zoo64MetaSparseFile               = 0x0045,  // Sparse file holes
   Zoo64MetaDeltaRevision            = 0x0046,  // Delta revision
-  Zoo64MetaBlockDedup               = 0x004A   // Block deduplication
+  Zoo64MetaBlockDedup               = 0x004A,  // Block deduplication
+  Zoo64MetaWasm32Module             = 0x0100   // WASM32 module (custom algorithms)
   // See section 6.2 for complete list
 } ZOO64_METADATA_TYPE;
 
