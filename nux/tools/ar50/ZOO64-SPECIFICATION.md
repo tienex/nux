@@ -13058,17 +13058,106 @@ typedef enum _ZOO64_COMPRESSION_ALGORITHM {
 //
 typedef enum _ZOO64_ENCRYPTION_METHOD {
   Zoo64EncryptNone                  = 0x00000000,  // Not encrypted
-  Zoo64EncryptAes256Gcm             = 0x00000001,  // AES-256-GCM (recommended)
-  Zoo64EncryptAes256CbcHmac         = 0x00000002,  // AES-256-CBC + HMAC-SHA256
-  Zoo64EncryptChaCha20Poly1305      = 0x00000003,  // ChaCha20-Poly1305
-  Zoo64EncryptAes128Gcm             = 0x00000004,  // AES-128-GCM
-  Zoo64EncryptTwofish256Gcm         = 0x00000005,  // Twofish-256-GCM
-  Zoo64EncryptSerpent256Gcm         = 0x00000006,  // Serpent-256-GCM
-  Zoo64EncryptAes192Gcm             = 0x00000007,  // AES-192-GCM
-  Zoo64EncryptCamellia256Gcm        = 0x00000008,  // Camellia-256-GCM
-  Zoo64EncryptAria256Gcm            = 0x00000009,  // ARIA-256-GCM
-  Zoo64EncryptSm4Gcm                = 0x0000000A,  // SM4-GCM (Chinese standard)
-  Zoo64EncryptXChaCha20Poly1305     = 0x0000000B   // XChaCha20-Poly1305
+
+  // 0x0001-0x000F: Classic Ciphers (1970s-1990s)
+  Zoo64EncryptDes                   = 0x00000001,  // DES (1977, deprecated, 56-bit)
+  Zoo64EncryptDesEde                = 0x00000002,  // DES-EDE (2-key 3DES, deprecated)
+  Zoo64EncryptDesEde3               = 0x00000003,  // DES-EDE3 (3DES, 1978, legacy only)
+  Zoo64EncryptRc2                   = 0x00000004,  // RC2 (1987, Ron Rivest, legacy)
+  Zoo64EncryptRc4                   = 0x00000005,  // RC4 (1987, deprecated)
+  Zoo64EncryptRc5                   = 0x00000006,  // RC5 (1994, Ron Rivest)
+  Zoo64EncryptRc6                   = 0x00000007,  // RC6 (1998, AES finalist)
+  Zoo64EncryptIdea                  = 0x00000008,  // IDEA (1991, Lai & Massey)
+  Zoo64EncryptBlowfish              = 0x00000009,  // Blowfish (1993, Bruce Schneier)
+  Zoo64EncryptCast128               = 0x0000000A,  // CAST-128/CAST5 (1996)
+  Zoo64EncryptCast256               = 0x0000000B,  // CAST-256/CAST6 (1998, AES finalist)
+
+  // 0x0010-0x001F: AES Family (2001-present)
+  Zoo64EncryptAes128Ecb             = 0x00000010,  // AES-128-ECB (2001, avoid ECB mode)
+  Zoo64EncryptAes128Cbc             = 0x00000011,  // AES-128-CBC (legacy)
+  Zoo64EncryptAes128Ctr             = 0x00000012,  // AES-128-CTR
+  Zoo64EncryptAes128Gcm             = 0x00000013,  // AES-128-GCM (AEAD)
+  Zoo64EncryptAes128Ccm             = 0x00000014,  // AES-128-CCM (AEAD)
+  Zoo64EncryptAes192Ecb             = 0x00000015,  // AES-192-ECB (avoid ECB mode)
+  Zoo64EncryptAes192Cbc             = 0x00000016,  // AES-192-CBC (legacy)
+  Zoo64EncryptAes192Ctr             = 0x00000017,  // AES-192-CTR
+  Zoo64EncryptAes192Gcm             = 0x00000018,  // AES-192-GCM (AEAD)
+  Zoo64EncryptAes192Ccm             = 0x00000019,  // AES-192-CCM (AEAD)
+  Zoo64EncryptAes256Ecb             = 0x0000001A,  // AES-256-ECB (avoid ECB mode)
+  Zoo64EncryptAes256Cbc             = 0x0000001B,  // AES-256-CBC (legacy)
+  Zoo64EncryptAes256Ctr             = 0x0000001C,  // AES-256-CTR
+  Zoo64EncryptAes256Gcm             = 0x0000001D,  // AES-256-GCM (recommended AEAD)
+  Zoo64EncryptAes256Ccm             = 0x0000001E,  // AES-256-CCM (AEAD)
+  Zoo64EncryptAes256CbcHmacSha256   = 0x0000001F,  // AES-256-CBC + HMAC-SHA256
+
+  // 0x0020-0x002F: AES Variants & Advanced Modes
+  Zoo64EncryptAes128Ocb             = 0x00000020,  // AES-128-OCB (2001, AEAD, patented)
+  Zoo64EncryptAes256Ocb             = 0x00000021,  // AES-256-OCB (AEAD)
+  Zoo64EncryptAes128Eax             = 0x00000022,  // AES-128-EAX (2003, AEAD)
+  Zoo64EncryptAes256Eax             = 0x00000023,  // AES-256-EAX (AEAD)
+  Zoo64EncryptAes128Siv             = 0x00000024,  // AES-128-SIV (2006, AEAD)
+  Zoo64EncryptAes256Siv             = 0x00000025,  // AES-256-SIV (AEAD)
+  Zoo64EncryptAes128GcmSiv          = 0x00000026,  // AES-128-GCM-SIV (2017, nonce-reuse resistant)
+  Zoo64EncryptAes256GcmSiv          = 0x00000027,  // AES-256-GCM-SIV (recommended)
+  Zoo64EncryptAesXts128             = 0x00000028,  // AES-XTS-128 (2008, disk encryption)
+  Zoo64EncryptAesXts256             = 0x00000029,  // AES-XTS-256 (disk encryption)
+
+  // 0x0030-0x003F: AES Finalists & Alternatives (1998-2000)
+  Zoo64EncryptTwofish128            = 0x00000030,  // Twofish-128 (1998, Bruce Schneier)
+  Zoo64EncryptTwofish192            = 0x00000031,  // Twofish-192
+  Zoo64EncryptTwofish256            = 0x00000032,  // Twofish-256
+  Zoo64EncryptTwofish256Gcm         = 0x00000033,  // Twofish-256-GCM (AEAD)
+  Zoo64EncryptSerpent128            = 0x00000034,  // Serpent-128 (1998, Anderson et al)
+  Zoo64EncryptSerpent192            = 0x00000035,  // Serpent-192
+  Zoo64EncryptSerpent256            = 0x00000036,  // Serpent-256
+  Zoo64EncryptSerpent256Gcm         = 0x00000037,  // Serpent-256-GCM (AEAD)
+  Zoo64EncryptMars                  = 0x00000038,  // MARS (1998, IBM, AES finalist)
+  Zoo64EncryptRc6_128               = 0x00000039,  // RC6-128 (already listed, AES finalist)
+
+  // 0x0040-0x004F: International Standards (2000s)
+  Zoo64EncryptCamellia128           = 0x00000040,  // Camellia-128 (2000, NTT/Mitsubishi)
+  Zoo64EncryptCamellia192           = 0x00000041,  // Camellia-192
+  Zoo64EncryptCamellia256           = 0x00000042,  // Camellia-256
+  Zoo64EncryptCamellia256Gcm        = 0x00000043,  // Camellia-256-GCM (AEAD)
+  Zoo64EncryptAria128               = 0x00000044,  // ARIA-128 (2004, South Korea)
+  Zoo64EncryptAria192               = 0x00000045,  // ARIA-192
+  Zoo64EncryptAria256               = 0x00000046,  // ARIA-256
+  Zoo64EncryptAria256Gcm            = 0x00000047,  // ARIA-256-GCM (AEAD)
+  Zoo64EncryptSm4                   = 0x00000048,  // SM4 (2006/2012, China GB/T 32907)
+  Zoo64EncryptSm4Gcm                = 0x00000049,  // SM4-GCM (AEAD)
+  Zoo64EncryptSeed                  = 0x0000004A,  // SEED (1998, South Korea)
+  Zoo64EncryptGost28147             = 0x0000004B,  // GOST 28147-89 (1989, Russia)
+  Zoo64EncryptKuznyechik             = 0x0000004C,  // Kuznyechik (2015, Russia GOST R 34.12)
+  Zoo64EncryptMagma                 = 0x0000004D,  // Magma (2015, Russia GOST R 34.12)
+
+  // 0x0050-0x005F: Stream Ciphers (2000s-2010s)
+  Zoo64EncryptSalsa20               = 0x00000050,  // Salsa20 (2005, Daniel J. Bernstein)
+  Zoo64EncryptSalsa20_12            = 0x00000051,  // Salsa20/12 (reduced rounds)
+  Zoo64EncryptSalsa20_8             = 0x00000052,  // Salsa20/8 (reduced rounds)
+  Zoo64EncryptChaCha20              = 0x00000053,  // ChaCha20 (2008, Bernstein)
+  Zoo64EncryptChaCha20Poly1305      = 0x00000054,  // ChaCha20-Poly1305 (2014, AEAD, recommended)
+  Zoo64EncryptXChaCha20             = 0x00000055,  // XChaCha20 (2018, extended nonce)
+  Zoo64EncryptXChaCha20Poly1305     = 0x00000056,  // XChaCha20-Poly1305 (AEAD)
+  Zoo64EncryptChaCha12              = 0x00000057,  // ChaCha12 (reduced rounds)
+  Zoo64EncryptChaCha8               = 0x00000058,  // ChaCha8 (reduced rounds)
+
+  // 0x0060-0x006F: Additional Modern Ciphers (2000s-2010s)
+  Zoo64EncryptThreefish256          = 0x00000060,  // Threefish-256 (2008, Skein hash basis)
+  Zoo64EncryptThreefish512          = 0x00000061,  // Threefish-512
+  Zoo64EncryptThreefish1024         = 0x00000062,  // Threefish-1024
+  Zoo64EncryptSpeck128              = 0x00000063,  // Speck-128 (2013, NSA, lightweight)
+  Zoo64EncryptSimon128              = 0x00000064,  // Simon-128 (2013, NSA, lightweight)
+  Zoo64EncryptGift128               = 0x00000065,  // GIFT-128 (2017, lightweight)
+  Zoo64EncryptAscon128              = 0x00000066,  // Ascon-128 (2021, NIST LWC winner)
+  Zoo64EncryptAscon128a             = 0x00000067,  // Ascon-128a
+  Zoo64EncryptDeoxys                = 0x00000068,  // Deoxys (2014, CAESAR candidate)
+
+  // 0xF0000000-0xFFFEFFFF: Third-Party Algorithms (~268 million IDs)
+  Zoo64EncryptThirdPartyBase        = 0xF0000000,  // Third-party encryption base
+
+  // 0xFFFF0000-0xFFFFFFFF: Dynamic VM WASM Codecs (65,536 IDs, RESERVED)
+  Zoo64EncryptWasmBase              = 0xFFFF0000,  // WASM encryption codec base
+  Zoo64EncryptWasmMax               = 0xFFFFFFFF   // WASM encryption codec max
 } ZOO64_ENCRYPTION_METHOD;
 
 //
@@ -13077,16 +13166,56 @@ typedef enum _ZOO64_ENCRYPTION_METHOD {
 //
 typedef enum _ZOO64_KDF_ALGORITHM {
   Zoo64KdfNone                      = 0x00000000,  // Direct key (not recommended)
-  Zoo64KdfPbkdf2HmacSha256          = 0x00000001,  // PBKDF2 with SHA-256
-  Zoo64KdfPbkdf2HmacSha512          = 0x00000002,  // PBKDF2 with SHA-512
-  Zoo64KdfArgon2id                  = 0x00000003,  // Argon2id (recommended)
-  Zoo64KdfArgon2i                   = 0x00000004,  // Argon2i
-  Zoo64KdfArgon2d                   = 0x00000005,  // Argon2d
-  Zoo64KdfScrypt                    = 0x00000006,  // scrypt
-  Zoo64KdfBcrypt                    = 0x00000007,  // bcrypt
-  Zoo64KdfBalloon                   = 0x00000008,  // Balloon hashing
-  Zoo64KdfCatena                    = 0x00000009,  // Catena
-  Zoo64KdfMakwa                     = 0x0000000A   // Makwa
+
+  // 0x0001-0x000F: Classic KDFs (1990s-2000s)
+  Zoo64KdfBcrypt                    = 0x00000001,  // bcrypt (1999, Niels Provos & Mazières)
+  Zoo64KdfPbkdf1                    = 0x00000002,  // PBKDF1 (2000, RFC 2898, legacy)
+  Zoo64KdfPbkdf2HmacSha1            = 0x00000003,  // PBKDF2-HMAC-SHA1 (2000, RFC 2898)
+  Zoo64KdfPbkdf2HmacSha224          = 0x00000004,  // PBKDF2-HMAC-SHA224
+  Zoo64KdfPbkdf2HmacSha256          = 0x00000005,  // PBKDF2-HMAC-SHA256 (recommended classic)
+  Zoo64KdfPbkdf2HmacSha384          = 0x00000006,  // PBKDF2-HMAC-SHA384
+  Zoo64KdfPbkdf2HmacSha512          = 0x00000007,  // PBKDF2-HMAC-SHA512
+  Zoo64KdfPbkdf2HmacSha3_256        = 0x00000008,  // PBKDF2-HMAC-SHA3-256
+  Zoo64KdfPbkdf2HmacSha3_512        = 0x00000009,  // PBKDF2-HMAC-SHA3-512
+  Zoo64KdfScrypt                    = 0x0000000A,  // scrypt (2009, Colin Percival)
+  Zoo64KdfHkdfSha256                = 0x0000000B,  // HKDF-SHA256 (2010, RFC 5869)
+  Zoo64KdfHkdfSha512                = 0x0000000C,  // HKDF-SHA512
+  Zoo64KdfHkdfSha3_256              = 0x0000000D,  // HKDF-SHA3-256
+  Zoo64KdfHkdfBlake2b               = 0x0000000E,  // HKDF-BLAKE2b
+
+  // 0x0010-0x001F: PHC Candidates & Modern KDFs (2013-2015)
+  Zoo64KdfArgon2d                   = 0x00000010,  // Argon2d (2015, PHC winner, GPU-resistant)
+  Zoo64KdfArgon2i                   = 0x00000011,  // Argon2i (2015, side-channel resistant)
+  Zoo64KdfArgon2id                  = 0x00000012,  // Argon2id (2015, recommended, hybrid)
+  Zoo64KdfCatena                    = 0x00000013,  // Catena (2014, PHC finalist)
+  Zoo64KdfCatenaBrg                 = 0x00000014,  // Catena-BRG (Bit-Reversal Graph)
+  Zoo64KdfCatenaDbg                 = 0x00000015,  // Catena-DBG (Double-Butterfly Graph)
+  Zoo64KdfMakwa                     = 0x00000016,  // Makwa (2014, PHC finalist, delegation)
+  Zoo64KdfYescrypt                  = 0x00000017,  // yescrypt (2014, PHC finalist, ROMix)
+  Zoo64KdfLyra2                     = 0x00000018,  // Lyra2 (2014, PHC finalist)
+  Zoo64KdfBalloon                   = 0x00000019,  // Balloon (2016, Dan Boneh et al)
+  Zoo64KdfBalloonSha256             = 0x0000001A,  // Balloon-SHA256
+  Zoo64KdfBalloonBlake2b            = 0x0000001B,  // Balloon-BLAKE2b
+
+  // 0x0020-0x002F: Specialized & Domain-Specific KDFs
+  Zoo64KdfAnsiX963Kdf               = 0x00000020,  // ANSI X9.63 KDF (EC-based)
+  Zoo64KdfSp800_108CtrKdf           = 0x00000021,  // SP 800-108 Counter Mode KDF (NIST)
+  Zoo64KdfSp800_108FeedbackKdf      = 0x00000022,  // SP 800-108 Feedback Mode KDF
+  Zoo64KdfSp800_108PipelineKdf      = 0x00000023,  // SP 800-108 Pipeline Mode KDF
+  Zoo64KdfSp800_56cOneStepKdf       = 0x00000024,  // SP 800-56C One-Step KDF
+  Zoo64KdfSp800_56cTwoStepKdf       = 0x00000025,  // SP 800-56C Two-Step KDF
+  Zoo64KdfSshKdf                    = 0x00000026,  // SSH KDF (RFC 4251)
+  Zoo64KdfIkeV2Kdf                  = 0x00000027,  // IKEv2 KDF (RFC 7296)
+  Zoo64KdfConcatKdf                 = 0x00000028,  // Concatenation KDF (NIST SP 800-56A)
+  Zoo64KdfBlake2xkdf                = 0x00000029,  // BLAKE2X KDF
+  Zoo64KdfBlake3Kdf                 = 0x0000002A,  // BLAKE3 KDF mode (2020)
+
+  // 0xF0000000-0xFFFEFFFF: Third-Party Algorithms (~268 million IDs)
+  Zoo64KdfThirdPartyBase            = 0xF0000000,  // Third-party KDF base
+
+  // 0xFFFF0000-0xFFFFFFFF: Dynamic VM WASM Codecs (65,536 IDs, RESERVED)
+  Zoo64KdfWasmBase                  = 0xFFFF0000,  // WASM KDF codec base
+  Zoo64KdfWasmMax                   = 0xFFFFFFFF   // WASM KDF codec max
 } ZOO64_KDF_ALGORITHM;
 
 //
@@ -13095,43 +13224,179 @@ typedef enum _ZOO64_KDF_ALGORITHM {
 //
 typedef enum _ZOO64_HASH_ALGORITHM {
   Zoo64HashNone                     = 0x00000000,  // No hash
-  Zoo64HashCrc32                    = 0x00000001,  // CRC-32 (IEEE)
-  Zoo64HashCrc32C                   = 0x00000002,  // CRC-32C (Castagnoli)
-  Zoo64HashCrc64                    = 0x00000003,  // CRC-64 (ECMA)
-  Zoo64HashAdler32                  = 0x00000004,  // Adler-32
-  Zoo64HashMd5                      = 0x00000005,  // MD5 (deprecated)
-  Zoo64HashSha1                     = 0x00000006,  // SHA-1 (deprecated)
-  Zoo64HashSha224                   = 0x00000007,  // SHA-224
-  Zoo64HashSha256                   = 0x00000008,  // SHA-256 (recommended)
-  Zoo64HashSha384                   = 0x00000009,  // SHA-384
-  Zoo64HashSha512                   = 0x0000000A,  // SHA-512
-  Zoo64HashSha512_224               = 0x0000000B,  // SHA-512/224
-  Zoo64HashSha512_256               = 0x0000000C,  // SHA-512/256
-  Zoo64HashSha3_224                 = 0x0000000D,  // SHA3-224
-  Zoo64HashSha3_256                 = 0x0000000E,  // SHA3-256
-  Zoo64HashSha3_384                 = 0x0000000F,  // SHA3-384
-  Zoo64HashSha3_512                 = 0x00000010,  // SHA3-512
-  Zoo64HashBlake2b                  = 0x00000011,  // BLAKE2b
-  Zoo64HashBlake2s                  = 0x00000012,  // BLAKE2s
-  Zoo64HashBlake3                   = 0x00000013,  // BLAKE3 (recommended)
-  Zoo64HashXxhash32                 = 0x00000014,  // xxHash-32
-  Zoo64HashXxhash64                 = 0x00000015,  // xxHash-64
-  Zoo64HashXxh3                     = 0x00000016,  // xxHash3
-  Zoo64HashMurmur3_32               = 0x00000017,  // MurmurHash3-32
-  Zoo64HashMurmur3_128              = 0x00000018,  // MurmurHash3-128
-  Zoo64HashCityHash64               = 0x00000019,  // CityHash64
-  Zoo64HashCityHash128              = 0x0000001A,  // CityHash128
-  Zoo64HashFarmHash64               = 0x0000001B,  // FarmHash64
-  Zoo64HashMetroHash64              = 0x0000001C,  // MetroHash64
-  Zoo64HashSipHash24                = 0x0000001D,  // SipHash-2-4
-  Zoo64HashHighwayHash256           = 0x0000001E,  // HighwayHash256
-  Zoo64HashSm3                      = 0x0000001F,  // SM3 (Chinese standard)
-  Zoo64HashStreebog256              = 0x00000020,  // Streebog-256 (Russian standard)
-  Zoo64HashStreebog512              = 0x00000021,  // Streebog-512
-  Zoo64HashRipemd160                = 0x00000022,  // RIPEMD-160
-  Zoo64HashWhirlpool                = 0x00000023,  // Whirlpool
-  Zoo64HashTiger                    = 0x00000024,  // Tiger
-  Zoo64HashGost                     = 0x00000025   // GOST R 34.11-94
+
+  // 0x0001-0x000F: Checksums & Early Hash Functions (1960s-1990s)
+  Zoo64HashCrc8                     = 0x00000001,  // CRC-8
+  Zoo64HashCrc16                    = 0x00000002,  // CRC-16 (IBM)
+  Zoo64HashCrc16Ccitt               = 0x00000003,  // CRC-16-CCITT
+  Zoo64HashCrc32                    = 0x00000004,  // CRC-32 (IEEE 802.3, 1975)
+  Zoo64HashCrc32C                   = 0x00000005,  // CRC-32C (Castagnoli, 2001)
+  Zoo64HashCrc32K                   = 0x00000006,  // CRC-32K (Koopman)
+  Zoo64HashCrc64                    = 0x00000007,  // CRC-64 (ECMA-182)
+  Zoo64HashCrc64Iso                 = 0x00000008,  // CRC-64/ISO
+  Zoo64HashAdler32                  = 0x00000009,  // Adler-32 (1995, Mark Adler)
+  Zoo64HashFletcher16               = 0x0000000A,  // Fletcher-16 (1970s)
+  Zoo64HashFletcher32               = 0x0000000B,  // Fletcher-32
+
+  // 0x0010-0x001F: MD Family (1989-1991, Ron Rivest)
+  Zoo64HashMd2                      = 0x00000010,  // MD2 (1989, deprecated)
+  Zoo64HashMd4                      = 0x00000011,  // MD4 (1990, deprecated)
+  Zoo64HashMd5                      = 0x00000012,  // MD5 (1991, deprecated)
+  Zoo64HashMd6                      = 0x00000013,  // MD6 (2008, SHA-3 candidate)
+
+  // 0x0020-0x002F: SHA-0/SHA-1 (1993-1995, NSA)
+  Zoo64HashSha0                     = 0x00000020,  // SHA-0 (1993, withdrawn)
+  Zoo64HashSha1                     = 0x00000021,  // SHA-1 (1995, deprecated)
+
+  // 0x0030-0x003F: SHA-2 Family (2001, NSA)
+  Zoo64HashSha224                   = 0x00000030,  // SHA-224 (2001)
+  Zoo64HashSha256                   = 0x00000031,  // SHA-256 (2001, recommended)
+  Zoo64HashSha384                   = 0x00000032,  // SHA-384 (2001)
+  Zoo64HashSha512                   = 0x00000033,  // SHA-512 (2001)
+  Zoo64HashSha512_224               = 0x00000034,  // SHA-512/224 (2012)
+  Zoo64HashSha512_256               = 0x00000035,  // SHA-512/256 (2012)
+
+  // 0x0040-0x004F: RIPEMD Family (1996, Hans Dobbertin et al)
+  Zoo64HashRipemd                   = 0x00000040,  // RIPEMD (1996, original)
+  Zoo64HashRipemd128                = 0x00000041,  // RIPEMD-128 (1996)
+  Zoo64HashRipemd160                = 0x00000042,  // RIPEMD-160 (1996, Bitcoin)
+  Zoo64HashRipemd256                = 0x00000043,  // RIPEMD-256 (1996)
+  Zoo64HashRipemd320                = 0x00000044,  // RIPEMD-320 (1996)
+
+  // 0x0050-0x005F: Tiger & Whirlpool (1996-2000)
+  Zoo64HashTiger                    = 0x00000050,  // Tiger (1996, Ross Anderson)
+  Zoo64HashTiger2                   = 0x00000051,  // Tiger2 (2005, improved)
+  Zoo64HashWhirlpool                = 0x00000052,  // Whirlpool (2000, Barreto & Rijmen)
+  Zoo64HashWhirlpool0               = 0x00000053,  // Whirlpool-0 (original 2000)
+  Zoo64HashWhirlpoolT               = 0x00000054,  // Whirlpool-T (2001 revision)
+
+  // 0x0060-0x006F: HAVAL & Other 1990s Hashes
+  Zoo64HashHaval128_3               = 0x00000060,  // HAVAL-128 (3 rounds, 1992)
+  Zoo64HashHaval160_3               = 0x00000061,  // HAVAL-160 (3 rounds)
+  Zoo64HashHaval192_3               = 0x00000062,  // HAVAL-192 (3 rounds)
+  Zoo64HashHaval224_3               = 0x00000063,  // HAVAL-224 (3 rounds)
+  Zoo64HashHaval256_3               = 0x00000064,  // HAVAL-256 (3 rounds)
+  Zoo64HashHaval256_5               = 0x00000065,  // HAVAL-256 (5 rounds)
+  Zoo64HashSnefru                   = 0x00000066,  // Snefru (1990, Ralph Merkle)
+  Zoo64HashN_Hash                   = 0x00000067,  // N-Hash (1989)
+  Zoo64HashPanama                   = 0x00000068,  // Panama (1998, Joan Daemen)
+  Zoo64HashRadioGatun32             = 0x00000069,  // RadioGatún-32 (2006)
+  Zoo64HashRadioGatun64             = 0x0000006A,  // RadioGatún-64 (2006)
+
+  // 0x0070-0x007F: SHA-3/Keccak Family (2015, Guido Bertoni et al)
+  Zoo64HashSha3_224                 = 0x00000070,  // SHA3-224 (2015, NIST)
+  Zoo64HashSha3_256                 = 0x00000071,  // SHA3-256 (2015)
+  Zoo64HashSha3_384                 = 0x00000072,  // SHA3-384 (2015)
+  Zoo64HashSha3_512                 = 0x00000073,  // SHA3-512 (2015)
+  Zoo64HashShake128                 = 0x00000074,  // SHAKE128 (2015, XOF)
+  Zoo64HashShake256                 = 0x00000075,  // SHAKE256 (2015, XOF)
+  Zoo64HashKeccak224                = 0x00000076,  // Keccak-224 (original 2012)
+  Zoo64HashKeccak256                = 0x00000077,  // Keccak-256 (Ethereum)
+  Zoo64HashKeccak384                = 0x00000078,  // Keccak-384
+  Zoo64HashKeccak512                = 0x00000079,  // Keccak-512
+  Zoo64HashCshake128                = 0x0000007A,  // cSHAKE128 (2016, customizable)
+  Zoo64HashCshake256                = 0x0000007B,  // cSHAKE256 (2016)
+
+  // 0x0080-0x008F: BLAKE Family (2008-2020)
+  Zoo64HashBlake224                 = 0x00000080,  // BLAKE-224 (2008, SHA-3 finalist)
+  Zoo64HashBlake256                 = 0x00000081,  // BLAKE-256 (2008)
+  Zoo64HashBlake384                 = 0x00000082,  // BLAKE-384 (2008)
+  Zoo64HashBlake512                 = 0x00000083,  // BLAKE-512 (2008)
+  Zoo64HashBlake2b256               = 0x00000084,  // BLAKE2b-256 (2012)
+  Zoo64HashBlake2b512               = 0x00000085,  // BLAKE2b-512 (2012)
+  Zoo64HashBlake2s128               = 0x00000086,  // BLAKE2s-128 (2012)
+  Zoo64HashBlake2s256               = 0x00000087,  // BLAKE2s-256 (2012)
+  Zoo64HashBlake2bp                 = 0x00000088,  // BLAKE2bp (parallel)
+  Zoo64HashBlake2sp                 = 0x00000089,  // BLAKE2sp (parallel)
+  Zoo64HashBlake3                   = 0x0000008A,  // BLAKE3 (2020, recommended)
+
+  // 0x0090-0x009F: Skein & SHA-3 Finalists (2008-2010)
+  Zoo64HashSkein256                 = 0x00000090,  // Skein-256 (2008, SHA-3 finalist)
+  Zoo64HashSkein512                 = 0x00000091,  // Skein-512 (2008)
+  Zoo64HashSkein1024                = 0x00000092,  // Skein-1024 (2008)
+  Zoo64HashGroestl224               = 0x00000093,  // Grøstl-224 (2008, SHA-3 finalist)
+  Zoo64HashGroestl256               = 0x00000094,  // Grøstl-256 (2008)
+  Zoo64HashGroestl384               = 0x00000095,  // Grøstl-384 (2008)
+  Zoo64HashGroestl512               = 0x00000096,  // Grøstl-512 (2008)
+  Zoo64HashJh224                    = 0x00000097,  // JH-224 (2008, SHA-3 finalist)
+  Zoo64HashJh256                    = 0x00000098,  // JH-256 (2008)
+  Zoo64HashJh384                    = 0x00000099,  // JH-384 (2008)
+  Zoo64HashJh512                    = 0x0000009A,  // JH-512 (2008)
+
+  // 0x00A0-0x00AF: Fast Non-Cryptographic Hashes (2008-2020)
+  Zoo64HashMurmur1                  = 0x000000A0,  // MurmurHash1 (2008, Austin Appleby)
+  Zoo64HashMurmur2                  = 0x000000A1,  // MurmurHash2 (2008)
+  Zoo64HashMurmur2a                 = 0x000000A2,  // MurmurHash2A (2008)
+  Zoo64HashMurmur3_32               = 0x000000A3,  // MurmurHash3-32 (2011)
+  Zoo64HashMurmur3_128              = 0x000000A4,  // MurmurHash3-128 (2011)
+  Zoo64HashXxhash32                 = 0x000000A5,  // xxHash-32 (2012, Yann Collet)
+  Zoo64HashXxhash64                 = 0x000000A6,  // xxHash-64 (2012)
+  Zoo64HashXxh3_64                  = 0x000000A7,  // xxHash3-64 (2019)
+  Zoo64HashXxh3_128                 = 0x000000A8,  // xxHash3-128 (2019)
+  Zoo64HashXxh128                   = 0x000000A9,  // xxHash-128 (2019)
+
+  // 0x00B0-0x00BF: Google Hash Functions (2011-2017)
+  Zoo64HashCityHash32               = 0x000000B0,  // CityHash32 (2011, Google)
+  Zoo64HashCityHash64               = 0x000000B1,  // CityHash64 (2011)
+  Zoo64HashCityHash128              = 0x000000B2,  // CityHash128 (2011)
+  Zoo64HashCityHashCrc128           = 0x000000B3,  // CityHashCrc128 (HW CRC)
+  Zoo64HashCityHashCrc256           = 0x000000B4,  // CityHashCrc256 (HW CRC)
+  Zoo64HashFarmHash32               = 0x000000B5,  // FarmHash32 (2014, Google)
+  Zoo64HashFarmHash64               = 0x000000B6,  // FarmHash64 (2014)
+  Zoo64HashFarmHash128              = 0x000000B7,  // FarmHash128 (2014)
+  Zoo64HashHighwayHash64            = 0x000000B8,  // HighwayHash64 (2017, Google)
+  Zoo64HashHighwayHash128           = 0x000000B9,  // HighwayHash128 (2017)
+  Zoo64HashHighwayHash256           = 0x000000BA,  // HighwayHash256 (2017)
+
+  // 0x00C0-0x00CF: Other Fast Hashes (2000s-2010s)
+  Zoo64HashSipHash24                = 0x000000C0,  // SipHash-2-4 (2012, Aumasson & Bernstein)
+  Zoo64HashSipHash48                = 0x000000C1,  // SipHash-4-8 (stronger)
+  Zoo64HashSipHash13                = 0x000000C2,  // SipHash-1-3 (faster)
+  Zoo64HashHalfsipHash              = 0x000000C3,  // HalfSipHash (32-bit)
+  Zoo64HashMetroHash64              = 0x000000C4,  // MetroHash64 (2015)
+  Zoo64HashMetroHash128             = 0x000000C5,  // MetroHash128 (2015)
+  Zoo64HashT1ha                     = 0x000000C6,  // t1ha (Fast Positive Hash, 2016)
+  Zoo64HashT1ha0                    = 0x000000C7,  // t1ha0 (baseline)
+  Zoo64HashT1ha1                    = 0x000000C8,  // t1ha1 (AVX)
+  Zoo64HashT1ha2                    = 0x000000C9,  // t1ha2 (AVX2)
+  Zoo64HashWyhash                   = 0x000000CA,  // wyhash (2018, Wang Yi)
+  Zoo64HashSpookyHash32             = 0x000000CB,  // SpookyHash-32 (2011, Bob Jenkins)
+  Zoo64HashSpookyHash64             = 0x000000CC,  // SpookyHash-64 (2011)
+  Zoo64HashSpookyHash128            = 0x000000CD,  // SpookyHash-128 (2011)
+
+  // 0x00D0-0x00DF: International Standards (2000s-2010s)
+  Zoo64HashSm3                      = 0x000000D0,  // SM3 (2010, China GB/T 32905)
+  Zoo64HashStreebog256              = 0x000000D1,  // Streebog-256 (2012, Russia GOST R 34.11)
+  Zoo64HashStreebog512              = 0x000000D2,  // Streebog-512 (2012)
+  Zoo64HashGost94                   = 0x000000D3,  // GOST R 34.11-94 (1994, Russia, legacy)
+  Zoo64HashGost94CryptoProA         = 0x000000D4,  // GOST 34.11-94 CryptoPro-A
+  Zoo64HashGost94CryptoProB         = 0x000000D5,  // GOST 34.11-94 CryptoPro-B
+  Zoo64HashGost94CryptoProC         = 0x000000D6,  // GOST 34.11-94 CryptoPro-C
+  Zoo64HashHas160                   = 0x000000D7,  // HAS-160 (2000, South Korea)
+
+  // 0x00E0-0x00EF: Miscellaneous & Specialized (1990s-2020s)
+  Zoo64HashEdonR256                 = 0x000000E0,  // Edon-R-256 (2008, SHA-3 candidate)
+  Zoo64HashEdonR512                 = 0x000000E1,  // Edon-R-512 (2008)
+  Zoo64HashFnv1_32                  = 0x000000E2,  // FNV-1 32-bit (1991, Fowler-Noll-Vo)
+  Zoo64HashFnv1_64                  = 0x000000E3,  // FNV-1 64-bit (1991)
+  Zoo64HashFnv1a_32                 = 0x000000E4,  // FNV-1a 32-bit (alternate)
+  Zoo64HashFnv1a_64                 = 0x000000E5,  // FNV-1a 64-bit (alternate)
+  Zoo64HashJenkins                  = 0x000000E6,  // Jenkins hash (1997, Bob Jenkins)
+  Zoo64HashJenkinsOneAtATime        = 0x000000E7,  // Jenkins one-at-a-time (1997)
+  Zoo64HashPearson                  = 0x000000E8,  // Pearson hash (1990)
+  Zoo64HashDjb2                     = 0x000000E9,  // djb2 (Dan Bernstein)
+  Zoo64HashSdbm                     = 0x000000EA,  // SDBM hash
+  Zoo64HashLoselose                 = 0x000000EB,  // lose-lose (K&R)
+  Zoo64HashKangarooTwelve           = 0x000000EC,  // KangarooTwelve (2016, Keccak-based)
+  Zoo64HashMarsupilamiFourteen      = 0x000000ED,  // MarsupilamiFourteen (2018)
+  Zoo64HashAscon                    = 0x000000EE,  // Ascon hash (2021, NIST LWC)
+
+  // 0xF0000000-0xFFFEFFFF: Third-Party Algorithms (~268 million IDs)
+  Zoo64HashThirdPartyBase           = 0xF0000000,  // Third-party hash base
+
+  // 0xFFFF0000-0xFFFFFFFF: Dynamic VM WASM Codecs (65,536 IDs, RESERVED)
+  Zoo64HashWasmBase                 = 0xFFFF0000,  // WASM hash codec base
+  Zoo64HashWasmMax                  = 0xFFFFFFFF   // WASM hash codec max
 } ZOO64_HASH_ALGORITHM;
 
 //
@@ -13140,25 +13405,110 @@ typedef enum _ZOO64_HASH_ALGORITHM {
 //
 typedef enum _ZOO64_SIGNATURE_TYPE {
   Zoo64SigNone                      = 0x00000000,  // No signature
-  Zoo64SigRsa2048                   = 0x00000001,  // RSA-2048
-  Zoo64SigRsa3072                   = 0x00000002,  // RSA-3072
-  Zoo64SigRsa4096                   = 0x00000003,  // RSA-4096
-  Zoo64SigEcdsaP256                 = 0x00000004,  // ECDSA P-256 (secp256r1)
-  Zoo64SigEcdsaP384                 = 0x00000005,  // ECDSA P-384 (secp384r1)
-  Zoo64SigEcdsaP521                 = 0x00000006,  // ECDSA P-521 (secp521r1)
-  Zoo64SigEd25519                   = 0x00000007,  // Ed25519 (recommended)
-  Zoo64SigEd448                     = 0x00000008,  // Ed448
-  Zoo64SigDsa2048                   = 0x00000009,  // DSA-2048
-  Zoo64SigDsa3072                   = 0x0000000A,  // DSA-3072
-  Zoo64SigEcdsaSecp256k1            = 0x0000000B,  // ECDSA secp256k1 (Bitcoin)
-  Zoo64SigSm2                       = 0x0000000C,  // SM2 (Chinese standard)
-  Zoo64SigFalcon512                 = 0x0000000D,  // Falcon-512 (post-quantum)
-  Zoo64SigFalcon1024                = 0x0000000E,  // Falcon-1024 (post-quantum)
-  Zoo64SigDilithium2                = 0x0000000F,  // Dilithium2 (post-quantum)
-  Zoo64SigDilithium3                = 0x00000010,  // Dilithium3 (post-quantum)
-  Zoo64SigDilithium5                = 0x00000011,  // Dilithium5 (post-quantum)
-  Zoo64SigSphincsPlus128            = 0x00000012,  // SPHINCS+ 128 (post-quantum)
-  Zoo64SigSphincsPlus256            = 0x00000013   // SPHINCS+ 256 (post-quantum)
+
+  // 0x0001-0x000F: RSA Family (1977-present, Rivest-Shamir-Adleman)
+  Zoo64SigRsa1024                   = 0x00000001,  // RSA-1024 (1977, deprecated, weak)
+  Zoo64SigRsa2048                   = 0x00000002,  // RSA-2048 (minimum recommended)
+  Zoo64SigRsa3072                   = 0x00000003,  // RSA-3072 (recommended)
+  Zoo64SigRsa4096                   = 0x00000004,  // RSA-4096 (high security)
+  Zoo64SigRsa8192                   = 0x00000005,  // RSA-8192 (very high security)
+  Zoo64SigRsaSha1                   = 0x00000006,  // RSA-SHA1 (deprecated)
+  Zoo64SigRsaSha256                 = 0x00000007,  // RSA-SHA256
+  Zoo64SigRsaSha384                 = 0x00000008,  // RSA-SHA384
+  Zoo64SigRsaSha512                 = 0x00000009,  // RSA-SHA512
+  Zoo64SigRsaPss2048                = 0x0000000A,  // RSA-PSS-2048 (probabilistic)
+  Zoo64SigRsaPss3072                = 0x0000000B,  // RSA-PSS-3072
+  Zoo64SigRsaPss4096                = 0x0000000C,  // RSA-PSS-4096
+
+  // 0x0010-0x001F: DSA Family (1991, NIST Digital Signature Algorithm)
+  Zoo64SigDsa1024                   = 0x00000010,  // DSA-1024 (1991, deprecated)
+  Zoo64SigDsa2048                   = 0x00000011,  // DSA-2048
+  Zoo64SigDsa3072                   = 0x00000012,  // DSA-3072
+
+  // 0x0020-0x002F: ElGamal & Schnorr (1985-1989)
+  Zoo64SigElgamal                   = 0x00000020,  // ElGamal (1985, Taher ElGamal)
+  Zoo64SigSchnorr                   = 0x00000021,  // Schnorr (1989, Claus-Peter Schnorr)
+  Zoo64SigSchnorrSecp256k1          = 0x00000022,  // Schnorr-secp256k1 (Bitcoin Taproot)
+
+  // 0x0030-0x003F: ECDSA Family (1999-present, Elliptic Curve)
+  Zoo64SigEcdsaP192                 = 0x00000030,  // ECDSA P-192/secp192r1 (NIST, legacy)
+  Zoo64SigEcdsaP224                 = 0x00000031,  // ECDSA P-224/secp224r1
+  Zoo64SigEcdsaP256                 = 0x00000032,  // ECDSA P-256/secp256r1 (recommended)
+  Zoo64SigEcdsaP384                 = 0x00000033,  // ECDSA P-384/secp384r1
+  Zoo64SigEcdsaP521                 = 0x00000034,  // ECDSA P-521/secp521r1
+  Zoo64SigEcdsaSecp256k1            = 0x00000035,  // ECDSA secp256k1 (Bitcoin/Ethereum)
+  Zoo64SigEcdsaBrainpoolP256        = 0x00000036,  // ECDSA brainpoolP256r1
+  Zoo64SigEcdsaBrainpoolP384        = 0x00000037,  // ECDSA brainpoolP384r1
+  Zoo64SigEcdsaBrainpoolP512        = 0x00000038,  // ECDSA brainpoolP512r1
+
+  // 0x0040-0x004F: EdDSA Family (2011-2015, Edwards-curve Digital Signature)
+  Zoo64SigEd25519                   = 0x00000040,  // Ed25519 (2011, Bernstein et al, recommended)
+  Zoo64SigEd448                     = 0x00000041,  // Ed448/Ed448-Goldilocks (2015)
+  Zoo64SigEd25519ph                 = 0x00000042,  // Ed25519ph (pre-hash variant)
+  Zoo64SigEd448ph                   = 0x00000043,  // Ed448ph (pre-hash variant)
+  Zoo64SigEd25519ctx                = 0x00000044,  // Ed25519ctx (context variant)
+
+  // 0x0050-0x005F: International Standards (2000s-2010s)
+  Zoo64SigSm2                       = 0x00000050,  // SM2 (2010, China GB/T 32918)
+  Zoo64SigGost2001                  = 0x00000051,  // GOST R 34.10-2001 (Russia)
+  Zoo64SigGost2012_256              = 0x00000052,  // GOST R 34.10-2012-256 (Russia)
+  Zoo64SigGost2012_512              = 0x00000053,  // GOST R 34.10-2012-512 (Russia)
+  Zoo64SigEckcdsa                   = 0x00000054,  // EC-KCDSA (South Korea)
+
+  // 0x0060-0x006F: NIST PQC Finalists - Lattice-Based (2017-2024)
+  Zoo64SigDilithium2                = 0x00000060,  // Dilithium2 (2017, CRYSTALS, NIST winner)
+  Zoo64SigDilithium3                = 0x00000061,  // Dilithium3 (recommended PQ)
+  Zoo64SigDilithium5                = 0x00000062,  // Dilithium5 (high security PQ)
+  Zoo64SigFalcon512                 = 0x00000063,  // Falcon-512 (2017, compact PQ)
+  Zoo64SigFalcon1024                = 0x00000064,  // Falcon-1024 (2017)
+
+  // 0x0070-0x007F: NIST PQC Finalists - Hash-Based (2015-2024)
+  Zoo64SigSphincsPlus128f           = 0x00000070,  // SPHINCS+-128f (2015, fast)
+  Zoo64SigSphincsPlus128s           = 0x00000071,  // SPHINCS+-128s (small)
+  Zoo64SigSphincsPlus192f           = 0x00000072,  // SPHINCS+-192f
+  Zoo64SigSphincsPlus192s           = 0x00000073,  // SPHINCS+-192s
+  Zoo64SigSphincsPlus256f           = 0x00000074,  // SPHINCS+-256f
+  Zoo64SigSphincsPlus256s           = 0x00000075,  // SPHINCS+-256s
+
+  // 0x0080-0x008F: Other Post-Quantum Signatures
+  Zoo64SigPicnicL1                  = 0x00000080,  // Picnic-L1 (2017, ZK-based)
+  Zoo64SigPicnicL3                  = 0x00000081,  // Picnic-L3
+  Zoo64SigPicnicL5                  = 0x00000082,  // Picnic-L5
+  Zoo64SigRainbow1a                 = 0x00000083,  // Rainbow-Ia (2005, multivariate, broken)
+  Zoo64SigRainbow3a                 = 0x00000084,  // Rainbow-IIIa (broken 2022)
+  Zoo64SigRainbow5a                 = 0x00000085,  // Rainbow-Va (broken 2022)
+  Zoo64SigGeMSS128                  = 0x00000086,  // GeMSS-128 (multivariate)
+  Zoo64SigLuov                      = 0x00000087,  // LUOV (multivariate)
+
+  // 0x0090-0x009F: Hash-Based Signatures (1970s-2010s)
+  Zoo64SigLms                       = 0x00000090,  // LMS (2019, RFC 8554, Leighton-Micali)
+  Zoo64SigHss                       = 0x00000091,  // HSS (2019, Hierarchical Signature System)
+  Zoo64SigXmss                      = 0x00000092,  // XMSS (2018, RFC 8391, eXtended Merkle)
+  Zoo64SigXmssmt                    = 0x00000093,  // XMSS-MT (Multi-Tree)
+  Zoo64SigLamport                   = 0x00000094,  // Lamport (1979, one-time signature)
+  Zoo64SigWinternitz                = 0x00000095,  // Winternitz OTS (1996)
+  Zoo64SigWotsPlusHash              = 0x00000096,  // WOTS+ (2013)
+
+  // 0x00A0-0x00AF: Code-Based & Isogeny Signatures
+  Zoo64SigMqds                      = 0x000000A0,  // MQDS (code-based)
+  Zoo64SigWaves                     = 0x000000A1,  // WAVE (code-based)
+  Zoo64SigSike                      = 0x000000A2,  // SIKE (isogeny-based, deprecated)
+  Zoo64SigCsidh                     = 0x000000A3,  // CSIDH (isogeny-based)
+  Zoo64SigSqisign                   = 0x000000A4,  // SQISign (2020, isogeny-based)
+
+  // 0x00B0-0x00BF: Threshold & Multi-Party Signatures
+  Zoo64SigBls12_381                 = 0x000000B0,  // BLS-12-381 (2017, Boneh-Lynn-Shacham)
+  Zoo64SigBlsAggregated             = 0x000000B1,  // BLS Aggregated (Ethereum 2.0)
+  Zoo64SigSchnorrMultisig           = 0x000000B2,  // Schnorr Multisig (MuSig)
+  Zoo64SigMusig2                    = 0x000000B3,  // MuSig2 (2020)
+  Zoo64SigFrost                     = 0x000000B4,  // FROST (2020, threshold Schnorr)
+
+  // 0xF0000000-0xFFFEFFFF: Third-Party Algorithms (~268 million IDs)
+  Zoo64SigThirdPartyBase            = 0xF0000000,  // Third-party signature base
+
+  // 0xFFFF0000-0xFFFFFFFF: Dynamic VM WASM Codecs (65,536 IDs, RESERVED)
+  Zoo64SigWasmBase                  = 0xFFFF0000,  // WASM signature codec base
+  Zoo64SigWasmMax                   = 0xFFFFFFFF   // WASM signature codec max
 } ZOO64_SIGNATURE_TYPE;
 
 //
