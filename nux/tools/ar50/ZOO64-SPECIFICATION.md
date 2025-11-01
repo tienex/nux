@@ -40,30 +40,409 @@
 
 ## Conformance Levels
 
+Zoo64 defines seven conformance levels to support implementations ranging from ultra-tiny parsers to full-featured enterprise archival solutions.
+
+### Tiny Conformance
+Absolute bare minimum for parsing:
+- Archive Header (magic, version only)
+- File Entry (path, size, offset)
+- **NO Central Directory** (sequential scan only)
+- **NO timestamps** (optional modification time only)
+- **NO compression** (stored files only)
+- **NO checksums** (CRC32 optional)
+- **NO End of Archive marker** (optional)
+- UTF-8 paths (basic support, no validation)
+
+**Target**: Minimal parsers, toy implementations, learning/testing, absolute smallest code footprint (< 1KB)
+
+### Compact Conformance
+Ultra-minimal streaming implementation without random access:
+- Archive Header structure (minimal flags)
+- File Entry with path and minimal metadata (size, CRC32)
+- End of Archive Marker
+- Stored (uncompressed) files only
+- UTF-8 paths (basic support, ASCII-safe subset recommended)
+- **NO Central Directory** (sequential access only)
+- Streamable mode required
+
+**Target**: Network streaming, pipes, stdin/stdout processing, single-pass extraction
+
+### Embedded Conformance
+Minimal implementation for resource-constrained systems:
+- Archive Header structure
+- File Entry with path and basic metadata (size, CRC32, modification time only)
+- Central Directory (simplified entries)
+- End of Archive Marker
+- Stored (uncompressed) files only
+- UTF-8 paths (basic support, no full normalization required)
+- Random access via Central Directory
+
+**Target**: Microcontrollers, firmware updates, bootloaders, IoT devices, ROM filesystems
+
 ### Minimal Conformance (REQUIRED)
-A minimal Zoo64 implementation MUST support:
+Basic Zoo64 implementation MUST support:
 - Archive Header structure
 - File Entry with path and basic metadata (timestamps, size, CRC32)
-- Central Directory
+- Central Directory (REQUIRED at this level)
 - Stored (uncompressed) files
-- UTF-8 paths
+- UTF-8 paths with full normalization (NFC, separator normalization)
+
+**Target**: Simple archiving tools, minimal dependencies, basic file bundling
 
 ### Standard Conformance (RECOMMENDED)
 Standard implementations SHOULD add:
-- At least one compression algorithm (LZMA2 or ZSTD recommended)
+- At least one modern compression algorithm (ZSTD or LZMA2 recommended)
 - Quick Directory for fast listing
 - Block deduplication
 - SHA-256 file hashes
+- Basic extended metadata (Unix permissions, Windows attributes)
+
+**Target**: General-purpose archiving, backup utilities, software distribution
+
+### Enhanced Conformance
+Advanced implementations with professional features:
+- Multiple compression algorithms (ZSTD, LZMA2, LZ4, ZLIB, Brotli)
+- Encryption (AES-256-GCM, ChaCha20-Poly1305)
+- Seekable compression
+- Digital signatures (RSA-2048, Ed25519)
+- Core metadata types (ACLs, xattrs, ADS, Security Descriptors)
+- Streamable mode support
+- SHA-256/SHA-512/BLAKE3 hashing
+
+**Target**: Professional backup software, compliance archiving, secure distribution
 
 ### Full Conformance (OPTIONAL)
-Full implementations MAY include:
-- All compression algorithms
-- Encryption (AES-256-GCM, ChaCha20-Poly1305)
-- Data integrity (FEC, PAR2)
-- Digital signatures
-- Platform-specific metadata (ACLs, xattrs, ADS)
-- VCS metadata
+Complete feature set implementations MAY include:
+- All compression algorithms (21+ algorithms including PAQ, legacy formats)
+- All encryption methods and KDFs
+- Data integrity (Reed-Solomon FEC, PAR2)
+- All digital signature algorithms
+- All platform-specific metadata (95+ metadata types)
+- All filesystem metadata (APFS, ReFS, ZFS, etc.)
+- VCS metadata (Git, SVN, Perforce, Mercurial, etc.)
 - Multi-volume archives
+- All operating modes (Streamable, Tape-Friendly, HSM)
+- Solid compression with seekable blocks
+
+**Target**: Enterprise backup, cross-platform migration, digital preservation, compliance archiving
+
+## Conformance Summary Tables
+
+### Table 1: Conformance Levels Overview
+
+| Level | Designation | Random Access | Compression | Metadata | Checksums | Target Use Cases |
+|-------|-------------|---------------|-------------|----------|-----------|------------------|
+| **Tiny** | Optional | No | None | None (size only) | Optional | Minimal parsers, learning, testing |
+| **Compact** | Optional | No (Stream only) | None (Stored) | Minimal | CRC32 | Network streaming, pipes, stdin/stdout |
+| **Embedded** | Optional | Yes (Central Dir) | None (Stored) | Basic (mtime) | CRC32 | Microcontrollers, firmware, IoT, ROM FS |
+| **Minimal** | REQUIRED | Yes (Central Dir) | None (Stored) | Standard (4×timestamps) | CRC32 | Simple archiving, minimal dependencies |
+| **Standard** | RECOMMENDED | Yes + Quick Dir | ZSTD/LZMA2 | Extended | SHA-256 | General-purpose, backup, distribution |
+| **Enhanced** | Optional | Yes + Seekable | Multiple algorithms | Encryption + core | SHA-512/BLAKE3 | Professional backup, compliance |
+| **Full** | OPTIONAL | All modes | All algorithms | All metadata + FEC | All algorithms | Enterprise, preservation, migration |
+
+### Table 2: Core Features by Conformance Level
+
+#### Tiny Conformance (Absolute Minimum for Parsing)
+
+| Category | Feature | Section | Description |
+|----------|---------|---------|-------------|
+| **Archive Structure** | Archive Header | 3 | Magic (0x5A4F4F3634415243) and version only |
+| | File Entry | 5 | Path, size, offset to data |
+| **Compression** | Stored Mode | 4 | Uncompressed only (Algorithm ID 0x0000) |
+| **Path Support** | UTF-8 Paths (Basic) | 5.3 | UTF-8 support (no validation) |
+| **Metadata** | File Size | 5.1 | Uncompressed size only |
+| **OMITTED** | Central Directory | - | Not required (sequential scan) |
+| | Timestamps | - | Optional (modification time if present) |
+| | Checksums | - | Optional (CRC32 if present) |
+| | End of Archive Marker | - | Optional |
+
+**Implementation Guidance**: Tiny conformance is intended for:
+- Educational implementations (learning the format)
+- Minimal test parsers
+- Proof-of-concept code
+- Embedded systems with extreme constraints (< 1KB code)
+
+**Note**: Tiny implementations should be able to *read* archives but not necessarily *create* them. Writing should target at least Compact level.
+
+#### Compact Conformance (Streaming Only)
+
+| Category | Feature | Section | Description |
+|----------|---------|---------|-------------|
+| **Archive Structure** | Archive Header | 3 | Minimal flags, streamable mode bit set |
+| | File Entry | 5 | Path and minimal metadata (size, CRC32) |
+| | End of Archive Marker | 11 | Archive terminator |
+| **Compression** | Stored Mode | 4 | Uncompressed only (Algorithm ID 0x0000) |
+| **Path Support** | UTF-8 Paths (Basic) | 5.3 | UTF-8 support, ASCII-safe subset recommended |
+| **Metadata** | Minimal Integrity | 5.1 | CRC32 checksums only |
+| | File Size | 5.1 | Uncompressed and compressed sizes |
+| **Access Mode** | Sequential Only | 3.2a.1 | No seeking, stream-only access |
+| **OMITTED** | Central Directory | - | Not present (sequential scan required) |
+
+#### Embedded Conformance (Resource-Constrained)
+
+| Category | Feature | Section | Description |
+|----------|---------|---------|-------------|
+| **Archive Structure** | Archive Header | 3 | Basic flags, version |
+| | File Entry | 5 | Path and basic metadata (size, CRC32, mtime) |
+| | Central Directory | 10 | Simplified entries for random access |
+| | End of Archive Marker | 11 | Archive terminator |
+| **Compression** | Stored Mode | 4 | Uncompressed only (Algorithm ID 0x0000) |
+| **Path Support** | UTF-8 Paths | 5.3 | UTF-8 support (normalization optional) |
+| **Metadata** | Basic Integrity | 5.1 | CRC32 checksums |
+| | Modification Time | 5.1 | Single timestamp (modification time only) |
+| | File Size | 5.1 | Uncompressed and compressed sizes |
+| **Access Mode** | Random Access | 10 | Via simplified Central Directory |
+
+#### Minimal Conformance (REQUIRED - Baseline)
+
+| Category | Feature | Section | Description |
+|----------|---------|---------|-------------|
+| **Archive Structure** | Archive Header | 3 | Magic signature (0x5A4F4F3634415243), version, flags, timestamps |
+| | File Entry | 5 | Local file header with path and metadata |
+| | Central Directory | 10 | Fast access directory with all file entries |
+| | End of Archive Marker | 11 | Archive terminator with integrity checks |
+| **Compression** | Stored Mode | 4 | Uncompressed file storage (Algorithm ID 0x0000) |
+| | Bit Squishing | 12.7 | Reduced alphabet compression (Algorithm ID 0x0010) |
+| **Path Support** | UTF-8 Paths | 5.3 | Variable-length Unicode paths with full normalization |
+| | NFC Normalization | 5.3 | Unicode NFC normalization required |
+| | Path Separator Normalization | 5.3 | All separators to \0 |
+| | Dot Resolution | 5.3 | Handle ./ and ../ components |
+| **Metadata** | Full Timestamps | 5.1 | Birth, modification, access, change times (NTP format) |
+| | Basic Integrity | 5.1 | CRC32 checksums for all files |
+| | Basic Attributes | 5.1 | Unix mode, UID/GID, file size |
+
+#### Standard Conformance (RECOMMENDED)
+
+Includes all Minimal features, plus:
+
+| Category | Feature | Section | Description |
+|----------|---------|---------|-------------|
+| **Compression** | LZMA2 or ZSTD | 4 | Modern compression (recommended: ZSTD for speed, LZMA2 for ratio) |
+| **Directory** | Quick Directory | 4.6 | Fast file listing without full archive scan |
+| **Deduplication** | Block Deduplication | 6.2 (0x0047) | Chunk-based storage deduplication |
+| **Integrity** | SHA-256 Hashes | 5.1, 6b | Cryptographic file integrity verification |
+| **Metadata** | Unix Permissions | 5.1 | Full Unix mode bits |
+| | Windows Attributes | 6.2 (0x000E) | Basic Windows file attributes |
+
+#### Enhanced Conformance (Professional)
+
+Includes all Standard features, plus:
+
+| Category | Feature | Section | Description |
+|----------|---------|---------|-------------|
+| **Compression** | Multiple Algorithms | 4 | ZSTD, LZMA2, LZ4, ZLIB, Brotli (5+ algorithms) |
+| | Seekable Compression | 7 | Random access within compressed files |
+| **Encryption** | AES-256-GCM | 6a | Authenticated encryption (recommended) |
+| | ChaCha20-Poly1305 | 6a | Alternative authenticated encryption |
+| | Argon2id KDF | 6a | Memory-hard key derivation |
+| **Signatures** | RSA-2048 | 9 | Digital signatures (RSA) |
+| | Ed25519 | 9 | Digital signatures (Edwards curve) |
+| **Integrity** | SHA-512 / BLAKE3 | 6b | Advanced cryptographic hashing |
+| **Metadata** | ACLs | 6.2 (0x0001) | POSIX, Windows NT ACLs |
+| | Extended Attributes | 6.2 (0x0002) | Unix/Linux xattrs |
+| | Alternate Data Streams | 6.2 (0x0003) | NTFS ADS support |
+| | Security Descriptors | 6.2 (0x0004) | Windows security descriptors |
+| **Modes** | Streamable Mode | 3.2a.1 | Sequential-only streaming support |
+
+#### Full Conformance (OPTIONAL - Complete)
+
+Includes all Enhanced features, plus:
+
+| Category | Feature | Section | Description |
+|----------|---------|---------|-------------|
+| **Compression** | All Algorithms | 4.1 | Full support for 20+ compression algorithms |
+| | Solid Compression | 8 | Multi-file compression streams |
+| | Legacy Algorithms | 4.1 | PAQ, Crunch, ACE, ARJ, StuffIt, LTO, etc. |
+| **Encryption** | All Encryption Methods | 6a | All 6 encryption algorithms |
+| | All KDFs | 6a | All 5 key derivation functions |
+| | Header Encryption | 6a | Encrypted archive headers |
+| **Integrity** | Reed-Solomon FEC | 6b | Forward error correction for data recovery |
+| | PAR2 Integration | 6b | Parity archive integration |
+| | All Hash Algorithms | 6b | SHA1/256/384/512, SHA3, BLAKE2b, BLAKE3 |
+| **Signatures** | All Signature Algorithms | 9 | RSA-2048/4096, ECDSA-P256/P384, Ed25519, Ed448 |
+| | X.509 Certificates | 9 | Certificate chain support |
+| **Metadata** | All 95+ Metadata Types | 6.2 | Comprehensive platform and filesystem metadata |
+| | Filesystem Metadata | 6.2 | APFS, ReFS, ZFS, XFS, JFS, Btrfs, etc. (18 types) |
+| | Legacy OS Metadata | 6.2 | VMS, z/OS, OS/400, Classic Mac, Amiga, etc. (12 types) |
+| | VCS Metadata | 6.2 (0x0032-0x0038) | Git, SVN, Perforce, Mercurial, etc. (7 types) |
+| | Network FS | 6.2 | NFS, SMB/CIFS, WebDAV, AFS, CODA, etc. (8 types) |
+| **Archives** | Multi-Volume Support | 3.3-3.4 | Archive splitting across multiple volumes |
+| **Modes** | Tape-Friendly Mode | 3.2a.2 | Optimized for tape storage |
+| | HSM Mode | 3.2a.3 | Hierarchical storage management |
+| **Links** | Hard Links | 6.4, 6.2 (0x000F) | Including directory hard links |
+| | Symbolic Links | 6.5, 6.2 (0x0010) | With all variants and flags |
+| | Magic Symlinks | 6.2 (0x0027) | Windows junctions, Mac aliases |
+
+### Table 3: Compression Algorithms Matrix
+
+| Algorithm | ID | Conformance Level | Best Use Case | Speed | Ratio |
+|-----------|-----|-------------------|---------------|-------|-------|
+| **Stored (None)** | 0x0000 | **Compact+** (ALL) | Pre-compressed files, streams | Fastest | None |
+| **ZSTD** | 0x0004 | **Standard** (recommended) | General purpose, balanced | Fast | High |
+| **LZMA2** | 0x0006 | **Standard** (alternative) | Maximum compression, multi-thread | Medium | Very High |
+| **LZ4** | 0x0003 | Enhanced | Real-time compression | Fastest | Low-Medium |
+| **ZLIB** | 0x0009 | Enhanced | Compatibility, networking | Medium | Medium-High |
+| **Brotli** | 0x000C | Enhanced | Web content, text | Medium | Very High |
+| **LZ77** | 0x0002 | Enhanced | General purpose | Fast | Medium |
+| **LZMA** | 0x0005 | Full | Maximum compression | Slow | Very High |
+| **LZX** | 0x0007 | Full | CAB/WIM compatibility | Medium | High |
+| **LZFSE** | 0x0008 | Full | Apple platforms | Fast | High |
+| **LZH** | 0x000A | Full | Legacy compatibility | Medium | Medium-High |
+| **LZW** | 0x000B | Full | Legacy (GIF/TIFF) | Fast | Medium |
+| **Bzip2** | 0x000D | Full | High compression | Slow | Very High |
+| **PAQ** | 0x000E | Full | Maximum compression | Very Slow | Maximum |
+| **Huffman** | 0x000F | Full | Simple compression | Fast | Low-Medium |
+| **ZOZ** | 0x0001 | Full | Maximum compression, adaptive | Slow | Maximum |
+| **Bit Squishing** | 0x0010 | **Minimal** | Reduced alphabet (text, logs) | Fast | High |
+
+### Table 4: Encryption & Security Features Matrix
+
+| Feature | Conformance Level | Algorithm/Type | Key Size | Use Case |
+|---------|-------------------|----------------|----------|----------|
+| **Hash Algorithms** | | | | |
+| CRC32 | **Compact+** (ALL) | Checksum | 32-bit | Error detection |
+| SHA-256 | **Standard** | Cryptographic | 256-bit | Standard integrity |
+| SHA-512 | Enhanced | Cryptographic | 512-bit | Maximum security |
+| BLAKE3 | Enhanced | Cryptographic | 256-bit | Maximum performance |
+| SHA-384 | Full | Cryptographic | 384-bit | Enhanced security |
+| SHA3-256 | Full | Cryptographic | 256-bit | Alternative standard |
+| SHA3-512 | Full | Cryptographic | 512-bit | Alternative standard |
+| BLAKE2b | Full | Cryptographic | 512-bit | High performance |
+| SHA1 | Full | Cryptographic (deprecated) | 160-bit | Legacy compatibility |
+| **Encryption Methods** | | | | |
+| AES-256-GCM | **Enhanced** (recommended) | Authenticated | 256-bit | General purpose, best balance |
+| ChaCha20-Poly1305 | Enhanced | Authenticated | 256-bit | Software-only systems |
+| AES-256-CBC + HMAC | Full | Encrypt-then-MAC | 256-bit | Legacy compatibility |
+| AES-128-GCM | Full | Authenticated | 128-bit | Performance-critical |
+| Twofish-256-GCM | Full | Authenticated | 256-bit | Alternative cipher |
+| Serpent-256-GCM | Full | Authenticated | 256-bit | High security |
+| **Key Derivation** | | | | |
+| Argon2id | **Enhanced** (recommended) | Memory-hard | Variable | Modern, resistance to GPU/ASIC |
+| PBKDF2-HMAC-SHA256 | Enhanced | Standard | Variable | Compatibility |
+| PBKDF2-HMAC-SHA512 | Full | Standard | Variable | Enhanced security |
+| scrypt | Full | Memory-hard | Variable | Good balance |
+| bcrypt | Full | CPU-hard | Variable | Password hashing |
+| **Digital Signatures** | | | | |
+| RSA-2048 | **Enhanced** | Public-key | 2048-bit | Wide compatibility |
+| Ed25519 | **Enhanced** | Edwards curve | 256-bit | Modern, fast verification |
+| RSA-4096 | Full | Public-key | 4096-bit | High security |
+| ECDSA-P256 | Full | Elliptic curve | 256-bit | Smaller signatures |
+| ECDSA-P384 | Full | Elliptic curve | 384-bit | Enhanced security |
+| Ed448 | Full | Edwards curve | 448-bit | Maximum security |
+| **Error Correction** | | | | |
+| Reed-Solomon | Full | FEC | Variable | General purpose |
+| LDPC | Full | FEC | Variable | Advanced correction |
+| PAR2 | Full | Parity archive | Variable | Archive recovery |
+
+### Table 5: Metadata Types Summary
+
+| Category | Count | Conformance | Examples |
+|----------|-------|-------------|----------|
+| **Core Metadata** | 15 | Optional | ACLs, xattrs, ADS, Security Descriptors, Resource Forks |
+| **Unix/POSIX** | 8 | Optional | Extended timestamps, SELinux, File capabilities, BSD flags, Linux flags |
+| **Windows** | 5 | Optional | Security Descriptors, ADS, Extended attributes, Short filenames |
+| **Legacy OS** | 12 | Optional | OpenVMS, z/OS, OS/400, Classic Mac OS, Amiga, Atari, Acorn, C64, Apple IIGS |
+| **Filesystems** | 18 | Optional | APFS, ReFS, ZFS, XFS, JFS, Btrfs, HPFS, VxFS, AdvFS, ReiserFS, UDF, ISO 9660 |
+| **Version Control** | 7 | Optional | Git, SVN, Perforce, CVS, RCS, Mercurial, Fossil |
+| **Network FS** | 8 | Optional | NFS, SMB/CIFS, NetWare, AFP, AFS, CODA, DFS, WebDAV |
+| **Special Files** | 6 | Optional | Device files, FIFOs, Sockets, Doors, Magic symlinks, Whiteouts |
+| **Archive Formats** | 3 | Optional | WIM metadata, WIM resources, WIM boot/integrity |
+| **File Features** | 6 | Optional | Sparse files, Delta revisions, Deduplication, Reserved names, DR-DOS passwords |
+| **TOTAL** | **95+** | Optional | Comprehensive cross-platform metadata preservation |
+
+### Table 6: Complete Feature Matrix by Category
+
+#### Archive Structures & Formats
+
+| Feature | Conformance | Magic/ID | Section | Notes |
+|---------|-------------|----------|---------|-------|
+| Archive Header | **REQUIRED** | 0x5A4F4F3634415243 | 3 | Must be present in all archives |
+| Compression Descriptor | **REQUIRED** | 0x434F4D5044455343 | 4 | Defines compression pipeline |
+| Archive YAML Metadata | Optional | 0x59414D4C4D455441 | 4.5 | Archive-level metadata |
+| Quick Directory | Optional (**Recommended**) | 0x5155494344495220 | 4.6 | Fast file listing |
+| File Entry | **REQUIRED** | 0x46494C45454E5452 | 5 | File metadata and data |
+| Extended Metadata | Optional | 0x4D45544144415441 | 6 | Extended metadata chunks |
+| Encryption Header | Optional | 0x454E4352595054 | 6a | Encryption parameters |
+| Integrity Block | Optional | 0x494E544547524954 | 6b | Hash and FEC data |
+| Seekable Block Table | Optional | 0x424C4B54424C | 7 | Random access offsets |
+| Solid Block | Optional | 0x534F4C4944424C4B | 8 | Solid compression container |
+| File Signature | Optional | 0x5349474E41545552 | 9 | Per-file digital signature |
+| Central Directory | **REQUIRED** | 0x43454E5440495220 | 10 | Central file index |
+| End of Archive | **REQUIRED** | 0x454E444F46415243 | 11 | Archive terminator |
+| Volume Header | Optional | 0x564F4C554D4548 | 3.3 | Multi-volume marker |
+| Volume Footer | Optional | 0x564F4C464F4F5452 | 3.4 | Volume boundary marker |
+
+#### Operating Modes
+
+| Mode | Conformance | Flag Bit | Section | Description |
+|------|-------------|----------|---------|-------------|
+| Normal Mode | **REQUIRED** | - | 2-11 | Standard random-access archive |
+| Streamable Mode | Optional | Bit 16 | 3.2a.1 | Sequential-only, no seeking |
+| Tape-Friendly Mode | Optional | Bit 17 | 3.2a.2 | Block-aligned for tape storage |
+| HSM Mode | Optional | Bit 18 | 3.2a.3 | Hierarchical storage management |
+
+#### Path & Filename Handling
+
+| Feature | Conformance | Section | Description |
+|---------|-------------|---------|-------------|
+| UTF-8 Paths | **REQUIRED** | 5.3 | Unicode path support |
+| NFC Normalization | **REQUIRED** | 5.3 | Unicode normalization |
+| Path Separator Normalization | **REQUIRED** | 5.3 | Convert all to \0 |
+| Dot Component Resolution | **REQUIRED** | 5.3 | Handle ./ and ../ |
+| Reserved Name Handling | Optional | 6.2 (0x0048) | Windows/DOS device names |
+| Short Filename (8.3) | Optional | 6.2 (0x003F) | DOS compatibility |
+| HFS Filename Encoding | Optional | 6.2 (0x0040) | Classic Mac support |
+
+#### Link Support
+
+| Feature | Conformance | Section | Description |
+|---------|-------------|---------|-------------|
+| Hard Links | Optional | 6.4, 6.2 (0x000F) | Inode-based hard links |
+| Symbolic Links | Optional | 6.5, 6.2 (0x0010) | Symlink targets and flags |
+| Magic Symlinks | Optional | 6.2 (0x0027) | Windows junctions, Mac aliases |
+| Directory Hard Links | Optional | 6.4 | HFS+/APFS directory links |
+
+### Table 7: Implementation Recommendations by Conformance Level
+
+| Conformance Level | Scenario | Required Features | Recommended Add-Ons | Target Environment |
+|-------------------|----------|-------------------|---------------------|-------------------|
+| **Compact** | Network Streaming | Archive Header, File Entry, End Marker, Stored mode, CRC32 | LZ4 for minimal compression | Network protocols, stdin/stdout, tar-like streaming |
+| | Pipe Processing | Sequential access only, no Central Directory | None | Shell pipes, data transformation |
+| | Single-Pass Tools | Basic UTF-8 support (ASCII-safe) | None | Stream processing, network delivery |
+| **Embedded** | Firmware Updates | + Central Directory (simplified), modification time | LZ4 for space savings | Microcontrollers, bootloaders |
+| | IoT Devices | Random access support | None | Resource-constrained devices |
+| | ROM Filesystems | Minimal memory footprint | Read-only optimization | Embedded Linux, RTOS |
+| **Minimal** | Simple Archiver | + Full timestamps, Full UTF-8 normalization, UID/GID | Quick Directory | Desktop utilities, file bundling |
+| | Basic Backup | All required structures | SHA-256 for integrity | Personal backup tools |
+| | File Distribution | Cross-platform paths | Compression (ZSTD) | Software distribution (uncompressed) |
+| **Standard** | General Purpose | + ZSTD or LZMA2, Quick Directory, SHA-256, Deduplication | LZ4 for fast mode | Desktop archiving tools (7-Zip class) |
+| | Backup Software | Block deduplication, Quick Directory | Multi-volume, FEC | Personal/small business backup |
+| | Software Distribution | ZSTD compression, SHA-256 verification | Digital signatures | Package managers, installers |
+| | Development Tools | Quick Directory, deduplication | Git metadata | Build systems, artifact storage |
+| **Enhanced** | Professional Backup | + Encryption (AES-256-GCM), Signatures, ACLs/xattrs/ADS | Multi-volume, HSM mode | Enterprise backup software |
+| | Compliance Archive | Encryption, digital signatures, SHA-512 | All metadata types | Legal/regulatory archiving |
+| | Secure Distribution | AES-256-GCM, Ed25519 signatures, BLAKE3 | Certificate chains | Secure software delivery |
+| | Cloud Backup | Multiple compression (ZSTD/LZMA2/LZ4), encryption | Deduplication, seekable | Cloud storage optimization |
+| **Full** | Enterprise Backup | + All compression, all encryption, FEC, multi-volume | Tape mode, HSM mode | Large-scale enterprise systems |
+| | Digital Preservation | All metadata types (95+), all filesystems | VCS metadata, legacy OS support | Archives, museums, libraries |
+| | Cross-Platform Migration | All filesystem metadata, all OS support | All link types, special files | Data center migrations |
+| | Maximum Compression | LZMA2, PAQ, solid compression, BWT pipeline | All legacy algorithms | Long-term archival storage |
+| | Legacy System Archive | All legacy compression (Squoze, RAD50, SIXBIT) | All legacy metadata | Retrocomputing, data recovery |
+
+### Table 8: Quick Reference - Choosing Your Conformance Level
+
+| Question | Answer | Recommended Level |
+|----------|--------|-------------------|
+| Need random access to files? | No, sequential only | **Compact** |
+| Severely resource-constrained (< 64KB RAM)? | Yes | **Embedded** |
+| Just need basic archiving? | Yes | **Minimal** |
+| Need compression for general use? | Yes | **Standard** |
+| Need encryption or digital signatures? | Yes | **Enhanced** or **Full** |
+| Need cross-platform metadata preservation? | Yes | **Enhanced** (basic) or **Full** (complete) |
+| Archiving legacy systems (VMS, z/OS, Amiga)? | Yes | **Full** |
+| Need FEC or PAR2 for data recovery? | Yes | **Full** |
+| Enterprise compliance requirements? | Yes | **Enhanced** (most) or **Full** (complete) |
+| Maximum possible compression? | Yes | **Full** (for PAQ, solid mode) |
 
 ---
 
@@ -513,6 +892,120 @@ typedef struct _ZOO64_VOLUME_FOOTER {
 #pragma pack(pop)
 ```
 
+## 3.5 Overlay Archives [OPTIONAL]
+
+Overlay archives reference a base archive and store only differences (deltas), making them ideal for incremental backups, tape archives, and HSM systems.
+
+```c
+//
+// Overlay archive header (extends standard archive header)
+// When archive flags bit 19 is set (Overlay Mode)
+//
+typedef struct _ZOO64_OVERLAY_HEADER {
+  UINT64  Magic;              // 0x4F5645524C415920 ("OVERLAY ")
+  UINT32  OverlayVersion;     // Overlay format version
+  UINT32  Flags;              // Overlay flags
+
+  // Base archive identification
+  UINT8   BaseArchiveUUID[16];  // UUID of base archive
+  UINT64  BaseArchiveTimestamp; // Timestamp of base archive
+  UINT32  BaseArchiveCRC32;     // CRC32 of base archive header
+
+  // Overlay metadata
+  UINT64  OverlayTimestamp;     // When this overlay was created
+  UINT32  OverlaySequence;      // Sequence number (for chaining)
+  UINT32  FileCount;            // Number of files in overlay
+  UINT32  NewFiles;             // Number of completely new files
+  UINT32  ModifiedFiles;        // Number of modified files (delta stored)
+  UINT32  DeletedFiles;         // Number of deleted files (tombstones)
+  UINT32  UnchangedFiles;       // Number of unchanged files (references only)
+
+  // Base archive location (for tape/HSM)
+  UINT16  BaseVolumeNumber;     // Volume number where base resides
+  UINT16  BaseTapeNumber;       // Tape number (0 if same tape)
+  UINT64  BaseArchiveOffset;    // Offset to base archive
+
+  UINT32  DescriptionLength;    // Length of description
+  // [DescriptionLength bytes: UTF-8 description]
+} ZOO64_OVERLAY_HEADER;
+```
+
+### 3.5.1 Overlay File Entry
+
+Files in overlay archives use extended file headers to reference base archive:
+
+```c
+//
+// Overlay file entry types
+//
+typedef enum _ZOO64_OVERLAY_TYPE {
+  OverlayTypeNew       = 0,  // New file (not in base)
+  OverlayTypeModified  = 1,  // Modified (delta stored)
+  OverlayTypeDeleted   = 2,  // Deleted (tombstone)
+  OverlayTypeUnchanged = 3,  // Unchanged (reference only)
+  OverlayTypeMoved     = 4,  // Moved/renamed
+} ZOO64_OVERLAY_TYPE;
+
+//
+// Overlay file metadata (follows file header)
+//
+typedef struct _ZOO64_OVERLAY_FILE_METADATA {
+  UINT8   Type;                 // ZOO64_OVERLAY_TYPE
+  UINT8   Reserved[3];
+
+  // Reference to base archive file
+  UINT64  BaseFileOffset;       // Offset in base archive (0 if new)
+  UINT32  BaseFileCRC32;        // CRC32 of base file
+  UINT64  BaseFileSize;         // Size of base file
+
+  // Delta compression info (if Type == Modified)
+  UINT16  DeltaAlgorithm;       // 0=xdelta3, 1=bsdiff, 2=zdelta, 3=vcdiff
+  UINT64  DeltaSize;            // Size of delta
+
+  // Move/rename info (if Type == Moved)
+  UINT16  OldPathLength;        // Length of old path
+  // [OldPathLength bytes: old UTF-8 path]
+} ZOO64_OVERLAY_FILE_METADATA;
+```
+
+### 3.5.2 Overlay Archive Use Cases
+
+**Incremental Tape Backup**:
+```
+Base Archive: Full backup to tape 1
+Overlay 1:    Changes after 1 day  → tape 1
+Overlay 2:    Changes after 2 days → tape 1
+Overlay 3:    Changes after 3 days → tape 2 (tape 1 full)
+```
+
+**HSM Tiered Storage**:
+```
+Base Archive: Archived to slow tier (tape/cloud)
+Overlay 1:    Recent changes on fast tier (disk)
+Overlay 2:    Today's changes on fast tier
+→ Restore by applying overlays to base
+```
+
+**Delta Storage for Large Files**:
+```
+Base:    database-2025-01-01.db (1 TB)
+Overlay: database-2025-01-02.db (50 MB delta)
+Overlay: database-2025-01-03.db (30 MB delta)
+```
+
+### 3.5.3 Overlay Flags
+
+```
+Bit 0:  Delta compression enabled
+Bit 1:  Store tombstones for deleted files
+Bit 2:  Store references for unchanged files
+Bit 3:  Cross-volume base reference
+Bit 4:  Cross-tape base reference
+Bit 5:  Chained overlay (references another overlay)
+Bit 6:  Compressed overlay header
+Bit 7-31: Reserved
+```
+
 ## 4. Compression (REQUIRED: Minimum "stored" mode)
 
 Describes the compression algorithm and parameters.
@@ -534,7 +1027,7 @@ typedef struct _ZOO64_COMPRESSION_DESC {
 
 ```
 0x0000: None (stored)
-0x0001: BWT+MTF+RAD50RLE+LZ78+Range (default Zoo64 pipeline)
+0x0001: ZOZ (adaptive entropy-reduction pipeline)
 0x0002: LZ77 (Lempel-Ziv 1977)
 0x0003: LZ4 (extremely fast, moderate compression)
 0x0004: ZSTD (Zstandard, Facebook)
@@ -549,12 +1042,13 @@ typedef struct _ZOO64_COMPRESSION_DESC {
 0x000D: BZIP2 (bzip2)
 0x000E: PAQ (PAQ family, maximum compression)
 0x000F: HUFFMAN (Huffman coding only)
-0x0010: Crunch (Apple II Crunch)
-0x0011: ACE (ACE archiver)
-0x0012: ARJ (ARJ archiver)
-0x0013: StuffIt (Macintosh StuffIt)
-0x0014: MSCAB (Microsoft Cabinet format)
-0x0015: LTO (LTO tape compression)
+0x0010: BIT_SQUISH (Reduced alphabet bit-packing)
+0x0011: Crunch (Apple II Crunch)
+0x0012: ACE (ACE archiver)
+0x0013: ARJ (ARJ archiver)
+0x0014: StuffIt (Macintosh StuffIt)
+0x0015: MSCAB (Microsoft Cabinet format)
+0x0016: LTO (LTO tape compression)
 0x0100: Custom (parameters in descriptor)
 ```
 
@@ -575,13 +1069,14 @@ typedef struct _ZOO64_COMPRESSION_DESC {
 | LZW       | Fast   | Low   | Low    | GIF/TIFF, patent-free since 2004         |
 | PAQ       | Slowest| Max   | Huge   | Maximum compression, impractical         |
 | HUFFMAN   | Fastest| Low   | Tiny   | Encoding only, no dictionary             |
+| BIT_SQUISH| Fast   | High  | Low    | Reduced alphabet, excellent for text     |
 | Crunch    | Medium | Med   | Low    | Apple II classic                         |
 | ACE       | Slow   | High  | Med    | ACE 2.0 format                           |
 | ARJ       | Medium | Med   | Low    | Classic DOS archiver                     |
 | StuffIt   | Medium | Med   | Med    | Macintosh classic                        |
 | MSCAB     | Medium | Med   | Med    | Microsoft Cabinet (LZX/MSZIP)            |
 | LTO       | Fast   | Med   | Low    | LTO-5/6/7/8/9 tape hardware compression  |
-| Default   | Slow   | Max   | High   | BWT+MTF+RAD50RLE+LZ78+Range pipeline     |
+| ZOZ       | Slow   | Max   | High   | Adaptive entropy-reduction pipeline      |
 
 ## 4.5 Archive YAML Metadata
 
@@ -918,6 +1413,61 @@ typedef struct _ZOO64_FILE_HEADER {
 
 All four timestamps use NTP extended format for maximum precision and consistency.
 
+### 5.1a Extended File Header (Zettabyte Support)
+
+For archives containing files larger than 16 EiB (exbibytes), Zoo64 supports extended 128-bit file sizes. When bit 26 of file flags is set (Large File), the header is extended:
+
+```c
+//
+// Extended file header for files >= 16 EiB
+// Uses 128-bit integers for size fields
+//
+typedef struct _ZOO64_FILE_HEADER_EXTENDED {
+  UINT64  Magic;              // 0x46494C45454E5452 ("FILEENTR")
+  UINT32  HeaderSize;         // Total size of header + path
+  UINT32  Flags;              // File flags (bit 26 set = Large File)
+
+  // Extended 128-bit size fields for ZB support
+  UINT128 UncompressedSize;   // Original file size (up to 16 ZiB)
+  UINT128 CompressedSize;     // Compressed size
+
+  UINT64  DataOffset;         // Offset to file data (or use extended if needed)
+  UINT64  MetadataOffset;     // Offset to metadata (0 if none)
+  UINT32  MetadataSize;       // Size of metadata block
+  UINT16  PathLength;         // Length of UTF-8 path in bytes
+  UINT16  CompressionMethod;  // Compression method for this file
+  UINT32  CRC32;              // CRC32 of uncompressed data (or streaming CRC)
+  UINT64  SHA256[4];          // SHA-256 hash of uncompressed data
+  UINT64  BirthTime;          // File birth/creation time (NTP extended format)
+  UINT64  ModificationTime;   // File modification time
+  UINT64  AccessTime;         // File access time
+  UINT64  ChangeTime;         // File metadata change time
+  UINT32  UID;                // User ID
+  UINT32  GID;                // Group ID
+  UINT32  Mode;               // File mode/permissions
+  UINT32  Attributes;         // Platform-specific attributes
+} ZOO64_FILE_HEADER_EXTENDED;
+
+//
+// 128-bit integer type for ZB support
+//
+typedef struct _UINT128 {
+  UINT64 Low;   // Lower 64 bits
+  UINT64 High;  // Upper 64 bits
+} UINT128;
+```
+
+**Size Ranges**:
+- **Standard (64-bit)**: 0 to 16 EiB (2^64 bytes)
+- **Extended (128-bit)**: 0 to 16 ZiB (zebibytes, 2^128 bytes)
+
+**Usage**: Extended headers are required when archiving:
+- Large databases (> 16 EiB)
+- Data center tape archives
+- Exascale computing datasets
+- Large-scale scientific data (astronomy, genomics, climate)
+- Aggregate HSM archives spanning petabytes
+
 ### 5.2 File Flags
 
 ```
@@ -946,7 +1496,11 @@ Bit 21:    Text file (detected or specified)
 Bit 22:    Binary file (detected or specified)
 Bit 23:    Sparse file (has sparse regions)
 Bit 24:    Delta-compressed (stored as delta)
-Bit 25-31: Platform-specific
+Bit 25:    Overlay reference (references base archive)
+Bit 26:    Large file (uses 128-bit sizes for ZB support)
+Bit 27:    Hybrid compression (auto-select algorithm per block)
+Bit 28:    Variable block sizes
+Bit 29-31: Reserved for future use
 ```
 
 ### 5.3 Variable-Length UTF-8 Path
@@ -1237,11 +1791,16 @@ typedef struct _PRINCIPAL_ID {
 0x0016: Plan 9 ACLs (capability-based)
 0x0017: BeOS/Haiku ACLs (attribute-based)
 0x0018: VMware VMFS ACLs (vSphere)
+0x0019: DCE DFS ACLs (Distributed Computing Environment)
+0x001A: GFS ACLs (Global File System, cluster-aware)
+0x001B: DFS ACLs (Distributed File System, Microsoft)
 ```
 
 **Design Rationale**: Storing the source system allows optimized round-trip conversion while the universal format enables cross-platform ACL translation.
 
 **Note**: Many Unix variants (Solaris, AIX, IRIX) use NFSv4 or POSIX.1e as base, with extensions stored in SourceSpecific fields.
+
+**DCE DFS Integration**: DCE DFS ACLs (type 0x0041 metadata) can be represented in the universal ACL format using source system 0x0019. The DCE-specific fields (file ID, replication info, epoch) are stored in SourceSpecific fields or as separate 0x0041 metadata when full DCE DFS context is required. For simple ACL-only representation, use the universal format; for complete DCE DFS metadata preservation, use 0x0041.
 
 #### 6.3.3 Universal ACE Types
 
@@ -6968,6 +7527,110 @@ typedef struct _ZOO64_BLOCK_HEADER {
 #pragma pack(pop)
 ```
 
+### 7.4 Variable Block Sizes [OPTIONAL]
+
+When file flag bit 28 is set (Variable Block Sizes), blocks can have different sizes within the same file. This allows optimal compression by adapting block size to content characteristics.
+
+```c
+//
+// Variable block size table
+// Replaces standard fixed-size block table
+//
+typedef struct _ZOO64_VARIABLE_BLOCK_TABLE {
+  UINT32  Magic;              // 0x56424C4B544C ("VBLKTBL")
+  UINT32  BlockCount;         // Number of blocks
+  UINT32  MinBlockSize;       // Minimum block size (power of 2)
+  UINT32  MaxBlockSize;       // Maximum block size (power of 2)
+  UINT32  Flags;              // Flags
+
+  // Followed by BlockCount entries:
+  // For each block:
+  //   [LEB128: uncompressed size]
+  //   [LEB128: compressed size delta]
+  //   [LEB128: offset delta]
+} ZOO64_VARIABLE_BLOCK_TABLE;
+```
+
+**Variable Block Size Selection Algorithm**:
+1. Analyze content characteristics (entropy, redundancy)
+2. High entropy (random/compressed) → smaller blocks (4KB-64KB)
+3. Low entropy (text, repetitive) → larger blocks (256KB-4MB)
+4. Streaming data → adaptive sizing based on compression ratio
+
+**Benefits**:
+- Better compression for heterogeneous files
+- Faster seeks for high-entropy regions (smaller blocks)
+- Higher compression for low-entropy regions (larger dictionary)
+
+**Use Cases**:
+- Database files with mixed data and indexes
+- Multimedia files with metadata and streams
+- Virtual machine images with sparse and dense regions
+- Scientific datasets with varying compression characteristics
+
+### 7.5 Hybrid Compression Mode [OPTIONAL]
+
+When file flag bit 27 is set (Hybrid Compression), different compression algorithms are automatically selected per block for optimal size. This is very slow but produces the best compression.
+
+```c
+//
+// Hybrid compression block header
+//
+typedef struct _ZOO64_HYBRID_BLOCK_HEADER {
+  UINT16  Algorithm;          // Compression algorithm for THIS block
+  UINT32  UncompressedSize;   // Size before compression
+  UINT32  CompressedSize;     // Size after compression
+  UINT32  CRC32;              // CRC32 of uncompressed block
+} ZOO64_HYBRID_BLOCK_HEADER;
+```
+
+**Algorithm Selection Process**:
+1. For each block, try multiple compression algorithms:
+   - LZ4 (fast baseline)
+   - ZSTD (balanced)
+   - LZMA2 (high compression)
+   - BWT+MTF+LZ78+Range (text-optimized)
+   - Custom/PAQ (maximum compression)
+
+2. Select algorithm producing smallest compressed size
+
+3. Store algorithm ID in block header
+
+4. If no algorithm beats stored, use stored (0x0000)
+
+**Performance Characteristics**:
+- Compression speed: **Very slow** (5-20x slower than single algorithm)
+- Decompression speed: **Moderate** (depends on selected algorithms)
+- Compression ratio: **Maximum possible** for heterogeneous data
+
+**Best Use Cases**:
+- Long-term archival where compression time doesn't matter
+- Highly mixed content (text + binary + multimedia)
+- Maximum space savings required
+- Datasets with unknown or varying characteristics
+
+**Example Compression Ratios**:
+```
+Mixed dataset (10 GB):
+  ZSTD alone:       4.2 GB (58% reduction)
+  LZMA2 alone:      3.8 GB (62% reduction)
+  Hybrid mode:      3.1 GB (69% reduction) ← 18% better than LZMA2
+  Time:             12x slower than LZMA2
+```
+
+**Hybrid Compression Flags**:
+```
+Bit 0:  Try LZ4
+Bit 1:  Try ZSTD
+Bit 2:  Try LZMA2
+Bit 3:  Try BWT pipeline
+Bit 4:  Try PAQ
+Bit 5:  Try all algorithms (exhaustive search)
+Bit 6:  Cache compression results (for parallel compression)
+Bit 7:  Use machine learning predictor (experimental)
+Bit 8-31: Reserved
+```
+
 ## 8. Solid Compression [OPTIONAL]
 
 ### 8.1 Solid Block Format
@@ -7192,6 +7855,2644 @@ Supported window sizes (power of 2):
 Supported block sizes (power of 2):
 - 4K, 8K, 16K, 32K, 64K, 128K (default), 256K, 512K, 1M, 2M, 4M
 
+### 12.5 ZOZ Compression Algorithm (0x0001)
+
+ZOZ is an adaptive entropy-reduction compression pipeline designed for maximum compression ratio. It combines multiple techniques in a carefully orchestrated sequence, with each stage applying only if it reduces entropy.
+
+**Algorithm Name**: ZOZ (Zo-oz, adaptive entropy reduction)
+**Algorithm ID**: 0x0001
+**Conformance Level**: Full
+**Best Use Case**: Maximum compression for text, source code, structured data
+
+#### 12.5.1 ZOZ Pipeline Overview
+
+The ZOZ algorithm consists of the following adaptive stages:
+
+1. **Adaptive Transform Stage** (BWT/MTF selection)
+   - Test: BWT, MTF, BWT+MTF, MTF+BWT
+   - Apply only the variant that reduces entropy the most
+   - If none reduces entropy, skip to next stage
+
+2. **RLE Pattern Matching** (bit-aligned ULEB128)
+   - Detects any block-length repetitions
+   - Adaptive maximum length for optimal compression
+   - Count encoded as ULEB128 at bit-aligned positions
+
+3. **Symbol Encoding** (RAD50/Bit-Squishing/Raw)
+   - If beneficial, encode using RAD50 or bit squishing
+   - Otherwise emit raw bytes
+
+4. **Bit Transposition** (optional entropy reduction)
+   - If bit transposition reduces entropy, apply it
+
+5. **Multi-Window LZ78** (1/2/3 windows, variable sizes)
+   - Block sizes: 8K to 16M
+   - Window sizes: 4K to 12M (may be variable)
+   - 1 window: Classic LZ78
+   - 2 windows: Prediction from previous uncompressed block
+   - 3 windows: Bidirectional prediction (like MPEG B-frames), requires special block ordering
+
+#### 12.5.2 Stage 1: Adaptive Transform Selection
+
+ZOZ tests four transform variants and selects the one with lowest entropy:
+
+**Transform Variants**:
+1. **BWT Only**: Burrows-Wheeler Transform
+2. **MTF Only**: Move-To-Front Transform
+3. **BWT → MTF**: BWT followed by MTF
+4. **MTF → BWT**: MTF followed by BWT
+
+**Selection Process**:
+```c
+//
+// Entropy calculation for transform selection
+//
+FLOAT64
+CalculateEntropy (
+  IN     CONST UINT8   *Data,
+  IN     UINTN         Size
+  )
+{
+  UINT64   Histogram[256];
+  FLOAT64  Entropy;
+  UINTN    Index;
+
+  SetMem (Histogram, sizeof(Histogram), 0);
+
+  //
+  // Build histogram
+  //
+  for (Index = 0; Index < Size; Index++) {
+    Histogram[Data[Index]]++;
+  }
+
+  //
+  // Calculate Shannon entropy
+  //
+  Entropy = 0.0;
+  for (Index = 0; Index < 256; Index++) {
+    if (Histogram[Index] > 0) {
+      FLOAT64 Probability = (FLOAT64)Histogram[Index] / (FLOAT64)Size;
+      Entropy -= Probability * log2(Probability);
+    }
+  }
+
+  return Entropy;
+}
+
+//
+// Select best transform
+//
+UINT8
+SelectBestTransform (
+  IN     CONST UINT8   *Input,
+  IN     UINTN         InputSize,
+  OUT    UINT8         *Output,
+  OUT    UINTN         *TransformData
+  )
+{
+  UINT8    *BwtBuffer;
+  UINT8    *MtfBuffer;
+  UINT8    *BwtMtfBuffer;
+  UINT8    *MtfBwtBuffer;
+  FLOAT64  OriginalEntropy;
+  FLOAT64  BwtEntropy;
+  FLOAT64  MtfEntropy;
+  FLOAT64  BwtMtfEntropy;
+  FLOAT64  MtfBwtEntropy;
+  UINT8    BestTransform;
+  FLOAT64  BestEntropy;
+
+  //
+  // Calculate original entropy
+  //
+  OriginalEntropy = CalculateEntropy (Input, InputSize);
+  BestEntropy = OriginalEntropy;
+  BestTransform = 0;  // No transform
+
+  //
+  // Allocate buffers
+  //
+  BwtBuffer = AllocatePool (InputSize);
+  MtfBuffer = AllocatePool (InputSize);
+  BwtMtfBuffer = AllocatePool (InputSize);
+  MtfBwtBuffer = AllocatePool (InputSize);
+
+  if (BwtBuffer == NULL || MtfBuffer == NULL ||
+      BwtMtfBuffer == NULL || MtfBwtBuffer == NULL) {
+    goto Cleanup;
+  }
+
+  //
+  // Test BWT
+  //
+  if (BwtTransform (Input, InputSize, BwtBuffer, &TransformData[0])) {
+    BwtEntropy = CalculateEntropy (BwtBuffer, InputSize);
+    if (BwtEntropy < BestEntropy) {
+      BestEntropy = BwtEntropy;
+      BestTransform = 1;  // BWT only
+    }
+  }
+
+  //
+  // Test MTF
+  //
+  if (MtfTransform (Input, InputSize, MtfBuffer)) {
+    MtfEntropy = CalculateEntropy (MtfBuffer, InputSize);
+    if (MtfEntropy < BestEntropy) {
+      BestEntropy = MtfEntropy;
+      BestTransform = 2;  // MTF only
+    }
+  }
+
+  //
+  // Test BWT → MTF
+  //
+  if (BwtTransform (Input, InputSize, BwtBuffer, &TransformData[0])) {
+    if (MtfTransform (BwtBuffer, InputSize, BwtMtfBuffer)) {
+      BwtMtfEntropy = CalculateEntropy (BwtMtfBuffer, InputSize);
+      if (BwtMtfEntropy < BestEntropy) {
+        BestEntropy = BwtMtfEntropy;
+        BestTransform = 3;  // BWT → MTF
+      }
+    }
+  }
+
+  //
+  // Test MTF → BWT
+  //
+  if (MtfTransform (Input, InputSize, MtfBuffer)) {
+    if (BwtTransform (MtfBuffer, InputSize, MtfBwtBuffer, &TransformData[0])) {
+      MtfBwtEntropy = CalculateEntropy (MtfBwtBuffer, InputSize);
+      if (MtfBwtEntropy < BestEntropy) {
+        BestEntropy = MtfBwtEntropy;
+        BestTransform = 4;  // MTF → BWT
+      }
+    }
+  }
+
+  //
+  // Copy best result to output
+  //
+  switch (BestTransform) {
+    case 1:
+      CopyMem (Output, BwtBuffer, InputSize);
+      break;
+    case 2:
+      CopyMem (Output, MtfBuffer, InputSize);
+      break;
+    case 3:
+      CopyMem (Output, BwtMtfBuffer, InputSize);
+      break;
+    case 4:
+      CopyMem (Output, MtfBwtBuffer, InputSize);
+      break;
+    default:
+      CopyMem (Output, Input, InputSize);
+      break;
+  }
+
+Cleanup:
+  if (BwtBuffer != NULL) FreePool (BwtBuffer);
+  if (MtfBuffer != NULL) FreePool (MtfBuffer);
+  if (BwtMtfBuffer != NULL) FreePool (BwtMtfBuffer);
+  if (MtfBwtBuffer != NULL) FreePool (MtfBwtBuffer);
+
+  return BestTransform;
+}
+```
+
+**Transform Encoding**:
+- Bits 0-2: Transform type (0=none, 1=BWT, 2=MTF, 3=BWT→MTF, 4=MTF→BWT)
+- Additional data: BWT primary index if applicable
+
+#### 12.5.3 Stage 2: RLE Pattern Matching with Bit-Aligned ULEB128
+
+RLE (Run-Length Encoding) in ZOZ is sophisticated and bit-aligned for maximum compression.
+
+**Features**:
+- Detects repetitions of any block length (not just single bytes)
+- Adaptive maximum run length (chooses optimal cutoff)
+- ULEB128 encoding for counts (variable-length)
+- **Critical**: Emitted at bit-aligned positions, not byte-aligned
+
+**RLE Encoding Format**:
+```
+[Literal flag: 1 bit]  0 = run, 1 = literal
+If run (0):
+  [Run length: ULEB128, bit-aligned]
+  [Run data: N bytes]
+If literal (1):
+  [Literal length: ULEB128, bit-aligned]
+  [Literal data: N bytes]
+```
+
+**ULEB128 Bit-Aligned Encoding**:
+```c
+//
+// ULEB128 encoding (LEB128 unsigned) at bit-aligned positions
+//
+UINTN
+WriteBitAlignedUleb128 (
+  IN OUT UINT8    *BitStream,
+  IN OUT UINTN    *BitOffset,
+  IN     UINT64   Value
+  )
+{
+  UINTN  BitsWritten;
+
+  BitsWritten = 0;
+
+  //
+  // Write ULEB128: 7 data bits + 1 continuation bit per byte
+  //
+  do {
+    UINT8 Byte = (UINT8)(Value & 0x7F);
+    Value >>= 7;
+
+    //
+    // Set continuation bit if more bytes follow
+    //
+    if (Value != 0) {
+      Byte |= 0x80;
+    }
+
+    //
+    // Write byte at bit-aligned position
+    //
+    WriteBitsToStream (BitStream, BitOffset, Byte, 8);
+    BitsWritten += 8;
+  } while (Value != 0);
+
+  return BitsWritten;
+}
+
+//
+// RLE pattern matching with adaptive max length
+//
+BOOLEAN
+RleEncode (
+  IN     CONST UINT8   *Input,
+  IN     UINTN         InputSize,
+  OUT    UINT8         *Output,
+  OUT    UINTN         *OutputBits
+  )
+{
+  UINTN   InputIndex;
+  UINTN   BitOffset;
+  UINTN   RunLength;
+  UINTN   MaxRunLength;
+
+  InputIndex = 0;
+  BitOffset = 0;
+
+  //
+  // Determine adaptive max run length
+  //
+  MaxRunLength = DetermineOptimalMaxRunLength (Input, InputSize);
+
+  while (InputIndex < InputSize) {
+    //
+    // Count run length
+    //
+    RunLength = 1;
+    while (InputIndex + RunLength < InputSize &&
+           RunLength < MaxRunLength &&
+           Input[InputIndex] == Input[InputIndex + RunLength]) {
+      RunLength++;
+    }
+
+    if (RunLength >= 3) {
+      //
+      // Encode as run: [0 bit][ULEB128 length][byte]
+      //
+      WriteBitsToStream (Output, &BitOffset, 0, 1);  // Run flag
+      WriteBitAlignedUleb128 (Output, &BitOffset, RunLength);
+      WriteBitsToStream (Output, &BitOffset, Input[InputIndex], 8);
+      InputIndex += RunLength;
+    } else {
+      //
+      // Encode as literal: [1 bit][ULEB128 length][literal bytes]
+      //
+      UINTN LiteralStart = InputIndex;
+      UINTN LiteralLength = 0;
+
+      //
+      // Find literal run (no repeating patterns)
+      //
+      while (InputIndex < InputSize &&
+             !HasRepeatingPattern (Input, InputIndex, InputSize, 3)) {
+        InputIndex++;
+        LiteralLength++;
+      }
+
+      WriteBitsToStream (Output, &BitOffset, 1, 1);  // Literal flag
+      WriteBitAlignedUleb128 (Output, &BitOffset, LiteralLength);
+
+      //
+      // Write literal bytes
+      //
+      for (UINTN i = 0; i < LiteralLength; i++) {
+        WriteBitsToStream (Output, &BitOffset, Input[LiteralStart + i], 8);
+      }
+    }
+  }
+
+  *OutputBits = BitOffset;
+  return TRUE;
+}
+```
+
+**Adaptive Max Run Length**: The algorithm analyzes the input data to determine the optimal maximum run length that provides the best compression ratio. Typical values: 3-255.
+
+#### 12.5.4 Stage 3: Symbol Encoding (RAD50/Bit-Squishing/Raw)
+
+After RLE, ZOZ analyzes whether specialized symbol encoding provides benefits:
+
+**Encoding Options**:
+1. **RAD50**: If data fits RAD50 character set (A-Z, 0-9, space, $, .)
+2. **Bit Squishing**: If alphabet size ≤ 128 unique symbols (see section 12.7)
+3. **Raw Bytes**: If neither provides compression benefit
+
+**Selection Process**:
+```c
+//
+// Select symbol encoding method
+//
+UINT8
+SelectSymbolEncoding (
+  IN     CONST UINT8   *Input,
+  IN     UINTN         InputSize,
+  OUT    UINT8         *Output,
+  OUT    UINTN         *OutputSize
+  )
+{
+  UINTN   Rad50Size;
+  UINTN   BitSquishSize;
+  UINT8   Encoding;
+
+  //
+  // Try RAD50 encoding
+  //
+  if (IsRad50Compatible (Input, InputSize)) {
+    Rad50Size = Rad50Encode (Input, InputSize, Output);
+  } else {
+    Rad50Size = SIZE_MAX;
+  }
+
+  //
+  // Try bit squishing
+  //
+  if (GetAlphabetSize (Input, InputSize) <= 128) {
+    BitSquishSize = BitSquishCompress (Input, InputSize, Output, OutputSize);
+  } else {
+    BitSquishSize = SIZE_MAX;
+  }
+
+  //
+  // Select best encoding
+  //
+  if (Rad50Size < InputSize && Rad50Size <= BitSquishSize) {
+    Encoding = 1;  // RAD50
+    *OutputSize = Rad50Size;
+  } else if (BitSquishSize < InputSize && BitSquishSize < Rad50Size) {
+    Encoding = 2;  // Bit squishing
+    *OutputSize = BitSquishSize;
+  } else {
+    //
+    // Use raw bytes
+    //
+    Encoding = 0;
+    CopyMem (Output, Input, InputSize);
+    *OutputSize = InputSize;
+  }
+
+  return Encoding;
+}
+```
+
+**Encoding Header**:
+- Bits 0-1: Encoding type (0=raw, 1=RAD50, 2=bit-squish)
+
+#### 12.5.5 Stage 4: Bit Transposition (Optional Entropy Reduction)
+
+Bit transposition can significantly reduce entropy for certain data patterns (e.g., 16-bit audio, structured binary).
+
+**Transposition**: Reorganize bits across bytes to group similar bit patterns
+
+**Example** (4 bytes):
+```
+Original:   10110011 11001010 10110111 11001110
+            Byte 0   Byte 1   Byte 2   Byte 3
+
+Transposed: 11110000 00111110 11001011 11010111
+            Bit 7    Bit 6    Bit 5-4  Bit 3-0
+```
+
+**Implementation**:
+```c
+//
+// Bit transposition for entropy reduction
+//
+BOOLEAN
+BitTranspose (
+  IN     CONST UINT8   *Input,
+  IN     UINTN         InputSize,
+  OUT    UINT8         *Output
+  )
+{
+  UINTN  ByteIndex;
+  UINTN  BitIndex;
+
+  SetMem (Output, InputSize, 0);
+
+  //
+  // Transpose: group same bit positions across all bytes
+  //
+  for (ByteIndex = 0; ByteIndex < InputSize; ByteIndex++) {
+    for (BitIndex = 0; BitIndex < 8; BitIndex++) {
+      if (Input[ByteIndex] & (1 << BitIndex)) {
+        UINTN TransposedByte = (BitIndex * InputSize + ByteIndex) / 8;
+        UINTN TransposedBit = (BitIndex * InputSize + ByteIndex) % 8;
+        Output[TransposedByte] |= (1 << TransposedBit);
+      }
+    }
+  }
+
+  return TRUE;
+}
+
+//
+// Apply bit transposition if it reduces entropy
+//
+BOOLEAN
+ApplyBitTransposeIfBeneficial (
+  IN     CONST UINT8   *Input,
+  IN     UINTN         InputSize,
+  OUT    UINT8         *Output,
+  OUT    BOOLEAN       *Applied
+  )
+{
+  UINT8    *TransposedBuffer;
+  FLOAT64  OriginalEntropy;
+  FLOAT64  TransposedEntropy;
+
+  TransposedBuffer = AllocatePool (InputSize);
+  if (TransposedBuffer == NULL) {
+    return FALSE;
+  }
+
+  //
+  // Calculate original entropy
+  //
+  OriginalEntropy = CalculateEntropy (Input, InputSize);
+
+  //
+  // Transpose and calculate new entropy
+  //
+  BitTranspose (Input, InputSize, TransposedBuffer);
+  TransposedEntropy = CalculateEntropy (TransposedBuffer, InputSize);
+
+  //
+  // Use transposition if it reduces entropy
+  //
+  if (TransposedEntropy < OriginalEntropy * 0.95) {
+    CopyMem (Output, TransposedBuffer, InputSize);
+    *Applied = TRUE;
+  } else {
+    CopyMem (Output, Input, InputSize);
+    *Applied = FALSE;
+  }
+
+  FreePool (TransposedBuffer);
+  return TRUE;
+}
+```
+
+**Transposition Flag**: 1 bit indicating whether transposition was applied
+
+#### 12.5.6 Stage 5: Multi-Window LZ78 Compression
+
+ZOZ uses an advanced multi-window LZ78 variant that supports 1, 2, or 3 prediction windows.
+
+**Configuration**:
+- **Block sizes**: 8K to 16M (variable)
+- **Window sizes**: 4K to 12M (variable)
+- **Window modes**:
+  - 1 window: Classic LZ78
+  - 2 windows: Prediction from previous uncompressed block
+  - 3 windows: Bidirectional prediction (MPEG B-frame style)
+
+**1-Window Mode (Classic LZ78)**:
+```
+[Current Block] → [Dictionary] → [Compressed Output]
+```
+
+**2-Window Mode (Forward Prediction)**:
+```
+[Previous Uncompressed Block] ─┐
+                               ├→ [Dictionary] → [Compressed Output]
+[Current Block] ───────────────┘
+```
+
+**3-Window Mode (Bidirectional Prediction)**:
+```
+[Previous Uncompressed Block] ─┐
+[Current Block] ───────────────├→ [Dictionary] → [Compressed Output]
+[Next Uncompressed Block] ─────┘
+
+Special block ordering required: I P B B P B B P
+(I = Intra, P = Predicted, B = Bidirectional)
+```
+
+**Data Structures**:
+```c
+//
+// LZ78 multi-window configuration
+//
+typedef struct _ZOZ_LZ78_CONFIG {
+  UINT8   WindowCount;      // 1, 2, or 3
+  UINT32  BlockSize;        // 8K to 16M
+  UINT32  WindowSize;       // 4K to 12M
+  UINT32  Window1Size;      // For variable windows
+  UINT32  Window2Size;
+  UINT32  Window3Size;
+  BOOLEAN VariableWindows;  // Windows may vary in size
+} ZOZ_LZ78_CONFIG;
+
+//
+// Multi-window LZ78 compression
+//
+BOOLEAN
+Lz78MultiWindow (
+  IN     CONST UINT8       *Input,
+  IN     UINTN             InputSize,
+  IN     CONST UINT8       *PrevBlock,    // NULL for 1-window mode
+  IN     CONST UINT8       *NextBlock,    // NULL for 1/2-window modes
+  IN     ZOZ_LZ78_CONFIG   *Config,
+  OUT    UINT8             *Output,
+  OUT    UINTN             *OutputSize
+  )
+{
+  LZ78_DICT  *Dictionary;
+  UINTN      InputIndex;
+  UINTN      OutputIndex;
+  UINT32     Match;
+
+  //
+  // Initialize dictionary
+  //
+  Dictionary = Lz78CreateDict (Config->WindowSize);
+  if (Dictionary == NULL) {
+    return FALSE;
+  }
+
+  //
+  // Populate dictionary from previous block if available
+  //
+  if (PrevBlock != NULL && Config->WindowCount >= 2) {
+    Lz78PopulateDict (Dictionary, PrevBlock, Config->BlockSize);
+  }
+
+  //
+  // Populate dictionary from next block if available (3-window mode)
+  //
+  if (NextBlock != NULL && Config->WindowCount == 3) {
+    Lz78PopulateDict (Dictionary, NextBlock, Config->BlockSize);
+  }
+
+  //
+  // Compress input using multi-window dictionary
+  //
+  InputIndex = 0;
+  OutputIndex = 0;
+
+  while (InputIndex < InputSize) {
+    //
+    // Find longest match in dictionary
+    //
+    Match = Lz78FindMatch (Dictionary, &Input[InputIndex], InputSize - InputIndex);
+
+    if (Match != 0) {
+      //
+      // Emit match: [dictionary index][new character]
+      //
+      WriteLz78Match (Output, &OutputIndex, Match);
+      InputIndex += Lz78GetMatchLength (Dictionary, Match) + 1;
+    } else {
+      //
+      // Emit literal
+      //
+      WriteLz78Literal (Output, &OutputIndex, Input[InputIndex]);
+      InputIndex++;
+    }
+
+    //
+    // Add new entry to dictionary
+    //
+    Lz78AddEntry (Dictionary, &Input[InputIndex - 1]);
+  }
+
+  *OutputSize = OutputIndex;
+  Lz78DestroyDict (Dictionary);
+
+  return TRUE;
+}
+```
+
+**3-Window Block Ordering**:
+
+For 3-window mode, blocks must be stored in this order:
+```
+Storage Order: I0 P1 P4 B2 B3 P7 B5 B6 ...
+Decode Order:  I0 P1 B2 B3 P4 B5 B6 P7 ...
+```
+
+Where:
+- **I** = Intra block (no prediction)
+- **P** = Predicted block (uses previous block)
+- **B** = Bidirectional block (uses previous AND next blocks)
+
+#### 12.5.7 ZOZ Block Format
+
+```c
+//
+// ZOZ compressed block header
+//
+typedef struct _ZOZ_BLOCK_HEADER {
+  UINT32  Magic;              // 0x5A4F5A00 ("ZOZ\0")
+  UINT32  UncompressedSize;   // Original size
+  UINT32  CompressedSize;     // After all stages
+  UINT8   TransformType;      // 0-4: none/BWT/MTF/BWT→MTF/MTF→BWT
+  UINT8   SymbolEncoding;     // 0-2: raw/RAD50/bit-squish
+  UINT8   BitTranspose;       // 0=no, 1=yes
+  UINT8   Lz78Windows;        // 1-3: window count
+  UINT32  Lz78BlockSize;      // 8K-16M
+  UINT32  Lz78WindowSize;     // 4K-12M
+  UINT32  Reserved;
+} ZOZ_BLOCK_HEADER;
+```
+
+**Block Structure**:
+```
+[ZOZ_BLOCK_HEADER]
+[Transform metadata] (if applicable: BWT primary index, etc.)
+[RLE bit-stream] (bit-aligned ULEB128 format)
+[LZ78 compressed data]
+[Padding to byte boundary]
+```
+
+#### 12.5.8 ZOZ Conformance and Performance
+
+**Conformance**: Full
+
+**Performance Characteristics**:
+- **Compression Speed**: Very slow (5-20x slower than LZMA2)
+- **Compression Ratio**: Maximum (typically 15-25% better than LZMA2)
+- **Decompression Speed**: Medium (2-3x slower than LZMA2)
+- **Memory Usage**: High (10-100 MB depending on block/window sizes)
+
+**Best Use Cases**:
+- Archival compression (maximum ratio priority)
+- Source code repositories
+- Text and log file archives
+- Structured data (JSON, XML, CSV)
+- Long-term storage where compression time is acceptable
+
+**Not Recommended For**:
+- Real-time compression
+- Streaming applications
+- Low-memory environments
+- Pre-compressed data (JPEG, PNG, MP4)
+
+## 12.6 B# Tree Filesystem Layout [OPTIONAL]
+
+For archives that need to be mounted as filesystems, Zoo64 supports an optimized B# tree hierarchy instead of storing full paths in each file entry.
+
+### 12.6.1 B# Tree Overview
+
+B# trees (B-sharp trees) are a variant of B+ trees optimized for:
+- Fast lookups (O(log n))
+- Efficient iteration (sequential access)
+- Cache-friendly node layout
+- Prefix compression for paths
+- Copy-on-write friendly (for FUSE mounts)
+
+```c
+//
+// B# Tree filesystem layout mode
+// When archive flag bit 20 is set (B# Tree Mode)
+//
+typedef struct _ZOO64_BSHARP_HEADER {
+  UINT64  Magic;              // 0x4253484152502020 ("BSHARP  ")
+  UINT32  Version;            // B# tree format version
+  UINT32  NodeSize;           // Node size in bytes (power of 2, typically 4KB)
+  UINT32  MaxDegree;          // Maximum node degree
+  UINT32  TreeHeight;         // Height of tree
+  UINT64  RootNodeOffset;     // Offset to root node
+  OUT    UINT8         *Output,
+  OUT    UINTN         *OutputSize
+  )
+{
+  UINTN    ReadPos;
+  UINTN    WritePos;
+  UINT8    RunValue;
+  UINTN    RunLength;
+
+  ReadPos = 0;
+  WritePos = 0;
+
+  while (ReadPos < InputSize) {
+    //
+    // Try to encode RAD-50 triplet (uppercase letters, digits, space, $, .)
+    //
+    if (ReadPos + 2 < InputSize &&
+        IsRad50Char (Input[ReadPos]) &&
+        IsRad50Char (Input[ReadPos + 1]) &&
+        IsRad50Char (Input[ReadPos + 2])) {
+
+      UINT16 Rad50Value;
+
+      //
+      // Encode three characters as 16-bit RAD-50 value
+      // Value = C1*1600 + C2*40 + C3 (where Cn is character code)
+      //
+      Rad50Value = (CharToRad50 (Input[ReadPos]) * 1600) +
+                   (CharToRad50 (Input[ReadPos + 1]) * 40) +
+                   CharToRad50 (Input[ReadPos + 2]);
+
+      //
+      // Write RAD-50 token
+      //
+      Output[WritePos++] = 0x01;  // RAD-50 marker
+      Output[WritePos++] = (UINT8)(Rad50Value >> 8);
+      Output[WritePos++] = (UINT8)(Rad50Value & 0xFF);
+
+      ReadPos += 3;
+    } else {
+      //
+      // Detect runs for RLE
+      //
+      RunValue = Input[ReadPos];
+      RunLength = 1;
+
+      while (ReadPos + RunLength < InputSize &&
+             Input[ReadPos + RunLength] == RunValue &&
+             RunLength < 127) {
+        RunLength++;
+      }
+
+      if (RunLength >= 3) {
+        //
+        // Encode as run
+        //
+        Output[WritePos++] = 0x02;  // RLE marker
+        Output[WritePos++] = RunValue;
+        WritePos += EncodeLeb128 (RunLength, &Output[WritePos]);
+      } else {
+        //
+        // Encode as literal
+        //
+        Output[WritePos++] = 0x00;  // Literal marker
+        Output[WritePos++] = RunValue;
+      }
+
+      ReadPos += RunLength;
+    }
+  }
+
+  //
+  // Apply bit transposition for better compression
+  //
+  BitTranspose (Output, WritePos);
+
+  *OutputSize = WritePos;
+  return TRUE;
+}
+
+//
+// LEB128 (Little Endian Base 128) Encoding
+//
+UINTN
+EncodeLeb128 (
+  IN     UINTN    Value,
+  OUT    UINT8    *Output
+  )
+{
+  UINTN  ByteCount;
+
+  ByteCount = 0;
+
+  do {
+    UINT8 Byte;
+
+    Byte = (UINT8)(Value & 0x7F);
+    Value >>= 7;
+
+    if (Value != 0) {
+      Byte |= 0x80;  // More bytes follow
+    }
+
+    Output[ByteCount++] = Byte;
+  } while (Value != 0);
+
+  return ByteCount;
+}
+
+//
+// Windowed LZ78 Dictionary Compression
+//
+BOOLEAN
+Lz78Compress (
+  IN     CONST UINT8   *Input,
+  IN     UINTN         InputSize,
+  OUT    UINT8         *Output,
+  OUT    UINTN         *OutputSize,
+  IN     UINT32        WindowSize
+  )
+{
+  LZ78_DICT    *Dictionary;
+  UINTN        ReadPos;
+  UINTN        WritePos;
+  UINT32       PhraseIndex;
+  UINT32       MatchLength;
+
+  //
+  // Allocate dictionary
+  //
+  Dictionary = Lz78CreateDictionary (WindowSize);
+  if (Dictionary == NULL) {
+    return FALSE;
+  }
+
+  ReadPos = 0;
+  WritePos = 0;
+
+  while (ReadPos < InputSize) {
+    //
+    // Find longest match in dictionary
+    //
+    PhraseIndex = Lz78FindMatch (
+                    Dictionary,
+                    &Input[ReadPos],
+                    InputSize - ReadPos,
+                    &MatchLength
+                    );
+
+    //
+    // Output: (phrase_index, next_char)
+    //
+    WritePos += EncodeLeb128 (PhraseIndex, &Output[WritePos]);
+
+    if (ReadPos + MatchLength < InputSize) {
+      Output[WritePos++] = Input[ReadPos + MatchLength];
+
+      //
+      // Add new phrase to dictionary
+      //
+      Lz78AddPhrase (Dictionary, PhraseIndex, Input[ReadPos + MatchLength]);
+    }
+
+    ReadPos += MatchLength + 1;
+  }
+
+  Lz78FreeDictionary (Dictionary);
+  *OutputSize = WritePos;
+  return TRUE;
+}
+
+//
+// Range Encoding (Adaptive Arithmetic Coding)
+//
+BOOLEAN
+RangeEncode (
+  IN     CONST UINT8   *Input,
+  IN     UINTN         InputSize,
+  OUT    UINT8         *Output,
+  OUT    UINTN         *OutputSize
+  )
+{
+  UINT64   Low;
+  UINT64   High;
+  UINT32   Frequency[256];
+  UINT32   CumulativeFreq[257];
+  UINTN    Index;
+  UINTN    WritePos;
+
+  //
+  // Initialize frequency table
+  //
+  ZeroMem (Frequency, sizeof(Frequency));
+
+  //
+  // Count frequencies
+  //
+  for (Index = 0; Index < InputSize; Index++) {
+    Frequency[Input[Index]]++;
+  }
+
+  //
+  // Build cumulative frequency table
+  //
+  CumulativeFreq[0] = 0;
+  for (Index = 0; Index < 256; Index++) {
+    CumulativeFreq[Index + 1] = CumulativeFreq[Index] + Frequency[Index];
+  }
+
+  //
+  // Initialize range
+  //
+  Low = 0;
+  High = 0xFFFFFFFFFFFFFFFFULL;
+  WritePos = 0;
+
+  //
+  // Encode each symbol
+  //
+  for (Index = 0; Index < InputSize; Index++) {
+    UINT8  Symbol;
+    UINT64 Range;
+    UINT64 Total;
+
+    Symbol = Input[Index];
+    Range = High - Low + 1;
+    Total = CumulativeFreq[256];
+
+    //
+    // Narrow range based on symbol frequency
+    //
+    High = Low + (Range * CumulativeFreq[Symbol + 1]) / Total - 1;
+    Low = Low + (Range * CumulativeFreq[Symbol]) / Total;
+
+    //
+    // Output bytes when range narrows
+    //
+    while ((High ^ Low) < 0x100000000ULL) {
+      Output[WritePos++] = (UINT8)(Low >> 56);
+      Low <<= 8;
+      High = (High << 8) | 0xFF;
+    }
+  }
+
+  //
+  // Output final range
+  //
+  while (WritePos < 8) {
+    Output[WritePos++] = (UINT8)(Low >> 56);
+    Low <<= 8;
+  }
+
+  *OutputSize = WritePos;
+  return TRUE;
+}
+
+//
+// Complete Pipeline
+//
+BOOLEAN
+Zoo64Compress (
+  IN     CONST UINT8   *Input,
+  IN     UINTN         InputSize,
+  OUT    UINT8         *Output,
+  OUT    UINTN         *OutputSize,
+  IN     UINT32        WindowSize,
+  IN     UINT32        CompressionLevel
+  )
+{
+  UINT8   *TempBuffer1;
+  UINT8   *TempBuffer2;
+  UINTN   TempSize;
+  UINTN   PrimaryIndex;
+  BOOLEAN Status;
+
+  //
+  // Allocate temporary buffers
+  //
+  TempBuffer1 = AllocatePool (InputSize * 2);
+  TempBuffer2 = AllocatePool (InputSize * 2);
+
+  if (TempBuffer1 == NULL || TempBuffer2 == NULL) {
+    if (TempBuffer1 != NULL) FreePool (TempBuffer1);
+    if (TempBuffer2 != NULL) FreePool (TempBuffer2);
+    return FALSE;
+  }
+
+  //
+  // Stage 1: Burrows-Wheeler Transform
+  //
+  Status = BwtTransform (Input, InputSize, TempBuffer1, &PrimaryIndex);
+  if (!Status) goto Cleanup;
+
+  //
+  // Stage 2: Move-To-Front
+  //
+  Status = MtfTransform (TempBuffer1, InputSize, TempBuffer2);
+  if (!Status) goto Cleanup;
+
+  //
+  // Stage 3: RAD50RLE (RAD-50 + RLE + LEB128 + Bit Transpose)
+  //
+  Status = Rad50RleEncode (TempBuffer2, InputSize, TempBuffer1, &TempSize);
+  if (!Status) goto Cleanup;
+
+  //
+  // Stage 4: Windowed LZ78
+  //
+  Status = Lz78Compress (TempBuffer1, TempSize, TempBuffer2, &TempSize, WindowSize);
+  if (!Status) goto Cleanup;
+
+  //
+  // Stage 5: Range Encoding
+  //
+  Status = RangeEncode (TempBuffer2, TempSize, Output, OutputSize);
+  if (!Status) goto Cleanup;
+
+  //
+  // Store primary index for BWT inverse
+  //
+  *(UINTN*)Output = PrimaryIndex;
+  (*OutputSize) += sizeof(UINTN);
+
+Cleanup:
+  FreePool (TempBuffer1);
+  FreePool (TempBuffer2);
+
+  return Status;
+}
+```
+
+## 12.6 B# Tree Filesystem Layout [OPTIONAL]
+
+For archives that need to be mounted as filesystems, Zoo64 supports an optimized B# tree hierarchy instead of storing full paths in each file entry.
+
+### 12.6.1 B# Tree Overview
+
+B# trees (B-sharp trees) are a variant of B+ trees optimized for:
+- Fast lookups (O(log n))
+- Efficient iteration (sequential access)
+- Cache-friendly node layout
+- Prefix compression for paths
+- Copy-on-write friendly (for FUSE mounts)
+
+```c
+//
+// B# Tree filesystem layout mode
+// When archive flag bit 20 is set (B# Tree Mode)
+//
+typedef struct _ZOO64_BSHARP_HEADER {
+  UINT64  Magic;              // 0x4253484152502020 ("BSHARP  ")
+  UINT32  Version;            // B# tree format version
+  UINT32  NodeSize;           // Node size in bytes (power of 2, typically 4KB)
+  UINT32  MaxDegree;          // Maximum node degree
+  UINT32  TreeHeight;         // Height of tree
+  UINT64  RootNodeOffset;     // Offset to root node
+  UINT64  NodeCount;          // Total number of nodes
+  UINT32  Flags;              // B# tree flags
+  UINT32  Reserved;
+} ZOO64_BSHARP_HEADER;
+
+//
+// B# Tree Node (Internal or Leaf)
+//
+typedef struct _ZOO64_BSHARP_NODE {
+  UINT32  Magic;              // 0x42534E4F ("BSNO")
+  UINT16  NodeType;           // 0=Internal, 1=Leaf
+  UINT16  EntryCount;         // Number of entries in node
+  UINT64  ParentOffset;       // Offset to parent node (0 for root)
+  UINT64  PrevLeafOffset;     // Previous leaf (0 if not leaf or first)
+  UINT64  NextLeafOffset;     // Next leaf (0 if not leaf or last)
+
+  //
+  // Followed by entries based on node type
+  //
+} ZOO64_BSHARP_NODE;
+
+//
+// Internal Node Entry (points to child nodes)
+//
+typedef struct _ZOO64_BSHARP_INTERNAL_ENTRY {
+  UINT16  KeyLength;          // Length of separator key
+  UINT16  PrefixLength;       // Common prefix length (for compression)
+  UINT64  ChildOffset;        // Offset to child node
+
+  // Followed by:
+  //   [PrefixLength bytes: common prefix (shared with siblings)]
+  //   [KeyLength bytes: unique suffix]
+} ZOO64_BSHARP_INTERNAL_ENTRY;
+
+//
+// Leaf Node Entry (points to file data)
+//
+typedef struct _ZOO64_BSHARP_LEAF_ENTRY {
+  UINT16  NameLength;         // Length of filename component
+  UINT16  PrefixLength;       // Common prefix with siblings
+  UINT32  FileIndex;          // Index into file table
+  UINT64  FileOffset;         // Offset to file data
+  UINT64  FileSize;           // File size
+  UINT32  Attributes;         // File attributes
+  UINT32  Reserved;
+
+  // Followed by:
+  //   [PrefixLength bytes: common prefix]
+  //   [NameLength bytes: unique suffix]
+} ZOO64_BSHARP_LEAF_ENTRY;
+```
+
+### 12.6.2 Path-Free File Entries
+
+When B# tree mode is enabled, file entries no longer store paths:
+
+```c
+//
+// Simplified file entry for B# tree mode
+// Path is stored in B# tree, referenced by FileIndex
+//
+typedef struct _ZOO64_FILE_ENTRY_BSHARP {
+  UINT64  Magic;              // 0x46494C45454E5452 ("FILEENTR")
+  UINT32  FileIndex;          // Index in B# tree
+  UINT32  Flags;              // File flags
+
+  // Size fields
+  UINT64  UncompressedSize;
+  UINT64  CompressedSize;
+
+  // Timestamps
+  UINT64  BirthTime;
+  UINT64  ModificationTime;
+  UINT64  AccessTime;
+  UINT64  ChangeTime;
+
+  // Checksums
+  UINT32  CRC32;
+  UINT64  SHA256[4];
+
+  // Metadata
+  UINT64  MetadataOffset;
+  UINT32  MetadataSize;
+
+  // Attributes
+  UINT32  UID;
+  UINT32  GID;
+  UINT32  Mode;
+  UINT32  Attributes;
+
+  // NO path field - path is in B# tree
+} ZOO64_FILE_ENTRY_BSHARP;
+```
+
+### 12.6.3 Benefits of B# Tree Mode
+
+**Space Efficiency**:
+- Path prefix compression reduces redundancy
+- Common directory components stored once
+- 30-50% space savings for deep directory trees
+
+**Performance**:
+- O(log n) lookups vs O(n) linear scan
+- Cache-friendly node layout (4KB nodes match page size)
+- Sequential iteration for directory listings
+- Fast prefix searches (all files in directory)
+
+**Filesystem Mounting**:
+- Direct mapping to FUSE operations
+- No path parsing required
+- Efficient readdir() implementation
+- Natural tree traversal
+
+**Example Space Savings**:
+```
+Traditional (with full paths):
+  /usr/local/share/doc/project/file1.txt  (37 bytes)
+  /usr/local/share/doc/project/file2.txt  (37 bytes)
+  /usr/local/share/doc/project/file3.txt  (37 bytes)
+  Total: 111 bytes for paths
+
+B# Tree (with prefix compression):
+  Root → usr → local → share → doc → project
+    ├─ file1.txt (9 bytes)
+    ├─ file2.txt (9 bytes)
+    └─ file3.txt (9 bytes)
+  Total: ~45 bytes (including tree structure)
+  Savings: 60%
+```
+
+### 12.6.4 Compatibility
+
+**Quick Directory**: Still present, references FileIndex
+**Central Directory**: Still present, uses FileIndex as key
+**End of Archive**: Unchanged
+
+B# tree is an **alternative representation**, not a replacement. Archives can be converted between path-based and B# tree modes without data loss.
+
+### 12.7 Bit Squishing Compression (Algorithm 0x0010)
+
+Bit squishing is a specialized compression algorithm optimized for data with reduced symbol alphabets. It analyzes blocks to determine unique symbol count and uses bit-packing to achieve excellent compression ratios for text, source code, and structured data.
+
+#### 12.7.1 Algorithm Overview
+
+The bit squishing algorithm operates in the following stages:
+
+1. **Alphabet Analysis**: Count unique symbols in the block
+2. **Symbol Reduction**: If unique symbols ≤ 128, proceed with compression
+3. **Minimum Subtraction**: Subtract minimum symbol value from all symbols
+4. **Encoding Selection**: Choose encoding based on alphabet size:
+   - ≤ 8 symbols: Emit symbol table (RAD50 or raw), pack indexes using 1-3 bits
+   - ≤ 16 symbols: Emit symbol table, pack indexes using 4 bits
+   - ≤ 32 symbols: Emit symbol table, pack indexes using 5 bits
+   - ≤ 64 symbols: Emit symbol table, pack indexes using 6 bits
+   - ≤ 128 symbols: Emit symbol table, pack indexes using 7 bits
+   - > 128 symbols: Use alternative compression (no benefit)
+
+5. **Bitmap vs Table**: For larger alphabets, emit bitmap (0 to max value) where bit 1 = symbol used
+
+#### 12.7.2 Data Structures
+
+```c
+//
+// Bit squish block header
+//
+typedef struct _ZOO64_BITSQUISH_HEADER {
+  UINT32  Magic;              // 0x42535148 ("BSQH")
+  UINT32  UncompressedSize;   // Original block size
+  UINT32  CompressedSize;     // Compressed size (including header)
+  UINT16  AlphabetSize;       // Number of unique symbols (1-128)
+  UINT8   MinSymbol;          // Minimum symbol value (for subtraction)
+  UINT8   BitsPerSymbol;      // Bits per symbol index (1-7)
+  UINT32  Flags;              // Encoding flags
+  UINT32  Reserved;
+} ZOO64_BITSQUISH_HEADER;
+
+//
+// Bit squish encoding flags
+//
+#define ZOO64_BITSQUISH_USE_BITMAP    0x00000001  // Use bitmap encoding
+#define ZOO64_BITSQUISH_USE_RAD50     0x00000002  // Use RAD50 for symbol table
+#define ZOO64_BITSQUISH_USE_RLE       0x00000004  // Apply RLE to bit stream
+```
+
+**Encoding Format**:
+
+For alphabet ≤ 8 symbols (small table):
+```
+[ZOO64_BITSQUISH_HEADER]
+[Symbol count: UINT8]
+[Symbol table: UINT8[AlphabetSize]] (subtracted values, or RAD50 encoded)
+[Packed bit stream] (indexes using BitsPerSymbol bits each)
+```
+
+For alphabet > 8 symbols (bitmap):
+```
+[ZOO64_BITSQUISH_HEADER]
+[Bitmap size: UINT16] (in bytes)
+[Bitmap: UINT8[]] (bit 1 = symbol present, covers range MinSymbol to MaxSymbol)
+[Symbol count: UINT8]
+[Packed bit stream] (indexes into bitmap using BitsPerSymbol bits each)
+```
+
+#### 12.7.3 Compression Examples
+
+**Example 1: ASCII Text (uppercase only)**
+- Input: "HELLO WORLD" (11 bytes)
+- Unique symbols: 8 (' ', 'D', 'E', 'H', 'L', 'O', 'R', 'W')
+- MinSymbol: 0x20 (space)
+- Alphabet after subtraction: [0, 36, 37, 40, 44, 47, 50, 55]
+- BitsPerSymbol: 3 (can represent 0-7)
+- Symbol mapping: {' ':0, 'D':1, 'E':2, 'H':3, 'L':4, 'O':5, 'R':6, 'W':7}
+- Encoded: 3-5-4-4-5-0-7-5-6-4-1 (33 bits = 5 bytes vs 11 bytes original)
+- Compression ratio: ~54%
+
+**Example 2: Binary Data (4 values)**
+- Input: byte stream with only values {0x00, 0x01, 0x10, 0x11}
+- AlphabetSize: 4
+- MinSymbol: 0x00
+- BitsPerSymbol: 2
+- Symbol mapping: {0x00:0, 0x01:1, 0x10:2, 0x11:3}
+- Compression ratio: ~25% (2 bits per byte vs 8 bits)
+
+**Example 3: Source Code**
+- Input: C source code (alphanumeric + symbols)
+- Typical unique symbols: 40-60 characters
+- BitsPerSymbol: 6 (can represent 0-63)
+- Compression ratio: ~75% (6 bits per byte vs 8 bits)
+
+#### 12.7.4 Implementation (NT/UEFI Style)
+
+Complete implementation of bit squishing compression:
+
+```c
+//
+// Zoo64 Bit Squishing Implementation
+// Copyright (c) 2025. All rights reserved.
+//
+// SPDX-License-Identifier: BSD-3-Clause
+//
+
+#include "zoo64_compress.h"
+
+//
+// Analyze block to determine unique symbols
+//
+BOOLEAN
+AnalyzeAlphabet (
+  IN     CONST UINT8   *Input,
+  IN     UINTN         InputSize,
+  OUT    UINT8         *SymbolTable,
+  OUT    UINT16        *AlphabetSize,
+  OUT    UINT8         *MinSymbol,
+  OUT    UINT8         *MaxSymbol
+  )
+{
+  BOOLEAN  SymbolPresent[256];
+  UINTN    Index;
+  UINT16   Count;
+  UINT8    Min;
+  UINT8    Max;
+
+  //
+  // Initialize symbol presence array
+  //
+  SetMem (SymbolPresent, sizeof(SymbolPresent), 0);
+
+  Min = 0xFF;
+  Max = 0x00;
+
+  //
+  // Scan input to find unique symbols
+  //
+  for (Index = 0; Index < InputSize; Index++) {
+    UINT8 Symbol = Input[Index];
+    SymbolPresent[Symbol] = TRUE;
+
+    if (Symbol < Min) {
+      Min = Symbol;
+    }
+    if (Symbol > Max) {
+      Max = Symbol;
+    }
+  }
+
+  //
+  // Build symbol table
+  //
+  Count = 0;
+  for (Index = 0; Index < 256; Index++) {
+    if (SymbolPresent[Index]) {
+      SymbolTable[Count++] = (UINT8)Index;
+    }
+  }
+
+  *AlphabetSize = Count;
+  *MinSymbol = Min;
+  *MaxSymbol = Max;
+
+  return TRUE;
+}
+
+//
+// Build symbol-to-index mapping
+//
+BOOLEAN
+BuildSymbolMap (
+  IN     CONST UINT8   *SymbolTable,
+  IN     UINT16        AlphabetSize,
+  OUT    UINT8         *SymbolToIndex
+  )
+{
+  UINT16  Index;
+
+  //
+  // Initialize mapping to 0xFF (invalid)
+  //
+  SetMem (SymbolToIndex, 256, 0xFF);
+
+  //
+  // Map each symbol to its index
+  //
+  for (Index = 0; Index < AlphabetSize; Index++) {
+    SymbolToIndex[SymbolTable[Index]] = (UINT8)Index;
+  }
+
+  return TRUE;
+}
+
+//
+// Pack symbols using specified bits per symbol
+//
+BOOLEAN
+PackBitStream (
+  IN     CONST UINT8   *Input,
+  IN     UINTN         InputSize,
+  IN     CONST UINT8   *SymbolToIndex,
+  IN     UINT8         BitsPerSymbol,
+  OUT    UINT8         *Output,
+  OUT    UINTN         *OutputSize
+  )
+{
+  UINT64  BitBuffer;
+  UINT32  BitsInBuffer;
+  UINTN   InputIndex;
+  UINTN   OutputIndex;
+  UINT8   SymbolIndex;
+
+  BitBuffer = 0;
+  BitsInBuffer = 0;
+  OutputIndex = 0;
+
+  //
+  // Process each input symbol
+  //
+  for (InputIndex = 0; InputIndex < InputSize; InputIndex++) {
+    SymbolIndex = SymbolToIndex[Input[InputIndex]];
+    if (SymbolIndex == 0xFF) {
+      return FALSE;  // Invalid symbol
+    }
+
+    //
+    // Add symbol index to bit buffer
+    //
+    BitBuffer |= ((UINT64)SymbolIndex << BitsInBuffer);
+    BitsInBuffer += BitsPerSymbol;
+
+    //
+    // Flush complete bytes
+    //
+    while (BitsInBuffer >= 8) {
+      Output[OutputIndex++] = (UINT8)(BitBuffer & 0xFF);
+      BitBuffer >>= 8;
+      BitsInBuffer -= 8;
+    }
+  }
+
+  //
+  // Flush remaining bits
+  //
+  if (BitsInBuffer > 0) {
+    Output[OutputIndex++] = (UINT8)(BitBuffer & 0xFF);
+  }
+
+  *OutputSize = OutputIndex;
+  return TRUE;
+}
+
+//
+// Unpack bit stream back to symbols
+//
+BOOLEAN
+UnpackBitStream (
+  IN     CONST UINT8   *Input,
+  IN     UINTN         InputSize,
+  IN     CONST UINT8   *SymbolTable,
+  IN     UINT8         BitsPerSymbol,
+  IN     UINTN         OutputSize,
+  OUT    UINT8         *Output
+  )
+{
+  UINT64  BitBuffer;
+  UINT32  BitsInBuffer;
+  UINTN   InputIndex;
+  UINTN   OutputIndex;
+  UINT8   SymbolIndex;
+  UINT8   IndexMask;
+
+  //
+  // Calculate mask for extracting symbol indexes
+  //
+  IndexMask = (UINT8)((1 << BitsPerSymbol) - 1);
+
+  BitBuffer = 0;
+  BitsInBuffer = 0;
+  InputIndex = 0;
+  OutputIndex = 0;
+
+  //
+  // Process until output complete
+  //
+  while (OutputIndex < OutputSize) {
+    //
+    // Refill bit buffer if needed
+    //
+    while (BitsInBuffer < BitsPerSymbol && InputIndex < InputSize) {
+      BitBuffer |= ((UINT64)Input[InputIndex++] << BitsInBuffer);
+      BitsInBuffer += 8;
+    }
+
+    if (BitsInBuffer < BitsPerSymbol) {
+      return FALSE;  // Truncated input
+    }
+
+    //
+    // Extract symbol index
+    //
+    SymbolIndex = (UINT8)(BitBuffer & IndexMask);
+    BitBuffer >>= BitsPerSymbol;
+    BitsInBuffer -= BitsPerSymbol;
+
+    //
+    // Emit symbol
+    //
+    Output[OutputIndex++] = SymbolTable[SymbolIndex];
+  }
+
+  return TRUE;
+}
+
+//
+// Compress block using bit squishing
+//
+BOOLEAN
+BitSquishCompress (
+  IN     CONST UINT8   *Input,
+  IN     UINTN         InputSize,
+  OUT    UINT8         *Output,
+  OUT    UINTN         *OutputSize
+  )
+{
+  ZOO64_BITSQUISH_HEADER  Header;
+  UINT8                   SymbolTable[256];
+  UINT8                   SymbolToIndex[256];
+  UINT16                  AlphabetSize;
+  UINT8                   MinSymbol;
+  UINT8                   MaxSymbol;
+  UINT8                   BitsPerSymbol;
+  UINT8                   *PackedData;
+  UINTN                   PackedSize;
+  UINTN                   TotalSize;
+  BOOLEAN                 Status;
+
+  //
+  // Analyze alphabet
+  //
+  Status = AnalyzeAlphabet (
+             Input,
+             InputSize,
+             SymbolTable,
+             &AlphabetSize,
+             &MinSymbol,
+             &MaxSymbol
+             );
+  if (!Status || AlphabetSize > 128) {
+    return FALSE;  // Not suitable for bit squishing
+  }
+
+  //
+  // Determine bits per symbol
+  //
+  if (AlphabetSize <= 2) {
+    BitsPerSymbol = 1;
+  } else if (AlphabetSize <= 4) {
+    BitsPerSymbol = 2;
+  } else if (AlphabetSize <= 8) {
+    BitsPerSymbol = 3;
+  } else if (AlphabetSize <= 16) {
+    BitsPerSymbol = 4;
+  } else if (AlphabetSize <= 32) {
+    BitsPerSymbol = 5;
+  } else if (AlphabetSize <= 64) {
+    BitsPerSymbol = 6;
+  } else {
+    BitsPerSymbol = 7;
+  }
+
+  //
+  // Build symbol mapping
+  //
+  Status = BuildSymbolMap (SymbolTable, AlphabetSize, SymbolToIndex);
+  if (!Status) {
+    return FALSE;
+  }
+
+  //
+  // Allocate temporary buffer for packed data
+  //
+  PackedData = AllocatePool (InputSize);
+  if (PackedData == NULL) {
+    return FALSE;
+  }
+
+  //
+  // Pack bit stream
+  //
+  Status = PackBitStream (
+             Input,
+             InputSize,
+             SymbolToIndex,
+             BitsPerSymbol,
+             PackedData,
+             &PackedSize
+             );
+  if (!Status) {
+    FreePool (PackedData);
+    return FALSE;
+  }
+
+  //
+  // Build header
+  //
+  Header.Magic = 0x42535148;  // "BSQH"
+  Header.UncompressedSize = (UINT32)InputSize;
+  Header.AlphabetSize = AlphabetSize;
+  Header.MinSymbol = MinSymbol;
+  Header.BitsPerSymbol = BitsPerSymbol;
+  Header.Flags = 0;
+  Header.Reserved = 0;
+
+  //
+  // Determine encoding method
+  //
+  if (AlphabetSize <= 8) {
+    //
+    // Small alphabet: use symbol table
+    //
+    Header.Flags &= ~ZOO64_BITSQUISH_USE_BITMAP;
+    TotalSize = sizeof(Header) + 1 + AlphabetSize + PackedSize;
+  } else {
+    //
+    // Larger alphabet: use bitmap
+    //
+    UINT16 BitmapSize = (MaxSymbol - MinSymbol + 8) / 8;
+    Header.Flags |= ZOO64_BITSQUISH_USE_BITMAP;
+    TotalSize = sizeof(Header) + 2 + BitmapSize + 1 + PackedSize;
+  }
+
+  Header.CompressedSize = (UINT32)TotalSize;
+
+  //
+  // Check if compression is beneficial
+  //
+  if (TotalSize >= InputSize) {
+    FreePool (PackedData);
+    return FALSE;  // Not worth compressing
+  }
+
+  //
+  // Write output
+  //
+  CopyMem (Output, &Header, sizeof(Header));
+  UINTN Offset = sizeof(Header);
+
+  if (AlphabetSize <= 8) {
+    //
+    // Write symbol table
+    //
+    Output[Offset++] = (UINT8)AlphabetSize;
+    CopyMem (&Output[Offset], SymbolTable, AlphabetSize);
+    Offset += AlphabetSize;
+  } else {
+    //
+    // Write bitmap
+    //
+    UINT16 BitmapSize = (MaxSymbol - MinSymbol + 8) / 8;
+    UINT8  *Bitmap = AllocateZeroPool (BitmapSize);
+
+    if (Bitmap == NULL) {
+      FreePool (PackedData);
+      return FALSE;
+    }
+
+    //
+    // Build bitmap
+    //
+    for (UINT16 i = 0; i < AlphabetSize; i++) {
+      UINT8 Symbol = SymbolTable[i];
+      UINT8 BitIndex = Symbol - MinSymbol;
+      Bitmap[BitIndex / 8] |= (1 << (BitIndex % 8));
+    }
+
+    *((UINT16*)&Output[Offset]) = BitmapSize;
+    Offset += 2;
+    CopyMem (&Output[Offset], Bitmap, BitmapSize);
+    Offset += BitmapSize;
+    Output[Offset++] = (UINT8)AlphabetSize;
+
+    FreePool (Bitmap);
+  }
+
+  //
+  // Write packed data
+  //
+  CopyMem (&Output[Offset], PackedData, PackedSize);
+  Offset += PackedSize;
+
+  *OutputSize = Offset;
+  FreePool (PackedData);
+
+  return TRUE;
+}
+
+//
+// Decompress bit squished block
+//
+BOOLEAN
+BitSquishDecompress (
+  IN     CONST UINT8   *Input,
+  IN     UINTN         InputSize,
+  OUT    UINT8         *Output,
+  OUT    UINTN         *OutputSize
+  )
+{
+  ZOO64_BITSQUISH_HEADER  *Header;
+  UINT8                   SymbolTable[256];
+  UINTN                   Offset;
+  UINT16                  AlphabetSize;
+  UINT8                   *PackedData;
+  UINTN                   PackedSize;
+  BOOLEAN                 Status;
+
+  if (InputSize < sizeof(ZOO64_BITSQUISH_HEADER)) {
+    return FALSE;
+  }
+
+  Header = (ZOO64_BITSQUISH_HEADER*)Input;
+
+  if (Header->Magic != 0x42535148) {
+    return FALSE;
+  }
+
+  Offset = sizeof(ZOO64_BITSQUISH_HEADER);
+
+  if ((Header->Flags & ZOO64_BITSQUISH_USE_BITMAP) == 0) {
+    //
+    // Read symbol table
+    //
+    AlphabetSize = Input[Offset++];
+    CopyMem (SymbolTable, &Input[Offset], AlphabetSize);
+    Offset += AlphabetSize;
+  } else {
+    //
+    // Read bitmap and reconstruct symbol table
+    //
+    UINT16 BitmapSize = *((UINT16*)&Input[Offset]);
+    Offset += 2;
+
+    CONST UINT8 *Bitmap = &Input[Offset];
+    Offset += BitmapSize;
+
+    AlphabetSize = Input[Offset++];
+
+    UINT16 TableIndex = 0;
+    for (UINT16 BitIndex = 0; BitIndex < BitmapSize * 8; BitIndex++) {
+      if (Bitmap[BitIndex / 8] & (1 << (BitIndex % 8))) {
+        SymbolTable[TableIndex++] = Header->MinSymbol + BitIndex;
+      }
+    }
+  }
+
+  //
+  // Unpack bit stream
+  //
+  PackedData = (UINT8*)&Input[Offset];
+  PackedSize = InputSize - Offset;
+
+  Status = UnpackBitStream (
+             PackedData,
+             PackedSize,
+             SymbolTable,
+             Header->BitsPerSymbol,
+             Header->UncompressedSize,
+             Output
+             );
+
+  if (Status) {
+    *OutputSize = Header->UncompressedSize;
+  }
+
+  return Status;
+}
+```
+
+#### 12.7.5 Use Cases
+
+**Optimal for**:
+- ASCII text files (typical alphabet: 70-90 characters)
+- Source code (40-80 unique characters)
+- Log files with limited symbol sets
+- Structured data (CSV, JSON with consistent formatting)
+- Binary data with limited value ranges
+
+**Not recommended for**:
+- Pre-compressed data (JPEG, PNG, MP4)
+- Encrypted data (full 0-255 alphabet)
+- Binary executables (high entropy)
+- Random data
+
+**Typical Compression Ratios**:
+- English text: 60-75% (6 bits/char for ~64 unique chars)
+- Source code: 50-70% (depends on language)
+- Log files: 40-60% (limited vocabulary)
+- Binary with 16 values: 50% (4 bits/byte)
+- Binary with 4 values: 25% (2 bits/byte)
+
+#### 12.7.6 Conformance Levels
+
+- **Tiny**: Decompression only
+- **Compact**: Decompression only
+- **Embedded**: Decompression only
+- **Minimal**: Full support (compress + decompress)
+- **Standard**: Full support with auto-detection
+- **Enhanced**: Full support with hybrid mode
+- **Full**: Full support with all optimizations
+
+## 12.8 WASM32 Embeddable Modules for Custom Algorithms
+
+Zoo64 supports embedding WASM32 (WebAssembly 32-bit) modules directly into archives. This allows archives to be self-contained with custom implementations of compression, encryption, hashing, and signing algorithms that may not be available on the target system.
+
+**Use Cases**:
+- Proprietary compression algorithms
+- Custom encryption schemes
+- Domain-specific hashing functions
+- Organization-specific digital signatures
+- Experimental or research algorithms
+- Legacy algorithm support
+- Cross-platform algorithm portability
+
+### 12.8.1 WASM32 Module Overview
+
+WASM32 modules embedded in Zoo64 archives provide custom algorithm implementations using the WebAssembly standard. Modules are stored as metadata chunks and can be loaded dynamically when the archive is opened.
+
+**Benefits**:
+- **Self-Contained**: Archive includes all code needed to process it
+- **Platform-Independent**: WASM runs on any system with a WASM runtime
+- **Secure**: WASM sandboxing prevents malicious code execution
+- **Efficient**: Near-native performance
+- **Standardized**: Uses W3C WebAssembly specification
+
+**Security Model**:
+- WASM modules run in isolated sandbox
+- No file system access (except through API)
+- No network access
+- Limited memory (configurable, default 16MB max)
+- Deterministic execution
+- Resource limits (CPU time, memory allocation)
+
+### 12.8.2 Data Structures
+
+```c
+//
+// WASM32 module metadata chunk
+// Metadata type: 0x0100 (Zoo64MetaWasm32Module)
+//
+typedef struct _ZOO64_WASM32_MODULE {
+  UINT64  Magic;              // 0x5741534D33320000 ("WASM32\0\0")
+  UINT32  ModuleSize;         // Size of WASM binary
+  UINT32  Flags;              // Module flags
+  UINT8   ModuleUuid[16];     // Unique identifier for this module
+  UINT32  Version;            // Module version (major.minor.patch.build)
+  UINT32  ApiVersion;         // Zoo64 WASM API version required
+  UINT32  ModuleType;         // Type of algorithm(s) provided
+  UINT32  AlgorithmId;        // Custom algorithm ID
+  CHAR8   ModuleName[64];     // UTF-8 module name
+  CHAR8   Author[64];         // UTF-8 author/organization
+  UINT32  MaxMemoryMB;        // Maximum memory in MB (default 16, max 256)
+  UINT32  MaxExecutionMs;     // Maximum execution time per call (ms)
+  UINT8   Sha256Hash[32];     // SHA-256 hash of WASM binary
+  UINT32  Reserved[8];
+  // Followed by WASM binary (ModuleSize bytes)
+} ZOO64_WASM32_MODULE;
+
+//
+// WASM32 module flags
+//
+#define ZOO64_WASM32_REQUIRED         0x00000001  // Required for archive access
+#define ZOO64_WASM32_OPTIONAL         0x00000002  // Optional enhancement
+#define ZOO64_WASM32_COMPRESSION      0x00000010  // Provides compression
+#define ZOO64_WASM32_ENCRYPTION       0x00000020  // Provides encryption
+#define ZOO64_WASM32_HASHING          0x00000040  // Provides hashing
+#define ZOO64_WASM32_SIGNING          0x00000080  // Provides signing
+#define ZOO64_WASM32_VERIFIED         0x00000100  // Digitally signed module
+#define ZOO64_WASM32_TRUSTED          0x00000200  // From trusted source
+
+//
+// WASM32 module types
+//
+typedef enum _ZOO64_WASM32_MODULE_TYPE {
+  Zoo64Wasm32TypeCompression    = 0x0001,  // Compression algorithm
+  Zoo64Wasm32TypeEncryption     = 0x0002,  // Encryption algorithm
+  Zoo64Wasm32TypeHashing        = 0x0003,  // Hashing algorithm
+  Zoo64Wasm32TypeSigning        = 0x0004,  // Digital signature
+  Zoo64Wasm32TypeKdf            = 0x0005,  // Key derivation function
+  Zoo64Wasm32TypeMulti          = 0x00FF   // Multiple algorithms
+} ZOO64_WASM32_MODULE_TYPE;
+```
+
+### 12.8.3 WASM32 API Interface
+
+Zoo64 defines a standard API for WASM modules to implement. The API uses the WASM import/export mechanism.
+
+**Memory Model**:
+- Linear memory allocated by host
+- Modules use `malloc`/`free` exported by host
+- Data passed via memory pointers
+- No shared memory between modules
+
+**Imported Functions** (provided by host to WASM module):
+
+```c
+//
+// Memory allocation (imported by module from host)
+//
+void* zoo64_malloc(uint32_t size);
+void  zoo64_free(void* ptr);
+
+//
+// Logging and debugging (imported by module)
+//
+void zoo64_log(const char* message, uint32_t length);
+void zoo64_error(const char* message, uint32_t length);
+
+//
+// Get module configuration
+//
+uint32_t zoo64_get_config(const char* key, char* value, uint32_t max_len);
+```
+
+**Exported Functions** (implemented by WASM module, called by host):
+
+#### Compression Module API
+
+```c
+//
+// Initialize compression module
+// Returns: 0 on success, error code otherwise
+//
+int32_t zoo64_compress_init(void);
+
+//
+// Get algorithm information
+//
+void zoo64_compress_get_info(
+  char* name,           // Output: algorithm name
+  uint32_t name_len,    // Input: max name length
+  uint32_t* flags       // Output: algorithm flags
+);
+
+//
+// Compress data
+// Returns: compressed size, or negative error code
+//
+int32_t zoo64_compress(
+  const uint8_t* input,     // Input data
+  uint32_t input_size,      // Input size
+  uint8_t* output,          // Output buffer
+  uint32_t output_max,      // Output buffer size
+  uint32_t level            // Compression level (0-9)
+);
+
+//
+// Decompress data
+// Returns: decompressed size, or negative error code
+//
+int32_t zoo64_decompress(
+  const uint8_t* input,     // Compressed data
+  uint32_t input_size,      // Compressed size
+  uint8_t* output,          // Output buffer
+  uint32_t output_max       // Output buffer size
+);
+
+//
+// Cleanup
+//
+void zoo64_compress_cleanup(void);
+```
+
+#### Encryption Module API
+
+```c
+//
+// Initialize encryption module
+//
+int32_t zoo64_encrypt_init(void);
+
+//
+// Get algorithm information
+//
+void zoo64_encrypt_get_info(
+  char* name,
+  uint32_t name_len,
+  uint32_t* key_size,      // Key size in bits
+  uint32_t* block_size,    // Block size in bytes
+  uint32_t* flags
+);
+
+//
+// Encrypt data
+// Returns: encrypted size (may include IV, tag), or negative error code
+//
+int32_t zoo64_encrypt(
+  const uint8_t* input,     // Plaintext
+  uint32_t input_size,
+  const uint8_t* key,       // Encryption key
+  uint32_t key_size,
+  const uint8_t* iv,        // Initialization vector (may be NULL)
+  uint32_t iv_size,
+  uint8_t* output,          // Output buffer (ciphertext)
+  uint32_t output_max
+);
+
+//
+// Decrypt data
+// Returns: decrypted size, or negative error code
+//
+int32_t zoo64_decrypt(
+  const uint8_t* input,     // Ciphertext
+  uint32_t input_size,
+  const uint8_t* key,       // Decryption key
+  uint32_t key_size,
+  const uint8_t* iv,        // Initialization vector (may be NULL)
+  uint32_t iv_size,
+  uint8_t* output,          // Output buffer (plaintext)
+  uint32_t output_max
+);
+
+//
+// Cleanup
+//
+void zoo64_encrypt_cleanup(void);
+```
+
+#### Hashing Module API
+
+```c
+//
+// Initialize hashing module
+//
+int32_t zoo64_hash_init(void);
+
+//
+// Get algorithm information
+//
+void zoo64_hash_get_info(
+  char* name,
+  uint32_t name_len,
+  uint32_t* hash_size,     // Hash output size in bytes
+  uint32_t* flags
+);
+
+//
+// Hash data (one-shot)
+// Returns: hash size, or negative error code
+//
+int32_t zoo64_hash(
+  const uint8_t* input,     // Data to hash
+  uint32_t input_size,
+  uint8_t* output,          // Hash output buffer
+  uint32_t output_max
+);
+
+//
+// Incremental hashing (for large files)
+//
+void* zoo64_hash_create_context(void);
+int32_t zoo64_hash_update(void* ctx, const uint8_t* data, uint32_t size);
+int32_t zoo64_hash_finalize(void* ctx, uint8_t* output, uint32_t output_max);
+void zoo64_hash_destroy_context(void* ctx);
+
+//
+// Cleanup
+//
+void zoo64_hash_cleanup(void);
+```
+
+#### Signing Module API
+
+```c
+//
+// Initialize signing module
+//
+int32_t zoo64_sign_init(void);
+
+//
+// Get algorithm information
+//
+void zoo64_sign_get_info(
+  char* name,
+  uint32_t name_len,
+  uint32_t* signature_size, // Signature size in bytes
+  uint32_t* flags
+);
+
+//
+// Sign data
+// Returns: signature size, or negative error code
+//
+int32_t zoo64_sign(
+  const uint8_t* data,      // Data to sign
+  uint32_t data_size,
+  const uint8_t* private_key, // Private key
+  uint32_t key_size,
+  uint8_t* signature,       // Signature output
+  uint32_t signature_max
+);
+
+//
+// Verify signature
+// Returns: 1 if valid, 0 if invalid, negative on error
+//
+int32_t zoo64_verify(
+  const uint8_t* data,      // Signed data
+  uint32_t data_size,
+  const uint8_t* signature, // Signature to verify
+  uint32_t signature_size,
+  const uint8_t* public_key, // Public key
+  uint32_t key_size
+);
+
+//
+// Cleanup
+//
+void zoo64_sign_cleanup(void);
+```
+
+### 12.8.4 Module Loading and Execution
+
+**Loading Process**:
+
+1. **Discovery**: Scan archive metadata for WASM32 modules
+2. **Validation**: Verify SHA-256 hash of WASM binary
+3. **Parse**: Parse WASM binary header
+4. **Instantiate**: Load WASM module into runtime
+5. **Initialize**: Call module's init function
+6. **Register**: Register custom algorithm with Zoo64
+
+**Example Implementation (NT/UEFI Style)**:
+
+```c
+//
+// Load WASM32 module from archive metadata
+//
+BOOLEAN
+LoadWasm32Module (
+  IN     ZOO64_WASM32_MODULE  *ModuleMetadata,
+  OUT    WASM_MODULE_HANDLE   *Handle
+  )
+{
+  UINT8    *WasmBinary;
+  UINT8    ComputedHash[32];
+  BOOLEAN  Status;
+
+  //
+  // Allocate buffer for WASM binary
+  //
+  WasmBinary = AllocatePool (ModuleMetadata->ModuleSize);
+  if (WasmBinary == NULL) {
+    return FALSE;
+  }
+
+  //
+  // Copy WASM binary from metadata
+  //
+  CopyMem (
+    WasmBinary,
+    (UINT8*)ModuleMetadata + sizeof(ZOO64_WASM32_MODULE),
+    ModuleMetadata->ModuleSize
+    );
+
+  //
+  // Verify SHA-256 hash
+  //
+  Sha256Hash (WasmBinary, ModuleMetadata->ModuleSize, ComputedHash);
+  if (CompareMem (ComputedHash, ModuleMetadata->Sha256Hash, 32) != 0) {
+    FreePool (WasmBinary);
+    return FALSE;  // Hash mismatch - security violation
+  }
+
+  //
+  // Check API version compatibility
+  //
+  if (ModuleMetadata->ApiVersion > ZOO64_WASM_API_VERSION) {
+    FreePool (WasmBinary);
+    return FALSE;  // Unsupported API version
+  }
+
+  //
+  // Load WASM module into runtime
+  //
+  Status = WasmRuntimeLoad (
+             WasmBinary,
+             ModuleMetadata->ModuleSize,
+             ModuleMetadata->MaxMemoryMB * 1024 * 1024,
+             Handle
+             );
+
+  if (!Status) {
+    FreePool (WasmBinary);
+    return FALSE;
+  }
+
+  //
+  // Call module initialization function
+  //
+  switch (ModuleMetadata->ModuleType) {
+    case Zoo64Wasm32TypeCompression:
+      Status = WasmCall (*Handle, "zoo64_compress_init", NULL, 0);
+      break;
+
+    case Zoo64Wasm32TypeEncryption:
+      Status = WasmCall (*Handle, "zoo64_encrypt_init", NULL, 0);
+      break;
+
+    case Zoo64Wasm32TypeHashing:
+      Status = WasmCall (*Handle, "zoo64_hash_init", NULL, 0);
+      break;
+
+    case Zoo64Wasm32TypeSigning:
+      Status = WasmCall (*Handle, "zoo64_sign_init", NULL, 0);
+      break;
+
+    default:
+      FreePool (WasmBinary);
+      WasmRuntimeUnload (*Handle);
+      return FALSE;
+  }
+
+  FreePool (WasmBinary);
+
+  if (!Status) {
+    WasmRuntimeUnload (*Handle);
+    return FALSE;
+  }
+
+  return TRUE;
+}
+
+//
+// Call WASM compression function
+//
+BOOLEAN
+CallWasmCompress (
+  IN     WASM_MODULE_HANDLE  Handle,
+  IN     CONST UINT8         *Input,
+  IN     UINTN               InputSize,
+  OUT    UINT8               *Output,
+  OUT    UINTN               *OutputSize,
+  IN     UINT32              Level
+  )
+{
+  WASM_VALUE  Args[5];
+  WASM_VALUE  Result;
+  INT32       CompressedSize;
+  UINT8       *WasmInput;
+  UINT8       *WasmOutput;
+
+  //
+  // Allocate memory in WASM linear memory
+  //
+  WasmInput = WasmMalloc (Handle, (UINT32)InputSize);
+  WasmOutput = WasmMalloc (Handle, (UINT32)*OutputSize);
+
+  if (WasmInput == NULL || WasmOutput == NULL) {
+    if (WasmInput != NULL) WasmFree (Handle, WasmInput);
+    if (WasmOutput != NULL) WasmFree (Handle, WasmOutput);
+    return FALSE;
+  }
+
+  //
+  // Copy input data to WASM memory
+  //
+  WasmMemWrite (Handle, WasmInput, Input, InputSize);
+
+  //
+  // Prepare arguments: zoo64_compress(input, input_size, output, output_max, level)
+  //
+  Args[0].Type = WASM_TYPE_I32;
+  Args[0].Value.I32 = (UINT32)(UINTN)WasmInput;
+  Args[1].Type = WASM_TYPE_I32;
+  Args[1].Value.I32 = (UINT32)InputSize;
+  Args[2].Type = WASM_TYPE_I32;
+  Args[2].Value.I32 = (UINT32)(UINTN)WasmOutput;
+  Args[3].Type = WASM_TYPE_I32;
+  Args[3].Value.I32 = (UINT32)*OutputSize;
+  Args[4].Type = WASM_TYPE_I32;
+  Args[4].Value.I32 = Level;
+
+  //
+  // Call WASM function
+  //
+  if (!WasmCall (Handle, "zoo64_compress", Args, 5, &Result, 1)) {
+    WasmFree (Handle, WasmInput);
+    WasmFree (Handle, WasmOutput);
+    return FALSE;
+  }
+
+  CompressedSize = Result.Value.I32;
+
+  if (CompressedSize < 0) {
+    //
+    // Compression failed (error code returned)
+    //
+    WasmFree (Handle, WasmInput);
+    WasmFree (Handle, WasmOutput);
+    return FALSE;
+  }
+
+  //
+  // Copy compressed data from WASM memory
+  //
+  WasmMemRead (Handle, Output, WasmOutput, CompressedSize);
+  *OutputSize = CompressedSize;
+
+  //
+  // Free WASM memory
+  //
+  WasmFree (Handle, WasmInput);
+  WasmFree (Handle, WasmOutput);
+
+  return TRUE;
+}
+```
+
+### 12.8.5 Custom Algorithm IDs
+
+When using WASM32 modules, custom algorithm IDs are used:
+
+**Compression Algorithms**:
+- `0x0100` - `0x01FF`: Custom compression (via WASM32)
+- Specific ID stored in `ZOO64_WASM32_MODULE.AlgorithmId`
+
+**Encryption Methods**:
+- `0x0100` - `0x01FF`: Custom encryption (via WASM32)
+
+**Hash Algorithms**:
+- `0x0100` - `0x01FF`: Custom hashing (via WASM32)
+
+**Signature Types**:
+- `0x0100` - `0x01FF`: Custom signing (via WASM32)
+
+**Module Reference**:
+```c
+//
+// Reference to WASM32 module in algorithm descriptor
+//
+typedef struct _ZOO64_WASM_ALGORITHM_REF {
+  UINT8   ModuleUuid[16];     // UUID of WASM32 module
+  UINT32  AlgorithmId;        // Custom algorithm ID (0x0100-0x01FF)
+  UINT32  Reserved;
+} ZOO64_WASM_ALGORITHM_REF;
+```
+
+### 12.8.6 Security Considerations
+
+**Sandboxing**:
+- All WASM modules execute in isolated sandbox
+- No access to file system outside provided buffers
+- No network access
+- Memory limits enforced (default 16MB, max 256MB)
+- CPU time limits enforced (default 30s per operation)
+
+**Validation**:
+- SHA-256 hash verification before loading
+- WASM binary validation (magic number, structure)
+- API version compatibility check
+- Resource limit verification
+
+**Trust Model**:
+- **Required modules** (flag `ZOO64_WASM32_REQUIRED`): User must explicitly trust
+- **Optional modules**: Can be disabled via policy
+- **Verified modules** (flag `ZOO64_WASM32_VERIFIED`): Digitally signed by author
+- **Trusted modules** (flag `ZOO64_WASM32_TRUSTED`): From organization-trusted sources
+
+**User Consent**:
+```
+Warning: This archive contains a custom compression algorithm
+implemented as a WASM32 module.
+
+Module: "CorpCompress v2.1"
+Author: "ACME Corporation"
+SHA-256: 3d4f2bf07dc1be38b20cd6e46949a1071f9fc9c03e...
+Type: Compression (required)
+
+The module requests:
+- Maximum memory: 64 MB
+- Maximum execution time: 60 seconds per operation
+
+Allow this module to execute? [Yes/No/Always/Never for this author]
+```
+
+**Denial of Service Protection**:
+- Watchdog timer terminates long-running modules
+- Memory allocation limits prevent OOM
+- Infinite loop detection via instruction counting
+
+### 12.8.7 Example WASM32 Module (C Source)
+
+Complete example of a simple compression module:
+
+```c
+//
+// example_compress.c - Simple RLE compression WASM32 module for Zoo64
+//
+// Compile: clang --target=wasm32 -O2 -nostdlib -Wl,--no-entry \
+//          -Wl,--export-all -o example_compress.wasm example_compress.c
+//
+
+#include <stdint.h>
+#include <stddef.h>
+
+//
+// Import functions from host
+//
+__attribute__((import_module("zoo64"), import_name("malloc")))
+extern void* zoo64_malloc(uint32_t size);
+
+__attribute__((import_module("zoo64"), import_name("free")))
+extern void zoo64_free(void* ptr);
+
+__attribute__((import_module("zoo64"), import_name("log")))
+extern void zoo64_log(const char* msg, uint32_t len);
+
+//
+// Simple string length (no libc)
+//
+static uint32_t strlen_simple(const char* s) {
+  uint32_t len = 0;
+  while (s[len]) len++;
+  return len;
+}
+
+//
+// Simple memory copy (no libc)
+//
+static void memcpy_simple(void* dst, const void* src, uint32_t n) {
+  uint8_t* d = (uint8_t*)dst;
+  const uint8_t* s = (const uint8_t*)src;
+  for (uint32_t i = 0; i < n; i++) {
+    d[i] = s[i];
+  }
+}
+
+//
+// Initialize module
+//
+__attribute__((export_name("zoo64_compress_init")))
+int32_t zoo64_compress_init(void) {
+  const char* msg = "Simple RLE compressor initialized";
+  zoo64_log(msg, strlen_simple(msg));
+  return 0;  // Success
+}
+
+//
+// Get algorithm information
+//
+__attribute__((export_name("zoo64_compress_get_info")))
+void zoo64_compress_get_info(
+  char* name,
+  uint32_t name_len,
+  uint32_t* flags
+) {
+  const char* algo_name = "SimpleRLE";
+  uint32_t len = strlen_simple(algo_name);
+  if (len >= name_len) len = name_len - 1;
+  memcpy_simple(name, algo_name, len);
+  name[len] = '\0';
+  *flags = 0x00000001;  // Fast compression
+}
+
+//
+// Compress data (simple RLE)
+//
+__attribute__((export_name("zoo64_compress")))
+int32_t zoo64_compress(
+  const uint8_t* input,
+  uint32_t input_size,
+  uint8_t* output,
+  uint32_t output_max,
+  uint32_t level
+) {
+  uint32_t in_pos = 0;
+  uint32_t out_pos = 0;
+
+  while (in_pos < input_size) {
+    uint8_t value = input[in_pos];
+    uint32_t run_length = 1;
+
+    //
+    // Count run
+    //
+    while (in_pos + run_length < input_size &&
+           input[in_pos + run_length] == value &&
+           run_length < 255) {
+      run_length++;
+    }
+
+    if (run_length >= 3) {
+      //
+      // Encode run: [255][length][value]
+      //
+      if (out_pos + 3 > output_max) return -1;  // Buffer too small
+      output[out_pos++] = 255;  // RLE marker
+      output[out_pos++] = (uint8_t)run_length;
+      output[out_pos++] = value;
+      in_pos += run_length;
+    } else {
+      //
+      // Literal byte
+      //
+      if (out_pos + 1 > output_max) return -1;
+      output[out_pos++] = value;
+      in_pos++;
+    }
+  }
+
+  return out_pos;  // Return compressed size
+}
+
+//
+// Decompress data
+//
+__attribute__((export_name("zoo64_decompress")))
+int32_t zoo64_decompress(
+  const uint8_t* input,
+  uint32_t input_size,
+  uint8_t* output,
+  uint32_t output_max
+) {
+  uint32_t in_pos = 0;
+  uint32_t out_pos = 0;
+
+  while (in_pos < input_size) {
+    if (input[in_pos] == 255) {
+      //
+      // RLE run
+      //
+      if (in_pos + 2 >= input_size) return -2;  // Truncated data
+      uint32_t run_length = input[in_pos + 1];
+      uint8_t value = input[in_pos + 2];
+
+      if (out_pos + run_length > output_max) return -1;  // Buffer too small
+
+      for (uint32_t i = 0; i < run_length; i++) {
+        output[out_pos++] = value;
+      }
+
+      in_pos += 3;
+    } else {
+      //
+      // Literal byte
+      //
+      if (out_pos >= output_max) return -1;
+      output[out_pos++] = input[in_pos++];
+    }
+  }
+
+  return out_pos;  // Return decompressed size
+}
+
+//
+// Cleanup
+//
+__attribute__((export_name("zoo64_compress_cleanup")))
+void zoo64_compress_cleanup(void) {
+  const char* msg = "Simple RLE compressor cleanup";
+  zoo64_log(msg, strlen_simple(msg));
+}
+```
+
+### 12.8.8 Conformance Levels
+
+- **Tiny**: No WASM support
+- **Compact**: No WASM support
+- **Embedded**: No WASM support
+- **Minimal**: No WASM support
+- **Standard**: No WASM support
+- **Enhanced**: WASM32 decompression/decryption only (read-only)
+- **Full**: Complete WASM32 support (read and write)
+
+**Implementation Requirements (Full)**:
+- WASM32 runtime (e.g., wasm3, wasmer, wasmtime)
+- Sandboxing support
+- Resource limit enforcement
+- Module validation
+- Hash verification
+
+### 12.8.9 Best Practices
+
+**For Archive Creators**:
+1. Only embed WASM modules when necessary (proprietary/custom algorithms)
+2. Keep modules small (< 1MB recommended)
+3. Set appropriate resource limits
+4. Include fallback to standard algorithms when possible
+5. Document algorithm in module metadata
+6. Sign modules for verification
+7. Test modules thoroughly before embedding
+
+**For Archive Consumers**:
+1. Verify module hashes before loading
+2. Enforce resource limits strictly
+3. Provide user consent UI for required modules
+4. Allow disabling optional modules via policy
+5. Maintain whitelist/blacklist of module authors
+6. Log all WASM module executions
+7. Consider using read-only mode for untrusted archives
+
+**Security Checklist**:
+- [ ] SHA-256 hash verified
+- [ ] API version compatible
+- [ ] Resource limits set appropriately
+- [ ] User consent obtained (for required modules)
+- [ ] Module runs in sandbox
+- [ ] Watchdog timer enabled
+- [ ] Memory limits enforced
+- [ ] Execution logged
+
 ## 13. COM Component Interface
 
 Zoo64 is designed as a COM component for cross-language interoperability.
@@ -7333,47 +10634,838 @@ interface IZoo64Metadata : IUnknown {
 - Store Finder info
 - HFS+ compression flags
 
-## 15. Error Handling
+### 14.4 When to Use VCS Metadata
 
-### 15.1 Error Codes
+Version Control System (VCS) metadata should be stored selectively based on the archiving scenario. This section provides guidance on when to include Git, SVN, Perforce, and other VCS metadata.
+
+#### 14.4.1 Scenarios Requiring VCS Metadata
+
+**1. Source Code Archiving**
+```
+Use Case: Archiving source code repositories for long-term preservation
+Metadata Types: ZOO64_META_GIT (0x0032), ZOO64_META_SVN (0x0034), ZOO64_META_MERCURIAL (0x0037)
+
+When to Include:
+✓ Creating compliance archives (GPL/LGPL requirement to provide source)
+✓ Historical preservation of software projects
+✓ Legal discovery/eDiscovery requirements
+✓ Backup of development repositories
+✓ Migration between VCS systems
+
+What to Store:
+- Git: Commit hashes, ref names, object hashes, branch/tag info, worktree state
+- SVN: Revision numbers, property lists, externals definitions
+- Perforce: Changelist numbers, file revisions, labels
+- Mercurial: Node IDs, parent hashes, bookmarks, tags
+```
+
+**2. Build Artifact Tracing**
+```
+Use Case: Tracking which commit built which artifact
+Metadata Types: ZOO64_META_GIT (0x0032)
+
+When to Include:
+✓ Binary distribution packages (linking binaries to source)
+✓ Release archives (tracking exact source code used)
+✓ Docker/container images (reproducible builds)
+✓ Firmware updates (traceability for safety/security)
+
+What to Store:
+- Commit hash that produced the build
+- Branch name and tag (if any)
+- Dirty state indicator (uncommitted changes)
+- Submodule commit hashes
+```
+
+**3. Continuous Integration/Deployment**
+```
+Use Case: CI/CD pipeline artifacts
+Metadata Types: ZOO64_META_GIT (0x0032), ZOO64_META_SVN (0x0034)
+
+When to Include:
+✓ Build artifacts from CI systems
+✓ Test result archives
+✓ Deployment packages
+✓ Release candidates
+
+What to Store:
+- Exact commit that triggered the build
+- Build number and timestamp
+- Branch and tag information
+- CI job ID for traceability
+```
+
+**4. Migration and Conversion**
+```
+Use Case: Moving between different VCS or preserving history during migration
+Metadata Types: All VCS types (0x0032-0x0037, 0x003B)
+
+When to Include:
+✓ SVN → Git migration
+✓ Perforce → Git migration
+✓ CVS/RCS → Modern VCS migration
+✓ Mercurial ↔ Git conversion
+✓ Fossil → Git migration
+
+What to Store:
+- Original revision identifiers
+- Author mapping information
+- Branch/tag correspondence
+- Merge parent relationships
+- Original timestamps
+```
+
+#### 14.4.2 Scenarios NOT Requiring VCS Metadata
+
+**1. User Data Backups**
+```
+❌ Home directory backups
+❌ Document archives
+❌ Photo/media libraries
+❌ General file backups
+
+Reason: User files are not under version control; VCS metadata wastes space
+```
+
+**2. System Backups**
+```
+❌ Operating system images
+❌ Configuration backups (unless in /etc/.git)
+❌ Database dumps
+❌ Log archives
+
+Reason: System files don't have VCS context; use standard metadata instead
+```
+
+**3. Binary-Only Distribution**
+```
+❌ End-user software installers
+❌ Proprietary binary libraries (no source available)
+❌ Closed-source applications
+❌ Precompiled packages without source
+
+Reason: VCS metadata only useful with corresponding source code
+Exception: May include commit hash for traceability if binary was built from VCS
+```
+
+**4. Temporary/Working Archives**
+```
+❌ Compressed transfers between systems
+❌ Temporary build directories
+❌ Cache archives
+❌ Incremental backups of non-VCS content
+
+Reason: Short-lived archives don't benefit from VCS context
+```
+
+#### 14.4.3 Conditional VCS Metadata Usage
+
+**Git Working Tree Archives**
+```
+Archive Type: Development snapshot
+Include VCS Metadata IF:
+  - Archive is for disaster recovery
+  - Need to resume work elsewhere
+  - Preserving work-in-progress state
+  - Debugging build issues requiring exact state
+
+Store:
+  - Current branch and commit
+  - Stash entries (if any)
+  - Untracked file list
+  - Submodule states
+  - Worktree configuration
+
+Omit VCS Metadata IF:
+  - Just distributing source code
+  - Archive is temporary
+  - Workspace is clean (no local changes)
+```
+
+**Git LFS Handling**
+```
+Archive Type: Repository with Large File Storage
+Include Git Metadata: YES
+Include LFS Metadata: CONDITIONAL
+
+Store LFS Metadata IF:
+  - Archiving for offline access (include actual LFS objects)
+  - Migration to different Git hosting (preserve LFS pointers)
+  - Compliance requires all data (include full LFS content)
+
+Store Only Git Metadata IF:
+  - LFS objects available on server
+  - Archiving just working tree
+  - Bandwidth/storage constrained
+```
+
+#### 14.4.4 Metadata Storage Recommendations
+
+**Minimal (Source Distribution)**
+```c
+//
+// Store only commit hash for traceability
+//
+typedef struct _ZOO64_GIT_MINIMAL {
+  UINT8   CommitHash[20];  // SHA-1 of commit
+  UINT8   Dirty;           // Non-zero if workspace had changes
+} ZOO64_GIT_MINIMAL;
+
+Size: 21 bytes per file
+Use: Binary releases, build artifacts
+```
+
+**Standard (Repository Backup)**
+```c
+//
+// Store commit, branch, and refs
+//
+typedef struct _ZOO64_GIT_STANDARD {
+  UINT8   CommitHash[20];    // SHA-1 of commit
+  UINT8   TreeHash[20];      // Tree object hash
+  UINT8   BranchName[256];   // Current branch
+  UINT8   Tag[256];          // Tag name (if any)
+  UINT32  Flags;             // Dirty, detached, etc.
+} ZOO64_GIT_STANDARD;
+
+Size: ~552 bytes per file
+Use: Source archives, CI/CD artifacts
+```
+
+**Complete (Full Repository Preservation)**
+```c
+//
+// Store all Git metadata (see section 6.34)
+//
+typedef struct _ZOO64_GIT_COMPLETE {
+  UINT8   CommitHash[20];
+  UINT8   TreeHash[20];
+  UINT8   ParentCount;
+  // ... (see full structure in section 6.34)
+  UINT32  SubmoduleCount;
+  UINT32  RemoteCount;
+  UINT32  RefCount;
+} ZOO64_GIT_COMPLETE;
+
+Size: Variable (1-10 KB per file typical)
+Use: Historical preservation, legal archives, full backups
+```
+
+#### 14.4.5 Performance Considerations
+
+**Storage Overhead**
+```
+VCS metadata adds overhead - use judiciously:
+
+Without VCS metadata: 150 bytes per file (basic Zoo64 metadata)
+With minimal Git:     +21 bytes (14% overhead)
+With standard Git:    +552 bytes (268% overhead)
+With complete Git:    +1-10 KB (567-6666% overhead)
+
+Recommendation: Use minimal metadata unless specific requirement exists
+```
+
+**Extraction Performance**
+```
+VCS metadata affects extraction:
+- No impact on extraction speed (metadata is separate chunk)
+- Enables selective extraction by commit/branch/tag
+- Allows verification of source-to-binary mapping
+```
+
+#### 14.4.6 Example Decision Tree
 
 ```
-ZOO64_OK                    = 0x00000000
-ZOO64_E_INVALID_MAGIC       = 0x80040001
-ZOO64_E_UNSUPPORTED_VERSION = 0x80040002
-ZOO64_E_CORRUPT_HEADER      = 0x80040003
-ZOO64_E_CORRUPT_DATA        = 0x80040004
-ZOO64_E_DECOMPRESSION_ERROR = 0x80040005
-ZOO64_E_SIGNATURE_INVALID   = 0x80040006
-ZOO64_E_ENCRYPTION_ERROR    = 0x80040007
-ZOO64_E_FILE_NOT_FOUND      = 0x80040008
-ZOO64_E_INVALID_PATH        = 0x80040009
-ZOO64_E_ACCESS_DENIED       = 0x8004000A
+Should I include VCS metadata?
+
+1. Is this source code?
+   NO  → Skip VCS metadata
+   YES → Continue to 2
+
+2. Is long-term preservation required?
+   YES → Include STANDARD Git metadata
+   NO  → Continue to 3
+
+3. Is this a binary artifact?
+   YES → Include MINIMAL Git metadata (commit hash only)
+   NO  → Continue to 4
+
+4. Is this for migration/conversion?
+   YES → Include COMPLETE VCS metadata
+   NO  → Continue to 5
+
+5. Is this temporary or working copy?
+   YES → Skip VCS metadata
+   NO  → Include STANDARD metadata (default for source archives)
 ```
 
-## 16. Implementation Notes
+#### 14.4.7 Best Practices
 
-### 16.1 Byte Order
+1. **Default to NO**: Don't include VCS metadata unless there's a clear requirement
+2. **Match Scope to Need**: Use minimal metadata when commit hash suffices
+3. **Document Decisions**: Use archive YAML metadata to explain why VCS metadata was included/excluded
+4. **Consider Compliance**: Legal requirements may mandate VCS metadata inclusion
+5. **Think Long-Term**: Historical archives should include more metadata than temporary ones
+6. **Verify Completeness**: If including VCS metadata, ensure all referenced objects are available
 
-All multi-byte integers are stored in **little-endian** format.
+## 15. Coding Conventions
 
-### 16.2 Alignment
+This specification follows NT/UEFI coding style conventions for all code examples and structure definitions.
+
+### 15.1 Data Types
+
+All structure definitions use UEFI standard data types:
+
+```c
+//
+// UEFI Standard Data Types
+//
+typedef unsigned char      UINT8;
+typedef unsigned short     UINT16;
+typedef unsigned int       UINT32;
+typedef unsigned long long UINT64;
+typedef char               CHAR8;
+typedef short              CHAR16;
+typedef unsigned long      UINTN;    // Native pointer size
+typedef long               INTN;     // Signed native pointer size
+typedef unsigned char      BOOLEAN;
+
+//
+// Extended Types for Zoo64
+//
+typedef struct {
+  UINT64  Low;   // Lower 64 bits
+  UINT64  High;  // Upper 64 bits
+} UINT128;
+
+//
+// UUID Type (RFC 4122)
+//
+typedef struct {
+  UINT32  Data1;    // Time low
+  UINT16  Data2;    // Time mid
+  UINT16  Data3;    // Time high and version
+  UINT8   Data4[8]; // Clock seq and node
+} EFI_GUID;
+
+//
+// Zoo64 uses EFI_GUID for all UUID fields
+//
+typedef EFI_GUID ZOO64_UUID;
+
+//
+// Boolean Constants
+//
+#define TRUE   1
+#define FALSE  0
+```
+
+**Important**: Magics and signatures MUST use `UINT8` arrays, NOT `CHAR8`:
+
+```c
+//
+// CORRECT - Use UINT8 for binary magic values
+//
+typedef struct {
+  UINT8   Magic[8];  // 0x5A 0x4F 0x4F 0x36 0x34 0x41 0x52 0x43
+  UINT32  Version;
+  // ...
+} ZOO64_ARCHIVE_HEADER;
+
+//
+// INCORRECT - Do not use CHAR8 for binary data
+//
+typedef struct {
+  CHAR8   Magic[8];  // WRONG - CHAR8 is for text
+  // ...
+} WRONG_HEADER;
+```
+
+### 15.2 Enumeration Style
+
+All enumerations follow NT/UEFI PascalCase naming conventions (not underscore style):
+
+**NT Enumeration Naming Rules**:
+- Type name: PascalCase, prefixed with `ZOO64_` (e.g., `ZOO64_COMPRESSION_ALGORITHM`)
+- Enum values: PascalCase, prefixed with type category (e.g., `Zoo64CompressZstd`)
+- NO underscores in enum values (except in type name)
+- Clear, readable names describing the value
+
+```c
+//
+// Compression Algorithm Enumeration
+// NT-style: Zoo64Compress* (PascalCase, no underscores)
+//
+typedef enum _ZOO64_COMPRESSION_ALGORITHM {
+  Zoo64CompressStored               = 0x0000,  // No compression
+  Zoo64CompressZoz                  = 0x0001,  // ZOZ adaptive pipeline
+  Zoo64CompressLz77                 = 0x0002,  // Lempel-Ziv 1977
+  Zoo64CompressLz4                  = 0x0003,  // Extremely fast
+  Zoo64CompressZstd                 = 0x0004,  // Zstandard (recommended)
+  Zoo64CompressLzma                 = 0x0005,  // 7-Zip
+  Zoo64CompressLzma2                = 0x0006,  // Multi-threaded LZMA
+  Zoo64CompressLzx                  = 0x0007,  // Microsoft CAB
+  Zoo64CompressLzfse                = 0x0008,  // Apple
+  Zoo64CompressZlib                 = 0x0009,  // Deflate (RFC 1950)
+  Zoo64CompressLzh                  = 0x000A,  // LHA/LZH
+  Zoo64CompressLzw                  = 0x000B,  // Lempel-Ziv-Welch
+  Zoo64CompressBrotli               = 0x000C,  // Google (RFC 7932)
+  Zoo64CompressBzip2                = 0x000D,  // bzip2
+  Zoo64CompressPaq                  = 0x000E,  // PAQ family
+  Zoo64CompressHuffman              = 0x000F,  // Huffman only
+  Zoo64CompressBitSquish            = 0x0010,  // Bit squishing (reduced alphabet)
+  Zoo64CompressCustom               = 0x0100   // Custom algorithm
+} ZOO64_COMPRESSION_ALGORITHM;
+
+//
+// Encryption Method Enumeration
+// NT-style: Zoo64Encrypt* (PascalCase)
+//
+typedef enum _ZOO64_ENCRYPTION_METHOD {
+  Zoo64EncryptNone                  = 0x0000,  // Not encrypted
+  Zoo64EncryptAes256Gcm             = 0x0001,  // AES-256-GCM (recommended)
+  Zoo64EncryptAes256CbcHmac         = 0x0002,  // AES-256-CBC + HMAC-SHA256
+  Zoo64EncryptChaCha20Poly1305      = 0x0003,  // ChaCha20-Poly1305
+  Zoo64EncryptAes128Gcm             = 0x0004,  // AES-128-GCM
+  Zoo64EncryptTwofish256Gcm         = 0x0005,  // Twofish-256-GCM
+  Zoo64EncryptSerpent256Gcm         = 0x0006   // Serpent-256-GCM
+} ZOO64_ENCRYPTION_METHOD;
+
+//
+// Key Derivation Function Enumeration
+// NT-style: Zoo64Kdf* (PascalCase)
+//
+typedef enum _ZOO64_KDF_ALGORITHM {
+  Zoo64KdfNone                      = 0x0000,  // Direct key (not recommended)
+  Zoo64KdfPbkdf2HmacSha256          = 0x0001,  // PBKDF2 with SHA-256
+  Zoo64KdfPbkdf2HmacSha512          = 0x0002,  // PBKDF2 with SHA-512
+  Zoo64KdfArgon2id                  = 0x0003,  // Argon2id (recommended)
+  Zoo64KdfScrypt                    = 0x0004,  // scrypt
+  Zoo64KdfBcrypt                    = 0x0005   // bcrypt
+} ZOO64_KDF_ALGORITHM;
+
+//
+// Hash Algorithm Enumeration
+// NT-style: Zoo64Hash* (PascalCase)
+//
+typedef enum _ZOO64_HASH_ALGORITHM {
+  Zoo64HashNone                     = 0x0000,  // No hash
+  Zoo64HashCrc32                    = 0x0001,  // CRC-32 (IEEE)
+  Zoo64HashSha1                     = 0x0002,  // SHA-1 (deprecated)
+  Zoo64HashSha256                   = 0x0003,  // SHA-256 (recommended)
+  Zoo64HashSha384                   = 0x0004,  // SHA-384
+  Zoo64HashSha512                   = 0x0005,  // SHA-512
+  Zoo64HashSha3_256                 = 0x0006,  // SHA3-256
+  Zoo64HashSha3_512                 = 0x0007,  // SHA3-512
+  Zoo64HashBlake2b                  = 0x0008,  // BLAKE2b
+  Zoo64HashBlake3                   = 0x0009   // BLAKE3
+} ZOO64_HASH_ALGORITHM;
+
+//
+// Digital Signature Type Enumeration
+// NT-style: Zoo64Sig* (PascalCase)
+//
+typedef enum _ZOO64_SIGNATURE_TYPE {
+  Zoo64SigNone                      = 0x0000,  // No signature
+  Zoo64SigRsa2048                   = 0x0001,  // RSA-2048
+  Zoo64SigRsa4096                   = 0x0002,  // RSA-4096
+  Zoo64SigEcdsaP256                 = 0x0003,  // ECDSA P-256
+  Zoo64SigEcdsaP384                 = 0x0004,  // ECDSA P-384
+  Zoo64SigEd25519                   = 0x0005,  // Ed25519 (recommended)
+  Zoo64SigEd448                     = 0x0006   // Ed448
+} ZOO64_SIGNATURE_TYPE;
+
+//
+// Overlay File Type Enumeration
+// NT-style: Zoo64Overlay* (PascalCase)
+//
+typedef enum _ZOO64_OVERLAY_TYPE {
+  Zoo64OverlayNew                   = 0x0000,  // New file
+  Zoo64OverlayModified              = 0x0001,  // Modified (delta)
+  Zoo64OverlayDeleted               = 0x0002,  // Deleted (tombstone)
+  Zoo64OverlayUnchanged             = 0x0003,  // Unchanged (reference)
+  Zoo64OverlayMoved                 = 0x0004   // Moved/renamed
+} ZOO64_OVERLAY_TYPE;
+
+//
+// Metadata Chunk Type Enumeration
+// NT-style: Zoo64Meta* (PascalCase)
+//
+typedef enum _ZOO64_METADATA_TYPE {
+  Zoo64MetaAcl                      = 0x0001,  // Access Control List
+  Zoo64MetaXattr                    = 0x0002,  // Extended attributes
+  Zoo64MetaAds                      = 0x0003,  // Alternate Data Streams
+  Zoo64MetaSecurityDescriptor       = 0x0004,  // Windows security
+  Zoo64MetaResourceFork             = 0x0005,  // macOS resource fork
+  Zoo64MetaExtendedTimestamps       = 0x0006,  // Additional timestamps
+  Zoo64MetaFileCapabilities         = 0x0007,  // Linux capabilities
+  Zoo64MetaSelinuxContext           = 0x0008,  // SELinux context
+  Zoo64MetaYaml                     = 0x000A,  // YAML metadata
+  Zoo64MetaMacosUuid                = 0x000B,  // macOS UUIDs
+  Zoo64MetaBsdFlags                 = 0x000C,  // BSD file flags
+  Zoo64MetaLinuxFlags               = 0x000D,  // Linux attributes
+  Zoo64MetaWindowsAttr              = 0x000E,  // Windows attributes
+  Zoo64MetaHardLink                 = 0x000F,  // Hard link target
+  Zoo64MetaSymlink                  = 0x0010,  // Symbolic link
+  Zoo64MetaGit                      = 0x0032,  // Git metadata
+  Zoo64MetaPerforce                 = 0x0033,  // Perforce metadata
+  Zoo64MetaSvn                      = 0x0034,  // Subversion metadata
+  Zoo64MetaMercurial                = 0x0037,  // Mercurial metadata
+  Zoo64MetaSparseFile               = 0x0045,  // Sparse file holes
+  Zoo64MetaDeltaRevision            = 0x0046,  // Delta revision
+  Zoo64MetaBlockDedup               = 0x004A,  // Block deduplication
+  Zoo64MetaWasm32Module             = 0x0100   // WASM32 module (custom algorithms)
+  // See section 6.2 for complete list
+} ZOO64_METADATA_TYPE;
+
+//
+// ACL Source System Enumeration
+// NT-style: Zoo64AclSource* (PascalCase)
+// Example from user: Zoo64AclSourceWindowsNt
+//
+typedef enum _ZOO64_ACL_SOURCE_SYSTEM {
+  Zoo64AclSourceUnknown             = 0x0000,  // Unknown/Generic
+  Zoo64AclSourcePosix               = 0x0001,  // POSIX.1e
+  Zoo64AclSourceNfsv4               = 0x0002,  // NFSv4 (RFC 7530)
+  Zoo64AclSourceWindowsNt           = 0x0003,  // Windows NT DACL/SACL
+  Zoo64AclSourceMacos               = 0x0004,  // macOS Extended ACLs
+  Zoo64AclSourceOpenvms             = 0x0005,  // OpenVMS ACLs
+  Zoo64AclSourceOs400               = 0x0006,  // OS/400 Authorities
+  Zoo64AclSourceMvsRacf             = 0x0007,  // MVS/RACF
+  Zoo64AclSourceNetware             = 0x0008,  // Novell NetWare
+  Zoo64AclSourceVines               = 0x0009,  // Banyan VINES
+  Zoo64AclSourceAfs                 = 0x000A,  // Andrew File System
+  Zoo64AclSourceCoda                = 0x000B,  // CODA Distributed FS
+  Zoo64AclSourceZfs                 = 0x000C,  // Solaris ZFS
+  Zoo64AclSourceDceDfs              = 0x0019,  // DCE DFS
+  Zoo64AclSourceGfs                 = 0x001A,  // Global File System
+  Zoo64AclSourceMsDfs               = 0x001B   // Microsoft DFS
+} ZOO64_ACL_SOURCE_SYSTEM;
+```
+
+### 15.3 Commenting Style
+
+All code follows UEFI commenting conventions:
+
+```c
+//
+// Multi-line comment describing structure, function, or block
+// Each line starts with // and is properly indented
+//
+typedef struct {
+  UINT64  Field1;  // Inline comment for field
+  UINT32  Field2;  // Brief field description
+} EXAMPLE_STRUCTURE;
+
+//
+// Function description explaining purpose, parameters, and return value
+//
+BOOLEAN
+ExampleFunction (
+  IN     CONST UINT8   *Input,      // Input buffer
+  IN     UINTN         InputSize,   // Size of input
+  OUT    UINT8         *Output,     // Output buffer
+  OUT    UINTN         *OutputSize  // Size of output
+  )
+{
+  //
+  // Implementation with clear comments
+  //
+  return TRUE;
+}
+```
+
+### 15.4 Naming Conventions
+
+**No Hungarian Notation**: Variable names describe purpose, not type:
+
+```c
+//
+// CORRECT - Clear descriptive names
+//
+UINT32  FileCount;
+UINT64  TotalSize;
+UINT8   *Buffer;
+UINTN   BytesProcessed;
+
+//
+// INCORRECT - Hungarian notation (do not use)
+//
+UINT32  dwFileCount;    // Wrong - no 'dw' prefix
+UINT64  ullTotalSize;   // Wrong - no 'ull' prefix
+UINT8   *pBuffer;       // Wrong - no 'p' prefix
+UINTN   cbBytes;        // Wrong - no 'cb' prefix
+```
+
+**Structure Member Names**: Use clear, descriptive names:
+- Start with capital letter
+- Use camel case for multiple words
+- No underscores except in structure tags
+
+```c
+typedef struct _ZOO64_FILE_HEADER {
+  UINT64  UncompressedSize;  // Clear name
+  UINT64  CompressedSize;    // No abbreviations unless standard
+  UINT32  CRC32;             // Standard abbreviation OK
+  UINT64  SHA256[4];         // Standard algorithm name
+} ZOO64_FILE_HEADER;
+```
+
+### 15.5 Magic Values
+
+All magic values are defined as byte arrays with hexadecimal constants:
+
+```c
+//
+// Archive magic signature
+//
+#define ZOO64_ARCHIVE_MAGIC { 0x5A, 0x4F, 0x4F, 0x36, 0x34, 0x41, 0x52, 0x43 }
+// "ZOO64ARC" in ASCII: Z=0x5A O=0x4F O=0x4F 6=0x36 4=0x34 A=0x41 R=0x52 C=0x43
+
+//
+// File entry magic
+//
+#define ZOO64_FILE_ENTRY_MAGIC { 0x46, 0x49, 0x4C, 0x45, 0x45, 0x4E, 0x54, 0x52 }
+// "FILEENTR"
+
+//
+// Quick directory magic
+//
+#define ZOO64_QUICK_DIR_MAGIC { 0x51, 0x55, 0x49, 0x43, 0x4B, 0x44, 0x49, 0x52 }
+// "QUICKDIR"
+```
+
+## 16. Error Handling
+
+### 16.1 Error Codes
+
+Following NT HRESULT style, all error codes use UINT32 type with standard facility codes:
+
+```c
+//
+// Success codes
+//
+#define ZOO64_OK                     ((UINT32)0x00000000)
+
+//
+// Error codes (0x8004xxxx range - standard COM facility)
+//
+#define ZOO64_E_INVALID_MAGIC        ((UINT32)0x80040001)
+#define ZOO64_E_UNSUPPORTED_VERSION  ((UINT32)0x80040002)
+#define ZOO64_E_CORRUPT_HEADER       ((UINT32)0x80040003)
+#define ZOO64_E_CORRUPT_DATA         ((UINT32)0x80040004)
+#define ZOO64_E_DECOMPRESSION_ERROR  ((UINT32)0x80040005)
+#define ZOO64_E_SIGNATURE_INVALID    ((UINT32)0x80040006)
+#define ZOO64_E_ENCRYPTION_ERROR     ((UINT32)0x80040007)
+#define ZOO64_E_FILE_NOT_FOUND       ((UINT32)0x80040008)
+#define ZOO64_E_INVALID_PATH         ((UINT32)0x80040009)
+#define ZOO64_E_ACCESS_DENIED        ((UINT32)0x8004000A)
+#define ZOO64_E_OUT_OF_MEMORY        ((UINT32)0x8004000B)
+#define ZOO64_E_INVALID_PARAMETER    ((UINT32)0x8004000C)
+#define ZOO64_E_NOT_IMPLEMENTED      ((UINT32)0x8004000D)
+
+//
+// Macro to test success
+//
+#define ZOO64_SUCCESS(Status)  ((Status) == ZOO64_OK)
+#define ZOO64_ERROR(Status)    ((Status) != ZOO64_OK)
+```
+
+## 17. Implementation Notes
+
+### 17.1 Byte Order (Endianness)
+
+**CRITICAL**: All Zoo64 archives use **LITTLE-ENDIAN** byte order for all multi-byte integers.
+
+This applies to:
+- All UINT16, UINT32, UINT64, UINT128 fields
+- All structure members
+- All magic signatures
+- All numeric metadata
+
+**Endianness Examples**:
+
+```c
+//
+// UINT32 value 0x12345678 stored as:
+// Offset: 00 01 02 03
+// Bytes:  78 56 34 12  (little-endian)
+//
+
+//
+// Archive magic 0x5A4F4F3634415243 ("ZOO64ARC") stored as:
+// Offset: 00 01 02 03 04 05 06 07
+// Bytes:  43 52 41 34 36 4F 4F 5A  (little-endian UINT64)
+//
+// OR as UINT8 array (platform-independent):
+// Offset: 00 01 02 03 04 05 06 07
+// Bytes:  5A 4F 4F 36 34 41 52 43  (ASCII "ZOO64ARC")
+//
+
+//
+// UINT128 value (low=0x1122334455667788, high=0x99AABBCCDDEEFF00):
+// Offset: 00 01 02 03 04 05 06 07 08 09 0A 0B 0C 0D 0E 0F
+// Bytes:  88 77 66 55 44 33 22 11 00 FF EE DD CC BB AA 99
+//         └─────── Low (LE) ──────┘ └────── High (LE) ─────┘
+//
+```
+
+**Why Little-Endian**:
+- x86/x64 native byte order (most common platforms)
+- ARM can operate in little-endian mode (common configuration)
+- Simpler implementation on dominant architectures
+- Consistent with ZIP, ELF, PE, and most modern formats
+
+**Cross-Platform Compatibility**:
+
+On big-endian systems (PowerPC, SPARC, some ARM configurations), implementations MUST perform byte swapping:
+
+```c
+//
+// Byte swap macros for big-endian systems
+//
+#if defined(__BIG_ENDIAN__) || defined(_BIG_ENDIAN)
+
+UINT16 SwapUint16(UINT16 Value) {
+  return (Value >> 8) | (Value << 8);
+}
+
+UINT32 SwapUint32(UINT32 Value) {
+  return ((Value >> 24) & 0x000000FF) |
+         ((Value >> 8)  & 0x0000FF00) |
+         ((Value << 8)  & 0x00FF0000) |
+         ((Value << 24) & 0xFF000000);
+}
+
+UINT64 SwapUint64(UINT64 Value) {
+  return ((Value >> 56) & 0x00000000000000FFULL) |
+         ((Value >> 40) & 0x000000000000FF00ULL) |
+         ((Value >> 24) & 0x0000000000FF0000ULL) |
+         ((Value >> 8)  & 0x00000000FF000000ULL) |
+         ((Value << 8)  & 0x000000FF00000000ULL) |
+         ((Value << 24) & 0x0000FF0000000000ULL) |
+         ((Value << 40) & 0x00FF000000000000ULL) |
+         ((Value << 56) & 0xFF00000000000000ULL);
+}
+
+//
+// Use after reading from archive
+//
+UINT32 FileSize = SwapUint32(Header->UncompressedSize);
+
+#else
+//
+// Little-endian systems: no swapping needed
+//
+#define SwapUint16(x) (x)
+#define SwapUint32(x) (x)
+#define SwapUint64(x) (x)
+#endif
+```
+
+**Verification**:
+
+All implementations MUST verify endianness by checking magic signatures:
+
+```c
+//
+// Verify archive magic (handles endianness automatically with UINT8 array)
+//
+UINT8 ExpectedMagic[8] = { 0x5A, 0x4F, 0x4F, 0x36, 0x34, 0x41, 0x52, 0x43 };
+
+if (CompareMem(Header->Magic, ExpectedMagic, 8) != 0) {
+  //
+  // Try byte-swapped magic (in case of endianness mismatch)
+  //
+  UINT64 SwappedMagic = SwapUint64(*(UINT64*)Header->Magic);
+  if (CompareMem(&SwappedMagic, ExpectedMagic, 8) == 0) {
+    return ZOO64_E_WRONG_ENDIAN;  // Archive created on different-endian system
+  }
+  return ZOO64_E_INVALID_MAGIC;
+}
+```
+
+**Summary**:
+- **All multi-byte values**: Little-endian
+- **All magic signatures**: Use UINT8 arrays (platform-independent)
+- **Big-endian systems**: MUST byte-swap when reading/writing
+- **Never store big-endian**: Archives are always little-endian on disk
+
+### 17.2 Alignment
 
 Structures are packed (no padding). Use `__attribute__((packed))` or `#pragma pack(1)`.
 
-### 16.3 String Encoding
+```c
+//
+// All structures must be packed to ensure correct layout
+//
+#pragma pack(push, 1)
+typedef struct _ZOO64_ARCHIVE_HEADER {
+  UINT8   Magic[8];           // No padding here
+  UINT32  Version;            // Immediately follows Magic
+  UINT32  Flags;              // Immediately follows Version
+  // ...
+} ZOO64_ARCHIVE_HEADER;
+#pragma pack(pop)
+```
+
+**Note**: Packed structures may cause unaligned access issues on some architectures (ARM, MIPS). Implementations should either:
+1. Read into packed structure (may be slow on ARM)
+2. Read bytes and assemble fields manually (portable)
+3. Use compiler-specific unaligned access support
+
+### 17.3 String Encoding
 
 All paths and text metadata use **UTF-8** encoding.
 
-### 16.4 Checksums
+- **Paths**: UTF-8 with NFC normalization (Unicode Normalization Form C)
+- **YAML metadata**: UTF-8
+- **Comments**: UTF-8
+- **Text fields**: UTF-8
 
-- CRC32 uses IEEE polynomial (0xEDB88320)
-- SHA-256 for file integrity
-- Additional hash in signature blocks
+**Never use**:
+- ASCII (except for legacy compatibility)
+- UTF-16 (except in Windows-specific metadata)
+- ISO-8859-1 or other code pages
+- Platform-specific encodings
 
-### 16.5 Compression Reset Points
+### 17.4 Checksums
+
+- **CRC32**: Uses IEEE polynomial (0xEDB88320), little-endian representation
+- **SHA-256**: Standard byte order (big-endian in specification, stored as byte array)
+- **SHA-512, BLAKE3, etc.**: Stored as byte arrays (no endianness issues)
+
+**Note**: Hash digests are stored as UINT8 arrays, so endianness does not apply.
+
+### 17.5 Compression Reset Points
 
 For seekable compression, compressor state is reset at each block boundary to enable independent decompression.
+
+### 17.6 Magic Signature Format
+
+All magic signatures are stored as UINT8 byte arrays in ASCII character order:
+
+```c
+//
+// Magic signatures - always use UINT8 arrays
+//
+UINT8 Magic[8];  // NOT UINT64, NOT CHAR8
+
+//
+// Correct initialization
+//
+UINT8 ArchiveMagic[8] = { 0x5A, 0x4F, 0x4F, 0x36, 0x34, 0x41, 0x52, 0x43 };
+// Reads as "ZOO64ARC" in ASCII
+
+//
+// When comparing magics, use byte-by-byte comparison
+//
+if (CompareMem(Header->Magic, ArchiveMagic, 8) == 0) {
+  // Valid magic
+}
+```
+
+This approach is endian-neutral because each byte is compared individually.
 
 ## 17. Classic Zoo Format Compatibility
 
@@ -7611,7 +11703,7 @@ When archive header flag bit 7 (Classic Zoo compatibility mode) is set:
 
 - **1.0** (2025-10-31): Initial specification draft
   - Basic archive structure with redundant directories
-  - BWT+MTF+RAD50RLE+LZ78+Range compression pipeline
+  - ZOZ adaptive entropy-reduction compression pipeline
   - Variable-length UTF-8 paths
   - ACL, xattr, ADS metadata support
   - YAML metadata (archive and file level)
