@@ -26,7 +26,14 @@ SRCS += libs/framebuffer/sources/dither.c \
         libs/framebuffer/sources/font.c \
         libs/framebuffer/sources/text.c \
         libs/framebuffer/sources/palette.c \
+        libs/framebuffer/sources/factory.c \
         libs/framebuffer/sources/backends/generic.c \
+        libs/framebuffer/sources/backends/hercules.c \
+        libs/framebuffer/sources/backends/vga16.c \
+        libs/framebuffer/sources/backends/vesa_linear.c \
+        libs/framebuffer/sources/backends/vesa_banked.c \
+        libs/framebuffer/sources/backends/uefi_gop.c \
+        libs/framebuffer/sources/backends/apple_efi.c \
         libs/framebuffer/sources/fonts/8x8.c \
         libs/framebuffer/sources/fonts/8x14.c \
         libs/framebuffer/sources/fonts/8x16.c \

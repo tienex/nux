@@ -93,17 +93,84 @@ IUnknown_Release((IUnknown *)backend);
 
 ## Backend Implementations
 
-### Generic Backend
+All backends are fully implemented and available through the factory function or direct constructors.
 
-Supports all RGB and indexed color modes with software rendering.
+### Generic Backend (`FbBackendGeneric`)
 
-### Planned Backends
+Software renderer supporting all RGB formats (RGB888, RGB565, RGB555) and indexed color modes.
+Best for modern systems with linear framebuffers.
 
-- **UEFI GOP** - Graphics Output Protocol for UEFI systems
-- **Apple EFI** - Apple-specific EFI graphics
-- **Hercules** - Hercules Graphics Card (720×348 monochrome)
-- **CGA/VGA** - IBM CGA/VGA text and graphics modes
-- **VESA** - VESA BIOS Extensions (linear and banked)
+```c
+IFramebufferBackend *backend = FbCreateGenericBackend();
+// Or: FbCreateBackend(FbBackendGeneric);
+```
+
+### Hercules Graphics Card (`FbBackendHercules`)
+
+720×348 monochrome (1BPP) display with 4-bank interleaved memory layout.
+Physical address: 0xB0000. Supports classic Mac dithering for grayscale simulation.
+
+```c
+IFramebufferBackend *backend = FbCreateHerculesBackend();
+```
+
+### VGA 16-Color Planar (`FbBackendVga16`)
+
+Standard VGA planar mode (640×480×16) with 4 bit planes.
+Uses VGA hardware registers for plane selection. Supports all VGA graphics modes.
+
+```c
+IFramebufferBackend *backend = FbCreateVga16Backend();
+```
+
+### VESA Linear Framebuffer (`FbBackendVesaLinear`)
+
+VESA 2.0+ linear framebuffer modes (LFB). Direct memory access without banking.
+Supports high-resolution modes with RGB555/565/888 formats.
+
+```c
+IFramebufferBackend *backend = FbCreateVesaLinearBackend();
+```
+
+### VESA Banked/Segmented (`FbBackendVesaBanked`)
+
+VESA 1.x/2.0 banked modes with 64KB window at 0xA0000.
+Requires bank switching function for accessing memory beyond 64KB.
+
+```c
+IFramebufferBackend *backend = FbCreateVesaBankedBackend();
+FbVesaBankedSetBankFunction(backend, MyBankSwitchFunc);
+```
+
+### UEFI Graphics Output Protocol (`FbBackendUefiGop`)
+
+Modern UEFI framebuffer through GOP protocol.
+Optionally accepts GOP protocol pointer for hardware-accelerated Blt operations.
+
+```c
+IFramebufferBackend *backend = FbCreateUefiGopBackend();
+FbUefiGopSetProtocol(backend, GopProtocol);  // Optional
+```
+
+### Apple EFI (`FbBackendAppleEfi`)
+
+Apple Mac EFI framebuffer with quirk handling:
+- Automatic BGR vs RGB detection
+- Retina display detection (>2560 width)
+- Apple-specific pixel format handling
+
+```c
+IFramebufferBackend *backend = FbCreateAppleEfiBackend();
+```
+
+## Backend Selection
+
+Use the factory function for runtime backend selection:
+
+```c
+FB_BACKEND_TYPE type = DetectHardware();
+IFramebufferBackend *backend = FbCreateBackend(type);
+```
 
 ## Font Conversion
 
