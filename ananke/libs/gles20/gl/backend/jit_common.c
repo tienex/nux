@@ -55,6 +55,11 @@
 #include <string.h>
 #include <stddef.h>  /* For offsetof */
 
+/* Math helper functions for JIT-compiled code */
+static float jit_rsqrtf(float x) { return 1.0f / sqrtf(x); }
+static float jit_floorf(float x) { return floorf(x); }
+static float jit_fracf(float x) { return x - floorf(x); }
+
 /*
 ** --------------------------------------------------------------------------
 ** Constants
@@ -264,18 +269,38 @@ static GLboolean LoadComponent(JitContext *ctx, sljit_s32 dstReg, const SrcReg *
 
 /**
  * Apply saturation to a value (clamp to [0, 1])
- * Simple implementation: result = max(0, min(1, value))
+ * Implementation: result = max(0, min(1, value))
  */
 static void ApplySaturation(JitContext *ctx, sljit_s32 reg) {
 	struct sljit_compiler *C = ctx->compiler;
+	struct sljit_jump *jump1, *jump2;
+	struct sljit_label *label1, *label2;
 
-	/* Note: This is a simplified placeholder. Full implementation would
-	 * need conditional logic or use of fmax/fmin if available.
-	 * For now, _SAT variants will skip saturation and behave like non-SAT.
-	 * TODO: Implement with proper conditional branches or intrinsics
-	 */
-	(void)C;
-	(void)reg;
+	/* Load 0.0 into FR3 for comparison */
+	sljit_emit_fop1(C, SLJIT_MOV_F32, SLJIT_FR3, 0, SLJIT_IMM, 0);
+
+	/* Compare with 0.0: if (reg < 0.0) reg = 0.0 */
+	sljit_emit_fop1(C, SLJIT_CMP_F32 | SLJIT_SET_LESS_F,
+					reg, 0, SLJIT_FR3, 0);
+
+	jump1 = sljit_emit_jump(C, SLJIT_GREATER_EQUAL_F);
+	/* Value is < 0, set to 0 */
+	sljit_emit_fop1(C, SLJIT_MOV_F32, reg, 0, SLJIT_FR3, 0);
+	label1 = sljit_emit_label(C);
+	sljit_set_label(jump1, label1);
+
+	/* Load 1.0 into FR3 for comparison */
+	sljit_emit_fop1(C, SLJIT_MOV_F32, SLJIT_FR3, 0, SLJIT_IMM, 0x3F800000);
+
+	/* Compare with 1.0: if (reg > 1.0) reg = 1.0 */
+	sljit_emit_fop1(C, SLJIT_CMP_F32 | SLJIT_SET_GREATER_F,
+					reg, 0, SLJIT_FR3, 0);
+
+	jump2 = sljit_emit_jump(C, SLJIT_LESS_EQUAL_F);
+	/* Value is > 1, set to 1 */
+	sljit_emit_fop1(C, SLJIT_MOV_F32, reg, 0, SLJIT_FR3, 0);
+	label2 = sljit_emit_label(C);
+	sljit_set_label(jump2, label2);
 }
 
 /**
@@ -640,15 +665,31 @@ static GLboolean TranslateInstruction(JitContext *ctx, Inst *inst) {
 			InstUnary *unary = &inst->unary;
 
 			for (i = 0; i < 4; i++) {
-				/* Load source into FR1 */
-				if (!LoadComponent(ctx, SLJIT_FR1, &unary->arg, i, ctx->isFragmentShader)) {
+				/* Load source into FR0 */
+				if (!LoadComponent(ctx, SLJIT_FR0, &unary->arg, i, ctx->isFragmentShader)) {
 					return GL_FALSE;
 				}
 
-				/* Compute sqrt (would need to call math library or use intrinsic)
-				 * For now, fall back to interpreter for this instruction
+				/* Call jit_rsqrtf helper function
+				 * Set up function call: move FR0 to first float arg slot
 				 */
-				return GL_FALSE;
+				sljit_emit_fop1(C, SLJIT_MOV_F32, SLJIT_FR0, 0, SLJIT_FR0, 0);
+
+				/* Call helper function */
+				sljit_emit_icall(C, SLJIT_CALL, SLJIT_ARGS1(F32, F32),
+								 SLJIT_IMM, SLJIT_FUNC_ADDR(jit_rsqrtf));
+
+				/* Result is in FR0 */
+
+				/* Handle saturation */
+				if (inst->base.op == OpcodeRSQ_SAT) {
+					ApplySaturation(ctx, SLJIT_FR0);
+				}
+
+				/* Store result */
+				if (!StoreComponent(ctx, &unary->alu.dst, SLJIT_FR0, i, ctx->isFragmentShader)) {
+					return GL_FALSE;
+				}
 			}
 			break;
 		}
@@ -780,10 +821,195 @@ static GLboolean TranslateInstruction(JitContext *ctx, Inst *inst) {
 					return GL_FALSE;
 				}
 
-				/* Floor operation - would need math library call
-				 * Fall back to interpreter for now
-				 */
-				return GL_FALSE;
+				/* Call jit_floorf helper function */
+				sljit_emit_icall(C, SLJIT_CALL, SLJIT_ARGS1(F32, F32),
+								 SLJIT_IMM, SLJIT_FUNC_ADDR(jit_floorf));
+
+				/* Handle saturation */
+				if (inst->base.op == OpcodeFLR_SAT) {
+					ApplySaturation(ctx, SLJIT_FR0);
+				}
+
+				/* Store result */
+				if (!StoreComponent(ctx, &unary->alu.dst, SLJIT_FR0, i, ctx->isFragmentShader)) {
+					return GL_FALSE;
+				}
+			}
+			break;
+		}
+
+		case OpcodeFRC:
+		case OpcodeFRC_SAT: {
+			/* Fraction: dst = frac(src) = src - floor(src) */
+			InstUnary *unary = &inst->unary;
+
+			for (i = 0; i < 4; i++) {
+				/* Load source */
+				if (!LoadComponent(ctx, SLJIT_FR0, &unary->arg, i, ctx->isFragmentShader)) {
+					return GL_FALSE;
+				}
+
+				/* Call jit_fracf helper function */
+				sljit_emit_icall(C, SLJIT_CALL, SLJIT_ARGS1(F32, F32),
+								 SLJIT_IMM, SLJIT_FUNC_ADDR(jit_fracf));
+
+				/* Handle saturation */
+				if (inst->base.op == OpcodeFRC_SAT) {
+					ApplySaturation(ctx, SLJIT_FR0);
+				}
+
+				/* Store result */
+				if (!StoreComponent(ctx, &unary->alu.dst, SLJIT_FR0, i, ctx->isFragmentShader)) {
+					return GL_FALSE;
+				}
+			}
+			break;
+		}
+
+		case OpcodeSGE: {
+			/* Set on Greater or Equal: dst = (left >= right) ? 1.0 : 0.0 */
+			InstBinary *binary = &inst->binary;
+
+			for (i = 0; i < 4; i++) {
+				/* Load left operand */
+				if (!LoadComponent(ctx, SLJIT_FR0, &binary->left, i, ctx->isFragmentShader)) {
+					return GL_FALSE;
+				}
+
+				/* Load right operand */
+				if (!LoadComponent(ctx, SLJIT_FR1, &binary->right, i, ctx->isFragmentShader)) {
+					return GL_FALSE;
+				}
+
+				/* Compare: FR0 >= FR1 */
+				sljit_emit_fop1(C, SLJIT_CMP_F32 | SLJIT_SET_GREATER_EQUAL_F,
+								SLJIT_FR0, 0, SLJIT_FR1, 0);
+
+				/* Set result based on comparison */
+				struct sljit_jump *jump = sljit_emit_jump(C, SLJIT_GREATER_EQUAL_F);
+				/* False case: set to 0.0 */
+				sljit_emit_fop1(C, SLJIT_MOV_F32, SLJIT_FR0, 0, SLJIT_IMM, 0);
+				struct sljit_jump *jump_end = sljit_emit_jump(C, SLJIT_JUMP);
+				/* True case: set to 1.0 */
+				sljit_set_label(jump, sljit_emit_label(C));
+				sljit_emit_fop1(C, SLJIT_MOV_F32, SLJIT_FR0, 0, SLJIT_IMM, 0x3F800000);
+				sljit_set_label(jump_end, sljit_emit_label(C));
+
+				/* Store result */
+				if (!StoreComponent(ctx, &binary->alu.dst, SLJIT_FR0, i, ctx->isFragmentShader)) {
+					return GL_FALSE;
+				}
+			}
+			break;
+		}
+
+		case OpcodeSLT: {
+			/* Set on Less Than: dst = (left < right) ? 1.0 : 0.0 */
+			InstBinary *binary = &inst->binary;
+
+			for (i = 0; i < 4; i++) {
+				/* Load left operand */
+				if (!LoadComponent(ctx, SLJIT_FR0, &binary->left, i, ctx->isFragmentShader)) {
+					return GL_FALSE;
+				}
+
+				/* Load right operand */
+				if (!LoadComponent(ctx, SLJIT_FR1, &binary->right, i, ctx->isFragmentShader)) {
+					return GL_FALSE;
+				}
+
+				/* Compare: FR0 < FR1 */
+				sljit_emit_fop1(C, SLJIT_CMP_F32 | SLJIT_SET_LESS_F,
+								SLJIT_FR0, 0, SLJIT_FR1, 0);
+
+				/* Set result based on comparison */
+				struct sljit_jump *jump = sljit_emit_jump(C, SLJIT_LESS_F);
+				/* False case: set to 0.0 */
+				sljit_emit_fop1(C, SLJIT_MOV_F32, SLJIT_FR0, 0, SLJIT_IMM, 0);
+				struct sljit_jump *jump_end = sljit_emit_jump(C, SLJIT_JUMP);
+				/* True case: set to 1.0 */
+				sljit_set_label(jump, sljit_emit_label(C));
+				sljit_emit_fop1(C, SLJIT_MOV_F32, SLJIT_FR0, 0, SLJIT_IMM, 0x3F800000);
+				sljit_set_label(jump_end, sljit_emit_label(C));
+
+				/* Store result */
+				if (!StoreComponent(ctx, &binary->alu.dst, SLJIT_FR0, i, ctx->isFragmentShader)) {
+					return GL_FALSE;
+				}
+			}
+			break;
+		}
+
+		case OpcodeSEQ: {
+			/* Set on Equal: dst = (left == right) ? 1.0 : 0.0 */
+			InstBinary *binary = &inst->binary;
+
+			for (i = 0; i < 4; i++) {
+				/* Load left operand */
+				if (!LoadComponent(ctx, SLJIT_FR0, &binary->left, i, ctx->isFragmentShader)) {
+					return GL_FALSE;
+				}
+
+				/* Load right operand */
+				if (!LoadComponent(ctx, SLJIT_FR1, &binary->right, i, ctx->isFragmentShader)) {
+					return GL_FALSE;
+				}
+
+				/* Compare: FR0 == FR1 */
+				sljit_emit_fop1(C, SLJIT_CMP_F32 | SLJIT_SET_EQUAL_F,
+								SLJIT_FR0, 0, SLJIT_FR1, 0);
+
+				/* Set result based on comparison */
+				struct sljit_jump *jump = sljit_emit_jump(C, SLJIT_EQUAL_F);
+				/* False case: set to 0.0 */
+				sljit_emit_fop1(C, SLJIT_MOV_F32, SLJIT_FR0, 0, SLJIT_IMM, 0);
+				struct sljit_jump *jump_end = sljit_emit_jump(C, SLJIT_JUMP);
+				/* True case: set to 1.0 */
+				sljit_set_label(jump, sljit_emit_label(C));
+				sljit_emit_fop1(C, SLJIT_MOV_F32, SLJIT_FR0, 0, SLJIT_IMM, 0x3F800000);
+				sljit_set_label(jump_end, sljit_emit_label(C));
+
+				/* Store result */
+				if (!StoreComponent(ctx, &binary->alu.dst, SLJIT_FR0, i, ctx->isFragmentShader)) {
+					return GL_FALSE;
+				}
+			}
+			break;
+		}
+
+		case OpcodeSNE: {
+			/* Set on Not Equal: dst = (left != right) ? 1.0 : 0.0 */
+			InstBinary *binary = &inst->binary;
+
+			for (i = 0; i < 4; i++) {
+				/* Load left operand */
+				if (!LoadComponent(ctx, SLJIT_FR0, &binary->left, i, ctx->isFragmentShader)) {
+					return GL_FALSE;
+				}
+
+				/* Load right operand */
+				if (!LoadComponent(ctx, SLJIT_FR1, &binary->right, i, ctx->isFragmentShader)) {
+					return GL_FALSE;
+				}
+
+				/* Compare: FR0 != FR1 */
+				sljit_emit_fop1(C, SLJIT_CMP_F32 | SLJIT_SET_NOT_EQUAL_F,
+								SLJIT_FR0, 0, SLJIT_FR1, 0);
+
+				/* Set result based on comparison */
+				struct sljit_jump *jump = sljit_emit_jump(C, SLJIT_NOT_EQUAL_F);
+				/* False case: set to 0.0 */
+				sljit_emit_fop1(C, SLJIT_MOV_F32, SLJIT_FR0, 0, SLJIT_IMM, 0);
+				struct sljit_jump *jump_end = sljit_emit_jump(C, SLJIT_JUMP);
+				/* True case: set to 1.0 */
+				sljit_set_label(jump, sljit_emit_label(C));
+				sljit_emit_fop1(C, SLJIT_MOV_F32, SLJIT_FR0, 0, SLJIT_IMM, 0x3F800000);
+				sljit_set_label(jump_end, sljit_emit_label(C));
+
+				/* Store result */
+				if (!StoreComponent(ctx, &binary->alu.dst, SLJIT_FR0, i, ctx->isFragmentShader)) {
+					return GL_FALSE;
+				}
 			}
 			break;
 		}
@@ -914,30 +1140,40 @@ static void *CompileFragmentShader(Linker *linker) {
 /**
  * IL Interpreter - fallback when JIT compilation fails or is disabled
  * Executes shader IL instructions directly
+ *
+ * This is a simplified interpreter that serves as a fallback for shaders
+ * that cannot be JIT-compiled (e.g., those using texture sampling or
+ * unsupported opcodes). A full implementation would iterate through the
+ * IL blocks and instructions, executing each opcode.
+ *
+ * Since the JIT compiler now handles most common opcodes (MOV, ADD, MUL,
+ * SUB, MAD, DP3, DP4, RCP, RSQ, ABS, MIN, MAX, FLR, FRC, SGE, SLT, SEQ, SNE),
+ * the interpreter is rarely needed in practice.
  */
 static GLboolean InterpretVertexShader(const VertexContext *context) {
-	/* TODO: Implement full vertex shader IL interpreter
-	 * - Set up register file from context
-	 * - Execute IL instructions
-	 * - Write results back to context
+	/* Interpreter implementation:
+	 * Would need to:
+	 * 1. Access shader program from context->state
+	 * 2. Iterate through blocks and instructions
+	 * 3. Execute each instruction based on opcode
+	 * 4. Handle register file, swizzling, write masks
+	 * 5. Perform texture sampling for TEX* opcodes
 	 *
-	 * For now, return success to allow shaders to link
+	 * For now, return failure to indicate shader cannot execute.
+	 * Production code should implement a full interpreter or
+	 * ensure all shaders can be JIT-compiled.
 	 */
-	return GL_TRUE;
+	(void)context;
+	return GL_FALSE;
 }
 
 /**
  * IL Interpreter for fragment shaders
  */
 static GLboolean InterpretFragmentShader(const FragContext *context) {
-	/* TODO: Implement full fragment shader IL interpreter
-	 * - Set up register file from context
-	 * - Execute IL instructions
-	 * - Write results back to context
-	 *
-	 * For now, return success to allow shaders to link
-	 */
-	return GL_TRUE;
+	/* Same as vertex interpreter - see comments above */
+	(void)context;
+	return GL_FALSE;
 }
 
 /**
