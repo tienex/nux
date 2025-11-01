@@ -1339,6 +1339,313 @@ static GLboolean TranslateInstruction(JitContext *ctx, Inst *inst) {
 			break;
 		}
 
+		case OpcodeDPH:
+		case OpcodeDPH_SAT: {
+			/* Homogeneous dot product: dst = src0.x*src1.x + src0.y*src1.y + src0.z*src1.z + src1.w
+			 * This is DP3 + the w component of src1
+			 */
+			InstBinary *binary = &inst->binary;
+
+			/* Initialize accumulator to 0 */
+			sljit_emit_fop1(C, SLJIT_MOV_F32, SLJIT_FR2, 0, SLJIT_IMM, 0);
+
+			/* Accumulate x, y, z components */
+			for (i = 0; i < 3; i++) {
+				/* Load left operand component */
+				if (!LoadComponent(ctx, SLJIT_FR0, &binary->left, i, ctx->isFragmentShader)) {
+					return GL_FALSE;
+				}
+
+				/* Load right operand component */
+				if (!LoadComponent(ctx, SLJIT_FR1, &binary->right, i, ctx->isFragmentShader)) {
+					return GL_FALSE;
+				}
+
+				/* Multiply and accumulate */
+				sljit_emit_fop2(C, SLJIT_MUL_F32, SLJIT_FR0, 0, SLJIT_FR0, 0, SLJIT_FR1, 0);
+				sljit_emit_fop2(C, SLJIT_ADD_F32, SLJIT_FR2, 0, SLJIT_FR2, 0, SLJIT_FR0, 0);
+			}
+
+			/* Add w component of src1 */
+			if (!LoadComponent(ctx, SLJIT_FR0, &binary->right, 3, ctx->isFragmentShader)) {
+				return GL_FALSE;
+			}
+			sljit_emit_fop2(C, SLJIT_ADD_F32, SLJIT_FR2, 0, SLJIT_FR2, 0, SLJIT_FR0, 0);
+
+			/* Handle saturation */
+			if (inst->base.op == OpcodeDPH_SAT) {
+				ApplySaturation(ctx, SLJIT_FR2);
+			}
+
+			/* Store result (broadcast to all components) */
+			for (i = 0; i < 4; i++) {
+				if (!StoreComponent(ctx, &binary->alu.dst, SLJIT_FR2, i, ctx->isFragmentShader)) {
+					return GL_FALSE;
+				}
+			}
+			break;
+		}
+
+		case OpcodeDST:
+		case OpcodeDST_SAT: {
+			/* Distance vector: specialized for lighting calculations
+			 * dst.x = 1.0
+			 * dst.y = src0.y * src1.y
+			 * dst.z = src0.z
+			 * dst.w = src1.w
+			 */
+			InstBinary *binary = &inst->binary;
+
+			/* X component: 1.0 */
+			sljit_emit_fop1(C, SLJIT_MOV_F32, SLJIT_FR0, 0, SLJIT_IMM, 0x3F800000);
+			if (!StoreComponent(ctx, &binary->alu.dst, SLJIT_FR0, 0, ctx->isFragmentShader)) {
+				return GL_FALSE;
+			}
+
+			/* Y component: src0.y * src1.y */
+			if (!LoadComponent(ctx, SLJIT_FR0, &binary->left, 1, ctx->isFragmentShader)) {
+				return GL_FALSE;
+			}
+			if (!LoadComponent(ctx, SLJIT_FR1, &binary->right, 1, ctx->isFragmentShader)) {
+				return GL_FALSE;
+			}
+			sljit_emit_fop2(C, SLJIT_MUL_F32, SLJIT_FR0, 0, SLJIT_FR0, 0, SLJIT_FR1, 0);
+			if (inst->base.op == OpcodeDST_SAT) {
+				ApplySaturation(ctx, SLJIT_FR0);
+			}
+			if (!StoreComponent(ctx, &binary->alu.dst, SLJIT_FR0, 1, ctx->isFragmentShader)) {
+				return GL_FALSE;
+			}
+
+			/* Z component: src0.z */
+			if (!LoadComponent(ctx, SLJIT_FR0, &binary->left, 2, ctx->isFragmentShader)) {
+				return GL_FALSE;
+			}
+			if (inst->base.op == OpcodeDST_SAT) {
+				ApplySaturation(ctx, SLJIT_FR0);
+			}
+			if (!StoreComponent(ctx, &binary->alu.dst, SLJIT_FR0, 2, ctx->isFragmentShader)) {
+				return GL_FALSE;
+			}
+
+			/* W component: src1.w */
+			if (!LoadComponent(ctx, SLJIT_FR0, &binary->right, 3, ctx->isFragmentShader)) {
+				return GL_FALSE;
+			}
+			if (inst->base.op == OpcodeDST_SAT) {
+				ApplySaturation(ctx, SLJIT_FR0);
+			}
+			if (!StoreComponent(ctx, &binary->alu.dst, SLJIT_FR0, 3, ctx->isFragmentShader)) {
+				return GL_FALSE;
+			}
+
+			break;
+		}
+
+		case OpcodeSCS:
+		case OpcodeSCS_SAT: {
+			/* Sine/cosine without reduction: dst.x = cos(src.x), dst.y = sin(src.x) */
+			InstUnary *unary = &inst->unary;
+
+			/* Load source.x */
+			if (!LoadComponent(ctx, SLJIT_FR0, &unary->arg, 0, ctx->isFragmentShader)) {
+				return GL_FALSE;
+			}
+
+			/* Save source value for both sin and cos */
+			sljit_emit_fop1(C, SLJIT_MOV_F32, SLJIT_FR1, 0, SLJIT_FR0, 0);
+
+			/* Compute cos(src.x) */
+			sljit_emit_icall(C, SLJIT_CALL, SLJIT_ARGS1(F32, F32), SLJIT_IMM, SLJIT_FUNC_ADDR(cosf));
+			if (inst->base.op == OpcodeSCS_SAT) {
+				ApplySaturation(ctx, SLJIT_FR0);
+			}
+			if (!StoreComponent(ctx, &unary->alu.dst, SLJIT_FR0, 0, ctx->isFragmentShader)) {
+				return GL_FALSE;
+			}
+
+			/* Compute sin(src.x) */
+			sljit_emit_fop1(C, SLJIT_MOV_F32, SLJIT_FR0, 0, SLJIT_FR1, 0);
+			sljit_emit_icall(C, SLJIT_CALL, SLJIT_ARGS1(F32, F32), SLJIT_IMM, SLJIT_FUNC_ADDR(sinf));
+			if (inst->base.op == OpcodeSCS_SAT) {
+				ApplySaturation(ctx, SLJIT_FR0);
+			}
+			if (!StoreComponent(ctx, &unary->alu.dst, SLJIT_FR0, 1, ctx->isFragmentShader)) {
+				return GL_FALSE;
+			}
+
+			break;
+		}
+
+		case OpcodeSGT: {
+			/* Set on Greater Than: dst = (left > right) ? 1.0 : 0.0 */
+			InstBinary *binary = &inst->binary;
+
+			for (i = 0; i < 4; i++) {
+				/* Load left operand */
+				if (!LoadComponent(ctx, SLJIT_FR0, &binary->left, i, ctx->isFragmentShader)) {
+					return GL_FALSE;
+				}
+
+				/* Load right operand */
+				if (!LoadComponent(ctx, SLJIT_FR1, &binary->right, i, ctx->isFragmentShader)) {
+					return GL_FALSE;
+				}
+
+				/* Compare: FR0 > FR1 */
+				sljit_emit_fop1(C, SLJIT_CMP_F32 | SLJIT_SET_GREATER_F, SLJIT_FR0, 0, SLJIT_FR1, 0);
+
+				/* Set result based on comparison */
+				struct sljit_jump *jump = sljit_emit_jump(C, SLJIT_GREATER_F);
+				/* False case: set to 0.0 */
+				sljit_emit_fop1(C, SLJIT_MOV_F32, SLJIT_FR0, 0, SLJIT_IMM, 0);
+				struct sljit_jump *jump_end = sljit_emit_jump(C, SLJIT_JUMP);
+				/* True case: set to 1.0 */
+				sljit_set_label(jump, sljit_emit_label(C));
+				sljit_emit_fop1(C, SLJIT_MOV_F32, SLJIT_FR0, 0, SLJIT_IMM, 0x3F800000);
+				sljit_set_label(jump_end, sljit_emit_label(C));
+
+				/* Store result */
+				if (!StoreComponent(ctx, &binary->alu.dst, SLJIT_FR0, i, ctx->isFragmentShader)) {
+					return GL_FALSE;
+				}
+			}
+			break;
+		}
+
+		case OpcodeSLE: {
+			/* Set on Less or Equal: dst = (left <= right) ? 1.0 : 0.0 */
+			InstBinary *binary = &inst->binary;
+
+			for (i = 0; i < 4; i++) {
+				/* Load left operand */
+				if (!LoadComponent(ctx, SLJIT_FR0, &binary->left, i, ctx->isFragmentShader)) {
+					return GL_FALSE;
+				}
+
+				/* Load right operand */
+				if (!LoadComponent(ctx, SLJIT_FR1, &binary->right, i, ctx->isFragmentShader)) {
+					return GL_FALSE;
+				}
+
+				/* Compare: FR0 <= FR1 */
+				sljit_emit_fop1(C, SLJIT_CMP_F32 | SLJIT_SET_LESS_EQUAL_F, SLJIT_FR0, 0, SLJIT_FR1, 0);
+
+				/* Set result based on comparison */
+				struct sljit_jump *jump = sljit_emit_jump(C, SLJIT_LESS_EQUAL_F);
+				/* False case: set to 0.0 */
+				sljit_emit_fop1(C, SLJIT_MOV_F32, SLJIT_FR0, 0, SLJIT_IMM, 0);
+				struct sljit_jump *jump_end = sljit_emit_jump(C, SLJIT_JUMP);
+				/* True case: set to 1.0 */
+				sljit_set_label(jump, sljit_emit_label(C));
+				sljit_emit_fop1(C, SLJIT_MOV_F32, SLJIT_FR0, 0, SLJIT_IMM, 0x3F800000);
+				sljit_set_label(jump_end, sljit_emit_label(C));
+
+				/* Store result */
+				if (!StoreComponent(ctx, &binary->alu.dst, SLJIT_FR0, i, ctx->isFragmentShader)) {
+					return GL_FALSE;
+				}
+			}
+			break;
+		}
+
+		case OpcodeSSG: {
+			/* Set Sign: dst = (src > 0) ? 1.0 : (src < 0) ? -1.0 : 0.0 */
+			InstUnary *unary = &inst->unary;
+
+			for (i = 0; i < 4; i++) {
+				/* Load source */
+				if (!LoadComponent(ctx, SLJIT_FR0, &unary->arg, i, ctx->isFragmentShader)) {
+					return GL_FALSE;
+				}
+
+				/* Compare with 0.0 */
+				sljit_emit_fop1(C, SLJIT_MOV_F32, SLJIT_FR1, 0, SLJIT_IMM, 0); /* 0.0 */
+
+				/* Check if src > 0 */
+				sljit_emit_fop1(C, SLJIT_CMP_F32 | SLJIT_SET_GREATER_F, SLJIT_FR0, 0, SLJIT_FR1, 0);
+				struct sljit_jump *jump_positive = sljit_emit_jump(C, SLJIT_GREATER_F);
+
+				/* Check if src < 0 */
+				sljit_emit_fop1(C, SLJIT_CMP_F32 | SLJIT_SET_LESS_F, SLJIT_FR0, 0, SLJIT_FR1, 0);
+				struct sljit_jump *jump_negative = sljit_emit_jump(C, SLJIT_LESS_F);
+
+				/* src == 0: result = 0.0 */
+				sljit_emit_fop1(C, SLJIT_MOV_F32, SLJIT_FR0, 0, SLJIT_IMM, 0);
+				struct sljit_jump *jump_end = sljit_emit_jump(C, SLJIT_JUMP);
+
+				/* src > 0: result = 1.0 */
+				sljit_set_label(jump_positive, sljit_emit_label(C));
+				sljit_emit_fop1(C, SLJIT_MOV_F32, SLJIT_FR0, 0, SLJIT_IMM, 0x3F800000);
+				struct sljit_jump *jump_end2 = sljit_emit_jump(C, SLJIT_JUMP);
+
+				/* src < 0: result = -1.0 */
+				sljit_set_label(jump_negative, sljit_emit_label(C));
+				sljit_emit_fop1(C, SLJIT_MOV_F32, SLJIT_FR0, 0, SLJIT_IMM, 0xBF800000); /* -1.0 */
+
+				sljit_set_label(jump_end, sljit_emit_label(C));
+				sljit_set_label(jump_end2, sljit_emit_label(C));
+
+				/* Store result */
+				if (!StoreComponent(ctx, &unary->alu.dst, SLJIT_FR0, i, ctx->isFragmentShader)) {
+					return GL_FALSE;
+				}
+			}
+			break;
+		}
+
+		case OpcodeSFL: {
+			/* Set on False: always returns 0.0 */
+			InstBinary *binary = &inst->binary;
+
+			for (i = 0; i < 4; i++) {
+				sljit_emit_fop1(C, SLJIT_MOV_F32, SLJIT_FR0, 0, SLJIT_IMM, 0);
+				if (!StoreComponent(ctx, &binary->alu.dst, SLJIT_FR0, i, ctx->isFragmentShader)) {
+					return GL_FALSE;
+				}
+			}
+			break;
+		}
+
+		case OpcodeSTR: {
+			/* Set on True: always returns 1.0 */
+			InstBinary *binary = &inst->binary;
+
+			for (i = 0; i < 4; i++) {
+				sljit_emit_fop1(C, SLJIT_MOV_F32, SLJIT_FR0, 0, SLJIT_IMM, 0x3F800000);
+				if (!StoreComponent(ctx, &binary->alu.dst, SLJIT_FR0, i, ctx->isFragmentShader)) {
+					return GL_FALSE;
+				}
+			}
+			break;
+		}
+
+		case OpcodeSWZ:
+		case OpcodeSWZ_SAT: {
+			/* Extended swizzle: basically a MOV with extended swizzle capabilities
+			 * The swizzling is already handled by LoadComponent
+			 */
+			InstUnary *unary = &inst->unary;
+
+			for (i = 0; i < 4; i++) {
+				/* Load source with swizzle */
+				if (!LoadComponent(ctx, SLJIT_FR0, &unary->arg, i, ctx->isFragmentShader)) {
+					return GL_FALSE;
+				}
+
+				/* Handle saturation */
+				if (inst->base.op == OpcodeSWZ_SAT) {
+					ApplySaturation(ctx, SLJIT_FR0);
+				}
+
+				/* Store result */
+				if (!StoreComponent(ctx, &unary->alu.dst, SLJIT_FR0, i, ctx->isFragmentShader)) {
+					return GL_FALSE;
+				}
+			}
+			break;
+		}
+
 		case OpcodeTEX:
 		case OpcodeTEX_SAT:
 		case OpcodeTXB:
@@ -1352,6 +1659,29 @@ static GLboolean TranslateInstruction(JitContext *ctx, Inst *inst) {
 			 * Fall back to interpreter for now
 			 */
 			return GL_FALSE;
+
+		case OpcodeARL: {
+			/* Address register load: converts float to int for indexed addressing
+			 * dst = floor(src) as integer
+			 */
+			InstUnary *unary = &inst->unary;
+
+			for (i = 0; i < 4; i++) {
+				/* Load source */
+				if (!LoadComponent(ctx, SLJIT_FR0, &unary->arg, i, ctx->isFragmentShader)) {
+					return GL_FALSE;
+				}
+
+				/* Call floorf to get floor(src) */
+				sljit_emit_icall(C, SLJIT_CALL, SLJIT_ARGS1(F32, F32), SLJIT_IMM, SLJIT_FUNC_ADDR(floorf));
+
+				/* Store result (still as float, but represents integer) */
+				if (!StoreComponent(ctx, &unary->alu.dst, SLJIT_FR0, i, ctx->isFragmentShader)) {
+					return GL_FALSE;
+				}
+			}
+			break;
+		}
 
 		/* Control flow and other complex operations - fall back to interpreter */
 		case OpcodeCAL:
