@@ -4,6 +4,7 @@ LIBRARY=kms
 # Source files
 SRCS  = sources/kms_device.c
 SRCS += sources/kms_renderer.c
+SRCS += sources/kms_api.c
 
 # Include directories
 CFLAGS += -I$(SRCDIR)/include

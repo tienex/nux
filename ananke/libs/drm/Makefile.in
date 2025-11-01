@@ -3,6 +3,7 @@ LIBRARY=drm
 
 # Source files
 SRCS  = sources/drm_device.c
+SRCS += sources/drm_api.c
 
 # Include directories
 CFLAGS += -I$(SRCDIR)/include

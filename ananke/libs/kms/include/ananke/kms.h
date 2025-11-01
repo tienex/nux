@@ -226,3 +226,74 @@ IKmsDevice* KmsCreateDevice(VOID);
 
 /* Create KMS renderer with GLESv20 support */
 IKmsRenderer* KmsCreateRenderer(VOID);
+
+/* --------------------------------------------------------------- */
+/*  Native KMS C API (Linux compatibility layer)                   */
+/* --------------------------------------------------------------- */
+
+/*
+ * This section provides Linux-compatible KMS API extensions on top of DRM.
+ * Most KMS functionality is accessed through the DRM API (drmMode* functions),
+ * but these additional functions provide plane and atomic operation support.
+ */
+
+/*
+ * Get plane resources
+ * Returns the number of planes, fills planeIds array
+ */
+INT32 kmsGetPlaneResources(drm_fd fd, UINT32 *planeIds, UINT32 maxPlanes);
+
+/*
+ * Get plane information
+ */
+typedef struct {
+    UINT32 plane_id;
+    UINT32 possible_crtcs;
+    UINT32 plane_type;  /* 0=primary, 1=overlay, 2=cursor */
+    UINT32 zpos;
+} kms_plane_info;
+
+INT32 kmsGetPlaneInfo(drm_fd fd, UINT32 planeId, kms_plane_info *info);
+
+/*
+ * Set plane configuration (legacy API)
+ */
+INT32 kmsSetPlane(drm_fd fd, UINT32 planeId, UINT32 crtcId, UINT32 fbId,
+                  UINT32 flags, INT32 crtcX, INT32 crtcY, UINT32 crtcW, UINT32 crtcH,
+                  INT32 srcX, INT32 srcY, UINT32 srcW, UINT32 srcH);
+
+/*
+ * Disable plane
+ */
+INT32 kmsDisablePlane(drm_fd fd, UINT32 planeId);
+
+/*
+ * Atomic request opaque type
+ */
+typedef struct kms_atomic_req kms_atomic_req;
+
+/*
+ * Create atomic request for batching property changes
+ */
+kms_atomic_req *kmsAtomicAlloc(VOID);
+
+/*
+ * Free atomic request
+ */
+VOID kmsAtomicFree(kms_atomic_req *req);
+
+/*
+ * Add property to atomic request
+ */
+INT32 kmsAtomicAddProperty(kms_atomic_req *req, UINT32 object_id,
+                            UINT32 property_id, UINT64 value);
+
+/*
+ * Commit atomic request
+ * flags: DRM_MODE_ATOMIC_NONBLOCK, DRM_MODE_ATOMIC_ALLOW_MODESET
+ */
+INT32 kmsAtomicCommit(drm_fd fd, kms_atomic_req *req, UINT32 flags, VOID *user_data);
+
+#define DRM_MODE_ATOMIC_TEST_ONLY      0x0100
+#define DRM_MODE_ATOMIC_NONBLOCK       0x0200
+#define DRM_MODE_ATOMIC_ALLOW_MODESET  0x0400

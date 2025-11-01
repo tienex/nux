@@ -206,3 +206,195 @@ IDrmDevice* DrmCreateFromFramebuffer(IFramebufferBackend* Backend);
 
 /* Create generic DRM device (auto-detect hardware) */
 IDrmDevice* DrmCreateDevice(VOID);
+
+/* --------------------------------------------------------------- */
+/*  Native DRM C API (Linux libdrm compatibility layer)            */
+/* --------------------------------------------------------------- */
+
+/*
+ * This section provides a Linux-compatible DRM API on top of the
+ * COM-based implementation. These functions match the libdrm API
+ * and can be used by code expecting the standard Linux DRM interface.
+ */
+
+/* Opaque handle types matching Linux DRM */
+typedef INT32 drm_fd;           /* DRM file descriptor handle */
+typedef struct _drmModeRes drmModeRes;
+typedef struct _drmModeConnector drmModeConnector;
+typedef struct _drmModeModeInfo drmModeModeInfo;
+typedef struct _drmModeCrtc drmModeCrtc;
+typedef struct _drmModeFB drmModeFB;
+
+/* DRM mode info structure (compatible with Linux drmModeModeInfo) */
+struct _drmModeModeInfo {
+    UINT32 clock;
+    UINT16 hdisplay, hsync_start, hsync_end, htotal, hskew;
+    UINT16 vdisplay, vsync_start, vsync_end, vtotal, vscan;
+    UINT32 vrefresh;
+    UINT32 flags;
+    UINT32 type;
+    CHAR8 name[32];
+};
+
+/* DRM resources structure */
+struct _drmModeRes {
+    INT32 count_fbs;
+    UINT32 *fbs;
+
+    INT32 count_crtcs;
+    UINT32 *crtcs;
+
+    INT32 count_connectors;
+    UINT32 *connectors;
+
+    INT32 count_encoders;
+    UINT32 *encoders;
+
+    UINT32 min_width, max_width;
+    UINT32 min_height, max_height;
+};
+
+/* DRM connector structure */
+struct _drmModeConnector {
+    UINT32 connector_id;
+    UINT32 encoder_id;
+    UINT32 connector_type;
+    UINT32 connector_type_id;
+    UINT32 connection;  /* 1 = connected, 2 = disconnected, 3 = unknown */
+    UINT32 mmWidth, mmHeight;
+    UINT32 subpixel;
+
+    INT32 count_modes;
+    drmModeModeInfo *modes;
+
+    INT32 count_props;
+    UINT32 *props;
+    UINT64 *prop_values;
+
+    INT32 count_encoders;
+    UINT32 *encoders;
+};
+
+/* DRM CRTC structure */
+struct _drmModeCrtc {
+    UINT32 crtc_id;
+    UINT32 buffer_id;
+
+    UINT32 x, y;
+    UINT32 width, height;
+    INT32 mode_valid;
+    drmModeModeInfo mode;
+
+    INT32 gamma_size;
+};
+
+/* DRM framebuffer structure */
+struct _drmModeFB {
+    UINT32 fb_id;
+    UINT32 width, height;
+    UINT32 pitch;
+    UINT32 bpp;
+    UINT32 depth;
+    UINT32 handle;
+};
+
+/*
+ * Initialize DRM subsystem
+ * Returns: File descriptor handle on success, -1 on error
+ */
+drm_fd drmOpen(const CHAR8 *name, const CHAR8 *busid);
+
+/*
+ * Close DRM device
+ */
+VOID drmClose(drm_fd fd);
+
+/*
+ * Get DRM mode resources (connectors, CRTCs, etc.)
+ * Caller must free with drmModeFreeResources()
+ */
+drmModeRes *drmModeGetResources(drm_fd fd);
+
+/*
+ * Free resources structure
+ */
+VOID drmModeFreeResources(drmModeRes *ptr);
+
+/*
+ * Get connector information
+ * Caller must free with drmModeFreeConnector()
+ */
+drmModeConnector *drmModeGetConnector(drm_fd fd, UINT32 connectorId);
+
+/*
+ * Free connector structure
+ */
+VOID drmModeFreeConnector(drmModeConnector *ptr);
+
+/*
+ * Get CRTC information
+ * Caller must free with drmModeFreeCrtc()
+ */
+drmModeCrtc *drmModeGetCrtc(drm_fd fd, UINT32 crtcId);
+
+/*
+ * Free CRTC structure
+ */
+VOID drmModeFreeCrtc(drmModeCrtc *ptr);
+
+/*
+ * Set CRTC mode and framebuffer
+ */
+INT32 drmModeSetCrtc(drm_fd fd, UINT32 crtcId, UINT32 bufferId,
+                     UINT32 x, UINT32 y, UINT32 *connectors, INT32 count,
+                     drmModeModeInfo *mode);
+
+/*
+ * Create framebuffer
+ * Returns: 0 on success, negative on error
+ */
+INT32 drmModeAddFB(drm_fd fd, UINT32 width, UINT32 height, UINT8 depth,
+                   UINT8 bpp, UINT32 pitch, UINT32 bo_handle,
+                   UINT32 *buf_id);
+
+/*
+ * Remove framebuffer
+ */
+INT32 drmModeRmFB(drm_fd fd, UINT32 bufferId);
+
+/*
+ * Get framebuffer information
+ * Caller must free with drmModeFreeFB()
+ */
+drmModeFB *drmModeGetFB(drm_fd fd, UINT32 bufferId);
+
+/*
+ * Free framebuffer structure
+ */
+VOID drmModeFreeFB(drmModeFB *ptr);
+
+/*
+ * Page flip (display different framebuffer)
+ * flags: DRM_MODE_PAGE_FLIP_EVENT, DRM_MODE_PAGE_FLIP_ASYNC
+ */
+INT32 drmModePageFlip(drm_fd fd, UINT32 crtc_id, UINT32 fb_id,
+                      UINT32 flags, VOID *user_data);
+
+#define DRM_MODE_PAGE_FLIP_EVENT  0x01
+#define DRM_MODE_PAGE_FLIP_ASYNC  0x02
+
+/*
+ * Wait for vertical blank
+ */
+INT32 drmWaitVBlank(drm_fd fd, UINT32 crtc_id);
+
+/* --------------------------------------------------------------- */
+/*  Internal API (for KMS integration)                             */
+/* --------------------------------------------------------------- */
+
+/*
+ * Get COM device interface from file descriptor
+ * This is an internal function used by KMS API to access the underlying
+ * DRM device. Not part of the public Linux DRM API.
+ */
+IDrmDevice *GetDeviceFromFd(drm_fd fd);
