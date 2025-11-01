@@ -432,6 +432,21 @@ typedef struct _ZOO64_METADATA_CHUNK {
 0x0012: z/OS dataset attributes
 0x0013: OS/400 (IBM i) attributes
 0x0014: Lisa Office System attributes
+0x0015: UNIVAC 2200 attributes
+0x0016: PDP-10 attributes (TENEX/ITS/TOPS-10/TOPS-20)
+0x0017: Classic Mac OS attributes
+0x0018: Amiga attributes
+0x0019: Atari TOS/GEM attributes
+0x001A: Acorn RISC OS attributes
+0x001B: Commodore 64/128 attributes
+0x001C: Apple IIGS ProDOS attributes
+0x001D: Stratus VOS attributes
+0x001E: Netware attributes
+0x001F: Banyan VINES attributes
+0x0020: AFS (Andrew File System) attributes
+0x0021: CODA distributed filesystem attributes
+0x0022: GFS (Global File System) attributes
+0x0023: DFS (Distributed File System) attributes
 ```
 
 ### 6.3 ACL Format
@@ -455,6 +470,13 @@ typedef struct _ZOO64_ACL_HEADER {
 0x0002: NFS4 ACL (NFSv4 ACLs - RFC 7530)
 0x0003: NT ACL (Windows DACL/SACL with SIDs)
 0x0004: macOS ACL (macOS extended ACLs - NFSv4-based)
+0x0005: OpenVMS ACL (UIC and identifier-based ACLs)
+0x0006: OS/400 ACL (Object authorities and authorization lists)
+0x0007: MVS/RACF ACL (RACF resource permissions)
+0x0008: Netware ACL (Trustee rights and IRF)
+0x0009: VINES ACL (StreetTalk directory rights)
+0x000A: AFS ACL (Andrew File System ACLs)
+0x000B: CODA ACL (CODA distributed filesystem ACLs)
 ```
 
 **Note**: A file may have multiple ACL headers if it needs to preserve ACLs from multiple systems (e.g., when transferring between platforms). The primary ACL should be listed first.
@@ -671,7 +693,217 @@ macOS permissions:
 0x00080000: KAUTH_VNODE_CHECKIMMUTABLE
 ```
 
-#### 6.3.6 Multiple ACL Storage
+#### 6.3.6 OpenVMS ACL Format
+
+OpenVMS uses both UIC-based (User Identification Code) and identifier-based ACLs.
+
+```c
+typedef struct _ZOO64_VMS_ACL_ENTRY {
+  UINT32  ACEType;            // ACE type (UIC, identifier, default)
+  UINT32  AccessMask;         // Permission bits
+  UINT32  Flags;              // ACE flags (protected, hidden, etc.)
+  UINT16  IdentifierType;     // UIC, general identifier, or facility
+  UINT16  IdentifierLength;   // Length of identifier name
+  UINT32  UIC;                // User Identification Code (if UIC type)
+  // Followed by identifier name (if named identifier)
+} __attribute__((packed)) ZOO64_VMS_ACL_ENTRY;
+```
+
+OpenVMS ACE types:
+```
+0x0001: ACL$C_FILE     // File ACL
+0x0002: ACL$C_KEYID    // Identifier-based
+0x0003: ACL$C_ADDACC   // Access mode
+0x0004: ACL$C_DEFAULT  // Default ACL
+```
+
+OpenVMS access rights:
+```
+0x0001: ACL$M_READ     // Read
+0x0002: ACL$M_WRITE    // Write
+0x0004: ACL$M_EXECUTE  // Execute
+0x0008: ACL$M_DELETE   // Delete
+0x0010: ACL$M_CONTROL  // Control (change ACL)
+0x0020: ACL$M_EXTEND   // Extend file
+0x0040: ACL$M_READ_ATTRIBUTES
+0x0080: ACL$M_WRITE_ATTRIBUTES
+```
+
+#### 6.3.7 OS/400 ACL Format
+
+OS/400 uses object authorities and authorization lists.
+
+```c
+typedef struct _ZOO64_OS400_ACL_ENTRY {
+  char    UserProfile[10];    // User profile name
+  UINT32  ObjectAuthority;    // Object authority bits
+  UINT32  DataAuthority;      // Data authority bits
+  UINT16  AuthorizationType;  // User, group, or *PUBLIC
+  UINT16  AuthListLength;     // Authorization list name length
+  // Followed by authorization list name (if applicable)
+} __attribute__((packed)) ZOO64_OS400_ACL_ENTRY;
+```
+
+OS/400 object authorities:
+```
+0x00000001: *OBJMGT    // Object management
+0x00000002: *OBJEXIST  // Object existence
+0x00000004: *OBJALTER  // Object alter
+0x00000008: *OBJREF    // Object reference
+0x00000010: *OBJOPER   // Object operational
+```
+
+OS/400 data authorities:
+```
+0x00000001: *READ      // Read
+0x00000002: *ADD       // Add
+0x00000004: *UPD       // Update
+0x00000008: *DLT       // Delete
+0x00000010: *EXECUTE   // Execute
+0x00000020: *AUTL      // Authorization list management
+0x00000040: *EXCLUDE   // Exclude (deny all)
+```
+
+#### 6.3.8 MVS/RACF ACL Format
+
+IBM MVS (z/OS) uses RACF (Resource Access Control Facility) for security.
+
+```c
+typedef struct _ZOO64_RACF_ACL_ENTRY {
+  char    UserID[8];          // RACF user ID
+  char    GroupID[8];         // RACF group ID
+  UINT32  AccessLevel;        // Access level (NONE, READ, UPDATE, CONTROL, ALTER)
+  UINT32  AccessType;         // Universal, conditional, or group
+  UINT32  Flags;              // RACF flags (WARN, ERASE, etc.)
+  UINT8   SecurityLevel;      // Security level (0-255)
+  UINT8   SecurityCategories[16]; // Security categories bitmap
+} __attribute__((packed)) ZOO64_RACF_ACL_ENTRY;
+```
+
+RACF access levels:
+```
+0x00: NONE     // No access
+0x01: READ     // Read access
+0x02: UPDATE   // Read and write
+0x03: CONTROL  // Read, write, and change permissions
+0x04: ALTER    // Full control including delete
+```
+
+RACF access types:
+```
+0x0001: UNIVERSAL   // Applies to all
+0x0002: CONDITIONAL // Based on conditions
+0x0004: GROUP       // Group-based
+```
+
+#### 6.3.9 Netware ACL Format
+
+Novell Netware uses Trustee Rights and Inherited Rights Filters.
+
+```c
+typedef struct _ZOO64_NETWARE_ACL_ENTRY {
+  UINT32  ObjectID;           // Netware object ID
+  UINT16  ObjectType;         // User, group, or organizational role
+  UINT16  TrusteeRights;      // Trustee rights bitmap
+  UINT16  InheritedRightsFilter; // IRF bitmap
+  char    TrusteeName[48];    // Trustee name (NDS format)
+} __attribute__((packed)) ZOO64_NETWARE_ACL_ENTRY;
+```
+
+Netware trustee rights:
+```
+0x0001: SUPERVISOR  // [S] All rights
+0x0002: READ        // [R] Read files
+0x0004: WRITE       // [W] Write files
+0x0008: CREATE      // [C] Create files
+0x0010: ERASE       // [E] Delete files
+0x0020: MODIFY      // [M] Modify file attributes
+0x0040: FILESCAN    // [F] See files in directory
+0x0080: ACCESSCTRL  // [A] Change trustee rights
+```
+
+#### 6.3.10 Banyan VINES ACL Format
+
+Banyan VINES uses StreetTalk directory services for permissions.
+
+```c
+typedef struct _ZOO64_VINES_ACL_ENTRY {
+  char    StreetTalkName[256]; // Full StreetTalk name (item@group@organization)
+  UINT32  Rights;             // Access rights bitmap
+  UINT16  EntryType;          // User, group, or list
+  UINT16  Flags;              // Entry flags
+} __attribute__((packed)) ZOO64_VINES_ACL_ENTRY;
+```
+
+VINES access rights:
+```
+0x00000001: READ        // Read data
+0x00000002: WRITE       // Write data
+0x00000004: EXECUTE     // Execute
+0x00000008: DELETE      // Delete
+0x00000010: CREATE      // Create
+0x00000020: RENAME      // Rename
+0x00000040: ATTRIBUTES  // Change attributes
+0x00000080: SECURITY    // Change security
+0x00000100: OWNER       // Ownership rights
+```
+
+#### 6.3.11 AFS ACL Format
+
+Andrew File System (AFS) uses per-directory ACLs with specific rights.
+
+```c
+typedef struct _ZOO64_AFS_ACL_ENTRY {
+  char    Principal[64];      // User or group principal
+  UINT32  Rights;             // AFS rights bitmap
+  UINT16  EntryType;          // Positive or negative rights
+  UINT16  Reserved;           // Reserved
+} __attribute__((packed)) ZOO64_AFS_ACL_ENTRY;
+```
+
+AFS rights:
+```
+0x01: READ     // [r] Read files
+0x02: LIST     // [l] List directory
+0x04: INSERT   // [i] Insert files
+0x08: DELETE   // [d] Delete files
+0x10: WRITE    // [w] Write files
+0x20: LOCK     // [k] Lock files
+0x40: ADMIN    // [a] Administer ACL
+```
+
+AFS entry types:
+```
+0x0001: POSITIVE   // Grant rights
+0x0002: NEGATIVE   // Deny rights
+```
+
+#### 6.3.12 CODA ACL Format
+
+CODA distributed filesystem extends AFS ACL model.
+
+```c
+typedef struct _ZOO64_CODA_ACL_ENTRY {
+  char    Principal[64];      // User or group principal
+  UINT32  Rights;             // CODA rights (extends AFS)
+  UINT16  EntryType;          // Positive or negative
+  UINT16  ReplicationPolicy;  // Replication-specific rights
+} __attribute__((packed)) ZOO64_CODA_ACL_ENTRY;
+```
+
+CODA rights (extends AFS):
+```
+0x01: READ          // [r] Read files
+0x02: LIST          // [l] List directory
+0x04: INSERT        // [i] Insert files
+0x08: DELETE        // [d] Delete files
+0x10: WRITE         // [w] Write files
+0x20: LOCK          // [k] Lock files
+0x40: ADMIN         // [a] Administer ACL
+0x80: REPLICATE     // Control replication
+```
+
+#### 6.3.13 Multiple ACL Storage
 
 When a file has ACLs from multiple systems (e.g., during cross-platform archival), store them as separate ACL chunks or as multiple ACL headers within a single ACL chunk:
 
@@ -681,6 +913,8 @@ When a file has ACLs from multiple systems (e.g., during cross-platform archival
     [NFS4 ACL entries...]
   [ZOO64_ACL_HEADER: type=NT]
     [NT ACL entries...]
+  [ZOO64_ACL_HEADER: type=OpenVMS]
+    [OpenVMS ACL entries...]
 ```
 
 This allows perfect preservation and restoration of ACLs regardless of source platform.
@@ -1175,6 +1409,484 @@ typedef struct _ZOO64_LISA_ATTR {
 ```
 
 **Note**: Lisa Office System metadata is primarily of historical interest for archival purposes. Modern implementations should store Lisa documents with full metadata preservation for digital archaeology and computing history research.
+
+### 6.17 UNIVAC 2200 Attributes
+
+UNIVAC 2200 series (1100/2200) mainframe filesystem metadata.
+
+```c
+typedef struct _ZOO64_UNIVAC_ATTR {
+  char    FileName[12];       // File name (12 characters max)
+  char    Qualifier[12];      // File qualifier
+  char    ProjectID[12];      // Project identifier
+  UINT16  FileType;           // File type (program, data, etc.)
+  UINT16  FileOrganization;   // Sequential, random, indexed
+  UINT32  GranuleSize;        // Granule size (allocation unit)
+  UINT32  MaxGranules;        // Maximum granules allocated
+  UINT32  HighGranule;        // Highest granule used
+  UINT16  RecordSize;         // Logical record size (words)
+  UINT8   WordSize;           // Word size (36 or 9-bit bytes)
+  UINT8   FileClass;          // Removable, cataloged, etc.
+  UINT32  CatalogInfo;        // Catalog information
+  UINT16  SecurityLevel;      // Security classification
+  UINT32  Flags;              // File characteristic flags
+} __attribute__((packed)) ZOO64_UNIVAC_ATTR;
+```
+
+UNIVAC file types:
+```
+0x01: PROGRAM    // Executable program
+0x02: DATA       // Data file
+0x03: LIBRARY    // Object library
+0x04: SOURCE     // Source code
+0x05: PRINT      // Print file
+0x06: PUNCH      // Card punch format
+```
+
+UNIVAC file organization:
+```
+0x01: SEQUENTIAL // Sequential access
+0x02: RANDOM     // Random access
+0x03: INDEXED    // Indexed sequential
+```
+
+### 6.18 PDP-10 Attributes
+
+PDP-10 systems (TENEX, ITS, TOPS-10, TOPS-20) filesystem metadata.
+
+```c
+typedef struct _ZOO64_PDP10_ATTR {
+  char    FileName[40];       // File name (6-char name + extension)
+  UINT32  ProtectionCode;     // Protection code (octal format)
+  UINT16  AccountNumber;      // Account number
+  char    Author[40];         // Author/creator name
+  UINT64  CreationDate;       // Creation date (NTP extended format)
+  UINT64  WriteDate;          // Last write date (NTP extended format)
+  UINT64  ReadDate;           // Last read date (NTP extended format)
+  UINT32  ByteSize;           // Byte size (7, 8, 9, 18, 36 bits)
+  UINT32  PageCount;          // Number of pages (512-word pages)
+  UINT16  FileMode;           // File mode (ASCII, binary, etc.)
+  UINT16  System;             // System type (TENEX, ITS, TOPS-10, TOPS-20)
+  UINT32  Generation;         // Generation number (version)
+  UINT32  Flags;              // System-specific flags
+} __attribute__((packed)) ZOO64_PDP10_ATTR;
+```
+
+PDP-10 protection codes (octal, format: <owner><group><world>):
+```
+Each digit: 0-7 octal
+Bit 0 (1): Read
+Bit 1 (2): Write
+Bit 2 (4): Execute
+Example: 0644 = owner:rw, group:r, world:r
+```
+
+PDP-10 systems:
+```
+0x01: TENEX      // TENEX operating system
+0x02: ITS        // Incompatible Timesharing System
+0x03: TOPS10     // TOPS-10
+0x04: TOPS20     // TOPS-20
+```
+
+### 6.19 Classic Mac OS Attributes
+
+Classic Macintosh System (System 1-9, pre-OS X) filesystem metadata.
+
+```c
+typedef struct _ZOO64_CLASSIC_MAC_ATTR {
+  char    TypeCode[4];        // File type code (e.g., 'TEXT', 'APPL')
+  char    CreatorCode[4];     // Creator application code
+  UINT16  FinderFlags;        // Finder flags
+  INT16   IconPositionV;      // Vertical icon position
+  INT16   IconPositionH;      // Horizontal icon position
+  UINT16  FolderID;           // Folder ID
+  UINT32  LabelColor;         // Label color (0-7)
+  UINT16  ScriptCode;         // Script code for name
+  UINT16  ExtendedFinderFlags;// Extended Finder flags
+  INT32   CommentID;          // Comment ID (-1 if none)
+  UINT32  PutAwayFolderID;    // "Put Away" folder ID
+  UINT16  IconID;             // Custom icon ID
+  UINT8   VersionMajor;       // File version (major)
+  UINT8   VersionMinor;       // File version (minor)
+} __attribute__((packed)) ZOO64_CLASSIC_MAC_ATTR;
+```
+
+Finder flags:
+```
+0x0001: IS_ON_DESK       // File is on desktop
+0x0002: COLOR            // Color (not B&W) icon
+0x0004: REQUIRES_SWITCH_LAUNCH // Requires mode switch
+0x0008: IS_SHARED        // Multiple users can run simultaneously
+0x0010: HAS_NO_INITS     // Has no INIT resources
+0x0020: HAS_BEEN_INITED  // Has been initialized
+0x0040: HAS_CUSTOM_ICON  // Has custom icon
+0x0080: IS_STATIONERY    // Is stationery pad
+0x0100: NAME_LOCKED      // Name is locked
+0x0200: HAS_BUNDLE       // Has BNDL resource
+0x0400: IS_INVISIBLE     // Invisible to Finder
+0x0800: IS_ALIAS         // Is an alias file
+```
+
+Common type codes:
+```
+'TEXT' // Text file
+'APPL' // Application
+'FFIL' // Finder file
+'INIT' // System extension
+'cdev' // Control panel
+'PICT' // Picture
+'snd ' // Sound
+'ttro' // TrueType font
+```
+
+### 6.20 Amiga Attributes
+
+Commodore Amiga AmigaDOS filesystem metadata.
+
+```c
+typedef struct _ZOO64_AMIGA_ATTR {
+  char    Comment[80];        // File comment
+  UINT32  ProtectionBits;     // Protection bits (DEWD ARWED)
+  UINT32  DaysFromEpoch;      // Days since 1978-01-01
+  UINT32  Minutes;            // Minutes since midnight
+  UINT32  Ticks;              // Ticks (1/50 second)
+  UINT16  FileType;           // File, directory, link
+  UINT32  ScriptBits;         // Script execution bits
+  UINT32  Flags;              // Additional flags
+} __attribute__((packed)) ZOO64_AMIGA_ATTR;
+```
+
+Amiga protection bits (inverted logic - bit SET means permission DENIED):
+```
+0x00000001: DELETE      // [D] File deletable
+0x00000002: EXECUTE     // [E] File executable
+0x00000004: WRITE       // [W] File writable
+0x00000008: READ        // [R] File readable
+0x00000010: ARCHIVE     // [A] Archive bit
+0x00000020: PURE        // [P] Re-entrant/pure
+0x00000040: SCRIPT      // [S] Script file
+0x00000080: HOLD        // [H] Hold (for multi-user)
+```
+
+### 6.21 Atari TOS/GEM Attributes
+
+Atari ST/TT/Falcon TOS and GEM filesystem metadata.
+
+```c
+typedef struct _ZOO64_ATARI_ATTR {
+  UINT8   Attributes;         // File attributes
+  UINT16  Time;               // MS-DOS format time
+  UINT16  Date;               // MS-DOS format date
+  UINT32  StartCluster;       // Starting cluster
+  char    GEMType[4];         // GEM file type
+  UINT16  GEMIcon;            // GEM icon number
+  UINT32  Flags;              // TOS flags
+} __attribute__((packed)) ZOO64_ATARI_ATTR;
+```
+
+Atari file attributes:
+```
+0x01: READ_ONLY   // Read-only file
+0x02: HIDDEN      // Hidden file
+0x04: SYSTEM      // System file
+0x08: VOLUME      // Volume label
+0x10: DIRECTORY   // Directory
+0x20: ARCHIVE     // Archive bit
+```
+
+### 6.22 Acorn RISC OS Attributes
+
+Acorn Archimedes RISC OS filesystem metadata.
+
+```c
+typedef struct _ZOO64_RISC_OS_ATTR {
+  UINT32  LoadAddress;        // Load address (or filetype if bit 12 set)
+  UINT32  ExecAddress;        // Execution address (or timestamp)
+  UINT32  Attributes;         // File attributes
+  UINT16  FileType;           // File type (12-bit, 0xFFF = untyped)
+  UINT64  Timestamp;          // RISC OS timestamp (centiseconds since 1900)
+  char    SpriteName[12];     // Associated sprite name
+} __attribute__((packed)) ZOO64_RISC_OS_ATTR;
+```
+
+RISC OS attributes:
+```
+0x00000001: OWNER_READ
+0x00000002: OWNER_WRITE
+0x00000008: LOCKED
+0x00000010: PUBLIC_READ
+0x00000020: PUBLIC_WRITE
+```
+
+Common RISC OS file types:
+```
+0xFFF: Untyped/Text
+0xFAE: DrawFile
+0xFF9: Sprite
+0xFAF: HTML
+0xC85: JPEG
+0xB60: PNG
+0xFFD: Data
+0xFEB: Obey (script)
+0xDEAD: Archive
+```
+
+### 6.23 Commodore 64/128 Attributes
+
+Commodore 64 and 128 disk filesystem metadata.
+
+```c
+typedef struct _ZOO64_C64_ATTR {
+  char    PETSCIIName[16];    // PETSCII filename
+  UINT8   FileType;           // File type (PRG, SEQ, USR, REL)
+  UINT8   RecordLength;       // Record length (REL files)
+  UINT16  StartAddress;       // Load address (PRG files)
+  UINT16  BlocksUsed;         // Number of blocks used
+  UINT8   DriveNumber;        // Drive number (0-1)
+  UINT8   TrackSector[2];     // Track and sector of first block
+  UINT8   Flags;              // File flags (locked, etc.)
+  UINT8   GEOSType;           // GEOS file type (if GEOS)
+  UINT8   GEOSStructure;      // GEOS file structure
+} __attribute__((packed)) ZOO64_C64_ATTR;
+```
+
+C64 file types:
+```
+0x00: DEL  // Deleted (scratched)
+0x01: SEQ  // Sequential
+0x02: PRG  // Program
+0x03: USR  // User
+0x04: REL  // Relative (random access)
+```
+
+C64 file flags:
+```
+0x40: LOCKED     // File is write-protected
+0x80: CLOSED     // File properly closed
+```
+
+### 6.24 Apple IIGS ProDOS Attributes
+
+Apple IIGS ProDOS 16 and GS/OS filesystem metadata.
+
+```c
+typedef struct _ZOO64_PRODOS_ATTR {
+  UINT8   FileType;           // ProDOS file type
+  UINT16  AuxType;            // Auxiliary type
+  UINT8   Access;             // Access flags
+  UINT16  StorageType;        // Storage type
+  UINT64  CreateTime;         // ProDOS timestamp (NTP format)
+  UINT64  ModTime;            // ProDOS timestamp (NTP format)
+  UINT32  BlocksUsed;         // Blocks used
+  UINT16  VersionCreated;     // ProDOS version that created file
+  UINT16  MinVersion;         // Minimum ProDOS version required
+  UINT32  EndOfFile;          // EOF marker
+  UINT32  OptionList;         // GS/OS option list
+} __attribute__((packed)) ZOO64_PRODOS_ATTR;
+```
+
+ProDOS file types (common):
+```
+0x00: UNK  // Unknown
+0x04: TXT  // Text file
+0x06: BIN  // Binary
+0x0F: DIR  // Directory
+0x19: ADB  // AppleWorks database
+0x1A: AWP  // AppleWorks word processor
+0x1B: ASP  // AppleWorks spreadsheet
+0x2E: PRG  // ProDOS application
+0xB0: SRC  // Source code
+0xEF: PAS  // Pascal
+0xF0: CMD  // Command file
+0xFA: INT  // Integer BASIC
+0xFC: BAS  // Applesoft BASIC
+0xFF: SYS  // System file
+```
+
+ProDOS access flags:
+```
+0x01: READ      // Read enable
+0x02: WRITE     // Write enable
+0x04: INVISIBLE // Invisible file
+0x20: BACKUP    // Backup needed
+0x40: RENAME    // Rename enable
+0x80: DESTROY   // Delete enable
+```
+
+### 6.25 Stratus VOS Attributes
+
+Stratus VOS (Virtual Operating System) fault-tolerant system metadata.
+
+```c
+typedef struct _ZOO64_STRATUS_ATTR {
+  char    ModuleName[32];     // Module name
+  char    Organization[32];   // Organization name
+  UINT32  FileOrganization;   // Sequential, relative, indexed
+  UINT16  RecordSize;         // Fixed record size
+  UINT16  KeySize;            // Key size (indexed files)
+  UINT32  MaxRecords;         // Maximum records
+  UINT32  ReplicationLevel;   // Replication level (0-3)
+  UINT32  IntegrityLevel;     // Integrity level
+  char    UserID[32];         // Owner user ID
+  char    GroupID[32];        // Owner group ID
+  UINT32  AccessControl;      // Access control flags
+  UINT32  Flags;              // VOS-specific flags
+} __attribute__((packed)) ZOO64_STRATUS_ATTR;
+```
+
+Stratus replication levels:
+```
+0: None         // No replication
+1: Disk         // Disk mirroring
+2: CPU          // CPU pair replication
+3: Full         // Full fault tolerance
+```
+
+### 6.26 Netware Extended Attributes
+
+Novell Netware extended filesystem metadata (beyond ACLs).
+
+```c
+typedef struct _ZOO64_NETWARE_ATTR {
+  UINT32  OwnerID;            // Owner object ID
+  UINT64  ArchiveTime;        // Last archive time (NTP format)
+  UINT64  ArchiverID;         // Archiver object ID
+  UINT64  UpdateTime;         // Last update time (NTP format)
+  UINT64  UpdaterID;          // Updater object ID
+  UINT32  Attributes;         // File attributes
+  UINT16  InheritedRightsFilter; // IRF
+  UINT32  MaxSpace;           // Maximum space
+  char    PrimaryNameSpace[16]; // Primary namespace (DOS, MAC, NFS, etc.)
+  char    NDSPath[256];       // NDS (Novell Directory Services) path
+  UINT32  Flags;              // Extended flags
+} __attribute__((packed)) ZOO64_NETWARE_ATTR;
+```
+
+Netware file attributes:
+```
+0x00000001: READ_ONLY
+0x00000002: HIDDEN
+0x00000004: SYSTEM
+0x00000008: EXECUTE_ONLY
+0x00000010: SUBDIRECTORY
+0x00000020: ARCHIVE
+0x00000040: EXECUTE_CONFIRM
+0x00000080: SHAREABLE
+0x00000100: DONT_COMPRESS
+0x00000200: COMPRESSED
+0x00000400: TRANSACTIONAL
+0x00000800: INDEXED
+0x00001000: READ_AUDIT
+0x00002000: WRITE_AUDIT
+0x00004000: IMMEDIATE_COMPRESS
+0x00008000: PURGE
+0x00010000: RENAME_INHIBIT
+0x00020000: DELETE_INHIBIT
+0x00040000: COPY_INHIBIT
+```
+
+### 6.27 Banyan VINES Extended Attributes
+
+Banyan VINES StreetTalk filesystem metadata.
+
+```c
+typedef struct _ZOO64_VINES_ATTR {
+  char    StreetTalkName[256]; // Full StreetTalk name
+  char    ServiceType[32];    // Service type
+  UINT32  VINESVersion;       // VINES OS version
+  char    Organization[64];   // Organization name
+  char    Group[64];          // Group name
+  char    Item[64];           // Item name
+  UINT32  Attributes;         // File attributes
+  UINT64  ReplicationStatus;  // Replication status
+  char    PrimaryServer[64];  // Primary file server
+  UINT32  Flags;              // VINES flags
+} __attribute__((packed)) ZOO64_VINES_ATTR;
+```
+
+### 6.28 AFS (Andrew File System) Attributes
+
+AFS distributed filesystem metadata.
+
+```c
+typedef struct _ZOO64_AFS_ATTR {
+  char    CellName[256];      // AFS cell name
+  UINT32  VolumeID;           // Volume ID
+  UINT32  Vnode;              // Vnode number
+  UINT32  Uniquifier;         // Uniquifier
+  UINT32  DataVersion;        // Data version number
+  char    VolumeName[64];     // Volume name
+  UINT32  QuotaUsed;          // Quota used
+  UINT32  QuotaLimit;         // Quota limit
+  UINT32  Author;             // Author UID
+  UINT32  Owner;              // Owner UID
+  UINT64  ServerModTime;      // Server modification time (NTP format)
+  UINT32  Callbacks;          // Callback information
+  UINT32  Flags;              // AFS flags
+} __attribute__((packed)) ZOO64_AFS_ATTR;
+```
+
+### 6.29 CODA Distributed Filesystem Attributes
+
+CODA filesystem metadata (extends AFS).
+
+```c
+typedef struct _ZOO64_CODA_ATTR {
+  char    Realm[256];         // CODA realm name
+  UINT32  VolumeID;           // Volume ID
+  UINT32  Vnode;              // Vnode number
+  UINT32  Uniquifier;         // Uniquifier
+  UINT64  DataVersion;        // Data version (64-bit)
+  char    VolumeName[64];     // Volume name
+  UINT32  ReplicationFactor;  // Replication factor
+  UINT32  ReplicaCount;       // Number of replicas
+  char    ReplicaServers[256]; // Comma-separated replica servers
+  UINT32  ConflictStatus;     // Conflict resolution status
+  UINT64  VectorVersion[8];   // Version vector (for conflicts)
+  UINT32  CachePriority;      // Client cache priority
+  UINT32  Flags;              // CODA flags
+} __attribute__((packed)) ZOO64_CODA_ATTR;
+```
+
+### 6.30 GFS (Global File System) Attributes
+
+Clustered filesystem metadata.
+
+```c
+typedef struct _ZOO64_GFS_ATTR {
+  char    ClusterName[64];    // Cluster name
+  UINT32  NodeID;             // Node ID
+  UINT64  GlockNumber;        // Global lock number
+  UINT32  LockState;          // Lock state
+  char    JournalID[32];      // Journal identifier
+  UINT64  SequenceNumber;     // Sequence number
+  UINT32  ReplicationLevel;   // Replication level
+  UINT32  StripingFactor;     // Striping factor
+  UINT32  BlockAllocation;    // Block allocation policy
+  UINT64  ExtentSize;         // Extent size
+  UINT32  Flags;              // GFS flags
+} __attribute__((packed)) ZOO64_GFS_ATTR;
+```
+
+### 6.31 DFS (Distributed File System) Attributes
+
+General distributed filesystem metadata.
+
+```c
+typedef struct _ZOO64_DFS_ATTR {
+  char    Namespace[256];     // DFS namespace
+  char    ServerPath[512];    // Server UNC path
+  char    LinkTarget[512];    // DFS link target
+  UINT32  Timeout;            // Client cache timeout (seconds)
+  UINT32  ReferralTTL;        // Referral time-to-live
+  UINT16  TargetPriority;     // Target priority
+  UINT16  TargetRank;         // Target ranking
+  char    SiteName[64];       // AD site name
+  UINT32  LinkState;          // Link state (online, offline)
+  UINT32  Flags;              // DFS flags
+} __attribute__((packed)) ZOO64_DFS_ATTR;
+```
 
 ## 6a. Encryption Support
 
