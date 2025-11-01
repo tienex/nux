@@ -109,8 +109,8 @@ typedef struct _ZOO64_ARCHIVE_HEADER {
   UINT16  MajorVersion;       // Format major version (1)
   UINT16  MinorVersion;       // Format minor version (0)
   UINT32  Flags;              // Archive flags
-  UINT64  CreationTime;       // Unix timestamp (microseconds since epoch)
-  UINT64  ModificationTime;   // Unix timestamp (microseconds since epoch)
+  UINT64  CreationTime;       // NTP extended format timestamp
+  UINT64  ModificationTime;   // NTP extended format timestamp
   UINT32  CompressionMode;    // Compression mode identifier
   UINT32  FileCount;          // Number of files in archive (all volumes)
   UINT64  CentralDirOffset;   // Offset to central directory (in last volume)
@@ -123,6 +123,42 @@ typedef struct _ZOO64_ARCHIVE_HEADER {
   UINT32  VolumeSize;         // Maximum size per volume (0 for single archive)
   UINT8   UUID[16];           // Archive UUID (same across all volumes)
 } __attribute__((packed)) ZOO64_ARCHIVE_HEADER;
+```
+
+### 3.1a NTP Extended Format Timestamps
+
+All timestamps in Zoo64 use **NTP extended format** (64-bit):
+
+```
+Bits 0-31:  Seconds since NTP epoch (1900-01-01 00:00:00 UTC)
+Bits 32-63: Fraction of a second (1/2^32 second precision)
+```
+
+This provides:
+- **Resolution**: ~232 picoseconds (2^-32 seconds)
+- **Range**: 136 years per NTP era (wraps at 2^32 seconds)
+- **Current Era**: Era 0 ends 2036-02-07, Era 1 begins 2036-02-08
+
+**Conversion from Unix time to NTP extended format**:
+```c
+// Unix epoch (1970-01-01) is 2208988800 seconds after NTP epoch (1900-01-01)
+#define NTP_OFFSET 2208988800ULL
+
+UINT64 UnixToNTP(time_t unixSec, uint32_t nanoSec) {
+  UINT64 ntpSec = (UINT64)unixSec + NTP_OFFSET;
+  UINT64 ntpFrac = ((UINT64)nanoSec << 32) / 1000000000ULL;
+  return (ntpSec << 32) | ntpFrac;
+}
+```
+
+**Conversion from NTP extended format to Unix time**:
+```c
+void NTPToUnix(UINT64 ntpTime, time_t *unixSec, uint32_t *nanoSec) {
+  UINT64 ntpSec = ntpTime >> 32;
+  UINT64 ntpFrac = ntpTime & 0xFFFFFFFF;
+  *unixSec = (time_t)(ntpSec - NTP_OFFSET);
+  *nanoSec = (uint32_t)((ntpFrac * 1000000000ULL) >> 32);
+}
 ```
 
 ### 3.1 Archive Flags
@@ -301,15 +337,24 @@ typedef struct _ZOO64_FILE_HEADER {
   UINT16  CompressionMethod;  // Compression method for this file
   UINT32  CRC32;              // CRC32 of uncompressed data
   UINT64  SHA256[4];          // SHA-256 hash of uncompressed data
-  UINT64  CreationTime;       // File creation time (microseconds)
-  UINT64  ModificationTime;   // File modification time (microseconds)
-  UINT64  AccessTime;         // File access time (microseconds)
+  UINT64  BirthTime;          // File birth/creation time (NTP extended format)
+  UINT64  ModificationTime;   // File modification time (NTP extended format)
+  UINT64  AccessTime;         // File access time (NTP extended format)
+  UINT64  ChangeTime;         // File metadata change time (NTP extended format)
   UINT32  UID;                // User ID (Unix)
   UINT32  GID;                // Group ID (Unix)
   UINT32  Mode;               // File mode/permissions (Unix)
   UINT32  Attributes;         // Platform-specific attributes
 } __attribute__((packed)) ZOO64_FILE_HEADER;
 ```
+
+**File Timestamps**:
+- **BirthTime**: File creation/birth time (when the file was first created)
+- **ModificationTime**: Last data modification time (mtime)
+- **AccessTime**: Last access time (atime)
+- **ChangeTime**: Last metadata change time (ctime - permissions, owner, etc.)
+
+All four timestamps use NTP extended format for maximum precision and consistency.
 
 ### 5.2 File Flags
 
@@ -699,6 +744,41 @@ checksums:
   sha1: "def456..."
 ```
 
+### 6.6a Extended Timestamps Format
+
+For platforms that support additional timestamps beyond the standard four (birth, modification, access, change), or to store higher-precision timestamps than NTP extended format provides.
+
+```c
+typedef struct _ZOO64_EXTENDED_TIMESTAMPS {
+  UINT64  BirthTime;          // File birth/creation time (NTP extended format)
+  UINT64  ModificationTime;   // Data modification time (NTP extended format)
+  UINT64  AccessTime;         // Last access time (NTP extended format)
+  UINT64  ChangeTime;         // Metadata change time (NTP extended format)
+  UINT64  BackupTime;         // Last backup time (NTP extended format)
+  UINT64  ArchivedTime;       // Time archived (NTP extended format)
+  UINT32  Flags;              // Timestamp flags
+  UINT32  Reserved;           // Reserved for future use
+} __attribute__((packed)) ZOO64_EXTENDED_TIMESTAMPS;
+```
+
+**Note**: Extended timestamps chunk is optional and used only when:
+1. Additional timestamps (backup, archived) are present
+2. Platform has timestamps not covered by the file header
+3. Need to store original timestamps alongside normalized timestamps
+
+Standard file header already contains the four primary timestamps (birth, modification, access, change) in NTP extended format. This metadata chunk is for edge cases requiring additional timestamp metadata.
+
+Timestamp flags:
+```
+Bit 0:     BirthTime valid
+Bit 1:     ModificationTime valid
+Bit 2:     AccessTime valid
+Bit 3:     ChangeTime valid
+Bit 4:     BackupTime valid
+Bit 5:     ArchivedTime valid
+Bit 6-31:  Reserved
+```
+
 ### 6.7 macOS UUIDs Format
 
 macOS stores UUIDs for users and groups alongside numeric IDs.
@@ -1037,7 +1117,7 @@ typedef struct _ZOO64_SIGNATURE {
   UINT32  SignatureSize;      // Total size of signature block
   UINT16  SignatureType;      // Signature algorithm
   UINT16  HashAlgorithm;      // Hash algorithm used
-  UINT64  SigningTime;        // Unix timestamp
+  UINT64  SigningTime;        // Signing timestamp (NTP extended format)
   UINT32  CertificateSize;    // Size of certificate (0 if none)
   UINT32  SignatureDataSize;  // Size of signature data
   // Followed by:
@@ -1387,10 +1467,51 @@ When converting classic Zoo to Zoo64:
 3. **Compression**:
    - **Option 1**: Decompress LZH/LZD, recompress with Zoo64 pipeline
    - **Option 2**: Store compressed data as-is with compression method marker
-4. **Timestamps**: Convert MS-DOS date/time to Unix microseconds
+4. **Timestamps**: Convert MS-DOS date/time to NTP extended format
 5. **Metadata**: Store generation numbers in YAML metadata
 6. **CRC**: Upgrade CRC-16 to CRC-32 + SHA-256
 7. **Attributes**: Convert to appropriate platform metadata
+
+#### 17.4.1 MS-DOS to NTP Timestamp Conversion
+
+Classic Zoo stores timestamps in MS-DOS date/time format (16-bit date + 16-bit time):
+
+```c
+// MS-DOS date format (16 bits)
+// Bits 0-4:   Day (1-31)
+// Bits 5-8:   Month (1-12)
+// Bits 9-15:  Year (0 = 1980, 127 = 2107)
+
+// MS-DOS time format (16 bits)
+// Bits 0-4:   Seconds/2 (0-29)
+// Bits 5-10:  Minutes (0-59)
+// Bits 11-15: Hours (0-23)
+
+UINT64 DOSTimeToNTP(UINT16 dosDate, UINT16 dosTime) {
+  // Extract fields
+  int day   = dosDate & 0x1F;
+  int month = (dosDate >> 5) & 0x0F;
+  int year  = ((dosDate >> 9) & 0x7F) + 1980;
+  int sec   = (dosTime & 0x1F) * 2;
+  int min   = (dosTime >> 5) & 0x3F;
+  int hour  = (dosTime >> 11) & 0x1F;
+
+  // Convert to Unix timestamp (use mktime or equivalent)
+  struct tm t = {0};
+  t.tm_year = year - 1900;
+  t.tm_mon = month - 1;
+  t.tm_mday = day;
+  t.tm_hour = hour;
+  t.tm_min = min;
+  t.tm_sec = sec;
+  time_t unixTime = mktime(&t);
+
+  // Convert to NTP extended format
+  return UnixToNTP(unixTime, 0);
+}
+```
+
+**Note**: MS-DOS timestamps have 2-second precision and no timezone information (assumed local time). When converting to Zoo64, record both ModificationTime and BirthTime as the same value since classic Zoo doesn't distinguish creation vs modification time.
 
 ### 17.5 Conversion: Zoo64 → Classic Zoo (Limited)
 
@@ -1402,6 +1523,8 @@ For compatibility with legacy tools:
 - Compression converted to LZH or stored
 - Metadata discarded (except what fits in comment field)
 - File size limit: 4 GB (32-bit size fields)
+- Timestamps truncated to 2-second precision (MS-DOS format)
+- Timestamps after 2107 cannot be represented
 
 **Process:**
 ```
@@ -1409,8 +1532,47 @@ For compatibility with legacy tools:
 2. Warn user about metadata loss
 3. Decompress Zoo64 data
 4. Recompress with LZH (if beneficial) or store
-5. Generate classic Zoo directory entries
-6. Write classic Zoo format
+5. Convert NTP timestamps to MS-DOS date/time
+6. Generate classic Zoo directory entries
+7. Write classic Zoo format
+```
+
+#### 17.5.1 NTP to MS-DOS Timestamp Conversion
+
+```c
+void NTPToDOSTime(UINT64 ntpTime, UINT16 *dosDate, UINT16 *dosTime) {
+  // Convert NTP to Unix time
+  time_t unixSec;
+  uint32_t nanoSec;
+  NTPToUnix(ntpTime, &unixSec, &nanoSec);
+
+  // Convert to local time
+  struct tm *t = localtime(&unixSec);
+
+  // Validate range (1980-2107)
+  if (t->tm_year + 1900 < 1980) {
+    // Clamp to minimum (1980-01-01 00:00:00)
+    *dosDate = 0x0021;  // 1980-01-01
+    *dosTime = 0x0000;  // 00:00:00
+    return;
+  }
+  if (t->tm_year + 1900 > 2107) {
+    // Clamp to maximum (2107-12-31 23:59:58)
+    *dosDate = 0xFF9F;  // 2107-12-31
+    *dosTime = 0xBF7D;  // 23:59:58
+    return;
+  }
+
+  // Encode MS-DOS date
+  *dosDate = ((t->tm_year + 1900 - 1980) << 9) |
+             ((t->tm_mon + 1) << 5) |
+             t->tm_mday;
+
+  // Encode MS-DOS time (2-second precision)
+  *dosTime = (t->tm_hour << 11) |
+             (t->tm_min << 5) |
+             (t->tm_sec / 2);
+}
 ```
 
 ### 17.6 Dual-Format Archives
