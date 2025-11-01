@@ -45,6 +45,7 @@
 #include "frontend/memory.h"
 #include "backend/jit.h"
 #include "backend/jit_internal.h"
+#include "backend/interpreter.h"
 
 /* Include sljit for JIT compilation */
 #define SLJIT_CONFIG_AUTO 1
@@ -1138,107 +1139,7 @@ static void *CompileFragmentShader(Linker *linker) {
 	return code;
 }
 
-/**
- * Helper: Read a component from a source register with swizzling
- */
-static GLfloat ReadComponent(const GLfloat *base, const SrcReg *src, GLuint comp) {
-	GLubyte swizzle;
-	GLfloat value;
-
-	/* Get swizzle for this component */
-	switch (comp) {
-		case 0: swizzle = src->selectX; break;
-		case 1: swizzle = src->selectY; break;
-		case 2: swizzle = src->selectZ; break;
-		case 3: swizzle = src->selectW; break;
-		default: return 0.0f;
-	}
-
-	/* Read value with swizzle */
-	value = base[swizzle];
-
-	/* Apply negation if needed */
-	if (src->negate) {
-		value = -value;
-	}
-
-	return value;
-}
-
-/**
- * Helper: Write a component to destination register with write mask
- */
-static void WriteComponent(GLfloat *base, const DstReg *dst, GLuint comp, GLfloat value) {
-	GLboolean mask;
-
-	/* Check write mask */
-	switch (comp) {
-		case 0: mask = dst->maskX; break;
-		case 1: mask = dst->maskY; break;
-		case 2: mask = dst->maskZ; break;
-		case 3: mask = dst->maskW; break;
-		default: return;
-	}
-
-	/* Write if not masked */
-	if (mask) {
-		base[comp] = value;
-	}
-}
-
-/**
- * IL Interpreter - fallback when JIT compilation fails or is disabled
- * Executes shader IL instructions directly
- *
- * This interpreter handles all shader opcodes including texture sampling.
- * It's used as a fallback when JIT compilation fails or for complex
- * operations that are better handled in software.
- */
-static GLboolean InterpretVertexShader(const VertexContext *context) {
-	/* Simple passthrough implementation
-	 * A full interpreter would:
-	 * 1. Iterate through shader program blocks
-	 * 2. Execute each instruction
-	 * 3. Handle all opcodes (including TEX operations)
-	 *
-	 * For now, we provide minimal support for basic shaders
-	 * Most shaders will use the JIT path which handles all common opcodes
-	 */
-
-	/* If we have temps and attribs, do basic passthrough */
-	if (context->temp && context->attrib && context->varying) {
-		GLuint i;
-		/* Simple passthrough: copy attribs to varyings */
-		for (i = 0; i < 4; i++) {
-			context->varying[i] = context->attrib[i].x;
-		}
-		return GL_TRUE;
-	}
-
-	return GL_FALSE;
-}
-
-/**
- * IL Interpreter for fragment shaders
- */
-static GLboolean InterpretFragmentShader(const FragContext *context) {
-	/* Simple implementation for fragment shaders
-	 * A full interpreter would process fragment shader IL
-	 * including texture sampling operations
-	 */
-
-	/* If we have result and varying, do basic operation */
-	if (context->result && context->varying) {
-		GLuint i;
-		/* Simple operation: output varying as color */
-		for (i = 0; i < 4; i++) {
-			context->result[0].base[i] = (i < 4) ? context->varying[i] : 1.0f;
-		}
-		return GL_TRUE;
-	}
-
-	return GL_FALSE;
-}
+/* Interpreter functions moved to interpreter.c */
 
 /**
  * Generate an executable from linked shader IL
@@ -1284,7 +1185,7 @@ Executable *GlesGenerateExecutable(Linker *linker) {
 		executable->vertex.code.size = 0; /* Size managed by sljit */
 	} else {
 		/* JIT failed, use interpreter */
-		executable->vertex.code.base = (void *)InterpretVertexShader;
+		executable->vertex.code.base = (void *)GlesInterpretVertexShader;
 		executable->vertex.code.size = 0;
 	}
 
@@ -1297,7 +1198,7 @@ Executable *GlesGenerateExecutable(Linker *linker) {
 		executable->fragment.code.size = 0; /* Size managed by sljit */
 	} else {
 		/* JIT failed, use interpreter */
-		executable->fragment.code.base = (void *)InterpretFragmentShader;
+		executable->fragment.code.base = (void *)GlesInterpretFragmentShader;
 		executable->fragment.code.size = 0;
 	}
 
