@@ -812,6 +812,7 @@ typedef struct _ZOO64_METADATA_CHUNK {
 0x0048: ISO 9660 metadata (with Rock Ridge/Joliet/El Torito)
 0x0049: High Sierra metadata
 0x004A: Block deduplication metadata (chunk hashes)
+0x004B: Reserved filename metadata (Windows/DOS/OS2 device names)
 ```
 
 ### 6.3 Universal ACL Format
@@ -5257,6 +5258,275 @@ Benefits:
 - **Bandwidth**: Reduced network transfer for backups
 - **Incremental**: Only new chunks stored
 - **Scalable**: Works at file, archive, or global level
+
+### 6.71 Reserved Filename Metadata (0x004B)
+
+Handles Windows/DOS/OS2 reserved device names that cannot be used as regular filenames.
+
+```c
+typedef struct _ZOO64_RESERVED_NAME_ATTR {
+  UINT8   ReservedType;       // Type of reserved name
+  UINT8   Platform;           // Platform: 0=DOS, 1=Windows, 2=OS2, 3=Multi
+  UINT16  OriginalNameLength; // Length of original (unsafe) name
+  UINT16  SafeNameLength;     // Length of safe alternative name
+  UINT32  Flags;              // Reserved name flags
+  // Followed by:
+  //   [OriginalNameLength bytes: original name (e.g., "CON")]
+  //   [SafeNameLength bytes: safe alternative (e.g., "CON_")]
+} __attribute__((packed)) ZOO64_RESERVED_NAME_ATTR;
+```
+
+**Reserved Device Names** (case-insensitive):
+
+**Class 1: Character Devices** (no extension allowed)
+```
+CON     // Console (input/output)
+PRN     // Printer (parallel port, same as LPT1)
+AUX     // Auxiliary (serial port, same as COM1)
+NUL     // Null device (discard output)
+CLOCK$  // System clock (DOS/OS2)
+KBD$    // Keyboard (OS/2)
+SCREEN$ // Screen (OS/2)
+POINTER$// Mouse pointer (OS/2)
+```
+
+**Class 2: Serial Ports** (COM1-COM9, COM0 on some systems)
+```
+COM1, COM2, COM3, COM4, COM5, COM6, COM7, COM8, COM9
+COM¹, COM², COM³ (Unicode superscripts also reserved on NT)
+```
+
+**Class 3: Parallel Ports** (LPT1-LPT9)
+```
+LPT1, LPT2, LPT3, LPT4, LPT5, LPT6, LPT7, LPT8, LPT9
+LPT¹, LPT², LPT³ (Unicode superscripts also reserved on NT)
+```
+
+**Class 4: Special OS/2 Devices**
+```
+\DEV\CON
+\DEV\NUL
+\DEV\PRN
+\DEV\AUX
+\DEV\COMn
+\DEV\LPTn
+\PIPE\*   // Named pipes
+\QUEUES\* // Named queues
+```
+
+**Important Rules**:
+1. **Case insensitive**: `CON`, `Con`, `con` all reserved
+2. **Extension ignored**: `CON.txt`, `CON.doc` still reserved
+3. **Whitespace trimmed**: `CON ` and ` CON` both reserved (Windows)
+4. **Path irrelevant**: `C:\dir\CON` reserved regardless of path
+5. **Wildcard matching**: `COM[1-9]`, `LPT[1-9]` patterns
+
+**Reserved Type Values**:
+```
+0: UNKNOWN
+1: CHARACTER_DEVICE    // CON, PRN, AUX, NUL
+2: SERIAL_PORT         // COM1-COM9
+3: PARALLEL_PORT       // LPT1-LPT9
+4: CLOCK_DEVICE        // CLOCK$
+5: KEYBOARD_DEVICE     // KBD$
+6: SCREEN_DEVICE       // SCREEN$
+7: POINTER_DEVICE      // POINTER$
+8: PIPE_NAMESPACE      // \PIPE\*
+9: QUEUE_NAMESPACE     // \QUEUES\*
+10: DEV_NAMESPACE      // \DEV\*
+```
+
+**Platform Values**:
+```
+0: DOS              // MS-DOS, PC DOS, DR-DOS
+1: WINDOWS          // Windows 3.x/9x/NT/2000/XP/Vista/7/8/10/11
+2: OS2              // OS/2 1.x/2.x/Warp
+3: MULTI_PLATFORM   // Reserved on multiple platforms
+```
+
+**Reserved Name Flags**:
+```
+0x00000001: EXTENSION_IRRELEVANT   // Extension doesn't matter (CON.txt = CON)
+0x00000002: CASE_INSENSITIVE       // Case doesn't matter
+0x00000004: WHITESPACE_TRIMMED     // Trailing whitespace ignored
+0x00000008: PATH_IRRELEVANT        // Path doesn't matter
+0x00000010: WILDCARD_MATCH         // Matches pattern (COM[1-9])
+0x00000020: NAMESPACE_PREFIX       // Uses \DEV\ or \PIPE\ prefix
+0x00000040: LEGACY_DOS             // DOS-era device
+0x00000080: WIN32_NAMESPACE        // Win32 namespace (\\?\, \\.\)
+0x00000100: UNC_PATH_SAFE          // Safe in UNC path (\\server\share\CON may work)
+```
+
+**Detection Algorithm**:
+```c
+bool is_reserved_name(const char* filename) {
+    // Extract basename (strip path and extension)
+    char base[256];
+    extract_basename(filename, base);
+
+    // Trim trailing whitespace (Windows behavior)
+    trim_whitespace(base);
+
+    // Convert to uppercase for comparison
+    to_uppercase(base);
+
+    // Check Class 1: Character devices
+    if (strcmp(base, "CON") == 0 ||
+        strcmp(base, "PRN") == 0 ||
+        strcmp(base, "AUX") == 0 ||
+        strcmp(base, "NUL") == 0 ||
+        strcmp(base, "CLOCK$") == 0 ||
+        strcmp(base, "KBD$") == 0 ||
+        strcmp(base, "SCREEN$") == 0 ||
+        strcmp(base, "POINTER$") == 0) {
+        return true;
+    }
+
+    // Check Class 2: Serial ports (COM1-COM9)
+    if (strlen(base) == 4 &&
+        base[0] == 'C' && base[1] == 'O' && base[2] == 'M' &&
+        base[3] >= '1' && base[3] <= '9') {
+        return true;
+    }
+
+    // Check Class 3: Parallel ports (LPT1-LPT9)
+    if (strlen(base) == 4 &&
+        base[0] == 'L' && base[1] == 'P' && base[2] == 'T' &&
+        base[3] >= '1' && base[3] <= '9') {
+        return true;
+    }
+
+    // Check Class 4: OS/2 namespace prefixes
+    if (strncmp(filename, "\\DEV\\", 5) == 0 ||
+        strncmp(filename, "\\PIPE\\", 6) == 0 ||
+        strncmp(filename, "\\QUEUES\\", 8) == 0) {
+        return true;
+    }
+
+    return false;
+}
+```
+
+**Safe Name Generation Strategies**:
+
+1. **Suffix underscore** (simple, preserves readability):
+   - `CON` → `CON_`
+   - `LPT1` → `LPT1_`
+   - `NUL.txt` → `NUL_.txt`
+
+2. **Prefix underscore** (alternate):
+   - `CON` → `_CON`
+   - `LPT1` → `_LPT1`
+
+3. **Unicode replacement** (preserves length):
+   - `CON` → `CОN` (Cyrillic O: U+041E)
+   - `NUL` → `ΝUL` (Greek N: U+039D)
+
+4. **Percent encoding** (URL-style):
+   - `CON` → `%43ON` or `CO%4E`
+   - Reversible and unambiguous
+
+5. **Win32 namespace** (Windows-specific):
+   - `CON` → `\\?\C:\path\CON`
+   - Works on NTFS but requires special handling
+
+6. **Extension prefix** (if extension present):
+   - `CON.txt` → `CON_.txt`
+   - `NUL.log` → `NUL_.log`
+
+**Recommended Strategy**: Suffix underscore (Strategy 1)
+- Simple and reversible
+- Human-readable
+- Works on all platforms
+- Easy to detect and reverse
+
+**Archiving Behavior**:
+
+When encountering a reserved name during archiving:
+
+1. **Detection**: Check if filename is reserved
+2. **Recording**: Store original name in `OriginalNameLength` field
+3. **Safe alternative**: Generate safe name (e.g., `CON_`)
+4. **Metadata**: Set `ReservedType`, `Platform`, and `Flags`
+5. **Path normalization**: Use safe name in normalized path
+6. **Preservation**: Keep original for round-trip to compatible platform
+
+**Extraction Behavior**:
+
+When extracting to different platforms:
+
+**Extracting to Windows/DOS/OS2**:
+- Use safe alternative name (e.g., `CON_`)
+- Or use Win32 namespace (`\\?\C:\path\CON`)
+- Warn user about name change
+
+**Extracting to POSIX (Linux/macOS/BSD)**:
+- Use original name (e.g., `CON`) - safe on POSIX
+- No warning needed
+
+**Extracting to other systems**:
+- Check if name conflicts with that system's reserved names
+- Apply appropriate strategy
+
+**Round-Trip Preservation**:
+
+Windows → Archive → Windows:
+```
+Original:    C:\Users\test\CON.txt (error: cannot create)
+Archived as: CON_ (with metadata preserving "CON")
+Extracted:   C:\Users\test\CON_.txt (safe)
+```
+
+POSIX → Archive → POSIX:
+```
+Original:    /home/user/CON (valid on POSIX)
+Archived as: CON (no metadata needed)
+Extracted:   /home/user/CON (identical)
+```
+
+POSIX → Archive → Windows:
+```
+Original:    /home/user/CON
+Archived as: CON (with metadata warning)
+Extracted:   C:\Users\CON_.txt (safe on Windows)
+```
+
+**Example Metadata**:
+```c
+// File originally named "CON.txt" on POSIX system
+RESERVED_NAME_ATTR {
+  ReservedType: CHARACTER_DEVICE
+  Platform: WINDOWS
+  OriginalNameLength: 3
+  SafeNameLength: 4
+  Flags: EXTENSION_IRRELEVANT | CASE_INSENSITIVE | WHITESPACE_TRIMMED
+  OriginalName: "CON"
+  SafeName: "CON_"
+}
+```
+
+**Testing Reserved Names**:
+
+On Windows, these commands will fail:
+```batch
+echo test > CON        REM Writes to console, not file
+echo test > NUL        REM Discards output
+echo test > LPT1.txt   REM Attempts to write to parallel port
+type CON               REM Reads from console
+```
+
+Attempting to create these files via API will return `ERROR_INVALID_NAME` or `ERROR_FILE_EXISTS`.
+
+**Historical Note**:
+These reserved names originate from CP/M (1974) and were carried forward to MS-DOS (1981) for compatibility. Windows inherited them from DOS, and they persist even in modern Windows 11 for backward compatibility.
+
+**Security Consideration**:
+Attackers may use reserved names to cause denial-of-service:
+- Archive with `CON` extracts and hangs extraction tool (reads from console)
+- Archive with `NUL` silently discards data
+- Archive with `LPT1` attempts to access parallel port (privilege escalation)
+
+Zoo64 implementations **must** detect and handle reserved names safely.
 
 ## 6a. Encryption Support
 
