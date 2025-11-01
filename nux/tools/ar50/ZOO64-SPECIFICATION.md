@@ -1025,31 +1025,92 @@ typedef struct _ZOO64_COMPRESSION_DESC {
 
 ### 4.1 Compression Algorithms
 
+**32-bit Algorithm ID Allocation**:
+
+Zoo64 uses 32-bit algorithm IDs (UINT32) to support a comprehensive range of compression methods:
+
+| ID Range | Count | Purpose | Details |
+|----------|-------|---------|---------|
+| 0x00000000-0x00000FFF | 4,096 | Standard algorithms | Well-known compression methods |
+| 0x00001000-0xEFFFFFFF | ~3.9 billion | Reserved | Future expansion |
+| 0xF0000000-0xFFFEFFFF | ~268 million | **Third-party algorithms** | Available for third-party implementations |
+| 0xFFFF0000-0xFFFFFFFF | 65,536 | **Dynamic WASM codecs** | RESERVED for runtime WASM modules |
+
+**Standard Algorithm ID Map** (first 4,096 IDs):
+
 ```
-0x0000: None (stored)
-0x0001: ZOZ (adaptive entropy-reduction pipeline)
-0x0002: LZ77 (Lempel-Ziv 1977)
-0x0003: LZ4 (extremely fast, moderate compression)
-0x0004: ZSTD (Zstandard, Facebook)
-0x0005: LZMA (7-Zip)
-0x0006: LZMA2 (7-Zip, improved LZMA)
-0x0007: LZX (Microsoft CAB)
-0x0008: LZFSE (Apple)
-0x0009: ZLIB (Deflate algorithm, RFC 1950)
-0x000A: LZH (LHA/LZH archiver)
-0x000B: LZW (Lempel-Ziv-Welch, GIF/TIFF)
-0x000C: BROTLI (Google)
-0x000D: BZIP2 (bzip2)
-0x000E: PAQ (PAQ family, maximum compression)
-0x000F: HUFFMAN (Huffman coding only)
-0x0010: BIT_SQUISH (Reduced alphabet bit-packing)
-0x0011: Crunch (Apple II Crunch)
-0x0012: ACE (ACE archiver)
-0x0013: ARJ (ARJ archiver)
-0x0014: StuffIt (Macintosh StuffIt)
-0x0015: MSCAB (Microsoft Cabinet format)
-0x0016: LTO (LTO tape compression)
-0x0100: Custom (parameters in descriptor)
+// Basic & Statistical (0x00-0x0F)
+0x00000000: STORED (no compression)
+0x00000001: ZOZ (adaptive entropy-reduction pipeline)
+0x00000002: RLE (Run-Length Encoding)
+0x00000003: HUFFMAN (Huffman coding only)
+0x00000004: BIT_SQUISH (Reduced alphabet bit-packing)
+0x00000005: ARITHMETIC (Arithmetic coding)
+0x00000006: RANGE_CODING (Range coding)
+0x00000007: ANS (Asymmetric Numeral Systems)
+
+// LZ77 Family (0x10-0x2F)
+0x00000010: LZ77 (Lempel-Ziv 1977)
+0x00000011: LZSS (LZ77 variant)
+0x00000012: DEFLATE (RFC 1951)
+0x00000013: ZLIB (RFC 1950, DEFLATE wrapper)
+0x00000014: GZIP (RFC 1952)
+0x00000015: LZO (fast)
+0x00000016: LZ4 (extremely fast)
+0x00000017: LZ4HC (LZ4 High Compression)
+0x00000018: SNAPPY (Google)
+0x00000019: LZF (LibLZF)
+0x0000001A: LZRW (LZRW1/3/4)
+0x0000001B: LZJB (ZFS)
+0x0000001F: LZX (Microsoft CAB)
+
+// LZ78 Family (0x30-0x3F)
+0x00000030: LZ78 (Lempel-Ziv 1978)
+0x00000031: LZW (Lempel-Ziv-Welch, GIF/TIFF)
+
+// LZMA Family (0x40-0x5F)
+0x00000040: LZMA (7-Zip)
+0x00000041: LZMA2 (Multi-threaded LZMA)
+0x00000042: XZ (XZ Utils, LZMA2-based)
+
+// Modern General-Purpose (0x60-0x7F)
+0x00000060: ZSTD (Zstandard, Facebook - recommended)
+0x00000061: BROTLI (Google, RFC 7932)
+0x00000062: LZFSE (Apple)
+
+// BWT-Based (0x80-0x9F)
+0x00000080: BZIP2 (BWT + RLE + Huffman)
+0x00000081: BZIP3
+
+// Context Modeling (0xA0-0xBF)
+0x000000A0: PPMD (Prediction by Partial Matching)
+
+// PAQ Family (0xC0-0xCF)
+0x000000C0: PAQ (maximum compression)
+0x000000C6: ZPAQ
+
+// LZH Family (0xD0-0xEF)
+0x000000D0: LZH (LHA/LZH archiver)
+
+// Legacy Archives (0x100-0x11F)
+0x00000100: ARC
+0x00000101: ZOO archiver
+0x00000102: ARJ
+0x00000103: ACE
+0x00000104: RAR
+0x00000106: CAB (Microsoft Cabinet)
+0x00000108: STUFFIT (Macintosh)
+0x0000010C: CRUNCH (Apple II)
+
+// See Section 12.6 for complete 32-bit enumeration (147 algorithms)
+
+// Third-Party Range (0xF0000000-0xFFFEFFFF)
+0xF0000000: Third-party algorithm base
+// Register your algorithm ID to avoid conflicts
+
+// WASM Codec Range (0xFFFF0000-0xFFFFFFFF) - RESERVED
+0xFFFF0000-0xFFFFFFFF: Dynamic WASM32 embeddable modules
+// Automatically assigned at runtime, DO NOT use statically
 ```
 
 **Algorithm Characteristics**:
@@ -12798,12 +12859,23 @@ typedef enum _ZOO64_COMPRESSION_ALGORITHM {
   Zoo64CompressJxl                  = 0x000001C6,  // JPEG XL
   Zoo64CompressHeif                 = 0x000001C7,  // HEIF
 
-  // 0xFFFF0000-0xFFFFFFFF: Custom & Reserved
-  Zoo64CompressWasm32               = 0xFFFF0000,  // WASM32 embeddable module
-  Zoo64CompressCustom1              = 0xFFFF0001,  // Custom algorithm 1
-  Zoo64CompressCustom2              = 0xFFFF0002,  // Custom algorithm 2
-  Zoo64CompressCustom3              = 0xFFFF0003,  // Custom algorithm 3
-  Zoo64CompressReserved             = 0xFFFFFFFF   // Reserved
+  // 0xF0000000-0xFFFEFFFF: Third-Party Algorithms (~268 million IDs)
+  // This range is available for third-party compression algorithms
+  // Implementers should register their IDs to avoid conflicts
+  Zoo64CompressThirdPartyBase       = 0xF0000000,  // Third-party algorithm base
+  Zoo64CompressThirdPartyExample1   = 0xF0000001,  // Example third-party algorithm
+  Zoo64CompressThirdPartyExample2   = 0xF0000002,  // Example third-party algorithm
+
+  // 0xFFFF0000-0xFFFFFFFF: Dynamic VM WASM Codecs (65,536 IDs, RESERVED)
+  // These IDs are RESERVED for dynamic WASM32 embeddable compression modules
+  // WASM modules are loaded at runtime and assigned IDs from this range
+  Zoo64CompressWasmBase             = 0xFFFF0000,  // WASM codec base (first ID)
+  Zoo64CompressWasm0                = 0xFFFF0000,  // WASM codec slot 0
+  Zoo64CompressWasm1                = 0xFFFF0001,  // WASM codec slot 1
+  Zoo64CompressWasm2                = 0xFFFF0002,  // WASM codec slot 2
+  Zoo64CompressWasm3                = 0xFFFF0003,  // WASM codec slot 3
+  // ... 0xFFFF0004 through 0xFFFFFFFE available for WASM codecs
+  Zoo64CompressWasmMax              = 0xFFFFFFFF   // WASM codec max (last ID)
 } ZOO64_COMPRESSION_ALGORITHM;
 
 //
