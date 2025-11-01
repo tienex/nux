@@ -28,27 +28,20 @@
 typedef enum _FB_PIXEL_FORMAT {
     FbPixelFormatInvalid      = 0,
 
-    /* Monochrome formats - bits per pixel only */
-    FbPixelFormat1Bpp         = 1,   /* 1-bit monochrome */
-    FbPixelFormat2Bpp         = 2,   /* 2-bit grayscale */
-    FbPixelFormat4Bpp         = 3,   /* 4-bit grayscale */
+    /* Monochrome - grayscale (descriptor has bits per pixel) */
+    FbPixelFormatMonochrome   = 1,
 
-    /* Indexed color formats - palette-based */
-    FbPixelFormatIndexed4     = 10,  /* 4-color palette (2 bits) */
-    FbPixelFormatIndexed16    = 11,  /* 16-color palette (4 bits) */
-    FbPixelFormatIndexed256   = 12,  /* 256-color palette (8 bits) */
+    /* Indexed color - palette-based (descriptor has palette size) */
+    FbPixelFormatIndexed      = 2,
 
-    /* Planar formats - multiple bit planes */
-    FbPixelFormatPlanar2      = 20,  /* 2 planes (4 colors) */
-    FbPixelFormatPlanar4      = 21,  /* 4 planes (16 colors) */
-    FbPixelFormatPlanar6      = 22,  /* 6 planes (64 colors) */
-    FbPixelFormatPlanar8      = 23,  /* 8 planes (256 colors) */
+    /* Planar - multiple bit planes (descriptor has number of planes) */
+    FbPixelFormatPlanar       = 3,
 
-    /* RGB formats - direct color (use descriptor masks for exact layout) */
-    FbPixelFormatRgb8         = 30,  /* 8-bit RGB */
-    FbPixelFormatRgb16        = 31,  /* 16-bit RGB (e.g., 555, 565) */
-    FbPixelFormatRgb24        = 32,  /* 24-bit RGB */
-    FbPixelFormatRgb32        = 33,  /* 32-bit RGB/RGBA */
+    /* RGB - direct color (descriptor has bit masks for layout) */
+    FbPixelFormatRgb          = 4,
+
+    /* Text mode - character/attribute pairs (descriptor has font info) */
+    FbPixelFormatText         = 5,
 } FB_PIXEL_FORMAT;
 
 /* --------------------------------------------------------------- */
@@ -68,27 +61,35 @@ typedef enum _FB_MEMORY_ORGANIZATION {
 
 typedef struct _FRAMEBUFFER_DESC {
     FB_PIXEL_FORMAT         PixelFormat;
-    UINT32                  Width;              /* Width in pixels */
-    UINT32                  Height;             /* Height in pixels */
+    UINT32                  Width;              /* Width in pixels (or columns for text) */
+    UINT32                  Height;             /* Height in pixels (or rows for text) */
     UINT32                  Pitch;              /* Bytes per scanline */
     UINT64                  PhysicalBase;       /* Physical address */
     UINT64                  Size;               /* Total size in bytes */
 
-    /* Memory organization */
+    /* Memory characteristics */
+    BOOLEAN                 IsAddressable;      /* Can lock and get direct pointer */
     FB_MEMORY_ORGANIZATION  MemoryOrganization;
     UINT32                  BankSize;           /* Size of each bank (for banked modes) */
     UINT32                  BankInterleave;     /* Interleave factor (e.g., CGA: 2 for even/odd) */
     UINT32                  BankOffset;         /* Offset between banks */
 
-    /* RGB bit masks (for RGB modes) */
+    /* Pixel format specifics (use based on PixelFormat) */
+    UINT32                  BitsPerPixel;       /* For Monochrome: 1, 2, 4, 8 */
+    UINT32                  PaletteSize;        /* For Indexed: 4, 16, 256 */
+    UINT32                  NumPlanes;          /* For Planar: number of bit planes */
+    UINT32                  PlaneStride;        /* For Planar: bytes between planes */
+
+    /* RGB bit masks (for FbPixelFormatRgb) */
     UINT32                  RedMask;
     UINT32                  GreenMask;
     UINT32                  BlueMask;
     UINT32                  AlphaMask;
 
-    /* Planar mode info */
-    UINT32                  NumPlanes;          /* Number of bit planes */
-    UINT32                  PlaneStride;        /* Bytes between planes */
+    /* Text mode info (for FbPixelFormatText) */
+    UINT32                  CharWidth;          /* Character cell width in pixels */
+    UINT32                  CharHeight;         /* Character cell height in pixels */
+    UINT32                  FontBank;           /* VGA font bank (0 or 1) */
 
     /* I/O port access (for hardware requiring port I/O) */
     UINT16                  IoPortBase;         /* Base I/O port (0 if none) */
