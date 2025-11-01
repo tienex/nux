@@ -8513,6 +8513,242 @@ Where:
 - **P** = Predicted block (uses previous block)
 - **B** = Bidirectional block (uses previous AND next blocks)
 
+**Detailed Block Encoding Sequence**:
+
+The ZOZ LZ78 3-window mode uses a sophisticated block encoding pattern inspired by MPEG video compression:
+
+```
+Block Sequence Pattern: I P B B P B B P B B ...
+
+Frame 0 (I):  Intra block - no prediction, self-contained
+Frame 1 (P):  Forward prediction from I0
+Frame 2 (B):  Bidirectional prediction from P1 and P4
+Frame 3 (B):  Bidirectional prediction from P1 and P4
+Frame 4 (P):  Forward prediction from P1
+Frame 5 (B):  Bidirectional prediction from P4 and P7
+Frame 6 (B):  Bidirectional prediction from P4 and P7
+Frame 7 (P):  Forward prediction from P4
+...
+```
+
+**Storage Reordering for 3-Window Mode**:
+
+Blocks are reordered for storage to enable bidirectional prediction:
+
+```
+Logical Order (file sequence):  0  1  2  3  4  5  6  7  8  9 ...
+Block Type:                     I  P  B  B  P  B  B  P  B  B ...
+Storage Order:                  0  1  4  2  3  7  5  6 10  8  9 ...
+                                ↑  ↑  ↑  ↑  ↑  ↑  ↑  ↑  ↑  ↑  ↑
+                                I  P  P  B  B  P  B  B  P  B  B
+```
+
+**Compression Pass 1 (Intra and P-frames)**:
+```
+Step 1: Compress I0 (no prediction)
+Step 2: Compress P1 using I0 as reference window
+Step 3: Compress P4 using P1 as reference window
+Step 4: Compress P7 using P4 as reference window
+...
+```
+
+**Compression Pass 2 (B-frames)**:
+```
+Step 5: Compress B2 using P1 (previous) and P4 (next) as reference windows
+Step 6: Compress B3 using P1 (previous) and P4 (next) as reference windows
+Step 7: Compress B5 using P4 (previous) and P7 (next) as reference windows
+Step 8: Compress B6 using P4 (previous) and P7 (next) as reference windows
+...
+```
+
+**Window Population Strategy**:
+
+For 2-window mode (forward prediction only):
+```c
+//
+// 2-window dictionary population
+//
+VOID
+Lz78Populate2Windows (
+  IN OUT LZ78_DICT    *Dictionary,
+  IN     CONST UINT8  *PrevBlock,
+  IN     UINTN        PrevBlockSize,
+  IN     CONST UINT8  *CurrentBlock,
+  IN     UINTN        CurrentBlockSize
+  )
+{
+  //
+  // Stage 1: Pre-populate dictionary with patterns from previous block
+  //
+  for (UINTN Offset = 0; Offset < PrevBlockSize; Offset++) {
+    Lz78AddDictEntry (Dictionary, &PrevBlock[Offset],
+                      MIN(32, PrevBlockSize - Offset),
+                      TRUE);  // Mark as reference-only
+  }
+
+  //
+  // Stage 2: Compress current block using pre-populated dictionary
+  // New entries from current block are added during compression
+  //
+}
+```
+
+For 3-window mode (bidirectional prediction):
+```c
+//
+// 3-window dictionary population for B-frames
+//
+VOID
+Lz78Populate3Windows (
+  IN OUT LZ78_DICT    *Dictionary,
+  IN     CONST UINT8  *PrevBlock,    // P-frame before B-frame
+  IN     UINTN        PrevBlockSize,
+  IN     CONST UINT8  *CurrentBlock, // B-frame being compressed
+  IN     UINTN        CurrentBlockSize,
+  IN     CONST UINT8  *NextBlock,    // P-frame after B-frame
+  IN     UINTN        NextBlockSize
+  )
+{
+  UINTN   Offset;
+  UINT32  Weight;
+
+  //
+  // Stage 1: Pre-populate from previous P-frame (higher weight)
+  //
+  for (Offset = 0; Offset < PrevBlockSize; Offset += 4) {
+    Lz78AddWeightedEntry (
+      Dictionary,
+      &PrevBlock[Offset],
+      MIN(64, PrevBlockSize - Offset),
+      2  // Weight: previous block preferred
+    );
+  }
+
+  //
+  // Stage 2: Pre-populate from next P-frame (lower weight)
+  //
+  for (Offset = 0; Offset < NextBlockSize; Offset += 8) {
+    Lz78AddWeightedEntry (
+      Dictionary,
+      &NextBlock[Offset],
+      MIN(64, NextBlockSize - Offset),
+      1  // Weight: next block less preferred
+    );
+  }
+
+  //
+  // Stage 3: Compress current B-frame
+  // When finding matches, prefer higher-weight entries
+  //
+}
+```
+
+**Block Encoding Efficiency**:
+
+The 2/3 window prediction provides significant compression improvements:
+
+```
+1-window mode (classic LZ78):
+  Block size: 256 KB
+  Compressed: 128 KB (50% compression ratio)
+  Dictionary built from current block only
+
+2-window mode (forward prediction):
+  Block size: 256 KB
+  Compressed: 96 KB (62.5% compression ratio)
+  Dictionary pre-populated from previous block
+  Improvement: +25% over 1-window
+
+3-window mode (bidirectional prediction):
+  Block size: 256 KB
+  Compressed: 80 KB (68.75% compression ratio)
+  Dictionary pre-populated from prev + next blocks
+  Improvement: +37.5% over 1-window, +16.7% over 2-window
+```
+
+**Typical Use Cases by Window Mode**:
+
+| Mode | Best For | Compression | Speed | Memory | Complexity |
+|------|----------|-------------|-------|--------|------------|
+| 1-window | Streaming, real-time | Baseline | Fast | Low | Simple |
+| 2-window | Archive files, backups | +25% | Medium | Medium | Medium |
+| 3-window | Maximum compression | +37% | Slow | High | Complex |
+
+**Decoding Dependencies**:
+
+For extraction, blocks must be decoded in the correct order:
+
+```
+Decode sequence for 3-window mode:
+  1. Decode I0 (no dependencies)
+  2. Decode P1 (depends on I0)
+  3. Store P1 in buffer (needed for B2, B3)
+  4. Decode P4 (depends on P1)
+  5. Store P4 in buffer (needed for B2, B3)
+  6. Decode B2 (depends on P1 + P4)
+  7. Decode B3 (depends on P1 + P4)
+  8. Release P1 from buffer (no longer needed)
+  9. Decode P7 (depends on P4)
+  10. Decode B5 (depends on P4 + P7)
+  11. Decode B6 (depends on P4 + P7)
+  12. Release P4 from buffer
+  ...
+
+Memory requirement: 2-3 uncompressed blocks in buffer
+```
+
+**Block Type Selection Algorithm**:
+
+```c
+//
+// Determine block type for optimal compression
+//
+LZ78_BLOCK_TYPE
+DetermineBlockType (
+  IN     UINTN   BlockIndex,
+  IN     UINT8   WindowMode
+  )
+{
+  if (WindowMode == 1) {
+    //
+    // 1-window mode: all blocks are intra
+    //
+    return Lz78BlockIntra;
+  }
+
+  if (WindowMode == 2) {
+    //
+    // 2-window mode: first block intra, rest predicted
+    //
+    return (BlockIndex == 0) ? Lz78BlockIntra : Lz78BlockPredicted;
+  }
+
+  if (WindowMode == 3) {
+    //
+    // 3-window mode: I P B B pattern
+    //
+    if (BlockIndex == 0) {
+      return Lz78BlockIntra;
+    }
+
+    //
+    // Pattern: positions 1, 4, 7, 10, ... are P-frames
+    // Pattern: positions 2, 3, 5, 6, 8, 9, ... are B-frames
+    //
+    UINTN Offset = BlockIndex - 1;  // Adjust for I-frame at position 0
+    UINTN GroupPos = Offset % 3;
+
+    if (GroupPos == 0) {
+      return Lz78BlockPredicted;  // P-frame
+    } else {
+      return Lz78BlockBidirectional;  // B-frame
+    }
+  }
+
+  return Lz78BlockIntra;
+}
+```
+
 #### 12.5.7 ZOZ Block Format
 
 ```c
@@ -10492,6 +10728,795 @@ void zoo64_compress_cleanup(void) {
 - [ ] Watchdog timer enabled
 - [ ] Memory limits enforced
 - [ ] Execution logged
+
+## 12.9 Delta Computation and Deduplication Pipeline
+
+This section documents the delta computation and block deduplication algorithms used in Zoo64, which operate **above** (before) the standard compression/encryption layers. Hashing for integrity verification always occurs on the **full reconstructed data** after delta application and deduplication.
+
+### 12.9.1 Processing Pipeline Order
+
+Zoo64 applies data transformations in the following order:
+
+```
+Original File
+    ↓
+[1] Delta Computation (if storing revision)
+    ↓
+[2] Block Deduplication (if enabled)
+    ↓
+[3] Compression (ZSTD, LZMA2, ZOZ, etc.)
+    ↓
+[4] Encryption (AES-256-GCM, ChaCha20, etc.)
+    ↓
+[5] Archive Storage
+```
+
+**Extraction reverses the order**:
+
+```
+Archive Storage
+    ↓
+[1] Decryption
+    ↓
+[2] Decompression
+    ↓
+[3] Deduplication Reconstruction (chunk reassembly)
+    ↓
+[4] Delta Application (if deltified)
+    ↓
+[5] Hash Verification (on FULL reconstructed data)
+    ↓
+Final File
+```
+
+### 12.9.2 Delta Computation Algorithm
+
+Delta encoding stores files as differences from a base revision, dramatically reducing storage for versioned content.
+
+#### 12.9.2.1 Delta Algorithm Selection
+
+Zoo64 supports multiple delta algorithms, each optimized for different scenarios:
+
+```c
+typedef enum _ZOO64_DELTA_ALGORITHM {
+  Zoo64DeltaNone           = 0,  // Not deltified
+  Zoo64DeltaXdelta3        = 1,  // xdelta3 (general purpose, fast)
+  Zoo64DeltaVcdiff         = 2,  // RFC 3284 VCDIFF (standard)
+  Zoo64DeltaBsdiff         = 3,  // bsdiff (executables, binary)
+  Zoo64DeltaZdelta         = 4,  // zdelta (large files)
+  Zoo64DeltaRsync          = 5,  // rsync rolling checksum
+  Zoo64DeltaGit            = 6,  // Git-style delta
+  Zoo64DeltaFossil         = 7   // Fossil delta compression
+} ZOO64_DELTA_ALGORITHM;
+```
+
+**Algorithm Characteristics**:
+
+| Algorithm | Best For | Speed | Ratio | Memory |
+|-----------|----------|-------|-------|--------|
+| XDELTA3 | General purpose, text, source code | Fast | Good | Low |
+| VCDIFF | Standard compliance, interop | Medium | Good | Low |
+| BSDIFF | Executables, binaries | Slow | Excellent | High |
+| ZDELTA | Large files (>100 MB) | Fast | Good | Medium |
+| RSYNC | Network sync, incremental backup | Fast | Medium | Low |
+| GIT_DELTA | Source repositories, text | Fast | Good | Low |
+| FOSSIL_DELTA | Simple, embeddable | Very Fast | Medium | Very Low |
+
+#### 12.9.2.2 Delta Computation Process
+
+```c
+//
+// Delta computation function
+//
+BOOLEAN
+Zoo64ComputeDelta (
+  IN     CONST UINT8              *BaseData,
+  IN     UINTN                    BaseSize,
+  IN     CONST UINT8              *TargetData,
+  IN     UINTN                    TargetSize,
+  IN     ZOO64_DELTA_ALGORITHM    Algorithm,
+  OUT    UINT8                    **DeltaData,
+  OUT    UINTN                    *DeltaSize,
+  OUT    UINT8                    *BaseHash,      // SHA-256 of base
+  OUT    UINT8                    *TargetHash     // SHA-256 of target
+  )
+{
+  UINTN   Index;
+  VOID    *Context;
+
+  //
+  // Step 1: Hash the base data (full data)
+  //
+  Sha256Hash (BaseData, BaseSize, BaseHash);
+
+  //
+  // Step 2: Hash the target data (full data)
+  //
+  Sha256Hash (TargetData, TargetSize, TargetHash);
+
+  //
+  // Step 3: Compute delta based on algorithm
+  //
+  switch (Algorithm) {
+    case Zoo64DeltaXdelta3:
+      return Xdelta3Encode (BaseData, BaseSize, TargetData, TargetSize,
+                            DeltaData, DeltaSize);
+
+    case Zoo64DeltaBsdiff:
+      return BsdiffEncode (BaseData, BaseSize, TargetData, TargetSize,
+                           DeltaData, DeltaSize);
+
+    case Zoo64DeltaGit:
+      return GitDeltaEncode (BaseData, BaseSize, TargetData, TargetSize,
+                             DeltaData, DeltaSize);
+
+    // ... other algorithms
+  }
+
+  return FALSE;
+}
+```
+
+**Key Points**:
+1. **Hashing occurs on FULL data** (not delta)
+2. Both base and target are hashed for verification
+3. Delta is computed from complete files
+4. Compression is applied AFTER delta computation
+
+#### 12.9.2.3 Delta Storage Strategies
+
+Zoo64 supports multiple delta storage strategies:
+
+**1. Forward Delta Chain (Git-style)**:
+```
+V1 (full) ← V2 (delta) ← V3 (delta) ← V4 (delta)
+         ↖             ↖             ↖
+          5 KB          3 KB          4 KB
+
+Storage: V1=100KB + V2=5KB + V3=3KB + V4=4KB = 112 KB
+Extract V4: Read V1 → Apply V2 → Apply V3 → Apply V4
+```
+
+**2. Reverse Delta (Fossil-style)**:
+```
+V1 (delta) → V2 (delta) → V3 (delta) → V4 (full)
+         ↘             ↘             ↘
+          8 KB          6 KB          7 KB
+
+Storage: V1=8KB + V2=6KB + V3=7KB + V4=102KB = 123 KB
+Extract V4: Read V4 directly (fastest for latest version)
+Extract V1: Read V4 → Reverse-apply V3 → V2 → V1
+```
+
+**3. Snapshot + Deltas (Hybrid)**:
+```
+V1 (full) ← V2 (delta) ← V3 (delta) → V4 (full) ← V5 (delta)
+         ↖             ↖                        ↖
+          5 KB          3 KB                     4 KB
+
+Periodic snapshots every N versions to limit chain depth
+Max extraction overhead: N-1 delta applications
+```
+
+**4. Tree-Based Delta**:
+```
+        V4 (full)
+       ↗  ↑  ↖
+    V1    V2    V3
+   (Δ)   (Δ)   (Δ)
+
+Deltas computed from nearest full version
+Limits chain depth to 1
+Higher storage but faster extraction
+```
+
+#### 12.9.2.4 Delta Application Algorithm
+
+```c
+//
+// Apply delta to reconstruct target file
+//
+BOOLEAN
+Zoo64ApplyDelta (
+  IN     CONST UINT8              *BaseData,
+  IN     UINTN                    BaseSize,
+  IN     CONST UINT8              *DeltaData,
+  IN     UINTN                    DeltaSize,
+  IN     ZOO64_DELTA_ALGORITHM    Algorithm,
+  IN     CONST UINT8              *BaseHash,      // Expected base hash
+  IN     CONST UINT8              *TargetHash,    // Expected target hash
+  OUT    UINT8                    **TargetData,
+  OUT    UINTN                    *TargetSize
+  )
+{
+  UINT8   ComputedHash[32];
+
+  //
+  // Step 1: Verify base data hash
+  //
+  Sha256Hash (BaseData, BaseSize, ComputedHash);
+  if (CompareMem (ComputedHash, BaseHash, 32) != 0) {
+    return FALSE;  // Base data corrupted
+  }
+
+  //
+  // Step 2: Apply delta algorithm
+  //
+  switch (Algorithm) {
+    case Zoo64DeltaXdelta3:
+      if (!Xdelta3Decode (BaseData, BaseSize, DeltaData, DeltaSize,
+                          TargetData, TargetSize)) {
+        return FALSE;
+      }
+      break;
+
+    case Zoo64DeltaBsdiff:
+      if (!BspatchDecode (BaseData, BaseSize, DeltaData, DeltaSize,
+                          TargetData, TargetSize)) {
+        return FALSE;
+      }
+      break;
+
+    // ... other algorithms
+  }
+
+  //
+  // Step 3: Verify reconstructed target hash (FULL DATA)
+  //
+  Sha256Hash (*TargetData, *TargetSize, ComputedHash);
+  if (CompareMem (ComputedHash, TargetHash, 32) != 0) {
+    FreePool (*TargetData);
+    return FALSE;  // Reconstructed data corrupted
+  }
+
+  return TRUE;
+}
+```
+
+**Verification Flow**:
+1. Hash base data and verify against stored hash
+2. Apply delta transformation
+3. Hash **complete reconstructed data** and verify
+4. If any verification fails, abort extraction
+
+### 12.9.3 Block Deduplication Algorithm
+
+Block deduplication eliminates duplicate chunks across files using content-defined chunking (CDC) and cryptographic hashing.
+
+#### 12.9.3.1 Content-Defined Chunking (CDC)
+
+CDC creates variable-size chunks based on content, making deduplication resilient to insertions/deletions.
+
+**Rabin Fingerprinting Algorithm**:
+
+```c
+//
+// Rabin fingerprint chunker
+//
+BOOLEAN
+RabinChunkData (
+  IN     CONST UINT8   *Data,
+  IN     UINTN         DataSize,
+  IN     UINT32        MinChunkSize,    // e.g., 4 KB
+  IN     UINT32        AvgChunkSize,    // e.g., 64 KB
+  IN     UINT32        MaxChunkSize,    // e.g., 256 KB
+  OUT    CHUNK_LIST    **Chunks
+  )
+{
+  UINT64   RabinHash;
+  UINT32   WindowSize;
+  UINTN    Offset;
+  UINTN    ChunkStart;
+  UINT32   Mask;
+
+  WindowSize = 48;  // Rolling window size
+  Mask = AvgChunkSize - 1;  // For chunk boundary detection
+  RabinHash = 0;
+  ChunkStart = 0;
+
+  //
+  // Initialize Rabin polynomial rolling hash
+  //
+  for (Offset = 0; Offset < WindowSize && Offset < DataSize; Offset++) {
+    RabinHash = RabinUpdate (RabinHash, Data[Offset]);
+  }
+
+  //
+  // Slide window and detect chunk boundaries
+  //
+  for (Offset = WindowSize; Offset < DataSize; Offset++) {
+    //
+    // Update rolling hash (remove old byte, add new byte)
+    //
+    RabinHash = RabinRoll (RabinHash, Data[Offset - WindowSize], Data[Offset]);
+
+    //
+    // Check for chunk boundary
+    // Boundary when: (hash & mask) == 0 AND size >= MinChunkSize
+    //
+    if ((Offset - ChunkStart) >= MinChunkSize &&
+        ((RabinHash & Mask) == 0 || (Offset - ChunkStart) >= MaxChunkSize)) {
+      //
+      // Found chunk boundary
+      //
+      AddChunk (Chunks, &Data[ChunkStart], Offset - ChunkStart, ChunkStart);
+      ChunkStart = Offset;
+    }
+  }
+
+  //
+  // Add final chunk
+  //
+  if (ChunkStart < DataSize) {
+    AddChunk (Chunks, &Data[ChunkStart], DataSize - ChunkStart, ChunkStart);
+  }
+
+  return TRUE;
+}
+```
+
+**FastCDC Optimization**:
+
+FastCDC improves CDC performance using gear hash and normalized chunking:
+
+```c
+//
+// FastCDC: Fast Content-Defined Chunking
+//
+BOOLEAN
+FastCdcChunkData (
+  IN     CONST UINT8   *Data,
+  IN     UINTN         DataSize,
+  IN     UINT32        AvgChunkSize,
+  OUT    CHUNK_LIST    **Chunks
+  )
+{
+  UINT64   GearHash;
+  UINT32   MinSize, MaxSize;
+  UINT32   MaskS, MaskL;
+  UINTN    Offset;
+  UINTN    ChunkStart;
+
+  //
+  // FastCDC normalization: avoid small/large chunks
+  //
+  MinSize = AvgChunkSize / 4;
+  MaxSize = AvgChunkSize * 4;
+  MaskS = (AvgChunkSize / 2) - 1;  // Small chunk mask
+  MaskL = AvgChunkSize * 2 - 1;    // Large chunk mask
+
+  GearHash = 0;
+  ChunkStart = 0;
+
+  for (Offset = 0; Offset < DataSize; Offset++) {
+    //
+    // Update gear hash (simple but effective)
+    //
+    GearHash = (GearHash << 1) + GearTable[Data[Offset]];
+
+    UINT32 ChunkSize = Offset - ChunkStart;
+
+    //
+    // Three-tier boundary detection for normalized chunking
+    //
+    if (ChunkSize >= MinSize) {
+      if (ChunkSize < AvgChunkSize && (GearHash & MaskS) == 0) {
+        // Small chunk boundary
+        goto CreateChunk;
+      } else if (ChunkSize < MaxSize && (GearHash & MaskL) == 0) {
+        // Normal chunk boundary
+        goto CreateChunk;
+      } else if (ChunkSize >= MaxSize) {
+        // Force chunk at max size
+        goto CreateChunk;
+      }
+    }
+    continue;
+
+CreateChunk:
+    AddChunk (Chunks, &Data[ChunkStart], Offset - ChunkStart, ChunkStart);
+    ChunkStart = Offset;
+    GearHash = 0;
+  }
+
+  //
+  // Final chunk
+  //
+  if (ChunkStart < DataSize) {
+    AddChunk (Chunks, &Data[ChunkStart], DataSize - ChunkStart, ChunkStart);
+  }
+
+  return TRUE;
+}
+```
+
+#### 12.9.3.2 Deduplication Process
+
+```c
+//
+// Complete deduplication pipeline
+//
+BOOLEAN
+Zoo64DeduplicateFile (
+  IN     CONST UINT8       *FileData,
+  IN     UINTN             FileSize,
+  IN     DEDUP_ALGORITHM   ChunkAlgo,
+  IN     HASH_ALGORITHM    HashAlgo,
+  IN OUT DEDUP_STORE       *GlobalStore,
+  OUT    DEDUP_METADATA    **Metadata
+  )
+{
+  CHUNK_LIST    *Chunks;
+  UINTN         ChunkIndex;
+  UINT8         ChunkHash[32];
+  DEDUP_CHUNK   *Chunk;
+  UINT64        PhysicalSize;
+
+  //
+  // Step 1: Chunk the file using CDC
+  //
+  switch (ChunkAlgo) {
+    case Zoo64DedupFastCdc:
+      FastCdcChunkData (FileData, FileSize, 65536, &Chunks);
+      break;
+    case Zoo64DedupRabinFingerprint:
+      RabinChunkData (FileData, FileSize, 4096, 65536, 262144, &Chunks);
+      break;
+    // ... other algorithms
+  }
+
+  //
+  // Step 2: Hash and deduplicate each chunk
+  //
+  PhysicalSize = 0;
+  *Metadata = AllocateZeroPool (sizeof(DEDUP_METADATA));
+  (*Metadata)->ChunkCount = Chunks->Count;
+  (*Metadata)->Chunks = AllocateZeroPool (Chunks->Count * sizeof(DEDUP_CHUNK));
+
+  for (ChunkIndex = 0; ChunkIndex < Chunks->Count; ChunkIndex++) {
+    Chunk = &Chunks->Items[ChunkIndex];
+
+    //
+    // Step 2a: Hash the chunk (SHA-256 or BLAKE2b)
+    //
+    switch (HashAlgo) {
+      case Zoo64HashSha256:
+        Sha256Hash (Chunk->Data, Chunk->Length, ChunkHash);
+        break;
+      case Zoo64HashBlake2b:
+        Blake2bHash (Chunk->Data, Chunk->Length, ChunkHash);
+        break;
+      case Zoo64HashBlake3:
+        Blake3Hash (Chunk->Data, Chunk->Length, ChunkHash);
+        break;
+    }
+
+    //
+    // Step 2b: Check if chunk exists in global store
+    //
+    DEDUP_ENTRY *Existing = DedupStoreLookup (GlobalStore, ChunkHash);
+
+    if (Existing != NULL) {
+      //
+      // Chunk already exists - reference it
+      //
+      (*Metadata)->Chunks[ChunkIndex].Hash = ChunkHash;
+      (*Metadata)->Chunks[ChunkIndex].Offset = Chunk->Offset;
+      (*Metadata)->Chunks[ChunkIndex].Length = Chunk->Length;
+      (*Metadata)->Chunks[ChunkIndex].RefCount = 0;  // Reference to existing
+      (*Metadata)->Chunks[ChunkIndex].StorageOffset = Existing->StorageOffset;
+
+      Existing->RefCount++;  // Increment reference count
+    } else {
+      //
+      // New unique chunk - store it
+      //
+      UINT64 StorageOffset = DedupStoreAdd (GlobalStore, ChunkHash,
+                                             Chunk->Data, Chunk->Length);
+
+      (*Metadata)->Chunks[ChunkIndex].Hash = ChunkHash;
+      (*Metadata)->Chunks[ChunkIndex].Offset = Chunk->Offset;
+      (*Metadata)->Chunks[ChunkIndex].Length = Chunk->Length;
+      (*Metadata)->Chunks[ChunkIndex].RefCount = 1;  // Unique chunk
+      (*Metadata)->Chunks[ChunkIndex].StorageOffset = StorageOffset;
+
+      PhysicalSize += Chunk->Length;
+    }
+  }
+
+  (*Metadata)->LogicalSize = FileSize;
+  (*Metadata)->PhysicalSize = PhysicalSize;
+
+  return TRUE;
+}
+```
+
+#### 12.9.3.3 Deduplication with Compression
+
+**Important**: Compression is applied **AFTER** chunking but **BEFORE** storage:
+
+```
+File (1 GB)
+    ↓
+[1] Chunk with FastCDC → 16,384 chunks @ 64 KB avg
+    ↓
+[2] Deduplicate chunks → 2,048 unique chunks (87.5% dedup)
+    ↓
+[3] Compress each unique chunk with ZSTD
+    ↓
+    2,048 chunks × ~50% compression = 64 MB compressed
+    ↓
+[4] Store compressed chunks
+```
+
+**Per-Chunk Compression**:
+
+```c
+//
+// Compress deduplicated chunks
+//
+BOOLEAN
+CompressDedupChunks (
+  IN     DEDUP_METADATA    *Metadata,
+  IN     COMPRESS_ALGO     Algorithm
+  )
+{
+  UINTN   ChunkIndex;
+
+  for (ChunkIndex = 0; ChunkIndex < Metadata->ChunkCount; ChunkIndex++) {
+    DEDUP_CHUNK *Chunk = &Metadata->Chunks[ChunkIndex];
+
+    //
+    // Only compress unique chunks (RefCount > 0)
+    //
+    if (Chunk->RefCount > 0) {
+      UINT8  *Compressed;
+      UINTN  CompressedSize;
+
+      //
+      // Compress chunk with ZSTD, LZMA2, or other algorithm
+      //
+      ZstdCompress (Chunk->Data, Chunk->Length, &Compressed, &CompressedSize);
+
+      //
+      // Replace chunk data with compressed version
+      //
+      FreePool (Chunk->Data);
+      Chunk->Data = Compressed;
+      Chunk->CompressedLength = CompressedSize;
+    }
+  }
+
+  return TRUE;
+}
+```
+
+#### 12.9.3.4 Hash Verification with Deduplication
+
+**Critical**: Hashing for integrity verification occurs on **FULL reconstructed data**:
+
+```c
+//
+// Extract and verify deduplicated file
+//
+BOOLEAN
+Zoo64ExtractDedupFile (
+  IN     DEDUP_METADATA    *Metadata,
+  IN     DEDUP_STORE       *GlobalStore,
+  IN     CONST UINT8       *ExpectedFileHash,  // SHA-256 of FULL file
+  OUT    UINT8             **FileData,
+  OUT    UINTN             *FileSize
+  )
+{
+  UINT8    *ReconstructedFile;
+  UINTN    ChunkIndex;
+  UINTN    FileOffset;
+  UINT8    ComputedHash[32];
+
+  //
+  // Step 1: Allocate buffer for full file
+  //
+  ReconstructedFile = AllocatePool (Metadata->LogicalSize);
+  FileOffset = 0;
+
+  //
+  // Step 2: Reconstruct file from chunks
+  //
+  for (ChunkIndex = 0; ChunkIndex < Metadata->ChunkCount; ChunkIndex++) {
+    DEDUP_CHUNK *Chunk = &Metadata->Chunks[ChunkIndex];
+    UINT8       *ChunkData;
+    UINTN       ChunkSize;
+
+    //
+    // Step 2a: Retrieve chunk from global store
+    //
+    DedupStoreRetrieve (GlobalStore, Chunk->Hash, &ChunkData, &ChunkSize);
+
+    //
+    // Step 2b: Decompress chunk if compressed
+    //
+    if (Chunk->CompressedLength > 0) {
+      UINT8  *Decompressed;
+      UINTN  DecompressedSize;
+
+      ZstdDecompress (ChunkData, Chunk->CompressedLength,
+                      &Decompressed, &DecompressedSize);
+
+      FreePool (ChunkData);
+      ChunkData = Decompressed;
+      ChunkSize = DecompressedSize;
+    }
+
+    //
+    // Step 2c: Copy chunk to file buffer
+    //
+    CopyMem (&ReconstructedFile[FileOffset], ChunkData, ChunkSize);
+    FileOffset += ChunkSize;
+
+    FreePool (ChunkData);
+  }
+
+  //
+  // Step 3: Hash the COMPLETE reconstructed file
+  //
+  Sha256Hash (ReconstructedFile, Metadata->LogicalSize, ComputedHash);
+
+  //
+  // Step 4: Verify hash against expected value
+  //
+  if (CompareMem (ComputedHash, ExpectedFileHash, 32) != 0) {
+    FreePool (ReconstructedFile);
+    return FALSE;  // File corrupted or dedup error
+  }
+
+  *FileData = ReconstructedFile;
+  *FileSize = Metadata->LogicalSize;
+
+  return TRUE;
+}
+```
+
+### 12.9.4 Combined Delta + Deduplication
+
+Files can use both delta encoding AND deduplication:
+
+```
+Version 2 of large file:
+    ↓
+[1] Compute delta from Version 1 → 5 MB delta
+    ↓
+[2] Chunk the delta (5 MB) with FastCDC → 80 chunks
+    ↓
+[3] Deduplicate chunks → 60 unique chunks (25% dedup)
+    ↓
+[4] Compress unique chunks with ZSTD → 2 MB compressed
+    ↓
+[5] Store compressed deduplicated delta
+```
+
+**Storage efficiency**:
+- Original V2 size: 100 MB
+- Delta size: 5 MB (95% reduction)
+- After dedup: 3.75 MB (25% additional reduction)
+- After compression: 2 MB (50% additional reduction)
+- **Total**: 98% reduction from original
+
+### 12.9.5 Hashing Policy
+
+**Zoo64 Hashing Rules**:
+
+1. **File-level hashes** (CRC32, SHA-256, BLAKE3):
+   - Always computed on **FULL reconstructed data**
+   - Computed AFTER delta application
+   - Computed AFTER deduplication reconstruction
+   - Computed BEFORE compression
+   - Stored in file entry header
+
+2. **Chunk-level hashes** (for deduplication):
+   - Computed on individual chunks
+   - Used for dedup matching only
+   - NOT used for file integrity verification
+
+3. **Base/Target hashes** (for delta):
+   - Computed on complete base file
+   - Computed on complete target file
+   - Stored in delta metadata
+   - Used to verify delta application correctness
+
+**Example Hash Flow**:
+
+```
+Archive Creation:
+  Original File (100 MB)
+      ↓
+  Compute file hash: SHA-256(full 100 MB) → Store in file entry
+      ↓
+  Compute delta from base → 5 MB delta
+      ↓
+  Hash base: SHA-256(base 100 MB) → Store in delta metadata
+  Hash target: SHA-256(target 100 MB) → Store in delta metadata
+      ↓
+  Chunk delta (5 MB) → 80 chunks
+      ↓
+  Hash each chunk: SHA-256(chunk) → For dedup lookup
+      ↓
+  Deduplicate → 60 unique chunks
+      ↓
+  Compress chunks with ZSTD
+      ↓
+  Store in archive
+
+Extraction:
+  Retrieve compressed chunks
+      ↓
+  Decompress chunks
+      ↓
+  Reconstruct delta (5 MB) from chunks
+      ↓
+  Retrieve base file (100 MB)
+      ↓
+  Verify base hash: SHA-256(base) vs stored
+      ↓
+  Apply delta to base → Target (100 MB)
+      ↓
+  Verify target hash: SHA-256(target) vs stored
+      ↓
+  Verify file hash: SHA-256(full file) vs file entry
+      ↓
+  Output file if all hashes match
+```
+
+### 12.9.6 Performance Characteristics
+
+**Deduplication Performance**:
+
+| Chunking Algorithm | Speed | Dedup Ratio | Memory |
+|-------------------|-------|-------------|---------|
+| Fixed Size | Very Fast | Poor | Very Low |
+| Rabin Fingerprint | Medium | Good | Low |
+| FastCDC | Fast | Excellent | Low |
+| Gear Hash | Fast | Good | Low |
+| Super Feature | Slow | Excellent | Medium |
+
+**Delta Performance**:
+
+| Delta Algorithm | Compression | Decompression | Memory | Best For |
+|----------------|-------------|---------------|---------|----------|
+| XDELTA3 | Fast | Very Fast | 16 MB | General |
+| BSDIFF | Very Slow | Fast | 256 MB | Executables |
+| GIT_DELTA | Very Fast | Very Fast | 8 MB | Source code |
+| FOSSIL_DELTA | Very Fast | Very Fast | 1 MB | Embedded |
+
+**Typical Dedup Ratios** (with FastCDC @ 64 KB avg chunk):
+```
+VM backups (daily):     70-90% dedup
+Source repositories:    40-60% dedup
+Document archives:      50-70% dedup
+Database backups:       20-40% dedup
+Media files (JPEG/MP4): 5-10% dedup
+```
+
+**Delta Compression Ratios**:
+```
+Source code (daily):    95-99% delta reduction
+Documents (versions):   85-95% delta reduction
+Executables (patches):  80-90% delta reduction
+VM snapshots (daily):   90-95% delta reduction
+```
+
+### 12.9.7 Conformance Levels
+
+**Delta Support**:
+- **Minimal**: Optional (not required)
+- **Standard**: Optional (recommended for backups)
+- **Enhanced**: Required (at least XDELTA3 or VCDIFF)
+- **Full**: Required (all delta algorithms)
+
+**Deduplication Support**:
+- **Minimal**: Not required
+- **Standard**: Optional (recommended)
+- **Enhanced**: Required (FastCDC or Rabin)
+- **Full**: Required (all chunking algorithms)
 
 ## 13. COM Component Interface
 
