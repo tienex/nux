@@ -358,6 +358,270 @@ Pcga_FillPlanarWithRop(
     }
 }
 
+/* --------------------------------------------------------------- */
+/*  Palette DAC Programming                                        */
+/* --------------------------------------------------------------- */
+
+static VOID
+Pcga_SetPaletteEntry(
+    PCGA_BACKEND *Backend,
+    UINT8 Index,
+    CONST FB_PALETTE_ENTRY *Entry
+    )
+{
+    ANX_CPU_OUTB(VGA_DAC_WRITE_INDEX, Index);
+    ANX_CPU_OUTB(VGA_DAC_DATA, Entry->Red >> 2);    /* VGA DAC is 6-bit */
+    ANX_CPU_OUTB(VGA_DAC_DATA, Entry->Green >> 2);
+    ANX_CPU_OUTB(VGA_DAC_DATA, Entry->Blue >> 2);
+    Backend->Palette[Index] = *Entry;
+}
+
+static VOID
+Pcga_SetPalette(
+    PCGA_BACKEND *Backend,
+    UINT32 StartIndex,
+    UINT32 Count,
+    CONST FB_PALETTE_ENTRY *Entries
+    )
+{
+    ANX_CPU_OUTB(VGA_DAC_WRITE_INDEX, (UINT8)StartIndex);
+    for (UINT32 i = 0; i < Count; i++) {
+        ANX_CPU_OUTB(VGA_DAC_DATA, Entries[i].Red >> 2);
+        ANX_CPU_OUTB(VGA_DAC_DATA, Entries[i].Green >> 2);
+        ANX_CPU_OUTB(VGA_DAC_DATA, Entries[i].Blue >> 2);
+        Backend->Palette[StartIndex + i] = Entries[i];
+    }
+}
+
+static VOID
+Pcga_GetPaletteEntry(
+    PCGA_BACKEND *Backend,
+    UINT8 Index,
+    FB_PALETTE_ENTRY *Entry
+    )
+{
+    ANX_CPU_OUTB(VGA_DAC_READ_INDEX, Index);
+    Entry->Red = ANX_CPU_INB(VGA_DAC_DATA) << 2;    /* Convert 6-bit to 8-bit */
+    Entry->Green = ANX_CPU_INB(VGA_DAC_DATA) << 2;
+    Entry->Blue = ANX_CPU_INB(VGA_DAC_DATA) << 2;
+    Entry->Reserved = 0;
+}
+
+/* --------------------------------------------------------------- */
+/*  Border Color Control (Attribute Controller Overscan)          */
+/* --------------------------------------------------------------- */
+
+static VOID
+Pcga_SetBorderColor(
+    PCGA_BACKEND *Backend,
+    UINT8 Color
+    )
+{
+    /* Read Input Status to reset attribute controller flip-flop */
+    (VOID)ANX_CPU_INB(VGA_INPUT_STATUS_1);
+
+    /* Write index */
+    ANX_CPU_OUTB(VGA_ATTR_INDEX, VGA_ATTR_OVERSCAN);
+    /* Write data */
+    ANX_CPU_OUTB(VGA_ATTR_DATA_W, Color);
+
+    /* Re-enable video */
+    ANX_CPU_OUTB(VGA_ATTR_INDEX, 0x20);
+
+    Backend->BorderColor = Color;
+}
+
+/* --------------------------------------------------------------- */
+/*  Text Mode Caret Control (CRTC Cursor)                         */
+/* --------------------------------------------------------------- */
+
+static INLINE VOID
+Pcga_WriteCrtc(
+    UINT8 Index,
+    UINT8 Value
+    )
+{
+    ANX_CPU_OUTB(VGA_CRTC_INDEX, Index);
+    ANX_CPU_OUTB(VGA_CRTC_DATA, Value);
+}
+
+static INLINE UINT8
+Pcga_ReadCrtc(
+    UINT8 Index
+    )
+{
+    ANX_CPU_OUTB(VGA_CRTC_INDEX, Index);
+    return ANX_CPU_INB(VGA_CRTC_DATA);
+}
+
+static VOID
+Pcga_SetCaretPosition(
+    PCGA_BACKEND *Backend,
+    UINT32 X,
+    UINT32 Y
+    )
+{
+    /* Calculate linear position (row * columns + column) */
+    UINT32 Position = Y * Backend->Descriptor.Width + X;
+
+    /* CRTC registers 0x0E (Cursor Location High) and 0x0F (Cursor Location Low) */
+    Pcga_WriteCrtc(0x0E, (UINT8)(Position >> 8));
+    Pcga_WriteCrtc(0x0F, (UINT8)(Position & 0xFF));
+
+    Backend->CursorX = X;
+    Backend->CursorY = Y;
+}
+
+static VOID
+Pcga_SetCaretShape(
+    PCGA_BACKEND *Backend,
+    UINT32 StartLine,
+    UINT32 EndLine,
+    BOOLEAN Visible
+    )
+{
+    /* CRTC register 0x0A (Cursor Start), bit 5 = disable cursor */
+    UINT8 Start = (UINT8)(StartLine & 0x1F);
+    if (!Visible) {
+        Start |= 0x20;  /* Disable cursor */
+    }
+    Pcga_WriteCrtc(0x0A, Start);
+
+    /* CRTC register 0x0B (Cursor End) */
+    Pcga_WriteCrtc(0x0B, (UINT8)(EndLine & 0x1F));
+
+    Backend->CursorVisible = Visible;
+    Backend->CursorStart = StartLine;
+    Backend->CursorEnd = EndLine;
+}
+
+/* --------------------------------------------------------------- */
+/*  Text Mode Rendering                                            */
+/* --------------------------------------------------------------- */
+
+static VOID
+Pcga_WriteTextChar(
+    PCGA_BACKEND *Backend,
+    UINT32 X,
+    UINT32 Y,
+    UINT8 Character,
+    UINT8 Attribute
+    )
+{
+    /* Text mode: character/attribute pairs */
+    UINT32 Offset = (Y * Backend->Descriptor.Width + X) * 2;
+    Backend->FramebufferBase[Offset] = Character;
+    Backend->FramebufferBase[Offset + 1] = Attribute;
+}
+
+static VOID
+Pcga_WriteTextString(
+    PCGA_BACKEND *Backend,
+    UINT32 X,
+    UINT32 Y,
+    CONST CHAR8 *String,
+    UINT8 Attribute
+    )
+{
+    UINT32 Offset = (Y * Backend->Descriptor.Width + X) * 2;
+    UINT32 i = 0;
+
+    while (String[i] != '\0' && (X + i) < Backend->Descriptor.Width) {
+        Backend->FramebufferBase[Offset + i * 2] = (UINT8)String[i];
+        Backend->FramebufferBase[Offset + i * 2 + 1] = Attribute;
+        i++;
+    }
+}
+
+static VOID
+Pcga_ScrollText(
+    PCGA_BACKEND *Backend,
+    INT32 Lines,
+    UINT8 FillAttribute
+    )
+{
+    UINT32 Width = Backend->Descriptor.Width;
+    UINT32 Height = Backend->Descriptor.Height;
+    UINT32 LineBytes = Width * 2;  /* char + attribute */
+
+    if (Lines > 0) {
+        /* Scroll up */
+        UINT32 SrcOffset = Lines * LineBytes;
+        UINT32 Count = (Height - Lines) * LineBytes;
+
+        /* Use fast copy if addressable */
+        if (Backend->IsAddressable) {
+            if (Backend->RtlCopyMemoryFunc) {
+                Backend->RtlCopyMemoryFunc(Backend->FramebufferBase,
+                                          Backend->FramebufferBase + SrcOffset,
+                                          Count);
+            } else {
+                ANX_MEMCPY(Backend->FramebufferBase,
+                          Backend->FramebufferBase + SrcOffset,
+                          Count);
+            }
+        }
+
+        /* Fill bottom lines */
+        UINT32 FillOffset = (Height - Lines) * LineBytes;
+        for (UINT32 i = 0; i < Lines * Width; i++) {
+            Backend->FramebufferBase[FillOffset + i * 2] = ' ';
+            Backend->FramebufferBase[FillOffset + i * 2 + 1] = FillAttribute;
+        }
+    }
+}
+
+/* --------------------------------------------------------------- */
+/*  Hardware Mouse Cursor (Software Overlay)                      */
+/* --------------------------------------------------------------- */
+
+typedef struct _PCGA_CURSOR_STATE {
+    UINT8   SavedData[64 * 64 * 4];  /* Saved background */
+    UINT32  SavedX;
+    UINT32  SavedY;
+    UINT32  Width;
+    UINT32  Height;
+    BOOLEAN Valid;
+} PCGA_CURSOR_STATE;
+
+static PCGA_CURSOR_STATE gCursorState = {0};
+
+static VOID
+Pcga_ShowCursor(
+    PCGA_BACKEND *Backend,
+    INT32 X,
+    INT32 Y,
+    CONST UINT8 *CursorData,  /* RGBA or AND/XOR masks */
+    UINT32 Width,
+    UINT32 Height,
+    BOOLEAN IsColor
+    )
+{
+    /* Save background and draw cursor */
+    /* This is a software cursor - we save/restore the background */
+    /* Implementation depends on pixel format */
+
+    gCursorState.SavedX = X;
+    gCursorState.SavedY = Y;
+    gCursorState.Width = Width;
+    gCursorState.Height = Height;
+    gCursorState.Valid = TRUE;
+
+    /* TODO: Actually implement cursor rendering based on format */
+}
+
+static VOID
+Pcga_HideCursor(
+    PCGA_BACKEND *Backend
+    )
+{
+    if (gCursorState.Valid) {
+        /* Restore saved background */
+        /* TODO: Implement background restoration */
+        gCursorState.Valid = FALSE;
+    }
+}
+
 /* Forward declarations */
 static HRESULT STDMETHODCALLTYPE PcGraphics_QueryInterface(
     IFramebufferBackend *This, REFIID riid, VOID **ppvObject);
