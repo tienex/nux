@@ -428,6 +428,10 @@ typedef struct _ZOO64_METADATA_CHUNK {
 0x000E: Windows attributes
 0x000F: Hard link target
 0x0010: Symbolic link target
+0x0011: OpenVMS ODS-5 attributes
+0x0012: z/OS dataset attributes
+0x0013: OS/400 (IBM i) attributes
+0x0014: Lisa Office System attributes
 ```
 
 ### 6.3 ACL Format
@@ -910,6 +914,267 @@ Bit 1:     Directory target
 Bit 2:     Broken link (target doesn't exist)
 Bit 3-31:  Reserved
 ```
+
+### 6.13 OpenVMS ODS-5 Attributes
+
+OpenVMS (formerly VMS) uses the Files-11 On-Disk Structure Level 5 (ODS-5) filesystem with rich metadata.
+
+```c
+typedef struct _ZOO64_ODS5_ATTR {
+  UINT16  RecordType;         // Record format (fixed, variable, stream, etc.)
+  UINT16  RecordAttributes;   // Record attributes (Fortran CC, print, etc.)
+  UINT32  RecordSize;         // Fixed record size (or max for variable)
+  UINT32  FileOrganization;   // Sequential, relative, indexed
+  UINT16  FileCharacteristics;// File characteristics bits
+  UINT16  RecordFormatFlags;  // Additional record format flags
+  UINT32  HighWaterMark;      // Highest block written
+  UINT32  EndOfFileBlock;     // End-of-file block number
+  UINT16  EndOfFileOffset;    // Byte offset in EOF block
+  UINT16  FileVersion;        // File version number (;1, ;2, etc.)
+  UINT32  UserPrivileges;     // User privilege mask
+  char    FileID[16];         // Volume-unique file identifier (FID)
+} __attribute__((packed)) ZOO64_ODS5_ATTR;
+```
+
+#### ODS-5 Record Types
+
+```
+0x0001: RFM_UDF  // Undefined (stream)
+0x0002: RFM_FIX  // Fixed-length records
+0x0003: RFM_VAR  // Variable-length records
+0x0004: RFM_VFC  // Variable with fixed control
+0x0005: RFM_STM  // Stream (LF-terminated)
+0x0006: RFM_STMLF // Stream LF
+0x0007: RFM_STMCR // Stream CR
+```
+
+#### ODS-5 File Organization
+
+```
+0x0001: FAB$C_SEQ  // Sequential
+0x0002: FAB$C_REL  // Relative
+0x0003: FAB$C_IDX  // Indexed (ISAM)
+0x0004: FAB$C_HSH  // Hashed
+```
+
+#### ODS-5 File Characteristics
+
+```
+0x0001: FCH$V_NOBACKUP    // Don't backup
+0x0002: FCH$V_WRITECHECK  // Verify all writes
+0x0004: FCH$V_READCHECK   // Verify all reads
+0x0008: FCH$V_CONTIG      // Contiguous allocation
+0x0010: FCH$V_LOCKED      // File locked
+0x0020: FCH$V_CONTIGB     // Contiguous best try
+0x0040: FCH$V_SPOOL       // Spool file (intermediate)
+0x0080: FCH$V_DIRECTORY   // Directory file
+0x0100: FCH$V_BADBLOCK    // Bad block processing
+0x0200: FCH$V_MARKDEL     // Mark for delete
+0x0400: FCH$V_NOCHARGE    // Don't charge quota
+0x0800: FCH$V_ERASE       // Erase on delete
+```
+
+### 6.14 z/OS Dataset Attributes
+
+IBM z/OS (formerly OS/390, MVS) mainframe filesystem metadata for datasets.
+
+```c
+typedef struct _ZOO64_ZOS_ATTR {
+  char    DatasetName[44];    // Fully qualified dataset name (DSNAME)
+  UINT8   DatasetOrganization;// DSORG (PS, PO, DA, IS, VS)
+  UINT8   RecordFormat;       // RECFM (F, FB, V, VB, U, etc.)
+  UINT16  LogicalRecordLength;// LRECL
+  UINT32  BlockSize;          // BLKSIZE
+  UINT16  PrimarySpace;       // Primary space allocation (tracks/cylinders/blocks)
+  UINT16  SecondarySpace;     // Secondary space allocation
+  UINT8   SpaceUnit;          // Space unit (tracks, cylinders, blocks, etc.)
+  UINT8   DirectoryBlocks;    // Directory blocks (for PDS)
+  char    DataClass[8];       // SMS data class
+  char    StorageClass[8];    // SMS storage class
+  char    ManagementClass[8]; // SMS management class
+  char    VolSer[6];          // Volume serial number
+  UINT16  DatasetType;        // PDS, PDSE, HFS, zFS
+  UINT32  Flags;              // Various dataset flags
+} __attribute__((packed)) ZOO64_ZOS_ATTR;
+```
+
+#### z/OS Dataset Organization (DSORG)
+
+```
+0x01: PS   // Physical Sequential
+0x02: PO   // Partitioned (PDS)
+0x04: DA   // Direct Access
+0x08: IS   // Indexed Sequential (ISAM)
+0x10: VS   // VSAM
+0x20: PSU  // Unmovable PS
+0x40: POU  // Unmovable PO
+```
+
+#### z/OS Record Format (RECFM)
+
+```
+0x01: F    // Fixed
+0x02: FB   // Fixed Blocked
+0x03: V    // Variable
+0x04: VB   // Variable Blocked
+0x05: U    // Undefined
+0x06: FBA  // Fixed Blocked ASCII
+0x07: VBA  // Variable Blocked ASCII
+0x08: FBM  // Fixed Blocked Machine code
+0x09: VBM  // Variable Blocked Machine code
+```
+
+#### z/OS Space Units
+
+```
+0x01: TRK  // Tracks
+0x02: CYL  // Cylinders
+0x03: BLK  // Blocks
+0x04: KB   // Kilobytes
+0x05: MB   // Megabytes
+```
+
+#### z/OS Dataset Types
+
+```
+0x0001: PDS   // Partitioned Dataset
+0x0002: PDSE  // Partitioned Dataset Extended
+0x0004: HFS   // Hierarchical File System
+0x0008: ZFS   // zSeries File System
+0x0010: VSAM  // Virtual Storage Access Method
+0x0020: SEQ   // Sequential
+```
+
+### 6.15 OS/400 (IBM i) Attributes
+
+IBM i (formerly OS/400, AS/400) integrated filesystem metadata.
+
+```c
+typedef struct _ZOO64_OS400_ATTR {
+  char    Library[10];        // Library name
+  char    Object[10];         // Object name
+  char    Member[10];         // Member name (for source/data files)
+  char    ObjectType[10];     // Object type (*FILE, *PGM, *DTAARA, etc.)
+  char    SourceType[10];     // Source type (RPG, CLP, DSPF, etc.)
+  UINT32  CCSID;              // Coded Character Set ID
+  UINT8   FileType;           // Physical, logical, source, data
+  UINT8   FileOrganization;   // Sequential, keyed, stream
+  UINT16  RecordLength;       // Record length
+  UINT32  MemberCount;        // Number of members (for multi-member files)
+  char    TextDescription[50];// Object text description
+  UINT64  CreateTimestamp;    // Create timestamp (NTP extended format)
+  UINT64  ChangeTimestamp;    // Last change timestamp (NTP extended format)
+  char    OwnerProfile[10];   // Owner user profile
+  char    Authority[10];      // Primary group authority
+  UINT32  Flags;              // Various OS/400 flags
+} __attribute__((packed)) ZOO64_OS400_ATTR;
+```
+
+#### OS/400 Object Types (common)
+
+```
+*FILE      // Database file
+*PGM       // Program
+*DTAARA    // Data area
+*DTAQ      // Data queue
+*USRPRF    // User profile
+*MSGQ      // Message queue
+*OUTQ      // Output queue
+*JOBQ      // Job queue
+*LIB       // Library
+*CMD       // Command
+*MENU      // Menu
+*PNLGRP    // Panel group
+*QRYDFN    // Query definition
+```
+
+#### OS/400 File Types
+
+```
+0x01: PF   // Physical file
+0x02: LF   // Logical file
+0x03: DSPF // Display file
+0x04: PRTF // Printer file
+0x05: SAVF // Save file
+0x06: TAPF // Tape file
+0x07: SRC  // Source physical file
+0x08: DATA // Data physical file
+```
+
+#### OS/400 CCSID (common values)
+
+```
+37:    EBCDIC US/Canada
+273:   EBCDIC Germany
+277:   EBCDIC Denmark/Norway
+278:   EBCDIC Sweden/Finland
+280:   EBCDIC Italy
+284:   EBCDIC Spain
+285:   EBCDIC UK
+297:   EBCDIC France
+500:   EBCDIC International
+819:   ASCII ISO 8859-1
+850:   PC Latin-1
+1208:  UTF-8
+13488: UCS-2
+```
+
+### 6.16 Lisa Office System Attributes
+
+Apple Lisa Office System (1983-1985) had a sophisticated document-based filesystem.
+
+```c
+typedef struct _ZOO64_LISA_ATTR {
+  char    DocumentType[32];   // Document type (LisaWrite, LisaCalc, etc.)
+  UINT32  PrivateData[4];     // Application private data
+  char    DocumentName[32];   // Original document name (Lisa limit: 31 chars)
+  UINT32  PaperType;          // Paper size (US Letter, A4, Legal, etc.)
+  UINT16  Version;            // Document version number
+  UINT16  Edition;            // Document edition number
+  UINT32  IconResourceID;     // Resource ID of document icon
+  UINT32  Password;           // Password hash (if password protected)
+  UINT32  Flags;              // Lisa-specific flags
+  UINT64  CreationDate;       // Lisa creation date (NTP extended format)
+  UINT64  ModificationDate;   // Lisa modification date (NTP extended format)
+  char    Application[32];    // Creating application name
+  char    StationeryPad[32];  // Stationery pad template (if any)
+} __attribute__((packed)) ZOO64_LISA_ATTR;
+```
+
+#### Lisa Document Types (common)
+
+```
+"LisaWrite/DOCUMENT"   // LisaWrite word processor document
+"LisaCalc/WORKSHEET"   // LisaCalc spreadsheet
+"LisaDraw/DRAWING"     // LisaDraw graphics document
+"LisaGraph/GRAPH"      // LisaGraph business graphics
+"LisaProject/PROJECT"  // LisaProject project management
+"LisaList/DATABASE"    // LisaList database
+"LisaTerminal/SETUP"   // LisaTerminal configuration
+```
+
+#### Lisa Paper Types
+
+```
+0x0001: US Letter (8.5" x 11")
+0x0002: US Legal (8.5" x 14")
+0x0003: A4 (210mm x 297mm)
+0x0004: B5 (176mm x 250mm)
+0x0005: Fanfold (14.875" x 11")
+```
+
+#### Lisa Document Flags
+
+```
+0x00000001: STATIONERY        // Document is stationery
+0x00000002: PASSWORD_PROTECTED // Password required
+0x00000004: COPY_PROTECTED     // Copy protection enabled
+0x00000008: PRINT_PROTECTED    // Print protection enabled
+0x00000010: SHARED_DOCUMENT    // Multi-user shared document
+0x00000020: AUTO_SAVE          // Auto-save enabled
+```
+
+**Note**: Lisa Office System metadata is primarily of historical interest for archival purposes. Modern implementations should store Lisa documents with full metadata preservation for digital archaeology and computing history research.
 
 ## 6a. Encryption Support
 
