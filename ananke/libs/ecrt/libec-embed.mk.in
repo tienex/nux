@@ -1,0 +1,24 @@
+## @file
+#  eCRT - An embedded C runtime library
+#
+#  Copyright (C) 2025 A•NUX Project
+#
+#  SPDX-License-Identifier: BSD-2-Clause
+##
+#
+# To embed libecrt in your target, include this file,
+# and add $(ECRT_SRCS) to your sources.
+#
+
+ifeq (z$(ECRT_MACHINE),z)
+ECRT_MACHINE=@MACHINE@
+endif
+
+ECRT_DIR=@LIBECRT_SRCDIR@
+
+ECRT_ARCH_DIR= $(ECRT_MACHINE)
+
+include $(ECRT_DIR)/ec_sources.mk
+
+SRCS+= $(addprefix $(ECRT_DIR)/,$(ECRT_SRCS))
+

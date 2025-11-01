@@ -1,0 +1,65 @@
+## @file
+#  eCRT - An embedded C runtime library
+#
+#  Copyright (C) 2025 A•NUX Project
+#
+#  SPDX-License-Identifier: BSD-2-Clause
+##
+#
+# This is the automake include. Can only be included through
+# the infamous and terribly specific automake rules:
+#
+#    include $(srcdir)/file
+#    include $(top_srcdir)/file
+#
+# i.e., only if they are under your own configure script.
+#
+# To embed libecrt in your target, include this file,
+# and add $(ECRT_SRCS) to your sources.
+#
+
+ECRT_ARCH_DIR=i386
+
+ECRT_ARCH_SRCS= 	$(ECRT_DIR)/$(ECRT_ARCH_DIR)/_setjmp.S \
+		$(ECRT_DIR)/$(ECRT_ARCH_DIR)/atomic.S \
+		$(ECRT_DIR)/$(ECRT_ARCH_DIR)/ffs.S \
+		$(ECRT_DIR)/$(ECRT_ARCH_DIR)/fls.S \
+		$(ECRT_DIR)/$(ECRT_ARCH_DIR)/memcmp.S \
+		$(ECRT_DIR)/$(ECRT_ARCH_DIR)/memcpy.S \
+		$(ECRT_DIR)/$(ECRT_ARCH_DIR)/memmove.S \
+		$(ECRT_DIR)/$(ECRT_ARCH_DIR)/memset.S \
+		$(ECRT_DIR)/$(ECRT_ARCH_DIR)/strlen.S \
+		$(ECRT_DIR)/$(ECRT_ARCH_DIR)/strncmp.S
+
+
+ECRT_CFLAGS= -nostdinc -fno-builtin
+ECRT_LDFLAGS= -nostdlib
+ECRT_CPPFLAGS= -D_eCRT_SOURCE -I $(ECRT_DIR)
+ECRT_CCASFLAGS= -D_ASSEMBLER
+
+ECRT_SRCS = 	$(ECRT_DIR)/crt0-common.c \
+		$(ECRT_DIR)/printf.c \
+		$(ECRT_DIR)/rb.c \
+		$(ECRT_DIR)/strcspn.c \
+		$(ECRT_DIR)/strlcpy.c \
+		$(ECRT_DIR)/atexit.c \
+		$(ECRT_ARCH_SRCS)
+
+# Used for crt* asm files
+%.o: $(ECRT_DIR)/$(ECRT_ARCH_DIR)/%.S
+	$(CCAS) -c $(ECRT_CPPFLAGS) $(ECRT_CCASFLAGS)  $< -o $@
+
+
+#
+# Compile an executable with embedded libc.
+#
+# To use this rule you need to first create libPROGNAME, and then
+# define a PROGNAME$(EXEEXT) target.
+# You also need to create a target-specific crt0.o
+#
+%$(EXEEXT): lib%.a crt0.o crti.o crtbegin.o crtend.o crtn.o
+	$(CC) crt0.o crti.o crtbegin.o \
+	$(AM_LDFLAGS) $(ECRT_LDFLAGS) $(LDFLAGS) \
+	-Wl,--start-group $< $(AM_LDADD) -Wl,--end-group \
+	crtend.o crtn.o \
+	-o $@

@@ -1,0 +1,19 @@
+NTRTL -- NT Runtime Library
+
+The NT Runtime Library provides core runtime functionality following Windows NT
+conventions for use throughout the A•NUX Project (APXH bootloader, NUX kernel,
+and user-space applications).
+
+NTRTL includes:
+- String manipulation (ANSI and Unicode/UTF-16)
+- Memory management functions
+- Bitmap operations
+- Linked list management
+- Red-black tree implementation
+- Architecture-optimized assembly implementations (amd64, i386, riscv64)
+
+All NTRTL functions follow NT naming conventions (RtlXxx) and use the ANXAPI
+calling convention for consistency across platforms and compilers.
+
+Copyright (C) 2025 A•NUX Project
+SPDX-License-Identifier: BSD-2-Clause

@@ -1,0 +1,17 @@
+## @file
+#  NTRTL - NT Runtime Library
+#
+#  Copyright (C) 2025 A•NUX Project
+#
+#  SPDX-License-Identifier: BSD-2-Clause
+##
+
+NTRTL_DIR=@NTRTLSRCDIR@
+
+INCDIR=include/ananke/ntrtl
+INCS= \
+	bitmap.h \
+	list.h \
+	memory.h \
+	string.h \
+	tree.h

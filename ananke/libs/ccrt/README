@@ -1,0 +1,16 @@
+libcCRT -- Compiler C Runtime Library
+
+This library provides compiler intrinsics and runtime support functions for
+multiple compilers including GCC, Clang, MSVC, and Open Watcom.
+
+The cCRT library is part of the A•NUX Project and provides low-level compiler
+support functionality that is independent of the operating system.
+
+Features:
+- Multi-compiler support (GCC, Clang, MSVC, Open Watcom)
+- Compiler intrinsics (division, popcount, etc.)
+- Portable builtin functions (clz, ctz, bswap, etc.)
+- Architecture-specific optimizations
+
+Copyright (C) 2025 A•NUX Project
+SPDX-License-Identifier: BSD-2-Clause

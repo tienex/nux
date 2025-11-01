@@ -1,0 +1,11 @@
+## @file
+#  eCRT - An embedded C runtime library
+#
+#  Copyright (C) 2025 A•NUX Project
+#
+#  SPDX-License-Identifier: BSD-2-Clause
+##
+
+INCDIR= include/sys
+INCS = 	bitops.h \
+	types.h

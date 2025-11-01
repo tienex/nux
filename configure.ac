@@ -13,3 +13,6 @@ AC_SUBST([CC_RISCV], [riscv64-linux-gnu-gcc])
 AC_SUBST([CXX_RISCV], [riscv64-linux-gnu-g++])
 AC_SUBST([LD_RISCV], [riscv64-linux-gnu-ld])
 AC_SUBST([AR_RISCV], [riscv64-linux-gnu-ar])
+
+# Wide character support for eCRT (16-bit wchar_t)
+AC_SUBST([WCHAR_CFLAGS], [-fshort-wchar])

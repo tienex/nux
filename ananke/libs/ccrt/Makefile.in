@@ -1,0 +1,14 @@
+## @file
+#  cCRT - Compiler C Runtime Library
+#
+#  Copyright (C) 2025 A•NUX Project
+#
+#  SPDX-License-Identifier: BSD-2-Clause
+##
+
+CCRT_DIR=@CCRTSRCDIR@
+
+INCDIR=include
+INCS= \
+	intrinsics/builtins.h \
+	compiler/detect.h
