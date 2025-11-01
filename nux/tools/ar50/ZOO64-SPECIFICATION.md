@@ -180,7 +180,10 @@ Bit 12:    YAML metadata in files
 Bit 13:    Per-file encryption allowed
 Bit 14:    Redundant directory (ZIP-like)
 Bit 15:    Reserved
-Bit 16-31: Reserved for future use
+Bit 16:    Streamable mode (sequential access only)
+Bit 17:    Tape-friendly mode (optimized for tape)
+Bit 18:    HSM mode (Hierarchical Storage Management)
+Bit 19-31: Reserved for future use
 ```
 
 ### 3.2 Compression Modes
@@ -193,6 +196,213 @@ Bit 16-31: Reserved for future use
 0x0101: Solid seekable compression
 0x0200: Adaptive (per-file for small, solid for large)
 ```
+
+### 3.2a Archive Operating Modes
+
+Zoo64 supports specialized operating modes optimized for different storage scenarios.
+
+#### 3.2a.1 Streamable Mode (Bit 16)
+
+Optimized for streaming operations without random access:
+
+**Characteristics**:
+- No central directory at end
+- File entries written sequentially as encountered
+- Each file entry contains complete metadata inline
+- No seek operations required during extraction
+- Forward-only reading
+- Suitable for pipes, network streams, and stdin/stdout
+
+**Structure**:
+```
+[Archive Header]
+[File Entry 1 + Metadata + Data]
+[File Entry 2 + Metadata + Data]
+...
+[File Entry N + Metadata + Data]
+[End Marker]
+```
+
+**Constraints**:
+- Cannot update existing archives
+- Cannot seek to random files
+- File count unknown until end reached
+- Duplicate filenames possible (last wins)
+
+**Use Cases**:
+- Pipe operations: `tar | zoo64-stream | ssh remote`
+- Network streaming
+- Backup to stdout
+- Docker image layers
+
+#### 3.2a.2 Tape-Friendly Mode (Bit 17)
+
+Optimized for sequential tape storage with proper block alignment:
+
+**Characteristics**:
+- Fixed block size (default 10KB, configurable to 32KB/64KB)
+- Block-aligned file data
+- Tape marks between logical sections
+- Forward error correction (optional)
+- Multiple copies of directory (beginning + end)
+- Volume labels compatible with ANSI X3.27
+
+**Block Structure**:
+```c
+typedef struct _ZOO64_TAPE_BLOCK {
+  UINT64  Magic;              // 0x5A4F4F54415045 ("ZOOTAPE ")
+  UINT32  BlockNumber;        // Sequential block number
+  UINT32  BlockSize;          // Block size (10KB, 32KB, 64KB)
+  UINT32  Flags;              // Block flags
+  UINT32  CRC32;              // Block CRC
+  UINT8   Data[BlockSize-32]; // Block data (padded)
+  UINT32  NextBlockNumber;    // Next block number (for verification)
+  UINT32  Reserved;           // Reserved
+} __attribute__((packed)) ZOO64_TAPE_BLOCK;
+```
+
+**Block flags**:
+```
+0x00000001: START_OF_FILE     // First block of file
+0x00000002: END_OF_FILE       // Last block of file
+0x00000004: TAPE_MARK          // Tape mark (filemark)
+0x00000008: VOLUME_LABEL      // Volume label block
+0x00000010: DIRECTORY_BLOCK   // Directory block
+0x00000020: ECC_PRESENT       // Forward error correction present
+0x00000040: COMPRESSED_BLOCK  // Block compressed
+0x00000080: END_OF_ARCHIVE    // End of archive marker
+```
+
+**Tape marks**:
+- After archive header
+- Between files (optional, controlled by flag)
+- After directory
+- At end of archive
+
+**Error Recovery**:
+- Block CRC32 for error detection
+- Optional Reed-Solomon forward error correction
+- Redundant directory (at start and end)
+- Block numbers for sequence verification
+
+**Use Cases**:
+- LTO tape backup
+- IBM 3592 enterprise tape
+- DAT/DLT tape archival
+- Compliance archival (WORM tapes)
+- Long-term offline storage
+
+#### 3.2a.3 HSM Mode (Hierarchical Storage Management) (Bit 18)
+
+Optimized for tiered storage with stub files and migration metadata:
+
+**Characteristics**:
+- Supports stub files (metadata only, data offline)
+- Migration state tracking
+- Recall hints and policies
+- Storage tier classification
+- Access frequency tracking
+- Automated tier transition metadata
+
+**HSM Metadata**:
+```c
+typedef struct _ZOO64_HSM_METADATA {
+  UINT32  Magic;              // 0x48534D00 ("HSM\0")
+  UINT8   MigrationState;     // Migration state
+  UINT8   StorageTier;        // Current storage tier
+  UINT8   TargetTier;         // Target tier for migration
+  UINT8   RecallPriority;     // Recall priority (0-255)
+  UINT64  MigrationTime;      // Time of last migration
+  UINT64  LastAccessTime;     // Last access time
+  UINT64  AccessCount;        // Number of accesses
+  UINT64  OfflineSize;        // Size if migrated
+  UINT32  RecallCost;         // Estimated recall cost (ms)
+  UINT32  PolicyID;           // HSM policy ID
+  UINT32  VolumeIDLength;     // Length of offline volume ID
+  UINT32  LocationLength;     // Length of offline location
+  // Followed by:
+  //   [VolumeIDLength bytes: offline volume identifier]
+  //   [LocationLength bytes: offline storage location]
+} __attribute__((packed)) ZOO64_HSM_METADATA;
+```
+
+**Migration states**:
+```
+0: RESIDENT             // Fully online (all data present)
+1: PREMIGRATED          // Dual-resident (online + offline copy)
+2: MIGRATED             // Stub only (data offline)
+3: MIGRATING            // Migration in progress
+4: RECALLING            // Recall in progress
+5: RECALL_PENDING       // Queued for recall
+6: ARCHIVED             // Archived to tape/cloud
+```
+
+**Storage tiers**:
+```
+0: TIER_NVME            // NVMe SSD (fastest)
+1: TIER_SSD             // SATA SSD (fast)
+2: TIER_SAS             // SAS HDD (medium)
+3: TIER_SATA            // SATA HDD (slow)
+4: TIER_NEARLINE        // Nearline disk
+5: TIER_TAPE            // Tape library
+6: TIER_CLOUD           // Cloud storage
+7: TIER_ARCHIVE         // Deep archive
+```
+
+**HSM operations**:
+- **Stub file**: Metadata preserved, data pointer to offline location
+- **Recall**: Bring data back online from offline tier
+- **Migration**: Move data to slower/cheaper tier
+- **Pre-migration**: Dual-resident during transition
+
+**Use Cases**:
+- Enterprise HSM systems (IBM Spectrum Archive, HPE DMF)
+- Cloud tiering (AWS S3 Glacier, Azure Archive)
+- Tape archival with online catalog
+- Research data management
+- Media asset management (MAM)
+- Compliance archival with fast recall
+
+### 3.2b Path Separator Handling
+
+Zoo64 uses a universal path representation to support any platform's path separator:
+
+**Internal Format**:
+- Path components separated by `\0` (null byte)
+- Path terminated by `\0\0` (double null)
+- No leading or trailing separators in components
+
+**Examples**:
+```
+POSIX path:     /home/user/documents/file.txt
+Internal:       home\0user\0documents\0file.txt\0\0
+
+Windows path:   C:\Users\user\Documents\file.txt
+Internal:       C:\0Users\0user\0Documents\0file.txt\0\0
+
+macOS path:     /Users/user/Documents/file.txt
+Internal:       Users\0user\0Documents\0file.txt\0\0
+
+VMS path:       DISK:[DIR.SUBDIR]FILE.TXT
+Internal:       DISK:\0[DIR.SUBDIR]\0FILE.TXT\0\0
+```
+
+**Root indicator**:
+- POSIX: First component empty (starts with \0)
+- Windows: Drive letter with colon in first component
+- UNC: First two components form \\server\share
+
+**Conversion on extraction**:
+- Split on \0, rejoin with platform separator
+- Preserve absolute vs relative nature
+- Handle special cases (drive letters, UNC paths)
+
+**Benefits**:
+- Platform-agnostic archive format
+- Preserves original path structure
+- Supports any path separator (/, \, :, etc.)
+- No escaping needed
+- Efficient binary storage
 
 ## 3.3 Volume Header
 
@@ -378,7 +588,11 @@ Bit 15:    Door (Solaris IPC)
 Bit 16:    Event port
 Bit 17:    Whiteout (BSD union mounts)
 Bit 18:    Magic symlink (junction, alias, etc.)
-Bit 19-23: Reserved
+Bit 19:    Has short filename (8.3, name~n, etc.)
+Bit 20:    Has HFS-encoded filename (name#hex)
+Bit 21:    Text file (detected or specified)
+Bit 22:    Binary file (detected or specified)
+Bit 23:    Reserved
 Bit 24-31: Platform-specific
 ```
 
@@ -386,11 +600,29 @@ Bit 24-31: Platform-specific
 
 Immediately follows file header. Length specified in `PathLength` field.
 
+**Path Format**:
+- Path components separated by `\0` (null byte)
+- Path terminated by `\0\0` (double null)
+- UTF-8 encoding
+- Platform-agnostic (supports any original separator)
+
+**Examples**:
 ```
-[PathLength bytes of UTF-8 data]
+POSIX:   /home/user/file.txt  →  \0home\0user\0file.txt\0\0
+Windows: C:\Users\file.txt    →  C:\0Users\0file.txt\0\0
+Relative: docs/readme.md      →  docs\0readme.md\0\0
 ```
 
-Paths use forward slash (/) as separator, regardless of platform.
+**Path Components**:
+- No leading/trailing separators in components
+- Root indicated by empty first component (starts with \0)
+- Drive letters preserved (Windows: C:\, D:\, etc.)
+- UNC paths: First two components form \\server\share
+
+**Length Calculation**:
+PathLength includes all bytes from first character to final \0\0 terminator.
+
+**Historical Note**: Earlier documentation mentioned forward slash separators. This has been superseded by null-byte separation for true platform independence.
 
 ## 6. Metadata Block Format
 
@@ -484,6 +716,9 @@ typedef struct _ZOO64_METADATA_CHUNK {
 0x003F: NetWare NCP metadata (trustees, attributes)
 0x0040: AFP metadata (resource forks, Finder info)
 0x0041: DCE DFS metadata (ACLs, file IDs)
+0x0042: Short filename metadata (8.3, name~n formats)
+0x0043: HFS filename metadata (HFS character encoding)
+0x0044: File type detection metadata (text/binary/MIME)
 ```
 
 ### 6.3 Universal ACL Format
@@ -508,12 +743,18 @@ typedef struct _ZOO64_ACL_ENTRY {
   UINT32  ACEType;            // Universal ACE type
   UINT32  Flags;              // Universal flags
   UINT64  Permissions;        // Universal permission bitmap (64 bits)
-  UINT16  PrincipalType;      // Type of principal identifier
-  UINT16  PrincipalLength;    // Length of principal identifier
+  UINT16  PrincipalCount;     // Number of principal identifiers (usually 1-3)
+  UINT16  Reserved;           // Reserved for alignment
   UINT32  SourceSystem;       // Original ACL system
   UINT32  SourceSpecific[4];  // System-specific metadata (16 bytes)
-  // Followed by principal identifier (variable length)
+  // Followed by PrincipalCount * sizeof(PRINCIPAL_ID) structures
 } __attribute__((packed)) ZOO64_ACL_ENTRY;
+
+typedef struct _PRINCIPAL_ID {
+  UINT16  PrincipalType;      // Type of principal identifier
+  UINT16  PrincipalLength;    // Length of principal identifier data
+  // Followed by principal identifier data (variable length)
+} __attribute__((packed)) PRINCIPAL_ID;
 ```
 
 #### 6.3.2 Source ACL Systems
@@ -806,6 +1047,138 @@ When converting between ACL systems:
 3. **Use SourceSpecific**: Store system-specific data for lossless conversion
 4. **Flag incompatibility**: If exact mapping impossible, document in YAML metadata
 5. **Special principals**: Map owner/group/everyone consistently across systems
+
+#### 6.3.9 Multiple Principal IDs
+
+Zoo64 supports **multiple identifiers for the same principal** in a single ACL entry, enabling seamless cross-platform ACL translation without requiring separate entries.
+
+**Common Multi-ID Patterns**:
+
+1. **POSIX + SID** (Linux <-> Windows):
+   ```
+   PrincipalCount: 2
+   Principal[0]: USER_ID (UID 1000)
+   Principal[1]: SID (S-1-5-21-...)
+   ```
+
+2. **POSIX + UUID** (Linux <-> macOS):
+   ```
+   PrincipalCount: 2
+   Principal[0]: USER_ID (UID 1000)
+   Principal[1]: UUID (XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX)
+   ```
+
+3. **UID + GID + SID + UUID** (Universal):
+   ```
+   PrincipalCount: 4
+   Principal[0]: USER_ID (UID 1000)
+   Principal[1]: GROUP_ID (GID 1000)
+   Principal[2]: SID (S-1-5-21-...)
+   Principal[3]: UUID (...)
+   ```
+
+4. **Name + ID** (Robustness):
+   ```
+   PrincipalCount: 2
+   Principal[0]: USER_ID (UID 1000)
+   Principal[1]: USER_NAME ("johndoe")
+   ```
+
+**Benefits**:
+- **No duplication**: Single ACE with multiple IDs instead of multiple ACEs
+- **Cross-platform**: Works on POSIX, Windows, and macOS without translation
+- **Robustness**: Name-based fallback if numeric ID conflicts
+- **Efficiency**: Reduced ACL size, faster lookups
+
+**Matching Logic**:
+When evaluating ACL, match if **any** principal ID matches:
+- If UID matches → grant/deny
+- OR if SID matches → grant/deny
+- OR if UUID matches → grant/deny
+
+**Creation**:
+- On Unix: Store UID, derive SID/UUID using mapping algorithms
+- On Windows: Store SID, derive UID using mapping algorithms
+- On macOS: Store UUID, derive UID/SID using mapping algorithms
+
+#### 6.3.10 POSIX to SID Standard Mapping
+
+Zoo64 **always derives SID from POSIX UID/GID** using RFC 2307 standard mapping when archiving from POSIX systems. This ensures Windows compatibility without requiring manual mapping.
+
+**UID to SID Mapping**:
+
+Formula: `S-1-22-1-<UID>`
+
+Examples:
+```
+UID 0    →  S-1-22-1-0     (root)
+UID 1000 →  S-1-22-1-1000  (user)
+UID 65534→  S-1-22-1-65534 (nobody)
+```
+
+**GID to SID Mapping**:
+
+Formula: `S-1-22-2-<GID>`
+
+Examples:
+```
+GID 0    →  S-1-22-2-0     (root group)
+GID 1000 →  S-1-22-2-1000  (user group)
+GID 65534→  S-1-22-2-65534 (nogroup)
+```
+
+**SID Components**:
+- `S`: SID prefix
+- `1`: Revision (always 1)
+- `22`: Authority (POSIX/Unix mapping authority)
+- `1`: RID type for users, `2` for groups
+- `<UID/GID>`: Actual numeric ID
+
+**Reverse Mapping** (SID to POSIX):
+```
+S-1-22-1-N  →  UID N
+S-1-22-2-N  →  GID N
+```
+
+**Well-Known SID Mappings**:
+```
+S-1-0-0 (NULL SID)           →  UID 65534 (nobody)
+S-1-1-0 (Everyone)           →  SPECIAL_PRINCIPAL EVERYONE@
+S-1-5-18 (SYSTEM)            →  UID 0 (root)
+S-1-5-32-544 (Administrators)→  GID 0 (root/wheel)
+S-1-5-32-545 (Users)         →  GID 100 (users)
+S-1-5-32-546 (Guests)        →  GID 65534 (nogroup)
+```
+
+**Implementation**:
+When archiving from POSIX systems, Zoo64 **automatically adds SID** to all ACL entries:
+
+1. Read ACL with POSIX UIDs/GIDs
+2. For each UID, derive SID using S-1-22-1-<UID>
+3. For each GID, derive SID using S-1-22-2-<GID>
+4. Store both in PRINCIPAL_ID array
+5. Set PrincipalCount to 2 (or more if UUID also added)
+
+**Benefits**:
+- **Windows compatibility**: Windows can understand ACLs from POSIX archives
+- **Bidirectional**: Works POSIX→Windows and Windows→POSIX
+- **Standard**: Based on RFC 2307 (LDAP for Unix)
+- **No configuration**: Works out-of-the-box
+- **Lossless**: Round-trip preserves both UID and SID
+
+**Example ACL Entry**:
+```c
+// POSIX file owned by UID 1000, with read/write for UID 1001
+ACL_ENTRY {
+  ACEType: ACCESS_ALLOWED
+  Permissions: READ_DATA | WRITE_DATA
+  PrincipalCount: 2
+  Principal[0]: USER_ID, Length=4, Data=[1001 (uint32)]
+  Principal[1]: SID, Length=12, Data=[S-1-22-1-1001]
+}
+```
+
+When extracted on Windows, the SID `S-1-22-1-1001` is used directly. When extracted on Linux, UID `1001` is used.
 
 ### 6.4 Hard Link Support
 
@@ -3955,6 +4328,272 @@ DCE ACE types:
 - ACLs with UUID-based principals
 - Fileset quotas
 - Episode or UFS backend filesystems
+
+### 6.62 Short Filename Metadata (0x0042)
+
+Preserves short filenames (8.3 DOS format, Windows generated short names, etc.).
+
+```c
+typedef struct _ZOO64_SHORT_FILENAME_ATTR {
+  UINT16  ShortNameLength;    // Length of short filename
+  UINT8   NameFormat;         // Short name format type
+  UINT8   GenerationMethod;   // How name was generated
+  UINT32  Flags;              // Short filename flags
+  // Followed by [ShortNameLength bytes: short filename]
+} __attribute__((packed)) ZOO64_SHORT_FILENAME_ATTR;
+```
+
+**Name Format Types**:
+```
+0: DOS_8_3              // Classic DOS 8.3 format (FILENAME.EXT)
+1: WINDOWS_TILDE        // Windows tildegenerated (LONGFI~1.TXT)
+2: VFAT_NUMERIC         // VFAT numeric suffix (LONGFI~2.TXT)
+3: CUSTOM_SHORT         // Custom/manually set short name
+4: CASE_MANGLED         // Case-mangled for case-insensitive FS
+```
+
+**Generation Methods**:
+```
+0: MANUAL               // Manually specified by user
+1: AUTO_WINDOWS         // Windows automatic generation
+2: AUTO_DOS             // DOS automatic generation
+3: AUTO_VFAT            // VFAT automatic generation
+4: PRESERVED_ORIGINAL   // Preserved from source filesystem
+```
+
+**Short Filename Flags**:
+```
+0x00000001: LOSS_ON_RENAME      // Loses short name if renamed
+0x00000002: CASE_PRESERVED      // Case preserved but ignored
+0x00000004: UNIQUE_GUARANTEED   // Guaranteed unique in directory
+0x00000008: GENERATED_FROM_LONG // Generated from long filename
+```
+
+**Examples**:
+```
+Long: "My Important Document.docx"
+Short (DOS 8.3): "MYIMPOR~1.DOC"
+
+Long: "Annual_Financial_Report_2024_Q4_Final_v3.xlsx"
+Short (VFAT): "ANNUAL~1.XLS"
+
+Long: "ReadMe.txt"
+Short (DOS 8.3): "README.TXT" (fits in 8.3)
+```
+
+**Use Cases**:
+- Preserving DOS compatibility
+- Windows VFAT/FAT32 filesystems
+- OS/2 HPFS long names with short alias
+- Dual-name systems (long + short)
+
+### 6.63 HFS Filename Metadata (0x0043)
+
+Preserves HFS-encoded filenames with character substitution for illegal characters.
+
+```c
+typedef struct _ZOO64_HFS_FILENAME_ATTR {
+  UINT16  HFSNameLength;      // Length of HFS-encoded name
+  UINT16  SubstitutionCount;  // Number of character substitutions
+  UINT32  Flags;              // HFS filename flags
+  // Followed by:
+  //   [HFSNameLength bytes: HFS-encoded filename]
+  //   [SubstitutionCount * sizeof(HFS_CHAR_SUBST): substitutions]
+} __attribute__((packed)) ZOO64_HFS_FILENAME_ATTR;
+
+typedef struct _HFS_CHAR_SUBST {
+  UINT16  Position;           // Position in filename (0-indexed)
+  UINT16  OriginalChar;       // Original Unicode character
+  UINT16  SubstitutedChar;    // HFS-safe character (usually #HEX)
+  UINT16  Reserved;           // Reserved
+} __attribute__((packed)) HFS_CHAR_SUBST;
+```
+
+**HFS Filename Encoding**:
+HFS (Classic Mac OS) and HFS+ have character restrictions:
+- Cannot use `:` (colon) - used as path separator
+- Limited to 255 bytes (UTF-16 on HFS+)
+- Case-preserving but case-insensitive (HFS+)
+
+**Character Substitution Format**:
+```
+Original: file:name.txt
+HFS-safe: file#3Aname.txt
+         (0x3A = colon in hex)
+
+Original: path/to/file.txt
+HFS-safe: path#2Fto#2Ffile.txt
+         (0x2F = forward slash in hex)
+```
+
+**HFS Flags**:
+```
+0x00000001: HAS_SUBSTITUTIONS     // Contains #XX substitutions
+0x00000002: CASE_PRESERVED        // Original case preserved
+0x00000004: DECOMPOSED_UNICODE    // Uses NFD normalization
+0x00000008: RESOURCE_FORK_NAME    // Name of resource fork (..namedfork/rsrc)
+```
+
+**Substitution Table** (Common illegal characters):
+```
+:  → #3A  (colon - path separator on HFS)
+/  → #2F  (forward slash)
+\  → #5C  (backslash)
+*  → #2A  (asterisk)
+?  → #3F  (question mark)
+"  → #22  (double quote)
+<  → #3C  (less than)
+>  → #3E  (greater than)
+|  → #7C  (pipe)
+```
+
+**Use Cases**:
+- Archiving from non-HFS to HFS
+- Preserving filenames with illegal HFS characters
+- Cross-platform filename compatibility
+- macOS Classic compatibility
+
+**Round-Trip**:
+When extracting to non-HFS system, reverse substitutions:
+- `file#3Aname.txt` → `file:name.txt`
+- Read substitution table and replace #XX with original chars
+
+### 6.64 File Type Detection Metadata (0x0044)
+
+Stores detected or specified file type (text vs binary, MIME type, etc.).
+
+```c
+typedef struct _ZOO64_FILETYPE_ATTR {
+  UINT8   DetectionMethod;    // How type was determined
+  UINT8   FileCategory;       // High-level category
+  UINT16  MimeTypeLength;     // Length of MIME type string
+  UINT32  Confidence;         // Detection confidence (0-100)
+  UINT32  Flags;              // File type flags
+  UINT32  MagicNumber;        // File magic number (if applicable)
+  UINT32  CharsetLength;      // Length of charset name (for text)
+  UINT16  LineEnding;         // Line ending type (for text)
+  UINT16  BOM;                // Byte Order Mark type (for text)
+  // Followed by:
+  //   [MimeTypeLength bytes: UTF-8 MIME type]
+  //   [CharsetLength bytes: charset name (e.g., "UTF-8", "ISO-8859-1")]
+} __attribute__((packed)) ZOO64_FILETYPE_ATTR;
+```
+
+**Detection Methods**:
+```
+0: UNKNOWN              // Unknown/not detected
+1: FILE_EXTENSION       // Based on filename extension
+2: MAGIC_NUMBER         // Based on file magic number
+3: CONTENT_ANALYSIS     // Content heuristics
+4: USER_SPECIFIED       // Manually specified
+5: MIME_TYPE_HEADER     // From HTTP/email headers
+6: LIBMAGIC             // Using libmagic (file command)
+7: COMBINED             // Multiple methods combined
+```
+
+**File Categories**:
+```
+0: UNKNOWN
+1: TEXT                 // Plain text file
+2: BINARY               // Binary data
+3: EXECUTABLE           // Executable program
+4: ARCHIVE              // Archive/compressed file
+5: IMAGE                // Image file
+6: VIDEO                // Video file
+7: AUDIO                // Audio file
+8: DOCUMENT             // Document (PDF, Word, etc.)
+9: SOURCE_CODE          // Source code file
+10: DATA                // Structured data (JSON, XML, CSV)
+11: DATABASE            // Database file
+12: FONT                // Font file
+13: MULTIMEDIA          // Other multimedia
+```
+
+**File Type Flags**:
+```
+0x00000001: IS_TEXT             // File is text
+0x00000002: IS_BINARY           // File is binary
+0x00000004: HAS_BOM             // Has byte order mark
+0x00000008: MIXED_LINE_ENDINGS  // Mixed CR/LF/CRLF
+0x00000010: NULL_BYTES_PRESENT  // Contains null bytes
+0x00000020: HIGH_ENTROPY        // High entropy (encrypted/compressed)
+0x00000040: VALID_UTF8          // Valid UTF-8 encoding
+0x00000080: ASCII_ONLY          // Only ASCII characters
+0x00000100: COMPRESSED          // Compressed format
+0x00000200: ENCRYPTED           // Encrypted format
+```
+
+**Line Ending Types** (for text files):
+```
+0: UNKNOWN
+1: LF                   // Unix/Linux/macOS (\n)
+2: CRLF                 // Windows (\r\n)
+3: CR                   // Classic Mac OS (\r)
+4: MIXED                // Mixed line endings
+```
+
+**BOM (Byte Order Mark) Types**:
+```
+0: NO_BOM
+1: UTF8_BOM             // EF BB BF
+2: UTF16_LE_BOM         // FF FE
+3: UTF16_BE_BOM         // FE FF
+4: UTF32_LE_BOM         // FF FE 00 00
+5: UTF32_BE_BOM         // 00 00 FE FF
+```
+
+**Common MIME Types**:
+```
+text/plain              // Plain text
+text/html               // HTML
+text/css                // CSS
+text/javascript         // JavaScript
+application/json        // JSON
+application/xml         // XML
+application/pdf         // PDF
+application/zip         // ZIP archive
+image/jpeg              // JPEG image
+image/png               // PNG image
+video/mp4               // MP4 video
+audio/mpeg              // MP3 audio
+```
+
+**Text vs Binary Detection Heuristics**:
+1. Check for BOM (→ text with encoding)
+2. Sample first 8KB of file
+3. Count null bytes (>1% → probably binary)
+4. Check for valid UTF-8 sequences
+5. Calculate entropy (high → binary/encrypted)
+6. Check for ASCII printable characters (>95% → text)
+
+**Examples**:
+```
+File: README.md
+  Category: TEXT
+  MIME: text/markdown
+  Charset: UTF-8
+  LineEnding: LF
+  Confidence: 98%
+
+File: program.exe
+  Category: EXECUTABLE
+  MIME: application/x-msdownload
+  MagicNumber: 0x5A4D (MZ)
+  Confidence: 100%
+
+File: data.bin
+  Category: BINARY
+  MIME: application/octet-stream
+  Confidence: 75%
+```
+
+**Use Cases**:
+- Automatic line ending conversion
+- Text encoding detection and conversion
+- Binary safety checks
+- Content-type preservation
+- MIME type for HTTP serving
+- Editor mode selection
 
 ## 6a. Encryption Support
 
