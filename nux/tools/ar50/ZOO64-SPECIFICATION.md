@@ -41,15 +41,18 @@ Zoo64 uses a redundant directory structure similar to ZIP format. Each file has 
 [Archive Header]
 [Compression Mode Descriptor]
 [Archive YAML Metadata] (optional)
+[Quick Directory] (optional)   ← NEW: Fast file listing without full scan
+  [Quick Directory Header]
+  [Quick File Entries...]       ← Minimal metadata: name, size, offset only
 [File Entries...]
-  [Local File Header]         ← Redundant: full file metadata
+  [Local File Header]           ← Redundant: full file metadata
   [File Metadata]
     [Binary Metadata Chunks] (ACL, xattr, ADS, etc.)
     [YAML Metadata] (optional)
   [Encryption Header] (optional)
   [File Data / Compressed Data]
   [File Signature] (optional)
-[Central Directory]            ← Redundant: duplicates file metadata
+[Central Directory]             ← Redundant: complete file metadata
   [Central Directory Header]
   [Central Directory Entries...]
 [Archive Signature] (optional)
@@ -94,6 +97,7 @@ YAML Metadata:        0x59414D4C4D455441  ("YAMLMETA")
 Encryption Header:    0x454E4352595054    ("ENCRYPT ")
 Signature Block:      0x5349474E41545552  ("SIGNATUR")
 Central Directory:    0x43454E5444495220  ("CENTDIR ")
+Quick Directory:      0x5155494344495220  ("QUIC DIR")
 Volume Header:        0x564F4C554D4548    ("VOLUMEH ")
 Volume Footer:        0x564F4C554D4546    ("VOLUMEF ")
 End of Archive:       0x454E444F46415243  ("ENDOFARC")
@@ -574,6 +578,235 @@ creation:
   environment: "production"
 ```
 
+## 4.6 Quick Directory
+
+The Quick Directory is an optional structure that appears at the beginning of the archive (after YAML metadata, before file entries). It provides fast file listing without requiring a full archive scan or seeking to the Central Directory at the end.
+
+### 4.6.1 Quick Directory Header
+
+```c
+#pragma pack(push, 1)
+typedef struct _ZOO64_QUICK_DIRECTORY {
+  UINT64  Magic;              // 0x5155494344495220 ("QUICKDIR")
+  UINT32  DirectorySize;      // Total size of quick directory
+  UINT32  EntryCount;         // Number of files in archive
+  UINT32  Flags;              // Quick directory flags
+  UINT64  FirstFileOffset;    // Offset to first file entry
+  UINT64  CentralDirOffset;   // Offset to central directory (for verification)
+  // Followed by EntryCount quick entries
+} ZOO64_QUICK_DIRECTORY;
+#pragma pack(pop)
+```
+
+**Quick Directory Flags**:
+```
+0x00000001: SORTED_BY_NAME     // Entries sorted alphabetically by name
+0x00000002: SORTED_BY_OFFSET   // Entries sorted by file offset
+0x00000004: SORTED_BY_SIZE     // Entries sorted by size
+0x00000008: HASH_TABLE         // Includes hash table for O(1) lookup
+0x00000010: COMPRESSED         // Quick directory is compressed
+0x00000020: ENCRYPTED          // Quick directory is encrypted
+0x00000040: INCREMENTAL        // Support for incremental updates
+```
+
+### 4.6.2 Quick File Entry
+
+Each entry in the Quick Directory contains minimal metadata for fast listing:
+
+```c
+#pragma pack(push, 1)
+typedef struct _ZOO64_QUICK_ENTRY {
+  UINT16  PathLength;         // Length of path in bytes
+  UINT64  FileOffset;         // Offset to full file entry
+  UINT64  UncompressedSize;   // Uncompressed size
+  UINT64  CompressedSize;     // Compressed size
+  UINT32  CRC32;              // CRC32 of uncompressed data
+  UINT32  Flags;              // File flags (subset from full header)
+  // Followed by:
+  //   [PathLength bytes: UTF-8 path]
+} ZOO64_QUICK_ENTRY;
+#pragma pack(pop)
+```
+
+**Quick Entry Flags**:
+```
+0x00000001: IS_DIRECTORY       // Entry is a directory
+0x00000002: IS_COMPRESSED      // File is compressed
+0x00000004: IS_ENCRYPTED       // File is encrypted
+0x00000008: IS_SOLID           // File is in solid block
+0x00000010: HAS_METADATA       // File has metadata chunks
+0x00000020: HAS_SIGNATURE      // File has digital signature
+0x00000040: IS_SYMLINK         // Entry is symbolic link
+0x00000080: IS_DELETED         // Entry marked for deletion (incremental)
+```
+
+### 4.6.3 Quick Directory Hash Table (Optional)
+
+For O(1) filename lookup, an optional hash table can be included:
+
+```c
+#pragma pack(push, 1)
+typedef struct _ZOO64_QUICK_HASH_TABLE {
+  UINT32  BucketCount;        // Number of hash buckets (power of 2)
+  UINT32  EntryCount;         // Total entries in table
+  UINT32  HashFunction;       // Hash function ID
+  UINT32  Reserved;           // Reserved
+  // Followed by:
+  //   [BucketCount * UINT32: bucket indices]
+  //   [EntryCount * HASH_ENTRY: hash entries]
+} ZOO64_QUICK_HASH_TABLE;
+#pragma pack(pop)
+
+#pragma pack(push, 1)
+typedef struct _ZOO64_HASH_ENTRY {
+  UINT32  Hash;               // Hash of filename
+  UINT32  EntryIndex;         // Index into quick directory
+  UINT32  NextIndex;          // Next entry in bucket (chain)
+} ZOO64_HASH_ENTRY;
+#pragma pack(pop)
+```
+
+**Hash Functions**:
+```
+0x0000: None (linear search)
+0x0001: FNV-1a 32-bit
+0x0002: MurmurHash3 32-bit
+0x0003: CityHash 32-bit
+0x0004: xxHash 32-bit
+```
+
+### 4.6.4 Advantages of Quick Directory
+
+**Performance Benefits**:
+- **Fast listing**: O(n) scan of minimal entries vs. O(n) scan of full headers
+- **No seeking**: Sequential read from archive start
+- **Bandwidth efficient**: Only name + size + offset (typically 50-100 bytes/file)
+- **Hash table**: O(1) lookup for specific files (vs. O(n) scan)
+
+**Size Comparison** (1000 files):
+- Quick Directory: ~80 KB (80 bytes/entry average)
+- Full headers scan: ~500 KB - 5 MB (depends on metadata)
+- Central Directory: ~500 KB - 5 MB (full metadata)
+
+**Use Cases**:
+- Listing archive contents without full scan
+- Finding specific file offset without reading all headers
+- Archive verification (compare quick dir vs. central dir)
+- Streaming archives where end-of-archive is not yet available
+- Network archives where seeking is expensive
+
+### 4.6.5 Quick Directory Generation
+
+**On Archive Creation**:
+```
+1. Write Archive Header, Compression Descriptor, YAML metadata
+2. Reserve space for Quick Directory (estimate: 100 bytes/file)
+3. For each file:
+   a. Write file entry with full metadata
+   b. Record offset, size, path for quick entry
+4. After all files written:
+   a. Generate Quick Directory with all entries
+   b. Optionally build hash table
+   c. Optionally compress/encrypt
+   d. Write to reserved space (or append if too large)
+5. Update Archive Header with quick dir offset/size
+6. Write Central Directory and End marker
+```
+
+**On Archive Read**:
+```
+1. Read Archive Header
+2. Check if Quick Directory present (QuickDirOffset != 0)
+3. If present:
+   a. Seek to quick directory
+   b. Read and parse quick entries
+   c. Build in-memory index
+4. For file listing: use quick directory
+5. For file extraction: use offset from quick entry to jump to file data
+```
+
+### 4.6.6 Incremental Updates
+
+The Quick Directory supports incremental archive updates:
+
+```c
+#pragma pack(push, 1)
+typedef struct _ZOO64_QUICK_ENTRY_V2 {
+  UINT16  PathLength;         // Length of path
+  UINT64  FileOffset;         // Offset to file entry
+  UINT64  UncompressedSize;   // Uncompressed size
+  UINT64  CompressedSize;     // Compressed size
+  UINT32  CRC32;              // CRC32
+  UINT32  Flags;              // Flags (including IS_DELETED)
+  UINT32  Version;            // File version number
+  UINT64  Timestamp;          // Last modification timestamp
+  // Followed by path
+} ZOO64_QUICK_ENTRY_V2;
+#pragma pack(pop)
+```
+
+**Incremental Operations**:
+- **Add file**: Append new quick entry with highest version
+- **Delete file**: Mark entry with IS_DELETED flag
+- **Update file**: Add new entry with incremented version, mark old as deleted
+- **Compaction**: Rebuild quick directory removing deleted entries
+
+### 4.6.7 Example Code
+
+**Reading Quick Directory**:
+```c
+bool read_quick_directory(
+    FILE *archive,
+    ZOO64_ARCHIVE_HEADER *header,
+    ZOO64_QUICK_ENTRY **entries,
+    uint32_t *count
+) {
+    if (header->QuickDirOffset == 0) {
+        return false;  // No quick directory
+    }
+
+    // Seek to quick directory
+    fseek(archive, header->QuickDirOffset, SEEK_SET);
+
+    // Read header
+    ZOO64_QUICK_DIRECTORY qdir;
+    fread(&qdir, sizeof(qdir), 1, archive);
+
+    // Allocate entries
+    *entries = malloc(qdir.EntryCount * sizeof(ZOO64_QUICK_ENTRY));
+    *count = qdir.EntryCount;
+
+    // Read each entry
+    for (uint32_t i = 0; i < qdir.EntryCount; i++) {
+        fread(&(*entries)[i], sizeof(ZOO64_QUICK_ENTRY), 1, archive);
+        // Read path
+        char *path = malloc((*entries)[i].PathLength + 1);
+        fread(path, 1, (*entries)[i].PathLength, archive);
+        path[(*entries)[i].PathLength] = '\0';
+        // Store path...
+    }
+
+    return true;
+}
+```
+
+**Fast File Lookup**:
+```c
+int64_t find_file_offset(
+    ZOO64_QUICK_ENTRY *entries,
+    uint32_t count,
+    const char *filename
+) {
+    // Linear search (or use hash table if available)
+    for (uint32_t i = 0; i < count; i++) {
+        if (strcmp(entries[i].path, filename) == 0) {
+            return entries[i].FileOffset;
+        }
+    }
+    return -1;  // Not found
+}
+```
+
 ## 5. File Entry Format
 
 Each file in the archive has the following structure:
@@ -867,6 +1100,10 @@ typedef struct _ZOO64_METADATA_CHUNK {
 0x004C: DR-DOS file password metadata
 0x004D: CP/M USER DIR metadata
 0x004E: Olivetti pcos metadata
+0x004F: WIM (Windows Imaging Format) metadata
+0x0050: WIM resource metadata (single-instance storage)
+0x0051: WIM boot metadata (bootable image)
+0x0052: WIM integrity metadata
 ```
 
 ### 6.3 Universal ACL Format
@@ -6229,6 +6466,327 @@ Olivetti M20 was released in 1982 and used a Zilog Z8000 processor. Unlike most 
 - Protection levels should be mapped to modern ACLs on extraction
 - Expired files should be flagged or automatically removed
 - Encrypted pcos files should trigger Zoo64 encryption metadata
+
+### 6.75 WIM (Windows Imaging Format) Metadata (0x004F)
+
+WIM is Microsoft's file-based disk image format used for Windows deployment. Zoo64 can store WIM-specific metadata for archives that need to preserve WIM semantics or create WIM-compatible images.
+
+```c
+#pragma pack(push, 1)
+typedef struct _ZOO64_WIM_ATTR {
+  UINT32  WIMVersion;         // WIM format version (typically 0x00010D00)
+  UINT32  ImageIndex;         // Image index within WIM (1-based)
+  UINT32  ImageCount;         // Total number of images
+  UINT32  BootIndex;          // Boot image index (0 if not bootable)
+  UINT64  ImageFlags;         // WIM image flags
+  UINT32  CompressionType;    // WIM compression type
+  UINT32  ChunkSize;          // Compression chunk size (32KB default)
+  UINT16  ImageNameLength;    // Length of image name
+  UINT16  ImageDescLength;    // Length of image description
+  UINT32  Reserved;           // Reserved for future use
+  // Followed by:
+  //   [ImageNameLength bytes: image name]
+  //   [ImageDescLength bytes: image description]
+} ZOO64_WIM_ATTR;
+#pragma pack(pop)
+```
+
+**WIM Version Values**:
+```
+0x00010D00: WIM 1.13 (Windows Vista/7/8/10/11)
+0x000E0000: WIM 14.0  (Windows 8.1)
+```
+
+**WIM Image Flags**:
+```
+0x00000001: COMPRESSION         // Image uses compression
+0x00000002: READONLY            // Image is read-only
+0x00000004: SPANNED             // Image spans multiple files
+0x00000008: RESOURCE_ONLY       // Image contains only resources
+0x00000010: METADATA_ONLY       // Image contains only metadata
+0x00000020: SINGLE_INSTANCE     // Use single-instance storage
+0x00000040: BOOTABLE            // Image is bootable
+0x00000080: INTEGRITY_CHECK     // Image has integrity table
+0x00000100: DEDUPLICATED        // Image uses chunk deduplication
+0x00000200: PIPEABLE            // Image supports pipeable WIM
+```
+
+**WIM Compression Types**:
+```
+0: NONE           // No compression (stored)
+1: XPRESS         // LZ77-based (fast)
+2: LZX            // LZ77+Huffman (better ratio)
+3: LZMS           // LZMA-like (best ratio, Windows 8+)
+```
+
+**WIM Features**:
+
+1. **Single-Instance Storage**:
+   - Files with identical content stored once
+   - All instances reference the same resource
+   - Implemented via file hash lookup
+
+2. **Resource-Based Storage**:
+   - Files stored as resources (chunks)
+   - Resources can be shared across images
+   - Efficient for multiple OS images
+
+3. **Bootable Images**:
+   - Can contain Windows Boot Manager
+   - Supports BIOS and UEFI boot
+   - Boot configuration in boot.wim
+
+4. **Integrity Tables**:
+   - SHA-1 checksums for verification
+   - Optional integrity checking
+
+### 6.76 WIM Resource Metadata (0x0050)
+
+WIM uses resource-based storage where files reference shared resource chunks. This metadata tracks resource information.
+
+```c
+#pragma pack(push, 1)
+typedef struct _ZOO64_WIM_RESOURCE_ATTR {
+  UINT8   ResourceHash[20];   // SHA-1 hash of resource (WIM standard)
+  UINT64  ResourceOffset;     // Offset to resource data
+  UINT64  ResourceSize;       // Size of resource (compressed)
+  UINT64  OriginalSize;       // Original size (uncompressed)
+  UINT32  RefCount;           // Number of files referencing this resource
+  UINT32  PartNumber;         // Part number (for split WIM)
+  UINT32  Flags;              // Resource flags
+  UINT32  Reserved;           // Reserved
+} ZOO64_WIM_RESOURCE_ATTR;
+#pragma pack(pop)
+```
+
+**Resource Flags**:
+```
+0x00000001: COMPRESSED         // Resource is compressed
+0x00000002: FREE               // Resource is free/deleted
+0x00000004: METADATA           // Resource contains metadata
+0x00000008: SPANNED            // Resource spans multiple parts
+0x00000010: DEDUPLICATED       // Resource uses chunk deduplication
+```
+
+**Single-Instance Storage Algorithm**:
+```c
+// When adding file to WIM-style archive:
+1. Calculate SHA-1 hash of file content
+2. Look up hash in resource table
+3. If found:
+   a. Increment RefCount
+   b. Store only reference to existing resource
+4. If not found:
+   a. Compress file content
+   b. Store as new resource
+   c. Add hash to resource table
+   d. Set RefCount = 1
+```
+
+**Benefits**:
+- **Space savings**: Eliminates duplicate files
+- **Performance**: Single read for multiple instances
+- **Deduplication**: Automatic at file level
+
+**Example** (Windows installation with multiple editions):
+```
+Windows 10 Home:      3.5 GB
+Windows 10 Pro:       3.6 GB
+Windows 10 Enterprise: 3.7 GB
+---
+Total without SIS:   10.8 GB
+Total with SIS:       4.2 GB (system files shared)
+Savings:              61%
+```
+
+### 6.77 WIM Boot Metadata (0x0051)
+
+For bootable WIM images (like boot.wim or install.wim), this metadata stores boot configuration.
+
+```c
+#pragma pack(push, 1)
+typedef struct _ZOO64_WIM_BOOT_ATTR {
+  UINT32  BootType;           // Boot type: 0=BIOS, 1=UEFI, 2=Both
+  UINT32  BootFlags;          // Boot flags
+  UINT64  BootloaderOffset;   // Offset to bootloader
+  UINT64  BootloaderSize;     // Size of bootloader
+  UINT64  WIMBootOffset;      // Offset to WIMBoot metadata
+  UINT16  BootFileCount;      // Number of boot files
+  UINT16  BcdStoreLength;     // Length of BCD store
+  UINT32  Reserved[4];        // Reserved
+  // Followed by:
+  //   [BcdStoreLength bytes: BCD store (Boot Configuration Data)]
+  //   [BootFileCount * BOOT_FILE_ENTRY]
+} ZOO64_WIM_BOOT_ATTR;
+#pragma pack(pop)
+
+#pragma pack(push, 1)
+typedef struct _ZOO64_BOOT_FILE_ENTRY {
+  UINT16  PathLength;         // Length of boot file path
+  UINT64  FileOffset;         // Offset to file in archive
+  UINT64  FileSize;           // Size of boot file
+  UINT32  LoadAddress;        // Load address for bootloader
+  UINT32  Flags;              // Boot file flags
+  // Followed by:
+  //   [PathLength bytes: file path]
+} ZOO64_BOOT_FILE_ENTRY;
+#pragma pack(pop)
+```
+
+**Boot Types**:
+```
+0: BIOS_LEGACY    // Legacy BIOS boot
+1: UEFI           // UEFI boot
+2: DUAL_BOOT      // Both BIOS and UEFI
+3: IPXE           // Network boot (iPXE)
+4: GRUB           // GRUB bootloader
+```
+
+**Boot Flags**:
+```
+0x00000001: SECURE_BOOT_ENABLED    // UEFI Secure Boot enabled
+0x00000002: TEST_SIGNING           // Allow test-signed drivers
+0x00000004: DISABLE_INTEGRITY      // Disable integrity checks
+0x00000008: RECOVERY_MODE          // Boot to recovery
+0x00000010: SAFE_MODE              // Boot to safe mode
+0x00000020: WIMBOOT_ENABLED        // Use WIMBoot (pointer files)
+```
+
+**WIMBoot**:
+WIMBoot allows Windows to boot directly from WIM files:
+- System files remain in WIM
+- Pointer files (reparse points) link to WIM resources
+- Saves disk space on tablets/embedded devices
+- Requires NTFS with reparse point support
+
+**BCD (Boot Configuration Data)**:
+- Binary hive format (like Windows Registry)
+- Contains boot menu, boot options, boot sequence
+- Required for Windows Boot Manager
+
+### 6.78 WIM Integrity Metadata (0x0052)
+
+WIM integrity tables provide verification of WIM data using checksums.
+
+```c
+#pragma pack(push, 1)
+typedef struct _ZOO64_WIM_INTEGRITY_ATTR {
+  UINT32  IntegritySize;      // Size of integrity table
+  UINT32  ChunkSize;          // Chunk size for checksums (10MB default)
+  UINT32  ChunkCount;         // Number of chunks
+  UINT32  HashAlgorithm;      // Hash algorithm (0=SHA1)
+  UINT64  TableOffset;        // Offset to integrity table
+  UINT32  Flags;              // Integrity flags
+  UINT32  Reserved;           // Reserved
+  // Followed by:
+  //   [ChunkCount * 20 bytes: SHA-1 hashes]
+} ZOO64_WIM_INTEGRITY_ATTR;
+#pragma pack(pop)
+```
+
+**Hash Algorithms**:
+```
+0: SHA1    // SHA-1 (WIM standard)
+1: SHA256  // SHA-256 (stronger)
+2: SHA512  // SHA-512 (strongest)
+```
+
+**Integrity Flags**:
+```
+0x00000001: VERIFY_ON_EXTRACT    // Verify during extraction
+0x00000002: VERIFY_ON_APPLY      // Verify during apply
+0x00000004: VERIFY_ON_CAPTURE    // Verify during capture
+0x00000008: FAIL_ON_ERROR        // Fail if verification fails
+```
+
+**Integrity Table Structure**:
+```
+WIM File divided into 10MB chunks:
+- Chunk 0: bytes 0 - 10485759      → SHA-1 hash
+- Chunk 1: bytes 10485760 - ...    → SHA-1 hash
+- ...
+
+Integrity Table:
+[UINT32 ChunkCount]
+[UINT32 ChunkSize]
+[SHA1_HASH chunk_0]
+[SHA1_HASH chunk_1]
+...
+[SHA1_HASH chunk_n]
+```
+
+**Verification Process**:
+```c
+bool verify_wim_integrity(
+    FILE *wim,
+    ZOO64_WIM_INTEGRITY_ATTR *integrity
+) {
+    uint8_t buffer[10 * 1024 * 1024];  // 10 MB buffer
+    SHA1_CTX ctx;
+
+    for (uint32_t i = 0; i < integrity->ChunkCount; i++) {
+        // Read chunk
+        size_t chunk_size = fread(buffer, 1, integrity->ChunkSize, wim);
+
+        // Calculate SHA-1
+        SHA1_Init(&ctx);
+        SHA1_Update(&ctx, buffer, chunk_size);
+        SHA1_Final(hash, &ctx);
+
+        // Compare with stored hash
+        if (memcmp(hash, integrity->hashes[i], 20) != 0) {
+            return false;  // Corruption detected
+        }
+    }
+
+    return true;  // All chunks verified
+}
+```
+
+**WIM Feature Comparison**:
+
+| Feature                | WIM                  | Zoo64 Equivalent            |
+|------------------------|----------------------|-----------------------------|
+| Single-instance storage| Built-in (SHA-1)     | Block dedup (0x004A)        |
+| Compression            | XPRESS/LZX/LZMS      | LZMA2/LZX/ZSTD (Section 4.1)|
+| Integrity checking     | SHA-1 chunks         | FEC (Section 6b)            |
+| Bootable images        | WIM boot metadata    | WIM boot metadata (0x0051)  |
+| Split archives         | Split WIM            | Multi-volume (Section 2.1a) |
+| XML metadata           | Built-in             | YAML metadata (Section 4.5) |
+| Resource-based         | Built-in             | WIM resource (0x0050)       |
+| NTFS metadata          | Full support         | NTFS metadata (0x0010)      |
+
+**Use Cases**:
+- **Windows deployment**: Create WIM-compatible archives
+- **System imaging**: Capture and deploy Windows installations
+- **Multi-edition media**: Store multiple Windows editions efficiently
+- **Recovery media**: Create bootable recovery images
+- **VDI optimization**: Single-instance storage for virtual desktops
+
+**Example Metadata**:
+```c
+// Windows 10 install.wim with 4 editions
+ZOO64_WIM_ATTR wim = {
+  .WIMVersion = 0x00010D00,
+  .ImageIndex = 1,              // Windows 10 Home
+  .ImageCount = 4,              // Home, Pro, Enterprise, Education
+  .BootIndex = 0,               // Not bootable (boot.wim is bootable)
+  .ImageFlags = COMPRESSION | SINGLE_INSTANCE | DEDUPLICATED,
+  .CompressionType = 2,         // LZX
+  .ChunkSize = 32768,           // 32 KB
+  .ImageNameLength = 14,
+  .ImageDescLength = 50,
+  // ImageName: "Windows 10 Home"
+  // ImageDesc: "Windows 10 Home Edition for consumer devices"
+};
+```
+
+**Historical Context**:
+WIM was introduced with Windows Vista (2006) to replace the older SYS format. It enabled:
+- File-based imaging (vs. sector-based like Ghost)
+- Non-destructive deployment
+- Offline servicing (update images without booting)
+- Hardware-independent images
 
 ## 6a. Encryption Support
 
