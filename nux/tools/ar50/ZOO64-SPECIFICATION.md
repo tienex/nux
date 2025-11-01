@@ -8611,25 +8611,635 @@ interface IZoo64Metadata : IUnknown {
 - Store Finder info
 - HFS+ compression flags
 
-## 15. Error Handling
+### 14.4 When to Use VCS Metadata
 
-### 15.1 Error Codes
+Version Control System (VCS) metadata should be stored selectively based on the archiving scenario. This section provides guidance on when to include Git, SVN, Perforce, and other VCS metadata.
+
+#### 14.4.1 Scenarios Requiring VCS Metadata
+
+**1. Source Code Archiving**
+```
+Use Case: Archiving source code repositories for long-term preservation
+Metadata Types: ZOO64_META_GIT (0x0032), ZOO64_META_SVN (0x0034), ZOO64_META_MERCURIAL (0x0037)
+
+When to Include:
+✓ Creating compliance archives (GPL/LGPL requirement to provide source)
+✓ Historical preservation of software projects
+✓ Legal discovery/eDiscovery requirements
+✓ Backup of development repositories
+✓ Migration between VCS systems
+
+What to Store:
+- Git: Commit hashes, ref names, object hashes, branch/tag info, worktree state
+- SVN: Revision numbers, property lists, externals definitions
+- Perforce: Changelist numbers, file revisions, labels
+- Mercurial: Node IDs, parent hashes, bookmarks, tags
+```
+
+**2. Build Artifact Tracing**
+```
+Use Case: Tracking which commit built which artifact
+Metadata Types: ZOO64_META_GIT (0x0032)
+
+When to Include:
+✓ Binary distribution packages (linking binaries to source)
+✓ Release archives (tracking exact source code used)
+✓ Docker/container images (reproducible builds)
+✓ Firmware updates (traceability for safety/security)
+
+What to Store:
+- Commit hash that produced the build
+- Branch name and tag (if any)
+- Dirty state indicator (uncommitted changes)
+- Submodule commit hashes
+```
+
+**3. Continuous Integration/Deployment**
+```
+Use Case: CI/CD pipeline artifacts
+Metadata Types: ZOO64_META_GIT (0x0032), ZOO64_META_SVN (0x0034)
+
+When to Include:
+✓ Build artifacts from CI systems
+✓ Test result archives
+✓ Deployment packages
+✓ Release candidates
+
+What to Store:
+- Exact commit that triggered the build
+- Build number and timestamp
+- Branch and tag information
+- CI job ID for traceability
+```
+
+**4. Migration and Conversion**
+```
+Use Case: Moving between different VCS or preserving history during migration
+Metadata Types: All VCS types (0x0032-0x0037, 0x003B)
+
+When to Include:
+✓ SVN → Git migration
+✓ Perforce → Git migration
+✓ CVS/RCS → Modern VCS migration
+✓ Mercurial ↔ Git conversion
+✓ Fossil → Git migration
+
+What to Store:
+- Original revision identifiers
+- Author mapping information
+- Branch/tag correspondence
+- Merge parent relationships
+- Original timestamps
+```
+
+#### 14.4.2 Scenarios NOT Requiring VCS Metadata
+
+**1. User Data Backups**
+```
+❌ Home directory backups
+❌ Document archives
+❌ Photo/media libraries
+❌ General file backups
+
+Reason: User files are not under version control; VCS metadata wastes space
+```
+
+**2. System Backups**
+```
+❌ Operating system images
+❌ Configuration backups (unless in /etc/.git)
+❌ Database dumps
+❌ Log archives
+
+Reason: System files don't have VCS context; use standard metadata instead
+```
+
+**3. Binary-Only Distribution**
+```
+❌ End-user software installers
+❌ Proprietary binary libraries (no source available)
+❌ Closed-source applications
+❌ Precompiled packages without source
+
+Reason: VCS metadata only useful with corresponding source code
+Exception: May include commit hash for traceability if binary was built from VCS
+```
+
+**4. Temporary/Working Archives**
+```
+❌ Compressed transfers between systems
+❌ Temporary build directories
+❌ Cache archives
+❌ Incremental backups of non-VCS content
+
+Reason: Short-lived archives don't benefit from VCS context
+```
+
+#### 14.4.3 Conditional VCS Metadata Usage
+
+**Git Working Tree Archives**
+```
+Archive Type: Development snapshot
+Include VCS Metadata IF:
+  - Archive is for disaster recovery
+  - Need to resume work elsewhere
+  - Preserving work-in-progress state
+  - Debugging build issues requiring exact state
+
+Store:
+  - Current branch and commit
+  - Stash entries (if any)
+  - Untracked file list
+  - Submodule states
+  - Worktree configuration
+
+Omit VCS Metadata IF:
+  - Just distributing source code
+  - Archive is temporary
+  - Workspace is clean (no local changes)
+```
+
+**Git LFS Handling**
+```
+Archive Type: Repository with Large File Storage
+Include Git Metadata: YES
+Include LFS Metadata: CONDITIONAL
+
+Store LFS Metadata IF:
+  - Archiving for offline access (include actual LFS objects)
+  - Migration to different Git hosting (preserve LFS pointers)
+  - Compliance requires all data (include full LFS content)
+
+Store Only Git Metadata IF:
+  - LFS objects available on server
+  - Archiving just working tree
+  - Bandwidth/storage constrained
+```
+
+#### 14.4.4 Metadata Storage Recommendations
+
+**Minimal (Source Distribution)**
+```c
+//
+// Store only commit hash for traceability
+//
+typedef struct _ZOO64_GIT_MINIMAL {
+  UINT8   CommitHash[20];  // SHA-1 of commit
+  UINT8   Dirty;           // Non-zero if workspace had changes
+} ZOO64_GIT_MINIMAL;
+
+Size: 21 bytes per file
+Use: Binary releases, build artifacts
+```
+
+**Standard (Repository Backup)**
+```c
+//
+// Store commit, branch, and refs
+//
+typedef struct _ZOO64_GIT_STANDARD {
+  UINT8   CommitHash[20];    // SHA-1 of commit
+  UINT8   TreeHash[20];      // Tree object hash
+  UINT8   BranchName[256];   // Current branch
+  UINT8   Tag[256];          // Tag name (if any)
+  UINT32  Flags;             // Dirty, detached, etc.
+} ZOO64_GIT_STANDARD;
+
+Size: ~552 bytes per file
+Use: Source archives, CI/CD artifacts
+```
+
+**Complete (Full Repository Preservation)**
+```c
+//
+// Store all Git metadata (see section 6.34)
+//
+typedef struct _ZOO64_GIT_COMPLETE {
+  UINT8   CommitHash[20];
+  UINT8   TreeHash[20];
+  UINT8   ParentCount;
+  // ... (see full structure in section 6.34)
+  UINT32  SubmoduleCount;
+  UINT32  RemoteCount;
+  UINT32  RefCount;
+} ZOO64_GIT_COMPLETE;
+
+Size: Variable (1-10 KB per file typical)
+Use: Historical preservation, legal archives, full backups
+```
+
+#### 14.4.5 Performance Considerations
+
+**Storage Overhead**
+```
+VCS metadata adds overhead - use judiciously:
+
+Without VCS metadata: 150 bytes per file (basic Zoo64 metadata)
+With minimal Git:     +21 bytes (14% overhead)
+With standard Git:    +552 bytes (268% overhead)
+With complete Git:    +1-10 KB (567-6666% overhead)
+
+Recommendation: Use minimal metadata unless specific requirement exists
+```
+
+**Extraction Performance**
+```
+VCS metadata affects extraction:
+- No impact on extraction speed (metadata is separate chunk)
+- Enables selective extraction by commit/branch/tag
+- Allows verification of source-to-binary mapping
+```
+
+#### 14.4.6 Example Decision Tree
 
 ```
-ZOO64_OK                    = 0x00000000
-ZOO64_E_INVALID_MAGIC       = 0x80040001
-ZOO64_E_UNSUPPORTED_VERSION = 0x80040002
-ZOO64_E_CORRUPT_HEADER      = 0x80040003
-ZOO64_E_CORRUPT_DATA        = 0x80040004
-ZOO64_E_DECOMPRESSION_ERROR = 0x80040005
-ZOO64_E_SIGNATURE_INVALID   = 0x80040006
-ZOO64_E_ENCRYPTION_ERROR    = 0x80040007
-ZOO64_E_FILE_NOT_FOUND      = 0x80040008
-ZOO64_E_INVALID_PATH        = 0x80040009
-ZOO64_E_ACCESS_DENIED       = 0x8004000A
+Should I include VCS metadata?
+
+1. Is this source code?
+   NO  → Skip VCS metadata
+   YES → Continue to 2
+
+2. Is long-term preservation required?
+   YES → Include STANDARD Git metadata
+   NO  → Continue to 3
+
+3. Is this a binary artifact?
+   YES → Include MINIMAL Git metadata (commit hash only)
+   NO  → Continue to 4
+
+4. Is this for migration/conversion?
+   YES → Include COMPLETE VCS metadata
+   NO  → Continue to 5
+
+5. Is this temporary or working copy?
+   YES → Skip VCS metadata
+   NO  → Include STANDARD metadata (default for source archives)
 ```
 
-## 16. Implementation Notes
+#### 14.4.7 Best Practices
+
+1. **Default to NO**: Don't include VCS metadata unless there's a clear requirement
+2. **Match Scope to Need**: Use minimal metadata when commit hash suffices
+3. **Document Decisions**: Use archive YAML metadata to explain why VCS metadata was included/excluded
+4. **Consider Compliance**: Legal requirements may mandate VCS metadata inclusion
+5. **Think Long-Term**: Historical archives should include more metadata than temporary ones
+6. **Verify Completeness**: If including VCS metadata, ensure all referenced objects are available
+
+## 15. Coding Conventions
+
+This specification follows NT/UEFI coding style conventions for all code examples and structure definitions.
+
+### 15.1 Data Types
+
+All structure definitions use UEFI standard data types:
+
+```c
+//
+// UEFI Standard Data Types
+//
+typedef unsigned char      UINT8;
+typedef unsigned short     UINT16;
+typedef unsigned int       UINT32;
+typedef unsigned long long UINT64;
+typedef char               CHAR8;
+typedef short              CHAR16;
+typedef unsigned long      UINTN;    // Native pointer size
+typedef long               INTN;     // Signed native pointer size
+typedef unsigned char      BOOLEAN;
+
+//
+// Extended Types for Zoo64
+//
+typedef struct {
+  UINT64  Low;   // Lower 64 bits
+  UINT64  High;  // Upper 64 bits
+} UINT128;
+
+//
+// UUID Type (RFC 4122)
+//
+typedef struct {
+  UINT32  Data1;    // Time low
+  UINT16  Data2;    // Time mid
+  UINT16  Data3;    // Time high and version
+  UINT8   Data4[8]; // Clock seq and node
+} EFI_GUID;
+
+//
+// Zoo64 uses EFI_GUID for all UUID fields
+//
+typedef EFI_GUID ZOO64_UUID;
+
+//
+// Boolean Constants
+//
+#define TRUE   1
+#define FALSE  0
+```
+
+**Important**: Magics and signatures MUST use `UINT8` arrays, NOT `CHAR8`:
+
+```c
+//
+// CORRECT - Use UINT8 for binary magic values
+//
+typedef struct {
+  UINT8   Magic[8];  // 0x5A 0x4F 0x4F 0x36 0x34 0x41 0x52 0x43
+  UINT32  Version;
+  // ...
+} ZOO64_ARCHIVE_HEADER;
+
+//
+// INCORRECT - Do not use CHAR8 for binary data
+//
+typedef struct {
+  CHAR8   Magic[8];  // WRONG - CHAR8 is for text
+  // ...
+} WRONG_HEADER;
+```
+
+### 15.2 Enumeration Style
+
+All enumerations follow NT/UEFI naming conventions with consistent prefixes:
+
+```c
+//
+// Compression Algorithm Enumeration
+// Prefix: ZOO64_COMPRESS_
+//
+typedef enum {
+  ZOO64_COMPRESS_STORED                 = 0x0000,  // No compression
+  ZOO64_COMPRESS_BWT_MTF_RAD50_LZ78     = 0x0001,  // Zoo64 pipeline
+  ZOO64_COMPRESS_LZ77                   = 0x0002,  // Lempel-Ziv 1977
+  ZOO64_COMPRESS_LZ4                    = 0x0003,  // Extremely fast
+  ZOO64_COMPRESS_ZSTD                   = 0x0004,  // Zstandard (recommended)
+  ZOO64_COMPRESS_LZMA                   = 0x0005,  // 7-Zip
+  ZOO64_COMPRESS_LZMA2                  = 0x0006,  // Multi-threaded LZMA
+  ZOO64_COMPRESS_LZX                    = 0x0007,  // Microsoft CAB
+  ZOO64_COMPRESS_LZFSE                  = 0x0008,  // Apple
+  ZOO64_COMPRESS_ZLIB                   = 0x0009,  // Deflate (RFC 1950)
+  ZOO64_COMPRESS_LZH                    = 0x000A,  // LHA/LZH
+  ZOO64_COMPRESS_LZW                    = 0x000B,  // Lempel-Ziv-Welch
+  ZOO64_COMPRESS_BROTLI                 = 0x000C,  // Google (RFC 7932)
+  ZOO64_COMPRESS_BZIP2                  = 0x000D,  // bzip2
+  ZOO64_COMPRESS_PAQ                    = 0x000E,  // PAQ family
+  ZOO64_COMPRESS_HUFFMAN                = 0x000F,  // Huffman only
+  ZOO64_COMPRESS_CUSTOM                 = 0x0100   // Custom algorithm
+} ZOO64_COMPRESSION_ALGORITHM;
+
+//
+// Encryption Method Enumeration
+// Prefix: ZOO64_ENCRYPT_
+//
+typedef enum {
+  ZOO64_ENCRYPT_NONE                    = 0x0000,  // Not encrypted
+  ZOO64_ENCRYPT_AES_256_GCM             = 0x0001,  // AES-256-GCM (recommended)
+  ZOO64_ENCRYPT_AES_256_CBC_HMAC        = 0x0002,  // AES-256-CBC + HMAC-SHA256
+  ZOO64_ENCRYPT_CHACHA20_POLY1305       = 0x0003,  // ChaCha20-Poly1305
+  ZOO64_ENCRYPT_AES_128_GCM             = 0x0004,  // AES-128-GCM
+  ZOO64_ENCRYPT_TWOFISH_256_GCM         = 0x0005,  // Twofish-256-GCM
+  ZOO64_ENCRYPT_SERPENT_256_GCM         = 0x0006   // Serpent-256-GCM
+} ZOO64_ENCRYPTION_METHOD;
+
+//
+// Key Derivation Function Enumeration
+// Prefix: ZOO64_KDF_
+//
+typedef enum {
+  ZOO64_KDF_NONE                        = 0x0000,  // Direct key (not recommended)
+  ZOO64_KDF_PBKDF2_HMAC_SHA256          = 0x0001,  // PBKDF2 with SHA-256
+  ZOO64_KDF_PBKDF2_HMAC_SHA512          = 0x0002,  // PBKDF2 with SHA-512
+  ZOO64_KDF_ARGON2ID                    = 0x0003,  // Argon2id (recommended)
+  ZOO64_KDF_SCRYPT                      = 0x0004,  // scrypt
+  ZOO64_KDF_BCRYPT                      = 0x0005   // bcrypt
+} ZOO64_KDF_ALGORITHM;
+
+//
+// Hash Algorithm Enumeration
+// Prefix: ZOO64_HASH_
+//
+typedef enum {
+  ZOO64_HASH_NONE                       = 0x0000,  // No hash
+  ZOO64_HASH_CRC32                      = 0x0001,  // CRC-32 (IEEE)
+  ZOO64_HASH_SHA1                       = 0x0002,  // SHA-1 (deprecated)
+  ZOO64_HASH_SHA256                     = 0x0003,  // SHA-256 (recommended)
+  ZOO64_HASH_SHA384                     = 0x0004,  // SHA-384
+  ZOO64_HASH_SHA512                     = 0x0005,  // SHA-512
+  ZOO64_HASH_SHA3_256                   = 0x0006,  // SHA3-256
+  ZOO64_HASH_SHA3_512                   = 0x0007,  // SHA3-512
+  ZOO64_HASH_BLAKE2B                    = 0x0008,  // BLAKE2b
+  ZOO64_HASH_BLAKE3                     = 0x0009   // BLAKE3
+} ZOO64_HASH_ALGORITHM;
+
+//
+// Digital Signature Type Enumeration
+// Prefix: ZOO64_SIG_
+//
+typedef enum {
+  ZOO64_SIG_NONE                        = 0x0000,  // No signature
+  ZOO64_SIG_RSA_2048                    = 0x0001,  // RSA-2048
+  ZOO64_SIG_RSA_4096                    = 0x0002,  // RSA-4096
+  ZOO64_SIG_ECDSA_P256                  = 0x0003,  // ECDSA P-256
+  ZOO64_SIG_ECDSA_P384                  = 0x0004,  // ECDSA P-384
+  ZOO64_SIG_ED25519                     = 0x0005,  // Ed25519 (recommended)
+  ZOO64_SIG_ED448                       = 0x0006   // Ed448
+} ZOO64_SIGNATURE_TYPE;
+
+//
+// Overlay File Type Enumeration
+// Prefix: ZOO64_OVERLAY_
+//
+typedef enum {
+  ZOO64_OVERLAY_NEW                     = 0x0000,  // New file
+  ZOO64_OVERLAY_MODIFIED                = 0x0001,  // Modified (delta)
+  ZOO64_OVERLAY_DELETED                 = 0x0002,  // Deleted (tombstone)
+  ZOO64_OVERLAY_UNCHANGED               = 0x0003,  // Unchanged (reference)
+  ZOO64_OVERLAY_MOVED                   = 0x0004   // Moved/renamed
+} ZOO64_OVERLAY_TYPE;
+
+//
+// Metadata Chunk Type Enumeration
+// Prefix: ZOO64_META_
+//
+typedef enum {
+  ZOO64_META_ACL                        = 0x0001,  // Access Control List
+  ZOO64_META_XATTR                      = 0x0002,  // Extended attributes
+  ZOO64_META_ADS                        = 0x0003,  // Alternate Data Streams
+  ZOO64_META_SECURITY_DESCRIPTOR        = 0x0004,  // Windows security
+  ZOO64_META_RESOURCE_FORK              = 0x0005,  // macOS resource fork
+  ZOO64_META_EXTENDED_TIMESTAMPS        = 0x0006,  // Additional timestamps
+  ZOO64_META_FILE_CAPABILITIES          = 0x0007,  // Linux capabilities
+  ZOO64_META_SELINUX_CONTEXT            = 0x0008,  // SELinux context
+  ZOO64_META_YAML                       = 0x000A,  // YAML metadata
+  ZOO64_META_MACOS_UUID                 = 0x000B,  // macOS UUIDs
+  ZOO64_META_BSD_FLAGS                  = 0x000C,  // BSD file flags
+  ZOO64_META_LINUX_FLAGS                = 0x000D,  // Linux attributes
+  ZOO64_META_WINDOWS_ATTR               = 0x000E,  // Windows attributes
+  ZOO64_META_HARD_LINK                  = 0x000F,  // Hard link target
+  ZOO64_META_SYMLINK                    = 0x0010,  // Symbolic link
+  ZOO64_META_GIT                        = 0x0032,  // Git metadata
+  ZOO64_META_PERFORCE                   = 0x0033,  // Perforce metadata
+  ZOO64_META_SVN                        = 0x0034,  // Subversion metadata
+  ZOO64_META_MERCURIAL                  = 0x0037,  // Mercurial metadata
+  ZOO64_META_SPARSE_FILE                = 0x0045,  // Sparse file holes
+  ZOO64_META_DELTA_REVISION             = 0x0046,  // Delta revision
+  ZOO64_META_BLOCK_DEDUP                = 0x004A   // Block deduplication
+  // See section 6.2 for complete list
+} ZOO64_METADATA_TYPE;
+
+//
+// ACL Source System Enumeration
+// Prefix: ZOO64_ACL_SRC_
+//
+typedef enum {
+  ZOO64_ACL_SRC_UNKNOWN                 = 0x0000,  // Unknown/Generic
+  ZOO64_ACL_SRC_POSIX                   = 0x0001,  // POSIX.1e
+  ZOO64_ACL_SRC_NFSV4                   = 0x0002,  // NFSv4 (RFC 7530)
+  ZOO64_ACL_SRC_WINDOWS_NT              = 0x0003,  // Windows NT DACL/SACL
+  ZOO64_ACL_SRC_MACOS                   = 0x0004,  // macOS Extended ACLs
+  ZOO64_ACL_SRC_OPENVMS                 = 0x0005,  // OpenVMS ACLs
+  ZOO64_ACL_SRC_OS400                   = 0x0006,  // OS/400 Authorities
+  ZOO64_ACL_SRC_MVS_RACF                = 0x0007,  // MVS/RACF
+  ZOO64_ACL_SRC_NETWARE                 = 0x0008,  // Novell NetWare
+  ZOO64_ACL_SRC_VINES                   = 0x0009,  // Banyan VINES
+  ZOO64_ACL_SRC_AFS                     = 0x000A,  // Andrew File System
+  ZOO64_ACL_SRC_CODA                    = 0x000B,  // CODA Distributed FS
+  ZOO64_ACL_SRC_ZFS                     = 0x000C,  // Solaris ZFS
+  ZOO64_ACL_SRC_DCE_DFS                 = 0x0019,  // DCE DFS
+  ZOO64_ACL_SRC_GFS                     = 0x001A,  // Global File System
+  ZOO64_ACL_SRC_MS_DFS                  = 0x001B   // Microsoft DFS
+} ZOO64_ACL_SOURCE_SYSTEM;
+```
+
+### 15.3 Commenting Style
+
+All code follows UEFI commenting conventions:
+
+```c
+//
+// Multi-line comment describing structure, function, or block
+// Each line starts with // and is properly indented
+//
+typedef struct {
+  UINT64  Field1;  // Inline comment for field
+  UINT32  Field2;  // Brief field description
+} EXAMPLE_STRUCTURE;
+
+//
+// Function description explaining purpose, parameters, and return value
+//
+BOOLEAN
+ExampleFunction (
+  IN     CONST UINT8   *Input,      // Input buffer
+  IN     UINTN         InputSize,   // Size of input
+  OUT    UINT8         *Output,     // Output buffer
+  OUT    UINTN         *OutputSize  // Size of output
+  )
+{
+  //
+  // Implementation with clear comments
+  //
+  return TRUE;
+}
+```
+
+### 15.4 Naming Conventions
+
+**No Hungarian Notation**: Variable names describe purpose, not type:
+
+```c
+//
+// CORRECT - Clear descriptive names
+//
+UINT32  FileCount;
+UINT64  TotalSize;
+UINT8   *Buffer;
+UINTN   BytesProcessed;
+
+//
+// INCORRECT - Hungarian notation (do not use)
+//
+UINT32  dwFileCount;    // Wrong - no 'dw' prefix
+UINT64  ullTotalSize;   // Wrong - no 'ull' prefix
+UINT8   *pBuffer;       // Wrong - no 'p' prefix
+UINTN   cbBytes;        // Wrong - no 'cb' prefix
+```
+
+**Structure Member Names**: Use clear, descriptive names:
+- Start with capital letter
+- Use camel case for multiple words
+- No underscores except in structure tags
+
+```c
+typedef struct _ZOO64_FILE_HEADER {
+  UINT64  UncompressedSize;  // Clear name
+  UINT64  CompressedSize;    // No abbreviations unless standard
+  UINT32  CRC32;             // Standard abbreviation OK
+  UINT64  SHA256[4];         // Standard algorithm name
+} ZOO64_FILE_HEADER;
+```
+
+### 15.5 Magic Values
+
+All magic values are defined as byte arrays with hexadecimal constants:
+
+```c
+//
+// Archive magic signature
+//
+#define ZOO64_ARCHIVE_MAGIC { 0x5A, 0x4F, 0x4F, 0x36, 0x34, 0x41, 0x52, 0x43 }
+// "ZOO64ARC" in ASCII: Z=0x5A O=0x4F O=0x4F 6=0x36 4=0x34 A=0x41 R=0x52 C=0x43
+
+//
+// File entry magic
+//
+#define ZOO64_FILE_ENTRY_MAGIC { 0x46, 0x49, 0x4C, 0x45, 0x45, 0x4E, 0x54, 0x52 }
+// "FILEENTR"
+
+//
+// Quick directory magic
+//
+#define ZOO64_QUICK_DIR_MAGIC { 0x51, 0x55, 0x49, 0x43, 0x4B, 0x44, 0x49, 0x52 }
+// "QUICKDIR"
+```
+
+## 16. Error Handling
+
+### 16.1 Error Codes
+
+Following NT HRESULT style, all error codes use UINT32 type with standard facility codes:
+
+```c
+//
+// Success codes
+//
+#define ZOO64_OK                     ((UINT32)0x00000000)
+
+//
+// Error codes (0x8004xxxx range - standard COM facility)
+//
+#define ZOO64_E_INVALID_MAGIC        ((UINT32)0x80040001)
+#define ZOO64_E_UNSUPPORTED_VERSION  ((UINT32)0x80040002)
+#define ZOO64_E_CORRUPT_HEADER       ((UINT32)0x80040003)
+#define ZOO64_E_CORRUPT_DATA         ((UINT32)0x80040004)
+#define ZOO64_E_DECOMPRESSION_ERROR  ((UINT32)0x80040005)
+#define ZOO64_E_SIGNATURE_INVALID    ((UINT32)0x80040006)
+#define ZOO64_E_ENCRYPTION_ERROR     ((UINT32)0x80040007)
+#define ZOO64_E_FILE_NOT_FOUND       ((UINT32)0x80040008)
+#define ZOO64_E_INVALID_PATH         ((UINT32)0x80040009)
+#define ZOO64_E_ACCESS_DENIED        ((UINT32)0x8004000A)
+#define ZOO64_E_OUT_OF_MEMORY        ((UINT32)0x8004000B)
+#define ZOO64_E_INVALID_PARAMETER    ((UINT32)0x8004000C)
+#define ZOO64_E_NOT_IMPLEMENTED      ((UINT32)0x8004000D)
+
+//
+// Macro to test success
+//
+#define ZOO64_SUCCESS(Status)  ((Status) == ZOO64_OK)
+#define ZOO64_ERROR(Status)    ((Status) != ZOO64_OK)
+```
+
+## 17. Implementation Notes
 
 ### 16.1 Byte Order
 
