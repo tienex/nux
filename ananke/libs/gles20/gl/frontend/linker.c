@@ -47,6 +47,7 @@
 #include "frontend/memory.h"
 #include "frontend/types.h"
 #include "frontend/il.h"
+#include "backend/jit_internal.h"
 
 /*
 ** --------------------------------------------------------------------------
@@ -839,7 +840,11 @@ static GLboolean MergeUniforms(Linker * linker) {
 }
 
 static Executable * GenerateExecutable(Linker * linker) {
-	return NULL;
+	/* Call the backend to generate executable code
+	 * The backend is responsible for creating either interpreted
+	 * or JIT-compiled shaders depending on the architecture
+	 */
+	return GlesGenerateExecutable(linker);
 }
 
 static Executable * Link(Linker * linker) {
