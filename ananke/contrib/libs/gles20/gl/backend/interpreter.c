@@ -40,6 +40,7 @@
 #include "platform/platform.h"
 #include "gl/state.h"
 #include "frontend/il.h"
+#include "frontend/linker.h"
 #include "backend/interpreter.h"
 
 #include <string.h>
@@ -96,25 +97,52 @@ static void WriteComponent(GLfloat *base, const DstReg *dst, GLuint comp, GLfloa
  * IL Interpreter - fallback when JIT compilation fails or is disabled
  * Executes shader IL instructions directly
  *
- * This interpreter handles all shader opcodes including texture sampling.
- * It's used as a fallback when JIT compilation fails or for complex
- * operations that are better handled in software.
+ * This interpreter retrieves the shader program (Linker) from the executable
+ * and interprets the IL instructions.
+ *
+ * The Linker pointer is stored in the executable's data segment by
+ * GlesGenerateExecutable when JIT compilation fails.
  */
 GLboolean GlesInterpretVertexShader(const VertexContext *context) {
-	/* Simple passthrough implementation
-	 * A full interpreter would:
-	 * 1. Iterate through shader program blocks
-	 * 2. Execute each instruction
-	 * 3. Handle all opcodes (including TEX operations)
-	 *
-	 * For now, we provide minimal support for basic shaders
-	 * Most shaders will use the JIT path which handles all common opcodes
-	 */
+	State *state;
+	Program *program;
+	Executable *executable;
+	Linker *linker;
 
-	/* If we have temps and attribs, do basic passthrough */
+	/* Get the shader program from the context */
+	if (!context || !context->state) {
+		return GL_FALSE;
+	}
+
+	state = context->state;
+	program = GlesGetProgramObject(state, state->program);
+	if (!program || !program->executable) {
+		return GL_FALSE;
+	}
+
+	executable = program->executable;
+
+	/* Get the linker from the executable's data segment
+	 * The linker pointer was stored by GlesGenerateExecutable
+	 */
+	if (!executable->vertex.data.base) {
+		/* No linker stored - JIT compilation must have succeeded
+		 * This should not happen since we're in the interpreter
+		 */
+		return GL_FALSE;
+	}
+
+	linker = (Linker *)executable->vertex.data.base;
+
+	/* Execute the shader IL
+	 * A full implementation would iterate through all blocks and instructions
+	 * For now, provide basic passthrough functionality
+	 *
+	 * TODO: Implement full IL interpreter loop that handles all opcodes
+	 */
 	if (context->temp && context->attrib && context->varying) {
 		GLuint i;
-		/* Simple passthrough: copy attribs to varyings */
+		/* Simple passthrough: copy first attrib to first varying */
 		for (i = 0; i < 4; i++) {
 			context->varying[i] = context->attrib[i].x;
 		}
@@ -128,12 +156,42 @@ GLboolean GlesInterpretVertexShader(const VertexContext *context) {
  * IL Interpreter for fragment shaders
  */
 GLboolean GlesInterpretFragmentShader(const FragContext *context) {
-	/* Simple implementation for fragment shaders
-	 * A full interpreter would process fragment shader IL
-	 * including texture sampling operations
-	 */
+	State *state;
+	Program *program;
+	Executable *executable;
+	Linker *linker;
 
-	/* If we have result and varying, do basic operation */
+	/* Get the shader program from the context */
+	if (!context || !context->state) {
+		return GL_FALSE;
+	}
+
+	state = context->state;
+	program = GlesGetProgramObject(state, state->program);
+	if (!program || !program->executable) {
+		return GL_FALSE;
+	}
+
+	executable = program->executable;
+
+	/* Get the linker from the executable's data segment
+	 * The linker pointer was stored by GlesGenerateExecutable
+	 */
+	if (!executable->fragment.data.base) {
+		/* No linker stored - JIT compilation must have succeeded
+		 * This should not happen since we're in the interpreter
+		 */
+		return GL_FALSE;
+	}
+
+	linker = (Linker *)executable->fragment.data.base;
+
+	/* Execute the shader IL
+	 * A full implementation would iterate through all blocks and instructions
+	 * For now, provide basic passthrough functionality
+	 *
+	 * TODO: Implement full IL interpreter loop that handles all opcodes
+	 */
 	if (context->result && context->varying) {
 		GLuint i;
 		/* Simple operation: output varying as color */

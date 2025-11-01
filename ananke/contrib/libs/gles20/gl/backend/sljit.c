@@ -2749,10 +2749,16 @@ Executable *GlesGenerateExecutable(Linker *linker) {
 	if (vertexCode) {
 		executable->vertex.code.base = vertexCode;
 		executable->vertex.code.size = 0; /* Size managed by sljit */
+		executable->vertex.data.base = NULL;
+		executable->vertex.data.size = 0;
 	} else {
-		/* JIT failed, use interpreter */
+		/* JIT failed, use interpreter
+		 * Store linker pointer in data segment so interpreter can access the shader IL
+		 */
 		executable->vertex.code.base = (void *)GlesInterpretVertexShader;
 		executable->vertex.code.size = 0;
+		executable->vertex.data.base = (void *)linker;  /* Store linker for interpreter */
+		executable->vertex.data.size = sizeof(Linker *);
 	}
 
 	/* Try to compile fragment shader to native code using sljit
@@ -2762,18 +2768,20 @@ Executable *GlesGenerateExecutable(Linker *linker) {
 	if (fragmentCode) {
 		executable->fragment.code.base = fragmentCode;
 		executable->fragment.code.size = 0; /* Size managed by sljit */
+		executable->fragment.data.base = NULL;
+		executable->fragment.data.size = 0;
 	} else {
-		/* JIT failed, use interpreter */
+		/* JIT failed, use interpreter
+		 * Store linker pointer in data segment so interpreter can access the shader IL
+		 */
 		executable->fragment.code.base = (void *)GlesInterpretFragmentShader;
 		executable->fragment.code.size = 0;
+		executable->fragment.data.base = (void *)linker;  /* Store linker for interpreter */
+		executable->fragment.data.size = sizeof(Linker *);
 	}
 
-	/* Initialize data and bss segments */
-	executable->vertex.data.base = NULL;
-	executable->vertex.data.size = 0;
+	/* Initialize bss segments */
 	executable->vertex.bssSize = 0;
-	executable->fragment.data.base = NULL;
-	executable->fragment.data.size = 0;
 	executable->fragment.bssSize = 0;
 
 	/* Architecture-specific optimization hook */
