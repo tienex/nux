@@ -1363,6 +1363,99 @@ static GLboolean TranslateInstruction(JitContext *ctx, Inst *inst) {
 			break;
 		}
 
+		case OpcodeEX2:
+		case OpcodeEX2_SAT: {
+			/* Exact exponential base 2: dst = 2^src - same as EXP */
+			InstUnary *unary = &inst->unary;
+
+			for (i = 0; i < 4; i++) {
+				/* Load source */
+				if (!LoadComponent(ctx, SLJIT_FR0, &unary->arg, i, ctx->isFragmentShader)) {
+					return GL_FALSE;
+				}
+
+				/* Call exp2f */
+				sljit_emit_icall(C, SLJIT_CALL, SLJIT_ARGS1(F32, F32), SLJIT_IMM, SLJIT_FUNC_ADDR(exp2f));
+
+				/* Handle saturation */
+				if (inst->base.op == OpcodeEX2_SAT) {
+					ApplySaturation(ctx, SLJIT_FR0);
+				}
+
+				/* Store result */
+				if (!StoreComponent(ctx, &unary->alu.dst, SLJIT_FR0, i, ctx->isFragmentShader)) {
+					return GL_FALSE;
+				}
+			}
+			break;
+		}
+
+		case OpcodeLG2:
+		case OpcodeLG2_SAT: {
+			/* Exact logarithm base 2: dst = log2(src) - same as LOG */
+			InstUnary *unary = &inst->unary;
+
+			for (i = 0; i < 4; i++) {
+				/* Load source */
+				if (!LoadComponent(ctx, SLJIT_FR0, &unary->arg, i, ctx->isFragmentShader)) {
+					return GL_FALSE;
+				}
+
+				/* Call log2f */
+				sljit_emit_icall(C, SLJIT_CALL, SLJIT_ARGS1(F32, F32), SLJIT_IMM, SLJIT_FUNC_ADDR(log2f));
+
+				/* Handle saturation */
+				if (inst->base.op == OpcodeLG2_SAT) {
+					ApplySaturation(ctx, SLJIT_FR0);
+				}
+
+				/* Store result */
+				if (!StoreComponent(ctx, &unary->alu.dst, SLJIT_FR0, i, ctx->isFragmentShader)) {
+					return GL_FALSE;
+				}
+			}
+			break;
+		}
+
+		case OpcodeDP2:
+		case OpcodeDP2_SAT: {
+			/* 2-component dot product: dst = src0.x*src1.x + src0.y*src1.y */
+			InstBinary *binary = &inst->binary;
+
+			/* Initialize accumulator to 0 */
+			sljit_emit_fop1(C, SLJIT_MOV_F32, SLJIT_FR2, 0, SLJIT_IMM, 0);
+
+			/* Accumulate x and y components */
+			for (i = 0; i < 2; i++) {
+				/* Load left operand component */
+				if (!LoadComponent(ctx, SLJIT_FR0, &binary->left, i, ctx->isFragmentShader)) {
+					return GL_FALSE;
+				}
+
+				/* Load right operand component */
+				if (!LoadComponent(ctx, SLJIT_FR1, &binary->right, i, ctx->isFragmentShader)) {
+					return GL_FALSE;
+				}
+
+				/* Multiply and accumulate */
+				sljit_emit_fop2(C, SLJIT_MUL_F32, SLJIT_FR0, 0, SLJIT_FR0, 0, SLJIT_FR1, 0);
+				sljit_emit_fop2(C, SLJIT_ADD_F32, SLJIT_FR2, 0, SLJIT_FR2, 0, SLJIT_FR0, 0);
+			}
+
+			/* Handle saturation */
+			if (inst->base.op == OpcodeDP2_SAT) {
+				ApplySaturation(ctx, SLJIT_FR2);
+			}
+
+			/* Store result (broadcast to all components) */
+			for (i = 0; i < 4; i++) {
+				if (!StoreComponent(ctx, &binary->alu.dst, SLJIT_FR2, i, ctx->isFragmentShader)) {
+					return GL_FALSE;
+				}
+			}
+			break;
+		}
+
 		case OpcodeDPH:
 		case OpcodeDPH_SAT: {
 			/* Homogeneous dot product: dst = src0.x*src1.x + src0.y*src1.y + src0.z*src1.z + src1.w
@@ -1954,6 +2047,7 @@ static GLboolean TranslateInstruction(JitContext *ctx, Inst *inst) {
 			return GL_FALSE;
 
 		/* Declaration instructions - these are handled during linking, not execution */
+		case OpcodeINPUT:
 		case OpcodeOUTPUT:
 		case OpcodePARAM:
 		case OpcodeTEMP:
