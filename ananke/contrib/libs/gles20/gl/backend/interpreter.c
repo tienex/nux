@@ -269,6 +269,95 @@ GLboolean GlesInterpretVertexShader(const VertexContext *context) {
 					StoreVec4(&inst->ternary.alu.dst, &result, (VertexContext *)context, NULL);
 					break;
 
+				case OpcodeSUB:
+				case OpcodeSUB_SAT:
+					LoadVec4(&src0, &inst->binary.arg0, (VertexContext *)context, NULL);
+					LoadVec4(&src1, &inst->binary.arg1, (VertexContext *)context, NULL);
+					for (i = 0; i < 4; i++) result.base[i] = src0.base[i] - src1.base[i];
+					if (inst->base.op == OpcodeSUB_SAT) {
+						for (i = 0; i < 4; i++) result.base[i] = (result.base[i] < 0.0f) ? 0.0f : ((result.base[i] > 1.0f) ? 1.0f : result.base[i]);
+					}
+					StoreVec4(&inst->binary.alu.dst, &result, (VertexContext *)context, NULL);
+					break;
+
+				case OpcodeMIN:
+				case OpcodeMIN_SAT:
+					LoadVec4(&src0, &inst->binary.arg0, (VertexContext *)context, NULL);
+					LoadVec4(&src1, &inst->binary.arg1, (VertexContext *)context, NULL);
+					for (i = 0; i < 4; i++) result.base[i] = (src0.base[i] < src1.base[i]) ? src0.base[i] : src1.base[i];
+					if (inst->base.op == OpcodeMIN_SAT) {
+						for (i = 0; i < 4; i++) result.base[i] = (result.base[i] < 0.0f) ? 0.0f : ((result.base[i] > 1.0f) ? 1.0f : result.base[i]);
+					}
+					StoreVec4(&inst->binary.alu.dst, &result, (VertexContext *)context, NULL);
+					break;
+
+				case OpcodeMAX:
+				case OpcodeMAX_SAT:
+					LoadVec4(&src0, &inst->binary.arg0, (VertexContext *)context, NULL);
+					LoadVec4(&src1, &inst->binary.arg1, (VertexContext *)context, NULL);
+					for (i = 0; i < 4; i++) result.base[i] = (src0.base[i] > src1.base[i]) ? src0.base[i] : src1.base[i];
+					if (inst->base.op == OpcodeMAX_SAT) {
+						for (i = 0; i < 4; i++) result.base[i] = (result.base[i] < 0.0f) ? 0.0f : ((result.base[i] > 1.0f) ? 1.0f : result.base[i]);
+					}
+					StoreVec4(&inst->binary.alu.dst, &result, (VertexContext *)context, NULL);
+					break;
+
+				case OpcodeRCP:
+				case OpcodeRCP_SAT:
+					LoadVec4(&src0, &inst->unary.arg, (VertexContext *)context, NULL);
+					for (i = 0; i < 4; i++) result.base[i] = 1.0f / src0.base[i];
+					if (inst->base.op == OpcodeRCP_SAT) {
+						for (i = 0; i < 4; i++) result.base[i] = (result.base[i] < 0.0f) ? 0.0f : ((result.base[i] > 1.0f) ? 1.0f : result.base[i]);
+					}
+					StoreVec4(&inst->unary.alu.dst, &result, (VertexContext *)context, NULL);
+					break;
+
+				case OpcodeRSQ:
+				case OpcodeRSQ_SAT:
+					LoadVec4(&src0, &inst->unary.arg, (VertexContext *)context, NULL);
+					for (i = 0; i < 4; i++) result.base[i] = 1.0f / sqrtf(fabsf(src0.base[i]));
+					if (inst->base.op == OpcodeRSQ_SAT) {
+						for (i = 0; i < 4; i++) result.base[i] = (result.base[i] < 0.0f) ? 0.0f : ((result.base[i] > 1.0f) ? 1.0f : result.base[i]);
+					}
+					StoreVec4(&inst->unary.alu.dst, &result, (VertexContext *)context, NULL);
+					break;
+
+				case OpcodeSGE:
+				case OpcodeSGE_SAT:
+					LoadVec4(&src0, &inst->binary.arg0, (VertexContext *)context, NULL);
+					LoadVec4(&src1, &inst->binary.arg1, (VertexContext *)context, NULL);
+					for (i = 0; i < 4; i++) result.base[i] = (src0.base[i] >= src1.base[i]) ? 1.0f : 0.0f;
+					StoreVec4(&inst->binary.alu.dst, &result, (VertexContext *)context, NULL);
+					break;
+
+				case OpcodeSLT:
+				case OpcodeSLT_SAT:
+					LoadVec4(&src0, &inst->binary.arg0, (VertexContext *)context, NULL);
+					LoadVec4(&src1, &inst->binary.arg1, (VertexContext *)context, NULL);
+					for (i = 0; i < 4; i++) result.base[i] = (src0.base[i] < src1.base[i]) ? 1.0f : 0.0f;
+					StoreVec4(&inst->binary.alu.dst, &result, (VertexContext *)context, NULL);
+					break;
+
+				case OpcodeFLR:
+				case OpcodeFLR_SAT:
+					LoadVec4(&src0, &inst->unary.arg, (VertexContext *)context, NULL);
+					for (i = 0; i < 4; i++) result.base[i] = floorf(src0.base[i]);
+					if (inst->base.op == OpcodeFLR_SAT) {
+						for (i = 0; i < 4; i++) result.base[i] = (result.base[i] < 0.0f) ? 0.0f : ((result.base[i] > 1.0f) ? 1.0f : result.base[i]);
+					}
+					StoreVec4(&inst->unary.alu.dst, &result, (VertexContext *)context, NULL);
+					break;
+
+				case OpcodeFRC:
+				case OpcodeFRC_SAT:
+					LoadVec4(&src0, &inst->unary.arg, (VertexContext *)context, NULL);
+					for (i = 0; i < 4; i++) result.base[i] = src0.base[i] - floorf(src0.base[i]);
+					if (inst->base.op == OpcodeFRC_SAT) {
+						for (i = 0; i < 4; i++) result.base[i] = (result.base[i] < 0.0f) ? 0.0f : ((result.base[i] > 1.0f) ? 1.0f : result.base[i]);
+					}
+					StoreVec4(&inst->unary.alu.dst, &result, (VertexContext *)context, NULL);
+					break;
+
 				/* Declaration and metadata instructions - no execution needed */
 				case OpcodeINPUT:
 				case OpcodeOUTPUT:
