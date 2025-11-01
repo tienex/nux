@@ -8960,154 +8960,161 @@ typedef struct {
 
 ### 15.2 Enumeration Style
 
-All enumerations follow NT/UEFI naming conventions with consistent prefixes:
+All enumerations follow NT/UEFI PascalCase naming conventions (not underscore style):
+
+**NT Enumeration Naming Rules**:
+- Type name: PascalCase, prefixed with `ZOO64_` (e.g., `ZOO64_COMPRESSION_ALGORITHM`)
+- Enum values: PascalCase, prefixed with type category (e.g., `Zoo64CompressZstd`)
+- NO underscores in enum values (except in type name)
+- Clear, readable names describing the value
 
 ```c
 //
 // Compression Algorithm Enumeration
-// Prefix: ZOO64_COMPRESS_
+// NT-style: Zoo64Compress* (PascalCase, no underscores)
 //
-typedef enum {
-  ZOO64_COMPRESS_STORED                 = 0x0000,  // No compression
-  ZOO64_COMPRESS_BWT_MTF_RAD50_LZ78     = 0x0001,  // Zoo64 pipeline
-  ZOO64_COMPRESS_LZ77                   = 0x0002,  // Lempel-Ziv 1977
-  ZOO64_COMPRESS_LZ4                    = 0x0003,  // Extremely fast
-  ZOO64_COMPRESS_ZSTD                   = 0x0004,  // Zstandard (recommended)
-  ZOO64_COMPRESS_LZMA                   = 0x0005,  // 7-Zip
-  ZOO64_COMPRESS_LZMA2                  = 0x0006,  // Multi-threaded LZMA
-  ZOO64_COMPRESS_LZX                    = 0x0007,  // Microsoft CAB
-  ZOO64_COMPRESS_LZFSE                  = 0x0008,  // Apple
-  ZOO64_COMPRESS_ZLIB                   = 0x0009,  // Deflate (RFC 1950)
-  ZOO64_COMPRESS_LZH                    = 0x000A,  // LHA/LZH
-  ZOO64_COMPRESS_LZW                    = 0x000B,  // Lempel-Ziv-Welch
-  ZOO64_COMPRESS_BROTLI                 = 0x000C,  // Google (RFC 7932)
-  ZOO64_COMPRESS_BZIP2                  = 0x000D,  // bzip2
-  ZOO64_COMPRESS_PAQ                    = 0x000E,  // PAQ family
-  ZOO64_COMPRESS_HUFFMAN                = 0x000F,  // Huffman only
-  ZOO64_COMPRESS_CUSTOM                 = 0x0100   // Custom algorithm
+typedef enum _ZOO64_COMPRESSION_ALGORITHM {
+  Zoo64CompressStored               = 0x0000,  // No compression
+  Zoo64CompressBwtMtfRad50Lz78      = 0x0001,  // Zoo64 pipeline
+  Zoo64CompressLz77                 = 0x0002,  // Lempel-Ziv 1977
+  Zoo64CompressLz4                  = 0x0003,  // Extremely fast
+  Zoo64CompressZstd                 = 0x0004,  // Zstandard (recommended)
+  Zoo64CompressLzma                 = 0x0005,  // 7-Zip
+  Zoo64CompressLzma2                = 0x0006,  // Multi-threaded LZMA
+  Zoo64CompressLzx                  = 0x0007,  // Microsoft CAB
+  Zoo64CompressLzfse                = 0x0008,  // Apple
+  Zoo64CompressZlib                 = 0x0009,  // Deflate (RFC 1950)
+  Zoo64CompressLzh                  = 0x000A,  // LHA/LZH
+  Zoo64CompressLzw                  = 0x000B,  // Lempel-Ziv-Welch
+  Zoo64CompressBrotli               = 0x000C,  // Google (RFC 7932)
+  Zoo64CompressBzip2                = 0x000D,  // bzip2
+  Zoo64CompressPaq                  = 0x000E,  // PAQ family
+  Zoo64CompressHuffman              = 0x000F,  // Huffman only
+  Zoo64CompressCustom               = 0x0100   // Custom algorithm
 } ZOO64_COMPRESSION_ALGORITHM;
 
 //
 // Encryption Method Enumeration
-// Prefix: ZOO64_ENCRYPT_
+// NT-style: Zoo64Encrypt* (PascalCase)
 //
-typedef enum {
-  ZOO64_ENCRYPT_NONE                    = 0x0000,  // Not encrypted
-  ZOO64_ENCRYPT_AES_256_GCM             = 0x0001,  // AES-256-GCM (recommended)
-  ZOO64_ENCRYPT_AES_256_CBC_HMAC        = 0x0002,  // AES-256-CBC + HMAC-SHA256
-  ZOO64_ENCRYPT_CHACHA20_POLY1305       = 0x0003,  // ChaCha20-Poly1305
-  ZOO64_ENCRYPT_AES_128_GCM             = 0x0004,  // AES-128-GCM
-  ZOO64_ENCRYPT_TWOFISH_256_GCM         = 0x0005,  // Twofish-256-GCM
-  ZOO64_ENCRYPT_SERPENT_256_GCM         = 0x0006   // Serpent-256-GCM
+typedef enum _ZOO64_ENCRYPTION_METHOD {
+  Zoo64EncryptNone                  = 0x0000,  // Not encrypted
+  Zoo64EncryptAes256Gcm             = 0x0001,  // AES-256-GCM (recommended)
+  Zoo64EncryptAes256CbcHmac         = 0x0002,  // AES-256-CBC + HMAC-SHA256
+  Zoo64EncryptChaCha20Poly1305      = 0x0003,  // ChaCha20-Poly1305
+  Zoo64EncryptAes128Gcm             = 0x0004,  // AES-128-GCM
+  Zoo64EncryptTwofish256Gcm         = 0x0005,  // Twofish-256-GCM
+  Zoo64EncryptSerpent256Gcm         = 0x0006   // Serpent-256-GCM
 } ZOO64_ENCRYPTION_METHOD;
 
 //
 // Key Derivation Function Enumeration
-// Prefix: ZOO64_KDF_
+// NT-style: Zoo64Kdf* (PascalCase)
 //
-typedef enum {
-  ZOO64_KDF_NONE                        = 0x0000,  // Direct key (not recommended)
-  ZOO64_KDF_PBKDF2_HMAC_SHA256          = 0x0001,  // PBKDF2 with SHA-256
-  ZOO64_KDF_PBKDF2_HMAC_SHA512          = 0x0002,  // PBKDF2 with SHA-512
-  ZOO64_KDF_ARGON2ID                    = 0x0003,  // Argon2id (recommended)
-  ZOO64_KDF_SCRYPT                      = 0x0004,  // scrypt
-  ZOO64_KDF_BCRYPT                      = 0x0005   // bcrypt
+typedef enum _ZOO64_KDF_ALGORITHM {
+  Zoo64KdfNone                      = 0x0000,  // Direct key (not recommended)
+  Zoo64KdfPbkdf2HmacSha256          = 0x0001,  // PBKDF2 with SHA-256
+  Zoo64KdfPbkdf2HmacSha512          = 0x0002,  // PBKDF2 with SHA-512
+  Zoo64KdfArgon2id                  = 0x0003,  // Argon2id (recommended)
+  Zoo64KdfScrypt                    = 0x0004,  // scrypt
+  Zoo64KdfBcrypt                    = 0x0005   // bcrypt
 } ZOO64_KDF_ALGORITHM;
 
 //
 // Hash Algorithm Enumeration
-// Prefix: ZOO64_HASH_
+// NT-style: Zoo64Hash* (PascalCase)
 //
-typedef enum {
-  ZOO64_HASH_NONE                       = 0x0000,  // No hash
-  ZOO64_HASH_CRC32                      = 0x0001,  // CRC-32 (IEEE)
-  ZOO64_HASH_SHA1                       = 0x0002,  // SHA-1 (deprecated)
-  ZOO64_HASH_SHA256                     = 0x0003,  // SHA-256 (recommended)
-  ZOO64_HASH_SHA384                     = 0x0004,  // SHA-384
-  ZOO64_HASH_SHA512                     = 0x0005,  // SHA-512
-  ZOO64_HASH_SHA3_256                   = 0x0006,  // SHA3-256
-  ZOO64_HASH_SHA3_512                   = 0x0007,  // SHA3-512
-  ZOO64_HASH_BLAKE2B                    = 0x0008,  // BLAKE2b
-  ZOO64_HASH_BLAKE3                     = 0x0009   // BLAKE3
+typedef enum _ZOO64_HASH_ALGORITHM {
+  Zoo64HashNone                     = 0x0000,  // No hash
+  Zoo64HashCrc32                    = 0x0001,  // CRC-32 (IEEE)
+  Zoo64HashSha1                     = 0x0002,  // SHA-1 (deprecated)
+  Zoo64HashSha256                   = 0x0003,  // SHA-256 (recommended)
+  Zoo64HashSha384                   = 0x0004,  // SHA-384
+  Zoo64HashSha512                   = 0x0005,  // SHA-512
+  Zoo64HashSha3_256                 = 0x0006,  // SHA3-256
+  Zoo64HashSha3_512                 = 0x0007,  // SHA3-512
+  Zoo64HashBlake2b                  = 0x0008,  // BLAKE2b
+  Zoo64HashBlake3                   = 0x0009   // BLAKE3
 } ZOO64_HASH_ALGORITHM;
 
 //
 // Digital Signature Type Enumeration
-// Prefix: ZOO64_SIG_
+// NT-style: Zoo64Sig* (PascalCase)
 //
-typedef enum {
-  ZOO64_SIG_NONE                        = 0x0000,  // No signature
-  ZOO64_SIG_RSA_2048                    = 0x0001,  // RSA-2048
-  ZOO64_SIG_RSA_4096                    = 0x0002,  // RSA-4096
-  ZOO64_SIG_ECDSA_P256                  = 0x0003,  // ECDSA P-256
-  ZOO64_SIG_ECDSA_P384                  = 0x0004,  // ECDSA P-384
-  ZOO64_SIG_ED25519                     = 0x0005,  // Ed25519 (recommended)
-  ZOO64_SIG_ED448                       = 0x0006   // Ed448
+typedef enum _ZOO64_SIGNATURE_TYPE {
+  Zoo64SigNone                      = 0x0000,  // No signature
+  Zoo64SigRsa2048                   = 0x0001,  // RSA-2048
+  Zoo64SigRsa4096                   = 0x0002,  // RSA-4096
+  Zoo64SigEcdsaP256                 = 0x0003,  // ECDSA P-256
+  Zoo64SigEcdsaP384                 = 0x0004,  // ECDSA P-384
+  Zoo64SigEd25519                   = 0x0005,  // Ed25519 (recommended)
+  Zoo64SigEd448                     = 0x0006   // Ed448
 } ZOO64_SIGNATURE_TYPE;
 
 //
 // Overlay File Type Enumeration
-// Prefix: ZOO64_OVERLAY_
+// NT-style: Zoo64Overlay* (PascalCase)
 //
-typedef enum {
-  ZOO64_OVERLAY_NEW                     = 0x0000,  // New file
-  ZOO64_OVERLAY_MODIFIED                = 0x0001,  // Modified (delta)
-  ZOO64_OVERLAY_DELETED                 = 0x0002,  // Deleted (tombstone)
-  ZOO64_OVERLAY_UNCHANGED               = 0x0003,  // Unchanged (reference)
-  ZOO64_OVERLAY_MOVED                   = 0x0004   // Moved/renamed
+typedef enum _ZOO64_OVERLAY_TYPE {
+  Zoo64OverlayNew                   = 0x0000,  // New file
+  Zoo64OverlayModified              = 0x0001,  // Modified (delta)
+  Zoo64OverlayDeleted               = 0x0002,  // Deleted (tombstone)
+  Zoo64OverlayUnchanged             = 0x0003,  // Unchanged (reference)
+  Zoo64OverlayMoved                 = 0x0004   // Moved/renamed
 } ZOO64_OVERLAY_TYPE;
 
 //
 // Metadata Chunk Type Enumeration
-// Prefix: ZOO64_META_
+// NT-style: Zoo64Meta* (PascalCase)
 //
-typedef enum {
-  ZOO64_META_ACL                        = 0x0001,  // Access Control List
-  ZOO64_META_XATTR                      = 0x0002,  // Extended attributes
-  ZOO64_META_ADS                        = 0x0003,  // Alternate Data Streams
-  ZOO64_META_SECURITY_DESCRIPTOR        = 0x0004,  // Windows security
-  ZOO64_META_RESOURCE_FORK              = 0x0005,  // macOS resource fork
-  ZOO64_META_EXTENDED_TIMESTAMPS        = 0x0006,  // Additional timestamps
-  ZOO64_META_FILE_CAPABILITIES          = 0x0007,  // Linux capabilities
-  ZOO64_META_SELINUX_CONTEXT            = 0x0008,  // SELinux context
-  ZOO64_META_YAML                       = 0x000A,  // YAML metadata
-  ZOO64_META_MACOS_UUID                 = 0x000B,  // macOS UUIDs
-  ZOO64_META_BSD_FLAGS                  = 0x000C,  // BSD file flags
-  ZOO64_META_LINUX_FLAGS                = 0x000D,  // Linux attributes
-  ZOO64_META_WINDOWS_ATTR               = 0x000E,  // Windows attributes
-  ZOO64_META_HARD_LINK                  = 0x000F,  // Hard link target
-  ZOO64_META_SYMLINK                    = 0x0010,  // Symbolic link
-  ZOO64_META_GIT                        = 0x0032,  // Git metadata
-  ZOO64_META_PERFORCE                   = 0x0033,  // Perforce metadata
-  ZOO64_META_SVN                        = 0x0034,  // Subversion metadata
-  ZOO64_META_MERCURIAL                  = 0x0037,  // Mercurial metadata
-  ZOO64_META_SPARSE_FILE                = 0x0045,  // Sparse file holes
-  ZOO64_META_DELTA_REVISION             = 0x0046,  // Delta revision
-  ZOO64_META_BLOCK_DEDUP                = 0x004A   // Block deduplication
+typedef enum _ZOO64_METADATA_TYPE {
+  Zoo64MetaAcl                      = 0x0001,  // Access Control List
+  Zoo64MetaXattr                    = 0x0002,  // Extended attributes
+  Zoo64MetaAds                      = 0x0003,  // Alternate Data Streams
+  Zoo64MetaSecurityDescriptor       = 0x0004,  // Windows security
+  Zoo64MetaResourceFork             = 0x0005,  // macOS resource fork
+  Zoo64MetaExtendedTimestamps       = 0x0006,  // Additional timestamps
+  Zoo64MetaFileCapabilities         = 0x0007,  // Linux capabilities
+  Zoo64MetaSelinuxContext           = 0x0008,  // SELinux context
+  Zoo64MetaYaml                     = 0x000A,  // YAML metadata
+  Zoo64MetaMacosUuid                = 0x000B,  // macOS UUIDs
+  Zoo64MetaBsdFlags                 = 0x000C,  // BSD file flags
+  Zoo64MetaLinuxFlags               = 0x000D,  // Linux attributes
+  Zoo64MetaWindowsAttr              = 0x000E,  // Windows attributes
+  Zoo64MetaHardLink                 = 0x000F,  // Hard link target
+  Zoo64MetaSymlink                  = 0x0010,  // Symbolic link
+  Zoo64MetaGit                      = 0x0032,  // Git metadata
+  Zoo64MetaPerforce                 = 0x0033,  // Perforce metadata
+  Zoo64MetaSvn                      = 0x0034,  // Subversion metadata
+  Zoo64MetaMercurial                = 0x0037,  // Mercurial metadata
+  Zoo64MetaSparseFile               = 0x0045,  // Sparse file holes
+  Zoo64MetaDeltaRevision            = 0x0046,  // Delta revision
+  Zoo64MetaBlockDedup               = 0x004A   // Block deduplication
   // See section 6.2 for complete list
 } ZOO64_METADATA_TYPE;
 
 //
 // ACL Source System Enumeration
-// Prefix: ZOO64_ACL_SRC_
+// NT-style: Zoo64AclSource* (PascalCase)
+// Example from user: Zoo64AclSourceWindowsNt
 //
-typedef enum {
-  ZOO64_ACL_SRC_UNKNOWN                 = 0x0000,  // Unknown/Generic
-  ZOO64_ACL_SRC_POSIX                   = 0x0001,  // POSIX.1e
-  ZOO64_ACL_SRC_NFSV4                   = 0x0002,  // NFSv4 (RFC 7530)
-  ZOO64_ACL_SRC_WINDOWS_NT              = 0x0003,  // Windows NT DACL/SACL
-  ZOO64_ACL_SRC_MACOS                   = 0x0004,  // macOS Extended ACLs
-  ZOO64_ACL_SRC_OPENVMS                 = 0x0005,  // OpenVMS ACLs
-  ZOO64_ACL_SRC_OS400                   = 0x0006,  // OS/400 Authorities
-  ZOO64_ACL_SRC_MVS_RACF                = 0x0007,  // MVS/RACF
-  ZOO64_ACL_SRC_NETWARE                 = 0x0008,  // Novell NetWare
-  ZOO64_ACL_SRC_VINES                   = 0x0009,  // Banyan VINES
-  ZOO64_ACL_SRC_AFS                     = 0x000A,  // Andrew File System
-  ZOO64_ACL_SRC_CODA                    = 0x000B,  // CODA Distributed FS
-  ZOO64_ACL_SRC_ZFS                     = 0x000C,  // Solaris ZFS
-  ZOO64_ACL_SRC_DCE_DFS                 = 0x0019,  // DCE DFS
-  ZOO64_ACL_SRC_GFS                     = 0x001A,  // Global File System
-  ZOO64_ACL_SRC_MS_DFS                  = 0x001B   // Microsoft DFS
+typedef enum _ZOO64_ACL_SOURCE_SYSTEM {
+  Zoo64AclSourceUnknown             = 0x0000,  // Unknown/Generic
+  Zoo64AclSourcePosix               = 0x0001,  // POSIX.1e
+  Zoo64AclSourceNfsv4               = 0x0002,  // NFSv4 (RFC 7530)
+  Zoo64AclSourceWindowsNt           = 0x0003,  // Windows NT DACL/SACL
+  Zoo64AclSourceMacos               = 0x0004,  // macOS Extended ACLs
+  Zoo64AclSourceOpenvms             = 0x0005,  // OpenVMS ACLs
+  Zoo64AclSourceOs400               = 0x0006,  // OS/400 Authorities
+  Zoo64AclSourceMvsRacf             = 0x0007,  // MVS/RACF
+  Zoo64AclSourceNetware             = 0x0008,  // Novell NetWare
+  Zoo64AclSourceVines               = 0x0009,  // Banyan VINES
+  Zoo64AclSourceAfs                 = 0x000A,  // Andrew File System
+  Zoo64AclSourceCoda                = 0x000B,  // CODA Distributed FS
+  Zoo64AclSourceZfs                 = 0x000C,  // Solaris ZFS
+  Zoo64AclSourceDceDfs              = 0x0019,  // DCE DFS
+  Zoo64AclSourceGfs                 = 0x001A,  // Global File System
+  Zoo64AclSourceMsDfs               = 0x001B   // Microsoft DFS
 } ZOO64_ACL_SOURCE_SYSTEM;
 ```
 
@@ -9241,27 +9248,199 @@ Following NT HRESULT style, all error codes use UINT32 type with standard facili
 
 ## 17. Implementation Notes
 
-### 16.1 Byte Order
+### 17.1 Byte Order (Endianness)
 
-All multi-byte integers are stored in **little-endian** format.
+**CRITICAL**: All Zoo64 archives use **LITTLE-ENDIAN** byte order for all multi-byte integers.
 
-### 16.2 Alignment
+This applies to:
+- All UINT16, UINT32, UINT64, UINT128 fields
+- All structure members
+- All magic signatures
+- All numeric metadata
+
+**Endianness Examples**:
+
+```c
+//
+// UINT32 value 0x12345678 stored as:
+// Offset: 00 01 02 03
+// Bytes:  78 56 34 12  (little-endian)
+//
+
+//
+// Archive magic 0x5A4F4F3634415243 ("ZOO64ARC") stored as:
+// Offset: 00 01 02 03 04 05 06 07
+// Bytes:  43 52 41 34 36 4F 4F 5A  (little-endian UINT64)
+//
+// OR as UINT8 array (platform-independent):
+// Offset: 00 01 02 03 04 05 06 07
+// Bytes:  5A 4F 4F 36 34 41 52 43  (ASCII "ZOO64ARC")
+//
+
+//
+// UINT128 value (low=0x1122334455667788, high=0x99AABBCCDDEEFF00):
+// Offset: 00 01 02 03 04 05 06 07 08 09 0A 0B 0C 0D 0E 0F
+// Bytes:  88 77 66 55 44 33 22 11 00 FF EE DD CC BB AA 99
+//         └─────── Low (LE) ──────┘ └────── High (LE) ─────┘
+//
+```
+
+**Why Little-Endian**:
+- x86/x64 native byte order (most common platforms)
+- ARM can operate in little-endian mode (common configuration)
+- Simpler implementation on dominant architectures
+- Consistent with ZIP, ELF, PE, and most modern formats
+
+**Cross-Platform Compatibility**:
+
+On big-endian systems (PowerPC, SPARC, some ARM configurations), implementations MUST perform byte swapping:
+
+```c
+//
+// Byte swap macros for big-endian systems
+//
+#if defined(__BIG_ENDIAN__) || defined(_BIG_ENDIAN)
+
+UINT16 SwapUint16(UINT16 Value) {
+  return (Value >> 8) | (Value << 8);
+}
+
+UINT32 SwapUint32(UINT32 Value) {
+  return ((Value >> 24) & 0x000000FF) |
+         ((Value >> 8)  & 0x0000FF00) |
+         ((Value << 8)  & 0x00FF0000) |
+         ((Value << 24) & 0xFF000000);
+}
+
+UINT64 SwapUint64(UINT64 Value) {
+  return ((Value >> 56) & 0x00000000000000FFULL) |
+         ((Value >> 40) & 0x000000000000FF00ULL) |
+         ((Value >> 24) & 0x0000000000FF0000ULL) |
+         ((Value >> 8)  & 0x00000000FF000000ULL) |
+         ((Value << 8)  & 0x000000FF00000000ULL) |
+         ((Value << 24) & 0x0000FF0000000000ULL) |
+         ((Value << 40) & 0x00FF000000000000ULL) |
+         ((Value << 56) & 0xFF00000000000000ULL);
+}
+
+//
+// Use after reading from archive
+//
+UINT32 FileSize = SwapUint32(Header->UncompressedSize);
+
+#else
+//
+// Little-endian systems: no swapping needed
+//
+#define SwapUint16(x) (x)
+#define SwapUint32(x) (x)
+#define SwapUint64(x) (x)
+#endif
+```
+
+**Verification**:
+
+All implementations MUST verify endianness by checking magic signatures:
+
+```c
+//
+// Verify archive magic (handles endianness automatically with UINT8 array)
+//
+UINT8 ExpectedMagic[8] = { 0x5A, 0x4F, 0x4F, 0x36, 0x34, 0x41, 0x52, 0x43 };
+
+if (CompareMem(Header->Magic, ExpectedMagic, 8) != 0) {
+  //
+  // Try byte-swapped magic (in case of endianness mismatch)
+  //
+  UINT64 SwappedMagic = SwapUint64(*(UINT64*)Header->Magic);
+  if (CompareMem(&SwappedMagic, ExpectedMagic, 8) == 0) {
+    return ZOO64_E_WRONG_ENDIAN;  // Archive created on different-endian system
+  }
+  return ZOO64_E_INVALID_MAGIC;
+}
+```
+
+**Summary**:
+- **All multi-byte values**: Little-endian
+- **All magic signatures**: Use UINT8 arrays (platform-independent)
+- **Big-endian systems**: MUST byte-swap when reading/writing
+- **Never store big-endian**: Archives are always little-endian on disk
+
+### 17.2 Alignment
 
 Structures are packed (no padding). Use `__attribute__((packed))` or `#pragma pack(1)`.
 
-### 16.3 String Encoding
+```c
+//
+// All structures must be packed to ensure correct layout
+//
+#pragma pack(push, 1)
+typedef struct _ZOO64_ARCHIVE_HEADER {
+  UINT8   Magic[8];           // No padding here
+  UINT32  Version;            // Immediately follows Magic
+  UINT32  Flags;              // Immediately follows Version
+  // ...
+} ZOO64_ARCHIVE_HEADER;
+#pragma pack(pop)
+```
+
+**Note**: Packed structures may cause unaligned access issues on some architectures (ARM, MIPS). Implementations should either:
+1. Read into packed structure (may be slow on ARM)
+2. Read bytes and assemble fields manually (portable)
+3. Use compiler-specific unaligned access support
+
+### 17.3 String Encoding
 
 All paths and text metadata use **UTF-8** encoding.
 
-### 16.4 Checksums
+- **Paths**: UTF-8 with NFC normalization (Unicode Normalization Form C)
+- **YAML metadata**: UTF-8
+- **Comments**: UTF-8
+- **Text fields**: UTF-8
 
-- CRC32 uses IEEE polynomial (0xEDB88320)
-- SHA-256 for file integrity
-- Additional hash in signature blocks
+**Never use**:
+- ASCII (except for legacy compatibility)
+- UTF-16 (except in Windows-specific metadata)
+- ISO-8859-1 or other code pages
+- Platform-specific encodings
 
-### 16.5 Compression Reset Points
+### 17.4 Checksums
+
+- **CRC32**: Uses IEEE polynomial (0xEDB88320), little-endian representation
+- **SHA-256**: Standard byte order (big-endian in specification, stored as byte array)
+- **SHA-512, BLAKE3, etc.**: Stored as byte arrays (no endianness issues)
+
+**Note**: Hash digests are stored as UINT8 arrays, so endianness does not apply.
+
+### 17.5 Compression Reset Points
 
 For seekable compression, compressor state is reset at each block boundary to enable independent decompression.
+
+### 17.6 Magic Signature Format
+
+All magic signatures are stored as UINT8 byte arrays in ASCII character order:
+
+```c
+//
+// Magic signatures - always use UINT8 arrays
+//
+UINT8 Magic[8];  // NOT UINT64, NOT CHAR8
+
+//
+// Correct initialization
+//
+UINT8 ArchiveMagic[8] = { 0x5A, 0x4F, 0x4F, 0x36, 0x34, 0x41, 0x52, 0x43 };
+// Reads as "ZOO64ARC" in ASCII
+
+//
+// When comparing magics, use byte-by-byte comparison
+//
+if (CompareMem(Header->Magic, ArchiveMagic, 8) == 0) {
+  // Valid magic
+}
+```
+
+This approach is endian-neutral because each byte is compared individually.
 
 ## 17. Classic Zoo Format Compatibility
 
