@@ -4,6 +4,69 @@
 **Date:** 2025-10-31
 **Status:** Specification Draft
 
+
+## Table of Contents
+
+### PART I: CORE SPECIFICATION (REQUIRED)
+1. Introduction
+2. Archive Structure
+3. File Format
+   - Archive Header (REQUIRED)
+   - File Entry (REQUIRED)
+   - Central Directory (REQUIRED)
+4. Compression (REQUIRED: at least "stored" mode)
+5. Metadata Storage (REQUIRED: basic timestamps)
+
+### PART II: OPTIONAL FEATURES
+6. Advanced Compression (LZ77, LZMA, ZSTD...)
+7. Encryption (AES-256-GCM, ChaCha20-Poly1305...)
+8. Data Integrity (Hash verification, FEC)
+9. Digital Signatures
+10. Quick Directory (Fast listing)
+11. Multi-Volume Archives
+
+### PART III: PLATFORM EXTENSIONS (OPTIONAL)
+12. Filesystem Metadata (ACLs, xattrs, ADS...)
+13. VCS Metadata (Git, SVN, Mercurial...)
+14. Legacy System Support (CP/M, DOS, WIM...)
+
+### PART IV: IMPLEMENTATION
+15. Compression Pipeline Details
+16. COM Component Interface  
+17. Error Handling
+18. Classic Zoo Compatibility
+
+---
+
+## Conformance Levels
+
+### Minimal Conformance (REQUIRED)
+A minimal Zoo64 implementation MUST support:
+- Archive Header structure
+- File Entry with path and basic metadata (timestamps, size, CRC32)
+- Central Directory
+- Stored (uncompressed) files
+- UTF-8 paths
+
+### Standard Conformance (RECOMMENDED)
+Standard implementations SHOULD add:
+- At least one compression algorithm (LZMA2 or ZSTD recommended)
+- Quick Directory for fast listing
+- Block deduplication
+- SHA-256 file hashes
+
+### Full Conformance (OPTIONAL)
+Full implementations MAY include:
+- All compression algorithms
+- Encryption (AES-256-GCM, ChaCha20-Poly1305)
+- Data integrity (FEC, PAR2)
+- Digital signatures
+- Platform-specific metadata (ACLs, xattrs, ADS)
+- VCS metadata
+- Multi-volume archives
+
+---
+
 ## 1. Introduction
 
 Zoo64 is a modern archive format designed for maximum compression, data integrity, and comprehensive metadata preservation. It supports multiple compression strategies, digital signatures, and full filesystem metadata including ACLs, extended attributes, and alternate data streams.
@@ -31,7 +94,7 @@ Zoo64 is a modern archive format designed for maximum compression, data integrit
 - Multiple compression algorithms
 - Block-based seeking via LEB128 offset tables
 
-## 2. Archive Structure
+## 2. Archive Structure [REQUIRED]
 
 ### 2.1 Overall Layout
 
@@ -103,29 +166,29 @@ Volume Footer:        0x564F4C554D4546    ("VOLUMEF ")
 End of Archive:       0x454E444F46415243  ("ENDOFARC")
 ```
 
-## 3. Archive Header
+## 3. Archive Header [REQUIRED]
 
 The archive header appears at the beginning of every Zoo64 archive (or first volume in multi-volume archives).
 
 ```c
 typedef struct _ZOO64_ARCHIVE_HEADER {
-  UINT64  Magic;              // 0x5A4F4F3634415243 ("ZOO64ARC")
-  UINT16  MajorVersion;       // Format major version (1)
-  UINT16  MinorVersion;       // Format minor version (0)
-  UINT32  Flags;              // Archive flags
-  UINT64  CreationTime;       // NTP extended format timestamp
-  UINT64  ModificationTime;   // NTP extended format timestamp
-  UINT32  CompressionMode;    // Compression mode identifier
-  UINT32  FileCount;          // Number of files in archive (all volumes)
-  UINT64  CentralDirOffset;   // Offset to central directory (in last volume)
-  UINT64  ArchiveSize;        // Total archive size in bytes (all volumes)
-  UINT32  BlockSize;          // Block size for seekable compression (power of 2)
+  UINT64  Magic;              /// 0x5A4F4F3634415243 ("ZOO64ARC")
+  UINT16  MajorVersion;       /// Format major version (1)
+  UINT16  MinorVersion;       /// Format minor version (0)
+  UINT32  Flags;              /// Archive flags
+  UINT64  CreationTime;       /// NTP extended format timestamp
+  UINT64  ModificationTime;   /// NTP extended format timestamp
+  UINT32  CompressionMode;    /// Compression mode identifier
+  UINT32  FileCount;          /// Number of files in archive (all volumes)
+  UINT64  CentralDirOffset;   /// Offset to central directory (in last volume)
+  UINT64  ArchiveSize;        /// Total archive size in bytes (all volumes)
+  UINT32  BlockSize;          /// Block size for seekable compression (power of 2)
   UINT64  YamlMetadataOffset; // Offset to archive YAML metadata (0 if none)
-  UINT32  YamlMetadataSize;   // Size of archive YAML metadata
-  UINT16  VolumeNumber;       // Volume number (0 for single archive, 1+ for multi-volume)
-  UINT16  TotalVolumes;       // Total number of volumes (0 for single archive)
-  UINT32  VolumeSize;         // Maximum size per volume (0 for single archive)
-  UINT8   UUID[16];           // Archive UUID (same across all volumes)
+  UINT32  YamlMetadataSize;   /// Size of archive YAML metadata
+  UINT16  VolumeNumber;       /// Volume number (0 for single archive, 1+ for multi-volume)
+  UINT16  TotalVolumes;       /// Total number of volumes (0 for single archive)
+  UINT32  VolumeSize;         /// Maximum size per volume (0 for single archive)
+  UINT8   UUID[16];           /// Archive UUID (same across all volumes)
 } ZOO64_ARCHIVE_HEADER;
 #pragma pack(pop)
 ```
@@ -255,28 +318,28 @@ Optimized for sequential tape storage with proper block alignment:
 **Block Structure**:
 ```c
 typedef struct _ZOO64_TAPE_BLOCK {
-  UINT64  Magic;              // 0x5A4F4F54415045 ("ZOOTAPE ")
-  UINT32  BlockNumber;        // Sequential block number
-  UINT32  BlockSize;          // Block size (10KB, 32KB, 64KB)
-  UINT32  Flags;              // Block flags
-  UINT32  CRC32;              // Block CRC
+  UINT64  Magic;              /// 0x5A4F4F54415045 ("ZOOTAPE ")
+  UINT32  BlockNumber;        /// Sequential block number
+  UINT32  BlockSize;          /// Block size (10KB, 32KB, 64KB)
+  UINT32  Flags;              /// Block flags
+  UINT32  CRC32;              /// Block CRC
   UINT8   Data[BlockSize-32]; // Block data (padded)
-  UINT32  NextBlockNumber;    // Next block number (for verification)
-  UINT32  Reserved;           // Reserved
+  UINT32  NextBlockNumber;    /// Next block number (for verification)
+  UINT32  Reserved;           /// Reserved
 } ZOO64_TAPE_BLOCK;
 #pragma pack(pop)
 ```
 
 **Block flags**:
 ```
-0x00000001: START_OF_FILE     // First block of file
-0x00000002: END_OF_FILE       // Last block of file
-0x00000004: TAPE_MARK          // Tape mark (filemark)
-0x00000008: VOLUME_LABEL      // Volume label block
-0x00000010: DIRECTORY_BLOCK   // Directory block
-0x00000020: ECC_PRESENT       // Forward error correction present
-0x00000040: COMPRESSED_BLOCK  // Block compressed
-0x00000080: END_OF_ARCHIVE    // End of archive marker
+0x00000001: START_OF_FILE     /// First block of file
+0x00000002: END_OF_FILE       /// Last block of file
+0x00000004: TAPE_MARK          /// Tape mark (filemark)
+0x00000008: VOLUME_LABEL      /// Volume label block
+0x00000010: DIRECTORY_BLOCK   /// Directory block
+0x00000020: ECC_PRESENT       /// Forward error correction present
+0x00000040: COMPRESSED_BLOCK  /// Block compressed
+0x00000080: END_OF_ARCHIVE    /// End of archive marker
 ```
 
 **Tape marks**:
@@ -313,47 +376,47 @@ Optimized for tiered storage with stub files and migration metadata:
 **HSM Metadata**:
 ```c
 typedef struct _ZOO64_HSM_METADATA {
-  UINT32  Magic;              // 0x48534D00 ("HSM\0")
-  UINT8   MigrationState;     // Migration state
-  UINT8   StorageTier;        // Current storage tier
-  UINT8   TargetTier;         // Target tier for migration
-  UINT8   RecallPriority;     // Recall priority (0-255)
-  UINT64  MigrationTime;      // Time of last migration
-  UINT64  LastAccessTime;     // Last access time
-  UINT64  AccessCount;        // Number of accesses
-  UINT64  OfflineSize;        // Size if migrated
-  UINT32  RecallCost;         // Estimated recall cost (ms)
-  UINT32  PolicyID;           // HSM policy ID
-  UINT32  VolumeIDLength;     // Length of offline volume ID
-  UINT32  LocationLength;     // Length of offline location
-  // Followed by:
-  //   [VolumeIDLength bytes: offline volume identifier]
-  //   [LocationLength bytes: offline storage location]
+  UINT32  Magic;              /// 0x48534D00 ("HSM\0")
+  UINT8   MigrationState;     /// Migration state
+  UINT8   StorageTier;        /// Current storage tier
+  UINT8   TargetTier;         /// Target tier for migration
+  UINT8   RecallPriority;     /// Recall priority (0-255)
+  UINT64  MigrationTime;      /// Time of last migration
+  UINT64  LastAccessTime;     /// Last access time
+  UINT64  AccessCount;        /// Number of accesses
+  UINT64  OfflineSize;        /// Size if migrated
+  UINT32  RecallCost;         /// Estimated recall cost (ms)
+  UINT32  PolicyID;           /// HSM policy ID
+  UINT32  VolumeIDLength;     /// Length of offline volume ID
+  UINT32  LocationLength;     /// Length of offline location
+  /// Followed by:
+  ///   [VolumeIDLength bytes: offline volume identifier]
+  ///   [LocationLength bytes: offline storage location]
 } ZOO64_HSM_METADATA;
 #pragma pack(pop)
 ```
 
 **Migration states**:
 ```
-0: RESIDENT             // Fully online (all data present)
-1: PREMIGRATED          // Dual-resident (online + offline copy)
-2: MIGRATED             // Stub only (data offline)
-3: MIGRATING            // Migration in progress
-4: RECALLING            // Recall in progress
-5: RECALL_PENDING       // Queued for recall
-6: ARCHIVED             // Archived to tape/cloud
+0: RESIDENT             /// Fully online (all data present)
+1: PREMIGRATED          /// Dual-resident (online + offline copy)
+2: MIGRATED             /// Stub only (data offline)
+3: MIGRATING            /// Migration in progress
+4: RECALLING            /// Recall in progress
+5: RECALL_PENDING       /// Queued for recall
+6: ARCHIVED             /// Archived to tape/cloud
 ```
 
 **Storage tiers**:
 ```
-0: TIER_NVME            // NVMe SSD (fastest)
-1: TIER_SSD             // SATA SSD (fast)
-2: TIER_SAS             // SAS HDD (medium)
-3: TIER_SATA            // SATA HDD (slow)
-4: TIER_NEARLINE        // Nearline disk
-5: TIER_TAPE            // Tape library
-6: TIER_CLOUD           // Cloud storage
-7: TIER_ARCHIVE         // Deep archive
+0: TIER_NVME            /// NVMe SSD (fastest)
+1: TIER_SSD             /// SATA SSD (fast)
+2: TIER_SAS             /// SAS HDD (medium)
+3: TIER_SATA            /// SATA HDD (slow)
+4: TIER_NEARLINE        /// Nearline disk
+5: TIER_TAPE            /// Tape library
+6: TIER_CLOUD           /// Cloud storage
+7: TIER_ARCHIVE         /// Deep archive
 ```
 
 **HSM operations**:
@@ -418,19 +481,19 @@ Normalized:     \0\0server\0share\0dir\0file\0\0
 
 **See Section 5.3** for complete normalization rules and examples.
 
-## 3.3 Volume Header
+## 3.3 Multi-Volume Support [OPTIONAL] - Volume Header
 
 Appears at the start of volumes 2-N in multi-volume archives.
 
 ```c
 typedef struct _ZOO64_VOLUME_HEADER {
-  UINT64  Magic;              // 0x564F4C554D4548 ("VOLUMEH ")
-  UINT16  VolumeNumber;       // Volume number (2, 3, 4...)
-  UINT16  TotalVolumes;       // Total number of volumes
-  UINT64  VolumeSize;         // Size of this volume
-  UINT64  VolumeOffset;       // Offset in complete archive
-  UINT32  CRC32;              // CRC32 of this volume
-  UINT8   ArchiveUUID[16];    // Archive UUID (matches main header)
+  UINT64  Magic;              /// 0x564F4C554D4548 ("VOLUMEH ")
+  UINT16  VolumeNumber;       /// Volume number (2, 3, 4...)
+  UINT16  TotalVolumes;       /// Total number of volumes
+  UINT64  VolumeSize;         /// Size of this volume
+  UINT64  VolumeOffset;       /// Offset in complete archive
+  UINT32  CRC32;              /// CRC32 of this volume
+  UINT8   ArchiveUUID[16];    /// Archive UUID (matches main header)
 } ZOO64_VOLUME_HEADER;
 #pragma pack(pop)
 ```
@@ -441,28 +504,28 @@ Appears at the end of volumes 1-(N-1) in multi-volume archives.
 
 ```c
 typedef struct _ZOO64_VOLUME_FOOTER {
-  UINT64  Magic;              // 0x564F4C554D4546 ("VOLUMEF ")
-  UINT16  VolumeNumber;       // This volume number
-  UINT16  NextVolumeNumber;   // Next volume number
-  UINT64  BytesInVolume;      // Total bytes in this volume
-  UINT32  CRC32;              // CRC32 of this volume
+  UINT64  Magic;              /// 0x564F4C554D4546 ("VOLUMEF ")
+  UINT16  VolumeNumber;       /// This volume number
+  UINT16  NextVolumeNumber;   /// Next volume number
+  UINT64  BytesInVolume;      /// Total bytes in this volume
+  UINT32  CRC32;              /// CRC32 of this volume
 } ZOO64_VOLUME_FOOTER;
 #pragma pack(pop)
 ```
 
-## 4. Compression Mode Descriptor
+## 4. Compression (REQUIRED: Minimum "stored" mode)
 
 Describes the compression algorithm and parameters.
 
 ```c
 typedef struct _ZOO64_COMPRESSION_DESC {
-  UINT32  DescriptorSize;     // Size of this descriptor
-  UINT32  Algorithm;          // Compression algorithm ID
-  UINT32  WindowSize;         // Window size (4K - 1M)
-  UINT32  BlockSize;          // Block size for seekable (power of 2)
-  UINT32  Level;              // Compression level (0-9)
-  UINT32  Flags;              // Algorithm-specific flags
-  UINT8   Parameters[64];     // Algorithm-specific parameters
+  UINT32  DescriptorSize;     /// Size of this descriptor
+  UINT32  Algorithm;          /// Compression algorithm ID
+  UINT32  WindowSize;         /// Window size (4K - 1M)
+  UINT32  BlockSize;          /// Block size for seekable (power of 2)
+  UINT32  Level;              /// Compression level (0-9)
+  UINT32  Flags;              /// Algorithm-specific flags
+  UINT8   Parameters[64];     /// Algorithm-specific parameters
 } ZOO64_COMPRESSION_DESC;
 #pragma pack(pop)
 ```
@@ -528,10 +591,10 @@ The archive may contain YAML metadata that applies to the entire archive. This i
 
 ```c
 typedef struct _ZOO64_YAML_METADATA {
-  UINT64  Magic;              // 0x59414D4C4D455441 ("YAMLMETA")
-  UINT32  YamlSize;           // Size of YAML data in bytes
-  UINT32  Flags;              // YAML metadata flags
-  // Followed by YamlSize bytes of UTF-8 encoded YAML
+  UINT64  Magic;              /// 0x59414D4C4D455441 ("YAMLMETA")
+  UINT32  YamlSize;           /// Size of YAML data in bytes
+  UINT32  Flags;              /// YAML metadata flags
+  /// Followed by YamlSize bytes of UTF-8 encoded YAML
 } ZOO64_YAML_METADATA;
 #pragma pack(pop)
 ```
@@ -578,7 +641,7 @@ creation:
   environment: "production"
 ```
 
-## 4.6 Quick Directory
+## 4.6 Quick Directory [OPTIONAL]
 
 The Quick Directory is an optional structure that appears at the beginning of the archive (after YAML metadata, before file entries). It provides fast file listing without requiring a full archive scan or seeking to the Central Directory at the end.
 
@@ -587,26 +650,26 @@ The Quick Directory is an optional structure that appears at the beginning of th
 ```c
 #pragma pack(push, 1)
 typedef struct _ZOO64_QUICK_DIRECTORY {
-  UINT64  Magic;              // 0x5155494344495220 ("QUICKDIR")
-  UINT32  DirectorySize;      // Total size of quick directory
-  UINT32  EntryCount;         // Number of files in archive
-  UINT32  Flags;              // Quick directory flags
-  UINT64  FirstFileOffset;    // Offset to first file entry
-  UINT64  CentralDirOffset;   // Offset to central directory (for verification)
-  // Followed by EntryCount quick entries
+  UINT64  Magic;              /// 0x5155494344495220 ("QUICKDIR")
+  UINT32  DirectorySize;      /// Total size of quick directory
+  UINT32  EntryCount;         /// Number of files in archive
+  UINT32  Flags;              /// Quick directory flags
+  UINT64  FirstFileOffset;    /// Offset to first file entry
+  UINT64  CentralDirOffset;   /// Offset to central directory (for verification)
+  /// Followed by EntryCount quick entries
 } ZOO64_QUICK_DIRECTORY;
 #pragma pack(pop)
 ```
 
 **Quick Directory Flags**:
 ```
-0x00000001: SORTED_BY_NAME     // Entries sorted alphabetically by name
-0x00000002: SORTED_BY_OFFSET   // Entries sorted by file offset
-0x00000004: SORTED_BY_SIZE     // Entries sorted by size
-0x00000008: HASH_TABLE         // Includes hash table for O(1) lookup
-0x00000010: COMPRESSED         // Quick directory is compressed
-0x00000020: ENCRYPTED          // Quick directory is encrypted
-0x00000040: INCREMENTAL        // Support for incremental updates
+0x00000001: SORTED_BY_NAME     /// Entries sorted alphabetically by name
+0x00000002: SORTED_BY_OFFSET   /// Entries sorted by file offset
+0x00000004: SORTED_BY_SIZE     /// Entries sorted by size
+0x00000008: HASH_TABLE         /// Includes hash table for O(1) lookup
+0x00000010: COMPRESSED         /// Quick directory is compressed
+0x00000020: ENCRYPTED          /// Quick directory is encrypted
+0x00000040: INCREMENTAL        /// Support for incremental updates
 ```
 
 ### 4.6.2 Quick File Entry
@@ -616,28 +679,28 @@ Each entry in the Quick Directory contains minimal metadata for fast listing:
 ```c
 #pragma pack(push, 1)
 typedef struct _ZOO64_QUICK_ENTRY {
-  UINT16  PathLength;         // Length of path in bytes
-  UINT64  FileOffset;         // Offset to full file entry
-  UINT64  UncompressedSize;   // Uncompressed size
-  UINT64  CompressedSize;     // Compressed size
-  UINT32  CRC32;              // CRC32 of uncompressed data
-  UINT32  Flags;              // File flags (subset from full header)
-  // Followed by:
-  //   [PathLength bytes: UTF-8 path]
+  UINT16  PathLength;         /// Length of path in bytes
+  UINT64  FileOffset;         /// Offset to full file entry
+  UINT64  UncompressedSize;   /// Uncompressed size
+  UINT64  CompressedSize;     /// Compressed size
+  UINT32  CRC32;              /// CRC32 of uncompressed data
+  UINT32  Flags;              /// File flags (subset from full header)
+  /// Followed by:
+  ///   [PathLength bytes: UTF-8 path]
 } ZOO64_QUICK_ENTRY;
 #pragma pack(pop)
 ```
 
 **Quick Entry Flags**:
 ```
-0x00000001: IS_DIRECTORY       // Entry is a directory
-0x00000002: IS_COMPRESSED      // File is compressed
-0x00000004: IS_ENCRYPTED       // File is encrypted
-0x00000008: IS_SOLID           // File is in solid block
-0x00000010: HAS_METADATA       // File has metadata chunks
-0x00000020: HAS_SIGNATURE      // File has digital signature
-0x00000040: IS_SYMLINK         // Entry is symbolic link
-0x00000080: IS_DELETED         // Entry marked for deletion (incremental)
+0x00000001: IS_DIRECTORY       /// Entry is a directory
+0x00000002: IS_COMPRESSED      /// File is compressed
+0x00000004: IS_ENCRYPTED       /// File is encrypted
+0x00000008: IS_SOLID           /// File is in solid block
+0x00000010: HAS_METADATA       /// File has metadata chunks
+0x00000020: HAS_SIGNATURE      /// File has digital signature
+0x00000040: IS_SYMLINK         /// Entry is symbolic link
+0x00000080: IS_DELETED         /// Entry marked for deletion (incremental)
 ```
 
 ### 4.6.3 Quick Directory Hash Table (Optional)
@@ -647,21 +710,21 @@ For O(1) filename lookup, an optional hash table can be included:
 ```c
 #pragma pack(push, 1)
 typedef struct _ZOO64_QUICK_HASH_TABLE {
-  UINT32  BucketCount;        // Number of hash buckets (power of 2)
-  UINT32  EntryCount;         // Total entries in table
-  UINT32  HashFunction;       // Hash function ID
-  UINT32  Reserved;           // Reserved
-  // Followed by:
-  //   [BucketCount * UINT32: bucket indices]
-  //   [EntryCount * HASH_ENTRY: hash entries]
+  UINT32  BucketCount;        /// Number of hash buckets (power of 2)
+  UINT32  EntryCount;         /// Total entries in table
+  UINT32  HashFunction;       /// Hash function ID
+  UINT32  Reserved;           /// Reserved
+  /// Followed by:
+  ///   [BucketCount * UINT32: bucket indices]
+  ///   [EntryCount * HASH_ENTRY: hash entries]
 } ZOO64_QUICK_HASH_TABLE;
 #pragma pack(pop)
 
 #pragma pack(push, 1)
 typedef struct _ZOO64_HASH_ENTRY {
-  UINT32  Hash;               // Hash of filename
-  UINT32  EntryIndex;         // Index into quick directory
-  UINT32  NextIndex;          // Next entry in bucket (chain)
+  UINT32  Hash;               /// Hash of filename
+  UINT32  EntryIndex;         /// Index into quick directory
+  UINT32  NextIndex;          /// Next entry in bucket (chain)
 } ZOO64_HASH_ENTRY;
 #pragma pack(pop)
 ```
@@ -732,15 +795,15 @@ The Quick Directory supports incremental archive updates:
 ```c
 #pragma pack(push, 1)
 typedef struct _ZOO64_QUICK_ENTRY_V2 {
-  UINT16  PathLength;         // Length of path
-  UINT64  FileOffset;         // Offset to file entry
-  UINT64  UncompressedSize;   // Uncompressed size
-  UINT64  CompressedSize;     // Compressed size
-  UINT32  CRC32;              // CRC32
-  UINT32  Flags;              // Flags (including IS_DELETED)
-  UINT32  Version;            // File version number
-  UINT64  Timestamp;          // Last modification timestamp
-  // Followed by path
+  UINT16  PathLength;         /// Length of path
+  UINT64  FileOffset;         /// Offset to file entry
+  UINT64  UncompressedSize;   /// Uncompressed size
+  UINT64  CompressedSize;     /// Compressed size
+  UINT32  CRC32;              /// CRC32
+  UINT32  Flags;              /// Flags (including IS_DELETED)
+  UINT32  Version;            /// File version number
+  UINT64  Timestamp;          /// Last modification timestamp
+  /// Followed by path
 } ZOO64_QUICK_ENTRY_V2;
 #pragma pack(pop)
 ```
@@ -762,28 +825,28 @@ bool read_quick_directory(
     uint32_t *count
 ) {
     if (header->QuickDirOffset == 0) {
-        return false;  // No quick directory
+        return false;  /// No quick directory
     }
 
-    // Seek to quick directory
+    /// Seek to quick directory
     fseek(archive, header->QuickDirOffset, SEEK_SET);
 
-    // Read header
+    /// Read header
     ZOO64_QUICK_DIRECTORY qdir;
     fread(&qdir, sizeof(qdir), 1, archive);
 
-    // Allocate entries
+    /// Allocate entries
     *entries = malloc(qdir.EntryCount * sizeof(ZOO64_QUICK_ENTRY));
     *count = qdir.EntryCount;
 
-    // Read each entry
+    /// Read each entry
     for (uint32_t i = 0; i < qdir.EntryCount; i++) {
         fread(&(*entries)[i], sizeof(ZOO64_QUICK_ENTRY), 1, archive);
-        // Read path
+        /// Read path
         char *path = malloc((*entries)[i].PathLength + 1);
         fread(path, 1, (*entries)[i].PathLength, archive);
         path[(*entries)[i].PathLength] = '\0';
-        // Store path...
+        /// Store path...
     }
 
     return true;
@@ -797,17 +860,17 @@ int64_t find_file_offset(
     uint32_t count,
     const char *filename
 ) {
-    // Linear search (or use hash table if available)
+    /// Linear search (or use hash table if available)
     for (uint32_t i = 0; i < count; i++) {
         if (strcmp(entries[i].path, filename) == 0) {
             return entries[i].FileOffset;
         }
     }
-    return -1;  // Not found
+    return -1;  /// Not found
 }
 ```
 
-## 5. File Entry Format
+## 5. File Entry Format [REQUIRED]
 
 Each file in the archive has the following structure:
 
@@ -823,26 +886,26 @@ Each file in the archive has the following structure:
 
 ```c
 typedef struct _ZOO64_FILE_HEADER {
-  UINT64  Magic;              // 0x46494C45454E5452 ("FILEENTR")
-  UINT32  HeaderSize;         // Total size of header + path
-  UINT32  Flags;              // File flags
-  UINT64  UncompressedSize;   // Original file size
-  UINT64  CompressedSize;     // Compressed size (0 if stored)
-  UINT64  DataOffset;         // Offset to file data
-  UINT64  MetadataOffset;     // Offset to metadata (0 if none)
-  UINT32  MetadataSize;       // Size of metadata block
-  UINT16  PathLength;         // Length of UTF-8 path in bytes
-  UINT16  CompressionMethod;  // Compression method for this file
-  UINT32  CRC32;              // CRC32 of uncompressed data
-  UINT64  SHA256[4];          // SHA-256 hash of uncompressed data
-  UINT64  BirthTime;          // File birth/creation time (NTP extended format)
-  UINT64  ModificationTime;   // File modification time (NTP extended format)
-  UINT64  AccessTime;         // File access time (NTP extended format)
-  UINT64  ChangeTime;         // File metadata change time (NTP extended format)
-  UINT32  UID;                // User ID (Unix)
-  UINT32  GID;                // Group ID (Unix)
-  UINT32  Mode;               // File mode/permissions (Unix)
-  UINT32  Attributes;         // Platform-specific attributes
+  UINT64  Magic;              /// 0x46494C45454E5452 ("FILEENTR")
+  UINT32  HeaderSize;         /// Total size of header + path
+  UINT32  Flags;              /// File flags
+  UINT64  UncompressedSize;   /// Original file size
+  UINT64  CompressedSize;     /// Compressed size (0 if stored)
+  UINT64  DataOffset;         /// Offset to file data
+  UINT64  MetadataOffset;     /// Offset to metadata (0 if none)
+  UINT32  MetadataSize;       /// Size of metadata block
+  UINT16  PathLength;         /// Length of UTF-8 path in bytes
+  UINT16  CompressionMethod;  /// Compression method for this file
+  UINT32  CRC32;              /// CRC32 of uncompressed data
+  UINT64  SHA256[4];          /// SHA-256 hash of uncompressed data
+  UINT64  BirthTime;          /// File birth/creation time (NTP extended format)
+  UINT64  ModificationTime;   /// File modification time (NTP extended format)
+  UINT64  AccessTime;         /// File access time (NTP extended format)
+  UINT64  ChangeTime;         /// File metadata change time (NTP extended format)
+  UINT32  UID;                /// User ID (Unix)
+  UINT32  GID;                /// Group ID (Unix)
+  UINT32  Mode;               /// File mode/permissions (Unix)
+  UINT32  Attributes;         /// Platform-specific attributes
 } ZOO64_FILE_HEADER;
 #pragma pack(pop)
 ```
@@ -993,15 +1056,15 @@ When extracting, paths are denormalized to target platform format:
 - **Security**: Prevents path traversal attacks (.. resolved)
 - **Compression**: Better compression ratio (no separator variance)
 
-## 6. Metadata Block Format
+## 6. Extended Metadata [OPTIONAL]
 
 Optional block containing extended filesystem metadata.
 
 ```c
 typedef struct _ZOO64_METADATA_HEADER {
-  UINT64  Magic;              // 0x4D45544144415441 ("METADATA")
-  UINT32  TotalSize;          // Total size of metadata block
-  UINT32  ChunkCount;         // Number of metadata chunks
+  UINT64  Magic;              /// 0x4D45544144415441 ("METADATA")
+  UINT32  TotalSize;          /// Total size of metadata block
+  UINT32  ChunkCount;         /// Number of metadata chunks
 } ZOO64_METADATA_HEADER;
 #pragma pack(pop)
 ```
@@ -1012,9 +1075,9 @@ Each metadata chunk has the following format:
 
 ```c
 typedef struct _ZOO64_METADATA_CHUNK {
-  UINT32  ChunkType;          // Chunk type identifier
-  UINT32  ChunkSize;          // Size of chunk data (excludes header)
-  // Followed by chunk data
+  UINT32  ChunkType;          /// Chunk type identifier
+  UINT32  ChunkSize;          /// Size of chunk data (excludes header)
+  /// Followed by chunk data
 } ZOO64_METADATA_CHUNK;
 #pragma pack(pop)
 ```
@@ -1112,10 +1175,10 @@ Zoo64 uses a **normalized universal ACL format** that can represent ACLs from an
 
 ```c
 typedef struct _ZOO64_ACL_HEADER {
-  UINT32  EntryCount;         // Number of ACL entries
-  UINT32  TotalSize;          // Total size of ACL data
-  UINT32  Flags;              // ACL header flags
-  UINT32  SourceSystem;       // Original ACL system (for optimization)
+  UINT32  EntryCount;         /// Number of ACL entries
+  UINT32  TotalSize;          /// Total size of ACL data
+  UINT32  Flags;              /// ACL header flags
+  UINT32  SourceSystem;       /// Original ACL system (for optimization)
 } ZOO64_ACL_HEADER;
 #pragma pack(pop)
 ```
@@ -1126,22 +1189,22 @@ Each ACL entry uses a universal format that can represent any ACL system:
 
 ```c
 typedef struct _ZOO64_ACL_ENTRY {
-  UINT32  ACEType;            // Universal ACE type
-  UINT32  Flags;              // Universal flags
-  UINT64  Permissions;        // Universal permission bitmap (64 bits)
-  UINT16  PrincipalCount;     // Number of principal identifiers (usually 1-3)
-  UINT16  Reserved;           // Reserved for alignment
-  UINT32  SourceSystem;       // Original ACL system
-  UINT32  SourceSpecific[4];  // System-specific metadata (16 bytes)
-  // Followed by PrincipalCount * sizeof(PRINCIPAL_ID) structures
+  UINT32  ACEType;            /// Universal ACE type
+  UINT32  Flags;              /// Universal flags
+  UINT64  Permissions;        /// Universal permission bitmap (64 bits)
+  UINT16  PrincipalCount;     /// Number of principal identifiers (usually 1-3)
+  UINT16  Reserved;           /// Reserved for alignment
+  UINT32  SourceSystem;       /// Original ACL system
+  UINT32  SourceSpecific[4];  /// System-specific metadata (16 bytes)
+  /// Followed by PrincipalCount * sizeof(PRINCIPAL_ID) structures
 } ZOO64_ACL_ENTRY;
 #pragma pack(pop)
 
 #pragma pack(push, 1)
 typedef struct _PRINCIPAL_ID {
-  UINT16  PrincipalType;      // Type of principal identifier
-  UINT16  PrincipalLength;    // Length of principal identifier data
-  // Followed by principal identifier data (variable length)
+  UINT16  PrincipalType;      /// Type of principal identifier
+  UINT16  PrincipalLength;    /// Length of principal identifier data
+  /// Followed by principal identifier data (variable length)
 } PRINCIPAL_ID;
 #pragma pack(pop)
 ```
@@ -1183,36 +1246,36 @@ typedef struct _PRINCIPAL_ID {
 #### 6.3.3 Universal ACE Types
 
 ```
-0x00000000: ACCESS_ALLOWED      // Grant permissions
-0x00000001: ACCESS_DENIED       // Deny permissions
-0x00000002: SYSTEM_AUDIT        // Audit access
-0x00000003: SYSTEM_ALARM        // Alarm on access
-0x00000004: ACCESS_ALLOWED_OBJECT    // Object-specific allow
-0x00000005: ACCESS_DENIED_OBJECT     // Object-specific deny
-0x00000006: SYSTEM_AUDIT_OBJECT      // Object-specific audit
-0x00000007: ACCESS_ALLOWED_CALLBACK  // Callback allow
-0x00000008: ACCESS_DENIED_CALLBACK   // Callback deny
+0x00000000: ACCESS_ALLOWED      /// Grant permissions
+0x00000001: ACCESS_DENIED       /// Deny permissions
+0x00000002: SYSTEM_AUDIT        /// Audit access
+0x00000003: SYSTEM_ALARM        /// Alarm on access
+0x00000004: ACCESS_ALLOWED_OBJECT    /// Object-specific allow
+0x00000005: ACCESS_DENIED_OBJECT     /// Object-specific deny
+0x00000006: SYSTEM_AUDIT_OBJECT      /// Object-specific audit
+0x00000007: ACCESS_ALLOWED_CALLBACK  /// Callback allow
+0x00000008: ACCESS_DENIED_CALLBACK   /// Callback deny
 ```
 
 #### 6.3.4 Universal Flags
 
 ```
 Inheritance Flags:
-  0x00000001: FILE_INHERIT          // Inherit to files
-  0x00000002: DIRECTORY_INHERIT     // Inherit to directories
-  0x00000004: NO_PROPAGATE_INHERIT  // Don't propagate beyond immediate children
-  0x00000008: INHERIT_ONLY          // ACE only for inheritance, not this object
-  0x00000010: INHERITED_ACE         // This ACE was inherited
+  0x00000001: FILE_INHERIT          /// Inherit to files
+  0x00000002: DIRECTORY_INHERIT     /// Inherit to directories
+  0x00000004: NO_PROPAGATE_INHERIT  /// Don't propagate beyond immediate children
+  0x00000008: INHERIT_ONLY          /// ACE only for inheritance, not this object
+  0x00000010: INHERITED_ACE         /// This ACE was inherited
 
 Audit Flags:
-  0x00000040: SUCCESSFUL_ACCESS     // Audit successful access
-  0x00000080: FAILED_ACCESS         // Audit failed access
+  0x00000040: SUCCESSFUL_ACCESS     /// Audit successful access
+  0x00000080: FAILED_ACCESS         /// Audit failed access
 
 Special Flags:
-  0x00000100: IDENTIFIER_GROUP      // Principal is a group
-  0x00000200: PROTECTED             // Protected from modification
-  0x00000400: CRITICAL              // Critical ACE
-  0x00000800: DEFAULT_ACL           // Default ACL (for new objects)
+  0x00000100: IDENTIFIER_GROUP      /// Principal is a group
+  0x00000200: PROTECTED             /// Protected from modification
+  0x00000400: CRITICAL              /// Critical ACE
+  0x00000800: DEFAULT_ACL           /// Default ACL (for new objects)
 ```
 
 #### 6.3.5 Universal Permissions (64-bit bitmap)
@@ -1275,21 +1338,21 @@ System-Specific (bits 48-63):
 #### 6.3.6 Principal Types
 
 ```
-0x0001: USER_ID              // Numeric user ID (POSIX UID)
-0x0002: GROUP_ID             // Numeric group ID (POSIX GID)
-0x0003: USER_NAME            // UTF-8 username
-0x0004: GROUP_NAME           // UTF-8 group name
-0x0005: SID                  // Windows SID (binary)
-0x0006: UUID                 // macOS UUID (128-bit)
-0x0007: UIC                  // OpenVMS UIC (32-bit)
-0x0008: IDENTIFIER_NAME      // OpenVMS identifier name
-0x0009: NETWARE_OBJECT_ID    // Netware object ID (32-bit)
-0x000A: STREETTALK_NAME      // VINES StreetTalk name (item@group@org)
-0x000B: AFS_PRINCIPAL        // AFS principal name
-0x000C: RACF_USER            // RACF user ID (8 chars)
-0x000D: OS400_PROFILE        // OS/400 user profile (10 chars)
-0x000E: AUTHORIZATION_LIST   // OS/400 authorization list name
-0x000F: SPECIAL_PRINCIPAL    // Special (OWNER@, GROUP@, EVERYONE@, etc.)
+0x0001: USER_ID              /// Numeric user ID (POSIX UID)
+0x0002: GROUP_ID             /// Numeric group ID (POSIX GID)
+0x0003: USER_NAME            /// UTF-8 username
+0x0004: GROUP_NAME           /// UTF-8 group name
+0x0005: SID                  /// Windows SID (binary)
+0x0006: UUID                 /// macOS UUID (128-bit)
+0x0007: UIC                  /// OpenVMS UIC (32-bit)
+0x0008: IDENTIFIER_NAME      /// OpenVMS identifier name
+0x0009: NETWARE_OBJECT_ID    /// Netware object ID (32-bit)
+0x000A: STREETTALK_NAME      /// VINES StreetTalk name (item@group@org)
+0x000B: AFS_PRINCIPAL        /// AFS principal name
+0x000C: RACF_USER            /// RACF user ID (8 chars)
+0x000D: OS400_PROFILE        /// OS/400 user profile (10 chars)
+0x000E: AUTHORIZATION_LIST   /// OS/400 authorization list name
+0x000F: SPECIAL_PRINCIPAL    /// Special (OWNER@, GROUP@, EVERYONE@, etc.)
 ```
 
 #### 6.3.7 Special Principals
@@ -1297,17 +1360,17 @@ System-Specific (bits 48-63):
 For SPECIAL_PRINCIPAL type, the principal data is a 4-byte identifier:
 
 ```
-0x00000001: OWNER@           // File owner
-0x00000002: GROUP@           // File group
-0x00000003: EVERYONE@        // All users
-0x00000004: INTERACTIVE@     // Interactive users
-0x00000005: NETWORK@         // Network users
-0x00000006: DIALUP@          // Dial-up users
-0x00000007: BATCH@           // Batch jobs
-0x00000008: ANONYMOUS@       // Anonymous users
-0x00000009: AUTHENTICATED@   // Authenticated users
-0x0000000A: SERVICE@         // Service accounts
-0x0000000B: SYSTEM@          // System processes
+0x00000001: OWNER@           /// File owner
+0x00000002: GROUP@           /// File group
+0x00000003: EVERYONE@        /// All users
+0x00000004: INTERACTIVE@     /// Interactive users
+0x00000005: NETWORK@         /// Network users
+0x00000006: DIALUP@          /// Dial-up users
+0x00000007: BATCH@           /// Batch jobs
+0x00000008: ANONYMOUS@       /// Anonymous users
+0x00000009: AUTHENTICATED@   /// Authenticated users
+0x0000000A: SERVICE@         /// Service accounts
+0x0000000B: SYSTEM@          /// System processes
 ```
 
 #### 6.3.8 System-Specific Metadata
@@ -1575,11 +1638,11 @@ Zoo64 supports hard links for both files and directories (like HFS+).
 
 ```c
 typedef struct _ZOO64_HARDLINK {
-  UINT64  InodeNumber;        // Inode number (for grouping hard links)
-  UINT64  DeviceId;           // Device ID (for uniqueness)
-  UINT16  TargetPathLength;   // Length of target path
-  UINT32  Flags;              // Hard link flags
-  // Followed by UTF-8 target path (first occurrence of this inode in archive)
+  UINT64  InodeNumber;        /// Inode number (for grouping hard links)
+  UINT64  DeviceId;           /// Device ID (for uniqueness)
+  UINT16  TargetPathLength;   /// Length of target path
+  UINT32  Flags;              /// Hard link flags
+  /// Followed by UTF-8 target path (first occurrence of this inode in archive)
 } ZOO64_HARDLINK;
 #pragma pack(pop)
 ```
@@ -1587,9 +1650,9 @@ typedef struct _ZOO64_HARDLINK {
 #### Hard Link Flags
 
 ```
-0x00000001: DIRECTORY_HARDLINK  // Hard link to directory (HFS+, APFS)
-0x00000002: CROSS_VOLUME        // Cross-volume hard link (rare)
-0x00000004: PRESERVED_ON_COPY   // Preserve link on copy
+0x00000001: DIRECTORY_HARDLINK  /// Hard link to directory (HFS+, APFS)
+0x00000002: CROSS_VOLUME        /// Cross-volume hard link (rare)
+0x00000004: PRESERVED_ON_COPY   /// Preserve link on copy
 ```
 
 **Note on Directory Hard Links**:
@@ -1607,9 +1670,9 @@ Files/directories with same inode+device are stored once, with multiple path ent
 
 ```c
 typedef struct _ZOO64_SYMLINK {
-  UINT16  TargetPathLength;   // Length of target path
-  UINT32  Flags;              // Symlink flags
-  // Followed by UTF-8 target path
+  UINT16  TargetPathLength;   /// Length of target path
+  UINT32  Flags;              /// Symlink flags
+  /// Followed by UTF-8 target path
 } ZOO64_SYMLINK;
 #pragma pack(pop)
 ```
@@ -1617,9 +1680,9 @@ typedef struct _ZOO64_SYMLINK {
 #### Symbolic Link Flags
 
 ```
-0x00000001: ABSOLUTE_PATH    // Absolute path (vs relative)
+0x00000001: ABSOLUTE_PATH    /// Absolute path (vs relative)
 0x00000002: DIRECTORY_TARGET // Target is a directory
-0x00000003: BROKEN_LINK      // Target doesn't exist
+0x00000003: BROKEN_LINK      /// Target doesn't exist
 0x00000004: PRESERVED_ON_COPY // Preserve symlink on copy
 ```
 
@@ -1627,17 +1690,17 @@ typedef struct _ZOO64_SYMLINK {
 
 ```c
 typedef struct _ZOO64_XATTR {
-  UINT16  NameLength;         // Length of attribute name
-  UINT32  ValueLength;        // Length of attribute value
-  UINT16  Namespace;          // Namespace (user, system, security, trusted)
-  // Followed by:
-  //   [NameLength bytes: UTF-8 name]
-  //   [ValueLength bytes: binary value]
+  UINT16  NameLength;         /// Length of attribute name
+  UINT32  ValueLength;        /// Length of attribute value
+  UINT16  Namespace;          /// Namespace (user, system, security, trusted)
+  /// Followed by:
+  ///   [NameLength bytes: UTF-8 name]
+  ///   [ValueLength bytes: binary value]
 } ZOO64_XATTR;
 #pragma pack(pop)
-0x0008: ACL_GROUP           // Named group
-0x0010: ACL_MASK            // Maximum permissions
-0x0020: ACL_OTHER           // Other permissions
+0x0008: ACL_GROUP           /// Named group
+0x0010: ACL_MASK            /// Maximum permissions
+0x0020: ACL_OTHER           /// Other permissions
 ```
 
 #### 6.3.3 NFS4 ACL Format
@@ -1646,13 +1709,13 @@ NFSv4 ACLs (RFC 7530) - used on Solaris, FreeBSD, NFSv4 exports
 
 ```c
 typedef struct _ZOO64_NFS4_ACL_ENTRY {
-  UINT32  Type;               // ALLOW, DENY, AUDIT, ALARM
-  UINT32  Flags;              // Inheritance and other flags
-  UINT32  AccessMask;         // Permission bits
-  UINT16  WhoType;            // OWNER@, GROUP@, EVERYONE@, or named
-  UINT16  WhoLength;          // Length of who string (0 for special)
-  // Followed by:
-  //   [WhoLength bytes: UTF-8 username/group] (if WhoType is named)
+  UINT32  Type;               /// ALLOW, DENY, AUDIT, ALARM
+  UINT32  Flags;              /// Inheritance and other flags
+  UINT32  AccessMask;         /// Permission bits
+  UINT16  WhoType;            /// OWNER@, GROUP@, EVERYONE@, or named
+  UINT16  WhoLength;          /// Length of who string (0 for special)
+  /// Followed by:
+  ///   [WhoLength bytes: UTF-8 username/group] (if WhoType is named)
 } ZOO64_NFS4_ACL_ENTRY;
 #pragma pack(pop)
 ```
@@ -1697,11 +1760,11 @@ NFS4 access mask:
 
 NFS4 special identities (WhoType):
 ```
-0x0001: OWNER@              // File owner
-0x0002: GROUP@              // File group
-0x0003: EVERYONE@           // All users
-0x0004: NAMED_USER          // Specific user (WhoLength > 0)
-0x0005: NAMED_GROUP         // Specific group (WhoLength > 0)
+0x0001: OWNER@              /// File owner
+0x0002: GROUP@              /// File group
+0x0003: EVERYONE@           /// All users
+0x0004: NAMED_USER          /// Specific user (WhoLength > 0)
+0x0005: NAMED_GROUP         /// Specific group (WhoLength > 0)
 ```
 
 #### 6.3.4 NT ACL Format
@@ -1710,12 +1773,12 @@ Windows NT ACLs with Security Identifiers (SIDs)
 
 ```c
 typedef struct _ZOO64_NT_ACL_ENTRY {
-  UINT32  Type;               // ACCESS_ALLOWED, ACCESS_DENIED, AUDIT, etc.
-  UINT32  Flags;              // Inheritance flags
-  UINT32  AccessMask;         // Permission bits
-  UINT16  SIDLength;          // Length of SID
-  // Followed by:
-  //   [SIDLength bytes: binary SID structure]
+  UINT32  Type;               /// ACCESS_ALLOWED, ACCESS_DENIED, AUDIT, etc.
+  UINT32  Flags;              /// Inheritance flags
+  UINT32  AccessMask;         /// Permission bits
+  UINT16  SIDLength;          /// Length of SID
+  /// Followed by:
+  ///   [SIDLength bytes: binary SID structure]
 } ZOO64_NT_ACL_ENTRY;
 #pragma pack(pop)
 ```
@@ -1771,10 +1834,10 @@ NT SID format (stored as-is):
 ```c
 #pragma pack(push, 1)
 typedef struct _NT_SID {
-  UINT8   Revision;           // Always 1
-  UINT8   SubAuthorityCount;  // Number of sub-authorities (1-15)
-  UINT8   Authority[6];       // 48-bit authority value
-  UINT32  SubAuthority[];     // Variable number of 32-bit values
+  UINT8   Revision;           /// Always 1
+  UINT8   SubAuthorityCount;  /// Number of sub-authorities (1-15)
+  UINT8   Authority[6];       /// 48-bit authority value
+  UINT32  SubAuthority[];     /// Variable number of 32-bit values
 } NT_SID;
 #pragma pack(pop)
 ```
@@ -1785,11 +1848,11 @@ macOS extended ACLs (based on NFSv4 with macOS extensions)
 
 ```c
 typedef struct _ZOO64_MACOS_ACL_ENTRY {
-  UINT8   UUID[16];           // User/group UUID (128-bit)
-  UINT32  Type;               // ALLOW, DENY
-  UINT32  Flags;              // Inheritance flags
-  UINT32  Permissions;        // Permission bits
-  UINT32  Reserved;           // Reserved for future use
+  UINT8   UUID[16];           /// User/group UUID (128-bit)
+  UINT32  Type;               /// ALLOW, DENY
+  UINT32  Flags;              /// Inheritance flags
+  UINT32  Permissions;        /// Permission bits
+  UINT32  Reserved;           /// Reserved for future use
 } ZOO64_MACOS_ACL_ENTRY;
 #pragma pack(pop)
 ```
@@ -1841,33 +1904,33 @@ OpenVMS uses both UIC-based (User Identification Code) and identifier-based ACLs
 
 ```c
 typedef struct _ZOO64_VMS_ACL_ENTRY {
-  UINT32  ACEType;            // ACE type (UIC, identifier, default)
-  UINT32  AccessMask;         // Permission bits
-  UINT32  Flags;              // ACE flags (protected, hidden, etc.)
-  UINT16  IdentifierType;     // UIC, general identifier, or facility
-  UINT16  IdentifierLength;   // Length of identifier name
-  UINT32  UIC;                // User Identification Code (if UIC type)
-  // Followed by identifier name (if named identifier)
+  UINT32  ACEType;            /// ACE type (UIC, identifier, default)
+  UINT32  AccessMask;         /// Permission bits
+  UINT32  Flags;              /// ACE flags (protected, hidden, etc.)
+  UINT16  IdentifierType;     /// UIC, general identifier, or facility
+  UINT16  IdentifierLength;   /// Length of identifier name
+  UINT32  UIC;                /// User Identification Code (if UIC type)
+  /// Followed by identifier name (if named identifier)
 } ZOO64_VMS_ACL_ENTRY;
 #pragma pack(pop)
 ```
 
 OpenVMS ACE types:
 ```
-0x0001: ACL$C_FILE     // File ACL
-0x0002: ACL$C_KEYID    // Identifier-based
-0x0003: ACL$C_ADDACC   // Access mode
-0x0004: ACL$C_DEFAULT  // Default ACL
+0x0001: ACL$C_FILE     /// File ACL
+0x0002: ACL$C_KEYID    /// Identifier-based
+0x0003: ACL$C_ADDACC   /// Access mode
+0x0004: ACL$C_DEFAULT  /// Default ACL
 ```
 
 OpenVMS access rights:
 ```
-0x0001: ACL$M_READ     // Read
-0x0002: ACL$M_WRITE    // Write
-0x0004: ACL$M_EXECUTE  // Execute
-0x0008: ACL$M_DELETE   // Delete
-0x0010: ACL$M_CONTROL  // Control (change ACL)
-0x0020: ACL$M_EXTEND   // Extend file
+0x0001: ACL$M_READ     /// Read
+0x0002: ACL$M_WRITE    /// Write
+0x0004: ACL$M_EXECUTE  /// Execute
+0x0008: ACL$M_DELETE   /// Delete
+0x0010: ACL$M_CONTROL  /// Control (change ACL)
+0x0020: ACL$M_EXTEND   /// Extend file
 0x0040: ACL$M_READ_ATTRIBUTES
 0x0080: ACL$M_WRITE_ATTRIBUTES
 ```
@@ -1878,34 +1941,34 @@ OS/400 uses object authorities and authorization lists.
 
 ```c
 typedef struct _ZOO64_OS400_ACL_ENTRY {
-  char    UserProfile[10];    // User profile name
-  UINT32  ObjectAuthority;    // Object authority bits
-  UINT32  DataAuthority;      // Data authority bits
-  UINT16  AuthorizationType;  // User, group, or *PUBLIC
-  UINT16  AuthListLength;     // Authorization list name length
-  // Followed by authorization list name (if applicable)
+  char    UserProfile[10];    /// User profile name
+  UINT32  ObjectAuthority;    /// Object authority bits
+  UINT32  DataAuthority;      /// Data authority bits
+  UINT16  AuthorizationType;  /// User, group, or *PUBLIC
+  UINT16  AuthListLength;     /// Authorization list name length
+  /// Followed by authorization list name (if applicable)
 } ZOO64_OS400_ACL_ENTRY;
 #pragma pack(pop)
 ```
 
 OS/400 object authorities:
 ```
-0x00000001: *OBJMGT    // Object management
-0x00000002: *OBJEXIST  // Object existence
-0x00000004: *OBJALTER  // Object alter
-0x00000008: *OBJREF    // Object reference
-0x00000010: *OBJOPER   // Object operational
+0x00000001: *OBJMGT    /// Object management
+0x00000002: *OBJEXIST  /// Object existence
+0x00000004: *OBJALTER  /// Object alter
+0x00000008: *OBJREF    /// Object reference
+0x00000010: *OBJOPER   /// Object operational
 ```
 
 OS/400 data authorities:
 ```
-0x00000001: *READ      // Read
-0x00000002: *ADD       // Add
-0x00000004: *UPD       // Update
-0x00000008: *DLT       // Delete
-0x00000010: *EXECUTE   // Execute
-0x00000020: *AUTL      // Authorization list management
-0x00000040: *EXCLUDE   // Exclude (deny all)
+0x00000001: *READ      /// Read
+0x00000002: *ADD       /// Add
+0x00000004: *UPD       /// Update
+0x00000008: *DLT       /// Delete
+0x00000010: *EXECUTE   /// Execute
+0x00000020: *AUTL      /// Authorization list management
+0x00000040: *EXCLUDE   /// Exclude (deny all)
 ```
 
 #### 6.3.8 MVS/RACF ACL Format
@@ -1914,12 +1977,12 @@ IBM MVS (z/OS) uses RACF (Resource Access Control Facility) for security.
 
 ```c
 typedef struct _ZOO64_RACF_ACL_ENTRY {
-  char    UserID[8];          // RACF user ID
-  char    GroupID[8];         // RACF group ID
-  UINT32  AccessLevel;        // Access level (NONE, READ, UPDATE, CONTROL, ALTER)
-  UINT32  AccessType;         // Universal, conditional, or group
-  UINT32  Flags;              // RACF flags (WARN, ERASE, etc.)
-  UINT8   SecurityLevel;      // Security level (0-255)
+  char    UserID[8];          /// RACF user ID
+  char    GroupID[8];         /// RACF group ID
+  UINT32  AccessLevel;        /// Access level (NONE, READ, UPDATE, CONTROL, ALTER)
+  UINT32  AccessType;         /// Universal, conditional, or group
+  UINT32  Flags;              /// RACF flags (WARN, ERASE, etc.)
+  UINT8   SecurityLevel;      /// Security level (0-255)
   UINT8   SecurityCategories[16]; // Security categories bitmap
 } ZOO64_RACF_ACL_ENTRY;
 #pragma pack(pop)
@@ -1927,18 +1990,18 @@ typedef struct _ZOO64_RACF_ACL_ENTRY {
 
 RACF access levels:
 ```
-0x00: NONE     // No access
-0x01: READ     // Read access
-0x02: UPDATE   // Read and write
-0x03: CONTROL  // Read, write, and change permissions
-0x04: ALTER    // Full control including delete
+0x00: NONE     /// No access
+0x01: READ     /// Read access
+0x02: UPDATE   /// Read and write
+0x03: CONTROL  /// Read, write, and change permissions
+0x04: ALTER    /// Full control including delete
 ```
 
 RACF access types:
 ```
-0x0001: UNIVERSAL   // Applies to all
+0x0001: UNIVERSAL   /// Applies to all
 0x0002: CONDITIONAL // Based on conditions
-0x0004: GROUP       // Group-based
+0x0004: GROUP       /// Group-based
 ```
 
 #### 6.3.9 Netware ACL Format
@@ -1947,25 +2010,25 @@ Novell Netware uses Trustee Rights and Inherited Rights Filters.
 
 ```c
 typedef struct _ZOO64_NETWARE_ACL_ENTRY {
-  UINT32  ObjectID;           // Netware object ID
-  UINT16  ObjectType;         // User, group, or organizational role
-  UINT16  TrusteeRights;      // Trustee rights bitmap
+  UINT32  ObjectID;           /// Netware object ID
+  UINT16  ObjectType;         /// User, group, or organizational role
+  UINT16  TrusteeRights;      /// Trustee rights bitmap
   UINT16  InheritedRightsFilter; // IRF bitmap
-  char    TrusteeName[48];    // Trustee name (NDS format)
+  char    TrusteeName[48];    /// Trustee name (NDS format)
 } ZOO64_NETWARE_ACL_ENTRY;
 #pragma pack(pop)
 ```
 
 Netware trustee rights:
 ```
-0x0001: SUPERVISOR  // [S] All rights
-0x0002: READ        // [R] Read files
-0x0004: WRITE       // [W] Write files
-0x0008: CREATE      // [C] Create files
-0x0010: ERASE       // [E] Delete files
-0x0020: MODIFY      // [M] Modify file attributes
-0x0040: FILESCAN    // [F] See files in directory
-0x0080: ACCESSCTRL  // [A] Change trustee rights
+0x0001: SUPERVISOR  /// [S] All rights
+0x0002: READ        /// [R] Read files
+0x0004: WRITE       /// [W] Write files
+0x0008: CREATE      /// [C] Create files
+0x0010: ERASE       /// [E] Delete files
+0x0020: MODIFY      /// [M] Modify file attributes
+0x0040: FILESCAN    /// [F] See files in directory
+0x0080: ACCESSCTRL  /// [A] Change trustee rights
 ```
 
 #### 6.3.10 Banyan VINES ACL Format
@@ -1975,24 +2038,24 @@ Banyan VINES uses StreetTalk directory services for permissions.
 ```c
 typedef struct _ZOO64_VINES_ACL_ENTRY {
   char    StreetTalkName[256]; // Full StreetTalk name (item@group@organization)
-  UINT32  Rights;             // Access rights bitmap
-  UINT16  EntryType;          // User, group, or list
-  UINT16  Flags;              // Entry flags
+  UINT32  Rights;             /// Access rights bitmap
+  UINT16  EntryType;          /// User, group, or list
+  UINT16  Flags;              /// Entry flags
 } ZOO64_VINES_ACL_ENTRY;
 #pragma pack(pop)
 ```
 
 VINES access rights:
 ```
-0x00000001: READ        // Read data
-0x00000002: WRITE       // Write data
-0x00000004: EXECUTE     // Execute
-0x00000008: DELETE      // Delete
-0x00000010: CREATE      // Create
-0x00000020: RENAME      // Rename
-0x00000040: ATTRIBUTES  // Change attributes
-0x00000080: SECURITY    // Change security
-0x00000100: OWNER       // Ownership rights
+0x00000001: READ        /// Read data
+0x00000002: WRITE       /// Write data
+0x00000004: EXECUTE     /// Execute
+0x00000008: DELETE      /// Delete
+0x00000010: CREATE      /// Create
+0x00000020: RENAME      /// Rename
+0x00000040: ATTRIBUTES  /// Change attributes
+0x00000080: SECURITY    /// Change security
+0x00000100: OWNER       /// Ownership rights
 ```
 
 #### 6.3.11 AFS ACL Format
@@ -2001,29 +2064,29 @@ Andrew File System (AFS) uses per-directory ACLs with specific rights.
 
 ```c
 typedef struct _ZOO64_AFS_ACL_ENTRY {
-  char    Principal[64];      // User or group principal
-  UINT32  Rights;             // AFS rights bitmap
-  UINT16  EntryType;          // Positive or negative rights
-  UINT16  Reserved;           // Reserved
+  char    Principal[64];      /// User or group principal
+  UINT32  Rights;             /// AFS rights bitmap
+  UINT16  EntryType;          /// Positive or negative rights
+  UINT16  Reserved;           /// Reserved
 } ZOO64_AFS_ACL_ENTRY;
 #pragma pack(pop)
 ```
 
 AFS rights:
 ```
-0x01: READ     // [r] Read files
-0x02: LIST     // [l] List directory
-0x04: INSERT   // [i] Insert files
-0x08: DELETE   // [d] Delete files
-0x10: WRITE    // [w] Write files
-0x20: LOCK     // [k] Lock files
-0x40: ADMIN    // [a] Administer ACL
+0x01: READ     /// [r] Read files
+0x02: LIST     /// [l] List directory
+0x04: INSERT   /// [i] Insert files
+0x08: DELETE   /// [d] Delete files
+0x10: WRITE    /// [w] Write files
+0x20: LOCK     /// [k] Lock files
+0x40: ADMIN    /// [a] Administer ACL
 ```
 
 AFS entry types:
 ```
-0x0001: POSITIVE   // Grant rights
-0x0002: NEGATIVE   // Deny rights
+0x0001: POSITIVE   /// Grant rights
+0x0002: NEGATIVE   /// Deny rights
 ```
 
 #### 6.3.12 CODA ACL Format
@@ -2032,24 +2095,24 @@ CODA distributed filesystem extends AFS ACL model.
 
 ```c
 typedef struct _ZOO64_CODA_ACL_ENTRY {
-  char    Principal[64];      // User or group principal
-  UINT32  Rights;             // CODA rights (extends AFS)
-  UINT16  EntryType;          // Positive or negative
-  UINT16  ReplicationPolicy;  // Replication-specific rights
+  char    Principal[64];      /// User or group principal
+  UINT32  Rights;             /// CODA rights (extends AFS)
+  UINT16  EntryType;          /// Positive or negative
+  UINT16  ReplicationPolicy;  /// Replication-specific rights
 } ZOO64_CODA_ACL_ENTRY;
 #pragma pack(pop)
 ```
 
 CODA rights (extends AFS):
 ```
-0x01: READ          // [r] Read files
-0x02: LIST          // [l] List directory
-0x04: INSERT        // [i] Insert files
-0x08: DELETE        // [d] Delete files
-0x10: WRITE         // [w] Write files
-0x20: LOCK          // [k] Lock files
-0x40: ADMIN         // [a] Administer ACL
-0x80: REPLICATE     // Control replication
+0x01: READ          /// [r] Read files
+0x02: LIST          /// [l] List directory
+0x04: INSERT        /// [i] Insert files
+0x08: DELETE        /// [d] Delete files
+0x10: WRITE         /// [w] Write files
+0x20: LOCK          /// [k] Lock files
+0x40: ADMIN         /// [a] Administer ACL
+0x80: REPLICATE     /// Control replication
 ```
 
 #### 6.3.13 Multiple ACL Storage
@@ -2072,12 +2135,12 @@ This allows perfect preservation and restoration of ACLs regardless of source pl
 
 ```c
 typedef struct _ZOO64_XATTR {
-  UINT16  NameLength;         // Length of attribute name
-  UINT32  ValueLength;        // Length of attribute value
-  UINT16  Namespace;          // Namespace (user, system, security, trusted)
-  // Followed by:
-  //   [NameLength bytes: UTF-8 name]
-  //   [ValueLength bytes: binary value]
+  UINT16  NameLength;         /// Length of attribute name
+  UINT32  ValueLength;        /// Length of attribute value
+  UINT16  Namespace;          /// Namespace (user, system, security, trusted)
+  /// Followed by:
+  ///   [NameLength bytes: UTF-8 name]
+  ///   [ValueLength bytes: binary value]
 } ZOO64_XATTR;
 #pragma pack(pop)
 ```
@@ -2086,12 +2149,12 @@ typedef struct _ZOO64_XATTR {
 
 ```c
 typedef struct _ZOO64_ADS {
-  UINT16  StreamNameLength;   // Length of stream name
-  UINT64  StreamSize;         // Size of stream data
-  UINT32  StreamFlags;        // Stream flags
-  // Followed by:
-  //   [StreamNameLength bytes: UTF-8 stream name]
-  //   [StreamSize bytes: stream data]
+  UINT16  StreamNameLength;   /// Length of stream name
+  UINT64  StreamSize;         /// Size of stream data
+  UINT32  StreamFlags;        /// Stream flags
+  /// Followed by:
+  ///   [StreamNameLength bytes: UTF-8 stream name]
+  ///   [StreamSize bytes: stream data]
 } ZOO64_ADS;
 #pragma pack(pop)
 ```
@@ -2102,9 +2165,9 @@ File-level YAML metadata provides flexible, extensible metadata for individual f
 
 ```c
 typedef struct _ZOO64_FILE_YAML {
-  UINT32  YamlSize;           // Size of YAML data
-  UINT32  Flags;              // YAML flags (compressed, validated, etc.)
-  // Followed by YamlSize bytes of UTF-8 YAML
+  UINT32  YamlSize;           /// Size of YAML data
+  UINT32  Flags;              /// YAML flags (compressed, validated, etc.)
+  /// Followed by YamlSize bytes of UTF-8 YAML
 } ZOO64_FILE_YAML;
 #pragma pack(pop)
 ```
@@ -2140,14 +2203,14 @@ For platforms that support additional timestamps beyond the standard four (birth
 
 ```c
 typedef struct _ZOO64_EXTENDED_TIMESTAMPS {
-  UINT64  BirthTime;          // File birth/creation time (NTP extended format)
-  UINT64  ModificationTime;   // Data modification time (NTP extended format)
-  UINT64  AccessTime;         // Last access time (NTP extended format)
-  UINT64  ChangeTime;         // Metadata change time (NTP extended format)
-  UINT64  BackupTime;         // Last backup time (NTP extended format)
-  UINT64  ArchivedTime;       // Time archived (NTP extended format)
-  UINT32  Flags;              // Timestamp flags
-  UINT32  Reserved;           // Reserved for future use
+  UINT64  BirthTime;          /// File birth/creation time (NTP extended format)
+  UINT64  ModificationTime;   /// Data modification time (NTP extended format)
+  UINT64  AccessTime;         /// Last access time (NTP extended format)
+  UINT64  ChangeTime;         /// Metadata change time (NTP extended format)
+  UINT64  BackupTime;         /// Last backup time (NTP extended format)
+  UINT64  ArchivedTime;       /// Time archived (NTP extended format)
+  UINT32  Flags;              /// Timestamp flags
+  UINT32  Reserved;           /// Reserved for future use
 } ZOO64_EXTENDED_TIMESTAMPS;
 #pragma pack(pop)
 ```
@@ -2176,9 +2239,9 @@ macOS stores UUIDs for users and groups alongside numeric IDs.
 
 ```c
 typedef struct _ZOO64_MACOS_UUID {
-  UINT8   UserUUID[16];       // User UUID (128-bit)
-  UINT8   GroupUUID[16];      // Group UUID (128-bit)
-  UINT32  Flags;              // Reserved
+  UINT8   UserUUID[16];       /// User UUID (128-bit)
+  UINT8   GroupUUID[16];      /// Group UUID (128-bit)
+  UINT32  Flags;              /// Reserved
 } ZOO64_MACOS_UUID;
 #pragma pack(pop)
 ```
@@ -2189,8 +2252,8 @@ BSD systems use file flags for immutability, append-only, etc.
 
 ```c
 typedef struct _ZOO64_BSD_FLAGS {
-  UINT32  UserFlags;          // User-settable flags
-  UINT32  SystemFlags;        // System/super-user flags
+  UINT32  UserFlags;          /// User-settable flags
+  UINT32  SystemFlags;        /// System/super-user flags
 } ZOO64_BSD_FLAGS;
 #pragma pack(pop)
 ```
@@ -2199,16 +2262,16 @@ typedef struct _ZOO64_BSD_FLAGS {
 
 ```
 User Flags:
-  UF_NODUMP      0x00000001  // Do not dump file
-  UF_IMMUTABLE   0x00000002  // File may not be changed
-  UF_APPEND      0x00000004  // Writes to file may only append
-  UF_OPAQUE      0x00000008  // Directory is opaque (union)
-  UF_HIDDEN      0x00008000  // File is hidden (macOS)
+  UF_NODUMP      0x00000001  /// Do not dump file
+  UF_IMMUTABLE   0x00000002  /// File may not be changed
+  UF_APPEND      0x00000004  /// Writes to file may only append
+  UF_OPAQUE      0x00000008  /// Directory is opaque (union)
+  UF_HIDDEN      0x00008000  /// File is hidden (macOS)
 
 System Flags:
-  SF_ARCHIVED    0x00010000  // File is archived
-  SF_IMMUTABLE   0x00020000  // File may not be changed
-  SF_APPEND      0x00040000  // Writes to file may only append
+  SF_ARCHIVED    0x00010000  /// File is archived
+  SF_IMMUTABLE   0x00020000  /// File may not be changed
+  SF_APPEND      0x00040000  /// Writes to file may only append
 ```
 
 ### 6.9 Linux Flags Format
@@ -2217,8 +2280,8 @@ Linux file attributes (chattr/lsattr).
 
 ```c
 typedef struct _ZOO64_LINUX_FLAGS {
-  UINT32  Flags;              // Linux file attributes
-  UINT32  Version;            // File version (for ext2/3/4)
+  UINT32  Flags;              /// Linux file attributes
+  UINT32  Version;            /// File version (for ext2/3/4)
 } ZOO64_LINUX_FLAGS;
 #pragma pack(pop)
 ```
@@ -2226,15 +2289,15 @@ typedef struct _ZOO64_LINUX_FLAGS {
 #### Linux Flag Definitions
 
 ```
-FS_SECRM_FL        0x00000001  // Secure deletion
-FS_UNRM_FL         0x00000002  // Undelete
-FS_COMPR_FL        0x00000004  // Compress file
-FS_SYNC_FL         0x00000008  // Synchronous updates
-FS_IMMUTABLE_FL    0x00000010  // Immutable file
-FS_APPEND_FL       0x00000020  // Append only
-FS_NODUMP_FL       0x00000040  // Do not dump file
-FS_NOATIME_FL      0x00000080  // Do not update atime
-FS_NOCOW_FL        0x00800000  // No copy-on-write (Btrfs)
+FS_SECRM_FL        0x00000001  /// Secure deletion
+FS_UNRM_FL         0x00000002  /// Undelete
+FS_COMPR_FL        0x00000004  /// Compress file
+FS_SYNC_FL         0x00000008  /// Synchronous updates
+FS_IMMUTABLE_FL    0x00000010  /// Immutable file
+FS_APPEND_FL       0x00000020  /// Append only
+FS_NODUMP_FL       0x00000040  /// Do not dump file
+FS_NOATIME_FL      0x00000080  /// Do not update atime
+FS_NOCOW_FL        0x00800000  /// No copy-on-write (Btrfs)
 ```
 
 ### 6.10 Windows Attributes Format
@@ -2243,10 +2306,10 @@ Extended Windows file attributes.
 
 ```c
 typedef struct _ZOO64_WINDOWS_ATTR {
-  UINT32  FileAttributes;     // Windows file attributes
-  UINT32  ReparseTag;         // Reparse point tag (if applicable)
-  UINT32  EaSize;             // Extended attributes size
-  // Followed by EA data if EaSize > 0
+  UINT32  FileAttributes;     /// Windows file attributes
+  UINT32  ReparseTag;         /// Reparse point tag (if applicable)
+  UINT32  EaSize;             /// Extended attributes size
+  /// Followed by EA data if EaSize > 0
 } ZOO64_WINDOWS_ATTR;
 #pragma pack(pop)
 ```
@@ -2276,10 +2339,10 @@ Stores information about hard links. Multiple files in the archive can point to 
 
 ```c
 typedef struct _ZOO64_HARDLINK {
-  UINT64  InodeNumber;        // Inode number (for grouping hard links)
-  UINT64  DeviceId;           // Device ID (for uniqueness)
-  UINT16  TargetPathLength;   // Length of target path
-  // Followed by UTF-8 target path (first occurrence of this inode in archive)
+  UINT64  InodeNumber;        /// Inode number (for grouping hard links)
+  UINT64  DeviceId;           /// Device ID (for uniqueness)
+  UINT16  TargetPathLength;   /// Length of target path
+  /// Followed by UTF-8 target path (first occurrence of this inode in archive)
 } ZOO64_HARDLINK;
 #pragma pack(pop)
 ```
@@ -2292,9 +2355,9 @@ Stores symbolic link target path.
 
 ```c
 typedef struct _ZOO64_SYMLINK {
-  UINT16  TargetPathLength;   // Length of target path
-  UINT32  Flags;              // Symlink flags
-  // Followed by UTF-8 target path
+  UINT16  TargetPathLength;   /// Length of target path
+  UINT32  Flags;              /// Symlink flags
+  /// Followed by UTF-8 target path
 } ZOO64_SYMLINK;
 #pragma pack(pop)
 ```
@@ -2314,18 +2377,18 @@ OpenVMS (formerly VMS) uses the Files-11 On-Disk Structure Level 5 (ODS-5) files
 
 ```c
 typedef struct _ZOO64_ODS5_ATTR {
-  UINT16  RecordType;         // Record format (fixed, variable, stream, etc.)
-  UINT16  RecordAttributes;   // Record attributes (Fortran CC, print, etc.)
-  UINT32  RecordSize;         // Fixed record size (or max for variable)
-  UINT32  FileOrganization;   // Sequential, relative, indexed
+  UINT16  RecordType;         /// Record format (fixed, variable, stream, etc.)
+  UINT16  RecordAttributes;   /// Record attributes (Fortran CC, print, etc.)
+  UINT32  RecordSize;         /// Fixed record size (or max for variable)
+  UINT32  FileOrganization;   /// Sequential, relative, indexed
   UINT16  FileCharacteristics;// File characteristics bits
-  UINT16  RecordFormatFlags;  // Additional record format flags
-  UINT32  HighWaterMark;      // Highest block written
-  UINT32  EndOfFileBlock;     // End-of-file block number
-  UINT16  EndOfFileOffset;    // Byte offset in EOF block
-  UINT16  FileVersion;        // File version number (;1, ;2, etc.)
-  UINT32  UserPrivileges;     // User privilege mask
-  char    FileID[16];         // Volume-unique file identifier (FID)
+  UINT16  RecordFormatFlags;  /// Additional record format flags
+  UINT32  HighWaterMark;      /// Highest block written
+  UINT32  EndOfFileBlock;     /// End-of-file block number
+  UINT16  EndOfFileOffset;    /// Byte offset in EOF block
+  UINT16  FileVersion;        /// File version number (;1, ;2, etc.)
+  UINT32  UserPrivileges;     /// User privilege mask
+  char    FileID[16];         /// Volume-unique file identifier (FID)
 } ZOO64_ODS5_ATTR;
 #pragma pack(pop)
 ```
@@ -2333,11 +2396,11 @@ typedef struct _ZOO64_ODS5_ATTR {
 #### ODS-5 Record Types
 
 ```
-0x0001: RFM_UDF  // Undefined (stream)
-0x0002: RFM_FIX  // Fixed-length records
-0x0003: RFM_VAR  // Variable-length records
-0x0004: RFM_VFC  // Variable with fixed control
-0x0005: RFM_STM  // Stream (LF-terminated)
+0x0001: RFM_UDF  /// Undefined (stream)
+0x0002: RFM_FIX  /// Fixed-length records
+0x0003: RFM_VAR  /// Variable-length records
+0x0004: RFM_VFC  /// Variable with fixed control
+0x0005: RFM_STM  /// Stream (LF-terminated)
 0x0006: RFM_STMLF // Stream LF
 0x0007: RFM_STMCR // Stream CR
 ```
@@ -2345,27 +2408,27 @@ typedef struct _ZOO64_ODS5_ATTR {
 #### ODS-5 File Organization
 
 ```
-0x0001: FAB$C_SEQ  // Sequential
-0x0002: FAB$C_REL  // Relative
-0x0003: FAB$C_IDX  // Indexed (ISAM)
-0x0004: FAB$C_HSH  // Hashed
+0x0001: FAB$C_SEQ  /// Sequential
+0x0002: FAB$C_REL  /// Relative
+0x0003: FAB$C_IDX  /// Indexed (ISAM)
+0x0004: FAB$C_HSH  /// Hashed
 ```
 
 #### ODS-5 File Characteristics
 
 ```
-0x0001: FCH$V_NOBACKUP    // Don't backup
-0x0002: FCH$V_WRITECHECK  // Verify all writes
-0x0004: FCH$V_READCHECK   // Verify all reads
-0x0008: FCH$V_CONTIG      // Contiguous allocation
-0x0010: FCH$V_LOCKED      // File locked
-0x0020: FCH$V_CONTIGB     // Contiguous best try
-0x0040: FCH$V_SPOOL       // Spool file (intermediate)
-0x0080: FCH$V_DIRECTORY   // Directory file
-0x0100: FCH$V_BADBLOCK    // Bad block processing
-0x0200: FCH$V_MARKDEL     // Mark for delete
-0x0400: FCH$V_NOCHARGE    // Don't charge quota
-0x0800: FCH$V_ERASE       // Erase on delete
+0x0001: FCH$V_NOBACKUP    /// Don't backup
+0x0002: FCH$V_WRITECHECK  /// Verify all writes
+0x0004: FCH$V_READCHECK   /// Verify all reads
+0x0008: FCH$V_CONTIG      /// Contiguous allocation
+0x0010: FCH$V_LOCKED      /// File locked
+0x0020: FCH$V_CONTIGB     /// Contiguous best try
+0x0040: FCH$V_SPOOL       /// Spool file (intermediate)
+0x0080: FCH$V_DIRECTORY   /// Directory file
+0x0100: FCH$V_BADBLOCK    /// Bad block processing
+0x0200: FCH$V_MARKDEL     /// Mark for delete
+0x0400: FCH$V_NOCHARGE    /// Don't charge quota
+0x0800: FCH$V_ERASE       /// Erase on delete
 ```
 
 ### 6.14 z/OS Dataset Attributes
@@ -2374,21 +2437,21 @@ IBM z/OS (formerly OS/390, MVS) mainframe filesystem metadata for datasets.
 
 ```c
 typedef struct _ZOO64_ZOS_ATTR {
-  char    DatasetName[44];    // Fully qualified dataset name (DSNAME)
+  char    DatasetName[44];    /// Fully qualified dataset name (DSNAME)
   UINT8   DatasetOrganization;// DSORG (PS, PO, DA, IS, VS)
-  UINT8   RecordFormat;       // RECFM (F, FB, V, VB, U, etc.)
+  UINT8   RecordFormat;       /// RECFM (F, FB, V, VB, U, etc.)
   UINT16  LogicalRecordLength;// LRECL
-  UINT32  BlockSize;          // BLKSIZE
-  UINT16  PrimarySpace;       // Primary space allocation (tracks/cylinders/blocks)
-  UINT16  SecondarySpace;     // Secondary space allocation
-  UINT8   SpaceUnit;          // Space unit (tracks, cylinders, blocks, etc.)
-  UINT8   DirectoryBlocks;    // Directory blocks (for PDS)
-  char    DataClass[8];       // SMS data class
-  char    StorageClass[8];    // SMS storage class
+  UINT32  BlockSize;          /// BLKSIZE
+  UINT16  PrimarySpace;       /// Primary space allocation (tracks/cylinders/blocks)
+  UINT16  SecondarySpace;     /// Secondary space allocation
+  UINT8   SpaceUnit;          /// Space unit (tracks, cylinders, blocks, etc.)
+  UINT8   DirectoryBlocks;    /// Directory blocks (for PDS)
+  char    DataClass[8];       /// SMS data class
+  char    StorageClass[8];    /// SMS storage class
   char    ManagementClass[8]; // SMS management class
-  char    VolSer[6];          // Volume serial number
-  UINT16  DatasetType;        // PDS, PDSE, HFS, zFS
-  UINT32  Flags;              // Various dataset flags
+  char    VolSer[6];          /// Volume serial number
+  UINT16  DatasetType;        /// PDS, PDSE, HFS, zFS
+  UINT32  Flags;              /// Various dataset flags
 } ZOO64_ZOS_ATTR;
 #pragma pack(pop)
 ```
@@ -2396,48 +2459,48 @@ typedef struct _ZOO64_ZOS_ATTR {
 #### z/OS Dataset Organization (DSORG)
 
 ```
-0x01: PS   // Physical Sequential
-0x02: PO   // Partitioned (PDS)
-0x04: DA   // Direct Access
-0x08: IS   // Indexed Sequential (ISAM)
-0x10: VS   // VSAM
-0x20: PSU  // Unmovable PS
-0x40: POU  // Unmovable PO
+0x01: PS   /// Physical Sequential
+0x02: PO   /// Partitioned (PDS)
+0x04: DA   /// Direct Access
+0x08: IS   /// Indexed Sequential (ISAM)
+0x10: VS   /// VSAM
+0x20: PSU  /// Unmovable PS
+0x40: POU  /// Unmovable PO
 ```
 
 #### z/OS Record Format (RECFM)
 
 ```
-0x01: F    // Fixed
-0x02: FB   // Fixed Blocked
-0x03: V    // Variable
-0x04: VB   // Variable Blocked
-0x05: U    // Undefined
-0x06: FBA  // Fixed Blocked ASCII
-0x07: VBA  // Variable Blocked ASCII
-0x08: FBM  // Fixed Blocked Machine code
-0x09: VBM  // Variable Blocked Machine code
+0x01: F    /// Fixed
+0x02: FB   /// Fixed Blocked
+0x03: V    /// Variable
+0x04: VB   /// Variable Blocked
+0x05: U    /// Undefined
+0x06: FBA  /// Fixed Blocked ASCII
+0x07: VBA  /// Variable Blocked ASCII
+0x08: FBM  /// Fixed Blocked Machine code
+0x09: VBM  /// Variable Blocked Machine code
 ```
 
 #### z/OS Space Units
 
 ```
-0x01: TRK  // Tracks
-0x02: CYL  // Cylinders
-0x03: BLK  // Blocks
-0x04: KB   // Kilobytes
-0x05: MB   // Megabytes
+0x01: TRK  /// Tracks
+0x02: CYL  /// Cylinders
+0x03: BLK  /// Blocks
+0x04: KB   /// Kilobytes
+0x05: MB   /// Megabytes
 ```
 
 #### z/OS Dataset Types
 
 ```
-0x0001: PDS   // Partitioned Dataset
-0x0002: PDSE  // Partitioned Dataset Extended
-0x0004: HFS   // Hierarchical File System
-0x0008: ZFS   // zSeries File System
-0x0010: VSAM  // Virtual Storage Access Method
-0x0020: SEQ   // Sequential
+0x0001: PDS   /// Partitioned Dataset
+0x0002: PDSE  /// Partitioned Dataset Extended
+0x0004: HFS   /// Hierarchical File System
+0x0008: ZFS   /// zSeries File System
+0x0010: VSAM  /// Virtual Storage Access Method
+0x0020: SEQ   /// Sequential
 ```
 
 ### 6.15 OS/400 (IBM i) Attributes
@@ -2446,22 +2509,22 @@ IBM i (formerly OS/400, AS/400) integrated filesystem metadata.
 
 ```c
 typedef struct _ZOO64_OS400_ATTR {
-  char    Library[10];        // Library name
-  char    Object[10];         // Object name
-  char    Member[10];         // Member name (for source/data files)
-  char    ObjectType[10];     // Object type (*FILE, *PGM, *DTAARA, etc.)
-  char    SourceType[10];     // Source type (RPG, CLP, DSPF, etc.)
-  UINT32  CCSID;              // Coded Character Set ID
-  UINT8   FileType;           // Physical, logical, source, data
-  UINT8   FileOrganization;   // Sequential, keyed, stream
-  UINT16  RecordLength;       // Record length
-  UINT32  MemberCount;        // Number of members (for multi-member files)
+  char    Library[10];        /// Library name
+  char    Object[10];         /// Object name
+  char    Member[10];         /// Member name (for source/data files)
+  char    ObjectType[10];     /// Object type (*FILE, *PGM, *DTAARA, etc.)
+  char    SourceType[10];     /// Source type (RPG, CLP, DSPF, etc.)
+  UINT32  CCSID;              /// Coded Character Set ID
+  UINT8   FileType;           /// Physical, logical, source, data
+  UINT8   FileOrganization;   /// Sequential, keyed, stream
+  UINT16  RecordLength;       /// Record length
+  UINT32  MemberCount;        /// Number of members (for multi-member files)
   char    TextDescription[50];// Object text description
-  UINT64  CreateTimestamp;    // Create timestamp (NTP extended format)
-  UINT64  ChangeTimestamp;    // Last change timestamp (NTP extended format)
-  char    OwnerProfile[10];   // Owner user profile
-  char    Authority[10];      // Primary group authority
-  UINT32  Flags;              // Various OS/400 flags
+  UINT64  CreateTimestamp;    /// Create timestamp (NTP extended format)
+  UINT64  ChangeTimestamp;    /// Last change timestamp (NTP extended format)
+  char    OwnerProfile[10];   /// Owner user profile
+  char    Authority[10];      /// Primary group authority
+  UINT32  Flags;              /// Various OS/400 flags
 } ZOO64_OS400_ATTR;
 #pragma pack(pop)
 ```
@@ -2469,31 +2532,31 @@ typedef struct _ZOO64_OS400_ATTR {
 #### OS/400 Object Types (common)
 
 ```
-*FILE      // Database file
-*PGM       // Program
-*DTAARA    // Data area
-*DTAQ      // Data queue
-*USRPRF    // User profile
-*MSGQ      // Message queue
-*OUTQ      // Output queue
-*JOBQ      // Job queue
-*LIB       // Library
-*CMD       // Command
-*MENU      // Menu
-*PNLGRP    // Panel group
-*QRYDFN    // Query definition
+*FILE      /// Database file
+*PGM       /// Program
+*DTAARA    /// Data area
+*DTAQ      /// Data queue
+*USRPRF    /// User profile
+*MSGQ      /// Message queue
+*OUTQ      /// Output queue
+*JOBQ      /// Job queue
+*LIB       /// Library
+*CMD       /// Command
+*MENU      /// Menu
+*PNLGRP    /// Panel group
+*QRYDFN    /// Query definition
 ```
 
 #### OS/400 File Types
 
 ```
-0x01: PF   // Physical file
-0x02: LF   // Logical file
+0x01: PF   /// Physical file
+0x02: LF   /// Logical file
 0x03: DSPF // Display file
 0x04: PRTF // Printer file
 0x05: SAVF // Save file
 0x06: TAPF // Tape file
-0x07: SRC  // Source physical file
+0x07: SRC  /// Source physical file
 0x08: DATA // Data physical file
 ```
 
@@ -2558,19 +2621,19 @@ Apple Lisa Office System (1983-1985) had a sophisticated document-based filesyst
 
 ```c
 typedef struct _ZOO64_LISA_ATTR {
-  char    DocumentType[32];   // Document type (LisaWrite, LisaCalc, etc.)
-  UINT32  PrivateData[4];     // Application private data
-  char    DocumentName[32];   // Original document name (Lisa limit: 31 chars)
-  UINT32  PaperType;          // Paper size (US Letter, A4, Legal, etc.)
-  UINT16  Version;            // Document version number
-  UINT16  Edition;            // Document edition number
-  UINT32  IconResourceID;     // Resource ID of document icon
-  UINT32  Password;           // Password hash (if password protected)
-  UINT32  Flags;              // Lisa-specific flags
-  UINT64  CreationDate;       // Lisa creation date (NTP extended format)
-  UINT64  ModificationDate;   // Lisa modification date (NTP extended format)
-  char    Application[32];    // Creating application name
-  char    StationeryPad[32];  // Stationery pad template (if any)
+  char    DocumentType[32];   /// Document type (LisaWrite, LisaCalc, etc.)
+  UINT32  PrivateData[4];     /// Application private data
+  char    DocumentName[32];   /// Original document name (Lisa limit: 31 chars)
+  UINT32  PaperType;          /// Paper size (US Letter, A4, Legal, etc.)
+  UINT16  Version;            /// Document version number
+  UINT16  Edition;            /// Document edition number
+  UINT32  IconResourceID;     /// Resource ID of document icon
+  UINT32  Password;           /// Password hash (if password protected)
+  UINT32  Flags;              /// Lisa-specific flags
+  UINT64  CreationDate;       /// Lisa creation date (NTP extended format)
+  UINT64  ModificationDate;   /// Lisa modification date (NTP extended format)
+  char    Application[32];    /// Creating application name
+  char    StationeryPad[32];  /// Stationery pad template (if any)
 } ZOO64_LISA_ATTR;
 #pragma pack(pop)
 ```
@@ -2578,13 +2641,13 @@ typedef struct _ZOO64_LISA_ATTR {
 #### Lisa Document Types (common)
 
 ```
-"LisaWrite/DOCUMENT"   // LisaWrite word processor document
-"LisaCalc/WORKSHEET"   // LisaCalc spreadsheet
-"LisaDraw/DRAWING"     // LisaDraw graphics document
-"LisaGraph/GRAPH"      // LisaGraph business graphics
-"LisaProject/PROJECT"  // LisaProject project management
-"LisaList/DATABASE"    // LisaList database
-"LisaTerminal/SETUP"   // LisaTerminal configuration
+"LisaWrite/DOCUMENT"   /// LisaWrite word processor document
+"LisaCalc/WORKSHEET"   /// LisaCalc spreadsheet
+"LisaDraw/DRAWING"     /// LisaDraw graphics document
+"LisaGraph/GRAPH"      /// LisaGraph business graphics
+"LisaProject/PROJECT"  /// LisaProject project management
+"LisaList/DATABASE"    /// LisaList database
+"LisaTerminal/SETUP"   /// LisaTerminal configuration
 ```
 
 #### Lisa Paper Types
@@ -2600,12 +2663,12 @@ typedef struct _ZOO64_LISA_ATTR {
 #### Lisa Document Flags
 
 ```
-0x00000001: STATIONERY        // Document is stationery
+0x00000001: STATIONERY        /// Document is stationery
 0x00000002: PASSWORD_PROTECTED // Password required
-0x00000004: COPY_PROTECTED     // Copy protection enabled
-0x00000008: PRINT_PROTECTED    // Print protection enabled
-0x00000010: SHARED_DOCUMENT    // Multi-user shared document
-0x00000020: AUTO_SAVE          // Auto-save enabled
+0x00000004: COPY_PROTECTED     /// Copy protection enabled
+0x00000008: PRINT_PROTECTED    /// Print protection enabled
+0x00000010: SHARED_DOCUMENT    /// Multi-user shared document
+0x00000020: AUTO_SAVE          /// Auto-save enabled
 ```
 
 **Note**: Lisa Office System metadata is primarily of historical interest for archival purposes. Modern implementations should store Lisa documents with full metadata preservation for digital archaeology and computing history research.
@@ -2616,39 +2679,39 @@ UNIVAC 2200 series (1100/2200) mainframe filesystem metadata.
 
 ```c
 typedef struct _ZOO64_UNIVAC_ATTR {
-  char    FileName[12];       // File name (12 characters max)
-  char    Qualifier[12];      // File qualifier
-  char    ProjectID[12];      // Project identifier
-  UINT16  FileType;           // File type (program, data, etc.)
-  UINT16  FileOrganization;   // Sequential, random, indexed
-  UINT32  GranuleSize;        // Granule size (allocation unit)
-  UINT32  MaxGranules;        // Maximum granules allocated
-  UINT32  HighGranule;        // Highest granule used
-  UINT16  RecordSize;         // Logical record size (words)
-  UINT8   WordSize;           // Word size (36 or 9-bit bytes)
-  UINT8   FileClass;          // Removable, cataloged, etc.
-  UINT32  CatalogInfo;        // Catalog information
-  UINT16  SecurityLevel;      // Security classification
-  UINT32  Flags;              // File characteristic flags
+  char    FileName[12];       /// File name (12 characters max)
+  char    Qualifier[12];      /// File qualifier
+  char    ProjectID[12];      /// Project identifier
+  UINT16  FileType;           /// File type (program, data, etc.)
+  UINT16  FileOrganization;   /// Sequential, random, indexed
+  UINT32  GranuleSize;        /// Granule size (allocation unit)
+  UINT32  MaxGranules;        /// Maximum granules allocated
+  UINT32  HighGranule;        /// Highest granule used
+  UINT16  RecordSize;         /// Logical record size (words)
+  UINT8   WordSize;           /// Word size (36 or 9-bit bytes)
+  UINT8   FileClass;          /// Removable, cataloged, etc.
+  UINT32  CatalogInfo;        /// Catalog information
+  UINT16  SecurityLevel;      /// Security classification
+  UINT32  Flags;              /// File characteristic flags
 } ZOO64_UNIVAC_ATTR;
 #pragma pack(pop)
 ```
 
 UNIVAC file types:
 ```
-0x01: PROGRAM    // Executable program
-0x02: DATA       // Data file
-0x03: LIBRARY    // Object library
-0x04: SOURCE     // Source code
-0x05: PRINT      // Print file
-0x06: PUNCH      // Card punch format
+0x01: PROGRAM    /// Executable program
+0x02: DATA       /// Data file
+0x03: LIBRARY    /// Object library
+0x04: SOURCE     /// Source code
+0x05: PRINT      /// Print file
+0x06: PUNCH      /// Card punch format
 ```
 
 UNIVAC file organization:
 ```
 0x01: SEQUENTIAL // Sequential access
-0x02: RANDOM     // Random access
-0x03: INDEXED    // Indexed sequential
+0x02: RANDOM     /// Random access
+0x03: INDEXED    /// Indexed sequential
 ```
 
 ### 6.18 PDP-10 Attributes
@@ -2657,19 +2720,19 @@ PDP-10 systems (TENEX, ITS, TOPS-10, TOPS-20) filesystem metadata.
 
 ```c
 typedef struct _ZOO64_PDP10_ATTR {
-  char    FileName[40];       // File name (6-char name + extension)
-  UINT32  ProtectionCode;     // Protection code (octal format)
-  UINT16  AccountNumber;      // Account number
-  char    Author[40];         // Author/creator name
-  UINT64  CreationDate;       // Creation date (NTP extended format)
-  UINT64  WriteDate;          // Last write date (NTP extended format)
-  UINT64  ReadDate;           // Last read date (NTP extended format)
-  UINT32  ByteSize;           // Byte size (7, 8, 9, 18, 36 bits)
-  UINT32  PageCount;          // Number of pages (512-word pages)
-  UINT16  FileMode;           // File mode (ASCII, binary, etc.)
-  UINT16  System;             // System type (TENEX, ITS, TOPS-10, TOPS-20)
-  UINT32  Generation;         // Generation number (version)
-  UINT32  Flags;              // System-specific flags
+  char    FileName[40];       /// File name (6-char name + extension)
+  UINT32  ProtectionCode;     /// Protection code (octal format)
+  UINT16  AccountNumber;      /// Account number
+  char    Author[40];         /// Author/creator name
+  UINT64  CreationDate;       /// Creation date (NTP extended format)
+  UINT64  WriteDate;          /// Last write date (NTP extended format)
+  UINT64  ReadDate;           /// Last read date (NTP extended format)
+  UINT32  ByteSize;           /// Byte size (7, 8, 9, 18, 36 bits)
+  UINT32  PageCount;          /// Number of pages (512-word pages)
+  UINT16  FileMode;           /// File mode (ASCII, binary, etc.)
+  UINT16  System;             /// System type (TENEX, ITS, TOPS-10, TOPS-20)
+  UINT32  Generation;         /// Generation number (version)
+  UINT32  Flags;              /// System-specific flags
 } ZOO64_PDP10_ATTR;
 #pragma pack(pop)
 ```
@@ -2685,10 +2748,10 @@ Example: 0644 = owner:rw, group:r, world:r
 
 PDP-10 systems:
 ```
-0x01: TENEX      // TENEX operating system
-0x02: ITS        // Incompatible Timesharing System
-0x03: TOPS10     // TOPS-10
-0x04: TOPS20     // TOPS-20
+0x01: TENEX      /// TENEX operating system
+0x02: ITS        /// Incompatible Timesharing System
+0x03: TOPS10     /// TOPS-10
+0x04: TOPS20     /// TOPS-20
 ```
 
 ### 6.19 Classic Mac OS Attributes
@@ -2697,38 +2760,38 @@ Classic Macintosh System (System 1-9, pre-OS X) filesystem metadata.
 
 ```c
 typedef struct _ZOO64_CLASSIC_MAC_ATTR {
-  char    TypeCode[4];        // File type code (e.g., 'TEXT', 'APPL')
-  char    CreatorCode[4];     // Creator application code
-  UINT16  FinderFlags;        // Finder flags
-  INT16   IconPositionV;      // Vertical icon position
-  INT16   IconPositionH;      // Horizontal icon position
-  UINT16  FolderID;           // Folder ID
-  UINT32  LabelColor;         // Label color (0-7)
-  UINT16  ScriptCode;         // Script code for name
+  char    TypeCode[4];        /// File type code (e.g., 'TEXT', 'APPL')
+  char    CreatorCode[4];     /// Creator application code
+  UINT16  FinderFlags;        /// Finder flags
+  INT16   IconPositionV;      /// Vertical icon position
+  INT16   IconPositionH;      /// Horizontal icon position
+  UINT16  FolderID;           /// Folder ID
+  UINT32  LabelColor;         /// Label color (0-7)
+  UINT16  ScriptCode;         /// Script code for name
   UINT16  ExtendedFinderFlags;// Extended Finder flags
-  INT32   CommentID;          // Comment ID (-1 if none)
-  UINT32  PutAwayFolderID;    // "Put Away" folder ID
-  UINT16  IconID;             // Custom icon ID
-  UINT8   VersionMajor;       // File version (major)
-  UINT8   VersionMinor;       // File version (minor)
+  INT32   CommentID;          /// Comment ID (-1 if none)
+  UINT32  PutAwayFolderID;    /// "Put Away" folder ID
+  UINT16  IconID;             /// Custom icon ID
+  UINT8   VersionMajor;       /// File version (major)
+  UINT8   VersionMinor;       /// File version (minor)
 } ZOO64_CLASSIC_MAC_ATTR;
 #pragma pack(pop)
 ```
 
 Finder flags:
 ```
-0x0001: IS_ON_DESK       // File is on desktop
-0x0002: COLOR            // Color (not B&W) icon
+0x0001: IS_ON_DESK       /// File is on desktop
+0x0002: COLOR            /// Color (not B&W) icon
 0x0004: REQUIRES_SWITCH_LAUNCH // Requires mode switch
-0x0008: IS_SHARED        // Multiple users can run simultaneously
-0x0010: HAS_NO_INITS     // Has no INIT resources
-0x0020: HAS_BEEN_INITED  // Has been initialized
-0x0040: HAS_CUSTOM_ICON  // Has custom icon
-0x0080: IS_STATIONERY    // Is stationery pad
-0x0100: NAME_LOCKED      // Name is locked
-0x0200: HAS_BUNDLE       // Has BNDL resource
-0x0400: IS_INVISIBLE     // Invisible to Finder
-0x0800: IS_ALIAS         // Is an alias file
+0x0008: IS_SHARED        /// Multiple users can run simultaneously
+0x0010: HAS_NO_INITS     /// Has no INIT resources
+0x0020: HAS_BEEN_INITED  /// Has been initialized
+0x0040: HAS_CUSTOM_ICON  /// Has custom icon
+0x0080: IS_STATIONERY    /// Is stationery pad
+0x0100: NAME_LOCKED      /// Name is locked
+0x0200: HAS_BUNDLE       /// Has BNDL resource
+0x0400: IS_INVISIBLE     /// Invisible to Finder
+0x0800: IS_ALIAS         /// Is an alias file
 ```
 
 Common type codes:
@@ -2749,28 +2812,28 @@ Commodore Amiga AmigaDOS filesystem metadata.
 
 ```c
 typedef struct _ZOO64_AMIGA_ATTR {
-  char    Comment[80];        // File comment
-  UINT32  ProtectionBits;     // Protection bits (DEWD ARWED)
-  UINT32  DaysFromEpoch;      // Days since 1978-01-01
-  UINT32  Minutes;            // Minutes since midnight
-  UINT32  Ticks;              // Ticks (1/50 second)
-  UINT16  FileType;           // File, directory, link
-  UINT32  ScriptBits;         // Script execution bits
-  UINT32  Flags;              // Additional flags
+  char    Comment[80];        /// File comment
+  UINT32  ProtectionBits;     /// Protection bits (DEWD ARWED)
+  UINT32  DaysFromEpoch;      /// Days since 1978-01-01
+  UINT32  Minutes;            /// Minutes since midnight
+  UINT32  Ticks;              /// Ticks (1/50 second)
+  UINT16  FileType;           /// File, directory, link
+  UINT32  ScriptBits;         /// Script execution bits
+  UINT32  Flags;              /// Additional flags
 } ZOO64_AMIGA_ATTR;
 #pragma pack(pop)
 ```
 
 Amiga protection bits (inverted logic - bit SET means permission DENIED):
 ```
-0x00000001: DELETE      // [D] File deletable
-0x00000002: EXECUTE     // [E] File executable
-0x00000004: WRITE       // [W] File writable
-0x00000008: READ        // [R] File readable
-0x00000010: ARCHIVE     // [A] Archive bit
-0x00000020: PURE        // [P] Re-entrant/pure
-0x00000040: SCRIPT      // [S] Script file
-0x00000080: HOLD        // [H] Hold (for multi-user)
+0x00000001: DELETE      /// [D] File deletable
+0x00000002: EXECUTE     /// [E] File executable
+0x00000004: WRITE       /// [W] File writable
+0x00000008: READ        /// [R] File readable
+0x00000010: ARCHIVE     /// [A] Archive bit
+0x00000020: PURE        /// [P] Re-entrant/pure
+0x00000040: SCRIPT      /// [S] Script file
+0x00000080: HOLD        /// [H] Hold (for multi-user)
 ```
 
 ### 6.21 Atari TOS/GEM Attributes
@@ -2779,25 +2842,25 @@ Atari ST/TT/Falcon TOS and GEM filesystem metadata.
 
 ```c
 typedef struct _ZOO64_ATARI_ATTR {
-  UINT8   Attributes;         // File attributes
-  UINT16  Time;               // MS-DOS format time
-  UINT16  Date;               // MS-DOS format date
-  UINT32  StartCluster;       // Starting cluster
-  char    GEMType[4];         // GEM file type
-  UINT16  GEMIcon;            // GEM icon number
-  UINT32  Flags;              // TOS flags
+  UINT8   Attributes;         /// File attributes
+  UINT16  Time;               /// MS-DOS format time
+  UINT16  Date;               /// MS-DOS format date
+  UINT32  StartCluster;       /// Starting cluster
+  char    GEMType[4];         /// GEM file type
+  UINT16  GEMIcon;            /// GEM icon number
+  UINT32  Flags;              /// TOS flags
 } ZOO64_ATARI_ATTR;
 #pragma pack(pop)
 ```
 
 Atari file attributes:
 ```
-0x01: READ_ONLY   // Read-only file
-0x02: HIDDEN      // Hidden file
-0x04: SYSTEM      // System file
-0x08: VOLUME      // Volume label
-0x10: DIRECTORY   // Directory
-0x20: ARCHIVE     // Archive bit
+0x01: READ_ONLY   /// Read-only file
+0x02: HIDDEN      /// Hidden file
+0x04: SYSTEM      /// System file
+0x08: VOLUME      /// Volume label
+0x10: DIRECTORY   /// Directory
+0x20: ARCHIVE     /// Archive bit
 ```
 
 ### 6.22 Acorn RISC OS Attributes
@@ -2806,12 +2869,12 @@ Acorn Archimedes RISC OS filesystem metadata.
 
 ```c
 typedef struct _ZOO64_RISC_OS_ATTR {
-  UINT32  LoadAddress;        // Load address (or filetype if bit 12 set)
-  UINT32  ExecAddress;        // Execution address (or timestamp)
-  UINT32  Attributes;         // File attributes
-  UINT16  FileType;           // File type (12-bit, 0xFFF = untyped)
-  UINT64  Timestamp;          // RISC OS timestamp (centiseconds since 1900)
-  char    SpriteName[12];     // Associated sprite name
+  UINT32  LoadAddress;        /// Load address (or filetype if bit 12 set)
+  UINT32  ExecAddress;        /// Execution address (or timestamp)
+  UINT32  Attributes;         /// File attributes
+  UINT16  FileType;           /// File type (12-bit, 0xFFF = untyped)
+  UINT64  Timestamp;          /// RISC OS timestamp (centiseconds since 1900)
+  char    SpriteName[12];     /// Associated sprite name
 } ZOO64_RISC_OS_ATTR;
 #pragma pack(pop)
 ```
@@ -2844,33 +2907,33 @@ Commodore 64 and 128 disk filesystem metadata.
 
 ```c
 typedef struct _ZOO64_C64_ATTR {
-  char    PETSCIIName[16];    // PETSCII filename
-  UINT8   FileType;           // File type (PRG, SEQ, USR, REL)
-  UINT8   RecordLength;       // Record length (REL files)
-  UINT16  StartAddress;       // Load address (PRG files)
-  UINT16  BlocksUsed;         // Number of blocks used
-  UINT8   DriveNumber;        // Drive number (0-1)
-  UINT8   TrackSector[2];     // Track and sector of first block
-  UINT8   Flags;              // File flags (locked, etc.)
-  UINT8   GEOSType;           // GEOS file type (if GEOS)
-  UINT8   GEOSStructure;      // GEOS file structure
+  char    PETSCIIName[16];    /// PETSCII filename
+  UINT8   FileType;           /// File type (PRG, SEQ, USR, REL)
+  UINT8   RecordLength;       /// Record length (REL files)
+  UINT16  StartAddress;       /// Load address (PRG files)
+  UINT16  BlocksUsed;         /// Number of blocks used
+  UINT8   DriveNumber;        /// Drive number (0-1)
+  UINT8   TrackSector[2];     /// Track and sector of first block
+  UINT8   Flags;              /// File flags (locked, etc.)
+  UINT8   GEOSType;           /// GEOS file type (if GEOS)
+  UINT8   GEOSStructure;      /// GEOS file structure
 } ZOO64_C64_ATTR;
 #pragma pack(pop)
 ```
 
 C64 file types:
 ```
-0x00: DEL  // Deleted (scratched)
-0x01: SEQ  // Sequential
-0x02: PRG  // Program
-0x03: USR  // User
-0x04: REL  // Relative (random access)
+0x00: DEL  /// Deleted (scratched)
+0x01: SEQ  /// Sequential
+0x02: PRG  /// Program
+0x03: USR  /// User
+0x04: REL  /// Relative (random access)
 ```
 
 C64 file flags:
 ```
-0x40: LOCKED     // File is write-protected
-0x80: CLOSED     // File properly closed
+0x40: LOCKED     /// File is write-protected
+0x80: CLOSED     /// File properly closed
 ```
 
 ### 6.24 Apple IIGS ProDOS Attributes
@@ -2879,47 +2942,47 @@ Apple IIGS ProDOS 16 and GS/OS filesystem metadata.
 
 ```c
 typedef struct _ZOO64_PRODOS_ATTR {
-  UINT8   FileType;           // ProDOS file type
-  UINT16  AuxType;            // Auxiliary type
-  UINT8   Access;             // Access flags
-  UINT16  StorageType;        // Storage type
-  UINT64  CreateTime;         // ProDOS timestamp (NTP format)
-  UINT64  ModTime;            // ProDOS timestamp (NTP format)
-  UINT32  BlocksUsed;         // Blocks used
-  UINT16  VersionCreated;     // ProDOS version that created file
-  UINT16  MinVersion;         // Minimum ProDOS version required
-  UINT32  EndOfFile;          // EOF marker
-  UINT32  OptionList;         // GS/OS option list
+  UINT8   FileType;           /// ProDOS file type
+  UINT16  AuxType;            /// Auxiliary type
+  UINT8   Access;             /// Access flags
+  UINT16  StorageType;        /// Storage type
+  UINT64  CreateTime;         /// ProDOS timestamp (NTP format)
+  UINT64  ModTime;            /// ProDOS timestamp (NTP format)
+  UINT32  BlocksUsed;         /// Blocks used
+  UINT16  VersionCreated;     /// ProDOS version that created file
+  UINT16  MinVersion;         /// Minimum ProDOS version required
+  UINT32  EndOfFile;          /// EOF marker
+  UINT32  OptionList;         /// GS/OS option list
 } ZOO64_PRODOS_ATTR;
 #pragma pack(pop)
 ```
 
 ProDOS file types (common):
 ```
-0x00: UNK  // Unknown
-0x04: TXT  // Text file
-0x06: BIN  // Binary
-0x0F: DIR  // Directory
-0x19: ADB  // AppleWorks database
-0x1A: AWP  // AppleWorks word processor
-0x1B: ASP  // AppleWorks spreadsheet
-0x2E: PRG  // ProDOS application
-0xB0: SRC  // Source code
-0xEF: PAS  // Pascal
-0xF0: CMD  // Command file
-0xFA: INT  // Integer BASIC
-0xFC: BAS  // Applesoft BASIC
-0xFF: SYS  // System file
+0x00: UNK  /// Unknown
+0x04: TXT  /// Text file
+0x06: BIN  /// Binary
+0x0F: DIR  /// Directory
+0x19: ADB  /// AppleWorks database
+0x1A: AWP  /// AppleWorks word processor
+0x1B: ASP  /// AppleWorks spreadsheet
+0x2E: PRG  /// ProDOS application
+0xB0: SRC  /// Source code
+0xEF: PAS  /// Pascal
+0xF0: CMD  /// Command file
+0xFA: INT  /// Integer BASIC
+0xFC: BAS  /// Applesoft BASIC
+0xFF: SYS  /// System file
 ```
 
 ProDOS access flags:
 ```
-0x01: READ      // Read enable
-0x02: WRITE     // Write enable
+0x01: READ      /// Read enable
+0x02: WRITE     /// Write enable
 0x04: INVISIBLE // Invisible file
-0x20: BACKUP    // Backup needed
-0x40: RENAME    // Rename enable
-0x80: DESTROY   // Delete enable
+0x20: BACKUP    /// Backup needed
+0x40: RENAME    /// Rename enable
+0x80: DESTROY   /// Delete enable
 ```
 
 ### 6.25 Stratus VOS Attributes
@@ -2928,28 +2991,28 @@ Stratus VOS (Virtual Operating System) fault-tolerant system metadata.
 
 ```c
 typedef struct _ZOO64_STRATUS_ATTR {
-  char    ModuleName[32];     // Module name
-  char    Organization[32];   // Organization name
-  UINT32  FileOrganization;   // Sequential, relative, indexed
-  UINT16  RecordSize;         // Fixed record size
-  UINT16  KeySize;            // Key size (indexed files)
-  UINT32  MaxRecords;         // Maximum records
-  UINT32  ReplicationLevel;   // Replication level (0-3)
-  UINT32  IntegrityLevel;     // Integrity level
-  char    UserID[32];         // Owner user ID
-  char    GroupID[32];        // Owner group ID
-  UINT32  AccessControl;      // Access control flags
-  UINT32  Flags;              // VOS-specific flags
+  char    ModuleName[32];     /// Module name
+  char    Organization[32];   /// Organization name
+  UINT32  FileOrganization;   /// Sequential, relative, indexed
+  UINT16  RecordSize;         /// Fixed record size
+  UINT16  KeySize;            /// Key size (indexed files)
+  UINT32  MaxRecords;         /// Maximum records
+  UINT32  ReplicationLevel;   /// Replication level (0-3)
+  UINT32  IntegrityLevel;     /// Integrity level
+  char    UserID[32];         /// Owner user ID
+  char    GroupID[32];        /// Owner group ID
+  UINT32  AccessControl;      /// Access control flags
+  UINT32  Flags;              /// VOS-specific flags
 } ZOO64_STRATUS_ATTR;
 #pragma pack(pop)
 ```
 
 Stratus replication levels:
 ```
-0: None         // No replication
-1: Disk         // Disk mirroring
-2: CPU          // CPU pair replication
-3: Full         // Full fault tolerance
+0: None         /// No replication
+1: Disk         /// Disk mirroring
+2: CPU          /// CPU pair replication
+3: Full         /// Full fault tolerance
 ```
 
 ### 6.26 Netware Extended Attributes
@@ -2958,17 +3021,17 @@ Novell Netware extended filesystem metadata (beyond ACLs).
 
 ```c
 typedef struct _ZOO64_NETWARE_ATTR {
-  UINT32  OwnerID;            // Owner object ID
-  UINT64  ArchiveTime;        // Last archive time (NTP format)
-  UINT64  ArchiverID;         // Archiver object ID
-  UINT64  UpdateTime;         // Last update time (NTP format)
-  UINT64  UpdaterID;          // Updater object ID
-  UINT32  Attributes;         // File attributes
+  UINT32  OwnerID;            /// Owner object ID
+  UINT64  ArchiveTime;        /// Last archive time (NTP format)
+  UINT64  ArchiverID;         /// Archiver object ID
+  UINT64  UpdateTime;         /// Last update time (NTP format)
+  UINT64  UpdaterID;          /// Updater object ID
+  UINT32  Attributes;         /// File attributes
   UINT16  InheritedRightsFilter; // IRF
-  UINT32  MaxSpace;           // Maximum space
+  UINT32  MaxSpace;           /// Maximum space
   char    PrimaryNameSpace[16]; // Primary namespace (DOS, MAC, NFS, etc.)
-  char    NDSPath[256];       // NDS (Novell Directory Services) path
-  UINT32  Flags;              // Extended flags
+  char    NDSPath[256];       /// NDS (Novell Directory Services) path
+  UINT32  Flags;              /// Extended flags
 } ZOO64_NETWARE_ATTR;
 #pragma pack(pop)
 ```
@@ -3003,15 +3066,15 @@ Banyan VINES StreetTalk filesystem metadata.
 ```c
 typedef struct _ZOO64_VINES_ATTR {
   char    StreetTalkName[256]; // Full StreetTalk name
-  char    ServiceType[32];    // Service type
-  UINT32  VINESVersion;       // VINES OS version
-  char    Organization[64];   // Organization name
-  char    Group[64];          // Group name
-  char    Item[64];           // Item name
-  UINT32  Attributes;         // File attributes
-  UINT64  ReplicationStatus;  // Replication status
-  char    PrimaryServer[64];  // Primary file server
-  UINT32  Flags;              // VINES flags
+  char    ServiceType[32];    /// Service type
+  UINT32  VINESVersion;       /// VINES OS version
+  char    Organization[64];   /// Organization name
+  char    Group[64];          /// Group name
+  char    Item[64];           /// Item name
+  UINT32  Attributes;         /// File attributes
+  UINT64  ReplicationStatus;  /// Replication status
+  char    PrimaryServer[64];  /// Primary file server
+  UINT32  Flags;              /// VINES flags
 } ZOO64_VINES_ATTR;
 #pragma pack(pop)
 ```
@@ -3022,19 +3085,19 @@ AFS distributed filesystem metadata.
 
 ```c
 typedef struct _ZOO64_AFS_ATTR {
-  char    CellName[256];      // AFS cell name
-  UINT32  VolumeID;           // Volume ID
-  UINT32  Vnode;              // Vnode number
-  UINT32  Uniquifier;         // Uniquifier
-  UINT32  DataVersion;        // Data version number
-  char    VolumeName[64];     // Volume name
-  UINT32  QuotaUsed;          // Quota used
-  UINT32  QuotaLimit;         // Quota limit
-  UINT32  Author;             // Author UID
-  UINT32  Owner;              // Owner UID
-  UINT64  ServerModTime;      // Server modification time (NTP format)
-  UINT32  Callbacks;          // Callback information
-  UINT32  Flags;              // AFS flags
+  char    CellName[256];      /// AFS cell name
+  UINT32  VolumeID;           /// Volume ID
+  UINT32  Vnode;              /// Vnode number
+  UINT32  Uniquifier;         /// Uniquifier
+  UINT32  DataVersion;        /// Data version number
+  char    VolumeName[64];     /// Volume name
+  UINT32  QuotaUsed;          /// Quota used
+  UINT32  QuotaLimit;         /// Quota limit
+  UINT32  Author;             /// Author UID
+  UINT32  Owner;              /// Owner UID
+  UINT64  ServerModTime;      /// Server modification time (NTP format)
+  UINT32  Callbacks;          /// Callback information
+  UINT32  Flags;              /// AFS flags
 } ZOO64_AFS_ATTR;
 #pragma pack(pop)
 ```
@@ -3045,19 +3108,19 @@ CODA filesystem metadata (extends AFS).
 
 ```c
 typedef struct _ZOO64_CODA_ATTR {
-  char    Realm[256];         // CODA realm name
-  UINT32  VolumeID;           // Volume ID
-  UINT32  Vnode;              // Vnode number
-  UINT32  Uniquifier;         // Uniquifier
-  UINT64  DataVersion;        // Data version (64-bit)
-  char    VolumeName[64];     // Volume name
-  UINT32  ReplicationFactor;  // Replication factor
-  UINT32  ReplicaCount;       // Number of replicas
+  char    Realm[256];         /// CODA realm name
+  UINT32  VolumeID;           /// Volume ID
+  UINT32  Vnode;              /// Vnode number
+  UINT32  Uniquifier;         /// Uniquifier
+  UINT64  DataVersion;        /// Data version (64-bit)
+  char    VolumeName[64];     /// Volume name
+  UINT32  ReplicationFactor;  /// Replication factor
+  UINT32  ReplicaCount;       /// Number of replicas
   char    ReplicaServers[256]; // Comma-separated replica servers
-  UINT32  ConflictStatus;     // Conflict resolution status
-  UINT64  VectorVersion[8];   // Version vector (for conflicts)
-  UINT32  CachePriority;      // Client cache priority
-  UINT32  Flags;              // CODA flags
+  UINT32  ConflictStatus;     /// Conflict resolution status
+  UINT64  VectorVersion[8];   /// Version vector (for conflicts)
+  UINT32  CachePriority;      /// Client cache priority
+  UINT32  Flags;              /// CODA flags
 } ZOO64_CODA_ATTR;
 #pragma pack(pop)
 ```
@@ -3068,17 +3131,17 @@ Clustered filesystem metadata.
 
 ```c
 typedef struct _ZOO64_GFS_ATTR {
-  char    ClusterName[64];    // Cluster name
-  UINT32  NodeID;             // Node ID
-  UINT64  GlockNumber;        // Global lock number
-  UINT32  LockState;          // Lock state
-  char    JournalID[32];      // Journal identifier
-  UINT64  SequenceNumber;     // Sequence number
-  UINT32  ReplicationLevel;   // Replication level
-  UINT32  StripingFactor;     // Striping factor
-  UINT32  BlockAllocation;    // Block allocation policy
-  UINT64  ExtentSize;         // Extent size
-  UINT32  Flags;              // GFS flags
+  char    ClusterName[64];    /// Cluster name
+  UINT32  NodeID;             /// Node ID
+  UINT64  GlockNumber;        /// Global lock number
+  UINT32  LockState;          /// Lock state
+  char    JournalID[32];      /// Journal identifier
+  UINT64  SequenceNumber;     /// Sequence number
+  UINT32  ReplicationLevel;   /// Replication level
+  UINT32  StripingFactor;     /// Striping factor
+  UINT32  BlockAllocation;    /// Block allocation policy
+  UINT64  ExtentSize;         /// Extent size
+  UINT32  Flags;              /// GFS flags
 } ZOO64_GFS_ATTR;
 #pragma pack(pop)
 ```
@@ -3089,16 +3152,16 @@ General distributed filesystem metadata.
 
 ```c
 typedef struct _ZOO64_DFS_ATTR {
-  char    Namespace[256];     // DFS namespace
-  char    ServerPath[512];    // Server UNC path
-  char    LinkTarget[512];    // DFS link target
-  UINT32  Timeout;            // Client cache timeout (seconds)
-  UINT32  ReferralTTL;        // Referral time-to-live
-  UINT16  TargetPriority;     // Target priority
-  UINT16  TargetRank;         // Target ranking
-  char    SiteName[64];       // AD site name
-  UINT32  LinkState;          // Link state (online, offline)
-  UINT32  Flags;              // DFS flags
+  char    Namespace[256];     /// DFS namespace
+  char    ServerPath[512];    /// Server UNC path
+  char    LinkTarget[512];    /// DFS link target
+  UINT32  Timeout;            /// Client cache timeout (seconds)
+  UINT32  ReferralTTL;        /// Referral time-to-live
+  UINT16  TargetPriority;     /// Target priority
+  UINT16  TargetRank;         /// Target ranking
+  char    SiteName[64];       /// AD site name
+  UINT32  LinkState;          /// Link state (online, offline)
+  UINT32  Flags;              /// DFS flags
 } ZOO64_DFS_ATTR;
 #pragma pack(pop)
 ```
@@ -3109,19 +3172,19 @@ Block and character device files.
 
 ```c
 typedef struct _ZOO64_DEVICE_ATTR {
-  UINT8   DeviceType;         // Block or character
-  UINT32  MajorNumber;        // Device major number
-  UINT32  MinorNumber;        // Device minor number
-  char    DeviceName[64];     // Device name (e.g., "sda", "tty0")
-  UINT32  Flags;              // Device-specific flags
+  UINT8   DeviceType;         /// Block or character
+  UINT32  MajorNumber;        /// Device major number
+  UINT32  MinorNumber;        /// Device minor number
+  char    DeviceName[64];     /// Device name (e.g., "sda", "tty0")
+  UINT32  Flags;              /// Device-specific flags
 } ZOO64_DEVICE_ATTR;
 #pragma pack(pop)
 ```
 
 Device types:
 ```
-0x01: BLOCK_DEVICE      // Block device (disks, etc.)
-0x02: CHARACTER_DEVICE  // Character device (terminals, etc.)
+0x01: BLOCK_DEVICE      /// Block device (disks, etc.)
+0x02: CHARACTER_DEVICE  /// Character device (terminals, etc.)
 ```
 
 ### 6.33 FIFO Attributes
@@ -3130,10 +3193,10 @@ Named pipes (FIFOs).
 
 ```c
 typedef struct _ZOO64_FIFO_ATTR {
-  UINT32  BufferSize;         // Pipe buffer size
-  UINT32  Readers;            // Number of readers (snapshot)
-  UINT32  Writers;            // Number of writers (snapshot)
-  UINT32  Flags;              // FIFO flags
+  UINT32  BufferSize;         /// Pipe buffer size
+  UINT32  Readers;            /// Number of readers (snapshot)
+  UINT32  Writers;            /// Number of writers (snapshot)
+  UINT32  Flags;              /// FIFO flags
 } ZOO64_FIFO_ATTR;
 #pragma pack(pop)
 ```
@@ -3144,21 +3207,21 @@ Unix domain sockets.
 
 ```c
 typedef struct _ZOO64_SOCKET_ATTR {
-  UINT16  SocketType;         // SOCK_STREAM, SOCK_DGRAM, SOCK_SEQPACKET
-  UINT16  Protocol;           // Protocol (usually 0 for Unix domain)
-  UINT32  BufferSize;         // Socket buffer size
-  char    BoundPath[256];     // Bound path (if applicable)
-  UINT32  Flags;              // Socket flags
+  UINT16  SocketType;         /// SOCK_STREAM, SOCK_DGRAM, SOCK_SEQPACKET
+  UINT16  Protocol;           /// Protocol (usually 0 for Unix domain)
+  UINT32  BufferSize;         /// Socket buffer size
+  char    BoundPath[256];     /// Bound path (if applicable)
+  UINT32  Flags;              /// Socket flags
 } ZOO64_SOCKET_ATTR;
 #pragma pack(pop)
 ```
 
 Socket types:
 ```
-0x0001: SOCK_STREAM      // Stream socket (TCP-like)
-0x0002: SOCK_DGRAM       // Datagram socket (UDP-like)
-0x0003: SOCK_SEQPACKET   // Sequenced packet socket
-0x0004: SOCK_RAW         // Raw socket
+0x0001: SOCK_STREAM      /// Stream socket (TCP-like)
+0x0002: SOCK_DGRAM       /// Datagram socket (UDP-like)
+0x0003: SOCK_SEQPACKET   /// Sequenced packet socket
+0x0004: SOCK_RAW         /// Raw socket
 ```
 
 ### 6.35 Door Attributes
@@ -3167,23 +3230,23 @@ Solaris doors (inter-process communication mechanism).
 
 ```c
 typedef struct _ZOO64_DOOR_ATTR {
-  UINT32  ServerPID;          // Server process ID
-  UINT32  ServerProcedure;    // Server procedure address
-  char    ServiceName[64];    // Service name
-  UINT32  Attributes;         // Door attributes
-  UINT32  Flags;              // Door flags
+  UINT32  ServerPID;          /// Server process ID
+  UINT32  ServerProcedure;    /// Server procedure address
+  char    ServiceName[64];    /// Service name
+  UINT32  Attributes;         /// Door attributes
+  UINT32  Flags;              /// Door flags
 } ZOO64_DOOR_ATTR;
 #pragma pack(pop)
 ```
 
 Door attributes:
 ```
-0x00000001: DOOR_UNREF       // Unref notification
-0x00000002: DOOR_PRIVATE     // Private door
+0x00000001: DOOR_UNREF       /// Unref notification
+0x00000002: DOOR_PRIVATE     /// Private door
 0x00000004: DOOR_REFUSE_DESC // Refuse descriptors
-0x00000008: DOOR_NO_CANCEL   // Don't cancel
-0x00000010: DOOR_LOCAL       // Local door only
-0x00000020: DOOR_REVOKED     // Door has been revoked
+0x00000008: DOOR_NO_CANCEL   /// Don't cancel
+0x00000010: DOOR_LOCAL       /// Local door only
+0x00000020: DOOR_REVOKED     /// Door has been revoked
 ```
 
 ### 6.36 Event Port Attributes
@@ -3192,9 +3255,9 @@ Solaris event ports.
 
 ```c
 typedef struct _ZOO64_EVENTPORT_ATTR {
-  UINT32  PortID;             // Port identifier
-  UINT32  MaxEvents;          // Maximum events
-  UINT32  Flags;              // Event port flags
+  UINT32  PortID;             /// Port identifier
+  UINT32  MaxEvents;          /// Maximum events
+  UINT32  Flags;              /// Event port flags
 } ZOO64_EVENTPORT_ATTR;
 #pragma pack(pop)
 ```
@@ -3205,9 +3268,9 @@ BSD union mount whiteouts.
 
 ```c
 typedef struct _ZOO64_WHITEOUT_ATTR {
-  char    HiddenPath[256];    // Path being hidden
-  UINT32  UnionLayer;         // Union filesystem layer
-  UINT32  Flags;              // Whiteout flags
+  char    HiddenPath[256];    /// Path being hidden
+  UINT32  UnionLayer;         /// Union filesystem layer
+  UINT32  Flags;              /// Whiteout flags
 } ZOO64_WHITEOUT_ATTR;
 #pragma pack(pop)
 ```
@@ -3218,28 +3281,28 @@ Special symbolic links with extended semantics.
 
 ```c
 typedef struct _ZOO64_MAGIC_SYMLINK_ATTR {
-  UINT16  MagicType;          // Type of magic symlink
-  UINT16  TargetPathLength;   // Length of target path
-  UINT32  Flags;              // Magic symlink flags
-  UINT8   TargetGUID[16];     // Target GUID (for Windows shortcuts/aliases)
-  // Followed by:
-  //   [TargetPathLength bytes: UTF-8 target path]
-  //   [Variable: Type-specific data]
+  UINT16  MagicType;          /// Type of magic symlink
+  UINT16  TargetPathLength;   /// Length of target path
+  UINT32  Flags;              /// Magic symlink flags
+  UINT8   TargetGUID[16];     /// Target GUID (for Windows shortcuts/aliases)
+  /// Followed by:
+  ///   [TargetPathLength bytes: UTF-8 target path]
+  ///   [Variable: Type-specific data]
 } ZOO64_MAGIC_SYMLINK_ATTR;
 #pragma pack(pop)
 ```
 
 Magic symlink types:
 ```
-0x0001: WINDOWS_JUNCTION     // Windows junction point
-0x0002: WINDOWS_SHORTCUT     // Windows .lnk shortcut
-0x0003: MACOS_ALIAS          // macOS alias file
-0x0004: SHELL_LINK           // Shell link (.desktop, etc.)
-0x0005: SYMBOLIC_LINK        // Standard symbolic link
-0x0006: RELATIVE_SYMLINK     // Relative symbolic link
-0x0007: REPARSE_POINT        // Windows reparse point
-0x0008: VOLUME_MOUNT_POINT   // Volume mount point
-0x0009: APP_EXEC_LINK        // Application execution link
+0x0001: WINDOWS_JUNCTION     /// Windows junction point
+0x0002: WINDOWS_SHORTCUT     /// Windows .lnk shortcut
+0x0003: MACOS_ALIAS          /// macOS alias file
+0x0004: SHELL_LINK           /// Shell link (.desktop, etc.)
+0x0005: SYMBOLIC_LINK        /// Standard symbolic link
+0x0006: RELATIVE_SYMLINK     /// Relative symbolic link
+0x0007: REPARSE_POINT        /// Windows reparse point
+0x0008: VOLUME_MOUNT_POINT   /// Volume mount point
+0x0009: APP_EXEC_LINK        /// Application execution link
 ```
 
 Magic symlink flags:
@@ -3278,28 +3341,28 @@ Apple File System specific attributes for macOS 10.13+.
 
 ```c
 typedef struct _ZOO64_APFS_ATTR {
-  UINT64  FileID;             // APFS file identifier
-  UINT64  ParentID;           // Parent directory ID
-  UINT64  CloneID;            // Clone source ID (0 if not cloned)
-  UINT32  CloneGeneration;    // Clone generation number
-  UINT32  Flags;              // APFS-specific flags
-  UINT32  EncryptionClass;    // Encryption class (0-7)
-  UINT32  Reserved;           // Reserved for future use
-  UINT8   DocumentID[16];     // Document identifier (UUID)
+  UINT64  FileID;             /// APFS file identifier
+  UINT64  ParentID;           /// Parent directory ID
+  UINT64  CloneID;            /// Clone source ID (0 if not cloned)
+  UINT32  CloneGeneration;    /// Clone generation number
+  UINT32  Flags;              /// APFS-specific flags
+  UINT32  EncryptionClass;    /// Encryption class (0-7)
+  UINT32  Reserved;           /// Reserved for future use
+  UINT8   DocumentID[16];     /// Document identifier (UUID)
 } ZOO64_APFS_ATTR;
 #pragma pack(pop)
 ```
 
 APFS flags:
 ```
-0x00000001: CLONED_FILE          // File is a clone (copy-on-write)
-0x00000002: PURGEABLE            // Can be purged by system
-0x00000004: COMPRESSED           // File is compressed
-0x00000008: ENCRYPTION_ENABLED   // File is encrypted
-0x00000010: FAST_DIR_SIZING      // Directory has fast size tracking
-0x00000020: ATOMIC_SAFE_SAVE     // File uses atomic safe-save
-0x00000040: HAS_SECURITY_EA      // Has security extended attributes
-0x00000080: PINNED_TO_TIER       // Pinned to specific storage tier
+0x00000001: CLONED_FILE          /// File is a clone (copy-on-write)
+0x00000002: PURGEABLE            /// Can be purged by system
+0x00000004: COMPRESSED           /// File is compressed
+0x00000008: ENCRYPTION_ENABLED   /// File is encrypted
+0x00000010: FAST_DIR_SIZING      /// Directory has fast size tracking
+0x00000020: ATOMIC_SAFE_SAVE     /// File uses atomic safe-save
+0x00000040: HAS_SECURITY_EA      /// Has security extended attributes
+0x00000080: PINNED_TO_TIER       /// Pinned to specific storage tier
 ```
 
 APFS encryption classes:
@@ -3327,41 +3390,41 @@ Windows Resilient File System (ReFS) specific attributes.
 
 ```c
 typedef struct _ZOO64_REFS_ATTR {
-  UINT64  FileID;             // ReFS file identifier
-  UINT64  IntegrityStreamID;  // Integrity stream ID
-  UINT32  Flags;              // ReFS-specific flags
-  UINT32  IntegrityLevel;     // Integrity level (0-2)
-  UINT64  CloneSourceID;      // Block clone source (0 if not cloned)
-  UINT32  CloneRangeCount;    // Number of cloned ranges
-  UINT32  StorageTier;        // Storage tier (SSD/HDD)
-  // Followed by CloneRangeCount * sizeof(REFS_CLONE_RANGE) if cloned
+  UINT64  FileID;             /// ReFS file identifier
+  UINT64  IntegrityStreamID;  /// Integrity stream ID
+  UINT32  Flags;              /// ReFS-specific flags
+  UINT32  IntegrityLevel;     /// Integrity level (0-2)
+  UINT64  CloneSourceID;      /// Block clone source (0 if not cloned)
+  UINT32  CloneRangeCount;    /// Number of cloned ranges
+  UINT32  StorageTier;        /// Storage tier (SSD/HDD)
+  /// Followed by CloneRangeCount * sizeof(REFS_CLONE_RANGE) if cloned
 } ZOO64_REFS_ATTR;
 #pragma pack(pop)
 
 #pragma pack(push, 1)
 typedef struct _REFS_CLONE_RANGE {
-  UINT64  SourceOffset;       // Offset in source file
-  UINT64  TargetOffset;       // Offset in this file
-  UINT64  Length;             // Length of cloned region
+  UINT64  SourceOffset;       /// Offset in source file
+  UINT64  TargetOffset;       /// Offset in this file
+  UINT64  Length;             /// Length of cloned region
 } REFS_CLONE_RANGE;
 #pragma pack(pop)
 ```
 
 ReFS flags:
 ```
-0x00000001: INTEGRITY_ENABLED     // Integrity streams enabled
-0x00000002: BLOCK_CLONED          // File has block clones
-0x00000004: TIERED_STORAGE        // Uses storage tiering
+0x00000001: INTEGRITY_ENABLED     /// Integrity streams enabled
+0x00000002: BLOCK_CLONED          /// File has block clones
+0x00000004: TIERED_STORAGE        /// Uses storage tiering
 0x00000008: DEDUPLICATION_ENABLED // File is deduplicated
-0x00000010: SPARSE_VDL            // Sparse valid data length
-0x00000020: SCRUBBING_ENABLED     // Integrity scrubbing enabled
+0x00000010: SPARSE_VDL            /// Sparse valid data length
+0x00000020: SCRUBBING_ENABLED     /// Integrity scrubbing enabled
 ```
 
 ReFS integrity levels:
 ```
-0: INTEGRITY_NONE        // No integrity checking
-1: INTEGRITY_METADATA    // Metadata only
-2: INTEGRITY_FULL        // Metadata + data checksums
+0: INTEGRITY_NONE        /// No integrity checking
+1: INTEGRITY_METADATA    /// Metadata only
+2: INTEGRITY_FULL        /// Metadata + data checksums
 ```
 
 **Block Cloning**:
@@ -3375,12 +3438,12 @@ Veritas File System (VxFS) specific attributes.
 
 ```c
 typedef struct _ZOO64_VXFS_ATTR {
-  UINT64  Inode;              // VxFS inode number
-  UINT32  Flags;              // VxFS-specific flags
-  UINT32  ExtentMode;         // Extent allocation mode
-  UINT64  CheckpointID;       // Storage checkpoint ID
-  UINT32  ReorgPriority;      // Reorganization priority
-  UINT32  Reserved;           // Reserved
+  UINT64  Inode;              /// VxFS inode number
+  UINT32  Flags;              /// VxFS-specific flags
+  UINT32  ExtentMode;         /// Extent allocation mode
+  UINT64  CheckpointID;       /// Storage checkpoint ID
+  UINT32  ReorgPriority;      /// Reorganization priority
+  UINT32  Reserved;           /// Reserved
   char    DMAPIAttributes[64]; // DMAPI attribute string
 } ZOO64_VXFS_ATTR;
 #pragma pack(pop)
@@ -3388,20 +3451,20 @@ typedef struct _ZOO64_VXFS_ATTR {
 
 VxFS flags:
 ```
-0x00000001: QUICK_IO_ENABLED   // Quick I/O enabled
-0x00000002: CHECKPOINTED       // File in storage checkpoint
-0x00000004: DMAPI_MANAGED      // Managed by DMAPI
-0x00000008: CACHED_IO          // Cached I/O mode
-0x00000010: DIRECT_IO          // Direct I/O mode
-0x00000020: CONCURRENT_IO      // Concurrent I/O enabled
+0x00000001: QUICK_IO_ENABLED   /// Quick I/O enabled
+0x00000002: CHECKPOINTED       /// File in storage checkpoint
+0x00000004: DMAPI_MANAGED      /// Managed by DMAPI
+0x00000008: CACHED_IO          /// Cached I/O mode
+0x00000010: DIRECT_IO          /// Direct I/O mode
+0x00000020: CONCURRENT_IO      /// Concurrent I/O enabled
 ```
 
 VxFS extent modes:
 ```
-0: EXTENT_NORMAL     // Normal extent allocation
-1: EXTENT_FIXED      // Fixed extent size
-2: EXTENT_RESERVE    // Reserved extent
-3: EXTENT_THIN       // Thin provisioned
+0: EXTENT_NORMAL     /// Normal extent allocation
+1: EXTENT_FIXED      /// Fixed extent size
+2: EXTENT_RESERVE    /// Reserved extent
+3: EXTENT_THIN       /// Thin provisioned
 ```
 
 ### 6.42 HPFS Attributes (0x002E)
@@ -3410,30 +3473,30 @@ OS/2 High Performance File System (HPFS) extended attributes.
 
 ```c
 typedef struct _ZOO64_HPFS_ATTR {
-  UINT32  EASize;             // Total size of extended attributes
-  UINT16  EACount;            // Number of EA entries
-  UINT16  Flags;              // HPFS flags
-  // Followed by EACount * HPFS_EA_ENTRY structures
+  UINT32  EASize;             /// Total size of extended attributes
+  UINT16  EACount;            /// Number of EA entries
+  UINT16  Flags;              /// HPFS flags
+  /// Followed by EACount * HPFS_EA_ENTRY structures
 } ZOO64_HPFS_ATTR;
 #pragma pack(pop)
 
 #pragma pack(push, 1)
 typedef struct _HPFS_EA_ENTRY {
-  UINT8   NameLength;         // Length of EA name
-  UINT16  ValueLength;        // Length of EA value
-  UINT8   Flags;              // EA flags
-  // Followed by:
-  //   [NameLength bytes: EA name]
-  //   [ValueLength bytes: EA value]
+  UINT8   NameLength;         /// Length of EA name
+  UINT16  ValueLength;        /// Length of EA value
+  UINT8   Flags;              /// EA flags
+  /// Followed by:
+  ///   [NameLength bytes: EA name]
+  ///   [ValueLength bytes: EA value]
 } HPFS_EA_ENTRY;
 #pragma pack(pop)
 ```
 
 HPFS EA flags:
 ```
-0x01: EA_CRITICAL    // Critical EA (file unusable if not preserved)
-0x02: EA_NEEDEA      // File needs EAs to function
-0x04: EA_BINARY      // Binary data (not text)
+0x01: EA_CRITICAL    /// Critical EA (file unusable if not preserved)
+0x02: EA_NEEDEA      /// File needs EAs to function
+0x04: EA_BINARY      /// Binary data (not text)
 ```
 
 **OS/2 Extended Attributes**:
@@ -3447,31 +3510,31 @@ ZFS (Zettabyte File System) specific attributes.
 
 ```c
 typedef struct _ZOO64_ZFS_ATTR {
-  UINT64  ObjectID;           // ZFS object ID (DMU object)
-  UINT64  SnapshotID;         // Snapshot ID (0 if not in snapshot)
-  UINT64  CloneOriginID;      // Clone origin ID (0 if not clone)
-  UINT32  Flags;              // ZFS-specific flags
-  UINT16  CompressionAlg;     // Compression algorithm
-  UINT16  ChecksumAlg;        // Checksum algorithm
-  UINT64  LogicalSize;        // Logical size (before compression)
-  UINT64  PhysicalSize;       // Physical size (after compression)
-  UINT8   Checksum[32];       // ZFS checksum (SHA256)
-  UINT32  DedupRefCount;      // Dedup reference count
-  UINT32  Reserved;           // Reserved
+  UINT64  ObjectID;           /// ZFS object ID (DMU object)
+  UINT64  SnapshotID;         /// Snapshot ID (0 if not in snapshot)
+  UINT64  CloneOriginID;      /// Clone origin ID (0 if not clone)
+  UINT32  Flags;              /// ZFS-specific flags
+  UINT16  CompressionAlg;     /// Compression algorithm
+  UINT16  ChecksumAlg;        /// Checksum algorithm
+  UINT64  LogicalSize;        /// Logical size (before compression)
+  UINT64  PhysicalSize;       /// Physical size (after compression)
+  UINT8   Checksum[32];       /// ZFS checksum (SHA256)
+  UINT32  DedupRefCount;      /// Dedup reference count
+  UINT32  Reserved;           /// Reserved
 } ZOO64_ZFS_ATTR;
 #pragma pack(pop)
 ```
 
 ZFS flags:
 ```
-0x00000001: COMPRESSED         // File is compressed
-0x00000002: DEDUPLICATED       // File is deduplicated
-0x00000004: IS_SNAPSHOT        // File from snapshot
-0x00000008: IS_CLONE           // File is a clone
-0x00000010: CHECKSUM_VERIFIED  // Checksum verified on read
-0x00000020: ARC_CACHED         // In ARC cache
-0x00000040: ENCRYPTED          // ZFS native encryption
-0x00000080: SPECIAL_VDEV       // On special vdev (SSD)
+0x00000001: COMPRESSED         /// File is compressed
+0x00000002: DEDUPLICATED       /// File is deduplicated
+0x00000004: IS_SNAPSHOT        /// File from snapshot
+0x00000008: IS_CLONE           /// File is a clone
+0x00000010: CHECKSUM_VERIFIED  /// Checksum verified on read
+0x00000020: ARC_CACHED         /// In ARC cache
+0x00000040: ENCRYPTED          /// ZFS native encryption
+0x00000080: SPECIAL_VDEV       /// On special vdev (SSD)
 ```
 
 ZFS compression algorithms:
@@ -3508,31 +3571,31 @@ Tru64 UNIX Advanced File System (AdvFS) attributes.
 
 ```c
 typedef struct _ZOO64_ADVFS_ATTR {
-  UINT64  FilesetID;          // Fileset identifier
-  UINT64  FileID;             // File identifier within fileset
-  UINT64  CloneID;            // Clone fileset ID (0 if not clone)
-  UINT32  Flags;              // AdvFS-specific flags
-  UINT32  ServiceClass;       // Storage service class
-  UINT64  SnapshotID;         // Snapshot ID
-  UINT32  Reserved[4];        // Reserved
+  UINT64  FilesetID;          /// Fileset identifier
+  UINT64  FileID;             /// File identifier within fileset
+  UINT64  CloneID;            /// Clone fileset ID (0 if not clone)
+  UINT32  Flags;              /// AdvFS-specific flags
+  UINT32  ServiceClass;       /// Storage service class
+  UINT64  SnapshotID;         /// Snapshot ID
+  UINT32  Reserved[4];        /// Reserved
 } ZOO64_ADVFS_ATTR;
 #pragma pack(pop)
 ```
 
 AdvFS flags:
 ```
-0x00000001: CLONED_FILESET    // File in cloned fileset
-0x00000002: SNAPSHOTED        // File has snapshots
-0x00000004: MIGRATED          // File migrated between service classes
-0x00000008: DIRECTIO          // Direct I/O enabled
+0x00000001: CLONED_FILESET    /// File in cloned fileset
+0x00000002: SNAPSHOTED        /// File has snapshots
+0x00000004: MIGRATED          /// File migrated between service classes
+0x00000008: DIRECTIO          /// Direct I/O enabled
 ```
 
 AdvFS service classes:
 ```
 0: CLASS_UNSPECIFIED
-1: CLASS_PERFORMANCE  // High-performance storage
-2: CLASS_CAPACITY     // High-capacity storage
-3: CLASS_ARCHIVE      // Archive storage
+1: CLASS_PERFORMANCE  /// High-performance storage
+2: CLASS_CAPACITY     /// High-capacity storage
+3: CLASS_ARCHIVE      /// Archive storage
 ```
 
 ### 6.45 XFS Attributes (0x0031)
@@ -3541,29 +3604,29 @@ SGI XFS filesystem attributes.
 
 ```c
 typedef struct _ZOO64_XFS_ATTR {
-  UINT64  Inode;              // XFS inode number
-  UINT64  Generation;         // Inode generation number
-  UINT32  Flags;              // XFS-specific flags
-  UINT32  ExtentSize;         // Extent size hint
-  UINT32  ProjectID;          // Project ID (quota)
-  UINT16  RealtimeFlags;      // Real-time subvolume flags
-  UINT16  RefLinkCount;       // Reflink reference count
+  UINT64  Inode;              /// XFS inode number
+  UINT64  Generation;         /// Inode generation number
+  UINT32  Flags;              /// XFS-specific flags
+  UINT32  ExtentSize;         /// Extent size hint
+  UINT32  ProjectID;          /// Project ID (quota)
+  UINT16  RealtimeFlags;      /// Real-time subvolume flags
+  UINT16  RefLinkCount;       /// Reflink reference count
   UINT64  RefLinkSourceInode; // Source inode for reflink
-  UINT32  Reserved[2];        // Reserved
+  UINT32  Reserved[2];        /// Reserved
 } ZOO64_XFS_ATTR;
 #pragma pack(pop)
 ```
 
 XFS flags:
 ```
-0x00000001: REALTIME           // File on real-time subvolume
-0x00000002: PREALLOC           // Space preallocated
-0x00000004: IMMUTABLE          // File cannot be modified
-0x00000008: APPEND_ONLY        // Append-only mode
-0x00000010: SYNC               // Synchronous I/O
-0x00000020: NOATIME            // Don't update access time
-0x00000040: NODUMP             // Don't dump this file
-0x00000080: REFLINKED          // File has reflinks (COW)
+0x00000001: REALTIME           /// File on real-time subvolume
+0x00000002: PREALLOC           /// Space preallocated
+0x00000004: IMMUTABLE          /// File cannot be modified
+0x00000008: APPEND_ONLY        /// Append-only mode
+0x00000010: SYNC               /// Synchronous I/O
+0x00000020: NOATIME            /// Don't update access time
+0x00000040: NODUMP             /// Don't dump this file
+0x00000080: REFLINKED          /// File has reflinks (COW)
 ```
 
 **XFS Reflinks**:
@@ -3577,22 +3640,22 @@ IBM Journaled File System (JFS) attributes.
 
 ```c
 typedef struct _ZOO64_JFS_ATTR {
-  UINT64  Inode;              // JFS inode number
-  UINT32  Flags;              // JFS-specific flags
-  UINT32  CompressionAlg;     // Compression algorithm
-  UINT64  CompressedSize;     // Compressed size
-  UINT64  UncompressedSize;   // Original size
-  UINT32  Reserved[4];        // Reserved
+  UINT64  Inode;              /// JFS inode number
+  UINT32  Flags;              /// JFS-specific flags
+  UINT32  CompressionAlg;     /// Compression algorithm
+  UINT64  CompressedSize;     /// Compressed size
+  UINT64  UncompressedSize;   /// Original size
+  UINT32  Reserved[4];        /// Reserved
 } ZOO64_JFS_ATTR;
 #pragma pack(pop)
 ```
 
 JFS flags:
 ```
-0x00000001: COMPRESSED         // File is compressed
-0x00000002: SPARSE             // Sparse file
-0x00000004: ENCRYPTED          // File is encrypted
-0x00000008: INLINE_EA          // Extended attributes inline
+0x00000001: COMPRESSED         /// File is compressed
+0x00000002: SPARSE             /// Sparse file
+0x00000004: ENCRYPTED          /// File is encrypted
+0x00000008: INLINE_EA          /// Extended attributes inline
 ```
 
 JFS compression algorithms:
@@ -3609,23 +3672,23 @@ ReiserFS (version 3 and 4) attributes.
 
 ```c
 typedef struct _ZOO64_REISERFS_ATTR {
-  UINT64  ObjectID;           // Object ID
-  UINT64  DirectoryID;        // Directory ID
-  UINT32  Flags;              // ReiserFS-specific flags
-  UINT32  TailSize;           // Tail size (for tail packing)
-  UINT16  Version;            // ReiserFS version (3 or 4)
-  UINT16  PluginID;           // Plugin ID (Reiser4)
-  UINT32  Reserved[4];        // Reserved
+  UINT64  ObjectID;           /// Object ID
+  UINT64  DirectoryID;        /// Directory ID
+  UINT32  Flags;              /// ReiserFS-specific flags
+  UINT32  TailSize;           /// Tail size (for tail packing)
+  UINT16  Version;            /// ReiserFS version (3 or 4)
+  UINT16  PluginID;           /// Plugin ID (Reiser4)
+  UINT32  Reserved[4];        /// Reserved
 } ZOO64_REISERFS_ATTR;
 #pragma pack(pop)
 ```
 
 ReiserFS flags:
 ```
-0x00000001: TAIL_PACKED        // File tail is packed
-0x00000002: COMPRESSED         // Compressed (Reiser4)
-0x00000004: ENCRYPTED          // Encrypted (Reiser4)
-0x00000008: IMMUTABLE          // Immutable file
+0x00000001: TAIL_PACKED        /// File tail is packed
+0x00000002: COMPRESSED         /// Compressed (Reiser4)
+0x00000004: ENCRYPTED          /// Encrypted (Reiser4)
+0x00000008: IMMUTABLE          /// Immutable file
 ```
 
 **Tail Packing**:
@@ -3639,32 +3702,32 @@ B-tree File System (Btrfs) attributes.
 
 ```c
 typedef struct _ZOO64_BTRFS_ATTR {
-  UINT64  Inode;              // Btrfs inode number
-  UINT64  Generation;         // Transaction ID
-  UINT64  SubvolumeID;        // Subvolume ID
-  UINT64  SnapshotID;         // Snapshot ID (0 if not snapshot)
-  UINT64  RefLinkSource;      // Reflink source inode (0 if not reflinked)
-  UINT32  Flags;              // Btrfs-specific flags
-  UINT16  CompressionAlg;     // Compression algorithm
-  UINT16  ChecksumAlg;        // Checksum algorithm
-  UINT32  RefLinkCount;       // Number of reflinks
-  UINT8   Checksum[32];       // File checksum (CRC32C or SHA256)
-  UINT32  RAIDProfile;        // RAID profile (data)
-  UINT32  Reserved;           // Reserved
+  UINT64  Inode;              /// Btrfs inode number
+  UINT64  Generation;         /// Transaction ID
+  UINT64  SubvolumeID;        /// Subvolume ID
+  UINT64  SnapshotID;         /// Snapshot ID (0 if not snapshot)
+  UINT64  RefLinkSource;      /// Reflink source inode (0 if not reflinked)
+  UINT32  Flags;              /// Btrfs-specific flags
+  UINT16  CompressionAlg;     /// Compression algorithm
+  UINT16  ChecksumAlg;        /// Checksum algorithm
+  UINT32  RefLinkCount;       /// Number of reflinks
+  UINT8   Checksum[32];       /// File checksum (CRC32C or SHA256)
+  UINT32  RAIDProfile;        /// RAID profile (data)
+  UINT32  Reserved;           /// Reserved
 } ZOO64_BTRFS_ATTR;
 #pragma pack(pop)
 ```
 
 Btrfs flags:
 ```
-0x00000001: COMPRESSED         // File is compressed
-0x00000002: REFLINKED          // File has reflinks (COW)
-0x00000004: IS_SNAPSHOT        // File from snapshot
-0x00000008: IS_SUBVOLUME       // Is subvolume root
-0x00000010: CHECKSUMMED        // Has checksums
-0x00000020: NODATACOW          // No copy-on-write for data
-0x00000040: NODATASUM          // No checksums for data
-0x00000080: ENCRYPTED          // File is encrypted
+0x00000001: COMPRESSED         /// File is compressed
+0x00000002: REFLINKED          /// File has reflinks (COW)
+0x00000004: IS_SNAPSHOT        /// File from snapshot
+0x00000008: IS_SUBVOLUME       /// Is subvolume root
+0x00000010: CHECKSUMMED        /// Has checksums
+0x00000020: NODATACOW          /// No copy-on-write for data
+0x00000040: NODATASUM          /// No checksums for data
+0x00000080: ENCRYPTED          /// File is encrypted
 ```
 
 Btrfs compression algorithms:
@@ -3711,72 +3774,72 @@ Git distributed version control system metadata.
 
 ```c
 typedef struct _ZOO64_GIT_ATTR {
-  UINT8   ObjectHash[32];     // Git object hash (SHA-1 or SHA-256)
-  UINT8   CommitHash[32];     // Current commit hash
-  UINT32  Flags;              // Git-specific flags
-  UINT16  HashType;           // Hash algorithm (1=SHA-1, 2=SHA-256)
-  UINT16  ObjectType;         // Git object type
-  UINT64  ObjectSize;         // Size of git object
-  UINT32  RefCount;           // Number of refs
-  UINT32  BranchNameLength;   // Length of branch name
-  UINT32  TagCount;           // Number of tags
-  UINT32  RemoteCount;        // Number of remotes
-  // Followed by:
-  //   [BranchNameLength bytes: current branch name]
-  //   [RefCount * sizeof(GIT_REF): references]
-  //   [TagCount * sizeof(GIT_TAG): tags]
-  //   [RemoteCount * sizeof(GIT_REMOTE): remotes]
+  UINT8   ObjectHash[32];     /// Git object hash (SHA-1 or SHA-256)
+  UINT8   CommitHash[32];     /// Current commit hash
+  UINT32  Flags;              /// Git-specific flags
+  UINT16  HashType;           /// Hash algorithm (1=SHA-1, 2=SHA-256)
+  UINT16  ObjectType;         /// Git object type
+  UINT64  ObjectSize;         /// Size of git object
+  UINT32  RefCount;           /// Number of refs
+  UINT32  BranchNameLength;   /// Length of branch name
+  UINT32  TagCount;           /// Number of tags
+  UINT32  RemoteCount;        /// Number of remotes
+  /// Followed by:
+  ///   [BranchNameLength bytes: current branch name]
+  ///   [RefCount * sizeof(GIT_REF): references]
+  ///   [TagCount * sizeof(GIT_TAG): tags]
+  ///   [RemoteCount * sizeof(GIT_REMOTE): remotes]
 } ZOO64_GIT_ATTR;
 #pragma pack(pop)
 
 #pragma pack(push, 1)
 typedef struct _GIT_REF {
-  UINT8   Hash[32];           // Ref target hash
-  UINT16  NameLength;         // Length of ref name
-  UINT8   RefType;            // Type: 0=branch, 1=tag, 2=remote, 3=HEAD
-  UINT8   Reserved;           // Reserved
-  // Followed by [NameLength bytes: ref name]
+  UINT8   Hash[32];           /// Ref target hash
+  UINT16  NameLength;         /// Length of ref name
+  UINT8   RefType;            /// Type: 0=branch, 1=tag, 2=remote, 3=HEAD
+  UINT8   Reserved;           /// Reserved
+  /// Followed by [NameLength bytes: ref name]
 } GIT_REF;
 #pragma pack(pop)
 
 #pragma pack(push, 1)
 typedef struct _GIT_TAG {
-  UINT8   Hash[32];           // Tag object hash
-  UINT16  NameLength;         // Length of tag name
-  UINT16  MessageLength;      // Length of tag message
-  UINT32  TaggerTimestamp;    // Tagger timestamp (Unix time)
-  // Followed by:
-  //   [NameLength bytes: tag name]
-  //   [MessageLength bytes: tag message]
+  UINT8   Hash[32];           /// Tag object hash
+  UINT16  NameLength;         /// Length of tag name
+  UINT16  MessageLength;      /// Length of tag message
+  UINT32  TaggerTimestamp;    /// Tagger timestamp (Unix time)
+  /// Followed by:
+  ///   [NameLength bytes: tag name]
+  ///   [MessageLength bytes: tag message]
 } GIT_TAG;
 #pragma pack(pop)
 
 #pragma pack(push, 1)
 typedef struct _GIT_REMOTE {
-  UINT16  NameLength;         // Length of remote name
-  UINT16  URLLength;          // Length of remote URL
-  UINT32  FetchRefspecCount;  // Number of fetch refspecs
-  // Followed by:
-  //   [NameLength bytes: remote name]
-  //   [URLLength bytes: remote URL]
-  //   [FetchRefspecCount * variable: refspec strings]
+  UINT16  NameLength;         /// Length of remote name
+  UINT16  URLLength;          /// Length of remote URL
+  UINT32  FetchRefspecCount;  /// Number of fetch refspecs
+  /// Followed by:
+  ///   [NameLength bytes: remote name]
+  ///   [URLLength bytes: remote URL]
+  ///   [FetchRefspecCount * variable: refspec strings]
 } GIT_REMOTE;
 #pragma pack(pop)
 ```
 
 Git flags:
 ```
-0x00000001: TRACKED            // File tracked by git
-0x00000002: MODIFIED           // File has modifications
-0x00000003: STAGED             // File is staged
-0x00000004: UNTRACKED          // File is untracked
-0x00000008: IGNORED            // File is ignored (.gitignore)
-0x00000010: SUBMODULE          // File is in submodule
-0x00000020: LFS_POINTER        // File is Git LFS pointer
-0x00000040: BARE_REPO          // Bare repository
-0x00000080: SHALLOW_CLONE      // Shallow clone
-0x00000100: WORKTREE           // Git worktree
-0x00000200: PARTIAL_CLONE      // Partial clone (sparse)
+0x00000001: TRACKED            /// File tracked by git
+0x00000002: MODIFIED           /// File has modifications
+0x00000003: STAGED             /// File is staged
+0x00000004: UNTRACKED          /// File is untracked
+0x00000008: IGNORED            /// File is ignored (.gitignore)
+0x00000010: SUBMODULE          /// File is in submodule
+0x00000020: LFS_POINTER        /// File is Git LFS pointer
+0x00000040: BARE_REPO          /// Bare repository
+0x00000080: SHALLOW_CLONE      /// Shallow clone
+0x00000100: WORKTREE           /// Git worktree
+0x00000200: PARTIAL_CLONE      /// Partial clone (sparse)
 ```
 
 Git object types:
@@ -3804,43 +3867,43 @@ Perforce version control system metadata.
 
 ```c
 typedef struct _ZOO64_P4_ATTR {
-  UINT64  ChangelistNumber;   // Changelist number
-  UINT32  Revision;           // File revision (head revision)
-  UINT32  Flags;              // Perforce-specific flags
-  UINT16  ActionType;         // Last action type
-  UINT16  FileType;           // Perforce file type
-  UINT64  FileSize;           // File size at head revision
-  UINT32  ClientNameLength;   // Length of client name
-  UINT32  DepotPathLength;    // Length of depot path
-  UINT32  IntegrationCount;   // Number of integration records
-  // Followed by:
-  //   [ClientNameLength bytes: client workspace name]
-  //   [DepotPathLength bytes: depot path]
-  //   [IntegrationCount * sizeof(P4_INTEGRATION): integration records]
+  UINT64  ChangelistNumber;   /// Changelist number
+  UINT32  Revision;           /// File revision (head revision)
+  UINT32  Flags;              /// Perforce-specific flags
+  UINT16  ActionType;         /// Last action type
+  UINT16  FileType;           /// Perforce file type
+  UINT64  FileSize;           /// File size at head revision
+  UINT32  ClientNameLength;   /// Length of client name
+  UINT32  DepotPathLength;    /// Length of depot path
+  UINT32  IntegrationCount;   /// Number of integration records
+  /// Followed by:
+  ///   [ClientNameLength bytes: client workspace name]
+  ///   [DepotPathLength bytes: depot path]
+  ///   [IntegrationCount * sizeof(P4_INTEGRATION): integration records]
 } ZOO64_P4_ATTR;
 #pragma pack(pop)
 
 typedef struct _P4_INTEGRATION {
-  UINT64  FromChangelist;     // Source changelist
-  UINT32  FromRevision;       // Source revision
-  UINT16  FromPathLength;     // Length of source path
-  UINT8   IntegrationType;    // Type: 0=merge, 1=branch, 2=copy, 3=ignore
-  UINT8   Reserved;           // Reserved
-  // Followed by [FromPathLength bytes: source depot path]
+  UINT64  FromChangelist;     /// Source changelist
+  UINT32  FromRevision;       /// Source revision
+  UINT16  FromPathLength;     /// Length of source path
+  UINT8   IntegrationType;    /// Type: 0=merge, 1=branch, 2=copy, 3=ignore
+  UINT8   Reserved;           /// Reserved
+  /// Followed by [FromPathLength bytes: source depot path]
 } P4_INTEGRATION;
 #pragma pack(pop)
 ```
 
 Perforce flags:
 ```
-0x00000001: SYNCED             // File synced to workspace
-0x00000002: OPENED_FOR_EDIT    // Opened for edit
-0x00000004: OPENED_FOR_ADD     // Opened for add
-0x00000008: OPENED_FOR_DELETE  // Opened for delete
-0x00000010: EXCLUSIVE_LOCK     // Exclusive lock held
-0x00000020: SHELVED            // Changes shelved
-0x00000040: RESOLVED           // File resolved
-0x00000080: UNRESOLVED         // File has conflicts
+0x00000001: SYNCED             /// File synced to workspace
+0x00000002: OPENED_FOR_EDIT    /// Opened for edit
+0x00000004: OPENED_FOR_ADD     /// Opened for add
+0x00000008: OPENED_FOR_DELETE  /// Opened for delete
+0x00000010: EXCLUSIVE_LOCK     /// Exclusive lock held
+0x00000020: SHELVED            /// Changes shelved
+0x00000040: RESOLVED           /// File resolved
+0x00000080: UNRESOLVED         /// File has conflicts
 ```
 
 Perforce action types:
@@ -3857,15 +3920,15 @@ Perforce action types:
 
 Perforce file types:
 ```
-0x0001: TEXT               // text
-0x0002: BINARY             // binary
-0x0004: UNICODE            // unicode
-0x0008: UTF16              // utf16
-0x0010: SYMLINK            // symlink
-0x0020: EXECUTABLE         // +x executable
-0x0040: WRITABLE           // +w writable
-0x0080: EXCLUSIVE_OPEN     // +l exclusive open
-0x0100: COMPRESSED         // +C compressed in depot
+0x0001: TEXT               /// text
+0x0002: BINARY             /// binary
+0x0004: UNICODE            /// unicode
+0x0008: UTF16              /// utf16
+0x0010: SYMLINK            /// symlink
+0x0020: EXECUTABLE         /// +x executable
+0x0040: WRITABLE           /// +w writable
+0x0080: EXCLUSIVE_OPEN     /// +l exclusive open
+0x0100: COMPRESSED         /// +C compressed in depot
 0x0200: RCS_KEYWORD_EXPAND // +k RCS keyword expansion
 ```
 
@@ -3875,59 +3938,59 @@ Apache Subversion (SVN) metadata.
 
 ```c
 typedef struct _ZOO64_SVN_ATTR {
-  UINT64  Revision;           // Current revision number
-  UINT64  LastChangedRev;     // Last changed revision
-  UINT64  CommittedRev;       // Committed revision
-  UINT32  Flags;              // SVN-specific flags
-  UINT64  CommittedDate;      // Committed date (Unix timestamp)
+  UINT64  Revision;           /// Current revision number
+  UINT64  LastChangedRev;     /// Last changed revision
+  UINT64  CommittedRev;       /// Committed revision
+  UINT32  Flags;              /// SVN-specific flags
+  UINT64  CommittedDate;      /// Committed date (Unix timestamp)
   UINT32  RepositoryUUIDLength; // Length of repository UUID
-  UINT32  URLLength;          // Length of repository URL
-  UINT32  RelativeURLLength;  // Length of relative URL
-  UINT32  AuthorLength;       // Length of last author
-  UINT32  PropertyCount;      // Number of properties
-  UINT8   NodeKind;           // Node kind: 0=none, 1=file, 2=dir
-  UINT8   Schedule;           // Schedule: 0=normal, 1=add, 2=delete, 3=replace
-  UINT16  Reserved;           // Reserved
-  // Followed by:
-  //   [RepositoryUUIDLength bytes: repository UUID]
-  //   [URLLength bytes: repository URL]
-  //   [RelativeURLLength bytes: relative URL]
-  //   [AuthorLength bytes: last author]
-  //   [PropertyCount * sizeof(SVN_PROPERTY): properties]
+  UINT32  URLLength;          /// Length of repository URL
+  UINT32  RelativeURLLength;  /// Length of relative URL
+  UINT32  AuthorLength;       /// Length of last author
+  UINT32  PropertyCount;      /// Number of properties
+  UINT8   NodeKind;           /// Node kind: 0=none, 1=file, 2=dir
+  UINT8   Schedule;           /// Schedule: 0=normal, 1=add, 2=delete, 3=replace
+  UINT16  Reserved;           /// Reserved
+  /// Followed by:
+  ///   [RepositoryUUIDLength bytes: repository UUID]
+  ///   [URLLength bytes: repository URL]
+  ///   [RelativeURLLength bytes: relative URL]
+  ///   [AuthorLength bytes: last author]
+  ///   [PropertyCount * sizeof(SVN_PROPERTY): properties]
 } ZOO64_SVN_ATTR;
 #pragma pack(pop)
 
 #pragma pack(push, 1)
 typedef struct _SVN_PROPERTY {
-  UINT16  NameLength;         // Length of property name
-  UINT16  ValueLength;        // Length of property value
-  UINT32  Flags;              // Property flags
-  // Followed by:
-  //   [NameLength bytes: property name]
-  //   [ValueLength bytes: property value]
+  UINT16  NameLength;         /// Length of property name
+  UINT16  ValueLength;        /// Length of property value
+  UINT32  Flags;              /// Property flags
+  /// Followed by:
+  ///   [NameLength bytes: property name]
+  ///   [ValueLength bytes: property value]
 } SVN_PROPERTY;
 #pragma pack(pop)
 ```
 
 SVN flags:
 ```
-0x00000001: VERSIONED          // Under version control
-0x00000002: MODIFIED           // File modified
-0x00000004: ADDED              // File added
-0x00000008: DELETED            // File deleted
-0x00000010: CONFLICTED         // File has conflicts
-0x00000020: LOCKED             // File locked
-0x00000040: SWITCHED           // Switched to different URL
-0x00000080: INCOMPLETE         // Incomplete (interrupted operation)
-0x00000100: EXTERNAL           // SVN external
-0x00000200: TREE_CONFLICTED    // Tree conflict
+0x00000001: VERSIONED          /// Under version control
+0x00000002: MODIFIED           /// File modified
+0x00000004: ADDED              /// File added
+0x00000008: DELETED            /// File deleted
+0x00000010: CONFLICTED         /// File has conflicts
+0x00000020: LOCKED             /// File locked
+0x00000040: SWITCHED           /// Switched to different URL
+0x00000080: INCOMPLETE         /// Incomplete (interrupted operation)
+0x00000100: EXTERNAL           /// SVN external
+0x00000200: TREE_CONFLICTED    /// Tree conflict
 ```
 
 SVN property flags:
 ```
 0x00000001: VERSIONED_PROPERTY // Versioned property (svn:*)
-0x00000002: INHERITED          // Inherited property
-0x00000004: CUSTOM_PROPERTY    // Custom (non-svn:) property
+0x00000002: INHERITED          /// Inherited property
+0x00000004: CUSTOM_PROPERTY    /// Custom (non-svn:) property
 ```
 
 **Common SVN Properties**:
@@ -3946,55 +4009,55 @@ Concurrent Versions System (CVS) metadata.
 
 ```c
 typedef struct _ZOO64_CVS_ATTR {
-  UINT16  MajorRevision;      // Major revision number
-  UINT16  MinorRevision;      // Minor revision number
-  UINT32  Flags;              // CVS-specific flags
-  UINT64  CommitTimestamp;    // Commit timestamp (Unix time)
+  UINT16  MajorRevision;      /// Major revision number
+  UINT16  MinorRevision;      /// Minor revision number
+  UINT32  Flags;              /// CVS-specific flags
+  UINT64  CommitTimestamp;    /// Commit timestamp (Unix time)
   UINT32  RepositoryPathLength; // Length of repository path
-  UINT32  ModuleLength;       // Length of module name
-  UINT32  BranchLength;       // Length of branch name
-  UINT32  TagCount;           // Number of tags
-  UINT32  AuthorLength;       // Length of author name
-  UINT32  StateLength;        // Length of state string
-  UINT32  LogMessageLength;   // Length of log message
-  UINT16  LockRevMajor;       // Lock revision major
-  UINT16  LockRevMinor;       // Lock revision minor
-  // Followed by:
-  //   [RepositoryPathLength bytes: repository path]
-  //   [ModuleLength bytes: module name]
-  //   [BranchLength bytes: branch name]
-  //   [TagCount * sizeof(CVS_TAG): symbolic tags]
-  //   [AuthorLength bytes: author name]
-  //   [StateLength bytes: state (Exp, Stab, Rel, dead)]
-  //   [LogMessageLength bytes: log message]
+  UINT32  ModuleLength;       /// Length of module name
+  UINT32  BranchLength;       /// Length of branch name
+  UINT32  TagCount;           /// Number of tags
+  UINT32  AuthorLength;       /// Length of author name
+  UINT32  StateLength;        /// Length of state string
+  UINT32  LogMessageLength;   /// Length of log message
+  UINT16  LockRevMajor;       /// Lock revision major
+  UINT16  LockRevMinor;       /// Lock revision minor
+  /// Followed by:
+  ///   [RepositoryPathLength bytes: repository path]
+  ///   [ModuleLength bytes: module name]
+  ///   [BranchLength bytes: branch name]
+  ///   [TagCount * sizeof(CVS_TAG): symbolic tags]
+  ///   [AuthorLength bytes: author name]
+  ///   [StateLength bytes: state (Exp, Stab, Rel, dead)]
+  ///   [LogMessageLength bytes: log message]
 } ZOO64_CVS_ATTR;
 #pragma pack(pop)
 
 #pragma pack(push, 1)
 typedef struct _CVS_TAG {
-  UINT16  MajorRevision;      // Tag revision major
-  UINT16  MinorRevision;      // Tag revision minor
-  UINT16  NameLength;         // Length of tag name
-  UINT8   TagType;            // 0=symbolic tag, 1=branch tag
-  UINT8   Reserved;           // Reserved
-  // Followed by [NameLength bytes: tag name]
+  UINT16  MajorRevision;      /// Tag revision major
+  UINT16  MinorRevision;      /// Tag revision minor
+  UINT16  NameLength;         /// Length of tag name
+  UINT8   TagType;            /// 0=symbolic tag, 1=branch tag
+  UINT8   Reserved;           /// Reserved
+  /// Followed by [NameLength bytes: tag name]
 } CVS_TAG;
 #pragma pack(pop)
 ```
 
 CVS flags:
 ```
-0x00000001: UP_TO_DATE         // File up to date
-0x00000002: LOCALLY_MODIFIED   // Locally modified
-0x00000004: LOCALLY_ADDED      // Locally added
-0x00000008: LOCALLY_REMOVED    // Locally removed
-0x00000010: NEEDS_CHECKOUT     // Needs checkout
-0x00000020: NEEDS_MERGE        // Needs merge
-0x00000040: NEEDS_PATCH        // Needs patch
-0x00000080: CONFLICT           // Unresolved conflict
-0x00000100: LOCKED             // File locked
-0x00000200: STICKY_TAG         // Has sticky tag
-0x00000400: STICKY_DATE        // Has sticky date
+0x00000001: UP_TO_DATE         /// File up to date
+0x00000002: LOCALLY_MODIFIED   /// Locally modified
+0x00000004: LOCALLY_ADDED      /// Locally added
+0x00000008: LOCALLY_REMOVED    /// Locally removed
+0x00000010: NEEDS_CHECKOUT     /// Needs checkout
+0x00000020: NEEDS_MERGE        /// Needs merge
+0x00000040: NEEDS_PATCH        /// Needs patch
+0x00000080: CONFLICT           /// Unresolved conflict
+0x00000100: LOCKED             /// File locked
+0x00000200: STICKY_TAG         /// Has sticky tag
+0x00000400: STICKY_DATE        /// Has sticky date
 ```
 
 CVS states:
@@ -4011,55 +4074,55 @@ Revision Control System (RCS) metadata.
 
 ```c
 typedef struct _ZOO64_RCS_ATTR {
-  UINT16  HeadMajor;          // Head revision major
-  UINT16  HeadMinor;          // Head revision minor
-  UINT16  WorkingMajor;       // Working revision major
-  UINT16  WorkingMinor;       // Working revision minor
-  UINT32  Flags;              // RCS-specific flags
-  UINT32  BranchLength;       // Length of branch
-  UINT32  AccessListLength;   // Length of access list
-  UINT32  SymbolCount;        // Number of symbolic names
-  UINT32  LocksCount;         // Number of locks
-  UINT32  CommentLength;      // Length of comment leader
-  UINT8   StrictLocking;      // Strict locking enabled
-  UINT8   Reserved[3];        // Reserved
-  // Followed by:
-  //   [BranchLength bytes: default branch]
-  //   [AccessListLength bytes: access list (space-separated)]
-  //   [SymbolCount * sizeof(RCS_SYMBOL): symbolic names]
-  //   [LocksCount * sizeof(RCS_LOCK): locks]
-  //   [CommentLength bytes: comment leader string]
+  UINT16  HeadMajor;          /// Head revision major
+  UINT16  HeadMinor;          /// Head revision minor
+  UINT16  WorkingMajor;       /// Working revision major
+  UINT16  WorkingMinor;       /// Working revision minor
+  UINT32  Flags;              /// RCS-specific flags
+  UINT32  BranchLength;       /// Length of branch
+  UINT32  AccessListLength;   /// Length of access list
+  UINT32  SymbolCount;        /// Number of symbolic names
+  UINT32  LocksCount;         /// Number of locks
+  UINT32  CommentLength;      /// Length of comment leader
+  UINT8   StrictLocking;      /// Strict locking enabled
+  UINT8   Reserved[3];        /// Reserved
+  /// Followed by:
+  ///   [BranchLength bytes: default branch]
+  ///   [AccessListLength bytes: access list (space-separated)]
+  ///   [SymbolCount * sizeof(RCS_SYMBOL): symbolic names]
+  ///   [LocksCount * sizeof(RCS_LOCK): locks]
+  ///   [CommentLength bytes: comment leader string]
 } ZOO64_RCS_ATTR;
 #pragma pack(pop)
 
 #pragma pack(push, 1)
 typedef struct _RCS_SYMBOL {
-  UINT16  MajorRevision;      // Symbol revision major
-  UINT16  MinorRevision;      // Symbol revision minor
-  UINT16  NameLength;         // Length of symbol name
-  UINT16  Reserved;           // Reserved
-  // Followed by [NameLength bytes: symbol name]
+  UINT16  MajorRevision;      /// Symbol revision major
+  UINT16  MinorRevision;      /// Symbol revision minor
+  UINT16  NameLength;         /// Length of symbol name
+  UINT16  Reserved;           /// Reserved
+  /// Followed by [NameLength bytes: symbol name]
 } RCS_SYMBOL;
 #pragma pack(pop)
 
 #pragma pack(push, 1)
 typedef struct _RCS_LOCK {
-  UINT16  MajorRevision;      // Locked revision major
-  UINT16  MinorRevision;      // Locked revision minor
-  UINT16  LockerLength;       // Length of locker name
-  UINT16  Reserved;           // Reserved
-  // Followed by [LockerLength bytes: locker username]
+  UINT16  MajorRevision;      /// Locked revision major
+  UINT16  MinorRevision;      /// Locked revision minor
+  UINT16  LockerLength;       /// Length of locker name
+  UINT16  Reserved;           /// Reserved
+  /// Followed by [LockerLength bytes: locker username]
 } RCS_LOCK;
 #pragma pack(pop)
 ```
 
 RCS flags:
 ```
-0x00000001: CHECKED_OUT        // File checked out
-0x00000002: LOCKED             // File locked
-0x00000004: STRICT_LOCKING     // Strict locking enabled
-0x00000008: EXPAND_KEYWORDS    // Keyword expansion enabled
-0x00000010: BINARY_FILE        // Binary file mode
+0x00000001: CHECKED_OUT        /// File checked out
+0x00000002: LOCKED             /// File locked
+0x00000004: STRICT_LOCKING     /// Strict locking enabled
+0x00000008: EXPAND_KEYWORDS    /// Keyword expansion enabled
+0x00000010: BINARY_FILE        /// Binary file mode
 ```
 
 **RCS Keywords**:
@@ -4079,66 +4142,66 @@ Mercurial distributed version control system metadata.
 
 ```c
 typedef struct _ZOO64_HG_ATTR {
-  UINT8   NodeID[20];         // Mercurial node ID (changeset hash)
-  UINT8   ParentNode1[20];    // First parent node ID
-  UINT8   ParentNode2[20];    // Second parent node ID (merge)
-  UINT32  Flags;              // Mercurial-specific flags
-  UINT32  RevisionNumber;     // Local revision number
-  UINT64  CommitTimestamp;    // Commit timestamp (Unix time)
-  UINT32  BranchNameLength;   // Length of branch name
-  UINT32  BookmarkCount;      // Number of bookmarks
-  UINT32  TagCount;           // Number of tags
-  UINT32  PhaseCount;         // Number of phase roots
-  UINT8   Phase;              // Current phase: 0=public, 1=draft, 2=secret
-  UINT8   Reserved[3];        // Reserved
-  // Followed by:
-  //   [BranchNameLength bytes: branch name]
-  //   [BookmarkCount * sizeof(HG_BOOKMARK): bookmarks]
-  //   [TagCount * sizeof(HG_TAG): tags]
-  //   [PhaseCount * sizeof(HG_PHASE_ROOT): phase roots]
+  UINT8   NodeID[20];         /// Mercurial node ID (changeset hash)
+  UINT8   ParentNode1[20];    /// First parent node ID
+  UINT8   ParentNode2[20];    /// Second parent node ID (merge)
+  UINT32  Flags;              /// Mercurial-specific flags
+  UINT32  RevisionNumber;     /// Local revision number
+  UINT64  CommitTimestamp;    /// Commit timestamp (Unix time)
+  UINT32  BranchNameLength;   /// Length of branch name
+  UINT32  BookmarkCount;      /// Number of bookmarks
+  UINT32  TagCount;           /// Number of tags
+  UINT32  PhaseCount;         /// Number of phase roots
+  UINT8   Phase;              /// Current phase: 0=public, 1=draft, 2=secret
+  UINT8   Reserved[3];        /// Reserved
+  /// Followed by:
+  ///   [BranchNameLength bytes: branch name]
+  ///   [BookmarkCount * sizeof(HG_BOOKMARK): bookmarks]
+  ///   [TagCount * sizeof(HG_TAG): tags]
+  ///   [PhaseCount * sizeof(HG_PHASE_ROOT): phase roots]
 } ZOO64_HG_ATTR;
 #pragma pack(pop)
 
 #pragma pack(push, 1)
 typedef struct _HG_BOOKMARK {
-  UINT8   NodeID[20];         // Bookmark target node ID
-  UINT16  NameLength;         // Length of bookmark name
-  UINT16  Reserved;           // Reserved
-  // Followed by [NameLength bytes: bookmark name]
+  UINT8   NodeID[20];         /// Bookmark target node ID
+  UINT16  NameLength;         /// Length of bookmark name
+  UINT16  Reserved;           /// Reserved
+  /// Followed by [NameLength bytes: bookmark name]
 } HG_BOOKMARK;
 #pragma pack(pop)
 
 #pragma pack(push, 1)
 typedef struct _HG_TAG {
-  UINT8   NodeID[20];         // Tag target node ID
-  UINT16  NameLength;         // Length of tag name
-  UINT8   TagType;            // 0=regular, 1=local
-  UINT8   Reserved;           // Reserved
-  // Followed by [NameLength bytes: tag name]
+  UINT8   NodeID[20];         /// Tag target node ID
+  UINT16  NameLength;         /// Length of tag name
+  UINT8   TagType;            /// 0=regular, 1=local
+  UINT8   Reserved;           /// Reserved
+  /// Followed by [NameLength bytes: tag name]
 } HG_TAG;
 #pragma pack(pop)
 
 #pragma pack(push, 1)
 typedef struct _HG_PHASE_ROOT {
-  UINT8   NodeID[20];         // Phase root node ID
-  UINT8   Phase;              // Phase: 0=public, 1=draft, 2=secret
-  UINT8   Reserved[3];        // Reserved
+  UINT8   NodeID[20];         /// Phase root node ID
+  UINT8   Phase;              /// Phase: 0=public, 1=draft, 2=secret
+  UINT8   Reserved[3];        /// Reserved
 } HG_PHASE_ROOT;
 #pragma pack(pop)
 ```
 
 Mercurial flags:
 ```
-0x00000001: TRACKED            // File tracked
-0x00000002: MODIFIED           // File modified
-0x00000004: ADDED              // File added
-0x00000008: REMOVED            // File removed
-0x00000010: CLEAN              // File clean
-0x00000020: MISSING            // File missing
-0x00000040: IGNORED            // File ignored (.hgignore)
-0x00000080: MERGE_STATE        // In merge state
-0x00000100: LARGEFILE          // Mercurial largefile
-0x00000200: SUBREPO            // Mercurial subrepo
+0x00000001: TRACKED            /// File tracked
+0x00000002: MODIFIED           /// File modified
+0x00000004: ADDED              /// File added
+0x00000008: REMOVED            /// File removed
+0x00000010: CLEAN              /// File clean
+0x00000020: MISSING            /// File missing
+0x00000040: IGNORED            /// File ignored (.hgignore)
+0x00000080: MERGE_STATE        /// In merge state
+0x00000100: LARGEFILE          /// Mercurial largefile
+0x00000200: SUBREPO            /// Mercurial subrepo
 ```
 
 **Mercurial Features**:
@@ -4155,75 +4218,75 @@ Fossil distributed version control system metadata.
 
 ```c
 typedef struct _ZOO64_FOSSIL_ATTR {
-  UINT8   ArtifactHash[32];   // Artifact hash (SHA-1 or SHA-3)
-  UINT8   CheckinHash[32];    // Current checkin hash
-  UINT32  Flags;              // Fossil-specific flags
-  UINT16  HashType;           // Hash algorithm: 1=SHA-1, 2=SHA-3-256
-  UINT16  ManifestVersion;    // Manifest version
-  UINT64  CheckinTimestamp;   // Checkin timestamp (Unix time)
-  UINT32  BranchNameLength;   // Length of branch name
-  UINT32  TagCount;           // Number of tags
-  UINT32  UserLength;         // Length of user name
-  UINT32  CommentLength;      // Length of checkin comment
-  UINT32  WikiPageCount;      // Number of wiki pages
-  UINT32  TicketCount;        // Number of tickets
-  // Followed by:
-  //   [BranchNameLength bytes: branch name]
-  //   [TagCount * sizeof(FOSSIL_TAG): tags]
-  //   [UserLength bytes: user name]
-  //   [CommentLength bytes: checkin comment]
-  //   [WikiPageCount * sizeof(FOSSIL_WIKI): wiki page refs]
-  //   [TicketCount * sizeof(FOSSIL_TICKET): ticket refs]
+  UINT8   ArtifactHash[32];   /// Artifact hash (SHA-1 or SHA-3)
+  UINT8   CheckinHash[32];    /// Current checkin hash
+  UINT32  Flags;              /// Fossil-specific flags
+  UINT16  HashType;           /// Hash algorithm: 1=SHA-1, 2=SHA-3-256
+  UINT16  ManifestVersion;    /// Manifest version
+  UINT64  CheckinTimestamp;   /// Checkin timestamp (Unix time)
+  UINT32  BranchNameLength;   /// Length of branch name
+  UINT32  TagCount;           /// Number of tags
+  UINT32  UserLength;         /// Length of user name
+  UINT32  CommentLength;      /// Length of checkin comment
+  UINT32  WikiPageCount;      /// Number of wiki pages
+  UINT32  TicketCount;        /// Number of tickets
+  /// Followed by:
+  ///   [BranchNameLength bytes: branch name]
+  ///   [TagCount * sizeof(FOSSIL_TAG): tags]
+  ///   [UserLength bytes: user name]
+  ///   [CommentLength bytes: checkin comment]
+  ///   [WikiPageCount * sizeof(FOSSIL_WIKI): wiki page refs]
+  ///   [TicketCount * sizeof(FOSSIL_TICKET): ticket refs]
 } ZOO64_FOSSIL_ATTR;
 #pragma pack(pop)
 
 #pragma pack(push, 1)
 typedef struct _FOSSIL_TAG {
-  UINT8   TagType;            // 0=propagating, 1=singleton, 2=cancel
-  UINT8   Reserved;           // Reserved
-  UINT16  NameLength;         // Length of tag name
-  UINT16  ValueLength;        // Length of tag value
-  UINT16  Reserved2;          // Reserved
-  // Followed by:
-  //   [NameLength bytes: tag name]
-  //   [ValueLength bytes: tag value (optional)]
+  UINT8   TagType;            /// 0=propagating, 1=singleton, 2=cancel
+  UINT8   Reserved;           /// Reserved
+  UINT16  NameLength;         /// Length of tag name
+  UINT16  ValueLength;        /// Length of tag value
+  UINT16  Reserved2;          /// Reserved
+  /// Followed by:
+  ///   [NameLength bytes: tag name]
+  ///   [ValueLength bytes: tag value (optional)]
 } FOSSIL_TAG;
 #pragma pack(pop)
 
 #pragma pack(push, 1)
 typedef struct _FOSSIL_WIKI {
-  UINT8   ArtifactHash[32];   // Wiki page artifact hash
-  UINT16  PageNameLength;     // Length of page name
-  UINT16  Reserved;           // Reserved
-  // Followed by [PageNameLength bytes: wiki page name]
+  UINT8   ArtifactHash[32];   /// Wiki page artifact hash
+  UINT16  PageNameLength;     /// Length of page name
+  UINT16  Reserved;           /// Reserved
+  /// Followed by [PageNameLength bytes: wiki page name]
 } FOSSIL_WIKI;
 #pragma pack(pop)
 
 #pragma pack(push, 1)
 typedef struct _FOSSIL_TICKET {
-  UINT8   TicketUUID[16];     // Ticket UUID
-  UINT16  TitleLength;        // Length of ticket title
-  UINT8   Status;             // Status: 0=open, 1=closed, 2=review
-  UINT8   Type;               // Type: 0=bug, 1=feature, 2=task
-  // Followed by [TitleLength bytes: ticket title]
+  UINT8   TicketUUID[16];     /// Ticket UUID
+  UINT16  TitleLength;        /// Length of ticket title
+  UINT8   Status;             /// Status: 0=open, 1=closed, 2=review
+  UINT8   Type;               /// Type: 0=bug, 1=feature, 2=task
+  /// Followed by [TitleLength bytes: ticket title]
 } FOSSIL_TICKET;
 #pragma pack(pop)
 ```
 
 Fossil flags:
 ```
-0x00000001: TRACKED            // File tracked
-0x00000002: MODIFIED           // File modified
-0x00000004: ADDED              // File added
-0x00000008: DELETED            // File deleted
-0x00000010: RENAMED            // File renamed
-0x00000020: EXECUTABLE         // File is executable
-0x00000040: SYMLINK            // File is symlink
-0x00000080: HAS_WIKI           // Repository has wiki pages
-0x00000100: HAS_TICKETS        // Repository has tickets
-0x00000200: HAS_TECHNOTES      // Repository has technotes
-0x00000400: HAS_FORUM          // Repository has forum
-0x00000800: PRIVATE_BRANCH     // Private branch
+0x00000001: TRACKED            /// File tracked
+0x00000002: MODIFIED           /// File modified
+0x00000004: ADDED              /// File added
+0x00000008: DELETED            /// File deleted
+0x00000010: RENAMED            /// File renamed
+0x00000020: EXECUTABLE         /// File is executable
+0x00000040: SYMLINK            /// File is symlink
+0x00000080: HAS_WIKI           /// Repository has wiki pages
+0x00000100: HAS_TICKETS        /// Repository has tickets
+0x00000200: HAS_TECHNOTES      /// Repository has technotes
+0x00000400: HAS_FORUM          /// Repository has forum
+0x00000800: PRIVATE_BRANCH     /// Private branch
 ```
 
 **Fossil Features**:
@@ -4242,71 +4305,71 @@ Web Distributed Authoring and Versioning (WebDAV) metadata.
 
 ```c
 typedef struct _ZOO64_WEBDAV_ATTR {
-  UINT32  Flags;              // WebDAV-specific flags
-  UINT64  CreationDate;       // Creation date (Unix timestamp)
-  UINT64  LastModified;       // Last modified date
-  UINT64  GetContentLength;   // Content length
+  UINT32  Flags;              /// WebDAV-specific flags
+  UINT64  CreationDate;       /// Creation date (Unix timestamp)
+  UINT64  LastModified;       /// Last modified date
+  UINT64  GetContentLength;   /// Content length
   UINT32  GetContentTypeLength; // Length of content type
-  UINT32  GetETagLength;      // Length of ETag
-  UINT32  DisplayNameLength;  // Length of display name
-  UINT32  LivePropCount;      // Number of live properties
-  UINT32  DeadPropCount;      // Number of dead properties
-  UINT32  LockCount;          // Number of locks
-  UINT8   ResourceType;       // 0=regular, 1=collection
-  UINT8   Reserved[3];        // Reserved
-  // Followed by:
-  //   [GetContentTypeLength bytes: content type (MIME)]
-  //   [GetETagLength bytes: entity tag]
-  //   [DisplayNameLength bytes: display name]
-  //   [LivePropCount * sizeof(WEBDAV_LIVE_PROP): live properties]
-  //   [DeadPropCount * sizeof(WEBDAV_DEAD_PROP): dead properties]
-  //   [LockCount * sizeof(WEBDAV_LOCK): active locks]
+  UINT32  GetETagLength;      /// Length of ETag
+  UINT32  DisplayNameLength;  /// Length of display name
+  UINT32  LivePropCount;      /// Number of live properties
+  UINT32  DeadPropCount;      /// Number of dead properties
+  UINT32  LockCount;          /// Number of locks
+  UINT8   ResourceType;       /// 0=regular, 1=collection
+  UINT8   Reserved[3];        /// Reserved
+  /// Followed by:
+  ///   [GetContentTypeLength bytes: content type (MIME)]
+  ///   [GetETagLength bytes: entity tag]
+  ///   [DisplayNameLength bytes: display name]
+  ///   [LivePropCount * sizeof(WEBDAV_LIVE_PROP): live properties]
+  ///   [DeadPropCount * sizeof(WEBDAV_DEAD_PROP): dead properties]
+  ///   [LockCount * sizeof(WEBDAV_LOCK): active locks]
 } ZOO64_WEBDAV_ATTR;
 #pragma pack(pop)
 
 #pragma pack(push, 1)
 typedef struct _WEBDAV_LIVE_PROP {
-  UINT16  PropertyID;         // Standard property ID
-  UINT16  ValueLength;        // Length of value
-  // Followed by [ValueLength bytes: property value]
+  UINT16  PropertyID;         /// Standard property ID
+  UINT16  ValueLength;        /// Length of value
+  /// Followed by [ValueLength bytes: property value]
 } WEBDAV_LIVE_PROP;
 #pragma pack(pop)
 
 #pragma pack(push, 1)
 typedef struct _WEBDAV_DEAD_PROP {
-  UINT16  NamespaceLength;    // Length of XML namespace
-  UINT16  NameLength;         // Length of property name
-  UINT16  ValueLength;        // Length of property value
-  UINT16  Reserved;           // Reserved
-  // Followed by:
-  //   [NamespaceLength bytes: XML namespace URI]
-  //   [NameLength bytes: property name]
-  //   [ValueLength bytes: property value (XML)]
+  UINT16  NamespaceLength;    /// Length of XML namespace
+  UINT16  NameLength;         /// Length of property name
+  UINT16  ValueLength;        /// Length of property value
+  UINT16  Reserved;           /// Reserved
+  /// Followed by:
+  ///   [NamespaceLength bytes: XML namespace URI]
+  ///   [NameLength bytes: property name]
+  ///   [ValueLength bytes: property value (XML)]
 } WEBDAV_DEAD_PROP;
 #pragma pack(pop)
 
 #pragma pack(push, 1)
 typedef struct _WEBDAV_LOCK {
-  UINT8   LockToken[16];      // Lock token (UUID)
-  UINT64  Timeout;            // Lock timeout (Unix timestamp)
-  UINT32  OwnerLength;        // Length of lock owner
-  UINT8   LockScope;          // 0=exclusive, 1=shared
-  UINT8   LockType;           // 0=write
-  UINT16  DepthInfinity;      // Depth: 0=depth-0, 1=depth-infinity
-  // Followed by [OwnerLength bytes: lock owner (XML)]
+  UINT8   LockToken[16];      /// Lock token (UUID)
+  UINT64  Timeout;            /// Lock timeout (Unix timestamp)
+  UINT32  OwnerLength;        /// Length of lock owner
+  UINT8   LockScope;          /// 0=exclusive, 1=shared
+  UINT8   LockType;           /// 0=write
+  UINT16  DepthInfinity;      /// Depth: 0=depth-0, 1=depth-infinity
+  /// Followed by [OwnerLength bytes: lock owner (XML)]
 } WEBDAV_LOCK;
 #pragma pack(pop)
 ```
 
 WebDAV flags:
 ```
-0x00000001: IS_COLLECTION      // Resource is collection (directory)
-0x00000002: HAS_LIVE_PROPS     // Has live properties
-0x00000004: HAS_DEAD_PROPS     // Has dead (custom) properties
-0x00000008: LOCKED             // Resource locked
-0x00000010: SUPPORTS_LOCKING   // Server supports locking
-0x00000020: VERSIONED          // DeltaV versioned resource
-0x00000040: CHECKED_OUT        // DeltaV checked out
+0x00000001: IS_COLLECTION      /// Resource is collection (directory)
+0x00000002: HAS_LIVE_PROPS     /// Has live properties
+0x00000004: HAS_DEAD_PROPS     /// Has dead (custom) properties
+0x00000008: LOCKED             /// Resource locked
+0x00000010: SUPPORTS_LOCKING   /// Server supports locking
+0x00000020: VERSIONED          /// DeltaV versioned resource
+0x00000040: CHECKED_OUT        /// DeltaV checked out
 0x00000080: VERSION_CONTROLLED // DeltaV version-controlled
 ```
 
@@ -4352,75 +4415,75 @@ Network File System (NFS) versions 2, 3, and 4 metadata.
 
 ```c
 typedef struct _ZOO64_NFS_ATTR {
-  UINT8   FileHandle[128];    // NFS file handle (variable length, max 128)
-  UINT16  FileHandleLength;   // Actual length of file handle
-  UINT16  NFSVersion;         // NFS version: 2, 3, or 4
-  UINT32  Flags;              // NFS-specific flags
-  UINT32  FileType;           // NFS file type (ftype)
-  UINT32  Mode;               // Unix mode bits
-  UINT32  NLink;              // Number of hard links
-  UINT32  UID;                // Owner UID
-  UINT32  GID;                // Owner GID
-  UINT64  Size;               // File size in bytes
-  UINT64  Used;               // Disk space used
-  UINT64  FileID;             // File identifier
-  UINT64  FSId;               // Filesystem identifier
-  UINT64  ATime;              // Access time (NFS time)
-  UINT64  MTime;              // Modification time
-  UINT64  CTime;              // Change time
-  UINT32  NFSv4ChangeAttr;    // NFSv4 change attribute
-  UINT32  NamedAttrCount;     // NFSv4 named attributes count
-  UINT32  ACLCount;           // NFSv4 ACL entry count
-  // Followed by:
-  //   [NamedAttrCount * sizeof(NFS_NAMED_ATTR): named attributes]
-  //   [ACLCount * sizeof(NFSv4_ACE): ACL entries]
+  UINT8   FileHandle[128];    /// NFS file handle (variable length, max 128)
+  UINT16  FileHandleLength;   /// Actual length of file handle
+  UINT16  NFSVersion;         /// NFS version: 2, 3, or 4
+  UINT32  Flags;              /// NFS-specific flags
+  UINT32  FileType;           /// NFS file type (ftype)
+  UINT32  Mode;               /// Unix mode bits
+  UINT32  NLink;              /// Number of hard links
+  UINT32  UID;                /// Owner UID
+  UINT32  GID;                /// Owner GID
+  UINT64  Size;               /// File size in bytes
+  UINT64  Used;               /// Disk space used
+  UINT64  FileID;             /// File identifier
+  UINT64  FSId;               /// Filesystem identifier
+  UINT64  ATime;              /// Access time (NFS time)
+  UINT64  MTime;              /// Modification time
+  UINT64  CTime;              /// Change time
+  UINT32  NFSv4ChangeAttr;    /// NFSv4 change attribute
+  UINT32  NamedAttrCount;     /// NFSv4 named attributes count
+  UINT32  ACLCount;           /// NFSv4 ACL entry count
+  /// Followed by:
+  ///   [NamedAttrCount * sizeof(NFS_NAMED_ATTR): named attributes]
+  ///   [ACLCount * sizeof(NFSv4_ACE): ACL entries]
 } ZOO64_NFS_ATTR;
 #pragma pack(pop)
 
 #pragma pack(push, 1)
 typedef struct _NFS_NAMED_ATTR {
-  UINT16  NameLength;         // Length of attribute name
-  UINT32  ValueLength;        // Length of attribute value
-  UINT16  Reserved;           // Reserved
-  // Followed by:
-  //   [NameLength bytes: attribute name]
-  //   [ValueLength bytes: attribute value]
+  UINT16  NameLength;         /// Length of attribute name
+  UINT32  ValueLength;        /// Length of attribute value
+  UINT16  Reserved;           /// Reserved
+  /// Followed by:
+  ///   [NameLength bytes: attribute name]
+  ///   [ValueLength bytes: attribute value]
 } NFS_NAMED_ATTR;
 #pragma pack(pop)
 
 typedef struct _NFSv4_ACE {
-  UINT32  Type;               // ACE type (ALLOW, DENY, AUDIT, ALARM)
-  UINT32  Flag;               // ACE flags (inheritance, etc.)
-  UINT32  AccessMask;         // Access permissions
-  UINT16  WhoLength;          // Length of who (principal)
-  UINT16  Reserved;           // Reserved
-  // Followed by [WhoLength bytes: principal (user@domain)]
+  UINT32  Type;               /// ACE type (ALLOW, DENY, AUDIT, ALARM)
+  UINT32  Flag;               /// ACE flags (inheritance, etc.)
+  UINT32  AccessMask;         /// Access permissions
+  UINT16  WhoLength;          /// Length of who (principal)
+  UINT16  Reserved;           /// Reserved
+  /// Followed by [WhoLength bytes: principal (user@domain)]
 } NFSv4_ACE;
 #pragma pack(pop)
 ```
 
 NFS flags:
 ```
-0x00000001: MOUNTED            // File on NFS mount
-0x00000002: HAS_NAMED_ATTRS    // Has named attributes (NFSv4)
-0x00000004: HAS_ACL            // Has ACL (NFSv4)
-0x00000008: DELEGATED          // File has delegation (NFSv4)
-0x00000010: CACHED             // File data cached locally
-0x00000020: LOCKED             // File has byte-range lock
-0x00000040: HOMOGENEOUS        // Homogeneous file (NFSv4)
-0x00000080: HIDDEN             // Hidden file (Windows-style)
+0x00000001: MOUNTED            /// File on NFS mount
+0x00000002: HAS_NAMED_ATTRS    /// Has named attributes (NFSv4)
+0x00000004: HAS_ACL            /// Has ACL (NFSv4)
+0x00000008: DELEGATED          /// File has delegation (NFSv4)
+0x00000010: CACHED             /// File data cached locally
+0x00000020: LOCKED             /// File has byte-range lock
+0x00000040: HOMOGENEOUS        /// Homogeneous file (NFSv4)
+0x00000080: HIDDEN             /// Hidden file (Windows-style)
 ```
 
 NFS file types (ftype):
 ```
-1: NF4REG       // Regular file
-2: NF4DIR       // Directory
-3: NF4BLK       // Block device
-4: NF4CHR       // Character device
-5: NF4LNK       // Symbolic link
-6: NF4SOCK      // Socket
-7: NF4FIFO      // FIFO
-8: NF4ATTRDIR   // Attribute directory (NFSv4)
+1: NF4REG       /// Regular file
+2: NF4DIR       /// Directory
+3: NF4BLK       /// Block device
+4: NF4CHR       /// Character device
+5: NF4LNK       /// Symbolic link
+6: NF4SOCK      /// Socket
+7: NF4FIFO      /// FIFO
+8: NF4ATTRDIR   /// Attribute directory (NFSv4)
 9: NF4NAMEDATTR // Named attribute (NFSv4)
 ```
 
@@ -4461,53 +4524,53 @@ Server Message Block / Common Internet File System metadata.
 
 ```c
 typedef struct _ZOO64_SMB_ATTR {
-  UINT64  FileID;             // SMB2+ persistent file ID
-  UINT64  VolumeID;           // SMB2+ volume ID
-  UINT32  Flags;              // SMB-specific flags
-  UINT32  FileAttributes;     // Windows file attributes
-  UINT64  AllocationSize;     // Allocation size
-  UINT64  EndOfFile;          // End of file
-  UINT32  NumberOfLinks;      // Number of hard links
-  UINT8   DeletePending;      // Delete pending flag
-  UINT8   Directory;          // Is directory
-  UINT16  EASize;             // Extended attributes size
-  UINT32  StreamCount;        // Number of alternate data streams
-  UINT32  ReparseTag;         // Reparse point tag (if reparse point)
-  UINT8   FileId128[16];      // SMB3+ 128-bit file ID
-  UINT32  ShareAccess;        // Share access flags
-  UINT32  CreateOptions;      // Create options
-  // Followed by:
-  //   [StreamCount * sizeof(SMB_STREAM): alternate data streams]
-  //   [Variable: EA data if EASize > 0]
-  //   [Variable: Reparse data if reparse point]
+  UINT64  FileID;             /// SMB2+ persistent file ID
+  UINT64  VolumeID;           /// SMB2+ volume ID
+  UINT32  Flags;              /// SMB-specific flags
+  UINT32  FileAttributes;     /// Windows file attributes
+  UINT64  AllocationSize;     /// Allocation size
+  UINT64  EndOfFile;          /// End of file
+  UINT32  NumberOfLinks;      /// Number of hard links
+  UINT8   DeletePending;      /// Delete pending flag
+  UINT8   Directory;          /// Is directory
+  UINT16  EASize;             /// Extended attributes size
+  UINT32  StreamCount;        /// Number of alternate data streams
+  UINT32  ReparseTag;         /// Reparse point tag (if reparse point)
+  UINT8   FileId128[16];      /// SMB3+ 128-bit file ID
+  UINT32  ShareAccess;        /// Share access flags
+  UINT32  CreateOptions;      /// Create options
+  /// Followed by:
+  ///   [StreamCount * sizeof(SMB_STREAM): alternate data streams]
+  ///   [Variable: EA data if EASize > 0]
+  ///   [Variable: Reparse data if reparse point]
 } ZOO64_SMB_ATTR;
 #pragma pack(pop)
 
 #pragma pack(push, 1)
 typedef struct _SMB_STREAM {
-  UINT64  StreamSize;         // Size of stream
+  UINT64  StreamSize;         /// Size of stream
   UINT64  StreamAllocationSize; // Allocation size of stream
-  UINT16  StreamNameLength;   // Length of stream name
-  UINT16  Reserved;           // Reserved
-  // Followed by [StreamNameLength bytes: stream name (UTF-16LE)]
+  UINT16  StreamNameLength;   /// Length of stream name
+  UINT16  Reserved;           /// Reserved
+  /// Followed by [StreamNameLength bytes: stream name (UTF-16LE)]
 } SMB_STREAM;
 #pragma pack(pop)
 ```
 
 SMB flags:
 ```
-0x00000001: SMB1              // SMB1/CIFS protocol
-0x00000002: SMB2              // SMB2 protocol
-0x00000004: SMB3              // SMB3 protocol
-0x00000008: ENCRYPTED         // SMB3 encryption enabled
-0x00000010: COMPRESSED        // SMB3 compression enabled
-0x00000020: HAS_STREAMS       // Has alternate data streams
-0x00000040: HAS_EA            // Has extended attributes
-0x00000080: REPARSE_POINT     // Is reparse point
-0x00000100: SPARSE_FILE       // Sparse file
-0x00000200: OFFLINE           // File is offline (HSM)
-0x00000400: OPLOCK_HELD       // Opportunistic lock held
-0x00000800: LEASE_HELD        // SMB2+ lease held
+0x00000001: SMB1              /// SMB1/CIFS protocol
+0x00000002: SMB2              /// SMB2 protocol
+0x00000004: SMB3              /// SMB3 protocol
+0x00000008: ENCRYPTED         /// SMB3 encryption enabled
+0x00000010: COMPRESSED        /// SMB3 compression enabled
+0x00000020: HAS_STREAMS       /// Has alternate data streams
+0x00000040: HAS_EA            /// Has extended attributes
+0x00000080: REPARSE_POINT     /// Is reparse point
+0x00000100: SPARSE_FILE       /// Sparse file
+0x00000200: OFFLINE           /// File is offline (HSM)
+0x00000400: OPLOCK_HELD       /// Opportunistic lock held
+0x00000800: LEASE_HELD        /// SMB2+ lease held
 ```
 
 Windows file attributes (subset):
@@ -4554,89 +4617,89 @@ NetWare Core Protocol (NCP) / NetWare filesystem metadata.
 
 ```c
 typedef struct _ZOO64_NETWARE_ATTR {
-  UINT32  FileNumber;         // NetWare file number
-  UINT32  DirectoryNumber;    // Parent directory number
-  UINT32  VolumeNumber;       // Volume number
-  UINT32  Flags;              // NetWare-specific flags
-  UINT32  Attributes;         // NetWare file attributes
-  UINT64  FileSize;           // File size
-  UINT64  CreationDate;       // Creation date/time
-  UINT64  LastAccessDate;     // Last access date
-  UINT64  LastModifiedDate;   // Last modified date/time
-  UINT64  LastArchivedDate;   // Last archived date/time
-  UINT32  OwnerID;            // Owner object ID
-  UINT32  ArchiverID;         // Archiver object ID
-  UINT32  TrusteeCount;       // Number of trustees
-  UINT32  NamespaceInfo;      // Namespace information
+  UINT32  FileNumber;         /// NetWare file number
+  UINT32  DirectoryNumber;    /// Parent directory number
+  UINT32  VolumeNumber;       /// Volume number
+  UINT32  Flags;              /// NetWare-specific flags
+  UINT32  Attributes;         /// NetWare file attributes
+  UINT64  FileSize;           /// File size
+  UINT64  CreationDate;       /// Creation date/time
+  UINT64  LastAccessDate;     /// Last access date
+  UINT64  LastModifiedDate;   /// Last modified date/time
+  UINT64  LastArchivedDate;   /// Last archived date/time
+  UINT32  OwnerID;            /// Owner object ID
+  UINT32  ArchiverID;         /// Archiver object ID
+  UINT32  TrusteeCount;       /// Number of trustees
+  UINT32  NamespaceInfo;      /// Namespace information
   UINT16  InheritedRightsMask; // Inherited rights mask
-  UINT16  Reserved;           // Reserved
-  // Followed by:
-  //   [TrusteeCount * sizeof(NETWARE_TRUSTEE): trustees]
-  //   [Variable: Extended attributes]
+  UINT16  Reserved;           /// Reserved
+  /// Followed by:
+  ///   [TrusteeCount * sizeof(NETWARE_TRUSTEE): trustees]
+  ///   [Variable: Extended attributes]
 } ZOO64_NETWARE_ATTR;
 #pragma pack(pop)
 
 #pragma pack(push, 1)
 typedef struct _NETWARE_TRUSTEE {
-  UINT32  ObjectID;           // Trustee object ID
-  UINT16  Rights;             // Trustee rights
-  UINT16  ObjectType;         // Object type (user, group, etc.)
-  UINT32  NameLength;         // Length of trustee name
-  // Followed by [NameLength bytes: trustee name]
+  UINT32  ObjectID;           /// Trustee object ID
+  UINT16  Rights;             /// Trustee rights
+  UINT16  ObjectType;         /// Object type (user, group, etc.)
+  UINT32  NameLength;         /// Length of trustee name
+  /// Followed by [NameLength bytes: trustee name]
 } NETWARE_TRUSTEE;
 #pragma pack(pop)
 ```
 
 NetWare flags:
 ```
-0x00000001: MIGRATED           // File migrated to secondary storage
-0x00000002: COMPRESSED         // File compressed
-0x00000004: SUBALLOCATED       // File suballocated
+0x00000001: MIGRATED           /// File migrated to secondary storage
+0x00000002: COMPRESSED         /// File compressed
+0x00000004: SUBALLOCATED       /// File suballocated
 0x00000008: IMMEDIATE_COMPRESS // Immediate compression
-0x00000010: DATA_STREAM        // Has data stream
-0x00000020: NAME_SPACE         // Supports namespaces
+0x00000010: DATA_STREAM        /// Has data stream
+0x00000020: NAME_SPACE         /// Supports namespaces
 ```
 
 NetWare file attributes:
 ```
-0x0001: READ_ONLY              // Read-only
-0x0002: HIDDEN                 // Hidden
-0x0004: SYSTEM                 // System
-0x0008: EXECUTE_ONLY           // Execute only
-0x0010: SUBDIRECTORY           // Subdirectory
-0x0020: ARCHIVE                // Archive needed
-0x0040: EXECUTE_CONFIRM        // Execute confirm
-0x0080: SHAREABLE              // Shareable
-0x0100: DONT_COMPRESS          // Don't compress
-0x0200: DONT_MIGRATE           // Don't migrate
-0x0400: IMMEDIATE_COMPRESS     // Compress immediately
-0x0800: RENAME_INHIBIT         // Rename inhibited
-0x1000: DELETE_INHIBIT         // Delete inhibited
-0x2000: COPY_INHIBIT           // Copy inhibited
-0x4000: PURGE                  // Immediate purge
-0x8000: TRANSACTIONAL          // Transactional
+0x0001: READ_ONLY              /// Read-only
+0x0002: HIDDEN                 /// Hidden
+0x0004: SYSTEM                 /// System
+0x0008: EXECUTE_ONLY           /// Execute only
+0x0010: SUBDIRECTORY           /// Subdirectory
+0x0020: ARCHIVE                /// Archive needed
+0x0040: EXECUTE_CONFIRM        /// Execute confirm
+0x0080: SHAREABLE              /// Shareable
+0x0100: DONT_COMPRESS          /// Don't compress
+0x0200: DONT_MIGRATE           /// Don't migrate
+0x0400: IMMEDIATE_COMPRESS     /// Compress immediately
+0x0800: RENAME_INHIBIT         /// Rename inhibited
+0x1000: DELETE_INHIBIT         /// Delete inhibited
+0x2000: COPY_INHIBIT           /// Copy inhibited
+0x4000: PURGE                  /// Immediate purge
+0x8000: TRANSACTIONAL          /// Transactional
 ```
 
 NetWare trustee rights:
 ```
-0x0001: READ                   // Read
-0x0002: WRITE                  // Write
-0x0004: CREATE                 // Create
-0x0008: ERASE                  // Erase
-0x0010: ACCESS_CONTROL         // Modify
-0x0020: FILE_SCAN              // File scan
-0x0040: MODIFY                 // Modify attributes
-0x0080: SUPERVISOR             // Supervisor (all rights)
+0x0001: READ                   /// Read
+0x0002: WRITE                  /// Write
+0x0004: CREATE                 /// Create
+0x0008: ERASE                  /// Erase
+0x0010: ACCESS_CONTROL         /// Modify
+0x0020: FILE_SCAN              /// File scan
+0x0040: MODIFY                 /// Modify attributes
+0x0080: SUPERVISOR             /// Supervisor (all rights)
 ```
 
 NetWare namespaces:
 ```
-0: DOS_NAMESPACE               // DOS 8.3 namespace
-1: MAC_NAMESPACE               // Macintosh namespace
-2: NFS_NAMESPACE               // NFS namespace
-3: FTAM_NAMESPACE              // FTAM namespace
-4: OS2_NAMESPACE               // OS/2 long namespace
-5: UNIX_NAMESPACE              // Unix namespace
+0: DOS_NAMESPACE               /// DOS 8.3 namespace
+1: MAC_NAMESPACE               /// Macintosh namespace
+2: NFS_NAMESPACE               /// NFS namespace
+3: FTAM_NAMESPACE              /// FTAM namespace
+4: OS2_NAMESPACE               /// OS/2 long namespace
+5: UNIX_NAMESPACE              /// Unix namespace
 ```
 
 ### 6.60 AFP Metadata (0x0040)
@@ -4645,51 +4708,51 @@ Apple Filing Protocol (AFP) versions 1, 2, and 3 metadata.
 
 ```c
 typedef struct _ZOO64_AFP_ATTR {
-  UINT32  FileNumber;         // AFP file number (CNID)
-  UINT32  ParentDirNumber;    // Parent directory CNID
-  UINT16  AFPVersion;         // AFP version (1, 2, or 3)
-  UINT16  Flags;              // AFP-specific flags
-  UINT32  FinderInfo[8];      // Finder info (32 bytes)
+  UINT32  FileNumber;         /// AFP file number (CNID)
+  UINT32  ParentDirNumber;    /// Parent directory CNID
+  UINT16  AFPVersion;         /// AFP version (1, 2, or 3)
+  UINT16  Flags;              /// AFP-specific flags
+  UINT32  FinderInfo[8];      /// Finder info (32 bytes)
   UINT32  ExtendedFinderInfo[4]; // Extended Finder info (16 bytes)
-  UINT64  DataForkSize;       // Data fork logical size
-  UINT64  ResourceForkSize;   // Resource fork logical size
-  UINT64  DataForkAllocSize;  // Data fork allocation size
+  UINT64  DataForkSize;       /// Data fork logical size
+  UINT64  ResourceForkSize;   /// Resource fork logical size
+  UINT64  DataForkAllocSize;  /// Data fork allocation size
   UINT64  ResourceForkAllocSize; // Resource fork allocation size
-  UINT16  AccessRights;       // AFP access rights
-  UINT16  UnixPrivileges;     // Unix privileges mode
-  UINT32  OwnerID;            // Owner ID
-  UINT32  GroupID;            // Group ID
-  UINT32  ACLCount;           // Number of ACL entries
-  // Followed by:
-  //   [DataForkSize bytes: data fork content]
-  //   [ResourceForkSize bytes: resource fork content]
-  //   [ACLCount * sizeof(AFP_ACE): ACL entries]
+  UINT16  AccessRights;       /// AFP access rights
+  UINT16  UnixPrivileges;     /// Unix privileges mode
+  UINT32  OwnerID;            /// Owner ID
+  UINT32  GroupID;            /// Group ID
+  UINT32  ACLCount;           /// Number of ACL entries
+  /// Followed by:
+  ///   [DataForkSize bytes: data fork content]
+  ///   [ResourceForkSize bytes: resource fork content]
+  ///   [ACLCount * sizeof(AFP_ACE): ACL entries]
 } ZOO64_AFP_ATTR;
 #pragma pack(pop)
 
 #pragma pack(push, 1)
 typedef struct _AFP_ACE {
-  UINT32  ACEType;            // ACE type
-  UINT32  ACEFlags;           // ACE flags
-  UINT32  AccessMask;         // Access mask
-  UINT32  UUIDLength;         // Length of UUID (usually 16)
-  // Followed by [UUIDLength bytes: principal UUID]
+  UINT32  ACEType;            /// ACE type
+  UINT32  ACEFlags;           /// ACE flags
+  UINT32  AccessMask;         /// Access mask
+  UINT32  UUIDLength;         /// Length of UUID (usually 16)
+  /// Followed by [UUIDLength bytes: principal UUID]
 } AFP_ACE;
 #pragma pack(pop)
 ```
 
 AFP flags:
 ```
-0x0001: HAS_RESOURCE_FORK      // Has resource fork
-0x0002: HAS_CUSTOM_ICON        // Has custom icon
-0x0004: IS_ALIAS               // Is alias file
-0x0008: IS_INVISIBLE           // Is invisible
-0x0010: COPY_PROTECTED         // Copy protected (AFP 2.0+)
-0x0020: DELETE_INHIBIT         // Delete inhibit (AFP 2.0+)
-0x0040: RENAME_INHIBIT         // Rename inhibit (AFP 2.0+)
-0x0080: SET_CLEAR              // Set/Clear bit (AFP 2.0+)
-0x0100: BACKUP_NEEDED          // Backup needed
-0x0200: NO_COPY                // Don't copy (AFP 3.0+)
+0x0001: HAS_RESOURCE_FORK      /// Has resource fork
+0x0002: HAS_CUSTOM_ICON        /// Has custom icon
+0x0004: IS_ALIAS               /// Is alias file
+0x0008: IS_INVISIBLE           /// Is invisible
+0x0010: COPY_PROTECTED         /// Copy protected (AFP 2.0+)
+0x0020: DELETE_INHIBIT         /// Delete inhibit (AFP 2.0+)
+0x0040: RENAME_INHIBIT         /// Rename inhibit (AFP 2.0+)
+0x0080: SET_CLEAR              /// Set/Clear bit (AFP 2.0+)
+0x0100: BACKUP_NEEDED          /// Backup needed
+0x0200: NO_COPY                /// Don't copy (AFP 3.0+)
 ```
 
 Finder info structure (32 bytes):
@@ -4721,17 +4784,17 @@ Finder flags:
 
 AFP access rights:
 ```
-0x01: OWNER_SEARCH             // Owner search
-0x02: OWNER_READ               // Owner read
-0x04: OWNER_WRITE              // Owner write
-0x10: GROUP_SEARCH             // Group search
-0x20: GROUP_READ               // Group read
-0x40: GROUP_WRITE              // Group write
-0x100: EVERYONE_SEARCH         // Everyone search
-0x200: EVERYONE_READ           // Everyone read
-0x400: EVERYONE_WRITE          // Everyone write
-0x800: USER_HAS_NO_RIGHTS      // User has no rights
-0x1000: BLANK_ACCESS           // Blank access
+0x01: OWNER_SEARCH             /// Owner search
+0x02: OWNER_READ               /// Owner read
+0x04: OWNER_WRITE              /// Owner write
+0x10: GROUP_SEARCH             /// Group search
+0x20: GROUP_READ               /// Group read
+0x40: GROUP_WRITE              /// Group write
+0x100: EVERYONE_SEARCH         /// Everyone search
+0x200: EVERYONE_READ           /// Everyone read
+0x400: EVERYONE_WRITE          /// Everyone write
+0x800: USER_HAS_NO_RIGHTS      /// User has no rights
+0x1000: BLANK_ACCESS           /// Blank access
 ```
 
 **AFP Protocol Features**:
@@ -4745,58 +4808,58 @@ Distributed Computing Environment Distributed File System metadata.
 
 ```c
 typedef struct _ZOO64_DCE_DFS_ATTR {
-  UINT8   FileUUID[16];       // DCE file UUID
-  UINT8   VolumeUUID[16];     // DCE volume UUID
-  UINT64  FileID;             // File identifier
-  UINT64  VolumeID;           // Volume identifier
-  UINT32  Flags;              // DCE DFS-specific flags
-  UINT32  FileType;           // File type
-  UINT64  DataVersion;        // Data version number
-  UINT64  ACLVersion;         // ACL version number
-  UINT32  ACLCount;           // Number of ACL entries
-  UINT32  ExtendedAttrCount;  // Number of extended attributes
-  UINT32  CellNameLength;     // Length of cell name
-  UINT32  VolumeNameLength;   // Length of volume name
-  // Followed by:
-  //   [CellNameLength bytes: DCE cell name]
-  //   [VolumeNameLength bytes: volume name]
-  //   [ACLCount * sizeof(DCE_ACE): ACL entries]
-  //   [ExtendedAttrCount * sizeof(DCE_XATTR): extended attributes]
+  UINT8   FileUUID[16];       /// DCE file UUID
+  UINT8   VolumeUUID[16];     /// DCE volume UUID
+  UINT64  FileID;             /// File identifier
+  UINT64  VolumeID;           /// Volume identifier
+  UINT32  Flags;              /// DCE DFS-specific flags
+  UINT32  FileType;           /// File type
+  UINT64  DataVersion;        /// Data version number
+  UINT64  ACLVersion;         /// ACL version number
+  UINT32  ACLCount;           /// Number of ACL entries
+  UINT32  ExtendedAttrCount;  /// Number of extended attributes
+  UINT32  CellNameLength;     /// Length of cell name
+  UINT32  VolumeNameLength;   /// Length of volume name
+  /// Followed by:
+  ///   [CellNameLength bytes: DCE cell name]
+  ///   [VolumeNameLength bytes: volume name]
+  ///   [ACLCount * sizeof(DCE_ACE): ACL entries]
+  ///   [ExtendedAttrCount * sizeof(DCE_XATTR): extended attributes]
 } ZOO64_DCE_DFS_ATTR;
 #pragma pack(pop)
 
 #pragma pack(push, 1)
 typedef struct _DCE_ACE {
-  UINT8   PrincipalUUID[16];  // Principal UUID
-  UINT32  PermissionBits;     // Permission bits
-  UINT32  ACEType;            // ACE type
+  UINT8   PrincipalUUID[16];  /// Principal UUID
+  UINT32  PermissionBits;     /// Permission bits
+  UINT32  ACEType;            /// ACE type
   UINT16  PrincipalNameLength; // Length of principal name
-  UINT16  Reserved;           // Reserved
-  // Followed by [PrincipalNameLength bytes: principal name]
+  UINT16  Reserved;           /// Reserved
+  /// Followed by [PrincipalNameLength bytes: principal name]
 } DCE_ACE;
 #pragma pack(pop)
 
 #pragma pack(push, 1)
 typedef struct _DCE_XATTR {
-  UINT16  NameLength;         // Length of attribute name
-  UINT32  ValueLength;        // Length of attribute value
-  UINT16  Flags;              // Attribute flags
-  // Followed by:
-  //   [NameLength bytes: attribute name]
-  //   [ValueLength bytes: attribute value]
+  UINT16  NameLength;         /// Length of attribute name
+  UINT32  ValueLength;        /// Length of attribute value
+  UINT16  Flags;              /// Attribute flags
+  /// Followed by:
+  ///   [NameLength bytes: attribute name]
+  ///   [ValueLength bytes: attribute value]
 } DCE_XATTR;
 #pragma pack(pop)
 ```
 
 DCE DFS flags:
 ```
-0x00000001: REPLICATED         // File is replicated
-0x00000002: FILESET_ROOT       // Fileset root
-0x00000004: MOUNT_POINT        // Is mount point
-0x00000008: VOLUME_ROOT        // Volume root
-0x00000010: CACHED             // File cached locally
-0x00000020: TOKEN_HELD         // Access token held
-0x00000040: CALLBACK_SET       // Callback registered
+0x00000001: REPLICATED         /// File is replicated
+0x00000002: FILESET_ROOT       /// Fileset root
+0x00000004: MOUNT_POINT        /// Is mount point
+0x00000008: VOLUME_ROOT        /// Volume root
+0x00000010: CACHED             /// File cached locally
+0x00000020: TOKEN_HELD         /// Access token held
+0x00000040: CALLBACK_SET       /// Callback registered
 ```
 
 DCE DFS file types:
@@ -4810,26 +4873,26 @@ DCE DFS file types:
 
 DCE ACE permission bits:
 ```
-0x00000001: READ               // Read
-0x00000002: WRITE              // Write
-0x00000004: EXECUTE            // Execute
-0x00000008: CONTROL            // Control (admin)
-0x00000010: INSERT             // Insert
-0x00000020: DELETE             // Delete
-0x00000040: LOCK               // Lock
-0x00000080: ADMINISTER         // Administer
+0x00000001: READ               /// Read
+0x00000002: WRITE              /// Write
+0x00000004: EXECUTE            /// Execute
+0x00000008: CONTROL            /// Control (admin)
+0x00000010: INSERT             /// Insert
+0x00000020: DELETE             /// Delete
+0x00000040: LOCK               /// Lock
+0x00000080: ADMINISTER         /// Administer
 ```
 
 DCE ACE types:
 ```
-0: USER_OBJ                    // Owner
-1: USER                        // Named user
-2: GROUP_OBJ                   // Owning group
-3: GROUP                       // Named group
-4: OTHER_OBJ                   // Other
-5: MASK_OBJ                    // Mask
-6: ANY_OTHER                   // Any other
-7: FOREIGN_OTHER               // Foreign principal
+0: USER_OBJ                    /// Owner
+1: USER                        /// Named user
+2: GROUP_OBJ                   /// Owning group
+3: GROUP                       /// Named group
+4: OTHER_OBJ                   /// Other
+5: MASK_OBJ                    /// Mask
+6: ANY_OTHER                   /// Any other
+7: FOREIGN_OTHER               /// Foreign principal
 ```
 
 **DCE DFS Features**:
@@ -4848,38 +4911,38 @@ Preserves short filenames (8.3 DOS format, Windows generated short names, etc.).
 
 ```c
 typedef struct _ZOO64_SHORT_FILENAME_ATTR {
-  UINT16  ShortNameLength;    // Length of short filename
-  UINT8   NameFormat;         // Short name format type
-  UINT8   GenerationMethod;   // How name was generated
-  UINT32  Flags;              // Short filename flags
-  // Followed by [ShortNameLength bytes: short filename]
+  UINT16  ShortNameLength;    /// Length of short filename
+  UINT8   NameFormat;         /// Short name format type
+  UINT8   GenerationMethod;   /// How name was generated
+  UINT32  Flags;              /// Short filename flags
+  /// Followed by [ShortNameLength bytes: short filename]
 } ZOO64_SHORT_FILENAME_ATTR;
 #pragma pack(pop)
 ```
 
 **Name Format Types**:
 ```
-0: DOS_8_3              // Classic DOS 8.3 format (FILENAME.EXT)
-1: WINDOWS_TILDE        // Windows tildegenerated (LONGFI~1.TXT)
-2: VFAT_NUMERIC         // VFAT numeric suffix (LONGFI~2.TXT)
-3: CUSTOM_SHORT         // Custom/manually set short name
-4: CASE_MANGLED         // Case-mangled for case-insensitive FS
+0: DOS_8_3              /// Classic DOS 8.3 format (FILENAME.EXT)
+1: WINDOWS_TILDE        /// Windows tildegenerated (LONGFI~1.TXT)
+2: VFAT_NUMERIC         /// VFAT numeric suffix (LONGFI~2.TXT)
+3: CUSTOM_SHORT         /// Custom/manually set short name
+4: CASE_MANGLED         /// Case-mangled for case-insensitive FS
 ```
 
 **Generation Methods**:
 ```
-0: MANUAL               // Manually specified by user
-1: AUTO_WINDOWS         // Windows automatic generation
-2: AUTO_DOS             // DOS automatic generation
-3: AUTO_VFAT            // VFAT automatic generation
-4: PRESERVED_ORIGINAL   // Preserved from source filesystem
+0: MANUAL               /// Manually specified by user
+1: AUTO_WINDOWS         /// Windows automatic generation
+2: AUTO_DOS             /// DOS automatic generation
+3: AUTO_VFAT            /// VFAT automatic generation
+4: PRESERVED_ORIGINAL   /// Preserved from source filesystem
 ```
 
 **Short Filename Flags**:
 ```
-0x00000001: LOSS_ON_RENAME      // Loses short name if renamed
-0x00000002: CASE_PRESERVED      // Case preserved but ignored
-0x00000004: UNIQUE_GUARANTEED   // Guaranteed unique in directory
+0x00000001: LOSS_ON_RENAME      /// Loses short name if renamed
+0x00000002: CASE_PRESERVED      /// Case preserved but ignored
+0x00000004: UNIQUE_GUARANTEED   /// Guaranteed unique in directory
 0x00000008: GENERATED_FROM_LONG // Generated from long filename
 ```
 
@@ -4907,21 +4970,21 @@ Preserves HFS-encoded filenames with character substitution for illegal characte
 
 ```c
 typedef struct _ZOO64_HFS_FILENAME_ATTR {
-  UINT16  HFSNameLength;      // Length of HFS-encoded name
-  UINT16  SubstitutionCount;  // Number of character substitutions
-  UINT32  Flags;              // HFS filename flags
-  // Followed by:
-  //   [HFSNameLength bytes: HFS-encoded filename]
-  //   [SubstitutionCount * sizeof(HFS_CHAR_SUBST): substitutions]
+  UINT16  HFSNameLength;      /// Length of HFS-encoded name
+  UINT16  SubstitutionCount;  /// Number of character substitutions
+  UINT32  Flags;              /// HFS filename flags
+  /// Followed by:
+  ///   [HFSNameLength bytes: HFS-encoded filename]
+  ///   [SubstitutionCount * sizeof(HFS_CHAR_SUBST): substitutions]
 } ZOO64_HFS_FILENAME_ATTR;
 #pragma pack(pop)
 
 #pragma pack(push, 1)
 typedef struct _HFS_CHAR_SUBST {
-  UINT16  Position;           // Position in filename (0-indexed)
-  UINT16  OriginalChar;       // Original Unicode character
-  UINT16  SubstitutedChar;    // HFS-safe character (usually #HEX)
-  UINT16  Reserved;           // Reserved
+  UINT16  Position;           /// Position in filename (0-indexed)
+  UINT16  OriginalChar;       /// Original Unicode character
+  UINT16  SubstitutedChar;    /// HFS-safe character (usually #HEX)
+  UINT16  Reserved;           /// Reserved
 } HFS_CHAR_SUBST;
 #pragma pack(pop)
 ```
@@ -4945,10 +5008,10 @@ HFS-safe: path#2Fto#2Ffile.txt
 
 **HFS Flags**:
 ```
-0x00000001: HAS_SUBSTITUTIONS     // Contains #XX substitutions
-0x00000002: CASE_PRESERVED        // Original case preserved
-0x00000004: DECOMPOSED_UNICODE    // Uses NFD normalization
-0x00000008: RESOURCE_FORK_NAME    // Name of resource fork (..namedfork/rsrc)
+0x00000001: HAS_SUBSTITUTIONS     /// Contains #XX substitutions
+0x00000002: CASE_PRESERVED        /// Original case preserved
+0x00000004: DECOMPOSED_UNICODE    /// Uses NFD normalization
+0x00000008: RESOURCE_FORK_NAME    /// Name of resource fork (..namedfork/rsrc)
 ```
 
 **Substitution Table** (Common illegal characters):
@@ -4981,99 +5044,99 @@ Stores detected or specified file type (text vs binary, MIME type, etc.).
 
 ```c
 typedef struct _ZOO64_FILETYPE_ATTR {
-  UINT8   DetectionMethod;    // How type was determined
-  UINT8   FileCategory;       // High-level category
-  UINT16  MimeTypeLength;     // Length of MIME type string
-  UINT32  Confidence;         // Detection confidence (0-100)
-  UINT32  Flags;              // File type flags
-  UINT32  MagicNumber;        // File magic number (if applicable)
-  UINT32  CharsetLength;      // Length of charset name (for text)
-  UINT16  LineEnding;         // Line ending type (for text)
-  UINT16  BOM;                // Byte Order Mark type (for text)
-  // Followed by:
-  //   [MimeTypeLength bytes: UTF-8 MIME type]
-  //   [CharsetLength bytes: charset name (e.g., "UTF-8", "ISO-8859-1")]
+  UINT8   DetectionMethod;    /// How type was determined
+  UINT8   FileCategory;       /// High-level category
+  UINT16  MimeTypeLength;     /// Length of MIME type string
+  UINT32  Confidence;         /// Detection confidence (0-100)
+  UINT32  Flags;              /// File type flags
+  UINT32  MagicNumber;        /// File magic number (if applicable)
+  UINT32  CharsetLength;      /// Length of charset name (for text)
+  UINT16  LineEnding;         /// Line ending type (for text)
+  UINT16  BOM;                /// Byte Order Mark type (for text)
+  /// Followed by:
+  ///   [MimeTypeLength bytes: UTF-8 MIME type]
+  ///   [CharsetLength bytes: charset name (e.g., "UTF-8", "ISO-8859-1")]
 } ZOO64_FILETYPE_ATTR;
 #pragma pack(pop)
 ```
 
 **Detection Methods**:
 ```
-0: UNKNOWN              // Unknown/not detected
-1: FILE_EXTENSION       // Based on filename extension
-2: MAGIC_NUMBER         // Based on file magic number
-3: CONTENT_ANALYSIS     // Content heuristics
-4: USER_SPECIFIED       // Manually specified
-5: MIME_TYPE_HEADER     // From HTTP/email headers
-6: LIBMAGIC             // Using libmagic (file command)
-7: COMBINED             // Multiple methods combined
+0: UNKNOWN              /// Unknown/not detected
+1: FILE_EXTENSION       /// Based on filename extension
+2: MAGIC_NUMBER         /// Based on file magic number
+3: CONTENT_ANALYSIS     /// Content heuristics
+4: USER_SPECIFIED       /// Manually specified
+5: MIME_TYPE_HEADER     /// From HTTP/email headers
+6: LIBMAGIC             /// Using libmagic (file command)
+7: COMBINED             /// Multiple methods combined
 ```
 
 **File Categories**:
 ```
 0: UNKNOWN
-1: TEXT                 // Plain text file
-2: BINARY               // Binary data
-3: EXECUTABLE           // Executable program
-4: ARCHIVE              // Archive/compressed file
-5: IMAGE                // Image file
-6: VIDEO                // Video file
-7: AUDIO                // Audio file
-8: DOCUMENT             // Document (PDF, Word, etc.)
-9: SOURCE_CODE          // Source code file
-10: DATA                // Structured data (JSON, XML, CSV)
-11: DATABASE            // Database file
-12: FONT                // Font file
-13: MULTIMEDIA          // Other multimedia
+1: TEXT                 /// Plain text file
+2: BINARY               /// Binary data
+3: EXECUTABLE           /// Executable program
+4: ARCHIVE              /// Archive/compressed file
+5: IMAGE                /// Image file
+6: VIDEO                /// Video file
+7: AUDIO                /// Audio file
+8: DOCUMENT             /// Document (PDF, Word, etc.)
+9: SOURCE_CODE          /// Source code file
+10: DATA                /// Structured data (JSON, XML, CSV)
+11: DATABASE            /// Database file
+12: FONT                /// Font file
+13: MULTIMEDIA          /// Other multimedia
 ```
 
 **File Type Flags**:
 ```
-0x00000001: IS_TEXT             // File is text
-0x00000002: IS_BINARY           // File is binary
-0x00000004: HAS_BOM             // Has byte order mark
-0x00000008: MIXED_LINE_ENDINGS  // Mixed CR/LF/CRLF
-0x00000010: NULL_BYTES_PRESENT  // Contains null bytes
-0x00000020: HIGH_ENTROPY        // High entropy (encrypted/compressed)
-0x00000040: VALID_UTF8          // Valid UTF-8 encoding
-0x00000080: ASCII_ONLY          // Only ASCII characters
-0x00000100: COMPRESSED          // Compressed format
-0x00000200: ENCRYPTED           // Encrypted format
+0x00000001: IS_TEXT             /// File is text
+0x00000002: IS_BINARY           /// File is binary
+0x00000004: HAS_BOM             /// Has byte order mark
+0x00000008: MIXED_LINE_ENDINGS  /// Mixed CR/LF/CRLF
+0x00000010: NULL_BYTES_PRESENT  /// Contains null bytes
+0x00000020: HIGH_ENTROPY        /// High entropy (encrypted/compressed)
+0x00000040: VALID_UTF8          /// Valid UTF-8 encoding
+0x00000080: ASCII_ONLY          /// Only ASCII characters
+0x00000100: COMPRESSED          /// Compressed format
+0x00000200: ENCRYPTED           /// Encrypted format
 ```
 
 **Line Ending Types** (for text files):
 ```
 0: UNKNOWN
-1: LF                   // Unix/Linux/macOS (\n)
-2: CRLF                 // Windows (\r\n)
-3: CR                   // Classic Mac OS (\r)
-4: MIXED                // Mixed line endings
+1: LF                   /// Unix/Linux/macOS (\n)
+2: CRLF                 /// Windows (\r\n)
+3: CR                   /// Classic Mac OS (\r)
+4: MIXED                /// Mixed line endings
 ```
 
 **BOM (Byte Order Mark) Types**:
 ```
 0: NO_BOM
-1: UTF8_BOM             // EF BB BF
-2: UTF16_LE_BOM         // FF FE
-3: UTF16_BE_BOM         // FE FF
-4: UTF32_LE_BOM         // FF FE 00 00
-5: UTF32_BE_BOM         // 00 00 FE FF
+1: UTF8_BOM             /// EF BB BF
+2: UTF16_LE_BOM         /// FF FE
+3: UTF16_BE_BOM         /// FE FF
+4: UTF32_LE_BOM         /// FF FE 00 00
+5: UTF32_BE_BOM         /// 00 00 FE FF
 ```
 
 **Common MIME Types**:
 ```
-text/plain              // Plain text
-text/html               // HTML
-text/css                // CSS
-text/javascript         // JavaScript
-application/json        // JSON
-application/xml         // XML
-application/pdf         // PDF
-application/zip         // ZIP archive
-image/jpeg              // JPEG image
-image/png               // PNG image
-video/mp4               // MP4 video
-audio/mpeg              // MP3 audio
+text/plain              /// Plain text
+text/html               /// HTML
+text/css                /// CSS
+text/javascript         /// JavaScript
+application/json        /// JSON
+application/xml         /// XML
+application/pdf         /// PDF
+application/zip         /// ZIP archive
+image/jpeg              /// JPEG image
+image/png               /// PNG image
+video/mp4               /// MP4 video
+audio/mpeg              /// MP3 audio
 ```
 
 **Text vs Binary Detection Heuristics**:
@@ -5119,31 +5182,31 @@ Efficiently stores sparse files by tracking hole regions (unallocated/zero-fille
 
 ```c
 typedef struct _ZOO64_SPARSE_ATTR {
-  UINT64  LogicalSize;        // Full logical file size
-  UINT64  PhysicalSize;       // Actual data size (excluding holes)
-  UINT32  HoleCount;          // Number of hole regions
-  UINT32  Flags;              // Sparse file flags
-  UINT32  BlockSize;          // Block size for hole alignment
-  UINT32  Reserved;           // Reserved
-  // Followed by HoleCount * sizeof(SPARSE_HOLE) structures
+  UINT64  LogicalSize;        /// Full logical file size
+  UINT64  PhysicalSize;       /// Actual data size (excluding holes)
+  UINT32  HoleCount;          /// Number of hole regions
+  UINT32  Flags;              /// Sparse file flags
+  UINT32  BlockSize;          /// Block size for hole alignment
+  UINT32  Reserved;           /// Reserved
+  /// Followed by HoleCount * sizeof(SPARSE_HOLE) structures
 } ZOO64_SPARSE_ATTR;
 #pragma pack(pop)
 
 #pragma pack(push, 1)
 typedef struct _SPARSE_HOLE {
-  UINT64  Offset;             // Offset of hole start
-  UINT64  Length;             // Length of hole
+  UINT64  Offset;             /// Offset of hole start
+  UINT64  Length;             /// Length of hole
 } SPARSE_HOLE;
 #pragma pack(pop)
 ```
 
 **Sparse File Flags**:
 ```
-0x00000001: SYSTEM_SPARSE      // System-level sparse file
-0x00000002: EXPLICIT_HOLES     // Explicitly set holes (not just zeros)
-0x00000004: TRIM_SUPPORTED     // TRIM/UNMAP supported
-0x00000008: THIN_PROVISIONED   // Thin-provisioned storage
-0x00000010: DEDUPLICATED       // Deduplicated blocks
+0x00000001: SYSTEM_SPARSE      /// System-level sparse file
+0x00000002: EXPLICIT_HOLES     /// Explicitly set holes (not just zeros)
+0x00000004: TRIM_SUPPORTED     /// TRIM/UNMAP supported
+0x00000008: THIN_PROVISIONED   /// Thin-provisioned storage
+0x00000010: DEDUPLICATED       /// Deduplicated blocks
 ```
 
 **Storage Format**:
@@ -5190,42 +5253,42 @@ Stores file as delta (difference) from base revision for efficient version stora
 
 ```c
 typedef struct _ZOO64_DELTA_ATTR {
-  UINT64  BaseRevisionID;     // ID of base revision
-  UINT32  DeltaFormat;        // Delta encoding format
-  UINT32  Flags;              // Delta flags
-  UINT64  BaseSize;           // Size of base file
-  UINT64  DeltaSize;          // Size of delta data
-  UINT64  TargetSize;         // Size of reconstructed file
-  UINT32  BaseHashLength;     // Length of base file hash
-  UINT32  TargetHashLength;   // Length of target file hash
-  // Followed by:
-  //   [BaseHashLength bytes: base file hash]
-  //   [TargetHashLength bytes: target file hash]
-  //   [Delta data]
+  UINT64  BaseRevisionID;     /// ID of base revision
+  UINT32  DeltaFormat;        /// Delta encoding format
+  UINT32  Flags;              /// Delta flags
+  UINT64  BaseSize;           /// Size of base file
+  UINT64  DeltaSize;          /// Size of delta data
+  UINT64  TargetSize;         /// Size of reconstructed file
+  UINT32  BaseHashLength;     /// Length of base file hash
+  UINT32  TargetHashLength;   /// Length of target file hash
+  /// Followed by:
+  ///   [BaseHashLength bytes: base file hash]
+  ///   [TargetHashLength bytes: target file hash]
+  ///   [Delta data]
 } ZOO64_DELTA_ATTR;
 #pragma pack(pop)
 ```
 
 **Delta Formats**:
 ```
-0: NONE                 // Not deltified
-1: XDELTA3              // xdelta3 algorithm
-2: VCDIFF               // RFC 3284 VCDIFF format
-3: BSDIFF               // bsdiff/bspatch
-4: ZDELTA               // zdelta format
-5: RSYNC                // rsync rolling checksum
-6: GIT_DELTA            // Git-style delta
-7: FOSSIL_DELTA         // Fossil delta compression
+0: NONE                 /// Not deltified
+1: XDELTA3              /// xdelta3 algorithm
+2: VCDIFF               /// RFC 3284 VCDIFF format
+3: BSDIFF               /// bsdiff/bspatch
+4: ZDELTA               /// zdelta format
+5: RSYNC                /// rsync rolling checksum
+6: GIT_DELTA            /// Git-style delta
+7: FOSSIL_DELTA         /// Fossil delta compression
 ```
 
 **Delta Flags**:
 ```
-0x00000001: BASE_IN_ARCHIVE    // Base revision in same archive
-0x00000002: BASE_EXTERNAL      // Base revision external
-0x00000004: BIDIRECTIONAL      // Can apply forward/reverse
-0x00000008: COMPRESSED_DELTA   // Delta is compressed
-0x00000010: CHAIN_ALLOWED      // Allow delta chains
-0x00000020: VERIFY_HASH        // Verify base/target hashes
+0x00000001: BASE_IN_ARCHIVE    /// Base revision in same archive
+0x00000002: BASE_EXTERNAL      /// Base revision external
+0x00000004: BIDIRECTIONAL      /// Can apply forward/reverse
+0x00000008: COMPRESSED_DELTA   /// Delta is compressed
+0x00000010: CHAIN_ALLOWED      /// Allow delta chains
+0x00000020: VERIFY_HASH        /// Verify base/target hashes
 ```
 
 **Delta Storage Strategies**:
@@ -5312,12 +5375,12 @@ Document (small edit):
 ```c
 // Version 2 stored as delta from Version 1
 DELTA_ATTR {
-  BaseRevisionID: 0xABCDEF1234567890  // V1 hash
+  BaseRevisionID: 0xABCDEF1234567890  /// V1 hash
   DeltaFormat: XDELTA3
   Flags: BASE_IN_ARCHIVE | VERIFY_HASH
-  BaseSize: 102400              // 100 KB
-  DeltaSize: 5120               // 5 KB
-  TargetSize: 104448            // 102 KB
+  BaseSize: 102400              /// 100 KB
+  DeltaSize: 5120               /// 5 KB
+  TargetSize: 104448            /// 102 KB
   BaseHash: [SHA256 of V1]
   TargetHash: [SHA256 of V2]
 }
@@ -5341,44 +5404,44 @@ Preserves UDF filesystem metadata for optical media (CD/DVD/BD) and flash media.
 
 ```c
 typedef struct _ZOO64_UDF_ATTR {
-  UINT16  UDFRevision;        // UDF revision (0x0102, 0x0150, 0x0200, 0x0201, 0x0250, 0x0260)
-  UINT16  MinReadRevision;    // Minimum UDF revision for reading
-  UINT16  MinWriteRevision;   // Minimum UDF revision for writing
-  UINT16  MaxWriteRevision;   // Maximum UDF revision for writing
-  UINT64  UniqueID;           // Unique ID (48-bit)
-  UINT32  Flags;              // UDF-specific flags
-  UINT32  FileType;           // UDF file type
-  UINT32  PartitionNumber;    // Partition number
+  UINT16  UDFRevision;        /// UDF revision (0x0102, 0x0150, 0x0200, 0x0201, 0x0250, 0x0260)
+  UINT16  MinReadRevision;    /// Minimum UDF revision for reading
+  UINT16  MinWriteRevision;   /// Minimum UDF revision for writing
+  UINT16  MaxWriteRevision;   /// Maximum UDF revision for writing
+  UINT64  UniqueID;           /// Unique ID (48-bit)
+  UINT32  Flags;              /// UDF-specific flags
+  UINT32  FileType;           /// UDF file type
+  UINT32  PartitionNumber;    /// Partition number
   UINT64  LogicalBlockNumber; // Logical block number
   UINT32  ExtendedAttrLength; // Length of extended attributes
-  UINT32  StreamDirCount;     // Number of stream directories
-  // Followed by:
-  //   [ExtendedAttrLength bytes: UDF extended attributes]
-  //   [StreamDirCount * variable: stream directory entries]
+  UINT32  StreamDirCount;     /// Number of stream directories
+  /// Followed by:
+  ///   [ExtendedAttrLength bytes: UDF extended attributes]
+  ///   [StreamDirCount * variable: stream directory entries]
 } ZOO64_UDF_ATTR;
 #pragma pack(pop)
 ```
 
 **UDF Revisions**:
 ```
-0x0102: UDF 1.02  // DVD-Video
-0x0150: UDF 1.50  // DVD-RAM, DVD±R/RW
-0x0200: UDF 2.00  // DVD+RW, BDAV
-0x0201: UDF 2.01  // Blu-ray
-0x0250: UDF 2.50  // Blu-ray additions
-0x0260: UDF 2.60  // Latest (BD-R, flash media)
+0x0102: UDF 1.02  /// DVD-Video
+0x0150: UDF 1.50  /// DVD-RAM, DVD±R/RW
+0x0200: UDF 2.00  /// DVD+RW, BDAV
+0x0201: UDF 2.01  /// Blu-ray
+0x0250: UDF 2.50  /// Blu-ray additions
+0x0260: UDF 2.60  /// Latest (BD-R, flash media)
 ```
 
 **UDF Flags**:
 ```
-0x00000001: HARD_WRITE_PROTECT     // Hardware write-protected
-0x00000002: SOFT_WRITE_PROTECT     // Software write-protected
-0x00000004: REWRITABLE             // Rewritable media
-0x00000008: OVERWRITABLE           // Overwritable once written
-0x00000010: NAMED_STREAMS          // Supports named streams
-0x00000020: METADATA_PARTITION     // Metadata partition present
-0x00000040: SPARED_PARTITION       // Sparing table present
-0x00000080: VAT_PRESENT            // Virtual allocation table
+0x00000001: HARD_WRITE_PROTECT     /// Hardware write-protected
+0x00000002: SOFT_WRITE_PROTECT     /// Software write-protected
+0x00000004: REWRITABLE             /// Rewritable media
+0x00000008: OVERWRITABLE           /// Overwritable once written
+0x00000010: NAMED_STREAMS          /// Supports named streams
+0x00000020: METADATA_PARTITION     /// Metadata partition present
+0x00000040: SPARED_PARTITION       /// Sparing table present
+0x00000080: VAT_PRESENT            /// Virtual allocation table
 ```
 
 **UDF File Types**:
@@ -5407,51 +5470,51 @@ ISO 9660 with extensions (Rock Ridge, Joliet, El Torito) for CD-ROM/DVD.
 
 ```c
 typedef struct _ZOO64_ISO9660_ATTR {
-  UINT32  Flags;              // ISO 9660 flags
-  UINT32  ExtensionFlags;     // Extension flags (RockRidge/Joliet)
+  UINT32  Flags;              /// ISO 9660 flags
+  UINT32  ExtensionFlags;     /// Extension flags (RockRidge/Joliet)
   UINT64  LogicalBlockNumber; // Logical block number (LBA)
-  UINT32  FileUnitSize;       // File unit size
-  UINT8   InterleaveGapSize;  // Interleave gap size
+  UINT32  FileUnitSize;       /// File unit size
+  UINT8   InterleaveGapSize;  /// Interleave gap size
   UINT16  VolumeSequenceNumber; // Volume sequence number
-  UINT8   FileFlags;          // ISO 9660 file flags
-  UINT8   NameType;           // Filename type
-  UINT16  VersionNumber;      // File version number ;n
-  UINT16  RockRidgeLength;    // Length of Rock Ridge data
-  UINT16  JolietNameLength;   // Length of Joliet name
-  UINT32  ElToritoFlags;      // El Torito boot flags
-  // Followed by:
-  //   [RockRidgeLength bytes: Rock Ridge extensions]
-  //   [JolietNameLength bytes: Unicode Joliet name]
+  UINT8   FileFlags;          /// ISO 9660 file flags
+  UINT8   NameType;           /// Filename type
+  UINT16  VersionNumber;      /// File version number ;n
+  UINT16  RockRidgeLength;    /// Length of Rock Ridge data
+  UINT16  JolietNameLength;   /// Length of Joliet name
+  UINT32  ElToritoFlags;      /// El Torito boot flags
+  /// Followed by:
+  ///   [RockRidgeLength bytes: Rock Ridge extensions]
+  ///   [JolietNameLength bytes: Unicode Joliet name]
 } ZOO64_ISO9660_ATTR;
 #pragma pack(pop)
 ```
 
 **ISO 9660 Flags**:
 ```
-0x00000001: LEVEL_1            // ISO 9660 Level 1 (8.3 filenames)
-0x00000002: LEVEL_2            // ISO 9660 Level 2 (30 char names)
-0x00000004: LEVEL_3            // ISO 9660 Level 3 (non-sequential)
+0x00000001: LEVEL_1            /// ISO 9660 Level 1 (8.3 filenames)
+0x00000002: LEVEL_2            /// ISO 9660 Level 2 (30 char names)
+0x00000004: LEVEL_3            /// ISO 9660 Level 3 (non-sequential)
 0x00000008: INTERCHANGE_LEVEL_4 // ISO 9660:1999
-0x00000010: VERSION_2          // ISO 9660:1999 version
+0x00000010: VERSION_2          /// ISO 9660:1999 version
 ```
 
 **Extension Flags**:
 ```
-0x00000001: ROCK_RIDGE         // POSIX Rock Ridge extensions
-0x00000002: JOLIET             // Microsoft Joliet (Unicode)
-0x00000004: EL_TORITO          // El Torito bootable CD
-0x00000008: APPLE_EXTENSIONS   // Apple ISO 9660 extensions
-0x00000010: AMIGA_EXTENSIONS   // Amiga Rock Ridge extensions
+0x00000001: ROCK_RIDGE         /// POSIX Rock Ridge extensions
+0x00000002: JOLIET             /// Microsoft Joliet (Unicode)
+0x00000004: EL_TORITO          /// El Torito bootable CD
+0x00000008: APPLE_EXTENSIONS   /// Apple ISO 9660 extensions
+0x00000010: AMIGA_EXTENSIONS   /// Amiga Rock Ridge extensions
 ```
 
 **ISO 9660 File Flags**:
 ```
-0x01: HIDDEN              // Hidden file
-0x02: DIRECTORY           // Directory
-0x04: ASSOCIATED_FILE     // Associated file
-0x08: RECORD_FORMAT       // Record format in extended attribute
-0x10: PERMISSIONS         // Permissions in extended attribute
-0x80: NOT_FINAL           // Not final directory record
+0x01: HIDDEN              /// Hidden file
+0x02: DIRECTORY           /// Directory
+0x04: ASSOCIATED_FILE     /// Associated file
+0x08: RECORD_FORMAT       /// Record format in extended attribute
+0x10: PERMISSIONS         /// Permissions in extended attribute
+0x80: NOT_FINAL           /// Not final directory record
 ```
 
 **Rock Ridge Extensions** (RRIP):
@@ -5474,13 +5537,13 @@ typedef struct _ZOO64_ISO9660_ATTR {
 
 **El Torito Bootable CD**:
 ```
-0x00000001: BOOTABLE           // Bootable media
-0x00000002: NO_EMULATION       // No emulation mode
-0x00000004: FLOPPY_1_2MB       // 1.2 MB floppy emulation
-0x00000008: FLOPPY_1_44MB      // 1.44 MB floppy emulation
-0x00000010: FLOPPY_2_88MB      // 2.88 MB floppy emulation
+0x00000001: BOOTABLE           /// Bootable media
+0x00000002: NO_EMULATION       /// No emulation mode
+0x00000004: FLOPPY_1_2MB       /// 1.2 MB floppy emulation
+0x00000008: FLOPPY_1_44MB      /// 1.44 MB floppy emulation
+0x00000010: FLOPPY_2_88MB      /// 2.88 MB floppy emulation
 0x00000020: HARD_DISK_EMULATION // Hard disk emulation
-0x00000040: BOOT_INFO_TABLE    // Boot information table present
+0x00000040: BOOT_INFO_TABLE    /// Boot information table present
 ```
 
 **Use Cases**: CD-ROM, DVD-ROM, bootable CDs, Linux LiveCDs
@@ -5491,37 +5554,37 @@ High Sierra filesystem (predecessor to ISO 9660).
 
 ```c
 typedef struct _ZOO64_HIGH_SIERRA_ATTR {
-  UINT32  Flags;              // High Sierra flags
+  UINT32  Flags;              /// High Sierra flags
   UINT64  LogicalBlockNumber; // Logical block number
-  UINT32  ExtentLength;       // Extent length
-  UINT8   InterleaveSize;     // Interleave file unit size
-  UINT8   InterleaveSkip;     // Interleave gap size
-  UINT16  VolumeSequence;     // Volume sequence number
-  UINT8   FileFlags;          // File flags
-  UINT16  VersionNumber;      // File version number
-  UINT16  OwnerID;            // Owner ID (if supported)
-  UINT16  GroupID;            // Group ID (if supported)
-  UINT32  Reserved;           // Reserved
+  UINT32  ExtentLength;       /// Extent length
+  UINT8   InterleaveSize;     /// Interleave file unit size
+  UINT8   InterleaveSkip;     /// Interleave gap size
+  UINT16  VolumeSequence;     /// Volume sequence number
+  UINT8   FileFlags;          /// File flags
+  UINT16  VersionNumber;      /// File version number
+  UINT16  OwnerID;            /// Owner ID (if supported)
+  UINT16  GroupID;            /// Group ID (if supported)
+  UINT32  Reserved;           /// Reserved
 } ZOO64_HIGH_SIERRA_ATTR;
 #pragma pack(pop)
 ```
 
 **High Sierra Flags**:
 ```
-0x00000001: DIRECTORY_RECORD   // Directory record
-0x00000002: INTERLEAVED        // File is interleaved
-0x00000004: EXTENDED_ATTR      // Has extended attributes
+0x00000001: DIRECTORY_RECORD   /// Directory record
+0x00000002: INTERLEAVED        /// File is interleaved
+0x00000004: EXTENDED_ATTR      /// Has extended attributes
 0x00000008: PERMISSIONS_PRESENT // POSIX permissions present
 ```
 
 **High Sierra File Flags**:
 ```
-0x01: HIDDEN              // Hidden file
-0x02: DIRECTORY           // Directory entry
-0x04: ASSOCIATED          // Associated file
-0x08: RECORD_FORMAT       // Has record format
-0x10: PERMISSIONS         // Has permissions
-0x80: MULTI_EXTENT        // Multi-extent file
+0x01: HIDDEN              /// Hidden file
+0x02: DIRECTORY           /// Directory entry
+0x04: ASSOCIATED          /// Associated file
+0x08: RECORD_FORMAT       /// Has record format
+0x10: PERMISSIONS         /// Has permissions
+0x80: MULTI_EXTENT        /// Multi-extent file
 ```
 
 **Historical Note**:
@@ -5541,61 +5604,61 @@ Content-defined chunking with hash-based block deduplication for storage optimiz
 
 ```c
 typedef struct _ZOO64_DEDUP_ATTR {
-  UINT32  ChunkingAlgorithm;  // Chunking algorithm
-  UINT32  HashAlgorithm;      // Hash algorithm for dedup
-  UINT32  MinChunkSize;       // Minimum chunk size
-  UINT32  AvgChunkSize;       // Average chunk size target
-  UINT32  MaxChunkSize;       // Maximum chunk size
-  UINT32  ChunkCount;         // Number of chunks
-  UINT64  LogicalSize;        // Logical file size
-  UINT64  PhysicalSize;       // Physical size after dedup
-  UINT32  Flags;              // Deduplication flags
-  UINT32  Reserved;           // Reserved
-  // Followed by ChunkCount * sizeof(DEDUP_CHUNK) structures
+  UINT32  ChunkingAlgorithm;  /// Chunking algorithm
+  UINT32  HashAlgorithm;      /// Hash algorithm for dedup
+  UINT32  MinChunkSize;       /// Minimum chunk size
+  UINT32  AvgChunkSize;       /// Average chunk size target
+  UINT32  MaxChunkSize;       /// Maximum chunk size
+  UINT32  ChunkCount;         /// Number of chunks
+  UINT64  LogicalSize;        /// Logical file size
+  UINT64  PhysicalSize;       /// Physical size after dedup
+  UINT32  Flags;              /// Deduplication flags
+  UINT32  Reserved;           /// Reserved
+  /// Followed by ChunkCount * sizeof(DEDUP_CHUNK) structures
 } ZOO64_DEDUP_ATTR;
 #pragma pack(pop)
 
 #pragma pack(push, 1)
 typedef struct _DEDUP_CHUNK {
-  UINT8   Hash[32];           // Chunk hash (SHA-256 or BLAKE2b)
-  UINT64  Offset;             // Offset in logical file
-  UINT32  Length;             // Chunk length
-  UINT32  RefCount;           // Reference count (how many times chunk appears)
-  // If RefCount == 1: Unique chunk, data follows in archive
-  // If RefCount > 1: Deduplicated, points to first occurrence
+  UINT8   Hash[32];           /// Chunk hash (SHA-256 or BLAKE2b)
+  UINT64  Offset;             /// Offset in logical file
+  UINT32  Length;             /// Chunk length
+  UINT32  RefCount;           /// Reference count (how many times chunk appears)
+  /// If RefCount == 1: Unique chunk, data follows in archive
+  /// If RefCount > 1: Deduplicated, points to first occurrence
 } DEDUP_CHUNK;
 #pragma pack(pop)
 ```
 
 **Chunking Algorithms**:
 ```
-0: FIXED_SIZE          // Fixed-size chunks (simple but inefficient)
-1: RABIN_FINGERPRINT   // Rabin fingerprinting (CDC)
-2: FASTCDC             // FastCDC (optimized CDC)
-3: GEAR_HASH           // Gear hash-based chunking
-4: BUZZHASH            // BuzzHash rolling hash
-5: SUPER_FEATURE       // SuperFeature-based chunking
-6: RSYNC_ROLLING       // rsync rolling checksum
+0: FIXED_SIZE          /// Fixed-size chunks (simple but inefficient)
+1: RABIN_FINGERPRINT   /// Rabin fingerprinting (CDC)
+2: FASTCDC             /// FastCDC (optimized CDC)
+3: GEAR_HASH           /// Gear hash-based chunking
+4: BUZZHASH            /// BuzzHash rolling hash
+5: SUPER_FEATURE       /// SuperFeature-based chunking
+6: RSYNC_ROLLING       /// rsync rolling checksum
 ```
 
 **Hash Algorithms**:
 ```
-0: SHA256              // SHA-256 (default, good balance)
-1: SHA1                // SHA-1 (legacy, faster but weaker)
-2: BLAKE2B             // BLAKE2b (fast, secure)
-3: XXHASH64            // xxHash (very fast, not cryptographic)
-4: BLAKE3              // BLAKE3 (fastest cryptographic)
+0: SHA256              /// SHA-256 (default, good balance)
+1: SHA1                /// SHA-1 (legacy, faster but weaker)
+2: BLAKE2B             /// BLAKE2b (fast, secure)
+3: XXHASH64            /// xxHash (very fast, not cryptographic)
+4: BLAKE3              /// BLAKE3 (fastest cryptographic)
 ```
 
 **Deduplication Flags**:
 ```
-0x00000001: GLOBAL_DEDUP       // Global dedup across all files
-0x00000002: FILE_LEVEL_DEDUP   // Dedup within single file only
-0x00000004: INLINE_DEDUP       // Inline dedup (during archiving)
+0x00000001: GLOBAL_DEDUP       /// Global dedup across all files
+0x00000002: FILE_LEVEL_DEDUP   /// Dedup within single file only
+0x00000004: INLINE_DEDUP       /// Inline dedup (during archiving)
 0x00000008: POST_PROCESS_DEDUP // Post-process dedup
-0x00000010: COMPRESS_CHUNKS    // Compress chunks after dedup
-0x00000020: ENCRYPT_CHUNKS     // Encrypt chunks after dedup
-0x00000040: VERIFY_HASHES      // Verify chunk hashes on read
+0x00000010: COMPRESS_CHUNKS    /// Compress chunks after dedup
+0x00000020: ENCRYPT_CHUNKS     /// Encrypt chunks after dedup
+0x00000040: VERIFY_HASHES      /// Verify chunk hashes on read
 ```
 
 **Content-Defined Chunking (CDC)**:
@@ -5673,14 +5736,14 @@ Media files: 5-10% dedup (low, already compressed)
 DEDUP_ATTR {
   ChunkingAlgorithm: FASTCDC
   HashAlgorithm: SHA256
-  AvgChunkSize: 65536        // 64 KB
+  AvgChunkSize: 65536        /// 64 KB
   ChunkCount: 1000
-  LogicalSize: 67108864      // 64 MB
-  PhysicalSize: 16777216     // 16 MB (75% dedup)
+  LogicalSize: 67108864      /// 64 MB
+  PhysicalSize: 16777216     /// 16 MB (75% dedup)
   Flags: GLOBAL_DEDUP | COMPRESS_CHUNKS
 
   Chunks:
-  [0]: Hash=ABC..., Offset=0, Length=65432, RefCount=1    // Unique
+  [0]: Hash=ABC..., Offset=0, Length=65432, RefCount=1    /// Unique
   [1]: Hash=DEF..., Offset=65432, Length=66102, RefCount=5 // Dedup 5x
   [2]: Hash=ABC..., Offset=131534, Length=65432, RefCount=1 // Ref to [0]
   ...
@@ -5699,14 +5762,14 @@ Handles Windows/DOS/OS2 reserved device names that cannot be used as regular fil
 
 ```c
 typedef struct _ZOO64_RESERVED_NAME_ATTR {
-  UINT8   ReservedType;       // Type of reserved name
-  UINT8   Platform;           // Platform: 0=DOS, 1=Windows, 2=OS2, 3=Multi
+  UINT8   ReservedType;       /// Type of reserved name
+  UINT8   Platform;           /// Platform: 0=DOS, 1=Windows, 2=OS2, 3=Multi
   UINT16  OriginalNameLength; // Length of original (unsafe) name
-  UINT16  SafeNameLength;     // Length of safe alternative name
-  UINT32  Flags;              // Reserved name flags
-  // Followed by:
-  //   [OriginalNameLength bytes: original name (e.g., "CON")]
-  //   [SafeNameLength bytes: safe alternative (e.g., "CON_")]
+  UINT16  SafeNameLength;     /// Length of safe alternative name
+  UINT32  Flags;              /// Reserved name flags
+  /// Followed by:
+  ///   [OriginalNameLength bytes: original name (e.g., "CON")]
+  ///   [SafeNameLength bytes: safe alternative (e.g., "CON_")]
 } ZOO64_RESERVED_NAME_ATTR;
 #pragma pack(pop)
 ```
@@ -5715,12 +5778,12 @@ typedef struct _ZOO64_RESERVED_NAME_ATTR {
 
 **Class 1: Character Devices** (no extension allowed)
 ```
-CON     // Console (input/output)
-PRN     // Printer (parallel port, same as LPT1)
-AUX     // Auxiliary (serial port, same as COM1)
-NUL     // Null device (discard output)
-CLOCK$  // System clock (DOS/OS2)
-KBD$    // Keyboard (OS/2)
+CON     /// Console (input/output)
+PRN     /// Printer (parallel port, same as LPT1)
+AUX     /// Auxiliary (serial port, same as COM1)
+NUL     /// Null device (discard output)
+CLOCK$  /// System clock (DOS/OS2)
+KBD$    /// Keyboard (OS/2)
 SCREEN$ // Screen (OS/2)
 POINTER$// Mouse pointer (OS/2)
 ```
@@ -5745,7 +5808,7 @@ LPT¹, LPT², LPT³ (Unicode superscripts also reserved on NT)
 \DEV\AUX
 \DEV\COMn
 \DEV\LPTn
-\PIPE\*   // Named pipes
+\PIPE\*   /// Named pipes
 \QUEUES\* // Named queues
 ```
 
@@ -5759,53 +5822,53 @@ LPT¹, LPT², LPT³ (Unicode superscripts also reserved on NT)
 **Reserved Type Values**:
 ```
 0: UNKNOWN
-1: CHARACTER_DEVICE    // CON, PRN, AUX, NUL
-2: SERIAL_PORT         // COM1-COM9
-3: PARALLEL_PORT       // LPT1-LPT9
-4: CLOCK_DEVICE        // CLOCK$
-5: KEYBOARD_DEVICE     // KBD$
-6: SCREEN_DEVICE       // SCREEN$
-7: POINTER_DEVICE      // POINTER$
-8: PIPE_NAMESPACE      // \PIPE\*
-9: QUEUE_NAMESPACE     // \QUEUES\*
-10: DEV_NAMESPACE      // \DEV\*
+1: CHARACTER_DEVICE    /// CON, PRN, AUX, NUL
+2: SERIAL_PORT         /// COM1-COM9
+3: PARALLEL_PORT       /// LPT1-LPT9
+4: CLOCK_DEVICE        /// CLOCK$
+5: KEYBOARD_DEVICE     /// KBD$
+6: SCREEN_DEVICE       /// SCREEN$
+7: POINTER_DEVICE      /// POINTER$
+8: PIPE_NAMESPACE      /// \PIPE\*
+9: QUEUE_NAMESPACE     /// \QUEUES\*
+10: DEV_NAMESPACE      /// \DEV\*
 ```
 
 **Platform Values**:
 ```
-0: DOS              // MS-DOS, PC DOS, DR-DOS
-1: WINDOWS          // Windows 3.x/9x/NT/2000/XP/Vista/7/8/10/11
-2: OS2              // OS/2 1.x/2.x/Warp
-3: MULTI_PLATFORM   // Reserved on multiple platforms
+0: DOS              /// MS-DOS, PC DOS, DR-DOS
+1: WINDOWS          /// Windows 3.x/9x/NT/2000/XP/Vista/7/8/10/11
+2: OS2              /// OS/2 1.x/2.x/Warp
+3: MULTI_PLATFORM   /// Reserved on multiple platforms
 ```
 
 **Reserved Name Flags**:
 ```
-0x00000001: EXTENSION_IRRELEVANT   // Extension doesn't matter (CON.txt = CON)
-0x00000002: CASE_INSENSITIVE       // Case doesn't matter
-0x00000004: WHITESPACE_TRIMMED     // Trailing whitespace ignored
-0x00000008: PATH_IRRELEVANT        // Path doesn't matter
-0x00000010: WILDCARD_MATCH         // Matches pattern (COM[1-9])
-0x00000020: NAMESPACE_PREFIX       // Uses \DEV\ or \PIPE\ prefix
-0x00000040: LEGACY_DOS             // DOS-era device
-0x00000080: WIN32_NAMESPACE        // Win32 namespace (\\?\, \\.\)
-0x00000100: UNC_PATH_SAFE          // Safe in UNC path (\\server\share\CON may work)
+0x00000001: EXTENSION_IRRELEVANT   /// Extension doesn't matter (CON.txt = CON)
+0x00000002: CASE_INSENSITIVE       /// Case doesn't matter
+0x00000004: WHITESPACE_TRIMMED     /// Trailing whitespace ignored
+0x00000008: PATH_IRRELEVANT        /// Path doesn't matter
+0x00000010: WILDCARD_MATCH         /// Matches pattern (COM[1-9])
+0x00000020: NAMESPACE_PREFIX       /// Uses \DEV\ or \PIPE\ prefix
+0x00000040: LEGACY_DOS             /// DOS-era device
+0x00000080: WIN32_NAMESPACE        /// Win32 namespace (\\?\, \\.\)
+0x00000100: UNC_PATH_SAFE          /// Safe in UNC path (\\server\share\CON may work)
 ```
 
 **Detection Algorithm**:
 ```c
 bool is_reserved_name(const char* filename) {
-    // Extract basename (strip path and extension)
+    /// Extract basename (strip path and extension)
     char base[256];
     extract_basename(filename, base);
 
-    // Trim trailing whitespace (Windows behavior)
+    /// Trim trailing whitespace (Windows behavior)
     trim_whitespace(base);
 
-    // Convert to uppercase for comparison
+    /// Convert to uppercase for comparison
     to_uppercase(base);
 
-    // Check Class 1: Character devices
+    /// Check Class 1: Character devices
     if (strcmp(base, "CON") == 0 ||
         strcmp(base, "PRN") == 0 ||
         strcmp(base, "AUX") == 0 ||
@@ -5817,21 +5880,21 @@ bool is_reserved_name(const char* filename) {
         return true;
     }
 
-    // Check Class 2: Serial ports (COM1-COM9)
+    /// Check Class 2: Serial ports (COM1-COM9)
     if (strlen(base) == 4 &&
         base[0] == 'C' && base[1] == 'O' && base[2] == 'M' &&
         base[3] >= '1' && base[3] <= '9') {
         return true;
     }
 
-    // Check Class 3: Parallel ports (LPT1-LPT9)
+    /// Check Class 3: Parallel ports (LPT1-LPT9)
     if (strlen(base) == 4 &&
         base[0] == 'L' && base[1] == 'P' && base[2] == 'T' &&
         base[3] >= '1' && base[3] <= '9') {
         return true;
     }
 
-    // Check Class 4: OS/2 namespace prefixes
+    /// Check Class 4: OS/2 namespace prefixes
     if (strncmp(filename, "\\DEV\\", 5) == 0 ||
         strncmp(filename, "\\PIPE\\", 6) == 0 ||
         strncmp(filename, "\\QUEUES\\", 8) == 0) {
@@ -5969,42 +6032,42 @@ DR-DOS (Digital Research DOS) featured built-in file-level password protection a
 
 ```c
 typedef struct _ZOO64_DRDOS_PASSWORD_ATTR {
-  UINT8   PasswordType;       // Password type: 0=None, 1=Read, 2=Write, 3=Read+Write
-  UINT8   HashAlgorithm;      // Hash algorithm: 0=Original DR-DOS, 1=MD5, 2=SHA-256
-  UINT16  HashLength;         // Length of password hash
-  UINT32  Flags;              // DR-DOS password flags
-  UINT32  Reserved;           // Reserved for future use
-  // Followed by:
-  //   [HashLength bytes: password hash]
-  //   [Optional: salt for modern hash algorithms]
+  UINT8   PasswordType;       /// Password type: 0=None, 1=Read, 2=Write, 3=Read+Write
+  UINT8   HashAlgorithm;      /// Hash algorithm: 0=Original DR-DOS, 1=MD5, 2=SHA-256
+  UINT16  HashLength;         /// Length of password hash
+  UINT32  Flags;              /// DR-DOS password flags
+  UINT32  Reserved;           /// Reserved for future use
+  /// Followed by:
+  ///   [HashLength bytes: password hash]
+  ///   [Optional: salt for modern hash algorithms]
 } ZOO64_DRDOS_PASSWORD_ATTR;
 #pragma pack(pop)
 ```
 
 **Password Type Values**:
 ```
-0: NONE              // No password protection
-1: READ_PROTECTED    // Password required to read file
-2: WRITE_PROTECTED   // Password required to write/modify file
-3: READ_WRITE        // Password required for both read and write
+0: NONE              /// No password protection
+1: READ_PROTECTED    /// Password required to read file
+2: WRITE_PROTECTED   /// Password required to write/modify file
+3: READ_WRITE        /// Password required for both read and write
 ```
 
 **Hash Algorithm Values**:
 ```
-0: DRDOS_ORIGINAL    // Original DR-DOS password algorithm (weak, for compatibility)
-1: MD5               // MD5 hash (better, still weak by modern standards)
-2: SHA256            // SHA-256 hash (recommended for modern archives)
+0: DRDOS_ORIGINAL    /// Original DR-DOS password algorithm (weak, for compatibility)
+1: MD5               /// MD5 hash (better, still weak by modern standards)
+2: SHA256            /// SHA-256 hash (recommended for modern archives)
 ```
 
 **DR-DOS Password Flags**:
 ```
-0x00000001: PASSWORD_ENCRYPTED      // File data is encrypted with password
-0x00000002: PASSWORD_HASH_ONLY      // Only hash stored (data not encrypted)
-0x00000004: CASE_SENSITIVE          // Password is case-sensitive
-0x00000008: CASE_INSENSITIVE        // Password is case-insensitive (DR-DOS default)
-0x00000010: LEGACY_COMPATIBILITY    // Use DR-DOS 3.x/5.x/6.x compatibility mode
-0x00000020: SALT_PRESENT            // Hash includes salt
-0x00000040: ENHANCED_SECURITY       // Use enhanced security (multiple rounds)
+0x00000001: PASSWORD_ENCRYPTED      /// File data is encrypted with password
+0x00000002: PASSWORD_HASH_ONLY      /// Only hash stored (data not encrypted)
+0x00000004: CASE_SENSITIVE          /// Password is case-sensitive
+0x00000008: CASE_INSENSITIVE        /// Password is case-insensitive (DR-DOS default)
+0x00000010: LEGACY_COMPATIBILITY    /// Use DR-DOS 3.x/5.x/6.x compatibility mode
+0x00000020: SALT_PRESENT            /// Hash includes salt
+0x00000040: ENHANCED_SECURITY       /// Use enhanced security (multiple rounds)
 ```
 
 **DR-DOS Password System**:
@@ -6114,14 +6177,14 @@ CP/M (Control Program for Microcomputers) used a USER number system (0-15) to pr
 
 ```c
 typedef struct _ZOO64_CPM_USER_ATTR {
-  UINT8   UserNumber;         // CP/M USER number (0-15)
-  UINT8   SystemAttribute;    // System file attribute (visible to all users if set)
-  UINT8   ReadOnly;           // Read-only attribute
-  UINT8   ArchiveFlag;        // Archive flag (for backup software)
-  UINT32  ExtentNumber;       // Extent number (for large files split across extents)
-  UINT32  RecordCount;        // Number of 128-byte records in extent
+  UINT8   UserNumber;         /// CP/M USER number (0-15)
+  UINT8   SystemAttribute;    /// System file attribute (visible to all users if set)
+  UINT8   ReadOnly;           /// Read-only attribute
+  UINT8   ArchiveFlag;        /// Archive flag (for backup software)
+  UINT32  ExtentNumber;       /// Extent number (for large files split across extents)
+  UINT32  RecordCount;        /// Number of 128-byte records in extent
   UINT16  BlockAllocation[8]; // CP/M block allocation map
-  UINT32  Flags;              // CP/M flags
+  UINT32  Flags;              /// CP/M flags
 } ZOO64_CPM_USER_ATTR;
 #pragma pack(pop)
 ```
@@ -6136,9 +6199,9 @@ typedef struct _ZOO64_CPM_USER_ATTR {
 
 **CP/M Attributes**:
 ```
-0x01: READ_ONLY      // File cannot be modified or deleted
-0x02: SYSTEM         // System file (visible regardless of USER number)
-0x04: ARCHIVE        // Archive flag (set when file modified)
+0x01: READ_ONLY      /// File cannot be modified or deleted
+0x02: SYSTEM         /// System file (visible regardless of USER number)
+0x04: ARCHIVE        /// Archive flag (set when file modified)
 0x80: REQUIRES_PASSWORD // File requires password (some CP/M variants)
 ```
 
@@ -6227,11 +6290,11 @@ Extracted:   /user5/REPORT.TXT (or REPORT.TXT with xattr: user.cpm.user=5)
 // CP/M file in USER 5, system file, read-only
 CPM_USER_ATTR {
   UserNumber: 5
-  SystemAttribute: 1     // Visible to all users
-  ReadOnly: 1            // Cannot be modified
-  ArchiveFlag: 0         // Not modified since last backup
-  ExtentNumber: 0        // First extent
-  RecordCount: 64        // 64 * 128 = 8192 bytes
+  SystemAttribute: 1     /// Visible to all users
+  ReadOnly: 1            /// Cannot be modified
+  ArchiveFlag: 0         /// Not modified since last backup
+  ExtentNumber: 0        /// First extent
+  RecordCount: 64        /// 64 * 128 = 8192 bytes
   BlockAllocation: [0x0010, 0x0011, 0x0012, 0x0013, 0x0000, ...]
   Flags: 0
 }
@@ -6239,10 +6302,10 @@ CPM_USER_ATTR {
 
 **CP/M Flags**:
 ```
-0x00000001: MULTI_EXTENT        // File spans multiple extents
-0x00000002: PASSWORD_PROTECTED  // File requires password (CP/M Plus)
-0x00000004: TIMESTAMP_PRESENT   // File has timestamps (CP/M Plus, DateStamper)
-0x00000008: FILE_LABEL          // Special file label entry
+0x00000001: MULTI_EXTENT        /// File spans multiple extents
+0x00000002: PASSWORD_PROTECTED  /// File requires password (CP/M Plus)
+0x00000004: TIMESTAMP_PRESENT   /// File has timestamps (CP/M Plus, DateStamper)
+0x00000008: FILE_LABEL          /// Special file label entry
 ```
 
 **Historical Context**:
@@ -6269,32 +6332,32 @@ Olivetti pcos (Personal Computer Operating System) was the operating system used
 
 ```c
 typedef struct _ZOO64_PCOS_ATTR {
-  UINT8   FileClass;          // File class: 0=Temporary, 1=Permanent, 2=System
-  UINT8   ProtectionLevel;    // Protection level (0-7)
-  UINT8   VersionNumber;      // File version number (1-255)
-  UINT8   GenerationNumber;   // File generation number
-  UINT16  FileOrganization;   // File organization type
-  UINT16  RecordLength;       // Logical record length (for structured files)
-  UINT32  RecordCount;        // Number of logical records
-  UINT32  AllocationSize;     // Allocated size (may be larger than used)
-  UINT32  Flags;              // pcos-specific flags
-  UINT32  OwnerID;            // Owner user ID
-  UINT32  GroupID;            // Group ID
-  UINT64  CreationTime;       // pcos creation timestamp
-  UINT64  ExpirationTime;     // File expiration time (0 = no expiration)
-  // Followed by:
-  //   [Optional: structured file header]
-  //   [Optional: index structure for indexed files]
+  UINT8   FileClass;          /// File class: 0=Temporary, 1=Permanent, 2=System
+  UINT8   ProtectionLevel;    /// Protection level (0-7)
+  UINT8   VersionNumber;      /// File version number (1-255)
+  UINT8   GenerationNumber;   /// File generation number
+  UINT16  FileOrganization;   /// File organization type
+  UINT16  RecordLength;       /// Logical record length (for structured files)
+  UINT32  RecordCount;        /// Number of logical records
+  UINT32  AllocationSize;     /// Allocated size (may be larger than used)
+  UINT32  Flags;              /// pcos-specific flags
+  UINT32  OwnerID;            /// Owner user ID
+  UINT32  GroupID;            /// Group ID
+  UINT64  CreationTime;       /// pcos creation timestamp
+  UINT64  ExpirationTime;     /// File expiration time (0 = no expiration)
+  /// Followed by:
+  ///   [Optional: structured file header]
+  ///   [Optional: index structure for indexed files]
 } ZOO64_PCOS_ATTR;
 #pragma pack(pop)
 ```
 
 **File Class Values**:
 ```
-0: TEMPORARY    // Temporary file (deleted on system restart)
-1: PERMANENT    // Permanent file (normal file)
-2: SYSTEM       // System file (protected, elevated access)
-3: SHARED       // Shared file (multi-user access)
+0: TEMPORARY    /// Temporary file (deleted on system restart)
+1: PERMANENT    /// Permanent file (normal file)
+2: SYSTEM       /// System file (protected, elevated access)
+3: SHARED       /// Shared file (multi-user access)
 ```
 
 **Protection Level** (0-7, octal-style like Unix):
@@ -6311,25 +6374,25 @@ typedef struct _ZOO64_PCOS_ATTR {
 
 **File Organization Types**:
 ```
-0: SEQUENTIAL           // Sequential access (like tape)
-1: RELATIVE             // Direct access by record number
-2: INDEXED_SEQUENTIAL   // ISAM (Indexed Sequential Access Method)
-3: KEYED                // Keyed access (B-tree index)
-4: STREAM               // Byte stream (like Unix)
+0: SEQUENTIAL           /// Sequential access (like tape)
+1: RELATIVE             /// Direct access by record number
+2: INDEXED_SEQUENTIAL   /// ISAM (Indexed Sequential Access Method)
+3: KEYED                /// Keyed access (B-tree index)
+4: STREAM               /// Byte stream (like Unix)
 ```
 
 **pcos Flags**:
 ```
-0x00000001: VERSIONING_ENABLED    // File uses version numbers
-0x00000002: EXPIRATION_SET        // File has expiration date
-0x00000004: BACKUP_REQUIRED       // File should be backed up
-0x00000008: ARCHIVE_BIT           // File modified since last backup
-0x00000010: LOCKED                // File is locked (in use)
-0x00000020: STRUCTURED_FILE       // File has structured records
-0x00000040: INDEXED_FILE          // File has index structure
-0x00000080: COMPRESSED            // File is compressed by pcos
-0x00000100: ENCRYPTED             // File is encrypted by pcos
-0x00000200: REMOTE_FILE           // File is on remote system (pcos networking)
+0x00000001: VERSIONING_ENABLED    /// File uses version numbers
+0x00000002: EXPIRATION_SET        /// File has expiration date
+0x00000004: BACKUP_REQUIRED       /// File should be backed up
+0x00000008: ARCHIVE_BIT           /// File modified since last backup
+0x00000010: LOCKED                /// File is locked (in use)
+0x00000020: STRUCTURED_FILE       /// File has structured records
+0x00000040: INDEXED_FILE          /// File has index structure
+0x00000080: COMPRESSED            /// File is compressed by pcos
+0x00000100: ENCRYPTED             /// File is encrypted by pcos
+0x00000200: REMOTE_FILE           /// File is on remote system (pcos networking)
 ```
 
 **pcos Versioning System**:
@@ -6419,19 +6482,19 @@ Extracted:   REPORT.TXT.v3 or REPORT.TXT (with xattr: user.pcos.version=3)
 // pcos indexed file with versioning
 PCOS_ATTR {
   FileClass: PERMANENT
-  ProtectionLevel: 6              // Read + Write
-  VersionNumber: 5                // Version 5 of file
-  GenerationNumber: 1             // First generation
+  ProtectionLevel: 6              /// Read + Write
+  VersionNumber: 5                /// Version 5 of file
+  GenerationNumber: 1             /// First generation
   FileOrganization: INDEXED_SEQUENTIAL
-  RecordLength: 256               // 256-byte records
-  RecordCount: 1024               // 1024 records = 256KB
-  AllocationSize: 262144          // Allocated space
+  RecordLength: 256               /// 256-byte records
+  RecordCount: 1024               /// 1024 records = 256KB
+  AllocationSize: 262144          /// Allocated space
   Flags: VERSIONING_ENABLED | INDEXED_FILE | BACKUP_REQUIRED
-  OwnerID: 42                     // User 42
-  GroupID: 10                     // Group 10
+  OwnerID: 42                     /// User 42
+  GroupID: 10                     /// Group 10
   CreationTime: [timestamp]
-  ExpirationTime: 0               // No expiration
-  // Followed by index structure...
+  ExpirationTime: 0               /// No expiration
+  /// Followed by index structure...
 }
 ```
 
@@ -6474,19 +6537,19 @@ WIM is Microsoft's file-based disk image format used for Windows deployment. Zoo
 ```c
 #pragma pack(push, 1)
 typedef struct _ZOO64_WIM_ATTR {
-  UINT32  WIMVersion;         // WIM format version (typically 0x00010D00)
-  UINT32  ImageIndex;         // Image index within WIM (1-based)
-  UINT32  ImageCount;         // Total number of images
-  UINT32  BootIndex;          // Boot image index (0 if not bootable)
-  UINT64  ImageFlags;         // WIM image flags
-  UINT32  CompressionType;    // WIM compression type
-  UINT32  ChunkSize;          // Compression chunk size (32KB default)
-  UINT16  ImageNameLength;    // Length of image name
-  UINT16  ImageDescLength;    // Length of image description
-  UINT32  Reserved;           // Reserved for future use
-  // Followed by:
-  //   [ImageNameLength bytes: image name]
-  //   [ImageDescLength bytes: image description]
+  UINT32  WIMVersion;         /// WIM format version (typically 0x00010D00)
+  UINT32  ImageIndex;         /// Image index within WIM (1-based)
+  UINT32  ImageCount;         /// Total number of images
+  UINT32  BootIndex;          /// Boot image index (0 if not bootable)
+  UINT64  ImageFlags;         /// WIM image flags
+  UINT32  CompressionType;    /// WIM compression type
+  UINT32  ChunkSize;          /// Compression chunk size (32KB default)
+  UINT16  ImageNameLength;    /// Length of image name
+  UINT16  ImageDescLength;    /// Length of image description
+  UINT32  Reserved;           /// Reserved for future use
+  /// Followed by:
+  ///   [ImageNameLength bytes: image name]
+  ///   [ImageDescLength bytes: image description]
 } ZOO64_WIM_ATTR;
 #pragma pack(pop)
 ```
@@ -6499,24 +6562,24 @@ typedef struct _ZOO64_WIM_ATTR {
 
 **WIM Image Flags**:
 ```
-0x00000001: COMPRESSION         // Image uses compression
-0x00000002: READONLY            // Image is read-only
-0x00000004: SPANNED             // Image spans multiple files
-0x00000008: RESOURCE_ONLY       // Image contains only resources
-0x00000010: METADATA_ONLY       // Image contains only metadata
-0x00000020: SINGLE_INSTANCE     // Use single-instance storage
-0x00000040: BOOTABLE            // Image is bootable
-0x00000080: INTEGRITY_CHECK     // Image has integrity table
-0x00000100: DEDUPLICATED        // Image uses chunk deduplication
-0x00000200: PIPEABLE            // Image supports pipeable WIM
+0x00000001: COMPRESSION         /// Image uses compression
+0x00000002: READONLY            /// Image is read-only
+0x00000004: SPANNED             /// Image spans multiple files
+0x00000008: RESOURCE_ONLY       /// Image contains only resources
+0x00000010: METADATA_ONLY       /// Image contains only metadata
+0x00000020: SINGLE_INSTANCE     /// Use single-instance storage
+0x00000040: BOOTABLE            /// Image is bootable
+0x00000080: INTEGRITY_CHECK     /// Image has integrity table
+0x00000100: DEDUPLICATED        /// Image uses chunk deduplication
+0x00000200: PIPEABLE            /// Image supports pipeable WIM
 ```
 
 **WIM Compression Types**:
 ```
-0: NONE           // No compression (stored)
-1: XPRESS         // LZ77-based (fast)
-2: LZX            // LZ77+Huffman (better ratio)
-3: LZMS           // LZMA-like (best ratio, Windows 8+)
+0: NONE           /// No compression (stored)
+1: XPRESS         /// LZ77-based (fast)
+2: LZX            /// LZ77+Huffman (better ratio)
+3: LZMS           /// LZMA-like (best ratio, Windows 8+)
 ```
 
 **WIM Features**:
@@ -6547,25 +6610,25 @@ WIM uses resource-based storage where files reference shared resource chunks. Th
 ```c
 #pragma pack(push, 1)
 typedef struct _ZOO64_WIM_RESOURCE_ATTR {
-  UINT8   ResourceHash[20];   // SHA-1 hash of resource (WIM standard)
-  UINT64  ResourceOffset;     // Offset to resource data
-  UINT64  ResourceSize;       // Size of resource (compressed)
-  UINT64  OriginalSize;       // Original size (uncompressed)
-  UINT32  RefCount;           // Number of files referencing this resource
-  UINT32  PartNumber;         // Part number (for split WIM)
-  UINT32  Flags;              // Resource flags
-  UINT32  Reserved;           // Reserved
+  UINT8   ResourceHash[20];   /// SHA-1 hash of resource (WIM standard)
+  UINT64  ResourceOffset;     /// Offset to resource data
+  UINT64  ResourceSize;       /// Size of resource (compressed)
+  UINT64  OriginalSize;       /// Original size (uncompressed)
+  UINT32  RefCount;           /// Number of files referencing this resource
+  UINT32  PartNumber;         /// Part number (for split WIM)
+  UINT32  Flags;              /// Resource flags
+  UINT32  Reserved;           /// Reserved
 } ZOO64_WIM_RESOURCE_ATTR;
 #pragma pack(pop)
 ```
 
 **Resource Flags**:
 ```
-0x00000001: COMPRESSED         // Resource is compressed
-0x00000002: FREE               // Resource is free/deleted
-0x00000004: METADATA           // Resource contains metadata
-0x00000008: SPANNED            // Resource spans multiple parts
-0x00000010: DEDUPLICATED       // Resource uses chunk deduplication
+0x00000001: COMPRESSED         /// Resource is compressed
+0x00000002: FREE               /// Resource is free/deleted
+0x00000004: METADATA           /// Resource contains metadata
+0x00000008: SPANNED            /// Resource spans multiple parts
+0x00000010: DEDUPLICATED       /// Resource uses chunk deduplication
 ```
 
 **Single-Instance Storage Algorithm**:
@@ -6606,50 +6669,50 @@ For bootable WIM images (like boot.wim or install.wim), this metadata stores boo
 ```c
 #pragma pack(push, 1)
 typedef struct _ZOO64_WIM_BOOT_ATTR {
-  UINT32  BootType;           // Boot type: 0=BIOS, 1=UEFI, 2=Both
-  UINT32  BootFlags;          // Boot flags
-  UINT64  BootloaderOffset;   // Offset to bootloader
-  UINT64  BootloaderSize;     // Size of bootloader
-  UINT64  WIMBootOffset;      // Offset to WIMBoot metadata
-  UINT16  BootFileCount;      // Number of boot files
-  UINT16  BcdStoreLength;     // Length of BCD store
-  UINT32  Reserved[4];        // Reserved
-  // Followed by:
-  //   [BcdStoreLength bytes: BCD store (Boot Configuration Data)]
-  //   [BootFileCount * BOOT_FILE_ENTRY]
+  UINT32  BootType;           /// Boot type: 0=BIOS, 1=UEFI, 2=Both
+  UINT32  BootFlags;          /// Boot flags
+  UINT64  BootloaderOffset;   /// Offset to bootloader
+  UINT64  BootloaderSize;     /// Size of bootloader
+  UINT64  WIMBootOffset;      /// Offset to WIMBoot metadata
+  UINT16  BootFileCount;      /// Number of boot files
+  UINT16  BcdStoreLength;     /// Length of BCD store
+  UINT32  Reserved[4];        /// Reserved
+  /// Followed by:
+  ///   [BcdStoreLength bytes: BCD store (Boot Configuration Data)]
+  ///   [BootFileCount * BOOT_FILE_ENTRY]
 } ZOO64_WIM_BOOT_ATTR;
 #pragma pack(pop)
 
 #pragma pack(push, 1)
 typedef struct _ZOO64_BOOT_FILE_ENTRY {
-  UINT16  PathLength;         // Length of boot file path
-  UINT64  FileOffset;         // Offset to file in archive
-  UINT64  FileSize;           // Size of boot file
-  UINT32  LoadAddress;        // Load address for bootloader
-  UINT32  Flags;              // Boot file flags
-  // Followed by:
-  //   [PathLength bytes: file path]
+  UINT16  PathLength;         /// Length of boot file path
+  UINT64  FileOffset;         /// Offset to file in archive
+  UINT64  FileSize;           /// Size of boot file
+  UINT32  LoadAddress;        /// Load address for bootloader
+  UINT32  Flags;              /// Boot file flags
+  /// Followed by:
+  ///   [PathLength bytes: file path]
 } ZOO64_BOOT_FILE_ENTRY;
 #pragma pack(pop)
 ```
 
 **Boot Types**:
 ```
-0: BIOS_LEGACY    // Legacy BIOS boot
-1: UEFI           // UEFI boot
-2: DUAL_BOOT      // Both BIOS and UEFI
-3: IPXE           // Network boot (iPXE)
-4: GRUB           // GRUB bootloader
+0: BIOS_LEGACY    /// Legacy BIOS boot
+1: UEFI           /// UEFI boot
+2: DUAL_BOOT      /// Both BIOS and UEFI
+3: IPXE           /// Network boot (iPXE)
+4: GRUB           /// GRUB bootloader
 ```
 
 **Boot Flags**:
 ```
-0x00000001: SECURE_BOOT_ENABLED    // UEFI Secure Boot enabled
-0x00000002: TEST_SIGNING           // Allow test-signed drivers
-0x00000004: DISABLE_INTEGRITY      // Disable integrity checks
-0x00000008: RECOVERY_MODE          // Boot to recovery
-0x00000010: SAFE_MODE              // Boot to safe mode
-0x00000020: WIMBOOT_ENABLED        // Use WIMBoot (pointer files)
+0x00000001: SECURE_BOOT_ENABLED    /// UEFI Secure Boot enabled
+0x00000002: TEST_SIGNING           /// Allow test-signed drivers
+0x00000004: DISABLE_INTEGRITY      /// Disable integrity checks
+0x00000008: RECOVERY_MODE          /// Boot to recovery
+0x00000010: SAFE_MODE              /// Boot to safe mode
+0x00000020: WIMBOOT_ENABLED        /// Use WIMBoot (pointer files)
 ```
 
 **WIMBoot**:
@@ -6664,131 +6727,9 @@ WIMBoot allows Windows to boot directly from WIM files:
 - Contains boot menu, boot options, boot sequence
 - Required for Windows Boot Manager
 
-### 6.78 WIM Integrity Metadata (0x0052)
+### 6.78 Removed - Merged into Section 6b (Unified Integrity)
 
-WIM integrity tables provide verification of WIM data using checksums.
-
-```c
-#pragma pack(push, 1)
-typedef struct _ZOO64_WIM_INTEGRITY_ATTR {
-  UINT32  IntegritySize;      // Size of integrity table
-  UINT32  ChunkSize;          // Chunk size for checksums (10MB default)
-  UINT32  ChunkCount;         // Number of chunks
-  UINT32  HashAlgorithm;      // Hash algorithm (0=SHA1)
-  UINT64  TableOffset;        // Offset to integrity table
-  UINT32  Flags;              // Integrity flags
-  UINT32  Reserved;           // Reserved
-  // Followed by:
-  //   [ChunkCount * 20 bytes: SHA-1 hashes]
-} ZOO64_WIM_INTEGRITY_ATTR;
-#pragma pack(pop)
-```
-
-**Hash Algorithms**:
-```
-0: SHA1    // SHA-1 (WIM standard)
-1: SHA256  // SHA-256 (stronger)
-2: SHA512  // SHA-512 (strongest)
-```
-
-**Integrity Flags**:
-```
-0x00000001: VERIFY_ON_EXTRACT    // Verify during extraction
-0x00000002: VERIFY_ON_APPLY      // Verify during apply
-0x00000004: VERIFY_ON_CAPTURE    // Verify during capture
-0x00000008: FAIL_ON_ERROR        // Fail if verification fails
-```
-
-**Integrity Table Structure**:
-```
-WIM File divided into 10MB chunks:
-- Chunk 0: bytes 0 - 10485759      → SHA-1 hash
-- Chunk 1: bytes 10485760 - ...    → SHA-1 hash
-- ...
-
-Integrity Table:
-[UINT32 ChunkCount]
-[UINT32 ChunkSize]
-[SHA1_HASH chunk_0]
-[SHA1_HASH chunk_1]
-...
-[SHA1_HASH chunk_n]
-```
-
-**Verification Process**:
-```c
-bool verify_wim_integrity(
-    FILE *wim,
-    ZOO64_WIM_INTEGRITY_ATTR *integrity
-) {
-    uint8_t buffer[10 * 1024 * 1024];  // 10 MB buffer
-    SHA1_CTX ctx;
-
-    for (uint32_t i = 0; i < integrity->ChunkCount; i++) {
-        // Read chunk
-        size_t chunk_size = fread(buffer, 1, integrity->ChunkSize, wim);
-
-        // Calculate SHA-1
-        SHA1_Init(&ctx);
-        SHA1_Update(&ctx, buffer, chunk_size);
-        SHA1_Final(hash, &ctx);
-
-        // Compare with stored hash
-        if (memcmp(hash, integrity->hashes[i], 20) != 0) {
-            return false;  // Corruption detected
-        }
-    }
-
-    return true;  // All chunks verified
-}
-```
-
-**WIM Feature Comparison**:
-
-| Feature                | WIM                  | Zoo64 Equivalent            |
-|------------------------|----------------------|-----------------------------|
-| Single-instance storage| Built-in (SHA-1)     | Block dedup (0x004A)        |
-| Compression            | XPRESS/LZX/LZMS      | LZMA2/LZX/ZSTD (Section 4.1)|
-| Integrity checking     | SHA-1 chunks         | FEC (Section 6b)            |
-| Bootable images        | WIM boot metadata    | WIM boot metadata (0x0051)  |
-| Split archives         | Split WIM            | Multi-volume (Section 2.1a) |
-| XML metadata           | Built-in             | YAML metadata (Section 4.5) |
-| Resource-based         | Built-in             | WIM resource (0x0050)       |
-| NTFS metadata          | Full support         | NTFS metadata (0x0010)      |
-
-**Use Cases**:
-- **Windows deployment**: Create WIM-compatible archives
-- **System imaging**: Capture and deploy Windows installations
-- **Multi-edition media**: Store multiple Windows editions efficiently
-- **Recovery media**: Create bootable recovery images
-- **VDI optimization**: Single-instance storage for virtual desktops
-
-**Example Metadata**:
-```c
-// Windows 10 install.wim with 4 editions
-ZOO64_WIM_ATTR wim = {
-  .WIMVersion = 0x00010D00,
-  .ImageIndex = 1,              // Windows 10 Home
-  .ImageCount = 4,              // Home, Pro, Enterprise, Education
-  .BootIndex = 0,               // Not bootable (boot.wim is bootable)
-  .ImageFlags = COMPRESSION | SINGLE_INSTANCE | DEDUPLICATED,
-  .CompressionType = 2,         // LZX
-  .ChunkSize = 32768,           // 32 KB
-  .ImageNameLength = 14,
-  .ImageDescLength = 50,
-  // ImageName: "Windows 10 Home"
-  // ImageDesc: "Windows 10 Home Edition for consumer devices"
-};
-```
-
-**Historical Context**:
-WIM was introduced with Windows Vista (2006) to replace the older SYS format. It enabled:
-- File-based imaging (vs. sector-based like Ghost)
-- Non-destructive deployment
-- Offline servicing (update images without booting)
-- Hardware-independent images
-
-## 6a. Encryption Support
+## 6a. Encryption Support [OPTIONAL]
 
 Zoo64 supports both archive-level and per-file encryption using modern authenticated encryption algorithms.
 
@@ -6798,21 +6739,21 @@ Appears before encrypted file data (per-file encryption) or after compression de
 
 ```c
 typedef struct _ZOO64_ENCRYPTION_HEADER {
-  UINT64  Magic;              // 0x454E4352595054 ("ENCRYPT ")
-  UINT32  HeaderSize;         // Size of this header including all fields
-  UINT16  EncryptionMethod;   // Encryption algorithm
-  UINT16  KeyDerivation;      // Key derivation function
-  UINT32  Iterations;         // KDF iteration count
-  UINT16  SaltLength;         // Length of salt
-  UINT16  IVLength;           // Length of IV/nonce
-  UINT32  TagLength;          // Length of authentication tag
-  UINT32  EncryptedSize;      // Size of encrypted data
-  UINT32  Flags;              // Encryption flags
-  // Followed by:
-  //   [SaltLength bytes: random salt for KDF]
-  //   [IVLength bytes: initialization vector/nonce]
-  //   [Encrypted data]
-  //   [TagLength bytes: authentication tag]
+  UINT64  Magic;              /// 0x454E4352595054 ("ENCRYPT ")
+  UINT32  HeaderSize;         /// Size of this header including all fields
+  UINT16  EncryptionMethod;   /// Encryption algorithm
+  UINT16  KeyDerivation;      /// Key derivation function
+  UINT32  Iterations;         /// KDF iteration count
+  UINT16  SaltLength;         /// Length of salt
+  UINT16  IVLength;           /// Length of IV/nonce
+  UINT32  TagLength;          /// Length of authentication tag
+  UINT32  EncryptedSize;      /// Size of encrypted data
+  UINT32  Flags;              /// Encryption flags
+  /// Followed by:
+  ///   [SaltLength bytes: random salt for KDF]
+  ///   [IVLength bytes: initialization vector/nonce]
+  ///   [Encrypted data]
+  ///   [TagLength bytes: authentication tag]
 } ZOO64_ENCRYPTION_HEADER;
 #pragma pack(pop)
 ```
@@ -6898,9 +6839,9 @@ To verify password without full decryption:
 
 ```c
 typedef struct _ZOO64_PASSWORD_VERIFY {
-  UINT32  VerifyMethod;       // Verification method
-  UINT16  VerifyDataLength;   // Length of verification data
-  // Followed by verification data
+  UINT32  VerifyMethod;       /// Verification method
+  UINT16  VerifyDataLength;   /// Length of verification data
+  /// Followed by verification data
 } ZOO64_PASSWORD_VERIFY;
 #pragma pack(pop)
 ```
@@ -6912,352 +6853,75 @@ Verification methods:
 0x0003: Argon2 hash of password
 ```
 
-## 6b. Forward Error Correction (FEC)
+## 6b. Data Integrity and Error Correction [OPTIONAL] and Error Correction
 
-Zoo64 supports optional Forward Error Correction to protect against data corruption during storage or transmission. FEC allows recovery of corrupted data without requiring a backup copy.
+Unified integrity system combining hash verification (WIM-style) and error correction (FEC).
 
-### 6b.1 FEC Header
-
-FEC protection can be applied at multiple levels:
-- **Archive-level FEC**: Protects entire archive
-- **File-level FEC**: Protects individual files
-- **Block-level FEC**: Protects compression blocks
+### 6b.1 Integrity Header
 
 ```c
 #pragma pack(push, 1)
-typedef struct _ZOO64_FEC_HEADER {
-  UINT64  Magic;              // 0x464543424C4F434B ("FECBLOCK")
-  UINT32  HeaderSize;         // Size of this header
-  UINT16  FECMethod;          // Error correction method
-  UINT16  FECLevel;           // Protection level (0-100%)
-  UINT32  ProtectedSize;      // Size of protected data
-  UINT32  ParitySize;         // Size of parity data
-  UINT32  BlockSize;          // Size of FEC blocks
-  UINT32  BlockCount;         // Number of FEC blocks
-  UINT32  ParityBlockCount;   // Number of parity blocks
-  UINT32  Flags;              // FEC flags
-  // Followed by:
-  //   [Protected data]
-  //   [Parity blocks]
-} ZOO64_FEC_HEADER;
+typedef struct _ZOO64_INTEGRITY_HEADER {
+  UINT64  Magic;              /// 0x494E544547524954 ("INTEGRIT")
+  UINT32  HeaderSize;         /// Size of header
+  UINT16  Mode;               /// 0=Hash, 1=FEC, 2=Both
+  UINT16  HashAlgorithm;      /// 0=SHA1, 1=SHA256, 2=BLAKE3
+  UINT16  FECAlgorithm;       /// 0=None, 1=RS, 2=LDPC, 3=PAR2
+  UINT16  RecoveryPercent;    /// 0-100% (0=hash only)
+  UINT32  ChunkSize;          /// Chunk size
+  UINT32  ChunkCount;         /// Data chunks
+  UINT32  ParityCount;        /// Parity chunks (0 if hash-only)
+  UINT64  DataOffset;         /// Offset to protected data
+  UINT64  ParityOffset;       /// Offset to parity (0 if hash-only)
+  UINT32  Flags;              /// Flags
+  UINT32  Reserved;           /// Reserved
+} ZOO64_INTEGRITY_HEADER;
 #pragma pack(pop)
 ```
 
-### 6b.2 FEC Methods
+### 6b.2 Integrity Modes
 
 ```
-0x0000: None (no FEC)
-0x0001: Reed-Solomon (RS)
-0x0002: LDPC (Low-Density Parity-Check)
-0x0003: Turbo Codes
-0x0004: PAR2-compatible (Reed-Solomon 16)
-0x0005: Hamming Code
-0x0006: BCH Code (Bose-Chaudhuri-Hocquenghem)
-0x0007: Convolutional Code
-0x0008: Raptor Code (Fountain code)
-0x0009: LT Code (Luby Transform)
-0x000A: XOR Parity (simple, fast)
-0x000B: CRC + Interleaving
+0: HASH_ONLY       /// Verification only (like WIM integrity)
+1: FEC_ONLY        /// Error correction without separate hash table
+2: HASH_AND_FEC    /// Both verification and correction
 ```
 
-**Method Characteristics**:
-
-| Method            | Correction | Overhead | Speed    | Use Case                          |
-|-------------------|------------|----------|----------|-----------------------------------|
-| Reed-Solomon      | Excellent  | 5-20%    | Medium   | General purpose, standard choice  |
-| PAR2-compatible   | Excellent  | 5-100%   | Medium   | Compatible with PAR2 tools        |
-| LDPC              | Excellent  | 10-50%   | Fast     | Modern, near Shannon limit        |
-| Raptor            | Excellent  | 5-10%    | Fast     | Fountain code, rateless           |
-| XOR Parity        | Good       | 5-10%    | Fastest  | Simple parity, RAID-like          |
-| Hamming           | Limited    | 50%      | Fastest  | Single-bit errors only            |
-| BCH               | Excellent  | 10-30%   | Medium   | Configurable error correction     |
-| Turbo/Convolution | Excellent  | 20-50%   | Slow     | Communication channels            |
-| LT Code           | Good       | 10-20%   | Fast     | Fountain code, streaming          |
-
-### 6b.3 FEC Levels
-
-FEC Level indicates the percentage of data that can be recovered:
+### 6b.3 Hash Algorithms
 
 ```
-  0: No FEC (disabled)
-  5: Recover from 5% corruption  (minimal overhead)
- 10: Recover from 10% corruption (low overhead)
- 20: Recover from 20% corruption (moderate overhead)
- 50: Recover from 50% corruption (high overhead, full recovery possible)
-100: Recover from 100% loss     (2x storage, any blocks recoverable)
+0: SHA1    /// Fast, 20 bytes (WIM compatible)
+1: SHA256  /// Secure, 32 bytes  
+2: BLAKE3  /// Fastest, 32 bytes
 ```
 
-**Formula**:
-```
-ParitySize = ProtectedSize * (FECLevel / 100)
-TotalSize = ProtectedSize + ParitySize
-```
-
-**Example**:
-- Protected size: 1 MB
-- FEC Level: 20%
-- Parity size: 200 KB
-- Total size: 1.2 MB
-- Can recover if up to 200 KB of data is corrupted
-
-### 6b.4 FEC Flags
+### 6b.4 FEC Algorithms
 
 ```
-0x00000001: ARCHIVE_LEVEL      // FEC protects entire archive
-0x00000002: FILE_LEVEL         // FEC protects each file independently
-0x00000004: BLOCK_LEVEL        // FEC protects each compression block
-0x00000008: INTERLEAVED        // FEC data is interleaved with protected data
-0x00000010: SEPARATED          // FEC data is in separate section
-0x00000020: EXTERNAL           // FEC data is in separate file (.par2, .fec)
-0x00000040: VERIFY_ON_READ     // Verify and correct on read
-0x00000080: VERIFY_ON_WRITE    // Generate FEC on write
-0x00000100: AUTO_REPAIR        // Automatically repair detected corruption
-0x00000200: MULTI_VOLUME       // FEC spans multiple volumes
+0: NONE            /// No error correction
+1: REED_SOLOMON    /// Standard, good balance
+2: LDPC            /// Modern, efficient
+3: PAR2            /// External .par2 files
 ```
 
-### 6b.5 Reed-Solomon FEC (Recommended)
+### 6b.5 Usage
 
-Reed-Solomon is the recommended FEC method for Zoo64 archives.
+**Hash-only** (like WIM):
+- Mode=0, RecoveryPercent=0
+- Detects corruption, cannot repair
+- Minimal overhead (hash table only)
 
-**Parameters**:
-- **Block size**: 512 bytes to 64 KB (default: 4 KB)
-- **GF(2^8)**: Galois Field 2^8 (byte-oriented)
-- **Code**: RS(n, k) where n = total blocks, k = data blocks
-- **Parity blocks**: n - k
-- **Maximum errors correctable**: (n - k) / 2 blocks
+**FEC-only**:
+- Mode=1, RecoveryPercent=5-100
+- Repairs corruption automatically
+- No separate verification step
 
-**Example**:
-```
-RS(255, 223) code:
-- 223 data blocks (223 KB at 1KB/block)
-- 32 parity blocks (32 KB)
-- Can correct up to 16 corrupted blocks (16 KB)
-- Overhead: 14.3%
-```
+**Both**:
+- Mode=2
+- Hash for quick verification
+- FEC for repair if corruption detected
 
-**Implementation**:
-```c
-// Reed-Solomon encoder
-void rs_encode(
-    const uint8_t *data,      // Input data
-    size_t data_len,          // Data length
-    uint8_t *parity,          // Output parity
-    size_t parity_len,        // Parity length
-    size_t block_size         // Block size
-) {
-    // Use standard RS(255, 223) encoding
-    // Generate parity blocks from data blocks
-    // Store in parity buffer
-}
-
-// Reed-Solomon decoder
-bool rs_decode(
-    uint8_t *data,            // Input/output data
-    size_t data_len,          // Data length
-    const uint8_t *parity,    // Parity data
-    size_t parity_len,        // Parity length
-    const uint8_t *erasures,  // Known error positions (or NULL)
-    size_t erasure_count      // Number of erasures
-) {
-    // Use standard RS(255, 223) decoding
-    // Correct errors using parity
-    // Return true if successful
-}
-```
-
-### 6b.6 PAR2 Compatibility Mode
-
-Zoo64 can generate PAR2-compatible recovery files for compatibility with existing tools.
-
-**PAR2 Structure**:
-```c
-#pragma pack(push, 1)
-typedef struct _ZOO64_PAR2_HEADER {
-  UINT8   Magic[8];           // "PAR2\0PKT"
-  UINT64  Length;             // Packet length
-  UINT8   MD5[16];            // MD5 of packet
-  UINT8   SetID[16];          // Recovery set ID
-  UINT8   Type[16];           // Packet type
-  // Followed by packet data
-} ZOO64_PAR2_HEADER;
-#pragma pack(pop)
-```
-
-**PAR2 Packet Types**:
-```
-Main packet:          Archive metadata
-File desc packet:     File information
-IFSC packet:          Input file slice checksums
-Recovery packet:      Reed-Solomon recovery data
-Creator packet:       Tool information
-```
-
-**PAR2 Generation**:
-1. Generate PAR2 packets from Zoo64 archive
-2. Write to `.par2` file alongside `.zoo64` archive
-3. Use standard PAR2 block size (typically 384 KB to 10 MB)
-4. Generate recovery blocks based on FEC level
-
-**PAR2 Recovery**:
-1. Detect corruption in `.zoo64` archive
-2. Load corresponding `.par2` file
-3. Use PAR2 recovery blocks to reconstruct data
-4. Repair archive in-place or extract to new file
-
-### 6b.7 FEC Block Structure
-
-For block-level FEC, each block has its own protection:
-
-```c
-#pragma pack(push, 1)
-typedef struct _ZOO64_FEC_BLOCK {
-  UINT32  DataSize;           // Size of data in this block
-  UINT32  ParitySize;         // Size of parity in this block
-  UINT32  DataCRC32;          // CRC32 of data
-  UINT32  ParityCRC32;        // CRC32 of parity
-  // Followed by:
-  //   [DataSize bytes: protected data]
-  //   [ParitySize bytes: parity data]
-} ZOO64_FEC_BLOCK;
-#pragma pack(pop)
-```
-
-**Advantages of block-level FEC**:
-- Localized corruption only requires local repair
-- Can skip FEC verification for uncorrupted blocks
-- Parallel verification and repair
-- Better for streaming/partial reads
-
-### 6b.8 Interleaved vs. Separated FEC
-
-**Interleaved** (data and parity mixed):
-```
-[Data Block 1][Parity 1][Data Block 2][Parity 2]...
-```
-- Advantages: Better burst error protection, no seeking
-- Disadvantages: Cannot skip parity on clean reads
-
-**Separated** (all data, then all parity):
-```
-[Data Block 1][Data Block 2]...[Parity 1][Parity 2]...
-```
-- Advantages: Can skip parity on clean reads, faster access
-- Disadvantages: Requires seeking for repair
-
-**Recommended**: Separated for most use cases, interleaved for streaming.
-
-### 6b.9 FEC Usage Examples
-
-**Example 1: Archive-level FEC (5% recovery)**
-```c
-ZOO64_FEC_HEADER fec = {
-  .Magic = 0x464543424C4F434B,
-  .FECMethod = 0x0001,        // Reed-Solomon
-  .FECLevel = 5,              // 5% recovery
-  .ProtectedSize = 10485760,  // 10 MB archive
-  .ParitySize = 524288,       // 512 KB parity
-  .BlockSize = 4096,          // 4 KB blocks
-  .Flags = ARCHIVE_LEVEL | SEPARATED
-};
-```
-
-**Example 2: File-level FEC (20% recovery)**
-```c
-ZOO64_FEC_HEADER fec = {
-  .FECMethod = 0x0001,        // Reed-Solomon
-  .FECLevel = 20,             // 20% recovery
-  .ProtectedSize = 1048576,   // 1 MB file
-  .ParitySize = 209715,       // 200 KB parity
-  .BlockSize = 4096,          // 4 KB blocks
-  .Flags = FILE_LEVEL | SEPARATED | AUTO_REPAIR
-};
-```
-
-**Example 3: PAR2-compatible (10% recovery)**
-```c
-ZOO64_FEC_HEADER fec = {
-  .FECMethod = 0x0004,        // PAR2-compatible
-  .FECLevel = 10,             // 10% recovery
-  .ProtectedSize = 104857600, // 100 MB archive
-  .ParitySize = 10485760,     // 10 MB parity
-  .BlockSize = 393216,        // 384 KB blocks (PAR2 default)
-  .Flags = ARCHIVE_LEVEL | EXTERNAL
-};
-```
-
-### 6b.10 Error Detection and Correction Flow
-
-**On Write** (Archive Creation):
-```
-1. Calculate archive/file size
-2. Determine FEC level and method
-3. Divide data into blocks
-4. For each block:
-   a. Calculate CRC32
-   b. Generate Reed-Solomon parity
-   c. Store data and parity
-5. Write FEC header
-6. Update archive header with FEC flag
-```
-
-**On Read** (Archive Extraction):
-```
-1. Read FEC header
-2. For each block:
-   a. Read data block
-   b. Verify CRC32
-   c. If corrupted:
-      - Read parity blocks
-      - Run Reed-Solomon decoder
-      - Correct errors
-      - Verify corrected CRC32
-   d. If uncorrectable:
-      - Mark as corrupted
-      - Log error
-      - Optional: Try alternative recovery
-3. Report statistics (blocks read, corrected, failed)
-```
-
-### 6b.11 FEC Performance Considerations
-
-**Encoding overhead**:
-- Reed-Solomon: ~50-100 MB/s (software)
-- XOR Parity: ~1-2 GB/s (software)
-- LDPC: ~100-200 MB/s (software)
-
-**Decoding overhead** (no errors):
-- CRC32 verification only: ~1 GB/s
-- Skip parity reading if using separated mode
-
-**Decoding overhead** (with errors):
-- Reed-Solomon: ~10-50 MB/s (depends on error count)
-- Full repair may take 2-10x longer than encoding
-
-**Memory usage**:
-- Block-level: O(block_size)
-- File-level: O(file_size) or O(block_size * parallelism)
-- Archive-level: O(archive_size) or streaming with windowing
-
-### 6b.12 FEC Metadata Chunk
-
-FEC settings can also be stored in file metadata:
-
-```c
-#pragma pack(push, 1)
-typedef struct _ZOO64_FEC_METADATA {
-  UINT16  FECMethod;          // Error correction method
-  UINT16  FECLevel;           // Protection level (0-100%)
-  UINT32  ParityOffset;       // Offset to parity data
-  UINT32  ParitySize;         // Size of parity data
-  UINT32  BlockSize;          // FEC block size
-  UINT32  Flags;              // FEC flags
-} ZOO64_FEC_METADATA;
-#pragma pack(pop)
-```
-
-This allows per-file FEC configuration within the archive.
-
-## 7. Seekable Compression
+## 7. Seekable Compression [OPTIONAL]
 
 ### 7.1 Block Table Format
 
@@ -7265,11 +6929,11 @@ For seekable compression, a block table precedes the compressed data.
 
 ```c
 typedef struct _ZOO64_BLOCK_TABLE {
-  UINT32  Magic;              // 0x424C4B54424C ("BLKTBL")
-  UINT32  BlockCount;         // Number of blocks
-  UINT32  BlockSize;          // Uncompressed block size (power of 2)
-  UINT32  Flags;              // Block table flags
-  // Followed by BlockCount entries of block offsets in LEB128 format
+  UINT32  Magic;              /// 0x424C4B54424C ("BLKTBL")
+  UINT32  BlockCount;         /// Number of blocks
+  UINT32  BlockSize;          /// Uncompressed block size (power of 2)
+  UINT32  Flags;              /// Block table flags
+  /// Followed by BlockCount entries of block offsets in LEB128 format
 } ZOO64_BLOCK_TABLE;
 #pragma pack(pop)
 ```
@@ -7297,28 +6961,28 @@ Each compressed block:
 
 ```c
 typedef struct _ZOO64_BLOCK_HEADER {
-  UINT32  UncompressedSize;   // Size before compression
-  UINT32  CompressedSize;     // Size after compression
-  UINT32  CRC32;              // CRC32 of uncompressed block
+  UINT32  UncompressedSize;   /// Size before compression
+  UINT32  CompressedSize;     /// Size after compression
+  UINT32  CRC32;              /// CRC32 of uncompressed block
 } ZOO64_BLOCK_HEADER;
 #pragma pack(pop)
 ```
 
-## 8. Solid Compression
+## 8. Solid Compression [OPTIONAL]
 
 ### 8.1 Solid Block Format
 
 ```c
 typedef struct _ZOO64_SOLID_BLOCK {
-  UINT64  Magic;              // 0x534F4C4944424C4B ("SOLIDBLK")
-  UINT32  FileCount;          // Number of files in solid block
-  UINT64  UncompressedSize;   // Total uncompressed size
-  UINT64  CompressedSize;     // Total compressed size
-  UINT32  WindowSize;         // Compression window size
-  UINT32  Flags;              // Solid block flags
-  // Followed by:
-  //   [File offsets table] - LEB128 encoded offsets
-  //   [Compressed data]
+  UINT64  Magic;              /// 0x534F4C4944424C4B ("SOLIDBLK")
+  UINT32  FileCount;          /// Number of files in solid block
+  UINT64  UncompressedSize;   /// Total uncompressed size
+  UINT64  CompressedSize;     /// Total compressed size
+  UINT32  WindowSize;         /// Compression window size
+  UINT32  Flags;              /// Solid block flags
+  /// Followed by:
+  ///   [File offsets table] - LEB128 encoded offsets
+  ///   [Compressed data]
 } ZOO64_SOLID_BLOCK;
 #pragma pack(pop)
 ```
@@ -7334,22 +6998,22 @@ Combines solid compression with block table for random access:
 [Compressed Blocks...]
 ```
 
-## 9. Digital Signatures
+## 9. Digital Signatures [OPTIONAL]
 
 ### 9.1 Signature Block
 
 ```c
 typedef struct _ZOO64_SIGNATURE {
-  UINT64  Magic;              // 0x5349474E41545552 ("SIGNATUR")
-  UINT32  SignatureSize;      // Total size of signature block
-  UINT16  SignatureType;      // Signature algorithm
-  UINT16  HashAlgorithm;      // Hash algorithm used
-  UINT64  SigningTime;        // Signing timestamp (NTP extended format)
-  UINT32  CertificateSize;    // Size of certificate (0 if none)
-  UINT32  SignatureDataSize;  // Size of signature data
-  // Followed by:
-  //   [CertificateSize bytes: X.509 certificate]
-  //   [SignatureDataSize bytes: signature data]
+  UINT64  Magic;              /// 0x5349474E41545552 ("SIGNATUR")
+  UINT32  SignatureSize;      /// Total size of signature block
+  UINT16  SignatureType;      /// Signature algorithm
+  UINT16  HashAlgorithm;      /// Hash algorithm used
+  UINT64  SigningTime;        /// Signing timestamp (NTP extended format)
+  UINT32  CertificateSize;    /// Size of certificate (0 if none)
+  UINT32  SignatureDataSize;  /// Size of signature data
+  /// Followed by:
+  ///   [CertificateSize bytes: X.509 certificate]
+  ///   [SignatureDataSize bytes: signature data]
 } ZOO64_SIGNATURE;
 #pragma pack(pop)
 ```
@@ -7385,17 +7049,17 @@ Appears after file data, hash covers uncompressed file data.
 
 Appears at end of archive, hash covers entire archive except signature block itself.
 
-## 10. Central Directory
+## 10. Central Directory [REQUIRED]
 
 The central directory provides fast access to all files in the archive.
 
 ```c
 typedef struct _ZOO64_CENTRAL_DIR {
-  UINT64  Magic;              // 0x43454E5444495220 ("CENTDIR ")
-  UINT32  EntryCount;         // Number of entries
-  UINT64  DirectorySize;      // Size of central directory
-  UINT32  Flags;              // Directory flags
-  // Followed by EntryCount directory entries
+  UINT64  Magic;              /// 0x43454E5444495220 ("CENTDIR ")
+  UINT32  EntryCount;         /// Number of entries
+  UINT64  DirectorySize;      /// Size of central directory
+  UINT32  Flags;              /// Directory flags
+  /// Followed by EntryCount directory entries
 } ZOO64_CENTRAL_DIR;
 #pragma pack(pop)
 ```
@@ -7404,13 +7068,13 @@ typedef struct _ZOO64_CENTRAL_DIR {
 
 ```c
 typedef struct _ZOO64_CENTRAL_ENTRY {
-  UINT64  FileHeaderOffset;   // Offset to file header
-  UINT64  UncompressedSize;   // File size
-  UINT64  CompressedSize;     // Compressed size (0 if stored)
-  UINT32  CRC32;              // CRC32 of file
-  UINT16  PathLength;         // Length of path
-  UINT16  Flags;              // Entry flags
-  // Followed by UTF-8 path
+  UINT64  FileHeaderOffset;   /// Offset to file header
+  UINT64  UncompressedSize;   /// File size
+  UINT64  CompressedSize;     /// Compressed size (0 if stored)
+  UINT32  CRC32;              /// CRC32 of file
+  UINT16  PathLength;         /// Length of path
+  UINT16  Flags;              /// Entry flags
+  /// Followed by UTF-8 path
 } ZOO64_CENTRAL_ENTRY;
 #pragma pack(pop)
 ```
@@ -7419,12 +7083,12 @@ typedef struct _ZOO64_CENTRAL_ENTRY {
 
 ```c
 typedef struct _ZOO64_END_OF_ARCHIVE {
-  UINT64  Magic;              // 0x454E444F46415243 ("ENDOFARC")
-  UINT64  ArchiveSize;        // Total archive size
-  UINT64  CentralDirOffset;   // Offset to central directory
-  UINT32  FileCount;          // Total files in archive
-  UINT32  CRC32;              // CRC32 of central directory
-  UINT8   SHA256[32];         // SHA-256 of entire archive (excl. this block)
+  UINT64  Magic;              /// 0x454E444F46415243 ("ENDOFARC")
+  UINT64  ArchiveSize;        /// Total archive size
+  UINT64  CentralDirOffset;   /// Offset to central directory
+  UINT32  FileCount;          /// Total files in archive
+  UINT32  CRC32;              /// CRC32 of central directory
+  UINT8   SHA256[32];         /// SHA-256 of entire archive (excl. this block)
 } ZOO64_END_OF_ARCHIVE;
 #pragma pack(pop)
 ```
@@ -7506,13 +7170,13 @@ Bit Trans: [rearranged bits for better compression]
 ```c
 // RLE token (variable length)
 struct RLE_TOKEN {
-  UINT8 type;           // 0=literal, 1=RAD50, 2=run
+  UINT8 type;           /// 0=literal, 1=RAD50, 2=run
   union {
-    UINT8 literal;      // If type=0: raw byte
-    UINT16 rad50;       // If type=1: RAD-50 value
-    struct {            // If type=2: run
-      UINT16 value;     //   Value to repeat
-      UINT8 count_leb;  //   Count in LEB128 format
+    UINT8 literal;      /// If type=0: raw byte
+    UINT16 rad50;       /// If type=1: RAD-50 value
+    struct {            /// If type=2: run
+      UINT16 value;     ///   Value to repeat
+      UINT8 count_leb;  ///   Count in LEB128 format
     } run;
   };
 };
@@ -7536,45 +7200,45 @@ Zoo64 is designed as a COM component for cross-language interoperability.
 
 ```cpp
 interface IZoo64Archive : IUnknown {
-  // Archive operations
+  /// Archive operations
   HRESULT Open([in] BSTR path, [in] DWORD mode);
   HRESULT Create([in] BSTR path, [in] ZOO64_ARCHIVE_OPTIONS* options);
   HRESULT Close();
 
-  // File operations
+  /// File operations
   HRESULT AddFile([in] BSTR sourcePath, [in] BSTR archivePath,
                   [in] ZOO64_FILE_OPTIONS* options);
   HRESULT ExtractFile([in] BSTR archivePath, [in] BSTR destPath);
   HRESULT RemoveFile([in] BSTR archivePath);
 
-  // Enumeration
+  /// Enumeration
   HRESULT GetFileCount([out] DWORD* count);
   HRESULT GetFileInfo([in] DWORD index, [out] ZOO64_FILE_INFO* info);
 
-  // Compression
+  /// Compression
   HRESULT SetCompressionMode([in] DWORD mode);
   HRESULT SetWindowSize([in] DWORD size);
   HRESULT SetBlockSize([in] DWORD size);
 
-  // Signatures
+  /// Signatures
   HRESULT SignArchive([in] IZoo64SigningKey* key);
   HRESULT VerifyArchive([out] BOOL* valid);
   HRESULT SignFile([in] BSTR archivePath, [in] IZoo64SigningKey* key);
   HRESULT VerifyFile([in] BSTR archivePath, [out] BOOL* valid);
 
-  // Metadata
+  /// Metadata
   HRESULT GetFileMetadata([in] BSTR archivePath,
                           [out] IZoo64Metadata** metadata);
   HRESULT SetFileMetadata([in] BSTR archivePath,
                           [in] IZoo64Metadata* metadata);
 
-  // YAML Metadata
+  /// YAML Metadata
   HRESULT GetArchiveYaml([out] BSTR* yaml);
   HRESULT SetArchiveYaml([in] BSTR yaml);
   HRESULT GetFileYaml([in] BSTR archivePath, [out] BSTR* yaml);
   HRESULT SetFileYaml([in] BSTR archivePath, [in] BSTR yaml);
 
-  // Encryption
+  /// Encryption
   HRESULT SetPassword([in] BSTR password);
   HRESULT SetKeyFile([in] BSTR keyFilePath);
   HRESULT SetEncryptionMethod([in] WORD method, [in] WORD kdf);
@@ -7583,13 +7247,13 @@ interface IZoo64Archive : IUnknown {
   HRESULT DecryptFile([in] BSTR archivePath, [in] BSTR password);
   HRESULT VerifyPassword([out] BOOL* valid);
 
-  // Multi-Volume
+  /// Multi-Volume
   HRESULT SetVolumeSize([in] UINT64 sizeBytes);
   HRESULT GetVolumeCount([out] DWORD* count);
   HRESULT GetVolumeInfo([in] DWORD volumeNumber, [out] ZOO64_VOLUME_INFO* info);
   HRESULT MergeVolumes([in] BSTR outputPath);
 
-  // Classic Zoo Compatibility
+  /// Classic Zoo Compatibility
   HRESULT ConvertFromClassicZoo([in] BSTR classicZooPath, [in] BSTR outputPath);
   HRESULT ConvertToClassicZoo([in] BSTR outputPath, [in] BOOL dualFormat);
   HRESULT IsClassicZoo([in] BSTR path, [out] BOOL* isClassic);
@@ -7600,33 +7264,33 @@ interface IZoo64Archive : IUnknown {
 
 ```cpp
 interface IZoo64Metadata : IUnknown {
-  // ACLs
+  /// ACLs
   HRESULT GetACL([out] IZoo64ACL** acl);
   HRESULT SetACL([in] IZoo64ACL* acl);
 
-  // Extended Attributes
+  /// Extended Attributes
   HRESULT GetXattr([in] BSTR name, [out] VARIANT* value);
   HRESULT SetXattr([in] BSTR name, [in] VARIANT value);
   HRESULT EnumXattrs([out] IEnumVARIANT** enumerator);
 
-  // Alternate Data Streams
+  /// Alternate Data Streams
   HRESULT GetADS([in] BSTR streamName, [out] IStream** stream);
   HRESULT SetADS([in] BSTR streamName, [in] IStream* stream);
   HRESULT EnumADS([out] IEnumVARIANT** enumerator);
 
-  // Timestamps
+  /// Timestamps
   HRESULT GetTimestamps([out] ZOO64_TIMESTAMPS* timestamps);
   HRESULT SetTimestamps([in] ZOO64_TIMESTAMPS* timestamps);
 
-  // Permissions
+  /// Permissions
   HRESULT GetPermissions([out] DWORD* mode);
   HRESULT SetPermissions([in] DWORD mode);
 
-  // YAML Metadata
+  /// YAML Metadata
   HRESULT GetYaml([out] BSTR* yaml);
   HRESULT SetYaml([in] BSTR yaml);
 
-  // Platform-specific
+  /// Platform-specific
   HRESULT GetMacOSUUIDs([out] ZOO64_MACOS_UUID* uuids);
   HRESULT SetMacOSUUIDs([in] ZOO64_MACOS_UUID* uuids);
   HRESULT GetBSDFlags([out] ZOO64_BSD_FLAGS* flags);
@@ -7636,7 +7300,7 @@ interface IZoo64Metadata : IUnknown {
   HRESULT GetWindowsAttributes([out] ZOO64_WINDOWS_ATTR* attr);
   HRESULT SetWindowsAttributes([in] ZOO64_WINDOWS_ATTR* attr);
 
-  // Links
+  /// Links
   HRESULT GetHardLinkTarget([out] BSTR* targetPath);
   HRESULT SetHardLinkTarget([in] BSTR targetPath, [in] UINT64 inodeNumber);
   HRESULT GetSymbolicLinkTarget([out] BSTR* targetPath, [out] DWORD* flags);
@@ -7731,12 +7395,12 @@ When Zoo64 encounters classic Zoo magic (0xFDC4A7DC):
 ```c
 #pragma pack(push, 1)
 typedef struct _CLASSIC_ZOO_HEADER {
-  UINT32  Magic;              // 0xFDC4A7DC
-  UINT32  FirstEntryOffset;   // Offset to first file entry
-  UINT32  MinusOffset;        // Negative offset to last entry (-)
-  UINT8   MajorVersion;       // Major version (2)
-  UINT8   MinorVersion;       // Minor version (1)
-  // Additional header fields...
+  UINT32  Magic;              /// 0xFDC4A7DC
+  UINT32  FirstEntryOffset;   /// Offset to first file entry
+  UINT32  MinusOffset;        /// Negative offset to last entry (-)
+  UINT8   MajorVersion;       /// Major version (2)
+  UINT8   MinorVersion;       /// Minor version (1)
+  /// Additional header fields...
 } CLASSIC_ZOO_HEADER;
 #pragma pack(pop)
 ```
@@ -7746,21 +7410,21 @@ typedef struct _CLASSIC_ZOO_HEADER {
 ```c
 #pragma pack(push, 1)
 typedef struct _CLASSIC_ZOO_ENTRY {
-  UINT32  Magic;              // 0xFDC4A7DC
-  UINT8   CompressionMethod;  // 0=stored, 1=LZD, 2=LZH
-  UINT8   NextEntryOffset;    // Offset to next entry (variable)
-  UINT32  OriginalSize;       // Uncompressed size
-  UINT32  CompressedSize;     // Compressed size
-  UINT16  Date;               // MS-DOS date format
-  UINT16  Time;               // MS-DOS time format
-  UINT16  CRC;                // CRC-16
-  UINT32  OriginalPosition;   // Original file position
-  UINT16  Attributes;         // File attributes
-  UINT8   Generation;         // Generation number
-  UINT8   Deleted;            // Deletion marker
-  char    FileName[13];       // Null-terminated filename
-  char    Comment[?];         // Variable-length comment
-  // Followed by compressed data
+  UINT32  Magic;              /// 0xFDC4A7DC
+  UINT8   CompressionMethod;  /// 0=stored, 1=LZD, 2=LZH
+  UINT8   NextEntryOffset;    /// Offset to next entry (variable)
+  UINT32  OriginalSize;       /// Uncompressed size
+  UINT32  CompressedSize;     /// Compressed size
+  UINT16  Date;               /// MS-DOS date format
+  UINT16  Time;               /// MS-DOS time format
+  UINT16  CRC;                /// CRC-16
+  UINT32  OriginalPosition;   /// Original file position
+  UINT16  Attributes;         /// File attributes
+  UINT8   Generation;         /// Generation number
+  UINT8   Deleted;            /// Deletion marker
+  char    FileName[13];       /// Null-terminated filename
+  char    Comment[?];         /// Variable-length comment
+  /// Followed by compressed data
 } CLASSIC_ZOO_ENTRY;
 #pragma pack(pop)
 ```
@@ -7795,7 +7459,7 @@ Classic Zoo stores timestamps in MS-DOS date/time format (16-bit date + 16-bit t
 // Bits 11-15: Hours (0-23)
 
 UINT64 DOSTimeToNTP(UINT16 dosDate, UINT16 dosTime) {
-  // Extract fields
+  /// Extract fields
   int day   = dosDate & 0x1F;
   int month = (dosDate >> 5) & 0x0F;
   int year  = ((dosDate >> 9) & 0x7F) + 1980;
@@ -7803,7 +7467,7 @@ UINT64 DOSTimeToNTP(UINT16 dosDate, UINT16 dosTime) {
   int min   = (dosTime >> 5) & 0x3F;
   int hour  = (dosTime >> 11) & 0x1F;
 
-  // Convert to Unix timestamp (use mktime or equivalent)
+  /// Convert to Unix timestamp (use mktime or equivalent)
   struct tm t = {0};
   t.tm_year = year - 1900;
   t.tm_mon = month - 1;
@@ -7813,7 +7477,7 @@ UINT64 DOSTimeToNTP(UINT16 dosDate, UINT16 dosTime) {
   t.tm_sec = sec;
   time_t unixTime = mktime(&t);
 
-  // Convert to NTP extended format
+  /// Convert to NTP extended format
   return UnixToNTP(unixTime, 0);
 }
 ```
@@ -7848,34 +7512,34 @@ For compatibility with legacy tools:
 
 ```c
 void NTPToDOSTime(UINT64 ntpTime, UINT16 *dosDate, UINT16 *dosTime) {
-  // Convert NTP to Unix time
+  /// Convert NTP to Unix time
   time_t unixSec;
   uint32_t nanoSec;
   NTPToUnix(ntpTime, &unixSec, &nanoSec);
 
-  // Convert to local time
+  /// Convert to local time
   struct tm *t = localtime(&unixSec);
 
-  // Validate range (1980-2107)
+  /// Validate range (1980-2107)
   if (t->tm_year + 1900 < 1980) {
-    // Clamp to minimum (1980-01-01 00:00:00)
-    *dosDate = 0x0021;  // 1980-01-01
-    *dosTime = 0x0000;  // 00:00:00
+    /// Clamp to minimum (1980-01-01 00:00:00)
+    *dosDate = 0x0021;  /// 1980-01-01
+    *dosTime = 0x0000;  /// 00:00:00
     return;
   }
   if (t->tm_year + 1900 > 2107) {
-    // Clamp to maximum (2107-12-31 23:59:58)
-    *dosDate = 0xFF9F;  // 2107-12-31
-    *dosTime = 0xBF7D;  // 23:59:58
+    /// Clamp to maximum (2107-12-31 23:59:58)
+    *dosDate = 0xFF9F;  /// 2107-12-31
+    *dosTime = 0xBF7D;  /// 23:59:58
     return;
   }
 
-  // Encode MS-DOS date
+  /// Encode MS-DOS date
   *dosDate = ((t->tm_year + 1900 - 1980) << 9) |
              ((t->tm_mon + 1) << 5) |
              t->tm_mday;
 
-  // Encode MS-DOS time (2-second precision)
+  /// Encode MS-DOS time (2-second precision)
   *dosTime = (t->tm_hour << 11) |
              (t->tm_min << 5) |
              (t->tm_sec / 2);
