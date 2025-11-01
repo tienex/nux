@@ -11,7 +11,7 @@ CFLAGS += -I$(SRCDIR)/include
 CFLAGS += -I$(TOPDIR)/ananke/include
 CFLAGS += -I$(TOPDIR)/ananke/libs/drm/include
 CFLAGS += -I$(TOPDIR)/ananke/libs/framebuffer/include
-CFLAGS += -I$(TOPDIR)/ananke/libs/gles20/public
+CFLAGS += -I$(TOPDIR)/ananke/contrib/libs/gles20/public
 
 # Headers to install
 INCDIR=ananke

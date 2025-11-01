@@ -8,5 +8,5 @@
 	path = nux/contrib/dtc
 	url = https://git.kernel.org/pub/scm/utils/dtc/dtc.git/
 [submodule "ananke/libs/sljit"]
-	path = ananke/libs/sljit
+	path = ananke/contrib/libs/sljit
 	url = https://github.com/zherczeg/sljit.git
