@@ -29,13 +29,8 @@ typedef enum _FB_BACKEND_TYPE {
     FbBackendVesaBanked     = 4,  /* VESA banked/segmented mode */
 
     /* IBM PC graphics adapters */
-    FbBackendCga            = 10, /* CGA (320x200x4, 640x200x2) */
-    FbBackendEga            = 11, /* EGA (640x350x16 planar) */
-    FbBackendVga            = 12, /* VGA (Mode 13h, planar modes) */
-    FbBackendVga16          = 13, /* VGA 16-color planar mode */
-    FbBackendSvga           = 14, /* SVGA extended modes */
-    FbBackendXga            = 15, /* XGA modes */
-    FbBackendHercules       = 16, /* Hercules Graphics Card (720x348, 1BPP) */
+    FbBackendPcGraphics     = 10, /* Unified PC graphics (CGA/EGA/VGA/SVGA/XGA) */
+    FbBackendHercules       = 11, /* Hercules Graphics Card (720x348, 1BPP) */
 
     /* Apple platforms */
     FbBackendAppleEfi       = 20, /* Apple EFI framebuffer */
@@ -182,48 +177,47 @@ FbCreateAppleEfiBackend(
 /* --------------------------------------------------------------- */
 
 /*
- * Create a CGA backend.
- * Supports 320x200x4 and 640x200x2 modes.
+ * Create a unified PC graphics adapter backend.
+ *
+ * Supports all IBM PC-compatible graphics modes through the
+ * FRAMEBUFFER_DESC structure which describes memory organization:
+ *
+ * - CGA modes (320x200x4, 640x200x2)
+ *   - FbPixelFormatIndexed4 with FbMemoryInterleaved
+ *   - BankInterleave=2, BankOffset=0x2000 for even/odd scanlines
+ *
+ * - EGA modes (640x350x16 planar)
+ *   - FbPixelFormatPlanar4 with FbMemoryPlanar
+ *   - NumPlanes=4
+ *
+ * - VGA modes
+ *   - Mode 13h: 320x200x256 (FbPixelFormatIndexed256, FbMemoryLinear)
+ *   - Mode 12h: 640x480x16 (FbPixelFormatPlanar4, FbMemoryPlanar)
+ *
+ * - SVGA modes (800x600+)
+ *   - FbMemoryLinear or FbMemoryBanked depending on mode
+ *   - Various pixel formats (Indexed256, RGB555, RGB565, etc.)
+ *
+ * - XGA modes (1024x768+)
+ *   - Usually FbMemoryLinear with RGB formats
+ *
+ * The FRAMEBUFFER_DESC structure describes how memory is organized,
+ * not which hardware it is. This allows the same backend to handle
+ * any PC-compatible graphics mode.
  */
 IFramebufferBackend *
-FbCreateCgaBackend(
+FbCreatePcGraphicsBackend(
     VOID
     );
 
 /*
- * Create an EGA backend.
- * Supports 640x350x16 planar mode.
+ * Set bank switching function for VESA banked modes.
+ * Must be called after backend creation for banked modes.
  */
-IFramebufferBackend *
-FbCreateEgaBackend(
-    VOID
-    );
-
-/*
- * Create a VGA backend with Mode 13h support.
- * Supports 320x200x256 linear mode.
- */
-IFramebufferBackend *
-FbCreateVgaBackend(
-    VOID
-    );
-
-/*
- * Create an SVGA backend.
- * Supports extended SVGA modes.
- */
-IFramebufferBackend *
-FbCreateSvgaBackend(
-    VOID
-    );
-
-/*
- * Create an XGA backend.
- * Supports XGA extended modes.
- */
-IFramebufferBackend *
-FbCreateXgaBackend(
-    VOID
+VOID
+FbPcGraphicsSetBankFunction(
+    IN IFramebufferBackend *Backend,
+    IN VOID (*BankSwitchFunc)(UINT32)
     );
 
 /* --------------------------------------------------------------- */

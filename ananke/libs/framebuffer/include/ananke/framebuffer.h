@@ -28,73 +28,74 @@
 typedef enum _FB_PIXEL_FORMAT {
     FbPixelFormatInvalid      = 0,
 
-    /* Monochrome formats */
-    FbPixelFormat1Bpp         = 1,   /* 1-bit monochrome (Hercules, Mac, Atari mono) */
-    FbPixelFormat2Bpp         = 2,   /* 2-bit grayscale (NeXT) */
+    /* Monochrome formats - bits per pixel only */
+    FbPixelFormat1Bpp         = 1,   /* 1-bit monochrome */
+    FbPixelFormat2Bpp         = 2,   /* 2-bit grayscale */
+    FbPixelFormat4Bpp         = 3,   /* 4-bit grayscale */
 
-    /* CGA formats */
-    FbPixelFormatCga4Indexed  = 10,  /* CGA 4-color indexed (320x200) */
-    FbPixelFormatCga2Mono     = 11,  /* CGA 2-color monochrome (640x200) */
+    /* Indexed color formats - palette-based */
+    FbPixelFormatIndexed4     = 10,  /* 4-color palette (2 bits) */
+    FbPixelFormatIndexed16    = 11,  /* 16-color palette (4 bits) */
+    FbPixelFormatIndexed256   = 12,  /* 256-color palette (8 bits) */
 
-    /* EGA/VGA planar formats */
-    FbPixelFormatEga16Planar  = 20,  /* EGA 16-color planar (640x350) */
-    FbPixelFormatVga16Planar  = 21,  /* VGA 16-color planar (640x480) */
+    /* Planar formats - multiple bit planes */
+    FbPixelFormatPlanar2      = 20,  /* 2 planes (4 colors) */
+    FbPixelFormatPlanar4      = 21,  /* 4 planes (16 colors) */
+    FbPixelFormatPlanar6      = 22,  /* 6 planes (64 colors) */
+    FbPixelFormatPlanar8      = 23,  /* 8 planes (256 colors) */
 
-    /* VGA linear indexed formats */
-    FbPixelFormatVga256       = 30,  /* VGA Mode 13h (320x200x256) */
-    FbPixelFormatIndexed256   = 31,  /* 8-bit indexed color (general) */
-    FbPixelFormatIndexed16    = 32,  /* 4-bit indexed color */
-    FbPixelFormatIndexed4     = 33,  /* 2-bit indexed color */
-
-    /* RGB formats */
-    FbPixelFormatRgb332       = 40,  /* 8-bit RGB (3:3:2) */
-    FbPixelFormatRgb555       = 41,  /* 15-bit RGB (5:5:5) */
-    FbPixelFormatRgb565       = 42,  /* 16-bit RGB (5:6:5) */
-    FbPixelFormatRgb888       = 43,  /* 24-bit RGB (8:8:8) */
-    FbPixelFormatRgba8888     = 44,  /* 32-bit RGBA (8:8:8:8) */
-    FbPixelFormatBgr888       = 45,  /* 24-bit BGR (8:8:8) - Apple quirk */
-    FbPixelFormatBgra8888     = 46,  /* 32-bit BGRA (8:8:8:8) */
-
-    /* Amiga formats */
-    FbPixelFormatAmigaOcs     = 50,  /* Amiga OCS planar (up to 32 colors) */
-    FbPixelFormatAmigaEcs     = 51,  /* Amiga ECS planar (up to 64 colors) */
-    FbPixelFormatAmigaAga     = 52,  /* Amiga AGA chunky (8-bit) or HAM8 */
-
-    /* Atari formats */
-    FbPixelFormatAtariSt      = 60,  /* Atari ST 16-color planar */
-    FbPixelFormatAtariTt      = 61,  /* Atari TT high color */
-    FbPixelFormatAtariFalcon  = 62,  /* Atari Falcon true color */
-
-    /* Sun SPARC formats */
-    FbPixelFormatSunCgThree   = 70,  /* Sun cgthree 8-bit indexed */
-    FbPixelFormatSunCgSix     = 71,  /* Sun cgsix 8-bit indexed */
-
-    /* SGI formats */
-    FbPixelFormatSgiRgb       = 80,  /* SGI RGB format */
-
-    /* Acorn VIDC formats */
-    FbPixelFormatVidc         = 90,  /* Acorn VIDC palette modes */
+    /* RGB formats - direct color */
+    FbPixelFormatRgb332       = 30,  /* 8-bit RGB (3:3:2) */
+    FbPixelFormatRgb555       = 31,  /* 15-bit RGB (5:5:5) */
+    FbPixelFormatRgb565       = 32,  /* 16-bit RGB (5:6:5) */
+    FbPixelFormatRgb888       = 33,  /* 24-bit RGB (8:8:8) */
+    FbPixelFormatRgba8888     = 34,  /* 32-bit RGBA (8:8:8:8) */
+    FbPixelFormatBgr888       = 35,  /* 24-bit BGR (8:8:8) */
+    FbPixelFormatBgra8888     = 36,  /* 32-bit BGRA (8:8:8:8) */
 } FB_PIXEL_FORMAT;
+
+/* --------------------------------------------------------------- */
+/*  Memory Organization Types                                       */
+/* --------------------------------------------------------------- */
+
+typedef enum _FB_MEMORY_ORGANIZATION {
+    FbMemoryLinear          = 0,  /* Linear framebuffer (most common) */
+    FbMemoryPlanar          = 1,  /* Planar organization (EGA/VGA) */
+    FbMemoryBanked          = 2,  /* Banked/segmented (VESA banked) */
+    FbMemoryInterleaved     = 3,  /* Bank-interleaved (CGA) */
+} FB_MEMORY_ORGANIZATION;
 
 /* --------------------------------------------------------------- */
 /*  Framebuffer Descriptor                                          */
 /* --------------------------------------------------------------- */
 
 typedef struct _FRAMEBUFFER_DESC {
-    FB_PIXEL_FORMAT PixelFormat;
-    UINT32          Width;          /* Width in pixels */
-    UINT32          Height;         /* Height in pixels */
-    UINT32          Pitch;          /* Bytes per scanline */
-    UINT64          PhysicalBase;   /* Physical address */
-    UINT64          Size;           /* Total size in bytes */
+    FB_PIXEL_FORMAT         PixelFormat;
+    UINT32                  Width;              /* Width in pixels */
+    UINT32                  Height;             /* Height in pixels */
+    UINT32                  Pitch;              /* Bytes per scanline */
+    UINT64                  PhysicalBase;       /* Physical address */
+    UINT64                  Size;               /* Total size in bytes */
+
+    /* Memory organization */
+    FB_MEMORY_ORGANIZATION  MemoryOrganization;
+    UINT32                  BankSize;           /* Size of each bank (for banked modes) */
+    UINT32                  BankInterleave;     /* Interleave factor (e.g., CGA: 2 for even/odd) */
+    UINT32                  BankOffset;         /* Offset between banks */
 
     /* RGB bit masks (for RGB modes) */
-    UINT32          RedMask;
-    UINT32          GreenMask;
-    UINT32          BlueMask;
+    UINT32                  RedMask;
+    UINT32                  GreenMask;
+    UINT32                  BlueMask;
+    UINT32                  AlphaMask;
 
-    /* Planar mode info (for VGA16) */
-    UINT32          PlaneStride;    /* Bytes between planes */
+    /* Planar mode info */
+    UINT32                  NumPlanes;          /* Number of bit planes */
+    UINT32                  PlaneStride;        /* Bytes between planes */
+
+    /* I/O port access (for hardware requiring port I/O) */
+    UINT16                  IoPortBase;         /* Base I/O port (0 if none) */
+    BOOLEAN                 RequiresIoAccess;   /* TRUE if needs port I/O */
 } FRAMEBUFFER_DESC;
 
 /* --------------------------------------------------------------- */
