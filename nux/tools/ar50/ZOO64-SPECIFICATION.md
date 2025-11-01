@@ -471,6 +471,19 @@ typedef struct _ZOO64_METADATA_CHUNK {
 0x0032: JFS attributes (IBM JFS - compression)
 0x0033: ReiserFS attributes (tail packing)
 0x0034: Btrfs attributes (subvolumes, snapshots, reflinks)
+0x0035: Git metadata (commits, refs, objects)
+0x0036: Perforce (P4) metadata (changelists, revisions)
+0x0037: Subversion (SVN) metadata (revisions, properties)
+0x0038: CVS metadata (revisions, tags)
+0x0039: RCS metadata (revisions, locks)
+0x003A: Mercurial metadata (changesets, bookmarks)
+0x003B: Fossil metadata (artifacts, manifests)
+0x003C: WebDAV metadata (properties, locks)
+0x003D: NFS metadata (file handles, attributes)
+0x003E: SMB/CIFS metadata (streams, security)
+0x003F: NetWare NCP metadata (trustees, attributes)
+0x0040: AFP metadata (resource forks, Finder info)
+0x0041: DCE DFS metadata (ACLs, file IDs)
 ```
 
 ### 6.3 Universal ACL Format
@@ -2864,6 +2877,1084 @@ Btrfs RAID profiles:
 **Btrfs Send/Receive**:
 - Could use send stream for incremental archival
 - SubvolumeID and Generation track version
+
+### 6.49 Git Metadata (0x0035)
+
+Git distributed version control system metadata.
+
+```c
+typedef struct _ZOO64_GIT_ATTR {
+  UINT8   ObjectHash[32];     // Git object hash (SHA-1 or SHA-256)
+  UINT8   CommitHash[32];     // Current commit hash
+  UINT32  Flags;              // Git-specific flags
+  UINT16  HashType;           // Hash algorithm (1=SHA-1, 2=SHA-256)
+  UINT16  ObjectType;         // Git object type
+  UINT64  ObjectSize;         // Size of git object
+  UINT32  RefCount;           // Number of refs
+  UINT32  BranchNameLength;   // Length of branch name
+  UINT32  TagCount;           // Number of tags
+  UINT32  RemoteCount;        // Number of remotes
+  // Followed by:
+  //   [BranchNameLength bytes: current branch name]
+  //   [RefCount * sizeof(GIT_REF): references]
+  //   [TagCount * sizeof(GIT_TAG): tags]
+  //   [RemoteCount * sizeof(GIT_REMOTE): remotes]
+} __attribute__((packed)) ZOO64_GIT_ATTR;
+
+typedef struct _GIT_REF {
+  UINT8   Hash[32];           // Ref target hash
+  UINT16  NameLength;         // Length of ref name
+  UINT8   RefType;            // Type: 0=branch, 1=tag, 2=remote, 3=HEAD
+  UINT8   Reserved;           // Reserved
+  // Followed by [NameLength bytes: ref name]
+} __attribute__((packed)) GIT_REF;
+
+typedef struct _GIT_TAG {
+  UINT8   Hash[32];           // Tag object hash
+  UINT16  NameLength;         // Length of tag name
+  UINT16  MessageLength;      // Length of tag message
+  UINT32  TaggerTimestamp;    // Tagger timestamp (Unix time)
+  // Followed by:
+  //   [NameLength bytes: tag name]
+  //   [MessageLength bytes: tag message]
+} __attribute__((packed)) GIT_TAG;
+
+typedef struct _GIT_REMOTE {
+  UINT16  NameLength;         // Length of remote name
+  UINT16  URLLength;          // Length of remote URL
+  UINT32  FetchRefspecCount;  // Number of fetch refspecs
+  // Followed by:
+  //   [NameLength bytes: remote name]
+  //   [URLLength bytes: remote URL]
+  //   [FetchRefspecCount * variable: refspec strings]
+} __attribute__((packed)) GIT_REMOTE;
+```
+
+Git flags:
+```
+0x00000001: TRACKED            // File tracked by git
+0x00000002: MODIFIED           // File has modifications
+0x00000003: STAGED             // File is staged
+0x00000004: UNTRACKED          // File is untracked
+0x00000008: IGNORED            // File is ignored (.gitignore)
+0x00000010: SUBMODULE          // File is in submodule
+0x00000020: LFS_POINTER        // File is Git LFS pointer
+0x00000040: BARE_REPO          // Bare repository
+0x00000080: SHALLOW_CLONE      // Shallow clone
+0x00000100: WORKTREE           // Git worktree
+0x00000200: PARTIAL_CLONE      // Partial clone (sparse)
+```
+
+Git object types:
+```
+0: NONE
+1: COMMIT
+2: TREE
+3: BLOB
+4: TAG
+5: OFS_DELTA
+6: REF_DELTA
+```
+
+**Git Repository Archival**:
+- Store complete .git directory structure
+- Preserve object database (objects/)
+- Preserve refs (refs/heads/, refs/tags/, refs/remotes/)
+- Preserve config, hooks, and info
+- Support both SHA-1 and SHA-256 repositories
+- Git LFS: Store pointer files and optionally actual LFS objects
+
+### 6.50 Perforce (P4) Metadata (0x0036)
+
+Perforce version control system metadata.
+
+```c
+typedef struct _ZOO64_P4_ATTR {
+  UINT64  ChangelistNumber;   // Changelist number
+  UINT32  Revision;           // File revision (head revision)
+  UINT32  Flags;              // Perforce-specific flags
+  UINT16  ActionType;         // Last action type
+  UINT16  FileType;           // Perforce file type
+  UINT64  FileSize;           // File size at head revision
+  UINT32  ClientNameLength;   // Length of client name
+  UINT32  DepotPathLength;    // Length of depot path
+  UINT32  IntegrationCount;   // Number of integration records
+  // Followed by:
+  //   [ClientNameLength bytes: client workspace name]
+  //   [DepotPathLength bytes: depot path]
+  //   [IntegrationCount * sizeof(P4_INTEGRATION): integration records]
+} __attribute__((packed)) ZOO64_P4_ATTR;
+
+typedef struct _P4_INTEGRATION {
+  UINT64  FromChangelist;     // Source changelist
+  UINT32  FromRevision;       // Source revision
+  UINT16  FromPathLength;     // Length of source path
+  UINT8   IntegrationType;    // Type: 0=merge, 1=branch, 2=copy, 3=ignore
+  UINT8   Reserved;           // Reserved
+  // Followed by [FromPathLength bytes: source depot path]
+} __attribute__((packed)) P4_INTEGRATION;
+```
+
+Perforce flags:
+```
+0x00000001: SYNCED             // File synced to workspace
+0x00000002: OPENED_FOR_EDIT    // Opened for edit
+0x00000004: OPENED_FOR_ADD     // Opened for add
+0x00000008: OPENED_FOR_DELETE  // Opened for delete
+0x00000010: EXCLUSIVE_LOCK     // Exclusive lock held
+0x00000020: SHELVED            // Changes shelved
+0x00000040: RESOLVED           // File resolved
+0x00000080: UNRESOLVED         // File has conflicts
+```
+
+Perforce action types:
+```
+0: ADD
+1: EDIT
+2: DELETE
+3: BRANCH
+4: INTEGRATE
+5: IMPORT
+6: MOVE_ADD
+7: MOVE_DELETE
+```
+
+Perforce file types:
+```
+0x0001: TEXT               // text
+0x0002: BINARY             // binary
+0x0004: UNICODE            // unicode
+0x0008: UTF16              // utf16
+0x0010: SYMLINK            // symlink
+0x0020: EXECUTABLE         // +x executable
+0x0040: WRITABLE           // +w writable
+0x0080: EXCLUSIVE_OPEN     // +l exclusive open
+0x0100: COMPRESSED         // +C compressed in depot
+0x0200: RCS_KEYWORD_EXPAND // +k RCS keyword expansion
+```
+
+### 6.51 Subversion (SVN) Metadata (0x0037)
+
+Apache Subversion (SVN) metadata.
+
+```c
+typedef struct _ZOO64_SVN_ATTR {
+  UINT64  Revision;           // Current revision number
+  UINT64  LastChangedRev;     // Last changed revision
+  UINT64  CommittedRev;       // Committed revision
+  UINT32  Flags;              // SVN-specific flags
+  UINT64  CommittedDate;      // Committed date (Unix timestamp)
+  UINT32  RepositoryUUIDLength; // Length of repository UUID
+  UINT32  URLLength;          // Length of repository URL
+  UINT32  RelativeURLLength;  // Length of relative URL
+  UINT32  AuthorLength;       // Length of last author
+  UINT32  PropertyCount;      // Number of properties
+  UINT8   NodeKind;           // Node kind: 0=none, 1=file, 2=dir
+  UINT8   Schedule;           // Schedule: 0=normal, 1=add, 2=delete, 3=replace
+  UINT16  Reserved;           // Reserved
+  // Followed by:
+  //   [RepositoryUUIDLength bytes: repository UUID]
+  //   [URLLength bytes: repository URL]
+  //   [RelativeURLLength bytes: relative URL]
+  //   [AuthorLength bytes: last author]
+  //   [PropertyCount * sizeof(SVN_PROPERTY): properties]
+} __attribute__((packed)) ZOO64_SVN_ATTR;
+
+typedef struct _SVN_PROPERTY {
+  UINT16  NameLength;         // Length of property name
+  UINT16  ValueLength;        // Length of property value
+  UINT32  Flags;              // Property flags
+  // Followed by:
+  //   [NameLength bytes: property name]
+  //   [ValueLength bytes: property value]
+} __attribute__((packed)) SVN_PROPERTY;
+```
+
+SVN flags:
+```
+0x00000001: VERSIONED          // Under version control
+0x00000002: MODIFIED           // File modified
+0x00000004: ADDED              // File added
+0x00000008: DELETED            // File deleted
+0x00000010: CONFLICTED         // File has conflicts
+0x00000020: LOCKED             // File locked
+0x00000040: SWITCHED           // Switched to different URL
+0x00000080: INCOMPLETE         // Incomplete (interrupted operation)
+0x00000100: EXTERNAL           // SVN external
+0x00000200: TREE_CONFLICTED    // Tree conflict
+```
+
+SVN property flags:
+```
+0x00000001: VERSIONED_PROPERTY // Versioned property (svn:*)
+0x00000002: INHERITED          // Inherited property
+0x00000004: CUSTOM_PROPERTY    // Custom (non-svn:) property
+```
+
+**Common SVN Properties**:
+- svn:executable
+- svn:mime-type
+- svn:eol-style
+- svn:keywords
+- svn:ignore
+- svn:externals
+- svn:needs-lock
+- svn:special (for symlinks)
+
+### 6.52 CVS Metadata (0x0038)
+
+Concurrent Versions System (CVS) metadata.
+
+```c
+typedef struct _ZOO64_CVS_ATTR {
+  UINT16  MajorRevision;      // Major revision number
+  UINT16  MinorRevision;      // Minor revision number
+  UINT32  Flags;              // CVS-specific flags
+  UINT64  CommitTimestamp;    // Commit timestamp (Unix time)
+  UINT32  RepositoryPathLength; // Length of repository path
+  UINT32  ModuleLength;       // Length of module name
+  UINT32  BranchLength;       // Length of branch name
+  UINT32  TagCount;           // Number of tags
+  UINT32  AuthorLength;       // Length of author name
+  UINT32  StateLength;        // Length of state string
+  UINT32  LogMessageLength;   // Length of log message
+  UINT16  LockRevMajor;       // Lock revision major
+  UINT16  LockRevMinor;       // Lock revision minor
+  // Followed by:
+  //   [RepositoryPathLength bytes: repository path]
+  //   [ModuleLength bytes: module name]
+  //   [BranchLength bytes: branch name]
+  //   [TagCount * sizeof(CVS_TAG): symbolic tags]
+  //   [AuthorLength bytes: author name]
+  //   [StateLength bytes: state (Exp, Stab, Rel, dead)]
+  //   [LogMessageLength bytes: log message]
+} __attribute__((packed)) ZOO64_CVS_ATTR;
+
+typedef struct _CVS_TAG {
+  UINT16  MajorRevision;      // Tag revision major
+  UINT16  MinorRevision;      // Tag revision minor
+  UINT16  NameLength;         // Length of tag name
+  UINT8   TagType;            // 0=symbolic tag, 1=branch tag
+  UINT8   Reserved;           // Reserved
+  // Followed by [NameLength bytes: tag name]
+} __attribute__((packed)) CVS_TAG;
+```
+
+CVS flags:
+```
+0x00000001: UP_TO_DATE         // File up to date
+0x00000002: LOCALLY_MODIFIED   // Locally modified
+0x00000004: LOCALLY_ADDED      // Locally added
+0x00000008: LOCALLY_REMOVED    // Locally removed
+0x00000010: NEEDS_CHECKOUT     // Needs checkout
+0x00000020: NEEDS_MERGE        // Needs merge
+0x00000040: NEEDS_PATCH        // Needs patch
+0x00000080: CONFLICT           // Unresolved conflict
+0x00000100: LOCKED             // File locked
+0x00000200: STICKY_TAG         // Has sticky tag
+0x00000400: STICKY_DATE        // Has sticky date
+```
+
+CVS states:
+```
+Exp:  Experimental
+Stab: Stable
+Rel:  Released
+dead: File removed/deleted
+```
+
+### 6.53 RCS Metadata (0x0039)
+
+Revision Control System (RCS) metadata.
+
+```c
+typedef struct _ZOO64_RCS_ATTR {
+  UINT16  HeadMajor;          // Head revision major
+  UINT16  HeadMinor;          // Head revision minor
+  UINT16  WorkingMajor;       // Working revision major
+  UINT16  WorkingMinor;       // Working revision minor
+  UINT32  Flags;              // RCS-specific flags
+  UINT32  BranchLength;       // Length of branch
+  UINT32  AccessListLength;   // Length of access list
+  UINT32  SymbolCount;        // Number of symbolic names
+  UINT32  LocksCount;         // Number of locks
+  UINT32  CommentLength;      // Length of comment leader
+  UINT8   StrictLocking;      // Strict locking enabled
+  UINT8   Reserved[3];        // Reserved
+  // Followed by:
+  //   [BranchLength bytes: default branch]
+  //   [AccessListLength bytes: access list (space-separated)]
+  //   [SymbolCount * sizeof(RCS_SYMBOL): symbolic names]
+  //   [LocksCount * sizeof(RCS_LOCK): locks]
+  //   [CommentLength bytes: comment leader string]
+} __attribute__((packed)) ZOO64_RCS_ATTR;
+
+typedef struct _RCS_SYMBOL {
+  UINT16  MajorRevision;      // Symbol revision major
+  UINT16  MinorRevision;      // Symbol revision minor
+  UINT16  NameLength;         // Length of symbol name
+  UINT16  Reserved;           // Reserved
+  // Followed by [NameLength bytes: symbol name]
+} __attribute__((packed)) RCS_SYMBOL;
+
+typedef struct _RCS_LOCK {
+  UINT16  MajorRevision;      // Locked revision major
+  UINT16  MinorRevision;      // Locked revision minor
+  UINT16  LockerLength;       // Length of locker name
+  UINT16  Reserved;           // Reserved
+  // Followed by [LockerLength bytes: locker username]
+} __attribute__((packed)) RCS_LOCK;
+```
+
+RCS flags:
+```
+0x00000001: CHECKED_OUT        // File checked out
+0x00000002: LOCKED             // File locked
+0x00000004: STRICT_LOCKING     // Strict locking enabled
+0x00000008: EXPAND_KEYWORDS    // Keyword expansion enabled
+0x00000010: BINARY_FILE        // Binary file mode
+```
+
+**RCS Keywords**:
+- $Id$
+- $Header$
+- $Author$
+- $Date$
+- $Revision$
+- $Source$
+- $State$
+- $Log$
+- $Locker$
+
+### 6.54 Mercurial Metadata (0x003A)
+
+Mercurial distributed version control system metadata.
+
+```c
+typedef struct _ZOO64_HG_ATTR {
+  UINT8   NodeID[20];         // Mercurial node ID (changeset hash)
+  UINT8   ParentNode1[20];    // First parent node ID
+  UINT8   ParentNode2[20];    // Second parent node ID (merge)
+  UINT32  Flags;              // Mercurial-specific flags
+  UINT32  RevisionNumber;     // Local revision number
+  UINT64  CommitTimestamp;    // Commit timestamp (Unix time)
+  UINT32  BranchNameLength;   // Length of branch name
+  UINT32  BookmarkCount;      // Number of bookmarks
+  UINT32  TagCount;           // Number of tags
+  UINT32  PhaseCount;         // Number of phase roots
+  UINT8   Phase;              // Current phase: 0=public, 1=draft, 2=secret
+  UINT8   Reserved[3];        // Reserved
+  // Followed by:
+  //   [BranchNameLength bytes: branch name]
+  //   [BookmarkCount * sizeof(HG_BOOKMARK): bookmarks]
+  //   [TagCount * sizeof(HG_TAG): tags]
+  //   [PhaseCount * sizeof(HG_PHASE_ROOT): phase roots]
+} __attribute__((packed)) ZOO64_HG_ATTR;
+
+typedef struct _HG_BOOKMARK {
+  UINT8   NodeID[20];         // Bookmark target node ID
+  UINT16  NameLength;         // Length of bookmark name
+  UINT16  Reserved;           // Reserved
+  // Followed by [NameLength bytes: bookmark name]
+} __attribute__((packed)) HG_BOOKMARK;
+
+typedef struct _HG_TAG {
+  UINT8   NodeID[20];         // Tag target node ID
+  UINT16  NameLength;         // Length of tag name
+  UINT8   TagType;            // 0=regular, 1=local
+  UINT8   Reserved;           // Reserved
+  // Followed by [NameLength bytes: tag name]
+} __attribute__((packed)) HG_TAG;
+
+typedef struct _HG_PHASE_ROOT {
+  UINT8   NodeID[20];         // Phase root node ID
+  UINT8   Phase;              // Phase: 0=public, 1=draft, 2=secret
+  UINT8   Reserved[3];        // Reserved
+} __attribute__((packed)) HG_PHASE_ROOT;
+```
+
+Mercurial flags:
+```
+0x00000001: TRACKED            // File tracked
+0x00000002: MODIFIED           // File modified
+0x00000004: ADDED              // File added
+0x00000008: REMOVED            // File removed
+0x00000010: CLEAN              // File clean
+0x00000020: MISSING            // File missing
+0x00000040: IGNORED            // File ignored (.hgignore)
+0x00000080: MERGE_STATE        // In merge state
+0x00000100: LARGEFILE          // Mercurial largefile
+0x00000200: SUBREPO            // Mercurial subrepo
+```
+
+**Mercurial Features**:
+- Changesets identified by 20-byte node IDs
+- Branches are lightweight (just names)
+- Bookmarks are movable pointers (like Git branches)
+- Tags can be regular (versioned) or local
+- Phases: public (immutable), draft (mutable), secret (local only)
+- Support for largefiles extension
+
+### 6.55 Fossil Metadata (0x003B)
+
+Fossil distributed version control system metadata.
+
+```c
+typedef struct _ZOO64_FOSSIL_ATTR {
+  UINT8   ArtifactHash[32];   // Artifact hash (SHA-1 or SHA-3)
+  UINT8   CheckinHash[32];    // Current checkin hash
+  UINT32  Flags;              // Fossil-specific flags
+  UINT16  HashType;           // Hash algorithm: 1=SHA-1, 2=SHA-3-256
+  UINT16  ManifestVersion;    // Manifest version
+  UINT64  CheckinTimestamp;   // Checkin timestamp (Unix time)
+  UINT32  BranchNameLength;   // Length of branch name
+  UINT32  TagCount;           // Number of tags
+  UINT32  UserLength;         // Length of user name
+  UINT32  CommentLength;      // Length of checkin comment
+  UINT32  WikiPageCount;      // Number of wiki pages
+  UINT32  TicketCount;        // Number of tickets
+  // Followed by:
+  //   [BranchNameLength bytes: branch name]
+  //   [TagCount * sizeof(FOSSIL_TAG): tags]
+  //   [UserLength bytes: user name]
+  //   [CommentLength bytes: checkin comment]
+  //   [WikiPageCount * sizeof(FOSSIL_WIKI): wiki page refs]
+  //   [TicketCount * sizeof(FOSSIL_TICKET): ticket refs]
+} __attribute__((packed)) ZOO64_FOSSIL_ATTR;
+
+typedef struct _FOSSIL_TAG {
+  UINT8   TagType;            // 0=propagating, 1=singleton, 2=cancel
+  UINT8   Reserved;           // Reserved
+  UINT16  NameLength;         // Length of tag name
+  UINT16  ValueLength;        // Length of tag value
+  UINT16  Reserved2;          // Reserved
+  // Followed by:
+  //   [NameLength bytes: tag name]
+  //   [ValueLength bytes: tag value (optional)]
+} __attribute__((packed)) FOSSIL_TAG;
+
+typedef struct _FOSSIL_WIKI {
+  UINT8   ArtifactHash[32];   // Wiki page artifact hash
+  UINT16  PageNameLength;     // Length of page name
+  UINT16  Reserved;           // Reserved
+  // Followed by [PageNameLength bytes: wiki page name]
+} __attribute__((packed)) FOSSIL_WIKI;
+
+typedef struct _FOSSIL_TICKET {
+  UINT8   TicketUUID[16];     // Ticket UUID
+  UINT16  TitleLength;        // Length of ticket title
+  UINT8   Status;             // Status: 0=open, 1=closed, 2=review
+  UINT8   Type;               // Type: 0=bug, 1=feature, 2=task
+  // Followed by [TitleLength bytes: ticket title]
+} __attribute__((packed)) FOSSIL_TICKET;
+```
+
+Fossil flags:
+```
+0x00000001: TRACKED            // File tracked
+0x00000002: MODIFIED           // File modified
+0x00000004: ADDED              // File added
+0x00000008: DELETED            // File deleted
+0x00000010: RENAMED            // File renamed
+0x00000020: EXECUTABLE         // File is executable
+0x00000040: SYMLINK            // File is symlink
+0x00000080: HAS_WIKI           // Repository has wiki pages
+0x00000100: HAS_TICKETS        // Repository has tickets
+0x00000200: HAS_TECHNOTES      // Repository has technotes
+0x00000400: HAS_FORUM          // Repository has forum
+0x00000800: PRIVATE_BRANCH     // Private branch
+```
+
+**Fossil Features**:
+- Self-contained executable with built-in web UI
+- Integrated bug tracking (tickets)
+- Integrated wiki
+- Integrated forum and technotes
+- Uses SQLite database internally
+- Supports both SHA-1 and SHA-3-256 hashing
+- Autosync capability
+- Blockchain-based design
+
+### 6.56 WebDAV Metadata (0x003C)
+
+Web Distributed Authoring and Versioning (WebDAV) metadata.
+
+```c
+typedef struct _ZOO64_WEBDAV_ATTR {
+  UINT32  Flags;              // WebDAV-specific flags
+  UINT64  CreationDate;       // Creation date (Unix timestamp)
+  UINT64  LastModified;       // Last modified date
+  UINT64  GetContentLength;   // Content length
+  UINT32  GetContentTypeLength; // Length of content type
+  UINT32  GetETagLength;      // Length of ETag
+  UINT32  DisplayNameLength;  // Length of display name
+  UINT32  LivePropCount;      // Number of live properties
+  UINT32  DeadPropCount;      // Number of dead properties
+  UINT32  LockCount;          // Number of locks
+  UINT8   ResourceType;       // 0=regular, 1=collection
+  UINT8   Reserved[3];        // Reserved
+  // Followed by:
+  //   [GetContentTypeLength bytes: content type (MIME)]
+  //   [GetETagLength bytes: entity tag]
+  //   [DisplayNameLength bytes: display name]
+  //   [LivePropCount * sizeof(WEBDAV_LIVE_PROP): live properties]
+  //   [DeadPropCount * sizeof(WEBDAV_DEAD_PROP): dead properties]
+  //   [LockCount * sizeof(WEBDAV_LOCK): active locks]
+} __attribute__((packed)) ZOO64_WEBDAV_ATTR;
+
+typedef struct _WEBDAV_LIVE_PROP {
+  UINT16  PropertyID;         // Standard property ID
+  UINT16  ValueLength;        // Length of value
+  // Followed by [ValueLength bytes: property value]
+} __attribute__((packed)) WEBDAV_LIVE_PROP;
+
+typedef struct _WEBDAV_DEAD_PROP {
+  UINT16  NamespaceLength;    // Length of XML namespace
+  UINT16  NameLength;         // Length of property name
+  UINT16  ValueLength;        // Length of property value
+  UINT16  Reserved;           // Reserved
+  // Followed by:
+  //   [NamespaceLength bytes: XML namespace URI]
+  //   [NameLength bytes: property name]
+  //   [ValueLength bytes: property value (XML)]
+} __attribute__((packed)) WEBDAV_DEAD_PROP;
+
+typedef struct _WEBDAV_LOCK {
+  UINT8   LockToken[16];      // Lock token (UUID)
+  UINT64  Timeout;            // Lock timeout (Unix timestamp)
+  UINT32  OwnerLength;        // Length of lock owner
+  UINT8   LockScope;          // 0=exclusive, 1=shared
+  UINT8   LockType;           // 0=write
+  UINT16  DepthInfinity;      // Depth: 0=depth-0, 1=depth-infinity
+  // Followed by [OwnerLength bytes: lock owner (XML)]
+} __attribute__((packed)) WEBDAV_LOCK;
+```
+
+WebDAV flags:
+```
+0x00000001: IS_COLLECTION      // Resource is collection (directory)
+0x00000002: HAS_LIVE_PROPS     // Has live properties
+0x00000004: HAS_DEAD_PROPS     // Has dead (custom) properties
+0x00000008: LOCKED             // Resource locked
+0x00000010: SUPPORTS_LOCKING   // Server supports locking
+0x00000020: VERSIONED          // DeltaV versioned resource
+0x00000040: CHECKED_OUT        // DeltaV checked out
+0x00000080: VERSION_CONTROLLED // DeltaV version-controlled
+```
+
+WebDAV live property IDs:
+```
+0x0001: creationdate
+0x0002: displayname
+0x0003: getcontentlanguage
+0x0004: getcontentlength
+0x0005: getcontenttype
+0x0006: getetag
+0x0007: getlastmodified
+0x0008: lockdiscovery
+0x0009: resourcetype
+0x000A: supportedlock
+0x000B: source (DeltaV)
+0x000C: checked-in (DeltaV)
+0x000D: checked-out (DeltaV)
+0x000E: version-name (DeltaV)
+0x000F: predecessor-set (DeltaV)
+0x0010: successor-set (DeltaV)
+```
+
+**WebDAV Features**:
+- Live properties: server-maintained (getlastmodified, etc.)
+- Dead properties: custom XML properties set by clients
+- Locking: exclusive or shared locks with depth
+- Collections: WebDAV term for directories
+- DeltaV: versioning extension (RFC 3253)
+- ETags for cache validation
+- MIME type tracking (getcontenttype)
+
+**DeltaV (WebDAV Versioning)**:
+- Version-controlled resources
+- Check-out/check-in workflow
+- Version history
+- Workspaces and activities
+- Baseline collections
+
+### 6.57 NFS Metadata (0x003D)
+
+Network File System (NFS) versions 2, 3, and 4 metadata.
+
+```c
+typedef struct _ZOO64_NFS_ATTR {
+  UINT8   FileHandle[128];    // NFS file handle (variable length, max 128)
+  UINT16  FileHandleLength;   // Actual length of file handle
+  UINT16  NFSVersion;         // NFS version: 2, 3, or 4
+  UINT32  Flags;              // NFS-specific flags
+  UINT32  FileType;           // NFS file type (ftype)
+  UINT32  Mode;               // Unix mode bits
+  UINT32  NLink;              // Number of hard links
+  UINT32  UID;                // Owner UID
+  UINT32  GID;                // Owner GID
+  UINT64  Size;               // File size in bytes
+  UINT64  Used;               // Disk space used
+  UINT64  FileID;             // File identifier
+  UINT64  FSId;               // Filesystem identifier
+  UINT64  ATime;              // Access time (NFS time)
+  UINT64  MTime;              // Modification time
+  UINT64  CTime;              // Change time
+  UINT32  NFSv4ChangeAttr;    // NFSv4 change attribute
+  UINT32  NamedAttrCount;     // NFSv4 named attributes count
+  UINT32  ACLCount;           // NFSv4 ACL entry count
+  // Followed by:
+  //   [NamedAttrCount * sizeof(NFS_NAMED_ATTR): named attributes]
+  //   [ACLCount * sizeof(NFSv4_ACE): ACL entries]
+} __attribute__((packed)) ZOO64_NFS_ATTR;
+
+typedef struct _NFS_NAMED_ATTR {
+  UINT16  NameLength;         // Length of attribute name
+  UINT32  ValueLength;        // Length of attribute value
+  UINT16  Reserved;           // Reserved
+  // Followed by:
+  //   [NameLength bytes: attribute name]
+  //   [ValueLength bytes: attribute value]
+} __attribute__((packed)) NFS_NAMED_ATTR;
+
+typedef struct _NFSv4_ACE {
+  UINT32  Type;               // ACE type (ALLOW, DENY, AUDIT, ALARM)
+  UINT32  Flag;               // ACE flags (inheritance, etc.)
+  UINT32  AccessMask;         // Access permissions
+  UINT16  WhoLength;          // Length of who (principal)
+  UINT16  Reserved;           // Reserved
+  // Followed by [WhoLength bytes: principal (user@domain)]
+} __attribute__((packed)) NFSv4_ACE;
+```
+
+NFS flags:
+```
+0x00000001: MOUNTED            // File on NFS mount
+0x00000002: HAS_NAMED_ATTRS    // Has named attributes (NFSv4)
+0x00000004: HAS_ACL            // Has ACL (NFSv4)
+0x00000008: DELEGATED          // File has delegation (NFSv4)
+0x00000010: CACHED             // File data cached locally
+0x00000020: LOCKED             // File has byte-range lock
+0x00000040: HOMOGENEOUS        // Homogeneous file (NFSv4)
+0x00000080: HIDDEN             // Hidden file (Windows-style)
+```
+
+NFS file types (ftype):
+```
+1: NF4REG       // Regular file
+2: NF4DIR       // Directory
+3: NF4BLK       // Block device
+4: NF4CHR       // Character device
+5: NF4LNK       // Symbolic link
+6: NF4SOCK      // Socket
+7: NF4FIFO      // FIFO
+8: NF4ATTRDIR   // Attribute directory (NFSv4)
+9: NF4NAMEDATTR // Named attribute (NFSv4)
+```
+
+NFSv4 ACE types:
+```
+0: ACCESS_ALLOWED_ACE_TYPE
+1: ACCESS_DENIED_ACE_TYPE
+2: SYSTEM_AUDIT_ACE_TYPE
+3: SYSTEM_ALARM_ACE_TYPE
+```
+
+NFSv4 access mask bits:
+```
+0x00000001: READ_DATA
+0x00000002: WRITE_DATA
+0x00000004: APPEND_DATA
+0x00000008: READ_NAMED_ATTRS
+0x00000010: WRITE_NAMED_ATTRS
+0x00000020: EXECUTE
+0x00000040: DELETE_CHILD
+0x00000080: READ_ATTRIBUTES
+0x00000100: WRITE_ATTRIBUTES
+0x00000200: DELETE
+0x00000400: READ_ACL
+0x00000800: WRITE_ACL
+0x00001000: WRITE_OWNER
+0x00002000: SYNCHRONIZE
+```
+
+**NFS Version-Specific Features**:
+- **NFSv2**: Basic file operations, 32-bit file sizes
+- **NFSv3**: 64-bit file sizes, READDIRPLUS, async writes
+- **NFSv4**: Stateful protocol, compound operations, delegations, named attributes, NFSv4 ACLs, internationalization (UTF-8)
+
+### 6.58 SMB/CIFS Metadata (0x003E)
+
+Server Message Block / Common Internet File System metadata.
+
+```c
+typedef struct _ZOO64_SMB_ATTR {
+  UINT64  FileID;             // SMB2+ persistent file ID
+  UINT64  VolumeID;           // SMB2+ volume ID
+  UINT32  Flags;              // SMB-specific flags
+  UINT32  FileAttributes;     // Windows file attributes
+  UINT64  AllocationSize;     // Allocation size
+  UINT64  EndOfFile;          // End of file
+  UINT32  NumberOfLinks;      // Number of hard links
+  UINT8   DeletePending;      // Delete pending flag
+  UINT8   Directory;          // Is directory
+  UINT16  EASize;             // Extended attributes size
+  UINT32  StreamCount;        // Number of alternate data streams
+  UINT32  ReparseTag;         // Reparse point tag (if reparse point)
+  UINT8   FileId128[16];      // SMB3+ 128-bit file ID
+  UINT32  ShareAccess;        // Share access flags
+  UINT32  CreateOptions;      // Create options
+  // Followed by:
+  //   [StreamCount * sizeof(SMB_STREAM): alternate data streams]
+  //   [Variable: EA data if EASize > 0]
+  //   [Variable: Reparse data if reparse point]
+} __attribute__((packed)) ZOO64_SMB_ATTR;
+
+typedef struct _SMB_STREAM {
+  UINT64  StreamSize;         // Size of stream
+  UINT64  StreamAllocationSize; // Allocation size of stream
+  UINT16  StreamNameLength;   // Length of stream name
+  UINT16  Reserved;           // Reserved
+  // Followed by [StreamNameLength bytes: stream name (UTF-16LE)]
+} __attribute__((packed)) SMB_STREAM;
+```
+
+SMB flags:
+```
+0x00000001: SMB1              // SMB1/CIFS protocol
+0x00000002: SMB2              // SMB2 protocol
+0x00000004: SMB3              // SMB3 protocol
+0x00000008: ENCRYPTED         // SMB3 encryption enabled
+0x00000010: COMPRESSED        // SMB3 compression enabled
+0x00000020: HAS_STREAMS       // Has alternate data streams
+0x00000040: HAS_EA            // Has extended attributes
+0x00000080: REPARSE_POINT     // Is reparse point
+0x00000100: SPARSE_FILE       // Sparse file
+0x00000200: OFFLINE           // File is offline (HSM)
+0x00000400: OPLOCK_HELD       // Opportunistic lock held
+0x00000800: LEASE_HELD        // SMB2+ lease held
+```
+
+Windows file attributes (subset):
+```
+0x00000001: FILE_ATTRIBUTE_READONLY
+0x00000002: FILE_ATTRIBUTE_HIDDEN
+0x00000004: FILE_ATTRIBUTE_SYSTEM
+0x00000008: FILE_ATTRIBUTE_DIRECTORY
+0x00000020: FILE_ATTRIBUTE_ARCHIVE
+0x00000040: FILE_ATTRIBUTE_DEVICE
+0x00000080: FILE_ATTRIBUTE_NORMAL
+0x00000100: FILE_ATTRIBUTE_TEMPORARY
+0x00000200: FILE_ATTRIBUTE_SPARSE_FILE
+0x00000400: FILE_ATTRIBUTE_REPARSE_POINT
+0x00000800: FILE_ATTRIBUTE_COMPRESSED
+0x00001000: FILE_ATTRIBUTE_OFFLINE
+0x00002000: FILE_ATTRIBUTE_NOT_CONTENT_INDEXED
+0x00004000: FILE_ATTRIBUTE_ENCRYPTED
+0x00008000: FILE_ATTRIBUTE_INTEGRITY_STREAM
+0x00020000: FILE_ATTRIBUTE_NO_SCRUB_DATA
+```
+
+Reparse point tags:
+```
+0x80000000: IO_REPARSE_TAG_SYMBOLIC_LINK
+0x80000001: IO_REPARSE_TAG_MOUNT_POINT
+0x80000002: IO_REPARSE_TAG_HSM
+0x80000006: IO_REPARSE_TAG_DFS
+0x8000000A: IO_REPARSE_TAG_DFSR
+0x8000000C: IO_REPARSE_TAG_DEDUP
+0x80000012: IO_REPARSE_TAG_NFS
+0x80000014: IO_REPARSE_TAG_CLOUD
+0x80000017: IO_REPARSE_TAG_APPEXECLINK
+```
+
+**SMB Protocol Features**:
+- **SMB1/CIFS**: Basic file sharing, opportunistic locks
+- **SMB2**: Compound requests, durable handles, larger reads/writes
+- **SMB3**: Encryption, compression, multichannel, directory leases, witness protocol
+
+### 6.59 NetWare NCP Metadata (0x003F)
+
+NetWare Core Protocol (NCP) / NetWare filesystem metadata.
+
+```c
+typedef struct _ZOO64_NETWARE_ATTR {
+  UINT32  FileNumber;         // NetWare file number
+  UINT32  DirectoryNumber;    // Parent directory number
+  UINT32  VolumeNumber;       // Volume number
+  UINT32  Flags;              // NetWare-specific flags
+  UINT32  Attributes;         // NetWare file attributes
+  UINT64  FileSize;           // File size
+  UINT64  CreationDate;       // Creation date/time
+  UINT64  LastAccessDate;     // Last access date
+  UINT64  LastModifiedDate;   // Last modified date/time
+  UINT64  LastArchivedDate;   // Last archived date/time
+  UINT32  OwnerID;            // Owner object ID
+  UINT32  ArchiverID;         // Archiver object ID
+  UINT32  TrusteeCount;       // Number of trustees
+  UINT32  NamespaceInfo;      // Namespace information
+  UINT16  InheritedRightsMask; // Inherited rights mask
+  UINT16  Reserved;           // Reserved
+  // Followed by:
+  //   [TrusteeCount * sizeof(NETWARE_TRUSTEE): trustees]
+  //   [Variable: Extended attributes]
+} __attribute__((packed)) ZOO64_NETWARE_ATTR;
+
+typedef struct _NETWARE_TRUSTEE {
+  UINT32  ObjectID;           // Trustee object ID
+  UINT16  Rights;             // Trustee rights
+  UINT16  ObjectType;         // Object type (user, group, etc.)
+  UINT32  NameLength;         // Length of trustee name
+  // Followed by [NameLength bytes: trustee name]
+} __attribute__((packed)) NETWARE_TRUSTEE;
+```
+
+NetWare flags:
+```
+0x00000001: MIGRATED           // File migrated to secondary storage
+0x00000002: COMPRESSED         // File compressed
+0x00000004: SUBALLOCATED       // File suballocated
+0x00000008: IMMEDIATE_COMPRESS // Immediate compression
+0x00000010: DATA_STREAM        // Has data stream
+0x00000020: NAME_SPACE         // Supports namespaces
+```
+
+NetWare file attributes:
+```
+0x0001: READ_ONLY              // Read-only
+0x0002: HIDDEN                 // Hidden
+0x0004: SYSTEM                 // System
+0x0008: EXECUTE_ONLY           // Execute only
+0x0010: SUBDIRECTORY           // Subdirectory
+0x0020: ARCHIVE                // Archive needed
+0x0040: EXECUTE_CONFIRM        // Execute confirm
+0x0080: SHAREABLE              // Shareable
+0x0100: DONT_COMPRESS          // Don't compress
+0x0200: DONT_MIGRATE           // Don't migrate
+0x0400: IMMEDIATE_COMPRESS     // Compress immediately
+0x0800: RENAME_INHIBIT         // Rename inhibited
+0x1000: DELETE_INHIBIT         // Delete inhibited
+0x2000: COPY_INHIBIT           // Copy inhibited
+0x4000: PURGE                  // Immediate purge
+0x8000: TRANSACTIONAL          // Transactional
+```
+
+NetWare trustee rights:
+```
+0x0001: READ                   // Read
+0x0002: WRITE                  // Write
+0x0004: CREATE                 // Create
+0x0008: ERASE                  // Erase
+0x0010: ACCESS_CONTROL         // Modify
+0x0020: FILE_SCAN              // File scan
+0x0040: MODIFY                 // Modify attributes
+0x0080: SUPERVISOR             // Supervisor (all rights)
+```
+
+NetWare namespaces:
+```
+0: DOS_NAMESPACE               // DOS 8.3 namespace
+1: MAC_NAMESPACE               // Macintosh namespace
+2: NFS_NAMESPACE               // NFS namespace
+3: FTAM_NAMESPACE              // FTAM namespace
+4: OS2_NAMESPACE               // OS/2 long namespace
+5: UNIX_NAMESPACE              // Unix namespace
+```
+
+### 6.60 AFP Metadata (0x0040)
+
+Apple Filing Protocol (AFP) versions 1, 2, and 3 metadata.
+
+```c
+typedef struct _ZOO64_AFP_ATTR {
+  UINT32  FileNumber;         // AFP file number (CNID)
+  UINT32  ParentDirNumber;    // Parent directory CNID
+  UINT16  AFPVersion;         // AFP version (1, 2, or 3)
+  UINT16  Flags;              // AFP-specific flags
+  UINT32  FinderInfo[8];      // Finder info (32 bytes)
+  UINT32  ExtendedFinderInfo[4]; // Extended Finder info (16 bytes)
+  UINT64  DataForkSize;       // Data fork logical size
+  UINT64  ResourceForkSize;   // Resource fork logical size
+  UINT64  DataForkAllocSize;  // Data fork allocation size
+  UINT64  ResourceForkAllocSize; // Resource fork allocation size
+  UINT16  AccessRights;       // AFP access rights
+  UINT16  UnixPrivileges;     // Unix privileges mode
+  UINT32  OwnerID;            // Owner ID
+  UINT32  GroupID;            // Group ID
+  UINT32  ACLCount;           // Number of ACL entries
+  // Followed by:
+  //   [DataForkSize bytes: data fork content]
+  //   [ResourceForkSize bytes: resource fork content]
+  //   [ACLCount * sizeof(AFP_ACE): ACL entries]
+} __attribute__((packed)) ZOO64_AFP_ATTR;
+
+typedef struct _AFP_ACE {
+  UINT32  ACEType;            // ACE type
+  UINT32  ACEFlags;           // ACE flags
+  UINT32  AccessMask;         // Access mask
+  UINT32  UUIDLength;         // Length of UUID (usually 16)
+  // Followed by [UUIDLength bytes: principal UUID]
+} __attribute__((packed)) AFP_ACE;
+```
+
+AFP flags:
+```
+0x0001: HAS_RESOURCE_FORK      // Has resource fork
+0x0002: HAS_CUSTOM_ICON        // Has custom icon
+0x0004: IS_ALIAS               // Is alias file
+0x0008: IS_INVISIBLE           // Is invisible
+0x0010: COPY_PROTECTED         // Copy protected (AFP 2.0+)
+0x0020: DELETE_INHIBIT         // Delete inhibit (AFP 2.0+)
+0x0040: RENAME_INHIBIT         // Rename inhibit (AFP 2.0+)
+0x0080: SET_CLEAR              // Set/Clear bit (AFP 2.0+)
+0x0100: BACKUP_NEEDED          // Backup needed
+0x0200: NO_COPY                // Don't copy (AFP 3.0+)
+```
+
+Finder info structure (32 bytes):
+```
+Bytes 0-3:   File type (FourCC)
+Bytes 4-7:   File creator (FourCC)
+Bytes 8-9:   Finder flags
+Bytes 10-13: Location (Point)
+Bytes 14-15: Folder flags
+Bytes 16-23: Reserved
+Bytes 24-27: Icon location
+Bytes 28-31: Reserved
+```
+
+Finder flags:
+```
+0x0001: kIsOnDesk
+0x0002: kColor (3 bits)
+0x0010: kIsShared
+0x0020: kHasNoINITs
+0x0040: kHasBeenInited
+0x0100: kHasCustomIcon
+0x0200: kIsStationery
+0x0400: kNameLocked
+0x0800: kHasBundle
+0x1000: kIsInvisible
+0x2000: kIsAlias
+```
+
+AFP access rights:
+```
+0x01: OWNER_SEARCH             // Owner search
+0x02: OWNER_READ               // Owner read
+0x04: OWNER_WRITE              // Owner write
+0x10: GROUP_SEARCH             // Group search
+0x20: GROUP_READ               // Group read
+0x40: GROUP_WRITE              // Group write
+0x100: EVERYONE_SEARCH         // Everyone search
+0x200: EVERYONE_READ           // Everyone read
+0x400: EVERYONE_WRITE          // Everyone write
+0x800: USER_HAS_NO_RIGHTS      // User has no rights
+0x1000: BLANK_ACCESS           // Blank access
+```
+
+**AFP Protocol Features**:
+- **AFP 1.x**: Basic file sharing, AppleTalk
+- **AFP 2.x**: TCP/IP support, enhanced security, file server messages
+- **AFP 3.x**: Kerberos authentication, ACLs (UUID-based), extended attributes, spotlight search
+
+### 6.61 DCE DFS Metadata (0x0041)
+
+Distributed Computing Environment Distributed File System metadata.
+
+```c
+typedef struct _ZOO64_DCE_DFS_ATTR {
+  UINT8   FileUUID[16];       // DCE file UUID
+  UINT8   VolumeUUID[16];     // DCE volume UUID
+  UINT64  FileID;             // File identifier
+  UINT64  VolumeID;           // Volume identifier
+  UINT32  Flags;              // DCE DFS-specific flags
+  UINT32  FileType;           // File type
+  UINT64  DataVersion;        // Data version number
+  UINT64  ACLVersion;         // ACL version number
+  UINT32  ACLCount;           // Number of ACL entries
+  UINT32  ExtendedAttrCount;  // Number of extended attributes
+  UINT32  CellNameLength;     // Length of cell name
+  UINT32  VolumeNameLength;   // Length of volume name
+  // Followed by:
+  //   [CellNameLength bytes: DCE cell name]
+  //   [VolumeNameLength bytes: volume name]
+  //   [ACLCount * sizeof(DCE_ACE): ACL entries]
+  //   [ExtendedAttrCount * sizeof(DCE_XATTR): extended attributes]
+} __attribute__((packed)) ZOO64_DCE_DFS_ATTR;
+
+typedef struct _DCE_ACE {
+  UINT8   PrincipalUUID[16];  // Principal UUID
+  UINT32  PermissionBits;     // Permission bits
+  UINT32  ACEType;            // ACE type
+  UINT16  PrincipalNameLength; // Length of principal name
+  UINT16  Reserved;           // Reserved
+  // Followed by [PrincipalNameLength bytes: principal name]
+} __attribute__((packed)) DCE_ACE;
+
+typedef struct _DCE_XATTR {
+  UINT16  NameLength;         // Length of attribute name
+  UINT32  ValueLength;        // Length of attribute value
+  UINT16  Flags;              // Attribute flags
+  // Followed by:
+  //   [NameLength bytes: attribute name]
+  //   [ValueLength bytes: attribute value]
+} __attribute__((packed)) DCE_XATTR;
+```
+
+DCE DFS flags:
+```
+0x00000001: REPLICATED         // File is replicated
+0x00000002: FILESET_ROOT       // Fileset root
+0x00000004: MOUNT_POINT        // Is mount point
+0x00000008: VOLUME_ROOT        // Volume root
+0x00000010: CACHED             // File cached locally
+0x00000020: TOKEN_HELD         // Access token held
+0x00000040: CALLBACK_SET       // Callback registered
+```
+
+DCE DFS file types:
+```
+0: INVALID
+1: FILE
+2: DIRECTORY
+3: SYMBOLIC_LINK
+4: MOUNT_POINT
+```
+
+DCE ACE permission bits:
+```
+0x00000001: READ               // Read
+0x00000002: WRITE              // Write
+0x00000004: EXECUTE            // Execute
+0x00000008: CONTROL            // Control (admin)
+0x00000010: INSERT             // Insert
+0x00000020: DELETE             // Delete
+0x00000040: LOCK               // Lock
+0x00000080: ADMINISTER         // Administer
+```
+
+DCE ACE types:
+```
+0: USER_OBJ                    // Owner
+1: USER                        // Named user
+2: GROUP_OBJ                   // Owning group
+3: GROUP                       // Named group
+4: OTHER_OBJ                   // Other
+5: MASK_OBJ                    // Mask
+6: ANY_OTHER                   // Any other
+7: FOREIGN_OTHER               // Foreign principal
+```
+
+**DCE DFS Features**:
+- Global namespace across cells
+- Transparent replication
+- Location independence (mount points)
+- Kerberos authentication
+- Token-based caching with callbacks
+- ACLs with UUID-based principals
+- Fileset quotas
+- Episode or UFS backend filesystems
 
 ## 6a. Encryption Support
 
