@@ -19,7 +19,7 @@
 	RCSID("$NetBSD: memcmp.S,v 1.3 2014/03/22 19:38:46 jakllsch Exp $")
 #endif
 
-ANX_ASM_FUNCTION_BEGIN(memcmp)
+ANX_ASM_FUNCTION_BEGIN(RtlCompareMemory)
 	pushl	%edi
 	pushl	%esi
 	movl	12(%esp),%edi
@@ -55,4 +55,4 @@ L6:	xorl	%eax,%eax		/* Perform unsigned comparison	*/
 	popl	%esi
 	popl	%edi
 	ret
-ANX_ASM_FUNCTION_END(memcmp)
+ANX_ASM_FUNCTION_END(RtlCompareMemory)

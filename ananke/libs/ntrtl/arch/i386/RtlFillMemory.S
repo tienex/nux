@@ -48,7 +48,7 @@
 #ifdef BZERO
 ANX_ASM_FUNCTION_BEGIN(bzero)
 #else
-ANX_ASM_FUNCTION_BEGIN(memset)
+ANX_ASM_FUNCTION_BEGIN(RtlFillMemory)
 #endif
 #ifdef BZERO
 	movl	8(%esp),%ecx
@@ -117,5 +117,5 @@ ANX_ASM_FUNCTION_BEGIN(memset)
 #ifdef BZERO
 ANX_ASM_FUNCTION_END(bzero)
 #else
-ANX_ASM_FUNCTION_END(memset)
+ANX_ASM_FUNCTION_END(RtlFillMemory)
 #endif
