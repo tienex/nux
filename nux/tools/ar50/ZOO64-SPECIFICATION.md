@@ -12639,95 +12639,292 @@ All enumerations follow NT/UEFI PascalCase naming conventions (not underscore st
 // Compression Algorithm Enumeration
 // NT-style: Zoo64Compress* (PascalCase, no underscores)
 //
+//
+// Compression Algorithm Enumeration (32-bit IDs)
+// Comprehensive list of all known compression methods
+//
 typedef enum _ZOO64_COMPRESSION_ALGORITHM {
-  Zoo64CompressStored               = 0x0000,  // No compression
-  Zoo64CompressZoz                  = 0x0001,  // ZOZ adaptive pipeline
-  Zoo64CompressLz77                 = 0x0002,  // Lempel-Ziv 1977
-  Zoo64CompressLz4                  = 0x0003,  // Extremely fast
-  Zoo64CompressZstd                 = 0x0004,  // Zstandard (recommended)
-  Zoo64CompressLzma                 = 0x0005,  // 7-Zip
-  Zoo64CompressLzma2                = 0x0006,  // Multi-threaded LZMA
-  Zoo64CompressLzx                  = 0x0007,  // Microsoft CAB
-  Zoo64CompressLzfse                = 0x0008,  // Apple
-  Zoo64CompressZlib                 = 0x0009,  // Deflate (RFC 1950)
-  Zoo64CompressLzh                  = 0x000A,  // LHA/LZH
-  Zoo64CompressLzw                  = 0x000B,  // Lempel-Ziv-Welch
-  Zoo64CompressBrotli               = 0x000C,  // Google (RFC 7932)
-  Zoo64CompressBzip2                = 0x000D,  // bzip2
-  Zoo64CompressPaq                  = 0x000E,  // PAQ family
-  Zoo64CompressHuffman              = 0x000F,  // Huffman only
-  Zoo64CompressBitSquish            = 0x0010,  // Bit squishing (reduced alphabet)
-  Zoo64CompressCustom               = 0x0100   // Custom algorithm
+  // 0x0000-0x000F: Basic & Statistical
+  Zoo64CompressStored               = 0x00000000,  // No compression
+  Zoo64CompressZoz                  = 0x00000001,  // ZOZ adaptive pipeline
+  Zoo64CompressRle                  = 0x00000002,  // Run-Length Encoding
+  Zoo64CompressHuffman              = 0x00000003,  // Huffman coding only
+  Zoo64CompressBitSquish            = 0x00000004,  // Bit squishing (reduced alphabet)
+  Zoo64CompressArithmetic           = 0x00000005,  // Arithmetic coding
+  Zoo64CompressRangeCoding          = 0x00000006,  // Range coding
+  Zoo64CompressAns                  = 0x00000007,  // Asymmetric Numeral Systems
+
+  // 0x0010-0x002F: LZ77 Family
+  Zoo64CompressLz77                 = 0x00000010,  // Lempel-Ziv 1977
+  Zoo64CompressLzss                 = 0x00000011,  // LZSS (LZ77 variant)
+  Zoo64CompressDeflate              = 0x00000012,  // DEFLATE (RFC 1951)
+  Zoo64CompressZlib                 = 0x00000013,  // ZLIB (RFC 1950, DEFLATE + wrapper)
+  Zoo64CompressGzip                 = 0x00000014,  // GZIP (RFC 1952)
+  Zoo64CompressLzo                  = 0x00000015,  // LZO (fast)
+  Zoo64CompressLz4                  = 0x00000016,  // LZ4 (extremely fast)
+  Zoo64CompressLz4Hc                = 0x00000017,  // LZ4 High Compression
+  Zoo64CompressSnappy               = 0x00000018,  // Google Snappy
+  Zoo64CompressLzf                  = 0x00000019,  // LibLZF
+  Zoo64CompressLzrw                 = 0x0000001A,  // LZRW1/3/4
+  Zoo64CompressLzjb                 = 0x0000001B,  // LZJB (ZFS)
+  Zoo64CompressLzp                  = 0x0000001C,  // LZP (Lempel-Ziv-Predict)
+  Zoo64CompressQuickLz              = 0x0000001D,  // QuickLZ
+  Zoo64CompressLzham                = 0x0000001E,  // LZHAM
+  Zoo64CompressLzx                  = 0x0000001F,  // Microsoft LZX (CAB)
+
+  // 0x0030-0x003F: LZ78 Family
+  Zoo64CompressLz78                 = 0x00000030,  // Lempel-Ziv 1978
+  Zoo64CompressLzw                  = 0x00000031,  // Lempel-Ziv-Welch (GIF/TIFF)
+  Zoo64CompressLzc                  = 0x00000032,  // UNIX compress (.Z)
+  Zoo64CompressGif                  = 0x00000033,  // GIF LZW variant
+
+  // 0x0040-0x005F: LZMA Family
+  Zoo64CompressLzma                 = 0x00000040,  // LZMA (7-Zip)
+  Zoo64CompressLzma2                = 0x00000041,  // LZMA2 (multi-threaded)
+  Zoo64CompressXz                   = 0x00000042,  // XZ Utils (LZMA2-based)
+
+  // 0x0060-0x007F: Modern General-Purpose
+  Zoo64CompressZstd                 = 0x00000060,  // Zstandard (Facebook, recommended)
+  Zoo64CompressBrotli               = 0x00000061,  // Brotli (Google, RFC 7932)
+  Zoo64CompressLzfse                = 0x00000062,  // LZFSE (Apple)
+  Zoo64CompressLizard               = 0x00000063,  // Lizard (LZ4 + Huffman)
+  Zoo64CompressDensity              = 0x00000064,  // Density (Chameleon/Lion)
+
+  // 0x0080-0x009F: BWT-Based
+  Zoo64CompressBzip2                = 0x00000080,  // bzip2 (BWT + RLE + Huffman)
+  Zoo64CompressBzip3                = 0x00000081,  // bzip3
+  Zoo64CompressBwt                  = 0x00000082,  // Burrows-Wheeler Transform alone
+  Zoo64CompressSbwt                 = 0x00000083,  // Sort-based BWT
+
+  // 0x00A0-0x00BF: Context Modeling (PPM)
+  Zoo64CompressPpmd                 = 0x000000A0,  // PPMd (Prediction by Partial Matching)
+  Zoo64CompressPpmdH                = 0x000000A1,  // PPMD variant H
+  Zoo64CompressPpmdJ                = 0x000000A2,  // PPMD variant J
+  Zoo64CompressPpm                  = 0x000000A3,  // PPM (general)
+  Zoo64CompressPpmii                = 0x000000A4,  // PPMII
+
+  // 0x00C0-0x00CF: PAQ Family (Maximum Compression)
+  Zoo64CompressPaq                  = 0x000000C0,  // PAQ general
+  Zoo64CompressPaq6                 = 0x000000C1,  // PAQ6
+  Zoo64CompressPaq7                 = 0x000000C2,  // PAQ7
+  Zoo64CompressPaq8                 = 0x000000C3,  // PAQ8
+  Zoo64CompressLpaq                 = 0x000000C4,  // LPAQ
+  Zoo64CompressFpaq                 = 0x000000C5,  // FPAQ
+  Zoo64CompressZpaq                 = 0x000000C6,  // ZPAQ
+
+  // 0x00D0-0x00EF: Dictionary/LZH Family
+  Zoo64CompressLzh                  = 0x000000D0,  // LHA/LZH
+  Zoo64CompressLhArc                = 0x000000D1,  // LHARC (LHA archiver)
+  Zoo64CompressLh1                  = 0x000000D2,  // LH1 method
+  Zoo64CompressLh4                  = 0x000000D3,  // LH4 method
+  Zoo64CompressLh5                  = 0x000000D4,  // LH5 method
+  Zoo64CompressLh6                  = 0x000000D5,  // LH6 method
+  Zoo64CompressLh7                  = 0x000000D6,  // LH7 method
+
+  // 0x0100-0x011F: Legacy Archive Formats
+  Zoo64CompressArc                  = 0x00000100,  // ARC (Squashing, Crunching, etc.)
+  Zoo64CompressZoo                  = 0x00000101,  // ZOO archiver
+  Zoo64CompressArj                  = 0x00000102,  // ARJ
+  Zoo64CompressAce                  = 0x00000103,  // ACE
+  Zoo64CompressRar                  = 0x00000104,  // RAR
+  Zoo64CompressRar5                 = 0x00000105,  // RAR 5
+  Zoo64CompressCab                  = 0x00000106,  // Microsoft Cabinet
+  Zoo64CompressChm                  = 0x00000107,  // Microsoft CHM (LZX)
+  Zoo64CompressSit                  = 0x00000108,  // StuffIt (Macintosh)
+  Zoo64CompressSit5                 = 0x00000109,  // StuffIt 5
+  Zoo64CompressCompact              = 0x0000010A,  // Compact
+  Zoo64CompressPack                 = 0x0000010B,  // Pack
+  Zoo64CompressCrunch               = 0x0000010C,  // Apple II Crunch
+  Zoo64CompressSqueeze              = 0x0000010D,  // Squeeze (CP/M)
+  Zoo64CompressSquash               = 0x0000010E,  // ARC Squash method
+  Zoo64CompressImplode              = 0x0000010F,  // ZIP Implode
+  Zoo64CompressShrink               = 0x00000110,  // ZIP Shrink
+  Zoo64CompressReduce1              = 0x00000111,  // ZIP Reduce method 1
+  Zoo64CompressReduce2              = 0x00000112,  // ZIP Reduce method 2
+  Zoo64CompressReduce3              = 0x00000113,  // ZIP Reduce method 3
+  Zoo64CompressReduce4              = 0x00000114,  // ZIP Reduce method 4
+
+  // 0x0120-0x013F: Quantum/IBM
+  Zoo64CompressQuantum              = 0x00000120,  // Quantum compression
+  Zoo64CompressAlz                  = 0x00000121,  // ALZip
+  Zoo64CompressUharc                = 0x00000122,  // UHARC
+  Zoo64CompressFreeze               = 0x00000123,  // Freeze
+
+  // 0x0140-0x015F: Platform-Specific
+  Zoo64CompressNsis                 = 0x00000140,  // NSIS (LZMA variant)
+  Zoo64CompressMszip                = 0x00000141,  // Microsoft MSZIP
+  Zoo64CompressXpress               = 0x00000142,  // Microsoft Xpress (LZ77 + Huffman)
+  Zoo64CompressXpressHuffman        = 0x00000143,  // Microsoft Xpress Huffman
+  Zoo64CompressAplib                = 0x00000144,  // aPLib
+  Zoo64CompressExepack              = 0x00000145,  // EXEPACK (DOS)
+  Zoo64CompressLhark                = 0x00000146,  // LHARK
+  Zoo64CompressPklite               = 0x00000147,  // PKLITE
+  Zoo64CompressUpx                  = 0x00000148,  // UPX (executable packer)
+
+  // 0x0160-0x017F: Game/Proprietary
+  Zoo64CompressRefpack              = 0x00000160,  // RefPack (EA Games)
+  Zoo64CompressOodle                = 0x00000161,  // Oodle (RAD Game Tools)
+  Zoo64CompressKraken               = 0x00000162,  // Oodle Kraken
+  Zoo64CompressMermaid              = 0x00000163,  // Oodle Mermaid
+  Zoo64CompressSelkie               = 0x00000164,  // Oodle Selkie
+  Zoo64CompressLeviathan            = 0x00000165,  // Oodle Leviathan
+
+  // 0x0180-0x019F: Specialized
+  Zoo64CompressShrinker             = 0x00000180,  // Text-optimized
+  Zoo64CompressBcm                  = 0x00000181,  // BCM (BWT-based)
+  Zoo64CompressCm                   = 0x00000182,  // Context Mixing
+  Zoo64CompressDmC                  = 0x00000183,  // Dynamic Markov Compression
+  Zoo64CompressFse                  = 0x00000184,  // Finite State Entropy
+  Zoo64CompressHuff0                = 0x00000185,  // Huff0 (FSE variant)
+  Zoo64CompressTans                 = 0x00000186,  // tANS
+
+  // 0x01A0-0x01BF: Experimental/Research
+  Zoo64CompressZling                = 0x000001A0,  // ZLING
+  Zoo64CompressTornado              = 0x000001A1,  // Tornado
+  Zoo64CompressBriggs               = 0x000001A2,  // Briggs
+  Zoo64CompressCsc                  = 0x000001A3,  // CSC (Context Sorting Compression)
+  Zoo64CompressNanozip              = 0x000001A4,  // NanoZip
+  Zoo64CompressSrep                 = 0x000001A5,  // SREP
+  Zoo64CompressBcj                  = 0x000001A6,  // BCJ (x86 filter)
+  Zoo64CompressBcj2                 = 0x000001A7,  // BCJ2
+
+  // 0x01C0-0x01CF: Video/Image-Specific
+  Zoo64CompressJpeg                 = 0x000001C0,  // JPEG compression
+  Zoo64CompressPng                  = 0x000001C1,  // PNG (DEFLATE-based)
+  Zoo64CompressFlac                 = 0x000001C2,  // FLAC (audio)
+  Zoo64CompressAlac                 = 0x000001C3,  // Apple Lossless
+  Zoo64CompressWebp                 = 0x000001C4,  // WebP
+  Zoo64CompressAvif                 = 0x000001C5,  // AVIF
+  Zoo64CompressJxl                  = 0x000001C6,  // JPEG XL
+  Zoo64CompressHeif                 = 0x000001C7,  // HEIF
+
+  // 0xFFFF0000-0xFFFFFFFF: Custom & Reserved
+  Zoo64CompressWasm32               = 0xFFFF0000,  // WASM32 embeddable module
+  Zoo64CompressCustom1              = 0xFFFF0001,  // Custom algorithm 1
+  Zoo64CompressCustom2              = 0xFFFF0002,  // Custom algorithm 2
+  Zoo64CompressCustom3              = 0xFFFF0003,  // Custom algorithm 3
+  Zoo64CompressReserved             = 0xFFFFFFFF   // Reserved
 } ZOO64_COMPRESSION_ALGORITHM;
 
 //
-// Encryption Method Enumeration
+// Encryption Method Enumeration (32-bit IDs)
 // NT-style: Zoo64Encrypt* (PascalCase)
 //
 typedef enum _ZOO64_ENCRYPTION_METHOD {
-  Zoo64EncryptNone                  = 0x0000,  // Not encrypted
-  Zoo64EncryptAes256Gcm             = 0x0001,  // AES-256-GCM (recommended)
-  Zoo64EncryptAes256CbcHmac         = 0x0002,  // AES-256-CBC + HMAC-SHA256
-  Zoo64EncryptChaCha20Poly1305      = 0x0003,  // ChaCha20-Poly1305
-  Zoo64EncryptAes128Gcm             = 0x0004,  // AES-128-GCM
-  Zoo64EncryptTwofish256Gcm         = 0x0005,  // Twofish-256-GCM
-  Zoo64EncryptSerpent256Gcm         = 0x0006   // Serpent-256-GCM
+  Zoo64EncryptNone                  = 0x00000000,  // Not encrypted
+  Zoo64EncryptAes256Gcm             = 0x00000001,  // AES-256-GCM (recommended)
+  Zoo64EncryptAes256CbcHmac         = 0x00000002,  // AES-256-CBC + HMAC-SHA256
+  Zoo64EncryptChaCha20Poly1305      = 0x00000003,  // ChaCha20-Poly1305
+  Zoo64EncryptAes128Gcm             = 0x00000004,  // AES-128-GCM
+  Zoo64EncryptTwofish256Gcm         = 0x00000005,  // Twofish-256-GCM
+  Zoo64EncryptSerpent256Gcm         = 0x00000006,  // Serpent-256-GCM
+  Zoo64EncryptAes192Gcm             = 0x00000007,  // AES-192-GCM
+  Zoo64EncryptCamellia256Gcm        = 0x00000008,  // Camellia-256-GCM
+  Zoo64EncryptAria256Gcm            = 0x00000009,  // ARIA-256-GCM
+  Zoo64EncryptSm4Gcm                = 0x0000000A,  // SM4-GCM (Chinese standard)
+  Zoo64EncryptXChaCha20Poly1305     = 0x0000000B   // XChaCha20-Poly1305
 } ZOO64_ENCRYPTION_METHOD;
 
 //
-// Key Derivation Function Enumeration
+// Key Derivation Function Enumeration (32-bit IDs)
 // NT-style: Zoo64Kdf* (PascalCase)
 //
 typedef enum _ZOO64_KDF_ALGORITHM {
-  Zoo64KdfNone                      = 0x0000,  // Direct key (not recommended)
-  Zoo64KdfPbkdf2HmacSha256          = 0x0001,  // PBKDF2 with SHA-256
-  Zoo64KdfPbkdf2HmacSha512          = 0x0002,  // PBKDF2 with SHA-512
-  Zoo64KdfArgon2id                  = 0x0003,  // Argon2id (recommended)
-  Zoo64KdfScrypt                    = 0x0004,  // scrypt
-  Zoo64KdfBcrypt                    = 0x0005   // bcrypt
+  Zoo64KdfNone                      = 0x00000000,  // Direct key (not recommended)
+  Zoo64KdfPbkdf2HmacSha256          = 0x00000001,  // PBKDF2 with SHA-256
+  Zoo64KdfPbkdf2HmacSha512          = 0x00000002,  // PBKDF2 with SHA-512
+  Zoo64KdfArgon2id                  = 0x00000003,  // Argon2id (recommended)
+  Zoo64KdfArgon2i                   = 0x00000004,  // Argon2i
+  Zoo64KdfArgon2d                   = 0x00000005,  // Argon2d
+  Zoo64KdfScrypt                    = 0x00000006,  // scrypt
+  Zoo64KdfBcrypt                    = 0x00000007,  // bcrypt
+  Zoo64KdfBalloon                   = 0x00000008,  // Balloon hashing
+  Zoo64KdfCatena                    = 0x00000009,  // Catena
+  Zoo64KdfMakwa                     = 0x0000000A   // Makwa
 } ZOO64_KDF_ALGORITHM;
 
 //
-// Hash Algorithm Enumeration
+// Hash Algorithm Enumeration (32-bit IDs)
 // NT-style: Zoo64Hash* (PascalCase)
 //
 typedef enum _ZOO64_HASH_ALGORITHM {
-  Zoo64HashNone                     = 0x0000,  // No hash
-  Zoo64HashCrc32                    = 0x0001,  // CRC-32 (IEEE)
-  Zoo64HashSha1                     = 0x0002,  // SHA-1 (deprecated)
-  Zoo64HashSha256                   = 0x0003,  // SHA-256 (recommended)
-  Zoo64HashSha384                   = 0x0004,  // SHA-384
-  Zoo64HashSha512                   = 0x0005,  // SHA-512
-  Zoo64HashSha3_256                 = 0x0006,  // SHA3-256
-  Zoo64HashSha3_512                 = 0x0007,  // SHA3-512
-  Zoo64HashBlake2b                  = 0x0008,  // BLAKE2b
-  Zoo64HashBlake3                   = 0x0009   // BLAKE3
+  Zoo64HashNone                     = 0x00000000,  // No hash
+  Zoo64HashCrc32                    = 0x00000001,  // CRC-32 (IEEE)
+  Zoo64HashCrc32C                   = 0x00000002,  // CRC-32C (Castagnoli)
+  Zoo64HashCrc64                    = 0x00000003,  // CRC-64 (ECMA)
+  Zoo64HashAdler32                  = 0x00000004,  // Adler-32
+  Zoo64HashMd5                      = 0x00000005,  // MD5 (deprecated)
+  Zoo64HashSha1                     = 0x00000006,  // SHA-1 (deprecated)
+  Zoo64HashSha224                   = 0x00000007,  // SHA-224
+  Zoo64HashSha256                   = 0x00000008,  // SHA-256 (recommended)
+  Zoo64HashSha384                   = 0x00000009,  // SHA-384
+  Zoo64HashSha512                   = 0x0000000A,  // SHA-512
+  Zoo64HashSha512_224               = 0x0000000B,  // SHA-512/224
+  Zoo64HashSha512_256               = 0x0000000C,  // SHA-512/256
+  Zoo64HashSha3_224                 = 0x0000000D,  // SHA3-224
+  Zoo64HashSha3_256                 = 0x0000000E,  // SHA3-256
+  Zoo64HashSha3_384                 = 0x0000000F,  // SHA3-384
+  Zoo64HashSha3_512                 = 0x00000010,  // SHA3-512
+  Zoo64HashBlake2b                  = 0x00000011,  // BLAKE2b
+  Zoo64HashBlake2s                  = 0x00000012,  // BLAKE2s
+  Zoo64HashBlake3                   = 0x00000013,  // BLAKE3 (recommended)
+  Zoo64HashXxhash32                 = 0x00000014,  // xxHash-32
+  Zoo64HashXxhash64                 = 0x00000015,  // xxHash-64
+  Zoo64HashXxh3                     = 0x00000016,  // xxHash3
+  Zoo64HashMurmur3_32               = 0x00000017,  // MurmurHash3-32
+  Zoo64HashMurmur3_128              = 0x00000018,  // MurmurHash3-128
+  Zoo64HashCityHash64               = 0x00000019,  // CityHash64
+  Zoo64HashCityHash128              = 0x0000001A,  // CityHash128
+  Zoo64HashFarmHash64               = 0x0000001B,  // FarmHash64
+  Zoo64HashMetroHash64              = 0x0000001C,  // MetroHash64
+  Zoo64HashSipHash24                = 0x0000001D,  // SipHash-2-4
+  Zoo64HashHighwayHash256           = 0x0000001E,  // HighwayHash256
+  Zoo64HashSm3                      = 0x0000001F,  // SM3 (Chinese standard)
+  Zoo64HashStreebog256              = 0x00000020,  // Streebog-256 (Russian standard)
+  Zoo64HashStreebog512              = 0x00000021,  // Streebog-512
+  Zoo64HashRipemd160                = 0x00000022,  // RIPEMD-160
+  Zoo64HashWhirlpool                = 0x00000023,  // Whirlpool
+  Zoo64HashTiger                    = 0x00000024,  // Tiger
+  Zoo64HashGost                     = 0x00000025   // GOST R 34.11-94
 } ZOO64_HASH_ALGORITHM;
 
 //
-// Digital Signature Type Enumeration
+// Digital Signature Type Enumeration (32-bit IDs)
 // NT-style: Zoo64Sig* (PascalCase)
 //
 typedef enum _ZOO64_SIGNATURE_TYPE {
-  Zoo64SigNone                      = 0x0000,  // No signature
-  Zoo64SigRsa2048                   = 0x0001,  // RSA-2048
-  Zoo64SigRsa4096                   = 0x0002,  // RSA-4096
-  Zoo64SigEcdsaP256                 = 0x0003,  // ECDSA P-256
-  Zoo64SigEcdsaP384                 = 0x0004,  // ECDSA P-384
-  Zoo64SigEd25519                   = 0x0005,  // Ed25519 (recommended)
-  Zoo64SigEd448                     = 0x0006   // Ed448
+  Zoo64SigNone                      = 0x00000000,  // No signature
+  Zoo64SigRsa2048                   = 0x00000001,  // RSA-2048
+  Zoo64SigRsa3072                   = 0x00000002,  // RSA-3072
+  Zoo64SigRsa4096                   = 0x00000003,  // RSA-4096
+  Zoo64SigEcdsaP256                 = 0x00000004,  // ECDSA P-256 (secp256r1)
+  Zoo64SigEcdsaP384                 = 0x00000005,  // ECDSA P-384 (secp384r1)
+  Zoo64SigEcdsaP521                 = 0x00000006,  // ECDSA P-521 (secp521r1)
+  Zoo64SigEd25519                   = 0x00000007,  // Ed25519 (recommended)
+  Zoo64SigEd448                     = 0x00000008,  // Ed448
+  Zoo64SigDsa2048                   = 0x00000009,  // DSA-2048
+  Zoo64SigDsa3072                   = 0x0000000A,  // DSA-3072
+  Zoo64SigEcdsaSecp256k1            = 0x0000000B,  // ECDSA secp256k1 (Bitcoin)
+  Zoo64SigSm2                       = 0x0000000C,  // SM2 (Chinese standard)
+  Zoo64SigFalcon512                 = 0x0000000D,  // Falcon-512 (post-quantum)
+  Zoo64SigFalcon1024                = 0x0000000E,  // Falcon-1024 (post-quantum)
+  Zoo64SigDilithium2                = 0x0000000F,  // Dilithium2 (post-quantum)
+  Zoo64SigDilithium3                = 0x00000010,  // Dilithium3 (post-quantum)
+  Zoo64SigDilithium5                = 0x00000011,  // Dilithium5 (post-quantum)
+  Zoo64SigSphincsPlus128            = 0x00000012,  // SPHINCS+ 128 (post-quantum)
+  Zoo64SigSphincsPlus256            = 0x00000013   // SPHINCS+ 256 (post-quantum)
 } ZOO64_SIGNATURE_TYPE;
 
 //
-// Overlay File Type Enumeration
+// Overlay File Type Enumeration (32-bit IDs)
 // NT-style: Zoo64Overlay* (PascalCase)
 //
 typedef enum _ZOO64_OVERLAY_TYPE {
-  Zoo64OverlayNew                   = 0x0000,  // New file
-  Zoo64OverlayModified              = 0x0001,  // Modified (delta)
-  Zoo64OverlayDeleted               = 0x0002,  // Deleted (tombstone)
-  Zoo64OverlayUnchanged             = 0x0003,  // Unchanged (reference)
-  Zoo64OverlayMoved                 = 0x0004   // Moved/renamed
+  Zoo64OverlayNew                   = 0x00000000,  // New file
+  Zoo64OverlayModified              = 0x00000001,  // Modified (delta)
+  Zoo64OverlayDeleted               = 0x00000002,  // Deleted (tombstone)
+  Zoo64OverlayUnchanged             = 0x00000003,  // Unchanged (reference)
+  Zoo64OverlayMoved                 = 0x00000004   // Moved/renamed
 } ZOO64_OVERLAY_TYPE;
 
 //
