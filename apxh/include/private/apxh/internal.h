@@ -382,7 +382,23 @@ VOID Pae64DirectMap (IN VOID *PageTable, IN UINT64 PhysicalAddress, IN VIRTUAL_A
 VOID Pae64MapPage (IN VOID *PageTable, IN VIRTUAL_ADDRESS VirtualAddress, IN UINTN PhysicalAddress, IN INT32 IsPayload, IN INT32 IsWritable,
 		     IN INT32 IsExecutable);
 
-VOID Sv48Init (VOID);
+VOID Sv32Initialize (VOID);
+UINTN Sv32GetPhysical (IN VIRTUAL_ADDRESS VirtualAddress);
+VOID Sv32Verify (IN VIRTUAL_ADDRESS VirtualAddress, IN SIZE64 Size);
+VOID Sv32Populate (IN VIRTUAL_ADDRESS VirtualAddress, IN SIZE64 Size, IN INT32 IsUserMode, IN INT32 IsWritable, IN INT32 IsExecutable);
+VOID Sv32MapPhysical (IN VIRTUAL_ADDRESS VirtualAddress, IN SIZE64 Size, IN UINT64 PhysicalAddress, IN MEMORY_TYPE Type);
+VOID Sv32AllocatePageTable (IN VIRTUAL_ADDRESS VirtualAddress, IN SIZE64 Size);
+VOID Sv32AllocateTopPageTable (IN VIRTUAL_ADDRESS VirtualAddress, IN SIZE64 Size);
+VOID Sv32MapLinear (IN VIRTUAL_ADDRESS VirtualAddress, IN SIZE64 Size);
+VOID Sv32Entry (IN VIRTUAL_ADDRESS EntryPoint);
+
+/* Internal SV32 functions. */
+VOID Sv32DirectMap (IN VOID *PageTable, IN UINT64 PhysicalAddress, IN VIRTUAL_ADDRESS VirtualAddress, IN SIZE64 Size,
+		     IN MEMORY_TYPE Type, IN INT32 IsPayload, IN INT32 IsExecutable);
+VOID Sv32MapPage (IN VOID *PageTable, IN VIRTUAL_ADDRESS VirtualAddress, IN UINTN PhysicalAddress, IN INT32 IsPayload, IN INT32 IsWritable,
+		    IN INT32 IsExecutable);
+
+VOID Sv48Initialize (VOID);
 UINTN Sv48GetPhysical (IN VIRTUAL_ADDRESS VirtualAddress);
 VOID Sv48Verify (IN VIRTUAL_ADDRESS VirtualAddress, IN SIZE64 Size);
 VOID Sv48Populate (IN VIRTUAL_ADDRESS VirtualAddress, IN SIZE64 Size, IN INT32 IsUserMode, IN INT32 IsWritable, IN INT32 IsExecutable);
