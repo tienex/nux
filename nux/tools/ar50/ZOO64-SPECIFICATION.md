@@ -370,9 +370,16 @@ Bit 7:     Has alternate data streams
 Bit 8:     Symbolic link
 Bit 9:     Hard link
 Bit 10:    Directory
-Bit 11:    Special file (device, socket, etc.)
-Bit 12-15: Reserved
-Bit 16-31: Platform-specific
+Bit 11:    FIFO (named pipe)
+Bit 12:    Socket (Unix domain socket)
+Bit 13:    Block device
+Bit 14:    Character device
+Bit 15:    Door (Solaris IPC)
+Bit 16:    Event port
+Bit 17:    Whiteout (BSD union mounts)
+Bit 18:    Magic symlink (junction, alias, etc.)
+Bit 19-23: Reserved
+Bit 24-31: Platform-specific
 ```
 
 ### 5.3 Variable-Length UTF-8 Path
@@ -447,6 +454,13 @@ typedef struct _ZOO64_METADATA_CHUNK {
 0x0021: CODA distributed filesystem attributes
 0x0022: GFS (Global File System) attributes
 0x0023: DFS (Distributed File System) attributes
+0x0024: Device file attributes (block/character devices)
+0x0025: FIFO attributes (named pipes)
+0x0026: Socket attributes (Unix domain sockets)
+0x0027: Door attributes (Solaris doors)
+0x0028: Event port attributes
+0x0029: Whiteout attributes (BSD union mounts)
+0x002A: Magic symlink attributes (junctions, aliases, etc.)
 ```
 
 ### 6.3 Universal ACL Format
@@ -494,9 +508,24 @@ typedef struct _ZOO64_ACL_ENTRY {
 0x0009: Banyan VINES
 0x000A: AFS (Andrew File System)
 0x000B: CODA Distributed FS
+0x000C: Solaris ZFS ACLs (NFSv4-based)
+0x000D: AIX ACLs (POSIX.1e extended)
+0x000E: HP-UX ACLs (HP-UX 11i ACLs)
+0x000F: IRIX ACLs (XFS ACLs, NFSv4-like)
+0x0010: UnixWare ACLs
+0x0011: SCO OpenServer ACLs
+0x0012: UNICOS ACLs (Cray supercomputers)
+0x0013: UNICOS/mk ACLs (Cray T3E/SV1)
+0x0014: MULTICS ACLs (Honeywell/MIT)
+0x0015: GNU Hurd ACLs (translator-based)
+0x0016: Plan 9 ACLs (capability-based)
+0x0017: BeOS/Haiku ACLs (attribute-based)
+0x0018: VMware VMFS ACLs (vSphere)
 ```
 
 **Design Rationale**: Storing the source system allows optimized round-trip conversion while the universal format enables cross-platform ACL translation.
+
+**Note**: Many Unix variants (Solaris, AIX, IRIX) use NFSv4 or POSIX.1e as base, with extensions stored in SourceSpecific fields.
 
 #### 6.3.3 Universal ACE Types
 
@@ -2244,6 +2273,168 @@ typedef struct _ZOO64_DFS_ATTR {
   UINT32  Flags;              // DFS flags
 } __attribute__((packed)) ZOO64_DFS_ATTR;
 ```
+
+### 6.32 Device File Attributes
+
+Block and character device files.
+
+```c
+typedef struct _ZOO64_DEVICE_ATTR {
+  UINT8   DeviceType;         // Block or character
+  UINT32  MajorNumber;        // Device major number
+  UINT32  MinorNumber;        // Device minor number
+  char    DeviceName[64];     // Device name (e.g., "sda", "tty0")
+  UINT32  Flags;              // Device-specific flags
+} __attribute__((packed)) ZOO64_DEVICE_ATTR;
+```
+
+Device types:
+```
+0x01: BLOCK_DEVICE      // Block device (disks, etc.)
+0x02: CHARACTER_DEVICE  // Character device (terminals, etc.)
+```
+
+### 6.33 FIFO Attributes
+
+Named pipes (FIFOs).
+
+```c
+typedef struct _ZOO64_FIFO_ATTR {
+  UINT32  BufferSize;         // Pipe buffer size
+  UINT32  Readers;            // Number of readers (snapshot)
+  UINT32  Writers;            // Number of writers (snapshot)
+  UINT32  Flags;              // FIFO flags
+} __attribute__((packed)) ZOO64_FIFO_ATTR;
+```
+
+### 6.34 Socket Attributes
+
+Unix domain sockets.
+
+```c
+typedef struct _ZOO64_SOCKET_ATTR {
+  UINT16  SocketType;         // SOCK_STREAM, SOCK_DGRAM, SOCK_SEQPACKET
+  UINT16  Protocol;           // Protocol (usually 0 for Unix domain)
+  UINT32  BufferSize;         // Socket buffer size
+  char    BoundPath[256];     // Bound path (if applicable)
+  UINT32  Flags;              // Socket flags
+} __attribute__((packed)) ZOO64_SOCKET_ATTR;
+```
+
+Socket types:
+```
+0x0001: SOCK_STREAM      // Stream socket (TCP-like)
+0x0002: SOCK_DGRAM       // Datagram socket (UDP-like)
+0x0003: SOCK_SEQPACKET   // Sequenced packet socket
+0x0004: SOCK_RAW         // Raw socket
+```
+
+### 6.35 Door Attributes
+
+Solaris doors (inter-process communication mechanism).
+
+```c
+typedef struct _ZOO64_DOOR_ATTR {
+  UINT32  ServerPID;          // Server process ID
+  UINT32  ServerProcedure;    // Server procedure address
+  char    ServiceName[64];    // Service name
+  UINT32  Attributes;         // Door attributes
+  UINT32  Flags;              // Door flags
+} __attribute__((packed)) ZOO64_DOOR_ATTR;
+```
+
+Door attributes:
+```
+0x00000001: DOOR_UNREF       // Unref notification
+0x00000002: DOOR_PRIVATE     // Private door
+0x00000004: DOOR_REFUSE_DESC // Refuse descriptors
+0x00000008: DOOR_NO_CANCEL   // Don't cancel
+0x00000010: DOOR_LOCAL       // Local door only
+0x00000020: DOOR_REVOKED     // Door has been revoked
+```
+
+### 6.36 Event Port Attributes
+
+Solaris event ports.
+
+```c
+typedef struct _ZOO64_EVENTPORT_ATTR {
+  UINT32  PortID;             // Port identifier
+  UINT32  MaxEvents;          // Maximum events
+  UINT32  Flags;              // Event port flags
+} __attribute__((packed)) ZOO64_EVENTPORT_ATTR;
+```
+
+### 6.37 Whiteout Attributes
+
+BSD union mount whiteouts.
+
+```c
+typedef struct _ZOO64_WHITEOUT_ATTR {
+  char    HiddenPath[256];    // Path being hidden
+  UINT32  UnionLayer;         // Union filesystem layer
+  UINT32  Flags;              // Whiteout flags
+} __attribute__((packed)) ZOO64_WHITEOUT_ATTR;
+```
+
+### 6.38 Magic Symlink Attributes
+
+Special symbolic links with extended semantics.
+
+```c
+typedef struct _ZOO64_MAGIC_SYMLINK_ATTR {
+  UINT16  MagicType;          // Type of magic symlink
+  UINT16  TargetPathLength;   // Length of target path
+  UINT32  Flags;              // Magic symlink flags
+  UINT8   TargetGUID[16];     // Target GUID (for Windows shortcuts/aliases)
+  // Followed by:
+  //   [TargetPathLength bytes: UTF-8 target path]
+  //   [Variable: Type-specific data]
+} __attribute__((packed)) ZOO64_MAGIC_SYMLINK_ATTR;
+```
+
+Magic symlink types:
+```
+0x0001: WINDOWS_JUNCTION     // Windows junction point
+0x0002: WINDOWS_SHORTCUT     // Windows .lnk shortcut
+0x0003: MACOS_ALIAS          // macOS alias file
+0x0004: SHELL_LINK           // Shell link (.desktop, etc.)
+0x0005: SYMBOLIC_LINK        // Standard symbolic link
+0x0006: RELATIVE_SYMLINK     // Relative symbolic link
+0x0007: REPARSE_POINT        // Windows reparse point
+0x0008: VOLUME_MOUNT_POINT   // Volume mount point
+0x0009: APP_EXEC_LINK        // Application execution link
+```
+
+Magic symlink flags:
+```
+0x00000001: TARGET_IS_DIRECTORY
+0x00000002: TARGET_IS_VOLUME
+0x00000003: TARGET_IS_NETWORK
+0x00000004: TARGET_IS_REMOVABLE
+0x00000008: RUN_AS_ADMINISTRATOR
+0x00000010: RUN_IN_SEPARATE_VDM
+0x00000020: HAS_ICON_LOCATION
+0x00000040: HAS_ARGUMENTS
+0x00000080: HAS_WORKING_DIRECTORY
+0x00000100: HAS_HOTKEY
+0x00000200: HAS_COMMENT
+```
+
+**Windows Junction Points**:
+- Uses reparse points (IO_REPARSE_TAG_MOUNT_POINT)
+- Target must be absolute path
+- Only for directories
+
+**macOS Aliases**:
+- Store path + volume info + inode
+- Survive file moves/renames
+- Store in extended attributes
+
+**Windows Shortcuts (.lnk)**:
+- Shell link format
+- Can include arguments, working directory, icon
+- Store GUID for target resolution
 
 ## 6a. Encryption Support
 
