@@ -11,7 +11,7 @@
 #ifndef __squoze_h__
 #define __squoze_h__
 
-#include <stdint.h>
+#include "types.h"
 
 /**
   Encode string to RAD-50.

@@ -17,9 +17,14 @@ example_multiboot
 example/kern/example
 example/user/exuser
 tools/ar50/ar50
+tools/ar50/ar64
 tools/ar50/sq
 tools/ar50/unsq
 tools/objappend/objappend
+nux/tools/ar50/ar50
+nux/tools/ar50/ar64
+nux/tools/ar50/sq
+nux/tools/ar50/unsq
 
 /*.mk
 hal.mk
