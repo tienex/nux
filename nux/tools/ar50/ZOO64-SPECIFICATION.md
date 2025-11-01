@@ -24,6 +24,7 @@ Zoo64 is a modern archive format designed for maximum compression, data integrit
 - ACL (Access Control List) storage
 - Extended attributes (xattrs)
 - Alternate Data Streams (ADS)
+- YAML metadata at archive and file level
 - Solid compression with seekable blocks
 - Per-file compression with seekable blocks
 - File-level and archive-level digital signatures
@@ -34,34 +35,73 @@ Zoo64 is a modern archive format designed for maximum compression, data integrit
 
 ### 2.1 Overall Layout
 
+Zoo64 uses a redundant directory structure similar to ZIP format. Each file has both a local header (embedded with the file data) and a central directory entry (at the end of the archive). This provides fast scanning and recovery from corruption.
+
 ```
 [Archive Header]
 [Compression Mode Descriptor]
+[Archive YAML Metadata] (optional)
 [File Entries...]
-  [File Header]
+  [Local File Header]         ← Redundant: full file metadata
   [File Metadata]
+    [Binary Metadata Chunks] (ACL, xattr, ADS, etc.)
+    [YAML Metadata] (optional)
+  [Encryption Header] (optional)
   [File Data / Compressed Data]
   [File Signature] (optional)
-[Central Directory]
+[Central Directory]            ← Redundant: duplicates file metadata
+  [Central Directory Header]
+  [Central Directory Entries...]
 [Archive Signature] (optional)
 [End of Archive Marker]
+```
+
+### 2.1a Multi-Volume Support
+
+Zoo64 supports splitting archives across multiple volumes (files) for storage on limited media or for easier distribution.
+
+```
+Volume 1:
+  [Archive Header (Volume 1)]
+  [Compression Mode Descriptor]
+  [Archive YAML Metadata] (optional)
+  [File Entries... (partial)]
+  [Volume Footer]
+
+Volume 2-N:
+  [Volume Header]
+  [File Entries... (continued)]
+  [Volume Footer]
+
+Last Volume:
+  [Volume Header]
+  [File Entries... (final)]
+  [Central Directory]
+  [Archive Signature] (optional)
+  [End of Archive Marker]
 ```
 
 ### 2.2 Magic Numbers
 
 ```
-Zoo64 Archive:        0x5A4F4F36 0x34415243  ("ZOO64ARC")
-Solid Block:          0x534F4C49 0x44424C4B  ("SOLIDBLK")
-File Entry:           0x46494C45 0x454E5452  ("FILEENTR")
-Metadata Block:       0x4D455441 0x44415441  ("METADATA")
-Signature Block:      0x5349474E 0x41545552  ("SIGNATUR")
-Central Directory:    0x43454E54 0x44495220  ("CENTDIR ")
-End of Archive:       0x454E444F 0x46415243  ("ENDOFARC")
+Zoo64 Archive:        0x5A4F4F3634415243  ("ZOO64ARC")
+Classic Zoo:          0xFDC4A7DC          (Classic Zoo 2.1 format)
+Solid Block:          0x534F4C4944424C4B  ("SOLIDBLK")
+File Entry:           0x46494C45454E5452  ("FILEENTR")
+Local File Header:    0x4C4F43414C4844    ("LOCALHD ")
+Metadata Block:       0x4D45544144415441  ("METADATA")
+YAML Metadata:        0x59414D4C4D455441  ("YAMLMETA")
+Encryption Header:    0x454E4352595054    ("ENCRYPT ")
+Signature Block:      0x5349474E41545552  ("SIGNATUR")
+Central Directory:    0x43454E5444495220  ("CENTDIR ")
+Volume Header:        0x564F4C554D4548    ("VOLUMEH ")
+Volume Footer:        0x564F4C554D4546    ("VOLUMEF ")
+End of Archive:       0x454E444F46415243  ("ENDOFARC")
 ```
 
 ## 3. Archive Header
 
-The archive header appears at the beginning of every Zoo64 archive.
+The archive header appears at the beginning of every Zoo64 archive (or first volume in multi-volume archives).
 
 ```c
 typedef struct _ZOO64_ARCHIVE_HEADER {
@@ -72,12 +112,16 @@ typedef struct _ZOO64_ARCHIVE_HEADER {
   UINT64  CreationTime;       // Unix timestamp (microseconds since epoch)
   UINT64  ModificationTime;   // Unix timestamp (microseconds since epoch)
   UINT32  CompressionMode;    // Compression mode identifier
-  UINT32  FileCount;          // Number of files in archive
-  UINT64  CentralDirOffset;   // Offset to central directory
-  UINT64  ArchiveSize;        // Total archive size in bytes
+  UINT32  FileCount;          // Number of files in archive (all volumes)
+  UINT64  CentralDirOffset;   // Offset to central directory (in last volume)
+  UINT64  ArchiveSize;        // Total archive size in bytes (all volumes)
   UINT32  BlockSize;          // Block size for seekable compression (power of 2)
-  UINT32  Reserved;           // Reserved for future use
-  UINT8   UUID[16];           // Archive UUID
+  UINT64  YamlMetadataOffset; // Offset to archive YAML metadata (0 if none)
+  UINT32  YamlMetadataSize;   // Size of archive YAML metadata
+  UINT16  VolumeNumber;       // Volume number (0 for single archive, 1+ for multi-volume)
+  UINT16  TotalVolumes;       // Total number of volumes (0 for single archive)
+  UINT32  VolumeSize;         // Maximum size per volume (0 for single archive)
+  UINT8   UUID[16];           // Archive UUID (same across all volumes)
 } __attribute__((packed)) ZOO64_ARCHIVE_HEADER;
 ```
 
@@ -87,14 +131,19 @@ typedef struct _ZOO64_ARCHIVE_HEADER {
 Bit 0:     Solid compression enabled
 Bit 1:     Seekable blocks enabled
 Bit 2:     Archive signature present
-Bit 3:     Encrypted
+Bit 3:     Encrypted (archive-level encryption)
 Bit 4:     UTF-8 strict mode
-Bit 5-7:   Reserved
+Bit 5:     Archive YAML metadata present
+Bit 6:     Multi-volume archive
+Bit 7:     Classic Zoo compatibility mode
 Bit 8:     Extended metadata present
 Bit 9:     ACLs preserved
 Bit 10:    Extended attributes preserved
 Bit 11:    Alternate data streams preserved
-Bit 12-15: Reserved
+Bit 12:    YAML metadata in files
+Bit 13:    Per-file encryption allowed
+Bit 14:    Redundant directory (ZIP-like)
+Bit 15:    Reserved
 Bit 16-31: Reserved for future use
 ```
 
@@ -107,6 +156,36 @@ Bit 16-31: Reserved for future use
 0x0100: Solid compression
 0x0101: Solid seekable compression
 0x0200: Adaptive (per-file for small, solid for large)
+```
+
+## 3.3 Volume Header
+
+Appears at the start of volumes 2-N in multi-volume archives.
+
+```c
+typedef struct _ZOO64_VOLUME_HEADER {
+  UINT64  Magic;              // 0x564F4C554D4548 ("VOLUMEH ")
+  UINT16  VolumeNumber;       // Volume number (2, 3, 4...)
+  UINT16  TotalVolumes;       // Total number of volumes
+  UINT64  VolumeSize;         // Size of this volume
+  UINT64  VolumeOffset;       // Offset in complete archive
+  UINT32  CRC32;              // CRC32 of this volume
+  UINT8   ArchiveUUID[16];    // Archive UUID (matches main header)
+} __attribute__((packed)) ZOO64_VOLUME_HEADER;
+```
+
+## 3.4 Volume Footer
+
+Appears at the end of volumes 1-(N-1) in multi-volume archives.
+
+```c
+typedef struct _ZOO64_VOLUME_FOOTER {
+  UINT64  Magic;              // 0x564F4C554D4546 ("VOLUMEF ")
+  UINT16  VolumeNumber;       // This volume number
+  UINT16  NextVolumeNumber;   // Next volume number
+  UINT64  BytesInVolume;      // Total bytes in this volume
+  UINT32  CRC32;              // CRC32 of this volume
+} __attribute__((packed)) ZOO64_VOLUME_FOOTER;
 ```
 
 ## 4. Compression Mode Descriptor
@@ -135,6 +214,63 @@ typedef struct _ZOO64_COMPRESSION_DESC {
 0x0004: ZSTD
 0x0005: LZMA
 0x0100: Custom (parameters in descriptor)
+```
+
+## 4.5 Archive YAML Metadata
+
+The archive may contain YAML metadata that applies to the entire archive. This is optional and provides a flexible way to store arbitrary archive-level information.
+
+### 4.5.1 YAML Metadata Block
+
+```c
+typedef struct _ZOO64_YAML_METADATA {
+  UINT64  Magic;              // 0x59414D4C4D455441 ("YAMLMETA")
+  UINT32  YamlSize;           // Size of YAML data in bytes
+  UINT32  Flags;              // YAML metadata flags
+  // Followed by YamlSize bytes of UTF-8 encoded YAML
+} __attribute__((packed)) ZOO64_YAML_METADATA;
+```
+
+### 4.5.2 YAML Metadata Flags
+
+```
+Bit 0:     Compressed (YAML data is compressed)
+Bit 1:     Schema validated
+Bit 2-31:  Reserved
+```
+
+### 4.5.3 Archive YAML Examples
+
+Archive-level YAML metadata can contain:
+
+```yaml
+# Archive description and metadata
+archive:
+  title: "Project Source Code Archive"
+  description: "Complete source code for Project XYZ v2.0"
+  author: "Development Team"
+  license: "MIT"
+  version: "2.0.1"
+  build: 12345
+
+# Archive-level tags and categories
+tags:
+  - source-code
+  - release
+  - production
+
+# Custom application-specific data
+custom:
+  project_id: "xyz-2024"
+  repository: "https://github.com/org/project"
+  ci_build_url: "https://ci.example.com/build/12345"
+
+# Archive creation context
+creation:
+  hostname: "build-server-01"
+  username: "ci-user"
+  tool: "zoo64-cli v1.0"
+  environment: "production"
 ```
 
 ## 5. File Entry Format
@@ -240,6 +376,13 @@ typedef struct _ZOO64_METADATA_CHUNK {
 0x0007: File capabilities (Linux)
 0x0008: SELinux context
 0x0009: Custom metadata
+0x000A: YAML metadata (file-level)
+0x000B: macOS UUIDs (user/group)
+0x000C: BSD flags
+0x000D: Linux flags
+0x000E: Windows attributes
+0x000F: Hard link target
+0x0010: Symbolic link target
 ```
 
 ### 6.3 ACL Format
@@ -279,6 +422,297 @@ typedef struct _ZOO64_ADS {
   //   [StreamNameLength bytes: UTF-8 stream name]
   //   [StreamSize bytes: stream data]
 } __attribute__((packed)) ZOO64_ADS;
+```
+
+### 6.6 File-Level YAML Metadata Format
+
+File-level YAML metadata provides flexible, extensible metadata for individual files.
+
+```c
+typedef struct _ZOO64_FILE_YAML {
+  UINT32  YamlSize;           // Size of YAML data
+  UINT32  Flags;              // YAML flags (compressed, validated, etc.)
+  // Followed by YamlSize bytes of UTF-8 YAML
+} __attribute__((packed)) ZOO64_FILE_YAML;
+```
+
+#### File YAML Examples
+
+```yaml
+# File-specific metadata
+file:
+  original_path: "/usr/local/bin/myapp"
+  purpose: "Main application binary"
+  version: "2.1.4"
+
+# Build information
+build:
+  compiler: "gcc 11.2.0"
+  flags: "-O2 -Wall"
+  date: "2024-10-31"
+
+# Custom application data
+tags:
+  - executable
+  - production
+
+checksums:
+  md5: "abc123..."
+  sha1: "def456..."
+```
+
+### 6.7 macOS UUIDs Format
+
+macOS stores UUIDs for users and groups alongside numeric IDs.
+
+```c
+typedef struct _ZOO64_MACOS_UUID {
+  UINT8   UserUUID[16];       // User UUID (128-bit)
+  UINT8   GroupUUID[16];      // Group UUID (128-bit)
+  UINT32  Flags;              // Reserved
+} __attribute__((packed)) ZOO64_MACOS_UUID;
+```
+
+### 6.8 BSD Flags Format
+
+BSD systems use file flags for immutability, append-only, etc.
+
+```c
+typedef struct _ZOO64_BSD_FLAGS {
+  UINT32  UserFlags;          // User-settable flags
+  UINT32  SystemFlags;        // System/super-user flags
+} __attribute__((packed)) ZOO64_BSD_FLAGS;
+```
+
+#### BSD Flag Definitions
+
+```
+User Flags:
+  UF_NODUMP      0x00000001  // Do not dump file
+  UF_IMMUTABLE   0x00000002  // File may not be changed
+  UF_APPEND      0x00000004  // Writes to file may only append
+  UF_OPAQUE      0x00000008  // Directory is opaque (union)
+  UF_HIDDEN      0x00008000  // File is hidden (macOS)
+
+System Flags:
+  SF_ARCHIVED    0x00010000  // File is archived
+  SF_IMMUTABLE   0x00020000  // File may not be changed
+  SF_APPEND      0x00040000  // Writes to file may only append
+```
+
+### 6.9 Linux Flags Format
+
+Linux file attributes (chattr/lsattr).
+
+```c
+typedef struct _ZOO64_LINUX_FLAGS {
+  UINT32  Flags;              // Linux file attributes
+  UINT32  Version;            // File version (for ext2/3/4)
+} __attribute__((packed)) ZOO64_LINUX_FLAGS;
+```
+
+#### Linux Flag Definitions
+
+```
+FS_SECRM_FL        0x00000001  // Secure deletion
+FS_UNRM_FL         0x00000002  // Undelete
+FS_COMPR_FL        0x00000004  // Compress file
+FS_SYNC_FL         0x00000008  // Synchronous updates
+FS_IMMUTABLE_FL    0x00000010  // Immutable file
+FS_APPEND_FL       0x00000020  // Append only
+FS_NODUMP_FL       0x00000040  // Do not dump file
+FS_NOATIME_FL      0x00000080  // Do not update atime
+FS_NOCOW_FL        0x00800000  // No copy-on-write (Btrfs)
+```
+
+### 6.10 Windows Attributes Format
+
+Extended Windows file attributes.
+
+```c
+typedef struct _ZOO64_WINDOWS_ATTR {
+  UINT32  FileAttributes;     // Windows file attributes
+  UINT32  ReparseTag;         // Reparse point tag (if applicable)
+  UINT32  EaSize;             // Extended attributes size
+  // Followed by EA data if EaSize > 0
+} __attribute__((packed)) ZOO64_WINDOWS_ATTR;
+```
+
+#### Windows Attribute Definitions
+
+```
+FILE_ATTRIBUTE_READONLY             0x00000001
+FILE_ATTRIBUTE_HIDDEN               0x00000002
+FILE_ATTRIBUTE_SYSTEM               0x00000004
+FILE_ATTRIBUTE_DIRECTORY            0x00000010
+FILE_ATTRIBUTE_ARCHIVE              0x00000020
+FILE_ATTRIBUTE_DEVICE               0x00000040
+FILE_ATTRIBUTE_NORMAL               0x00000080
+FILE_ATTRIBUTE_TEMPORARY            0x00000100
+FILE_ATTRIBUTE_SPARSE_FILE          0x00000200
+FILE_ATTRIBUTE_REPARSE_POINT        0x00000400
+FILE_ATTRIBUTE_COMPRESSED           0x00000800
+FILE_ATTRIBUTE_OFFLINE              0x00001000
+FILE_ATTRIBUTE_NOT_CONTENT_INDEXED  0x00002000
+FILE_ATTRIBUTE_ENCRYPTED            0x00004000
+```
+
+### 6.11 Hard Link Target Format
+
+Stores information about hard links. Multiple files in the archive can point to the same inode.
+
+```c
+typedef struct _ZOO64_HARDLINK {
+  UINT64  InodeNumber;        // Inode number (for grouping hard links)
+  UINT64  DeviceId;           // Device ID (for uniqueness)
+  UINT16  TargetPathLength;   // Length of target path
+  // Followed by UTF-8 target path (first occurrence of this inode in archive)
+} __attribute__((packed)) ZOO64_HARDLINK;
+```
+
+**Note**: The first file with a given inode contains the actual data. Subsequent hard links reference the first file's path and contain no data themselves.
+
+### 6.12 Symbolic Link Target Format
+
+Stores symbolic link target path.
+
+```c
+typedef struct _ZOO64_SYMLINK {
+  UINT16  TargetPathLength;   // Length of target path
+  UINT32  Flags;              // Symlink flags
+  // Followed by UTF-8 target path
+} __attribute__((packed)) ZOO64_SYMLINK;
+```
+
+#### Symbolic Link Flags
+
+```
+Bit 0:     Absolute path (vs relative)
+Bit 1:     Directory target
+Bit 2:     Broken link (target doesn't exist)
+Bit 3-31:  Reserved
+```
+
+## 6a. Encryption Support
+
+Zoo64 supports both archive-level and per-file encryption using modern authenticated encryption algorithms.
+
+### 6a.1 Encryption Header
+
+Appears before encrypted file data (per-file encryption) or after compression descriptor (archive-level encryption).
+
+```c
+typedef struct _ZOO64_ENCRYPTION_HEADER {
+  UINT64  Magic;              // 0x454E4352595054 ("ENCRYPT ")
+  UINT32  HeaderSize;         // Size of this header including all fields
+  UINT16  EncryptionMethod;   // Encryption algorithm
+  UINT16  KeyDerivation;      // Key derivation function
+  UINT32  Iterations;         // KDF iteration count
+  UINT16  SaltLength;         // Length of salt
+  UINT16  IVLength;           // Length of IV/nonce
+  UINT32  TagLength;          // Length of authentication tag
+  UINT32  EncryptedSize;      // Size of encrypted data
+  UINT32  Flags;              // Encryption flags
+  // Followed by:
+  //   [SaltLength bytes: random salt for KDF]
+  //   [IVLength bytes: initialization vector/nonce]
+  //   [Encrypted data]
+  //   [TagLength bytes: authentication tag]
+} __attribute__((packed)) ZOO64_ENCRYPTION_HEADER;
+```
+
+### 6a.2 Encryption Methods
+
+```
+0x0000: None (not encrypted)
+0x0001: AES-256-GCM (recommended)
+0x0002: AES-256-CBC + HMAC-SHA256
+0x0003: ChaCha20-Poly1305
+0x0004: AES-128-GCM
+0x0005: Twofish-256-GCM
+0x0006: Serpent-256-GCM
+```
+
+### 6a.3 Key Derivation Functions
+
+```
+0x0000: None (use key directly - not recommended)
+0x0001: PBKDF2-HMAC-SHA256 (compatible, moderate security)
+0x0002: PBKDF2-HMAC-SHA512
+0x0003: Argon2id (recommended - memory-hard)
+0x0004: scrypt
+0x0005: bcrypt
+```
+
+### 6a.4 Encryption Flags
+
+```
+Bit 0:     Compress before encrypt (default)
+Bit 1:     Encrypt then compress (not recommended)
+Bit 2:     Store password hint (followed by hint string)
+Bit 3:     Use key file (in addition to password)
+Bit 4:     Header encryption (encrypt file names/metadata)
+Bit 5-31:  Reserved
+```
+
+### 6a.5 Key Derivation Parameters
+
+For **PBKDF2**:
+- Salt: 16-32 bytes random
+- Iterations: 600,000+ (OWASP 2023 recommendation)
+- Output: 256 bits for AES-256, 128 bits for AES-128
+
+For **Argon2id** (recommended):
+- Salt: 16 bytes random
+- Memory: 64 MB (65536 KB)
+- Iterations: 3-4
+- Parallelism: 4 threads
+- Output: 256 bits
+
+For **scrypt**:
+- Salt: 32 bytes random
+- N: 2^17 (131072) - CPU/memory cost
+- r: 8 - block size
+- p: 1 - parallelization
+- Output: 256 bits
+
+### 6a.6 Archive-Level vs File-Level Encryption
+
+**Archive-Level Encryption:**
+- Entire archive (except headers) encrypted as single stream
+- Central directory encrypted
+- File names encrypted (if header encryption enabled)
+- Most secure against metadata leakage
+- Cannot extract individual files without full decryption
+
+**File-Level Encryption:**
+- Each file encrypted independently
+- Central directory not encrypted (file names visible)
+- Allows selective file extraction
+- Better for large archives where partial access is needed
+
+**Hybrid Mode:**
+- Files encrypted individually
+- Central directory encrypted separately
+- Balances security and selective access
+
+### 6a.7 Password Verification
+
+To verify password without full decryption:
+
+```c
+typedef struct _ZOO64_PASSWORD_VERIFY {
+  UINT32  VerifyMethod;       // Verification method
+  UINT16  VerifyDataLength;   // Length of verification data
+  // Followed by verification data
+} __attribute__((packed)) ZOO64_PASSWORD_VERIFY;
+```
+
+Verification methods:
+```
+0x0001: Encrypted known plaintext (16 bytes zeros encrypted)
+0x0002: HMAC of password + salt
+0x0003: Argon2 hash of password
 ```
 
 ## 7. Seekable Compression
@@ -512,6 +946,32 @@ interface IZoo64Archive : IUnknown {
                           [out] IZoo64Metadata** metadata);
   HRESULT SetFileMetadata([in] BSTR archivePath,
                           [in] IZoo64Metadata* metadata);
+
+  // YAML Metadata
+  HRESULT GetArchiveYaml([out] BSTR* yaml);
+  HRESULT SetArchiveYaml([in] BSTR yaml);
+  HRESULT GetFileYaml([in] BSTR archivePath, [out] BSTR* yaml);
+  HRESULT SetFileYaml([in] BSTR archivePath, [in] BSTR yaml);
+
+  // Encryption
+  HRESULT SetPassword([in] BSTR password);
+  HRESULT SetKeyFile([in] BSTR keyFilePath);
+  HRESULT SetEncryptionMethod([in] WORD method, [in] WORD kdf);
+  HRESULT EncryptArchive([in] BOOL headerEncryption);
+  HRESULT EncryptFile([in] BSTR archivePath);
+  HRESULT DecryptFile([in] BSTR archivePath, [in] BSTR password);
+  HRESULT VerifyPassword([out] BOOL* valid);
+
+  // Multi-Volume
+  HRESULT SetVolumeSize([in] UINT64 sizeBytes);
+  HRESULT GetVolumeCount([out] DWORD* count);
+  HRESULT GetVolumeInfo([in] DWORD volumeNumber, [out] ZOO64_VOLUME_INFO* info);
+  HRESULT MergeVolumes([in] BSTR outputPath);
+
+  // Classic Zoo Compatibility
+  HRESULT ConvertFromClassicZoo([in] BSTR classicZooPath, [in] BSTR outputPath);
+  HRESULT ConvertToClassicZoo([in] BSTR outputPath, [in] BOOL dualFormat);
+  HRESULT IsClassicZoo([in] BSTR path, [out] BOOL* isClassic);
 };
 ```
 
@@ -540,6 +1000,26 @@ interface IZoo64Metadata : IUnknown {
   // Permissions
   HRESULT GetPermissions([out] DWORD* mode);
   HRESULT SetPermissions([in] DWORD mode);
+
+  // YAML Metadata
+  HRESULT GetYaml([out] BSTR* yaml);
+  HRESULT SetYaml([in] BSTR yaml);
+
+  // Platform-specific
+  HRESULT GetMacOSUUIDs([out] ZOO64_MACOS_UUID* uuids);
+  HRESULT SetMacOSUUIDs([in] ZOO64_MACOS_UUID* uuids);
+  HRESULT GetBSDFlags([out] ZOO64_BSD_FLAGS* flags);
+  HRESULT SetBSDFlags([in] ZOO64_BSD_FLAGS* flags);
+  HRESULT GetLinuxFlags([out] ZOO64_LINUX_FLAGS* flags);
+  HRESULT SetLinuxFlags([in] ZOO64_LINUX_FLAGS* flags);
+  HRESULT GetWindowsAttributes([out] ZOO64_WINDOWS_ATTR* attr);
+  HRESULT SetWindowsAttributes([in] ZOO64_WINDOWS_ATTR* attr);
+
+  // Links
+  HRESULT GetHardLinkTarget([out] BSTR* targetPath);
+  HRESULT SetHardLinkTarget([in] BSTR targetPath, [in] UINT64 inodeNumber);
+  HRESULT GetSymbolicLinkTarget([out] BSTR* targetPath, [out] DWORD* flags);
+  HRESULT SetSymbolicLinkTarget([in] BSTR targetPath, [in] DWORD flags);
 };
 ```
 
@@ -610,19 +1090,189 @@ All paths and text metadata use **UTF-8** encoding.
 
 For seekable compression, compressor state is reset at each block boundary to enable independent decompression.
 
-## 17. Version History
+## 17. Classic Zoo Format Compatibility
+
+Zoo64 can read and convert classic Zoo 2.1 archives while providing bidirectional compatibility options.
+
+### 17.1 Classic Zoo Format Overview
+
+The original Zoo format (created by Rahul Dhesi, 1986-1991) used:
+- Magic: 0xFDC4A7DC (little-endian: 0xDCA7C4FD)
+- 13-character filenames (MS-DOS 8.3 + path)
+- LZH and LZD compression
+- Generation numbers for versioning
+- Directory entries with deleted file tracking
+
+### 17.2 Reading Classic Zoo Archives
+
+When Zoo64 encounters classic Zoo magic (0xFDC4A7DC):
+
+```c
+typedef struct _CLASSIC_ZOO_HEADER {
+  UINT32  Magic;              // 0xFDC4A7DC
+  UINT32  FirstEntryOffset;   // Offset to first file entry
+  UINT32  MinusOffset;        // Negative offset to last entry (-)
+  UINT8   MajorVersion;       // Major version (2)
+  UINT8   MinorVersion;       // Minor version (1)
+  // Additional header fields...
+} __attribute__((packed)) CLASSIC_ZOO_HEADER;
+```
+
+### 17.3 Classic Zoo Directory Entry
+
+```c
+typedef struct _CLASSIC_ZOO_ENTRY {
+  UINT32  Magic;              // 0xFDC4A7DC
+  UINT8   CompressionMethod;  // 0=stored, 1=LZD, 2=LZH
+  UINT8   NextEntryOffset;    // Offset to next entry (variable)
+  UINT32  OriginalSize;       // Uncompressed size
+  UINT32  CompressedSize;     // Compressed size
+  UINT16  Date;               // MS-DOS date format
+  UINT16  Time;               // MS-DOS time format
+  UINT16  CRC;                // CRC-16
+  UINT32  OriginalPosition;   // Original file position
+  UINT16  Attributes;         // File attributes
+  UINT8   Generation;         // Generation number
+  UINT8   Deleted;            // Deletion marker
+  char    FileName[13];       // Null-terminated filename
+  char    Comment[?];         // Variable-length comment
+  // Followed by compressed data
+} __attribute__((packed)) CLASSIC_ZOO_ENTRY;
+```
+
+### 17.4 Conversion: Classic Zoo → Zoo64
+
+When converting classic Zoo to Zoo64:
+
+1. **Archive Header**: Create Zoo64 header with compatibility flag set
+2. **Filenames**: Convert 13-char filenames to UTF-8 paths
+3. **Compression**:
+   - **Option 1**: Decompress LZH/LZD, recompress with Zoo64 pipeline
+   - **Option 2**: Store compressed data as-is with compression method marker
+4. **Timestamps**: Convert MS-DOS date/time to Unix microseconds
+5. **Metadata**: Store generation numbers in YAML metadata
+6. **CRC**: Upgrade CRC-16 to CRC-32 + SHA-256
+7. **Attributes**: Convert to appropriate platform metadata
+
+### 17.5 Conversion: Zoo64 → Classic Zoo (Limited)
+
+For compatibility with legacy tools:
+
+**Restrictions:**
+- Filenames truncated to 13 characters (8.3 DOS format)
+- Paths flattened (directory separators converted to underscores)
+- Compression converted to LZH or stored
+- Metadata discarded (except what fits in comment field)
+- File size limit: 4 GB (32-bit size fields)
+
+**Process:**
+```
+1. Check constraints (filename length, file size, compression type)
+2. Warn user about metadata loss
+3. Decompress Zoo64 data
+4. Recompress with LZH (if beneficial) or store
+5. Generate classic Zoo directory entries
+6. Write classic Zoo format
+```
+
+### 17.6 Dual-Format Archives
+
+Zoo64 supports creating "dual-format" archives readable by both Zoo64 and classic Zoo:
+
+```
+[Classic Zoo Header]
+[Classic Zoo Entries...] (limited 13-char filenames)
+[Classic Zoo Data]
+[Zoo64 Extended Header] (magic: 0x5A4F4F3634415243)
+[Zoo64 Entries...] (full metadata, long filenames)
+[Zoo64 Central Directory]
+[End of Archive]
+```
+
+**Behavior:**
+- Classic Zoo tools: Read first header, see classic format archive
+- Zoo64 tools: Detect extended header, use Zoo64 format with full metadata
+- File data stored once, referenced by both formats
+
+### 17.7 Classic Zoo Compression Methods
+
+For compatibility, Zoo64 can optionally support classic compression:
+
+```
+Method 0: Stored (no compression)
+Method 1: LZD (Lempel-Ziv with dynamic Huffman)
+Method 2: LZH (Lempel-Ziv + static Huffman, similar to LHA)
+```
+
+Implemented via compatibility shims:
+```c
+BOOLEAN ClassicZooDecompress(UINT8 method, const UINT8 *input, ...);
+BOOLEAN ClassicZooCompress(UINT8 method, const UINT8 *input, ...);
+```
+
+### 17.8 Migration Strategy
+
+Recommended migration path from classic Zoo to Zoo64:
+
+1. **Phase 1**: Read-only compatibility
+   - Zoo64 tools can extract classic Zoo archives
+   - No modification of classic archives
+
+2. **Phase 2**: Conversion tool
+   - Provide `zoo64conv` utility
+   - Convert classic → Zoo64 with full metadata preservation
+   - Optionally create dual-format archives
+
+3. **Phase 3**: Native Zoo64
+   - Create new archives in Zoo64 format
+   - Maintain classic Zoo reading capability for legacy data
+
+### 17.9 Compatibility Mode Flag
+
+When archive header flag bit 7 (Classic Zoo compatibility mode) is set:
+- Enforce 13-character filename limit
+- Disable UTF-8 strict mode
+- Store filenames in uppercase (DOS convention)
+- Generate both classic and Zoo64 directory entries
+- Use MS-DOS timestamp formats
+
+## 18. Version History
 
 - **1.0** (2025-10-31): Initial specification draft
+  - Basic archive structure with redundant directories
+  - BWT+MTF+RAD50RLE+LZ78+Range compression pipeline
+  - Variable-length UTF-8 paths
+  - ACL, xattr, ADS metadata support
+  - YAML metadata (archive and file level)
+  - Digital signatures (file and archive level)
+  - Seekable compression with block tables
+  - Solid compression support
+  - COM component interfaces
 
-## 18. Future Extensions
+- **1.1** (2025-11-01): Enhanced features
+  - Platform-specific metadata (macOS UUIDs, BSD/Linux flags, Windows attributes)
+  - Hard link and symbolic link support
+  - Encryption support (AES-256-GCM, ChaCha20-Poly1305, Argon2id KDF)
+  - Multi-volume archive support
+  - Classic Zoo format compatibility
+  - Redundant directory structure (ZIP-like)
+  - Archive-level and file-level encryption
+  - Password verification mechanisms
+  - Dual-format archives (Zoo64 + Classic Zoo)
+
+## 19. Future Extensions
 
 Reserved areas for future features:
-- Encryption (AES-256, ChaCha20-Poly1305)
-- Delta compression
-- Deduplication
-- Volume spanning
-- Error correction codes
-- Compression algorithm plugins
+- Delta compression (binary diff between versions)
+- Content-based deduplication (hash-based)
+- Error correction codes (Reed-Solomon, LDPC)
+- Compression algorithm plugins (dynamic loading)
+- Streaming compression (no seekable table)
+- Archive repair and recovery tools
+- Incremental backups with change tracking
+- Network-transparent archives (HTTP range requests)
+- Archive virtualization (mount as filesystem)
+- Smart compression (ML-based algorithm selection)
 
 ---
 
