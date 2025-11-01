@@ -358,6 +358,274 @@ GLboolean GlesInterpretVertexShader(const VertexContext *context) {
 					StoreVec4(&inst->unary.alu.dst, &result, (VertexContext *)context, NULL);
 					break;
 
+				case OpcodeEXP:
+				case OpcodeEXP_SAT:
+					LoadVec4(&src0, &inst->unary.arg, (VertexContext *)context, NULL);
+					for (i = 0; i < 4; i++) result.base[i] = expf(src0.base[i]);
+					if (inst->base.op == OpcodeEXP_SAT) {
+						for (i = 0; i < 4; i++) result.base[i] = (result.base[i] < 0.0f) ? 0.0f : ((result.base[i] > 1.0f) ? 1.0f : result.base[i]);
+					}
+					StoreVec4(&inst->unary.alu.dst, &result, (VertexContext *)context, NULL);
+					break;
+
+				case OpcodeLOG:
+				case OpcodeLOG_SAT:
+					LoadVec4(&src0, &inst->unary.arg, (VertexContext *)context, NULL);
+					for (i = 0; i < 4; i++) result.base[i] = logf(fabsf(src0.base[i]));
+					if (inst->base.op == OpcodeLOG_SAT) {
+						for (i = 0; i < 4; i++) result.base[i] = (result.base[i] < 0.0f) ? 0.0f : ((result.base[i] > 1.0f) ? 1.0f : result.base[i]);
+					}
+					StoreVec4(&inst->unary.alu.dst, &result, (VertexContext *)context, NULL);
+					break;
+
+				case OpcodeEX2:
+				case OpcodeEX2_SAT:
+					LoadVec4(&src0, &inst->unary.arg, (VertexContext *)context, NULL);
+					for (i = 0; i < 4; i++) result.base[i] = exp2f(src0.base[i]);
+					if (inst->base.op == OpcodeEX2_SAT) {
+						for (i = 0; i < 4; i++) result.base[i] = (result.base[i] < 0.0f) ? 0.0f : ((result.base[i] > 1.0f) ? 1.0f : result.base[i]);
+					}
+					StoreVec4(&inst->unary.alu.dst, &result, (VertexContext *)context, NULL);
+					break;
+
+				case OpcodeLG2:
+				case OpcodeLG2_SAT:
+					LoadVec4(&src0, &inst->unary.arg, (VertexContext *)context, NULL);
+					for (i = 0; i < 4; i++) result.base[i] = log2f(fabsf(src0.base[i]));
+					if (inst->base.op == OpcodeLG2_SAT) {
+						for (i = 0; i < 4; i++) result.base[i] = (result.base[i] < 0.0f) ? 0.0f : ((result.base[i] > 1.0f) ? 1.0f : result.base[i]);
+					}
+					StoreVec4(&inst->unary.alu.dst, &result, (VertexContext *)context, NULL);
+					break;
+
+				case OpcodePOW:
+				case OpcodePOW_SAT:
+					LoadVec4(&src0, &inst->binary.arg0, (VertexContext *)context, NULL);
+					LoadVec4(&src1, &inst->binary.arg1, (VertexContext *)context, NULL);
+					for (i = 0; i < 4; i++) result.base[i] = powf(fabsf(src0.base[i]), src1.base[i]);
+					if (inst->base.op == OpcodePOW_SAT) {
+						for (i = 0; i < 4; i++) result.base[i] = (result.base[i] < 0.0f) ? 0.0f : ((result.base[i] > 1.0f) ? 1.0f : result.base[i]);
+					}
+					StoreVec4(&inst->binary.alu.dst, &result, (VertexContext *)context, NULL);
+					break;
+
+				case OpcodeSIN:
+				case OpcodeSIN_SAT:
+					LoadVec4(&src0, &inst->unary.arg, (VertexContext *)context, NULL);
+					for (i = 0; i < 4; i++) result.base[i] = sinf(src0.base[i]);
+					if (inst->base.op == OpcodeSIN_SAT) {
+						for (i = 0; i < 4; i++) result.base[i] = (result.base[i] < 0.0f) ? 0.0f : ((result.base[i] > 1.0f) ? 1.0f : result.base[i]);
+					}
+					StoreVec4(&inst->unary.alu.dst, &result, (VertexContext *)context, NULL);
+					break;
+
+				case OpcodeCOS:
+				case OpcodeCOS_SAT:
+					LoadVec4(&src0, &inst->unary.arg, (VertexContext *)context, NULL);
+					for (i = 0; i < 4; i++) result.base[i] = cosf(src0.base[i]);
+					if (inst->base.op == OpcodeCOS_SAT) {
+						for (i = 0; i < 4; i++) result.base[i] = (result.base[i] < 0.0f) ? 0.0f : ((result.base[i] > 1.0f) ? 1.0f : result.base[i]);
+					}
+					StoreVec4(&inst->unary.alu.dst, &result, (VertexContext *)context, NULL);
+					break;
+
+				case OpcodeABS:
+				case OpcodeABS_SAT:
+					LoadVec4(&src0, &inst->unary.arg, (VertexContext *)context, NULL);
+					for (i = 0; i < 4; i++) result.base[i] = fabsf(src0.base[i]);
+					if (inst->base.op == OpcodeABS_SAT) {
+						for (i = 0; i < 4; i++) result.base[i] = (result.base[i] < 0.0f) ? 0.0f : ((result.base[i] > 1.0f) ? 1.0f : result.base[i]);
+					}
+					StoreVec4(&inst->unary.alu.dst, &result, (VertexContext *)context, NULL);
+					break;
+
+				case OpcodeLRP:
+				case OpcodeLRP_SAT:
+					LoadVec4(&src0, &inst->ternary.arg0, (VertexContext *)context, NULL);
+					LoadVec4(&src1, &inst->ternary.arg1, (VertexContext *)context, NULL);
+					LoadVec4(&src2, &inst->ternary.arg2, (VertexContext *)context, NULL);
+					for (i = 0; i < 4; i++) result.base[i] = src0.base[i] * src1.base[i] + (1.0f - src0.base[i]) * src2.base[i];
+					if (inst->base.op == OpcodeLRP_SAT) {
+						for (i = 0; i < 4; i++) result.base[i] = (result.base[i] < 0.0f) ? 0.0f : ((result.base[i] > 1.0f) ? 1.0f : result.base[i]);
+					}
+					StoreVec4(&inst->ternary.alu.dst, &result, (VertexContext *)context, NULL);
+					break;
+
+				case OpcodeDP2:
+				case OpcodeDP2_SAT:
+					LoadVec4(&src0, &inst->binary.arg0, (VertexContext *)context, NULL);
+					LoadVec4(&src1, &inst->binary.arg1, (VertexContext *)context, NULL);
+					result.base[0] = result.base[1] = result.base[2] = result.base[3] =
+						src0.base[0] * src1.base[0] + src0.base[1] * src1.base[1];
+					if (inst->base.op == OpcodeDP2_SAT) {
+						for (i = 0; i < 4; i++) result.base[i] = (result.base[i] < 0.0f) ? 0.0f : ((result.base[i] > 1.0f) ? 1.0f : result.base[i]);
+					}
+					StoreVec4(&inst->binary.alu.dst, &result, (VertexContext *)context, NULL);
+					break;
+
+				case OpcodeDPH:
+				case OpcodeDPH_SAT:
+					LoadVec4(&src0, &inst->binary.arg0, (VertexContext *)context, NULL);
+					LoadVec4(&src1, &inst->binary.arg1, (VertexContext *)context, NULL);
+					result.base[0] = result.base[1] = result.base[2] = result.base[3] =
+						src0.base[0] * src1.base[0] + src0.base[1] * src1.base[1] + src0.base[2] * src1.base[2] + src1.base[3];
+					if (inst->base.op == OpcodeDPH_SAT) {
+						for (i = 0; i < 4; i++) result.base[i] = (result.base[i] < 0.0f) ? 0.0f : ((result.base[i] > 1.0f) ? 1.0f : result.base[i]);
+					}
+					StoreVec4(&inst->binary.alu.dst, &result, (VertexContext *)context, NULL);
+					break;
+
+				case OpcodeXPD:
+				case OpcodeXPD_SAT:
+					LoadVec4(&src0, &inst->binary.arg0, (VertexContext *)context, NULL);
+					LoadVec4(&src1, &inst->binary.arg1, (VertexContext *)context, NULL);
+					result.base[0] = src0.base[1] * src1.base[2] - src0.base[2] * src1.base[1];
+					result.base[1] = src0.base[2] * src1.base[0] - src0.base[0] * src1.base[2];
+					result.base[2] = src0.base[0] * src1.base[1] - src0.base[1] * src1.base[0];
+					result.base[3] = 1.0f;
+					if (inst->base.op == OpcodeXPD_SAT) {
+						for (i = 0; i < 4; i++) result.base[i] = (result.base[i] < 0.0f) ? 0.0f : ((result.base[i] > 1.0f) ? 1.0f : result.base[i]);
+					}
+					StoreVec4(&inst->binary.alu.dst, &result, (VertexContext *)context, NULL);
+					break;
+
+				case OpcodeCMP:
+				case OpcodeCMP_SAT:
+					LoadVec4(&src0, &inst->ternary.arg0, (VertexContext *)context, NULL);
+					LoadVec4(&src1, &inst->ternary.arg1, (VertexContext *)context, NULL);
+					LoadVec4(&src2, &inst->ternary.arg2, (VertexContext *)context, NULL);
+					for (i = 0; i < 4; i++) result.base[i] = (src0.base[i] < 0.0f) ? src1.base[i] : src2.base[i];
+					if (inst->base.op == OpcodeCMP_SAT) {
+						for (i = 0; i < 4; i++) result.base[i] = (result.base[i] < 0.0f) ? 0.0f : ((result.base[i] > 1.0f) ? 1.0f : result.base[i]);
+					}
+					StoreVec4(&inst->ternary.alu.dst, &result, (VertexContext *)context, NULL);
+					break;
+
+				case OpcodeSSG:
+				case OpcodeSSG_SAT:
+					LoadVec4(&src0, &inst->unary.arg, (VertexContext *)context, NULL);
+					for (i = 0; i < 4; i++) result.base[i] = (src0.base[i] > 0.0f) ? 1.0f : ((src0.base[i] < 0.0f) ? -1.0f : 0.0f);
+					if (inst->base.op == OpcodeSSG_SAT) {
+						for (i = 0; i < 4; i++) result.base[i] = (result.base[i] < 0.0f) ? 0.0f : ((result.base[i] > 1.0f) ? 1.0f : result.base[i]);
+					}
+					StoreVec4(&inst->unary.alu.dst, &result, (VertexContext *)context, NULL);
+					break;
+
+				case OpcodeSLE:
+				case OpcodeSLE_SAT:
+					LoadVec4(&src0, &inst->binary.arg0, (VertexContext *)context, NULL);
+					LoadVec4(&src1, &inst->binary.arg1, (VertexContext *)context, NULL);
+					for (i = 0; i < 4; i++) result.base[i] = (src0.base[i] <= src1.base[i]) ? 1.0f : 0.0f;
+					StoreVec4(&inst->binary.alu.dst, &result, (VertexContext *)context, NULL);
+					break;
+
+				case OpcodeSGT:
+				case OpcodeSGT_SAT:
+					LoadVec4(&src0, &inst->binary.arg0, (VertexContext *)context, NULL);
+					LoadVec4(&src1, &inst->binary.arg1, (VertexContext *)context, NULL);
+					for (i = 0; i < 4; i++) result.base[i] = (src0.base[i] > src1.base[i]) ? 1.0f : 0.0f;
+					StoreVec4(&inst->binary.alu.dst, &result, (VertexContext *)context, NULL);
+					break;
+
+				case OpcodeSCS:
+				case OpcodeSCS_SAT:
+					LoadVec4(&src0, &inst->unary.arg, (VertexContext *)context, NULL);
+					result.base[0] = cosf(src0.base[0]);
+					result.base[1] = sinf(src0.base[0]);
+					result.base[2] = 0.0f;
+					result.base[3] = 1.0f;
+					if (inst->base.op == OpcodeSCS_SAT) {
+						for (i = 0; i < 4; i++) result.base[i] = (result.base[i] < 0.0f) ? 0.0f : ((result.base[i] > 1.0f) ? 1.0f : result.base[i]);
+					}
+					StoreVec4(&inst->unary.alu.dst, &result, (VertexContext *)context, NULL);
+					break;
+
+				case OpcodeDST:
+				case OpcodeDST_SAT:
+					LoadVec4(&src0, &inst->binary.arg0, (VertexContext *)context, NULL);
+					LoadVec4(&src1, &inst->binary.arg1, (VertexContext *)context, NULL);
+					result.base[0] = 1.0f;
+					result.base[1] = src0.base[1] * src1.base[1];
+					result.base[2] = src0.base[2];
+					result.base[3] = src1.base[3];
+					if (inst->base.op == OpcodeDST_SAT) {
+						for (i = 0; i < 4; i++) result.base[i] = (result.base[i] < 0.0f) ? 0.0f : ((result.base[i] > 1.0f) ? 1.0f : result.base[i]);
+					}
+					StoreVec4(&inst->binary.alu.dst, &result, (VertexContext *)context, NULL);
+					break;
+
+				case OpcodeARL:
+					LoadVec4(&src0, &inst->unary.arg, (VertexContext *)context, NULL);
+					for (i = 0; i < 4; i++) result.base[i] = floorf(src0.base[i]);
+					StoreVec4(&inst->unary.alu.dst, &result, (VertexContext *)context, NULL);
+					break;
+
+				/* Control flow - execute linearly (structure handles flow) */
+				case OpcodeIF:
+				case OpcodeELSE:
+				case OpcodeENDIF:
+				case OpcodeLOOP:
+				case OpcodeENDLOOP:
+				case OpcodeREP:
+				case OpcodeENDREP:
+				case OpcodeBRK:
+				case OpcodeCAL:
+				case OpcodeRET:
+				case OpcodeBRA:
+				case OpcodeSCC:
+				case OpcodePHI:
+					break;
+
+				case OpcodeKIL:
+					/* Discard fragment */
+					return GL_FALSE;
+
+				/* Texture sampling - vertex shaders can sample textures */
+				case OpcodeTEX:
+				case OpcodeTEX_SAT:
+				case OpcodeTXB:
+				case OpcodeTXB_SAT:
+				case OpcodeTXP:
+				case OpcodeTXP_SAT:
+				case OpcodeTXL:
+				case OpcodeTXL_SAT:
+					/* Texture sampling - call runtime texture functions */
+					{
+						Vec4f coords, dx, dy;
+						LoadVec4(&coords, &inst->tex.coords, (VertexContext *)context, NULL);
+						GlesMemset(&dx, 0, sizeof(Vec4f));
+						GlesMemset(&dy, 0, sizeof(Vec4f));
+						GlesMemset(&result, 0, sizeof(Vec4f));
+
+						/* Get texture unit */
+						GLsizei samplerIndex = (inst->tex.sampler && inst->tex.sampler->location >= 0) ?
+							(inst->tex.sampler->location + inst->tex.offset) : 0;
+						TextureImageUnit *unit = &((VertexContext *)context)->textureImageUnit[samplerIndex];
+
+						/* Call appropriate sampling function based on target */
+						switch (inst->tex.target) {
+							case TextureTarget2D:
+								GlesTextureSample2D(unit, coords.base, dx.base, dy.base, result.base);
+								break;
+							case TextureTarget3D:
+								GlesTextureSample3D(unit, coords.base, dx.base, dy.base, result.base);
+								break;
+							case TextureTargetCube:
+								GlesTextureSampleCube(unit, coords.base, dx.base, dy.base, result.base);
+								break;
+							default:
+								GlesMemset(&result, 0, sizeof(Vec4f));
+								break;
+						}
+
+						if (inst->base.op == OpcodeTEX_SAT || inst->base.op == OpcodeTXB_SAT ||
+						    inst->base.op == OpcodeTXP_SAT || inst->base.op == OpcodeTXL_SAT) {
+							for (i = 0; i < 4; i++) result.base[i] = (result.base[i] < 0.0f) ? 0.0f : ((result.base[i] > 1.0f) ? 1.0f : result.base[i]);
+						}
+						StoreVec4(&inst->tex.alu.dst, &result, (VertexContext *)context, NULL);
+					}
+					break;
+
 				/* Declaration and metadata instructions - no execution needed */
 				case OpcodeINPUT:
 				case OpcodeOUTPUT:
