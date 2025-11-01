@@ -24,8 +24,9 @@ typedef enum _FB_BACKEND_TYPE {
     /* Generic and modern backends */
     FbBackendGeneric        = 0,  /* Generic software renderer */
     FbBackendUefiGop        = 1,  /* UEFI Graphics Output Protocol */
-    FbBackendVesaLinear     = 2,  /* VESA linear framebuffer */
-    FbBackendVesaBanked     = 3,  /* VESA banked/segmented mode */
+    FbBackendUefiUga        = 2,  /* UEFI Universal Graphics Adapter (EFI 1.x) */
+    FbBackendVesaLinear     = 3,  /* VESA linear framebuffer */
+    FbBackendVesaBanked     = 4,  /* VESA banked/segmented mode */
 
     /* IBM PC graphics adapters */
     FbBackendCga            = 10, /* CGA (320x200x4, 640x200x2) */
@@ -145,6 +146,26 @@ VOID
 FbUefiGopSetProtocol(
     IN IFramebufferBackend *Backend,
     IN VOID *GopProtocol
+    );
+
+/*
+ * Create a UEFI Universal Graphics Adapter (UGA) backend.
+ * For EFI 1.x and early UEFI 2.x systems (pre-GOP).
+ * UGA was the predecessor to GOP, used in older Macs and early UEFI.
+ */
+IFramebufferBackend *
+FbCreateUefiUgaBackend(
+    VOID
+    );
+
+/*
+ * Set the UGA protocol instance for UEFI UGA backend.
+ * Must be called before Initialize().
+ */
+VOID
+FbUefiUgaSetProtocol(
+    IN IFramebufferBackend *Backend,
+    IN VOID *UgaProtocol
     );
 
 /*

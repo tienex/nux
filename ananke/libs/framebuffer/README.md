@@ -266,6 +266,23 @@ IFramebufferBackend *backend = FbCreateUefiGopBackend();
 FbUefiGopSetProtocol(backend, GopProtocol);  // Optional
 ```
 
+### UEFI Universal Graphics Adapter (`FbBackendUefiUga`)
+
+Legacy UEFI/EFI 1.x framebuffer through UGA protocol.
+UGA was the predecessor to GOP, used in early UEFI implementations and older Macs.
+Provides hardware-accelerated Blt operations (fill, copy, video-to-buffer).
+
+Features:
+- Software buffer fallback for systems without direct framebuffer access
+- Hardware-accelerated block transfers via UGA Blt
+- Full 32-bit BGRA color support
+- Compatible with EFI 1.10 and early UEFI 2.x
+
+```c
+IFramebufferBackend *backend = FbCreateUefiUgaBackend();
+FbUefiUgaSetProtocol(backend, UgaProtocol);  // Required
+```
+
 ### Apple EFI (`FbBackendAppleEfi`)
 
 Apple Mac EFI framebuffer with quirk handling:
