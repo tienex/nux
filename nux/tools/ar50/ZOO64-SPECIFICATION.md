@@ -40,44 +40,124 @@
 
 ## Conformance Levels
 
+Zoo64 defines six conformance levels to support implementations ranging from ultra-compact streaming to full-featured enterprise archival solutions.
+
+### Compact Conformance
+Ultra-minimal streaming implementation without random access:
+- Archive Header structure (minimal flags)
+- File Entry with path and minimal metadata (size, CRC32)
+- End of Archive Marker
+- Stored (uncompressed) files only
+- UTF-8 paths (basic support, ASCII-safe subset recommended)
+- **NO Central Directory** (sequential access only)
+- Streamable mode required
+
+**Target**: Network streaming, pipes, stdin/stdout processing, single-pass extraction
+
+### Embedded Conformance
+Minimal implementation for resource-constrained systems:
+- Archive Header structure
+- File Entry with path and basic metadata (size, CRC32, modification time only)
+- Central Directory (simplified entries)
+- End of Archive Marker
+- Stored (uncompressed) files only
+- UTF-8 paths (basic support, no full normalization required)
+- Random access via Central Directory
+
+**Target**: Microcontrollers, firmware updates, bootloaders, IoT devices, ROM filesystems
+
 ### Minimal Conformance (REQUIRED)
-A minimal Zoo64 implementation MUST support:
+Basic Zoo64 implementation MUST support:
 - Archive Header structure
 - File Entry with path and basic metadata (timestamps, size, CRC32)
-- Central Directory
+- Central Directory (REQUIRED at this level)
 - Stored (uncompressed) files
-- UTF-8 paths
+- UTF-8 paths with full normalization (NFC, separator normalization)
+
+**Target**: Simple archiving tools, minimal dependencies, basic file bundling
 
 ### Standard Conformance (RECOMMENDED)
 Standard implementations SHOULD add:
-- At least one compression algorithm (LZMA2 or ZSTD recommended)
+- At least one modern compression algorithm (ZSTD or LZMA2 recommended)
 - Quick Directory for fast listing
 - Block deduplication
 - SHA-256 file hashes
+- Basic extended metadata (Unix permissions, Windows attributes)
+
+**Target**: General-purpose archiving, backup utilities, software distribution
+
+### Enhanced Conformance
+Advanced implementations with professional features:
+- Multiple compression algorithms (ZSTD, LZMA2, LZ4, ZLIB, Brotli)
+- Encryption (AES-256-GCM, ChaCha20-Poly1305)
+- Seekable compression
+- Digital signatures (RSA-2048, Ed25519)
+- Core metadata types (ACLs, xattrs, ADS, Security Descriptors)
+- Streamable mode support
+- SHA-256/SHA-512/BLAKE3 hashing
+
+**Target**: Professional backup software, compliance archiving, secure distribution
 
 ### Full Conformance (OPTIONAL)
-Full implementations MAY include:
-- All compression algorithms
-- Encryption (AES-256-GCM, ChaCha20-Poly1305)
-- Data integrity (FEC, PAR2)
-- Digital signatures
-- Platform-specific metadata (ACLs, xattrs, ADS)
-- VCS metadata
+Complete feature set implementations MAY include:
+- All compression algorithms (21+ algorithms including PAQ, legacy formats)
+- All encryption methods and KDFs
+- Data integrity (Reed-Solomon FEC, PAR2)
+- All digital signature algorithms
+- All platform-specific metadata (95+ metadata types)
+- All filesystem metadata (APFS, ReFS, ZFS, etc.)
+- VCS metadata (Git, SVN, Perforce, Mercurial, etc.)
 - Multi-volume archives
+- All operating modes (Streamable, Tape-Friendly, HSM)
+- Solid compression with seekable blocks
+
+**Target**: Enterprise backup, cross-platform migration, digital preservation, compliance archiving
 
 ## Conformance Summary Tables
 
 ### Table 1: Conformance Levels Overview
 
-| Level | Designation | Description | Target Use Cases |
-|-------|-------------|-------------|------------------|
-| **Minimal** | REQUIRED | Basic archive functionality with stored (uncompressed) files | Embedded systems, minimal dependencies, simple archiving |
-| **Standard** | RECOMMENDED | Modern compression and integrity features | General-purpose archiving, backup utilities, software distribution |
-| **Full** | OPTIONAL | Complete feature set with encryption and all metadata | Enterprise backup, compliance archiving, cross-platform migration |
+| Level | Designation | Random Access | Compression | Metadata | Target Use Cases |
+|-------|-------------|---------------|-------------|----------|------------------|
+| **Compact** | Optional | No (Stream only) | None (Stored) | Minimal (CRC32) | Network streaming, pipes, stdin/stdout |
+| **Embedded** | Optional | Yes (Central Dir) | None (Stored) | Basic (CRC32, mtime) | Microcontrollers, firmware, IoT, ROM FS |
+| **Minimal** | REQUIRED | Yes (Central Dir) | None (Stored) | Standard (CRC32, 4×timestamps) | Simple archiving, minimal dependencies |
+| **Standard** | RECOMMENDED | Yes + Quick Dir | ZSTD/LZMA2 | SHA-256 + basic extended | General-purpose, backup, distribution |
+| **Enhanced** | Optional | Yes + Seekable | Multiple algorithms | Encryption + core metadata | Professional backup, compliance |
+| **Full** | OPTIONAL | All modes | All algorithms | All metadata + FEC | Enterprise, preservation, migration |
 
 ### Table 2: Core Features by Conformance Level
 
-#### Required Features (Minimal Conformance)
+#### Compact Conformance (Streaming Only)
+
+| Category | Feature | Section | Description |
+|----------|---------|---------|-------------|
+| **Archive Structure** | Archive Header | 3 | Minimal flags, streamable mode bit set |
+| | File Entry | 5 | Path and minimal metadata (size, CRC32) |
+| | End of Archive Marker | 11 | Archive terminator |
+| **Compression** | Stored Mode | 4 | Uncompressed only (Algorithm ID 0x0000) |
+| **Path Support** | UTF-8 Paths (Basic) | 5.3 | UTF-8 support, ASCII-safe subset recommended |
+| **Metadata** | Minimal Integrity | 5.1 | CRC32 checksums only |
+| | File Size | 5.1 | Uncompressed and compressed sizes |
+| **Access Mode** | Sequential Only | 3.2a.1 | No seeking, stream-only access |
+| **OMITTED** | Central Directory | - | Not present (sequential scan required) |
+
+#### Embedded Conformance (Resource-Constrained)
+
+| Category | Feature | Section | Description |
+|----------|---------|---------|-------------|
+| **Archive Structure** | Archive Header | 3 | Basic flags, version |
+| | File Entry | 5 | Path and basic metadata (size, CRC32, mtime) |
+| | Central Directory | 10 | Simplified entries for random access |
+| | End of Archive Marker | 11 | Archive terminator |
+| **Compression** | Stored Mode | 4 | Uncompressed only (Algorithm ID 0x0000) |
+| **Path Support** | UTF-8 Paths | 5.3 | UTF-8 support (normalization optional) |
+| **Metadata** | Basic Integrity | 5.1 | CRC32 checksums |
+| | Modification Time | 5.1 | Single timestamp (modification time only) |
+| | File Size | 5.1 | Uncompressed and compressed sizes |
+| **Access Mode** | Random Access | 10 | Via simplified Central Directory |
+
+#### Minimal Conformance (REQUIRED - Baseline)
 
 | Category | Feature | Section | Description |
 |----------|---------|---------|-------------|
@@ -86,12 +166,17 @@ Full implementations MAY include:
 | | Central Directory | 10 | Fast access directory with all file entries |
 | | End of Archive Marker | 11 | Archive terminator with integrity checks |
 | **Compression** | Stored Mode | 4 | Uncompressed file storage (Algorithm ID 0x0000) |
-| **Path Support** | UTF-8 Paths | 5.3 | Variable-length Unicode paths with normalization |
-| **Metadata** | Basic Timestamps | 5.1 | Birth, modification, access, change times (NTP format) |
+| **Path Support** | UTF-8 Paths | 5.3 | Variable-length Unicode paths with full normalization |
+| | NFC Normalization | 5.3 | Unicode NFC normalization required |
+| | Path Separator Normalization | 5.3 | All separators to \0 |
+| | Dot Resolution | 5.3 | Handle ./ and ../ components |
+| **Metadata** | Full Timestamps | 5.1 | Birth, modification, access, change times (NTP format) |
 | | Basic Integrity | 5.1 | CRC32 checksums for all files |
 | | Basic Attributes | 5.1 | Unix mode, UID/GID, file size |
 
-#### Recommended Features (Standard Conformance)
+#### Standard Conformance (RECOMMENDED)
+
+Includes all Minimal features, plus:
 
 | Category | Feature | Section | Description |
 |----------|---------|---------|-------------|
@@ -99,97 +184,121 @@ Full implementations MAY include:
 | **Directory** | Quick Directory | 4.6 | Fast file listing without full archive scan |
 | **Deduplication** | Block Deduplication | 6.2 (0x0047) | Chunk-based storage deduplication |
 | **Integrity** | SHA-256 Hashes | 5.1, 6b | Cryptographic file integrity verification |
+| **Metadata** | Unix Permissions | 5.1 | Full Unix mode bits |
+| | Windows Attributes | 6.2 (0x000E) | Basic Windows file attributes |
 
-#### Optional Features (Full Conformance)
+#### Enhanced Conformance (Professional)
+
+Includes all Standard features, plus:
+
+| Category | Feature | Section | Description |
+|----------|---------|---------|-------------|
+| **Compression** | Multiple Algorithms | 4 | ZSTD, LZMA2, LZ4, ZLIB, Brotli (5+ algorithms) |
+| | Seekable Compression | 7 | Random access within compressed files |
+| **Encryption** | AES-256-GCM | 6a | Authenticated encryption (recommended) |
+| | ChaCha20-Poly1305 | 6a | Alternative authenticated encryption |
+| | Argon2id KDF | 6a | Memory-hard key derivation |
+| **Signatures** | RSA-2048 | 9 | Digital signatures (RSA) |
+| | Ed25519 | 9 | Digital signatures (Edwards curve) |
+| **Integrity** | SHA-512 / BLAKE3 | 6b | Advanced cryptographic hashing |
+| **Metadata** | ACLs | 6.2 (0x0001) | POSIX, Windows NT ACLs |
+| | Extended Attributes | 6.2 (0x0002) | Unix/Linux xattrs |
+| | Alternate Data Streams | 6.2 (0x0003) | NTFS ADS support |
+| | Security Descriptors | 6.2 (0x0004) | Windows security descriptors |
+| **Modes** | Streamable Mode | 3.2a.1 | Sequential-only streaming support |
+
+#### Full Conformance (OPTIONAL - Complete)
+
+Includes all Enhanced features, plus:
 
 | Category | Feature | Section | Description |
 |----------|---------|---------|-------------|
 | **Compression** | All Algorithms | 4.1 | Full support for 21+ compression algorithms |
-| | Seekable Compression | 7 | Random access within compressed files |
 | | Solid Compression | 8 | Multi-file compression streams |
-| **Encryption** | AES-256-GCM | 6a | Authenticated encryption (recommended) |
-| | ChaCha20-Poly1305 | 6a | Alternative authenticated encryption |
-| | Archive/File Encryption | 6a | Encryption at archive or file level |
-| | Argon2id KDF | 6a | Memory-hard key derivation (recommended) |
+| | Legacy Algorithms | 4.1 | PAQ, Squoze, RAD50, SIXBIT, etc. |
+| **Encryption** | All Encryption Methods | 6a | All 6 encryption algorithms |
+| | All KDFs | 6a | All 5 key derivation functions |
+| | Header Encryption | 6a | Encrypted archive headers |
 | **Integrity** | Reed-Solomon FEC | 6b | Forward error correction for data recovery |
 | | PAR2 Integration | 6b | Parity archive integration |
-| | BLAKE3 Hashing | 6b | High-performance cryptographic hashing |
-| **Signatures** | File-Level Signatures | 9 | Per-file digital signatures |
-| | Archive-Level Signatures | 9 | Whole-archive signatures |
-| | RSA/ECDSA/Ed25519 | 9 | Multiple signature algorithms |
-| **Metadata** | ACLs | 6.2 (0x0001) | POSIX, Windows NT, NFSv4, etc. |
-| | Extended Attributes | 6.2 (0x0002) | Unix/Linux xattrs |
-| | Alternate Data Streams | 6.2 (0x0003) | NTFS ADS support |
-| | 95+ Metadata Types | 6.2 | Comprehensive platform and filesystem metadata |
-| **VCS** | Git Metadata | 6.2 (0x0032) | Git repository metadata preservation |
-| | SVN/Perforce/Mercurial | 6.2 (0x0033-0x0037) | Version control system metadata |
+| | All Hash Algorithms | 6b | SHA1/256/384/512, SHA3, BLAKE2b, BLAKE3 |
+| **Signatures** | All Signature Algorithms | 9 | RSA-2048/4096, ECDSA-P256/P384, Ed25519, Ed448 |
+| | X.509 Certificates | 9 | Certificate chain support |
+| **Metadata** | All 95+ Metadata Types | 6.2 | Comprehensive platform and filesystem metadata |
+| | Filesystem Metadata | 6.2 | APFS, ReFS, ZFS, XFS, JFS, Btrfs, etc. (18 types) |
+| | Legacy OS Metadata | 6.2 | VMS, z/OS, OS/400, Classic Mac, Amiga, etc. (12 types) |
+| | VCS Metadata | 6.2 (0x0032-0x0038) | Git, SVN, Perforce, Mercurial, etc. (7 types) |
+| | Network FS | 6.2 | NFS, SMB/CIFS, WebDAV, AFS, CODA, etc. (8 types) |
 | **Archives** | Multi-Volume Support | 3.3-3.4 | Archive splitting across multiple volumes |
-| **Modes** | Streamable Mode | 3.2a.1 | Sequential-only streaming archives |
-| | Tape-Friendly Mode | 3.2a.2 | Optimized for tape storage |
+| **Modes** | Tape-Friendly Mode | 3.2a.2 | Optimized for tape storage |
 | | HSM Mode | 3.2a.3 | Hierarchical storage management |
+| **Links** | Hard Links | 6.4, 6.2 (0x000F) | Including directory hard links |
+| | Symbolic Links | 6.5, 6.2 (0x0010) | With all variants and flags |
+| | Magic Symlinks | 6.2 (0x0027) | Windows junctions, Mac aliases |
 
 ### Table 3: Compression Algorithms Matrix
 
-| Algorithm | ID | Conformance | Best Use Case | Speed | Ratio |
-|-----------|-----|-------------|---------------|-------|-------|
-| **Stored (None)** | 0x0000 | **REQUIRED** | Pre-compressed files | Fastest | None |
-| **BWT+MTF+RAD50RLE+LZ78+Range** | 0x0001 | Optional | Text files, source code | Medium | High |
-| **LZ77** | 0x0002 | Optional | General purpose | Fast | Medium |
-| **LZ4** | 0x0003 | Optional | Real-time compression | Fastest | Low-Medium |
-| **ZSTD** | 0x0004 | **RECOMMENDED** | General purpose, balanced | Fast | High |
-| **LZMA** | 0x0005 | Optional | Maximum compression | Slow | Very High |
-| **LZMA2** | 0x0006 | **RECOMMENDED** | Maximum compression, multi-thread | Medium | Very High |
-| **LZX** | 0x0007 | Optional | CAB/WIM compatibility | Medium | High |
-| **LZFSE** | 0x0008 | Optional | Apple platforms | Fast | High |
-| **ZLIB** | 0x0009 | Optional | Compatibility, networking | Medium | Medium-High |
-| **LZH** | 0x000A | Optional | Legacy compatibility | Medium | Medium-High |
-| **LZW** | 0x000B | Optional | Legacy compatibility (GIF/TIFF) | Fast | Medium |
-| **Brotli** | 0x000C | Optional | Web content, text | Medium | Very High |
-| **Bzip2** | 0x000D | Optional | High compression | Slow | Very High |
-| **PAQ** | 0x000E | Optional | Maximum compression | Very Slow | Maximum |
-| **Huffman** | 0x000F | Optional | Simple compression | Fast | Low-Medium |
-| **Squoze (6-bit ASCII)** | 0x0010 | Optional | Legacy uppercase ASCII | Fast | Medium |
-| **RAD50 (PDP-11)** | 0x0011 | Optional | Legacy systems | Fast | Medium |
-| **SIXBIT (DEC)** | 0x0012 | Optional | Legacy systems | Fast | Medium |
-| **SQUOZE8 (8-bit)** | 0x0013 | Optional | Legacy systems | Fast | Medium |
+| Algorithm | ID | Conformance Level | Best Use Case | Speed | Ratio |
+|-----------|-----|-------------------|---------------|-------|-------|
+| **Stored (None)** | 0x0000 | **Compact+** (ALL) | Pre-compressed files, streams | Fastest | None |
+| **ZSTD** | 0x0004 | **Standard** (recommended) | General purpose, balanced | Fast | High |
+| **LZMA2** | 0x0006 | **Standard** (alternative) | Maximum compression, multi-thread | Medium | Very High |
+| **LZ4** | 0x0003 | Enhanced | Real-time compression | Fastest | Low-Medium |
+| **ZLIB** | 0x0009 | Enhanced | Compatibility, networking | Medium | Medium-High |
+| **Brotli** | 0x000C | Enhanced | Web content, text | Medium | Very High |
+| **LZ77** | 0x0002 | Enhanced | General purpose | Fast | Medium |
+| **LZMA** | 0x0005 | Full | Maximum compression | Slow | Very High |
+| **LZX** | 0x0007 | Full | CAB/WIM compatibility | Medium | High |
+| **LZFSE** | 0x0008 | Full | Apple platforms | Fast | High |
+| **LZH** | 0x000A | Full | Legacy compatibility | Medium | Medium-High |
+| **LZW** | 0x000B | Full | Legacy (GIF/TIFF) | Fast | Medium |
+| **Bzip2** | 0x000D | Full | High compression | Slow | Very High |
+| **PAQ** | 0x000E | Full | Maximum compression | Very Slow | Maximum |
+| **Huffman** | 0x000F | Full | Simple compression | Fast | Low-Medium |
+| **BWT+MTF+RAD50RLE+LZ78+Range** | 0x0001 | Full | Text files, source code | Medium | High |
+| **Squoze (6-bit ASCII)** | 0x0010 | Full | Legacy uppercase ASCII | Fast | Medium |
+| **RAD50 (PDP-11)** | 0x0011 | Full | Legacy PDP-11 systems | Fast | Medium |
+| **SIXBIT (DEC)** | 0x0012 | Full | Legacy DEC systems | Fast | Medium |
+| **SQUOZE8 (8-bit)** | 0x0013 | Full | Legacy 8-bit systems | Fast | Medium |
 
 ### Table 4: Encryption & Security Features Matrix
 
-| Feature | Conformance | Algorithm/Type | Key Size | Use Case |
-|---------|-------------|----------------|----------|----------|
-| **Encryption Methods** | | | | |
-| AES-256-GCM | Optional (**Recommended**) | Authenticated | 256-bit | General purpose, best balance |
-| ChaCha20-Poly1305 | Optional | Authenticated | 256-bit | Software-only systems |
-| AES-256-CBC + HMAC | Optional | Encrypt-then-MAC | 256-bit | Legacy compatibility |
-| AES-128-GCM | Optional | Authenticated | 128-bit | Performance-critical |
-| Twofish-256-GCM | Optional | Authenticated | 256-bit | Alternative cipher |
-| Serpent-256-GCM | Optional | Authenticated | 256-bit | High security |
-| **Key Derivation** | | | | |
-| Argon2id | Optional (**Recommended**) | Memory-hard | Variable | Modern, resistance to GPU/ASIC |
-| PBKDF2-HMAC-SHA256 | Optional | Standard | Variable | Compatibility |
-| PBKDF2-HMAC-SHA512 | Optional | Standard | Variable | Enhanced security |
-| scrypt | Optional | Memory-hard | Variable | Good balance |
-| bcrypt | Optional | CPU-hard | Variable | Password hashing |
-| **Digital Signatures** | | | | |
-| RSA-2048 | Optional | Public-key | 2048-bit | Wide compatibility |
-| RSA-4096 | Optional | Public-key | 4096-bit | High security |
-| ECDSA-P256 | Optional | Elliptic curve | 256-bit | Smaller signatures |
-| ECDSA-P384 | Optional | Elliptic curve | 384-bit | Enhanced security |
-| Ed25519 | Optional | Edwards curve | 256-bit | Modern, fast verification |
-| Ed448 | Optional | Edwards curve | 448-bit | Maximum security |
+| Feature | Conformance Level | Algorithm/Type | Key Size | Use Case |
+|---------|-------------------|----------------|----------|----------|
 | **Hash Algorithms** | | | | |
-| CRC32 | **REQUIRED** | Checksum | 32-bit | Error detection |
-| SHA-256 | **RECOMMENDED** | Cryptographic | 256-bit | Standard integrity |
-| SHA-384 | Optional | Cryptographic | 384-bit | Enhanced security |
-| SHA-512 | Optional | Cryptographic | 512-bit | Maximum security |
-| SHA3-256 | Optional | Cryptographic | 256-bit | Alternative standard |
-| SHA3-512 | Optional | Cryptographic | 512-bit | Alternative standard |
-| BLAKE2b | Optional | Cryptographic | 512-bit | High performance |
-| BLAKE3 | Optional | Cryptographic | 256-bit | Maximum performance |
+| CRC32 | **Compact+** (ALL) | Checksum | 32-bit | Error detection |
+| SHA-256 | **Standard** | Cryptographic | 256-bit | Standard integrity |
+| SHA-512 | Enhanced | Cryptographic | 512-bit | Maximum security |
+| BLAKE3 | Enhanced | Cryptographic | 256-bit | Maximum performance |
+| SHA-384 | Full | Cryptographic | 384-bit | Enhanced security |
+| SHA3-256 | Full | Cryptographic | 256-bit | Alternative standard |
+| SHA3-512 | Full | Cryptographic | 512-bit | Alternative standard |
+| BLAKE2b | Full | Cryptographic | 512-bit | High performance |
+| SHA1 | Full | Cryptographic (deprecated) | 160-bit | Legacy compatibility |
+| **Encryption Methods** | | | | |
+| AES-256-GCM | **Enhanced** (recommended) | Authenticated | 256-bit | General purpose, best balance |
+| ChaCha20-Poly1305 | Enhanced | Authenticated | 256-bit | Software-only systems |
+| AES-256-CBC + HMAC | Full | Encrypt-then-MAC | 256-bit | Legacy compatibility |
+| AES-128-GCM | Full | Authenticated | 128-bit | Performance-critical |
+| Twofish-256-GCM | Full | Authenticated | 256-bit | Alternative cipher |
+| Serpent-256-GCM | Full | Authenticated | 256-bit | High security |
+| **Key Derivation** | | | | |
+| Argon2id | **Enhanced** (recommended) | Memory-hard | Variable | Modern, resistance to GPU/ASIC |
+| PBKDF2-HMAC-SHA256 | Enhanced | Standard | Variable | Compatibility |
+| PBKDF2-HMAC-SHA512 | Full | Standard | Variable | Enhanced security |
+| scrypt | Full | Memory-hard | Variable | Good balance |
+| bcrypt | Full | CPU-hard | Variable | Password hashing |
+| **Digital Signatures** | | | | |
+| RSA-2048 | **Enhanced** | Public-key | 2048-bit | Wide compatibility |
+| Ed25519 | **Enhanced** | Edwards curve | 256-bit | Modern, fast verification |
+| RSA-4096 | Full | Public-key | 4096-bit | High security |
+| ECDSA-P256 | Full | Elliptic curve | 256-bit | Smaller signatures |
+| ECDSA-P384 | Full | Elliptic curve | 384-bit | Enhanced security |
+| Ed448 | Full | Edwards curve | 448-bit | Maximum security |
 | **Error Correction** | | | | |
-| Reed-Solomon | Optional | FEC | Variable | General purpose |
-| LDPC | Optional | FEC | Variable | Advanced correction |
-| PAR2 | Optional | Parity archive | Variable | Archive recovery |
+| Reed-Solomon | Full | FEC | Variable | General purpose |
+| LDPC | Full | FEC | Variable | Advanced correction |
+| PAR2 | Full | Parity archive | Variable | Archive recovery |
 
 ### Table 5: Metadata Types Summary
 
@@ -259,19 +368,47 @@ Full implementations MAY include:
 | Magic Symlinks | Optional | 6.2 (0x0027) | Windows junctions, Mac aliases |
 | Directory Hard Links | Optional | 6.4 | HFS+/APFS directory links |
 
-### Table 7: Implementation Recommendations
+### Table 7: Implementation Recommendations by Conformance Level
 
-| Scenario | Recommended Features | Notes |
-|----------|---------------------|-------|
-| **Minimal Implementation** | Archive structures, Stored mode, UTF-8 paths, CRC32 | Smallest footprint, embedded systems |
-| **General Purpose Archiver** | + ZSTD compression, Quick Directory, SHA-256 | Good balance of features and simplicity |
-| **Backup Software** | + LZMA2, Deduplication, FEC, HSM mode | Data protection and storage optimization |
-| **Compliance Archive** | + Encryption (AES-256-GCM), Signatures, All metadata types | Legal/regulatory requirements |
-| **Cross-Platform Migration** | + All filesystem metadata, ACLs, xattrs, ADS | Preserve all platform-specific data |
-| **Source Code Archive** | + Git metadata, Quick Directory, ZSTD, Signatures | Developer-friendly features |
-| **Enterprise Backup** | + Multi-volume, Tape mode, FEC, Encryption, All metadata | Enterprise infrastructure |
-| **Streaming Archive** | + Streamable mode, ZSTD, SHA-256 | Network/pipe operations |
-| **Maximum Compression** | + LZMA2, Solid compression, Deduplication, BWT pipeline | Minimize storage, slow compression OK |
+| Conformance Level | Scenario | Required Features | Recommended Add-Ons | Target Environment |
+|-------------------|----------|-------------------|---------------------|-------------------|
+| **Compact** | Network Streaming | Archive Header, File Entry, End Marker, Stored mode, CRC32 | LZ4 for minimal compression | Network protocols, stdin/stdout, tar-like streaming |
+| | Pipe Processing | Sequential access only, no Central Directory | None | Shell pipes, data transformation |
+| | Single-Pass Tools | Basic UTF-8 support (ASCII-safe) | None | Stream processing, network delivery |
+| **Embedded** | Firmware Updates | + Central Directory (simplified), modification time | LZ4 for space savings | Microcontrollers, bootloaders |
+| | IoT Devices | Random access support | None | Resource-constrained devices |
+| | ROM Filesystems | Minimal memory footprint | Read-only optimization | Embedded Linux, RTOS |
+| **Minimal** | Simple Archiver | + Full timestamps, Full UTF-8 normalization, UID/GID | Quick Directory | Desktop utilities, file bundling |
+| | Basic Backup | All required structures | SHA-256 for integrity | Personal backup tools |
+| | File Distribution | Cross-platform paths | Compression (ZSTD) | Software distribution (uncompressed) |
+| **Standard** | General Purpose | + ZSTD or LZMA2, Quick Directory, SHA-256, Deduplication | LZ4 for fast mode | Desktop archiving tools (7-Zip class) |
+| | Backup Software | Block deduplication, Quick Directory | Multi-volume, FEC | Personal/small business backup |
+| | Software Distribution | ZSTD compression, SHA-256 verification | Digital signatures | Package managers, installers |
+| | Development Tools | Quick Directory, deduplication | Git metadata | Build systems, artifact storage |
+| **Enhanced** | Professional Backup | + Encryption (AES-256-GCM), Signatures, ACLs/xattrs/ADS | Multi-volume, HSM mode | Enterprise backup software |
+| | Compliance Archive | Encryption, digital signatures, SHA-512 | All metadata types | Legal/regulatory archiving |
+| | Secure Distribution | AES-256-GCM, Ed25519 signatures, BLAKE3 | Certificate chains | Secure software delivery |
+| | Cloud Backup | Multiple compression (ZSTD/LZMA2/LZ4), encryption | Deduplication, seekable | Cloud storage optimization |
+| **Full** | Enterprise Backup | + All compression, all encryption, FEC, multi-volume | Tape mode, HSM mode | Large-scale enterprise systems |
+| | Digital Preservation | All metadata types (95+), all filesystems | VCS metadata, legacy OS support | Archives, museums, libraries |
+| | Cross-Platform Migration | All filesystem metadata, all OS support | All link types, special files | Data center migrations |
+| | Maximum Compression | LZMA2, PAQ, solid compression, BWT pipeline | All legacy algorithms | Long-term archival storage |
+| | Legacy System Archive | All legacy compression (Squoze, RAD50, SIXBIT) | All legacy metadata | Retrocomputing, data recovery |
+
+### Table 8: Quick Reference - Choosing Your Conformance Level
+
+| Question | Answer | Recommended Level |
+|----------|--------|-------------------|
+| Need random access to files? | No, sequential only | **Compact** |
+| Severely resource-constrained (< 64KB RAM)? | Yes | **Embedded** |
+| Just need basic archiving? | Yes | **Minimal** |
+| Need compression for general use? | Yes | **Standard** |
+| Need encryption or digital signatures? | Yes | **Enhanced** or **Full** |
+| Need cross-platform metadata preservation? | Yes | **Enhanced** (basic) or **Full** (complete) |
+| Archiving legacy systems (VMS, z/OS, Amiga)? | Yes | **Full** |
+| Need FEC or PAR2 for data recovery? | Yes | **Full** |
+| Enterprise compliance requirements? | Yes | **Enhanced** (most) or **Full** (complete) |
+| Maximum possible compression? | Yes | **Full** (for PAQ, solid mode) |
 
 ---
 
