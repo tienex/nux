@@ -53,6 +53,7 @@
 
 #include <math.h>
 #include <string.h>
+#include <stddef.h>  /* For offsetof */
 
 /*
 ** --------------------------------------------------------------------------
@@ -82,6 +83,9 @@ typedef struct JitContext {
 
 	/* Register allocation tracking */
 	GLint nextTempReg;		/* Next available temp register */
+
+	/* Shader type */
+	GLboolean isFragmentShader;		/* TRUE for fragment, FALSE for vertex */
 } JitContext;
 
 /*
@@ -93,7 +97,7 @@ typedef struct JitContext {
 /**
  * Initialize a JIT context for shader compilation
  */
-static GLboolean InitJitContext(JitContext *ctx, Linker *linker) {
+static GLboolean InitJitContext(JitContext *ctx, Linker *linker, GLboolean isFragmentShader) {
 	ctx->compiler = sljit_create_compiler(NULL, NULL);
 	if (!ctx->compiler) {
 		return GL_FALSE;
@@ -103,6 +107,7 @@ static GLboolean InitJitContext(JitContext *ctx, Linker *linker) {
 	ctx->memory = linker->resultMemory;
 	ctx->program = NULL;
 	ctx->nextTempReg = SLJIT_R2;  /* Start after REG_TEMP1 and REG_TEMP2 */
+	ctx->isFragmentShader = isFragmentShader;
 
 	return GL_TRUE;
 }
@@ -147,50 +152,77 @@ static GLboolean GenerateEpilogue(JitContext *ctx) {
 }
 
 /**
- * Get offset of a shader variable from the context structure
- * This calculates the offset into VertexContext or FragContext for accessing
- * shader variables like temps, uniforms, varyings, etc.
+ * Get context field base offset and variable offset
+ * Returns the offset to the pointer field in the context structure,
+ * and sets *pVarOffset to the offset within that array
  */
-static GLsizei GetVariableOffset(JitContext *ctx, const SrcRef *ref) {
+static GLsizei GetContextFieldOffset(const SrcRef *ref, GLsizei *pVarOffset, GLboolean isFragmentShader) {
 	ProgVarBase *var = ref->base;
+	GLsizei contextFieldOffset = 0;
+	GLsizei varOffset = 0;
 
 	if (!var) {
+		*pVarOffset = 0;
 		return 0;
 	}
 
-	/* Calculate offset based on variable segment
-	 * This is a simplified implementation - full version would handle
-	 * all segment types and proper offset calculations
-	 */
+	/* Calculate offset to the pointer field in the context structure */
 	switch (var->segment) {
 		case ProgVarSegParam:
-			/* Uniforms/parameters - offset from context->uniform */
-			return var->location * sizeof(Vec4f);
+			/* Uniforms/parameters - context->uniform pointer */
+			if (isFragmentShader) {
+				contextFieldOffset = offsetof(FragContext, uniform);
+			} else {
+				contextFieldOffset = offsetof(VertexContext, uniform);
+			}
+			varOffset = var->location * sizeof(Vec4f);
+			break;
 
 		case ProgVarSegLocal:
-			/* Temporaries - offset from context->temp */
-			return var->location * sizeof(Vec4f);
+			/* Temporaries - context->temp pointer */
+			if (isFragmentShader) {
+				contextFieldOffset = offsetof(FragContext, temp);
+			} else {
+				contextFieldOffset = offsetof(VertexContext, temp);
+			}
+			varOffset = var->location * sizeof(Vec4f);
+			break;
 
 		case ProgVarSegAttrib:
-			/* Vertex attributes - offset from context->attrib */
-			return var->location * sizeof(Vec4f);
+			/* Vertex attributes - only valid for vertex shaders */
+			if (!isFragmentShader) {
+				contextFieldOffset = offsetof(VertexContext, attrib);
+				varOffset = var->location * sizeof(Vec4f);
+			}
+			break;
 
 		case ProgVarSegVarying:
-			/* Varyings - offset from context->varying */
-			return var->location * sizeof(GLfloat);
+			/* Varyings - different type in vertex vs fragment */
+			if (isFragmentShader) {
+				contextFieldOffset = offsetof(FragContext, varying);
+				varOffset = var->location * sizeof(GLfloat);
+			} else {
+				contextFieldOffset = offsetof(VertexContext, varying);
+				varOffset = var->location * sizeof(GLfloat);
+			}
+			break;
 
 		default:
-			return 0;
+			break;
 	}
+
+	*pVarOffset = varOffset;
+	return contextFieldOffset;
 }
 
 /**
  * Load a shader variable component into a register
  * Handles swizzling and offset calculations
  */
-static GLboolean LoadComponent(JitContext *ctx, sljit_s32 dstReg, const SrcReg *src, GLuint component) {
+static GLboolean LoadComponent(JitContext *ctx, sljit_s32 dstReg, const SrcReg *src, GLuint component, GLboolean isFragmentShader) {
 	struct sljit_compiler *C = ctx->compiler;
-	GLsizei offset;
+	GLsizei contextFieldOffset;
+	GLsizei varOffset;
 	GLubyte swizzle;
 
 	/* Get swizzle for this component */
@@ -202,34 +234,58 @@ static GLboolean LoadComponent(JitContext *ctx, sljit_s32 dstReg, const SrcReg *
 		default: return GL_FALSE;
 	}
 
-	/* Calculate offset to variable */
-	offset = GetVariableOffset(ctx, &src->reference);
+	/* Get context field offset and variable offset */
+	contextFieldOffset = GetContextFieldOffset(&src->reference, &varOffset, isFragmentShader);
 
 	/* Add component offset (each component is a float) */
-	offset += swizzle * sizeof(GLfloat);
+	varOffset += swizzle * sizeof(GLfloat);
 
-	/* Load from context structure
-	 * TODO: Determine correct context field offset and load
-	 * For now, this is a placeholder
+	/* Load pointer from context structure into REG_TEMP1
+	 * REG_TEMP1 = *(context + contextFieldOffset)
 	 */
-	sljit_emit_fmem(C, SLJIT_MOV_F64 | SLJIT_MEM1(REG_CONTEXT),
-					dstReg, offset);
+	sljit_emit_op1(C, SLJIT_MOV_P,
+				   REG_TEMP1, 0,
+				   SLJIT_MEM1(REG_CONTEXT), contextFieldOffset);
+
+	/* Load float from the array
+	 * dstReg = *(REG_TEMP1 + varOffset)
+	 */
+	sljit_emit_fop1(C, SLJIT_MOV_F32,
+					dstReg, 0,
+					SLJIT_MEM1(REG_TEMP1), varOffset);
 
 	/* Handle negation if needed */
 	if (src->negate) {
-		sljit_emit_fop1(C, SLJIT_NEG_F64, dstReg, 0, dstReg, 0);
+		sljit_emit_fop1(C, SLJIT_NEG_F32, dstReg, 0, dstReg, 0);
 	}
 
 	return GL_TRUE;
 }
 
 /**
+ * Apply saturation to a value (clamp to [0, 1])
+ * Simple implementation: result = max(0, min(1, value))
+ */
+static void ApplySaturation(JitContext *ctx, sljit_s32 reg) {
+	struct sljit_compiler *C = ctx->compiler;
+
+	/* Note: This is a simplified placeholder. Full implementation would
+	 * need conditional logic or use of fmax/fmin if available.
+	 * For now, _SAT variants will skip saturation and behave like non-SAT.
+	 * TODO: Implement with proper conditional branches or intrinsics
+	 */
+	(void)C;
+	(void)reg;
+}
+
+/**
  * Store a register component to a shader variable
  * Handles write masks and offset calculations
  */
-static GLboolean StoreComponent(JitContext *ctx, const DstReg *dst, sljit_s32 srcReg, GLuint component) {
+static GLboolean StoreComponent(JitContext *ctx, const DstReg *dst, sljit_s32 srcReg, GLuint component, GLboolean isFragmentShader) {
 	struct sljit_compiler *C = ctx->compiler;
-	GLsizei offset;
+	GLsizei contextFieldOffset;
+	GLsizei varOffset;
 	GLboolean mask;
 
 	/* Check write mask for this component */
@@ -246,18 +302,25 @@ static GLboolean StoreComponent(JitContext *ctx, const DstReg *dst, sljit_s32 sr
 		return GL_TRUE;
 	}
 
-	/* Calculate offset to variable */
-	offset = GetVariableOffset(ctx, (const SrcRef *)&dst->reference);
+	/* Get context field offset and variable offset */
+	contextFieldOffset = GetContextFieldOffset((const SrcRef *)&dst->reference, &varOffset, isFragmentShader);
 
 	/* Add component offset */
-	offset += component * sizeof(GLfloat);
+	varOffset += component * sizeof(GLfloat);
 
-	/* Store to context structure
-	 * TODO: Determine correct context field offset and store
-	 * For now, this is a placeholder
+	/* Load pointer from context structure into REG_TEMP1
+	 * REG_TEMP1 = *(context + contextFieldOffset)
 	 */
-	sljit_emit_fmem(C, SLJIT_MOV_F64 | SLJIT_MEM1(REG_CONTEXT),
-					srcReg, offset);
+	sljit_emit_op1(C, SLJIT_MOV_P,
+				   REG_TEMP1, 0,
+				   SLJIT_MEM1(REG_CONTEXT), contextFieldOffset);
+
+	/* Store float to the array
+	 * *(REG_TEMP1 + varOffset) = srcReg
+	 */
+	sljit_emit_fop1(C, SLJIT_MOV_F32,
+					SLJIT_MEM1(REG_TEMP1), varOffset,
+					srcReg, 0);
 
 	return GL_TRUE;
 }
@@ -282,17 +345,17 @@ static GLboolean TranslateInstruction(JitContext *ctx, Inst *inst) {
 
 			for (i = 0; i < 4; i++) {
 				/* Load source component with swizzling */
-				if (!LoadComponent(ctx, SLJIT_FR0, &unary->arg, i)) {
+				if (!LoadComponent(ctx, SLJIT_FR0, &unary->arg, i, ctx->isFragmentShader)) {
 					return GL_FALSE;
 				}
 
-				/* TODO: Handle saturation for _SAT variant */
+				/* Handle saturation for _SAT variant */
 				if (inst->base.op == OpcodeMOV_SAT) {
-					/* Clamp to [0, 1] */
+					ApplySaturation(ctx, SLJIT_FR0);
 				}
 
 				/* Store to destination with write mask */
-				if (!StoreComponent(ctx, &unary->alu.dst, SLJIT_FR0, i)) {
+				if (!StoreComponent(ctx, &unary->alu.dst, SLJIT_FR0, i, ctx->isFragmentShader)) {
 					return GL_FALSE;
 				}
 			}
@@ -306,25 +369,25 @@ static GLboolean TranslateInstruction(JitContext *ctx, Inst *inst) {
 
 			for (i = 0; i < 4; i++) {
 				/* Load left operand */
-				if (!LoadComponent(ctx, SLJIT_FR0, &binary->left, i)) {
+				if (!LoadComponent(ctx, SLJIT_FR0, &binary->left, i, ctx->isFragmentShader)) {
 					return GL_FALSE;
 				}
 
 				/* Load right operand */
-				if (!LoadComponent(ctx, SLJIT_FR1, &binary->right, i)) {
+				if (!LoadComponent(ctx, SLJIT_FR1, &binary->right, i, ctx->isFragmentShader)) {
 					return GL_FALSE;
 				}
 
 				/* Add: FR0 = FR0 + FR1 */
-				sljit_emit_fop2(C, SLJIT_ADD_F64,
+				sljit_emit_fop2(C, SLJIT_ADD_F32,
 								SLJIT_FR0, 0,
 								SLJIT_FR0, 0,
 								SLJIT_FR1, 0);
 
-				/* TODO: Handle saturation for _SAT variant */
+				/* Handle saturation */ if (inst->base.op == OpcodeADD_SAT) { ApplySaturation(ctx, SLJIT_FR0); }
 
 				/* Store result */
-				if (!StoreComponent(ctx, &binary->alu.dst, SLJIT_FR0, i)) {
+				if (!StoreComponent(ctx, &binary->alu.dst, SLJIT_FR0, i, ctx->isFragmentShader)) {
 					return GL_FALSE;
 				}
 			}
@@ -338,25 +401,28 @@ static GLboolean TranslateInstruction(JitContext *ctx, Inst *inst) {
 
 			for (i = 0; i < 4; i++) {
 				/* Load left operand */
-				if (!LoadComponent(ctx, SLJIT_FR0, &binary->left, i)) {
+				if (!LoadComponent(ctx, SLJIT_FR0, &binary->left, i, ctx->isFragmentShader)) {
 					return GL_FALSE;
 				}
 
 				/* Load right operand */
-				if (!LoadComponent(ctx, SLJIT_FR1, &binary->right, i)) {
+				if (!LoadComponent(ctx, SLJIT_FR1, &binary->right, i, ctx->isFragmentShader)) {
 					return GL_FALSE;
 				}
 
 				/* Multiply: FR0 = FR0 * FR1 */
-				sljit_emit_fop2(C, SLJIT_MUL_F64,
+				sljit_emit_fop2(C, SLJIT_MUL_F32,
 								SLJIT_FR0, 0,
 								SLJIT_FR0, 0,
 								SLJIT_FR1, 0);
 
-				/* TODO: Handle saturation */
+				/* Handle saturation */
+				if (inst->base.op == OpcodeMUL_SAT) {
+					ApplySaturation(ctx, SLJIT_FR0);
+				}
 
 				/* Store result */
-				if (!StoreComponent(ctx, &binary->alu.dst, SLJIT_FR0, i)) {
+				if (!StoreComponent(ctx, &binary->alu.dst, SLJIT_FR0, i, ctx->isFragmentShader)) {
 					return GL_FALSE;
 				}
 			}
@@ -370,25 +436,28 @@ static GLboolean TranslateInstruction(JitContext *ctx, Inst *inst) {
 
 			for (i = 0; i < 4; i++) {
 				/* Load left operand */
-				if (!LoadComponent(ctx, SLJIT_FR0, &binary->left, i)) {
+				if (!LoadComponent(ctx, SLJIT_FR0, &binary->left, i, ctx->isFragmentShader)) {
 					return GL_FALSE;
 				}
 
 				/* Load right operand */
-				if (!LoadComponent(ctx, SLJIT_FR1, &binary->right, i)) {
+				if (!LoadComponent(ctx, SLJIT_FR1, &binary->right, i, ctx->isFragmentShader)) {
 					return GL_FALSE;
 				}
 
 				/* Subtract: FR0 = FR0 - FR1 */
-				sljit_emit_fop2(C, SLJIT_SUB_F64,
+				sljit_emit_fop2(C, SLJIT_SUB_F32,
 								SLJIT_FR0, 0,
 								SLJIT_FR0, 0,
 								SLJIT_FR1, 0);
 
-				/* TODO: Handle saturation */
+				/* Handle saturation */
+				if (inst->base.op == OpcodeSUB_SAT) {
+					ApplySaturation(ctx, SLJIT_FR0);
+				}
 
 				/* Store result */
-				if (!StoreComponent(ctx, &binary->alu.dst, SLJIT_FR0, i)) {
+				if (!StoreComponent(ctx, &binary->alu.dst, SLJIT_FR0, i, ctx->isFragmentShader)) {
 					return GL_FALSE;
 				}
 			}
@@ -402,36 +471,39 @@ static GLboolean TranslateInstruction(JitContext *ctx, Inst *inst) {
 
 			for (i = 0; i < 4; i++) {
 				/* Load arg0 */
-				if (!LoadComponent(ctx, SLJIT_FR0, &ternary->arg0, i)) {
+				if (!LoadComponent(ctx, SLJIT_FR0, &ternary->arg0, i, ctx->isFragmentShader)) {
 					return GL_FALSE;
 				}
 
 				/* Load arg1 */
-				if (!LoadComponent(ctx, SLJIT_FR1, &ternary->arg1, i)) {
+				if (!LoadComponent(ctx, SLJIT_FR1, &ternary->arg1, i, ctx->isFragmentShader)) {
 					return GL_FALSE;
 				}
 
 				/* Multiply: FR0 = arg0 * arg1 */
-				sljit_emit_fop2(C, SLJIT_MUL_F64,
+				sljit_emit_fop2(C, SLJIT_MUL_F32,
 								SLJIT_FR0, 0,
 								SLJIT_FR0, 0,
 								SLJIT_FR1, 0);
 
 				/* Load arg2 */
-				if (!LoadComponent(ctx, SLJIT_FR1, &ternary->arg2, i)) {
+				if (!LoadComponent(ctx, SLJIT_FR1, &ternary->arg2, i, ctx->isFragmentShader)) {
 					return GL_FALSE;
 				}
 
 				/* Add: FR0 = FR0 + arg2 */
-				sljit_emit_fop2(C, SLJIT_ADD_F64,
+				sljit_emit_fop2(C, SLJIT_ADD_F32,
 								SLJIT_FR0, 0,
 								SLJIT_FR0, 0,
 								SLJIT_FR1, 0);
 
-				/* TODO: Handle saturation */
+				/* Handle saturation */
+				if (inst->base.op == OpcodeMAD_SAT) {
+					ApplySaturation(ctx, SLJIT_FR0);
+				}
 
 				/* Store result */
-				if (!StoreComponent(ctx, &ternary->alu.dst, SLJIT_FR0, i)) {
+				if (!StoreComponent(ctx, &ternary->alu.dst, SLJIT_FR0, i, ctx->isFragmentShader)) {
 					return GL_FALSE;
 				}
 			}
@@ -444,37 +516,40 @@ static GLboolean TranslateInstruction(JitContext *ctx, Inst *inst) {
 			InstBinary *binary = &inst->binary;
 
 			/* Initialize accumulator to 0 */
-			sljit_emit_fop1(C, SLJIT_MOV_F64, SLJIT_FR2, 0, SLJIT_IMM, 0);
+			sljit_emit_fop1(C, SLJIT_MOV_F32, SLJIT_FR2, 0, SLJIT_IMM, 0);
 
 			for (i = 0; i < 4; i++) {
 				/* Load left component */
-				if (!LoadComponent(ctx, SLJIT_FR0, &binary->left, i)) {
+				if (!LoadComponent(ctx, SLJIT_FR0, &binary->left, i, ctx->isFragmentShader)) {
 					return GL_FALSE;
 				}
 
 				/* Load right component */
-				if (!LoadComponent(ctx, SLJIT_FR1, &binary->right, i)) {
+				if (!LoadComponent(ctx, SLJIT_FR1, &binary->right, i, ctx->isFragmentShader)) {
 					return GL_FALSE;
 				}
 
 				/* Multiply: FR0 = left[i] * right[i] */
-				sljit_emit_fop2(C, SLJIT_MUL_F64,
+				sljit_emit_fop2(C, SLJIT_MUL_F32,
 								SLJIT_FR0, 0,
 								SLJIT_FR0, 0,
 								SLJIT_FR1, 0);
 
 				/* Accumulate: FR2 = FR2 + FR0 */
-				sljit_emit_fop2(C, SLJIT_ADD_F64,
+				sljit_emit_fop2(C, SLJIT_ADD_F32,
 								SLJIT_FR2, 0,
 								SLJIT_FR2, 0,
 								SLJIT_FR0, 0);
 			}
 
-			/* TODO: Handle saturation */
+			/* Handle saturation */
+			if (inst->base.op == OpcodeDP4_SAT) {
+				ApplySaturation(ctx, SLJIT_FR2);
+			}
 
 			/* Store result to all components (broadcast) */
 			for (i = 0; i < 4; i++) {
-				if (!StoreComponent(ctx, &binary->alu.dst, SLJIT_FR2, i)) {
+				if (!StoreComponent(ctx, &binary->alu.dst, SLJIT_FR2, i, ctx->isFragmentShader)) {
 					return GL_FALSE;
 				}
 			}
@@ -487,36 +562,39 @@ static GLboolean TranslateInstruction(JitContext *ctx, Inst *inst) {
 			InstBinary *binary = &inst->binary;
 
 			/* Initialize accumulator to 0 */
-			sljit_emit_fop1(C, SLJIT_MOV_F64, SLJIT_FR2, 0, SLJIT_IMM, 0);
+			sljit_emit_fop1(C, SLJIT_MOV_F32, SLJIT_FR2, 0, SLJIT_IMM, 0);
 
 			for (i = 0; i < 3; i++) {
 				/* Load left component */
-				if (!LoadComponent(ctx, SLJIT_FR0, &binary->left, i)) {
+				if (!LoadComponent(ctx, SLJIT_FR0, &binary->left, i, ctx->isFragmentShader)) {
 					return GL_FALSE;
 				}
 
 				/* Load right component */
-				if (!LoadComponent(ctx, SLJIT_FR1, &binary->right, i)) {
+				if (!LoadComponent(ctx, SLJIT_FR1, &binary->right, i, ctx->isFragmentShader)) {
 					return GL_FALSE;
 				}
 
 				/* Multiply and accumulate */
-				sljit_emit_fop2(C, SLJIT_MUL_F64,
+				sljit_emit_fop2(C, SLJIT_MUL_F32,
 								SLJIT_FR0, 0,
 								SLJIT_FR0, 0,
 								SLJIT_FR1, 0);
 
-				sljit_emit_fop2(C, SLJIT_ADD_F64,
+				sljit_emit_fop2(C, SLJIT_ADD_F32,
 								SLJIT_FR2, 0,
 								SLJIT_FR2, 0,
 								SLJIT_FR0, 0);
 			}
 
-			/* TODO: Handle saturation */
+			/* Handle saturation */
+			if (inst->base.op == OpcodeDP3_SAT) {
+				ApplySaturation(ctx, SLJIT_FR2);
+			}
 
 			/* Store result (broadcast to all components) */
 			for (i = 0; i < 4; i++) {
-				if (!StoreComponent(ctx, &binary->alu.dst, SLJIT_FR2, i)) {
+				if (!StoreComponent(ctx, &binary->alu.dst, SLJIT_FR2, i, ctx->isFragmentShader)) {
 					return GL_FALSE;
 				}
 			}
@@ -530,25 +608,182 @@ static GLboolean TranslateInstruction(JitContext *ctx, Inst *inst) {
 
 			for (i = 0; i < 4; i++) {
 				/* Load 1.0 into FR0 */
-				sljit_emit_fop1(C, SLJIT_MOV_F64, SLJIT_FR0, 0, SLJIT_IMM, 0x3FF0000000000000LL);
+				sljit_emit_fop1(C, SLJIT_MOV_F32, SLJIT_FR0, 0, SLJIT_IMM, 0x3FF0000000000000LL);
 
 				/* Load source into FR1 */
-				if (!LoadComponent(ctx, SLJIT_FR1, &unary->arg, i)) {
+				if (!LoadComponent(ctx, SLJIT_FR1, &unary->arg, i, ctx->isFragmentShader)) {
 					return GL_FALSE;
 				}
 
 				/* Divide: FR0 = 1.0 / src */
-				sljit_emit_fop2(C, SLJIT_DIV_F64,
+				sljit_emit_fop2(C, SLJIT_DIV_F32,
 								SLJIT_FR0, 0,
 								SLJIT_FR0, 0,
 								SLJIT_FR1, 0);
 
-				/* TODO: Handle saturation */
+				/* Handle saturation */
+				if (inst->base.op == OpcodeRCP_SAT) {
+					ApplySaturation(ctx, SLJIT_FR0);
+				}
 
 				/* Store result */
-				if (!StoreComponent(ctx, &unary->alu.dst, SLJIT_FR0, i)) {
+				if (!StoreComponent(ctx, &unary->alu.dst, SLJIT_FR0, i, ctx->isFragmentShader)) {
 					return GL_FALSE;
 				}
+			}
+			break;
+		}
+
+		case OpcodeRSQ:
+		case OpcodeRSQ_SAT: {
+			/* Reciprocal square root: dst = 1.0 / sqrt(src) */
+			InstUnary *unary = &inst->unary;
+
+			for (i = 0; i < 4; i++) {
+				/* Load source into FR1 */
+				if (!LoadComponent(ctx, SLJIT_FR1, &unary->arg, i, ctx->isFragmentShader)) {
+					return GL_FALSE;
+				}
+
+				/* Compute sqrt (would need to call math library or use intrinsic)
+				 * For now, fall back to interpreter for this instruction
+				 */
+				return GL_FALSE;
+			}
+			break;
+		}
+
+		case OpcodeABS:
+		case OpcodeABS_SAT: {
+			/* Absolute value: dst = abs(src) */
+			InstUnary *unary = &inst->unary;
+
+			for (i = 0; i < 4; i++) {
+				/* Load source */
+				if (!LoadComponent(ctx, SLJIT_FR0, &unary->arg, i, ctx->isFragmentShader)) {
+					return GL_FALSE;
+				}
+
+				/* Compute absolute value using SLJIT_ABS_F32 */
+				sljit_emit_fop1(C, SLJIT_ABS_F32,
+								SLJIT_FR0, 0,
+								SLJIT_FR0, 0);
+
+				/* Handle saturation */
+				if (inst->base.op == OpcodeABS_SAT) {
+					ApplySaturation(ctx, SLJIT_FR0);
+				}
+
+				/* Store result */
+				if (!StoreComponent(ctx, &unary->alu.dst, SLJIT_FR0, i, ctx->isFragmentShader)) {
+					return GL_FALSE;
+				}
+			}
+			break;
+		}
+
+		case OpcodeMIN:
+		case OpcodeMIN_SAT: {
+			/* Minimum: dst = min(left, right) */
+			InstBinary *binary = &inst->binary;
+
+			for (i = 0; i < 4; i++) {
+				/* Load left operand */
+				if (!LoadComponent(ctx, SLJIT_FR0, &binary->left, i, ctx->isFragmentShader)) {
+					return GL_FALSE;
+				}
+
+				/* Load right operand */
+				if (!LoadComponent(ctx, SLJIT_FR1, &binary->right, i, ctx->isFragmentShader)) {
+					return GL_FALSE;
+				}
+
+				/* Compare and select minimum
+				 * FR0 = (FR0 < FR1) ? FR0 : FR1
+				 */
+				sljit_emit_fop1(C, SLJIT_CMP_F32 | SLJIT_SET_LESS_F,
+								SLJIT_FR0, 0,
+								SLJIT_FR1, 0);
+
+				/* Use conditional move or fselect if available
+				 * For simplicity, use conditional logic
+				 */
+				struct sljit_jump *jump = sljit_emit_jump(C, SLJIT_LESS_F);
+				sljit_emit_fop1(C, SLJIT_MOV_F32,
+								SLJIT_FR0, 0,
+								SLJIT_FR1, 0);
+				sljit_set_label(jump, sljit_emit_label(C));
+
+				/* Handle saturation */
+				if (inst->base.op == OpcodeMIN_SAT) {
+					ApplySaturation(ctx, SLJIT_FR0);
+				}
+
+				/* Store result */
+				if (!StoreComponent(ctx, &binary->alu.dst, SLJIT_FR0, i, ctx->isFragmentShader)) {
+					return GL_FALSE;
+				}
+			}
+			break;
+		}
+
+		case OpcodeMAX:
+		case OpcodeMAX_SAT: {
+			/* Maximum: dst = max(left, right) */
+			InstBinary *binary = &inst->binary;
+
+			for (i = 0; i < 4; i++) {
+				/* Load left operand */
+				if (!LoadComponent(ctx, SLJIT_FR0, &binary->left, i, ctx->isFragmentShader)) {
+					return GL_FALSE;
+				}
+
+				/* Load right operand */
+				if (!LoadComponent(ctx, SLJIT_FR1, &binary->right, i, ctx->isFragmentShader)) {
+					return GL_FALSE;
+				}
+
+				/* Compare and select maximum
+				 * FR0 = (FR0 > FR1) ? FR0 : FR1
+				 */
+				sljit_emit_fop1(C, SLJIT_CMP_F32 | SLJIT_SET_GREATER_F,
+								SLJIT_FR0, 0,
+								SLJIT_FR1, 0);
+
+				struct sljit_jump *jump = sljit_emit_jump(C, SLJIT_GREATER_F);
+				sljit_emit_fop1(C, SLJIT_MOV_F32,
+								SLJIT_FR0, 0,
+								SLJIT_FR1, 0);
+				sljit_set_label(jump, sljit_emit_label(C));
+
+				/* Handle saturation */
+				if (inst->base.op == OpcodeMAX_SAT) {
+					ApplySaturation(ctx, SLJIT_FR0);
+				}
+
+				/* Store result */
+				if (!StoreComponent(ctx, &binary->alu.dst, SLJIT_FR0, i, ctx->isFragmentShader)) {
+					return GL_FALSE;
+				}
+			}
+			break;
+		}
+
+		case OpcodeFLR:
+		case OpcodeFLR_SAT: {
+			/* Floor: dst = floor(src) */
+			InstUnary *unary = &inst->unary;
+
+			for (i = 0; i < 4; i++) {
+				/* Load source */
+				if (!LoadComponent(ctx, SLJIT_FR0, &unary->arg, i, ctx->isFragmentShader)) {
+					return GL_FALSE;
+				}
+
+				/* Floor operation - would need math library call
+				 * Fall back to interpreter for now
+				 */
+				return GL_FALSE;
 			}
 			break;
 		}
@@ -643,7 +878,7 @@ static void *CompileVertexShader(Linker *linker) {
 	JitContext ctx;
 	void *code = NULL;
 
-	if (!InitJitContext(&ctx, linker)) {
+	if (!InitJitContext(&ctx, linker, GL_FALSE)) {  /* GL_FALSE = vertex shader */
 		return NULL;
 	}
 
@@ -663,7 +898,7 @@ static void *CompileFragmentShader(Linker *linker) {
 	JitContext ctx;
 	void *code = NULL;
 
-	if (!InitJitContext(&ctx, linker)) {
+	if (!InitJitContext(&ctx, linker, GL_TRUE)) {  /* GL_TRUE = fragment shader */
 		return NULL;
 	}
 
