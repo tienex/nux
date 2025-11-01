@@ -592,8 +592,9 @@ Bit 19:    Has short filename (8.3, name~n, etc.)
 Bit 20:    Has HFS-encoded filename (name#hex)
 Bit 21:    Text file (detected or specified)
 Bit 22:    Binary file (detected or specified)
-Bit 23:    Reserved
-Bit 24-31: Platform-specific
+Bit 23:    Sparse file (has sparse regions)
+Bit 24:    Delta-compressed (stored as delta)
+Bit 25-31: Platform-specific
 ```
 
 ### 5.3 Variable-Length UTF-8 Path
@@ -719,6 +720,8 @@ typedef struct _ZOO64_METADATA_CHUNK {
 0x0042: Short filename metadata (8.3, name~n formats)
 0x0043: HFS filename metadata (HFS character encoding)
 0x0044: File type detection metadata (text/binary/MIME)
+0x0045: Sparse file metadata (hole map)
+0x0046: Delta revision metadata (base + delta)
 ```
 
 ### 6.3 Universal ACL Format
@@ -4594,6 +4597,224 @@ File: data.bin
 - Content-type preservation
 - MIME type for HTTP serving
 - Editor mode selection
+
+### 6.65 Sparse File Metadata (0x0045)
+
+Efficiently stores sparse files by tracking hole regions (unallocated/zero-filled blocks).
+
+```c
+typedef struct _ZOO64_SPARSE_ATTR {
+  UINT64  LogicalSize;        // Full logical file size
+  UINT64  PhysicalSize;       // Actual data size (excluding holes)
+  UINT32  HoleCount;          // Number of hole regions
+  UINT32  Flags;              // Sparse file flags
+  UINT32  BlockSize;          // Block size for hole alignment
+  UINT32  Reserved;           // Reserved
+  // Followed by HoleCount * sizeof(SPARSE_HOLE) structures
+} __attribute__((packed)) ZOO64_SPARSE_ATTR;
+
+typedef struct _SPARSE_HOLE {
+  UINT64  Offset;             // Offset of hole start
+  UINT64  Length;             // Length of hole
+} __attribute__((packed)) SPARSE_HOLE;
+```
+
+**Sparse File Flags**:
+```
+0x00000001: SYSTEM_SPARSE      // System-level sparse file
+0x00000002: EXPLICIT_HOLES     // Explicitly set holes (not just zeros)
+0x00000004: TRIM_SUPPORTED     // TRIM/UNMAP supported
+0x00000008: THIN_PROVISIONED   // Thin-provisioned storage
+0x00000010: DEDUPLICATED       // Deduplicated blocks
+```
+
+**Storage Format**:
+- Data stored only for non-hole regions
+- Holes represented in metadata, not stored
+- On extraction: Create holes using SEEK_HOLE/SEEK_DATA or fallocate()
+
+**Example**:
+```
+File: database.img (10 GB logical)
+  Holes:
+    [0x00000000-0x40000000]    (1 GB hole)
+    [0x80000000-0xC0000000]    (1 GB hole)
+  Data:
+    [0x40000000-0x80000000]    (1 GB data)
+    [0xC0000000-0x280000000]   (7 GB data)
+
+  LogicalSize: 10 GB
+  PhysicalSize: 8 GB
+  HoleCount: 2
+  Compression ratio: 20% (2 GB saved)
+```
+
+**Use Cases**:
+- Virtual machine disk images (VMDK, VDI, QCOW2)
+- Database files with sparse tables
+- Large log files with gaps
+- Disk dump images
+- Sparse matrices
+
+**Extraction Strategies**:
+1. **POSIX systems**: Use `fallocate(FALLOC_FL_PUNCH_HOLE)` or `lseek(SEEK_HOLE)`
+2. **Windows**: Use `DeviceIoControl(FSCTL_SET_SPARSE)` + `FSCTL_SET_ZERO_DATA`
+3. **Fallback**: Write zeros to hole regions (inefficient)
+
+**Compression Interaction**:
+- Compress only data regions, not holes
+- Holes remain holes after decompression
+- Significant space savings for sparse files
+
+### 6.66 Delta Revision Metadata (0x0046)
+
+Stores file as delta (difference) from base revision for efficient version storage.
+
+```c
+typedef struct _ZOO64_DELTA_ATTR {
+  UINT64  BaseRevisionID;     // ID of base revision
+  UINT32  DeltaFormat;        // Delta encoding format
+  UINT32  Flags;              // Delta flags
+  UINT64  BaseSize;           // Size of base file
+  UINT64  DeltaSize;          // Size of delta data
+  UINT64  TargetSize;         // Size of reconstructed file
+  UINT32  BaseHashLength;     // Length of base file hash
+  UINT32  TargetHashLength;   // Length of target file hash
+  // Followed by:
+  //   [BaseHashLength bytes: base file hash]
+  //   [TargetHashLength bytes: target file hash]
+  //   [Delta data]
+} __attribute__((packed)) ZOO64_DELTA_ATTR;
+```
+
+**Delta Formats**:
+```
+0: NONE                 // Not deltified
+1: XDELTA3              // xdelta3 algorithm
+2: VCDIFF               // RFC 3284 VCDIFF format
+3: BSDIFF               // bsdiff/bspatch
+4: ZDELTA               // zdelta format
+5: RSYNC                // rsync rolling checksum
+6: GIT_DELTA            // Git-style delta
+7: FOSSIL_DELTA         // Fossil delta compression
+```
+
+**Delta Flags**:
+```
+0x00000001: BASE_IN_ARCHIVE    // Base revision in same archive
+0x00000002: BASE_EXTERNAL      // Base revision external
+0x00000004: BIDIRECTIONAL      // Can apply forward/reverse
+0x00000008: COMPRESSED_DELTA   // Delta is compressed
+0x00000010: CHAIN_ALLOWED      // Allow delta chains
+0x00000020: VERIFY_HASH        // Verify base/target hashes
+```
+
+**Delta Storage Strategies**:
+
+1. **Full + Deltas** (Git-like):
+   ```
+   Version 1: Full file (100 KB)
+   Version 2: Delta from v1 (5 KB)
+   Version 3: Delta from v2 (3 KB)
+   Version 4: Delta from v3 (4 KB)
+   ```
+
+2. **Snapshot + Deltas** (Periodic full):
+   ```
+   Version 1: Full (100 KB)     ← Snapshot
+   Version 2: Delta from v1 (5 KB)
+   Version 3: Delta from v1 (8 KB)
+   Version 4: Delta from v1 (6 KB)
+   Version 5: Full (120 KB)     ← Snapshot
+   Version 6: Delta from v5 (4 KB)
+   ```
+
+3. **Delta Chains** (Most space-efficient):
+   ```
+   V1 (full) ← V2 (Δ from V1) ← V3 (Δ from V2) ← V4 (Δ from V3)
+
+   To reconstruct V4:
+   1. Extract V1 (full)
+   2. Apply V2 delta → get V2
+   3. Apply V3 delta → get V3
+   4. Apply V4 delta → get V4
+   ```
+
+**Base Revision ID**:
+- Hash-based: SHA-256 of base file
+- Sequence-based: Monotonic revision number
+- UUID-based: Universal unique identifier
+
+**Compression Ratio Examples**:
+```
+Source code changes (C file):
+  Full file: 45 KB
+  Delta: 1.2 KB
+  Ratio: 97.3% savings
+
+Binary executable:
+  Full file: 8 MB
+  Delta: 250 KB
+  Ratio: 96.9% savings
+
+Document (small edit):
+  Full file: 2 MB
+  Delta: 15 KB
+  Ratio: 99.2% savings
+```
+
+**Use Cases**:
+- Version control systems (Git, SVN, Mercurial)
+- Incremental backups
+- Software updates/patches
+- Document revision history
+- VM snapshot chains
+
+**Extraction Process**:
+1. Locate base revision (by ID/hash)
+2. Extract/decompress base file
+3. Apply delta using specified format
+4. Verify target hash (if VERIFY_HASH set)
+5. Output reconstructed file
+
+**Delta Chain Limits**:
+- Recommended: Max 10-20 deltas in chain
+- Reason: Each delta adds extraction overhead
+- Solution: Periodic snapshots (full files)
+
+**Optimization Tips**:
+1. **Similar files**: Delta works best for similar content
+2. **Block alignment**: Align data for better delta compression
+3. **Chunk size**: Optimize for typical change patterns
+4. **Hash verification**: Detect corruption early
+5. **Snapshot frequency**: Balance space vs extraction speed
+
+**Example Metadata**:
+```c
+// Version 2 stored as delta from Version 1
+DELTA_ATTR {
+  BaseRevisionID: 0xABCDEF1234567890  // V1 hash
+  DeltaFormat: XDELTA3
+  Flags: BASE_IN_ARCHIVE | VERIFY_HASH
+  BaseSize: 102400              // 100 KB
+  DeltaSize: 5120               // 5 KB
+  TargetSize: 104448            // 102 KB
+  BaseHash: [SHA256 of V1]
+  TargetHash: [SHA256 of V2]
+}
+```
+
+When extracting Version 2:
+1. Find base (V1) using BaseRevisionID
+2. Extract V1 (100 KB)
+3. Verify V1 hash matches BaseHash
+4. Apply xdelta3 patch (5 KB delta)
+5. Verify result hash matches TargetHash
+6. Output V2 (102 KB)
+
+Total storage: 100 KB (V1 full) + 5 KB (V2 delta) = 105 KB
+Without delta: 100 KB + 102 KB = 202 KB
+Space savings: 48%
 
 ## 6a. Encryption Support
 
