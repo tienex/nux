@@ -1791,11 +1791,16 @@ typedef struct _PRINCIPAL_ID {
 0x0016: Plan 9 ACLs (capability-based)
 0x0017: BeOS/Haiku ACLs (attribute-based)
 0x0018: VMware VMFS ACLs (vSphere)
+0x0019: DCE DFS ACLs (Distributed Computing Environment)
+0x001A: GFS ACLs (Global File System, cluster-aware)
+0x001B: DFS ACLs (Distributed File System, Microsoft)
 ```
 
 **Design Rationale**: Storing the source system allows optimized round-trip conversion while the universal format enables cross-platform ACL translation.
 
 **Note**: Many Unix variants (Solaris, AIX, IRIX) use NFSv4 or POSIX.1e as base, with extensions stored in SourceSpecific fields.
+
+**DCE DFS Integration**: DCE DFS ACLs (type 0x0041 metadata) can be represented in the universal ACL format using source system 0x0019. The DCE-specific fields (file ID, replication info, epoch) are stored in SourceSpecific fields or as separate 0x0041 metadata when full DCE DFS context is required. For simple ACL-only representation, use the universal format; for complete DCE DFS metadata preservation, use 0x0041.
 
 #### 6.3.3 Universal ACE Types
 
@@ -7849,6 +7854,621 @@ Supported window sizes (power of 2):
 
 Supported block sizes (power of 2):
 - 4K, 8K, 16K, 32K, 64K, 128K (default), 256K, 512K, 1M, 2M, 4M
+
+### 12.5 Custom Compression Implementation (NT/UEFI Style)
+
+Complete implementation of the BWT+MTF+RAD50RLE+LZ78+Range pipeline:
+
+```c
+//
+// Zoo64 Custom Compression Pipeline Implementation
+// Copyright (c) 2025. All rights reserved.
+//
+// SPDX-License-Identifier: BSD-3-Clause
+//
+
+#include "zoo64_compress.h"
+
+//
+// Burrows-Wheeler Transform
+// Groups similar characters together for better compression
+//
+BOOLEAN
+BwtTransform (
+  IN     CONST UINT8   *Input,
+  IN     UINTN         InputSize,
+  OUT    UINT8         *Output,
+  OUT    UINTN         *PrimaryIndex
+  )
+{
+  UINTN   *SuffixArray;
+  UINTN   Index;
+
+  //
+  // Allocate suffix array
+  //
+  SuffixArray = AllocatePool (InputSize * sizeof(UINTN));
+  if (SuffixArray == NULL) {
+    return FALSE;
+  }
+
+  //
+  // Build suffix array using radix sort
+  //
+  if (!BuildSuffixArray (Input, InputSize, SuffixArray)) {
+    FreePool (SuffixArray);
+    return FALSE;
+  }
+
+  //
+  // Generate BWT output: last character of each rotation
+  //
+  for (Index = 0; Index < InputSize; Index++) {
+    if (SuffixArray[Index] == 0) {
+      *PrimaryIndex = Index;
+      Output[Index] = Input[InputSize - 1];
+    } else {
+      Output[Index] = Input[SuffixArray[Index] - 1];
+    }
+  }
+
+  FreePool (SuffixArray);
+  return TRUE;
+}
+
+//
+// Move-To-Front Transform
+// Converts repeated characters to small values
+//
+BOOLEAN
+MtfTransform (
+  IN     CONST UINT8   *Input,
+  IN     UINTN         InputSize,
+  OUT    UINT8         *Output
+  )
+{
+  UINT8   List[256];
+  UINTN   Index;
+  UINTN   Position;
+  UINT8   Value;
+  UINT8   Temp;
+
+  //
+  // Initialize list with 0-255
+  //
+  for (Index = 0; Index < 256; Index++) {
+    List[Index] = (UINT8)Index;
+  }
+
+  //
+  // Process each input byte
+  //
+  for (Index = 0; Index < InputSize; Index++) {
+    Value = Input[Index];
+
+    //
+    // Find position in list
+    //
+    for (Position = 0; Position < 256; Position++) {
+      if (List[Position] == Value) {
+        Output[Index] = (UINT8)Position;
+        break;
+      }
+    }
+
+    //
+    // Move to front
+    //
+    if (Position > 0) {
+      Temp = List[Position];
+      CopyMem (&List[1], &List[0], Position);
+      List[0] = Temp;
+    }
+  }
+
+  return TRUE;
+}
+
+//
+// RAD-50 Encoding with RLE, LEB128, and Bit Transposition
+//
+BOOLEAN
+Rad50RleEncode (
+  IN     CONST UINT8   *Input,
+  IN     UINTN         InputSize,
+  OUT    UINT8         *Output,
+  OUT    UINTN         *OutputSize
+  )
+{
+  UINTN    ReadPos;
+  UINTN    WritePos;
+  UINT8    RunValue;
+  UINTN    RunLength;
+
+  ReadPos = 0;
+  WritePos = 0;
+
+  while (ReadPos < InputSize) {
+    //
+    // Try to encode RAD-50 triplet (uppercase letters, digits, space, $, .)
+    //
+    if (ReadPos + 2 < InputSize &&
+        IsRad50Char (Input[ReadPos]) &&
+        IsRad50Char (Input[ReadPos + 1]) &&
+        IsRad50Char (Input[ReadPos + 2])) {
+
+      UINT16 Rad50Value;
+
+      //
+      // Encode three characters as 16-bit RAD-50 value
+      // Value = C1*1600 + C2*40 + C3 (where Cn is character code)
+      //
+      Rad50Value = (CharToRad50 (Input[ReadPos]) * 1600) +
+                   (CharToRad50 (Input[ReadPos + 1]) * 40) +
+                   CharToRad50 (Input[ReadPos + 2]);
+
+      //
+      // Write RAD-50 token
+      //
+      Output[WritePos++] = 0x01;  // RAD-50 marker
+      Output[WritePos++] = (UINT8)(Rad50Value >> 8);
+      Output[WritePos++] = (UINT8)(Rad50Value & 0xFF);
+
+      ReadPos += 3;
+    } else {
+      //
+      // Detect runs for RLE
+      //
+      RunValue = Input[ReadPos];
+      RunLength = 1;
+
+      while (ReadPos + RunLength < InputSize &&
+             Input[ReadPos + RunLength] == RunValue &&
+             RunLength < 127) {
+        RunLength++;
+      }
+
+      if (RunLength >= 3) {
+        //
+        // Encode as run
+        //
+        Output[WritePos++] = 0x02;  // RLE marker
+        Output[WritePos++] = RunValue;
+        WritePos += EncodeLeb128 (RunLength, &Output[WritePos]);
+      } else {
+        //
+        // Encode as literal
+        //
+        Output[WritePos++] = 0x00;  // Literal marker
+        Output[WritePos++] = RunValue;
+      }
+
+      ReadPos += RunLength;
+    }
+  }
+
+  //
+  // Apply bit transposition for better compression
+  //
+  BitTranspose (Output, WritePos);
+
+  *OutputSize = WritePos;
+  return TRUE;
+}
+
+//
+// LEB128 (Little Endian Base 128) Encoding
+//
+UINTN
+EncodeLeb128 (
+  IN     UINTN    Value,
+  OUT    UINT8    *Output
+  )
+{
+  UINTN  ByteCount;
+
+  ByteCount = 0;
+
+  do {
+    UINT8 Byte;
+
+    Byte = (UINT8)(Value & 0x7F);
+    Value >>= 7;
+
+    if (Value != 0) {
+      Byte |= 0x80;  // More bytes follow
+    }
+
+    Output[ByteCount++] = Byte;
+  } while (Value != 0);
+
+  return ByteCount;
+}
+
+//
+// Windowed LZ78 Dictionary Compression
+//
+BOOLEAN
+Lz78Compress (
+  IN     CONST UINT8   *Input,
+  IN     UINTN         InputSize,
+  OUT    UINT8         *Output,
+  OUT    UINTN         *OutputSize,
+  IN     UINT32        WindowSize
+  )
+{
+  LZ78_DICT    *Dictionary;
+  UINTN        ReadPos;
+  UINTN        WritePos;
+  UINT32       PhraseIndex;
+  UINT32       MatchLength;
+
+  //
+  // Allocate dictionary
+  //
+  Dictionary = Lz78CreateDictionary (WindowSize);
+  if (Dictionary == NULL) {
+    return FALSE;
+  }
+
+  ReadPos = 0;
+  WritePos = 0;
+
+  while (ReadPos < InputSize) {
+    //
+    // Find longest match in dictionary
+    //
+    PhraseIndex = Lz78FindMatch (
+                    Dictionary,
+                    &Input[ReadPos],
+                    InputSize - ReadPos,
+                    &MatchLength
+                    );
+
+    //
+    // Output: (phrase_index, next_char)
+    //
+    WritePos += EncodeLeb128 (PhraseIndex, &Output[WritePos]);
+
+    if (ReadPos + MatchLength < InputSize) {
+      Output[WritePos++] = Input[ReadPos + MatchLength];
+
+      //
+      // Add new phrase to dictionary
+      //
+      Lz78AddPhrase (Dictionary, PhraseIndex, Input[ReadPos + MatchLength]);
+    }
+
+    ReadPos += MatchLength + 1;
+  }
+
+  Lz78FreeDictionary (Dictionary);
+  *OutputSize = WritePos;
+  return TRUE;
+}
+
+//
+// Range Encoding (Adaptive Arithmetic Coding)
+//
+BOOLEAN
+RangeEncode (
+  IN     CONST UINT8   *Input,
+  IN     UINTN         InputSize,
+  OUT    UINT8         *Output,
+  OUT    UINTN         *OutputSize
+  )
+{
+  UINT64   Low;
+  UINT64   High;
+  UINT32   Frequency[256];
+  UINT32   CumulativeFreq[257];
+  UINTN    Index;
+  UINTN    WritePos;
+
+  //
+  // Initialize frequency table
+  //
+  ZeroMem (Frequency, sizeof(Frequency));
+
+  //
+  // Count frequencies
+  //
+  for (Index = 0; Index < InputSize; Index++) {
+    Frequency[Input[Index]]++;
+  }
+
+  //
+  // Build cumulative frequency table
+  //
+  CumulativeFreq[0] = 0;
+  for (Index = 0; Index < 256; Index++) {
+    CumulativeFreq[Index + 1] = CumulativeFreq[Index] + Frequency[Index];
+  }
+
+  //
+  // Initialize range
+  //
+  Low = 0;
+  High = 0xFFFFFFFFFFFFFFFFULL;
+  WritePos = 0;
+
+  //
+  // Encode each symbol
+  //
+  for (Index = 0; Index < InputSize; Index++) {
+    UINT8  Symbol;
+    UINT64 Range;
+    UINT64 Total;
+
+    Symbol = Input[Index];
+    Range = High - Low + 1;
+    Total = CumulativeFreq[256];
+
+    //
+    // Narrow range based on symbol frequency
+    //
+    High = Low + (Range * CumulativeFreq[Symbol + 1]) / Total - 1;
+    Low = Low + (Range * CumulativeFreq[Symbol]) / Total;
+
+    //
+    // Output bytes when range narrows
+    //
+    while ((High ^ Low) < 0x100000000ULL) {
+      Output[WritePos++] = (UINT8)(Low >> 56);
+      Low <<= 8;
+      High = (High << 8) | 0xFF;
+    }
+  }
+
+  //
+  // Output final range
+  //
+  while (WritePos < 8) {
+    Output[WritePos++] = (UINT8)(Low >> 56);
+    Low <<= 8;
+  }
+
+  *OutputSize = WritePos;
+  return TRUE;
+}
+
+//
+// Complete Pipeline
+//
+BOOLEAN
+Zoo64Compress (
+  IN     CONST UINT8   *Input,
+  IN     UINTN         InputSize,
+  OUT    UINT8         *Output,
+  OUT    UINTN         *OutputSize,
+  IN     UINT32        WindowSize,
+  IN     UINT32        CompressionLevel
+  )
+{
+  UINT8   *TempBuffer1;
+  UINT8   *TempBuffer2;
+  UINTN   TempSize;
+  UINTN   PrimaryIndex;
+  BOOLEAN Status;
+
+  //
+  // Allocate temporary buffers
+  //
+  TempBuffer1 = AllocatePool (InputSize * 2);
+  TempBuffer2 = AllocatePool (InputSize * 2);
+
+  if (TempBuffer1 == NULL || TempBuffer2 == NULL) {
+    if (TempBuffer1 != NULL) FreePool (TempBuffer1);
+    if (TempBuffer2 != NULL) FreePool (TempBuffer2);
+    return FALSE;
+  }
+
+  //
+  // Stage 1: Burrows-Wheeler Transform
+  //
+  Status = BwtTransform (Input, InputSize, TempBuffer1, &PrimaryIndex);
+  if (!Status) goto Cleanup;
+
+  //
+  // Stage 2: Move-To-Front
+  //
+  Status = MtfTransform (TempBuffer1, InputSize, TempBuffer2);
+  if (!Status) goto Cleanup;
+
+  //
+  // Stage 3: RAD50RLE (RAD-50 + RLE + LEB128 + Bit Transpose)
+  //
+  Status = Rad50RleEncode (TempBuffer2, InputSize, TempBuffer1, &TempSize);
+  if (!Status) goto Cleanup;
+
+  //
+  // Stage 4: Windowed LZ78
+  //
+  Status = Lz78Compress (TempBuffer1, TempSize, TempBuffer2, &TempSize, WindowSize);
+  if (!Status) goto Cleanup;
+
+  //
+  // Stage 5: Range Encoding
+  //
+  Status = RangeEncode (TempBuffer2, TempSize, Output, OutputSize);
+  if (!Status) goto Cleanup;
+
+  //
+  // Store primary index for BWT inverse
+  //
+  *(UINTN*)Output = PrimaryIndex;
+  (*OutputSize) += sizeof(UINTN);
+
+Cleanup:
+  FreePool (TempBuffer1);
+  FreePool (TempBuffer2);
+
+  return Status;
+}
+```
+
+## 12.6 B# Tree Filesystem Layout [OPTIONAL]
+
+For archives that need to be mounted as filesystems, Zoo64 supports an optimized B# tree hierarchy instead of storing full paths in each file entry.
+
+### 12.6.1 B# Tree Overview
+
+B# trees (B-sharp trees) are a variant of B+ trees optimized for:
+- Fast lookups (O(log n))
+- Efficient iteration (sequential access)
+- Cache-friendly node layout
+- Prefix compression for paths
+- Copy-on-write friendly (for FUSE mounts)
+
+```c
+//
+// B# Tree filesystem layout mode
+// When archive flag bit 20 is set (B# Tree Mode)
+//
+typedef struct _ZOO64_BSHARP_HEADER {
+  UINT64  Magic;              // 0x4253484152502020 ("BSHARP  ")
+  UINT32  Version;            // B# tree format version
+  UINT32  NodeSize;           // Node size in bytes (power of 2, typically 4KB)
+  UINT32  MaxDegree;          // Maximum node degree
+  UINT32  TreeHeight;         // Height of tree
+  UINT64  RootNodeOffset;     // Offset to root node
+  UINT64  NodeCount;          // Total number of nodes
+  UINT32  Flags;              // B# tree flags
+  UINT32  Reserved;
+} ZOO64_BSHARP_HEADER;
+
+//
+// B# Tree Node (Internal or Leaf)
+//
+typedef struct _ZOO64_BSHARP_NODE {
+  UINT32  Magic;              // 0x42534E4F ("BSNO")
+  UINT16  NodeType;           // 0=Internal, 1=Leaf
+  UINT16  EntryCount;         // Number of entries in node
+  UINT64  ParentOffset;       // Offset to parent node (0 for root)
+  UINT64  PrevLeafOffset;     // Previous leaf (0 if not leaf or first)
+  UINT64  NextLeafOffset;     // Next leaf (0 if not leaf or last)
+
+  //
+  // Followed by entries based on node type
+  //
+} ZOO64_BSHARP_NODE;
+
+//
+// Internal Node Entry (points to child nodes)
+//
+typedef struct _ZOO64_BSHARP_INTERNAL_ENTRY {
+  UINT16  KeyLength;          // Length of separator key
+  UINT16  PrefixLength;       // Common prefix length (for compression)
+  UINT64  ChildOffset;        // Offset to child node
+
+  // Followed by:
+  //   [PrefixLength bytes: common prefix (shared with siblings)]
+  //   [KeyLength bytes: unique suffix]
+} ZOO64_BSHARP_INTERNAL_ENTRY;
+
+//
+// Leaf Node Entry (points to file data)
+//
+typedef struct _ZOO64_BSHARP_LEAF_ENTRY {
+  UINT16  NameLength;         // Length of filename component
+  UINT16  PrefixLength;       // Common prefix with siblings
+  UINT32  FileIndex;          // Index into file table
+  UINT64  FileOffset;         // Offset to file data
+  UINT64  FileSize;           // File size
+  UINT32  Attributes;         // File attributes
+  UINT32  Reserved;
+
+  // Followed by:
+  //   [PrefixLength bytes: common prefix]
+  //   [NameLength bytes: unique suffix]
+} ZOO64_BSHARP_LEAF_ENTRY;
+```
+
+### 12.6.2 Path-Free File Entries
+
+When B# tree mode is enabled, file entries no longer store paths:
+
+```c
+//
+// Simplified file entry for B# tree mode
+// Path is stored in B# tree, referenced by FileIndex
+//
+typedef struct _ZOO64_FILE_ENTRY_BSHARP {
+  UINT64  Magic;              // 0x46494C45454E5452 ("FILEENTR")
+  UINT32  FileIndex;          // Index in B# tree
+  UINT32  Flags;              // File flags
+
+  // Size fields
+  UINT64  UncompressedSize;
+  UINT64  CompressedSize;
+
+  // Timestamps
+  UINT64  BirthTime;
+  UINT64  ModificationTime;
+  UINT64  AccessTime;
+  UINT64  ChangeTime;
+
+  // Checksums
+  UINT32  CRC32;
+  UINT64  SHA256[4];
+
+  // Metadata
+  UINT64  MetadataOffset;
+  UINT32  MetadataSize;
+
+  // Attributes
+  UINT32  UID;
+  UINT32  GID;
+  UINT32  Mode;
+  UINT32  Attributes;
+
+  // NO path field - path is in B# tree
+} ZOO64_FILE_ENTRY_BSHARP;
+```
+
+### 12.6.3 Benefits of B# Tree Mode
+
+**Space Efficiency**:
+- Path prefix compression reduces redundancy
+- Common directory components stored once
+- 30-50% space savings for deep directory trees
+
+**Performance**:
+- O(log n) lookups vs O(n) linear scan
+- Cache-friendly node layout (4KB nodes match page size)
+- Sequential iteration for directory listings
+- Fast prefix searches (all files in directory)
+
+**Filesystem Mounting**:
+- Direct mapping to FUSE operations
+- No path parsing required
+- Efficient readdir() implementation
+- Natural tree traversal
+
+**Example Space Savings**:
+```
+Traditional (with full paths):
+  /usr/local/share/doc/project/file1.txt  (37 bytes)
+  /usr/local/share/doc/project/file2.txt  (37 bytes)
+  /usr/local/share/doc/project/file3.txt  (37 bytes)
+  Total: 111 bytes for paths
+
+B# Tree (with prefix compression):
+  Root → usr → local → share → doc → project
+    ├─ file1.txt (9 bytes)
+    ├─ file2.txt (9 bytes)
+    └─ file3.txt (9 bytes)
+  Total: ~45 bytes (including tree structure)
+  Savings: 60%
+```
+
+### 12.6.4 Compatibility
+
+**Quick Directory**: Still present, references FileIndex
+**Central Directory**: Still present, uses FileIndex as key
+**End of Archive**: Unchanged
+
+B# tree is an **alternative representation**, not a replacement. Archives can be converted between path-based and B# tree modes without data loss.
 
 ## 13. COM Component Interface
 
