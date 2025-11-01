@@ -19,10 +19,33 @@ SRCS = sources/ntrtl/memory.c \
        sources/ntrtl/tree.c \
        sources/ntrtl/utility.c
 
+# Framebuffer library sources
+SRCS += libs/framebuffer/sources/dither.c \
+        libs/framebuffer/sources/pixelformat.c \
+        libs/framebuffer/sources/bidi.c \
+        libs/framebuffer/sources/font.c \
+        libs/framebuffer/sources/text.c \
+        libs/framebuffer/sources/palette.c \
+        libs/framebuffer/sources/factory.c \
+        libs/framebuffer/sources/backends/generic.c \
+        libs/framebuffer/sources/backends/hercules.c \
+        libs/framebuffer/sources/backends/vga16.c \
+        libs/framebuffer/sources/backends/vesa_linear.c \
+        libs/framebuffer/sources/backends/vesa_banked.c \
+        libs/framebuffer/sources/backends/uefi_gop.c \
+        libs/framebuffer/sources/backends/apple_efi.c \
+        libs/framebuffer/sources/fonts/8x8.c \
+        libs/framebuffer/sources/fonts/8x14.c \
+        libs/framebuffer/sources/fonts/8x16.c \
+        libs/framebuffer/sources/fonts/scrawl.c
+
 # Include directories
 CFLAGS += -I$(SRCDIR)/include
+CFLAGS += -I$(SRCDIR)/libs/framebuffer/include
 
 # Headers to install
 INCDIR=include/ananke
 INCS += $(wildcard include/ananke/*.h)
 INCS += $(wildcard include/ananke/ntrtl/*.h)
+INCS += $(wildcard libs/framebuffer/include/ananke/*.h)
+INCS += $(wildcard libs/framebuffer/include/ananke/framebuffer/*.h)
