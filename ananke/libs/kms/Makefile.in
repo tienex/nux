@@ -1,0 +1,21 @@
+LIBDIR=kms
+LIBRARY=kms
+
+# Source files
+SRCS  = sources/kms_device.c
+SRCS += sources/kms_renderer.c
+SRCS += sources/kms_api.c
+
+# Include directories
+CFLAGS += -I$(SRCDIR)/include
+CFLAGS += -I$(TOPDIR)/ananke/include
+CFLAGS += -I$(TOPDIR)/ananke/libs/drm/include
+CFLAGS += -I$(TOPDIR)/ananke/libs/framebuffer/include
+CFLAGS += -I$(TOPDIR)/ananke/contrib/libs/gles20/public
+
+# Headers to install
+INCDIR=ananke
+INCS += $(wildcard include/ananke/*.h)
+INCS += $(wildcard include/ananke/kms/*.h)
+
+include $(TOPDIR)/build/Rules.mk
