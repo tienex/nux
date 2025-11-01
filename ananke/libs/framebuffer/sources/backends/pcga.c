@@ -93,6 +93,166 @@
 #define VGA_ATTR_COLOR_SELECT   0x14  /* Color Select */
 
 /* --------------------------------------------------------------- */
+/*  VESA VBE (Video BIOS Extensions) Support                       */
+/* --------------------------------------------------------------- */
+
+/* VESA VBE 2.0+ Mode Attributes */
+#define VBE_MODE_SUPPORTED      0x0001  /* Mode supported by hardware */
+#define VBE_MODE_OPTIONAL_INFO  0x0002  /* Optional information available */
+#define VBE_MODE_BIOS_OUTPUT    0x0004  /* BIOS output supported */
+#define VBE_MODE_COLOR          0x0008  /* Color mode */
+#define VBE_MODE_GRAPHICS       0x0010  /* Graphics mode (not text) */
+#define VBE_MODE_NOT_VGA        0x0020  /* Not VGA compatible */
+#define VBE_MODE_NO_BANK_SWITCH 0x0040  /* Banked mode not supported */
+#define VBE_MODE_LINEAR_FB      0x0080  /* Linear framebuffer available */
+#define VBE_MODE_DOUBLE_SCAN    0x0100  /* Double-scan mode */
+#define VBE_MODE_INTERLACED     0x0200  /* Interlaced mode */
+#define VBE_MODE_TRIPLE_BUFFER  0x0400  /* Hardware triple buffering */
+#define VBE_MODE_STEREO         0x0800  /* Stereoscopic display */
+#define VBE_MODE_DUAL_START     0x1000  /* Dual display start address */
+
+/* VESA VBE Mode Info Block (256 bytes) */
+typedef struct _VBE_MODE_INFO {
+    /* Mandatory information for all VBE revisions */
+    UINT16  ModeAttributes;         /* Mode attributes */
+    UINT8   WinAAttributes;         /* Window A attributes */
+    UINT8   WinBAttributes;         /* Window B attributes */
+    UINT16  WinGranularity;         /* Window granularity (KB) */
+    UINT16  WinSize;                /* Window size (KB) */
+    UINT16  WinASegment;            /* Window A start segment */
+    UINT16  WinBSegment;            /* Window B start segment */
+    UINT32  WinFuncPtr;             /* Pointer to window function */
+    UINT16  BytesPerScanLine;       /* Bytes per scan line */
+
+    /* Mandatory information for VBE 1.2+ */
+    UINT16  XResolution;            /* Horizontal resolution */
+    UINT16  YResolution;            /* Vertical resolution */
+    UINT8   XCharSize;              /* Character cell width */
+    UINT8   YCharSize;              /* Character cell height */
+    UINT8   NumberOfPlanes;         /* Number of memory planes */
+    UINT8   BitsPerPixel;           /* Bits per pixel */
+    UINT8   NumberOfBanks;          /* Number of banks */
+    UINT8   MemoryModel;            /* Memory model type */
+    UINT8   BankSize;               /* Bank size in KB */
+    UINT8   NumberOfImagePages;     /* Number of image pages */
+    UINT8   Reserved1;              /* Reserved (0x01) */
+
+    /* Direct Color fields (required for direct/6 and YUV/7 memory models) */
+    UINT8   RedMaskSize;            /* Size of direct color red mask */
+    UINT8   RedFieldPosition;       /* Bit position of LSB of red mask */
+    UINT8   GreenMaskSize;          /* Size of direct color green mask */
+    UINT8   GreenFieldPosition;     /* Bit position of LSB of green mask */
+    UINT8   BlueMaskSize;           /* Size of direct color blue mask */
+    UINT8   BlueFieldPosition;      /* Bit position of LSB of blue mask */
+    UINT8   RsvdMaskSize;           /* Size of direct color reserved mask */
+    UINT8   RsvdFieldPosition;      /* Bit position of LSB of reserved mask */
+    UINT8   DirectColorModeInfo;    /* Direct color mode attributes */
+
+    /* Mandatory information for VBE 2.0+ */
+    UINT32  PhysBasePtr;            /* Physical address for linear framebuffer */
+    UINT32  Reserved2;              /* Reserved (always 0) */
+    UINT16  Reserved3;              /* Reserved (always 0) */
+
+    /* Mandatory information for VBE 3.0+ */
+    UINT16  LinBytesPerScanLine;    /* Bytes per scan line (linear modes) */
+    UINT8   BnkNumberOfImagePages;  /* Number of images (banked modes) */
+    UINT8   LinNumberOfImagePages;  /* Number of images (linear modes) */
+    UINT8   LinRedMaskSize;         /* Size of red mask (linear modes) */
+    UINT8   LinRedFieldPosition;    /* Bit position of red mask (linear) */
+    UINT8   LinGreenMaskSize;       /* Size of green mask (linear modes) */
+    UINT8   LinGreenFieldPosition;  /* Bit position of green mask (linear) */
+    UINT8   LinBlueMaskSize;        /* Size of blue mask (linear modes) */
+    UINT8   LinBlueFieldPosition;   /* Bit position of blue mask (linear) */
+    UINT8   LinRsvdMaskSize;        /* Size of rsvd mask (linear modes) */
+    UINT8   LinRsvdFieldPosition;   /* Bit position of rsvd mask (linear) */
+    UINT32  MaxPixelClock;          /* Maximum pixel clock (Hz) */
+
+    UINT8   Reserved4[189];         /* Reserved (remainder of 256 bytes) */
+} VBE_MODE_INFO;
+
+/* --------------------------------------------------------------- */
+/*  EDID (Extended Display Identification Data) Support            */
+/* --------------------------------------------------------------- */
+
+/* EDID 1.3/1.4 Standard Timing Descriptor */
+typedef struct _EDID_STANDARD_TIMING {
+    UINT8   XResolution;            /* (Horizontal pixels / 8) - 31 */
+    UINT8   AspectRatioRefresh;     /* Bits 7-6: aspect, 5-0: vrefresh-60 */
+} EDID_STANDARD_TIMING;
+
+/* EDID Detailed Timing Descriptor (18 bytes) */
+typedef struct _EDID_DETAILED_TIMING {
+    UINT16  PixelClock;             /* Pixel clock in 10 kHz units */
+    UINT8   HActiveLow;             /* Horizontal active pixels (low 8 bits) */
+    UINT8   HBlankingLow;           /* Horizontal blanking (low 8 bits) */
+    UINT8   HActiveBlankingHigh;    /* HA high 4 bits, HB high 4 bits */
+    UINT8   VActiveLow;             /* Vertical active lines (low 8 bits) */
+    UINT8   VBlankingLow;           /* Vertical blanking (low 8 bits) */
+    UINT8   VActiveBlankingHigh;    /* VA high 4 bits, VB high 4 bits */
+    UINT8   HSyncOffsetLow;         /* H sync offset (low 8 bits) */
+    UINT8   HSyncWidthLow;          /* H sync pulse width (low 8 bits) */
+    UINT8   VSyncOffsetWidthLow;    /* V sync offset/width (low 4 bits each) */
+    UINT8   SyncHighBits;           /* High bits for sync values */
+    UINT8   HImageSizeLow;          /* Horizontal image size mm (low 8 bits) */
+    UINT8   VImageSizeLow;          /* Vertical image size mm (low 8 bits) */
+    UINT8   ImageSizeHigh;          /* High 4 bits for both image sizes */
+    UINT8   HBorder;                /* Horizontal border pixels */
+    UINT8   VBorder;                /* Vertical border lines */
+    UINT8   Features;               /* Features bitmap */
+} EDID_DETAILED_TIMING;
+
+/* EDID 1.3 Base Block (128 bytes) */
+typedef struct _EDID_BASE_BLOCK {
+    /* Header (8 bytes) */
+    UINT8   Header[8];              /* Fixed: 00 FF FF FF FF FF FF 00 */
+
+    /* Vendor/Product Identification (10 bytes) */
+    UINT16  ManufacturerID;         /* Compressed 3-letter manufacturer ID */
+    UINT16  ProductCode;            /* Manufacturer product code */
+    UINT32  SerialNumber;           /* Serial number */
+    UINT8   WeekOfManufacture;      /* Week of manufacture (1-54, or 0xFF) */
+    UINT8   YearOfManufacture;      /* Year of manufacture (+ 1990) */
+
+    /* EDID Structure Version/Revision (2 bytes) */
+    UINT8   EdidVersion;            /* EDID version (usually 1) */
+    UINT8   EdidRevision;           /* EDID revision (3 or 4) */
+
+    /* Basic Display Parameters (5 bytes) */
+    UINT8   VideoInputDefinition;   /* Video input definition */
+    UINT8   MaxHorizontalImageSize; /* Max horizontal size in cm (0 if undefined) */
+    UINT8   MaxVerticalImageSize;   /* Max vertical size in cm (0 if undefined) */
+    UINT8   DisplayGamma;           /* Display gamma ((value+100)/100, 0xFF if undefined) */
+    UINT8   FeatureSupport;         /* Feature support bitmap */
+
+    /* Color Characteristics (10 bytes) */
+    UINT8   RedGreenLowBits;        /* Red/green low bits */
+    UINT8   BlueWhiteLowBits;       /* Blue/white low bits */
+    UINT8   RedXHigh;               /* Red X high 8 bits */
+    UINT8   RedYHigh;               /* Red Y high 8 bits */
+    UINT8   GreenXHigh;             /* Green X high 8 bits */
+    UINT8   GreenYHigh;             /* Green Y high 8 bits */
+    UINT8   BlueXHigh;              /* Blue X high 8 bits */
+    UINT8   BlueYHigh;              /* Blue Y high 8 bits */
+    UINT8   WhiteXHigh;             /* White point X high 8 bits */
+    UINT8   WhiteYHigh;             /* White point Y high 8 bits */
+
+    /* Established Timings (3 bytes) */
+    UINT8   EstablishedTimings1;    /* Established timings I */
+    UINT8   EstablishedTimings2;    /* Established timings II */
+    UINT8   ManufacturersTimings;   /* Manufacturer's timings */
+
+    /* Standard Timing Identification (16 bytes - 8 timings) */
+    EDID_STANDARD_TIMING StandardTimings[8];
+
+    /* Detailed Timing Descriptors (72 bytes - 4 descriptors) */
+    EDID_DETAILED_TIMING DetailedTimings[4];
+
+    /* Extension Flag and Checksum (2 bytes) */
+    UINT8   ExtensionFlag;          /* Number of extension blocks */
+    UINT8   Checksum;               /* Checksum (sum of all 128 bytes = 0) */
+} EDID_BASE_BLOCK;
+
+/* --------------------------------------------------------------- */
 /*  PC Graphics Backend Structure                                   */
 /* --------------------------------------------------------------- */
 
@@ -672,35 +832,480 @@ static CONST IFramebufferBackendVtbl gPcGraphicsVtbl = {
 /* --------------------------------------------------------------- */
 
 typedef struct _PC_GRAPHICS_MODE {
-    UINT32              ModeNumber;
-    UINT32              Width;
-    UINT32              Height;
-    FB_PIXEL_FORMAT     PixelFormat;
-    FB_MEMORY_ORGANIZATION MemoryOrganization;
-    UINT32              NumPlanes;
-    UINT64              PhysicalBase;
-    UINT32              Pitch;
+    UINT32              ModeNumber;         /* BIOS mode number (or VESA mode) */
+    UINT32              Width;              /* Resolution width */
+    UINT32              Height;             /* Resolution height */
+    UINT32              RefreshRate;        /* Refresh rate in Hz (0=default) */
+    FB_PIXEL_FORMAT     PixelFormat;        /* Pixel format type */
+    FB_MEMORY_ORGANIZATION MemoryOrganization; /* Memory organization */
+    UINT32              BitsPerPixel;       /* Bits per pixel (for depth) */
+    UINT32              PaletteSize;        /* Palette size (for indexed) */
+    UINT32              NumPlanes;          /* Number of planes (for planar) */
+    UINT64              PhysicalBase;       /* Physical framebuffer address */
+    UINT32              Pitch;              /* Bytes per scanline */
+    UINT32              Flags;              /* Mode-specific flags */
 } PC_GRAPHICS_MODE;
 
+/* Mode flags */
+#define MODE_FLAG_TEXT          0x0001  /* Text mode */
+#define MODE_FLAG_GRAPHICS      0x0002  /* Graphics mode */
+#define MODE_FLAG_LINEAR        0x0004  /* Linear framebuffer (VESA LFB) */
+#define MODE_FLAG_BANKED        0x0008  /* Banked framebuffer */
+#define MODE_FLAG_CGA           0x0010  /* CGA hardware */
+#define MODE_FLAG_EGA           0x0020  /* EGA hardware */
+#define MODE_FLAG_VGA           0x0040  /* VGA hardware */
+#define MODE_FLAG_SVGA          0x0080  /* SVGA hardware */
+#define MODE_FLAG_MCGA          0x0100  /* MCGA (PS/2 Model 25/30) */
+
 static CONST PC_GRAPHICS_MODE gPcGraphicsModes[] = {
-    /* CGA modes */
-    { 0x04, 320, 200, FbPixelFormatIndexed4, FbMemoryInterleaved, 0, 0xB8000, 80 },
-    { 0x06, 640, 200, FbPixelFormat1Bpp, FbMemoryInterleaved, 0, 0xB8000, 80 },
+    /* ===================================================================
+     * Text Modes (MDA, CGA, EGA, VGA)
+     * ================================================================ */
 
-    /* EGA modes */
-    { 0x0D, 320, 200, FbPixelFormatIndexed16, FbMemoryPlanar, 4, 0xA0000, 40 },
-    { 0x0E, 640, 200, FbPixelFormatIndexed16, FbMemoryPlanar, 4, 0xA0000, 80 },
-    { 0x10, 640, 350, FbPixelFormatIndexed16, FbMemoryPlanar, 4, 0xA0000, 80 },
+    /* Mode 0x00: 40x25 text, 16 colors, 70Hz */
+    { 0x00, 40, 25, 70, FbPixelFormatText, FbMemoryLinear, 0, 0, 0, 0xB8000, 160, MODE_FLAG_TEXT | MODE_FLAG_CGA },
 
-    /* VGA modes */
-    { 0x12, 640, 480, FbPixelFormatIndexed16, FbMemoryPlanar, 4, 0xA0000, 80 },
-    { 0x13, 320, 200, FbPixelFormatIndexed256, FbMemoryLinear, 0, 0xA0000, 320 },
+    /* Mode 0x01: 40x25 text, 16 colors, 70Hz */
+    { 0x01, 40, 25, 70, FbPixelFormatText, FbMemoryLinear, 0, 0, 0, 0xB8000, 160, MODE_FLAG_TEXT | MODE_FLAG_CGA },
 
-    /* Mode-X (tweaked mode 13h) */
-    { 0x100, 320, 240, FbPixelFormatIndexed256, FbMemoryLinear, 0, 0xA0000, 320 },
+    /* Mode 0x02: 80x25 text, 16 colors, 70Hz */
+    { 0x02, 80, 25, 70, FbPixelFormatText, FbMemoryLinear, 0, 0, 0, 0xB8000, 160, MODE_FLAG_TEXT | MODE_FLAG_CGA },
+
+    /* Mode 0x03: 80x25 text, 16 colors, 70Hz (most common DOS text mode) */
+    { 0x03, 80, 25, 70, FbPixelFormatText, FbMemoryLinear, 0, 0, 0, 0xB8000, 160, MODE_FLAG_TEXT | MODE_FLAG_CGA },
+
+    /* Mode 0x07: 80x25 text, monochrome, 70Hz (MDA) */
+    { 0x07, 80, 25, 70, FbPixelFormatText, FbMemoryLinear, 0, 0, 0, 0xB0000, 160, MODE_FLAG_TEXT | MODE_FLAG_VGA },
+
+    /* ===================================================================
+     * CGA Graphics Modes
+     * ================================================================ */
+
+    /* Mode 0x04: 320x200, 4 colors, 60Hz (CGA) */
+    { 0x04, 320, 200, 60, FbPixelFormatIndexed, FbMemoryInterleaved, 2, 4, 0, 0xB8000, 80, MODE_FLAG_GRAPHICS | MODE_FLAG_CGA },
+
+    /* Mode 0x05: 320x200, 4 colors, 60Hz (CGA, grayscale) */
+    { 0x05, 320, 200, 60, FbPixelFormatIndexed, FbMemoryInterleaved, 2, 4, 0, 0xB8000, 80, MODE_FLAG_GRAPHICS | MODE_FLAG_CGA },
+
+    /* Mode 0x06: 640x200, 2 colors, 60Hz (CGA) */
+    { 0x06, 640, 200, 60, FbPixelFormatMonochrome, FbMemoryInterleaved, 1, 0, 0, 0xB8000, 80, MODE_FLAG_GRAPHICS | MODE_FLAG_CGA },
+
+    /* ===================================================================
+     * EGA Graphics Modes
+     * ================================================================ */
+
+    /* Mode 0x0D: 320x200, 16 colors, 60Hz (EGA) */
+    { 0x0D, 320, 200, 60, FbPixelFormatPlanar, FbMemoryPlanar, 4, 0, 4, 0xA0000, 40, MODE_FLAG_GRAPHICS | MODE_FLAG_EGA },
+
+    /* Mode 0x0E: 640x200, 16 colors, 60Hz (EGA) */
+    { 0x0E, 640, 200, 60, FbPixelFormatPlanar, FbMemoryPlanar, 4, 0, 4, 0xA0000, 80, MODE_FLAG_GRAPHICS | MODE_FLAG_EGA },
+
+    /* Mode 0x0F: 640x350, monochrome, 60Hz (EGA) */
+    { 0x0F, 640, 350, 60, FbPixelFormatMonochrome, FbMemoryPlanar, 1, 0, 1, 0xA0000, 80, MODE_FLAG_GRAPHICS | MODE_FLAG_EGA },
+
+    /* Mode 0x10: 640x350, 16 colors, 60Hz (EGA) */
+    { 0x10, 640, 350, 60, FbPixelFormatPlanar, FbMemoryPlanar, 4, 0, 4, 0xA0000, 80, MODE_FLAG_GRAPHICS | MODE_FLAG_EGA },
+
+    /* ===================================================================
+     * VGA Graphics Modes
+     * ================================================================ */
+
+    /* Mode 0x11: 640x480, 2 colors, 60Hz (VGA) */
+    { 0x11, 640, 480, 60, FbPixelFormatMonochrome, FbMemoryPlanar, 1, 0, 1, 0xA0000, 80, MODE_FLAG_GRAPHICS | MODE_FLAG_VGA },
+
+    /* Mode 0x12: 640x480, 16 colors, 60Hz (VGA) */
+    { 0x12, 640, 480, 60, FbPixelFormatPlanar, FbMemoryPlanar, 4, 0, 4, 0xA0000, 80, MODE_FLAG_GRAPHICS | MODE_FLAG_VGA },
+
+    /* Mode 0x13: 320x200, 256 colors, 70Hz (VGA/MCGA - Mode 13h) */
+    { 0x13, 320, 200, 70, FbPixelFormatIndexed, FbMemoryLinear, 8, 256, 0, 0xA0000, 320, MODE_FLAG_GRAPHICS | MODE_FLAG_VGA | MODE_FLAG_MCGA },
+
+    /* ===================================================================
+     * Mode-X and Tweaked Modes (Unchained VGA)
+     * ================================================================ */
+
+    /* Mode 0x100: 320x240, 256 colors, 60Hz (Mode-X) */
+    { 0x100, 320, 240, 60, FbPixelFormatIndexed, FbMemoryPlanar, 8, 256, 4, 0xA0000, 80, MODE_FLAG_GRAPHICS | MODE_FLAG_VGA },
+
+    /* Mode 0x101: 320x400, 256 colors, 70Hz (Mode-X) */
+    { 0x101, 320, 400, 70, FbPixelFormatIndexed, FbMemoryPlanar, 8, 256, 4, 0xA0000, 80, MODE_FLAG_GRAPHICS | MODE_FLAG_VGA },
+
+    /* Mode 0x102: 320x480, 256 colors, 60Hz (Mode-X) */
+    { 0x102, 320, 480, 60, FbPixelFormatIndexed, FbMemoryPlanar, 8, 256, 4, 0xA0000, 80, MODE_FLAG_GRAPHICS | MODE_FLAG_VGA },
+
+    /* Mode 0x103: 360x480, 256 colors, 60Hz (Mode-X) */
+    { 0x103, 360, 480, 60, FbPixelFormatIndexed, FbMemoryPlanar, 8, 256, 4, 0xA0000, 90, MODE_FLAG_GRAPHICS | MODE_FLAG_VGA },
+
+    /* ===================================================================
+     * VESA VBE 1.x Modes (Banked and Linear)
+     * ================================================================ */
+
+    /* 640x480 modes */
+    { 0x110, 640, 480, 60, FbPixelFormatIndexed, FbMemoryBanked, 8, 256, 0, 0xA0000, 640, MODE_FLAG_GRAPHICS | MODE_FLAG_SVGA | MODE_FLAG_BANKED },
+    { 0x111, 640, 480, 60, FbPixelFormatRgb, FbMemoryBanked, 15, 0, 0, 0xA0000, 1280, MODE_FLAG_GRAPHICS | MODE_FLAG_SVGA | MODE_FLAG_BANKED },
+    { 0x112, 640, 480, 60, FbPixelFormatRgb, FbMemoryBanked, 16, 0, 0, 0xA0000, 1280, MODE_FLAG_GRAPHICS | MODE_FLAG_SVGA | MODE_FLAG_BANKED },
+    { 0x113, 640, 480, 60, FbPixelFormatRgb, FbMemoryBanked, 24, 0, 0, 0xA0000, 1920, MODE_FLAG_GRAPHICS | MODE_FLAG_SVGA | MODE_FLAG_BANKED },
+    { 0x114, 640, 480, 60, FbPixelFormatRgb, FbMemoryBanked, 32, 0, 0, 0xA0000, 2560, MODE_FLAG_GRAPHICS | MODE_FLAG_SVGA | MODE_FLAG_BANKED },
+
+    /* 800x600 modes */
+    { 0x115, 800, 600, 60, FbPixelFormatIndexed, FbMemoryBanked, 8, 256, 0, 0xA0000, 800, MODE_FLAG_GRAPHICS | MODE_FLAG_SVGA | MODE_FLAG_BANKED },
+    { 0x116, 800, 600, 60, FbPixelFormatRgb, FbMemoryBanked, 15, 0, 0, 0xA0000, 1600, MODE_FLAG_GRAPHICS | MODE_FLAG_SVGA | MODE_FLAG_BANKED },
+    { 0x117, 800, 600, 60, FbPixelFormatRgb, FbMemoryBanked, 16, 0, 0, 0xA0000, 1600, MODE_FLAG_GRAPHICS | MODE_FLAG_SVGA | MODE_FLAG_BANKED },
+    { 0x118, 800, 600, 60, FbPixelFormatRgb, FbMemoryBanked, 24, 0, 0, 0xA0000, 2400, MODE_FLAG_GRAPHICS | MODE_FLAG_SVGA | MODE_FLAG_BANKED },
+    { 0x119, 800, 600, 60, FbPixelFormatRgb, FbMemoryBanked, 32, 0, 0, 0xA0000, 3200, MODE_FLAG_GRAPHICS | MODE_FLAG_SVGA | MODE_FLAG_BANKED },
+
+    /* 1024x768 modes */
+    { 0x11A, 1024, 768, 60, FbPixelFormatIndexed, FbMemoryBanked, 8, 256, 0, 0xA0000, 1024, MODE_FLAG_GRAPHICS | MODE_FLAG_SVGA | MODE_FLAG_BANKED },
+    { 0x11B, 1024, 768, 60, FbPixelFormatRgb, FbMemoryBanked, 15, 0, 0, 0xA0000, 2048, MODE_FLAG_GRAPHICS | MODE_FLAG_SVGA | MODE_FLAG_BANKED },
+    { 0x11C, 1024, 768, 60, FbPixelFormatRgb, FbMemoryBanked, 16, 0, 0, 0xA0000, 2048, MODE_FLAG_GRAPHICS | MODE_FLAG_SVGA | MODE_FLAG_BANKED },
+    { 0x11D, 1024, 768, 60, FbPixelFormatRgb, FbMemoryBanked, 24, 0, 0, 0xA0000, 3072, MODE_FLAG_GRAPHICS | MODE_FLAG_SVGA | MODE_FLAG_BANKED },
+    { 0x11E, 1024, 768, 60, FbPixelFormatRgb, FbMemoryBanked, 32, 0, 0, 0xA0000, 4096, MODE_FLAG_GRAPHICS | MODE_FLAG_SVGA | MODE_FLAG_BANKED },
+
+    /* 1280x1024 modes */
+    { 0x11F, 1280, 1024, 60, FbPixelFormatIndexed, FbMemoryBanked, 8, 256, 0, 0xA0000, 1280, MODE_FLAG_GRAPHICS | MODE_FLAG_SVGA | MODE_FLAG_BANKED },
+    { 0x120, 1280, 1024, 60, FbPixelFormatRgb, FbMemoryBanked, 15, 0, 0, 0xA0000, 2560, MODE_FLAG_GRAPHICS | MODE_FLAG_SVGA | MODE_FLAG_BANKED },
+    { 0x121, 1280, 1024, 60, FbPixelFormatRgb, FbMemoryBanked, 16, 0, 0, 0xA0000, 2560, MODE_FLAG_GRAPHICS | MODE_FLAG_SVGA | MODE_FLAG_BANKED },
+    { 0x122, 1280, 1024, 60, FbPixelFormatRgb, FbMemoryBanked, 24, 0, 0, 0xA0000, 3840, MODE_FLAG_GRAPHICS | MODE_FLAG_SVGA | MODE_FLAG_BANKED },
+    { 0x123, 1280, 1024, 60, FbPixelFormatRgb, FbMemoryBanked, 32, 0, 0, 0xA0000, 5120, MODE_FLAG_GRAPHICS | MODE_FLAG_SVGA | MODE_FLAG_BANKED },
+
+    /* 1600x1200 modes */
+    { 0x124, 1600, 1200, 60, FbPixelFormatIndexed, FbMemoryBanked, 8, 256, 0, 0xA0000, 1600, MODE_FLAG_GRAPHICS | MODE_FLAG_SVGA | MODE_FLAG_BANKED },
+    { 0x125, 1600, 1200, 60, FbPixelFormatRgb, FbMemoryBanked, 15, 0, 0, 0xA0000, 3200, MODE_FLAG_GRAPHICS | MODE_FLAG_SVGA | MODE_FLAG_BANKED },
+    { 0x126, 1600, 1200, 60, FbPixelFormatRgb, FbMemoryBanked, 16, 0, 0, 0xA0000, 3200, MODE_FLAG_GRAPHICS | MODE_FLAG_SVGA | MODE_FLAG_BANKED },
+    { 0x127, 1600, 1200, 60, FbPixelFormatRgb, FbMemoryBanked, 24, 0, 0, 0xA0000, 4800, MODE_FLAG_GRAPHICS | MODE_FLAG_SVGA | MODE_FLAG_BANKED },
+    { 0x128, 1600, 1200, 60, FbPixelFormatRgb, FbMemoryBanked, 32, 0, 0, 0xA0000, 6400, MODE_FLAG_GRAPHICS | MODE_FLAG_SVGA | MODE_FLAG_BANKED },
+
+    /* ===================================================================
+     * VESA VBE 2.0+ Linear Framebuffer Modes (0x4000 bit set)
+     * These use LFB addresses provided by VESA BIOS
+     * ================================================================ */
+
+    /* 640x480 LFB */
+    { 0x4110, 640, 480, 60, FbPixelFormatIndexed, FbMemoryLinear, 8, 256, 0, 0, 640, MODE_FLAG_GRAPHICS | MODE_FLAG_SVGA | MODE_FLAG_LINEAR },
+    { 0x4111, 640, 480, 60, FbPixelFormatRgb, FbMemoryLinear, 15, 0, 0, 0, 1280, MODE_FLAG_GRAPHICS | MODE_FLAG_SVGA | MODE_FLAG_LINEAR },
+    { 0x4112, 640, 480, 60, FbPixelFormatRgb, FbMemoryLinear, 16, 0, 0, 0, 1280, MODE_FLAG_GRAPHICS | MODE_FLAG_SVGA | MODE_FLAG_LINEAR },
+    { 0x4113, 640, 480, 60, FbPixelFormatRgb, FbMemoryLinear, 24, 0, 0, 0, 1920, MODE_FLAG_GRAPHICS | MODE_FLAG_SVGA | MODE_FLAG_LINEAR },
+    { 0x4114, 640, 480, 60, FbPixelFormatRgb, FbMemoryLinear, 32, 0, 0, 0, 2560, MODE_FLAG_GRAPHICS | MODE_FLAG_SVGA | MODE_FLAG_LINEAR },
+
+    /* 800x600 LFB */
+    { 0x4115, 800, 600, 60, FbPixelFormatIndexed, FbMemoryLinear, 8, 256, 0, 0, 800, MODE_FLAG_GRAPHICS | MODE_FLAG_SVGA | MODE_FLAG_LINEAR },
+    { 0x4116, 800, 600, 60, FbPixelFormatRgb, FbMemoryLinear, 15, 0, 0, 0, 1600, MODE_FLAG_GRAPHICS | MODE_FLAG_SVGA | MODE_FLAG_LINEAR },
+    { 0x4117, 800, 600, 60, FbPixelFormatRgb, FbMemoryLinear, 16, 0, 0, 0, 1600, MODE_FLAG_GRAPHICS | MODE_FLAG_SVGA | MODE_FLAG_LINEAR },
+    { 0x4118, 800, 600, 60, FbPixelFormatRgb, FbMemoryLinear, 24, 0, 0, 0, 2400, MODE_FLAG_GRAPHICS | MODE_FLAG_SVGA | MODE_FLAG_LINEAR },
+    { 0x4119, 800, 600, 60, FbPixelFormatRgb, FbMemoryLinear, 32, 0, 0, 0, 3200, MODE_FLAG_GRAPHICS | MODE_FLAG_SVGA | MODE_FLAG_LINEAR },
+
+    /* 1024x768 LFB */
+    { 0x411A, 1024, 768, 60, FbPixelFormatIndexed, FbMemoryLinear, 8, 256, 0, 0, 1024, MODE_FLAG_GRAPHICS | MODE_FLAG_SVGA | MODE_FLAG_LINEAR },
+    { 0x411B, 1024, 768, 60, FbPixelFormatRgb, FbMemoryLinear, 15, 0, 0, 0, 2048, MODE_FLAG_GRAPHICS | MODE_FLAG_SVGA | MODE_FLAG_LINEAR },
+    { 0x411C, 1024, 768, 60, FbPixelFormatRgb, FbMemoryLinear, 16, 0, 0, 0, 2048, MODE_FLAG_GRAPHICS | MODE_FLAG_SVGA | MODE_FLAG_LINEAR },
+    { 0x411D, 1024, 768, 60, FbPixelFormatRgb, FbMemoryLinear, 24, 0, 0, 0, 3072, MODE_FLAG_GRAPHICS | MODE_FLAG_SVGA | MODE_FLAG_LINEAR },
+    { 0x411E, 1024, 768, 60, FbPixelFormatRgb, FbMemoryLinear, 32, 0, 0, 0, 4096, MODE_FLAG_GRAPHICS | MODE_FLAG_SVGA | MODE_FLAG_LINEAR },
+
+    /* 1280x1024 LFB */
+    { 0x411F, 1280, 1024, 60, FbPixelFormatIndexed, FbMemoryLinear, 8, 256, 0, 0, 1280, MODE_FLAG_GRAPHICS | MODE_FLAG_SVGA | MODE_FLAG_LINEAR },
+    { 0x4120, 1280, 1024, 60, FbPixelFormatRgb, FbMemoryLinear, 15, 0, 0, 0, 2560, MODE_FLAG_GRAPHICS | MODE_FLAG_SVGA | MODE_FLAG_LINEAR },
+    { 0x4121, 1280, 1024, 60, FbPixelFormatRgb, FbMemoryLinear, 16, 0, 0, 0, 2560, MODE_FLAG_GRAPHICS | MODE_FLAG_SVGA | MODE_FLAG_LINEAR },
+    { 0x4122, 1280, 1024, 60, FbPixelFormatRgb, FbMemoryLinear, 24, 0, 0, 0, 3840, MODE_FLAG_GRAPHICS | MODE_FLAG_SVGA | MODE_FLAG_LINEAR },
+    { 0x4123, 1280, 1024, 60, FbPixelFormatRgb, FbMemoryLinear, 32, 0, 0, 0, 5120, MODE_FLAG_GRAPHICS | MODE_FLAG_SVGA | MODE_FLAG_LINEAR },
+
+    /* 1600x1200 LFB */
+    { 0x4124, 1600, 1200, 60, FbPixelFormatIndexed, FbMemoryLinear, 8, 256, 0, 0, 1600, MODE_FLAG_GRAPHICS | MODE_FLAG_SVGA | MODE_FLAG_LINEAR },
+    { 0x4125, 1600, 1200, 60, FbPixelFormatRgb, FbMemoryLinear, 15, 0, 0, 0, 3200, MODE_FLAG_GRAPHICS | MODE_FLAG_SVGA | MODE_FLAG_LINEAR },
+    { 0x4126, 1600, 1200, 60, FbPixelFormatRgb, FbMemoryLinear, 16, 0, 0, 0, 3200, MODE_FLAG_GRAPHICS | MODE_FLAG_SVGA | MODE_FLAG_LINEAR },
+    { 0x4127, 1600, 1200, 60, FbPixelFormatRgb, FbMemoryLinear, 24, 0, 0, 0, 4800, MODE_FLAG_GRAPHICS | MODE_FLAG_SVGA | MODE_FLAG_LINEAR },
+    { 0x4128, 1600, 1200, 60, FbPixelFormatRgb, FbMemoryLinear, 32, 0, 0, 0, 6400, MODE_FLAG_GRAPHICS | MODE_FLAG_SVGA | MODE_FLAG_LINEAR },
+
+    /* Additional common resolutions LFB */
+    { 0x4129, 1280, 720, 60, FbPixelFormatRgb, FbMemoryLinear, 32, 0, 0, 0, 5120, MODE_FLAG_GRAPHICS | MODE_FLAG_SVGA | MODE_FLAG_LINEAR },  /* 720p */
+    { 0x412A, 1920, 1080, 60, FbPixelFormatRgb, FbMemoryLinear, 32, 0, 0, 0, 7680, MODE_FLAG_GRAPHICS | MODE_FLAG_SVGA | MODE_FLAG_LINEAR }, /* 1080p */
+    { 0x412B, 1920, 1200, 60, FbPixelFormatRgb, FbMemoryLinear, 32, 0, 0, 0, 7680, MODE_FLAG_GRAPHICS | MODE_FLAG_SVGA | MODE_FLAG_LINEAR }, /* WUXGA */
 };
 
 #define PC_GRAPHICS_MODE_COUNT (sizeof(gPcGraphicsModes) / sizeof(gPcGraphicsModes[0]))
+
+/* --------------------------------------------------------------- */
+/*  EDID Parsing and Mode Filtering                                */
+/* --------------------------------------------------------------- */
+
+/*
+ * Validate EDID checksum.
+ * Returns TRUE if valid, FALSE otherwise.
+ */
+static BOOLEAN
+Pcga_ValidateEdid(
+    IN CONST EDID_BASE_BLOCK *Edid
+    )
+{
+    CONST UINT8 *Data = (CONST UINT8 *)Edid;
+    UINT8 Sum = 0;
+
+    /* Sum all 128 bytes - result should be 0 */
+    for (UINT32 i = 0; i < sizeof(EDID_BASE_BLOCK); i++) {
+        Sum += Data[i];
+    }
+
+    /* Check header signature: 00 FF FF FF FF FF FF 00 */
+    if (Edid->Header[0] != 0x00 || Edid->Header[1] != 0xFF ||
+        Edid->Header[2] != 0xFF || Edid->Header[3] != 0xFF ||
+        Edid->Header[4] != 0xFF || Edid->Header[5] != 0xFF ||
+        Edid->Header[6] != 0xFF || Edid->Header[7] != 0x00) {
+        return FALSE;
+    }
+
+    return (Sum == 0);
+}
+
+/*
+ * Parse detailed timing from EDID and extract resolution and refresh rate.
+ */
+static VOID
+Pcga_ParseDetailedTiming(
+    IN CONST EDID_DETAILED_TIMING *Timing,
+    OUT UINT32 *Width,
+    OUT UINT32 *Height,
+    OUT UINT32 *RefreshRate
+    )
+{
+    if (Timing->PixelClock == 0) {
+        /* Not a valid timing descriptor */
+        *Width = 0;
+        *Height = 0;
+        *RefreshRate = 0;
+        return;
+    }
+
+    /* Extract horizontal active pixels */
+    *Width = Timing->HActiveLow | ((Timing->HActiveBlankingHigh & 0xF0) << 4);
+
+    /* Extract vertical active lines */
+    *Height = Timing->VActiveLow | ((Timing->VActiveBlankingHigh & 0xF0) << 4);
+
+    /* Calculate refresh rate from pixel clock and timing */
+    UINT32 HActive = *Width;
+    UINT32 HBlank = Timing->HBlankingLow | ((Timing->HActiveBlankingHigh & 0x0F) << 8);
+    UINT32 VActive = *Height;
+    UINT32 VBlank = Timing->VBlankingLow | ((Timing->VActiveBlankingHigh & 0x0F) << 8);
+
+    UINT32 HTotal = HActive + HBlank;
+    UINT32 VTotal = VActive + VBlank;
+    UINT32 PixelClock = Timing->PixelClock * 10000; /* Convert to Hz */
+
+    if (HTotal > 0 && VTotal > 0) {
+        *RefreshRate = PixelClock / (HTotal * VTotal);
+    } else {
+        *RefreshRate = 60; /* Default */
+    }
+}
+
+/*
+ * Parse standard timing from EDID.
+ */
+static VOID
+Pcga_ParseStandardTiming(
+    IN CONST EDID_STANDARD_TIMING *Timing,
+    OUT UINT32 *Width,
+    OUT UINT32 *Height,
+    OUT UINT32 *RefreshRate
+    )
+{
+    /* Check if this timing slot is unused */
+    if (Timing->XResolution == 0x01 && Timing->AspectRatioRefresh == 0x01) {
+        *Width = 0;
+        *Height = 0;
+        *RefreshRate = 0;
+        return;
+    }
+
+    /* Calculate horizontal resolution */
+    *Width = (Timing->XResolution + 31) * 8;
+
+    /* Extract aspect ratio (bits 7-6) */
+    UINT8 AspectCode = (Timing->AspectRatioRefresh >> 6) & 0x03;
+
+    /* Calculate vertical resolution based on aspect ratio */
+    switch (AspectCode) {
+        case 0x00: /* 16:10 */
+            *Height = (*Width * 10) / 16;
+            break;
+        case 0x01: /* 4:3 */
+            *Height = (*Width * 3) / 4;
+            break;
+        case 0x02: /* 5:4 */
+            *Height = (*Width * 4) / 5;
+            break;
+        case 0x03: /* 16:9 */
+            *Height = (*Width * 9) / 16;
+            break;
+    }
+
+    /* Extract refresh rate (bits 5-0) + 60 Hz */
+    *RefreshRate = (Timing->AspectRatioRefresh & 0x3F) + 60;
+}
+
+/*
+ * Check if a mode is supported by the EDID data.
+ * Returns TRUE if the mode matches an EDID timing.
+ */
+static BOOLEAN
+Pcga_IsModeSupported(
+    IN CONST EDID_BASE_BLOCK *Edid,
+    IN UINT32 Width,
+    IN UINT32 Height,
+    IN UINT32 RefreshRate
+    )
+{
+    if (!Pcga_ValidateEdid(Edid)) {
+        /* Invalid EDID - allow all modes */
+        return TRUE;
+    }
+
+    /* Check established timings (720x400@70, 640x480@60, 800x600@60, etc.) */
+    if (Width == 640 && Height == 480 && RefreshRate == 60 && (Edid->EstablishedTimings1 & 0x20)) {
+        return TRUE;
+    }
+    if (Width == 800 && Height == 600 && RefreshRate == 60 && (Edid->EstablishedTimings1 & 0x01)) {
+        return TRUE;
+    }
+    if (Width == 1024 && Height == 768 && RefreshRate == 60 && (Edid->EstablishedTimings2 & 0x08)) {
+        return TRUE;
+    }
+
+    /* Check standard timings */
+    for (UINT32 i = 0; i < 8; i++) {
+        UINT32 StdWidth, StdHeight, StdRefresh;
+        Pcga_ParseStandardTiming(&Edid->StandardTimings[i], &StdWidth, &StdHeight, &StdRefresh);
+
+        if (StdWidth == Width && StdHeight == Height &&
+            (RefreshRate == 0 || StdRefresh == RefreshRate)) {
+            return TRUE;
+        }
+    }
+
+    /* Check detailed timings */
+    for (UINT32 i = 0; i < 4; i++) {
+        UINT32 DtWidth, DtHeight, DtRefresh;
+        Pcga_ParseDetailedTiming(&Edid->DetailedTimings[i], &DtWidth, &DtHeight, &DtRefresh);
+
+        if (DtWidth == Width && DtHeight == Height &&
+            (RefreshRate == 0 || DtRefresh == RefreshRate)) {
+            return TRUE;
+        }
+    }
+
+    /* Allow lower resolutions if not in EDID (backward compatibility) */
+    if (Width <= 640 && Height <= 480) {
+        return TRUE;
+    }
+
+    return FALSE;
+}
+
+/*
+ * Get maximum color depth supported by monitor from EDID.
+ * Returns bits per pixel (8, 16, 24, 32).
+ */
+static UINT32
+Pcga_GetMaxColorDepth(
+    IN CONST EDID_BASE_BLOCK *Edid
+    )
+{
+    if (!Pcga_ValidateEdid(Edid)) {
+        /* No valid EDID - assume full color support */
+        return 32;
+    }
+
+    /* Check feature support byte for color depth */
+    /* Bit 0-2: DFP color depth (if applicable) */
+    /* For analog, assume based on EDID version */
+    if (Edid->EdidVersion >= 1 && Edid->EdidRevision >= 3) {
+        /* EDID 1.3+ supports 24-bit true color */
+        return 32;
+    }
+
+    return 16; /* Conservative default */
+}
+
+/* --------------------------------------------------------------- */
+/*  Hardware Detection                                              */
+/* --------------------------------------------------------------- */
+
+/*
+ * Detect available graphics hardware.
+ * Returns a bitmask of MODE_FLAG_* values indicating supported hardware.
+ */
+static UINT32
+Pcga_DetectHardware(
+    VOID
+    )
+{
+    UINT32 Capabilities = 0;
+
+    /* Always support VGA (baseline for PC graphics) */
+    Capabilities |= MODE_FLAG_VGA;
+
+    /* Check for EGA by reading switch settings */
+    /* EGA has different switch configuration than VGA */
+    UINT8 Misc = ANX_CPU_INB(VGA_MISC_READ);
+    if ((Misc & 0x30) != 0) {
+        Capabilities |= MODE_FLAG_EGA;
+    }
+
+    /* Check for CGA (look for 0xB8000 memory) */
+    /* In real implementation, would probe memory */
+    Capabilities |= MODE_FLAG_CGA;
+
+    /* Check for SVGA by attempting VBE detection */
+    /* In real implementation, would use INT 10h AX=4F00h */
+    /* For now, assume SVGA is available */
+    Capabilities |= MODE_FLAG_SVGA;
+
+    /* MCGA is a subset of VGA on PS/2 Model 25/30 */
+    Capabilities |= MODE_FLAG_MCGA;
+
+    return Capabilities;
+}
+
+/*
+ * Filter mode list based on hardware capabilities and EDID.
+ * Returns number of supported modes.
+ */
+static UINT32
+Pcga_FilterModes(
+    IN CONST EDID_BASE_BLOCK *Edid,
+    IN UINT32 HardwareCapabilities,
+    OUT UINT32 *SupportedModes,
+    IN UINT32 MaxModes
+    )
+{
+    UINT32 Count = 0;
+    UINT32 MaxDepth = Pcga_GetMaxColorDepth(Edid);
+
+    for (UINT32 i = 0; i < PC_GRAPHICS_MODE_COUNT && Count < MaxModes; i++) {
+        CONST PC_GRAPHICS_MODE *Mode = &gPcGraphicsModes[i];
+
+        /* Check hardware capability flags */
+        if ((Mode->Flags & HardwareCapabilities) == 0) {
+            /* Hardware doesn't support this mode's requirements */
+            continue;
+        }
+
+        /* Check color depth */
+        if (Mode->BitsPerPixel > MaxDepth && Mode->PixelFormat == FbPixelFormatRgb) {
+            continue;
+        }
+
+        /* Check EDID for graphics modes (skip text modes) */
+        if ((Mode->Flags & MODE_FLAG_GRAPHICS) != 0) {
+            if (!Pcga_IsModeSupported(Edid, Mode->Width, Mode->Height, Mode->RefreshRate)) {
+                continue;
+            }
+        }
+
+        /* Mode is supported */
+        SupportedModes[Count++] = i;
+    }
+
+    return Count;
+}
 
 /* --------------------------------------------------------------- */
 /*  Standard VGA Palette                                            */
@@ -1488,29 +2093,83 @@ FbPcGraphicsQueryMode(
     CONST PC_GRAPHICS_MODE *Mode = &gPcGraphicsModes[ModeIndex];
 
     ANX_MEMSET(ModeDesc, 0, sizeof(FRAMEBUFFER_DESC));
+
+    /* Basic mode information */
     ModeDesc->Width = Mode->Width;
     ModeDesc->Height = Mode->Height;
     ModeDesc->Pitch = Mode->Pitch;
     ModeDesc->PixelFormat = Mode->PixelFormat;
     ModeDesc->MemoryOrganization = Mode->MemoryOrganization;
     ModeDesc->PhysicalBase = Mode->PhysicalBase;
+
+    /* Pixel format specific fields */
+    ModeDesc->BitsPerPixel = Mode->BitsPerPixel;
+    ModeDesc->PaletteSize = Mode->PaletteSize;
     ModeDesc->NumPlanes = Mode->NumPlanes;
+
+    /* Memory organization */
+    ModeDesc->IsAddressable = (Mode->MemoryOrganization == FbMemoryLinear ||
+                               Mode->PixelFormat == FbPixelFormatText);
+
+    /* For banked modes */
+    if (Mode->MemoryOrganization == FbMemoryBanked) {
+        ModeDesc->BankSize = 64 * 1024;  /* 64KB standard bank size */
+        ModeDesc->BankInterleave = 1;
+        ModeDesc->BankOffset = 0;
+    }
+
+    /* For CGA interleaved modes */
+    if (Mode->MemoryOrganization == FbMemoryInterleaved) {
+        ModeDesc->BankInterleave = 2;    /* Even/odd scanlines */
+        ModeDesc->BankOffset = 0x2000;   /* 8KB between banks */
+    }
+
+    /* RGB bit masks (for direct color modes) */
+    if (Mode->PixelFormat == FbPixelFormatRgb) {
+        switch (Mode->BitsPerPixel) {
+            case 15: /* RGB555 */
+                ModeDesc->RedMask   = 0x7C00;
+                ModeDesc->GreenMask = 0x03E0;
+                ModeDesc->BlueMask  = 0x001F;
+                ModeDesc->AlphaMask = 0x0000;
+                break;
+            case 16: /* RGB565 */
+                ModeDesc->RedMask   = 0xF800;
+                ModeDesc->GreenMask = 0x07E0;
+                ModeDesc->BlueMask  = 0x001F;
+                ModeDesc->AlphaMask = 0x0000;
+                break;
+            case 24: /* RGB888 */
+                ModeDesc->RedMask   = 0x00FF0000;
+                ModeDesc->GreenMask = 0x0000FF00;
+                ModeDesc->BlueMask  = 0x000000FF;
+                ModeDesc->AlphaMask = 0x00000000;
+                break;
+            case 32: /* RGBA8888 */
+                ModeDesc->RedMask   = 0x00FF0000;
+                ModeDesc->GreenMask = 0x0000FF00;
+                ModeDesc->BlueMask  = 0x000000FF;
+                ModeDesc->AlphaMask = 0xFF000000;
+                break;
+        }
+    }
+
+    /* For text modes */
+    if (Mode->PixelFormat == FbPixelFormatText) {
+        ModeDesc->CharWidth = 8;
+        ModeDesc->CharHeight = 16;
+        ModeDesc->FontBank = 0;
+    }
+
+    /* I/O port access */
     ModeDesc->IoPortBase = 0x3C0;
     ModeDesc->RequiresIoAccess = (Mode->MemoryOrganization == FbMemoryPlanar ||
-                                  Mode->MemoryOrganization == FbMemoryInterleaved);
+                                  Mode->MemoryOrganization == FbMemoryBanked ||
+                                  Mode->MemoryOrganization == FbMemoryInterleaved ||
+                                  Mode->PixelFormat == FbPixelFormatText);
 
-    /* Set appropriate bit masks and parameters based on format */
-    switch (Mode->PixelFormat) {
-        case FbPixelFormatIndexed4:
-        case FbPixelFormatIndexed16:
-        case FbPixelFormatIndexed256:
-            ModeDesc->BankInterleave = (Mode->MemoryOrganization == FbMemoryInterleaved) ? 2 : 1;
-            ModeDesc->BankOffset = (Mode->MemoryOrganization == FbMemoryInterleaved) ? 0x2000 : 0;
-            break;
-
-        default:
-            break;
-    }
+    /* Calculate size */
+    ModeDesc->Size = Mode->Pitch * Mode->Height;
 
     return S_OK;
 }
@@ -1536,4 +2195,106 @@ FbPcGraphicsSetMode(
     }
 
     return E_INVALIDARG;
+}
+
+/*
+ * Get hardware capabilities (CGA/EGA/VGA/SVGA/MCGA).
+ * Returns a bitmask of supported hardware flags.
+ */
+UINT32
+FbPcGraphicsGetCapabilities(
+    VOID
+    )
+{
+    return Pcga_DetectHardware();
+}
+
+/*
+ * Filter modes based on EDID and hardware capabilities.
+ * Returns the number of supported modes in the output array.
+ */
+UINT32
+FbPcGraphicsFilterModes(
+    IN CONST EDID_BASE_BLOCK *Edid,
+    OUT UINT32 *SupportedModeIndices,
+    IN UINT32 MaxModes
+    )
+{
+    UINT32 Capabilities = Pcga_DetectHardware();
+
+    if (Edid == NULL || SupportedModeIndices == NULL || MaxModes == 0) {
+        return 0;
+    }
+
+    return Pcga_FilterModes(Edid, Capabilities, SupportedModeIndices, MaxModes);
+}
+
+/*
+ * Get the best mode matching requested size, depth, and refresh rate.
+ * If EDID is provided, only returns modes supported by the monitor.
+ * Returns mode index, or -1 if no suitable mode found.
+ */
+INT32
+FbPcGraphicsFindBestMode(
+    IN CONST EDID_BASE_BLOCK *Edid,
+    IN UINT32 PreferredWidth,
+    IN UINT32 PreferredHeight,
+    IN UINT32 PreferredDepth,
+    IN UINT32 PreferredRefresh
+    )
+{
+    UINT32 Capabilities = Pcga_DetectHardware();
+    INT32 BestMatch = -1;
+    INT32 BestScore = -1;
+
+    for (UINT32 i = 0; i < PC_GRAPHICS_MODE_COUNT; i++) {
+        CONST PC_GRAPHICS_MODE *Mode = &gPcGraphicsModes[i];
+
+        /* Check hardware capability */
+        if ((Mode->Flags & Capabilities) == 0) {
+            continue;
+        }
+
+        /* Skip text modes */
+        if (Mode->PixelFormat == FbPixelFormatText) {
+            continue;
+        }
+
+        /* Check EDID support */
+        if (Edid != NULL) {
+            if (!Pcga_IsModeSupported(Edid, Mode->Width, Mode->Height, Mode->RefreshRate)) {
+                continue;
+            }
+
+            UINT32 MaxDepth = Pcga_GetMaxColorDepth(Edid);
+            if (Mode->BitsPerPixel > MaxDepth) {
+                continue;
+            }
+        }
+
+        /* Calculate match score (higher is better) */
+        INT32 Score = 0;
+
+        /* Exact matches get high scores */
+        if (Mode->Width == PreferredWidth) Score += 1000;
+        if (Mode->Height == PreferredHeight) Score += 1000;
+        if (Mode->BitsPerPixel == PreferredDepth) Score += 500;
+        if (Mode->RefreshRate == PreferredRefresh) Score += 250;
+
+        /* Close matches get lower scores */
+        if (Mode->Width >= PreferredWidth && Mode->Width < PreferredWidth + 100) Score += 100;
+        if (Mode->Height >= PreferredHeight && Mode->Height < PreferredHeight + 100) Score += 100;
+        if (Mode->BitsPerPixel >= PreferredDepth) Score += 50;
+
+        /* Prefer linear over banked */
+        if (Mode->MemoryOrganization == FbMemoryLinear) Score += 25;
+
+        /* Update best match */
+        if (Score > BestScore) {
+            BestScore = Score;
+            BestMatch = (INT32)i;
+        }
+    }
+
+    return BestMatch;
 }

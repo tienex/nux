@@ -148,3 +148,97 @@ ANX_END_INTERFACE(IFramebufferBackendExt)
     ((This)->lpVtbl->SetHardwareCursor(This, Vis, X, Y, Data, W, H, HX, HY, Type))
 
 #endif /* !__cplusplus */
+
+/* --------------------------------------------------------------- */
+/*  PC Graphics Backend API (for pcga.c)                           */
+/*  Direct functions for mode enumeration, EDID, and detection     */
+/* --------------------------------------------------------------- */
+
+/* Forward declaration for EDID structure */
+typedef struct _EDID_BASE_BLOCK EDID_BASE_BLOCK;
+
+/*
+ * Create the PC Graphics backend instance.
+ */
+IFramebufferBackend*
+FbCreatePcGraphicsBackend(
+    VOID
+    );
+
+/*
+ * Set bank switching function for VESA banked modes.
+ */
+VOID
+FbPcGraphicsSetBankFunction(
+    IN IFramebufferBackend *Backend,
+    IN VOID (*BankSwitchFunc)(UINT32 BankNumber)
+    );
+
+/*
+ * Set RtlCopyMemory function for optimized memory operations.
+ */
+VOID
+FbPcGraphicsSetRtlCopyMemory(
+    IN IFramebufferBackend *Backend,
+    IN VOID (*RtlCopyMemoryFunc)(VOID *Dest, CONST VOID *Src, SIZE_T Size)
+    );
+
+/*
+ * Get the number of available PC graphics modes.
+ */
+UINT32
+FbPcGraphicsGetModeCount(
+    VOID
+    );
+
+/*
+ * Query information about a specific mode by index.
+ */
+HRESULT
+FbPcGraphicsQueryMode(
+    IN UINT32 ModeIndex,
+    OUT FRAMEBUFFER_DESC *ModeDesc
+    );
+
+/*
+ * Set a specific video mode by mode number.
+ */
+HRESULT
+FbPcGraphicsSetMode(
+    IN IFramebufferBackend *Backend,
+    IN UINT32 ModeNumber
+    );
+
+/*
+ * Get hardware capabilities (CGA/EGA/VGA/SVGA/MCGA).
+ * Returns a bitmask of supported hardware flags.
+ */
+UINT32
+FbPcGraphicsGetCapabilities(
+    VOID
+    );
+
+/*
+ * Filter modes based on EDID and hardware capabilities.
+ * Returns the number of supported modes in the output array.
+ */
+UINT32
+FbPcGraphicsFilterModes(
+    IN CONST EDID_BASE_BLOCK *Edid,
+    OUT UINT32 *SupportedModeIndices,
+    IN UINT32 MaxModes
+    );
+
+/*
+ * Find the best mode matching requested size, depth, and refresh rate.
+ * If EDID is provided, only returns modes supported by the monitor.
+ * Returns mode index, or -1 if no suitable mode found.
+ */
+INT32
+FbPcGraphicsFindBestMode(
+    IN CONST EDID_BASE_BLOCK *Edid,
+    IN UINT32 PreferredWidth,
+    IN UINT32 PreferredHeight,
+    IN UINT32 PreferredDepth,
+    IN UINT32 PreferredRefresh
+    );
