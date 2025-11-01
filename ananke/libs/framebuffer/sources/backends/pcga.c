@@ -1,23 +1,27 @@
 /*++
     Module Name:
 
-        pc_graphics.c
+        pcga.c (PC Graphics Adapter)
 
     Abstract:
 
-        Unified IBM PC-compatible graphics adapter backend.
-        Handles CGA, EGA, VGA, SVGA, and XGA modes.
+        IBM PC-compatible graphics adapter backend.
+        Handles all CGA, EGA, VGA, SVGA, and XGA modes including text modes.
 
-        The pixel format describes WHAT the data is (mono, planar, indexed, RGB).
+        The pixel format describes WHAT the data is (mono, planar, indexed, RGB, text).
         The FRAMEBUFFER_DESC describes HOW it's organized in memory (linear,
-        planar, banked, interleaved).
+        planar, banked, interleaved) and other characteristics.
 
-        Supported modes:
-        - CGA: 320x200x4, 640x200x2 (bank-interleaved)
-        - EGA: 640x350x16 (planar)
-        - VGA: 640x480x16 (planar), 320x200x256 (linear), text modes
-        - SVGA: Extended resolutions with linear or banked framebuffers
-        - XGA: High-resolution modes
+    TODO: Complete implementation with:
+        1. ALL PC graphics modes (text, CGA, EGA, VGA, SVGA, XGA, Mode-X)
+        2. VGA latching for fast planar writes
+        3. Really fast blitting with direct memory access
+        4. Text mode special case rendering
+        5. Font loading (VGA ROM and custom fonts)
+        6. Palette changes (VGA DAC programming)
+        7. Hardware cursor support
+        8. Border color control
+        9. IsAddressable flag usage for direct pointer access
 
 --*/
 
