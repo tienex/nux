@@ -461,6 +461,16 @@ typedef struct _ZOO64_METADATA_CHUNK {
 0x0028: Event port attributes
 0x0029: Whiteout attributes (BSD union mounts)
 0x002A: Magic symlink attributes (junctions, aliases, etc.)
+0x002B: APFS attributes (clones, encryption, snapshots)
+0x002C: ReFS attributes (integrity streams, block cloning)
+0x002D: VxFS attributes (Veritas - checkpoints, DMAPI)
+0x002E: HPFS attributes (OS/2 extended attributes)
+0x002F: ZFS attributes (snapshots, clones, checksums)
+0x0030: AdvFS attributes (Tru64 - filesets, clones)
+0x0031: XFS attributes (real-time subvolumes, reflinks)
+0x0032: JFS attributes (IBM JFS - compression)
+0x0033: ReiserFS attributes (tail packing)
+0x0034: Btrfs attributes (subvolumes, snapshots, reflinks)
 ```
 
 ### 6.3 Universal ACL Format
@@ -2435,6 +2445,425 @@ Magic symlink flags:
 - Shell link format
 - Can include arguments, working directory, icon
 - Store GUID for target resolution
+
+### 6.39 APFS Attributes (0x002B)
+
+Apple File System specific attributes for macOS 10.13+.
+
+```c
+typedef struct _ZOO64_APFS_ATTR {
+  UINT64  FileID;             // APFS file identifier
+  UINT64  ParentID;           // Parent directory ID
+  UINT64  CloneID;            // Clone source ID (0 if not cloned)
+  UINT32  CloneGeneration;    // Clone generation number
+  UINT32  Flags;              // APFS-specific flags
+  UINT32  EncryptionClass;    // Encryption class (0-7)
+  UINT32  Reserved;           // Reserved for future use
+  UINT8   DocumentID[16];     // Document identifier (UUID)
+} __attribute__((packed)) ZOO64_APFS_ATTR;
+```
+
+APFS flags:
+```
+0x00000001: CLONED_FILE          // File is a clone (copy-on-write)
+0x00000002: PURGEABLE            // Can be purged by system
+0x00000004: COMPRESSED           // File is compressed
+0x00000008: ENCRYPTION_ENABLED   // File is encrypted
+0x00000010: FAST_DIR_SIZING      // Directory has fast size tracking
+0x00000020: ATOMIC_SAFE_SAVE     // File uses atomic safe-save
+0x00000040: HAS_SECURITY_EA      // Has security extended attributes
+0x00000080: PINNED_TO_TIER       // Pinned to specific storage tier
+```
+
+APFS encryption classes:
+```
+0: PROTECTION_NONE
+1: PROTECTION_COMPLETE_UNLESS_OPEN
+2: PROTECTION_COMPLETE_UNTIL_FIRST_USER_AUTHENTICATION
+3: PROTECTION_COMPLETE
+4: PROTECTION_PROTECTED_UNLESS_OPEN (default for new files)
+5-7: Reserved
+```
+
+**Copy-on-Write Clones**:
+- CloneID points to source file
+- Blocks shared until modified
+- On extraction: Create actual clone if supported, otherwise full copy
+
+**Snapshot Integration**:
+- Files may reference snapshot versions
+- Document ID tracks file across snapshots
+
+### 6.40 ReFS Attributes (0x002C)
+
+Windows Resilient File System (ReFS) specific attributes.
+
+```c
+typedef struct _ZOO64_REFS_ATTR {
+  UINT64  FileID;             // ReFS file identifier
+  UINT64  IntegrityStreamID;  // Integrity stream ID
+  UINT32  Flags;              // ReFS-specific flags
+  UINT32  IntegrityLevel;     // Integrity level (0-2)
+  UINT64  CloneSourceID;      // Block clone source (0 if not cloned)
+  UINT32  CloneRangeCount;    // Number of cloned ranges
+  UINT32  StorageTier;        // Storage tier (SSD/HDD)
+  // Followed by CloneRangeCount * sizeof(REFS_CLONE_RANGE) if cloned
+} __attribute__((packed)) ZOO64_REFS_ATTR;
+
+typedef struct _REFS_CLONE_RANGE {
+  UINT64  SourceOffset;       // Offset in source file
+  UINT64  TargetOffset;       // Offset in this file
+  UINT64  Length;             // Length of cloned region
+} __attribute__((packed)) REFS_CLONE_RANGE;
+```
+
+ReFS flags:
+```
+0x00000001: INTEGRITY_ENABLED     // Integrity streams enabled
+0x00000002: BLOCK_CLONED          // File has block clones
+0x00000004: TIERED_STORAGE        // Uses storage tiering
+0x00000008: DEDUPLICATION_ENABLED // File is deduplicated
+0x00000010: SPARSE_VDL            // Sparse valid data length
+0x00000020: SCRUBBING_ENABLED     // Integrity scrubbing enabled
+```
+
+ReFS integrity levels:
+```
+0: INTEGRITY_NONE        // No integrity checking
+1: INTEGRITY_METADATA    // Metadata only
+2: INTEGRITY_FULL        // Metadata + data checksums
+```
+
+**Block Cloning**:
+- ReFS supports efficient block-level clones
+- Clone ranges track shared blocks
+- On extraction: Use block cloning if available
+
+### 6.41 VxFS Attributes (0x002D)
+
+Veritas File System (VxFS) specific attributes.
+
+```c
+typedef struct _ZOO64_VXFS_ATTR {
+  UINT64  Inode;              // VxFS inode number
+  UINT32  Flags;              // VxFS-specific flags
+  UINT32  ExtentMode;         // Extent allocation mode
+  UINT64  CheckpointID;       // Storage checkpoint ID
+  UINT32  ReorgPriority;      // Reorganization priority
+  UINT32  Reserved;           // Reserved
+  char    DMAPIAttributes[64]; // DMAPI attribute string
+} __attribute__((packed)) ZOO64_VXFS_ATTR;
+```
+
+VxFS flags:
+```
+0x00000001: QUICK_IO_ENABLED   // Quick I/O enabled
+0x00000002: CHECKPOINTED       // File in storage checkpoint
+0x00000004: DMAPI_MANAGED      // Managed by DMAPI
+0x00000008: CACHED_IO          // Cached I/O mode
+0x00000010: DIRECT_IO          // Direct I/O mode
+0x00000020: CONCURRENT_IO      // Concurrent I/O enabled
+```
+
+VxFS extent modes:
+```
+0: EXTENT_NORMAL     // Normal extent allocation
+1: EXTENT_FIXED      // Fixed extent size
+2: EXTENT_RESERVE    // Reserved extent
+3: EXTENT_THIN       // Thin provisioned
+```
+
+### 6.42 HPFS Attributes (0x002E)
+
+OS/2 High Performance File System (HPFS) extended attributes.
+
+```c
+typedef struct _ZOO64_HPFS_ATTR {
+  UINT32  EASize;             // Total size of extended attributes
+  UINT16  EACount;            // Number of EA entries
+  UINT16  Flags;              // HPFS flags
+  // Followed by EACount * HPFS_EA_ENTRY structures
+} __attribute__((packed)) ZOO64_HPFS_ATTR;
+
+typedef struct _HPFS_EA_ENTRY {
+  UINT8   NameLength;         // Length of EA name
+  UINT16  ValueLength;        // Length of EA value
+  UINT8   Flags;              // EA flags
+  // Followed by:
+  //   [NameLength bytes: EA name]
+  //   [ValueLength bytes: EA value]
+} __attribute__((packed)) HPFS_EA_ENTRY;
+```
+
+HPFS EA flags:
+```
+0x01: EA_CRITICAL    // Critical EA (file unusable if not preserved)
+0x02: EA_NEEDEA      // File needs EAs to function
+0x04: EA_BINARY      // Binary data (not text)
+```
+
+**OS/2 Extended Attributes**:
+- Store application-specific metadata
+- Critical EAs must be preserved for file to work
+- Common EAs: `.TYPE`, `.ICON`, `.LONGNAME`
+
+### 6.43 ZFS Attributes (0x002F)
+
+ZFS (Zettabyte File System) specific attributes.
+
+```c
+typedef struct _ZOO64_ZFS_ATTR {
+  UINT64  ObjectID;           // ZFS object ID (DMU object)
+  UINT64  SnapshotID;         // Snapshot ID (0 if not in snapshot)
+  UINT64  CloneOriginID;      // Clone origin ID (0 if not clone)
+  UINT32  Flags;              // ZFS-specific flags
+  UINT16  CompressionAlg;     // Compression algorithm
+  UINT16  ChecksumAlg;        // Checksum algorithm
+  UINT64  LogicalSize;        // Logical size (before compression)
+  UINT64  PhysicalSize;       // Physical size (after compression)
+  UINT8   Checksum[32];       // ZFS checksum (SHA256)
+  UINT32  DedupRefCount;      // Dedup reference count
+  UINT32  Reserved;           // Reserved
+} __attribute__((packed)) ZOO64_ZFS_ATTR;
+```
+
+ZFS flags:
+```
+0x00000001: COMPRESSED         // File is compressed
+0x00000002: DEDUPLICATED       // File is deduplicated
+0x00000004: IS_SNAPSHOT        // File from snapshot
+0x00000008: IS_CLONE           // File is a clone
+0x00000010: CHECKSUM_VERIFIED  // Checksum verified on read
+0x00000020: ARC_CACHED         // In ARC cache
+0x00000040: ENCRYPTED          // ZFS native encryption
+0x00000080: SPECIAL_VDEV       // On special vdev (SSD)
+```
+
+ZFS compression algorithms:
+```
+0: NONE
+1: LZJB
+2: GZIP (levels 1-9)
+3: ZLE (Zero-Length Encoding)
+4: LZ4
+5: ZSTD
+```
+
+ZFS checksum algorithms:
+```
+0: INHERIT
+1: ON (default: Fletcher4)
+2: OFF
+3: FLETCHER2
+4: FLETCHER4
+5: SHA256
+6: SHA512
+7: SKEIN
+8: EDONR
+```
+
+**ZFS Clones and Snapshots**:
+- Clones share blocks with origin
+- Snapshots are read-only point-in-time copies
+- On extraction: Recreate as regular files
+
+### 6.44 AdvFS Attributes (0x0030)
+
+Tru64 UNIX Advanced File System (AdvFS) attributes.
+
+```c
+typedef struct _ZOO64_ADVFS_ATTR {
+  UINT64  FilesetID;          // Fileset identifier
+  UINT64  FileID;             // File identifier within fileset
+  UINT64  CloneID;            // Clone fileset ID (0 if not clone)
+  UINT32  Flags;              // AdvFS-specific flags
+  UINT32  ServiceClass;       // Storage service class
+  UINT64  SnapshotID;         // Snapshot ID
+  UINT32  Reserved[4];        // Reserved
+} __attribute__((packed)) ZOO64_ADVFS_ATTR;
+```
+
+AdvFS flags:
+```
+0x00000001: CLONED_FILESET    // File in cloned fileset
+0x00000002: SNAPSHOTED        // File has snapshots
+0x00000004: MIGRATED          // File migrated between service classes
+0x00000008: DIRECTIO          // Direct I/O enabled
+```
+
+AdvFS service classes:
+```
+0: CLASS_UNSPECIFIED
+1: CLASS_PERFORMANCE  // High-performance storage
+2: CLASS_CAPACITY     // High-capacity storage
+3: CLASS_ARCHIVE      // Archive storage
+```
+
+### 6.45 XFS Attributes (0x0031)
+
+SGI XFS filesystem attributes.
+
+```c
+typedef struct _ZOO64_XFS_ATTR {
+  UINT64  Inode;              // XFS inode number
+  UINT64  Generation;         // Inode generation number
+  UINT32  Flags;              // XFS-specific flags
+  UINT32  ExtentSize;         // Extent size hint
+  UINT32  ProjectID;          // Project ID (quota)
+  UINT16  RealtimeFlags;      // Real-time subvolume flags
+  UINT16  RefLinkCount;       // Reflink reference count
+  UINT64  RefLinkSourceInode; // Source inode for reflink
+  UINT32  Reserved[2];        // Reserved
+} __attribute__((packed)) ZOO64_XFS_ATTR;
+```
+
+XFS flags:
+```
+0x00000001: REALTIME           // File on real-time subvolume
+0x00000002: PREALLOC           // Space preallocated
+0x00000004: IMMUTABLE          // File cannot be modified
+0x00000008: APPEND_ONLY        // Append-only mode
+0x00000010: SYNC               // Synchronous I/O
+0x00000020: NOATIME            // Don't update access time
+0x00000040: NODUMP             // Don't dump this file
+0x00000080: REFLINKED          // File has reflinks (COW)
+```
+
+**XFS Reflinks**:
+- Copy-on-write file clones
+- RefLinkSourceInode identifies original file
+- Share extents until modified
+
+### 6.46 JFS Attributes (0x0032)
+
+IBM Journaled File System (JFS) attributes.
+
+```c
+typedef struct _ZOO64_JFS_ATTR {
+  UINT64  Inode;              // JFS inode number
+  UINT32  Flags;              // JFS-specific flags
+  UINT32  CompressionAlg;     // Compression algorithm
+  UINT64  CompressedSize;     // Compressed size
+  UINT64  UncompressedSize;   // Original size
+  UINT32  Reserved[4];        // Reserved
+} __attribute__((packed)) ZOO64_JFS_ATTR;
+```
+
+JFS flags:
+```
+0x00000001: COMPRESSED         // File is compressed
+0x00000002: SPARSE             // Sparse file
+0x00000004: ENCRYPTED          // File is encrypted
+0x00000008: INLINE_EA          // Extended attributes inline
+```
+
+JFS compression algorithms:
+```
+0: NONE
+1: GZIP
+2: BZIP2
+3: LZO
+```
+
+### 6.47 ReiserFS Attributes (0x0033)
+
+ReiserFS (version 3 and 4) attributes.
+
+```c
+typedef struct _ZOO64_REISERFS_ATTR {
+  UINT64  ObjectID;           // Object ID
+  UINT64  DirectoryID;        // Directory ID
+  UINT32  Flags;              // ReiserFS-specific flags
+  UINT32  TailSize;           // Tail size (for tail packing)
+  UINT16  Version;            // ReiserFS version (3 or 4)
+  UINT16  PluginID;           // Plugin ID (Reiser4)
+  UINT32  Reserved[4];        // Reserved
+} __attribute__((packed)) ZOO64_REISERFS_ATTR;
+```
+
+ReiserFS flags:
+```
+0x00000001: TAIL_PACKED        // File tail is packed
+0x00000002: COMPRESSED         // Compressed (Reiser4)
+0x00000004: ENCRYPTED          // Encrypted (Reiser4)
+0x00000008: IMMUTABLE          // Immutable file
+```
+
+**Tail Packing**:
+- Small files/tails stored in directory
+- Saves space for small files
+- TailSize indicates packed portion
+
+### 6.48 Btrfs Attributes (0x0034)
+
+B-tree File System (Btrfs) attributes.
+
+```c
+typedef struct _ZOO64_BTRFS_ATTR {
+  UINT64  Inode;              // Btrfs inode number
+  UINT64  Generation;         // Transaction ID
+  UINT64  SubvolumeID;        // Subvolume ID
+  UINT64  SnapshotID;         // Snapshot ID (0 if not snapshot)
+  UINT64  RefLinkSource;      // Reflink source inode (0 if not reflinked)
+  UINT32  Flags;              // Btrfs-specific flags
+  UINT16  CompressionAlg;     // Compression algorithm
+  UINT16  ChecksumAlg;        // Checksum algorithm
+  UINT32  RefLinkCount;       // Number of reflinks
+  UINT8   Checksum[32];       // File checksum (CRC32C or SHA256)
+  UINT32  RAIDProfile;        // RAID profile (data)
+  UINT32  Reserved;           // Reserved
+} __attribute__((packed)) ZOO64_BTRFS_ATTR;
+```
+
+Btrfs flags:
+```
+0x00000001: COMPRESSED         // File is compressed
+0x00000002: REFLINKED          // File has reflinks (COW)
+0x00000004: IS_SNAPSHOT        // File from snapshot
+0x00000008: IS_SUBVOLUME       // Is subvolume root
+0x00000010: CHECKSUMMED        // Has checksums
+0x00000020: NODATACOW          // No copy-on-write for data
+0x00000040: NODATASUM          // No checksums for data
+0x00000080: ENCRYPTED          // File is encrypted
+```
+
+Btrfs compression algorithms:
+```
+0: NONE
+1: ZLIB
+2: LZO
+3: ZSTD (default)
+```
+
+Btrfs checksum algorithms:
+```
+0: CRC32C (default)
+1: XXHASH
+2: SHA256
+3: BLAKE2
+```
+
+Btrfs RAID profiles:
+```
+0: SINGLE
+1: RAID0
+2: RAID1
+3: RAID5
+4: RAID6
+5: RAID10
+6: RAID1C3 (3 copies)
+7: RAID1C4 (4 copies)
+```
+
+**Btrfs Subvolumes and Snapshots**:
+- Subvolumes are independent file trees
+- Snapshots are read-only or writable point-in-time copies
+- Reflinks share extents via copy-on-write
+- On extraction: Extract as regular files, preserve metadata
+
+**Btrfs Send/Receive**:
+- Could use send stream for incremental archival
+- SubvolumeID and Generation track version
 
 ## 6a. Encryption Support
 
