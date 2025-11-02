@@ -89,48 +89,11 @@ FbCreateHerculesBackend(
     );
 
 /*
- * Create a VGA 16-color planar mode backend.
- * NOTE: This now returns a PC Graphics backend instance.
- * The PC Graphics backend handles all VGA modes through FRAMEBUFFER_DESC.
- */
-IFramebufferBackend *
-FbCreateVga16Backend(
-    VOID
-    );
-
-/*
- * Create a VESA linear framebuffer backend.
- * NOTE: This now returns a PC Graphics backend instance.
- * The PC Graphics backend handles all VESA modes through FRAMEBUFFER_DESC.
- */
-IFramebufferBackend *
-FbCreateVesaLinearBackend(
-    VOID
-    );
-
-/*
- * Create a VESA banked/segmented framebuffer backend.
- * NOTE: This now returns a PC Graphics backend instance.
- * The PC Graphics backend handles all VESA modes through FRAMEBUFFER_DESC.
- */
-IFramebufferBackend *
-FbCreateVesaBankedBackend(
-    VOID
-    );
-
-/*
- * Set the bank switching function for VESA banked backend.
- * This delegates to FbPcGraphicsSetBankFunction().
- */
-VOID
-FbVesaBankedSetBankFunction(
-    IN IFramebufferBackend *Backend,
-    IN VOID (*SetBankFunc)(UINT32)
-    );
-
-/*
  * Create a UEFI Graphics Output Protocol (GOP) backend.
- * For modern UEFI systems.
+ * Handles all UEFI graphics protocols including:
+ * - Modern GOP (Graphics Output Protocol)
+ * - Legacy UGA (Universal Graphics Adapter, EFI 1.x)
+ * - Apple EFI quirks (BGR mode, Retina displays)
  */
 IFramebufferBackend *
 FbCreateUefiGopBackend(
@@ -145,37 +108,6 @@ VOID
 FbUefiGopSetProtocol(
     IN IFramebufferBackend *Backend,
     IN VOID *GopProtocol
-    );
-
-/*
- * Create a UEFI Universal Graphics Adapter (UGA) backend.
- * For EFI 1.x and early UEFI 2.x systems (pre-GOP).
- * NOTE: This now returns a UEFI GOP backend instance.
- * The UEFI GOP backend handles all UEFI graphics protocols.
- */
-IFramebufferBackend *
-FbCreateUefiUgaBackend(
-    VOID
-    );
-
-/*
- * Set the UGA protocol instance for UEFI UGA backend.
- * This can be used to configure the GOP backend for UGA protocol.
- */
-VOID
-FbUefiUgaSetProtocol(
-    IN IFramebufferBackend *Backend,
-    IN VOID *UgaProtocol
-    );
-
-/*
- * Create an Apple EFI framebuffer backend.
- * NOTE: This now returns a UEFI GOP backend instance.
- * The UEFI GOP backend handles Apple-specific quirks automatically.
- */
-IFramebufferBackend *
-FbCreateAppleEfiBackend(
-    VOID
     );
 
 /* --------------------------------------------------------------- */
@@ -428,12 +360,39 @@ FbCreatePaletteManager(
     );
 
 /* --------------------------------------------------------------- */
-/*  Backend Factory                                                 */
+/*  Backend Factory and Registration                                */
 /* --------------------------------------------------------------- */
 
 /*
+ * Backend constructor function type.
+ * Backends implement this signature to create instances.
+ */
+typedef IFramebufferBackend *(*FB_BACKEND_CONSTRUCTOR)(VOID);
+
+/*
+ * Register a backend constructor for a given type.
+ * Backends call this during initialization to register themselves.
+ * Multiple types can map to the same constructor (e.g., VGA16 and VESA → PC Graphics).
+ */
+VOID
+FbRegisterBackend(
+    IN FB_BACKEND_TYPE Type,
+    IN FB_BACKEND_CONSTRUCTOR Constructor
+    );
+
+/*
+ * Initialize the backend registry.
+ * This is called automatically on first FbCreateBackend() call.
+ * Backends register themselves during this initialization.
+ */
+VOID
+FbInitializeBackendRegistry(
+    VOID
+    );
+
+/*
  * Create a framebuffer backend by type.
- * This is a convenience function that calls the appropriate constructor.
+ * Looks up the registered backend constructor for the given type.
  */
 IFramebufferBackend *
 FbCreateBackend(

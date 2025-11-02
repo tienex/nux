@@ -5,45 +5,124 @@
 
     Abstract:
 
-        Framebuffer backend factory implementation.
+        Framebuffer backend factory and registration system.
+
+        Backends register themselves at initialization time, allowing
+        the framework to remain agnostic about specific implementations.
 
 --*/
 
 #include <ananke/framebuffer/backends.h>
 
+/* Maximum number of backend types */
+#define FB_MAX_BACKEND_TYPES    100
+
+/* Backend registry entry */
+typedef struct _FB_BACKEND_REGISTRY_ENTRY {
+    FB_BACKEND_TYPE         Type;
+    FB_BACKEND_CONSTRUCTOR  Constructor;
+} FB_BACKEND_REGISTRY_ENTRY;
+
+/* Backend registry */
+static FB_BACKEND_REGISTRY_ENTRY gBackendRegistry[FB_MAX_BACKEND_TYPES];
+static UINT32 gBackendRegistryCount = 0;
+
+/*
+ * Register a backend constructor for a given type.
+ * Backends call this during initialization to register themselves.
+ */
+VOID
+FbRegisterBackend(
+    IN FB_BACKEND_TYPE Type,
+    IN FB_BACKEND_CONSTRUCTOR Constructor
+    )
+{
+    if (gBackendRegistryCount >= FB_MAX_BACKEND_TYPES) {
+        /* Registry full - silently ignore */
+        return;
+    }
+
+    /* Check if already registered (allow override) */
+    for (UINT32 i = 0; i < gBackendRegistryCount; i++) {
+        if (gBackendRegistry[i].Type == Type) {
+            gBackendRegistry[i].Constructor = Constructor;
+            return;
+        }
+    }
+
+    /* Add new entry */
+    gBackendRegistry[gBackendRegistryCount].Type = Type;
+    gBackendRegistry[gBackendRegistryCount].Constructor = Constructor;
+    gBackendRegistryCount++;
+}
+
+/*
+ * Initialize the backend registry.
+ * Called automatically on first FbCreateBackend() call.
+ * Each backend registers itself for one or more backend types.
+ */
+VOID
+FbInitializeBackendRegistry(
+    VOID
+    )
+{
+    /* Generic backend */
+    FbRegisterBackend(FbBackendGeneric, FbCreateGenericBackend);
+
+    /* Hercules backend */
+    FbRegisterBackend(FbBackendHercules, FbCreateHerculesBackend);
+
+    /* PC Graphics backend (unified CGA/EGA/VGA/SVGA/VESA/XGA) */
+    FbRegisterBackend(FbBackendPcGraphics, FbCreatePcGraphicsBackend);
+    FbRegisterBackend(FbBackendVga16, FbCreatePcGraphicsBackend);
+    FbRegisterBackend(FbBackendVesaLinear, FbCreatePcGraphicsBackend);
+    FbRegisterBackend(FbBackendVesaBanked, FbCreatePcGraphicsBackend);
+
+    /* UEFI GOP backend (unified GOP/UGA/Apple EFI) */
+    FbRegisterBackend(FbBackendUefiGop, FbCreateUefiGopBackend);
+    FbRegisterBackend(FbBackendUefiUga, FbCreateUefiGopBackend);
+    FbRegisterBackend(FbBackendAppleEfi, FbCreateUefiGopBackend);
+
+    /* Linux framebuffer device */
+#if defined(__linux__) || defined(__unix__)
+    extern IFramebufferBackend *FbCreateLinuxFbdevBackend(VOID);
+    FbRegisterBackend(FbBackendGeneric, FbCreateLinuxFbdevBackend);
+#endif
+
+    /* ANSI Terminal backend (unified text mode) */
+    extern IFramebufferBackend *FbCreateAnsiTerminalBackend(VOID);
+    FbRegisterBackend(FbBackendGeneric, FbCreateAnsiTerminalBackend);
+
+    /* TODO: Add registration for other platform-specific backends
+     * (Amiga, Atari, Mac, Sun, SGI, NeXT, Acorn) when they are
+     * compiled in. Each backend should register itself here. */
+}
+
+/*
+ * Create a framebuffer backend by type.
+ * Looks up the registered backend constructor for the given type.
+ */
 IFramebufferBackend *
 FbCreateBackend(
     IN FB_BACKEND_TYPE Type
     )
 {
-    switch (Type) {
-        case FbBackendGeneric:
-            return FbCreateGenericBackend();
-
-        case FbBackendHercules:
-            return FbCreateHerculesBackend();
-
-        /* VGA16, VESA Linear, and VESA Banked are all handled by the
-         * unified PC Graphics backend which supports all PC-compatible
-         * graphics modes (CGA, EGA, VGA, SVGA, VESA) through the
-         * FRAMEBUFFER_DESC memory organization descriptor. */
-        case FbBackendVga16:
-        case FbBackendVesaLinear:
-        case FbBackendVesaBanked:
-        case FbBackendPcGraphics:
-            return FbCreatePcGraphicsBackend();
-
-        /* UEFI GOP, UGA, and Apple EFI are all handled by the unified
-         * UEFI GOP backend which supports all UEFI graphics protocols:
-         * - Modern GOP (Graphics Output Protocol)
-         * - Legacy UGA (Universal Graphics Adapter, EFI 1.x)
-         * - Apple EFI quirks (BGR, Retina, non-standard resolutions) */
-        case FbBackendUefiGop:
-        case FbBackendUefiUga:
-        case FbBackendAppleEfi:
-            return FbCreateUefiGopBackend();
-
-        default:
-            return NULL;
+    /* Initialize backends on first call */
+    static BOOLEAN Initialized = FALSE;
+    if (!Initialized) {
+        FbInitializeBackendRegistry();
+        Initialized = TRUE;
     }
+
+    /* Look up in registry */
+    for (UINT32 i = 0; i < gBackendRegistryCount; i++) {
+        if (gBackendRegistry[i].Type == Type) {
+            if (gBackendRegistry[i].Constructor != NULL) {
+                return gBackendRegistry[i].Constructor();
+            }
+        }
+    }
+
+    /* Backend not found */
+    return NULL;
 }
