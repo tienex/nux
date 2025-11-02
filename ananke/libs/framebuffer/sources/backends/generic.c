@@ -13,6 +13,7 @@
 #include <ananke/framebuffer.h>
 #include <ananke/framebuffer/pixelformat.h>
 #include <ananke/framebuffer/dither.h>
+#include <ananke/framebuffer/com_helpers.h>
 #include <ananke/atomics.h>
 #include <ananke/hresult.h>
 
@@ -167,54 +168,8 @@ GenericFb_ReadPixel(
 /*  IUnknown Implementation                                         */
 /* --------------------------------------------------------------- */
 
-static HRESULT STDMETHODCALLTYPE
-GenericFb_QueryInterface(
-    IFramebufferBackend *This,
-    REFIID riid,
-    VOID **ppvObject
-    )
-{
-    GENERIC_FB_BACKEND *Backend = (GENERIC_FB_BACKEND *)This;
-
-    if (ppvObject == NULL) {
-        return E_POINTER;
-    }
-
-    if (IsEqualGUID(riid, &IID_IUnknown) ||
-        IsEqualGUID(riid, &IID_IFramebufferBackend)) {
-        *ppvObject = &Backend->Base;
-        GenericFb_AddRef(This);
-        return S_OK;
-    }
-
-    *ppvObject = NULL;
-    return E_NOINTERFACE;
-}
-
-static UINT32 STDMETHODCALLTYPE
-GenericFb_AddRef(
-    IFramebufferBackend *This
-    )
-{
-    GENERIC_FB_BACKEND *Backend = (GENERIC_FB_BACKEND *)This;
-    return ANX_REF_INC(&Backend->RefCount);
-}
-
-static UINT32 STDMETHODCALLTYPE
-GenericFb_Release(
-    IFramebufferBackend *This
-    )
-{
-    GENERIC_FB_BACKEND *Backend = (GENERIC_FB_BACKEND *)This;
-    UINT32 RefCount = ANX_REF_DEC(&Backend->RefCount);
-
-    if (RefCount == 0) {
-        /* Free backend - for now just leak it since we don't have malloc */
-        /* In a real implementation, this would call a memory allocator */
-    }
-
-    return RefCount;
-}
+/* Use COM helper macro for IUnknown implementation */
+FB_IMPLEMENT_BACKEND_IUNKNOWN(GenericFb, GENERIC_FB_BACKEND)
 
 /* --------------------------------------------------------------- */
 /*  IFramebufferBackend Implementation                              */

@@ -10,6 +10,7 @@
 --*/
 
 #include <ananke/framebuffer.h>
+#include <ananke/framebuffer/com_helpers.h>
 #include <ananke/atomics.h>
 #include <ananke/hresult.h>
 
@@ -168,47 +169,8 @@ static CONST IFramebufferPaletteVtbl gFbPaletteVtbl = {
 /*  IUnknown Implementation                                         */
 /* --------------------------------------------------------------- */
 
-static HRESULT STDMETHODCALLTYPE
-FbPalette_QueryInterface(
-    IFramebufferPalette *This,
-    REFIID riid,
-    VOID **ppvObject
-    )
-{
-    FB_PALETTE_MGR *Manager = (FB_PALETTE_MGR *)This;
-
-    if (ppvObject == NULL) {
-        return E_POINTER;
-    }
-
-    if (IsEqualGUID(riid, &IID_IUnknown) ||
-        IsEqualGUID(riid, &IID_IFramebufferPalette)) {
-        *ppvObject = &Manager->Base;
-        FbPalette_AddRef(This);
-        return S_OK;
-    }
-
-    *ppvObject = NULL;
-    return E_NOINTERFACE;
-}
-
-static UINT32 STDMETHODCALLTYPE
-FbPalette_AddRef(
-    IFramebufferPalette *This
-    )
-{
-    FB_PALETTE_MGR *Manager = (FB_PALETTE_MGR *)This;
-    return ANX_REF_INC(&Manager->RefCount);
-}
-
-static UINT32 STDMETHODCALLTYPE
-FbPalette_Release(
-    IFramebufferPalette *This
-    )
-{
-    FB_PALETTE_MGR *Manager = (FB_PALETTE_MGR *)This;
-    return ANX_REF_DEC(&Manager->RefCount);
-}
+/* Use COM helper macros to implement IUnknown (QueryInterface, AddRef, Release) */
+FB_IMPLEMENT_IUNKNOWN(FbPalette, FB_PALETTE_MGR, IFramebufferPalette, IID_IFramebufferPalette)
 
 /* --------------------------------------------------------------- */
 /*  IFramebufferPalette Implementation                              */

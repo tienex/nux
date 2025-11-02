@@ -1,7 +1,7 @@
 /*++
     Module Name:
 
-        pc_graphics.c (PC Graphics)
+        pcga.c (PC Graphics Adapter)
 
     Abstract:
 
