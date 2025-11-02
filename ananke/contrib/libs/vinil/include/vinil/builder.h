@@ -136,6 +136,45 @@ ANX_BEGIN_INTERFACE(IVinilBuilder, IUnknown, IID_IVinilBuilder, "78901234-7890-7
 ANX_END_INTERFACE(IVinilBuilder, IID_IVinilBuilder)
 
 //
+// COBJMACROS
+//
+
+#ifdef COBJMACROS
+
+#define IVinilBuilder_QueryInterface(This, riid, ppv) \
+    (This)->lpVtbl->QueryInterface(This, riid, ppv)
+#define IVinilBuilder_AddRef(This) \
+    (This)->lpVtbl->AddRef(This)
+#define IVinilBuilder_Release(This) \
+    (This)->lpVtbl->Release(This)
+#define IVinilBuilder_CreateVariable(This, Type, Name, Variable) \
+    (This)->lpVtbl->CreateVariable(This, Type, Name, Variable)
+#define IVinilBuilder_CreateBlock(This, Block) \
+    (This)->lpVtbl->CreateBlock(This, Block)
+#define IVinilBuilder_SetInsertBlock(This, Block) \
+    (This)->lpVtbl->SetInsertBlock(This, Block)
+#define IVinilBuilder_BuildAdd(This, Dst, Src1, Src2) \
+    (This)->lpVtbl->BuildAdd(This, Dst, Src1, Src2)
+#define IVinilBuilder_BuildSub(This, Dst, Src1, Src2) \
+    (This)->lpVtbl->BuildSub(This, Dst, Src1, Src2)
+#define IVinilBuilder_BuildMul(This, Dst, Src1, Src2) \
+    (This)->lpVtbl->BuildMul(This, Dst, Src1, Src2)
+#define IVinilBuilder_BuildMad(This, Dst, Src1, Src2, Src3) \
+    (This)->lpVtbl->BuildMad(This, Dst, Src1, Src2, Src3)
+#define IVinilBuilder_BuildMov(This, Dst, Src) \
+    (This)->lpVtbl->BuildMov(This, Dst, Src)
+#define IVinilBuilder_BuildDp3(This, Dst, Src1, Src2) \
+    (This)->lpVtbl->BuildDp3(This, Dst, Src1, Src2)
+#define IVinilBuilder_BuildDp4(This, Dst, Src1, Src2) \
+    (This)->lpVtbl->BuildDp4(This, Dst, Src1, Src2)
+#define IVinilBuilder_BuildRet(This) \
+    (This)->lpVtbl->BuildRet(This)
+#define IVinilBuilder_Finalize(This, Program) \
+    (This)->lpVtbl->Finalize(This, Program)
+
+#endif /* COBJMACROS */
+
+//
 // Factory Function
 //
 

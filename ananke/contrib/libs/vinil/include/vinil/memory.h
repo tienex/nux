@@ -72,6 +72,29 @@ ANX_BEGIN_INTERFACE(IVinilMemoryPool, IUnknown, IID_IVinilMemoryPool, "34567890-
 ANX_END_INTERFACE(IVinilMemoryPool, IID_IVinilMemoryPool)
 
 //
+// COBJMACROS
+//
+
+#ifdef COBJMACROS
+
+#define IVinilMemoryPool_QueryInterface(This, riid, ppv) \
+    (This)->lpVtbl->QueryInterface(This, riid, ppv)
+#define IVinilMemoryPool_AddRef(This) \
+    (This)->lpVtbl->AddRef(This)
+#define IVinilMemoryPool_Release(This) \
+    (This)->lpVtbl->Release(This)
+#define IVinilMemoryPool_Allocate(This, Size, Memory) \
+    (This)->lpVtbl->Allocate(This, Size, Memory)
+#define IVinilMemoryPool_Clear(This) \
+    (This)->lpVtbl->Clear(This)
+#define IVinilMemoryPool_SetErrorSink(This, ErrorSink) \
+    (This)->lpVtbl->SetErrorSink(This, ErrorSink)
+#define IVinilMemoryPool_GetStatistics(This, TotalAllocated, PageCount, WastedBytes) \
+    (This)->lpVtbl->GetStatistics(This, TotalAllocated, PageCount, WastedBytes)
+
+#endif /* COBJMACROS */
+
+//
 // Factory Function
 //
 

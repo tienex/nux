@@ -116,6 +116,38 @@ ANX_BEGIN_INTERFACE(IVinilProgram, IUnknown, IID_IVinilProgram, "23456789-2345-2
 ANX_END_INTERFACE(IVinilProgram, IID_IVinilProgram)
 
 //
+// COBJMACROS
+//
+
+#ifdef COBJMACROS
+
+/* IVinilContext */
+#define IVinilContext_QueryInterface(This, riid, ppv) \
+    (This)->lpVtbl->QueryInterface(This, riid, ppv)
+#define IVinilContext_AddRef(This) \
+    (This)->lpVtbl->AddRef(This)
+#define IVinilContext_Release(This) \
+    (This)->lpVtbl->Release(This)
+#define IVinilContext_Execute(This, Program, Backend, Inputs, Outputs) \
+    (This)->lpVtbl->Execute(This, Program, Backend, Inputs, Outputs)
+#define IVinilContext_ExecuteKernel(This, Program, Backend, GlobalSize, LocalSize, Args) \
+    (This)->lpVtbl->ExecuteKernel(This, Program, Backend, GlobalSize, LocalSize, Args)
+
+/* IVinilProgram */
+#define IVinilProgram_QueryInterface(This, riid, ppv) \
+    (This)->lpVtbl->QueryInterface(This, riid, ppv)
+#define IVinilProgram_AddRef(This) \
+    (This)->lpVtbl->AddRef(This)
+#define IVinilProgram_Release(This) \
+    (This)->lpVtbl->Release(This)
+#define IVinilProgram_GetMode(This, Mode) \
+    (This)->lpVtbl->GetMode(This, Mode)
+#define IVinilProgram_GetInstructionCount(This, Count) \
+    (This)->lpVtbl->GetInstructionCount(This, Count)
+
+#endif /* COBJMACROS */
+
+//
 // Factory Functions
 //
 

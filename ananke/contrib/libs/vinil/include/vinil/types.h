@@ -204,6 +204,35 @@ ANX_BEGIN_INTERFACE(IVinilType, IUnknown, IID_IVinilType, "89012345-8901-8901-89
 ANX_END_INTERFACE(IVinilType, IID_IVinilType)
 
 //
+// COBJMACROS
+//
+
+#ifdef COBJMACROS
+
+#define IVinilType_QueryInterface(This, riid, ppv) \
+    (This)->lpVtbl->QueryInterface(This, riid, ppv)
+#define IVinilType_AddRef(This) \
+    (This)->lpVtbl->AddRef(This)
+#define IVinilType_Release(This) \
+    (This)->lpVtbl->Release(This)
+#define IVinilType_GetTypeValue(This, TypeValue) \
+    (This)->lpVtbl->GetTypeValue(This, TypeValue)
+#define IVinilType_GetPrecision(This, Precision) \
+    (This)->lpVtbl->GetPrecision(This, Precision)
+#define IVinilType_GetSize(This, Size) \
+    (This)->lpVtbl->GetSize(This, Size)
+#define IVinilType_IsScalar(This, IsScalar) \
+    (This)->lpVtbl->IsScalar(This, IsScalar)
+#define IVinilType_IsVector(This, IsVector) \
+    (This)->lpVtbl->IsVector(This, IsVector)
+#define IVinilType_IsMatrix(This, IsMatrix) \
+    (This)->lpVtbl->IsMatrix(This, IsMatrix)
+#define IVinilType_GetComponents(This, Components) \
+    (This)->lpVtbl->GetComponents(This, Components)
+
+#endif /* COBJMACROS */
+
+//
 // Factory Functions
 //
 

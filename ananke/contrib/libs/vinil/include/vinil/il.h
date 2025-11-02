@@ -277,3 +277,53 @@ ANX_BEGIN_INTERFACE(IVinilVariable, IUnknown, IID_IVinilVariable, "67890123-6789
     ANX_IFACE_METHOD(HRESULT, GetName, (CONST CHAR8 **Name, UINTN *NameLength))
 ANX_END_INTERFACE(IVinilVariable, IID_IVinilVariable)
 
+//
+// COBJMACROS
+//
+
+#ifdef COBJMACROS
+
+/* IVinilInstruction */
+#define IVinilInstruction_QueryInterface(This, riid, ppv) \
+    (This)->lpVtbl->QueryInterface(This, riid, ppv)
+#define IVinilInstruction_AddRef(This) \
+    (This)->lpVtbl->AddRef(This)
+#define IVinilInstruction_Release(This) \
+    (This)->lpVtbl->Release(This)
+#define IVinilInstruction_GetOpcode(This, Opcode) \
+    (This)->lpVtbl->GetOpcode(This, Opcode)
+#define IVinilInstruction_GetPrecision(This, Precision) \
+    (This)->lpVtbl->GetPrecision(This, Precision)
+#define IVinilInstruction_GetDestination(This, Destination) \
+    (This)->lpVtbl->GetDestination(This, Destination)
+#define IVinilInstruction_GetSource(This, Index, Source) \
+    (This)->lpVtbl->GetSource(This, Index, Source)
+
+/* IVinilBlock */
+#define IVinilBlock_QueryInterface(This, riid, ppv) \
+    (This)->lpVtbl->QueryInterface(This, riid, ppv)
+#define IVinilBlock_AddRef(This) \
+    (This)->lpVtbl->AddRef(This)
+#define IVinilBlock_Release(This) \
+    (This)->lpVtbl->Release(This)
+#define IVinilBlock_GetInstructionCount(This, Count) \
+    (This)->lpVtbl->GetInstructionCount(This, Count)
+#define IVinilBlock_GetInstruction(This, Index, Instruction) \
+    (This)->lpVtbl->GetInstruction(This, Index, Instruction)
+#define IVinilBlock_AppendInstruction(This, Instruction) \
+    (This)->lpVtbl->AppendInstruction(This, Instruction)
+
+/* IVinilVariable */
+#define IVinilVariable_QueryInterface(This, riid, ppv) \
+    (This)->lpVtbl->QueryInterface(This, riid, ppv)
+#define IVinilVariable_AddRef(This) \
+    (This)->lpVtbl->AddRef(This)
+#define IVinilVariable_Release(This) \
+    (This)->lpVtbl->Release(This)
+#define IVinilVariable_GetId(This, Id) \
+    (This)->lpVtbl->GetId(This, Id)
+#define IVinilVariable_GetName(This, Name, NameLength) \
+    (This)->lpVtbl->GetName(This, Name, NameLength)
+
+#endif /* COBJMACROS */
+

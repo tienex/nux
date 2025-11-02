@@ -138,6 +138,38 @@ ANX_BEGIN_INTERFACE(IVinilDiagnosticSink, IUnknown, IID_IVinilDiagnosticSink, "A
 ANX_END_INTERFACE(IVinilDiagnosticSink, IID_IVinilDiagnosticSink)
 
 //
+// COBJMACROS
+//
+
+#ifdef COBJMACROS
+
+/* IVinilErrorSink */
+#define IVinilErrorSink_QueryInterface(This, riid, ppv) \
+    (This)->lpVtbl->QueryInterface(This, riid, ppv)
+#define IVinilErrorSink_AddRef(This) \
+    (This)->lpVtbl->AddRef(This)
+#define IVinilErrorSink_Release(This) \
+    (This)->lpVtbl->Release(This)
+#define IVinilErrorSink_OnError(This, ErrorInfo) \
+    (This)->lpVtbl->OnError(This, ErrorInfo)
+#define IVinilErrorSink_IsEnabled(This, Category, Enable) \
+    (This)->lpVtbl->IsEnabled(This, Category, Enable)
+
+/* IVinilDiagnosticSink */
+#define IVinilDiagnosticSink_QueryInterface(This, riid, ppv) \
+    (This)->lpVtbl->QueryInterface(This, riid, ppv)
+#define IVinilDiagnosticSink_AddRef(This) \
+    (This)->lpVtbl->AddRef(This)
+#define IVinilDiagnosticSink_Release(This) \
+    (This)->lpVtbl->Release(This)
+#define IVinilDiagnosticSink_OnDiagnosticEvent(This, DiagInfo) \
+    (This)->lpVtbl->OnDiagnosticEvent(This, DiagInfo)
+#define IVinilDiagnosticSink_GetStatistics(This, TotalExecutions, TotalInstructions, AverageTimeNs) \
+    (This)->lpVtbl->GetStatistics(This, TotalExecutions, TotalInstructions, AverageTimeNs)
+
+#endif /* COBJMACROS */
+
+//
 // Error Reporting Helper Functions
 //
 
