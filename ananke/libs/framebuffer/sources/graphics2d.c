@@ -216,15 +216,9 @@ static CONST IFramebuffer2DContextVtbl gGfxVtbl = {
     .StrokeEllipse          = FbGfx_StrokeEllipse,
     .FillEllipse            = FbGfx_FillEllipse,
     .StrokeArc              = FbGfx_StrokeArc,
-    .BeginPath              = FbGfx_BeginPath,
-    .ClosePath              = FbGfx_ClosePath,
-    .MoveTo                 = FbGfx_MoveTo,
-    .LineTo                 = FbGfx_LineTo,
-    .QuadraticCurveTo       = FbGfx_QuadraticCurveTo,
-    .BezierCurveTo          = FbGfx_BezierCurveTo,
-    .Arc                    = FbGfx_Arc,
-    .Stroke                 = FbGfx_Stroke,
-    .Fill                   = FbGfx_Fill,
+    .StrokePath             = FbGfx_StrokePath,
+    .FillPath               = FbGfx_FillPath,
+    .ClipToPath             = FbGfx_ClipToPath,
     .StrokePolygon          = FbGfx_StrokePolygon,
     .FillPolygon            = FbGfx_FillPolygon,
     .DrawImage              = FbGfx_DrawImage,
@@ -234,10 +228,21 @@ static CONST IFramebuffer2DContextVtbl gGfxVtbl = {
     .GetFont                = FbGfx_GetFont,
     .DrawText               = FbGfx_DrawText,
     .MeasureText            = FbGfx_MeasureText,
-    .SetFillGradient        = FbGfx_SetFillGradient,
-    .SetStrokeGradient      = FbGfx_SetStrokeGradient,
+    .DrawLinearGradient     = FbGfx_DrawLinearGradient,
+    .DrawRadialGradient     = FbGfx_DrawRadialGradient,
+    .DrawShading            = FbGfx_DrawShading,
+    .SetFillPattern         = FbGfx_SetFillPattern,
+    .SetStrokePattern       = FbGfx_SetStrokePattern,
+    .DrawLayerAtPoint       = FbGfx_DrawLayerAtPoint,
+    .DrawLayerInRect        = FbGfx_DrawLayerInRect,
+    .SetShadow              = FbGfx_SetShadow,
+    .ClearShadow            = FbGfx_ClearShadow,
+    .BeginTransparencyLayer = FbGfx_BeginTransparencyLayer,
+    .BeginTransparencyLayerWithPath = FbGfx_BeginTransparencyLayerWithPath,
+    .EndTransparencyLayer   = FbGfx_EndTransparencyLayer,
     .GetSurface             = FbGfx_GetSurface,
     .Flush                  = FbGfx_Flush,
+    .Synchronize            = FbGfx_Synchronize,
 };
 
 /* --------------------------------------------------------------- */
@@ -1699,15 +1704,33 @@ FbGfx_DrawImage(
 static HRESULT STDMETHODCALLTYPE FbGfx_DrawImageScaled(IFramebuffer2DContext *This, IFramebufferImage *Image, FLOAT X, FLOAT Y, FLOAT Width, FLOAT Height) { return E_NOTIMPL; }
 static HRESULT STDMETHODCALLTYPE FbGfx_DrawImageEx(IFramebuffer2DContext *This, IFramebufferImage *Image, CONST FB_RECT *SourceRect, CONST FB_RECT *DestRect) { return E_NOTIMPL; }
 
-/* Text methods - stubs for now */
+/* Text methods - TODO: implement with IFramebufferFont */
 static HRESULT STDMETHODCALLTYPE FbGfx_SetFont(IFramebuffer2DContext *This, IFramebufferFont *Font) { return E_NOTIMPL; }
 static HRESULT STDMETHODCALLTYPE FbGfx_GetFont(IFramebuffer2DContext *This, IFramebufferFont **Font) { return E_NOTIMPL; }
 static HRESULT STDMETHODCALLTYPE FbGfx_DrawText(IFramebuffer2DContext *This, CONST CHAR *Text, FLOAT X, FLOAT Y) { return E_NOTIMPL; }
 static HRESULT STDMETHODCALLTYPE FbGfx_MeasureText(IFramebuffer2DContext *This, CONST CHAR *Text, FLOAT *Width, FLOAT *Height) { return E_NOTIMPL; }
 
-/* Gradient methods - stubs for now */
-static HRESULT STDMETHODCALLTYPE FbGfx_SetFillGradient(IFramebuffer2DContext *This, CONST FB_GRADIENT_DESC *Gradient) { return E_NOTIMPL; }
-static HRESULT STDMETHODCALLTYPE FbGfx_SetStrokeGradient(IFramebuffer2DContext *This, CONST FB_GRADIENT_DESC *Gradient) { return E_NOTIMPL; }
+/* Core Graphics-style gradient methods - TODO: implement with IFramebufferGradient */
+static HRESULT STDMETHODCALLTYPE FbGfx_DrawLinearGradient(IFramebuffer2DContext *This, IFramebufferGradient *Gradient, FLOAT StartX, FLOAT StartY, FLOAT EndX, FLOAT EndY, UINT32 Options) { return E_NOTIMPL; }
+static HRESULT STDMETHODCALLTYPE FbGfx_DrawRadialGradient(IFramebuffer2DContext *This, IFramebufferGradient *Gradient, FLOAT StartX, FLOAT StartY, FLOAT StartRadius, FLOAT EndX, FLOAT EndY, FLOAT EndRadius, UINT32 Options) { return E_NOTIMPL; }
+static HRESULT STDMETHODCALLTYPE FbGfx_DrawShading(IFramebuffer2DContext *This, IFramebufferShading *Shading) { return E_NOTIMPL; }
+
+/* Pattern methods - TODO: implement with IFramebufferPattern */
+static HRESULT STDMETHODCALLTYPE FbGfx_SetFillPattern(IFramebuffer2DContext *This, IFramebufferPattern *Pattern, CONST FLOAT *Alpha) { return E_NOTIMPL; }
+static HRESULT STDMETHODCALLTYPE FbGfx_SetStrokePattern(IFramebuffer2DContext *This, IFramebufferPattern *Pattern, CONST FLOAT *Alpha) { return E_NOTIMPL; }
+
+/* Layer methods - TODO: implement with IFramebufferLayer */
+static HRESULT STDMETHODCALLTYPE FbGfx_DrawLayerAtPoint(IFramebuffer2DContext *This, IFramebufferLayer *Layer, FLOAT X, FLOAT Y) { return E_NOTIMPL; }
+static HRESULT STDMETHODCALLTYPE FbGfx_DrawLayerInRect(IFramebuffer2DContext *This, IFramebufferLayer *Layer, CONST FB_RECT *Rect) { return E_NOTIMPL; }
+
+/* Shadow methods - TODO: implement */
+static HRESULT STDMETHODCALLTYPE FbGfx_SetShadow(IFramebuffer2DContext *This, FLOAT OffsetX, FLOAT OffsetY, FLOAT Blur, FB_COLOR Color) { return E_NOTIMPL; }
+static HRESULT STDMETHODCALLTYPE FbGfx_ClearShadow(IFramebuffer2DContext *This) { return E_NOTIMPL; }
+
+/* Transparency layer methods - TODO: implement */
+static HRESULT STDMETHODCALLTYPE FbGfx_BeginTransparencyLayer(IFramebuffer2DContext *This, FLOAT Alpha) { return E_NOTIMPL; }
+static HRESULT STDMETHODCALLTYPE FbGfx_BeginTransparencyLayerWithPath(IFramebuffer2DContext *This, IFramebuffer2DPath *Path, FLOAT Alpha) { return E_NOTIMPL; }
+static HRESULT STDMETHODCALLTYPE FbGfx_EndTransparencyLayer(IFramebuffer2DContext *This) { return E_NOTIMPL; }
 
 /* Utility */
 static HRESULT STDMETHODCALLTYPE
@@ -1734,6 +1757,16 @@ FbGfx_Flush(
 {
     /* No-op for now - could batch operations in future */
     return S_OK;
+}
+
+static HRESULT STDMETHODCALLTYPE
+FbGfx_Synchronize(
+    IFramebuffer2DContext *This
+    )
+{
+    /* Similar to CGContextSynchronize - ensures all pending drawing is complete */
+    /* For now, just flush */
+    return FbGfx_Flush(This);
 }
 
 /* --------------------------------------------------------------- */
