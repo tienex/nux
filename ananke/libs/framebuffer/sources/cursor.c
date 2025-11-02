@@ -24,6 +24,9 @@
 /*  Cursor Implementation Structure                                */
 /* --------------------------------------------------------------- */
 
+/* Forward declaration for timer sink */
+typedef struct _FB_CURSOR_TIMER_SINK FB_CURSOR_TIMER_SINK;
+
 typedef struct _FB_CURSOR_IMPL {
     IFramebufferCursor      Base;
     REFOBJ                  RefCount;
@@ -45,7 +48,27 @@ typedef struct _FB_CURSOR_IMPL {
     UINT32                  SavedWidth;
     UINT32                  SavedHeight;
     FB_COLOR                SavedBackground[FB_CURSOR_MAX_WIDTH * FB_CURSOR_MAX_HEIGHT];
+
+    /* Animation support */
+    FB_CURSOR_FRAME         *Frames;
+    UINT32                  AllocatedFrames;
+    IFramebufferTimer       *Timer;
+    UINT32                  TimerCookie;
+    FB_CURSOR_TIMER_SINK    *TimerSink;
 } FB_CURSOR_IMPL;
+
+/* --------------------------------------------------------------- */
+/*  Timer Sink Implementation (nested interface)                   */
+/* --------------------------------------------------------------- */
+
+/*
+ * Internal timer sink that cursor uses to receive timer callbacks.
+ * This implements IFramebufferTimerSink and forwards to the cursor.
+ */
+struct _FB_CURSOR_TIMER_SINK {
+    IFramebufferTimerSink   Base;
+    FB_CURSOR_IMPL          *Cursor;  /* Back pointer to cursor */
+};
 
 /* --------------------------------------------------------------- */
 /*  Forward Declarations                                            */

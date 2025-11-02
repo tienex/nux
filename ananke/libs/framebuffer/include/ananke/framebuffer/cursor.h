@@ -52,13 +52,42 @@ typedef struct _FB_CURSOR_FRAME {
 } FB_CURSOR_FRAME;
 
 /* --------------------------------------------------------------- */
-/*  IFramebufferTimer - Timer callback interface                    */
+/*  IFramebufferTimerSink - Timer callback sink interface           */
 /* --------------------------------------------------------------- */
 
 /*
- * Timer interface for animated cursor support.
- * The application implements this interface to provide timer callbacks.
- * The cursor calls OnTimer() periodically to advance animation frames.
+ * Timer sink interface for receiving timer callbacks.
+ * Objects that need periodic timer notifications implement this interface
+ * and register with IFramebufferTimer using Advise().
+ *
+ * This follows the COM connection point pattern where:
+ * - Timer is the event SOURCE
+ * - TimerSink is the event CONSUMER
+ */
+
+#define ANX_IID_IFramebufferTimerSink "FB000016-0000-0000-C000-000000000046"
+ANX_DEFINE_GUID(IID_IFramebufferTimerSink,
+    0xFB000016, 0x0000, 0x0000,
+    0xC0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x46);
+
+ANX_BEGIN_INTERFACE(IFramebufferTimerSink, IUnknown,
+    IID_IFramebufferTimerSink, ANX_IID_IFramebufferTimerSink)
+
+    /* Called periodically when the timer fires */
+    ANX_IFACE_METHOD(HRESULT, OnTimer, (
+        IN VOID *Context))
+
+ANX_END_INTERFACE(IFramebufferTimerSink)
+
+/* --------------------------------------------------------------- */
+/*  IFramebufferTimer - Timer service interface                     */
+/* --------------------------------------------------------------- */
+
+/*
+ * Timer service interface for animated cursor and other periodic tasks.
+ * The timer calls OnTimer() on registered sinks at specified intervals.
+ *
+ * This is the event SOURCE that calls sinks.
  */
 
 #define ANX_IID_IFramebufferTimer "FB000015-0000-0000-C000-000000000046"
@@ -69,9 +98,17 @@ ANX_DEFINE_GUID(IID_IFramebufferTimer,
 ANX_BEGIN_INTERFACE(IFramebufferTimer, IUnknown,
     IID_IFramebufferTimer, ANX_IID_IFramebufferTimer)
 
-    /* Called periodically to advance cursor animation */
-    ANX_IFACE_METHOD(HRESULT, OnTimer, (
-        IN VOID *Context))
+    /* Register a sink to receive timer callbacks
+     * Returns a cookie that can be used to unregister
+     */
+    ANX_IFACE_METHOD(HRESULT, Advise, (
+        IN IFramebufferTimerSink *Sink,
+        IN VOID *Context,
+        OUT UINT32 *Cookie))
+
+    /* Unregister a previously registered sink */
+    ANX_IFACE_METHOD(HRESULT, Unadvise, (
+        IN UINT32 Cookie))
 
     /* Get timer interval in milliseconds */
     ANX_IFACE_METHOD(HRESULT, GetInterval, (
