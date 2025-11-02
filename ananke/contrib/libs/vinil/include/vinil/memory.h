@@ -49,7 +49,7 @@ ANX_BEGIN_INTERFACE(IVinilMemoryPool, IUnknown, IID_IVinilMemoryPool, "34567890-
 
       @retval  S_OK  Success.
     **/
-    ANX_IFACE_METHOD(HRESULT, Clear, (VOID))
+    HRESULT (STDMETHODCALLTYPE *Clear)(void* This);
 
     /**
       Set allocation error handler.
@@ -59,7 +59,7 @@ ANX_BEGIN_INTERFACE(IVinilMemoryPool, IUnknown, IID_IVinilMemoryPool, "34567890-
       @retval  S_OK  Success.
     **/
     ANX_IFACE_METHOD(HRESULT, SetHandler, (jmp_buf *Handler))
-ANX_END_INTERFACE(IVinilMemoryPool)
+ANX_END_INTERFACE(IVinilMemoryPool, IID_IVinilMemoryPool)
 
 //
 // Factory Function

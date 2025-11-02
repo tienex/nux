@@ -89,7 +89,7 @@ ANX_BEGIN_INTERFACE(IVinilContext, IUnknown, IID_IVinilContext, "12345678-1234-1
       @retval  E_FAIL     Execution failed.
     **/
     ANX_IFACE_METHOD(HRESULT, ExecuteKernel, (IVinilProgram *Program, VINIL_BACKEND Backend, CONST UINT32 *GlobalSize, CONST UINT32 *LocalSize, VOID *Args))
-ANX_END_INTERFACE(IVinilContext)
+ANX_END_INTERFACE(IVinilContext, IID_IVinilContext)
 
 //
 // IVinilProgram Interface
@@ -115,7 +115,7 @@ ANX_BEGIN_INTERFACE(IVinilProgram, IUnknown, IID_IVinilProgram, "23456789-2345-2
       @retval  E_POINTER  Invalid pointer.
     **/
     ANX_IFACE_METHOD(HRESULT, GetInstructionCount, (UINT32 *Count))
-ANX_END_INTERFACE(IVinilProgram)
+ANX_END_INTERFACE(IVinilProgram, IID_IVinilProgram)
 
 //
 // Factory Functions

@@ -1,457 +1,282 @@
-/*
-** ==========================================================================
-**
-** VINIL Intermediate Language
-**
-** Unified IL supporting graphics and compute workloads
-**
-** --------------------------------------------------------------------------
-**
-** Vincent 3D Rendering Library, Programmable Pipeline Edition
-**
-** Copyright (C) 2003-2007 Hans-Martin Will.
-** Copyright (C) 2025 NUX Project
-**
-** @CDDL_HEADER_START@
-**
-** The contents of this file are subject to the terms of the
-** Common Development and Distribution License, Version 1.0 only
-** (the "License").  You may not use this file except in compliance
-** with the License.
-**
-** You can obtain a copy of the license at
-** http://www.vincent3d.com/software/ogles2/license/license.html
-** See the License for the specific language governing permissions
-** and limitations under the License.
-**
-** When distributing Covered Code, include this CDDL_HEADER in each
-** file and include the License file named LICENSE.TXT in the root folder
-** of your distribution.
-** If applicable, add the following below this CDDL_HEADER, with the
-** fields enclosed by brackets "[]" replaced with your own identifying
-** information: Portions Copyright [yyyy] [name of copyright owner]
-**
-** @CDDL_HEADER_END@
-**
-** ==========================================================================
-*/
+/** @file
+  VINIL Intermediate Language COM Interfaces
+
+  Unified IL COM interfaces for graphics and compute workloads.
+
+  Copyright (C) 2003-2007 Hans-Martin Will.
+  Copyright (C) 2025 NUX Project
+
+  SPDX-License-Identifier:    CDDL-1.0
+**/
 
 #ifndef VINIL_IL_H
 #define VINIL_IL_H 1
 
 #include <vinil/base.h>
 #include <vinil/memory.h>
+#include <ananke/com.h>
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+//
+// GUIDs
+//
 
-/*
-** ==========================================================================
-** OPCODE DEFINITIONS
-** ==========================================================================
-**
-** Opcodes are organized into categories:
-** 1. Arithmetic Operations (Graphics + Compute)
-** 2. Vector Operations (Graphics + Compute)
-** 3. Transcendental Math (Graphics + Compute)
-** 4. Comparison Operations (Graphics + Compute)
-** 5. Control Flow (Graphics + Compute)
-** 6. Texture Operations (Graphics only)
-** 7. Memory Operations (Compute extensions)
-** 8. Work-Item Builtins (Compute extensions)
-** 9. Synchronization (Compute extensions)
-** 10. Atomic Operations (Compute extensions)
-**
-** Each opcode has JIT and Interpreter implementations that must be
-** kept in sync.
-**
-** ==========================================================================
-*/
+ANX_DEFINE_GUID(IID_IVinilInstruction, 0x45678901, 0x4567, 0x4567, 0x45, 0x67, 0x89, 0x01, 0xAB, 0xCD, 0xEF, 0x23);
+ANX_DEFINE_GUID(IID_IVinilBlock, 0x56789012, 0x5678, 0x5678, 0x56, 0x78, 0x90, 0x12, 0xAB, 0xCD, 0xEF, 0x34);
+ANX_DEFINE_GUID(IID_IVinilVariable, 0x67890123, 0x6789, 0x6789, 0x67, 0x89, 0x01, 0x23, 0xAB, 0xCD, 0xEF, 0x45);
 
-typedef enum vinil_opcode {
-    /* =====================================================================
-     * ARITHMETIC OPERATIONS (Graphics + Compute)
-     * ===================================================================== */
+//
+// Forward Declarations
+//
 
-    VINIL_OP_ABS,               /* v = abs(v)                               */
-    VINIL_OP_ADD,               /* v = v + v                                */
-    VINIL_OP_SUB,               /* v = v - v                                */
-    VINIL_OP_MUL,               /* v = v * v                                */
-    VINIL_OP_DIV,               /* v = v / v (compute extension)            */
-    VINIL_OP_MAD,               /* v = v * v + v (multiply-add)             */
-    VINIL_OP_MIN,               /* v = min(v, v)                            */
-    VINIL_OP_MAX,               /* v = max(v, v)                            */
-    VINIL_OP_NEG,               /* v = -v                                   */
-    VINIL_OP_FRC,               /* v = frac(v) (fractional part)            */
-    VINIL_OP_FLR,               /* v = floor(v)                             */
-    VINIL_OP_MOD,               /* v = v % v (compute extension)            */
+typedef struct IVinilInstruction IVinilInstruction;
+typedef struct IVinilBlock IVinilBlock;
+typedef struct IVinilVariable IVinilVariable;
 
-    /* =====================================================================
-     * VECTOR OPERATIONS (Graphics + Compute)
-     * ===================================================================== */
+//
+// Opcode Enumeration (complete set for graphics + compute)
+//
 
-    VINIL_OP_DP2,               /* s = dot(v2, v2) (2-component)            */
-    VINIL_OP_DP3,               /* s = dot(v3, v3) (3-component)            */
-    VINIL_OP_DP4,               /* s = dot(v4, v4) (4-component)            */
-    VINIL_OP_DPH,               /* s = dot(v4.xyz, v4.xyz) + v4.w           */
-    VINIL_OP_XPD,               /* v3 = cross(v3, v3)                       */
-    VINIL_OP_LRP,               /* v = lerp(v, v, v) = v1*(1-v3) + v2*v3    */
-    VINIL_OP_DST,               /* v = distance vector                      */
-    VINIL_OP_MOV,               /* v = v (move/copy)                        */
-    VINIL_OP_SWZ,               /* v = swizzle(v, mask)                     */
+typedef enum _VINIL_OPCODE {
+    /* Data Movement */
+    VINIL_OP_MOV = 0,       /* Move */
+    VINIL_OP_MOVA,          /* Move address */
 
-    /* =====================================================================
-     * TRANSCENDENTAL MATH (Graphics + Compute)
-     * ===================================================================== */
+    /* Arithmetic - Basic */
+    VINIL_OP_ADD,           /* Add */
+    VINIL_OP_SUB,           /* Subtract */
+    VINIL_OP_MUL,           /* Multiply */
+    VINIL_OP_DIV,           /* Divide */
+    VINIL_OP_MAD,           /* Multiply-add */
+    VINIL_OP_NEG,           /* Negate */
+    VINIL_OP_ABS,           /* Absolute value */
+    VINIL_OP_MIN,           /* Minimum */
+    VINIL_OP_MAX,           /* Maximum */
+    VINIL_OP_CLAMP,         /* Clamp to range */
 
-    VINIL_OP_SIN,               /* s = sin(s)                               */
-    VINIL_OP_COS,               /* s = cos(s)                               */
-    VINIL_OP_TAN,               /* s = tan(s) (compute extension)           */
-    VINIL_OP_ASIN,              /* s = asin(s) (compute extension)          */
-    VINIL_OP_ACOS,              /* s = acos(s) (compute extension)          */
-    VINIL_OP_ATAN,              /* s = atan(s) (compute extension)          */
-    VINIL_OP_ATAN2,             /* s = atan2(s, s) (compute extension)      */
-    VINIL_OP_SCS,               /* v2 = (sin(s), cos(s))                    */
-    VINIL_OP_EXP,               /* s = exp(s) (base e)                      */
-    VINIL_OP_EX2,               /* s = exp2(s) (base 2)                     */
-    VINIL_OP_LOG,               /* s = log(s) (base e)                      */
-    VINIL_OP_LG2,               /* s = log2(s) (base 2)                     */
-    VINIL_OP_POW,               /* s = pow(s, s)                            */
-    VINIL_OP_RCP,               /* s = 1/s (reciprocal)                     */
-    VINIL_OP_RSQ,               /* s = 1/sqrt(s) (reciprocal square root)   */
-    VINIL_OP_SQRT,              /* s = sqrt(s) (compute extension)          */
+    /* Arithmetic - Reciprocals */
+    VINIL_OP_RCP,           /* Reciprocal */
+    VINIL_OP_RSQ,           /* Reciprocal square root */
 
-    /* =====================================================================
-     * COMPARISON OPERATIONS (Graphics + Compute)
-     * ===================================================================== */
+    /* Arithmetic - Rounding */
+    VINIL_OP_FRC,           /* Fractional part */
+    VINIL_OP_FLR,           /* Floor */
+    VINIL_OP_CEIL,          /* Ceiling */
+    VINIL_OP_TRUNC,         /* Truncate */
+    VINIL_OP_ROUND,         /* Round */
 
-    VINIL_OP_SEQ,               /* v = (v == v) ? 1.0 : 0.0                 */
-    VINIL_OP_SNE,               /* v = (v != v) ? 1.0 : 0.0                 */
-    VINIL_OP_SLT,               /* v = (v < v) ? 1.0 : 0.0                  */
-    VINIL_OP_SLE,               /* v = (v <= v) ? 1.0 : 0.0                 */
-    VINIL_OP_SGT,               /* v = (v > v) ? 1.0 : 0.0                  */
-    VINIL_OP_SGE,               /* v = (v >= v) ? 1.0 : 0.0                 */
-    VINIL_OP_CMP,               /* v = (v0 < 0) ? v1 : v2                   */
-    VINIL_OP_SELECT,            /* v = (cond) ? v1 : v2 (compute extension) */
-    VINIL_OP_SSG,               /* v = sign(v) = -1, 0, or 1                */
+    /* Vector Operations */
+    VINIL_OP_DP2,           /* 2D dot product */
+    VINIL_OP_DP3,           /* 3D dot product */
+    VINIL_OP_DP4,           /* 4D dot product */
+    VINIL_OP_CRS,           /* Cross product */
+    VINIL_OP_NRM,           /* Normalize */
+    VINIL_OP_LEN,           /* Length */
 
-    /* =====================================================================
-     * CONTROL FLOW (Graphics + Compute)
-     * ===================================================================== */
+    /* Transcendental */
+    VINIL_OP_SIN,           /* Sine */
+    VINIL_OP_COS,           /* Cosine */
+    VINIL_OP_TAN,           /* Tangent */
+    VINIL_OP_ASIN,          /* Arcsine */
+    VINIL_OP_ACOS,          /* Arccosine */
+    VINIL_OP_ATAN,          /* Arctangent */
+    VINIL_OP_ATAN2,         /* Arctangent2 */
+    VINIL_OP_EXP,           /* Exponential */
+    VINIL_OP_EXP2,          /* Exponential base 2 */
+    VINIL_OP_LOG,           /* Logarithm */
+    VINIL_OP_LOG2,          /* Logarithm base 2 */
+    VINIL_OP_POW,           /* Power */
+    VINIL_OP_SQRT,          /* Square root */
 
-    VINIL_OP_IF,                /* if (cond) { ... }                        */
-    VINIL_OP_ELSE,              /* } else { ...                             */
-    VINIL_OP_ENDIF,             /* }                                        */
-    VINIL_OP_LOOP,              /* loop { ... }                             */
-    VINIL_OP_ENDLOOP,           /* }                                        */
-    VINIL_OP_REP,               /* repeat(count) { ... }                    */
-    VINIL_OP_ENDREP,            /* }                                        */
-    VINIL_OP_BRK,               /* break (exit loop)                        */
-    VINIL_OP_CONT,              /* continue (compute extension)             */
-    VINIL_OP_BRA,               /* branch to label (conditional)            */
-    VINIL_OP_CAL,               /* call subroutine                          */
-    VINIL_OP_RET,               /* return from subroutine                   */
-    VINIL_OP_SCC,               /* set condition code register              */
-    VINIL_OP_KIL,               /* kill fragment (graphics only)            */
+    /* Comparison */
+    VINIL_OP_SEQ,           /* Set if equal */
+    VINIL_OP_SNE,           /* Set if not equal */
+    VINIL_OP_SLT,           /* Set if less than */
+    VINIL_OP_SLE,           /* Set if less or equal */
+    VINIL_OP_SGT,           /* Set if greater than */
+    VINIL_OP_SGE,           /* Set if greater or equal */
 
-    /* =====================================================================
-     * TEXTURE OPERATIONS (Graphics only)
-     * ===================================================================== */
+    /* Logical */
+    VINIL_OP_AND,           /* Logical AND */
+    VINIL_OP_OR,            /* Logical OR */
+    VINIL_OP_XOR,           /* Logical XOR */
+    VINIL_OP_NOT,           /* Logical NOT */
 
-    VINIL_OP_TEX,               /* v = texture(sampler, coords)             */
-    VINIL_OP_TXB,               /* v = texture(sampler, coords, bias)       */
-    VINIL_OP_TXL,               /* v = texture(sampler, coords, lod)        */
-    VINIL_OP_TXP,               /* v = texture(sampler, coords/coords.w)    */
+    /* Bitwise */
+    VINIL_OP_SHL,           /* Shift left */
+    VINIL_OP_SHR,           /* Shift right */
+    VINIL_OP_SAR,           /* Shift arithmetic right */
 
-    /* =====================================================================
-     * MEMORY OPERATIONS (Compute extensions)
-     * ===================================================================== */
+    /* Control Flow */
+    VINIL_OP_IF,            /* Conditional branch */
+    VINIL_OP_ELSE,          /* Else branch */
+    VINIL_OP_ENDIF,         /* End if */
+    VINIL_OP_LOOP,          /* Loop start */
+    VINIL_OP_ENDLOOP,       /* Loop end */
+    VINIL_OP_BREAK,         /* Break loop */
+    VINIL_OP_CONTINUE,      /* Continue loop */
+    VINIL_OP_CALL,          /* Function call */
+    VINIL_OP_RET,           /* Return */
+    VINIL_OP_DISCARD,       /* Discard fragment */
 
-    VINIL_OP_LOAD_GLOBAL,       /* v = load(__global ptr)                   */
-    VINIL_OP_STORE_GLOBAL,      /* store(__global ptr, v)                   */
-    VINIL_OP_LOAD_LOCAL,        /* v = load(__local ptr)                    */
-    VINIL_OP_STORE_LOCAL,       /* store(__local ptr, v)                    */
-    VINIL_OP_LOAD_PRIVATE,      /* v = load(__private ptr)                  */
-    VINIL_OP_STORE_PRIVATE,     /* store(__private ptr, v)                  */
-    VINIL_OP_LOAD_CONSTANT,     /* v = load(__constant ptr)                 */
-    VINIL_OP_VLOAD,             /* v = vload(offset, ptr) (vector load)     */
-    VINIL_OP_VSTORE,            /* vstore(v, offset, ptr) (vector store)    */
+    /* Texture Sampling - Graphics */
+    VINIL_OP_TEX,           /* Texture sample */
+    VINIL_OP_TXL,           /* Texture sample with LOD */
+    VINIL_OP_TXB,           /* Texture sample with bias */
+    VINIL_OP_TXP,           /* Texture sample with projection */
+    VINIL_OP_TXD,           /* Texture sample with derivatives */
+    VINIL_OP_TXF,           /* Texture fetch */
 
-    /* =====================================================================
-     * WORK-ITEM BUILTINS (Compute extensions)
-     * ===================================================================== */
+    /* Memory - Compute */
+    VINIL_OP_LOAD,          /* Load from memory */
+    VINIL_OP_STORE,         /* Store to memory */
+    VINIL_OP_LOAD_VEC,      /* Load vector */
+    VINIL_OP_STORE_VEC,     /* Store vector */
 
-    VINIL_OP_GET_GLOBAL_ID,     /* id = get_global_id(dim)                  */
-    VINIL_OP_GET_LOCAL_ID,      /* id = get_local_id(dim)                   */
-    VINIL_OP_GET_GROUP_ID,      /* id = get_group_id(dim)                   */
-    VINIL_OP_GET_GLOBAL_SIZE,   /* size = get_global_size(dim)              */
-    VINIL_OP_GET_LOCAL_SIZE,    /* size = get_local_size(dim)               */
-    VINIL_OP_GET_NUM_GROUPS,    /* count = get_num_groups(dim)              */
-    VINIL_OP_GET_WORK_DIM,      /* dim = get_work_dim()                     */
-    VINIL_OP_GET_GLOBAL_OFFSET, /* offset = get_global_offset(dim)          */
+    /* Synchronization - Compute */
+    VINIL_OP_BARRIER,       /* Work-group barrier */
+    VINIL_OP_FENCE,         /* Memory fence */
+    VINIL_OP_MEM_FENCE,     /* Memory fence (global) */
+    VINIL_OP_READ_FENCE,    /* Read fence */
+    VINIL_OP_WRITE_FENCE,   /* Write fence */
 
-    /* =====================================================================
-     * SYNCHRONIZATION (Compute extensions)
-     * ===================================================================== */
+    /* Atomic Operations - Compute */
+    VINIL_OP_ATOMIC_ADD,    /* Atomic add */
+    VINIL_OP_ATOMIC_SUB,    /* Atomic subtract */
+    VINIL_OP_ATOMIC_MIN,    /* Atomic minimum */
+    VINIL_OP_ATOMIC_MAX,    /* Atomic maximum */
+    VINIL_OP_ATOMIC_AND,    /* Atomic AND */
+    VINIL_OP_ATOMIC_OR,     /* Atomic OR */
+    VINIL_OP_ATOMIC_XOR,    /* Atomic XOR */
+    VINIL_OP_ATOMIC_XCHG,   /* Atomic exchange */
+    VINIL_OP_ATOMIC_CAS,    /* Atomic compare-and-swap */
 
-    VINIL_OP_BARRIER,           /* barrier(flags) - work-group barrier      */
-    VINIL_OP_MEM_FENCE,         /* mem_fence(flags) - memory fence          */
-    VINIL_OP_READ_MEM_FENCE,    /* read_mem_fence(flags)                    */
-    VINIL_OP_WRITE_MEM_FENCE,   /* write_mem_fence(flags)                   */
+    /* Work-Item Functions - Compute */
+    VINIL_OP_GET_GLOBAL_ID, /* Get global work-item ID */
+    VINIL_OP_GET_LOCAL_ID,  /* Get local work-item ID */
+    VINIL_OP_GET_GROUP_ID,  /* Get work-group ID */
+    VINIL_OP_GET_GLOBAL_SIZE, /* Get global work size */
+    VINIL_OP_GET_LOCAL_SIZE,  /* Get local work size */
+    VINIL_OP_GET_NUM_GROUPS,  /* Get number of work-groups */
 
-    /* =====================================================================
-     * ATOMIC OPERATIONS (Compute extensions)
-     * ===================================================================== */
+    /* Miscellaneous */
+    VINIL_OP_SELECT,        /* Select (ternary) */
+    VINIL_OP_SHUFFLE,       /* Vector shuffle */
+    VINIL_OP_NOP,           /* No operation */
 
-    VINIL_OP_ATOMIC_ADD,        /* old = atomic_add(ptr, val)               */
-    VINIL_OP_ATOMIC_SUB,        /* old = atomic_sub(ptr, val)               */
-    VINIL_OP_ATOMIC_XCHG,       /* old = atomic_xchg(ptr, val)              */
-    VINIL_OP_ATOMIC_CMPXCHG,    /* old = atomic_cmpxchg(ptr, cmp, val)      */
-    VINIL_OP_ATOMIC_INC,        /* old = atomic_inc(ptr)                    */
-    VINIL_OP_ATOMIC_DEC,        /* old = atomic_dec(ptr)                    */
-    VINIL_OP_ATOMIC_MIN,        /* old = atomic_min(ptr, val)               */
-    VINIL_OP_ATOMIC_MAX,        /* old = atomic_max(ptr, val)               */
-    VINIL_OP_ATOMIC_AND,        /* old = atomic_and(ptr, val)               */
-    VINIL_OP_ATOMIC_OR,         /* old = atomic_or(ptr, val)                */
-    VINIL_OP_ATOMIC_XOR,        /* old = atomic_xor(ptr, val)               */
+    VINIL_OP_COUNT
+} VINIL_OPCODE;
 
-    /* =====================================================================
-     * ADDRESS REGISTER (Graphics)
-     * ===================================================================== */
+//
+// IVinilInstruction Interface
+//
 
-    VINIL_OP_ARL,               /* addr_reg = address_load(v)               */
+ANX_BEGIN_INTERFACE(IVinilInstruction, IUnknown, IID_IVinilInstruction, "45678901-4567-4567-4567-8901ABCDEF23")
+    /**
+      Get instruction opcode.
 
-    /* =====================================================================
-     * PSEUDO-INSTRUCTIONS (Assembly/Declaration)
-     * ===================================================================== */
+      @param[out]  Opcode  Instruction opcode.
 
-    VINIL_OP_INPUT,             /* input variable declaration               */
-    VINIL_OP_OUTPUT,            /* output variable declaration              */
-    VINIL_OP_PARAM,             /* parameter/uniform declaration            */
-    VINIL_OP_TEMP,              /* temporary variable declaration           */
-    VINIL_OP_ADDRESS,           /* address variable declaration             */
+      @retval  S_OK       Success.
+      @retval  E_POINTER  Invalid pointer.
+    **/
+    ANX_IFACE_METHOD(HRESULT, GetOpcode, (VINIL_OPCODE *Opcode))
 
-    VINIL_OP_COUNT              /* Total number of opcodes                  */
-} vinil_opcode;
+    /**
+      Get instruction precision.
 
-/*
-** ==========================================================================
-** INSTRUCTION CATEGORIES
-**
-** These flags help backends (JIT/Interpreter) handle opcodes efficiently
-** ==========================================================================
-*/
+      @param[out]  Precision  Instruction precision.
 
-typedef enum vinil_opcode_flags {
-    VINIL_FLAG_ARITHMETIC       = 0x0001,   /* Basic arithmetic op      */
-    VINIL_FLAG_VECTOR           = 0x0002,   /* Vector operation         */
-    VINIL_FLAG_TRANSCENDENTAL   = 0x0004,   /* Transcendental math      */
-    VINIL_FLAG_COMPARISON       = 0x0008,   /* Comparison operation     */
-    VINIL_FLAG_CONTROL_FLOW     = 0x0010,   /* Control flow             */
-    VINIL_FLAG_TEXTURE          = 0x0020,   /* Texture sampling         */
-    VINIL_FLAG_MEMORY           = 0x0040,   /* Memory access            */
-    VINIL_FLAG_WORKITEM         = 0x0080,   /* Work-item builtin        */
-    VINIL_FLAG_SYNC             = 0x0100,   /* Synchronization          */
-    VINIL_FLAG_ATOMIC           = 0x0200,   /* Atomic operation         */
-    VINIL_FLAG_GRAPHICS_ONLY    = 0x1000,   /* Graphics-only opcode     */
-    VINIL_FLAG_COMPUTE_ONLY     = 0x2000,   /* Compute-only opcode      */
-} vinil_opcode_flags;
+      @retval  S_OK       Success.
+      @retval  E_POINTER  Invalid pointer.
+    **/
+    ANX_IFACE_METHOD(HRESULT, GetPrecision, (VINIL_PRECISION *Precision))
 
-/*
-** ==========================================================================
-** OPCODE METADATA
-**
-** Information about each opcode for validation and backend generation
-** ==========================================================================
-*/
+    /**
+      Get destination operand.
 
-typedef struct vinil_opcode_info {
-    vinil_opcode        opcode;
-    const char*         name;
-    vinil_uint32        flags;
-    vinil_uint32        num_src_operands;   /* Number of source operands */
-    vinil_bool          has_dst;            /* Has destination operand */
-    vinil_bool          jit_implemented;    /* JIT backend ready */
-    vinil_bool          interp_implemented; /* Interpreter ready */
-} vinil_opcode_info;
+      @param[out]  Destination  Destination variable.
 
-/**
- * Get metadata for an opcode
- *
- * @param op Opcode
- * @return Opcode metadata, or NULL if invalid
- */
-const vinil_opcode_info* vinil_get_opcode_info(vinil_opcode op);
+      @retval  S_OK       Success.
+      @retval  E_POINTER  Invalid pointer.
+    **/
+    ANX_IFACE_METHOD(HRESULT, GetDestination, (IVinilVariable **Destination))
 
-/*
-** ==========================================================================
-** INSTRUCTION STRUCTURES
-** ==========================================================================
-*/
+    /**
+      Get source operand by index.
 
-/* Forward declarations */
-typedef union vinil_inst vinil_inst;
-typedef struct vinil_block vinil_block;
+      @param[in]   Index   Source operand index (0-2).
+      @param[out]  Source  Source variable.
 
-/* Instruction kinds (for union discrimination) */
-typedef enum vinil_inst_kind {
-    VINIL_INST_BASE,        /* No operands */
-    VINIL_INST_UNARY,       /* One source operand */
-    VINIL_INST_BINARY,      /* Two source operands */
-    VINIL_INST_TERNARY,     /* Three source operands */
-    VINIL_INST_BRANCH,      /* Branch instruction */
-    VINIL_INST_MEMORY,      /* Memory access */
-    VINIL_INST_ATOMIC,      /* Atomic operation */
-    VINIL_INST_BARRIER,     /* Barrier/fence */
-} vinil_inst_kind;
+      @retval  S_OK       Success.
+      @retval  E_POINTER  Invalid pointer.
+      @retval  E_INVALIDARG  Invalid index.
+    **/
+    ANX_IFACE_METHOD(HRESULT, GetSource, (UINT32 Index, IVinilVariable **Source))
+ANX_END_INTERFACE(IVinilInstruction, IID_IVinilInstruction)
 
-/* Note: vinil_precision and vinil_address_space are defined in base.h */
+//
+// IVinilBlock Interface
+//
 
-/* Condition codes for branching */
-typedef enum vinil_cond {
-    VINIL_COND_FALSE,       /* Always false */
-    VINIL_COND_LT,          /* Less than */
-    VINIL_COND_EQ,          /* Equal */
-    VINIL_COND_LE,          /* Less or equal */
-    VINIL_COND_GT,          /* Greater than */
-    VINIL_COND_NE,          /* Not equal */
-    VINIL_COND_GE,          /* Greater or equal */
-    VINIL_COND_TRUE,        /* Always true */
-} vinil_cond;
+ANX_BEGIN_INTERFACE(IVinilBlock, IUnknown, IID_IVinilBlock, "56789012-5678-5678-5678-9012ABCDEF34")
+    /**
+      Get number of instructions in block.
 
-/* Swizzle mask (for vector component selection) */
-typedef struct vinil_swizzle {
-    vinil_uint32 x : 2;     /* X component selector (0=x, 1=y, 2=z, 3=w) */
-    vinil_uint32 y : 2;     /* Y component selector */
-    vinil_uint32 z : 2;     /* Z component selector */
-    vinil_uint32 w : 2;     /* W component selector */
-} vinil_swizzle;
+      @param[out]  Count  Instruction count.
 
-/* Write mask (for destination) */
-typedef struct vinil_writemask {
-    vinil_bool x : 1;       /* Write X component */
-    vinil_bool y : 1;       /* Write Y component */
-    vinil_bool z : 1;       /* Write Z component */
-    vinil_bool w : 1;       /* Write W component */
-} vinil_writemask;
+      @retval  S_OK       Success.
+      @retval  E_POINTER  Invalid pointer.
+    **/
+    ANX_IFACE_METHOD(HRESULT, GetInstructionCount, (UINT32 *Count))
 
-/*
-** ==========================================================================
-** INSTRUCTION STRUCTURES
-** ==========================================================================
-*/
+    /**
+      Get instruction by index.
 
-/* Forward declarations */
-typedef struct vinil_block vinil_block;
-typedef struct vinil_label vinil_label;
-typedef struct vinil_variable vinil_variable;
+      @param[in]   Index        Instruction index.
+      @param[out]  Instruction  Instruction interface.
 
-/* Source operand */
-typedef struct vinil_src_operand {
-    vinil_variable*     var;            /* Source variable */
-    vinil_variable*     index;          /* Index register (optional) */
-    vinil_ssize         offset;         /* Constant offset */
-    vinil_swizzle       swizzle;        /* Component swizzle */
-    vinil_bool          negate;         /* Negate flag */
-} vinil_src_operand;
+      @retval  S_OK       Success.
+      @retval  E_POINTER  Invalid pointer.
+      @retval  E_INVALIDARG  Invalid index.
+    **/
+    ANX_IFACE_METHOD(HRESULT, GetInstruction, (UINT32 Index, IVinilInstruction **Instruction))
 
-/* Destination operand */
-typedef struct vinil_dst_operand {
-    vinil_variable*     var;            /* Destination variable */
-    vinil_ssize         offset;         /* Constant offset */
-    vinil_writemask     mask;           /* Write mask */
-} vinil_dst_operand;
+    /**
+      Append instruction to block.
 
-/* Base instruction (common fields) */
-typedef struct vinil_inst_base {
-    union vinil_inst*   prev;           /* Doubly-linked list */
-    union vinil_inst*   next;
-    vinil_inst_kind     kind;           /* Instruction kind */
-    vinil_opcode        opcode;         /* Operation */
-    vinil_uint32        line;           /* Source line (debug) */
-} vinil_inst_base;
+      @param[in]  Instruction  Instruction to append.
 
-/* ALU instruction (with destination) */
-typedef struct vinil_inst_alu {
-    vinil_inst_base     base;
-    vinil_dst_operand   dst;            /* Destination */
-    vinil_precision     prec;           /* Precision hint */
-} vinil_inst_alu;
+      @retval  S_OK       Success.
+      @retval  E_POINTER  Invalid pointer.
+    **/
+    ANX_IFACE_METHOD(HRESULT, AppendInstruction, (IVinilInstruction *Instruction))
+ANX_END_INTERFACE(IVinilBlock, IID_IVinilBlock)
 
-/* Unary instruction */
-typedef struct vinil_inst_unary {
-    vinil_inst_alu      alu;
-    vinil_src_operand   src;            /* Source operand */
-} vinil_inst_unary;
+//
+// IVinilVariable Interface
+//
 
-/* Binary instruction */
-typedef struct vinil_inst_binary {
-    vinil_inst_alu      alu;
-    vinil_src_operand   src1;           /* First source */
-    vinil_src_operand   src2;           /* Second source */
-} vinil_inst_binary;
+ANX_BEGIN_INTERFACE(IVinilVariable, IUnknown, IID_IVinilVariable, "67890123-6789-6789-6789-0123ABCDEF45")
+    /**
+      Get variable ID.
 
-/* Ternary instruction */
-typedef struct vinil_inst_ternary {
-    vinil_inst_alu      alu;
-    vinil_src_operand   src1;           /* First source */
-    vinil_src_operand   src2;           /* Second source */
-    vinil_src_operand   src3;           /* Third source */
-} vinil_inst_ternary;
+      @param[out]  Id  Variable ID.
 
-/* Branch instruction */
-typedef struct vinil_inst_branch {
-    vinil_inst_base     base;
-    vinil_label*        target;         /* Branch target */
-    vinil_cond          cond;           /* Condition */
-    vinil_swizzle       cond_swizzle;   /* Condition swizzle */
-} vinil_inst_branch;
+      @retval  S_OK       Success.
+      @retval  E_POINTER  Invalid pointer.
+    **/
+    ANX_IFACE_METHOD(HRESULT, GetId, (UINT32 *Id))
 
-/* Memory instruction */
-typedef struct vinil_inst_memory {
-    vinil_inst_alu      alu;
-    vinil_src_operand   address;       /* Memory address */
-    vinil_src_operand   value;         /* Value (for stores) */
-    vinil_address_space addr_space;    /* Address space */
-} vinil_inst_memory;
+    /**
+      Get variable name.
 
-/* Atomic instruction */
-typedef struct vinil_inst_atomic {
-    vinil_inst_alu      alu;
-    vinil_src_operand   address;       /* Memory address */
-    vinil_src_operand   value1;        /* First value */
-    vinil_src_operand   value2;        /* Second value (for cmpxchg) */
-    vinil_address_space addr_space;    /* Address space */
-} vinil_inst_atomic;
+      @param[out]  Name        Variable name.
+      @param[out]  NameLength  Name length.
 
-/* Barrier instruction */
-typedef struct vinil_inst_barrier {
-    vinil_inst_base     base;
-    vinil_uint32        flags;          /* Barrier flags */
-} vinil_inst_barrier;
-
-/* Work-item builtin instruction */
-typedef struct vinil_inst_workitem {
-    vinil_inst_alu      alu;
-    vinil_uint32        dimension;      /* Dimension parameter */
-} vinil_inst_workitem;
-
-/* Instruction union - includes all instruction variants */
-union vinil_inst {
-    vinil_inst_base     base;
-    vinil_inst_unary    unary;
-    vinil_inst_binary   binary;
-    vinil_inst_ternary  ternary;
-    vinil_inst_branch   branch;
-    vinil_inst_memory   memory;
-    vinil_inst_atomic   atomic;
-    vinil_inst_barrier  barrier;
-    vinil_inst_workitem workitem;
-};
-
-#ifdef __cplusplus
-}
-#endif
+      @retval  S_OK       Success.
+      @retval  E_POINTER  Invalid pointer.
+    **/
+    ANX_IFACE_METHOD(HRESULT, GetName, (CONST CHAR8 **Name, UINTN *NameLength))
+ANX_END_INTERFACE(IVinilVariable, IID_IVinilVariable)
 
 #endif /* VINIL_IL_H */
