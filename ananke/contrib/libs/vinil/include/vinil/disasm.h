@@ -58,6 +58,13 @@ typedef struct _VINIL_OPCODE_INFO {
 } VINIL_OPCODE_INFO;
 
 //
+// Shared Opcode Table
+// Defined in il_opcodes.c, shared with assembler
+//
+
+extern CONST VINIL_OPCODE_INFO gVinilOpcodeTable[];
+
+//
 // Disassembler Functions
 //
 
