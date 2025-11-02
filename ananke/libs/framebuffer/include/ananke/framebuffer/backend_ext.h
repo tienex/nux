@@ -242,3 +242,129 @@ FbPcGraphicsFindBestMode(
     IN UINT32 PreferredDepth,
     IN UINT32 PreferredRefresh
     );
+
+/*
+ * Load a custom font into VGA character generator RAM.
+ */
+HRESULT
+FbPcGraphicsLoadFont(
+    IN IFramebufferBackend *Backend,
+    IN CONST UINT8 *FontData,
+    IN UINT32 CharHeight,
+    IN UINT32 CharOffset,
+    IN UINT32 CharCount,
+    IN UINT32 Bank
+    );
+
+/*
+ * Select which font bank to display in text mode.
+ */
+HRESULT
+FbPcGraphicsSelectFontBank(
+    IN IFramebufferBackend *Backend,
+    IN UINT32 Bank
+    );
+
+/*
+ * Wait for vertical blank interval.
+ */
+HRESULT
+FbPcGraphicsWaitForVBlank(
+    IN IFramebufferBackend *Backend
+    );
+
+/*
+ * Check if currently in vertical blank.
+ */
+HRESULT
+FbPcGraphicsIsVBlank(
+    IN IFramebufferBackend *Backend,
+    OUT BOOLEAN *IsVBlank
+    );
+
+/*
+ * Set display start address for hardware scrolling or page flipping.
+ */
+HRESULT
+FbPcGraphicsSetDisplayStart(
+    IN IFramebufferBackend *Backend,
+    IN UINT32 Offset
+    );
+
+/*
+ * Get current display start address.
+ */
+HRESULT
+FbPcGraphicsGetDisplayStart(
+    IN IFramebufferBackend *Backend,
+    OUT UINT32 *Offset
+    );
+
+/*
+ * Blit from one screen location to another (screen-to-screen copy).
+ * Uses VGA latching for planar modes (extremely fast).
+ */
+HRESULT
+FbPcGraphicsBlitScreen(
+    IN IFramebufferBackend *Backend,
+    IN UINT32 SrcX,
+    IN UINT32 SrcY,
+    IN UINT32 DestX,
+    IN UINT32 DestY,
+    IN UINT32 Width,
+    IN UINT32 Height
+    );
+
+/*
+ * Set text mode caret (cursor) position.
+ */
+HRESULT
+FbPcGraphicsSetCaretPosition(
+    IN IFramebufferBackend *Backend,
+    IN UINT32 X,
+    IN UINT32 Y
+    );
+
+/*
+ * Set text mode caret (cursor) shape and visibility.
+ */
+HRESULT
+FbPcGraphicsSetCaretShape(
+    IN IFramebufferBackend *Backend,
+    IN UINT32 StartLine,
+    IN UINT32 EndLine,
+    IN BOOLEAN Visible
+    );
+
+/*
+ * Set border color (VGA overscan).
+ */
+HRESULT
+FbPcGraphicsSetBorderColor(
+    IN IFramebufferBackend *Backend,
+    IN UINT8 Color
+    );
+
+/*
+ * Set palette entry (VGA DAC).
+ */
+HRESULT
+FbPcGraphicsSetPaletteEntry(
+    IN IFramebufferBackend *Backend,
+    IN UINT8 Index,
+    IN UINT8 Red,
+    IN UINT8 Green,
+    IN UINT8 Blue
+    );
+
+/*
+ * Get palette entry.
+ */
+HRESULT
+FbPcGraphicsGetPaletteEntry(
+    IN IFramebufferBackend *Backend,
+    IN UINT8 Index,
+    OUT UINT8 *Red,
+    OUT UINT8 *Green,
+    OUT UINT8 *Blue
+    );

@@ -732,6 +732,235 @@ Pcga_ScrollText(
 }
 
 /* --------------------------------------------------------------- */
+/*  Font Loading and Management                                    */
+/* --------------------------------------------------------------- */
+
+/*
+ * Load font from VGA ROM BIOS.
+ * Character generator RAM can be loaded from ROM or custom data.
+ */
+static VOID
+Pcga_LoadFont(
+    PCGA_BACKEND *Backend,
+    CONST UINT8 *FontData,
+    UINT32 CharHeight,
+    UINT32 CharOffset,
+    UINT32 CharCount,
+    UINT32 Bank
+    )
+{
+    if (FontData == NULL || CharHeight > 32 || Bank > 1) {
+        return;
+    }
+
+    /* Save current sequencer and graphics controller state */
+    UINT8 SavedSeq2 = ANX_CPU_INB(VGA_SEQ_DATA);
+    UINT8 SavedSeq4 = ANX_CPU_INB(VGA_SEQ_DATA);
+    UINT8 SavedGc4 = ANX_CPU_INB(VGA_GC_DATA);
+    UINT8 SavedGc5 = ANX_CPU_INB(VGA_GC_DATA);
+    UINT8 SavedGc6 = ANX_CPU_INB(VGA_GC_DATA);
+
+    /* Sequencer: Select plane 2 for font data */
+    ANX_CPU_OUTB(VGA_SEQ_INDEX, VGA_SEQ_MAP_MASK);
+    ANX_CPU_OUTB(VGA_SEQ_DATA, 0x04);  /* Map mask: plane 2 */
+
+    /* Sequencer: Enable access to character generator RAM */
+    ANX_CPU_OUTB(VGA_SEQ_INDEX, VGA_SEQ_MEMORY_MODE);
+    ANX_CPU_OUTB(VGA_SEQ_DATA, 0x07);  /* Extended memory, odd/even disabled */
+
+    /* Graphics Controller: Select plane 2 */
+    ANX_CPU_OUTB(VGA_GC_INDEX, VGA_GC_READ_MAP_SELECT);
+    ANX_CPU_OUTB(VGA_GC_DATA, 0x02);  /* Read plane 2 */
+
+    /* Graphics Controller: Set graphics mode */
+    ANX_CPU_OUTB(VGA_GC_INDEX, VGA_GC_GRAPHICS_MODE);
+    ANX_CPU_OUTB(VGA_GC_DATA, 0x00);  /* Write mode 0, read mode 0 */
+
+    /* Graphics Controller: Set memory map to 0xA0000 */
+    ANX_CPU_OUTB(VGA_GC_INDEX, VGA_GC_MISCELLANEOUS);
+    ANX_CPU_OUTB(VGA_GC_DATA, 0x00);  /* Map 0xA0000-0xBFFFF */
+
+    /* Calculate font address in plane 2 */
+    /* VGA character generator: 8KB per bank, 32 bytes per character */
+    UINT32 FontOffset = Bank * 0x2000;  /* Bank 0 or 1 */
+    UINT8 *FontBase = (UINT8 *)(UINTN)0xA0000 + FontOffset;
+
+    /* Load font data */
+    for (UINT32 Ch = 0; Ch < CharCount; Ch++) {
+        UINT32 CharAddr = (CharOffset + Ch) * 32;  /* 32 bytes per char */
+        for (UINT32 Line = 0; Line < CharHeight; Line++) {
+            FontBase[CharAddr + Line] = FontData[Ch * CharHeight + Line];
+        }
+        /* Clear remaining lines if char height < 32 */
+        for (UINT32 Line = CharHeight; Line < 32; Line++) {
+            FontBase[CharAddr + Line] = 0;
+        }
+    }
+
+    /* Restore sequencer and graphics controller state */
+    ANX_CPU_OUTB(VGA_SEQ_INDEX, VGA_SEQ_MAP_MASK);
+    ANX_CPU_OUTB(VGA_SEQ_DATA, SavedSeq2);
+    ANX_CPU_OUTB(VGA_SEQ_INDEX, VGA_SEQ_MEMORY_MODE);
+    ANX_CPU_OUTB(VGA_SEQ_DATA, SavedSeq4);
+    ANX_CPU_OUTB(VGA_GC_INDEX, VGA_GC_READ_MAP_SELECT);
+    ANX_CPU_OUTB(VGA_GC_DATA, SavedGc4);
+    ANX_CPU_OUTB(VGA_GC_INDEX, VGA_GC_GRAPHICS_MODE);
+    ANX_CPU_OUTB(VGA_GC_DATA, SavedGc5);
+    ANX_CPU_OUTB(VGA_GC_INDEX, VGA_GC_MISCELLANEOUS);
+    ANX_CPU_OUTB(VGA_GC_DATA, SavedGc6);
+
+    /* Update backend state */
+    Backend->FontHeight = CharHeight;
+    Backend->FontBank = Bank;
+}
+
+/*
+ * Select which font bank to use for text mode display.
+ */
+static VOID
+Pcga_SelectFontBank(
+    PCGA_BACKEND *Backend,
+    UINT32 Bank
+    )
+{
+    if (Bank > 1) {
+        return;
+    }
+
+    /* Sequencer register 3: Character Map Select */
+    UINT8 CharMapValue = (Bank == 0) ? 0x00 : 0x10;
+    ANX_CPU_OUTB(VGA_SEQ_INDEX, VGA_SEQ_CHAR_MAP);
+    ANX_CPU_OUTB(VGA_SEQ_DATA, CharMapValue);
+
+    Backend->FontBank = Bank;
+}
+
+/* --------------------------------------------------------------- */
+/*  VBlank Synchronization                                         */
+/* --------------------------------------------------------------- */
+
+/*
+ * Wait for vertical blank interval.
+ * Returns immediately if VBlank is already active.
+ */
+static VOID
+Pcga_WaitForVBlank(
+    VOID
+    )
+{
+    /* Wait for VBlank to end (if currently in VBlank) */
+    while (ANX_CPU_INB(VGA_INPUT_STATUS_1) & 0x08) {
+        /* Spin while in VBlank */
+    }
+
+    /* Wait for VBlank to start */
+    while (!(ANX_CPU_INB(VGA_INPUT_STATUS_1) & 0x08)) {
+        /* Spin until VBlank */
+    }
+}
+
+/*
+ * Check if currently in vertical blank interval.
+ */
+static BOOLEAN
+Pcga_IsVBlank(
+    VOID
+    )
+{
+    return (ANX_CPU_INB(VGA_INPUT_STATUS_1) & 0x08) != 0;
+}
+
+/* --------------------------------------------------------------- */
+/*  Display Start Address (for scrolling and page flipping)       */
+/* --------------------------------------------------------------- */
+
+/*
+ * Set display start address for hardware scrolling and page flipping.
+ */
+static VOID
+Pcga_SetDisplayStart(
+    PCGA_BACKEND *Backend,
+    UINT32 Offset
+    )
+{
+    /* CRTC registers 0x0C (Start Address High) and 0x0D (Start Address Low) */
+    Pcga_WriteCrtc(0x0C, (UINT8)(Offset >> 8));
+    Pcga_WriteCrtc(0x0D, (UINT8)(Offset & 0xFF));
+}
+
+/*
+ * Get current display start address.
+ */
+static UINT32
+Pcga_GetDisplayStart(
+    PCGA_BACKEND *Backend
+    )
+{
+    UINT8 High = Pcga_ReadCrtc(0x0C);
+    UINT8 Low = Pcga_ReadCrtc(0x0D);
+    return ((UINT32)High << 8) | Low;
+}
+
+/* --------------------------------------------------------------- */
+/*  Screen-to-Screen Blitting                                      */
+/* --------------------------------------------------------------- */
+
+/*
+ * Blit from one screen location to another using VGA latching.
+ * This is extremely fast for planar modes.
+ */
+static VOID
+Pcga_BlitScreen(
+    PCGA_BACKEND *Backend,
+    UINT32 SrcX,
+    UINT32 SrcY,
+    UINT32 DestX,
+    UINT32 DestY,
+    UINT32 Width,
+    UINT32 Height
+    )
+{
+    /* For planar modes, use VGA latching for maximum speed */
+    if (Backend->Descriptor.PixelFormat == FbPixelFormatPlanar) {
+        UINT32 PlanarPitch = Backend->Descriptor.Pitch / Backend->Descriptor.NumPlanes;
+
+        for (UINT32 Row = 0; Row < Height; Row++) {
+            UINT32 SrcOffset = (SrcY + Row) * PlanarPitch + (SrcX / 8);
+            UINT32 DestOffset = (DestY + Row) * PlanarPitch + (DestX / 8);
+            UINT32 Count = (Width + 7) / 8;
+
+            /* Use latch copy (Write Mode 1) */
+            Pcga_CopyPlanar(Backend, DestOffset, SrcOffset, Count);
+        }
+        return;
+    }
+
+    /* For linear modes, use memcpy */
+    if (Backend->Descriptor.MemoryOrganization == FbMemoryLinear) {
+        UINT32 BytesPerPixel = (Backend->Descriptor.BitsPerPixel + 7) / 8;
+        if (Backend->Descriptor.PixelFormat == FbPixelFormatIndexed) {
+            BytesPerPixel = 1;
+        }
+
+        for (UINT32 Row = 0; Row < Height; Row++) {
+            UINT32 SrcOffset = (SrcY + Row) * Backend->Descriptor.Pitch + SrcX * BytesPerPixel;
+            UINT32 DestOffset = (DestY + Row) * Backend->Descriptor.Pitch + DestX * BytesPerPixel;
+            UINT32 RowBytes = Width * BytesPerPixel;
+
+            if (Backend->RtlCopyMemoryFunc) {
+                Backend->RtlCopyMemoryFunc(&Backend->FramebufferBase[DestOffset],
+                                          &Backend->FramebufferBase[SrcOffset],
+                                          RowBytes);
+            } else {
+                ANX_MEMCPY(&Backend->FramebufferBase[DestOffset],
+                          &Backend->FramebufferBase[SrcOffset],
+                          RowBytes);
+            }
+        }
+    }
+}
+
+/* --------------------------------------------------------------- */
 /*  Hardware Mouse Cursor (Software Overlay)                      */
 /* --------------------------------------------------------------- */
 
@@ -2297,4 +2526,265 @@ FbPcGraphicsFindBestMode(
     }
 
     return BestMatch;
+}
+
+/*
+ * Load a custom font into VGA character generator RAM.
+ */
+HRESULT
+FbPcGraphicsLoadFont(
+    IN IFramebufferBackend *Backend,
+    IN CONST UINT8 *FontData,
+    IN UINT32 CharHeight,
+    IN UINT32 CharOffset,
+    IN UINT32 CharCount,
+    IN UINT32 Bank
+    )
+{
+    PCGA_BACKEND *PcBackend = (PCGA_BACKEND *)Backend;
+
+    if (Backend == NULL || FontData == NULL) {
+        return E_POINTER;
+    }
+
+    if (CharHeight > 32 || Bank > 1 || CharCount == 0) {
+        return E_INVALIDARG;
+    }
+
+    Pcga_LoadFont(PcBackend, FontData, CharHeight, CharOffset, CharCount, Bank);
+    return S_OK;
+}
+
+/*
+ * Select which font bank to display in text mode.
+ */
+HRESULT
+FbPcGraphicsSelectFontBank(
+    IN IFramebufferBackend *Backend,
+    IN UINT32 Bank
+    )
+{
+    PCGA_BACKEND *PcBackend = (PCGA_BACKEND *)Backend;
+
+    if (Backend == NULL) {
+        return E_POINTER;
+    }
+
+    if (Bank > 1) {
+        return E_INVALIDARG;
+    }
+
+    Pcga_SelectFontBank(PcBackend, Bank);
+    return S_OK;
+}
+
+/*
+ * Wait for vertical blank interval.
+ */
+HRESULT
+FbPcGraphicsWaitForVBlank(
+    IN IFramebufferBackend *Backend
+    )
+{
+    if (Backend == NULL) {
+        return E_POINTER;
+    }
+
+    Pcga_WaitForVBlank();
+    return S_OK;
+}
+
+/*
+ * Check if currently in vertical blank.
+ */
+HRESULT
+FbPcGraphicsIsVBlank(
+    IN IFramebufferBackend *Backend,
+    OUT BOOLEAN *IsVBlank
+    )
+{
+    if (Backend == NULL || IsVBlank == NULL) {
+        return E_POINTER;
+    }
+
+    *IsVBlank = Pcga_IsVBlank();
+    return S_OK;
+}
+
+/*
+ * Set display start address for hardware scrolling or page flipping.
+ */
+HRESULT
+FbPcGraphicsSetDisplayStart(
+    IN IFramebufferBackend *Backend,
+    IN UINT32 Offset
+    )
+{
+    PCGA_BACKEND *PcBackend = (PCGA_BACKEND *)Backend;
+
+    if (Backend == NULL) {
+        return E_POINTER;
+    }
+
+    Pcga_SetDisplayStart(PcBackend, Offset);
+    return S_OK;
+}
+
+/*
+ * Get current display start address.
+ */
+HRESULT
+FbPcGraphicsGetDisplayStart(
+    IN IFramebufferBackend *Backend,
+    OUT UINT32 *Offset
+    )
+{
+    PCGA_BACKEND *PcBackend = (PCGA_BACKEND *)Backend;
+
+    if (Backend == NULL || Offset == NULL) {
+        return E_POINTER;
+    }
+
+    *Offset = Pcga_GetDisplayStart(PcBackend);
+    return S_OK;
+}
+
+/*
+ * Blit from one screen location to another (screen-to-screen copy).
+ * Uses VGA latching for planar modes (extremely fast).
+ */
+HRESULT
+FbPcGraphicsBlitScreen(
+    IN IFramebufferBackend *Backend,
+    IN UINT32 SrcX,
+    IN UINT32 SrcY,
+    IN UINT32 DestX,
+    IN UINT32 DestY,
+    IN UINT32 Width,
+    IN UINT32 Height
+    )
+{
+    PCGA_BACKEND *PcBackend = (PCGA_BACKEND *)Backend;
+
+    if (Backend == NULL) {
+        return E_POINTER;
+    }
+
+    Pcga_BlitScreen(PcBackend, SrcX, SrcY, DestX, DestY, Width, Height);
+    return S_OK;
+}
+
+/*
+ * Set text mode caret (cursor) position.
+ */
+HRESULT
+FbPcGraphicsSetCaretPosition(
+    IN IFramebufferBackend *Backend,
+    IN UINT32 X,
+    IN UINT32 Y
+    )
+{
+    PCGA_BACKEND *PcBackend = (PCGA_BACKEND *)Backend;
+
+    if (Backend == NULL) {
+        return E_POINTER;
+    }
+
+    Pcga_SetCaretPosition(PcBackend, X, Y);
+    return S_OK;
+}
+
+/*
+ * Set text mode caret (cursor) shape and visibility.
+ */
+HRESULT
+FbPcGraphicsSetCaretShape(
+    IN IFramebufferBackend *Backend,
+    IN UINT32 StartLine,
+    IN UINT32 EndLine,
+    IN BOOLEAN Visible
+    )
+{
+    PCGA_BACKEND *PcBackend = (PCGA_BACKEND *)Backend;
+
+    if (Backend == NULL) {
+        return E_POINTER;
+    }
+
+    Pcga_SetCaretShape(PcBackend, StartLine, EndLine, Visible);
+    return S_OK;
+}
+
+/*
+ * Set border color (VGA overscan).
+ */
+HRESULT
+FbPcGraphicsSetBorderColor(
+    IN IFramebufferBackend *Backend,
+    IN UINT8 Color
+    )
+{
+    PCGA_BACKEND *PcBackend = (PCGA_BACKEND *)Backend;
+
+    if (Backend == NULL) {
+        return E_POINTER;
+    }
+
+    Pcga_SetBorderColor(PcBackend, Color);
+    return S_OK;
+}
+
+/*
+ * Set palette entry.
+ */
+HRESULT
+FbPcGraphicsSetPaletteEntry(
+    IN IFramebufferBackend *Backend,
+    IN UINT8 Index,
+    IN UINT8 Red,
+    IN UINT8 Green,
+    IN UINT8 Blue
+    )
+{
+    PCGA_BACKEND *PcBackend = (PCGA_BACKEND *)Backend;
+
+    if (Backend == NULL) {
+        return E_POINTER;
+    }
+
+    FB_PALETTE_ENTRY Entry;
+    Entry.Red = Red;
+    Entry.Green = Green;
+    Entry.Blue = Blue;
+    Entry.Reserved = 0;
+
+    Pcga_SetPaletteEntry(PcBackend, Index, &Entry);
+    return S_OK;
+}
+
+/*
+ * Get palette entry.
+ */
+HRESULT
+FbPcGraphicsGetPaletteEntry(
+    IN IFramebufferBackend *Backend,
+    IN UINT8 Index,
+    OUT UINT8 *Red,
+    OUT UINT8 *Green,
+    OUT UINT8 *Blue
+    )
+{
+    PCGA_BACKEND *PcBackend = (PCGA_BACKEND *)Backend;
+
+    if (Backend == NULL || Red == NULL || Green == NULL || Blue == NULL) {
+        return E_POINTER;
+    }
+
+    Pcga_GetPaletteEntry(PcBackend, Index, &PcBackend->Palette[Index]);
+
+    *Red = PcBackend->Palette[Index].Red;
+    *Green = PcBackend->Palette[Index].Green;
+    *Blue = PcBackend->Palette[Index].Blue;
+
+    return S_OK;
 }
