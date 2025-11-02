@@ -552,6 +552,134 @@ AnsiTermFb_BlitBitmap(
     FB_PIXEL_FORMAT SourceFormat
     )
 {
+    ANSI_TERMINAL_BACKEND *Backend = (ANSI_TERMINAL_BACKEND *)This;
+
+    if (!Backend->Initialized || Bitmap == NULL) {
+        return E_POINTER;
+    }
+
+    /* ANSI terminal backend uses RGB888 pixel buffer */
+    /* Convert source format to RGB888 and write to buffer */
+
+    /* Fast path: RGB888 format (direct copy) */
+    if (SourceFormat == FbPixelFormatRgb888) {
+        for (UINT32 Row = 0; Row < Height; Row++) {
+            INT32 DestY = Y + Row;
+            if (DestY < 0 || DestY >= (INT32)Backend->Descriptor.Height) {
+                continue;
+            }
+
+            for (UINT32 Col = 0; Col < Width; Col++) {
+                INT32 DestX = X + Col;
+                if (DestX < 0 || DestX >= (INT32)Backend->Descriptor.Width) {
+                    continue;
+                }
+
+                UINT32 DestOffset = (DestY * Backend->Descriptor.Width + DestX) * 3;
+                UINT32 SrcOffset = (Row * Width + Col) * 3;
+
+                Backend->PixelBuffer[DestOffset + 0] = Bitmap[SrcOffset + 0];  /* Red */
+                Backend->PixelBuffer[DestOffset + 1] = Bitmap[SrcOffset + 1];  /* Green */
+                Backend->PixelBuffer[DestOffset + 2] = Bitmap[SrcOffset + 2];  /* Blue */
+            }
+        }
+        return S_OK;
+    }
+
+    /* Other RGB formats - convert to RGB888 */
+    if (SourceFormat == FbPixelFormatRgba8888 ||
+        SourceFormat == FbPixelFormatBgra8888 ||
+        SourceFormat == FbPixelFormatRgb555 ||
+        SourceFormat == FbPixelFormatRgb565) {
+
+        for (UINT32 Row = 0; Row < Height; Row++) {
+            INT32 DestY = Y + Row;
+            if (DestY < 0 || DestY >= (INT32)Backend->Descriptor.Height) {
+                continue;
+            }
+
+            for (UINT32 Col = 0; Col < Width; Col++) {
+                INT32 DestX = X + Col;
+                if (DestX < 0 || DestX >= (INT32)Backend->Descriptor.Width) {
+                    continue;
+                }
+
+                UINT32 PixelValue = 0;
+                UINT32 SrcOffset = Row * Width + Col;
+
+                /* Read pixel value based on format */
+                if (SourceFormat == FbPixelFormatRgba8888 ||
+                    SourceFormat == FbPixelFormatBgra8888) {
+                    PixelValue = ((UINT32 *)Bitmap)[SrcOffset];
+                } else if (SourceFormat == FbPixelFormatRgb565 ||
+                           SourceFormat == FbPixelFormatRgb555) {
+                    PixelValue = ((UINT16 *)Bitmap)[SrcOffset];
+                }
+
+                /* Unpack to FB_COLOR */
+                FB_COLOR Color = FbUnpackPixel(PixelValue, SourceFormat, 0, 0, 0);
+
+                /* Write to pixel buffer */
+                UINT32 DestOffset = (DestY * Backend->Descriptor.Width + DestX) * 3;
+                Backend->PixelBuffer[DestOffset + 0] = Color.Red;
+                Backend->PixelBuffer[DestOffset + 1] = Color.Green;
+                Backend->PixelBuffer[DestOffset + 2] = Color.Blue;
+            }
+        }
+        return S_OK;
+    }
+
+    /* Grayscale formats - expand to RGB */
+    if (SourceFormat == FbPixelFormat1Bpp ||
+        SourceFormat == FbPixelFormat2Bpp ||
+        SourceFormat == FbPixelFormat4Bpp ||
+        SourceFormat == FbPixelFormat8Bpp) {
+
+        for (UINT32 Row = 0; Row < Height; Row++) {
+            INT32 DestY = Y + Row;
+            if (DestY < 0 || DestY >= (INT32)Backend->Descriptor.Height) {
+                continue;
+            }
+
+            for (UINT32 Col = 0; Col < Width; Col++) {
+                INT32 DestX = X + Col;
+                if (DestX < 0 || DestX >= (INT32)Backend->Descriptor.Width) {
+                    continue;
+                }
+
+                UINT8 GrayValue = 0;
+
+                /* Extract grayscale value */
+                if (SourceFormat == FbPixelFormat1Bpp) {
+                    UINT32 ByteIdx = Row * ((Width + 7) / 8) + (Col / 8);
+                    UINT32 BitIdx = 7 - (Col % 8);
+                    GrayValue = (Bitmap[ByteIdx] & (1 << BitIdx)) ? 255 : 0;
+                } else if (SourceFormat == FbPixelFormat2Bpp) {
+                    UINT32 ByteIdx = Row * ((Width + 3) / 4) + (Col / 4);
+                    UINT32 BitOffset = (3 - (Col % 4)) * 2;
+                    UINT8 Value = (Bitmap[ByteIdx] >> BitOffset) & 0x03;
+                    GrayValue = (Value * 255) / 3;
+                } else if (SourceFormat == FbPixelFormat4Bpp) {
+                    UINT32 ByteIdx = Row * ((Width + 1) / 2) + (Col / 2);
+                    UINT8 Value = (Col & 1) ?
+                        (Bitmap[ByteIdx] & 0x0F) :
+                        ((Bitmap[ByteIdx] >> 4) & 0x0F);
+                    GrayValue = (Value * 255) / 15;
+                } else {  /* FbPixelFormat8Bpp */
+                    GrayValue = Bitmap[Row * Width + Col];
+                }
+
+                /* Write grayscale to RGB buffer */
+                UINT32 DestOffset = (DestY * Backend->Descriptor.Width + DestX) * 3;
+                Backend->PixelBuffer[DestOffset + 0] = GrayValue;
+                Backend->PixelBuffer[DestOffset + 1] = GrayValue;
+                Backend->PixelBuffer[DestOffset + 2] = GrayValue;
+            }
+        }
+        return S_OK;
+    }
+
+    /* Other formats - not implemented */
     return E_NOTIMPL;
 }
 

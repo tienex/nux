@@ -220,6 +220,34 @@ FbdevFb_WritePixel(
     }
 }
 
+static INLINE UINT32
+FbdevFb_ReadPixel(
+    FBDEV_BACKEND *Backend,
+    INT32 X,
+    INT32 Y
+    )
+{
+    UINT32 BytesPerPixel = Backend->Descriptor.PixelFormat >= FbPixelFormatRgba8888 ? 4 :
+                           Backend->Descriptor.PixelFormat >= FbPixelFormatRgb888 ? 3 :
+                           Backend->Descriptor.PixelFormat >= FbPixelFormatRgb555 ? 2 : 1;
+
+    UINT32 Offset = Y * Backend->FixInfo.LineLength + X * BytesPerPixel;
+    UINT8 *Addr = Backend->FramebufferBase + Offset;
+
+    switch (BytesPerPixel) {
+        case 4:
+            return *(UINT32 *)Addr;
+        case 3:
+            return (Addr[0] << 0) | (Addr[1] << 8) | (Addr[2] << 16);
+        case 2:
+            return *(UINT16 *)Addr;
+        case 1:
+            return *Addr;
+        default:
+            return 0;
+    }
+}
+
 /* --------------------------------------------------------------- */
 /*  IUnknown Implementation                                         */
 /* --------------------------------------------------------------- */
@@ -407,8 +435,28 @@ FbdevFb_GetPixel(
     FB_COLOR *Color
     )
 {
-    /* Reading pixels from fbdev - would need to implement read logic */
-    return E_NOTIMPL;
+    FBDEV_BACKEND *Backend = (FBDEV_BACKEND *)This;
+    UINT32 PixelValue;
+
+    if (!Backend->Initialized || Color == NULL) {
+        return E_POINTER;
+    }
+
+    if (X < 0 || X >= (INT32)Backend->Descriptor.Width ||
+        Y < 0 || Y >= (INT32)Backend->Descriptor.Height) {
+        return E_INVALIDARG;
+    }
+
+    /* Read raw pixel value from framebuffer */
+    PixelValue = FbdevFb_ReadPixel(Backend, X, Y);
+
+    /* Unpack to FB_COLOR */
+    *Color = FbUnpackPixel(PixelValue, Backend->Descriptor.PixelFormat,
+                           Backend->Descriptor.RedMask,
+                           Backend->Descriptor.GreenMask,
+                           Backend->Descriptor.BlueMask);
+
+    return S_OK;
 }
 
 static HRESULT STDMETHODCALLTYPE
@@ -495,6 +543,69 @@ FbdevFb_BlitBitmap(
     FB_PIXEL_FORMAT SourceFormat
     )
 {
+    FBDEV_BACKEND *Backend = (FBDEV_BACKEND *)This;
+
+    if (!Backend->Initialized || Bitmap == NULL) {
+        return E_POINTER;
+    }
+
+    /* Fast path: matching pixel format */
+    if (SourceFormat == Backend->Descriptor.PixelFormat) {
+        UINT32 BytesPerPixel = 0;
+
+        /* Determine bytes per pixel */
+        if (Backend->Descriptor.PixelFormat == FbPixelFormatIndexed256) {
+            BytesPerPixel = 1;
+        } else if (Backend->Descriptor.PixelFormat == FbPixelFormatRgb555 ||
+                   Backend->Descriptor.PixelFormat == FbPixelFormatRgb565) {
+            BytesPerPixel = 2;
+        } else if (Backend->Descriptor.PixelFormat == FbPixelFormatRgb888 ||
+                   Backend->Descriptor.PixelFormat == FbPixelFormatBgr888) {
+            BytesPerPixel = 3;
+        } else if (Backend->Descriptor.PixelFormat == FbPixelFormatRgba8888 ||
+                   Backend->Descriptor.PixelFormat == FbPixelFormatBgra8888) {
+            BytesPerPixel = 4;
+        }
+
+        if (BytesPerPixel > 0) {
+            /* Direct row-by-row copy using framebuffer pitch */
+            for (UINT32 Row = 0; Row < Height; Row++) {
+                INT32 DestY = Y + Row;
+                if (DestY < 0 || DestY >= (INT32)Backend->Descriptor.Height) {
+                    continue;
+                }
+
+                UINT32 DestOffset = DestY * Backend->FixInfo.LineLength + X * BytesPerPixel;
+                UINT32 SrcOffset = Row * Width * BytesPerPixel;
+                UINT32 CopyWidth = Width * BytesPerPixel;
+
+                /* Bounds check for destination */
+                if (X >= 0 && (X + Width) <= Backend->Descriptor.Width) {
+                    /* Simple memory copy for unclipped case */
+                    UINT8 *DestAddr = Backend->FramebufferBase + DestOffset;
+                    CONST UINT8 *SrcAddr = &Bitmap[SrcOffset];
+                    for (UINT32 i = 0; i < CopyWidth; i++) {
+                        DestAddr[i] = SrcAddr[i];
+                    }
+                } else {
+                    /* Clipped - copy pixel by pixel */
+                    for (UINT32 Col = 0; Col < Width; Col++) {
+                        INT32 DestX = X + Col;
+                        if (DestX >= 0 && DestX < (INT32)Backend->Descriptor.Width) {
+                            UINT8 *DestAddr = Backend->FramebufferBase + DestOffset + Col * BytesPerPixel;
+                            CONST UINT8 *SrcAddr = &Bitmap[SrcOffset + Col * BytesPerPixel];
+                            for (UINT32 b = 0; b < BytesPerPixel; b++) {
+                                DestAddr[b] = SrcAddr[b];
+                            }
+                        }
+                    }
+                }
+            }
+            return S_OK;
+        }
+    }
+
+    /* Other formats - let engine handle conversion */
     return E_NOTIMPL;
 }
 
