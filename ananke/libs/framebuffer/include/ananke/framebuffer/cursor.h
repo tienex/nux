@@ -52,6 +52,40 @@ typedef struct _FB_CURSOR_FRAME {
 } FB_CURSOR_FRAME;
 
 /* --------------------------------------------------------------- */
+/*  Cursor Set Descriptors (for SetMonoCursor, SetColorCursor, etc) */
+/* --------------------------------------------------------------- */
+
+/* Monochrome cursor descriptor */
+typedef struct _FB_MONO_CURSOR_DESC {
+    CONST UINT8     *AndMask;       /* AND mask (1 = use pixel, 0 = transparent) */
+    CONST UINT8     *XorMask;       /* XOR mask (1 = invert, 0 = black) */
+    UINT32          Width;          /* Cursor width in pixels */
+    UINT32          Height;         /* Cursor height in pixels */
+    INT32           HotSpotX;       /* Hot spot X coordinate */
+    INT32           HotSpotY;       /* Hot spot Y coordinate */
+} FB_MONO_CURSOR_DESC;
+
+/* Color cursor descriptor */
+typedef struct _FB_COLOR_CURSOR_DESC {
+    CONST UINT8     *Data;          /* RGBA data (4 bytes per pixel) */
+    UINT32          Width;          /* Cursor width in pixels */
+    UINT32          Height;         /* Cursor height in pixels */
+    INT32           HotSpotX;       /* Hot spot X coordinate */
+    INT32           HotSpotY;       /* Hot spot Y coordinate */
+} FB_COLOR_CURSOR_DESC;
+
+/* Animated cursor descriptor */
+typedef struct _FB_ANIMATED_CURSOR_DESC {
+    CONST FB_CURSOR_FRAME *Frames;  /* Array of animation frames */
+    UINT32          FrameCount;     /* Number of frames */
+    UINT32          Width;          /* Cursor width in pixels */
+    UINT32          Height;         /* Cursor height in pixels */
+    INT32           HotSpotX;       /* Hot spot X coordinate */
+    INT32           HotSpotY;       /* Hot spot Y coordinate */
+    FB_CURSOR_TYPE  FrameType;      /* Type of frames (mono or color) */
+} FB_ANIMATED_CURSOR_DESC;
+
+/* --------------------------------------------------------------- */
 /*  IFramebufferTimerSink - Timer callback sink interface           */
 /* --------------------------------------------------------------- */
 
@@ -158,27 +192,13 @@ ANX_BEGIN_INTERFACE(IFramebufferCursor, IUnknown,
         OUT INT32 *X,
         OUT INT32 *Y))
 
-    /* Set monochrome cursor image
-     * AND mask: 1 = use pixel, 0 = transparent
-     * XOR mask: 1 = invert, 0 = black
-     */
+    /* Set monochrome cursor image using descriptor */
     ANX_IFACE_METHOD(HRESULT, SetMonoCursor, (
-        IN CONST UINT8 *AndMask,
-        IN CONST UINT8 *XorMask,
-        IN UINT32 Width,
-        IN UINT32 Height,
-        IN INT32 HotSpotX,
-        IN INT32 HotSpotY))
+        IN CONST FB_MONO_CURSOR_DESC *Descriptor))
 
-    /* Set color cursor image
-     * Data is in RGBA format (4 bytes per pixel)
-     */
+    /* Set color cursor image using descriptor */
     ANX_IFACE_METHOD(HRESULT, SetColorCursor, (
-        IN CONST UINT8 *Data,
-        IN UINT32 Width,
-        IN UINT32 Height,
-        IN INT32 HotSpotX,
-        IN INT32 HotSpotY))
+        IN CONST FB_COLOR_CURSOR_DESC *Descriptor))
 
     /* Get cursor descriptor */
     ANX_IFACE_METHOD(HRESULT, GetDescriptor, (
@@ -188,18 +208,9 @@ ANX_BEGIN_INTERFACE(IFramebufferCursor, IUnknown,
     ANX_IFACE_METHOD(HRESULT, IsHardwareCursor, (
         OUT BOOLEAN *IsHardware))
 
-    /* Set animated cursor (multiple frames)
-     * Frames is an array of FB_CURSOR_FRAME structures
-     * Each frame has its own display time
-     */
+    /* Set animated cursor using descriptor */
     ANX_IFACE_METHOD(HRESULT, SetAnimatedCursor, (
-        IN CONST FB_CURSOR_FRAME *Frames,
-        IN UINT32 FrameCount,
-        IN UINT32 Width,
-        IN UINT32 Height,
-        IN INT32 HotSpotX,
-        IN INT32 HotSpotY,
-        IN FB_CURSOR_TYPE FrameType))
+        IN CONST FB_ANIMATED_CURSOR_DESC *Descriptor))
 
     /* Attach a timer for animation
      * The timer will call OnTimer() to advance frames
@@ -235,14 +246,24 @@ ANX_END_INTERFACE(IFramebufferCursor)
     ((This)->lpVtbl->SetPosition(This, X, Y))
 #define IFramebufferCursor_GetPosition(This, X, Y) \
     ((This)->lpVtbl->GetPosition(This, X, Y))
-#define IFramebufferCursor_SetMonoCursor(This, And, Xor, W, H, HX, HY) \
-    ((This)->lpVtbl->SetMonoCursor(This, And, Xor, W, H, HX, HY))
-#define IFramebufferCursor_SetColorCursor(This, Data, W, H, HX, HY) \
-    ((This)->lpVtbl->SetColorCursor(This, Data, W, H, HX, HY))
+#define IFramebufferCursor_SetMonoCursor(This, Desc) \
+    ((This)->lpVtbl->SetMonoCursor(This, Desc))
+#define IFramebufferCursor_SetColorCursor(This, Desc) \
+    ((This)->lpVtbl->SetColorCursor(This, Desc))
+#define IFramebufferCursor_SetAnimatedCursor(This, Desc) \
+    ((This)->lpVtbl->SetAnimatedCursor(This, Desc))
 #define IFramebufferCursor_GetDescriptor(This, Desc) \
     ((This)->lpVtbl->GetDescriptor(This, Desc))
 #define IFramebufferCursor_IsHardwareCursor(This, IsHw) \
     ((This)->lpVtbl->IsHardwareCursor(This, IsHw))
+#define IFramebufferCursor_AttachTimer(This, Timer) \
+    ((This)->lpVtbl->AttachTimer(This, Timer))
+#define IFramebufferCursor_DetachTimer(This) \
+    ((This)->lpVtbl->DetachTimer(This))
+#define IFramebufferCursor_NextFrame(This) \
+    ((This)->lpVtbl->NextFrame(This))
+#define IFramebufferCursor_SetFrame(This, Frame) \
+    ((This)->lpVtbl->SetFrame(This, Frame))
 
 #endif /* !__cplusplus */
 
