@@ -1,0 +1,28 @@
+# IOKit Driver Framework Makefile
+# Copyright (c) 2025 NUX Project
+
+include @top_srcdir@/mk/top.mk
+
+LIB = iokit
+
+SRCS = \
+	sources/ioservice.c \
+	sources/ioregistry.c \
+	sources/iokit_init.c
+
+INCS = \
+	include/public/iokit/iokit.h \
+	include/public/iokit/ioservice.h \
+	include/public/iokit/ioregistry.h \
+	include/public/iokit/iouserclient.h \
+	include/public/iokit/iomemorydescriptor.h \
+	include/public/iokit/ioworkloop.h
+
+INCDIR = $(includedir)/iokit
+
+CFLAGS += -I$(top_srcdir)/nux/libs/iokit/include/public
+CFLAGS += -I$(top_srcdir)/ananke/include
+CFLAGS += -I$(top_srcdir)/include
+
+include @top_srcdir@/mk/lib.mk
+include @top_srcdir@/mk/bottom.mk
