@@ -1282,25 +1282,396 @@ FbGfx_FillCircle(
     return S_OK;
 }
 
-/* Ellipse and arc methods - simplified stubs for now */
-static HRESULT STDMETHODCALLTYPE FbGfx_StrokeEllipse(IFramebuffer2DContext *This, FLOAT CenterX, FLOAT CenterY, FLOAT RadiusX, FLOAT RadiusY) { return E_NOTIMPL; }
-static HRESULT STDMETHODCALLTYPE FbGfx_FillEllipse(IFramebuffer2DContext *This, FLOAT CenterX, FLOAT CenterY, FLOAT RadiusX, FLOAT RadiusY) { return E_NOTIMPL; }
-static HRESULT STDMETHODCALLTYPE FbGfx_StrokeArc(IFramebuffer2DContext *This, FLOAT CenterX, FLOAT CenterY, FLOAT Radius, FLOAT StartAngle, FLOAT EndAngle) { return E_NOTIMPL; }
+/* Ellipse drawing using midpoint algorithm */
+static HRESULT STDMETHODCALLTYPE
+FbGfx_StrokeEllipse(
+    IFramebuffer2DContext *This,
+    FLOAT CenterX,
+    FLOAT CenterY,
+    FLOAT RadiusX,
+    FLOAT RadiusY
+    )
+{
+    FB_GFX_CONTEXT_IMPL *Ctx = (FB_GFX_CONTEXT_IMPL *)This;
 
-/* Path methods - stubs for now */
-static HRESULT STDMETHODCALLTYPE FbGfx_BeginPath(IFramebuffer2DContext *This) { return E_NOTIMPL; }
-static HRESULT STDMETHODCALLTYPE FbGfx_ClosePath(IFramebuffer2DContext *This) { return E_NOTIMPL; }
-static HRESULT STDMETHODCALLTYPE FbGfx_MoveTo(IFramebuffer2DContext *This, FLOAT X, FLOAT Y) { return E_NOTIMPL; }
-static HRESULT STDMETHODCALLTYPE FbGfx_LineTo(IFramebuffer2DContext *This, FLOAT X, FLOAT Y) { return E_NOTIMPL; }
-static HRESULT STDMETHODCALLTYPE FbGfx_QuadraticCurveTo(IFramebuffer2DContext *This, FLOAT ControlX, FLOAT ControlY, FLOAT X, FLOAT Y) { return E_NOTIMPL; }
-static HRESULT STDMETHODCALLTYPE FbGfx_BezierCurveTo(IFramebuffer2DContext *This, FLOAT C1X, FLOAT C1Y, FLOAT C2X, FLOAT C2Y, FLOAT X, FLOAT Y) { return E_NOTIMPL; }
-static HRESULT STDMETHODCALLTYPE FbGfx_Arc(IFramebuffer2DContext *This, FLOAT CenterX, FLOAT CenterY, FLOAT Radius, FLOAT StartAngle, FLOAT EndAngle, BOOLEAN CCW) { return E_NOTIMPL; }
-static HRESULT STDMETHODCALLTYPE FbGfx_Stroke(IFramebuffer2DContext *This) { return E_NOTIMPL; }
-static HRESULT STDMETHODCALLTYPE FbGfx_Fill(IFramebuffer2DContext *This, FB_FILL_RULE FillRule) { return E_NOTIMPL; }
+    /* Apply transform */
+    FbGfx_TransformPoint(&Ctx->State.Transform, &CenterX, &CenterY);
 
-/* Polygon methods - stubs for now */
-static HRESULT STDMETHODCALLTYPE FbGfx_StrokePolygon(IFramebuffer2DContext *This, CONST FB_POINT *Points, UINT32 PointCount) { return E_NOTIMPL; }
-static HRESULT STDMETHODCALLTYPE FbGfx_FillPolygon(IFramebuffer2DContext *This, CONST FB_POINT *Points, UINT32 PointCount, FB_FILL_RULE FillRule) { return E_NOTIMPL; }
+    INT32 CX = (INT32)CenterX;
+    INT32 CY = (INT32)CenterY;
+    INT32 RX = (INT32)RadiusX;
+    INT32 RY = (INT32)RadiusY;
+
+    /* Midpoint ellipse algorithm */
+    INT32 X = 0;
+    INT32 Y = RY;
+    INT32 RX2 = RX * RX;
+    INT32 RY2 = RY * RY;
+    INT32 TwoRX2 = 2 * RX2;
+    INT32 TwoRY2 = 2 * RY2;
+    INT32 P;
+    INT32 PX = 0;
+    INT32 PY = TwoRX2 * Y;
+
+    FB_COLOR Color = Ctx->State.StrokeColor;
+
+    /* Helper macro to plot 4-way symmetric points */
+    #define PLOT_ELLIPSE_POINTS(X, Y) \
+        do { \
+            if (!FbGfx_IsClipped(Ctx, CX + X, CY + Y)) \
+                IFramebufferSurface_SetPixel(Ctx->Surface, CX + X, CY + Y, Color); \
+            if (!FbGfx_IsClipped(Ctx, CX - X, CY + Y)) \
+                IFramebufferSurface_SetPixel(Ctx->Surface, CX - X, CY + Y, Color); \
+            if (!FbGfx_IsClipped(Ctx, CX + X, CY - Y)) \
+                IFramebufferSurface_SetPixel(Ctx->Surface, CX + X, CY - Y, Color); \
+            if (!FbGfx_IsClipped(Ctx, CX - X, CY - Y)) \
+                IFramebufferSurface_SetPixel(Ctx->Surface, CX - X, CY - Y, Color); \
+        } while (0)
+
+    /* Region 1 */
+    PLOT_ELLIPSE_POINTS(X, Y);
+    P = RY2 - (RX2 * RY) + (RX2 / 4);
+
+    while (PX < PY) {
+        X++;
+        PX += TwoRY2;
+        if (P < 0) {
+            P += RY2 + PX;
+        } else {
+            Y--;
+            PY -= TwoRX2;
+            P += RY2 + PX - PY;
+        }
+        PLOT_ELLIPSE_POINTS(X, Y);
+    }
+
+    /* Region 2 */
+    P = RY2 * (X * X + X) + RX2 * (Y - 1) * (Y - 1) - RX2 * RY2;
+
+    while (Y >= 0) {
+        PLOT_ELLIPSE_POINTS(X, Y);
+        Y--;
+        PY -= TwoRX2;
+        if (P > 0) {
+            P += RX2 - PY;
+        } else {
+            X++;
+            PX += TwoRY2;
+            P += RX2 - PY + PX;
+        }
+    }
+
+    #undef PLOT_ELLIPSE_POINTS
+
+    return S_OK;
+}
+
+static HRESULT STDMETHODCALLTYPE
+FbGfx_FillEllipse(
+    IFramebuffer2DContext *This,
+    FLOAT CenterX,
+    FLOAT CenterY,
+    FLOAT RadiusX,
+    FLOAT RadiusY
+    )
+{
+    FB_GFX_CONTEXT_IMPL *Ctx = (FB_GFX_CONTEXT_IMPL *)This;
+
+    /* Apply transform */
+    FbGfx_TransformPoint(&Ctx->State.Transform, &CenterX, &CenterY);
+
+    INT32 CX = (INT32)CenterX;
+    INT32 CY = (INT32)CenterY;
+    INT32 RX = (INT32)RadiusX;
+    INT32 RY = (INT32)RadiusY;
+
+    FB_COLOR Color = Ctx->State.FillColor;
+
+    /* Use scanline approach - for each Y, calculate X bounds */
+    for (INT32 Y = -RY; Y <= RY; Y++) {
+        /* Ellipse equation: (x/rx)^2 + (y/ry)^2 = 1
+         * Solve for x: x = rx * sqrt(1 - (y/ry)^2) */
+        FLOAT YNorm = (FLOAT)Y / (FLOAT)RY;
+        FLOAT XScale = ANX_SQRTF(1.0f - YNorm * YNorm);
+        INT32 X = (INT32)(RX * XScale);
+
+        /* Fill horizontal line */
+        for (INT32 DrawX = -X; DrawX <= X; DrawX++) {
+            if (!FbGfx_IsClipped(Ctx, CX + DrawX, CY + Y)) {
+                IFramebufferSurface_SetPixel(Ctx->Surface, CX + DrawX, CY + Y, Color);
+            }
+        }
+    }
+
+    return S_OK;
+}
+
+static HRESULT STDMETHODCALLTYPE
+FbGfx_StrokeArc(
+    IFramebuffer2DContext *This,
+    FLOAT CenterX,
+    FLOAT CenterY,
+    FLOAT Radius,
+    FLOAT StartAngle,
+    FLOAT EndAngle
+    )
+{
+    FB_GFX_CONTEXT_IMPL *Ctx = (FB_GFX_CONTEXT_IMPL *)This;
+
+    /* Apply transform */
+    FbGfx_TransformPoint(&Ctx->State.Transform, &CenterX, &CenterY);
+
+    FB_COLOR Color = Ctx->State.StrokeColor;
+    INT32 CX = (INT32)CenterX;
+    INT32 CY = (INT32)CenterY;
+    INT32 R = (INT32)Radius;
+
+    /* Normalize angles to 0-2π */
+    while (StartAngle < 0.0f) StartAngle += 2.0f * ANX_PI;
+    while (EndAngle < 0.0f) EndAngle += 2.0f * ANX_PI;
+    while (StartAngle >= 2.0f * ANX_PI) StartAngle -= 2.0f * ANX_PI;
+    while (EndAngle >= 2.0f * ANX_PI) EndAngle -= 2.0f * ANX_PI;
+
+    /* Draw arc using line segments */
+    FLOAT AngleStep = 0.1f;  /* Radians */
+    FLOAT Angle = StartAngle;
+
+    while (TRUE) {
+        INT32 X1 = CX + (INT32)(R * ANX_COSF(Angle));
+        INT32 Y1 = CY + (INT32)(R * ANX_SINF(Angle));
+
+        if (!FbGfx_IsClipped(Ctx, X1, Y1)) {
+            IFramebufferSurface_SetPixel(Ctx->Surface, X1, Y1, Color);
+        }
+
+        /* Check if we've reached the end */
+        if (EndAngle > StartAngle) {
+            if (Angle >= EndAngle) break;
+        } else {
+            /* Arc crosses 0 degrees */
+            if (Angle >= EndAngle && Angle < StartAngle) break;
+        }
+
+        Angle += AngleStep;
+        if (Angle >= 2.0f * ANX_PI) Angle -= 2.0f * ANX_PI;
+    }
+
+    return S_OK;
+}
+
+/* Path-based drawing using IFramebuffer2DPath */
+static HRESULT STDMETHODCALLTYPE
+FbGfx_StrokePath(
+    IFramebuffer2DContext *This,
+    IFramebuffer2DPath *Path
+    )
+{
+    FB_GFX_CONTEXT_IMPL *Ctx = (FB_GFX_CONTEXT_IMPL *)This;
+    HRESULT Hr;
+
+    if (Path == NULL) {
+        return E_POINTER;
+    }
+
+    /* Get flattened points from path */
+    UINT32 PointCount = 0;
+    Hr = IFramebuffer2DPath_GetPoints(Path, NULL, 0, &PointCount);
+    if (FAILED(Hr) || PointCount == 0) {
+        return Hr;
+    }
+
+    FB_POINT *Points = (FB_POINT *)ANX_MALLOC(PointCount * sizeof(FB_POINT));
+    if (Points == NULL) {
+        return E_OUTOFMEMORY;
+    }
+
+    Hr = IFramebuffer2DPath_GetPoints(Path, Points, PointCount, &PointCount);
+    if (FAILED(Hr)) {
+        ANX_FREE(Points);
+        return Hr;
+    }
+
+    /* Draw lines between consecutive points */
+    FB_COLOR Color = Ctx->State.StrokeColor;
+    for (UINT32 I = 0; I < PointCount - 1; I++) {
+        FLOAT X0 = (FLOAT)Points[I].X;
+        FLOAT Y0 = (FLOAT)Points[I].Y;
+        FLOAT X1 = (FLOAT)Points[I + 1].X;
+        FLOAT Y1 = (FLOAT)Points[I + 1].Y;
+
+        /* Apply transform */
+        FbGfx_TransformPoint(&Ctx->State.Transform, &X0, &Y0);
+        FbGfx_TransformPoint(&Ctx->State.Transform, &X1, &Y1);
+
+        FbGfx_DrawLineBresenham(Ctx, (INT32)X0, (INT32)Y0, (INT32)X1, (INT32)Y1, Color);
+    }
+
+    ANX_FREE(Points);
+    return S_OK;
+}
+
+static HRESULT STDMETHODCALLTYPE
+FbGfx_FillPath(
+    IFramebuffer2DContext *This,
+    IFramebuffer2DPath *Path,
+    FB_FILL_RULE FillRule
+    )
+{
+    FB_GFX_CONTEXT_IMPL *Ctx = (FB_GFX_CONTEXT_IMPL *)This;
+    HRESULT Hr;
+
+    if (Path == NULL) {
+        return E_POINTER;
+    }
+
+    /* Get flattened points from path */
+    UINT32 PointCount = 0;
+    Hr = IFramebuffer2DPath_GetPoints(Path, NULL, 0, &PointCount);
+    if (FAILED(Hr) || PointCount < 3) {
+        return Hr;
+    }
+
+    FB_POINT *Points = (FB_POINT *)ANX_MALLOC(PointCount * sizeof(FB_POINT));
+    if (Points == NULL) {
+        return E_OUTOFMEMORY;
+    }
+
+    Hr = IFramebuffer2DPath_GetPoints(Path, Points, PointCount, &PointCount);
+    if (FAILED(Hr)) {
+        ANX_FREE(Points);
+        return Hr;
+    }
+
+    /* Convert to FB_PATH_POINT format and fill */
+    FB_PATH_POINT *PathPoints = (FB_PATH_POINT *)ANX_MALLOC(PointCount * sizeof(FB_PATH_POINT));
+    if (PathPoints == NULL) {
+        ANX_FREE(Points);
+        return E_OUTOFMEMORY;
+    }
+
+    for (UINT32 I = 0; I < PointCount; I++) {
+        PathPoints[I].X = (FLOAT)Points[I].X;
+        PathPoints[I].Y = (FLOAT)Points[I].Y;
+        PathPoints[I].Command = FbPathLineTo;
+    }
+
+    /* Apply transform to all points */
+    for (UINT32 I = 0; I < PointCount; I++) {
+        FbGfx_TransformPoint(&Ctx->State.Transform, &PathPoints[I].X, &PathPoints[I].Y);
+    }
+
+    /* Use polygon fill */
+    FbGfx_FillPolygonScanline(Ctx, PathPoints, PointCount, Ctx->State.FillColor, FillRule);
+
+    ANX_FREE(PathPoints);
+    ANX_FREE(Points);
+    return S_OK;
+}
+
+static HRESULT STDMETHODCALLTYPE
+FbGfx_ClipToPath(
+    IFramebuffer2DContext *This,
+    IFramebuffer2DPath *Path,
+    FB_FILL_RULE FillRule
+    )
+{
+    FB_GFX_CONTEXT_IMPL *Ctx = (FB_GFX_CONTEXT_IMPL *)This;
+
+    if (Path == NULL) {
+        return E_POINTER;
+    }
+
+    /* Get path bounds and use as clip rectangle for now */
+    FB_RECT Bounds;
+    HRESULT Hr = IFramebuffer2DPath_GetBounds(Path, &Bounds);
+    if (FAILED(Hr)) {
+        return Hr;
+    }
+
+    /* Apply transform to bounds */
+    FLOAT X = (FLOAT)Bounds.X;
+    FLOAT Y = (FLOAT)Bounds.Y;
+    FbGfx_TransformPoint(&Ctx->State.Transform, &X, &Y);
+
+    Ctx->State.ClipRect.X = (INT32)X;
+    Ctx->State.ClipRect.Y = (INT32)Y;
+    Ctx->State.ClipRect.Width = Bounds.Width;
+    Ctx->State.ClipRect.Height = Bounds.Height;
+    Ctx->State.HasClip = TRUE;
+
+    return S_OK;
+}
+
+/* Polygon drawing */
+static HRESULT STDMETHODCALLTYPE
+FbGfx_StrokePolygon(
+    IFramebuffer2DContext *This,
+    CONST FB_POINT *Points,
+    UINT32 PointCount
+    )
+{
+    FB_GFX_CONTEXT_IMPL *Ctx = (FB_GFX_CONTEXT_IMPL *)This;
+
+    if (Points == NULL || PointCount < 2) {
+        return E_INVALIDARG;
+    }
+
+    FB_COLOR Color = Ctx->State.StrokeColor;
+
+    /* Draw lines between consecutive points */
+    for (UINT32 I = 0; I < PointCount; I++) {
+        UINT32 Next = (I + 1) % PointCount;
+
+        FLOAT X0 = (FLOAT)Points[I].X;
+        FLOAT Y0 = (FLOAT)Points[I].Y;
+        FLOAT X1 = (FLOAT)Points[Next].X;
+        FLOAT Y1 = (FLOAT)Points[Next].Y;
+
+        /* Apply transform */
+        FbGfx_TransformPoint(&Ctx->State.Transform, &X0, &Y0);
+        FbGfx_TransformPoint(&Ctx->State.Transform, &X1, &Y1);
+
+        FbGfx_DrawLineBresenham(Ctx, (INT32)X0, (INT32)Y0, (INT32)X1, (INT32)Y1, Color);
+    }
+
+    return S_OK;
+}
+
+static HRESULT STDMETHODCALLTYPE
+FbGfx_FillPolygon(
+    IFramebuffer2DContext *This,
+    CONST FB_POINT *Points,
+    UINT32 PointCount,
+    FB_FILL_RULE FillRule
+    )
+{
+    FB_GFX_CONTEXT_IMPL *Ctx = (FB_GFX_CONTEXT_IMPL *)This;
+
+    if (Points == NULL || PointCount < 3) {
+        return E_INVALIDARG;
+    }
+
+    /* Convert to FB_PATH_POINT format */
+    FB_PATH_POINT *PathPoints = (FB_PATH_POINT *)ANX_MALLOC(PointCount * sizeof(FB_PATH_POINT));
+    if (PathPoints == NULL) {
+        return E_OUTOFMEMORY;
+    }
+
+    for (UINT32 I = 0; I < PointCount; I++) {
+        PathPoints[I].X = (FLOAT)Points[I].X;
+        PathPoints[I].Y = (FLOAT)Points[I].Y;
+        PathPoints[I].Command = FbPathLineTo;
+
+        /* Apply transform */
+        FbGfx_TransformPoint(&Ctx->State.Transform, &PathPoints[I].X, &PathPoints[I].Y);
+    }
+
+    /* Use polygon fill */
+    FbGfx_FillPolygonScanline(Ctx, PathPoints, PointCount, Ctx->State.FillColor, FillRule);
+
+    ANX_FREE(PathPoints);
+    return S_OK;
+}
 
 /* Image drawing - delegate to surface */
 static HRESULT STDMETHODCALLTYPE

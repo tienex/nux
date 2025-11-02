@@ -27,6 +27,10 @@
 typedef struct IFramebufferSurface IFramebufferSurface;
 typedef struct IFramebufferImage IFramebufferImage;
 typedef struct IFramebufferFont IFramebufferFont;
+typedef struct IFramebufferGradient IFramebufferGradient;
+typedef struct IFramebufferShading IFramebufferShading;
+typedef struct IFramebufferPattern IFramebufferPattern;
+typedef struct IFramebufferLayer IFramebufferLayer;
 
 /* --------------------------------------------------------------- */
 /*  Graphics State Definitions                                     */
@@ -506,16 +510,114 @@ ANX_BEGIN_INTERFACE(IFramebuffer2DContext, IUnknown,
         OUT FLOAT *Height))
 
     /* ----------------------------------------------------------------- */
-    /* Gradient Support                                                  */
+    /* Gradient Support (Core Graphics style)                           */
     /* ----------------------------------------------------------------- */
 
-    /* Set fill to linear gradient */
-    ANX_IFACE_METHOD(HRESULT, SetFillGradient, (
-        IN CONST FB_GRADIENT_DESC *Gradient))
+    /* Draw linear gradient between two points
+     * Similar to CGContextDrawLinearGradient
+     */
+    ANX_IFACE_METHOD(HRESULT, DrawLinearGradient, (
+        IN IFramebufferGradient *Gradient,
+        IN FLOAT StartX,
+        IN FLOAT StartY,
+        IN FLOAT EndX,
+        IN FLOAT EndY,
+        IN UINT32 Options))
 
-    /* Set stroke to linear gradient */
-    ANX_IFACE_METHOD(HRESULT, SetStrokeGradient, (
-        IN CONST FB_GRADIENT_DESC *Gradient))
+    /* Draw radial gradient between two circles
+     * Similar to CGContextDrawRadialGradient
+     */
+    ANX_IFACE_METHOD(HRESULT, DrawRadialGradient, (
+        IN IFramebufferGradient *Gradient,
+        IN FLOAT StartX,
+        IN FLOAT StartY,
+        IN FLOAT StartRadius,
+        IN FLOAT EndX,
+        IN FLOAT EndY,
+        IN FLOAT EndRadius,
+        IN UINT32 Options))
+
+    /* Draw shading
+     * Similar to CGContextDrawShading
+     */
+    ANX_IFACE_METHOD(HRESULT, DrawShading, (
+        IN IFramebufferShading *Shading))
+
+    /* ----------------------------------------------------------------- */
+    /* Pattern Support (Core Graphics style)                            */
+    /* ----------------------------------------------------------------- */
+
+    /* Set fill pattern
+     * Similar to CGContextSetFillPattern
+     */
+    ANX_IFACE_METHOD(HRESULT, SetFillPattern, (
+        IN IFramebufferPattern *Pattern,
+        IN CONST FLOAT *Alpha))
+
+    /* Set stroke pattern
+     * Similar to CGContextSetStrokePattern
+     */
+    ANX_IFACE_METHOD(HRESULT, SetStrokePattern, (
+        IN IFramebufferPattern *Pattern,
+        IN CONST FLOAT *Alpha))
+
+    /* ----------------------------------------------------------------- */
+    /* Layer Support (Core Graphics style)                              */
+    /* ----------------------------------------------------------------- */
+
+    /* Draw layer at point
+     * Similar to CGContextDrawLayerAtPoint
+     */
+    ANX_IFACE_METHOD(HRESULT, DrawLayerAtPoint, (
+        IN IFramebufferLayer *Layer,
+        IN FLOAT X,
+        IN FLOAT Y))
+
+    /* Draw layer in rectangle
+     * Similar to CGContextDrawLayerInRect
+     */
+    ANX_IFACE_METHOD(HRESULT, DrawLayerInRect, (
+        IN IFramebufferLayer *Layer,
+        IN CONST FB_RECT *Rect))
+
+    /* ----------------------------------------------------------------- */
+    /* Shadow Support (Core Graphics style)                             */
+    /* ----------------------------------------------------------------- */
+
+    /* Set shadow parameters
+     * Similar to CGContextSetShadow / CGContextSetShadowWithColor
+     */
+    ANX_IFACE_METHOD(HRESULT, SetShadow, (
+        IN FLOAT OffsetX,
+        IN FLOAT OffsetY,
+        IN FLOAT Blur,
+        IN FB_COLOR Color))
+
+    /* Disable shadow */
+    ANX_IFACE_METHOD(HRESULT, ClearShadow, (
+        VOID))
+
+    /* ----------------------------------------------------------------- */
+    /* Transparency Layers (Core Graphics style)                        */
+    /* ----------------------------------------------------------------- */
+
+    /* Begin transparency layer
+     * Similar to CGContextBeginTransparencyLayer
+     * All drawing between Begin/End is composited with specified alpha
+     */
+    ANX_IFACE_METHOD(HRESULT, BeginTransparencyLayer, (
+        IN FLOAT Alpha))
+
+    /* Begin transparency layer with clipping path */
+    ANX_IFACE_METHOD(HRESULT, BeginTransparencyLayerWithPath, (
+        IN IFramebuffer2DPath *Path,
+        IN FLOAT Alpha))
+
+    /* End transparency layer
+     * Similar to CGContextEndTransparencyLayer
+     */
+    ANX_IFACE_METHOD(HRESULT, EndTransparencyLayer, (
+        VOID))
 
     /* ----------------------------------------------------------------- */
     /* Utility                                                           */
@@ -525,8 +627,16 @@ ANX_BEGIN_INTERFACE(IFramebuffer2DContext, IUnknown,
     ANX_IFACE_METHOD(HRESULT, GetSurface, (
         OUT IFramebufferSurface **Surface))
 
-    /* Flush pending operations */
+    /* Flush pending operations
+     * Similar to CGContextFlush
+     */
     ANX_IFACE_METHOD(HRESULT, Flush, (
+        VOID))
+
+    /* Synchronize rendering
+     * Similar to CGContextSynchronize
+     */
+    ANX_IFACE_METHOD(HRESULT, Synchronize, (
         VOID))
 
 ANX_END_INTERFACE(IFramebuffer2DContext)
