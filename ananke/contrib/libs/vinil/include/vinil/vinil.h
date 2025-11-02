@@ -1,7 +1,7 @@
 /** @file
   VINIL - Vincent Intermediate Language Unified Library
 
-  Public API for unified execution engine supporting graphics and compute
+  COM-based API for unified execution engine supporting graphics and compute
   workloads across OpenGL ES, OpenCL, CUDA, HIP, and SYCL.
 
   Copyright (C) 2003-2007 Hans-Martin Will
@@ -13,13 +13,10 @@
 #ifndef __vinil_vinil_h__
 #define __vinil_vinil_h__ 1
 
-#include <stdint.h>
-#include <stddef.h>
-#include <stdbool.h>
-
-#ifdef __cplusplus
-extern "C" {
-#endif
+#include <ananke/types.h>
+#include <ananke/com.h>
+#include <ananke/hresult.h>
+#include <ananke/guid.h>
 
 //
 // Version Information
@@ -30,184 +27,169 @@ extern "C" {
 #define VINIL_VERSION_PATCH     0
 
 //
-// Basic Types
+// Compilation Flags
 //
 
-typedef int32_t         vinil_int32;
-typedef uint32_t        vinil_uint32;
-typedef int64_t         vinil_int64;
-typedef uint64_t        vinil_uint64;
-typedef float           vinil_float;
-typedef double          vinil_double;
-typedef size_t          vinil_size;
-typedef ptrdiff_t       vinil_ssize;
-typedef bool            vinil_bool;
-
-#define VINIL_TRUE      true
-#define VINIL_FALSE     false
+typedef enum _VINIL_COMPILE_FLAGS {
+  VinilCompileFlagNone        = 0,
+  VinilCompileFlagUseJit      = (1 << 0),  /* Use JIT compiler */
+  VinilCompileFlagOptimize    = (1 << 1),  /* Enable optimizations */
+  VinilCompileFlagDebugInfo   = (1 << 2),  /* Include debug information */
+} VINIL_COMPILE_FLAGS;
 
 //
-// Error Codes
+// Execution Modes
 //
 
-typedef enum vinil_error {
-  VINIL_SUCCESS = 0,
-  VINIL_ERROR_OUT_OF_MEMORY,
-  VINIL_ERROR_INVALID_ARGUMENT,
-  VINIL_ERROR_INVALID_PROGRAM,
-  VINIL_ERROR_COMPILATION_FAILED,
-  VINIL_ERROR_LINKING_FAILED,
-  VINIL_ERROR_EXECUTION_FAILED,
-  VINIL_ERROR_NOT_IMPLEMENTED
-} vinil_error;
+typedef enum _VINIL_EXEC_MODE {
+  VinilExecModeGraphics   = 0,  /* Graphics shader execution */
+  VinilExecModeCompute    = 1,  /* Compute kernel execution */
+} VINIL_EXEC_MODE;
 
-//
-// Opaque Handle Types
-//
+/* --------------------------------------------------------------- */
+/*  IVinilContext - Main execution context                         */
+/* --------------------------------------------------------------- */
 
-typedef struct vinil_context vinil_context;
-typedef struct vinil_program vinil_program;
-typedef struct vinil_executable vinil_executable;
-typedef struct vinil_memory_pool vinil_memory_pool;
+// {VINIL001-0000-0000-C000-000000000046}
+#define ANX_IID_IVinilContext "VINIL001-0000-0000-C000-000000000046"
+ANX_DEFINE_GUID(IID_IVinilContext,
+    0xFFFFFF01, 0x0000, 0x0000,
+    0xC0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x46);
 
-//
-// Context Management
-//
+ANX_BEGIN_INTERFACE(IVinilContext, IUnknown,
+    IID_IVinilContext, ANX_IID_IVinilContext)
+
+    /**
+      Create a new IL program.
+
+      @param[out]  Program  Receives the new program interface.
+
+      @retval  S_OK               Success.
+      @retval  E_OUTOFMEMORY      Out of memory.
+    **/
+    ANX_IFACE_METHOD(HRESULT, CreateProgram, (
+        OUT struct IVinilProgram **Program))
+
+    /**
+      Get the last error message.
+
+      @param[out]  ErrorMessage  Receives error message string.
+
+      @retval  S_OK  Success.
+    **/
+    ANX_IFACE_METHOD(HRESULT, GetLastError, (
+        OUT CONST CHAR8 **ErrorMessage))
+
+    /**
+      Get library version information.
+
+      @param[out]  Major  Major version number.
+      @param[out]  Minor  Minor version number.
+      @param[out]  Patch  Patch version number.
+
+      @retval  S_OK  Success.
+    **/
+    ANX_IFACE_METHOD(HRESULT, GetVersion, (
+        OUT UINT32 *Major,
+        OUT UINT32 *Minor,
+        OUT UINT32 *Patch))
+
+ANX_END_INTERFACE(IVinilContext)
+
+/* --------------------------------------------------------------- */
+/*  IVinilProgram - IL program builder                             */
+/* --------------------------------------------------------------- */
+
+// {VINIL002-0000-0000-C000-000000000046}
+#define ANX_IID_IVinilProgram "VINIL002-0000-0000-C000-000000000046"
+ANX_DEFINE_GUID(IID_IVinilProgram,
+    0xFFFFFF02, 0x0000, 0x0000,
+    0xC0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x46);
+
+ANX_BEGIN_INTERFACE(IVinilProgram, IUnknown,
+    IID_IVinilProgram, ANX_IID_IVinilProgram)
+
+    /**
+      Compile the IL program to executable code.
+
+      @param[in]   Flags       Compilation flags.
+      @param[out]  Executable  Receives the compiled executable.
+
+      @retval  S_OK               Success.
+      @retval  E_FAIL             Compilation failed.
+      @retval  E_OUTOFMEMORY      Out of memory.
+    **/
+    ANX_IFACE_METHOD(HRESULT, Compile, (
+        IN VINIL_COMPILE_FLAGS Flags,
+        OUT struct IVinilExecutable **Executable))
+
+    /**
+      Get compilation log/errors.
+
+      @param[out]  Log  Receives compilation log string.
+
+      @retval  S_OK  Success.
+    **/
+    ANX_IFACE_METHOD(HRESULT, GetCompileLog, (
+        OUT CONST CHAR8 **Log))
+
+ANX_END_INTERFACE(IVinilProgram)
+
+/* --------------------------------------------------------------- */
+/*  IVinilExecutable - Compiled executable                         */
+/* --------------------------------------------------------------- */
+
+// {VINIL003-0000-0000-C000-000000000046}
+#define ANX_IID_IVinilExecutable "VINIL003-0000-0000-C000-000000000046"
+ANX_DEFINE_GUID(IID_IVinilExecutable,
+    0xFFFFFF03, 0x0000, 0x0000,
+    0xC0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x46);
+
+ANX_BEGIN_INTERFACE(IVinilExecutable, IUnknown,
+    IID_IVinilExecutable, ANX_IID_IVinilExecutable)
+
+    /**
+      Execute the compiled code.
+
+      @param[in]  Mode      Execution mode (graphics or compute).
+      @param[in]  UserData  User-provided execution context.
+
+      @retval  S_OK       Success.
+      @retval  E_FAIL     Execution failed.
+      @retval  E_NOTIMPL  Not implemented.
+    **/
+    ANX_IFACE_METHOD(HRESULT, Execute, (
+        IN VINIL_EXEC_MODE Mode,
+        IN VOID *UserData))
+
+    /**
+      Get execution statistics.
+
+      @param[out]  CyclesExecuted  Number of cycles executed.
+
+      @retval  S_OK  Success.
+    **/
+    ANX_IFACE_METHOD(HRESULT, GetStats, (
+        OUT UINT64 *CyclesExecuted))
+
+ANX_END_INTERFACE(IVinilExecutable)
+
+/* --------------------------------------------------------------- */
+/*  Factory Function                                                */
+/* --------------------------------------------------------------- */
 
 /**
-  Create a new VINIL execution context.
+  Create the main VINIL context.
 
-  The context manages all resources for IL compilation and execution.
+  @param[out]  Context  Receives the context interface.
 
-  @return  Pointer to new context, or NULL on failure.
+  @retval  S_OK               Success.
+  @retval  E_OUTOFMEMORY      Out of memory.
+  @retval  E_POINTER          Context is NULL.
 **/
-vinil_context *
-vinil_context_create (
-  void
+HRESULT
+VinilCreateContext (
+  OUT IVinilContext **Context
   );
-
-/**
-  Destroy a VINIL execution context.
-
-  Frees all resources associated with the context. Any executables or
-  programs created from this context become invalid.
-
-  @param[in]  ctx  Context to destroy.
-**/
-void
-vinil_context_destroy (
-  vinil_context  *ctx
-  );
-
-//
-// Program Management
-//
-
-/**
-  Create a new IL program.
-
-  The program is initially empty. Use IL construction APIs to build
-  the intermediate representation.
-
-  @param[in]  ctx  Execution context.
-
-  @return  Pointer to new program, or NULL on failure.
-**/
-vinil_program *
-vinil_program_create (
-  vinil_context  *ctx
-  );
-
-/**
-  Destroy an IL program.
-
-  Frees all IL structures. Any executables compiled from this program
-  remain valid.
-
-  @param[in]  program  Program to destroy.
-**/
-void
-vinil_program_destroy (
-  vinil_program  *program
-  );
-
-/**
-  Compile an IL program to executable code.
-
-  @param[in]  ctx      Execution context.
-  @param[in]  program  IL program to compile.
-  @param[in]  use_jit  TRUE to use JIT compiler, FALSE for interpreter.
-
-  @return  Executable code, or NULL on compilation failure.
-**/
-vinil_executable *
-vinil_program_compile (
-  vinil_context  *ctx,
-  vinil_program  *program,
-  vinil_bool     use_jit
-  );
-
-/**
-  Destroy an executable.
-
-  @param[in]  executable  Executable to destroy.
-**/
-void
-vinil_executable_destroy (
-  vinil_executable  *executable
-  );
-
-//
-// Execution
-//
-
-/**
-  Execute compiled code.
-
-  For graphics shaders, this executes the shader pipeline. For compute
-  kernels, use vinil_launch_kernel() instead.
-
-  @param[in]  ctx         Execution context.
-  @param[in]  executable  Compiled executable.
-  @param[in]  user_data   User data pointer passed to kernel.
-
-  @return  VINIL_SUCCESS or error code.
-**/
-vinil_error
-vinil_execute (
-  vinil_context      *ctx,
-  vinil_executable   *executable,
-  void               *user_data
-  );
-
-//
-// Utility Functions
-//
-
-/**
-  Get error message for an error code.
-
-  @param[in]  error  Error code.
-
-  @return  Human-readable error string.
-**/
-const char *
-vinil_error_string (
-  vinil_error  error
-  );
-
-/**
-  Get VINIL version string.
-
-  @return  Version string in format "major.minor.patch".
-**/
-const char *
-vinil_version_string (
-  void
-  );
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif // __vinil_vinil_h__
