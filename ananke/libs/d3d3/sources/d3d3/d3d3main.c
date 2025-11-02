@@ -166,11 +166,23 @@ D3D3Device_DrawPrimitiveImmediate(
     /* Use shader */
     if (device->FfpState.currentProgram) {
         IGLProgram_UseProgram(device->FfpState.currentProgram);
+
+        /* Update shader uniforms */
+        hr = D3DUpdateFFPUniforms(device->FfpState.currentProgram, &device->FfpState);
+        if (FAILED(hr)) return hr;
     }
 
     glPrimType = D3DPrimitiveTypeToGL(primitiveType);
 
-    /* TODO: Setup vertex attributes from immediate mode data */
+    /* Bind vertex attributes */
+    if (device->FfpState.currentProgram) {
+        hr = D3DBindVertexAttributes(device->GlContext,
+                                      device->FfpState.currentProgram,
+                                      &fvfDesc,
+                                      vertices);
+        if (FAILED(hr)) return hr;
+    }
+
     return IGLContext_DrawArrays(device->GlContext, glPrimType, 0, vertexCount);
 }
 

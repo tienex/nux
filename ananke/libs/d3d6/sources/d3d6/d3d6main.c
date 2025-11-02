@@ -213,9 +213,22 @@ D3D6Device_DrawPrimitive(
     /* Use shader */
     if (device->FfpState.currentProgram) {
         IGLProgram_UseProgram(device->FfpState.currentProgram);
+
+        /* Update shader uniforms */
+        hr = D3DUpdateFFPUniforms(device->FfpState.currentProgram, &device->FfpState);
+        if (FAILED(hr)) return hr;
     }
 
     glPrimType = D3DPrimitiveTypeToGL(dptPrimitiveType);
+
+    /* Bind vertex attributes */
+    if (device->FfpState.currentProgram) {
+        hr = D3DBindVertexAttributes(device->GlContext,
+                                      device->FfpState.currentProgram,
+                                      &device->CurrentFVFDesc,
+                                      lpvVertices);
+        if (FAILED(hr)) return hr;
+    }
 
     return IGLContext_DrawArrays(device->GlContext, glPrimType, 0, dwVertexCount);
 }

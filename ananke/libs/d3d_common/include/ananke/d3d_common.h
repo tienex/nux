@@ -321,6 +321,12 @@ D3DBindVertexAttributes(
     CONST VOID *pVertexData
 );
 
+HRESULT
+D3DUpdateFFPUniforms(
+    IGLProgram *pProgram,
+    CONST D3D_FFP_STATE *pState
+);
+
 /* --------------------------------------------------------------- */
 /*  Matrix Utilities                                               */
 /* --------------------------------------------------------------- */

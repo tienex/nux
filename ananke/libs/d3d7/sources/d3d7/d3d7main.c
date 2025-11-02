@@ -400,10 +400,20 @@ D3D7Device_DrawPrimitive(
     /* Use shader program */
     if (device->FfpState.currentProgram) {
         IGLProgram_UseProgram(device->FfpState.currentProgram);
+
+        /* Update shader uniforms */
+        hr = D3DUpdateFFPUniforms(device->FfpState.currentProgram, &device->FfpState);
+        if (FAILED(hr)) return hr;
     }
 
-    /* TODO: Setup vertex attributes from FVF descriptor */
-    /* TODO: Actually draw the primitives */
+    /* Bind vertex attributes from FVF descriptor */
+    if (device->FfpState.currentProgram) {
+        hr = D3DBindVertexAttributes(device->GlContext,
+                                      device->FfpState.currentProgram,
+                                      &device->CurrentFVFDesc,
+                                      lpvVertices);
+        if (FAILED(hr)) return hr;
+    }
 
     return IGLContext_DrawArrays(device->GlContext, glPrimType, 0, dwVertexCount);
 }

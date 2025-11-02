@@ -78,9 +78,74 @@ D3DMatrixInverse(
     D3D_MATRIX *pOut,
     CONST D3D_MATRIX *pM)
 {
-    /* Simplified inversion for typical transform matrices */
-    /* TODO: Implement full 4x4 matrix inversion */
-    D3DMatrixIdentity(pOut);
+    FLOAT inv[16], det;
+    INT32 i;
+    CONST FLOAT *m = (CONST FLOAT*)pM;
+
+    /* Calculate the inverse using the adjugate method */
+    inv[0] = m[5]  * m[10] * m[15] - m[5]  * m[11] * m[14] - m[9]  * m[6]  * m[15]
+           + m[9]  * m[7]  * m[14] + m[13] * m[6]  * m[11] - m[13] * m[7]  * m[10];
+
+    inv[4] = -m[4]  * m[10] * m[15] + m[4]  * m[11] * m[14] + m[8]  * m[6]  * m[15]
+           - m[8]  * m[7]  * m[14] - m[12] * m[6]  * m[11] + m[12] * m[7]  * m[10];
+
+    inv[8] = m[4]  * m[9] * m[15] - m[4]  * m[11] * m[13] - m[8]  * m[5] * m[15]
+           + m[8]  * m[7] * m[13] + m[12] * m[5] * m[11] - m[12] * m[7] * m[9];
+
+    inv[12] = -m[4]  * m[9] * m[14] + m[4]  * m[10] * m[13] + m[8]  * m[5] * m[14]
+            - m[8]  * m[6] * m[13] - m[12] * m[5] * m[10] + m[12] * m[6] * m[9];
+
+    inv[1] = -m[1]  * m[10] * m[15] + m[1]  * m[11] * m[14] + m[9]  * m[2] * m[15]
+           - m[9]  * m[3] * m[14] - m[13] * m[2] * m[11] + m[13] * m[3] * m[10];
+
+    inv[5] = m[0]  * m[10] * m[15] - m[0]  * m[11] * m[14] - m[8]  * m[2] * m[15]
+           + m[8]  * m[3] * m[14] + m[12] * m[2] * m[11] - m[12] * m[3] * m[10];
+
+    inv[9] = -m[0]  * m[9] * m[15] + m[0]  * m[11] * m[13] + m[8]  * m[1] * m[15]
+           - m[8]  * m[3] * m[13] - m[12] * m[1] * m[11] + m[12] * m[3] * m[9];
+
+    inv[13] = m[0]  * m[9] * m[14] - m[0]  * m[10] * m[13] - m[8]  * m[1] * m[14]
+            + m[8]  * m[2] * m[13] + m[12] * m[1] * m[10] - m[12] * m[2] * m[9];
+
+    inv[2] = m[1]  * m[6] * m[15] - m[1]  * m[7] * m[14] - m[5]  * m[2] * m[15]
+           + m[5]  * m[3] * m[14] + m[13] * m[2] * m[7] - m[13] * m[3] * m[6];
+
+    inv[6] = -m[0]  * m[6] * m[15] + m[0]  * m[7] * m[14] + m[4]  * m[2] * m[15]
+           - m[4]  * m[3] * m[14] - m[12] * m[2] * m[7] + m[12] * m[3] * m[6];
+
+    inv[10] = m[0]  * m[5] * m[15] - m[0]  * m[7] * m[13] - m[4]  * m[1] * m[15]
+            + m[4]  * m[3] * m[13] + m[12] * m[1] * m[7] - m[12] * m[3] * m[5];
+
+    inv[14] = -m[0]  * m[5] * m[14] + m[0]  * m[6] * m[13] + m[4]  * m[1] * m[14]
+            - m[4]  * m[2] * m[13] - m[12] * m[1] * m[6] + m[12] * m[2] * m[5];
+
+    inv[3] = -m[1] * m[6] * m[11] + m[1] * m[7] * m[10] + m[5] * m[2] * m[11]
+           - m[5] * m[3] * m[10] - m[9] * m[2] * m[7] + m[9] * m[3] * m[6];
+
+    inv[7] = m[0] * m[6] * m[11] - m[0] * m[7] * m[10] - m[4] * m[2] * m[11]
+           + m[4] * m[3] * m[10] + m[8] * m[2] * m[7] - m[8] * m[3] * m[6];
+
+    inv[11] = -m[0] * m[5] * m[11] + m[0] * m[7] * m[9] + m[4] * m[1] * m[11]
+            - m[4] * m[3] * m[9] - m[8] * m[1] * m[7] + m[8] * m[3] * m[5];
+
+    inv[15] = m[0] * m[5] * m[10] - m[0] * m[6] * m[9] - m[4] * m[1] * m[10]
+            + m[4] * m[2] * m[9] + m[8] * m[1] * m[6] - m[8] * m[2] * m[5];
+
+    /* Calculate determinant */
+    det = m[0] * inv[0] + m[1] * inv[4] + m[2] * inv[8] + m[3] * inv[12];
+
+    /* If determinant is zero, matrix is not invertible - return identity */
+    if (det == 0.0f) {
+        D3DMatrixIdentity(pOut);
+        return;
+    }
+
+    det = 1.0f / det;
+
+    /* Multiply adjugate by 1/determinant */
+    for (i = 0; i < 16; i++) {
+        ((FLOAT*)pOut)[i] = inv[i] * det;
+    }
 }
 
 /* --------------------------------------------------------------- */
@@ -470,6 +535,185 @@ D3DBindVertexAttributes(
                 vertexBytes + pFVF->texCoordOffset[i]
             );
             IGLContext_EnableVertexAttribArray(pContext, location);
+        }
+    }
+
+    return S_OK;
+}
+
+/* --------------------------------------------------------------- */
+/*  FFP Uniform Updates                                            */
+/* --------------------------------------------------------------- */
+
+HRESULT
+D3DUpdateFFPUniforms(
+    IGLProgram *pProgram,
+    CONST D3D_FFP_STATE *pState)
+{
+    GL_INT location;
+    D3D_MATRIX mvpMatrix, modelView;
+    UINT32 i;
+
+    if (!pProgram || !pState) {
+        return E_POINTER;
+    }
+
+    /* Calculate ModelViewProjection matrix */
+    D3DMatrixMultiply(&modelView,
+                      &pState->transforms[D3D_TRANSFORM_WORLD],
+                      &pState->transforms[D3D_TRANSFORM_VIEW]);
+    D3DMatrixMultiply(&mvpMatrix,
+                      &modelView,
+                      &pState->transforms[D3D_TRANSFORM_PROJECTION]);
+
+    /* Set MVP matrix */
+    IGLProgram_GetUniformLocation(pProgram, "uMVPMatrix", &location);
+    if (location >= 0) {
+        IGLProgram_UniformMatrix4fv(pProgram, location, 1, GL_FALSE,
+                                     (CONST GL_FLOAT*)&mvpMatrix);
+    }
+
+    /* Set Model matrix */
+    IGLProgram_GetUniformLocation(pProgram, "uModelMatrix", &location);
+    if (location >= 0) {
+        IGLProgram_UniformMatrix4fv(pProgram, location, 1, GL_FALSE,
+                                     (CONST GL_FLOAT*)&pState->transforms[D3D_TRANSFORM_WORLD]);
+    }
+
+    /* Set View matrix */
+    IGLProgram_GetUniformLocation(pProgram, "uViewMatrix", &location);
+    if (location >= 0) {
+        IGLProgram_UniformMatrix4fv(pProgram, location, 1, GL_FALSE,
+                                     (CONST GL_FLOAT*)&pState->transforms[D3D_TRANSFORM_VIEW]);
+    }
+
+    /* Set Material properties */
+    if (pState->lightingEnabled) {
+        IGLProgram_GetUniformLocation(pProgram, "uMaterialDiffuse", &location);
+        if (location >= 0) {
+            IGLProgram_Uniform4f(pProgram, location,
+                                pState->material.diffuse.r,
+                                pState->material.diffuse.g,
+                                pState->material.diffuse.b,
+                                pState->material.diffuse.a);
+        }
+
+        IGLProgram_GetUniformLocation(pProgram, "uMaterialAmbient", &location);
+        if (location >= 0) {
+            IGLProgram_Uniform4f(pProgram, location,
+                                pState->material.ambient.r,
+                                pState->material.ambient.g,
+                                pState->material.ambient.b,
+                                pState->material.ambient.a);
+        }
+
+        IGLProgram_GetUniformLocation(pProgram, "uMaterialSpecular", &location);
+        if (location >= 0) {
+            IGLProgram_Uniform4f(pProgram, location,
+                                pState->material.specular.r,
+                                pState->material.specular.g,
+                                pState->material.specular.b,
+                                pState->material.specular.a);
+        }
+
+        IGLProgram_GetUniformLocation(pProgram, "uMaterialEmissive", &location);
+        if (location >= 0) {
+            IGLProgram_Uniform4f(pProgram, location,
+                                pState->material.emissive.r,
+                                pState->material.emissive.g,
+                                pState->material.emissive.b,
+                                pState->material.emissive.a);
+        }
+
+        IGLProgram_GetUniformLocation(pProgram, "uMaterialPower", &location);
+        if (location >= 0) {
+            IGLProgram_Uniform1f(pProgram, location, pState->material.power);
+        }
+
+        /* Set lights (up to 8 lights) */
+        for (i = 0; i < D3D_MAX_LIGHTS; i++) {
+            if (!pState->lights[i].enabled) continue;
+
+            CHAR uniformName[64];
+
+            /* Light position - uLights[i].position */
+            uniformName[0] = 'u'; uniformName[1] = 'L'; uniformName[2] = 'i';
+            uniformName[3] = 'g'; uniformName[4] = 'h'; uniformName[5] = 't';
+            uniformName[6] = 's'; uniformName[7] = '['; uniformName[8] = '0' + (CHAR)i;
+            uniformName[9] = ']'; uniformName[10] = '.'; uniformName[11] = 'p';
+            uniformName[12] = 'o'; uniformName[13] = 's'; uniformName[14] = 'i';
+            uniformName[15] = 't'; uniformName[16] = 'i'; uniformName[17] = 'o';
+            uniformName[18] = 'n'; uniformName[19] = '\0';
+
+            IGLProgram_GetUniformLocation(pProgram, uniformName, &location);
+            if (location >= 0) {
+                IGLProgram_Uniform3f(pProgram, location,
+                                    pState->lights[i].position.x,
+                                    pState->lights[i].position.y,
+                                    pState->lights[i].position.z);
+            }
+
+            /* Light diffuse - uLights[i].diffuse */
+            uniformName[11] = 'd'; uniformName[12] = 'i'; uniformName[13] = 'f';
+            uniformName[14] = 'f'; uniformName[15] = 'u'; uniformName[16] = 's';
+            uniformName[17] = 'e'; uniformName[18] = '\0';
+
+            IGLProgram_GetUniformLocation(pProgram, uniformName, &location);
+            if (location >= 0) {
+                IGLProgram_Uniform4f(pProgram, location,
+                                    pState->lights[i].diffuse.r,
+                                    pState->lights[i].diffuse.g,
+                                    pState->lights[i].diffuse.b,
+                                    pState->lights[i].diffuse.a);
+            }
+        }
+
+        /* Set ambient light */
+        IGLProgram_GetUniformLocation(pProgram, "uAmbientLight", &location);
+        if (location >= 0) {
+            IGLProgram_Uniform4f(pProgram, location,
+                                pState->ambientLight.r,
+                                pState->ambientLight.g,
+                                pState->ambientLight.b,
+                                pState->ambientLight.a);
+        }
+    }
+
+    /* Set fog parameters */
+    if (pState->fogEnabled) {
+        IGLProgram_GetUniformLocation(pProgram, "uFogColor", &location);
+        if (location >= 0) {
+            IGLProgram_Uniform4f(pProgram, location,
+                                pState->fogColor.r,
+                                pState->fogColor.g,
+                                pState->fogColor.b,
+                                pState->fogColor.a);
+        }
+
+        IGLProgram_GetUniformLocation(pProgram, "uFogStart", &location);
+        if (location >= 0) {
+            IGLProgram_Uniform1f(pProgram, location, pState->fogStart);
+        }
+
+        IGLProgram_GetUniformLocation(pProgram, "uFogEnd", &location);
+        if (location >= 0) {
+            IGLProgram_Uniform1f(pProgram, location, pState->fogEnd);
+        }
+    }
+
+    /* Set texture samplers */
+    for (i = 0; i < D3D_MAX_TEXTURE_STAGES; i++) {
+        if (pState->textureStages[i].colorOp == D3D_TOP_DISABLE) break;
+
+        CHAR samplerName[32];
+        samplerName[0] = 'u'; samplerName[1] = 'T'; samplerName[2] = 'e';
+        samplerName[3] = 'x'; samplerName[4] = 't'; samplerName[5] = 'u';
+        samplerName[6] = 'r'; samplerName[7] = 'e'; samplerName[8] = '0' + (CHAR)i;
+        samplerName[9] = '\0';
+
+        IGLProgram_GetUniformLocation(pProgram, samplerName, &location);
+        if (location >= 0) {
+            IGLProgram_Uniform1f(pProgram, location, (GL_FLOAT)i);
         }
     }
 
