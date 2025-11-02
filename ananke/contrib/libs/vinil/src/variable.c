@@ -31,10 +31,12 @@ typedef struct _VINIL_VARIABLE_IMPL {
 //
 
 typedef struct _VINIL_BLOCK_IMPL {
-  IVinilBlockVtbl  *lpVtbl;
-  UINT32           RefCount;
-  UINT32           Id;
-  /* TODO: Add instruction storage */
+  IVinilBlockVtbl    *lpVtbl;
+  UINT32             RefCount;
+  UINT32             Id;
+  IVinilInstruction  **Instructions;     /* Dynamic array of instruction pointers */
+  UINT32             InstructionCount;
+  UINT32             InstructionCapacity;
 } VINIL_BLOCK_IMPL;
 
 //
@@ -232,9 +234,19 @@ Block_Release (
 {
   VINIL_BLOCK_IMPL  *Block = (VINIL_BLOCK_IMPL *)This;
   UINT32            RefCount;
+  UINT32            i;
 
   RefCount = --Block->RefCount;
   if (RefCount == 0) {
+    /* Release all instruction references */
+    if (Block->Instructions != NULL) {
+      for (i = 0; i < Block->InstructionCount; i++) {
+        if (Block->Instructions[i] != NULL) {
+          IVinilInstruction_Release (Block->Instructions[i]);
+        }
+      }
+      free (Block->Instructions);
+    }
     free (Block);
   }
 
@@ -249,12 +261,13 @@ Block_GetInstructionCount (
   UINT32       *Count
   )
 {
+  VINIL_BLOCK_IMPL  *Block = (VINIL_BLOCK_IMPL *)This;
+
   if (Count == NULL) {
     return E_POINTER;
   }
 
-  /* TODO: Track instructions */
-  *Count = 0;
+  *Count = Block->InstructionCount;
   return S_OK;
 }
 
@@ -267,13 +280,23 @@ Block_GetInstruction (
   IVinilInstruction  **Instruction
   )
 {
+  VINIL_BLOCK_IMPL  *Block = (VINIL_BLOCK_IMPL *)This;
+
   if (Instruction == NULL) {
     return E_POINTER;
   }
 
-  /* TODO: Implement instruction storage */
-  *Instruction = NULL;
-  return E_NOTIMPL;
+  if (Index >= Block->InstructionCount) {
+    *Instruction = NULL;
+    return E_INVALIDARG;
+  }
+
+  *Instruction = Block->Instructions[Index];
+  if (*Instruction != NULL) {
+    IVinilInstruction_AddRef (*Instruction);
+  }
+
+  return S_OK;
 }
 
 static
@@ -284,12 +307,31 @@ Block_AppendInstruction (
   IVinilInstruction  *Instruction
   )
 {
+  VINIL_BLOCK_IMPL    *Block = (VINIL_BLOCK_IMPL *)This;
+  IVinilInstruction   **NewArray;
+  UINT32              NewCapacity;
+
   if (Instruction == NULL) {
     return E_POINTER;
   }
 
-  /* TODO: Implement instruction storage */
-  return E_NOTIMPL;
+  /* Grow array if needed */
+  if (Block->InstructionCount >= Block->InstructionCapacity) {
+    NewCapacity = Block->InstructionCapacity == 0 ? 8 : Block->InstructionCapacity * 2;
+    NewArray = (IVinilInstruction **)realloc (Block->Instructions, NewCapacity * sizeof (IVinilInstruction *));
+    if (NewArray == NULL) {
+      return E_OUTOFMEMORY;
+    }
+    Block->Instructions = NewArray;
+    Block->InstructionCapacity = NewCapacity;
+  }
+
+  /* Add instruction and increment refcount */
+  Block->Instructions[Block->InstructionCount] = Instruction;
+  IVinilInstruction_AddRef (Instruction);
+  Block->InstructionCount++;
+
+  return S_OK;
 }
 
 //
