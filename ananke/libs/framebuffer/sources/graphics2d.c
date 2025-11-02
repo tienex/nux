@@ -1701,8 +1701,80 @@ FbGfx_DrawImage(
                                          Image, NULL, FbRopCopy);
 }
 
-static HRESULT STDMETHODCALLTYPE FbGfx_DrawImageScaled(IFramebuffer2DContext *This, IFramebufferImage *Image, FLOAT X, FLOAT Y, FLOAT Width, FLOAT Height) { return E_NOTIMPL; }
-static HRESULT STDMETHODCALLTYPE FbGfx_DrawImageEx(IFramebuffer2DContext *This, IFramebufferImage *Image, CONST FB_RECT *SourceRect, CONST FB_RECT *DestRect) { return E_NOTIMPL; }
+static HRESULT STDMETHODCALLTYPE
+FbGfx_DrawImageScaled(
+    IFramebuffer2DContext *This,
+    IFramebufferImage *Image,
+    FLOAT X,
+    FLOAT Y,
+    FLOAT Width,
+    FLOAT Height
+    )
+{
+    FB_GFX_CONTEXT_IMPL *Ctx = (FB_GFX_CONTEXT_IMPL *)This;
+
+    if (Image == NULL) {
+        return E_POINTER;
+    }
+
+    /* Apply transform */
+    FbGfx_TransformPoint(&Ctx->State.Transform, &X, &Y);
+
+    /* Get image dimensions */
+    UINT32 ImgWidth, ImgHeight;
+    HRESULT Hr = IFramebufferImage_GetDimensions(Image, &ImgWidth, &ImgHeight);
+    if (FAILED(Hr)) {
+        return Hr;
+    }
+
+    /* Create destination rect */
+    FB_RECT DestRect = {
+        .X = (INT32)X,
+        .Y = (INT32)Y,
+        .Width = (UINT32)Width,
+        .Height = (UINT32)Height
+    };
+
+    /* Source rect is entire image */
+    FB_RECT SourceRect = {
+        .X = 0,
+        .Y = 0,
+        .Width = ImgWidth,
+        .Height = ImgHeight
+    };
+
+    /* Use surface's StretchBlit if available, otherwise simple blit */
+    return IFramebufferSurface_StretchBlit(Ctx->Surface,
+        &DestRect, Image, &SourceRect, FbRopCopy);
+}
+
+static HRESULT STDMETHODCALLTYPE
+FbGfx_DrawImageEx(
+    IFramebuffer2DContext *This,
+    IFramebufferImage *Image,
+    CONST FB_RECT *SourceRect,
+    CONST FB_RECT *DestRect
+    )
+{
+    FB_GFX_CONTEXT_IMPL *Ctx = (FB_GFX_CONTEXT_IMPL *)This;
+
+    if (Image == NULL || DestRect == NULL) {
+        return E_POINTER;
+    }
+
+    /* Apply transform to destination */
+    FLOAT X = (FLOAT)DestRect->X;
+    FLOAT Y = (FLOAT)DestRect->Y;
+    FbGfx_TransformPoint(&Ctx->State.Transform, &X, &Y);
+
+    FB_RECT TransformedDest = *DestRect;
+    TransformedDest.X = (INT32)X;
+    TransformedDest.Y = (INT32)Y;
+
+    /* Use surface's StretchBlit */
+    return IFramebufferSurface_StretchBlit(Ctx->Surface,
+        &TransformedDest, Image, SourceRect, FbRopCopy);
+}
 
 /* Text methods - TODO: implement with IFramebufferFont */
 static HRESULT STDMETHODCALLTYPE FbGfx_SetFont(IFramebuffer2DContext *This, IFramebufferFont *Font) { return E_NOTIMPL; }
@@ -1710,27 +1782,334 @@ static HRESULT STDMETHODCALLTYPE FbGfx_GetFont(IFramebuffer2DContext *This, IFra
 static HRESULT STDMETHODCALLTYPE FbGfx_DrawText(IFramebuffer2DContext *This, CONST CHAR *Text, FLOAT X, FLOAT Y) { return E_NOTIMPL; }
 static HRESULT STDMETHODCALLTYPE FbGfx_MeasureText(IFramebuffer2DContext *This, CONST CHAR *Text, FLOAT *Width, FLOAT *Height) { return E_NOTIMPL; }
 
-/* Core Graphics-style gradient methods - TODO: implement with IFramebufferGradient */
-static HRESULT STDMETHODCALLTYPE FbGfx_DrawLinearGradient(IFramebuffer2DContext *This, IFramebufferGradient *Gradient, FLOAT StartX, FLOAT StartY, FLOAT EndX, FLOAT EndY, UINT32 Options) { return E_NOTIMPL; }
-static HRESULT STDMETHODCALLTYPE FbGfx_DrawRadialGradient(IFramebuffer2DContext *This, IFramebufferGradient *Gradient, FLOAT StartX, FLOAT StartY, FLOAT StartRadius, FLOAT EndX, FLOAT EndY, FLOAT EndRadius, UINT32 Options) { return E_NOTIMPL; }
-static HRESULT STDMETHODCALLTYPE FbGfx_DrawShading(IFramebuffer2DContext *This, IFramebufferShading *Shading) { return E_NOTIMPL; }
+/* Core Graphics-style gradient methods */
+static HRESULT STDMETHODCALLTYPE
+FbGfx_DrawLinearGradient(
+    IFramebuffer2DContext *This,
+    IFramebufferGradient *Gradient,
+    FLOAT StartX,
+    FLOAT StartY,
+    FLOAT EndX,
+    FLOAT EndY,
+    UINT32 Options
+    )
+{
+    FB_GFX_CONTEXT_IMPL *Ctx = (FB_GFX_CONTEXT_IMPL *)This;
 
-/* Pattern methods - TODO: implement with IFramebufferPattern */
-static HRESULT STDMETHODCALLTYPE FbGfx_SetFillPattern(IFramebuffer2DContext *This, IFramebufferPattern *Pattern, CONST FLOAT *Alpha) { return E_NOTIMPL; }
-static HRESULT STDMETHODCALLTYPE FbGfx_SetStrokePattern(IFramebuffer2DContext *This, IFramebufferPattern *Pattern, CONST FLOAT *Alpha) { return E_NOTIMPL; }
+    if (Gradient == NULL) {
+        return E_POINTER;
+    }
 
-/* Layer methods - TODO: implement with IFramebufferLayer */
-static HRESULT STDMETHODCALLTYPE FbGfx_DrawLayerAtPoint(IFramebuffer2DContext *This, IFramebufferLayer *Layer, FLOAT X, FLOAT Y) { return E_NOTIMPL; }
-static HRESULT STDMETHODCALLTYPE FbGfx_DrawLayerInRect(IFramebuffer2DContext *This, IFramebufferLayer *Layer, CONST FB_RECT *Rect) { return E_NOTIMPL; }
+    /* Apply transform to start and end points */
+    FbGfx_TransformPoint(&Ctx->State.Transform, &StartX, &StartY);
+    FbGfx_TransformPoint(&Ctx->State.Transform, &EndX, &EndY);
 
-/* Shadow methods - TODO: implement */
-static HRESULT STDMETHODCALLTYPE FbGfx_SetShadow(IFramebuffer2DContext *This, FLOAT OffsetX, FLOAT OffsetY, FLOAT Blur, FB_COLOR Color) { return E_NOTIMPL; }
-static HRESULT STDMETHODCALLTYPE FbGfx_ClearShadow(IFramebuffer2DContext *This) { return E_NOTIMPL; }
+    INT32 SX = (INT32)StartX;
+    INT32 SY = (INT32)StartY;
+    INT32 EX = (INT32)EndX;
+    INT32 EY = (INT32)EndY;
 
-/* Transparency layer methods - TODO: implement */
-static HRESULT STDMETHODCALLTYPE FbGfx_BeginTransparencyLayer(IFramebuffer2DContext *This, FLOAT Alpha) { return E_NOTIMPL; }
-static HRESULT STDMETHODCALLTYPE FbGfx_BeginTransparencyLayerWithPath(IFramebuffer2DContext *This, IFramebuffer2DPath *Path, FLOAT Alpha) { return E_NOTIMPL; }
-static HRESULT STDMETHODCALLTYPE FbGfx_EndTransparencyLayer(IFramebuffer2DContext *This) { return E_NOTIMPL; }
+    /* Calculate gradient vector */
+    FLOAT DX = EndX - StartX;
+    FLOAT DY = EndY - StartY;
+    FLOAT Length = ANX_SQRTF(DX * DX + DY * DY);
+
+    if (Length < 0.001f) {
+        return S_OK; /* Degenerate gradient */
+    }
+
+    /* Determine drawing bounds */
+    FB_RECT Bounds;
+    if (Ctx->State.HasClip) {
+        Bounds = Ctx->State.ClipRect;
+    } else {
+        FB_SURFACE_DESC SurfaceDesc;
+        IFramebufferSurface_GetDescriptor(Ctx->Surface, &SurfaceDesc);
+        Bounds.X = 0;
+        Bounds.Y = 0;
+        Bounds.Width = SurfaceDesc.Width;
+        Bounds.Height = SurfaceDesc.Height;
+    }
+
+    /* Draw gradient pixel by pixel */
+    for (INT32 Y = Bounds.Y; Y < (INT32)(Bounds.Y + Bounds.Height); Y++) {
+        for (INT32 X = Bounds.X; X < (INT32)(Bounds.X + Bounds.Width); X++) {
+            /* Project point onto gradient line */
+            FLOAT PDX = (FLOAT)(X - SX);
+            FLOAT PDY = (FLOAT)(Y - SY);
+            FLOAT Dot = (PDX * DX + PDY * DY) / (Length * Length);
+
+            /* Clamp based on options */
+            if (!(Options & FbGradientDrawsBeforeStartLocation) && Dot < 0.0f) {
+                continue;
+            }
+            if (!(Options & FbGradientDrawsAfterEndLocation) && Dot > 1.0f) {
+                continue;
+            }
+
+            /* Get color at this location */
+            FB_COLOR Color;
+            IFramebufferGradient_GetColorAtLocation(Gradient, Dot, &Color);
+
+            /* Draw pixel */
+            if (!FbGfx_IsClipped(Ctx, X, Y)) {
+                IFramebufferSurface_SetPixel(Ctx->Surface, X, Y, Color);
+            }
+        }
+    }
+
+    return S_OK;
+}
+
+static HRESULT STDMETHODCALLTYPE
+FbGfx_DrawRadialGradient(
+    IFramebuffer2DContext *This,
+    IFramebufferGradient *Gradient,
+    FLOAT StartX,
+    FLOAT StartY,
+    FLOAT StartRadius,
+    FLOAT EndX,
+    FLOAT EndY,
+    FLOAT EndRadius,
+    UINT32 Options
+    )
+{
+    FB_GFX_CONTEXT_IMPL *Ctx = (FB_GFX_CONTEXT_IMPL *)This;
+
+    if (Gradient == NULL) {
+        return E_POINTER;
+    }
+
+    /* Apply transform to center points */
+    FbGfx_TransformPoint(&Ctx->State.Transform, &StartX, &StartY);
+    FbGfx_TransformPoint(&Ctx->State.Transform, &EndX, &EndY);
+
+    /* Determine drawing bounds */
+    FB_RECT Bounds;
+    if (Ctx->State.HasClip) {
+        Bounds = Ctx->State.ClipRect;
+    } else {
+        FB_SURFACE_DESC SurfaceDesc;
+        IFramebufferSurface_GetDescriptor(Ctx->Surface, &SurfaceDesc);
+        Bounds.X = 0;
+        Bounds.Y = 0;
+        Bounds.Width = SurfaceDesc.Width;
+        Bounds.Height = SurfaceDesc.Height;
+    }
+
+    /* Draw radial gradient pixel by pixel */
+    for (INT32 Y = Bounds.Y; Y < (INT32)(Bounds.Y + Bounds.Height); Y++) {
+        for (INT32 X = Bounds.X; X < (INT32)(Bounds.X + Bounds.Width); X++) {
+            /* Calculate distance from start center */
+            FLOAT DX = (FLOAT)X - StartX;
+            FLOAT DY = (FLOAT)Y - StartY;
+            FLOAT Dist = ANX_SQRTF(DX * DX + DY * DY);
+
+            /* Map distance to gradient location */
+            FLOAT T;
+            if (EndRadius - StartRadius != 0.0f) {
+                T = (Dist - StartRadius) / (EndRadius - StartRadius);
+            } else {
+                T = 0.0f;
+            }
+
+            /* Clamp based on options */
+            if (!(Options & FbGradientDrawsBeforeStartLocation) && T < 0.0f) {
+                continue;
+            }
+            if (!(Options & FbGradientDrawsAfterEndLocation) && T > 1.0f) {
+                continue;
+            }
+
+            /* Get color at this location */
+            FB_COLOR Color;
+            IFramebufferGradient_GetColorAtLocation(Gradient, T, &Color);
+
+            /* Draw pixel */
+            if (!FbGfx_IsClipped(Ctx, X, Y)) {
+                IFramebufferSurface_SetPixel(Ctx->Surface, X, Y, Color);
+            }
+        }
+    }
+
+    return S_OK;
+}
+
+static HRESULT STDMETHODCALLTYPE
+FbGfx_DrawShading(
+    IFramebuffer2DContext *This,
+    IFramebufferShading *Shading
+    )
+{
+    /* Shading is procedural - would need to evaluate for each pixel */
+    /* For now, not implemented */
+    return E_NOTIMPL;
+}
+
+/* Pattern methods - TODO: full pattern tiling implementation */
+static HRESULT STDMETHODCALLTYPE
+FbGfx_SetFillPattern(
+    IFramebuffer2DContext *This,
+    IFramebufferPattern *Pattern,
+    CONST FLOAT *Alpha
+    )
+{
+    /* Pattern support requires maintaining pattern state */
+    /* For now, not implemented */
+    return E_NOTIMPL;
+}
+
+static HRESULT STDMETHODCALLTYPE
+FbGfx_SetStrokePattern(
+    IFramebuffer2DContext *This,
+    IFramebufferPattern *Pattern,
+    CONST FLOAT *Alpha
+    )
+{
+    /* Pattern support requires maintaining pattern state */
+    /* For now, not implemented */
+    return E_NOTIMPL;
+}
+
+/* Layer methods */
+static HRESULT STDMETHODCALLTYPE
+FbGfx_DrawLayerAtPoint(
+    IFramebuffer2DContext *This,
+    IFramebufferLayer *Layer,
+    FLOAT X,
+    FLOAT Y
+    )
+{
+    FB_GFX_CONTEXT_IMPL *Ctx = (FB_GFX_CONTEXT_IMPL *)This;
+
+    if (Layer == NULL) {
+        return E_POINTER;
+    }
+
+    /* Apply transform */
+    FbGfx_TransformPoint(&Ctx->State.Transform, &X, &Y);
+
+    /* Get layer surface */
+    IFramebufferSurface *LayerSurface = NULL;
+    HRESULT Hr = IFramebufferLayer_GetSurface(Layer, &LayerSurface);
+    if (FAILED(Hr)) {
+        return Hr;
+    }
+
+    /* Blit layer to context surface */
+    Hr = IFramebufferSurface_Blit(Ctx->Surface, (INT32)X, (INT32)Y,
+        LayerSurface, NULL, FbRopCopy);
+
+    IUnknown_Release((IUnknown *)LayerSurface);
+    return Hr;
+}
+
+static HRESULT STDMETHODCALLTYPE
+FbGfx_DrawLayerInRect(
+    IFramebuffer2DContext *This,
+    IFramebufferLayer *Layer,
+    CONST FB_RECT *Rect
+    )
+{
+    FB_GFX_CONTEXT_IMPL *Ctx = (FB_GFX_CONTEXT_IMPL *)This;
+
+    if (Layer == NULL || Rect == NULL) {
+        return E_POINTER;
+    }
+
+    /* Apply transform to rect position */
+    FLOAT X = (FLOAT)Rect->X;
+    FLOAT Y = (FLOAT)Rect->Y;
+    FbGfx_TransformPoint(&Ctx->State.Transform, &X, &Y);
+
+    FB_RECT TransformedRect = *Rect;
+    TransformedRect.X = (INT32)X;
+    TransformedRect.Y = (INT32)Y;
+
+    /* Get layer surface */
+    IFramebufferSurface *LayerSurface = NULL;
+    HRESULT Hr = IFramebufferLayer_GetSurface(Layer, &LayerSurface);
+    if (FAILED(Hr)) {
+        return Hr;
+    }
+
+    /* Get layer size */
+    UINT32 LayerWidth, LayerHeight;
+    IFramebufferLayer_GetSize(Layer, &LayerWidth, &LayerHeight);
+
+    FB_RECT SourceRect = {
+        .X = 0,
+        .Y = 0,
+        .Width = LayerWidth,
+        .Height = LayerHeight
+    };
+
+    /* Stretch blit layer to destination rect */
+    Hr = IFramebufferSurface_StretchBlit(Ctx->Surface,
+        &TransformedRect, LayerSurface, &SourceRect, FbRopCopy);
+
+    IUnknown_Release((IUnknown *)LayerSurface);
+    return Hr;
+}
+
+/* Shadow methods - TODO: full shadow implementation requires off-screen buffer */
+static HRESULT STDMETHODCALLTYPE
+FbGfx_SetShadow(
+    IFramebuffer2DContext *This,
+    FLOAT OffsetX,
+    FLOAT OffsetY,
+    FLOAT Blur,
+    FB_COLOR Color
+    )
+{
+    /* Shadow requires maintaining shadow state and rendering to temp buffer */
+    /* For now, not implemented */
+    return E_NOTIMPL;
+}
+
+static HRESULT STDMETHODCALLTYPE
+FbGfx_ClearShadow(
+    IFramebuffer2DContext *This
+    )
+{
+    /* Shadow clearing */
+    /* For now, not implemented */
+    return E_NOTIMPL;
+}
+
+/* Transparency layer methods - TODO: requires layer stack */
+static HRESULT STDMETHODCALLTYPE
+FbGfx_BeginTransparencyLayer(
+    IFramebuffer2DContext *This,
+    FLOAT Alpha
+    )
+{
+    /* Transparency layers require maintaining a stack of off-screen buffers */
+    /* For now, not implemented */
+    return E_NOTIMPL;
+}
+
+static HRESULT STDMETHODCALLTYPE
+FbGfx_BeginTransparencyLayerWithPath(
+    IFramebuffer2DContext *This,
+    IFramebuffer2DPath *Path,
+    FLOAT Alpha
+    )
+{
+    /* Transparency layers with clipping paths */
+    /* For now, not implemented */
+    return E_NOTIMPL;
+}
+
+static HRESULT STDMETHODCALLTYPE
+FbGfx_EndTransparencyLayer(
+    IFramebuffer2DContext *This
+    )
+{
+    /* End transparency layer and composite to parent */
+    /* For now, not implemented */
+    return E_NOTIMPL;
+}
 
 /* Utility */
 static HRESULT STDMETHODCALLTYPE

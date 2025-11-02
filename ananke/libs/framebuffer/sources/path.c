@@ -308,6 +308,10 @@ FbPath_CubicBezierTo(
     return Hr;
 }
 
+/*
+ * Convert SVG arc to cubic Bezier curves.
+ * Based on the algorithm from SVG specification.
+ */
 static HRESULT STDMETHODCALLTYPE
 FbPath_ArcTo(
     IFramebuffer2DPath *This,
@@ -320,9 +324,139 @@ FbPath_ArcTo(
     BOOLEAN Sweep
     )
 {
-    /* TODO: Implement arc approximation using cubic Bezier curves
-     * For now, just draw a line to the endpoint */
-    return FbPath_LineTo(This, X, Y);
+    FB_PATH_IMPL *Path = (FB_PATH_IMPL *)This;
+
+    /* Current point */
+    FLOAT X0 = Path->CurrentX;
+    FLOAT Y0 = Path->CurrentY;
+
+    /* If start and end are the same, draw nothing */
+    if (X0 == X && Y0 == Y) {
+        return S_OK;
+    }
+
+    /* If radius is zero, draw line */
+    if (RadiusX == 0.0f || RadiusY == 0.0f) {
+        return FbPath_LineTo(This, X, Y);
+    }
+
+    /* Ensure radii are positive */
+    RadiusX = ANX_ABS(RadiusX);
+    RadiusY = ANX_ABS(RadiusY);
+
+    /* Convert rotation to radians */
+    FLOAT Phi = Rotation * ANX_PI / 180.0f;
+    FLOAT CosPhi = ANX_COSF(Phi);
+    FLOAT SinPhi = ANX_SINF(Phi);
+
+    /* Transform to unit circle */
+    FLOAT DX = (X0 - X) / 2.0f;
+    FLOAT DY = (Y0 - Y) / 2.0f;
+    FLOAT X1 = CosPhi * DX + SinPhi * DY;
+    FLOAT Y1 = -SinPhi * DX + CosPhi * DY;
+
+    /* Correct radii if needed */
+    FLOAT Lambda = (X1 * X1) / (RadiusX * RadiusX) + (Y1 * Y1) / (RadiusY * RadiusY);
+    if (Lambda > 1.0f) {
+        FLOAT SqrtLambda = ANX_SQRTF(Lambda);
+        RadiusX *= SqrtLambda;
+        RadiusY *= SqrtLambda;
+    }
+
+    /* Calculate center of arc */
+    FLOAT SqRx = RadiusX * RadiusX;
+    FLOAT SqRy = RadiusY * RadiusY;
+    FLOAT SqX1 = X1 * X1;
+    FLOAT SqY1 = Y1 * Y1;
+
+    FLOAT Radicand = (SqRx * SqRy - SqRx * SqY1 - SqRy * SqX1) /
+                     (SqRx * SqY1 + SqRy * SqX1);
+
+    if (Radicand < 0.0f) {
+        Radicand = 0.0f;
+    }
+
+    FLOAT Sq = ANX_SQRTF(Radicand);
+    if (LargeArc == Sweep) {
+        Sq = -Sq;
+    }
+
+    FLOAT CX1 = Sq * RadiusX * Y1 / RadiusY;
+    FLOAT CY1 = -Sq * RadiusY * X1 / RadiusX;
+
+    /* Transform center back */
+    FLOAT CX = CosPhi * CX1 - SinPhi * CY1 + (X0 + X) / 2.0f;
+    FLOAT CY = SinPhi * CX1 + CosPhi * CY1 + (Y0 + Y) / 2.0f;
+
+    /* Calculate start and end angles */
+    FLOAT Theta1 = ANX_ATAN2F((Y1 - CY1) / RadiusY, (X1 - CX1) / RadiusX);
+    FLOAT Theta2 = ANX_ATAN2F((-Y1 - CY1) / RadiusY, (-X1 - CX1) / RadiusX);
+
+    FLOAT DTheta = Theta2 - Theta1;
+
+    /* Adjust for sweep direction */
+    if (Sweep && DTheta < 0.0f) {
+        DTheta += 2.0f * ANX_PI;
+    } else if (!Sweep && DTheta > 0.0f) {
+        DTheta -= 2.0f * ANX_PI;
+    }
+
+    /* Split arc into segments (max 90 degrees each) */
+    INT32 Segments = (INT32)ANX_CEIL(ANX_ABS(DTheta) / (ANX_PI / 2.0f));
+    FLOAT DeltaTheta = DTheta / (FLOAT)Segments;
+
+    /* Magic constant for approximating quarter circle with cubic Bezier */
+    FLOAT Alpha = ANX_SINF(DeltaTheta) * (ANX_SQRTF(4.0f + 3.0f * ANX_TANF(DeltaTheta / 2.0f) *
+                                                     ANX_TANF(DeltaTheta / 2.0f)) - 1.0f) / 3.0f;
+
+    FLOAT CosEta1 = ANX_COSF(Theta1);
+    FLOAT SinEta1 = ANX_SINF(Theta1);
+
+    /* Generate Bezier curves for each segment */
+    for (INT32 I = 0; I < Segments; I++) {
+        FLOAT Eta2 = Theta1 + (I + 1) * DeltaTheta;
+        FLOAT CosEta2 = ANX_COSF(Eta2);
+        FLOAT SinEta2 = ANX_SINF(Eta2);
+
+        /* Control points in unit space */
+        FLOAT Q1X = CosEta1;
+        FLOAT Q1Y = SinEta1;
+        FLOAT Q2X = CosEta2;
+        FLOAT Q2Y = SinEta2;
+
+        FLOAT CP1X = Q1X - Q1Y * Alpha;
+        FLOAT CP1Y = Q1Y + Q1X * Alpha;
+        FLOAT CP2X = Q2X + Q2Y * Alpha;
+        FLOAT CP2Y = Q2Y - Q2X * Alpha;
+
+        /* Transform back to ellipse */
+        FLOAT CP1XE = RadiusX * CP1X;
+        FLOAT CP1YE = RadiusY * CP1Y;
+        FLOAT CP2XE = RadiusX * CP2X;
+        FLOAT CP2YE = RadiusY * CP2Y;
+        FLOAT P2XE = RadiusX * Q2X;
+        FLOAT P2YE = RadiusY * Q2Y;
+
+        /* Apply rotation and translation */
+        FLOAT CP1XF = CosPhi * CP1XE - SinPhi * CP1YE + CX;
+        FLOAT CP1YF = SinPhi * CP1XE + CosPhi * CP1YE + CY;
+        FLOAT CP2XF = CosPhi * CP2XE - SinPhi * CP2YE + CX;
+        FLOAT CP2YF = SinPhi * CP2XE + CosPhi * CP2YE + CY;
+        FLOAT P2XF = CosPhi * P2XE - SinPhi * P2YE + CX;
+        FLOAT P2YF = SinPhi * P2XE + CosPhi * P2YE + CY;
+
+        /* Add cubic Bezier curve */
+        HRESULT Hr = FbPath_CubicBezierTo(This, CP1XF, CP1YF, CP2XF, CP2YF, P2XF, P2YF);
+        if (FAILED(Hr)) {
+            return Hr;
+        }
+
+        /* Update for next segment */
+        CosEta1 = CosEta2;
+        SinEta1 = SinEta2;
+    }
+
+    return S_OK;
 }
 
 static HRESULT STDMETHODCALLTYPE
@@ -859,7 +993,7 @@ FbPath_FlattenPath(
                 break;
 
             case FbPathArcTo:
-                /* TODO: Properly flatten arcs */
+                /* Arc is already converted to cubic Bezier curves by ArcTo method */
                 CurrentX = Seg->Points[0];
                 CurrentY = Seg->Points[1];
                 FbPath_AddFlattenedPoint(Path, CurrentX, CurrentY);
