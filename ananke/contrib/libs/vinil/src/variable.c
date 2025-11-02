@@ -27,6 +27,19 @@ typedef struct _VINIL_VARIABLE_IMPL {
 } VINIL_VARIABLE_IMPL;
 
 //
+// Instruction Implementation
+//
+
+typedef struct _VINIL_INSTRUCTION_IMPL {
+  IVinilInstructionVtbl  *lpVtbl;
+  UINT32                 RefCount;
+  VINIL_OPCODE           Opcode;
+  VINIL_PRECISION        Precision;
+  IVinilVariable         *Dst;
+  IVinilVariable         *Src[3];
+} VINIL_INSTRUCTION_IMPL;
+
+//
 // Block Implementation
 //
 
@@ -50,6 +63,18 @@ static HRESULT STDMETHODCALLTYPE Variable_GetId (void *This, UINT32 *Id);
 static HRESULT STDMETHODCALLTYPE Variable_GetName (void *This, CONST CHAR8 **Name, UINTN *NameLength);
 
 //
+// Forward Declarations - Instruction
+//
+
+static HRESULT STDMETHODCALLTYPE Instruction_QueryInterface (IVinilInstruction *This, REFIID riid, void **ppvObject);
+static UINT32 STDMETHODCALLTYPE Instruction_AddRef (IVinilInstruction *This);
+static UINT32 STDMETHODCALLTYPE Instruction_Release (IVinilInstruction *This);
+static HRESULT STDMETHODCALLTYPE Instruction_GetOpcode (void *This, VINIL_OPCODE *Opcode);
+static HRESULT STDMETHODCALLTYPE Instruction_GetPrecision (void *This, VINIL_PRECISION *Precision);
+static HRESULT STDMETHODCALLTYPE Instruction_GetDestination (void *This, IVinilVariable **Destination);
+static HRESULT STDMETHODCALLTYPE Instruction_GetSource (void *This, UINT32 Index, IVinilVariable **Source);
+
+//
 // Forward Declarations - Block
 //
 
@@ -70,6 +95,16 @@ static IVinilVariableVtbl gVariableVtbl = {
   Variable_Release,
   Variable_GetId,
   Variable_GetName
+};
+
+static IVinilInstructionVtbl gInstructionVtbl = {
+  Instruction_QueryInterface,
+  Instruction_AddRef,
+  Instruction_Release,
+  Instruction_GetOpcode,
+  Instruction_GetPrecision,
+  Instruction_GetDestination,
+  Instruction_GetSource
 };
 
 static IVinilBlockVtbl gBlockVtbl = {
@@ -180,6 +215,160 @@ Variable_GetName (
   *Name = Variable->Name;
   if (NameLength != NULL) {
     *NameLength = strlen ((const char *)Variable->Name);
+  }
+
+  return S_OK;
+}
+
+//
+// IVinilInstruction Implementation
+//
+
+static
+HRESULT
+STDMETHODCALLTYPE
+Instruction_QueryInterface (
+  IVinilInstruction  *This,
+  REFIID             riid,
+  void               **ppvObject
+  )
+{
+  if (ppvObject == NULL) {
+    return E_POINTER;
+  }
+
+  if (IsEqualGUID (*riid, IID_IUnknown) ||
+      IsEqualGUID (*riid, IID_IVinilInstruction))
+  {
+    *ppvObject = This;
+    Instruction_AddRef (This);
+    return S_OK;
+  }
+
+  *ppvObject = NULL;
+  return E_NOINTERFACE;
+}
+
+static
+UINT32
+STDMETHODCALLTYPE
+Instruction_AddRef (
+  IVinilInstruction  *This
+  )
+{
+  VINIL_INSTRUCTION_IMPL  *Inst = (VINIL_INSTRUCTION_IMPL *)This;
+  return ++Inst->RefCount;
+}
+
+static
+UINT32
+STDMETHODCALLTYPE
+Instruction_Release (
+  IVinilInstruction  *This
+  )
+{
+  VINIL_INSTRUCTION_IMPL  *Inst = (VINIL_INSTRUCTION_IMPL *)This;
+  UINT32                  RefCount;
+  UINT32                  i;
+
+  RefCount = --Inst->RefCount;
+  if (RefCount == 0) {
+    /* Release variable references */
+    if (Inst->Dst != NULL) {
+      IVinilVariable_Release (Inst->Dst);
+    }
+    for (i = 0; i < 3; i++) {
+      if (Inst->Src[i] != NULL) {
+        IVinilVariable_Release (Inst->Src[i]);
+      }
+    }
+    free (Inst);
+  }
+
+  return RefCount;
+}
+
+static
+HRESULT
+STDMETHODCALLTYPE
+Instruction_GetOpcode (
+  void           *This,
+  VINIL_OPCODE   *Opcode
+  )
+{
+  VINIL_INSTRUCTION_IMPL  *Inst = (VINIL_INSTRUCTION_IMPL *)This;
+
+  if (Opcode == NULL) {
+    return E_POINTER;
+  }
+
+  *Opcode = Inst->Opcode;
+  return S_OK;
+}
+
+static
+HRESULT
+STDMETHODCALLTYPE
+Instruction_GetPrecision (
+  void              *This,
+  VINIL_PRECISION   *Precision
+  )
+{
+  VINIL_INSTRUCTION_IMPL  *Inst = (VINIL_INSTRUCTION_IMPL *)This;
+
+  if (Precision == NULL) {
+    return E_POINTER;
+  }
+
+  *Precision = Inst->Precision;
+  return S_OK;
+}
+
+static
+HRESULT
+STDMETHODCALLTYPE
+Instruction_GetDestination (
+  void             *This,
+  IVinilVariable   **Destination
+  )
+{
+  VINIL_INSTRUCTION_IMPL  *Inst = (VINIL_INSTRUCTION_IMPL *)This;
+
+  if (Destination == NULL) {
+    return E_POINTER;
+  }
+
+  *Destination = Inst->Dst;
+  if (*Destination != NULL) {
+    IVinilVariable_AddRef (*Destination);
+  }
+
+  return S_OK;
+}
+
+static
+HRESULT
+STDMETHODCALLTYPE
+Instruction_GetSource (
+  void             *This,
+  UINT32           Index,
+  IVinilVariable   **Source
+  )
+{
+  VINIL_INSTRUCTION_IMPL  *Inst = (VINIL_INSTRUCTION_IMPL *)This;
+
+  if (Source == NULL) {
+    return E_POINTER;
+  }
+
+  if (Index >= 3) {
+    *Source = NULL;
+    return E_INVALIDARG;
+  }
+
+  *Source = Inst->Src[Index];
+  if (*Source != NULL) {
+    IVinilVariable_AddRef (*Source);
   }
 
   return S_OK;
@@ -375,6 +564,56 @@ VinilVariableCreate (
   IVinilMemoryPool_AddRef (Type);
 
   *Variable = (IVinilVariable *)VariableImpl;
+  return S_OK;
+}
+
+HRESULT
+VinilInstructionCreate (
+  VINIL_OPCODE       Opcode,
+  VINIL_PRECISION    Precision,
+  IVinilVariable     *Dst,
+  IVinilVariable     *Src0,
+  IVinilVariable     *Src1,
+  IVinilVariable     *Src2,
+  IVinilInstruction  **Instruction
+  )
+{
+  VINIL_INSTRUCTION_IMPL  *InstImpl;
+
+  if (Instruction == NULL) {
+    return E_POINTER;
+  }
+
+  InstImpl = (VINIL_INSTRUCTION_IMPL *)malloc (sizeof (VINIL_INSTRUCTION_IMPL));
+  if (InstImpl == NULL) {
+    return E_OUTOFMEMORY;
+  }
+
+  memset (InstImpl, 0, sizeof (VINIL_INSTRUCTION_IMPL));
+  InstImpl->lpVtbl = &gInstructionVtbl;
+  InstImpl->RefCount = 1;
+  InstImpl->Opcode = Opcode;
+  InstImpl->Precision = Precision;
+  InstImpl->Dst = Dst;
+  InstImpl->Src[0] = Src0;
+  InstImpl->Src[1] = Src1;
+  InstImpl->Src[2] = Src2;
+
+  /* AddRef all variables */
+  if (Dst != NULL) {
+    IVinilVariable_AddRef (Dst);
+  }
+  if (Src0 != NULL) {
+    IVinilVariable_AddRef (Src0);
+  }
+  if (Src1 != NULL) {
+    IVinilVariable_AddRef (Src1);
+  }
+  if (Src2 != NULL) {
+    IVinilVariable_AddRef (Src2);
+  }
+
+  *Instruction = (IVinilInstruction *)InstImpl;
   return S_OK;
 }
 

@@ -111,6 +111,32 @@ VinilVariableCreate (
   );
 
 /**
+  Create an instruction (internal).
+
+  @param[in]   Opcode       Instruction opcode.
+  @param[in]   Precision    Precision hint.
+  @param[in]   Dst          Destination variable (can be NULL).
+  @param[in]   Src0         First source variable (can be NULL).
+  @param[in]   Src1         Second source variable (can be NULL).
+  @param[in]   Src2         Third source variable (can be NULL).
+  @param[out]  Instruction  Created instruction interface.
+
+  @retval  S_OK           Success.
+  @retval  E_POINTER      Invalid pointer.
+  @retval  E_OUTOFMEMORY  Memory allocation failed.
+**/
+HRESULT
+VinilInstructionCreate (
+  VINIL_OPCODE       Opcode,
+  VINIL_PRECISION    Precision,
+  IVinilVariable     *Dst,
+  IVinilVariable     *Src0,
+  IVinilVariable     *Src1,
+  IVinilVariable     *Src2,
+  IVinilInstruction  **Instruction
+  );
+
+/**
   Get variable's internal type (internal - not exposed by COM interface).
 
   @param[in]  Variable  Variable interface.
