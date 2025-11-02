@@ -244,7 +244,33 @@ FbPcGraphicsFindBestMode(
     );
 
 /*
- * Load a custom font into VGA character generator RAM.
+ * Extract font from BIOS ROM (CGA/EGA/MCGA/VGA/SVGA/XGA).
+ * Copies the ROM font into a user-provided buffer.
+ * Supported heights: 8 (CGA), 14 (EGA), 16 (MCGA/VGA/SVGA/XGA).
+ */
+HRESULT
+FbPcGraphicsExtractRomFont(
+    OUT UINT8 *FontBuffer,
+    IN UINT32 BufferSize,
+    IN UINT32 CharHeight
+    );
+
+/*
+ * Get recommended font height for current graphics adapter.
+ * Returns 8 for CGA, 14 for EGA, 16 for MCGA/VGA/SVGA/XGA.
+ */
+HRESULT
+FbPcGraphicsGetRecommendedFontHeight(
+    OUT UINT32 *FontHeight
+    );
+
+/*
+ * Load a custom font into character generator RAM.
+ * Automatically detects CGA/EGA/MCGA/VGA/SVGA/XGA and uses appropriate method.
+ * CGA: stores in software buffer (no hardware font RAM)
+ * EGA: loads into character generator RAM (max 14 scanlines)
+ * MCGA: loads into character generator RAM (max 16 scanlines, VGA-compatible)
+ * VGA/SVGA/XGA: loads into character generator RAM (max 32 scanlines)
  */
 HRESULT
 FbPcGraphicsLoadFont(

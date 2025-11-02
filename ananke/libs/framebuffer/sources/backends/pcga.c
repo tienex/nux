@@ -735,12 +735,275 @@ Pcga_ScrollText(
 /*  Font Loading and Management                                    */
 /* --------------------------------------------------------------- */
 
+/* Font ROM addresses in BIOS */
+#define CGA_FONT_8x8_ROM        0xFFA6E   /* CGA 8x8 font (thin) */
+#define EGA_FONT_8x8_ROM        0xF000FA6E /* EGA 8x8 font */
+#define EGA_FONT_8x14_ROM       0xF000FA6E /* EGA 8x14 font (offset varies) */
+#define VGA_FONT_8x8_ROM        0xC0000 + 0x4000  /* VGA BIOS area */
+#define VGA_FONT_8x14_ROM       0xC0000 + 0x5000
+#define VGA_FONT_8x16_ROM       0xC0000 + 0x6000
+
+/* Graphics adapter types */
+typedef enum _PCGA_ADAPTER_TYPE {
+    PCGA_ADAPTER_CGA = 0,
+    PCGA_ADAPTER_EGA = 1,
+    PCGA_ADAPTER_MCGA = 2,  /* PS/2 Model 25/30 - VGA subset */
+    PCGA_ADAPTER_VGA = 3,
+    PCGA_ADAPTER_SVGA = 4,  /* Super VGA extensions */
+    PCGA_ADAPTER_XGA = 5,   /* IBM XGA */
+} PCGA_ADAPTER_TYPE;
+
 /*
- * Load font from VGA ROM BIOS.
- * Character generator RAM can be loaded from ROM or custom data.
+ * Detect graphics adapter type based on hardware.
+ */
+static PCGA_ADAPTER_TYPE
+Pcga_DetectAdapter(
+    VOID
+    )
+{
+    /* Check for VGA/MCGA/SVGA/XGA by reading VGA-specific registers */
+    /* VGA has Input Status Register 1 at 0x3DA with specific behavior */
+    UINT8 InputStatus = ANX_CPU_INB(VGA_INPUT_STATUS_1);
+
+    /* Try to read CRTC register - VGA has more CRTC registers than EGA */
+    ANX_CPU_OUTB(VGA_CRTC_INDEX, 0x1F);  /* VGA-specific register */
+    UINT8 TestValue = ANX_CPU_INB(VGA_CRTC_DATA);
+    ANX_CPU_OUTB(VGA_CRTC_INDEX, 0x1F);
+    ANX_CPU_OUTB(VGA_CRTC_DATA, 0x55);
+    UINT8 ReadBack = ANX_CPU_INB(VGA_CRTC_DATA);
+
+    if (ReadBack == 0x55) {
+        /* VGA-compatible detected - now differentiate between VGA/MCGA/SVGA/XGA */
+        ANX_CPU_OUTB(VGA_CRTC_DATA, TestValue);  /* Restore */
+
+        /* Check for SVGA/XGA by looking for extended registers */
+        /* SVGA typically has more CRTC registers (up to 0x3F) */
+        ANX_CPU_OUTB(VGA_CRTC_INDEX, 0x30);  /* SVGA-specific register */
+        UINT8 SvgaTest = ANX_CPU_INB(VGA_CRTC_DATA);
+        ANX_CPU_OUTB(VGA_CRTC_INDEX, 0x30);
+        ANX_CPU_OUTB(VGA_CRTC_DATA, 0xAA);
+        UINT8 SvgaReadBack = ANX_CPU_INB(VGA_CRTC_DATA);
+        ANX_CPU_OUTB(VGA_CRTC_DATA, SvgaTest);  /* Restore */
+
+        if (SvgaReadBack == 0xAA) {
+            /* SVGA/XGA detected */
+            /* Further differentiate XGA by checking for XGA-specific features */
+            /* XGA has specific I/O ports at 0x21x8-0x21xF */
+            /* For now, treat as SVGA */
+            return PCGA_ADAPTER_SVGA;
+        }
+
+        /* Check for MCGA vs VGA */
+        /* MCGA is found on PS/2 Model 25 and 30 */
+        /* MCGA has limited mode support compared to VGA */
+        /* Read DAC state to differentiate (VGA has 256 entries, MCGA has 64) */
+        ANX_CPU_OUTB(VGA_DAC_WRITE_INDEX, 0xFF);
+        ANX_CPU_OUTB(VGA_DAC_DATA, 0x3F);  /* Write max value */
+        ANX_CPU_OUTB(VGA_DAC_DATA, 0x3F);
+        ANX_CPU_OUTB(VGA_DAC_DATA, 0x3F);
+
+        /* Try to read it back */
+        ANX_CPU_OUTB(VGA_DAC_READ_INDEX, 0xFF);
+        UINT8 DacRead = ANX_CPU_INB(VGA_DAC_DATA);
+
+        if (DacRead == 0x3F) {
+            /* Full VGA detected (256-color palette) */
+            return PCGA_ADAPTER_VGA;
+        } else {
+            /* MCGA detected (64-color palette limit) */
+            return PCGA_ADAPTER_MCGA;
+        }
+    }
+
+    /* Check for EGA by reading switch settings */
+    UINT8 Misc = ANX_CPU_INB(VGA_MISC_READ);
+    if ((Misc & 0x30) == 0x20) {
+        /* EGA detected (different switch configuration) */
+        return PCGA_ADAPTER_EGA;
+    }
+
+    /* Default to CGA */
+    return PCGA_ADAPTER_CGA;
+}
+
+/*
+ * Extract font from BIOS ROM.
+ * CGA and EGA fonts are stored in system ROM.
  */
 static VOID
-Pcga_LoadFont(
+Pcga_ExtractRomFont(
+    OUT UINT8 *FontBuffer,
+    IN UINT32 CharHeight,
+    IN PCGA_ADAPTER_TYPE AdapterType
+    )
+{
+    CONST UINT8 *RomFont = NULL;
+
+    /* Determine ROM font address based on adapter and height */
+    if (AdapterType == PCGA_ADAPTER_CGA) {
+        /* CGA: 8x8 font only */
+        if (CharHeight == 8) {
+            RomFont = (CONST UINT8 *)(UINTN)CGA_FONT_8x8_ROM;
+        }
+    } else if (AdapterType == PCGA_ADAPTER_EGA) {
+        /* EGA: 8x8 or 8x14 fonts */
+        if (CharHeight == 8) {
+            RomFont = (CONST UINT8 *)(UINTN)EGA_FONT_8x8_ROM;
+        } else if (CharHeight == 14) {
+            RomFont = (CONST UINT8 *)(UINTN)EGA_FONT_8x14_ROM;
+        }
+    } else {
+        /* VGA/MCGA/SVGA/XGA: 8x8, 8x14, or 8x16 fonts */
+        /* MCGA, SVGA, and XGA are VGA-compatible for font handling */
+        if (CharHeight == 8) {
+            RomFont = (CONST UINT8 *)(UINTN)VGA_FONT_8x8_ROM;
+        } else if (CharHeight == 14) {
+            RomFont = (CONST UINT8 *)(UINTN)VGA_FONT_8x14_ROM;
+        } else if (CharHeight == 16) {
+            RomFont = (CONST UINT8 *)(UINTN)VGA_FONT_8x16_ROM;
+        }
+    }
+
+    if (RomFont != NULL && FontBuffer != NULL) {
+        /* Copy 256 characters × CharHeight bytes */
+        ANX_MEMCPY(FontBuffer, RomFont, 256 * CharHeight);
+    }
+}
+
+/*
+ * Load font into CGA character generator.
+ * CGA has limited font customization - fonts are typically in ROM.
+ * However, some CGA modes allow modifying character patterns.
+ */
+static VOID
+Pcga_LoadFontCGA(
+    PCGA_BACKEND *Backend,
+    CONST UINT8 *FontData,
+    UINT32 CharHeight,
+    UINT32 CharOffset,
+    UINT32 CharCount
+    )
+{
+    /* CGA doesn't have programmable character generator RAM like EGA/VGA */
+    /* Font patterns are in ROM and cannot be changed in hardware */
+    /* For software rendering, we can store the font data in backend */
+
+    if (FontData == NULL || CharHeight > 8) {
+        return;
+    }
+
+    /* Store font data for software text rendering */
+    if (Backend->FontData == NULL) {
+        /* Allocate font storage (256 characters × 32 bytes max) */
+        Backend->FontData = (UINT8 *)ANX_MALLOC(256 * 32);
+        if (Backend->FontData == NULL) {
+            return;
+        }
+    }
+
+    /* Copy font data */
+    for (UINT32 Ch = 0; Ch < CharCount; Ch++) {
+        UINT32 DestOffset = (CharOffset + Ch) * CharHeight;
+        UINT32 SrcOffset = Ch * CharHeight;
+        ANX_MEMCPY(&Backend->FontData[DestOffset], &FontData[SrcOffset], CharHeight);
+    }
+
+    Backend->FontHeight = CharHeight;
+}
+
+/*
+ * Load font into EGA character generator RAM.
+ * EGA has character generator RAM in plane 2, similar to VGA.
+ */
+static VOID
+Pcga_LoadFontEGA(
+    PCGA_BACKEND *Backend,
+    CONST UINT8 *FontData,
+    UINT32 CharHeight,
+    UINT32 CharOffset,
+    UINT32 CharCount,
+    UINT32 Bank
+    )
+{
+    if (FontData == NULL || CharHeight > 14 || Bank > 1) {
+        return;
+    }
+
+    /* Save current sequencer and graphics controller state */
+    ANX_CPU_OUTB(VGA_SEQ_INDEX, VGA_SEQ_MAP_MASK);
+    UINT8 SavedSeq2 = ANX_CPU_INB(VGA_SEQ_DATA);
+    ANX_CPU_OUTB(VGA_SEQ_INDEX, VGA_SEQ_MEMORY_MODE);
+    UINT8 SavedSeq4 = ANX_CPU_INB(VGA_SEQ_DATA);
+
+    ANX_CPU_OUTB(VGA_GC_INDEX, VGA_GC_READ_MAP_SELECT);
+    UINT8 SavedGc4 = ANX_CPU_INB(VGA_GC_DATA);
+    ANX_CPU_OUTB(VGA_GC_INDEX, VGA_GC_GRAPHICS_MODE);
+    UINT8 SavedGc5 = ANX_CPU_INB(VGA_GC_DATA);
+    ANX_CPU_OUTB(VGA_GC_INDEX, VGA_GC_MISCELLANEOUS);
+    UINT8 SavedGc6 = ANX_CPU_INB(VGA_GC_DATA);
+
+    /* Sequencer: Select plane 2 for font data */
+    ANX_CPU_OUTB(VGA_SEQ_INDEX, VGA_SEQ_MAP_MASK);
+    ANX_CPU_OUTB(VGA_SEQ_DATA, 0x04);  /* Map mask: plane 2 */
+
+    /* Sequencer: Enable access to character generator RAM */
+    ANX_CPU_OUTB(VGA_SEQ_INDEX, VGA_SEQ_MEMORY_MODE);
+    ANX_CPU_OUTB(VGA_SEQ_DATA, 0x06);  /* EGA: Sequential, odd/even disabled */
+
+    /* Graphics Controller: Select plane 2 */
+    ANX_CPU_OUTB(VGA_GC_INDEX, VGA_GC_READ_MAP_SELECT);
+    ANX_CPU_OUTB(VGA_GC_DATA, 0x02);  /* Read plane 2 */
+
+    /* Graphics Controller: Set graphics mode */
+    ANX_CPU_OUTB(VGA_GC_INDEX, VGA_GC_GRAPHICS_MODE);
+    ANX_CPU_OUTB(VGA_GC_DATA, 0x00);  /* Write mode 0, read mode 0 */
+
+    /* Graphics Controller: Set memory map */
+    ANX_CPU_OUTB(VGA_GC_INDEX, VGA_GC_MISCELLANEOUS);
+    ANX_CPU_OUTB(VGA_GC_DATA, 0x04);  /* Map A0000-AFFFF (64KB) */
+
+    /* Calculate font address in plane 2 */
+    /* EGA character generator: Different organization than VGA */
+    /* EGA uses 14 or 16 bytes per character (not 32 like VGA) */
+    UINT32 BytesPerChar = (CharHeight == 14) ? 14 : 16;
+    UINT32 FontOffset = Bank * 0x2000;  /* Bank 0 or 1 */
+    UINT8 *FontBase = (UINT8 *)(UINTN)0xA0000 + FontOffset;
+
+    /* Load font data */
+    for (UINT32 Ch = 0; Ch < CharCount; Ch++) {
+        UINT32 CharAddr = (CharOffset + Ch) * BytesPerChar;
+        for (UINT32 Line = 0; Line < CharHeight; Line++) {
+            FontBase[CharAddr + Line] = FontData[Ch * CharHeight + Line];
+        }
+        /* Clear remaining lines if char height < BytesPerChar */
+        for (UINT32 Line = CharHeight; Line < BytesPerChar; Line++) {
+            FontBase[CharAddr + Line] = 0;
+        }
+    }
+
+    /* Restore sequencer and graphics controller state */
+    ANX_CPU_OUTB(VGA_SEQ_INDEX, VGA_SEQ_MAP_MASK);
+    ANX_CPU_OUTB(VGA_SEQ_DATA, SavedSeq2);
+    ANX_CPU_OUTB(VGA_SEQ_INDEX, VGA_SEQ_MEMORY_MODE);
+    ANX_CPU_OUTB(VGA_SEQ_DATA, SavedSeq4);
+    ANX_CPU_OUTB(VGA_GC_INDEX, VGA_GC_READ_MAP_SELECT);
+    ANX_CPU_OUTB(VGA_GC_DATA, SavedGc4);
+    ANX_CPU_OUTB(VGA_GC_INDEX, VGA_GC_GRAPHICS_MODE);
+    ANX_CPU_OUTB(VGA_GC_DATA, SavedGc5);
+    ANX_CPU_OUTB(VGA_GC_INDEX, VGA_GC_MISCELLANEOUS);
+    ANX_CPU_OUTB(VGA_GC_DATA, SavedGc6);
+
+    /* Update backend state */
+    Backend->FontHeight = CharHeight;
+    Backend->FontBank = Bank;
+}
+
+/*
+ * Load font into VGA character generator RAM.
+ * VGA supports fonts up to 32 scanlines tall.
+ */
+static VOID
+Pcga_LoadFontVGA(
     PCGA_BACKEND *Backend,
     CONST UINT8 *FontData,
     UINT32 CharHeight,
@@ -754,10 +1017,16 @@ Pcga_LoadFont(
     }
 
     /* Save current sequencer and graphics controller state */
+    ANX_CPU_OUTB(VGA_SEQ_INDEX, VGA_SEQ_MAP_MASK);
     UINT8 SavedSeq2 = ANX_CPU_INB(VGA_SEQ_DATA);
+    ANX_CPU_OUTB(VGA_SEQ_INDEX, VGA_SEQ_MEMORY_MODE);
     UINT8 SavedSeq4 = ANX_CPU_INB(VGA_SEQ_DATA);
+
+    ANX_CPU_OUTB(VGA_GC_INDEX, VGA_GC_READ_MAP_SELECT);
     UINT8 SavedGc4 = ANX_CPU_INB(VGA_GC_DATA);
+    ANX_CPU_OUTB(VGA_GC_INDEX, VGA_GC_GRAPHICS_MODE);
     UINT8 SavedGc5 = ANX_CPU_INB(VGA_GC_DATA);
+    ANX_CPU_OUTB(VGA_GC_INDEX, VGA_GC_MISCELLANEOUS);
     UINT8 SavedGc6 = ANX_CPU_INB(VGA_GC_DATA);
 
     /* Sequencer: Select plane 2 for font data */
@@ -812,6 +1081,62 @@ Pcga_LoadFont(
     /* Update backend state */
     Backend->FontHeight = CharHeight;
     Backend->FontBank = Bank;
+}
+
+/*
+ * Unified font loading function - detects adapter and calls appropriate loader.
+ * This is the main font loading entry point.
+ */
+static VOID
+Pcga_LoadFont(
+    PCGA_BACKEND *Backend,
+    CONST UINT8 *FontData,
+    UINT32 CharHeight,
+    UINT32 CharOffset,
+    UINT32 CharCount,
+    UINT32 Bank
+    )
+{
+    if (FontData == NULL || Backend == NULL) {
+        return;
+    }
+
+    /* Detect adapter type */
+    PCGA_ADAPTER_TYPE AdapterType = Pcga_DetectAdapter();
+
+    /* Dispatch to appropriate loader */
+    switch (AdapterType) {
+        case PCGA_ADAPTER_CGA:
+            /* CGA: No hardware font RAM, store in software */
+            Pcga_LoadFontCGA(Backend, FontData, CharHeight, CharOffset, CharCount);
+            break;
+
+        case PCGA_ADAPTER_EGA:
+            /* EGA: Character generator RAM, max 14 scanlines */
+            if (CharHeight > 14) {
+                /* EGA doesn't support fonts taller than 14 scanlines */
+                return;
+            }
+            Pcga_LoadFontEGA(Backend, FontData, CharHeight, CharOffset, CharCount, Bank);
+            break;
+
+        case PCGA_ADAPTER_MCGA:
+            /* MCGA: VGA-compatible, but typically uses 8x16 fonts */
+            if (CharHeight > 16) {
+                /* MCGA typically doesn't support fonts taller than 16 scanlines */
+                CharHeight = 16;
+            }
+            Pcga_LoadFontVGA(Backend, FontData, CharHeight, CharOffset, CharCount, Bank);
+            break;
+
+        case PCGA_ADAPTER_VGA:
+        case PCGA_ADAPTER_SVGA:
+        case PCGA_ADAPTER_XGA:
+        default:
+            /* VGA/SVGA/XGA: Full VGA character generator, up to 32 scanlines */
+            Pcga_LoadFontVGA(Backend, FontData, CharHeight, CharOffset, CharCount, Bank);
+            break;
+    }
 }
 
 /*
@@ -2529,7 +2854,87 @@ FbPcGraphicsFindBestMode(
 }
 
 /*
- * Load a custom font into VGA character generator RAM.
+ * Extract font from BIOS ROM.
+ * Copies the ROM font into a user-provided buffer.
+ */
+HRESULT
+FbPcGraphicsExtractRomFont(
+    OUT UINT8 *FontBuffer,
+    IN UINT32 BufferSize,
+    IN UINT32 CharHeight
+    )
+{
+    if (FontBuffer == NULL) {
+        return E_POINTER;
+    }
+
+    /* Validate character height */
+    if (CharHeight != 8 && CharHeight != 14 && CharHeight != 16) {
+        return E_INVALIDARG;
+    }
+
+    /* Validate buffer size (256 characters × CharHeight bytes) */
+    UINT32 RequiredSize = 256 * CharHeight;
+    if (BufferSize < RequiredSize) {
+        return E_INVALIDARG;
+    }
+
+    /* Detect adapter type */
+    PCGA_ADAPTER_TYPE AdapterType = Pcga_DetectAdapter();
+
+    /* Extract ROM font */
+    Pcga_ExtractRomFont(FontBuffer, CharHeight, AdapterType);
+
+    return S_OK;
+}
+
+/*
+ * Get recommended font height for current adapter.
+ * Returns the native font height for the detected adapter.
+ */
+HRESULT
+FbPcGraphicsGetRecommendedFontHeight(
+    OUT UINT32 *FontHeight
+    )
+{
+    if (FontHeight == NULL) {
+        return E_POINTER;
+    }
+
+    /* Detect adapter type */
+    PCGA_ADAPTER_TYPE AdapterType = Pcga_DetectAdapter();
+
+    /* Return appropriate font height */
+    switch (AdapterType) {
+        case PCGA_ADAPTER_CGA:
+            *FontHeight = 8;   /* CGA uses 8x8 font */
+            break;
+
+        case PCGA_ADAPTER_EGA:
+            *FontHeight = 14;  /* EGA uses 8x14 font */
+            break;
+
+        case PCGA_ADAPTER_MCGA:
+            *FontHeight = 16;  /* MCGA uses 8x16 font (VGA-compatible) */
+            break;
+
+        case PCGA_ADAPTER_VGA:
+            *FontHeight = 16;  /* VGA uses 8x16 font */
+            break;
+
+        case PCGA_ADAPTER_SVGA:
+        case PCGA_ADAPTER_XGA:
+        default:
+            *FontHeight = 16;  /* SVGA/XGA use 8x16 font (VGA-compatible) */
+            break;
+    }
+
+    return S_OK;
+}
+
+/*
+ * Load a custom font into character generator RAM.
+ * Automatically detects CGA/EGA/VGA and uses appropriate loading method.
  */
 HRESULT
 FbPcGraphicsLoadFont(
