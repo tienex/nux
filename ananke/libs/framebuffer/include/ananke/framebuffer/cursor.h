@@ -27,10 +27,12 @@
 
 #define FB_CURSOR_MAX_WIDTH     64
 #define FB_CURSOR_MAX_HEIGHT    64
+#define FB_CURSOR_MAX_FRAMES    32
 
 typedef enum _FB_CURSOR_TYPE {
     FbCursorMono        = 0,  /* 1-bit monochrome cursor with mask */
     FbCursorColor       = 1,  /* Full color cursor with alpha */
+    FbCursorAnimated    = 2,  /* Animated cursor (multiple frames) */
 } FB_CURSOR_TYPE;
 
 typedef struct _FB_CURSOR_DESC {
@@ -39,7 +41,55 @@ typedef struct _FB_CURSOR_DESC {
     UINT32          Height;         /* Cursor height in pixels */
     INT32           HotSpotX;       /* Hot spot X coordinate */
     INT32           HotSpotY;       /* Hot spot Y coordinate */
+    UINT32          FrameCount;     /* Number of frames (for animated) */
+    UINT32          CurrentFrame;   /* Current frame index (for animated) */
 } FB_CURSOR_DESC;
+
+/* Animated cursor frame */
+typedef struct _FB_CURSOR_FRAME {
+    UINT8           *Data;          /* Frame data (RGBA or mono masks) */
+    UINT32          DisplayTime;    /* Display time in milliseconds */
+} FB_CURSOR_FRAME;
+
+/* --------------------------------------------------------------- */
+/*  IFramebufferTimer - Timer callback interface                    */
+/* --------------------------------------------------------------- */
+
+/*
+ * Timer interface for animated cursor support.
+ * The application implements this interface to provide timer callbacks.
+ * The cursor calls OnTimer() periodically to advance animation frames.
+ */
+
+#define ANX_IID_IFramebufferTimer "FB000015-0000-0000-C000-000000000046"
+ANX_DEFINE_GUID(IID_IFramebufferTimer,
+    0xFB000015, 0x0000, 0x0000,
+    0xC0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x46);
+
+ANX_BEGIN_INTERFACE(IFramebufferTimer, IUnknown,
+    IID_IFramebufferTimer, ANX_IID_IFramebufferTimer)
+
+    /* Called periodically to advance cursor animation */
+    ANX_IFACE_METHOD(HRESULT, OnTimer, (
+        IN VOID *Context))
+
+    /* Get timer interval in milliseconds */
+    ANX_IFACE_METHOD(HRESULT, GetInterval, (
+        OUT UINT32 *Milliseconds))
+
+    /* Set timer interval in milliseconds */
+    ANX_IFACE_METHOD(HRESULT, SetInterval, (
+        IN UINT32 Milliseconds))
+
+    /* Start the timer */
+    ANX_IFACE_METHOD(HRESULT, Start, (
+        VOID))
+
+    /* Stop the timer */
+    ANX_IFACE_METHOD(HRESULT, Stop, (
+        VOID))
+
+ANX_END_INTERFACE(IFramebufferTimer)
 
 /* --------------------------------------------------------------- */
 /*  IFramebufferCursor - Cursor interface                           */
@@ -100,6 +150,37 @@ ANX_BEGIN_INTERFACE(IFramebufferCursor, IUnknown,
     /* Check if hardware cursor is supported */
     ANX_IFACE_METHOD(HRESULT, IsHardwareCursor, (
         OUT BOOLEAN *IsHardware))
+
+    /* Set animated cursor (multiple frames)
+     * Frames is an array of FB_CURSOR_FRAME structures
+     * Each frame has its own display time
+     */
+    ANX_IFACE_METHOD(HRESULT, SetAnimatedCursor, (
+        IN CONST FB_CURSOR_FRAME *Frames,
+        IN UINT32 FrameCount,
+        IN UINT32 Width,
+        IN UINT32 Height,
+        IN INT32 HotSpotX,
+        IN INT32 HotSpotY,
+        IN FB_CURSOR_TYPE FrameType))
+
+    /* Attach a timer for animation
+     * The timer will call OnTimer() to advance frames
+     */
+    ANX_IFACE_METHOD(HRESULT, AttachTimer, (
+        IN IFramebufferTimer *Timer))
+
+    /* Detach the timer (stops animation) */
+    ANX_IFACE_METHOD(HRESULT, DetachTimer, (
+        VOID))
+
+    /* Manually advance to next frame (for manual animation) */
+    ANX_IFACE_METHOD(HRESULT, NextFrame, (
+        VOID))
+
+    /* Set current frame index */
+    ANX_IFACE_METHOD(HRESULT, SetFrame, (
+        IN UINT32 FrameIndex))
 
 ANX_END_INTERFACE(IFramebufferCursor)
 
