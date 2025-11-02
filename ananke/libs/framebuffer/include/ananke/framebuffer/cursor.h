@@ -163,8 +163,16 @@ ANX_BEGIN_INTERFACE(IFramebufferTimer, IUnknown,
 ANX_END_INTERFACE(IFramebufferTimer)
 
 /* --------------------------------------------------------------- */
-/*  IFramebufferCursor - Cursor interface                           */
+/*  IFramebufferCursor - Cursor data interface                      */
 /* --------------------------------------------------------------- */
+
+/*
+ * IFramebufferCursor represents cursor appearance data (immutable).
+ * This is a pure data interface - implementations decide how to store
+ * the cursor image data (could use IFramebufferImage internally, etc).
+ *
+ * For display control (position, visibility, animation), see IFramebufferScreen.
+ */
 
 #define ANX_IID_IFramebufferCursor "FB000014-0000-0000-C000-000000000046"
 ANX_DEFINE_GUID(IID_IFramebufferCursor,
@@ -174,61 +182,36 @@ ANX_DEFINE_GUID(IID_IFramebufferCursor,
 ANX_BEGIN_INTERFACE(IFramebufferCursor, IUnknown,
     IID_IFramebufferCursor, ANX_IID_IFramebufferCursor)
 
-    /* Show or hide cursor */
-    ANX_IFACE_METHOD(HRESULT, SetVisible, (
-        IN BOOLEAN Visible))
-
-    /* Get cursor visibility */
-    ANX_IFACE_METHOD(HRESULT, IsVisible, (
-        OUT BOOLEAN *Visible))
-
-    /* Set cursor position */
-    ANX_IFACE_METHOD(HRESULT, SetPosition, (
-        IN INT32 X,
-        IN INT32 Y))
-
-    /* Get cursor position */
-    ANX_IFACE_METHOD(HRESULT, GetPosition, (
-        OUT INT32 *X,
-        OUT INT32 *Y))
-
-    /* Set monochrome cursor image using descriptor */
-    ANX_IFACE_METHOD(HRESULT, SetMonoCursor, (
-        IN CONST FB_MONO_CURSOR_DESC *Descriptor))
-
-    /* Set color cursor image using descriptor */
-    ANX_IFACE_METHOD(HRESULT, SetColorCursor, (
-        IN CONST FB_COLOR_CURSOR_DESC *Descriptor))
-
-    /* Get cursor descriptor */
+    /* Get cursor metadata (type, dimensions, hotspot, frame count) */
     ANX_IFACE_METHOD(HRESULT, GetDescriptor, (
         OUT FB_CURSOR_DESC *Descriptor))
 
-    /* Check if hardware cursor is supported */
-    ANX_IFACE_METHOD(HRESULT, IsHardwareCursor, (
-        OUT BOOLEAN *IsHardware))
+    /* Get cursor type (mono, color, animated) */
+    ANX_IFACE_METHOD(HRESULT, GetType, (
+        OUT FB_CURSOR_TYPE *Type))
 
-    /* Set animated cursor using descriptor */
-    ANX_IFACE_METHOD(HRESULT, SetAnimatedCursor, (
-        IN CONST FB_ANIMATED_CURSOR_DESC *Descriptor))
+    /* Get hotspot coordinates */
+    ANX_IFACE_METHOD(HRESULT, GetHotSpot, (
+        OUT INT32 *X,
+        OUT INT32 *Y))
 
-    /* Attach a timer for animation
-     * The timer will call OnTimer() to advance frames
+    /* Get cursor image (for static cursors)
+     * Returns the cursor's image. For animated cursors, returns current frame.
      */
-    ANX_IFACE_METHOD(HRESULT, AttachTimer, (
-        IN IFramebufferTimer *Timer))
+    ANX_IFACE_METHOD(HRESULT, GetImage, (
+        OUT IFramebufferImage **Image))
 
-    /* Detach the timer (stops animation) */
-    ANX_IFACE_METHOD(HRESULT, DetachTimer, (
-        VOID))
+    /* Get number of animation frames (1 for static cursors) */
+    ANX_IFACE_METHOD(HRESULT, GetFrameCount, (
+        OUT UINT32 *Count))
 
-    /* Manually advance to next frame (for manual animation) */
-    ANX_IFACE_METHOD(HRESULT, NextFrame, (
-        VOID))
-
-    /* Set current frame index */
-    ANX_IFACE_METHOD(HRESULT, SetFrame, (
-        IN UINT32 FrameIndex))
+    /* Get a specific animation frame image
+     * FrameIndex must be < GetFrameCount()
+     */
+    ANX_IFACE_METHOD(HRESULT, GetFrame, (
+        IN UINT32 FrameIndex,
+        OUT IFramebufferImage **Image,
+        OUT UINT32 *DisplayTimeMs))
 
 ANX_END_INTERFACE(IFramebufferCursor)
 
@@ -238,32 +221,18 @@ ANX_END_INTERFACE(IFramebufferCursor)
 
 #ifndef __cplusplus
 
-#define IFramebufferCursor_SetVisible(This, Visible) \
-    ((This)->lpVtbl->SetVisible(This, Visible))
-#define IFramebufferCursor_IsVisible(This, Visible) \
-    ((This)->lpVtbl->IsVisible(This, Visible))
-#define IFramebufferCursor_SetPosition(This, X, Y) \
-    ((This)->lpVtbl->SetPosition(This, X, Y))
-#define IFramebufferCursor_GetPosition(This, X, Y) \
-    ((This)->lpVtbl->GetPosition(This, X, Y))
-#define IFramebufferCursor_SetMonoCursor(This, Desc) \
-    ((This)->lpVtbl->SetMonoCursor(This, Desc))
-#define IFramebufferCursor_SetColorCursor(This, Desc) \
-    ((This)->lpVtbl->SetColorCursor(This, Desc))
-#define IFramebufferCursor_SetAnimatedCursor(This, Desc) \
-    ((This)->lpVtbl->SetAnimatedCursor(This, Desc))
 #define IFramebufferCursor_GetDescriptor(This, Desc) \
     ((This)->lpVtbl->GetDescriptor(This, Desc))
-#define IFramebufferCursor_IsHardwareCursor(This, IsHw) \
-    ((This)->lpVtbl->IsHardwareCursor(This, IsHw))
-#define IFramebufferCursor_AttachTimer(This, Timer) \
-    ((This)->lpVtbl->AttachTimer(This, Timer))
-#define IFramebufferCursor_DetachTimer(This) \
-    ((This)->lpVtbl->DetachTimer(This))
-#define IFramebufferCursor_NextFrame(This) \
-    ((This)->lpVtbl->NextFrame(This))
-#define IFramebufferCursor_SetFrame(This, Frame) \
-    ((This)->lpVtbl->SetFrame(This, Frame))
+#define IFramebufferCursor_GetType(This, Type) \
+    ((This)->lpVtbl->GetType(This, Type))
+#define IFramebufferCursor_GetHotSpot(This, X, Y) \
+    ((This)->lpVtbl->GetHotSpot(This, X, Y))
+#define IFramebufferCursor_GetImage(This, Image) \
+    ((This)->lpVtbl->GetImage(This, Image))
+#define IFramebufferCursor_GetFrameCount(This, Count) \
+    ((This)->lpVtbl->GetFrameCount(This, Count))
+#define IFramebufferCursor_GetFrame(This, Index, Image, Time) \
+    ((This)->lpVtbl->GetFrame(This, Index, Image, Time))
 
 #endif /* !__cplusplus */
 
@@ -288,14 +257,43 @@ extern CONST UINT8 gStandardCrosshairCursorAnd[16 * 16 / 8];
 extern CONST UINT8 gStandardCrosshairCursorXor[16 * 16 / 8];
 
 /* --------------------------------------------------------------- */
-/*  Cursor Constructor                                              */
+/*  Cursor Factory Functions                                        */
 /* --------------------------------------------------------------- */
 
 /*
- * Create a cursor for a backend.
- * The cursor is initially hidden with a default arrow shape.
+ * Create a monochrome cursor from descriptor.
+ * Returns an immutable cursor data object.
  */
 IFramebufferCursor *
-FbCreateCursor(
-    IN IFramebufferBackend *Backend
+FbCreateMonoCursor(
+    IN CONST FB_MONO_CURSOR_DESC *Descriptor
+    );
+
+/*
+ * Create a color cursor from descriptor.
+ * Returns an immutable cursor data object.
+ */
+IFramebufferCursor *
+FbCreateColorCursor(
+    IN CONST FB_COLOR_CURSOR_DESC *Descriptor
+    );
+
+/*
+ * Create an animated cursor from descriptor.
+ * Returns an immutable cursor data object.
+ */
+IFramebufferCursor *
+FbCreateAnimatedCursor(
+    IN CONST FB_ANIMATED_CURSOR_DESC *Descriptor
+    );
+
+/*
+ * Create a cursor from an existing image.
+ * Returns an immutable cursor data object.
+ */
+IFramebufferCursor *
+FbCreateCursorFromImage(
+    IN IFramebufferImage *Image,
+    IN INT32 HotSpotX,
+    IN INT32 HotSpotY
     );

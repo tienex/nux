@@ -170,10 +170,6 @@ ANX_BEGIN_INTERFACE(IFramebufferScreen, IUnknown,
     ANX_IFACE_METHOD(HRESULT, FlipPages, (
         IN BOOLEAN WaitForVBlank))
 
-    /* Get cursor interface */
-    ANX_IFACE_METHOD(HRESULT, GetCursor, (
-        OUT IFramebufferCursor **Cursor))
-
     /* Get palette interface (if indexed color mode) */
     ANX_IFACE_METHOD(HRESULT, GetPalette, (
         OUT IFramebufferPalette **Palette))
@@ -189,6 +185,44 @@ ANX_BEGIN_INTERFACE(IFramebufferScreen, IUnknown,
 
     /* Unlock screen */
     ANX_IFACE_METHOD(HRESULT, Unlock, (
+        VOID))
+
+    /* ----------------------------------------------------------------- */
+    /* Cursor Display Control (IFramebufferCursor is data, screen controls display) */
+    /* ----------------------------------------------------------------- */
+
+    /* Set the cursor to display (NULL to hide cursor) */
+    ANX_IFACE_METHOD(HRESULT, SetCursor, (
+        IN IFramebufferCursor *Cursor))
+
+    /* Get currently displayed cursor (NULL if no cursor) */
+    ANX_IFACE_METHOD(HRESULT, GetCursor, (
+        OUT IFramebufferCursor **Cursor))
+
+    /* Set cursor position */
+    ANX_IFACE_METHOD(HRESULT, SetCursorPosition, (
+        IN INT32 X,
+        IN INT32 Y))
+
+    /* Get cursor position */
+    ANX_IFACE_METHOD(HRESULT, GetCursorPosition, (
+        OUT INT32 *X,
+        OUT INT32 *Y))
+
+    /* Show or hide cursor */
+    ANX_IFACE_METHOD(HRESULT, ShowCursor, (
+        IN BOOLEAN Visible))
+
+    /* Check if cursor is visible */
+    ANX_IFACE_METHOD(HRESULT, IsCursorVisible, (
+        OUT BOOLEAN *Visible))
+
+    /* Set current animation frame (for animated cursors) */
+    ANX_IFACE_METHOD(HRESULT, SetCursorFrame, (
+        IN UINT32 FrameIndex))
+
+    /* Advance to next animation frame (for animated cursors) */
+    ANX_IFACE_METHOD(HRESULT, AdvanceCursorFrame, (
         VOID))
 
 ANX_END_INTERFACE(IFramebufferScreen)
