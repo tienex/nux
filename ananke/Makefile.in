@@ -60,10 +60,22 @@ SRCS += libs/d3d8/sources/d3d8/d3d8main.c
 # D3D7 library sources
 SRCS += libs/d3d7/sources/d3d7/d3d7main.c
 
+# D3D6 library sources
+SRCS += libs/d3d6/sources/d3d6/d3d6main.c
+
+# D3D5 library sources
+SRCS += libs/d3d5/sources/d3d5/d3d5main.c
+
+# D3D3 library sources
+SRCS += libs/d3d3/sources/d3d3/d3d3main.c
+
 # Include directories
 CFLAGS += -I$(SRCDIR)/include
 CFLAGS += -I$(SRCDIR)/libs/framebuffer/include
 CFLAGS += -I$(SRCDIR)/libs/d3d_common/include
+CFLAGS += -I$(SRCDIR)/libs/d3d3/include
+CFLAGS += -I$(SRCDIR)/libs/d3d5/include
+CFLAGS += -I$(SRCDIR)/libs/d3d6/include
 CFLAGS += -I$(SRCDIR)/libs/d3d7/include
 CFLAGS += -I$(SRCDIR)/libs/d3d8/include
 CFLAGS += -I$(SRCDIR)/libs/d3d9/include
@@ -76,6 +88,9 @@ INCS += $(wildcard include/ananke/ntrtl/*.h)
 INCS += $(wildcard libs/framebuffer/include/ananke/*.h)
 INCS += $(wildcard libs/framebuffer/include/ananke/framebuffer/*.h)
 INCS += $(wildcard libs/d3d_common/include/ananke/*.h)
+INCS += $(wildcard libs/d3d3/include/ananke/*.h)
+INCS += $(wildcard libs/d3d5/include/ananke/*.h)
+INCS += $(wildcard libs/d3d6/include/ananke/*.h)
 INCS += $(wildcard libs/d3d7/include/ananke/*.h)
 INCS += $(wildcard libs/d3d8/include/ananke/*.h)
 INCS += $(wildcard libs/d3d9/include/ananke/*.h)
