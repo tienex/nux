@@ -32,6 +32,20 @@ HRESULT D3D8CreateTexture(
     D3DPOOL8 Pool,
     IDirect3DTexture8 **ppTexture);
 
+/* External vertex buffer creation function */
+HRESULT D3D8CreateVertexBuffer(
+    IGLDevice *pGLDevice,
+    UINT Length,
+    DWORD Usage,
+    DWORD FVF,
+    D3DPOOL8 Pool,
+    IDirect3DVertexBuffer8 **ppVertexBuffer);
+
+/* Helper to get IGLBuffer from vertex buffer */
+HRESULT D3D8GetVertexBufferGLBuffer(
+    IDirect3DVertexBuffer8 *pVertexBuffer,
+    IGLBuffer **ppGLBuffer);
+
 /* --------------------------------------------------------------- */
 /*  D3D8 Device Structure                                          */
 /* --------------------------------------------------------------- */
@@ -348,8 +362,22 @@ D3D8Device_DrawPrimitive(
             hr = D3DUpdateFFPUniforms(device->FfpState.currentProgram, &device->FfpState);
             if (FAILED(hr)) return hr;
 
-            /* TODO: Bind vertex attributes from StreamSource vertex buffer */
-            /* This requires IDirect3DVertexBuffer8 implementation with data access */
+            /* Bind vertex attributes from StreamSource vertex buffer */
+            if (device->StreamSource) {
+                IGLBuffer *glBuffer = NULL;
+                hr = D3D8GetVertexBufferGLBuffer(device->StreamSource, &glBuffer);
+                if (FAILED(hr)) return hr;
+
+                /* Bind VBO to GL_ARRAY_BUFFER */
+                IGLBuffer_Bind(glBuffer, GL_ARRAY_BUFFER);
+
+                /* Bind vertex attributes (NULL base = use bound VBO) */
+                hr = D3DBindVertexAttributes(device->GlContext,
+                                              device->FfpState.currentProgram,
+                                              &device->CurrentFVFDesc,
+                                              NULL);
+                if (FAILED(hr)) return hr;
+            }
         }
     }
 

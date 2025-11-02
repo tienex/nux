@@ -33,6 +33,23 @@ typedef struct _D3D9_VERTEX_BUFFER {
 
 extern IDirect3DVertexBuffer9Vtbl D3D9VertexBufferVtbl;
 
+HRESULT
+D3D9CreateVertexBuffer(
+    IGLDevice *pGLDevice,
+    UINT Length,
+    DWORD Usage,
+    DWORD FVF,
+    D3DPOOL9 Pool,
+    IDirect3DVertexBuffer9 **ppVertexBuffer,
+    HANDLE *pSharedHandle
+);
+
+HRESULT
+D3D9GetVertexBufferGLBuffer(
+    IDirect3DVertexBuffer9 *pVertexBuffer,
+    IGLBuffer **ppGLBuffer
+);
+
 /* --------------------------------------------------------------- */
 /*  Index Buffer                                                   */
 /* --------------------------------------------------------------- */
@@ -62,6 +79,19 @@ typedef struct _D3D9_TEXTURE {
 } D3D9_TEXTURE;
 
 extern IDirect3DTexture9Vtbl D3D9TextureVtbl;
+
+HRESULT
+D3D9CreateTexture(
+    IGLDevice *pGLDevice,
+    UINT Width,
+    UINT Height,
+    UINT Levels,
+    DWORD Usage,
+    D3DFORMAT9 Format,
+    D3DPOOL9 Pool,
+    IDirect3DTexture9 **ppTexture,
+    HANDLE *pSharedHandle
+);
 
 /* --------------------------------------------------------------- */
 /*  Shader Functions                                               */

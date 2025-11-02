@@ -461,9 +461,11 @@ D3DBindVertexAttributes(
     CONST UINT8 *vertexBytes = (CONST UINT8*)pVertexData;
     UINT32 i;
 
-    if (!pContext || !pProgram || !pFVF || !pVertexData) {
+    if (!pContext || !pProgram || !pFVF) {
         return E_POINTER;
     }
+
+    /* pVertexData can be NULL when using VBOs (bound to GL_ARRAY_BUFFER) */
 
     /* Position attribute */
     if (pFVF->hasPosition) {

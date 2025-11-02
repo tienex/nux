@@ -53,11 +53,13 @@ SRCS += libs/d3d9/sources/gles20com/gldevice.c \
         libs/d3d9/sources/d3d9/vertexbinding.c \
         libs/d3d9/sources/d3d9/shaderconstants.c \
         libs/d3d9/sources/d3d9/shadertranslator.c \
-        libs/d3d9/sources/d3d9/d3d9texture.c
+        libs/d3d9/sources/d3d9/d3d9texture.c \
+        libs/d3d9/sources/d3d9/d3d9vertexbuffer.c
 
 # D3D8 library sources
 SRCS += libs/d3d8/sources/d3d8/d3d8main.c \
-        libs/d3d8/sources/d3d8/d3d8texture.c
+        libs/d3d8/sources/d3d8/d3d8texture.c \
+        libs/d3d8/sources/d3d8/d3d8vertexbuffer.c
 
 # D3D7 library sources
 SRCS += libs/d3d7/sources/d3d7/d3d7main.c
