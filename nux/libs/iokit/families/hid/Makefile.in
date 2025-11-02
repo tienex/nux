@@ -1,0 +1,22 @@
+# HID Family Driver Makefile
+# Copyright (c) 2025 NUX Project
+
+include @top_srcdir@/mk/top.mk
+
+LIB = iokit_hid
+
+SRCS = \
+	sources/hid.c
+
+INCS = \
+	include/hid.h
+
+INCDIR = $(includedir)/iokit/families/hid
+
+CFLAGS += -I$(top_srcdir)/nux/libs/iokit/include/public
+CFLAGS += -I$(top_srcdir)/nux/libs/iokit/families/hid/include
+CFLAGS += -I$(top_srcdir)/ananke/include
+CFLAGS += -I$(top_srcdir)/include
+
+include @top_srcdir@/mk/lib.mk
+include @top_srcdir@/mk/bottom.mk

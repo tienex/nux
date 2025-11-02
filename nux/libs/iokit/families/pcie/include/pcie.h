@@ -255,6 +255,93 @@ typedef struct _PCI_MSIX_CAPABILITY {
 } PCI_MSIX_CAPABILITY;
 
 /**
+ * @brief AGP (Accelerated Graphics Port) Versions
+ */
+typedef enum _AGP_VERSION {
+    AGP_VERSION_1_0         = 0x10, /**< AGP 1.0 (1x/2x, 266/533 MB/s) */
+    AGP_VERSION_2_0         = 0x20, /**< AGP 2.0 (1x/2x/4x, 266/533/1066 MB/s) */
+    AGP_VERSION_3_0         = 0x30, /**< AGP 3.0 (4x/8x, 1066/2133 MB/s) */
+} AGP_VERSION;
+
+/**
+ * @brief AGP transfer rates
+ */
+typedef enum _AGP_RATE {
+    AGP_RATE_1X             = 0x01, /**< 1x (266 MB/s) */
+    AGP_RATE_2X             = 0x02, /**< 2x (533 MB/s) */
+    AGP_RATE_4X             = 0x04, /**< 4x (1066 MB/s) */
+    AGP_RATE_8X             = 0x08, /**< 8x (2133 MB/s) */
+} AGP_RATE;
+
+/**
+ * @brief AGP capability structure (AGP 1.0/2.0)
+ */
+typedef struct _AGP_CAPABILITY {
+    UINT8   CapabilityID;           /**< Capability ID (0x02) */
+    UINT8   NextPointer;            /**< Next capability pointer */
+    UINT8   MajorVersion;           /**< Major version */
+    UINT8   MinorVersion;           /**< Minor version */
+    UINT32  Status;                 /**< AGP status register */
+    UINT32  Command;                /**< AGP command register */
+} AGP_CAPABILITY;
+
+/**
+ * @brief AGP 3.0 capability structure
+ */
+typedef struct _AGP_CAPABILITY_V3 {
+    UINT8   CapabilityID;           /**< Capability ID (0x0E) */
+    UINT8   NextPointer;            /**< Next capability pointer */
+    UINT8   MajorVersion;           /**< Major version (3) */
+    UINT8   MinorVersion;           /**< Minor version */
+    UINT32  Status;                 /**< AGP status register */
+    UINT32  Command;                /**< AGP command register */
+    UINT16  Control;                /**< AGP control register (v3.0) */
+    UINT16  Reserved;               /**< Reserved */
+} AGP_CAPABILITY_V3;
+
+/**
+ * @brief AGP status register bits
+ */
+#define AGP_STATUS_RATE_1X      0x00000001  /**< 1x support */
+#define AGP_STATUS_RATE_2X      0x00000002  /**< 2x support */
+#define AGP_STATUS_RATE_4X      0x00000004  /**< 4x support */
+#define AGP_STATUS_RATE_8X      0x00000008  /**< 8x support (AGP 3.0) */
+#define AGP_STATUS_FW           0x00000010  /**< Fast write support */
+#define AGP_STATUS_SBA          0x00000200  /**< Sideband addressing */
+#define AGP_STATUS_64BIT        0x00000020  /**< 64-bit addressing (AGP 3.0) */
+#define AGP_STATUS_GART64       0x00000080  /**< 64-bit GART entries (AGP 3.0) */
+#define AGP_STATUS_ISOCHRONOUS  0x00010000  /**< Isochronous transactions (AGP 3.0) */
+
+/**
+ * @brief AGP command register bits
+ */
+#define AGP_COMMAND_RATE_1X     0x00000001  /**< Enable 1x */
+#define AGP_COMMAND_RATE_2X     0x00000002  /**< Enable 2x */
+#define AGP_COMMAND_RATE_4X     0x00000004  /**< Enable 4x */
+#define AGP_COMMAND_RATE_8X     0x00000008  /**< Enable 8x (AGP 3.0) */
+#define AGP_COMMAND_FW          0x00000010  /**< Enable fast write */
+#define AGP_COMMAND_SBA         0x00000200  /**< Enable sideband addressing */
+#define AGP_COMMAND_AGP_ENABLE  0x00000100  /**< AGP enable */
+#define AGP_COMMAND_64BIT       0x00000020  /**< Enable 64-bit (AGP 3.0) */
+
+/**
+ * @brief AGP device information
+ */
+typedef struct _AGP_DEVICE_INFO {
+    AGP_VERSION     Version;                /**< AGP version */
+    AGP_RATE        SupportedRates;         /**< Supported transfer rates (bitmask) */
+    AGP_RATE        CurrentRate;            /**< Current transfer rate */
+    UINT32          ApertureSize;           /**< GART aperture size (bytes) */
+    UINT64          ApertureBase;           /**< GART aperture base address */
+    BOOLEAN         bFastWriteSupported;    /**< Fast write support */
+    BOOLEAN         bSideBandSupported;     /**< Sideband addressing support */
+    BOOLEAN         b64BitSupported;        /**< 64-bit addressing support (AGP 3.0) */
+    BOOLEAN         bIsochronousSupported;  /**< Isochronous support (AGP 3.0) */
+    UINT32          MaxRequests;            /**< Maximum AGP requests */
+    CHAR8           DeviceName[64];         /**< Device name */
+} AGP_DEVICE_INFO;
+
+/**
  * @brief IIOPCIDevice - PCI Device interface
  *
  * This interface represents a single PCI/PCIe device and provides methods
@@ -496,6 +583,52 @@ DECLARE_INTERFACE_(IIOPCIDevice, IIOService)
         VOID (*pfnHandler)(VOID *pContext, UINT32 uVector),
         VOID *pContext
         ) PURE;
+
+    /**
+     * @brief Check if device has AGP capability
+     *
+     * @param pbHasAGP      Receives TRUE if AGP capable
+     *
+     * @retval IO_SUCCESS   Check completed
+     */
+    STDMETHOD_(IO_RETURN, HasAGPCapability)(THIS_
+        BOOLEAN *pbHasAGP
+        ) PURE;
+
+    /**
+     * @brief Get AGP device information
+     *
+     * @param pInfo         Receives AGP device information
+     *
+     * @retval IO_SUCCESS       Information retrieved successfully
+     * @retval IO_UNSUPPORTED   AGP not supported
+     */
+    STDMETHOD_(IO_RETURN, GetAGPInfo)(THIS_
+        AGP_DEVICE_INFO *pInfo
+        ) PURE;
+
+    /**
+     * @brief Configure AGP transfer rate
+     *
+     * @param Rate          Desired AGP rate (1x/2x/4x/8x)
+     *
+     * @retval IO_SUCCESS       Rate configured successfully
+     * @retval IO_UNSUPPORTED   Rate not supported
+     */
+    STDMETHOD_(IO_RETURN, SetAGPRate)(THIS_
+        AGP_RATE Rate
+        ) PURE;
+
+    /**
+     * @brief Enable/disable AGP
+     *
+     * @param bEnable       TRUE to enable, FALSE to disable
+     *
+     * @retval IO_SUCCESS   AGP enabled/disabled successfully
+     */
+    STDMETHOD_(IO_RETURN, EnableAGP)(THIS_
+        BOOLEAN bEnable
+        ) PURE;
 };
 
 #undef INTERFACE
@@ -569,6 +702,10 @@ DECLARE_INTERFACE_(IIOPCIBridge, IIOPCIDevice)
 #define IIOPCIDevice_FindCapability(p,a,b)          (p)->lpVtbl->FindCapability(p,a,b)
 #define IIOPCIDevice_SetupMSI(p,a,b,c)              (p)->lpVtbl->SetupMSI(p,a,b,c)
 #define IIOPCIDevice_SetupMSIX(p,a,b,c)             (p)->lpVtbl->SetupMSIX(p,a,b,c)
+#define IIOPCIDevice_HasAGPCapability(p,a)          (p)->lpVtbl->HasAGPCapability(p,a)
+#define IIOPCIDevice_GetAGPInfo(p,a)                (p)->lpVtbl->GetAGPInfo(p,a)
+#define IIOPCIDevice_SetAGPRate(p,a)                (p)->lpVtbl->SetAGPRate(p,a)
+#define IIOPCIDevice_EnableAGP(p,a)                 (p)->lpVtbl->EnableAGP(p,a)
 
 #define IIOPCIBridge_EnumerateBus(p)                (p)->lpVtbl->EnumerateBus(p)
 #define IIOPCIBridge_GetSecondaryBusNumber(p,a)     (p)->lpVtbl->GetSecondaryBusNumber(p,a)

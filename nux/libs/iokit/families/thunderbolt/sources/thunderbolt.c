@@ -8,8 +8,8 @@
  */
 
 #include <iokit/IOKit.h>
-#include <iokit/families/thunderbolt.h>
-#include <iokit/families/pcie.h>
+#include <iokit/families/thunderbolt/thunderbolt.h>
+#include <iokit/families/pcie/pcie.h>
 #include <ananke/ntrtl.h>
 #include <string.h>
 #include <stdio.h>
@@ -61,6 +61,21 @@ static CONST TB_CONTROLLER_ID g_ThunderboltControllers[] = {
     { 0x8086, 0x9A21, TB_GEN_4, "Intel Maple Ridge 2C" },
     { 0x8086, 0x9A23, TB_GEN_4, "Intel Maple Ridge 4C" },
     { 0x8086, 0x9A25, TB_GEN_4, "Intel Maple Ridge 2C" },
+    { 0x8086, 0x466D, TB_GEN_4, "Intel Alder Lake-P Thunderbolt 4" },
+    { 0x8086, 0x463E, TB_GEN_4, "Intel Alder Lake-S Thunderbolt 4" },
+    { 0x8086, 0x7EB2, TB_GEN_4, "Intel Meteor Lake Thunderbolt 4" },
+
+    // Intel Thunderbolt 5 (Barlow Ridge)
+    { 0x8086, 0x0B26, TB_GEN_5, "Intel Barlow Ridge Thunderbolt 5" },
+    { 0x8086, 0x0B27, TB_GEN_5, "Intel Barlow Ridge Thunderbolt 5" },
+    { 0x8086, 0x0B28, TB_GEN_5, "Intel Barlow Ridge Thunderbolt 5" },
+    { 0x8086, 0x0B29, TB_GEN_5, "Intel Barlow Ridge Thunderbolt 5" },
+
+    // USB4 Controllers (standalone, non-TB branded)
+    { 0x8086, 0xA73E, USB4_V1, "Intel USB4 Host Router" },
+    { 0x8086, 0xA74F, USB4_V1, "Intel USB4 Host Router" },
+    { 0x8086, 0x0B2A, USB4_V2, "Intel USB4 v2 Host Router" },
+    { 0x8086, 0x0B2B, USB4_V2, "Intel USB4 v2 Host Router" },
 
     // End marker
     { 0, 0, TB_GEN_UNKNOWN, NULL }
@@ -415,6 +430,9 @@ TBController_Start(
                 TB_CAP_HOTPLUG | TB_CAP_DAISY_CHAIN | TB_CAP_DISPLAYPORT;
             pController->ControllerInfo.MaxDepth = 6;
             pController->ControllerInfo.MaxPortCount = 2;
+            pController->ControllerInfo.MaxBandwidthTX = 10;
+            pController->ControllerInfo.MaxBandwidthRX = 10;
+            pController->ControllerInfo.BandwidthMode = TB_BANDWIDTH_SYMMETRIC;
             break;
 
         case TB_GEN_2:
@@ -422,22 +440,80 @@ TBController_Start(
                 TB_CAP_HOTPLUG | TB_CAP_DAISY_CHAIN | TB_CAP_DISPLAYPORT;
             pController->ControllerInfo.MaxDepth = 6;
             pController->ControllerInfo.MaxPortCount = 2;
+            pController->ControllerInfo.MaxBandwidthTX = 20;
+            pController->ControllerInfo.MaxBandwidthRX = 20;
+            pController->ControllerInfo.BandwidthMode = TB_BANDWIDTH_SYMMETRIC;
             break;
 
         case TB_GEN_3:
-        case TB_GEN_4:
             pController->ControllerInfo.Capabilities =
                 TB_CAP_HOTPLUG | TB_CAP_DAISY_CHAIN | TB_CAP_DISPLAYPORT |
                 TB_CAP_USB3 | TB_CAP_POWER_DELIVERY | TB_CAP_CHARGING |
                 TB_CAP_WAKE | TB_CAP_IOMMU;
             pController->ControllerInfo.MaxDepth = 6;
             pController->ControllerInfo.MaxPortCount = 4;
+            pController->ControllerInfo.MaxBandwidthTX = 40;
+            pController->ControllerInfo.MaxBandwidthRX = 40;
+            pController->ControllerInfo.BandwidthMode = TB_BANDWIDTH_SYMMETRIC;
+            break;
+
+        case TB_GEN_4:
+            pController->ControllerInfo.Capabilities =
+                TB_CAP_HOTPLUG | TB_CAP_DAISY_CHAIN | TB_CAP_DISPLAYPORT |
+                TB_CAP_USB3 | TB_CAP_USB4 | TB_CAP_POWER_DELIVERY | TB_CAP_CHARGING |
+                TB_CAP_WAKE | TB_CAP_IOMMU | TB_CAP_PCIE_GEN4 | TB_CAP_SRIOV;
+            pController->ControllerInfo.MaxDepth = 6;
+            pController->ControllerInfo.MaxPortCount = 4;
+            pController->ControllerInfo.MaxBandwidthTX = 40;
+            pController->ControllerInfo.MaxBandwidthRX = 40;
+            pController->ControllerInfo.BandwidthMode = TB_BANDWIDTH_SYMMETRIC;
+            break;
+
+        case TB_GEN_5:
+            pController->ControllerInfo.Capabilities =
+                TB_CAP_HOTPLUG | TB_CAP_DAISY_CHAIN | TB_CAP_DISPLAYPORT |
+                TB_CAP_USB3 | TB_CAP_USB4 | TB_CAP_USB4_V2 | TB_CAP_POWER_DELIVERY |
+                TB_CAP_CHARGING | TB_CAP_WAKE | TB_CAP_IOMMU | TB_CAP_PCIE_GEN4 |
+                TB_CAP_ASYMMETRIC | TB_CAP_DP21 | TB_CAP_PAM3 | TB_CAP_BANDWIDTH_MGMT |
+                TB_CAP_SRIOV | TB_CAP_ATS | TB_CAP_PRI | TB_CAP_PASID;
+            pController->ControllerInfo.MaxDepth = 6;
+            pController->ControllerInfo.MaxPortCount = 4;
+            // Default to symmetric 80 Gbps, can switch to asymmetric 120/40
+            pController->ControllerInfo.MaxBandwidthTX = 80;
+            pController->ControllerInfo.MaxBandwidthRX = 80;
+            pController->ControllerInfo.BandwidthMode = TB_BANDWIDTH_SYMMETRIC;
+            break;
+
+        case USB4_V1:
+            pController->ControllerInfo.Capabilities =
+                TB_CAP_HOTPLUG | TB_CAP_DAISY_CHAIN | TB_CAP_USB3 | TB_CAP_USB4 |
+                TB_CAP_POWER_DELIVERY | TB_CAP_DISPLAYPORT | TB_CAP_IOMMU;
+            pController->ControllerInfo.MaxDepth = 6;
+            pController->ControllerInfo.MaxPortCount = 4;
+            pController->ControllerInfo.MaxBandwidthTX = 40;
+            pController->ControllerInfo.MaxBandwidthRX = 40;
+            pController->ControllerInfo.BandwidthMode = TB_BANDWIDTH_SYMMETRIC;
+            break;
+
+        case USB4_V2:
+            pController->ControllerInfo.Capabilities =
+                TB_CAP_HOTPLUG | TB_CAP_DAISY_CHAIN | TB_CAP_USB3 | TB_CAP_USB4 |
+                TB_CAP_USB4_V2 | TB_CAP_POWER_DELIVERY | TB_CAP_DISPLAYPORT |
+                TB_CAP_IOMMU | TB_CAP_PCIE_GEN4 | TB_CAP_ASYMMETRIC | TB_CAP_BANDWIDTH_MGMT;
+            pController->ControllerInfo.MaxDepth = 6;
+            pController->ControllerInfo.MaxPortCount = 4;
+            pController->ControllerInfo.MaxBandwidthTX = 80;
+            pController->ControllerInfo.MaxBandwidthRX = 80;
+            pController->ControllerInfo.BandwidthMode = TB_BANDWIDTH_SYMMETRIC;
             break;
 
         default:
             pController->ControllerInfo.Capabilities = TB_CAP_HOTPLUG;
             pController->ControllerInfo.MaxDepth = 6;
             pController->ControllerInfo.MaxPortCount = 2;
+            pController->ControllerInfo.MaxBandwidthTX = 10;
+            pController->ControllerInfo.MaxBandwidthRX = 10;
+            pController->ControllerInfo.BandwidthMode = TB_BANDWIDTH_SYMMETRIC;
             break;
     }
 
@@ -460,6 +536,10 @@ TBController_Start(
     printf("Thunderbolt:   Name: %s\n", pController->ControllerInfo.ControllerName);
     printf("Thunderbolt:   Generation: %u\n", pController->ControllerInfo.Generation);
     printf("Thunderbolt:   Security: %u\n", pController->ControllerInfo.SecurityLevel);
+    printf("Thunderbolt:   Bandwidth: %u/%u Gbps (%s)\n",
+           pController->ControllerInfo.MaxBandwidthTX,
+           pController->ControllerInfo.MaxBandwidthRX,
+           pController->ControllerInfo.BandwidthMode == TB_BANDWIDTH_SYMMETRIC ? "Symmetric" : "Asymmetric");
     printf("Thunderbolt:   Capabilities: 0x%08X\n", pController->ControllerInfo.Capabilities);
 
     return IO_SUCCESS;

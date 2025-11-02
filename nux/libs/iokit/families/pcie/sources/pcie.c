@@ -12,7 +12,7 @@
  */
 
 #include <iokit/IOKit.h>
-#include <iokit/families/pcie.h>
+#include <iokit/families/pcie/pcie.h>
 #include <ananke/ntrtl.h>
 #include <string.h>
 #include <stdio.h>

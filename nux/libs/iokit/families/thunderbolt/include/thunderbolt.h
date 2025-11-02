@@ -1,6 +1,6 @@
 /**
  * @file thunderbolt.h
- * @brief Thunderbolt Family Interface - Thunderbolt 1/2/3/4 Support
+ * @brief Thunderbolt Family Interface - Thunderbolt 1/2/3/4/5 and USB4 Support
  *
  * This header defines the Thunderbolt family interface for managing
  * Thunderbolt controllers, devices, and tunneling protocols.
@@ -10,6 +10,9 @@
  * - Thunderbolt 2: 20 Gbps, DisplayPort 1.2
  * - Thunderbolt 3: 40 Gbps, USB-C connector, USB 3.1
  * - Thunderbolt 4: 40 Gbps, USB4, PCIe 4.0
+ * - Thunderbolt 5: 80 Gbps bidirectional, 120 Gbps asymmetric, USB4 v2
+ * - USB4 v1: 40 Gbps, based on TB3 protocol
+ * - USB4 v2: 80 Gbps, enhanced tunneling
  *
  * @copyright Copyright (c) 2025 NUX Project
  */
@@ -19,7 +22,7 @@
 
 #include <iokit/iokit.h>
 #include <iokit/ioservice.h>
-#include <iokit/families/pcie.h>
+#include <iokit/families/pcie/pcie.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -47,7 +50,10 @@ typedef enum _TB_GENERATION {
     TB_GEN_1            = 1,        /**< Thunderbolt 1 (10 Gbps) */
     TB_GEN_2            = 2,        /**< Thunderbolt 2 (20 Gbps) */
     TB_GEN_3            = 3,        /**< Thunderbolt 3 (40 Gbps, USB-C) */
-    TB_GEN_4            = 4,        /**< Thunderbolt 4 (40 Gbps, USB4) */
+    TB_GEN_4            = 4,        /**< Thunderbolt 4 (40 Gbps, USB4 v1) */
+    TB_GEN_5            = 5,        /**< Thunderbolt 5 (80/120 Gbps, USB4 v2) */
+    USB4_V1             = 0x41,     /**< USB4 v1 (40 Gbps) */
+    USB4_V2             = 0x42,     /**< USB4 v2 (80 Gbps) */
 } TB_GENERATION;
 
 /**
@@ -90,22 +96,44 @@ typedef enum _TB_TUNNEL_TYPE {
     TB_TUNNEL_PCIE          = 0x01, /**< PCIe tunnel */
     TB_TUNNEL_DP            = 0x02, /**< DisplayPort tunnel */
     TB_TUNNEL_USB3          = 0x04, /**< USB 3.x tunnel */
-    TB_TUNNEL_P2P           = 0x08, /**< Peer-to-peer tunnel */
+    TB_TUNNEL_USB4          = 0x08, /**< USB4 tunnel (TB4/5, USB4) */
+    TB_TUNNEL_P2P           = 0x10, /**< Peer-to-peer tunnel */
+    TB_TUNNEL_DMA           = 0x20, /**< Direct memory access tunnel */
 } TB_TUNNEL_TYPE;
 
 /**
  * @brief Thunderbolt Controller Capabilities
  */
 typedef enum _TB_CAPABILITY {
-    TB_CAP_HOTPLUG          = 0x0001, /**< Hot-plug support */
-    TB_CAP_DAISY_CHAIN      = 0x0002, /**< Daisy-chaining support */
-    TB_CAP_POWER_DELIVERY   = 0x0004, /**< USB-C Power Delivery (TB3/4) */
-    TB_CAP_DISPLAYPORT      = 0x0008, /**< DisplayPort tunneling */
-    TB_CAP_USB3             = 0x0010, /**< USB 3.x tunneling (TB3/4) */
-    TB_CAP_CHARGING         = 0x0020, /**< Device charging */
-    TB_CAP_WAKE             = 0x0040, /**< Wake-on-Thunderbolt */
-    TB_CAP_IOMMU            = 0x0080, /**< IOMMU/VT-d support */
+    TB_CAP_HOTPLUG          = 0x00000001, /**< Hot-plug support */
+    TB_CAP_DAISY_CHAIN      = 0x00000002, /**< Daisy-chaining support */
+    TB_CAP_POWER_DELIVERY   = 0x00000004, /**< USB-C Power Delivery (TB3/4/5) */
+    TB_CAP_DISPLAYPORT      = 0x00000008, /**< DisplayPort tunneling */
+    TB_CAP_USB3             = 0x00000010, /**< USB 3.x tunneling (TB3/4/5) */
+    TB_CAP_CHARGING         = 0x00000020, /**< Device charging */
+    TB_CAP_WAKE             = 0x00000040, /**< Wake-on-Thunderbolt */
+    TB_CAP_IOMMU            = 0x00000080, /**< IOMMU/VT-d DMA protection */
+    TB_CAP_USB4             = 0x00000100, /**< USB4 protocol support */
+    TB_CAP_ASYMMETRIC       = 0x00000200, /**< Asymmetric bandwidth (TB5: 120/40) */
+    TB_CAP_DP21             = 0x00000400, /**< DisplayPort 2.1 support (TB5) */
+    TB_CAP_PAM3             = 0x00000800, /**< PAM-3 signaling (TB5) */
+    TB_CAP_PCIE_GEN4        = 0x00001000, /**< PCIe Gen 4 tunneling (TB4/5) */
+    TB_CAP_PCIE_GEN5        = 0x00002000, /**< PCIe Gen 5 tunneling (future) */
+    TB_CAP_USB4_V2          = 0x00004000, /**< USB4 v2 support (TB5) */
+    TB_CAP_BANDWIDTH_MGMT   = 0x00008000, /**< Advanced bandwidth management */
+    TB_CAP_SRIOV            = 0x00010000, /**< SR-IOV (Single Root I/O Virtualization) */
+    TB_CAP_ATS              = 0x00020000, /**< Address Translation Services */
+    TB_CAP_PRI              = 0x00040000, /**< Page Request Interface */
+    TB_CAP_PASID            = 0x00080000, /**< Process Address Space ID */
 } TB_CAPABILITY;
+
+/**
+ * @brief Thunderbolt Bandwidth Mode (TB5)
+ */
+typedef enum _TB_BANDWIDTH_MODE {
+    TB_BANDWIDTH_SYMMETRIC      = 0,    /**< Symmetric bandwidth (e.g., 80/80 Gbps) */
+    TB_BANDWIDTH_ASYMMETRIC     = 1,    /**< Asymmetric bandwidth (e.g., 120/40 Gbps) */
+} TB_BANDWIDTH_MODE;
 
 /**
  * @brief Thunderbolt Controller Information
@@ -120,6 +148,9 @@ typedef struct _TB_CONTROLLER_INFO {
     UINT32          Capabilities;       /**< Controller capabilities */
     TB_SECURITY_LEVEL SecurityLevel;    /**< Current security level */
     CHAR8           ControllerName[64]; /**< Controller name */
+    UINT32          MaxBandwidthTX;     /**< Max TX bandwidth (Gbps) */
+    UINT32          MaxBandwidthRX;     /**< Max RX bandwidth (Gbps) */
+    TB_BANDWIDTH_MODE BandwidthMode;    /**< Bandwidth mode (TB5) */
 } TB_CONTROLLER_INFO;
 
 /**
@@ -369,6 +400,23 @@ DECLARE_INTERFACE_(IIOThunderboltController, IIOService)
     STDMETHOD_(IO_RETURN, UpdateFirmware)(THIS_
         CONST VOID *pFirmwareData,
         UINTN cbSize
+        ) PURE;
+
+    /**
+     * @brief Set bandwidth mode (TB5/USB4 v2)
+     *
+     * Switches between symmetric and asymmetric bandwidth modes.
+     * TB5: Symmetric (80/80 Gbps) or Asymmetric (120/40 Gbps)
+     * USB4 v2: Symmetric (80/80 Gbps) or Asymmetric configurations
+     *
+     * @param BandwidthMode     Bandwidth mode to set
+     *
+     * @retval IO_SUCCESS       Bandwidth mode set
+     * @retval IO_UNSUPPORTED   Controller doesn't support this feature
+     * @retval IO_BUSY          Cannot change while tunnels are active
+     */
+    STDMETHOD_(IO_RETURN, SetBandwidthMode)(THIS_
+        TB_BANDWIDTH_MODE BandwidthMode
         ) PURE;
 };
 

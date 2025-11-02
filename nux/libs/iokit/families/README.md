@@ -317,8 +317,8 @@ void MyHotplugHandler(IIOThunderboltDevice *pDevice, void *pContext) {
 ```c
 #include <pthread.h>
 #include <iokit/IOKit.h>
-#include <iokit/families/pcie.h>
-#include <iokit/families/thunderbolt.h>
+#include <iokit/families/pcie/pcie.h>
+#include <iokit/families/thunderbolt/thunderbolt.h>
 
 typedef struct {
     UINT32 uPCIDeviceCount;
