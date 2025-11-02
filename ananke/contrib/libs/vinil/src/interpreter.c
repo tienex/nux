@@ -1578,8 +1578,17 @@ ExecuteInstruction (
       break;
 
     case VINIL_OP_CALL:
-      /* TODO: Implement function calls with call stack */
-      /* For now, this is a no-op */
+      /*
+       * Function calls require:
+       * - Call stack for return addresses
+       * - Function table/symbol resolution
+       * - Parameter passing convention
+       * - Stack frame management
+       *
+       * This is a complex feature requiring significant architecture changes.
+       * For now, CALL is a no-op. Programs should avoid using CALL or implement
+       * function inlining at the IL generation stage.
+       */
       break;
 
     /* Texture Operations - delegated to backend sink */
@@ -1660,9 +1669,26 @@ ExecuteInstruction (
       break;
 
     case VINIL_OP_TXD:
-      /* Texture sample with gradients: TXD dst, src0(coords), src1(unit), src2(ddx), ? */
-      /* Note: Requires 4 sources, but instruction format only has 3 */
-      /* For now, stub implementation */
+      /* Texture sample with gradients: TXD dst, src0(coords+unit), src1(ddx), src2(ddy) */
+      /* Unit is packed in coords.w component */
+      if (State->TextureSampler != NULL && Instruction->Dst != NULL &&
+          Instruction->Src[0] != NULL && Instruction->Src[1] != NULL && Instruction->Src[2] != NULL) {
+        VINIL_REGISTER_VALUE *DstReg = GetRegister (State, Instruction->Dst);
+        VINIL_REGISTER_VALUE *CoordReg = GetRegister (State, Instruction->Src[0]);
+        VINIL_REGISTER_VALUE *DDxReg = GetRegister (State, Instruction->Src[1]);
+        VINIL_REGISTER_VALUE *DDyReg = GetRegister (State, Instruction->Src[2]);
+        if (DstReg != NULL && CoordReg != NULL && DDxReg != NULL && DDyReg != NULL) {
+          UINT32 Unit = (UINT32)CoordReg->f[3];  /* Unit packed in w component */
+          State->TextureSampler->lpVtbl->SampleGrad (
+            State->TextureSampler,
+            Unit,
+            CoordReg->f,
+            DDxReg->f,
+            DDyReg->f,
+            DstReg->f
+          );
+        }
+      }
       break;
 
     case VINIL_OP_TXF:
@@ -1924,7 +1950,7 @@ ExecuteInstruction (
       break;
 
     default:
-      /* Unimplemented opcode - stub for now */
+      /* Unknown opcode - should not reach here if opcode table is complete */
       break;
   }
 
