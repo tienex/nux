@@ -1,8 +1,8 @@
 /** @file
   VINIL Memory Pool COM Implementation
 
-  Pool-based memory allocator with COM interface.
-  Full production implementation with proper error handling.
+  Pool-based memory allocator with COM interface and error sink callbacks.
+  Production implementation with statistics tracking.
 
   Copyright (C) 2003-2007 Hans-Martin Will.
   Copyright (C) 2025 NUX Project
@@ -11,6 +11,7 @@
 **/
 
 #include <vinil/memory.h>
+#include <vinil/error.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -34,7 +35,9 @@ typedef struct _VINIL_MEMORY_POOL_IMPL {
     UINT32                RefCount;
     UINTN                 DefaultPageSize;
     MEMORY_PAGE           *FirstPage;
-    jmp_buf               *ErrorHandler;
+    IVinilErrorSink       *ErrorSink;
+    UINTN                 TotalAllocated;
+    UINT32                PageCount;
 } VINIL_MEMORY_POOL_IMPL;
 
 //
@@ -46,7 +49,8 @@ static UINT32 STDMETHODCALLTYPE MemoryPool_AddRef(IVinilMemoryPool *This);
 static UINT32 STDMETHODCALLTYPE MemoryPool_Release(IVinilMemoryPool *This);
 static HRESULT STDMETHODCALLTYPE MemoryPool_Allocate(IVinilMemoryPool *This, UINTN Size, VOID **Memory);
 static HRESULT STDMETHODCALLTYPE MemoryPool_Clear(IVinilMemoryPool *This);
-static HRESULT STDMETHODCALLTYPE MemoryPool_SetHandler(IVinilMemoryPool *This, jmp_buf *Handler);
+static HRESULT STDMETHODCALLTYPE MemoryPool_SetErrorSink(IVinilMemoryPool *This, IVinilErrorSink *ErrorSink);
+static HRESULT STDMETHODCALLTYPE MemoryPool_GetStatistics(IVinilMemoryPool *This, UINTN *TotalAllocated, UINT32 *PageCount, UINTN *WastedBytes);
 
 //
 // Vtable
@@ -58,7 +62,8 @@ static IVinilMemoryPoolVtbl gMemoryPoolVtbl = {
     MemoryPool_Release,
     MemoryPool_Allocate,
     MemoryPool_Clear,
-    MemoryPool_SetHandler
+    MemoryPool_SetErrorSink,
+    MemoryPool_GetStatistics
 };
 
 //
@@ -115,6 +120,11 @@ MemoryPool_Release (
 
     RefCount = --Pool->RefCount;
     if (RefCount == 0) {
+        /* Release error sink */
+        if (Pool->ErrorSink != NULL) {
+            Pool->ErrorSink->lpVtbl->Release(Pool->ErrorSink);
+        }
+
         /* Free all pages */
         Page = Pool->FirstPage;
         while (Page != NULL) {
@@ -174,18 +184,16 @@ MemoryPool_Allocate (
 
     Page = (MEMORY_PAGE *)malloc(sizeof(MEMORY_PAGE));
     if (Page == NULL) {
-        if (Pool->ErrorHandler != NULL) {
-            longjmp(*Pool->ErrorHandler, 1);
-        }
+        VINIL_ERROR(Pool->ErrorSink, VINIL_ERROR_CATEGORY_MEMORY, E_OUTOFMEMORY,
+                    "Failed to allocate memory page structure");
         return E_OUTOFMEMORY;
     }
 
     Page->Data = (UINT8 *)malloc(PageSize);
     if (Page->Data == NULL) {
         free(Page);
-        if (Pool->ErrorHandler != NULL) {
-            longjmp(*Pool->ErrorHandler, 1);
-        }
+        VINIL_ERROR(Pool->ErrorSink, VINIL_ERROR_CATEGORY_MEMORY, E_OUTOFMEMORY,
+                    "Failed to allocate memory page data");
         return E_OUTOFMEMORY;
     }
 
@@ -193,6 +201,8 @@ MemoryPool_Allocate (
     Page->Used = AlignedSize;
     Page->Next = Pool->FirstPage;
     Pool->FirstPage = Page;
+    Pool->PageCount++;
+    Pool->TotalAllocated += PageSize;
 
     *Memory = Page->Data;
     return S_OK;
@@ -221,14 +231,57 @@ MemoryPool_Clear (
 static
 HRESULT
 STDMETHODCALLTYPE
-MemoryPool_SetHandler (
+MemoryPool_SetErrorSink (
     IVinilMemoryPool  *This,
-    jmp_buf           *Handler
+    IVinilErrorSink   *ErrorSink
     )
 {
     VINIL_MEMORY_POOL_IMPL  *Pool = (VINIL_MEMORY_POOL_IMPL *)This;
 
-    Pool->ErrorHandler = Handler;
+    /* Release old error sink if present */
+    if (Pool->ErrorSink != NULL) {
+        Pool->ErrorSink->lpVtbl->Release(Pool->ErrorSink);
+    }
+
+    /* AddRef new error sink */
+    Pool->ErrorSink = ErrorSink;
+    if (ErrorSink != NULL) {
+        ErrorSink->lpVtbl->AddRef(ErrorSink);
+    }
+
+    return S_OK;
+}
+
+static
+HRESULT
+STDMETHODCALLTYPE
+MemoryPool_GetStatistics (
+    IVinilMemoryPool  *This,
+    UINTN             *TotalAllocated,
+    UINT32            *PageCount,
+    UINTN             *WastedBytes
+    )
+{
+    VINIL_MEMORY_POOL_IMPL  *Pool = (VINIL_MEMORY_POOL_IMPL *)This;
+    MEMORY_PAGE             *Page;
+    UINTN                   Wasted;
+
+    if (TotalAllocated == NULL || PageCount == NULL || WastedBytes == NULL) {
+        return E_POINTER;
+    }
+
+    *TotalAllocated = Pool->TotalAllocated;
+    *PageCount = Pool->PageCount;
+
+    /* Calculate wasted bytes (allocated but not used) */
+    Wasted = 0;
+    Page = Pool->FirstPage;
+    while (Page != NULL) {
+        Wasted += (Page->Size - Page->Used);
+        Page = Page->Next;
+    }
+
+    *WastedBytes = Wasted;
     return S_OK;
 }
 
@@ -262,7 +315,9 @@ VinilCreateMemoryPool (
     Pool->RefCount = 1;
     Pool->DefaultPageSize = DefaultPageSize;
     Pool->FirstPage = NULL;
-    Pool->ErrorHandler = NULL;
+    Pool->ErrorSink = NULL;
+    Pool->TotalAllocated = 0;
+    Pool->PageCount = 0;
 
     *MemoryPool = (IVinilMemoryPool *)Pool;
     return S_OK;

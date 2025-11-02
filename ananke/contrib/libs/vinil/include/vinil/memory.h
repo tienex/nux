@@ -50,13 +50,25 @@ ANX_BEGIN_INTERFACE(IVinilMemoryPool, IUnknown, IID_IVinilMemoryPool, "34567890-
     HRESULT (STDMETHODCALLTYPE *Clear)(void* This);
 
     /**
-      Set allocation error handler.
+      Set error sink for allocation failure notifications.
 
-      @param[in]  Handler  Jump buffer for allocation failures.
+      @param[in]  ErrorSink  Error sink interface (can be NULL).
 
       @retval  S_OK  Success.
     **/
-    ANX_IFACE_METHOD(HRESULT, SetHandler, (jmp_buf *Handler))
+    ANX_IFACE_METHOD(HRESULT, SetErrorSink, (struct IVinilErrorSink *ErrorSink))
+
+    /**
+      Get current memory usage statistics.
+
+      @param[out]  TotalAllocated  Total bytes allocated.
+      @param[out]  PageCount       Number of pages.
+      @param[out]  WastedBytes     Fragmentation waste.
+
+      @retval  S_OK       Success.
+      @retval  E_POINTER  Invalid pointer.
+    **/
+    ANX_IFACE_METHOD(HRESULT, GetStatistics, (UINTN *TotalAllocated, UINT32 *PageCount, UINTN *WastedBytes))
 ANX_END_INTERFACE(IVinilMemoryPool, IID_IVinilMemoryPool)
 
 //
