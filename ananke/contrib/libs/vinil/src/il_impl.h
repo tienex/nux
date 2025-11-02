@@ -53,7 +53,7 @@
 typedef struct vinil_block vinil_block;
 typedef struct vinil_label vinil_label;
 typedef struct vinil_variable vinil_variable;
-typedef struct vinil_program vinil_program_impl;
+typedef struct vinil_program_impl vinil_program_impl;
 
 /*
 ** ==========================================================================
@@ -91,111 +91,7 @@ struct vinil_variable {
     vinil_size          name_length;    /* Name length */
 };
 
-/*
-** ==========================================================================
-** SOURCE AND DESTINATION OPERANDS
-** ==========================================================================
-*/
-
-typedef struct vinil_src_operand {
-    vinil_variable*     var;            /* Source variable */
-    vinil_variable*     index;          /* Index register (optional) */
-    vinil_ssize         offset;         /* Constant offset */
-    vinil_swizzle       swizzle;        /* Component swizzle */
-    vinil_bool          negate;         /* Negate flag */
-} vinil_src_operand;
-
-typedef struct vinil_dst_operand {
-    vinil_variable*     var;            /* Destination variable */
-    vinil_ssize         offset;         /* Constant offset */
-    vinil_writemask     mask;           /* Write mask */
-} vinil_dst_operand;
-
-/*
-** ==========================================================================
-** INSTRUCTIONS
-** ==========================================================================
-*/
-
-/* vinil_inst_kind is defined in il.h */
-
-/* Base instruction (common fields) */
-typedef struct vinil_inst_base {
-    union vinil_inst*   prev;           /* Doubly-linked list */
-    union vinil_inst*   next;
-    vinil_inst_kind     kind;           /* Instruction kind */
-    vinil_opcode        opcode;         /* Operation */
-    vinil_uint32        line;           /* Source line (debug) */
-} vinil_inst_base;
-
-/* ALU instruction (with destination) */
-typedef struct vinil_inst_alu {
-    vinil_inst_base     base;
-    vinil_dst_operand   dst;            /* Destination */
-    vinil_precision     prec;           /* Precision hint */
-} vinil_inst_alu;
-
-/* Unary instruction */
-typedef struct vinil_inst_unary {
-    vinil_inst_alu      alu;
-    vinil_src_operand   src;            /* Source operand */
-} vinil_inst_unary;
-
-/* Binary instruction */
-typedef struct vinil_inst_binary {
-    vinil_inst_alu      alu;
-    vinil_src_operand   src1;           /* First source */
-    vinil_src_operand   src2;           /* Second source */
-} vinil_inst_binary;
-
-/* Ternary instruction */
-typedef struct vinil_inst_ternary {
-    vinil_inst_alu      alu;
-    vinil_src_operand   src1;           /* First source */
-    vinil_src_operand   src2;           /* Second source */
-    vinil_src_operand   src3;           /* Third source */
-} vinil_inst_ternary;
-
-/* Branch instruction */
-typedef struct vinil_inst_branch {
-    vinil_inst_base     base;
-    vinil_label*        target;         /* Branch target */
-    vinil_cond          cond;           /* Condition */
-    vinil_swizzle       cond_swizzle;   /* Condition swizzle */
-} vinil_inst_branch;
-
-/* Memory instruction */
-typedef struct vinil_inst_memory {
-    vinil_inst_alu      alu;
-    vinil_src_operand   address;       /* Memory address */
-    vinil_src_operand   value;         /* Value (for stores) */
-    vinil_address_space addr_space;    /* Address space */
-} vinil_inst_memory;
-
-/* Atomic instruction */
-typedef struct vinil_inst_atomic {
-    vinil_inst_alu      alu;
-    vinil_src_operand   address;       /* Memory address */
-    vinil_src_operand   value1;        /* First value */
-    vinil_src_operand   value2;        /* Second value (for cmpxchg) */
-    vinil_address_space addr_space;    /* Address space */
-} vinil_inst_atomic;
-
-/* Barrier instruction */
-typedef struct vinil_inst_barrier {
-    vinil_inst_base     base;
-    vinil_uint32        flags;          /* Barrier flags */
-} vinil_inst_barrier;
-
-/* Work-item builtin instruction */
-typedef struct vinil_inst_workitem {
-    vinil_inst_alu      alu;
-    vinil_uint32        dimension;      /* Dimension parameter */
-} vinil_inst_workitem;
-
-/* Union of all instruction types - matches il.h definition */
-/* Note: The actual union vinil_inst is defined in il.h */
-/* These are implementation-specific instruction structures */
+/* Note: Operand and instruction structures are now defined in il.h */
 
 /*
 ** ==========================================================================

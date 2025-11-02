@@ -308,6 +308,7 @@ typedef enum vinil_inst_kind {
 
 /* Precision hint for operations */
 typedef enum vinil_precision {
+    VINIL_PRECISION_UNDEFINED,  /* No precision (e.g., void, bool) */
     VINIL_PRECISION_LOW,
     VINIL_PRECISION_MEDIUM,
     VINIL_PRECISION_HIGH,
@@ -352,27 +353,115 @@ typedef struct vinil_writemask {
 /*
 ** ==========================================================================
 ** INSTRUCTION STRUCTURES
-**
-** Full definitions are in src/il_impl.h - these are forward declarations
-** for the public API
 ** ==========================================================================
 */
 
+/* Forward declarations */
 typedef struct vinil_block vinil_block;
 typedef struct vinil_label vinil_label;
 typedef struct vinil_variable vinil_variable;
 
-/* Instruction union - actual definition varies by backend */
-union vinil_inst {
-    struct {
-        union vinil_inst* prev;
-        union vinil_inst* next;
-        vinil_inst_kind kind;
-        vinil_opcode opcode;
-    } base;
+/* Source operand */
+typedef struct vinil_src_operand {
+    vinil_variable*     var;            /* Source variable */
+    vinil_variable*     index;          /* Index register (optional) */
+    vinil_ssize         offset;         /* Constant offset */
+    vinil_swizzle       swizzle;        /* Component swizzle */
+    vinil_bool          negate;         /* Negate flag */
+} vinil_src_operand;
 
-    /* Other instruction variants defined in il_impl.h */
-    char data[256];  /* Placeholder - actual size determined by impl */
+/* Destination operand */
+typedef struct vinil_dst_operand {
+    vinil_variable*     var;            /* Destination variable */
+    vinil_ssize         offset;         /* Constant offset */
+    vinil_writemask     mask;           /* Write mask */
+} vinil_dst_operand;
+
+/* Base instruction (common fields) */
+typedef struct vinil_inst_base {
+    union vinil_inst*   prev;           /* Doubly-linked list */
+    union vinil_inst*   next;
+    vinil_inst_kind     kind;           /* Instruction kind */
+    vinil_opcode        opcode;         /* Operation */
+    vinil_uint32        line;           /* Source line (debug) */
+} vinil_inst_base;
+
+/* ALU instruction (with destination) */
+typedef struct vinil_inst_alu {
+    vinil_inst_base     base;
+    vinil_dst_operand   dst;            /* Destination */
+    vinil_precision     prec;           /* Precision hint */
+} vinil_inst_alu;
+
+/* Unary instruction */
+typedef struct vinil_inst_unary {
+    vinil_inst_alu      alu;
+    vinil_src_operand   src;            /* Source operand */
+} vinil_inst_unary;
+
+/* Binary instruction */
+typedef struct vinil_inst_binary {
+    vinil_inst_alu      alu;
+    vinil_src_operand   src1;           /* First source */
+    vinil_src_operand   src2;           /* Second source */
+} vinil_inst_binary;
+
+/* Ternary instruction */
+typedef struct vinil_inst_ternary {
+    vinil_inst_alu      alu;
+    vinil_src_operand   src1;           /* First source */
+    vinil_src_operand   src2;           /* Second source */
+    vinil_src_operand   src3;           /* Third source */
+} vinil_inst_ternary;
+
+/* Branch instruction */
+typedef struct vinil_inst_branch {
+    vinil_inst_base     base;
+    vinil_label*        target;         /* Branch target */
+    vinil_cond          cond;           /* Condition */
+    vinil_swizzle       cond_swizzle;   /* Condition swizzle */
+} vinil_inst_branch;
+
+/* Memory instruction */
+typedef struct vinil_inst_memory {
+    vinil_inst_alu      alu;
+    vinil_src_operand   address;       /* Memory address */
+    vinil_src_operand   value;         /* Value (for stores) */
+    vinil_address_space addr_space;    /* Address space */
+} vinil_inst_memory;
+
+/* Atomic instruction */
+typedef struct vinil_inst_atomic {
+    vinil_inst_alu      alu;
+    vinil_src_operand   address;       /* Memory address */
+    vinil_src_operand   value1;        /* First value */
+    vinil_src_operand   value2;        /* Second value (for cmpxchg) */
+    vinil_address_space addr_space;    /* Address space */
+} vinil_inst_atomic;
+
+/* Barrier instruction */
+typedef struct vinil_inst_barrier {
+    vinil_inst_base     base;
+    vinil_uint32        flags;          /* Barrier flags */
+} vinil_inst_barrier;
+
+/* Work-item builtin instruction */
+typedef struct vinil_inst_workitem {
+    vinil_inst_alu      alu;
+    vinil_uint32        dimension;      /* Dimension parameter */
+} vinil_inst_workitem;
+
+/* Instruction union - includes all instruction variants */
+union vinil_inst {
+    vinil_inst_base     base;
+    vinil_inst_unary    unary;
+    vinil_inst_binary   binary;
+    vinil_inst_ternary  ternary;
+    vinil_inst_branch   branch;
+    vinil_inst_memory   memory;
+    vinil_inst_atomic   atomic;
+    vinil_inst_barrier  barrier;
+    vinil_inst_workitem workitem;
 };
 
 #ifdef __cplusplus

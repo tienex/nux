@@ -27,9 +27,12 @@ OBJS = $(SRCS:$(SRC_DIR)/%.c=$(OBJ_DIR)/%.o)
 HEADERS = $(wildcard $(INC_DIR)/vinil/*.h)
 
 # Targets
-.PHONY: all clean install shared static
+.PHONY: all clean install shared static example
 
 all: shared static
+
+example: shared
+	$(CC) $(CFLAGS) example.c -o $(BUILD_DIR)/example -L$(LIB_DIR) -lvinil $(LIBS)
 
 shared: $(SHARED_LIB)
 
