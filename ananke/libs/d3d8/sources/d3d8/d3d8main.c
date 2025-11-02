@@ -301,6 +301,8 @@ D3D8Device_DrawPrimitive(
 {
     D3D8_DEVICE *device = (D3D8_DEVICE*)This;
     GLenum glPrimType = D3DPrimitiveTypeToGL(PrimitiveType);
+    UINT32 vertexCount;
+    HRESULT hr;
 
     /* If using FVF (no programmable shader), use FFP */
     if (device->CurrentVertexShader == 0) {
@@ -309,13 +311,23 @@ D3D8Device_DrawPrimitive(
                                   &device->FfpState,
                                   &device->CurrentFVFDesc);
 
+        /* Apply FFP state (render states, textures) */
+        D3DApplyFFPState(device->GlContext, &device->FfpState);
+
         if (device->FfpState.currentProgram) {
             IGLProgram_UseProgram(device->FfpState.currentProgram);
+
+            /* Update shader uniforms */
+            hr = D3DUpdateFFPUniforms(device->FfpState.currentProgram, &device->FfpState);
+            if (FAILED(hr)) return hr;
+
+            /* TODO: Bind vertex attributes from StreamSource vertex buffer */
+            /* This requires IDirect3DVertexBuffer8 implementation with data access */
         }
     }
 
     /* Calculate vertex count */
-    UINT32 vertexCount = PrimitiveCount;
+    vertexCount = PrimitiveCount;
     if (PrimitiveType == D3DPT8_TRIANGLELIST) vertexCount *= 3;
     else if (PrimitiveType == D3DPT8_TRIANGLESTRIP) vertexCount += 2;
 

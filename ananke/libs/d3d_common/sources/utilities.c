@@ -402,6 +402,8 @@ D3DApplyFFPState(
     IGLContext *pContext,
     CONST D3D_FFP_STATE *pState)
 {
+    UINT32 i;
+
     if (!pContext || !pState) return E_POINTER;
 
     /* Apply render states */
@@ -416,6 +418,30 @@ D3DApplyFFPState(
     } else {
         IGLContext_Disable(pContext, GL_BLEND);
     }
+
+    /* Bind textures to texture units */
+    for (i = 0; i < D3D_MAX_TEXTURE_STAGES; i++) {
+        CONST D3D_TEXTURE_STAGE *stage = &pState->textureStages[i];
+
+        /* Stop at first disabled stage */
+        if (stage->colorOp == D3D_TOP_DISABLE) {
+            break;
+        }
+
+        /* Activate texture unit */
+        IGLContext_ActiveTexture(pContext, GL_TEXTURE0 + i);
+
+        /* Bind texture if present */
+        if (stage->texture) {
+            IGLTexture_Bind(stage->texture, GL_TEXTURE_2D);
+            IGLContext_Enable(pContext, GL_TEXTURE_2D);
+        } else {
+            IGLContext_Disable(pContext, GL_TEXTURE_2D);
+        }
+    }
+
+    /* Reset to texture unit 0 */
+    IGLContext_ActiveTexture(pContext, GL_TEXTURE0);
 
     return S_OK;
 }
