@@ -18,6 +18,18 @@
 #include <string.h>
 #include <math.h>
 
+//
+// NTRTL Atomic Operations (from ananke/libs/ntrtl/arch/*/interlocked.S)
+//
+
+extern INT32  RtlAtomicFetchAdd32 (volatile INT32 *Ptr, INT32 Value);
+extern INT32  RtlAtomicFetchSub32 (volatile INT32 *Ptr, INT32 Value);
+extern UINT32 RtlAtomicFetchOr32  (volatile UINT32 *Ptr, UINT32 Value);
+extern UINT32 RtlAtomicFetchAnd32 (volatile UINT32 *Ptr, UINT32 Value);
+extern UINT32 RtlAtomicFetchXor32 (volatile UINT32 *Ptr, UINT32 Value);
+extern UINT32 RtlAtomicExchange32 (volatile UINT32 *Ptr, UINT32 Value);
+extern UINT32 RtlAtomicCompareExchange32 (volatile UINT32 *Ptr, UINT32 Expected, UINT32 Value);
+
 // Execution state now defined in vinil_internal.h
 
 //
@@ -1679,203 +1691,234 @@ ExecuteInstruction (
       }
       break;
 
-    /* Memory Operations - delegated to backend sink */
+    /* Memory Operations - direct implementation */
     case VINIL_OP_LOAD:
-      /* Load from memory: LOAD dst, src0(address) */
-      if (State->MemoryOps != NULL && Instruction->Dst != NULL && Instruction->Src[0] != NULL) {
+      /* Load scalar from shared memory: LOAD dst, src0(address) */
+      if (Instruction->Dst != NULL && Instruction->Src[0] != NULL) {
         VINIL_REGISTER_VALUE *DstReg = GetRegister (State, Instruction->Dst);
         VINIL_REGISTER_VALUE *AddrReg = GetRegister (State, Instruction->Src[0]);
-        if (DstReg != NULL && AddrReg != NULL) {
-          VOID *Address = (VOID *)(UINTN)AddrReg->u[0];
-          State->MemoryOps->lpVtbl->Load (State->MemoryOps, Address, &DstReg->f[0]);
+        if (DstReg != NULL && AddrReg != NULL && State->SharedMemory != NULL) {
+          UINTN Offset = AddrReg->u[0];
+          if (Offset + sizeof(float) <= State->SharedMemorySize) {
+            float *Ptr = (float *)((UINT8 *)State->SharedMemory + Offset);
+            DstReg->f[0] = *Ptr;
+          }
         }
       }
       break;
 
     case VINIL_OP_STORE:
-      /* Store to memory: STORE src0(address), src1(value) */
-      if (State->MemoryOps != NULL && Instruction->Src[0] != NULL && Instruction->Src[1] != NULL) {
+      /* Store scalar to shared memory: STORE src0(address), src1(value) */
+      if (Instruction->Src[0] != NULL && Instruction->Src[1] != NULL) {
         VINIL_REGISTER_VALUE *AddrReg = GetRegister (State, Instruction->Src[0]);
         VINIL_REGISTER_VALUE *ValReg = GetRegister (State, Instruction->Src[1]);
-        if (AddrReg != NULL && ValReg != NULL) {
-          VOID *Address = (VOID *)(UINTN)AddrReg->u[0];
-          State->MemoryOps->lpVtbl->Store (State->MemoryOps, Address, &ValReg->f[0]);
+        if (AddrReg != NULL && ValReg != NULL && State->SharedMemory != NULL) {
+          UINTN Offset = AddrReg->u[0];
+          if (Offset + sizeof(float) <= State->SharedMemorySize) {
+            float *Ptr = (float *)((UINT8 *)State->SharedMemory + Offset);
+            *Ptr = ValReg->f[0];
+          }
         }
       }
       break;
 
     case VINIL_OP_LOAD_VEC:
-      /* Load vector from memory: LOAD_VEC dst, src0(address) */
-      if (State->MemoryOps != NULL && Instruction->Dst != NULL && Instruction->Src[0] != NULL) {
+      /* Load vec4 from shared memory: LOAD_VEC dst, src0(address) */
+      if (Instruction->Dst != NULL && Instruction->Src[0] != NULL) {
         VINIL_REGISTER_VALUE *DstReg = GetRegister (State, Instruction->Dst);
         VINIL_REGISTER_VALUE *AddrReg = GetRegister (State, Instruction->Src[0]);
-        if (DstReg != NULL && AddrReg != NULL) {
-          VOID *Address = (VOID *)(UINTN)AddrReg->u[0];
-          State->MemoryOps->lpVtbl->LoadVector (State->MemoryOps, Address, 4, DstReg->f);
+        if (DstReg != NULL && AddrReg != NULL && State->SharedMemory != NULL) {
+          UINTN Offset = AddrReg->u[0];
+          if (Offset + 16 <= State->SharedMemorySize) {
+            float *Ptr = (float *)((UINT8 *)State->SharedMemory + Offset);
+            memcpy (DstReg->f, Ptr, 16);
+          }
         }
       }
       break;
 
     case VINIL_OP_STORE_VEC:
-      /* Store vector to memory: STORE_VEC src0(address), src1(value) */
-      if (State->MemoryOps != NULL && Instruction->Src[0] != NULL && Instruction->Src[1] != NULL) {
+      /* Store vec4 to shared memory: STORE_VEC src0(address), src1(value) */
+      if (Instruction->Src[0] != NULL && Instruction->Src[1] != NULL) {
         VINIL_REGISTER_VALUE *AddrReg = GetRegister (State, Instruction->Src[0]);
         VINIL_REGISTER_VALUE *ValReg = GetRegister (State, Instruction->Src[1]);
-        if (AddrReg != NULL && ValReg != NULL) {
-          VOID *Address = (VOID *)(UINTN)AddrReg->u[0];
-          State->MemoryOps->lpVtbl->StoreVector (State->MemoryOps, Address, 4, ValReg->f);
+        if (AddrReg != NULL && ValReg != NULL && State->SharedMemory != NULL) {
+          UINTN Offset = AddrReg->u[0];
+          if (Offset + 16 <= State->SharedMemorySize) {
+            float *Ptr = (float *)((UINT8 *)State->SharedMemory + Offset);
+            memcpy (Ptr, ValReg->f, 16);
+          }
         }
       }
       break;
 
     case VINIL_OP_BARRIER:
-      if (State->MemoryOps != NULL) {
-        State->MemoryOps->lpVtbl->Barrier (State->MemoryOps);
-      }
+      /* Full memory barrier */
+      __sync_synchronize ();
       break;
 
     case VINIL_OP_FENCE:
     case VINIL_OP_MEM_FENCE:
-      if (State->MemoryOps != NULL) {
-        State->MemoryOps->lpVtbl->MemFence (State->MemoryOps);
-      }
+      /* Memory fence (sequential consistency) */
+      __sync_synchronize ();
       break;
 
     case VINIL_OP_READ_FENCE:
-      if (State->MemoryOps != NULL) {
-        State->MemoryOps->lpVtbl->ReadFence (State->MemoryOps);
-      }
+      /* Acquire fence (compiler barrier + read barrier) */
+      __asm__ __volatile__ ("" ::: "memory");
       break;
 
     case VINIL_OP_WRITE_FENCE:
-      if (State->MemoryOps != NULL) {
-        State->MemoryOps->lpVtbl->WriteFence (State->MemoryOps);
-      }
+      /* Release fence (compiler barrier + write barrier) */
+      __asm__ __volatile__ ("" ::: "memory");
       break;
 
-    /* Atomic Operations - delegated to backend sink */
+    /* Atomic Operations - direct implementation using NTRTL */
     case VINIL_OP_ATOMIC_ADD:
       /* Atomic add: ATOMIC_ADD dst, src0(address), src1(value) */
-      if (State->AtomicOps != NULL && Instruction->Dst != NULL &&
-          Instruction->Src[0] != NULL && Instruction->Src[1] != NULL) {
+      if (Instruction->Dst != NULL && Instruction->Src[0] != NULL && Instruction->Src[1] != NULL) {
         VINIL_REGISTER_VALUE *DstReg = GetRegister (State, Instruction->Dst);
         VINIL_REGISTER_VALUE *AddrReg = GetRegister (State, Instruction->Src[0]);
         VINIL_REGISTER_VALUE *ValReg = GetRegister (State, Instruction->Src[1]);
-        if (DstReg != NULL && AddrReg != NULL && ValReg != NULL) {
-          VOID *Address = (VOID *)(UINTN)AddrReg->u[0];
-          State->AtomicOps->lpVtbl->Add (State->AtomicOps, Address, ValReg->i[0], &DstReg->i[0]);
+        if (DstReg != NULL && AddrReg != NULL && ValReg != NULL && State->SharedMemory != NULL) {
+          UINTN Offset = AddrReg->u[0];
+          if (Offset + sizeof(INT32) <= State->SharedMemorySize) {
+            volatile INT32 *Ptr = (volatile INT32 *)((UINT8 *)State->SharedMemory + Offset);
+            DstReg->i[0] = RtlAtomicFetchAdd32 (Ptr, ValReg->i[0]);
+          }
         }
       }
       break;
 
     case VINIL_OP_ATOMIC_SUB:
-      if (State->AtomicOps != NULL && Instruction->Dst != NULL &&
-          Instruction->Src[0] != NULL && Instruction->Src[1] != NULL) {
+      if (Instruction->Dst != NULL && Instruction->Src[0] != NULL && Instruction->Src[1] != NULL) {
         VINIL_REGISTER_VALUE *DstReg = GetRegister (State, Instruction->Dst);
         VINIL_REGISTER_VALUE *AddrReg = GetRegister (State, Instruction->Src[0]);
         VINIL_REGISTER_VALUE *ValReg = GetRegister (State, Instruction->Src[1]);
-        if (DstReg != NULL && AddrReg != NULL && ValReg != NULL) {
-          VOID *Address = (VOID *)(UINTN)AddrReg->u[0];
-          State->AtomicOps->lpVtbl->Sub (State->AtomicOps, Address, ValReg->i[0], &DstReg->i[0]);
+        if (DstReg != NULL && AddrReg != NULL && ValReg != NULL && State->SharedMemory != NULL) {
+          UINTN Offset = AddrReg->u[0];
+          if (Offset + sizeof(INT32) <= State->SharedMemorySize) {
+            volatile INT32 *Ptr = (volatile INT32 *)((UINT8 *)State->SharedMemory + Offset);
+            DstReg->i[0] = RtlAtomicFetchSub32 (Ptr, ValReg->i[0]);
+          }
         }
       }
       break;
 
     case VINIL_OP_ATOMIC_MIN:
-      if (State->AtomicOps != NULL && Instruction->Dst != NULL &&
-          Instruction->Src[0] != NULL && Instruction->Src[1] != NULL) {
+      if (Instruction->Dst != NULL && Instruction->Src[0] != NULL && Instruction->Src[1] != NULL) {
         VINIL_REGISTER_VALUE *DstReg = GetRegister (State, Instruction->Dst);
         VINIL_REGISTER_VALUE *AddrReg = GetRegister (State, Instruction->Src[0]);
         VINIL_REGISTER_VALUE *ValReg = GetRegister (State, Instruction->Src[1]);
-        if (DstReg != NULL && AddrReg != NULL && ValReg != NULL) {
-          VOID *Address = (VOID *)(UINTN)AddrReg->u[0];
-          State->AtomicOps->lpVtbl->Min (State->AtomicOps, Address, ValReg->i[0], &DstReg->i[0]);
+        if (DstReg != NULL && AddrReg != NULL && ValReg != NULL && State->SharedMemory != NULL) {
+          UINTN Offset = AddrReg->u[0];
+          if (Offset + sizeof(UINT32) <= State->SharedMemorySize) {
+            volatile UINT32 *Ptr = (volatile UINT32 *)((UINT8 *)State->SharedMemory + Offset);
+            UINT32 Old, New;
+            do {
+              Old = *Ptr;
+              New = ((INT32)ValReg->i[0] < (INT32)Old) ? (UINT32)ValReg->i[0] : Old;
+            } while (RtlAtomicCompareExchange32 (Ptr, Old, New) != Old);
+            DstReg->i[0] = (INT32)Old;
+          }
         }
       }
       break;
 
     case VINIL_OP_ATOMIC_MAX:
-      if (State->AtomicOps != NULL && Instruction->Dst != NULL &&
-          Instruction->Src[0] != NULL && Instruction->Src[1] != NULL) {
+      if (Instruction->Dst != NULL && Instruction->Src[0] != NULL && Instruction->Src[1] != NULL) {
         VINIL_REGISTER_VALUE *DstReg = GetRegister (State, Instruction->Dst);
         VINIL_REGISTER_VALUE *AddrReg = GetRegister (State, Instruction->Src[0]);
         VINIL_REGISTER_VALUE *ValReg = GetRegister (State, Instruction->Src[1]);
-        if (DstReg != NULL && AddrReg != NULL && ValReg != NULL) {
-          VOID *Address = (VOID *)(UINTN)AddrReg->u[0];
-          State->AtomicOps->lpVtbl->Max (State->AtomicOps, Address, ValReg->i[0], &DstReg->i[0]);
+        if (DstReg != NULL && AddrReg != NULL && ValReg != NULL && State->SharedMemory != NULL) {
+          UINTN Offset = AddrReg->u[0];
+          if (Offset + sizeof(UINT32) <= State->SharedMemorySize) {
+            volatile UINT32 *Ptr = (volatile UINT32 *)((UINT8 *)State->SharedMemory + Offset);
+            UINT32 Old, New;
+            do {
+              Old = *Ptr;
+              New = ((INT32)ValReg->i[0] > (INT32)Old) ? (UINT32)ValReg->i[0] : Old;
+            } while (RtlAtomicCompareExchange32 (Ptr, Old, New) != Old);
+            DstReg->i[0] = (INT32)Old;
+          }
         }
       }
       break;
 
     case VINIL_OP_ATOMIC_AND:
-      if (State->AtomicOps != NULL && Instruction->Dst != NULL &&
-          Instruction->Src[0] != NULL && Instruction->Src[1] != NULL) {
+      if (Instruction->Dst != NULL && Instruction->Src[0] != NULL && Instruction->Src[1] != NULL) {
         VINIL_REGISTER_VALUE *DstReg = GetRegister (State, Instruction->Dst);
         VINIL_REGISTER_VALUE *AddrReg = GetRegister (State, Instruction->Src[0]);
         VINIL_REGISTER_VALUE *ValReg = GetRegister (State, Instruction->Src[1]);
-        if (DstReg != NULL && AddrReg != NULL && ValReg != NULL) {
-          VOID *Address = (VOID *)(UINTN)AddrReg->u[0];
-          State->AtomicOps->lpVtbl->And (State->AtomicOps, Address, ValReg->u[0], &DstReg->u[0]);
+        if (DstReg != NULL && AddrReg != NULL && ValReg != NULL && State->SharedMemory != NULL) {
+          UINTN Offset = AddrReg->u[0];
+          if (Offset + sizeof(UINT32) <= State->SharedMemorySize) {
+            volatile UINT32 *Ptr = (volatile UINT32 *)((UINT8 *)State->SharedMemory + Offset);
+            DstReg->u[0] = RtlAtomicFetchAnd32 (Ptr, ValReg->u[0]);
+          }
         }
       }
       break;
 
     case VINIL_OP_ATOMIC_OR:
-      if (State->AtomicOps != NULL && Instruction->Dst != NULL &&
-          Instruction->Src[0] != NULL && Instruction->Src[1] != NULL) {
+      if (Instruction->Dst != NULL && Instruction->Src[0] != NULL && Instruction->Src[1] != NULL) {
         VINIL_REGISTER_VALUE *DstReg = GetRegister (State, Instruction->Dst);
         VINIL_REGISTER_VALUE *AddrReg = GetRegister (State, Instruction->Src[0]);
         VINIL_REGISTER_VALUE *ValReg = GetRegister (State, Instruction->Src[1]);
-        if (DstReg != NULL && AddrReg != NULL && ValReg != NULL) {
-          VOID *Address = (VOID *)(UINTN)AddrReg->u[0];
-          State->AtomicOps->lpVtbl->Or (State->AtomicOps, Address, ValReg->u[0], &DstReg->u[0]);
+        if (DstReg != NULL && AddrReg != NULL && ValReg != NULL && State->SharedMemory != NULL) {
+          UINTN Offset = AddrReg->u[0];
+          if (Offset + sizeof(UINT32) <= State->SharedMemorySize) {
+            volatile UINT32 *Ptr = (volatile UINT32 *)((UINT8 *)State->SharedMemory + Offset);
+            DstReg->u[0] = RtlAtomicFetchOr32 (Ptr, ValReg->u[0]);
+          }
         }
       }
       break;
 
     case VINIL_OP_ATOMIC_XOR:
-      if (State->AtomicOps != NULL && Instruction->Dst != NULL &&
-          Instruction->Src[0] != NULL && Instruction->Src[1] != NULL) {
+      if (Instruction->Dst != NULL && Instruction->Src[0] != NULL && Instruction->Src[1] != NULL) {
         VINIL_REGISTER_VALUE *DstReg = GetRegister (State, Instruction->Dst);
         VINIL_REGISTER_VALUE *AddrReg = GetRegister (State, Instruction->Src[0]);
         VINIL_REGISTER_VALUE *ValReg = GetRegister (State, Instruction->Src[1]);
-        if (DstReg != NULL && AddrReg != NULL && ValReg != NULL) {
-          VOID *Address = (VOID *)(UINTN)AddrReg->u[0];
-          State->AtomicOps->lpVtbl->Xor (State->AtomicOps, Address, ValReg->u[0], &DstReg->u[0]);
+        if (DstReg != NULL && AddrReg != NULL && ValReg != NULL && State->SharedMemory != NULL) {
+          UINTN Offset = AddrReg->u[0];
+          if (Offset + sizeof(UINT32) <= State->SharedMemorySize) {
+            volatile UINT32 *Ptr = (volatile UINT32 *)((UINT8 *)State->SharedMemory + Offset);
+            DstReg->u[0] = RtlAtomicFetchXor32 (Ptr, ValReg->u[0]);
+          }
         }
       }
       break;
 
     case VINIL_OP_ATOMIC_XCHG:
-      if (State->AtomicOps != NULL && Instruction->Dst != NULL &&
-          Instruction->Src[0] != NULL && Instruction->Src[1] != NULL) {
+      if (Instruction->Dst != NULL && Instruction->Src[0] != NULL && Instruction->Src[1] != NULL) {
         VINIL_REGISTER_VALUE *DstReg = GetRegister (State, Instruction->Dst);
         VINIL_REGISTER_VALUE *AddrReg = GetRegister (State, Instruction->Src[0]);
         VINIL_REGISTER_VALUE *ValReg = GetRegister (State, Instruction->Src[1]);
-        if (DstReg != NULL && AddrReg != NULL && ValReg != NULL) {
-          VOID *Address = (VOID *)(UINTN)AddrReg->u[0];
-          State->AtomicOps->lpVtbl->Exchange (State->AtomicOps, Address, ValReg->u[0], &DstReg->u[0]);
+        if (DstReg != NULL && AddrReg != NULL && ValReg != NULL && State->SharedMemory != NULL) {
+          UINTN Offset = AddrReg->u[0];
+          if (Offset + sizeof(UINT32) <= State->SharedMemorySize) {
+            volatile UINT32 *Ptr = (volatile UINT32 *)((UINT8 *)State->SharedMemory + Offset);
+            DstReg->u[0] = RtlAtomicExchange32 (Ptr, ValReg->u[0]);
+          }
         }
       }
       break;
 
     case VINIL_OP_ATOMIC_CAS:
       /* Compare-and-swap: ATOMIC_CAS dst, src0(address), src1(compare), src2(value) */
-      if (State->AtomicOps != NULL && Instruction->Dst != NULL &&
-          Instruction->Src[0] != NULL && Instruction->Src[1] != NULL && Instruction->Src[2] != NULL) {
+      if (Instruction->Dst != NULL && Instruction->Src[0] != NULL &&
+          Instruction->Src[1] != NULL && Instruction->Src[2] != NULL) {
         VINIL_REGISTER_VALUE *DstReg = GetRegister (State, Instruction->Dst);
         VINIL_REGISTER_VALUE *AddrReg = GetRegister (State, Instruction->Src[0]);
         VINIL_REGISTER_VALUE *CmpReg = GetRegister (State, Instruction->Src[1]);
         VINIL_REGISTER_VALUE *ValReg = GetRegister (State, Instruction->Src[2]);
-        if (DstReg != NULL && AddrReg != NULL && CmpReg != NULL && ValReg != NULL) {
-          VOID *Address = (VOID *)(UINTN)AddrReg->u[0];
-          State->AtomicOps->lpVtbl->CompareExchange (
-            State->AtomicOps,
-            Address,
-            CmpReg->u[0],
-            ValReg->u[0],
-            &DstReg->u[0]
-          );
+        if (DstReg != NULL && AddrReg != NULL && CmpReg != NULL && ValReg != NULL && State->SharedMemory != NULL) {
+          UINTN Offset = AddrReg->u[0];
+          if (Offset + sizeof(UINT32) <= State->SharedMemorySize) {
+            volatile UINT32 *Ptr = (volatile UINT32 *)((UINT8 *)State->SharedMemory + Offset);
+            DstReg->u[0] = RtlAtomicCompareExchange32 (Ptr, CmpReg->u[0], ValReg->u[0]);
+          }
         }
       }
       break;

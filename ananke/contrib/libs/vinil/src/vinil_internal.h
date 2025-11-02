@@ -191,10 +191,12 @@ typedef struct _VINIL_EXECUTION_STATE {
   UINT32                ControlFlowDepth;
   BOOLEAN               ConditionResult;  /* Last condition evaluation */
 
-  /* Backend operation sinks (optional, provided by backend) */
+  /* Backend operation sink (optional, provided by graphics backend) */
   struct IVinilTextureSampler      *TextureSampler;
-  struct IVinilMemoryOperations    *MemoryOps;
-  struct IVinilAtomicOperations    *AtomicOps;
+
+  /* Shared memory buffer for LOAD/STORE operations */
+  VOID                             *SharedMemory;
+  UINTN                            SharedMemorySize;
 } VINIL_EXECUTION_STATE;
 
 //

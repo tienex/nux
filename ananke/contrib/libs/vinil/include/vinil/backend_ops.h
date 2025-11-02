@@ -1,9 +1,8 @@
 /** @file
   VINIL Backend Operation Interfaces
 
-  COM interfaces for backend-specific operations (textures, memory, atomics).
-  These interfaces must be implemented by the backend (OpenGL, Vulkan, etc.)
-  and provided to the VINIL execution context.
+  COM interfaces for backend-specific operations. Currently only texture
+  sampling requires backend implementation (OpenGL, Vulkan, etc).
 
   Copyright (C) 2025 NUX Project
 
@@ -19,11 +18,11 @@
 //
 
 ANX_DEFINE_GUID (IID_IVinilTextureSampler, 0x89ab1234, 0x5678, 0x9abc, 0xde, 0xf0, 0x12, 0x34, 0x56, 0x78, 0x9a, 0xbc);
-ANX_DEFINE_GUID (IID_IVinilMemoryOperations, 0x9bcd2345, 0x6789, 0xabcd, 0xef, 0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd);
-ANX_DEFINE_GUID (IID_IVinilAtomicOperations, 0xacde3456, 0x789a, 0xbcde, 0xf0, 0x12, 0x34, 0x56, 0x78, 0x9a, 0xbc, 0xde);
 
 //
 // IVinilTextureSampler Interface
+//
+// Backend implements texture sampling operations (OpenGL, Vulkan, etc.)
 //
 
 ANX_BEGIN_INTERFACE (IVinilTextureSampler, IUnknown, IID_IVinilTextureSampler, "89ab1234-5678-9abc-def0-123456789abc")
@@ -106,102 +105,6 @@ ANX_BEGIN_INTERFACE (IVinilTextureSampler, IUnknown, IID_IVinilTextureSampler, "
 ANX_END_INTERFACE (IVinilTextureSampler, IID_IVinilTextureSampler)
 
 //
-// IVinilMemoryOperations Interface
-//
-
-ANX_BEGIN_INTERFACE (IVinilMemoryOperations, IUnknown, IID_IVinilMemoryOperations, "9bcd2345-6789-abcd-ef01-23456789abcd")
-  /**
-    Load scalar from memory.
-
-    @param[in]  Address  Memory address.
-    @param[out] Value    Loaded value.
-
-    @retval S_OK         Success.
-    @retval E_POINTER    Invalid address.
-  **/
-  ANX_IFACE_METHOD (HRESULT, Load, (VOID *Address, VOID *Value))
-
-  /**
-    Store scalar to memory.
-
-    @param[in]  Address  Memory address.
-    @param[in]  Value    Value to store.
-
-    @retval S_OK         Success.
-    @retval E_POINTER    Invalid address.
-  **/
-  ANX_IFACE_METHOD (HRESULT, Store, (VOID *Address, CONST VOID *Value))
-
-  /**
-    Load vector from memory.
-
-    @param[in]  Address  Memory address.
-    @param[in]  Count    Number of components (1-4).
-    @param[out] Value    Loaded vector.
-
-    @retval S_OK         Success.
-    @retval E_POINTER    Invalid address.
-  **/
-  ANX_IFACE_METHOD (HRESULT, LoadVector, (VOID *Address, UINT32 Count, float *Value))
-
-  /**
-    Store vector to memory.
-
-    @param[in]  Address  Memory address.
-    @param[in]  Count    Number of components (1-4).
-    @param[in]  Value    Vector to store.
-
-    @retval S_OK         Success.
-    @retval E_POINTER    Invalid address.
-  **/
-  ANX_IFACE_METHOD (HRESULT, StoreVector, (VOID *Address, UINT32 Count, CONST float *Value))
-
-  /**
-    Memory barrier (all memory types).
-
-    @retval S_OK  Success.
-  **/
-  HRESULT (STDMETHODCALLTYPE *Barrier)(void* This);
-
-  /**
-    Memory fence (global memory).
-
-    @retval S_OK  Success.
-  **/
-  HRESULT (STDMETHODCALLTYPE *MemFence)(void* This);
-
-  /**
-    Read fence.
-
-    @retval S_OK  Success.
-  **/
-  HRESULT (STDMETHODCALLTYPE *ReadFence)(void* This);
-
-  /**
-    Write fence.
-
-    @retval S_OK  Success.
-  **/
-  HRESULT (STDMETHODCALLTYPE *WriteFence)(void* This);
-ANX_END_INTERFACE (IVinilMemoryOperations, IID_IVinilMemoryOperations)
-
-//
-// IVinilAtomicOperations Interface
-//
-
-ANX_BEGIN_INTERFACE (IVinilAtomicOperations, IUnknown, IID_IVinilAtomicOperations, "acde3456-789a-bcde-f012-3456789abcde")
-  ANX_IFACE_METHOD (HRESULT, Add, (VOID *Address, INT32 Value, INT32 *OldValue))
-  ANX_IFACE_METHOD (HRESULT, Sub, (VOID *Address, INT32 Value, INT32 *OldValue))
-  ANX_IFACE_METHOD (HRESULT, Min, (VOID *Address, INT32 Value, INT32 *OldValue))
-  ANX_IFACE_METHOD (HRESULT, Max, (VOID *Address, INT32 Value, INT32 *OldValue))
-  ANX_IFACE_METHOD (HRESULT, And, (VOID *Address, UINT32 Value, UINT32 *OldValue))
-  ANX_IFACE_METHOD (HRESULT, Or, (VOID *Address, UINT32 Value, UINT32 *OldValue))
-  ANX_IFACE_METHOD (HRESULT, Xor, (VOID *Address, UINT32 Value, UINT32 *OldValue))
-  ANX_IFACE_METHOD (HRESULT, Exchange, (VOID *Address, UINT32 Value, UINT32 *OldValue))
-  ANX_IFACE_METHOD (HRESULT, CompareExchange, (VOID *Address, UINT32 Compare, UINT32 Value, UINT32 *OldValue))
-ANX_END_INTERFACE (IVinilAtomicOperations, IID_IVinilAtomicOperations)
-
-//
 // COBJMACROS
 //
 
@@ -226,55 +129,5 @@ ANX_END_INTERFACE (IVinilAtomicOperations, IID_IVinilAtomicOperations)
   (This)->lpVtbl->SampleGrad (This, Unit, Coords, DDx, DDy, Color)
 #define IVinilTextureSampler_Fetch(This, Unit, Coords, Lod, Color) \
   (This)->lpVtbl->Fetch (This, Unit, Coords, Lod, Color)
-
-/* IVinilMemoryOperations */
-#define IVinilMemoryOperations_QueryInterface(This, riid, ppv) \
-  (This)->lpVtbl->QueryInterface (This, riid, ppv)
-#define IVinilMemoryOperations_AddRef(This) \
-  (This)->lpVtbl->AddRef (This)
-#define IVinilMemoryOperations_Release(This) \
-  (This)->lpVtbl->Release (This)
-#define IVinilMemoryOperations_Load(This, Address, Value) \
-  (This)->lpVtbl->Load (This, Address, Value)
-#define IVinilMemoryOperations_Store(This, Address, Value) \
-  (This)->lpVtbl->Store (This, Address, Value)
-#define IVinilMemoryOperations_LoadVector(This, Address, Count, Value) \
-  (This)->lpVtbl->LoadVector (This, Address, Count, Value)
-#define IVinilMemoryOperations_StoreVector(This, Address, Count, Value) \
-  (This)->lpVtbl->StoreVector (This, Address, Count, Value)
-#define IVinilMemoryOperations_Barrier(This) \
-  (This)->lpVtbl->Barrier (This)
-#define IVinilMemoryOperations_MemFence(This) \
-  (This)->lpVtbl->MemFence (This)
-#define IVinilMemoryOperations_ReadFence(This) \
-  (This)->lpVtbl->ReadFence (This)
-#define IVinilMemoryOperations_WriteFence(This) \
-  (This)->lpVtbl->WriteFence (This)
-
-/* IVinilAtomicOperations */
-#define IVinilAtomicOperations_QueryInterface(This, riid, ppv) \
-  (This)->lpVtbl->QueryInterface (This, riid, ppv)
-#define IVinilAtomicOperations_AddRef(This) \
-  (This)->lpVtbl->AddRef (This)
-#define IVinilAtomicOperations_Release(This) \
-  (This)->lpVtbl->Release (This)
-#define IVinilAtomicOperations_Add(This, Address, Value, OldValue) \
-  (This)->lpVtbl->Add (This, Address, Value, OldValue)
-#define IVinilAtomicOperations_Sub(This, Address, Value, OldValue) \
-  (This)->lpVtbl->Sub (This, Address, Value, OldValue)
-#define IVinilAtomicOperations_Min(This, Address, Value, OldValue) \
-  (This)->lpVtbl->Min (This, Address, Value, OldValue)
-#define IVinilAtomicOperations_Max(This, Address, Value, OldValue) \
-  (This)->lpVtbl->Max (This, Address, Value, OldValue)
-#define IVinilAtomicOperations_And(This, Address, Value, OldValue) \
-  (This)->lpVtbl->And (This, Address, Value, OldValue)
-#define IVinilAtomicOperations_Or(This, Address, Value, OldValue) \
-  (This)->lpVtbl->Or (This, Address, Value, OldValue)
-#define IVinilAtomicOperations_Xor(This, Address, Value, OldValue) \
-  (This)->lpVtbl->Xor (This, Address, Value, OldValue)
-#define IVinilAtomicOperations_Exchange(This, Address, Value, OldValue) \
-  (This)->lpVtbl->Exchange (This, Address, Value, OldValue)
-#define IVinilAtomicOperations_CompareExchange(This, Address, Compare, Value, OldValue) \
-  (This)->lpVtbl->CompareExchange (This, Address, Compare, Value, OldValue)
 
 #endif /* COBJMACROS */
