@@ -168,7 +168,7 @@ D3D5Device_DrawPrimitive(
 
     /* Use shader */
     if (device->FfpState.currentProgram) {
-        IGLContext_UseProgram(device->GlContext, device->FfpState.currentProgram);
+        IGLProgram_UseProgram(device->FfpState.currentProgram);
     }
 
     glPrimType = D3DPrimitiveTypeToGL(dptPrimitiveType);
@@ -253,7 +253,7 @@ D3D5_CreateDevice(
     device->GlDevice = d3d->GlDevice;
     IUnknown_AddRef((IUnknown*)device->GlDevice);
 
-    hr = IGLDevice_CreateContext(d3d->GlDevice, &device->GlContext);
+    hr = IGLDevice_GetContext(d3d->GlDevice, &device->GlContext);
     if (FAILED(hr)) {
         RtlFreeMemory(device);
         return hr;

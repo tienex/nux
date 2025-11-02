@@ -354,3 +354,124 @@ D3DApplyFFPState(
 
     return S_OK;
 }
+
+/* --------------------------------------------------------------- */
+/*  Vertex Attribute Binding                                       */
+/* --------------------------------------------------------------- */
+
+HRESULT
+D3DBindVertexAttributes(
+    IGLContext *pContext,
+    IGLProgram *pProgram,
+    CONST D3D_FVF_DESCRIPTOR *pFVF,
+    CONST VOID *pVertexData)
+{
+    GL_INT location;
+    CONST UINT8 *vertexBytes = (CONST UINT8*)pVertexData;
+    UINT32 i;
+
+    if (!pContext || !pProgram || !pFVF || !pVertexData) {
+        return E_POINTER;
+    }
+
+    /* Position attribute */
+    if (pFVF->hasPosition) {
+        IGLProgram_GetAttribLocation(pProgram, "aPosition", &location);
+        if (location >= 0) {
+            IGLContext_VertexAttribPointer(
+                pContext,
+                location,
+                pFVF->hasRHW ? 4 : 3,
+                GL_FLOAT,
+                GL_FALSE,
+                pFVF->vertexSize,
+                vertexBytes + pFVF->positionOffset
+            );
+            IGLContext_EnableVertexAttribArray(pContext, location);
+        }
+    }
+
+    /* Normal attribute */
+    if (pFVF->hasNormal) {
+        IGLProgram_GetAttribLocation(pProgram, "aNormal", &location);
+        if (location >= 0) {
+            IGLContext_VertexAttribPointer(
+                pContext,
+                location,
+                3,
+                GL_FLOAT,
+                GL_FALSE,
+                pFVF->vertexSize,
+                vertexBytes + pFVF->normalOffset
+            );
+            IGLContext_EnableVertexAttribArray(pContext, location);
+        }
+    }
+
+    /* Diffuse color attribute */
+    if (pFVF->hasDiffuse) {
+        IGLProgram_GetAttribLocation(pProgram, "aDiffuse", &location);
+        if (location >= 0) {
+            IGLContext_VertexAttribPointer(
+                pContext,
+                location,
+                4,
+                GL_UNSIGNED_BYTE,
+                GL_TRUE,
+                pFVF->vertexSize,
+                vertexBytes + pFVF->diffuseOffset
+            );
+            IGLContext_EnableVertexAttribArray(pContext, location);
+        }
+    }
+
+    /* Specular color attribute */
+    if (pFVF->hasSpecular) {
+        IGLProgram_GetAttribLocation(pProgram, "aSpecular", &location);
+        if (location >= 0) {
+            IGLContext_VertexAttribPointer(
+                pContext,
+                location,
+                4,
+                GL_UNSIGNED_BYTE,
+                GL_TRUE,
+                pFVF->vertexSize,
+                vertexBytes + pFVF->specularOffset
+            );
+            IGLContext_EnableVertexAttribArray(pContext, location);
+        }
+    }
+
+    /* Texture coordinates */
+    for (i = 0; i < pFVF->texCoordCount && i < 8; i++) {
+        CHAR attrName[32];
+        /* Simple manual formatting for aTexCoord0-7 */
+        attrName[0] = 'a';
+        attrName[1] = 'T';
+        attrName[2] = 'e';
+        attrName[3] = 'x';
+        attrName[4] = 'C';
+        attrName[5] = 'o';
+        attrName[6] = 'o';
+        attrName[7] = 'r';
+        attrName[8] = 'd';
+        attrName[9] = '0' + (CHAR)i;
+        attrName[10] = '\0';
+
+        IGLProgram_GetAttribLocation(pProgram, attrName, &location);
+        if (location >= 0) {
+            IGLContext_VertexAttribPointer(
+                pContext,
+                location,
+                2,
+                GL_FLOAT,
+                GL_FALSE,
+                pFVF->vertexSize,
+                vertexBytes + pFVF->texCoordOffset[i]
+            );
+            IGLContext_EnableVertexAttribArray(pContext, location);
+        }
+    }
+
+    return S_OK;
+}

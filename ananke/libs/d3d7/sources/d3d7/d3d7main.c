@@ -399,7 +399,7 @@ D3D7Device_DrawPrimitive(
 
     /* Use shader program */
     if (device->FfpState.currentProgram) {
-        IGLContext_UseProgram(device->GlContext, device->FfpState.currentProgram);
+        IGLProgram_UseProgram(device->FfpState.currentProgram);
     }
 
     /* TODO: Setup vertex attributes from FVF descriptor */
@@ -561,8 +561,8 @@ D3D7_CreateDevice(
     device->GlDevice = d3d->GlDevice;
     IUnknown_AddRef((IUnknown*)device->GlDevice);
 
-    /* Create GL context */
-    hr = IGLDevice_CreateContext(d3d->GlDevice, &device->GlContext);
+    /* Get GL context */
+    hr = IGLDevice_GetContext(d3d->GlDevice, &device->GlContext);
     if (FAILED(hr)) {
         RtlFreeMemory(device);
         return hr;

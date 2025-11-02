@@ -192,23 +192,62 @@ GlContext_SwapBuffers(IGLContext *This)
     return S_OK;
 }
 
+static HRESULT STDMETHODCALLTYPE
+GlContext_VertexAttribPointer(
+    IGLContext *This,
+    GL_UINT Index,
+    GL_INT Size,
+    GL_ENUM Type,
+    GL_BOOLEAN Normalized,
+    GL_SIZEI Stride,
+    CONST GL_VOID *Pointer)
+{
+    glVertexAttribPointer(Index, Size, Type, Normalized, Stride, Pointer);
+    return S_OK;
+}
+
+static HRESULT STDMETHODCALLTYPE
+GlContext_EnableVertexAttribArray(IGLContext *This, GL_UINT Index)
+{
+    glEnableVertexAttribArray(Index);
+    return S_OK;
+}
+
+static HRESULT STDMETHODCALLTYPE
+GlContext_DisableVertexAttribArray(IGLContext *This, GL_UINT Index)
+{
+    glDisableVertexAttribArray(Index);
+    return S_OK;
+}
+
+static HRESULT STDMETHODCALLTYPE
+GlContext_ActiveTexture(IGLContext *This, GL_ENUM Texture)
+{
+    glActiveTexture(Texture);
+    return S_OK;
+}
+
 static IGLContextVtbl GlContextVtbl = {
-    .QueryInterface = GlContext_QueryInterface,
-    .AddRef         = GlContext_AddRef,
-    .Release        = GlContext_Release,
-    .MakeCurrent    = GlContext_MakeCurrent,
-    .Clear          = GlContext_Clear,
-    .ClearColor     = GlContext_ClearColor,
-    .ClearDepth     = GlContext_ClearDepth,
-    .Viewport       = GlContext_Viewport,
-    .DrawArrays     = GlContext_DrawArrays,
-    .DrawElements   = GlContext_DrawElements,
-    .Enable         = GlContext_Enable,
-    .Disable        = GlContext_Disable,
-    .BlendFunc      = GlContext_BlendFunc,
-    .DepthFunc      = GlContext_DepthFunc,
-    .CullFace       = GlContext_CullFace,
-    .SwapBuffers    = GlContext_SwapBuffers,
+    .QueryInterface          = GlContext_QueryInterface,
+    .AddRef                  = GlContext_AddRef,
+    .Release                 = GlContext_Release,
+    .MakeCurrent             = GlContext_MakeCurrent,
+    .Clear                   = GlContext_Clear,
+    .ClearColor              = GlContext_ClearColor,
+    .ClearDepth              = GlContext_ClearDepth,
+    .Viewport                = GlContext_Viewport,
+    .DrawArrays              = GlContext_DrawArrays,
+    .DrawElements            = GlContext_DrawElements,
+    .Enable                  = GlContext_Enable,
+    .Disable                 = GlContext_Disable,
+    .BlendFunc               = GlContext_BlendFunc,
+    .DepthFunc               = GlContext_DepthFunc,
+    .CullFace                = GlContext_CullFace,
+    .SwapBuffers             = GlContext_SwapBuffers,
+    .VertexAttribPointer     = GlContext_VertexAttribPointer,
+    .EnableVertexAttribArray = GlContext_EnableVertexAttribArray,
+    .DisableVertexAttribArray= GlContext_DisableVertexAttribArray,
+    .ActiveTexture           = GlContext_ActiveTexture,
 };
 
 /* --------------------------------------------------------------- */

@@ -108,6 +108,25 @@ ANX_BEGIN_INTERFACE(IGLContext, IUnknown,
     /* Swap buffers */
     ANX_IFACE_METHOD(HRESULT, SwapBuffers, (VOID))
 
+    /* Vertex attributes */
+    ANX_IFACE_METHOD(HRESULT, VertexAttribPointer, (
+        IN GL_UINT Index,
+        IN GL_INT Size,
+        IN GL_ENUM Type,
+        IN GL_BOOLEAN Normalized,
+        IN GL_SIZEI Stride,
+        IN CONST GL_VOID *Pointer))
+
+    ANX_IFACE_METHOD(HRESULT, EnableVertexAttribArray, (
+        IN GL_UINT Index))
+
+    ANX_IFACE_METHOD(HRESULT, DisableVertexAttribArray, (
+        IN GL_UINT Index))
+
+    /* Multitexture */
+    ANX_IFACE_METHOD(HRESULT, ActiveTexture, (
+        IN GL_ENUM Texture))
+
 ANX_END_INTERFACE(IGLContext)
 
 /* --------------------------------------------------------------- */

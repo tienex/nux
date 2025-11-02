@@ -313,6 +313,14 @@ D3DApplyFFPState(
     CONST D3D_FFP_STATE *pState
 );
 
+HRESULT
+D3DBindVertexAttributes(
+    IGLContext *pContext,
+    IGLProgram *pProgram,
+    CONST D3D_FVF_DESCRIPTOR *pFVF,
+    CONST VOID *pVertexData
+);
+
 /* --------------------------------------------------------------- */
 /*  Matrix Utilities                                               */
 /* --------------------------------------------------------------- */
