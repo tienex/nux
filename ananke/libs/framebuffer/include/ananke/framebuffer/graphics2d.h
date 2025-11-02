@@ -211,6 +211,28 @@ ANX_BEGIN_INTERFACE(IFramebuffer2DPath, IUnknown,
     ANX_IFACE_METHOD(HRESULT, Transform, (
         IN CONST FB_TRANSFORM *Transform))
 
+    /* ----------------------------------------------------------------- */
+    /* Path Data Access (for hit testing, rendering, etc.)              */
+    /* ----------------------------------------------------------------- */
+
+    /* Get flattened path points (curves converted to line segments)
+     * Points array must be allocated by caller
+     * Returns S_OK with point count, or E_OUTOFMEMORY if buffer too small
+     */
+    ANX_IFACE_METHOD(HRESULT, GetPoints, (
+        OUT FB_POINT *Points,
+        IN UINT32 MaxPoints,
+        OUT UINT32 *NumPoints))
+
+    /* Get path points with commands (includes curve control points)
+     * Returns raw path data with command information
+     */
+    ANX_IFACE_METHOD(HRESULT, GetPathData, (
+        OUT FB_PATH_COMMAND *Commands,
+        OUT FB_POINT *Points,
+        IN UINT32 MaxPoints,
+        OUT UINT32 *NumPoints))
+
 ANX_END_INTERFACE(IFramebuffer2DPath)
 
 /* --------------------------------------------------------------- */
