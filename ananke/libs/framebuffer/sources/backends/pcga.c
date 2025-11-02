@@ -735,24 +735,27 @@ Pcga_ScrollText(
 /*  Font Loading and Management                                    */
 /* --------------------------------------------------------------- */
 
-/* Interrupt Vector Table (IVT) locations for fonts
- * The IVT is at physical address 0x00000000 and contains 256 4-byte entries.
- * Each entry is a far pointer (segment:offset) to interrupt handler or data.
+/*
+ * Bundled VGA Font Data
+ *
+ * Standard IBM VGA fonts bundled as static data. This approach works in:
+ * - Long mode (x86-64) where IVT at physical 0x0 isn't accessible
+ * - Protected mode with paging
+ * - UEFI environments without BIOS structures
+ *
+ * Fonts are based on standard IBM VGA ROM fonts (public domain).
+ * Each character is stored as consecutive scanlines, one byte per scanline.
+ * Bit 7 (MSB) = leftmost pixel, Bit 0 (LSB) = rightmost pixel.
  */
-#define IVT_BASE                0x00000000  /* IVT physical address */
-#define IVT_INT_1F              0x0000007C  /* INT 1Fh: Graphics font (chars 128-255, 8x8) */
-#define IVT_INT_43              0x0000010C  /* INT 43h: Character generator table (primary) */
-#define IVT_INT_44              0x00000110  /* INT 44h: Graphics font table (EGA/VGA secondary) */
 
-/* VGA BIOS INT 10h, AX=1130h font table indices (for reference, not directly used) */
-#define VGA_FONT_TABLE_8x8_HI   0  /* INT 1Fh pointer (chars 128-255) */
-#define VGA_FONT_TABLE_8x8      1  /* INT 43h pointer (all 256 chars) */
-#define VGA_FONT_TABLE_8x14     2  /* 8x14 ROM font (EGA/VGA) */
-#define VGA_FONT_TABLE_8x8_LO   3  /* 8x8 font (chars 0-127 only) */
-#define VGA_FONT_TABLE_8x8_HI2  4  /* 8x8 font (chars 128-255, top half) */
-#define VGA_FONT_TABLE_9x14     5  /* 9x14 alternate font (VGA) */
-#define VGA_FONT_TABLE_8x16     6  /* 8x16 ROM font (VGA) */
-#define VGA_FONT_TABLE_9x16     7  /* 9x16 alternate font (VGA) */
+/* Standard VGA 8x8 font (CGA/MCGA compatible) - 256 characters × 8 bytes = 2048 bytes */
+#include "vga_font_8x8.inc"
+
+/* Standard VGA 8x14 font (EGA compatible) - 256 characters × 14 bytes = 3584 bytes */
+#include "vga_font_8x14.inc"
+
+/* Standard VGA 8x16 font (VGA/SVGA/XGA) - 256 characters × 16 bytes = 4096 bytes */
+#include "vga_font_8x16.inc"
 
 /* Graphics adapter types */
 typedef enum _PCGA_ADAPTER_TYPE {
@@ -764,75 +767,168 @@ typedef enum _PCGA_ADAPTER_TYPE {
     PCGA_ADAPTER_XGA = 5,   /* IBM XGA */
 } PCGA_ADAPTER_TYPE;
 
+/* Video BIOS ROM typically mapped at 0xC0000-0xC7FFF (32KB) */
+#define VIDEO_BIOS_ROM_BASE     0xC0000
+#define VIDEO_BIOS_ROM_SIZE     0x8000  /* 32KB */
+
 /*
- * Read a far pointer (segment:offset) from the IVT.
- * Returns linear physical address.
+ * Real mode BIOS call interface (if available).
+ * Returns TRUE if BIOS INT 10h font retrieval succeeded.
+ *
+ * Uses INT 10h, AX=1130h - Get Font Information:
+ *   BH = font type (0=INT 1Fh 8x8, 3=8x8 0-7Fh, 6=8x16)
+ *   Returns: ES:BP = pointer to font, CX = bytes per character
  */
-static UINT32
-Pcga_ReadIVTVector(
-    UINT32 IvtAddress
+static BOOLEAN
+Pcga_GetFontViaBios(
+    OUT UINT8 *FontBuffer,
+    IN UINT32 CharHeight
     )
 {
-    /* IVT entries are 4 bytes: offset (word), segment (word) */
-    CONST UINT8 *IvtPtr = (CONST UINT8 *)(UINTN)IvtAddress;
+    /* Real mode calls from protected/long mode require either:
+     * 1. Real mode thunk (transition to real mode, make call, return)
+     * 2. V8086 mode (virtual 8086 mode for real mode emulation)
+     * 3. BIOS call wrapper (OS-provided service)
+     *
+     * Since we don't have a real mode thunk infrastructure in this
+     * codebase, and V8086 mode is not available in long mode, we
+     * cannot make INT 10h calls directly.
+     *
+     * In UEFI environments, the BIOS is not available at all.
+     *
+     * This function could be implemented if:
+     * - The OS provides a BIOS call wrapper service (like Linux's vm86)
+     * - A real mode thunk is added to the codebase
+     * - Running in 16-bit real mode or virtual 8086 mode
+     */
 
-    /* Read little-endian values */
-    UINT16 Offset = ((UINT16)IvtPtr[0]) | (((UINT16)IvtPtr[1]) << 8);
-    UINT16 Segment = ((UINT16)IvtPtr[2]) | (((UINT16)IvtPtr[3]) << 8);
+    #ifdef ANX_REALMODE_THUNK_AVAILABLE
+        /* If real mode thunk is available, use it */
+        /* Example pseudocode:
+         * REALMODE_REGS regs;
+         * regs.ax = 0x1130;
+         * regs.bh = (CharHeight == 8) ? 3 : (CharHeight == 14) ? 2 : 6;
+         * if (AnxRealModeInt(0x10, &regs) == 0) {
+         *     UINT32 FontAddr = ((UINT32)regs.es << 4) + regs.bp;
+         *     ANX_MEMCPY(FontBuffer, (VOID *)(UINTN)FontAddr, 256 * CharHeight);
+         *     return TRUE;
+         * }
+         */
+    #endif
 
-    /* Convert segment:offset to linear address */
-    /* Linear address = (segment * 16) + offset */
-    UINT32 LinearAddress = ((UINT32)Segment << 4) + Offset;
-
-    return LinearAddress;
+    /* Not available in this environment */
+    return FALSE;
 }
 
 /*
- * Get font address from BIOS IVT for a specific font height.
- * Returns physical address of font data, or 0 if not found.
+ * Check if memory region looks like valid VGA font data.
+ * Returns TRUE if the data pattern matches typical font characteristics.
  */
-static UINT32
-Pcga_GetFontAddressFromIVT(
-    UINT32 CharHeight,
-    PCGA_ADAPTER_TYPE AdapterType
+static BOOLEAN
+Pcga_IsValidFontData(
+    CONST UINT8 *Data,
+    UINT32 CharHeight
     )
 {
-    UINT32 FontAddress = 0;
+    UINT32 RequiredSize = 256 * CharHeight;
 
-    if (AdapterType == PCGA_ADAPTER_CGA || AdapterType == PCGA_ADAPTER_EGA) {
-        /* CGA and EGA use INT 43h for primary 8x8 font */
-        if (CharHeight == 8) {
-            FontAddress = Pcga_ReadIVTVector(IVT_INT_43);
-        } else if (CharHeight == 14 && AdapterType == PCGA_ADAPTER_EGA) {
-            /* EGA: INT 44h typically points to 8x14 font */
-            FontAddress = Pcga_ReadIVTVector(IVT_INT_44);
+    /* Check for typical font patterns:
+     * - Character 0x00 (NULL) is usually all zeros
+     * - Character 0x20 (space) is usually all zeros
+     * - Characters have reasonable bit patterns (not all 0xFF or random data)
+     */
 
-            /* If INT 44h is not set or zero, compute from INT 43h */
-            /* Some BIOSes store 8x14 font 14 bytes after each 8x8 char */
-            if (FontAddress == 0) {
-                UINT32 BaseFont = Pcga_ReadIVTVector(IVT_INT_43);
-                /* Try INT 43h + offset (varies by BIOS) */
-                /* Common: 8x8 font is 2KB (256*8), 8x14 follows */
-                FontAddress = BaseFont + (256 * 8);
-            }
+    /* Check character 0x00 (should be mostly zeros) */
+    UINT32 NonZeroCount = 0;
+    for (UINT32 i = 0; i < CharHeight; i++) {
+        if (Data[i] != 0x00) {
+            NonZeroCount++;
         }
-    } else {
-        /* VGA/MCGA/SVGA/XGA: INT 43h points to active font */
-        /* INT 44h may point to alternate font (often 8x14 or 8x16) */
-        if (CharHeight == 8) {
-            FontAddress = Pcga_ReadIVTVector(IVT_INT_43);
-        } else if (CharHeight == 14 || CharHeight == 16) {
-            /* Try INT 44h first */
-            FontAddress = Pcga_ReadIVTVector(IVT_INT_44);
+    }
+    if (NonZeroCount > CharHeight / 2) {
+        /* Too many non-zero bytes for NULL character */
+        return FALSE;
+    }
 
-            /* If not set, fall back to INT 43h */
-            if (FontAddress == 0) {
-                FontAddress = Pcga_ReadIVTVector(IVT_INT_43);
-            }
+    /* Check character 0x20 (space - offset 32 * CharHeight) */
+    CONST UINT8 *SpaceChar = &Data[32 * CharHeight];
+    NonZeroCount = 0;
+    for (UINT32 i = 0; i < CharHeight; i++) {
+        if (SpaceChar[i] != 0x00) {
+            NonZeroCount++;
+        }
+    }
+    if (NonZeroCount > 2) {
+        /* Space should be mostly empty */
+        return FALSE;
+    }
+
+    /* Check that printable ASCII characters have reasonable patterns */
+    /* Character 'A' (0x41) should have some vertical symmetry */
+    CONST UINT8 *CharA = &Data[0x41 * CharHeight];
+    BOOLEAN HasTopBits = FALSE;
+    BOOLEAN HasBottomBits = FALSE;
+
+    for (UINT32 i = 0; i < CharHeight / 2; i++) {
+        if (CharA[i] != 0x00) HasTopBits = TRUE;
+    }
+    for (UINT32 i = CharHeight / 2; i < CharHeight; i++) {
+        if (CharA[i] != 0x00) HasBottomBits = TRUE;
+    }
+
+    if (!HasTopBits || !HasBottomBits) {
+        /* 'A' should have data in both top and bottom halves */
+        return FALSE;
+    }
+
+    return TRUE;
+}
+
+/*
+ * Scan Video BIOS ROM for font data.
+ * Video BIOS ROM is typically at 0xC0000-0xC7FFF (32KB).
+ * Returns TRUE if font found and copied.
+ */
+static BOOLEAN
+Pcga_ScanVideoBiosRom(
+    OUT UINT8 *FontBuffer,
+    IN UINT32 CharHeight
+    )
+{
+    UINT32 RequiredSize = 256 * CharHeight;
+    CONST UINT8 *RomBase;
+    UINT32 SearchEnd;
+
+    /* Try to access Video BIOS ROM at 0xC0000 */
+    /* NOTE: This may fail if the ROM region is not mapped in page tables */
+    RomBase = (CONST UINT8 *)(UINTN)VIDEO_BIOS_ROM_BASE;
+
+    /* Check if ROM is accessible by testing for VGA BIOS signature */
+    /* VGA BIOS starts with: 0x55 0xAA (ROM signature) */
+    if (RomBase[0] != 0x55 || RomBase[1] != 0xAA) {
+        /* ROM not accessible or not a valid BIOS ROM */
+        return FALSE;
+    }
+
+    /* Scan ROM for font data
+     * Fonts are usually 16-byte aligned within the ROM
+     * Search from offset 0x1000 to avoid BIOS code at the start
+     */
+    SearchEnd = VIDEO_BIOS_ROM_SIZE - RequiredSize;
+
+    for (UINT32 Offset = 0x1000; Offset < SearchEnd; Offset += 16) {
+        CONST UINT8 *Candidate = &RomBase[Offset];
+
+        /* Check if this looks like valid font data */
+        if (Pcga_IsValidFontData(Candidate, CharHeight)) {
+            /* Found likely font data, copy it */
+            ANX_MEMCPY(FontBuffer, Candidate, RequiredSize);
+            return TRUE;
         }
     }
 
-    return FontAddress;
+    /* Font not found in ROM */
+    return FALSE;
 }
 
 /*
@@ -909,11 +1005,15 @@ Pcga_DetectAdapter(
 }
 
 /*
- * Extract font from BIOS ROM using IVT vectors.
- * CGA and EGA fonts are accessed via Interrupt Vector Table pointers:
- * - INT 43h points to primary font (typically 8x8)
- * - INT 44h points to secondary font (typically 8x14 on EGA)
- * - INT 1Fh points to graphics font extension (chars 128-255)
+ * Extract font using three-tier fallback strategy:
+ * 1. Try Real Mode BIOS call (INT 10h, AX=1130h) if available
+ * 2. Try scanning Video BIOS ROM at 0xC0000-0xC7FFF
+ * 3. Fall back to bundled fonts
+ *
+ * This approach works across different environments:
+ * - Real mode: Can use BIOS calls
+ * - Protected mode with ROM mapped: Can scan ROM
+ * - Long mode / UEFI: Uses bundled fonts
  */
 static VOID
 Pcga_ExtractRomFont(
@@ -922,26 +1022,35 @@ Pcga_ExtractRomFont(
     IN PCGA_ADAPTER_TYPE AdapterType
     )
 {
-    UINT32 FontAddress;
-    CONST UINT8 *RomFont;
+    CONST UINT8 *BundledFont;
 
     if (FontBuffer == NULL) {
         return;
     }
 
-    /* Get font address from IVT vectors */
-    FontAddress = Pcga_GetFontAddressFromIVT(CharHeight, AdapterType);
-
-    if (FontAddress == 0) {
-        /* Font not found in IVT, cannot extract */
-        return;
+    /* Tier 1: Try BIOS call (if real mode interface available) */
+    if (Pcga_GetFontViaBios(FontBuffer, CharHeight)) {
+        return;  /* Success */
     }
 
-    /* Convert physical address to pointer */
-    RomFont = (CONST UINT8 *)(UINTN)FontAddress;
+    /* Tier 2: Try scanning Video BIOS ROM */
+    if (Pcga_ScanVideoBiosRom(FontBuffer, CharHeight)) {
+        return;  /* Success */
+    }
 
-    /* Copy 256 characters × CharHeight bytes */
-    ANX_MEMCPY(FontBuffer, RomFont, 256 * CharHeight);
+    /* Tier 3: Fall back to bundled fonts */
+    BundledFont = NULL;
+    if (CharHeight == 8) {
+        BundledFont = gVgaFont8x8;
+    } else if (CharHeight == 14) {
+        BundledFont = gVgaFont8x14;
+    } else if (CharHeight == 16) {
+        BundledFont = gVgaFont8x16;
+    }
+
+    if (BundledFont != NULL) {
+        ANX_MEMCPY(FontBuffer, BundledFont, 256 * CharHeight);
+    }
 }
 
 /*
