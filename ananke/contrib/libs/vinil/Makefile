@@ -5,7 +5,8 @@
 CC ?= gcc
 AR = ar
 ANANKE_INC = ../../../include
-CFLAGS = -Wall -Wextra -O2 -fPIC -Iinclude -Isrc -I$(ANANKE_INC)
+SLJIT_INC = ../sljit/sljit_src
+CFLAGS = -Wall -Wextra -O2 -fPIC -Iinclude -Isrc -I$(ANANKE_INC) -I$(SLJIT_INC)
 LDFLAGS = -shared
 LIBS = -lm -lpthread
 
@@ -16,13 +17,17 @@ BUILD_DIR = build
 OBJ_DIR = $(BUILD_DIR)/obj
 LIB_DIR = $(BUILD_DIR)/lib
 
+# SLJIT
+SLJIT_SRC = ../sljit/sljit_src/sljitLir.c
+SLJIT_OBJ = $(OBJ_DIR)/sljitLir.o
+
 # Target library names
 STATIC_LIB = $(LIB_DIR)/libvinil.a
 SHARED_LIB = $(LIB_DIR)/libvinil.so
 
 # Source files
 SRCS = $(wildcard $(SRC_DIR)/*.c)
-OBJS = $(SRCS:$(SRC_DIR)/%.c=$(OBJ_DIR)/%.o)
+OBJS = $(SRCS:$(SRC_DIR)/%.c=$(OBJ_DIR)/%.o) $(SLJIT_OBJ)
 
 # Header dependencies
 HEADERS = $(wildcard $(INC_DIR)/vinil/*.h)
@@ -46,6 +51,10 @@ $(OBJ_DIR) $(LIB_DIR):
 # Compile source files
 $(OBJ_DIR)/%.o: $(SRC_DIR)/%.c $(HEADERS) | $(OBJ_DIR)
 	$(CC) $(CFLAGS) -c $< -o $@
+
+# Compile SLJIT
+$(SLJIT_OBJ): $(SLJIT_SRC) | $(OBJ_DIR)
+	$(CC) $(CFLAGS) -w -c $< -o $@
 
 # Build shared library
 $(SHARED_LIB): $(OBJS) | $(LIB_DIR)

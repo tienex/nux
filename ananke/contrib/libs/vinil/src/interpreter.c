@@ -17,37 +17,7 @@
 #include <string.h>
 #include <math.h>
 
-//
-// Register Storage
-//
-
-typedef struct _VINIL_REGISTER_VALUE {
-  union {
-    float    f[4];    /* Float vector (up to 4 components) */
-    INT32    i[4];    /* Int vector */
-    UINT32   u[4];    /* Uint vector */
-    BOOLEAN  b[4];    /* Bool vector */
-  };
-} VINIL_REGISTER_VALUE;
-
-//
-// Execution State
-//
-
-#define MAX_REGISTERS  256
-
-typedef struct _VINIL_EXECUTION_STATE {
-  VINIL_REGISTER_VALUE  Registers[MAX_REGISTERS];
-  VOID                  *Inputs;        /* Graphics mode inputs */
-  VOID                  *Outputs;       /* Graphics mode outputs */
-  UINT32                GlobalId[3];    /* Compute mode work-item ID */
-  UINT32                LocalId[3];
-  UINT32                GroupId[3];
-  UINT32                GlobalSize[3];
-  UINT32                LocalSize[3];
-  BOOLEAN               Discarded;      /* Fragment discard flag */
-  BOOLEAN               Returned;       /* Return flag */
-} VINIL_EXECUTION_STATE;
+// Execution state now defined in vinil_internal.h
 
 //
 // Context Implementation
@@ -1622,15 +1592,15 @@ Context_Release (
 // IVinilContext Implementation
 //
 
-static
+//
+// Interpreter Backend Execute (exported for dispatch)
+//
+
 HRESULT
-STDMETHODCALLTYPE
-Context_Execute (
-  IVinilContext           *This,
-  IVinilProgram           *Program,
-  VINIL_EXECUTION_BACKEND Backend,
-  VOID                    *Inputs,
-  VOID                    *Outputs
+VinilInterpreterExecute (
+  IVinilProgram  *Program,
+  VOID           *Inputs,
+  VOID           *Outputs
   )
 {
   VINIL_EXECUTION_STATE  State;
@@ -1638,11 +1608,6 @@ Context_Execute (
 
   if (Program == NULL) {
     return E_POINTER;
-  }
-
-  /* Only interpreter backend supported for now */
-  if (Backend != VinilBackendInterpreter) {
-    return E_NOTIMPL;
   }
 
   /* Initialize execution state */
@@ -1657,6 +1622,40 @@ Context_Execute (
   }
 
   return S_OK;
+}
+
+static
+HRESULT
+STDMETHODCALLTYPE
+Context_Execute (
+  IVinilContext           *This,
+  IVinilProgram           *Program,
+  VINIL_EXECUTION_BACKEND Backend,
+  VOID                    *Inputs,
+  VOID                    *Outputs
+  )
+{
+  (void)This;
+
+  if (Program == NULL) {
+    return E_POINTER;
+  }
+
+  /* Dispatch to appropriate backend */
+  switch (Backend) {
+    case VinilBackendInterpreter:
+      return VinilInterpreterExecute (Program, Inputs, Outputs);
+
+    case VinilBackendJit:
+      return VinilJitExecute (Program, Inputs, Outputs);
+
+    case VinilBackendAot:
+      /* AOT requires pre-compiled code */
+      return E_NOTIMPL;
+
+    default:
+      return E_INVALIDARG;
+  }
 }
 
 static

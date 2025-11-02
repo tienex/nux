@@ -141,3 +141,90 @@ VinilBlockCreate (
   UINT32       Id,
   IVinilBlock  **Block
   );
+
+//
+// Execution State (shared between interpreter and JIT)
+//
+
+typedef struct {
+  union {
+    float    f[4];    /* Float vector (up to 4 components) */
+    INT32    i[4];    /* Int vector */
+    UINT32   u[4];    /* Uint vector */
+    BOOLEAN  b[4];    /* Bool vector */
+  };
+} VINIL_REGISTER_VALUE;
+
+#define MAX_REGISTERS  256
+
+typedef struct _VINIL_EXECUTION_STATE {
+  VINIL_REGISTER_VALUE  Registers[MAX_REGISTERS];
+  VOID                  *Inputs;        /* Graphics mode inputs */
+  VOID                  *Outputs;       /* Graphics mode outputs */
+  UINT32                GlobalId[3];    /* Compute mode work-item ID */
+  UINT32                LocalId[3];
+  UINT32                GroupId[3];
+  UINT32                GlobalSize[3];
+  UINT32                LocalSize[3];
+  UINT32                NumGroups[3];
+  BOOLEAN               Discarded;      /* Fragment discard flag */
+  BOOLEAN               Returned;       /* Return flag */
+} VINIL_EXECUTION_STATE;
+
+//
+// Backend Execution Functions
+//
+
+/**
+  Execute program using interpreter backend (internal).
+
+  @param[in]  Program  IL program to execute.
+  @param[in]  Inputs   Input data array.
+  @param[in]  Outputs  Output data array.
+
+  @retval  S_OK       Success.
+  @retval  E_POINTER  Invalid pointer.
+  @retval  E_FAIL     Execution failed.
+**/
+HRESULT
+VinilInterpreterExecute (
+  IVinilProgram  *Program,
+  VOID           *Inputs,
+  VOID           *Outputs
+  );
+
+/**
+  Execute program using JIT backend (internal).
+
+  @param[in]  Program  IL program to execute.
+  @param[in]  Inputs   Input data array.
+  @param[in]  Outputs  Output data array.
+
+  @retval  S_OK       Success.
+  @retval  E_POINTER  Invalid pointer.
+  @retval  E_FAIL     Execution failed.
+**/
+HRESULT
+VinilJitExecute (
+  IVinilProgram  *Program,
+  VOID           *Inputs,
+  VOID           *Outputs
+  );
+
+/**
+  Compile program to native code using JIT (internal).
+
+  @param[in]   Program   IL program to compile.
+  @param[out]  CodePtr   Pointer to generated code.
+  @param[out]  CodeSize  Size of generated code in bytes.
+
+  @retval  S_OK       Success.
+  @retval  E_POINTER  Invalid pointer.
+  @retval  E_FAIL     Compilation failed.
+**/
+HRESULT
+VinilJitCompileProgram (
+  IVinilProgram  *Program,
+  VOID           **CodePtr,
+  UINTN          *CodeSize
+  );
