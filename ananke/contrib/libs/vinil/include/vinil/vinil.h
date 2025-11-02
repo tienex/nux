@@ -40,8 +40,8 @@ typedef struct IVinilProgram IVinilProgram;
 //
 
 typedef enum _VINIL_EXECUTION_MODE {
-    VINIL_EXECUTION_MODE_GRAPHICS = 0,
-    VINIL_EXECUTION_MODE_COMPUTE  = 1,
+    VinilExecutionModeGraphics = 0,
+    VinilExecutionModeCompute  = 1,
 } VINIL_EXECUTION_MODE;
 
 //
@@ -49,9 +49,9 @@ typedef enum _VINIL_EXECUTION_MODE {
 //
 
 typedef enum _VINIL_EXECUTION_BACKEND {
-    VINIL_BACKEND_INTERPRETER = 0,  /* Software interpreter */
-    VINIL_BACKEND_JIT         = 1,  /* JIT compiler */
-    VINIL_BACKEND_AOT         = 2,  /* Pre-compiled native */
+    VinilBackendInterpreter = 0,  /* Software interpreter */
+    VinilBackendJit         = 1,  /* JIT compiler */
+    VinilBackendAot         = 2,  /* Pre-compiled native */
 } VINIL_EXECUTION_BACKEND;
 
 //

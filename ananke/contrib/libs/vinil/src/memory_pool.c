@@ -184,7 +184,7 @@ MemoryPool_Allocate (
 
     Page = (MEMORY_PAGE *)malloc(sizeof(MEMORY_PAGE));
     if (Page == NULL) {
-        VINIL_ERROR(Pool->ErrorSink, VINIL_ERROR_CATEGORY_MEMORY, E_OUTOFMEMORY,
+        VINIL_ERROR(Pool->ErrorSink, VinilErrorCategoryMemory, E_OUTOFMEMORY,
                     "Failed to allocate memory page structure");
         return E_OUTOFMEMORY;
     }
@@ -192,7 +192,7 @@ MemoryPool_Allocate (
     Page->Data = (UINT8 *)malloc(PageSize);
     if (Page->Data == NULL) {
         free(Page);
-        VINIL_ERROR(Pool->ErrorSink, VINIL_ERROR_CATEGORY_MEMORY, E_OUTOFMEMORY,
+        VINIL_ERROR(Pool->ErrorSink, VinilErrorCategoryMemory, E_OUTOFMEMORY,
                     "Failed to allocate memory page data");
         return E_OUTOFMEMORY;
     }

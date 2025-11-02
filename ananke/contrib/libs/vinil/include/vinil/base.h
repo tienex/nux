@@ -20,11 +20,11 @@
 //
 
 typedef enum _VINIL_STATUS {
-    VINIL_STATUS_SUCCESS          = 0,
-    VINIL_STATUS_INVALID_ARG      = 1,
-    VINIL_STATUS_OUT_OF_MEMORY    = 2,
-    VINIL_STATUS_NOT_FOUND        = 3,
-    VINIL_STATUS_NOT_IMPLEMENTED  = 4,
+    VinilStatusSuccess         = 0,
+    VinilStatusInvalidArg      = 1,
+    VinilStatusOutOfMemory     = 2,
+    VinilStatusNotFound        = 3,
+    VinilStatusNotImplemented  = 4,
 } VINIL_STATUS;
 
 //
@@ -38,10 +38,10 @@ typedef struct _VINIL_MEMORY_POOL VINIL_MEMORY_POOL;
 //
 
 typedef enum _VINIL_PRECISION {
-    VINIL_PRECISION_UNDEFINED,  /* No precision (e.g., void, bool) */
-    VINIL_PRECISION_LOW,
-    VINIL_PRECISION_MEDIUM,
-    VINIL_PRECISION_HIGH,
+    VinilPrecisionUndefined,  /* No precision (e.g., void, bool) */
+    VinilPrecisionLow,
+    VinilPrecisionMedium,
+    VinilPrecisionHigh,
 } VINIL_PRECISION;
 
 //
@@ -49,8 +49,8 @@ typedef enum _VINIL_PRECISION {
 //
 
 typedef enum _VINIL_ADDRESS_SPACE {
-    VINIL_ADDRESS_SPACE_PRIVATE,     /* Per work-item, registers/stack */
-    VINIL_ADDRESS_SPACE_GLOBAL,      /* All work-items, main memory */
-    VINIL_ADDRESS_SPACE_LOCAL,       /* Work-group shared memory */
-    VINIL_ADDRESS_SPACE_CONSTANT,    /* Read-only global memory */
+    VinilAddressSpacePrivate,   /* Per work-item, registers/stack */
+    VinilAddressSpaceGlobal,    /* All work-items, main memory */
+    VinilAddressSpaceLocal,     /* Work-group shared memory */
+    VinilAddressSpaceConstant,  /* Read-only global memory */
 } VINIL_ADDRESS_SPACE;

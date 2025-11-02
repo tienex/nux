@@ -26,10 +26,10 @@ ANX_DEFINE_GUID(IID_IVinilDiagnosticSink, 0xA0123456, 0xA012, 0xA012, 0xA0, 0x12
 //
 
 typedef enum _VINIL_ERROR_SEVERITY {
-    VINIL_ERROR_SEVERITY_INFO       = 0,
-    VINIL_ERROR_SEVERITY_WARNING    = 1,
-    VINIL_ERROR_SEVERITY_ERROR      = 2,
-    VINIL_ERROR_SEVERITY_FATAL      = 3,
+    VinilErrorSeverityInfo     = 0,
+    VinilErrorSeverityWarning  = 1,
+    VinilErrorSeverityError    = 2,
+    VinilErrorSeverityFatal    = 3,
 } VINIL_ERROR_SEVERITY;
 
 //
@@ -37,11 +37,11 @@ typedef enum _VINIL_ERROR_SEVERITY {
 //
 
 typedef enum _VINIL_ERROR_CATEGORY {
-    VINIL_ERROR_CATEGORY_MEMORY         = 0,
-    VINIL_ERROR_CATEGORY_COMPILATION    = 1,
-    VINIL_ERROR_CATEGORY_EXECUTION      = 2,
-    VINIL_ERROR_CATEGORY_VALIDATION     = 3,
-    VINIL_ERROR_CATEGORY_INTERNAL       = 4,
+    VinilErrorCategoryMemory       = 0,
+    VinilErrorCategoryCompilation  = 1,
+    VinilErrorCategoryExecution    = 2,
+    VinilErrorCategoryValidation   = 3,
+    VinilErrorCategoryInternal     = 4,
 } VINIL_ERROR_CATEGORY;
 
 //
@@ -95,14 +95,14 @@ ANX_END_INTERFACE(IVinilErrorSink, IID_IVinilErrorSink)
 //
 
 typedef enum _VINIL_DIAGNOSTIC_EVENT {
-    VINIL_DIAGNOSTIC_EVENT_COMPILATION_START    = 0,
-    VINIL_DIAGNOSTIC_EVENT_COMPILATION_END      = 1,
-    VINIL_DIAGNOSTIC_EVENT_EXECUTION_START      = 2,
-    VINIL_DIAGNOSTIC_EVENT_EXECUTION_END        = 3,
-    VINIL_DIAGNOSTIC_EVENT_JIT_START            = 4,
-    VINIL_DIAGNOSTIC_EVENT_JIT_END              = 5,
-    VINIL_DIAGNOSTIC_EVENT_MEMORY_ALLOCATION    = 6,
-    VINIL_DIAGNOSTIC_EVENT_MEMORY_RELEASE       = 7,
+    VinilDiagnosticEventCompilationStart   = 0,
+    VinilDiagnosticEventCompilationEnd     = 1,
+    VinilDiagnosticEventExecutionStart     = 2,
+    VinilDiagnosticEventExecutionEnd       = 3,
+    VinilDiagnosticEventJitStart           = 4,
+    VinilDiagnosticEventJitEnd             = 5,
+    VinilDiagnosticEventMemoryAllocation   = 6,
+    VinilDiagnosticEventMemoryRelease      = 7,
 } VINIL_DIAGNOSTIC_EVENT;
 
 typedef struct _VINIL_DIAGNOSTIC_INFO {
@@ -171,10 +171,10 @@ VinilReportError (
 //
 
 #define VINIL_ERROR(Sink, Category, Code, Message) \
-    VinilReportError((Sink), VINIL_ERROR_SEVERITY_ERROR, (Category), (Code), (Message), __FILE__, __LINE__)
+    VinilReportError((Sink), VinilErrorSeverityError, (Category), (Code), (Message), __FILE__, __LINE__)
 
 #define VINIL_WARNING(Sink, Category, Code, Message) \
-    VinilReportError((Sink), VINIL_ERROR_SEVERITY_WARNING, (Category), (Code), (Message), __FILE__, __LINE__)
+    VinilReportError((Sink), VinilErrorSeverityWarning, (Category), (Code), (Message), __FILE__, __LINE__)
 
 #define VINIL_FATAL(Sink, Category, Code, Message) \
-    VinilReportError((Sink), VINIL_ERROR_SEVERITY_FATAL, (Category), (Code), (Message), __FILE__, __LINE__)
+    VinilReportError((Sink), VinilErrorSeverityFatal, (Category), (Code), (Message), __FILE__, __LINE__)

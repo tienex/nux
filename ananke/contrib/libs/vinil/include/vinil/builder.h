@@ -24,15 +24,15 @@ ANX_DEFINE_GUID(IID_IVinilBuilder, 0x78901234, 0x7890, 0x7890, 0x78, 0x90, 0x12,
 //
 
 typedef enum _VINIL_VARIABLE_TYPE {
-    VINIL_VARIABLE_TYPE_FLOAT    = 0,
-    VINIL_VARIABLE_TYPE_FLOAT2   = 1,
-    VINIL_VARIABLE_TYPE_FLOAT3   = 2,
-    VINIL_VARIABLE_TYPE_FLOAT4   = 3,
-    VINIL_VARIABLE_TYPE_INT      = 4,
-    VINIL_VARIABLE_TYPE_INT2     = 5,
-    VINIL_VARIABLE_TYPE_INT3     = 6,
-    VINIL_VARIABLE_TYPE_INT4     = 7,
-    VINIL_VARIABLE_TYPE_MAT4     = 8,
+    VinilVariableTypeFloat    = 0,
+    VinilVariableTypeFloat2   = 1,
+    VinilVariableTypeFloat3   = 2,
+    VinilVariableTypeFloat4   = 3,
+    VinilVariableTypeInt      = 4,
+    VinilVariableTypeInt2     = 5,
+    VinilVariableTypeInt3     = 6,
+    VinilVariableTypeInt4     = 7,
+    VinilVariableTypeMat4     = 8,
 } VINIL_VARIABLE_TYPE;
 
 //
