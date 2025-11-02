@@ -8,6 +8,7 @@
   SPDX-License-Identifier:    CDDL-1.0
 **/
 
+#define COBJMACROS
 #include <vinil/vinil.h>
 #include <vinil/il.h>
 #include <vinil/memory.h>
@@ -172,7 +173,7 @@ VinilProgramCreate (
   ProgramImpl->InstructionCount = 0;
 
   /* AddRef memory pool */
-  MemoryPool->lpVtbl->AddRef (MemoryPool);
+  IVinilMemoryPool_AddRef (MemoryPool);
 
   *Program = (IVinilProgram *)ProgramImpl;
   return S_OK;
@@ -219,16 +220,16 @@ VinilProgramAddInstruction (
 
   /* AddRef all variables */
   if (Dst != NULL) {
-    Dst->lpVtbl->AddRef (Dst);
+    IVinilMemoryPool_AddRef (Dst);
   }
   if (Src0 != NULL) {
-    Src0->lpVtbl->AddRef (Src0);
+    IVinilMemoryPool_AddRef (Src0);
   }
   if (Src1 != NULL) {
-    Src1->lpVtbl->AddRef (Src1);
+    IVinilMemoryPool_AddRef (Src1);
   }
   if (Src2 != NULL) {
-    Src2->lpVtbl->AddRef (Src2);
+    IVinilMemoryPool_AddRef (Src2);
   }
 
   /* Append to instruction list */

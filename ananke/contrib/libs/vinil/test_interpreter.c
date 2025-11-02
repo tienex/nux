@@ -8,6 +8,7 @@
   SPDX-License-Identifier:    CDDL-1.0
 **/
 
+#define COBJMACROS
 #include <vinil/vinil.h>
 #include <vinil/builder.h>
 #include <stdio.h>
@@ -40,19 +41,19 @@ main (
 
   /* Test 2: Create variables */
   printf ("Creating variables...\n");
-  Result = Builder->lpVtbl->CreateVariable (Builder, VinilVariableTypeFloat4, (CONST CHAR8 *)"a", &A);
+  Result = IVinilBuilder_CreateVariable (Builder, VinilVariableTypeFloat4, (CONST CHAR8 *)"a", &A);
   if (FAILED (Result)) {
     printf ("FAILED: CreateVariable(A) returned 0x%X\n", Result);
     goto cleanup;
   }
 
-  Result = Builder->lpVtbl->CreateVariable (Builder, VinilVariableTypeFloat4, (CONST CHAR8 *)"b", &B);
+  Result = IVinilBuilder_CreateVariable (Builder, VinilVariableTypeFloat4, (CONST CHAR8 *)"b", &B);
   if (FAILED (Result)) {
     printf ("FAILED: CreateVariable(B) returned 0x%X\n", Result);
     goto cleanup;
   }
 
-  Result = Builder->lpVtbl->CreateVariable (Builder, VinilVariableTypeFloat4, (CONST CHAR8 *)"c", &C);
+  Result = IVinilBuilder_CreateVariable (Builder, VinilVariableTypeFloat4, (CONST CHAR8 *)"c", &C);
   if (FAILED (Result)) {
     printf ("FAILED: CreateVariable(C) returned 0x%X\n", Result);
     goto cleanup;
@@ -61,13 +62,13 @@ main (
 
   /* Test 3: Build program (c = a + b) */
   printf ("Building program: c = a + b...\n");
-  Result = Builder->lpVtbl->BuildAdd (Builder, C, A, B);
+  Result = IVinilBuilder_BuildAdd (Builder, C, A, B);
   if (FAILED (Result)) {
     printf ("FAILED: BuildAdd returned 0x%X\n", Result);
     goto cleanup;
   }
 
-  Result = Builder->lpVtbl->BuildRet (Builder);
+  Result = IVinilBuilder_BuildRet (Builder);
   if (FAILED (Result)) {
     printf ("FAILED: BuildRet returned 0x%X\n", Result);
     goto cleanup;
@@ -76,7 +77,7 @@ main (
 
   /* Test 4: Finalize program */
   printf ("Finalizing program...\n");
-  Result = Builder->lpVtbl->Finalize (Builder, &Program);
+  Result = IVinilBuilder_Finalize (Builder, &Program);
   if (FAILED (Result)) {
     printf ("FAILED: Finalize returned 0x%X\n", Result);
     goto cleanup;
@@ -94,7 +95,7 @@ main (
 
   /* Test 6: Execute program */
   printf ("Executing program with interpreter backend...\n");
-  Result = Context->lpVtbl->Execute (Context, Program, VinilBackendInterpreter, NULL, NULL);
+  Result = IVinilContext_Execute (Context, Program, VinilBackendInterpreter, NULL, NULL);
   if (FAILED (Result)) {
     printf ("FAILED: Execute returned 0x%X\n", Result);
     goto cleanup;
@@ -133,22 +134,22 @@ main (
 
 cleanup:
   if (Context != NULL) {
-    Context->lpVtbl->Release (Context);
+    IVinilContext_Release (Context);
   }
   if (Program != NULL) {
-    Program->lpVtbl->Release (Program);
+    IVinilProgram_Release (Program);
   }
   if (C != NULL) {
-    C->lpVtbl->Release (C);
+    IVinilVariable_Release (C);
   }
   if (B != NULL) {
-    B->lpVtbl->Release (B);
+    IVinilVariable_Release (B);
   }
   if (A != NULL) {
-    A->lpVtbl->Release (A);
+    IVinilVariable_Release (A);
   }
   if (Builder != NULL) {
-    Builder->lpVtbl->Release (Builder);
+    IVinilBuilder_Release (Builder);
   }
 
   return SUCCEEDED (Result) ? 0 : 1;

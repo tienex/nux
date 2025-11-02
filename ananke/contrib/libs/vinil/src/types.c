@@ -10,6 +10,7 @@
   SPDX-License-Identifier:    CDDL-1.0
 **/
 
+#define COBJMACROS
 #include <vinil/types.h>
 #include <stdlib.h>
 #include <string.h>
@@ -517,7 +518,7 @@ VinilCreateArrayType (
   TypeImpl->NumElements = NumElements;
 
   /* AddRef element type */
-  ElementType->lpVtbl->AddRef (ElementType);
+  IVinilMemoryPool_AddRef (ElementType);
 
   *ArrayType = (IVinilType *)TypeImpl;
   return S_OK;
@@ -552,7 +553,7 @@ VinilCreatePointerType (
   TypeImpl->AddressSpace = AddrSpace;
 
   /* AddRef pointee type */
-  PointeeType->lpVtbl->AddRef (PointeeType);
+  IVinilMemoryPool_AddRef (PointeeType);
 
   *PointerType = (IVinilType *)TypeImpl;
   return S_OK;

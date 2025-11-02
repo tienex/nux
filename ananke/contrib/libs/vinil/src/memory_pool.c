@@ -10,6 +10,7 @@
   SPDX-License-Identifier:    CDDL-1.0
 **/
 
+#define COBJMACROS
 #include <vinil/memory.h>
 #include <vinil/error.h>
 #include <stdlib.h>

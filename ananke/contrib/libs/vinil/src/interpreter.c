@@ -8,6 +8,7 @@
   SPDX-License-Identifier:    CDDL-1.0
 **/
 
+#define COBJMACROS
 #include <vinil/vinil.h>
 #include <vinil/il.h>
 #include <vinil/types.h>
@@ -97,7 +98,7 @@ GetRegister (
     return NULL;
   }
 
-  Result = Variable->lpVtbl->GetId (Variable, &Id);
+  Result = IVinilVariable_GetId (Variable, &Id);
   if (FAILED (Result) || Id >= MAX_REGISTERS) {
     return NULL;
   }

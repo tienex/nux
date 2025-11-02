@@ -8,6 +8,7 @@
   SPDX-License-Identifier:    CDDL-1.0
 **/
 
+#define COBJMACROS
 #include <vinil/il.h>
 #include <vinil/types.h>
 #include <stdlib.h>
@@ -329,7 +330,7 @@ VinilVariableCreate (
   }
 
   /* AddRef type */
-  Type->lpVtbl->AddRef (Type);
+  IVinilMemoryPool_AddRef (Type);
 
   *Variable = (IVinilVariable *)VariableImpl;
   return S_OK;

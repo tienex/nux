@@ -8,6 +8,7 @@
   SPDX-License-Identifier:    CDDL-1.0
 **/
 
+#define COBJMACROS
 #include <vinil/vinil.h>
 #include <vinil/binary.h>
 #include <vinil/il.h>
@@ -147,25 +148,25 @@ VinilSerializeProgram (
 
     /* Get variable IDs */
     if (Inst->Dst != NULL) {
-      Inst->Dst->lpVtbl->GetId (Inst->Dst, &SerializedInst[i].DstId);
+      IVinilVariable_GetId (Inst->Dst, &SerializedInst[i].DstId);
     } else {
       SerializedInst[i].DstId = 0xFFFFFFFF;
     }
 
     if (Inst->Src[0] != NULL) {
-      Inst->Src[0]->lpVtbl->GetId (Inst->Src[0], &SerializedInst[i].Src0Id);
+      IVinilVariable_GetId (Inst->Src[0], &SerializedInst[i].Src0Id);
     } else {
       SerializedInst[i].Src0Id = 0xFFFFFFFF;
     }
 
     if (Inst->Src[1] != NULL) {
-      Inst->Src[1]->lpVtbl->GetId (Inst->Src[1], &SerializedInst[i].Src1Id);
+      IVinilVariable_GetId (Inst->Src[1], &SerializedInst[i].Src1Id);
     } else {
       SerializedInst[i].Src1Id = 0xFFFFFFFF;
     }
 
     if (Inst->Src[2] != NULL) {
-      Inst->Src[2]->lpVtbl->GetId (Inst->Src[2], &SerializedInst[i].Src2Id);
+      IVinilVariable_GetId (Inst->Src[2], &SerializedInst[i].Src2Id);
     } else {
       SerializedInst[i].Src2Id = 0xFFFFFFFF;
     }
@@ -246,7 +247,7 @@ VinilDeserializeProgram (
 
   Result = VinilProgramCreate (Mode, MemoryPool, &Program);
   if (FAILED (Result)) {
-    MemoryPool->lpVtbl->Release (MemoryPool);
+    IVinilMemoryPool_Release (MemoryPool);
     return Result;
   }
 
@@ -270,8 +271,8 @@ VinilDeserializeProgram (
   /* Create variables array */
   Variables = (IVinilVariable **)malloc ((MaxVariableId + 1) * sizeof (IVinilVariable *));
   if (Variables == NULL) {
-    Program->lpVtbl->Release (Program);
-    MemoryPool->lpVtbl->Release (MemoryPool);
+    IVinilProgram_Release (Program);
+    IVinilMemoryPool_Release (MemoryPool);
     return E_OUTOFMEMORY;
   }
 
@@ -291,7 +292,7 @@ VinilDeserializeProgram (
     }
 
     Result = VinilVariableCreate (Type, Name, i, &Variables[i]);
-    Type->lpVtbl->Release (Type);
+    IVinilType_Release (Type);
 
     if (FAILED (Result)) {
       goto cleanup;
@@ -327,24 +328,24 @@ VinilDeserializeProgram (
   /* Clean up variables array */
   for (i = 0; i <= MaxVariableId; i++) {
     if (Variables[i] != NULL) {
-      Variables[i]->lpVtbl->Release (Variables[i]);
+      IVinilVariable_Release (Variables[i]);
     }
   }
   free (Variables);
 
-  MemoryPool->lpVtbl->Release (MemoryPool);
+  IVinilMemoryPool_Release (MemoryPool);
   *ProgramPtr = Program;
   return S_OK;
 
 cleanup:
   for (i = 0; i <= MaxVariableId; i++) {
     if (Variables[i] != NULL) {
-      Variables[i]->lpVtbl->Release (Variables[i]);
+      IVinilVariable_Release (Variables[i]);
     }
   }
   free (Variables);
-  Program->lpVtbl->Release (Program);
-  MemoryPool->lpVtbl->Release (MemoryPool);
+  IVinilProgram_Release (Program);
+  IVinilMemoryPool_Release (MemoryPool);
   return Result;
 }
 
