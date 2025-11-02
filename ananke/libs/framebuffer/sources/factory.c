@@ -23,17 +23,21 @@ FbCreateBackend(
         case FbBackendHercules:
             return FbCreateHerculesBackend();
 
+        /* VGA16, VESA Linear, and VESA Banked are all handled by the
+         * unified PC Graphics backend which supports all PC-compatible
+         * graphics modes (CGA, EGA, VGA, SVGA, VESA) through the
+         * FRAMEBUFFER_DESC memory organization descriptor. */
         case FbBackendVga16:
-            return FbCreateVga16Backend();
-
         case FbBackendVesaLinear:
-            return FbCreateVesaLinearBackend();
-
         case FbBackendVesaBanked:
-            return FbCreateVesaBankedBackend();
+        case FbBackendPcGraphics:
+            return FbCreatePcGraphicsBackend();
 
         case FbBackendUefiGop:
             return FbCreateUefiGopBackend();
+
+        case FbBackendUefiUga:
+            return FbCreateUefiUgaBackend();
 
         case FbBackendAppleEfi:
             return FbCreateAppleEfiBackend();

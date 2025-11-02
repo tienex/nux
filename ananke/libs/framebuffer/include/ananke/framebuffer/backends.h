@@ -31,6 +31,7 @@ typedef enum _FB_BACKEND_TYPE {
     /* IBM PC graphics adapters */
     FbBackendPcGraphics     = 10, /* Unified PC graphics (CGA/EGA/VGA/SVGA/XGA) */
     FbBackendHercules       = 11, /* Hercules Graphics Card (720x348, 1BPP) */
+    FbBackendVga16          = 12, /* VGA 16-color (alias for PcGraphics) */
 
     /* Apple platforms */
     FbBackendAppleEfi       = 20, /* Apple EFI framebuffer */
@@ -89,7 +90,8 @@ FbCreateHerculesBackend(
 
 /*
  * Create a VGA 16-color planar mode backend.
- * Supports standard VGA graphics modes (640x480x16, etc.).
+ * NOTE: This now returns a PC Graphics backend instance.
+ * The PC Graphics backend handles all VGA modes through FRAMEBUFFER_DESC.
  */
 IFramebufferBackend *
 FbCreateVga16Backend(
@@ -98,7 +100,8 @@ FbCreateVga16Backend(
 
 /*
  * Create a VESA linear framebuffer backend.
- * For VESA 2.0+ linear framebuffer modes (LFB).
+ * NOTE: This now returns a PC Graphics backend instance.
+ * The PC Graphics backend handles all VESA modes through FRAMEBUFFER_DESC.
  */
 IFramebufferBackend *
 FbCreateVesaLinearBackend(
@@ -107,7 +110,8 @@ FbCreateVesaLinearBackend(
 
 /*
  * Create a VESA banked/segmented framebuffer backend.
- * For VESA 1.x/2.0 banked modes with 64KB window.
+ * NOTE: This now returns a PC Graphics backend instance.
+ * The PC Graphics backend handles all VESA modes through FRAMEBUFFER_DESC.
  */
 IFramebufferBackend *
 FbCreateVesaBankedBackend(
@@ -116,7 +120,7 @@ FbCreateVesaBankedBackend(
 
 /*
  * Set the bank switching function for VESA banked backend.
- * Must be called after backend creation.
+ * This delegates to FbPcGraphicsSetBankFunction().
  */
 VOID
 FbVesaBankedSetBankFunction(
