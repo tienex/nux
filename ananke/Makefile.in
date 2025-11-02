@@ -39,9 +39,18 @@ SRCS += libs/framebuffer/sources/dither.c \
         libs/framebuffer/sources/fonts/8x16.c \
         libs/framebuffer/sources/fonts/scrawl.c
 
+# D3D9 library sources
+SRCS += libs/d3d9/sources/gles20com/gldevice.c \
+        libs/d3d9/sources/d3d9/d3d9main.c \
+        libs/d3d9/sources/d3d9/resources.c \
+        libs/d3d9/sources/d3d9/shader.c \
+        libs/d3d9/sources/d3d9/statemanager.c
+
 # Include directories
 CFLAGS += -I$(SRCDIR)/include
 CFLAGS += -I$(SRCDIR)/libs/framebuffer/include
+CFLAGS += -I$(SRCDIR)/libs/d3d9/include
+CFLAGS += -I$(SRCDIR)/contrib/libs/gles20/public
 
 # Headers to install
 INCDIR=include/ananke
@@ -49,3 +58,4 @@ INCS += $(wildcard include/ananke/*.h)
 INCS += $(wildcard include/ananke/ntrtl/*.h)
 INCS += $(wildcard libs/framebuffer/include/ananke/*.h)
 INCS += $(wildcard libs/framebuffer/include/ananke/framebuffer/*.h)
+INCS += $(wildcard libs/d3d9/include/ananke/*.h)

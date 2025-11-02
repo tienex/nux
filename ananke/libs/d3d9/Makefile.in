@@ -1,0 +1,23 @@
+LIBDIR=d3d9
+LIBRARY=d3d9
+
+# GLES20 COM wrapper sources
+SRCS  = sources/gles20com/gldevice.c
+
+# D3D9 implementation sources
+SRCS += sources/d3d9/d3d9main.c
+SRCS += sources/d3d9/resources.c
+SRCS += sources/d3d9/shader.c
+SRCS += sources/d3d9/statemanager.c
+
+# Include directories
+CFLAGS += -I$(SRCDIR)/include
+CFLAGS += -I$(TOPDIR)/ananke/include
+CFLAGS += -I$(TOPDIR)/ananke/contrib/libs/gles20/public
+CFLAGS += -I$(SRCDIR)/sources/d3d9
+
+# Headers to install
+INCDIR=ananke
+INCS += $(wildcard include/ananke/*.h)
+
+include $(TOPDIR)/build/Rules.mk
