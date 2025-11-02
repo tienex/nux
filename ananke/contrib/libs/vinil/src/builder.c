@@ -1,587 +1,480 @@
-/*++
-    Module Name:
+/** @file
+  VINIL IL Builder COM Implementation
 
-        builder.c
+  Production builder for programmatically constructing IL programs.
+  Provides high-level API matching builder.h interface.
 
-    Abstract:
+  Copyright (C) 2025 NUX Project
 
-        VINIL IL program builder implementation.
-        Provides high-level API for constructing IL programs programmatically.
-
-    Copyright (C) 2025 NUX Project
-
-    SPDX-License-Identifier:    CDDL-1.0
---*/
+  SPDX-License-Identifier:    CDDL-1.0
+**/
 
 #include <vinil/builder.h>
 #include <vinil/memory.h>
-#include "il_impl.h"
-#include <stdio.h>
-#include <string.h>
+#include "vinil_internal.h"
 #include <stdlib.h>
+#include <string.h>
 
-/* --------------------------------------------------------------- */
-/*  Builder Structure                                              */
-/* --------------------------------------------------------------- */
+//
+// Builder Implementation
+//
 
-struct IVinilBuilder {
-    vinil_program_impl  *Program;
-    vinil_block         *CurrentBlock;
+typedef struct _VINIL_BUILDER_IMPL {
+  IVinilBuilderVtbl   *lpVtbl;
+  UINT32              RefCount;
+  IVinilMemoryPool    *MemoryPool;
+  IVinilProgram       *Program;
+  IVinilBlock         *CurrentBlock;
+  UINT32              NextVariableId;
+  UINT32              NextBlockId;
+  VINIL_EXECUTION_MODE Mode;
+} VINIL_BUILDER_IMPL;
+
+//
+// Forward Declarations
+//
+
+static HRESULT STDMETHODCALLTYPE Builder_QueryInterface (IVinilBuilder *This, REFIID riid, void **ppvObject);
+static UINT32 STDMETHODCALLTYPE Builder_AddRef (IVinilBuilder *This);
+static UINT32 STDMETHODCALLTYPE Builder_Release (IVinilBuilder *This);
+static HRESULT STDMETHODCALLTYPE Builder_CreateVariable (IVinilBuilder *This, VINIL_VARIABLE_TYPE Type, CONST CHAR8 *Name, IVinilVariable **Variable);
+static HRESULT STDMETHODCALLTYPE Builder_CreateBlock (IVinilBuilder *This, IVinilBlock **Block);
+static HRESULT STDMETHODCALLTYPE Builder_SetInsertBlock (IVinilBuilder *This, IVinilBlock *Block);
+static HRESULT STDMETHODCALLTYPE Builder_BuildAdd (IVinilBuilder *This, IVinilVariable *Dst, IVinilVariable *Src1, IVinilVariable *Src2);
+static HRESULT STDMETHODCALLTYPE Builder_BuildSub (IVinilBuilder *This, IVinilVariable *Dst, IVinilVariable *Src1, IVinilVariable *Src2);
+static HRESULT STDMETHODCALLTYPE Builder_BuildMul (IVinilBuilder *This, IVinilVariable *Dst, IVinilVariable *Src1, IVinilVariable *Src2);
+static HRESULT STDMETHODCALLTYPE Builder_BuildMad (IVinilBuilder *This, IVinilVariable *Dst, IVinilVariable *Src1, IVinilVariable *Src2, IVinilVariable *Src3);
+static HRESULT STDMETHODCALLTYPE Builder_BuildMov (IVinilBuilder *This, IVinilVariable *Dst, IVinilVariable *Src);
+static HRESULT STDMETHODCALLTYPE Builder_BuildDp3 (IVinilBuilder *This, IVinilVariable *Dst, IVinilVariable *Src1, IVinilVariable *Src2);
+static HRESULT STDMETHODCALLTYPE Builder_BuildDp4 (IVinilBuilder *This, IVinilVariable *Dst, IVinilVariable *Src1, IVinilVariable *Src2);
+static HRESULT STDMETHODCALLTYPE Builder_BuildRet (void *This);
+static HRESULT STDMETHODCALLTYPE Builder_Finalize (IVinilBuilder *This, IVinilProgram **Program);
+
+//
+// Vtable
+//
+
+static IVinilBuilderVtbl gBuilderVtbl = {
+  Builder_QueryInterface,
+  Builder_AddRef,
+  Builder_Release,
+  Builder_CreateVariable,
+  Builder_CreateBlock,
+  Builder_SetInsertBlock,
+  Builder_BuildAdd,
+  Builder_BuildSub,
+  Builder_BuildMul,
+  Builder_BuildMad,
+  Builder_BuildMov,
+  Builder_BuildDp3,
+  Builder_BuildDp4,
+  Builder_BuildRet,
+  Builder_Finalize
 };
 
-/* --------------------------------------------------------------- */
-/*  Builder Creation/Destruction                                   */
-/* --------------------------------------------------------------- */
+//
+// IUnknown Implementation
+//
+
+static
+HRESULT
+STDMETHODCALLTYPE
+Builder_QueryInterface (
+  IVinilBuilder  *This,
+  REFIID         riid,
+  void           **ppvObject
+  )
+{
+  if (ppvObject == NULL) {
+    return E_POINTER;
+  }
+
+  if (IsEqualGUID (*riid, IID_IUnknown) ||
+      IsEqualGUID (*riid, IID_IVinilBuilder))
+  {
+    *ppvObject = This;
+    Builder_AddRef (This);
+    return S_OK;
+  }
+
+  *ppvObject = NULL;
+  return E_NOINTERFACE;
+}
+
+static
+UINT32
+STDMETHODCALLTYPE
+Builder_AddRef (
+  IVinilBuilder  *This
+  )
+{
+  VINIL_BUILDER_IMPL  *Builder = (VINIL_BUILDER_IMPL *)This;
+  return ++Builder->RefCount;
+}
+
+static
+UINT32
+STDMETHODCALLTYPE
+Builder_Release (
+  IVinilBuilder  *This
+  )
+{
+  VINIL_BUILDER_IMPL  *Builder = (VINIL_BUILDER_IMPL *)This;
+  UINT32              RefCount;
+
+  RefCount = --Builder->RefCount;
+  if (RefCount == 0) {
+    /* Release current block */
+    if (Builder->CurrentBlock != NULL) {
+      Builder->CurrentBlock->lpVtbl->Release (Builder->CurrentBlock);
+    }
+
+    /* Release program */
+    if (Builder->Program != NULL) {
+      Builder->Program->lpVtbl->Release (Builder->Program);
+    }
+
+    /* Release memory pool */
+    if (Builder->MemoryPool != NULL) {
+      Builder->MemoryPool->lpVtbl->Release (Builder->MemoryPool);
+    }
+
+    free (Builder);
+  }
+
+  return RefCount;
+}
+
+//
+// IVinilBuilder Implementation
+//
+
+static
+HRESULT
+STDMETHODCALLTYPE
+Builder_CreateVariable (
+  IVinilBuilder        *This,
+  VINIL_VARIABLE_TYPE  Type,
+  CONST CHAR8          *Name,
+  IVinilVariable       **Variable
+  )
+{
+  VINIL_BUILDER_IMPL  *Builder = (VINIL_BUILDER_IMPL *)This;
+  IVinilType          *VarType;
+  HRESULT             Result;
+
+  if (Variable == NULL) {
+    return E_POINTER;
+  }
+
+  /* Map VINIL_VARIABLE_TYPE to IVinilType */
+  switch (Type) {
+    case VinilVariableTypeFloat:
+      Result = VinilGetBasicType (VINIL_TYPE_FLOAT, VinilPrecisionHigh, &VarType);
+      break;
+    case VinilVariableTypeFloat2:
+      Result = VinilGetBasicType (VINIL_TYPE_FLOAT_VEC2, VinilPrecisionHigh, &VarType);
+      break;
+    case VinilVariableTypeFloat3:
+      Result = VinilGetBasicType (VINIL_TYPE_FLOAT_VEC3, VinilPrecisionHigh, &VarType);
+      break;
+    case VinilVariableTypeFloat4:
+      Result = VinilGetBasicType (VINIL_TYPE_FLOAT_VEC4, VinilPrecisionHigh, &VarType);
+      break;
+    case VinilVariableTypeInt:
+      Result = VinilGetBasicType (VINIL_TYPE_INT, VinilPrecisionHigh, &VarType);
+      break;
+    case VinilVariableTypeInt2:
+      Result = VinilGetBasicType (VINIL_TYPE_INT_VEC2, VinilPrecisionHigh, &VarType);
+      break;
+    case VinilVariableTypeInt3:
+      Result = VinilGetBasicType (VINIL_TYPE_INT_VEC3, VinilPrecisionHigh, &VarType);
+      break;
+    case VinilVariableTypeInt4:
+      Result = VinilGetBasicType (VINIL_TYPE_INT_VEC4, VinilPrecisionHigh, &VarType);
+      break;
+    case VinilVariableTypeMat4:
+      Result = VinilGetBasicType (VINIL_TYPE_FLOAT_MAT4, VinilPrecisionHigh, &VarType);
+      break;
+    default:
+      return E_INVALIDARG;
+  }
+
+  if (FAILED (Result)) {
+    return Result;
+  }
+
+  /* Create variable */
+  Result = VinilVariableCreate (VarType, Name, Builder->NextVariableId++, Variable);
+
+  /* Release type (variable has its own reference) */
+  VarType->lpVtbl->Release (VarType);
+
+  return Result;
+}
+
+static
+HRESULT
+STDMETHODCALLTYPE
+Builder_CreateBlock (
+  IVinilBuilder  *This,
+  IVinilBlock    **Block
+  )
+{
+  VINIL_BUILDER_IMPL  *Builder = (VINIL_BUILDER_IMPL *)This;
+
+  if (Block == NULL) {
+    return E_POINTER;
+  }
+
+  return VinilBlockCreate (Builder->NextBlockId++, Block);
+}
+
+static
+HRESULT
+STDMETHODCALLTYPE
+Builder_SetInsertBlock (
+  IVinilBuilder  *This,
+  IVinilBlock    *Block
+  )
+{
+  VINIL_BUILDER_IMPL  *Builder = (VINIL_BUILDER_IMPL *)This;
+
+  if (Block == NULL) {
+    return E_POINTER;
+  }
+
+  /* Release old block */
+  if (Builder->CurrentBlock != NULL) {
+    Builder->CurrentBlock->lpVtbl->Release (Builder->CurrentBlock);
+  }
+
+  /* Set new block */
+  Builder->CurrentBlock = Block;
+  Block->lpVtbl->AddRef (Block);
+
+  return S_OK;
+}
+
+static
+HRESULT
+STDMETHODCALLTYPE
+Builder_BuildAdd (
+  IVinilBuilder   *This,
+  IVinilVariable  *Dst,
+  IVinilVariable  *Src1,
+  IVinilVariable  *Src2
+  )
+{
+  VINIL_BUILDER_IMPL  *Builder = (VINIL_BUILDER_IMPL *)This;
+
+  if (Dst == NULL || Src1 == NULL || Src2 == NULL) {
+    return E_POINTER;
+  }
+
+  return VinilProgramAddInstruction (Builder->Program, VINIL_OP_ADD, Dst, Src1, Src2, NULL);
+}
+
+static
+HRESULT
+STDMETHODCALLTYPE
+Builder_BuildSub (
+  IVinilBuilder   *This,
+  IVinilVariable  *Dst,
+  IVinilVariable  *Src1,
+  IVinilVariable  *Src2
+  )
+{
+  VINIL_BUILDER_IMPL  *Builder = (VINIL_BUILDER_IMPL *)This;
+
+  if (Dst == NULL || Src1 == NULL || Src2 == NULL) {
+    return E_POINTER;
+  }
+
+  return VinilProgramAddInstruction (Builder->Program, VINIL_OP_SUB, Dst, Src1, Src2, NULL);
+}
+
+static
+HRESULT
+STDMETHODCALLTYPE
+Builder_BuildMul (
+  IVinilBuilder   *This,
+  IVinilVariable  *Dst,
+  IVinilVariable  *Src1,
+  IVinilVariable  *Src2
+  )
+{
+  VINIL_BUILDER_IMPL  *Builder = (VINIL_BUILDER_IMPL *)This;
+
+  if (Dst == NULL || Src1 == NULL || Src2 == NULL) {
+    return E_POINTER;
+  }
+
+  return VinilProgramAddInstruction (Builder->Program, VINIL_OP_MUL, Dst, Src1, Src2, NULL);
+}
+
+static
+HRESULT
+STDMETHODCALLTYPE
+Builder_BuildMad (
+  IVinilBuilder   *This,
+  IVinilVariable  *Dst,
+  IVinilVariable  *Src1,
+  IVinilVariable  *Src2,
+  IVinilVariable  *Src3
+  )
+{
+  VINIL_BUILDER_IMPL  *Builder = (VINIL_BUILDER_IMPL *)This;
+
+  if (Dst == NULL || Src1 == NULL || Src2 == NULL || Src3 == NULL) {
+    return E_POINTER;
+  }
+
+  return VinilProgramAddInstruction (Builder->Program, VINIL_OP_MAD, Dst, Src1, Src2, Src3);
+}
+
+static
+HRESULT
+STDMETHODCALLTYPE
+Builder_BuildMov (
+  IVinilBuilder   *This,
+  IVinilVariable  *Dst,
+  IVinilVariable  *Src
+  )
+{
+  VINIL_BUILDER_IMPL  *Builder = (VINIL_BUILDER_IMPL *)This;
+
+  if (Dst == NULL || Src == NULL) {
+    return E_POINTER;
+  }
+
+  return VinilProgramAddInstruction (Builder->Program, VINIL_OP_MOV, Dst, Src, NULL, NULL);
+}
+
+static
+HRESULT
+STDMETHODCALLTYPE
+Builder_BuildDp3 (
+  IVinilBuilder   *This,
+  IVinilVariable  *Dst,
+  IVinilVariable  *Src1,
+  IVinilVariable  *Src2
+  )
+{
+  VINIL_BUILDER_IMPL  *Builder = (VINIL_BUILDER_IMPL *)This;
+
+  if (Dst == NULL || Src1 == NULL || Src2 == NULL) {
+    return E_POINTER;
+  }
+
+  return VinilProgramAddInstruction (Builder->Program, VINIL_OP_DP3, Dst, Src1, Src2, NULL);
+}
+
+static
+HRESULT
+STDMETHODCALLTYPE
+Builder_BuildDp4 (
+  IVinilBuilder   *This,
+  IVinilVariable  *Dst,
+  IVinilVariable  *Src1,
+  IVinilVariable  *Src2
+  )
+{
+  VINIL_BUILDER_IMPL  *Builder = (VINIL_BUILDER_IMPL *)This;
+
+  if (Dst == NULL || Src1 == NULL || Src2 == NULL) {
+    return E_POINTER;
+  }
+
+  return VinilProgramAddInstruction (Builder->Program, VINIL_OP_DP4, Dst, Src1, Src2, NULL);
+}
+
+static
+HRESULT
+STDMETHODCALLTYPE
+Builder_BuildRet (
+  void  *This
+  )
+{
+  VINIL_BUILDER_IMPL  *Builder = (VINIL_BUILDER_IMPL *)This;
+
+  return VinilProgramAddInstruction (Builder->Program, VINIL_OP_RET, NULL, NULL, NULL, NULL);
+}
+
+static
+HRESULT
+STDMETHODCALLTYPE
+Builder_Finalize (
+  IVinilBuilder  *This,
+  IVinilProgram  **Program
+  )
+{
+  VINIL_BUILDER_IMPL  *Builder = (VINIL_BUILDER_IMPL *)This;
+
+  if (Program == NULL) {
+    return E_POINTER;
+  }
+
+  if (Builder->Program == NULL) {
+    return E_FAIL;
+  }
+
+  /* Return program and AddRef */
+  *Program = Builder->Program;
+  Builder->Program->lpVtbl->AddRef (Builder->Program);
+
+  return S_OK;
+}
+
+//
+// Factory Function
+//
 
 HRESULT
 VinilCreateBuilder (
-    IVinilBuilder  **Builder
-    )
+  IVinilBuilder  **Builder
+  )
 {
-    IVinilBuilder       *NewBuilder;
-    vinil_program_impl  *Program;
-    vinil_memory_pool   *Pool;
-
-    if (Builder == NULL) {
-        return E_POINTER;
-    }
-
-    NewBuilder = (IVinilBuilder *)malloc(sizeof(IVinilBuilder));
-    if (NewBuilder == NULL) {
-        return E_OUTOFMEMORY;
-    }
-
-    /* Create memory pool for program */
-    Pool = vinil_memory_pool_create(4096, NULL);
-    if (Pool == NULL) {
-        free(NewBuilder);
-        return E_OUTOFMEMORY;
-    }
-
-    /* Create program structure */
-    Program = (vinil_program_impl *)malloc(sizeof(vinil_program_impl));
-    if (Program == NULL) {
-        vinil_memory_pool_destroy(Pool);
-        free(NewBuilder);
-        return E_OUTOFMEMORY;
-    }
-
-    memset(Program, 0, sizeof(vinil_program_impl));
-    Program->memory = Pool;
-
-    NewBuilder->Program = Program;
-    NewBuilder->CurrentBlock = NULL;
-
-    *Builder = NewBuilder;
-    return S_OK;
-}
-
-HRESULT
-VinilDestroyBuilder (
-    IVinilBuilder  *Builder
-    )
-{
-    if (Builder == NULL) {
-        return E_POINTER;
-    }
-
-    if (Builder->Program != NULL) {
-        if (Builder->Program->memory != NULL) {
-            vinil_memory_pool_destroy(Builder->Program->memory);
-        }
-        free(Builder->Program);
-    }
-
-    free(Builder);
-    return S_OK;
-}
-
-/* --------------------------------------------------------------- */
-/*  Variable Creation                                              */
-/* --------------------------------------------------------------- */
-
-HRESULT
-VinilBuilderCreateVariable (
-    IVinilBuilder   *Builder,
-    VINIL_VAR_TYPE  Type,
-    CONST CHAR8     *Name,
-    VINIL_VARIABLE  *Variable
-    )
-{
-    vinil_variable  *Var;
-    vinil_type      *VarType;
-
-    if (Builder == NULL || Variable == NULL) {
-        return E_POINTER;
-    }
-
-    /* Allocate variable from pool */
-    Var = (vinil_variable *)vinil_memory_pool_allocate(
-        Builder->Program->memory,
-        sizeof(vinil_variable)
-    );
-
-    if (Var == NULL) {
-        return E_OUTOFMEMORY;
-    }
-
-    memset(Var, 0, sizeof(vinil_variable));
-
-    /* Create type based on VINIL_VAR_TYPE */
-    switch (Type) {
-    case VinilVarFloat:
-        VarType = vinil_type_get_basic(VINIL_TYPE_FLOAT, VINIL_PRECISION_HIGH);
-        break;
-    case VinilVarFloat2:
-        VarType = vinil_type_create_vector(VINIL_TYPE_FLOAT, VINIL_PRECISION_HIGH, 2);
-        break;
-    case VinilVarFloat3:
-        VarType = vinil_type_create_vector(VINIL_TYPE_FLOAT, VINIL_PRECISION_HIGH, 3);
-        break;
-    case VinilVarFloat4:
-        VarType = vinil_type_create_vector(VINIL_TYPE_FLOAT, VINIL_PRECISION_HIGH, 4);
-        break;
-    case VinilVarInt:
-        VarType = vinil_type_get_basic(VINIL_TYPE_INT, VINIL_PRECISION_HIGH);
-        break;
-    case VinilVarInt2:
-        VarType = vinil_type_create_vector(VINIL_TYPE_INT, VINIL_PRECISION_HIGH, 2);
-        break;
-    case VinilVarInt3:
-        VarType = vinil_type_create_vector(VINIL_TYPE_INT, VINIL_PRECISION_HIGH, 3);
-        break;
-    case VinilVarInt4:
-        VarType = vinil_type_create_vector(VINIL_TYPE_INT, VINIL_PRECISION_HIGH, 4);
-        break;
-    default:
-        return E_FAIL;
-    }
-
-    if (VarType == NULL) {
-        return E_FAIL;
-    }
-
-    Var->kind = VINIL_VAR_TEMP;
-    Var->id = Builder->Program->num_vars++;
-    Var->type = VarType;
-    Var->name = (const char *)Name;
-    Var->name_length = Name ? strlen((const char *)Name) : 0;
-
-    /* Add to temp list */
-    Var->next = Builder->Program->temps;
-    Builder->Program->temps = Var;
-
-    *Variable = (VINIL_VARIABLE)Var;
-    return S_OK;
-}
-
-/* --------------------------------------------------------------- */
-/*  Block Creation                                                 */
-/* --------------------------------------------------------------- */
-
-HRESULT
-VinilBuilderCreateBlock (
-    IVinilBuilder  *Builder,
-    VINIL_BLOCK    *Block
-    )
-{
-    vinil_block  *NewBlock;
-
-    if (Builder == NULL || Block == NULL) {
-        return E_POINTER;
-    }
-
-    NewBlock = (vinil_block *)vinil_memory_pool_allocate(
-        Builder->Program->memory,
-        sizeof(vinil_block)
-    );
-
-    if (NewBlock == NULL) {
-        return E_OUTOFMEMORY;
-    }
-
-    memset(NewBlock, 0, sizeof(vinil_block));
-    NewBlock->id = Builder->Program->num_blocks++;
-
-    /* Add to block list */
-    NewBlock->next = Builder->Program->blocks;
-    if (Builder->Program->blocks != NULL) {
-        Builder->Program->blocks->prev = NewBlock;
-    }
-    Builder->Program->blocks = NewBlock;
-
-    *Block = (VINIL_BLOCK)NewBlock;
-    return S_OK;
-}
-
-HRESULT
-VinilBuilderSetInsertBlock (
-    IVinilBuilder  *Builder,
-    VINIL_BLOCK    Block
-    )
-{
-    if (Builder == NULL) {
-        return E_POINTER;
-    }
-
-    Builder->CurrentBlock = (vinil_block *)Block;
-    return S_OK;
-}
-
-/* --------------------------------------------------------------- */
-/*  Helper Functions                                               */
-/* --------------------------------------------------------------- */
-
-static vinil_dst_operand
-MakeDstOperand (
-    VINIL_VARIABLE  Var
-    )
-{
-    vinil_dst_operand  Dst;
-
-    memset(&Dst, 0, sizeof(Dst));
-    Dst.var = (vinil_variable *)Var;
-    Dst.mask.x = 1;
-    Dst.mask.y = 1;
-    Dst.mask.z = 1;
-    Dst.mask.w = 1;
-
-    return Dst;
-}
-
-static vinil_src_operand
-MakeSrcOperand (
-    VINIL_VARIABLE  Var
-    )
-{
-    vinil_src_operand  Src;
-
-    memset(&Src, 0, sizeof(Src));
-    Src.var = (vinil_variable *)Var;
-    Src.swizzle.x = 0;  /* .xyzw */
-    Src.swizzle.y = 1;
-    Src.swizzle.z = 2;
-    Src.swizzle.w = 3;
-    Src.negate = 0;
-
-    return Src;
-}
-
-static VOID
-AppendInstruction (
-    vinil_block         *Block,
-    union vinil_inst    *Inst
-    )
-{
-    if (Block == NULL || Inst == NULL) {
-        return;
-    }
-
-    Inst->base.next = NULL;
-    Inst->base.prev = Block->last;
-
-    if (Block->last != NULL) {
-        Block->last->base.next = Inst;
-    }
-
-    Block->last = Inst;
-
-    if (Block->first == NULL) {
-        Block->first = Inst;
-    }
-}
-
-/* --------------------------------------------------------------- */
-/*  Instruction Building                                           */
-/* --------------------------------------------------------------- */
-
-HRESULT
-VinilBuilderBuildAdd (
-    IVinilBuilder   *Builder,
-    VINIL_VARIABLE  Dst,
-    VINIL_VARIABLE  Src1,
-    VINIL_VARIABLE  Src2
-    )
-{
-    vinil_inst_binary  *Inst;
-
-    if (Builder == NULL || Builder->CurrentBlock == NULL) {
-        return E_POINTER;
-    }
-
-    Inst = (vinil_inst_binary *)vinil_memory_pool_allocate(
-        Builder->Program->memory,
-        sizeof(vinil_inst_binary)
-    );
-
-    if (Inst == NULL) {
-        return E_OUTOFMEMORY;
-    }
-
-    memset(Inst, 0, sizeof(vinil_inst_binary));
-    Inst->alu.base.kind = VINIL_INST_BINARY;
-    Inst->alu.base.opcode = VINIL_OP_ADD;
-    Inst->alu.dst = MakeDstOperand(Dst);
-    Inst->alu.prec = VINIL_PRECISION_HIGH;
-    Inst->src1 = MakeSrcOperand(Src1);
-    Inst->src2 = MakeSrcOperand(Src2);
-
-    AppendInstruction(Builder->CurrentBlock, (union vinil_inst *)Inst);
-    return S_OK;
-}
-
-HRESULT
-VinilBuilderBuildSub (
-    IVinilBuilder   *Builder,
-    VINIL_VARIABLE  Dst,
-    VINIL_VARIABLE  Src1,
-    VINIL_VARIABLE  Src2
-    )
-{
-    vinil_inst_binary  *Inst;
-
-    if (Builder == NULL || Builder->CurrentBlock == NULL) {
-        return E_POINTER;
-    }
-
-    Inst = (vinil_inst_binary *)vinil_memory_pool_allocate(
-        Builder->Program->memory,
-        sizeof(vinil_inst_binary)
-    );
-
-    if (Inst == NULL) {
-        return E_OUTOFMEMORY;
-    }
-
-    memset(Inst, 0, sizeof(vinil_inst_binary));
-    Inst->alu.base.kind = VINIL_INST_BINARY;
-    Inst->alu.base.opcode = VINIL_OP_SUB;
-    Inst->alu.dst = MakeDstOperand(Dst);
-    Inst->alu.prec = VINIL_PRECISION_HIGH;
-    Inst->src1 = MakeSrcOperand(Src1);
-    Inst->src2 = MakeSrcOperand(Src2);
-
-    AppendInstruction(Builder->CurrentBlock, (union vinil_inst *)Inst);
-    return S_OK;
-}
-
-HRESULT
-VinilBuilderBuildMul (
-    IVinilBuilder   *Builder,
-    VINIL_VARIABLE  Dst,
-    VINIL_VARIABLE  Src1,
-    VINIL_VARIABLE  Src2
-    )
-{
-    vinil_inst_binary  *Inst;
-
-    if (Builder == NULL || Builder->CurrentBlock == NULL) {
-        return E_POINTER;
-    }
-
-    Inst = (vinil_inst_binary *)vinil_memory_pool_allocate(
-        Builder->Program->memory,
-        sizeof(vinil_inst_binary)
-    );
-
-    if (Inst == NULL) {
-        return E_OUTOFMEMORY;
-    }
-
-    memset(Inst, 0, sizeof(vinil_inst_binary));
-    Inst->alu.base.kind = VINIL_INST_BINARY;
-    Inst->alu.base.opcode = VINIL_OP_MUL;
-    Inst->alu.dst = MakeDstOperand(Dst);
-    Inst->alu.prec = VINIL_PRECISION_HIGH;
-    Inst->src1 = MakeSrcOperand(Src1);
-    Inst->src2 = MakeSrcOperand(Src2);
-
-    AppendInstruction(Builder->CurrentBlock, (union vinil_inst *)Inst);
-    return S_OK;
-}
-
-HRESULT
-VinilBuilderBuildMad (
-    IVinilBuilder   *Builder,
-    VINIL_VARIABLE  Dst,
-    VINIL_VARIABLE  Src1,
-    VINIL_VARIABLE  Src2,
-    VINIL_VARIABLE  Src3
-    )
-{
-    vinil_inst_ternary  *Inst;
-
-    if (Builder == NULL || Builder->CurrentBlock == NULL) {
-        return E_POINTER;
-    }
-
-    Inst = (vinil_inst_ternary *)vinil_memory_pool_allocate(
-        Builder->Program->memory,
-        sizeof(vinil_inst_ternary)
-    );
-
-    if (Inst == NULL) {
-        return E_OUTOFMEMORY;
-    }
-
-    memset(Inst, 0, sizeof(vinil_inst_ternary));
-    Inst->alu.base.kind = VINIL_INST_TERNARY;
-    Inst->alu.base.opcode = VINIL_OP_MAD;
-    Inst->alu.dst = MakeDstOperand(Dst);
-    Inst->alu.prec = VINIL_PRECISION_HIGH;
-    Inst->src1 = MakeSrcOperand(Src1);
-    Inst->src2 = MakeSrcOperand(Src2);
-    Inst->src3 = MakeSrcOperand(Src3);
-
-    AppendInstruction(Builder->CurrentBlock, (union vinil_inst *)Inst);
-    return S_OK;
-}
-
-HRESULT
-VinilBuilderBuildMov (
-    IVinilBuilder   *Builder,
-    VINIL_VARIABLE  Dst,
-    VINIL_VARIABLE  Src
-    )
-{
-    vinil_inst_unary  *Inst;
-
-    if (Builder == NULL || Builder->CurrentBlock == NULL) {
-        return E_POINTER;
-    }
-
-    Inst = (vinil_inst_unary *)vinil_memory_pool_allocate(
-        Builder->Program->memory,
-        sizeof(vinil_inst_unary)
-    );
-
-    if (Inst == NULL) {
-        return E_OUTOFMEMORY;
-    }
-
-    memset(Inst, 0, sizeof(vinil_inst_unary));
-    Inst->alu.base.kind = VINIL_INST_UNARY;
-    Inst->alu.base.opcode = VINIL_OP_MOV;
-    Inst->alu.dst = MakeDstOperand(Dst);
-    Inst->alu.prec = VINIL_PRECISION_HIGH;
-    Inst->src = MakeSrcOperand(Src);
-
-    AppendInstruction(Builder->CurrentBlock, (union vinil_inst *)Inst);
-    return S_OK;
-}
-
-HRESULT
-VinilBuilderBuildDp3 (
-    IVinilBuilder   *Builder,
-    VINIL_VARIABLE  Dst,
-    VINIL_VARIABLE  Src1,
-    VINIL_VARIABLE  Src2
-    )
-{
-    vinil_inst_binary  *Inst;
-
-    if (Builder == NULL || Builder->CurrentBlock == NULL) {
-        return E_POINTER;
-    }
-
-    Inst = (vinil_inst_binary *)vinil_memory_pool_allocate(
-        Builder->Program->memory,
-        sizeof(vinil_inst_binary)
-    );
-
-    if (Inst == NULL) {
-        return E_OUTOFMEMORY;
-    }
-
-    memset(Inst, 0, sizeof(vinil_inst_binary));
-    Inst->alu.base.kind = VINIL_INST_BINARY;
-    Inst->alu.base.opcode = VINIL_OP_DP3;
-    Inst->alu.dst = MakeDstOperand(Dst);
-    Inst->alu.prec = VINIL_PRECISION_HIGH;
-    Inst->src1 = MakeSrcOperand(Src1);
-    Inst->src2 = MakeSrcOperand(Src2);
-
-    AppendInstruction(Builder->CurrentBlock, (union vinil_inst *)Inst);
-    return S_OK;
-}
-
-HRESULT
-VinilBuilderBuildDp4 (
-    IVinilBuilder   *Builder,
-    VINIL_VARIABLE  Dst,
-    VINIL_VARIABLE  Src1,
-    VINIL_VARIABLE  Src2
-    )
-{
-    vinil_inst_binary  *Inst;
-
-    if (Builder == NULL || Builder->CurrentBlock == NULL) {
-        return E_POINTER;
-    }
-
-    Inst = (vinil_inst_binary *)vinil_memory_pool_allocate(
-        Builder->Program->memory,
-        sizeof(vinil_inst_binary)
-    );
-
-    if (Inst == NULL) {
-        return E_OUTOFMEMORY;
-    }
-
-    memset(Inst, 0, sizeof(vinil_inst_binary));
-    Inst->alu.base.kind = VINIL_INST_BINARY;
-    Inst->alu.base.opcode = VINIL_OP_DP4;
-    Inst->alu.dst = MakeDstOperand(Dst);
-    Inst->alu.prec = VINIL_PRECISION_HIGH;
-    Inst->src1 = MakeSrcOperand(Src1);
-    Inst->src2 = MakeSrcOperand(Src2);
-
-    AppendInstruction(Builder->CurrentBlock, (union vinil_inst *)Inst);
-    return S_OK;
-}
-
-HRESULT
-VinilBuilderBuildRet (
-    IVinilBuilder  *Builder
-    )
-{
-    vinil_inst_base  *Inst;
-
-    if (Builder == NULL || Builder->CurrentBlock == NULL) {
-        return E_POINTER;
-    }
-
-    Inst = (vinil_inst_base *)vinil_memory_pool_allocate(
-        Builder->Program->memory,
-        sizeof(vinil_inst_base)
-    );
-
-    if (Inst == NULL) {
-        return E_OUTOFMEMORY;
-    }
-
-    memset(Inst, 0, sizeof(vinil_inst_base));
-    Inst->kind = VINIL_INST_BASE;
-    Inst->opcode = VINIL_OP_RET;
-
-    AppendInstruction(Builder->CurrentBlock, (union vinil_inst *)Inst);
-    return S_OK;
-}
-
-/* --------------------------------------------------------------- */
-/*  Finalization                                                   */
-/* --------------------------------------------------------------- */
-
-HRESULT
-VinilBuilderFinalize (
-    IVinilBuilder  *Builder,
-    VOID           **Program
-    )
-{
-    if (Builder == NULL || Program == NULL) {
-        return E_POINTER;
-    }
-
-    *Program = (VOID *)Builder->Program;
-    return S_OK;
+  VINIL_BUILDER_IMPL  *BuilderImpl;
+  IVinilMemoryPool    *MemoryPool;
+  IVinilProgram       *Program;
+  HRESULT             Result;
+
+  if (Builder == NULL) {
+    return E_POINTER;
+  }
+
+  /* Create memory pool (0 = use default page size) */
+  Result = VinilCreateMemoryPool (0, &MemoryPool);
+  if (FAILED (Result)) {
+    return Result;
+  }
+
+  /* Create program (default to graphics mode) */
+  Result = VinilProgramCreate (VinilExecutionModeGraphics, MemoryPool, &Program);
+  if (FAILED (Result)) {
+    MemoryPool->lpVtbl->Release (MemoryPool);
+    return Result;
+  }
+
+  /* Allocate builder */
+  BuilderImpl = (VINIL_BUILDER_IMPL *)malloc (sizeof (VINIL_BUILDER_IMPL));
+  if (BuilderImpl == NULL) {
+    Program->lpVtbl->Release (Program);
+    MemoryPool->lpVtbl->Release (MemoryPool);
+    return E_OUTOFMEMORY;
+  }
+
+  memset (BuilderImpl, 0, sizeof (VINIL_BUILDER_IMPL));
+  BuilderImpl->lpVtbl = &gBuilderVtbl;
+  BuilderImpl->RefCount = 1;
+  BuilderImpl->MemoryPool = MemoryPool;
+  BuilderImpl->Program = Program;
+  BuilderImpl->CurrentBlock = NULL;
+  BuilderImpl->NextVariableId = 0;
+  BuilderImpl->NextBlockId = 0;
+  BuilderImpl->Mode = VinilExecutionModeGraphics;
+
+  *Builder = (IVinilBuilder *)BuilderImpl;
+  return S_OK;
 }
