@@ -12,6 +12,7 @@
 #include <vinil/vinil.h>
 #include <vinil/il.h>
 #include <vinil/types.h>
+#include <vinil/backend_ops.h>
 #include "vinil_internal.h"
 #include <stdlib.h>
 #include <string.h>
@@ -1567,6 +1568,316 @@ ExecuteInstruction (
     case VINIL_OP_CALL:
       /* TODO: Implement function calls with call stack */
       /* For now, this is a no-op */
+      break;
+
+    /* Texture Operations - delegated to backend sink */
+    case VINIL_OP_TEX:
+      /* Basic texture sample: TEX dst, src0(coords), src1(unit) */
+      if (State->TextureSampler != NULL && Instruction->Dst != NULL &&
+          Instruction->Src[0] != NULL && Instruction->Src[1] != NULL) {
+        VINIL_REGISTER_VALUE *DstReg = GetRegister (State, Instruction->Dst);
+        VINIL_REGISTER_VALUE *CoordReg = GetRegister (State, Instruction->Src[0]);
+        VINIL_REGISTER_VALUE *UnitReg = GetRegister (State, Instruction->Src[1]);
+        if (DstReg != NULL && CoordReg != NULL && UnitReg != NULL) {
+          State->TextureSampler->lpVtbl->Sample (
+            State->TextureSampler,
+            UnitReg->u[0],
+            CoordReg->f,
+            DstReg->f
+          );
+        }
+      }
+      break;
+
+    case VINIL_OP_TXL:
+      /* Texture sample with LOD: TXL dst, src0(coords), src1(unit), src2(lod) */
+      if (State->TextureSampler != NULL && Instruction->Dst != NULL &&
+          Instruction->Src[0] != NULL && Instruction->Src[1] != NULL && Instruction->Src[2] != NULL) {
+        VINIL_REGISTER_VALUE *DstReg = GetRegister (State, Instruction->Dst);
+        VINIL_REGISTER_VALUE *CoordReg = GetRegister (State, Instruction->Src[0]);
+        VINIL_REGISTER_VALUE *UnitReg = GetRegister (State, Instruction->Src[1]);
+        VINIL_REGISTER_VALUE *LodReg = GetRegister (State, Instruction->Src[2]);
+        if (DstReg != NULL && CoordReg != NULL && UnitReg != NULL && LodReg != NULL) {
+          State->TextureSampler->lpVtbl->SampleLod (
+            State->TextureSampler,
+            UnitReg->u[0],
+            CoordReg->f,
+            LodReg->f[0],
+            DstReg->f
+          );
+        }
+      }
+      break;
+
+    case VINIL_OP_TXB:
+      /* Texture sample with bias: TXB dst, src0(coords), src1(unit), src2(bias) */
+      if (State->TextureSampler != NULL && Instruction->Dst != NULL &&
+          Instruction->Src[0] != NULL && Instruction->Src[1] != NULL && Instruction->Src[2] != NULL) {
+        VINIL_REGISTER_VALUE *DstReg = GetRegister (State, Instruction->Dst);
+        VINIL_REGISTER_VALUE *CoordReg = GetRegister (State, Instruction->Src[0]);
+        VINIL_REGISTER_VALUE *UnitReg = GetRegister (State, Instruction->Src[1]);
+        VINIL_REGISTER_VALUE *BiasReg = GetRegister (State, Instruction->Src[2]);
+        if (DstReg != NULL && CoordReg != NULL && UnitReg != NULL && BiasReg != NULL) {
+          State->TextureSampler->lpVtbl->SampleBias (
+            State->TextureSampler,
+            UnitReg->u[0],
+            CoordReg->f,
+            BiasReg->f[0],
+            DstReg->f
+          );
+        }
+      }
+      break;
+
+    case VINIL_OP_TXP:
+      /* Projective texture sample: TXP dst, src0(coords), src1(unit) */
+      if (State->TextureSampler != NULL && Instruction->Dst != NULL &&
+          Instruction->Src[0] != NULL && Instruction->Src[1] != NULL) {
+        VINIL_REGISTER_VALUE *DstReg = GetRegister (State, Instruction->Dst);
+        VINIL_REGISTER_VALUE *CoordReg = GetRegister (State, Instruction->Src[0]);
+        VINIL_REGISTER_VALUE *UnitReg = GetRegister (State, Instruction->Src[1]);
+        if (DstReg != NULL && CoordReg != NULL && UnitReg != NULL) {
+          State->TextureSampler->lpVtbl->SampleProj (
+            State->TextureSampler,
+            UnitReg->u[0],
+            CoordReg->f,
+            DstReg->f
+          );
+        }
+      }
+      break;
+
+    case VINIL_OP_TXD:
+      /* Texture sample with gradients: TXD dst, src0(coords), src1(unit), src2(ddx), ? */
+      /* Note: Requires 4 sources, but instruction format only has 3 */
+      /* For now, stub implementation */
+      break;
+
+    case VINIL_OP_TXF:
+      /* Texture fetch: TXF dst, src0(coords), src1(unit), src2(lod) */
+      if (State->TextureSampler != NULL && Instruction->Dst != NULL &&
+          Instruction->Src[0] != NULL && Instruction->Src[1] != NULL && Instruction->Src[2] != NULL) {
+        VINIL_REGISTER_VALUE *DstReg = GetRegister (State, Instruction->Dst);
+        VINIL_REGISTER_VALUE *CoordReg = GetRegister (State, Instruction->Src[0]);
+        VINIL_REGISTER_VALUE *UnitReg = GetRegister (State, Instruction->Src[1]);
+        VINIL_REGISTER_VALUE *LodReg = GetRegister (State, Instruction->Src[2]);
+        if (DstReg != NULL && CoordReg != NULL && UnitReg != NULL && LodReg != NULL) {
+          INT32 Coords[4] = {
+            (INT32)CoordReg->f[0],
+            (INT32)CoordReg->f[1],
+            (INT32)CoordReg->f[2],
+            (INT32)CoordReg->f[3]
+          };
+          State->TextureSampler->lpVtbl->Fetch (
+            State->TextureSampler,
+            UnitReg->u[0],
+            Coords,
+            (INT32)LodReg->f[0],
+            DstReg->f
+          );
+        }
+      }
+      break;
+
+    /* Memory Operations - delegated to backend sink */
+    case VINIL_OP_LOAD:
+      /* Load from memory: LOAD dst, src0(address) */
+      if (State->MemoryOps != NULL && Instruction->Dst != NULL && Instruction->Src[0] != NULL) {
+        VINIL_REGISTER_VALUE *DstReg = GetRegister (State, Instruction->Dst);
+        VINIL_REGISTER_VALUE *AddrReg = GetRegister (State, Instruction->Src[0]);
+        if (DstReg != NULL && AddrReg != NULL) {
+          VOID *Address = (VOID *)(UINTN)AddrReg->u[0];
+          State->MemoryOps->lpVtbl->Load (State->MemoryOps, Address, &DstReg->f[0]);
+        }
+      }
+      break;
+
+    case VINIL_OP_STORE:
+      /* Store to memory: STORE src0(address), src1(value) */
+      if (State->MemoryOps != NULL && Instruction->Src[0] != NULL && Instruction->Src[1] != NULL) {
+        VINIL_REGISTER_VALUE *AddrReg = GetRegister (State, Instruction->Src[0]);
+        VINIL_REGISTER_VALUE *ValReg = GetRegister (State, Instruction->Src[1]);
+        if (AddrReg != NULL && ValReg != NULL) {
+          VOID *Address = (VOID *)(UINTN)AddrReg->u[0];
+          State->MemoryOps->lpVtbl->Store (State->MemoryOps, Address, &ValReg->f[0]);
+        }
+      }
+      break;
+
+    case VINIL_OP_LOAD_VEC:
+      /* Load vector from memory: LOAD_VEC dst, src0(address) */
+      if (State->MemoryOps != NULL && Instruction->Dst != NULL && Instruction->Src[0] != NULL) {
+        VINIL_REGISTER_VALUE *DstReg = GetRegister (State, Instruction->Dst);
+        VINIL_REGISTER_VALUE *AddrReg = GetRegister (State, Instruction->Src[0]);
+        if (DstReg != NULL && AddrReg != NULL) {
+          VOID *Address = (VOID *)(UINTN)AddrReg->u[0];
+          State->MemoryOps->lpVtbl->LoadVector (State->MemoryOps, Address, 4, DstReg->f);
+        }
+      }
+      break;
+
+    case VINIL_OP_STORE_VEC:
+      /* Store vector to memory: STORE_VEC src0(address), src1(value) */
+      if (State->MemoryOps != NULL && Instruction->Src[0] != NULL && Instruction->Src[1] != NULL) {
+        VINIL_REGISTER_VALUE *AddrReg = GetRegister (State, Instruction->Src[0]);
+        VINIL_REGISTER_VALUE *ValReg = GetRegister (State, Instruction->Src[1]);
+        if (AddrReg != NULL && ValReg != NULL) {
+          VOID *Address = (VOID *)(UINTN)AddrReg->u[0];
+          State->MemoryOps->lpVtbl->StoreVector (State->MemoryOps, Address, 4, ValReg->f);
+        }
+      }
+      break;
+
+    case VINIL_OP_BARRIER:
+      if (State->MemoryOps != NULL) {
+        State->MemoryOps->lpVtbl->Barrier (State->MemoryOps);
+      }
+      break;
+
+    case VINIL_OP_FENCE:
+    case VINIL_OP_MEM_FENCE:
+      if (State->MemoryOps != NULL) {
+        State->MemoryOps->lpVtbl->MemFence (State->MemoryOps);
+      }
+      break;
+
+    case VINIL_OP_READ_FENCE:
+      if (State->MemoryOps != NULL) {
+        State->MemoryOps->lpVtbl->ReadFence (State->MemoryOps);
+      }
+      break;
+
+    case VINIL_OP_WRITE_FENCE:
+      if (State->MemoryOps != NULL) {
+        State->MemoryOps->lpVtbl->WriteFence (State->MemoryOps);
+      }
+      break;
+
+    /* Atomic Operations - delegated to backend sink */
+    case VINIL_OP_ATOMIC_ADD:
+      /* Atomic add: ATOMIC_ADD dst, src0(address), src1(value) */
+      if (State->AtomicOps != NULL && Instruction->Dst != NULL &&
+          Instruction->Src[0] != NULL && Instruction->Src[1] != NULL) {
+        VINIL_REGISTER_VALUE *DstReg = GetRegister (State, Instruction->Dst);
+        VINIL_REGISTER_VALUE *AddrReg = GetRegister (State, Instruction->Src[0]);
+        VINIL_REGISTER_VALUE *ValReg = GetRegister (State, Instruction->Src[1]);
+        if (DstReg != NULL && AddrReg != NULL && ValReg != NULL) {
+          VOID *Address = (VOID *)(UINTN)AddrReg->u[0];
+          State->AtomicOps->lpVtbl->Add (State->AtomicOps, Address, ValReg->i[0], &DstReg->i[0]);
+        }
+      }
+      break;
+
+    case VINIL_OP_ATOMIC_SUB:
+      if (State->AtomicOps != NULL && Instruction->Dst != NULL &&
+          Instruction->Src[0] != NULL && Instruction->Src[1] != NULL) {
+        VINIL_REGISTER_VALUE *DstReg = GetRegister (State, Instruction->Dst);
+        VINIL_REGISTER_VALUE *AddrReg = GetRegister (State, Instruction->Src[0]);
+        VINIL_REGISTER_VALUE *ValReg = GetRegister (State, Instruction->Src[1]);
+        if (DstReg != NULL && AddrReg != NULL && ValReg != NULL) {
+          VOID *Address = (VOID *)(UINTN)AddrReg->u[0];
+          State->AtomicOps->lpVtbl->Sub (State->AtomicOps, Address, ValReg->i[0], &DstReg->i[0]);
+        }
+      }
+      break;
+
+    case VINIL_OP_ATOMIC_MIN:
+      if (State->AtomicOps != NULL && Instruction->Dst != NULL &&
+          Instruction->Src[0] != NULL && Instruction->Src[1] != NULL) {
+        VINIL_REGISTER_VALUE *DstReg = GetRegister (State, Instruction->Dst);
+        VINIL_REGISTER_VALUE *AddrReg = GetRegister (State, Instruction->Src[0]);
+        VINIL_REGISTER_VALUE *ValReg = GetRegister (State, Instruction->Src[1]);
+        if (DstReg != NULL && AddrReg != NULL && ValReg != NULL) {
+          VOID *Address = (VOID *)(UINTN)AddrReg->u[0];
+          State->AtomicOps->lpVtbl->Min (State->AtomicOps, Address, ValReg->i[0], &DstReg->i[0]);
+        }
+      }
+      break;
+
+    case VINIL_OP_ATOMIC_MAX:
+      if (State->AtomicOps != NULL && Instruction->Dst != NULL &&
+          Instruction->Src[0] != NULL && Instruction->Src[1] != NULL) {
+        VINIL_REGISTER_VALUE *DstReg = GetRegister (State, Instruction->Dst);
+        VINIL_REGISTER_VALUE *AddrReg = GetRegister (State, Instruction->Src[0]);
+        VINIL_REGISTER_VALUE *ValReg = GetRegister (State, Instruction->Src[1]);
+        if (DstReg != NULL && AddrReg != NULL && ValReg != NULL) {
+          VOID *Address = (VOID *)(UINTN)AddrReg->u[0];
+          State->AtomicOps->lpVtbl->Max (State->AtomicOps, Address, ValReg->i[0], &DstReg->i[0]);
+        }
+      }
+      break;
+
+    case VINIL_OP_ATOMIC_AND:
+      if (State->AtomicOps != NULL && Instruction->Dst != NULL &&
+          Instruction->Src[0] != NULL && Instruction->Src[1] != NULL) {
+        VINIL_REGISTER_VALUE *DstReg = GetRegister (State, Instruction->Dst);
+        VINIL_REGISTER_VALUE *AddrReg = GetRegister (State, Instruction->Src[0]);
+        VINIL_REGISTER_VALUE *ValReg = GetRegister (State, Instruction->Src[1]);
+        if (DstReg != NULL && AddrReg != NULL && ValReg != NULL) {
+          VOID *Address = (VOID *)(UINTN)AddrReg->u[0];
+          State->AtomicOps->lpVtbl->And (State->AtomicOps, Address, ValReg->u[0], &DstReg->u[0]);
+        }
+      }
+      break;
+
+    case VINIL_OP_ATOMIC_OR:
+      if (State->AtomicOps != NULL && Instruction->Dst != NULL &&
+          Instruction->Src[0] != NULL && Instruction->Src[1] != NULL) {
+        VINIL_REGISTER_VALUE *DstReg = GetRegister (State, Instruction->Dst);
+        VINIL_REGISTER_VALUE *AddrReg = GetRegister (State, Instruction->Src[0]);
+        VINIL_REGISTER_VALUE *ValReg = GetRegister (State, Instruction->Src[1]);
+        if (DstReg != NULL && AddrReg != NULL && ValReg != NULL) {
+          VOID *Address = (VOID *)(UINTN)AddrReg->u[0];
+          State->AtomicOps->lpVtbl->Or (State->AtomicOps, Address, ValReg->u[0], &DstReg->u[0]);
+        }
+      }
+      break;
+
+    case VINIL_OP_ATOMIC_XOR:
+      if (State->AtomicOps != NULL && Instruction->Dst != NULL &&
+          Instruction->Src[0] != NULL && Instruction->Src[1] != NULL) {
+        VINIL_REGISTER_VALUE *DstReg = GetRegister (State, Instruction->Dst);
+        VINIL_REGISTER_VALUE *AddrReg = GetRegister (State, Instruction->Src[0]);
+        VINIL_REGISTER_VALUE *ValReg = GetRegister (State, Instruction->Src[1]);
+        if (DstReg != NULL && AddrReg != NULL && ValReg != NULL) {
+          VOID *Address = (VOID *)(UINTN)AddrReg->u[0];
+          State->AtomicOps->lpVtbl->Xor (State->AtomicOps, Address, ValReg->u[0], &DstReg->u[0]);
+        }
+      }
+      break;
+
+    case VINIL_OP_ATOMIC_XCHG:
+      if (State->AtomicOps != NULL && Instruction->Dst != NULL &&
+          Instruction->Src[0] != NULL && Instruction->Src[1] != NULL) {
+        VINIL_REGISTER_VALUE *DstReg = GetRegister (State, Instruction->Dst);
+        VINIL_REGISTER_VALUE *AddrReg = GetRegister (State, Instruction->Src[0]);
+        VINIL_REGISTER_VALUE *ValReg = GetRegister (State, Instruction->Src[1]);
+        if (DstReg != NULL && AddrReg != NULL && ValReg != NULL) {
+          VOID *Address = (VOID *)(UINTN)AddrReg->u[0];
+          State->AtomicOps->lpVtbl->Exchange (State->AtomicOps, Address, ValReg->u[0], &DstReg->u[0]);
+        }
+      }
+      break;
+
+    case VINIL_OP_ATOMIC_CAS:
+      /* Compare-and-swap: ATOMIC_CAS dst, src0(address), src1(compare), src2(value) */
+      if (State->AtomicOps != NULL && Instruction->Dst != NULL &&
+          Instruction->Src[0] != NULL && Instruction->Src[1] != NULL && Instruction->Src[2] != NULL) {
+        VINIL_REGISTER_VALUE *DstReg = GetRegister (State, Instruction->Dst);
+        VINIL_REGISTER_VALUE *AddrReg = GetRegister (State, Instruction->Src[0]);
+        VINIL_REGISTER_VALUE *CmpReg = GetRegister (State, Instruction->Src[1]);
+        VINIL_REGISTER_VALUE *ValReg = GetRegister (State, Instruction->Src[2]);
+        if (DstReg != NULL && AddrReg != NULL && CmpReg != NULL && ValReg != NULL) {
+          VOID *Address = (VOID *)(UINTN)AddrReg->u[0];
+          State->AtomicOps->lpVtbl->CompareExchange (
+            State->AtomicOps,
+            Address,
+            CmpReg->u[0],
+            ValReg->u[0],
+            &DstReg->u[0]
+          );
+        }
+      }
       break;
 
     default:

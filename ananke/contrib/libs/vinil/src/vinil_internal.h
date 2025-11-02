@@ -190,6 +190,11 @@ typedef struct _VINIL_EXECUTION_STATE {
   VINIL_CF_ENTRY        ControlFlowStack[MAX_CONTROL_FLOW];
   UINT32                ControlFlowDepth;
   BOOLEAN               ConditionResult;  /* Last condition evaluation */
+
+  /* Backend operation sinks (optional, provided by backend) */
+  struct IVinilTextureSampler      *TextureSampler;
+  struct IVinilMemoryOperations    *MemoryOps;
+  struct IVinilAtomicOperations    *AtomicOps;
 } VINIL_EXECUTION_STATE;
 
 //
