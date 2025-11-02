@@ -1,5 +1,9 @@
 # Direct3D 1-9 Implementation Status
 
+> **Last Updated:** November 2025
+> **Status:** D3D3-7 FFP Complete | D3D8-9 Partial (needs textures/buffers)
+> **See also:** [D3D_IMPLEMENTATION_STATUS.md](D3D_IMPLEMENTATION_STATUS.md) for detailed roadmap
+
 ## Architecture Overview
 
 All Direct3D versions (3-9) share a common foundation implemented in `d3d_common/`:
@@ -18,63 +22,76 @@ All Direct3D versions (3-9) share a common foundation implemented in `d3d_common
 - Calculates offsets and sizes automatically
 
 **✅ COMPLETE - Utilities**
-- `utilities.c` - Matrix operations, state conversions
+- `utilities.c` - Matrix operations (including full 4x4 inversion), state conversions
+- Uniform updates for all FFP shader state (matrices, lights, materials, fog)
+- Vertex attribute binding from FVF descriptors
+- Texture binding for multitexture rendering
 - D3D to OpenGL state mapping functions
-- Transform matrix management
 
 ### GLES20 Backend
 
 **✅ COMPLETE - COM Wrapper**
 - `d3d9/sources/gles20com/` - Vincent ES 2.0 COM wrapper
 - IGLDevice, IGLContext, IGLBuffer, IGLTexture, IGLShader, IGLProgram
+- Complete vertex attribute methods (VertexAttribPointer, Enable/DisableVertexAttribArray)
+- Multitexture support (ActiveTexture for 8 texture units)
 - Shared by all D3D versions
 
 ---
 
 ## Implementation Status by Version
 
-### Direct3D 9 (2002) - ✅ COMPLETE
+### Direct3D 9 (2002) - ⚠️ PARTIAL
 
-**Status**: Fully implemented with Shader Model 3.0 support
+**Status**: Core infrastructure complete, needs texture/buffer implementation
 
 **Files**:
 - `libs/d3d9/include/ananke/d3d9.h` - Complete API (620 lines)
-- `libs/d3d9/sources/d3d9/d3d9main.c` - Device implementation (900+ lines)
-- `libs/d3d9/sources/d3d9/resources.c` - Buffers and textures
-- `libs/d3d9/sources/d3d9/shader.c` - Vertex/pixel shaders
-- `libs/d3d9/sources/d3d9/shadertranslator.c` - HLSL to GLSL translator
-- `libs/d3d9/sources/d3d9/vertexbinding.c` - Vertex declarations
-- `libs/d3d9/sources/d3d9/shaderconstants.c` - Shader constants management
-- `libs/d3d9/sources/d3d9/statemanager.c` - Render states
+- `libs/d3d9/sources/d3d9/d3d9main.c` - Device implementation (~900 lines)
+- `libs/d3d9/sources/d3d9/shadertranslator.c` - HLSL→GLSL translator (stub)
 
-**Features**:
-- ✅ Programmable vertex/pixel shaders (SM 3.0)
-- ✅ Vertex declarations
-- ✅ Render states, texture states, sampler states
-- ✅ DrawPrimitive, DrawIndexedPrimitive
-- ✅ Vertex/index buffers
-- ✅ Textures and surfaces
-- ✅ Shader constants (256 VS + 32 PS)
+**Completed Features**:
+- ✅ Device creation and state management
+- ✅ Render states, texture states, sampler states (via FFP state)
+- ✅ Shader object creation (CreateVertexShader, CreatePixelShader)
+- ✅ Shader constants infrastructure
+- ✅ FFP rendering support (via d3d_common)
+- ✅ DrawPrimitive API structure
 
-**LOC**: ~4,800 lines (excluding common)
+**Missing Features** (See [D3D_IMPLEMENTATION_STATUS.md](D3D_IMPLEMENTATION_STATUS.md)):
+- ❌ Texture creation/upload (IDirect3DTexture9)
+- ❌ Vertex buffer Lock/Unlock (IDirect3DVertexBuffer9)
+- ❌ Index buffer implementation (IDirect3DIndexBuffer9)
+- ❌ HLSL bytecode translation (stub exists, ~2500 LOC needed)
+- ❌ Vertex declarations (partially stubbed)
+- ❌ Render targets / FBOs
+
+**LOC**: ~1,200 lines (infrastructure only, needs ~3,000 more)
 
 ---
 
-### Direct3D 8 (2000) - ✅ COMPLETE
+### Direct3D 8 (2000) - ⚠️ PARTIAL
 
-**Status**: Fully implemented with Shader Model 1.x support
+**Status**: FFP infrastructure complete, needs texture/buffer implementation
 
 **Files**:
 - `libs/d3d8/include/ananke/d3d8.h` - Complete API
-- `libs/d3d8/sources/d3d8/d3d8main.c` - Device implementation
+- `libs/d3d8/sources/d3d8/d3d8main.c` - Device implementation (~480 lines)
 
-**Features**:
-- ✅ Shader Model 1.0-1.4 support (simplified)
+**Completed Features**:
+- ✅ Device creation and state management
 - ✅ FVF descriptors (reuses `d3d_common/fvf_parser.c`)
-- ✅ Hybrid FFP + programmable pipeline
-- ✅ DrawPrimitive, DrawIndexedPrimitive
-- ✅ Vertex/index buffers
-- ✅ Shader handles
+- ✅ Hybrid FFP + programmable pipeline (via d3d_common)
+- ✅ DrawPrimitive API with uniform updates
+- ✅ Shader handle storage (CreateVertexShader, CreatePixelShader)
+- ✅ Stream source management
+
+**Missing Features** (See [D3D_IMPLEMENTATION_STATUS.md](D3D_IMPLEMENTATION_STATUS.md)):
+- ❌ Texture creation/upload (IDirect3DTexture8)
+- ❌ Vertex buffer Lock/Unlock (IDirect3DVertexBuffer8)
+- ❌ Index buffer implementation (IDirect3DIndexBuffer8)
+- ❌ SM 1.x shader translation (needs ~800 LOC)
+- ❌ Vertex data binding from stream sources
 
 **Architecture**:
 - Uses `d3d_common` for fixed-function rendering when FVF is set
@@ -186,21 +203,22 @@ All Direct3D versions (3-9) share a common foundation implemented in `d3d_common
 
 ---
 
-## Code Reuse Statistics
+## Code Reuse Statistics (As of November 2025)
 
-| Component                  | LOC  | Used By           |
-|----------------------------|------|-------------------|
-| d3d_common (FFP)           | ~800 | D3D3, D3D5-8      |
-| GLES20 COM wrapper         | 870  | ALL (D3D3-9)      |
-| D3D9 (unique)              | 4000 | D3D9 only         |
-| D3D8 (unique)              | 480  | D3D8 only         |
-| D3D7 (unique)              | 580  | D3D7 only         |
-| D3D6 (unique)              | 330  | D3D6 only         |
-| D3D5 (unique)              | 320  | D3D5 only         |
-| D3D3 (unique)              | 290  | D3D3 only         |
+| Component                  | LOC    | Used By           | Status |
+|----------------------------|--------|-------------------|--------|
+| d3d_common (FFP + Utils)   | ~1,200 | D3D3, D3D5-8      | ✅ Complete |
+| GLES20 COM wrapper         | ~1,020 | ALL (D3D3-9)      | ✅ Complete |
+| D3D7 (unique)              | ~580   | D3D7 only         | ✅ Complete |
+| D3D6 (unique)              | ~330   | D3D6 only         | ✅ Complete |
+| D3D5 (unique)              | ~320   | D3D5 only         | ✅ Complete |
+| D3D3 (unique)              | ~290   | D3D3 only         | ✅ Complete |
+| D3D8 (unique, partial)     | ~480   | D3D8 only         | ⚠️ Needs buffers/textures |
+| D3D9 (unique, partial)     | ~1,200 | D3D9 only         | ⚠️ Needs buffers/textures |
 
-**Total LOC**: ~7,670 lines
-**Shared LOC**: ~1,670 lines (22% of codebase - excellent reuse!)
+**Total Implemented**: ~5,420 LOC (D3D3-7 fully functional)
+**Shared Infrastructure**: ~2,220 LOC (41% excellent reuse!)
+**Remaining for D3D8/9**: ~5,600 LOC (textures, buffers, shaders)
 
 ## Key Design Decisions
 
