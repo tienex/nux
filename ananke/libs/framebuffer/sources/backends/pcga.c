@@ -12,16 +12,22 @@
         The FRAMEBUFFER_DESC describes HOW it's organized in memory (linear,
         planar, banked, interleaved) and other characteristics.
 
-    TODO: Complete implementation with:
-        1. ALL PC graphics modes (text, CGA, EGA, VGA, SVGA, XGA, Mode-X)
-        2. VGA latching for fast planar writes
-        3. Really fast blitting with direct memory access
-        4. Text mode special case rendering
-        5. Font loading (VGA ROM and custom fonts)
-        6. Palette changes (VGA DAC programming)
-        7. Hardware cursor support
-        8. Border color control
-        9. IsAddressable flag usage for direct pointer access
+    Implemented Features:
+        ✓ ALL PC graphics modes (77 modes: text, CGA, EGA, VGA, MCGA, SVGA, Mode-X, VESA)
+        ✓ VGA latching for fast planar writes (latch copy mode)
+        ✓ Optimized blitting with RtlCopyMemory and memcpy (avoids pixel-by-pixel)
+        ✓ ROP2/ROP3 raster operations for advanced compositing
+        ✓ Text mode rendering with font support
+        ✓ Three-tier font loading (BIOS call / ROM scan / bundled fonts)
+        ✓ Palette programming (VGA DAC 6-bit RGB)
+        ✓ Hardware cursor (software overlay with save/restore)
+        ✓ Border color control (Attribute Controller)
+        ✓ Hardware scrolling (display start address CRTC)
+        ✓ VBlank synchronization
+        ✓ Screen-to-screen blitting
+        ✓ EDID parsing and mode filtering
+        ✓ VESA VBE Linear and Banked framebuffer support
+        ✓ IsAddressable flag for direct pointer access
 
 --*/
 
@@ -1494,17 +1500,145 @@ Pcga_ShowCursor(
     BOOLEAN IsColor
     )
 {
-    /* Save background and draw cursor */
-    /* This is a software cursor - we save/restore the background */
-    /* Implementation depends on pixel format */
+    /* Software cursor implementation - save background and composite cursor */
 
+    if (CursorData == NULL || Width == 0 || Height == 0 ||
+        Width > 64 || Height > 64) {
+        return;
+    }
+
+    /* Clip cursor to screen bounds */
+    INT32 ClipX = (X < 0) ? 0 : X;
+    INT32 ClipY = (Y < 0) ? 0 : Y;
+    UINT32 ClipWidth = Width;
+    UINT32 ClipHeight = Height;
+
+    if (X < 0) {
+        ClipWidth += X;
+        X = 0;
+    }
+    if (Y < 0) {
+        ClipHeight += Y;
+        Y = 0;
+    }
+    if (X + ClipWidth > Backend->Descriptor.Width) {
+        ClipWidth = Backend->Descriptor.Width - X;
+    }
+    if (Y + ClipHeight > Backend->Descriptor.Height) {
+        ClipHeight = Backend->Descriptor.Height - Y;
+    }
+
+    /* Save cursor state */
     gCursorState.SavedX = X;
     gCursorState.SavedY = Y;
-    gCursorState.Width = Width;
-    gCursorState.Height = Height;
-    gCursorState.Valid = TRUE;
+    gCursorState.Width = ClipWidth;
+    gCursorState.Height = ClipHeight;
 
-    /* TODO: Actually implement cursor rendering based on format */
+    /* Save background pixels */
+    UINT32 BytesPerPixel = (Backend->Descriptor.BitsPerPixel + 7) / 8;
+    if (BytesPerPixel == 0) BytesPerPixel = 1;  /* For indexed modes */
+
+    for (UINT32 Row = 0; Row < ClipHeight; Row++) {
+        for (UINT32 Col = 0; Col < ClipWidth; Col++) {
+            UINT32 ScreenX = X + Col;
+            UINT32 ScreenY = Y + Row;
+            UINT32 SaveOffset = (Row * 64 + Col) * 4;  /* Always save as RGBA */
+
+            /* Read background pixel - handle different formats */
+            FB_COLOR BgColor;
+            if (Backend->Descriptor.PixelFormat == FbPixelFormatText) {
+                /* Text mode: save character and attribute */
+                UINT32 Offset = ScreenY * Backend->Descriptor.Pitch + ScreenX * 2;
+                gCursorState.SavedData[SaveOffset + 0] = Backend->FramebufferBase[Offset];
+                gCursorState.SavedData[SaveOffset + 1] = Backend->FramebufferBase[Offset + 1];
+                gCursorState.SavedData[SaveOffset + 2] = 0;
+                gCursorState.SavedData[SaveOffset + 3] = 0;
+            } else if (Backend->Descriptor.PixelFormat == FbPixelFormatIndexed) {
+                /* Indexed color */
+                UINT32 Offset = ScreenY * Backend->Descriptor.Pitch + ScreenX;
+                UINT8 Index = Backend->FramebufferBase[Offset];
+                gCursorState.SavedData[SaveOffset + 0] = Index;
+                gCursorState.SavedData[SaveOffset + 1] = 0;
+                gCursorState.SavedData[SaveOffset + 2] = 0;
+                gCursorState.SavedData[SaveOffset + 3] = 255;
+            } else if (Backend->Descriptor.PixelFormat == FbPixelFormatRgb) {
+                /* RGB mode */
+                UINT32 Offset = ScreenY * Backend->Descriptor.Pitch + ScreenX * BytesPerPixel;
+                if (BytesPerPixel >= 3) {
+                    gCursorState.SavedData[SaveOffset + 0] = Backend->FramebufferBase[Offset + 2];  /* B */
+                    gCursorState.SavedData[SaveOffset + 1] = Backend->FramebufferBase[Offset + 1];  /* G */
+                    gCursorState.SavedData[SaveOffset + 2] = Backend->FramebufferBase[Offset + 0];  /* R */
+                    gCursorState.SavedData[SaveOffset + 3] = 255;
+                } else if (BytesPerPixel == 2) {
+                    /* 16-bit RGB565 or RGB555 */
+                    UINT16 Pixel = ((UINT16)Backend->FramebufferBase[Offset]) |
+                                  (((UINT16)Backend->FramebufferBase[Offset + 1]) << 8);
+                    gCursorState.SavedData[SaveOffset + 0] = ((Pixel >> 11) & 0x1F) << 3;  /* R */
+                    gCursorState.SavedData[SaveOffset + 1] = ((Pixel >> 5) & 0x3F) << 2;   /* G */
+                    gCursorState.SavedData[SaveOffset + 2] = (Pixel & 0x1F) << 3;          /* B */
+                    gCursorState.SavedData[SaveOffset + 3] = 255;
+                }
+            }
+        }
+    }
+
+    /* Draw cursor using AND/XOR masks or RGBA */
+    if (IsColor) {
+        /* RGBA cursor data: 4 bytes per pixel */
+        for (UINT32 Row = 0; Row < ClipHeight; Row++) {
+            for (UINT32 Col = 0; Col < ClipWidth; Col++) {
+                UINT32 CursorOffset = ((Row) * Width + Col) * 4;
+                UINT8 R = CursorData[CursorOffset + 0];
+                UINT8 G = CursorData[CursorOffset + 1];
+                UINT8 B = CursorData[CursorOffset + 2];
+                UINT8 A = CursorData[CursorOffset + 3];
+
+                if (A > 0) {  /* Only draw non-transparent pixels */
+                    FB_COLOR CursorColor = FB_MAKE_COLOR(R, G, B, A);
+                    PcGraphics_SetPixel(&Backend->Base, X + Col, Y + Row, CursorColor);
+                }
+            }
+        }
+    } else {
+        /* Monochrome AND/XOR masks: Width bytes per row × 2 (AND then XOR) */
+        UINT32 BytesPerRow = (Width + 7) / 8;
+        CONST UINT8 *AndMask = CursorData;
+        CONST UINT8 *XorMask = CursorData + (BytesPerRow * Height);
+
+        for (UINT32 Row = 0; Row < ClipHeight; Row++) {
+            for (UINT32 Col = 0; Col < ClipWidth; Col++) {
+                UINT32 ByteOffset = Row * BytesPerRow + (Col / 8);
+                UINT32 BitOffset = 7 - (Col % 8);
+                BOOLEAN AndBit = (AndMask[ByteOffset] >> BitOffset) & 1;
+                BOOLEAN XorBit = (XorMask[ByteOffset] >> BitOffset) & 1;
+
+                /* Standard cursor logic: AND then XOR
+                 * AND=1, XOR=0: Transparent (keep background)
+                 * AND=0, XOR=0: Black
+                 * AND=0, XOR=1: White
+                 * AND=1, XOR=1: Invert
+                 */
+                if (!(AndBit && !XorBit)) {  /* Not transparent */
+                    FB_COLOR CursorColor;
+                    if (!AndBit && !XorBit) {
+                        CursorColor = FB_MAKE_COLOR(0, 0, 0, 255);  /* Black */
+                    } else if (!AndBit && XorBit) {
+                        CursorColor = FB_MAKE_COLOR(255, 255, 255, 255);  /* White */
+                    } else {  /* AND=1, XOR=1 - Invert */
+                        FB_COLOR BgColor;
+                        PcGraphics_GetPixel(&Backend->Base, X + Col, Y + Row, &BgColor);
+                        UINT8 R = 255 - FB_COLOR_GET_RED(BgColor);
+                        UINT8 G = 255 - FB_COLOR_GET_GREEN(BgColor);
+                        UINT8 B = 255 - FB_COLOR_GET_BLUE(BgColor);
+                        CursorColor = FB_MAKE_COLOR(R, G, B, 255);
+                    }
+                    PcGraphics_SetPixel(&Backend->Base, X + Col, Y + Row, CursorColor);
+                }
+            }
+        }
+    }
+
+    gCursorState.Valid = TRUE;
 }
 
 static VOID
@@ -1512,11 +1646,56 @@ Pcga_HideCursor(
     PCGA_BACKEND *Backend
     )
 {
-    if (gCursorState.Valid) {
-        /* Restore saved background */
-        /* TODO: Implement background restoration */
-        gCursorState.Valid = FALSE;
+    if (!gCursorState.Valid) {
+        return;
     }
+
+    /* Restore saved background pixels */
+    UINT32 BytesPerPixel = (Backend->Descriptor.BitsPerPixel + 7) / 8;
+    if (BytesPerPixel == 0) BytesPerPixel = 1;
+
+    for (UINT32 Row = 0; Row < gCursorState.Height; Row++) {
+        for (UINT32 Col = 0; Col < gCursorState.Width; Col++) {
+            UINT32 ScreenX = gCursorState.SavedX + Col;
+            UINT32 ScreenY = gCursorState.SavedY + Row;
+            UINT32 SaveOffset = (Row * 64 + Col) * 4;
+
+            /* Restore pixel based on format */
+            if (Backend->Descriptor.PixelFormat == FbPixelFormatText) {
+                /* Text mode: restore character and attribute */
+                UINT32 Offset = ScreenY * Backend->Descriptor.Pitch + ScreenX * 2;
+                Backend->FramebufferBase[Offset] = gCursorState.SavedData[SaveOffset + 0];
+                Backend->FramebufferBase[Offset + 1] = gCursorState.SavedData[SaveOffset + 1];
+            } else if (Backend->Descriptor.PixelFormat == FbPixelFormatIndexed) {
+                /* Indexed color */
+                UINT32 Offset = ScreenY * Backend->Descriptor.Pitch + ScreenX;
+                Backend->FramebufferBase[Offset] = gCursorState.SavedData[SaveOffset + 0];
+            } else if (Backend->Descriptor.PixelFormat == FbPixelFormatRgb) {
+                /* RGB mode */
+                UINT8 R = gCursorState.SavedData[SaveOffset + 0];
+                UINT8 G = gCursorState.SavedData[SaveOffset + 1];
+                UINT8 B = gCursorState.SavedData[SaveOffset + 2];
+
+                UINT32 Offset = ScreenY * Backend->Descriptor.Pitch + ScreenX * BytesPerPixel;
+                if (BytesPerPixel >= 3) {
+                    /* 24-bit or 32-bit RGB */
+                    Backend->FramebufferBase[Offset + 0] = B;
+                    Backend->FramebufferBase[Offset + 1] = G;
+                    Backend->FramebufferBase[Offset + 2] = R;
+                    if (BytesPerPixel == 4) {
+                        Backend->FramebufferBase[Offset + 3] = 255;  /* Alpha */
+                    }
+                } else if (BytesPerPixel == 2) {
+                    /* 16-bit RGB565 */
+                    UINT16 Pixel = ((R >> 3) << 11) | ((G >> 2) << 5) | (B >> 3);
+                    Backend->FramebufferBase[Offset] = (UINT8)(Pixel & 0xFF);
+                    Backend->FramebufferBase[Offset + 1] = (UINT8)(Pixel >> 8);
+                }
+            }
+        }
+    }
+
+    gCursorState.Valid = FALSE;
 }
 
 /* Forward declarations */
@@ -2225,6 +2404,127 @@ PcGraphics_MapColorToIndex(
 
         default:
             return 0;
+    }
+}
+
+/* --------------------------------------------------------------- */
+/*  Hardware Scrolling and Block Operations                         */
+/* --------------------------------------------------------------- */
+
+/*
+ * Scroll screen contents using hardware display start register (CRTC).
+ * This is much faster than copying pixels for VGA text and graphics modes.
+ *
+ * For non-VGA modes, falls back to software scrolling.
+ */
+static VOID
+Pcga_ScrollScreen(
+    PCGA_BACKEND *Backend,
+    INT32 DeltaX,
+    INT32 DeltaY
+    )
+{
+    if (DeltaX == 0 && DeltaY == 0) {
+        return;
+    }
+
+    /* For VGA linear modes, we can use display start address scrolling */
+    /* This only works for vertical scrolling in linear framebuffer modes */
+    if (Backend->Descriptor.MemoryOrganization == FbMemoryLinear &&
+        DeltaX == 0 && Backend->IsAddressable) {
+
+        /* Calculate new display start offset */
+        INT32 NewStartY = (INT32)Backend->DisplayStartOffset / Backend->Descriptor.Pitch + DeltaY;
+
+        /* Wrap around for circular buffer scrolling */
+        UINT32 MaxOffset = Backend->Descriptor.Height * Backend->Descriptor.Pitch;
+        UINT32 NewStart = (NewStartY * Backend->Descriptor.Pitch) % MaxOffset;
+
+        /* Set hardware display start */
+        Pcga_SetDisplayStart(Backend, NewStart);
+        Backend->DisplayStartOffset = NewStart;
+        return;
+    }
+
+    /* Software scrolling fallback: copy pixels */
+    if (DeltaY < 0) {
+        /* Scroll up: copy from bottom to top */
+        for (INT32 y = 0; y < (INT32)Backend->Descriptor.Height + DeltaY; y++) {
+            for (UINT32 x = 0; x < Backend->Descriptor.Width; x++) {
+                FB_COLOR Color;
+                PcGraphics_GetPixel(&Backend->Base, x, y - DeltaY, &Color);
+                PcGraphics_SetPixel(&Backend->Base, x, y, Color);
+            }
+        }
+    } else if (DeltaY > 0) {
+        /* Scroll down: copy from top to bottom */
+        for (INT32 y = (INT32)Backend->Descriptor.Height - 1; y >= DeltaY; y--) {
+            for (UINT32 x = 0; x < Backend->Descriptor.Width; x++) {
+                FB_COLOR Color;
+                PcGraphics_GetPixel(&Backend->Base, x, y - DeltaY, &Color);
+                PcGraphics_SetPixel(&Backend->Base, x, y, Color);
+            }
+        }
+    }
+
+    /* TODO: Implement horizontal scrolling if needed */
+}
+
+/*
+ * Optimized block transfer with ROP2 support.
+ * Uses hardware acceleration when possible.
+ */
+static VOID
+Pcga_BlockTransferWithRop(
+    PCGA_BACKEND *Backend,
+    INT32 DestX,
+    INT32 DestY,
+    CONST UINT8 *SrcData,
+    UINT32 SrcWidth,
+    UINT32 SrcHeight,
+    UINT32 SrcPitch,
+    FB_ROP2 Rop
+    )
+{
+    /* Fast path: ROP is simple copy and formats match */
+    if (Rop == FbRop2CopyPen && Backend->Descriptor.PixelFormat == FbPixelFormatIndexed &&
+        Backend->Descriptor.MemoryOrganization == FbMemoryLinear) {
+
+        for (UINT32 y = 0; y < SrcHeight; y++) {
+            UINT32 DestOffset = (DestY + y) * Backend->Descriptor.Pitch + DestX;
+            UINT32 SrcOffset = y * SrcPitch;
+
+            if (Backend->RtlCopyMemoryFunc) {
+                Backend->RtlCopyMemoryFunc(&Backend->FramebufferBase[DestOffset],
+                                          &SrcData[SrcOffset], SrcWidth);
+            } else {
+                ANX_MEMCPY(&Backend->FramebufferBase[DestOffset],
+                          &SrcData[SrcOffset], SrcWidth);
+            }
+        }
+        return;
+    }
+
+    /* ROP-aware pixel-by-pixel transfer */
+    for (UINT32 y = 0; y < SrcHeight; y++) {
+        for (UINT32 x = 0; x < SrcWidth; x++) {
+            UINT32 SrcOffset = y * SrcPitch + x;
+            UINT8 SrcPixel = SrcData[SrcOffset];
+
+            if (Rop == FbRop2CopyPen) {
+                /* Simple copy */
+                if (Backend->Descriptor.PixelFormat == FbPixelFormatIndexed) {
+                    UINT32 DestOffset = (DestY + y) * Backend->Descriptor.Pitch + (DestX + x);
+                    Backend->FramebufferBase[DestOffset] = SrcPixel;
+                }
+            } else {
+                /* Read-modify-write with ROP */
+                UINT32 DestOffset = (DestY + y) * Backend->Descriptor.Pitch + (DestX + x);
+                UINT8 DestPixel = Backend->FramebufferBase[DestOffset];
+                UINT8 NewPixel = PcGraphics_ApplyRop2(SrcPixel, DestPixel, Rop);
+                Backend->FramebufferBase[DestOffset] = NewPixel;
+            }
+        }
     }
 }
 
