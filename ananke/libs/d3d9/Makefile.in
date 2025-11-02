@@ -9,6 +9,8 @@ SRCS += sources/d3d9/d3d9main.c
 SRCS += sources/d3d9/resources.c
 SRCS += sources/d3d9/shader.c
 SRCS += sources/d3d9/statemanager.c
+SRCS += sources/d3d9/vertexbinding.c
+SRCS += sources/d3d9/shaderconstants.c
 
 # Include directories
 CFLAGS += -I$(SRCDIR)/include

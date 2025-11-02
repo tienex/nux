@@ -27,6 +27,8 @@ The D3D9 emulation library consists of three main layers:
   - `resources.c` - Resource objects (buffers, textures)
   - `shader.c` - Shader management
   - `statemanager.c` - State management and D3D-to-GL mappings
+  - `vertexbinding.c` - Vertex declaration to GL attribute binding
+  - `shaderconstants.c` - Shader constant storage and application
 
 ### 3. Public API
 - **Location**: `include/ananke/`
@@ -45,15 +47,17 @@ This implementation targets **Direct3D 9.0c (Shader Model 3.0)** compatibility:
 - Vertex buffers and index buffers
 - Textures (2D, single level)
 - Vertex and pixel shaders (stub - requires HLSL→GLSL translator)
-- Vertex declarations
+- Vertex declarations with automatic GL attribute binding
 - Primitive rendering (triangles, lines, points)
-- Render states (depth test, blending, culling)
+- Render states (depth test, blending, culling, all major states)
+- Shader constants (full storage and application)
+- Vertex attribute mapping (D3D semantics → GL attributes)
+- Blend state tracking and application
 - Viewports
 - Clear operations
 - Present/swap buffers
 
 ⚠️ **Partially Supported:**
-- Shader constants (infrastructure in place)
 - Texture stage states (requires shader implementation)
 - Sampler states (basic filtering and wrapping)
 - Mipmaps (single level only currently)

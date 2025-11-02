@@ -25,6 +25,9 @@ extern HRESULT D3D9CreateVertexShader(IGLDevice*, CONST UINT32*, IDirect3DVertex
 extern HRESULT D3D9CreatePixelShader(IGLDevice*, CONST UINT32*, IDirect3DPixelShader9**);
 extern HRESULT D3D9CreateVertexDeclaration(CONST D3DVERTEXELEMENT9*, IDirect3DVertexDeclaration9**);
 
+/* Include internal header for new functions */
+#include "d3d9_internal.h"
+
 /* --------------------------------------------------------------- */
 /*  Internal Structures                                            */
 /* --------------------------------------------------------------- */
@@ -49,6 +52,13 @@ typedef struct _D3D9_DEVICE {
 
     UINT32                CurrentStride;
     UINT32                CurrentOffset;
+
+    /* Shader constants */
+    D3D9_SHADER_CONSTANTS *ShaderConstants;
+
+    /* State tracking */
+    D3DBLEND              CurrentSrcBlend;
+    D3DBLEND              CurrentDestBlend;
 
     /* Presentation parameters */
     D3DPRESENT_PARAMETERS PresentParams;
@@ -139,6 +149,9 @@ D3D9Device_Release(IDirect3DDevice9 *This)
     UINT32 i;
 
     if (refCount == 0) {
+        if (device->ShaderConstants) {
+            D3D9DestroyShaderConstants(device->ShaderConstants);
+        }
         if (device->GlContext) {
             IUnknown_Release((IUnknown*)device->GlContext);
         }
@@ -432,6 +445,13 @@ D3D9Device_DrawPrimitive(
     GLenum glPrimType = D3DPrimitiveTypeToGL(PrimitiveType);
     UINT32 vertexCount = D3DPrimitiveCountToVertexCount(PrimitiveType, PrimitiveCount);
 
+    /* Apply vertex declaration if set */
+    if (device->CurrentVertexDeclaration && device->CurrentStride > 0) {
+        D3D9ApplyVertexDeclaration(device->CurrentVertexDeclaration,
+                                   device->CurrentStride,
+                                   device->CurrentOffset);
+    }
+
     IGLContext_DrawArrays(device->GlContext, glPrimType, StartVertex, vertexCount);
 
     return S_OK;
@@ -465,40 +485,23 @@ D3D9Device_SetRenderState(
 {
     D3D9_DEVICE *device = (D3D9_DEVICE*)This;
 
-    switch (State) {
-        case D3DRS_ZENABLE:
-            if (Value) {
-                IGLContext_Enable(device->GlContext, GL_DEPTH_TEST);
-            } else {
-                IGLContext_Disable(device->GlContext, GL_DEPTH_TEST);
-            }
-            break;
-
-        case D3DRS_ALPHABLENDENABLE:
-            if (Value) {
-                IGLContext_Enable(device->GlContext, GL_BLEND);
-            } else {
-                IGLContext_Disable(device->GlContext, GL_BLEND);
-            }
-            break;
-
-        case D3DRS_CULLMODE:
-            if (Value == D3DCULL_NONE) {
-                IGLContext_Disable(device->GlContext, GL_CULL_FACE);
-            } else {
-                IGLContext_Enable(device->GlContext, GL_CULL_FACE);
-                if (Value == D3DCULL_CW) {
-                    IGLContext_CullFace(device->GlContext, GL_BACK);
-                } else {
-                    IGLContext_CullFace(device->GlContext, GL_FRONT);
-                }
-            }
-            break;
-
-        /* Add more render states as needed */
+    /* Handle blend states specially to apply them together */
+    if (State == D3DRS_SRCBLEND) {
+        device->CurrentSrcBlend = (D3DBLEND)Value;
+        return D3D9ApplyBlendState(device->GlContext,
+                                   device->CurrentSrcBlend,
+                                   device->CurrentDestBlend);
     }
 
-    return S_OK;
+    if (State == D3DRS_DESTBLEND) {
+        device->CurrentDestBlend = (D3DBLEND)Value;
+        return D3D9ApplyBlendState(device->GlContext,
+                                   device->CurrentSrcBlend,
+                                   device->CurrentDestBlend);
+    }
+
+    /* Delegate to state manager for other states */
+    return D3D9ApplyRenderState(device->GlContext, State, Value);
 }
 
 static HRESULT STDMETHODCALLTYPE
@@ -660,8 +663,16 @@ D3D9Device_SetVertexShaderConstantF(
     CONST FLOAT *pConstantData,
     UINT32 Vector4fCount)
 {
-    /* TODO: Store constants and apply when shader is used */
-    return S_OK;
+    D3D9_DEVICE *device = (D3D9_DEVICE*)This;
+
+    if (!device->ShaderConstants) {
+        return E_FAIL;
+    }
+
+    return D3D9SetVertexShaderConstantF(device->ShaderConstants,
+                                        StartRegister,
+                                        pConstantData,
+                                        Vector4fCount);
 }
 
 static HRESULT STDMETHODCALLTYPE
@@ -671,8 +682,16 @@ D3D9Device_SetPixelShaderConstantF(
     CONST FLOAT *pConstantData,
     UINT32 Vector4fCount)
 {
-    /* TODO: Store constants and apply when shader is used */
-    return S_OK;
+    D3D9_DEVICE *device = (D3D9_DEVICE*)This;
+
+    if (!device->ShaderConstants) {
+        return E_FAIL;
+    }
+
+    return D3D9SetPixelShaderConstantF(device->ShaderConstants,
+                                       StartRegister,
+                                       pConstantData,
+                                       Vector4fCount);
 }
 
 static IDirect3DDevice9Vtbl D3D9DeviceVtbl = {
@@ -788,6 +807,19 @@ D3D9Main_CreateDevice(
         RtlFreeMemory(device);
         return hr;
     }
+
+    /* Create shader constants storage */
+    hr = D3D9CreateShaderConstants(&device->ShaderConstants);
+    if (FAILED(hr)) {
+        IUnknown_Release((IUnknown*)device->GlContext);
+        IUnknown_Release((IUnknown*)device->GlDevice);
+        RtlFreeMemory(device);
+        return hr;
+    }
+
+    /* Initialize default blend states */
+    device->CurrentSrcBlend = D3DBLEND_ONE;
+    device->CurrentDestBlend = D3DBLEND_ZERO;
 
     /* Setup viewport */
     if (pPresentationParameters) {

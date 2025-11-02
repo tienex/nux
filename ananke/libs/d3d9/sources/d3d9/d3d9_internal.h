@@ -120,3 +120,83 @@ D3D9ApplyBlendState(
     D3DBLEND SrcBlend,
     D3DBLEND DestBlend
 );
+
+/* --------------------------------------------------------------- */
+/*  Vertex Binding Functions                                       */
+/* --------------------------------------------------------------- */
+
+HRESULT
+D3D9ApplyVertexDeclaration(
+    IDirect3DVertexDeclaration9 *pDecl,
+    UINT32 Stride,
+    UINTN BaseOffset
+);
+
+HRESULT
+D3D9DisableVertexAttributes(VOID);
+
+UINT32
+D3D9GetDeclTypeSize(D3DDECLTYPE Type);
+
+HRESULT
+D3D9CalculateVertexStride(
+    IDirect3DVertexDeclaration9 *pDecl,
+    UINT32 *OutStride
+);
+
+HRESULT
+D3D9BindVertexDeclToShader(
+    IDirect3DVertexDeclaration9 *pDecl,
+    IGLProgram *pProgram,
+    UINT32 Stride,
+    UINTN BaseOffset
+);
+
+/* --------------------------------------------------------------- */
+/*  Shader Constants                                               */
+/* --------------------------------------------------------------- */
+
+typedef struct _D3D9_SHADER_CONSTANTS D3D9_SHADER_CONSTANTS;
+
+HRESULT
+D3D9CreateShaderConstants(
+    D3D9_SHADER_CONSTANTS **ppConstants
+);
+
+VOID
+D3D9DestroyShaderConstants(
+    D3D9_SHADER_CONSTANTS *pConstants
+);
+
+HRESULT
+D3D9SetVertexShaderConstantF(
+    D3D9_SHADER_CONSTANTS *pConstants,
+    UINT32 StartRegister,
+    CONST FLOAT *pConstantData,
+    UINT32 Vector4fCount
+);
+
+HRESULT
+D3D9SetPixelShaderConstantF(
+    D3D9_SHADER_CONSTANTS *pConstants,
+    UINT32 StartRegister,
+    CONST FLOAT *pConstantData,
+    UINT32 Vector4fCount
+);
+
+HRESULT
+D3D9ApplyVertexShaderConstants(
+    D3D9_SHADER_CONSTANTS *pConstants,
+    IGLProgram *pProgram
+);
+
+HRESULT
+D3D9ApplyPixelShaderConstants(
+    D3D9_SHADER_CONSTANTS *pConstants,
+    IGLProgram *pProgram
+);
+
+HRESULT
+D3D9InvalidateShaderConstants(
+    D3D9_SHADER_CONSTANTS *pConstants
+);
