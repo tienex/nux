@@ -46,6 +46,14 @@ typedef enum _VINIL_EXEC_MODE {
   VinilExecModeCompute    = 1,  /* Compute kernel execution */
 } VINIL_EXEC_MODE;
 
+//
+// Forward Declarations
+//
+
+typedef struct IVinilContext IVinilContext;
+typedef struct IVinilProgram IVinilProgram;
+typedef struct IVinilExecutable IVinilExecutable;
+
 /* --------------------------------------------------------------- */
 /*  IVinilContext - Main execution context                         */
 /* --------------------------------------------------------------- */
@@ -68,7 +76,7 @@ ANX_BEGIN_INTERFACE(IVinilContext, IUnknown,
       @retval  E_OUTOFMEMORY      Out of memory.
     **/
     ANX_IFACE_METHOD(HRESULT, CreateProgram, (
-        OUT struct IVinilProgram **Program))
+        OUT IVinilProgram **Program))
 
     /**
       Get the last error message.
@@ -121,7 +129,7 @@ ANX_BEGIN_INTERFACE(IVinilProgram, IUnknown,
     **/
     ANX_IFACE_METHOD(HRESULT, Compile, (
         IN VINIL_COMPILE_FLAGS Flags,
-        OUT struct IVinilExecutable **Executable))
+        OUT IVinilExecutable **Executable))
 
     /**
       Get compilation log/errors.

@@ -75,7 +75,7 @@ VinilContext_AddRef (
     )
 {
     VINIL_CONTEXT_IMPL *Impl = (VINIL_CONTEXT_IMPL *)This;
-    return (UINT32)AtomicIncrement(&Impl->RefCount);
+    return ANX_REF_INC(&Impl->RefCount);
 }
 
 static UINT32 STDMETHODCALLTYPE
@@ -84,12 +84,12 @@ VinilContext_Release (
     )
 {
     VINIL_CONTEXT_IMPL *Impl = (VINIL_CONTEXT_IMPL *)This;
-    UINT32 RefCount = (UINT32)AtomicDecrement(&Impl->RefCount);
-    
+    UINT32 RefCount = ANX_REF_DEC(&Impl->RefCount);
+
     if (RefCount == 0) {
         free(Impl);
     }
-    
+
     return RefCount;
 }
 
@@ -177,7 +177,7 @@ VinilProgram_AddRef (
     )
 {
     VINIL_PROGRAM_IMPL *Impl = (VINIL_PROGRAM_IMPL *)This;
-    return (UINT32)AtomicIncrement(&Impl->RefCount);
+    return ANX_REF_INC(&Impl->RefCount);
 }
 
 static UINT32 STDMETHODCALLTYPE
@@ -186,15 +186,15 @@ VinilProgram_Release (
     )
 {
     VINIL_PROGRAM_IMPL *Impl = (VINIL_PROGRAM_IMPL *)This;
-    UINT32 RefCount = (UINT32)AtomicDecrement(&Impl->RefCount);
-    
+    UINT32 RefCount = ANX_REF_DEC(&Impl->RefCount);
+
     if (RefCount == 0) {
         if (Impl->Context != NULL) {
             Impl->Context->lpVtbl->Release(Impl->Context);
         }
         free(Impl);
     }
-    
+
     return RefCount;
 }
 
@@ -261,7 +261,7 @@ VinilExecutable_AddRef (
     )
 {
     VINIL_EXECUTABLE_IMPL *Impl = (VINIL_EXECUTABLE_IMPL *)This;
-    return (UINT32)AtomicIncrement(&Impl->RefCount);
+    return ANX_REF_INC(&Impl->RefCount);
 }
 
 static UINT32 STDMETHODCALLTYPE
@@ -270,13 +270,13 @@ VinilExecutable_Release (
     )
 {
     VINIL_EXECUTABLE_IMPL *Impl = (VINIL_EXECUTABLE_IMPL *)This;
-    UINT32 RefCount = (UINT32)AtomicDecrement(&Impl->RefCount);
-    
+    UINT32 RefCount = ANX_REF_DEC(&Impl->RefCount);
+
     if (RefCount == 0) {
         /* TODO: Free JIT code if allocated */
         free(Impl);
     }
-    
+
     return RefCount;
 }
 
@@ -344,7 +344,7 @@ VinilContext_CreateProgram (
     }
     
     Impl->Base.lpVtbl = &gVinilProgramVtbl;
-    Impl->RefCount = 1;
+    Impl->RefCount.RefCount = 1;
     Impl->Context = This;
     Impl->CompileLog[0] = '\0';
     
@@ -375,7 +375,7 @@ VinilProgram_Compile (
     }
     
     ExecImpl->Base.lpVtbl = &gVinilExecutableVtbl;
-    ExecImpl->RefCount = 1;
+    ExecImpl->RefCount.RefCount = 1;
     ExecImpl->Code = NULL;
     ExecImpl->IsJit = (Flags & VinilCompileFlagUseJit) != 0;
     ExecImpl->CyclesExecuted = 0;
@@ -409,7 +409,7 @@ VinilCreateContext (
     }
     
     Impl->Base.lpVtbl = &gVinilContextVtbl;
-    Impl->RefCount = 1;
+    Impl->RefCount.RefCount = 1;
     Impl->LastError[0] = '\0';
     
     *Context = &Impl->Base;
