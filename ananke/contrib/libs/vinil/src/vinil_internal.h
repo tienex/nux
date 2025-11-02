@@ -155,7 +155,23 @@ typedef struct {
   };
 } VINIL_REGISTER_VALUE;
 
-#define MAX_REGISTERS  256
+#define MAX_REGISTERS     256
+#define MAX_CONTROL_FLOW  32
+
+/* Control flow stack entry types */
+typedef enum {
+  VINIL_CF_IF,
+  VINIL_CF_ELSE,
+  VINIL_CF_LOOP
+} VINIL_CF_TYPE;
+
+/* Control flow stack entry */
+typedef struct {
+  VINIL_CF_TYPE  Type;
+  UINT32         TargetIP;      /* Jump target (ELSE/ENDIF/ENDLOOP instruction) */
+  UINT32         LoopStartIP;   /* Loop start IP (for CONTINUE) */
+  BOOLEAN        Executing;     /* Whether this branch is executing */
+} VINIL_CF_ENTRY;
 
 typedef struct _VINIL_EXECUTION_STATE {
   VINIL_REGISTER_VALUE  Registers[MAX_REGISTERS];
@@ -169,6 +185,11 @@ typedef struct _VINIL_EXECUTION_STATE {
   UINT32                NumGroups[3];
   BOOLEAN               Discarded;      /* Fragment discard flag */
   BOOLEAN               Returned;       /* Return flag */
+
+  /* Control flow tracking */
+  VINIL_CF_ENTRY        ControlFlowStack[MAX_CONTROL_FLOW];
+  UINT32                ControlFlowDepth;
+  BOOLEAN               ConditionResult;  /* Last condition evaluation */
 } VINIL_EXECUTION_STATE;
 
 //

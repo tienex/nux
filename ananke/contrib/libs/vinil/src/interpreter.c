@@ -1518,8 +1518,55 @@ ExecuteInstruction (
       State->Discarded = TRUE;
       break;
 
+    case VINIL_OP_SHUFFLE:
+      /* Vector shuffle using Src1 as component indices */
+      if (Instruction->Dst != NULL && Instruction->Src[0] != NULL && Instruction->Src[1] != NULL) {
+        VINIL_REGISTER_VALUE *DstReg = GetRegister (State, Instruction->Dst);
+        VINIL_REGISTER_VALUE *SrcReg = GetRegister (State, Instruction->Src[0]);
+        VINIL_REGISTER_VALUE *IdxReg = GetRegister (State, Instruction->Src[1]);
+
+        if (DstReg != NULL && SrcReg != NULL && IdxReg != NULL) {
+          /* Shuffle components based on indices */
+          for (UINT32 i = 0; i < 4; i++) {
+            UINT32 Idx = IdxReg->u[i] & 3; /* Mask to 0-3 */
+            DstReg->f[i] = SrcReg->f[Idx];
+          }
+        }
+      }
+      break;
+
     case VINIL_OP_NOP:
       /* Do nothing */
+      break;
+
+    /* Control Flow Opcodes */
+    case VINIL_OP_IF:
+      /* Evaluate condition from first component of Src0 */
+      if (Instruction->Src[0] != NULL) {
+        VINIL_REGISTER_VALUE *Cond = GetRegister (State, Instruction->Src[0]);
+        if (Cond != NULL) {
+          /* Non-zero means true */
+          State->ConditionResult = (Cond->f[0] != 0.0f) || (Cond->i[0] != 0) || Cond->b[0];
+        } else {
+          State->ConditionResult = FALSE;
+        }
+      } else {
+        State->ConditionResult = FALSE;
+      }
+      break;
+
+    case VINIL_OP_ELSE:
+    case VINIL_OP_ENDIF:
+    case VINIL_OP_LOOP:
+    case VINIL_OP_ENDLOOP:
+    case VINIL_OP_BREAK:
+    case VINIL_OP_CONTINUE:
+      /* Handled by ExecuteProgram */
+      break;
+
+    case VINIL_OP_CALL:
+      /* TODO: Implement function calls with call stack */
+      /* For now, this is a no-op */
       break;
 
     default:
@@ -1534,6 +1581,34 @@ ExecuteInstruction (
 // Program Executor
 //
 
+/* Helper: Find matching control flow instruction (ELSE/ENDIF/ENDLOOP) */
+static
+CONST VINIL_INSTRUCTION_NODE *
+FindControlFlowTarget (
+  CONST VINIL_INSTRUCTION_NODE  *Start,
+  VINIL_OPCODE                  StartOp,
+  VINIL_OPCODE                  TargetOp1,
+  VINIL_OPCODE                  TargetOp2
+  )
+{
+  CONST VINIL_INSTRUCTION_NODE  *Inst = Start->Next;
+  UINT32                        Depth = 1;
+
+  while (Inst != NULL && Depth > 0) {
+    if (Inst->Opcode == StartOp) {
+      Depth++;
+    } else if (Inst->Opcode == TargetOp1 || Inst->Opcode == TargetOp2) {
+      Depth--;
+      if (Depth == 0) {
+        return Inst;
+      }
+    }
+    Inst = Inst->Next;
+  }
+
+  return NULL;
+}
+
 static
 HRESULT
 ExecuteProgram (
@@ -1543,14 +1618,110 @@ ExecuteProgram (
 {
   VINIL_PROGRAM_IMPL                    *ProgramImpl = (VINIL_PROGRAM_IMPL *)Program;
   CONST VINIL_INSTRUCTION_NODE  *Instruction;
+  CONST VINIL_INSTRUCTION_NODE  *Target;
   HRESULT                               Result;
+  BOOLEAN                               Executing;
 
   /* Walk instruction list */
   Instruction = ProgramImpl->FirstInstruction;
   while (Instruction != NULL && !State->Returned && !State->Discarded) {
-    Result = ExecuteInstruction (State, Instruction);
-    if (FAILED (Result)) {
-      return Result;
+    /* Determine if we should execute this instruction based on control flow */
+    Executing = TRUE;
+    for (UINT32 i = 0; i < State->ControlFlowDepth; i++) {
+      if (!State->ControlFlowStack[i].Executing) {
+        Executing = FALSE;
+        break;
+      }
+    }
+
+    /* Execute instruction if in active branch */
+    if (Executing) {
+      Result = ExecuteInstruction (State, Instruction);
+      if (FAILED (Result)) {
+        return Result;
+      }
+    }
+
+    /* Handle control flow jumps */
+    switch (Instruction->Opcode) {
+      case VINIL_OP_IF:
+        /* Push IF context - target will be set by ExecuteInstruction */
+        if (State->ControlFlowDepth < MAX_CONTROL_FLOW) {
+          State->ControlFlowStack[State->ControlFlowDepth].Type = VINIL_CF_IF;
+          State->ControlFlowStack[State->ControlFlowDepth].Executing =
+            Executing && State->ConditionResult;
+          State->ControlFlowDepth++;
+        }
+        break;
+
+      case VINIL_OP_ELSE:
+        /* Toggle execution for current IF */
+        if (State->ControlFlowDepth > 0 &&
+            State->ControlFlowStack[State->ControlFlowDepth - 1].Type == VINIL_CF_IF) {
+          State->ControlFlowStack[State->ControlFlowDepth - 1].Type = VINIL_CF_ELSE;
+          State->ControlFlowStack[State->ControlFlowDepth - 1].Executing =
+            Executing && !State->ControlFlowStack[State->ControlFlowDepth - 1].Executing;
+        }
+        break;
+
+      case VINIL_OP_ENDIF:
+        /* Pop IF/ELSE context */
+        if (State->ControlFlowDepth > 0) {
+          State->ControlFlowDepth--;
+        }
+        break;
+
+      case VINIL_OP_LOOP:
+        /* Push LOOP context */
+        if (State->ControlFlowDepth < MAX_CONTROL_FLOW) {
+          State->ControlFlowStack[State->ControlFlowDepth].Type = VINIL_CF_LOOP;
+          State->ControlFlowStack[State->ControlFlowDepth].Executing = Executing;
+          State->ControlFlowStack[State->ControlFlowDepth].LoopStartIP = 0; /* Store instruction ptr */
+          State->ControlFlowDepth++;
+        }
+        break;
+
+      case VINIL_OP_ENDLOOP:
+        /* Jump back to LOOP start */
+        if (State->ControlFlowDepth > 0 && Executing) {
+          /* Find matching LOOP instruction */
+          Target = FindControlFlowTarget (Instruction, VINIL_OP_ENDLOOP, VINIL_OP_LOOP, VINIL_OP_LOOP);
+          if (Target != NULL) {
+            Instruction = Target;
+            continue; /* Skip Instruction = Instruction->Next */
+          }
+        }
+        /* Pop LOOP context */
+        if (State->ControlFlowDepth > 0) {
+          State->ControlFlowDepth--;
+        }
+        break;
+
+      case VINIL_OP_BREAK:
+        /* Jump to after ENDLOOP */
+        if (Executing) {
+          Target = FindControlFlowTarget (Instruction, VINIL_OP_LOOP, VINIL_OP_ENDLOOP, VINIL_OP_ENDLOOP);
+          if (Target != NULL) {
+            Instruction = Target;
+          }
+        }
+        break;
+
+      case VINIL_OP_CONTINUE:
+        /* Jump to LOOP start */
+        if (Executing) {
+          /* Find matching LOOP instruction by scanning backwards */
+          /* For simplicity, CONTINUE will be handled by ENDLOOP logic */
+          Target = FindControlFlowTarget (Instruction, VINIL_OP_LOOP, VINIL_OP_ENDLOOP, VINIL_OP_ENDLOOP);
+          if (Target != NULL) {
+            Instruction = Target;
+            continue;
+          }
+        }
+        break;
+
+      default:
+        break;
     }
 
     Instruction = Instruction->Next;
