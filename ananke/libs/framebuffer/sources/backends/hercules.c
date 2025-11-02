@@ -17,6 +17,7 @@
 
 #include <ananke/framebuffer.h>
 #include <ananke/framebuffer/dither.h>
+#include <ananke/framebuffer/com_helpers.h>
 #include <ananke/atomics.h>
 #include <ananke/hresult.h>
 
@@ -150,47 +151,7 @@ HercFb_ReadPixel(
 /*  IUnknown Implementation                                         */
 /* --------------------------------------------------------------- */
 
-static HRESULT STDMETHODCALLTYPE
-HercFb_QueryInterface(
-    IFramebufferBackend *This,
-    REFIID riid,
-    VOID **ppvObject
-    )
-{
-    HERCULES_FB_BACKEND *Backend = (HERCULES_FB_BACKEND *)This;
-
-    if (ppvObject == NULL) {
-        return E_POINTER;
-    }
-
-    if (IsEqualGUID(riid, &IID_IUnknown) ||
-        IsEqualGUID(riid, &IID_IFramebufferBackend)) {
-        *ppvObject = &Backend->Base;
-        HercFb_AddRef(This);
-        return S_OK;
-    }
-
-    *ppvObject = NULL;
-    return E_NOINTERFACE;
-}
-
-static UINT32 STDMETHODCALLTYPE
-HercFb_AddRef(
-    IFramebufferBackend *This
-    )
-{
-    HERCULES_FB_BACKEND *Backend = (HERCULES_FB_BACKEND *)This;
-    return ANX_REF_INC(&Backend->RefCount);
-}
-
-static UINT32 STDMETHODCALLTYPE
-HercFb_Release(
-    IFramebufferBackend *This
-    )
-{
-    HERCULES_FB_BACKEND *Backend = (HERCULES_FB_BACKEND *)This;
-    return ANX_REF_DEC(&Backend->RefCount);
-}
+FB_IMPLEMENT_BACKEND_IUNKNOWN(HercFb, HERCULES_FB_BACKEND)
 
 /* --------------------------------------------------------------- */
 /*  IFramebufferBackend Implementation                              */

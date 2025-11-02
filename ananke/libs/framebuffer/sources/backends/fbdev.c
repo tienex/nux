@@ -1,22 +1,34 @@
 /*++
     Module Name:
 
-        linux_fbdev.c
+        fbdev.c
 
     Abstract:
 
-        Linux/BSD framebuffer device (fbdev) backend.
-        Interfaces with /dev/fb0 and similar framebuffer devices.
+        Unix framebuffer device backend.
 
-        This backend uses runtime function pointers to avoid direct
-        library dependencies. The actual I/O functions are provided
-        by the platform layer.
+        Universal backend for Unix-like operating systems with framebuffer
+        device support. Interfaces with /dev/fb* character devices across:
+
+        - Linux (framebuffer console)
+        - FreeBSD, OpenBSD, NetBSD, DragonFly BSD
+        - Solaris / illumos
+        - HP-UX
+        - AIX
+        - SCO OpenServer / UnixWare
+        - Haiku
+
+        Uses runtime function pointers to avoid direct library dependencies.
+        The actual I/O functions (open, close, ioctl, mmap) are provided
+        by the platform layer, making this backend portable across all
+        Unix variants with framebuffer device support.
 
 --*/
 
 #include <ananke/framebuffer.h>
 #include <ananke/framebuffer/backend_ext.h>
 #include <ananke/framebuffer/pixelformat.h>
+#include <ananke/framebuffer/com_helpers.h>
 #include <ananke/atomics.h>
 #include <ananke/hresult.h>
 
@@ -252,39 +264,6 @@ FbdevFb_ReadPixel(
 /*  IUnknown Implementation                                         */
 /* --------------------------------------------------------------- */
 
-static HRESULT STDMETHODCALLTYPE
-FbdevFb_QueryInterface(
-    IFramebufferBackend *This,
-    REFIID riid,
-    VOID **ppvObject
-    )
-{
-    FBDEV_BACKEND *Backend = (FBDEV_BACKEND *)This;
-
-    if (ppvObject == NULL) {
-        return E_POINTER;
-    }
-
-    if (IsEqualGUID(riid, &IID_IUnknown) ||
-        IsEqualGUID(riid, &IID_IFramebufferBackend)) {
-        *ppvObject = &Backend->Base;
-        FbdevFb_AddRef(This);
-        return S_OK;
-    }
-
-    *ppvObject = NULL;
-    return E_NOINTERFACE;
-}
-
-static UINT32 STDMETHODCALLTYPE
-FbdevFb_AddRef(
-    IFramebufferBackend *This
-    )
-{
-    FBDEV_BACKEND *Backend = (FBDEV_BACKEND *)This;
-    return ANX_REF_INC(&Backend->RefCount);
-}
-
 static UINT32 STDMETHODCALLTYPE
 FbdevFb_Release(
     IFramebufferBackend *This
@@ -305,6 +284,9 @@ FbdevFb_Release(
 
     return RefCount;
 }
+
+FB_IMPLEMENT_QUERYINTERFACE(FbdevFb, FBDEV_BACKEND, IFramebufferBackend, IID_IFramebufferBackend)
+FB_IMPLEMENT_ADDREF(FbdevFb, FBDEV_BACKEND, IFramebufferBackend)
 
 /* --------------------------------------------------------------- */
 /*  IFramebufferBackend Implementation                              */
@@ -651,7 +633,7 @@ static FBDEV_BACKEND gFbdevBackendInstance = {
 };
 
 IFramebufferBackend *
-FbCreateLinuxFbdevBackend(
+FbCreateFbdevBackend(
     VOID
     )
 {

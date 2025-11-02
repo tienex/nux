@@ -78,20 +78,20 @@ FbInitializeBackendRegistry(
     FbRegisterBackend(FbBackendVesaLinear, FbCreatePcGraphicsBackend);
     FbRegisterBackend(FbBackendVesaBanked, FbCreatePcGraphicsBackend);
 
-    /* UEFI GOP backend (unified GOP/UGA/Apple EFI) */
-    FbRegisterBackend(FbBackendUefiGop, FbCreateUefiGopBackend);
-    FbRegisterBackend(FbBackendUefiUga, FbCreateUefiGopBackend);
-    FbRegisterBackend(FbBackendAppleEfi, FbCreateUefiGopBackend);
+    /* UEFI backend (unified GOP/UGA/Apple EFI) */
+    FbRegisterBackend(FbBackendUefiGop, FbCreateUefiBackend);
+    FbRegisterBackend(FbBackendUefiUga, FbCreateUefiBackend);
+    FbRegisterBackend(FbBackendAppleEfi, FbCreateUefiBackend);
 
-    /* Linux framebuffer device */
+    /* Unix framebuffer device backend (Linux, BSD, Solaris, etc.) */
 #if defined(__linux__) || defined(__unix__)
-    extern IFramebufferBackend *FbCreateLinuxFbdevBackend(VOID);
-    FbRegisterBackend(FbBackendGeneric, FbCreateLinuxFbdevBackend);
+    extern IFramebufferBackend *FbCreateFbdevBackend(VOID);
+    FbRegisterBackend(FbBackendGeneric, FbCreateFbdevBackend);
 #endif
 
-    /* ANSI Terminal backend (unified text mode) */
-    extern IFramebufferBackend *FbCreateAnsiTerminalBackend(VOID);
-    FbRegisterBackend(FbBackendGeneric, FbCreateAnsiTerminalBackend);
+    /* Terminal backend (unified ANSI/text mode) */
+    extern IFramebufferBackend *FbCreateTerminalBackend(VOID);
+    FbRegisterBackend(FbBackendGeneric, FbCreateTerminalBackend);
 
     /* TODO: Add registration for other platform-specific backends
      * (Amiga, Atari, Mac, Sun, SGI, NeXT, Acorn) when they are

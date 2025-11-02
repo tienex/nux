@@ -1,21 +1,26 @@
 /*++
     Module Name:
 
-        uefi_gop.c
+        uefi.c
 
     Abstract:
 
-        UEFI Graphics Output Protocol (GOP) framebuffer backend.
-        Provides framebuffer access through UEFI GOP interface.
+        UEFI framebuffer backend.
 
-        This backend wraps the UEFI GOP protocol and provides
-        a simpler COM interface for framebuffer operations.
+        Unified backend supporting all UEFI graphics protocols:
+        - GOP (Graphics Output Protocol) - UEFI 2.x standard
+        - UGA (Universal Graphics Adapter) - EFI 1.x legacy
+        - Apple EFI quirks (BGR mode, Retina displays, non-standard resolutions)
+
+        This backend provides a unified interface for all UEFI-based
+        framebuffer access across different firmware implementations.
 
 --*/
 
 #include <ananke/framebuffer.h>
 #include <ananke/framebuffer/pixelformat.h>
 #include <ananke/framebuffer/dither.h>
+#include <ananke/framebuffer/com_helpers.h>
 #include <ananke/atomics.h>
 #include <ananke/hresult.h>
 
@@ -152,47 +157,7 @@ UefiGopFb_ReadPixel(
 /*  IUnknown Implementation                                         */
 /* --------------------------------------------------------------- */
 
-static HRESULT STDMETHODCALLTYPE
-UefiGopFb_QueryInterface(
-    IFramebufferBackend *This,
-    REFIID riid,
-    VOID **ppvObject
-    )
-{
-    UEFI_GOP_FB_BACKEND *Backend = (UEFI_GOP_FB_BACKEND *)This;
-
-    if (ppvObject == NULL) {
-        return E_POINTER;
-    }
-
-    if (IsEqualGUID(riid, &IID_IUnknown) ||
-        IsEqualGUID(riid, &IID_IFramebufferBackend)) {
-        *ppvObject = &Backend->Base;
-        UefiGopFb_AddRef(This);
-        return S_OK;
-    }
-
-    *ppvObject = NULL;
-    return E_NOINTERFACE;
-}
-
-static UINT32 STDMETHODCALLTYPE
-UefiGopFb_AddRef(
-    IFramebufferBackend *This
-    )
-{
-    UEFI_GOP_FB_BACKEND *Backend = (UEFI_GOP_FB_BACKEND *)This;
-    return ANX_REF_INC(&Backend->RefCount);
-}
-
-static UINT32 STDMETHODCALLTYPE
-UefiGopFb_Release(
-    IFramebufferBackend *This
-    )
-{
-    UEFI_GOP_FB_BACKEND *Backend = (UEFI_GOP_FB_BACKEND *)This;
-    return ANX_REF_DEC(&Backend->RefCount);
-}
+FB_IMPLEMENT_BACKEND_IUNKNOWN(UefiGopFb, UEFI_GOP_FB_BACKEND)
 
 /* --------------------------------------------------------------- */
 /*  IFramebufferBackend Implementation                              */
@@ -516,7 +481,7 @@ static UEFI_GOP_FB_BACKEND gUefiGopBackendInstance = {
 };
 
 IFramebufferBackend *
-FbCreateUefiGopBackend(
+FbCreateUefiBackend(
     VOID
     )
 {
@@ -528,7 +493,7 @@ FbCreateUefiGopBackend(
  * This is optional but recommended for better performance.
  */
 VOID
-FbUefiGopSetProtocol(
+FbUefiSetProtocol(
     IFramebufferBackend *Backend,
     VOID *GopProtocol
     )

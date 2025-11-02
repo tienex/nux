@@ -89,23 +89,23 @@ FbCreateHerculesBackend(
     );
 
 /*
- * Create a UEFI Graphics Output Protocol (GOP) backend.
- * Handles all UEFI graphics protocols including:
- * - Modern GOP (Graphics Output Protocol)
- * - Legacy UGA (Universal Graphics Adapter, EFI 1.x)
- * - Apple EFI quirks (BGR mode, Retina displays)
+ * Create a UEFI framebuffer backend.
+ * Unified backend for all UEFI graphics protocols:
+ * - GOP (Graphics Output Protocol) - UEFI 2.x standard
+ * - UGA (Universal Graphics Adapter) - EFI 1.x legacy
+ * - Apple EFI quirks (BGR mode, Retina displays, non-standard resolutions)
  */
 IFramebufferBackend *
-FbCreateUefiGopBackend(
+FbCreateUefiBackend(
     VOID
     );
 
 /*
- * Set the GOP protocol instance for UEFI GOP backend.
- * This is optional but recommended for accelerated operations.
+ * Set the GOP protocol instance for UEFI backend.
+ * This is optional but recommended for hardware-accelerated operations.
  */
 VOID
-FbUefiGopSetProtocol(
+FbUefiSetProtocol(
     IN IFramebufferBackend *Backend,
     IN VOID *GopProtocol
     );

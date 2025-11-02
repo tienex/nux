@@ -1,18 +1,22 @@
 /*++
     Module Name:
 
-        ansi_terminal.c
+        terminal.c
 
     Abstract:
 
-        ANSI terminal backend for graphics rendering.
-        Supports VT100/ANSI escape sequences for color and cursor control.
+        Terminal framebuffer backend.
 
-        This backend is ideal for:
-        - SSH sessions
-        - Serial console
-        - Remote terminal access
-        - Embedded systems with UART output
+        Renders graphics on text-based terminals using ANSI escape sequences
+        and Unicode block characters. Supports:
+        - ANSI/VT100/xterm escape sequences
+        - 256-color palette (88 and 256-color modes)
+        - Unicode block characters for graphics (▀▄█▌▐)
+        - Text mode (BIOS/EFI console)
+        - Serial consoles and SSH sessions
+        - libcaca-style ASCII art rendering
+
+        Perfect for headless systems, remote terminals, and retro aesthetics.
 
 --*/
 
@@ -20,6 +24,7 @@
 #include <ananke/framebuffer/backend_ext.h>
 #include <ananke/framebuffer/pixelformat.h>
 #include <ananke/framebuffer/dither.h>
+#include <ananke/framebuffer/com_helpers.h>
 #include <ananke/atomics.h>
 #include <ananke/hresult.h>
 
@@ -295,53 +300,7 @@ AnsiTermFb_FlushToTerminal(
 /*  IUnknown Implementation                                         */
 /* --------------------------------------------------------------- */
 
-static HRESULT STDMETHODCALLTYPE
-AnsiTermFb_QueryInterface(
-    IFramebufferBackend *This,
-    REFIID riid,
-    VOID **ppvObject
-    )
-{
-    ANSI_TERMINAL_BACKEND *Backend = (ANSI_TERMINAL_BACKEND *)This;
-
-    if (ppvObject == NULL) {
-        return E_POINTER;
-    }
-
-    if (IsEqualGUID(riid, &IID_IUnknown) ||
-        IsEqualGUID(riid, &IID_IFramebufferBackend)) {
-        *ppvObject = &Backend->Base;
-        AnsiTermFb_AddRef(This);
-        return S_OK;
-    }
-
-    *ppvObject = NULL;
-    return E_NOINTERFACE;
-}
-
-static UINT32 STDMETHODCALLTYPE
-AnsiTermFb_AddRef(
-    IFramebufferBackend *This
-    )
-{
-    ANSI_TERMINAL_BACKEND *Backend = (ANSI_TERMINAL_BACKEND *)This;
-    return ANX_REF_INC(&Backend->RefCount);
-}
-
-static UINT32 STDMETHODCALLTYPE
-AnsiTermFb_Release(
-    IFramebufferBackend *This
-    )
-{
-    ANSI_TERMINAL_BACKEND *Backend = (ANSI_TERMINAL_BACKEND *)This;
-    UINT32 RefCount = ANX_REF_DEC(&Backend->RefCount);
-
-    if (RefCount == 0) {
-        /* Cleanup */
-    }
-
-    return RefCount;
-}
+FB_IMPLEMENT_BACKEND_IUNKNOWN(AnsiTermFb, ANSI_TERMINAL_BACKEND)
 
 /* --------------------------------------------------------------- */
 /*  IFramebufferBackend Implementation                              */
@@ -725,7 +684,7 @@ static ANSI_TERMINAL_BACKEND gAnsiTermBackendInstance = {
 };
 
 IFramebufferBackend *
-FbCreateAnsiTerminalBackend(
+FbCreateTerminalBackend(
     VOID
     )
 {

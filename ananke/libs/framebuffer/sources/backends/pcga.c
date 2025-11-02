@@ -36,6 +36,7 @@
 #include <ananke/framebuffer/pixelformat.h>
 #include <ananke/framebuffer/dither.h>
 #include <ananke/framebuffer/screen.h>
+#include <ananke/framebuffer/com_helpers.h>
 #include <ananke/atomics.h>
 #include <ananke/hresult.h>
 #include <ananke/intrinsics.h>
@@ -2896,53 +2897,7 @@ PcGraphics_BlitLinearSameFormat(
 /*  IUnknown Implementation                                         */
 /* --------------------------------------------------------------- */
 
-static HRESULT STDMETHODCALLTYPE
-PcGraphics_QueryInterface(
-    IFramebufferBackend *This,
-    REFIID riid,
-    VOID **ppvObject
-    )
-{
-    PCGA_BACKEND *Backend = (PCGA_BACKEND *)This;
-
-    if (ppvObject == NULL) {
-        return E_POINTER;
-    }
-
-    if (IsEqualGUID(riid, &IID_IUnknown) ||
-        IsEqualGUID(riid, &IID_IFramebufferBackend)) {
-        *ppvObject = &Backend->Base;
-        PcGraphics_AddRef(This);
-        return S_OK;
-    }
-
-    *ppvObject = NULL;
-    return E_NOINTERFACE;
-}
-
-static UINT32 STDMETHODCALLTYPE
-PcGraphics_AddRef(
-    IFramebufferBackend *This
-    )
-{
-    PCGA_BACKEND *Backend = (PCGA_BACKEND *)This;
-    return ANX_REF_INC(&Backend->RefCount);
-}
-
-static UINT32 STDMETHODCALLTYPE
-PcGraphics_Release(
-    IFramebufferBackend *This
-    )
-{
-    PCGA_BACKEND *Backend = (PCGA_BACKEND *)This;
-    UINT32 RefCount = ANX_REF_DEC(&Backend->RefCount);
-
-    if (RefCount == 0) {
-        /* Cleanup */
-    }
-
-    return RefCount;
-}
+FB_IMPLEMENT_BACKEND_IUNKNOWN(PcGraphics, PCGA_BACKEND)
 
 /* --------------------------------------------------------------- */
 /*  IFramebufferBackend Implementation                              */
