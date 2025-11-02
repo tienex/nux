@@ -41,9 +41,9 @@ typedef struct _VINIL_BLOCK_IMPL {
 // Forward Declarations - Variable
 //
 
-static HRESULT STDMETHODCALLTYPE Variable_QueryInterface (void *This, REFIID riid, void **ppvObject);
-static UINT32 STDMETHODCALLTYPE Variable_AddRef (void *This);
-static UINT32 STDMETHODCALLTYPE Variable_Release (void *This);
+static HRESULT STDMETHODCALLTYPE Variable_QueryInterface (IVinilVariable *This, REFIID riid, void **ppvObject);
+static UINT32 STDMETHODCALLTYPE Variable_AddRef (IVinilVariable *This);
+static UINT32 STDMETHODCALLTYPE Variable_Release (IVinilVariable *This);
 static HRESULT STDMETHODCALLTYPE Variable_GetId (void *This, UINT32 *Id);
 static HRESULT STDMETHODCALLTYPE Variable_GetName (void *This, CONST CHAR8 **Name, UINTN *NameLength);
 
@@ -51,9 +51,9 @@ static HRESULT STDMETHODCALLTYPE Variable_GetName (void *This, CONST CHAR8 **Nam
 // Forward Declarations - Block
 //
 
-static HRESULT STDMETHODCALLTYPE Block_QueryInterface (void *This, REFIID riid, void **ppvObject);
-static UINT32 STDMETHODCALLTYPE Block_AddRef (void *This);
-static UINT32 STDMETHODCALLTYPE Block_Release (void *This);
+static HRESULT STDMETHODCALLTYPE Block_QueryInterface (IVinilBlock *This, REFIID riid, void **ppvObject);
+static UINT32 STDMETHODCALLTYPE Block_AddRef (IVinilBlock *This);
+static UINT32 STDMETHODCALLTYPE Block_Release (IVinilBlock *This);
 static HRESULT STDMETHODCALLTYPE Block_GetInstructionCount (void *This, UINT32 *Count);
 static HRESULT STDMETHODCALLTYPE Block_GetInstruction (void *This, UINT32 Index, IVinilInstruction **Instruction);
 static HRESULT STDMETHODCALLTYPE Block_AppendInstruction (void *This, IVinilInstruction *Instruction);
@@ -146,7 +146,7 @@ static
 HRESULT
 STDMETHODCALLTYPE
 Variable_GetId (
-  IVinilVariable  *This,
+  void            *This,
   UINT32          *Id
   )
 {
@@ -164,7 +164,7 @@ static
 HRESULT
 STDMETHODCALLTYPE
 Variable_GetName (
-  IVinilVariable  *This,
+  void            *This,
   CONST CHAR8     **Name,
   UINTN           *NameLength
   )
@@ -245,7 +245,7 @@ static
 HRESULT
 STDMETHODCALLTYPE
 Block_GetInstructionCount (
-  IVinilBlock  *This,
+  void         *This,
   UINT32       *Count
   )
 {
@@ -262,7 +262,7 @@ static
 HRESULT
 STDMETHODCALLTYPE
 Block_GetInstruction (
-  IVinilBlock        *This,
+  void               *This,
   UINT32             Index,
   IVinilInstruction  **Instruction
   )
@@ -280,7 +280,7 @@ static
 HRESULT
 STDMETHODCALLTYPE
 Block_AppendInstruction (
-  IVinilBlock        *This,
+  void               *This,
   IVinilInstruction  *Instruction
   )
 {

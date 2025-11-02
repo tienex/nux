@@ -418,6 +418,30 @@ ExecuteTrunc (
 
 static
 VOID
+ExecuteDp2 (
+  VINIL_EXECUTION_STATE  *State,
+  IVinilVariable         *Dst,
+  IVinilVariable         *Src1,
+  IVinilVariable         *Src2
+  )
+{
+  VINIL_REGISTER_VALUE  *DstReg = GetRegister (State, Dst);
+  VINIL_REGISTER_VALUE  *Src1Reg = GetRegister (State, Src1);
+  VINIL_REGISTER_VALUE  *Src2Reg = GetRegister (State, Src2);
+  float                 Result;
+
+  if (DstReg != NULL && Src1Reg != NULL && Src2Reg != NULL) {
+    Result = Src1Reg->f[0] * Src2Reg->f[0] +
+             Src1Reg->f[1] * Src2Reg->f[1];
+    DstReg->f[0] = Result;
+    DstReg->f[1] = Result;
+    DstReg->f[2] = Result;
+    DstReg->f[3] = Result;
+  }
+}
+
+static
+VOID
 ExecuteDp3 (
   VINIL_EXECUTION_STATE  *State,
   IVinilVariable         *Dst,
@@ -1258,6 +1282,7 @@ ExecuteInstruction (
 {
   switch (Instruction->Opcode) {
     case VINIL_OP_MOV:
+    case VINIL_OP_MOVA:
       ExecuteMov (State, Instruction->Dst, Instruction->Src[0]);
       break;
 
@@ -1323,6 +1348,10 @@ ExecuteInstruction (
 
     case VINIL_OP_TRUNC:
       ExecuteTrunc (State, Instruction->Dst, Instruction->Src[0]);
+      break;
+
+    case VINIL_OP_DP2:
+      ExecuteDp2 (State, Instruction->Dst, Instruction->Src[0], Instruction->Src[1]);
       break;
 
     case VINIL_OP_DP3:

@@ -139,9 +139,9 @@ static TYPE_CACHE gTypeCache = { 0 };
 // Forward Declarations
 //
 
-static HRESULT STDMETHODCALLTYPE Type_QueryInterface (void *This, REFIID riid, void **ppvObject);
-static UINT32 STDMETHODCALLTYPE Type_AddRef (void *This);
-static UINT32 STDMETHODCALLTYPE Type_Release (void *This);
+static HRESULT STDMETHODCALLTYPE Type_QueryInterface (IVinilType *This, REFIID riid, void **ppvObject);
+static UINT32 STDMETHODCALLTYPE Type_AddRef (IVinilType *This);
+static UINT32 STDMETHODCALLTYPE Type_Release (IVinilType *This);
 static HRESULT STDMETHODCALLTYPE Type_GetTypeValue (void *This, VINIL_TYPE_VALUE *TypeValue);
 static HRESULT STDMETHODCALLTYPE Type_GetPrecision (void *This, VINIL_PRECISION *Precision);
 static HRESULT STDMETHODCALLTYPE Type_GetSize (void *This, UINTN *Size);
@@ -268,7 +268,7 @@ static
 HRESULT
 STDMETHODCALLTYPE
 Type_GetTypeValue (
-  IVinilType        *This,
+  void              *This,
   VINIL_TYPE_VALUE  *TypeValue
   )
 {
@@ -286,7 +286,7 @@ static
 HRESULT
 STDMETHODCALLTYPE
 Type_GetPrecision (
-  IVinilType       *This,
+  void             *This,
   VINIL_PRECISION  *Precision
   )
 {
@@ -304,7 +304,7 @@ static
 HRESULT
 STDMETHODCALLTYPE
 Type_GetSize (
-  IVinilType  *This,
+  void        *This,
   UINTN       *Size
   )
 {
@@ -346,7 +346,7 @@ static
 HRESULT
 STDMETHODCALLTYPE
 Type_IsScalar (
-  IVinilType  *This,
+  void        *This,
   BOOLEAN     *IsScalar
   )
 {
@@ -369,7 +369,7 @@ static
 HRESULT
 STDMETHODCALLTYPE
 Type_IsVector (
-  IVinilType  *This,
+  void        *This,
   BOOLEAN     *IsVector
   )
 {
@@ -392,7 +392,7 @@ static
 HRESULT
 STDMETHODCALLTYPE
 Type_IsMatrix (
-  IVinilType  *This,
+  void        *This,
   BOOLEAN     *IsMatrix
   )
 {
@@ -415,7 +415,7 @@ static
 HRESULT
 STDMETHODCALLTYPE
 Type_GetComponents (
-  IVinilType  *This,
+  void        *This,
   UINT32      *Components
   )
 {

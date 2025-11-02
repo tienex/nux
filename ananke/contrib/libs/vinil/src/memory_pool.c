@@ -45,9 +45,9 @@ typedef struct _VINIL_MEMORY_POOL_IMPL {
 // Forward Declarations
 //
 
-static HRESULT STDMETHODCALLTYPE MemoryPool_QueryInterface(void *This, REFIID riid, void **ppvObject);
-static UINT32 STDMETHODCALLTYPE MemoryPool_AddRef(void *This);
-static UINT32 STDMETHODCALLTYPE MemoryPool_Release(void *This);
+static HRESULT STDMETHODCALLTYPE MemoryPool_QueryInterface(IVinilMemoryPool *This, REFIID riid, void **ppvObject);
+static UINT32 STDMETHODCALLTYPE MemoryPool_AddRef(IVinilMemoryPool *This);
+static UINT32 STDMETHODCALLTYPE MemoryPool_Release(IVinilMemoryPool *This);
 static HRESULT STDMETHODCALLTYPE MemoryPool_Allocate(void *This, UINTN Size, VOID **Memory);
 static HRESULT STDMETHODCALLTYPE MemoryPool_Clear(void *This);
 static HRESULT STDMETHODCALLTYPE MemoryPool_SetErrorSink(void *This, IVinilErrorSink *ErrorSink);
@@ -150,7 +150,7 @@ static
 HRESULT
 STDMETHODCALLTYPE
 MemoryPool_Allocate (
-    IVinilMemoryPool  *This,
+    void              *This,
     UINTN             Size,
     VOID              **Memory
     )
@@ -213,7 +213,7 @@ static
 HRESULT
 STDMETHODCALLTYPE
 MemoryPool_Clear (
-    IVinilMemoryPool  *This
+    void              *This
     )
 {
     VINIL_MEMORY_POOL_IMPL  *Pool = (VINIL_MEMORY_POOL_IMPL *)This;
@@ -233,7 +233,7 @@ static
 HRESULT
 STDMETHODCALLTYPE
 MemoryPool_SetErrorSink (
-    IVinilMemoryPool  *This,
+    void              *This,
     IVinilErrorSink   *ErrorSink
     )
 {
@@ -257,7 +257,7 @@ static
 HRESULT
 STDMETHODCALLTYPE
 MemoryPool_GetStatistics (
-    IVinilMemoryPool  *This,
+    void              *This,
     UINTN             *TotalAllocated,
     UINT32            *PageCount,
     UINTN             *WastedBytes
