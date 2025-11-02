@@ -522,11 +522,24 @@ static CONST UINT8 gVgaFont8x16[256 * 16] = {
     0xC6, 0xC6, 0xFE, 0x00, 0x00, 0x00, 0x00, 0x00,
 
     /* Characters 0x80-0xFF: Extended ASCII (box drawing, accented chars, etc.) */
-    /* For brevity, filling remaining 128 characters with representative data */
-    /* In production, all 256 characters would have proper glyphs */
+    /* TODO: Replace placeholder data with proper IBM VGA ROM font glyphs */
+    /*
+     * Basic ASCII (0x00-0x7F) is complete above.
+     * Extended ASCII (0x80-0xFF) contains:
+     *   - Box drawing characters (single/double lines)
+     *   - Block elements (░▒▓█)
+     *   - Accented characters (è, é, ñ, etc.)
+     *   - Mathematical symbols
+     *   - Special symbols (©, ®, etc.)
+     *
+     * Sources for complete IBM VGA 8x16 font data:
+     *   - VGABIOS source code (public domain)
+     *   - DOSBox VGA font tables
+     *   - SeaBIOS vgafonts.c
+     *   - Linux kernel's lib/fonts/font_vga_8x16.c
+     */
 
     /* Placeholder for characters 0x80-0xFF (2048 bytes) */
-    /* Box drawing characters, accented letters, special symbols */
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,

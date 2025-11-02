@@ -2276,6 +2276,71 @@ PcGraphics_SetReadMap(
     }
 }
 
+/*
+ * Read pixel from linear framebuffer.
+ */
+static UINT8
+PcGraphics_ReadPixelLinear(
+    PCGA_BACKEND *Backend,
+    INT32 X,
+    INT32 Y
+    )
+{
+    UINT32 Offset = Y * Backend->Descriptor.Pitch + X;
+    return Backend->FramebufferBase[Offset];
+}
+
+/*
+ * Read pixel from interleaved framebuffer (CGA).
+ */
+static UINT8
+PcGraphics_ReadPixelInterleaved(
+    PCGA_BACKEND *Backend,
+    INT32 X,
+    INT32 Y
+    )
+{
+    /* Bank-interleaved (CGA-style): even/odd scanlines in different banks */
+    UINT32 RowOffset = (Y & 1) ? Backend->Descriptor.BankOffset : 0;
+    UINT32 ByteOffset = (Y / Backend->Descriptor.BankInterleave) *
+                        Backend->Descriptor.Pitch + (X / 4);
+
+    UINT8 *Addr = Backend->FramebufferBase + RowOffset + ByteOffset;
+    UINT32 BitOffset = (3 - (X % 4)) * 2;  /* 2 bits per pixel */
+
+    return (*Addr >> BitOffset) & 0x03;
+}
+
+/*
+ * Read pixel from planar framebuffer (EGA/VGA).
+ */
+static UINT8
+PcGraphics_ReadPixelPlanar(
+    PCGA_BACKEND *Backend,
+    INT32 X,
+    INT32 Y
+    )
+{
+    /* Planar mode (EGA/VGA): each plane holds one bit per pixel */
+    UINT32 Offset = Y * (Backend->Descriptor.Pitch / Backend->Descriptor.NumPlanes) + (X / 8);
+    UINT8 BitMask = 0x80 >> (X % 8);
+    UINT8 ColorIndex = 0;
+
+    /* Read from all planes */
+    for (UINT32 Plane = 0; Plane < Backend->Descriptor.NumPlanes; Plane++) {
+        /* Set read plane select */
+        PcGraphics_SetReadMapSelect(Backend, Plane);
+
+        /* Read bit from this plane */
+        UINT8 *Addr = Backend->FramebufferBase + Offset;
+        if (*Addr & BitMask) {
+            ColorIndex |= (1 << Plane);
+        }
+    }
+
+    return ColorIndex;
+}
+
 static VOID
 PcGraphics_WritePixelLinear(
     PCGA_BACKEND *Backend,
@@ -2336,6 +2401,33 @@ PcGraphics_WritePixelPlanar(
         } else {
             *Addr = *Addr & ~BitMask;
         }
+    }
+}
+
+static UINT8
+PcGraphics_ReadPixel(
+    PCGA_BACKEND *Backend,
+    INT32 X,
+    INT32 Y
+    )
+{
+    switch (Backend->Descriptor.MemoryOrganization) {
+        case FbMemoryLinear:
+            return PcGraphics_ReadPixelLinear(Backend, X, Y);
+
+        case FbMemoryInterleaved:
+            return PcGraphics_ReadPixelInterleaved(Backend, X, Y);
+
+        case FbMemoryPlanar:
+            return PcGraphics_ReadPixelPlanar(Backend, X, Y);
+
+        case FbMemoryBanked:
+            /* Handle bank switching for VESA modes */
+            /* Would calculate bank and switch if needed */
+            return PcGraphics_ReadPixelLinear(Backend, X, Y);
+
+        default:
+            return 0;
     }
 }
 
@@ -2407,6 +2499,58 @@ PcGraphics_MapColorToIndex(
     }
 }
 
+/*
+ * Convert palette index back to FB_COLOR.
+ */
+static FB_COLOR
+PcGraphics_MapIndexToColor(
+    PCGA_BACKEND *Backend,
+    UINT8 ColorIndex
+    )
+{
+    switch (Backend->Descriptor.PixelFormat) {
+        case FbPixelFormat1Bpp:
+        case FbPixelFormat2Bpp:
+        case FbPixelFormat4Bpp: {
+            /* Grayscale - expand back to 8-bit */
+            UINT8 MaxValue = (1 << (Backend->Descriptor.PixelFormat == FbPixelFormat1Bpp ? 1 :
+                                    Backend->Descriptor.PixelFormat == FbPixelFormat2Bpp ? 2 : 4)) - 1;
+            UINT8 Gray = (ColorIndex * 255) / MaxValue;
+            return FB_MAKE_COLOR(Gray, Gray, Gray, 255);
+        }
+
+        case FbPixelFormatIndexed4:
+        case FbPixelFormatIndexed16:
+        case FbPixelFormatIndexed256: {
+            /* Look up in palette */
+            UINT32 PaletteSize = Backend->Descriptor.PixelFormat == FbPixelFormatIndexed4 ? 4 :
+                                Backend->Descriptor.PixelFormat == FbPixelFormatIndexed16 ? 16 : 256;
+            if (ColorIndex < PaletteSize) {
+                PALETTE_ENTRY *Entry = &Backend->Palette[ColorIndex];
+                return FB_MAKE_COLOR(Entry->Red, Entry->Green, Entry->Blue, 255);
+            }
+            return FB_MAKE_COLOR(0, 0, 0, 255);
+        }
+
+        case FbPixelFormatPlanar2:
+        case FbPixelFormatPlanar4:
+        case FbPixelFormatPlanar6:
+        case FbPixelFormatPlanar8: {
+            /* Look up in VGA palette */
+            UINT32 NumColors = 1 << Backend->Descriptor.NumPlanes;
+            UINT32 Index = ColorIndex & ((NumColors < 16 ? NumColors : 16) - 1);
+            if (Index < 16) {
+                PALETTE_ENTRY *Entry = &gVgaPalette[Index];
+                return FB_MAKE_COLOR(Entry->Red, Entry->Green, Entry->Blue, 255);
+            }
+            return FB_MAKE_COLOR(0, 0, 0, 255);
+        }
+
+        default:
+            return FB_MAKE_COLOR(0, 0, 0, 255);
+    }
+}
+
 /* --------------------------------------------------------------- */
 /*  Hardware Scrolling and Block Operations                         */
 /* --------------------------------------------------------------- */
@@ -2447,27 +2591,51 @@ Pcga_ScrollScreen(
     }
 
     /* Software scrolling fallback: copy pixels */
-    if (DeltaY < 0) {
-        /* Scroll up: copy from bottom to top */
-        for (INT32 y = 0; y < (INT32)Backend->Descriptor.Height + DeltaY; y++) {
-            for (UINT32 x = 0; x < Backend->Descriptor.Width; x++) {
-                FB_COLOR Color;
-                PcGraphics_GetPixel(&Backend->Base, x, y - DeltaY, &Color);
-                PcGraphics_SetPixel(&Backend->Base, x, y, Color);
+    /* Handle vertical scrolling */
+    if (DeltaY != 0) {
+        if (DeltaY < 0) {
+            /* Scroll up: copy from bottom to top */
+            for (INT32 y = 0; y < (INT32)Backend->Descriptor.Height + DeltaY; y++) {
+                for (INT32 x = 0; x < (INT32)Backend->Descriptor.Width; x++) {
+                    FB_COLOR Color;
+                    PcGraphics_GetPixel(&Backend->Base, x, y - DeltaY, &Color);
+                    PcGraphics_SetPixel(&Backend->Base, x, y, Color);
+                }
             }
-        }
-    } else if (DeltaY > 0) {
-        /* Scroll down: copy from top to bottom */
-        for (INT32 y = (INT32)Backend->Descriptor.Height - 1; y >= DeltaY; y--) {
-            for (UINT32 x = 0; x < Backend->Descriptor.Width; x++) {
-                FB_COLOR Color;
-                PcGraphics_GetPixel(&Backend->Base, x, y - DeltaY, &Color);
-                PcGraphics_SetPixel(&Backend->Base, x, y, Color);
+        } else {  /* DeltaY > 0 */
+            /* Scroll down: copy from top to bottom */
+            for (INT32 y = (INT32)Backend->Descriptor.Height - 1; y >= DeltaY; y--) {
+                for (INT32 x = 0; x < (INT32)Backend->Descriptor.Width; x++) {
+                    FB_COLOR Color;
+                    PcGraphics_GetPixel(&Backend->Base, x, y - DeltaY, &Color);
+                    PcGraphics_SetPixel(&Backend->Base, x, y, Color);
+                }
             }
         }
     }
 
-    /* TODO: Implement horizontal scrolling if needed */
+    /* Handle horizontal scrolling */
+    if (DeltaX != 0) {
+        if (DeltaX < 0) {
+            /* Scroll left: copy from right to left */
+            for (INT32 y = 0; y < (INT32)Backend->Descriptor.Height; y++) {
+                for (INT32 x = 0; x < (INT32)Backend->Descriptor.Width + DeltaX; x++) {
+                    FB_COLOR Color;
+                    PcGraphics_GetPixel(&Backend->Base, x - DeltaX, y, &Color);
+                    PcGraphics_SetPixel(&Backend->Base, x, y, Color);
+                }
+            }
+        } else {  /* DeltaX > 0 */
+            /* Scroll right: copy from left to right */
+            for (INT32 y = 0; y < (INT32)Backend->Descriptor.Height; y++) {
+                for (INT32 x = (INT32)Backend->Descriptor.Width - 1; x >= DeltaX; x--) {
+                    FB_COLOR Color;
+                    PcGraphics_GetPixel(&Backend->Base, x - DeltaX, y, &Color);
+                    PcGraphics_SetPixel(&Backend->Base, x, y, Color);
+                }
+            }
+        }
+    }
 }
 
 /*
@@ -2845,8 +3013,40 @@ PcGraphics_GetPixel(
     FB_COLOR *Color
     )
 {
-    /* Reading pixels requires handling each memory organization differently */
-    return E_NOTIMPL;
+    PCGA_BACKEND *Backend = (PCGA_BACKEND *)This;
+    UINT8 ColorIndex;
+
+    if (!Backend->Initialized || Color == NULL) {
+        return E_POINTER;
+    }
+
+    if (X < 0 || X >= (INT32)Backend->Descriptor.Width ||
+        Y < 0 || Y >= (INT32)Backend->Descriptor.Height) {
+        return E_INVALIDARG;
+    }
+
+    /* Text mode - read character and attribute */
+    if (Backend->Descriptor.PixelFormat == FbPixelFormatText) {
+        UINT32 Offset = Y * Backend->Descriptor.Pitch + X * 2;
+        UINT8 Char = Backend->FramebufferBase[Offset];
+        UINT8 Attr = Backend->FramebufferBase[Offset + 1];
+
+        /* Convert attribute to color - use background color */
+        UINT8 BgIndex = (Attr >> 4) & 0x0F;
+        if (BgIndex < 16) {
+            PALETTE_ENTRY *Entry = &gVgaPalette[BgIndex];
+            *Color = FB_MAKE_COLOR(Entry->Red, Entry->Green, Entry->Blue, 255);
+        } else {
+            *Color = FB_MAKE_COLOR(0, 0, 0, 255);
+        }
+        return S_OK;
+    }
+
+    /* Graphics modes - read pixel and convert to color */
+    ColorIndex = PcGraphics_ReadPixel(Backend, X, Y);
+    *Color = PcGraphics_MapIndexToColor(Backend, ColorIndex);
+
+    return S_OK;
 }
 
 static HRESULT STDMETHODCALLTYPE
@@ -2958,6 +3158,134 @@ PcGraphics_BlitMonoBitmap(
     return S_OK;
 }
 
+static HRESULT
+PcGraphics_BlitBitmapToText(
+    PCGA_BACKEND *Backend,
+    INT32 X,
+    INT32 Y,
+    UINT32 Width,
+    UINT32 Height,
+    CONST UINT8 *Bitmap,
+    FB_PIXEL_FORMAT SourceFormat
+    )
+{
+    /* Text mode blitting - convert bitmap to character representation */
+
+    /* Direct text-to-text copy */
+    if (SourceFormat == FbPixelFormatText) {
+        /* Source is character/attribute pairs */
+        for (UINT32 Row = 0; Row < Height; Row++) {
+            if ((Y + Row) >= Backend->Descriptor.Height) {
+                break;
+            }
+            for (UINT32 Col = 0; Col < Width; Col++) {
+                if ((X + Col) >= Backend->Descriptor.Width) {
+                    break;
+                }
+                UINT32 SrcOffset = (Row * Width + Col) * 2;
+                UINT8 Char = Bitmap[SrcOffset];
+                UINT8 Attr = Bitmap[SrcOffset + 1];
+                Pcga_WriteTextChar(Backend, X + Col, Y + Row, Char, Attr);
+            }
+        }
+        return S_OK;
+    }
+
+    /* Graphics-to-text conversion using block characters */
+    /* Use intensity-based character selection:
+     * 0xDB (█) - full block (intensity > 192)
+     * 0xB2 (▓) - dark shade (intensity > 128)
+     * 0xB1 (▒) - medium shade (intensity > 64)
+     * 0xB0 (░) - light shade (intensity > 0)
+     * 0x20 (space) - empty (intensity == 0)
+     */
+
+    for (UINT32 Row = 0; Row < Height; Row++) {
+        if ((Y + Row) >= Backend->Descriptor.Height) {
+            break;
+        }
+        for (UINT32 Col = 0; Col < Width; Col++) {
+            if ((X + Col) >= Backend->Descriptor.Width) {
+                break;
+            }
+
+            UINT8 PixelValue = 0;
+            UINT8 ColorIndex = 0;
+
+            /* Extract pixel value based on source format */
+            switch (SourceFormat) {
+                case FbPixelFormat1Bpp: {
+                    UINT32 ByteIndex = Row * ((Width + 7) / 8) + (Col / 8);
+                    UINT32 BitIndex = 7 - (Col % 8);
+                    PixelValue = (Bitmap[ByteIndex] & (1 << BitIndex)) ? 255 : 0;
+                    break;
+                }
+
+                case FbPixelFormat2Bpp: {
+                    UINT32 ByteIndex = Row * ((Width + 3) / 4) + (Col / 4);
+                    UINT32 BitOffset = (3 - (Col % 4)) * 2;
+                    UINT8 Value = (Bitmap[ByteIndex] >> BitOffset) & 0x03;
+                    PixelValue = (Value * 255) / 3;
+                    break;
+                }
+
+                case FbPixelFormat4Bpp: {
+                    UINT32 ByteIndex = Row * ((Width + 1) / 2) + (Col / 2);
+                    UINT8 Value = (Col & 1) ?
+                        (Bitmap[ByteIndex] & 0x0F) :
+                        ((Bitmap[ByteIndex] >> 4) & 0x0F);
+                    PixelValue = (Value * 255) / 15;
+                    break;
+                }
+
+                case FbPixelFormatIndexed4:
+                case FbPixelFormatIndexed16:
+                case FbPixelFormatIndexed256: {
+                    UINT32 SrcOffset = Row * Width + Col;
+                    ColorIndex = Bitmap[SrcOffset];
+                    /* Get intensity from palette */
+                    if (ColorIndex < 256 && ColorIndex < (UINT32)(1 << (SourceFormat == FbPixelFormatIndexed4 ? 4 :
+                                                                         SourceFormat == FbPixelFormatIndexed16 ? 4 : 8))) {
+                        PALETTE_ENTRY *Entry = &Backend->Palette[ColorIndex];
+                        /* Calculate luminance: 0.299*R + 0.587*G + 0.114*B */
+                        PixelValue = (Entry->Red * 77 + Entry->Green * 150 + Entry->Blue * 29) >> 8;
+                    }
+                    break;
+                }
+
+                default:
+                    /* Unsupported format - use space */
+                    PixelValue = 0;
+                    break;
+            }
+
+            /* Map intensity to block character */
+            UINT8 Char;
+            UINT8 Attr = 0x0F;  /* White on black */
+
+            if (PixelValue == 0) {
+                Char = 0x20;  /* Space */
+            } else if (PixelValue < 64) {
+                Char = 0xB0;  /* Light shade */
+                Attr = 0x08;  /* Dark gray on black */
+            } else if (PixelValue < 128) {
+                Char = 0xB1;  /* Medium shade */
+                Attr = 0x07;  /* Light gray on black */
+            } else if (PixelValue < 192) {
+                Char = 0xB2;  /* Dark shade */
+                Attr = 0x0F;  /* White on black */
+            } else {
+                Char = 0xDB;  /* Full block */
+                Attr = 0x0F;  /* White on black */
+            }
+
+            Pcga_WriteTextChar(Backend, X + Col, Y + Row, Char, Attr);
+        }
+    }
+
+    return S_OK;
+}
+
 static HRESULT STDMETHODCALLTYPE
 PcGraphics_BlitBitmap(
     IFramebufferBackend *This,
@@ -2975,9 +3303,10 @@ PcGraphics_BlitBitmap(
         return E_POINTER;
     }
 
-    /* Text mode - not supported for blitting */
+    /* Text mode - convert bitmap to text representation */
     if (Backend->Descriptor.PixelFormat == FbPixelFormatText) {
-        return E_NOTIMPL;
+        return PcGraphics_BlitBitmapToText(Backend, X, Y, Width, Height,
+                                          Bitmap, SourceFormat);
     }
 
     /* Fast path: matching format */
