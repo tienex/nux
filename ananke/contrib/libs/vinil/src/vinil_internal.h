@@ -16,6 +16,31 @@
 #include <vinil/types.h>
 
 //
+// Instruction Storage (exposed for interpreter)
+//
+
+typedef struct _VINIL_INSTRUCTION_NODE {
+  struct _VINIL_INSTRUCTION_NODE  *Next;
+  VINIL_OPCODE                    Opcode;
+  IVinilVariable                  *Dst;
+  IVinilVariable                  *Src[3];  /* Max 3 sources */
+} VINIL_INSTRUCTION_NODE;
+
+//
+// Program Implementation (exposed for interpreter)
+//
+
+typedef struct _VINIL_PROGRAM_IMPL {
+  IVinilProgramVtbl       *lpVtbl;
+  UINT32                  RefCount;
+  VINIL_EXECUTION_MODE    Mode;
+  IVinilMemoryPool        *MemoryPool;
+  VINIL_INSTRUCTION_NODE  *FirstInstruction;
+  VINIL_INSTRUCTION_NODE  *LastInstruction;
+  UINT32                  InstructionCount;
+} VINIL_PROGRAM_IMPL;
+
+//
 // Program Internal Functions
 //
 

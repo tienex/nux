@@ -11,33 +11,9 @@
 #include <vinil/vinil.h>
 #include <vinil/il.h>
 #include <vinil/memory.h>
+#include "vinil_internal.h"
 #include <stdlib.h>
 #include <string.h>
-
-//
-// Instruction Storage
-//
-
-typedef struct _VINIL_INSTRUCTION_NODE {
-  struct _VINIL_INSTRUCTION_NODE  *Next;
-  VINIL_OPCODE                    Opcode;
-  IVinilVariable                  *Dst;
-  IVinilVariable                  *Src[3];  /* Max 3 sources */
-} VINIL_INSTRUCTION_NODE;
-
-//
-// Program Implementation
-//
-
-typedef struct _VINIL_PROGRAM_IMPL {
-  IVinilProgramVtbl       *lpVtbl;
-  UINT32                  RefCount;
-  VINIL_EXECUTION_MODE    Mode;
-  IVinilMemoryPool        *MemoryPool;
-  VINIL_INSTRUCTION_NODE  *FirstInstruction;
-  VINIL_INSTRUCTION_NODE  *LastInstruction;
-  UINT32                  InstructionCount;
-} VINIL_PROGRAM_IMPL;
 
 //
 // Forward Declarations
