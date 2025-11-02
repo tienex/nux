@@ -333,3 +333,34 @@ ANX_END_INTERFACE(IFramebufferSurface)
     ((This)->lpVtbl->Unlock(This))
 
 #endif /* !__cplusplus */
+
+/* --------------------------------------------------------------- */
+/*  Screen and Surface Constructors                                */
+/* --------------------------------------------------------------- */
+
+/*
+ * Create a screen from a backend.
+ */
+IFramebufferScreen *
+FbCreateScreen(
+    IN IFramebufferBackend *Backend
+    );
+
+/*
+ * Create a screen from a backend type and descriptor.
+ */
+IFramebufferScreen *
+FbCreateScreenByType(
+    IN FB_BACKEND_TYPE Type,
+    IN CONST FRAMEBUFFER_DESC *Descriptor
+    );
+
+/*
+ * Create a software surface.
+ */
+IFramebufferSurface *
+FbCreateSurface(
+    IN UINT32 Width,
+    IN UINT32 Height,
+    IN FB_PIXEL_FORMAT Format
+    );
