@@ -18,6 +18,7 @@
 #include <ananke/framebuffer/backends.h>
 #include <ananke/framebuffer/cursor.h>
 #include <ananke/framebuffer/palette.h>
+#include <ananke/framebuffer/image.h>
 #include <ananke/framebuffer/com_helpers.h>
 #include <ananke/atomics.h>
 #include <ananke/hresult.h>
@@ -286,8 +287,12 @@ FbScreen_BlitImage(
     FB_ROP Rop
     )
 {
-    /* TODO: Implement when IFramebufferImage is implemented */
-    return E_NOTIMPL;
+    if (Image == NULL) {
+        return E_POINTER;
+    }
+
+    /* Use image's BlitToScreen method */
+    return IFramebufferImage_BlitToScreen(Image, This, DestX, DestY, SourceRect, Rop);
 }
 
 static HRESULT STDMETHODCALLTYPE
