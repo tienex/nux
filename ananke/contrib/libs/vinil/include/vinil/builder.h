@@ -23,17 +23,17 @@ ANX_DEFINE_GUID(IID_IVinilBuilder, 0x78901234, 0x7890, 0x7890, 0x78, 0x90, 0x12,
 // Variable Types
 //
 
-typedef enum _VINIL_VAR_TYPE {
-    VinilVarFloat       = 0,
-    VinilVarFloat2      = 1,
-    VinilVarFloat3      = 2,
-    VinilVarFloat4      = 3,
-    VinilVarInt         = 4,
-    VinilVarInt2        = 5,
-    VinilVarInt3        = 6,
-    VinilVarInt4        = 7,
-    VinilVarMat4        = 8,
-} VINIL_VAR_TYPE;
+typedef enum _VINIL_VARIABLE_TYPE {
+    VINIL_VARIABLE_TYPE_FLOAT    = 0,
+    VINIL_VARIABLE_TYPE_FLOAT2   = 1,
+    VINIL_VARIABLE_TYPE_FLOAT3   = 2,
+    VINIL_VARIABLE_TYPE_FLOAT4   = 3,
+    VINIL_VARIABLE_TYPE_INT      = 4,
+    VINIL_VARIABLE_TYPE_INT2     = 5,
+    VINIL_VARIABLE_TYPE_INT3     = 6,
+    VINIL_VARIABLE_TYPE_INT4     = 7,
+    VINIL_VARIABLE_TYPE_MAT4     = 8,
+} VINIL_VARIABLE_TYPE;
 
 //
 // IVinilBuilder Interface
@@ -51,7 +51,7 @@ ANX_BEGIN_INTERFACE(IVinilBuilder, IUnknown, IID_IVinilBuilder, "78901234-7890-7
       @retval  E_POINTER      Invalid pointer.
       @retval  E_OUTOFMEMORY  Memory allocation failed.
     **/
-    ANX_IFACE_METHOD(HRESULT, CreateVariable, (VINIL_VAR_TYPE Type, CONST CHAR8 *Name, IVinilVariable **Variable))
+    ANX_IFACE_METHOD(HRESULT, CreateVariable, (VINIL_VARIABLE_TYPE Type, CONST CHAR8 *Name, IVinilVariable **Variable))
 
     /**
       Create a basic block.

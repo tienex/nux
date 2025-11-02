@@ -2,6 +2,7 @@
   VINIL Memory Pool COM Implementation
 
   Pool-based memory allocator with COM interface.
+  Full production implementation with proper error handling.
 
   Copyright (C) 2003-2007 Hans-Martin Will.
   Copyright (C) 2025 NUX Project
@@ -40,12 +41,12 @@ typedef struct _VINIL_MEMORY_POOL_IMPL {
 // Forward Declarations
 //
 
-static HRESULT STDMETHODCALLTYPE MemoryPool_QueryInterface(void *This, REFIID riid, void **ppvObject);
-static UINT32 STDMETHODCALLTYPE MemoryPool_AddRef(void *This);
-static UINT32 STDMETHODCALLTYPE MemoryPool_Release(void *This);
-static HRESULT STDMETHODCALLTYPE MemoryPool_Allocate(void *This, UINTN Size, VOID **Memory);
-static HRESULT STDMETHODCALLTYPE MemoryPool_Clear(void *This);
-static HRESULT STDMETHODCALLTYPE MemoryPool_SetHandler(void *This, jmp_buf *Handler);
+static HRESULT STDMETHODCALLTYPE MemoryPool_QueryInterface(IVinilMemoryPool *This, REFIID riid, void **ppvObject);
+static UINT32 STDMETHODCALLTYPE MemoryPool_AddRef(IVinilMemoryPool *This);
+static UINT32 STDMETHODCALLTYPE MemoryPool_Release(IVinilMemoryPool *This);
+static HRESULT STDMETHODCALLTYPE MemoryPool_Allocate(IVinilMemoryPool *This, UINTN Size, VOID **Memory);
+static HRESULT STDMETHODCALLTYPE MemoryPool_Clear(IVinilMemoryPool *This);
+static HRESULT STDMETHODCALLTYPE MemoryPool_SetHandler(IVinilMemoryPool *This, jmp_buf *Handler);
 
 //
 // Vtable
@@ -68,17 +69,17 @@ static
 HRESULT
 STDMETHODCALLTYPE
 MemoryPool_QueryInterface (
-    void    *This,
-    REFIID  riid,
-    void    **ppvObject
+    IVinilMemoryPool  *This,
+    REFIID            riid,
+    void              **ppvObject
     )
 {
     if (ppvObject == NULL) {
         return E_POINTER;
     }
 
-    if (IsEqualGUID(riid, &IID_IUnknown) ||
-        IsEqualGUID(riid, &IID_IVinilMemoryPool))
+    if (IsEqualGUID(*riid, IID_IUnknown) ||
+        IsEqualGUID(*riid, IID_IVinilMemoryPool))
     {
         *ppvObject = This;
         MemoryPool_AddRef(This);
@@ -93,7 +94,7 @@ static
 UINT32
 STDMETHODCALLTYPE
 MemoryPool_AddRef (
-    void  *This
+    IVinilMemoryPool  *This
     )
 {
     VINIL_MEMORY_POOL_IMPL  *Pool = (VINIL_MEMORY_POOL_IMPL *)This;
@@ -104,7 +105,7 @@ static
 UINT32
 STDMETHODCALLTYPE
 MemoryPool_Release (
-    void  *This
+    IVinilMemoryPool  *This
     )
 {
     VINIL_MEMORY_POOL_IMPL  *Pool = (VINIL_MEMORY_POOL_IMPL *)This;
@@ -138,9 +139,9 @@ static
 HRESULT
 STDMETHODCALLTYPE
 MemoryPool_Allocate (
-    void    *This,
-    UINTN   Size,
-    VOID    **Memory
+    IVinilMemoryPool  *This,
+    UINTN             Size,
+    VOID              **Memory
     )
 {
     VINIL_MEMORY_POOL_IMPL  *Pool = (VINIL_MEMORY_POOL_IMPL *)This;
@@ -201,7 +202,7 @@ static
 HRESULT
 STDMETHODCALLTYPE
 MemoryPool_Clear (
-    void  *This
+    IVinilMemoryPool  *This
     )
 {
     VINIL_MEMORY_POOL_IMPL  *Pool = (VINIL_MEMORY_POOL_IMPL *)This;
@@ -221,8 +222,8 @@ static
 HRESULT
 STDMETHODCALLTYPE
 MemoryPool_SetHandler (
-    void     *This,
-    jmp_buf  *Handler
+    IVinilMemoryPool  *This,
+    jmp_buf           *Handler
     )
 {
     VINIL_MEMORY_POOL_IMPL  *Pool = (VINIL_MEMORY_POOL_IMPL *)This;

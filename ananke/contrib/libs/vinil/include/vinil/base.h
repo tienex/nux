@@ -16,16 +16,16 @@
 #include <stdint.h>
 
 //
-// Error Codes
+// Status Codes (NT Style)
 //
 
-typedef enum _VINIL_ERROR {
-    VINIL_SUCCESS           = 0,
-    VINIL_ERROR_INVALID     = 1,
-    VINIL_ERROR_NOMEM       = 2,
-    VINIL_ERROR_NOTFOUND    = 3,
-    VINIL_ERROR_NOTIMPL     = 4,
-} VINIL_ERROR;
+typedef enum _VINIL_STATUS {
+    VINIL_STATUS_SUCCESS          = 0,
+    VINIL_STATUS_INVALID_ARG      = 1,
+    VINIL_STATUS_OUT_OF_MEMORY    = 2,
+    VINIL_STATUS_NOT_FOUND        = 3,
+    VINIL_STATUS_NOT_IMPLEMENTED  = 4,
+} VINIL_STATUS;
 
 //
 // Forward Declarations
@@ -49,8 +49,8 @@ typedef enum _VINIL_PRECISION {
 //
 
 typedef enum _VINIL_ADDRESS_SPACE {
-    VINIL_ADDR_PRIVATE,     /* Per work-item, registers/stack */
-    VINIL_ADDR_GLOBAL,      /* All work-items, main memory */
-    VINIL_ADDR_LOCAL,       /* Work-group shared memory */
-    VINIL_ADDR_CONSTANT,    /* Read-only global memory */
+    VINIL_ADDRESS_SPACE_PRIVATE,     /* Per work-item, registers/stack */
+    VINIL_ADDRESS_SPACE_GLOBAL,      /* All work-items, main memory */
+    VINIL_ADDRESS_SPACE_LOCAL,       /* Work-group shared memory */
+    VINIL_ADDRESS_SPACE_CONSTANT,    /* Read-only global memory */
 } VINIL_ADDRESS_SPACE;

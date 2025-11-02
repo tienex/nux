@@ -39,20 +39,20 @@ typedef struct IVinilProgram IVinilProgram;
 // Execution Modes
 //
 
-typedef enum _VINIL_MODE {
-    VinilModeGraphics   = 0,
-    VinilModeCompute    = 1,
-} VINIL_MODE;
+typedef enum _VINIL_EXECUTION_MODE {
+    VINIL_EXECUTION_MODE_GRAPHICS = 0,
+    VINIL_EXECUTION_MODE_COMPUTE  = 1,
+} VINIL_EXECUTION_MODE;
 
 //
 // Execution Backends
 //
 
-typedef enum _VINIL_BACKEND {
-    VinilBackendInterpreter = 0,  /* Software interpreter */
-    VinilBackendJIT         = 1,  /* JIT compiler */
-    VinilBackendAOT         = 2,  /* Pre-compiled native */
-} VINIL_BACKEND;
+typedef enum _VINIL_EXECUTION_BACKEND {
+    VINIL_BACKEND_INTERPRETER = 0,  /* Software interpreter */
+    VINIL_BACKEND_JIT         = 1,  /* JIT compiler */
+    VINIL_BACKEND_AOT         = 2,  /* Pre-compiled native */
+} VINIL_EXECUTION_BACKEND;
 
 //
 // IVinilContext Interface
@@ -71,7 +71,7 @@ ANX_BEGIN_INTERFACE(IVinilContext, IUnknown, IID_IVinilContext, "12345678-1234-1
       @retval  E_POINTER  Invalid pointer.
       @retval  E_FAIL     Execution failed.
     **/
-    ANX_IFACE_METHOD(HRESULT, Execute, (IVinilProgram *Program, VINIL_BACKEND Backend, VOID *Inputs, VOID *Outputs))
+    ANX_IFACE_METHOD(HRESULT, Execute, (IVinilProgram *Program, VINIL_EXECUTION_BACKEND Backend, VOID *Inputs, VOID *Outputs))
 
     /**
       Execute compute kernel with work-group configuration.
@@ -86,7 +86,7 @@ ANX_BEGIN_INTERFACE(IVinilContext, IUnknown, IID_IVinilContext, "12345678-1234-1
       @retval  E_POINTER  Invalid pointer.
       @retval  E_FAIL     Execution failed.
     **/
-    ANX_IFACE_METHOD(HRESULT, ExecuteKernel, (IVinilProgram *Program, VINIL_BACKEND Backend, CONST UINT32 *GlobalSize, CONST UINT32 *LocalSize, VOID *Args))
+    ANX_IFACE_METHOD(HRESULT, ExecuteKernel, (IVinilProgram *Program, VINIL_EXECUTION_BACKEND Backend, CONST UINT32 *GlobalSize, CONST UINT32 *LocalSize, VOID *Args))
 ANX_END_INTERFACE(IVinilContext, IID_IVinilContext)
 
 //
@@ -102,7 +102,7 @@ ANX_BEGIN_INTERFACE(IVinilProgram, IUnknown, IID_IVinilProgram, "23456789-2345-2
       @retval  S_OK       Success.
       @retval  E_POINTER  Invalid pointer.
     **/
-    ANX_IFACE_METHOD(HRESULT, GetMode, (VINIL_MODE *Mode))
+    ANX_IFACE_METHOD(HRESULT, GetMode, (VINIL_EXECUTION_MODE *Mode))
 
     /**
       Get number of instructions in program.

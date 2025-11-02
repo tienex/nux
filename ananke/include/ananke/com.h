@@ -105,6 +105,10 @@ typedef struct IClassFactoryVtbl {
 struct IClassFactory { const IClassFactoryVtbl* lpVtbl; };
 #endif
 
+/* IUnknown and IClassFactory GUIDs */
+ANX_DEFINE_GUID(IID_IUnknown, 0x00000000, 0x0000, 0x0000, 0xC0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x46);
+ANX_DEFINE_GUID(IID_IClassFactory, 0x00000001, 0x0000, 0x0000, 0xC0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x46);
+
 /* Unprefixed COBJMACROS */
 #ifndef COBJMACROS
 #   define COBJMACROS 1
