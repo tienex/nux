@@ -33,14 +33,15 @@ FbCreateBackend(
         case FbBackendPcGraphics:
             return FbCreatePcGraphicsBackend();
 
+        /* UEFI GOP, UGA, and Apple EFI are all handled by the unified
+         * UEFI GOP backend which supports all UEFI graphics protocols:
+         * - Modern GOP (Graphics Output Protocol)
+         * - Legacy UGA (Universal Graphics Adapter, EFI 1.x)
+         * - Apple EFI quirks (BGR, Retina, non-standard resolutions) */
         case FbBackendUefiGop:
-            return FbCreateUefiGopBackend();
-
         case FbBackendUefiUga:
-            return FbCreateUefiUgaBackend();
-
         case FbBackendAppleEfi:
-            return FbCreateAppleEfiBackend();
+            return FbCreateUefiGopBackend();
 
         default:
             return NULL;

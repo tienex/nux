@@ -150,7 +150,8 @@ FbUefiGopSetProtocol(
 /*
  * Create a UEFI Universal Graphics Adapter (UGA) backend.
  * For EFI 1.x and early UEFI 2.x systems (pre-GOP).
- * UGA was the predecessor to GOP, used in older Macs and early UEFI.
+ * NOTE: This now returns a UEFI GOP backend instance.
+ * The UEFI GOP backend handles all UEFI graphics protocols.
  */
 IFramebufferBackend *
 FbCreateUefiUgaBackend(
@@ -159,7 +160,7 @@ FbCreateUefiUgaBackend(
 
 /*
  * Set the UGA protocol instance for UEFI UGA backend.
- * Must be called before Initialize().
+ * This can be used to configure the GOP backend for UGA protocol.
  */
 VOID
 FbUefiUgaSetProtocol(
@@ -169,7 +170,8 @@ FbUefiUgaSetProtocol(
 
 /*
  * Create an Apple EFI framebuffer backend.
- * Handles Apple-specific quirks (BGR mode, Retina displays).
+ * NOTE: This now returns a UEFI GOP backend instance.
+ * The UEFI GOP backend handles Apple-specific quirks automatically.
  */
 IFramebufferBackend *
 FbCreateAppleEfiBackend(
