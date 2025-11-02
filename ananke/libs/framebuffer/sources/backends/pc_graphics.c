@@ -1,7 +1,7 @@
 /*++
     Module Name:
 
-        pcga.c (PC Graphics Adapter)
+        pc_graphics.c (PC Graphics)
 
     Abstract:
 
@@ -755,13 +755,13 @@ Pcga_ScrollText(
  */
 
 /* Standard VGA 8x8 font (CGA/MCGA compatible) - 256 characters × 8 bytes = 2048 bytes */
-#include "vga_font_8x8.inc"
+#include "pc_vga_font_8x8.inc"
 
 /* Standard VGA 8x14 font (EGA compatible) - 256 characters × 14 bytes = 3584 bytes */
-#include "vga_font_8x14.inc"
+#include "pc_vga_font_8x14.inc"
 
 /* Standard VGA 8x16 font (VGA/SVGA/XGA) - 256 characters × 16 bytes = 4096 bytes */
-#include "vga_font_8x16.inc"
+#include "pc_vga_font_8x16.inc"
 
 /* Graphics adapter types */
 typedef enum _PCGA_ADAPTER_TYPE {
