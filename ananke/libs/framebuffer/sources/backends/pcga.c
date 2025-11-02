@@ -2277,6 +2277,37 @@ PcGraphics_SetReadMap(
 }
 
 /*
+ * Bank switching for VESA banked modes (64KB window).
+ */
+#define VESA_BANK_SIZE  0x10000  /* 64KB */
+#define VESA_BANK_MASK  0xFFFF
+
+static VOID
+PcGraphics_SwitchBank(
+    PCGA_BACKEND *Backend,
+    UINT32 Bank
+    )
+{
+    if (Backend->CurrentBank != Bank) {
+        if (Backend->BankSwitchFunc != NULL) {
+            Backend->BankSwitchFunc(Bank);
+        }
+        Backend->CurrentBank = Bank;
+    }
+}
+
+static INLINE VOID
+PcGraphics_MapBankedAddress(
+    UINT32 LinearOffset,
+    UINT32 *Bank,
+    UINT32 *WindowOffset
+    )
+{
+    *Bank = LinearOffset / VESA_BANK_SIZE;
+    *WindowOffset = LinearOffset & VESA_BANK_MASK;
+}
+
+/*
  * Read pixel from linear framebuffer.
  */
 static UINT8
@@ -2288,6 +2319,25 @@ PcGraphics_ReadPixelLinear(
 {
     UINT32 Offset = Y * Backend->Descriptor.Pitch + X;
     return Backend->FramebufferBase[Offset];
+}
+
+/*
+ * Read pixel from banked framebuffer (with bank switching).
+ */
+static UINT8
+PcGraphics_ReadPixelBanked(
+    PCGA_BACKEND *Backend,
+    INT32 X,
+    INT32 Y
+    )
+{
+    UINT32 LinearOffset = Y * Backend->Descriptor.Pitch + X;
+    UINT32 Bank, WindowOffset;
+
+    PcGraphics_MapBankedAddress(LinearOffset, &Bank, &WindowOffset);
+    PcGraphics_SwitchBank(Backend, Bank);
+
+    return Backend->FramebufferBase[WindowOffset];
 }
 
 /*
@@ -2351,6 +2401,26 @@ PcGraphics_WritePixelLinear(
 {
     UINT32 Offset = Y * Backend->Descriptor.Pitch + X;
     Backend->FramebufferBase[Offset] = ColorIndex;
+}
+
+/*
+ * Write pixel to banked framebuffer (with bank switching).
+ */
+static VOID
+PcGraphics_WritePixelBanked(
+    PCGA_BACKEND *Backend,
+    INT32 X,
+    INT32 Y,
+    UINT8 ColorIndex
+    )
+{
+    UINT32 LinearOffset = Y * Backend->Descriptor.Pitch + X;
+    UINT32 Bank, WindowOffset;
+
+    PcGraphics_MapBankedAddress(LinearOffset, &Bank, &WindowOffset);
+    PcGraphics_SwitchBank(Backend, Bank);
+
+    Backend->FramebufferBase[WindowOffset] = ColorIndex;
 }
 
 static VOID
@@ -2422,9 +2492,8 @@ PcGraphics_ReadPixel(
             return PcGraphics_ReadPixelPlanar(Backend, X, Y);
 
         case FbMemoryBanked:
-            /* Handle bank switching for VESA modes */
-            /* Would calculate bank and switch if needed */
-            return PcGraphics_ReadPixelLinear(Backend, X, Y);
+            /* VESA banked modes with bank switching */
+            return PcGraphics_ReadPixelBanked(Backend, X, Y);
 
         default:
             return 0;
@@ -2453,9 +2522,8 @@ PcGraphics_WritePixel(
             break;
 
         case FbMemoryBanked:
-            /* Handle bank switching for VESA modes */
-            /* Would calculate bank and switch if needed */
-            PcGraphics_WritePixelLinear(Backend, X, Y, ColorIndex);
+            /* VESA banked modes with bank switching */
+            PcGraphics_WritePixelBanked(Backend, X, Y, ColorIndex);
             break;
     }
 }

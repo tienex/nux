@@ -390,7 +390,103 @@ HercFb_BlitBitmap(
     FB_PIXEL_FORMAT SourceFormat
     )
 {
-    /* Not implemented - Hercules is monochrome only */
+    HERCULES_FB_BACKEND *Backend = (HERCULES_FB_BACKEND *)This;
+
+    if (!Backend->Initialized || Bitmap == NULL) {
+        return E_POINTER;
+    }
+
+    /* Fast path: 1bpp monochrome format (native) */
+    if (SourceFormat == FbPixelFormat1Bpp) {
+        UINT32 BytesPerRow = (Width + 7) / 8;
+
+        for (UINT32 Row = 0; Row < Height; Row++) {
+            INT32 DestY = Y + Row;
+            if (DestY < 0 || DestY >= HERCULES_HEIGHT) {
+                continue;
+            }
+
+            /* For efficiency, use direct memory access for aligned cases */
+            if ((X % 8) == 0 && (Width % 8) == 0) {
+                /* Byte-aligned - direct copy */
+                UINT8 *DestAddr = HercFb_GetPixelAddr(Backend, X, DestY);
+                CONST UINT8 *SrcAddr = &Bitmap[Row * BytesPerRow];
+                for (UINT32 ByteIdx = 0; ByteIdx < BytesPerRow; ByteIdx++) {
+                    if ((X / 8 + ByteIdx) < HERCULES_BYTES_PER_LINE) {
+                        DestAddr[ByteIdx] = SrcAddr[ByteIdx];
+                    }
+                }
+            } else {
+                /* Bit-aligned - pixel-by-pixel */
+                for (UINT32 Col = 0; Col < Width; Col++) {
+                    INT32 DestX = X + Col;
+                    if (DestX < 0 || DestX >= HERCULES_WIDTH) {
+                        continue;
+                    }
+
+                    UINT32 ByteIdx = Row * BytesPerRow + (Col / 8);
+                    UINT32 BitIdx = 7 - (Col % 8);
+                    BOOLEAN PixelOn = (Bitmap[ByteIdx] >> BitIdx) & 1;
+
+                    HercFb_WritePixel(Backend, DestX, DestY, PixelOn);
+                }
+            }
+        }
+        return S_OK;
+    }
+
+    /* Grayscale formats - convert to 1bpp using threshold/dithering */
+    if (SourceFormat == FbPixelFormat2Bpp ||
+        SourceFormat == FbPixelFormat4Bpp ||
+        SourceFormat == FbPixelFormat8Bpp) {
+
+        for (UINT32 Row = 0; Row < Height; Row++) {
+            INT32 DestY = Y + Row;
+            if (DestY < 0 || DestY >= HERCULES_HEIGHT) {
+                continue;
+            }
+
+            for (UINT32 Col = 0; Col < Width; Col++) {
+                INT32 DestX = X + Col;
+                if (DestX < 0 || DestX >= HERCULES_WIDTH) {
+                    continue;
+                }
+
+                UINT8 GrayValue = 0;
+
+                /* Extract grayscale value based on format */
+                if (SourceFormat == FbPixelFormat2Bpp) {
+                    UINT32 ByteIdx = Row * ((Width + 3) / 4) + (Col / 4);
+                    UINT32 BitOffset = (3 - (Col % 4)) * 2;
+                    UINT8 Value = (Bitmap[ByteIdx] >> BitOffset) & 0x03;
+                    GrayValue = (Value * 255) / 3;
+                } else if (SourceFormat == FbPixelFormat4Bpp) {
+                    UINT32 ByteIdx = Row * ((Width + 1) / 2) + (Col / 2);
+                    UINT8 Value = (Col & 1) ?
+                        (Bitmap[ByteIdx] & 0x0F) :
+                        ((Bitmap[ByteIdx] >> 4) & 0x0F);
+                    GrayValue = (Value * 255) / 15;
+                } else {  /* FbPixelFormat8Bpp */
+                    UINT32 ByteIdx = Row * Width + Col;
+                    GrayValue = Bitmap[ByteIdx];
+                }
+
+                /* Apply dithering or simple threshold */
+                BOOLEAN PixelOn;
+                if (Backend->DitherMethod == FbDitherClassicMac) {
+                    PixelOn = FbDitherClassicMac(DestX, DestY, GrayValue);
+                } else {
+                    PixelOn = (GrayValue >= 128);
+                }
+
+                HercFb_WritePixel(Backend, DestX, DestY, PixelOn);
+            }
+        }
+        return S_OK;
+    }
+
+    /* Other formats - not supported for monochrome display */
+    /* Engine should convert to grayscale first */
     return E_NOTIMPL;
 }
 

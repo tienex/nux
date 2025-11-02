@@ -456,6 +456,83 @@ VesaBankedFb_BlitBitmap(
     FB_PIXEL_FORMAT SourceFormat
     )
 {
+    VESA_BANKED_FB_BACKEND *Backend = (VESA_BANKED_FB_BACKEND *)This;
+
+    if (!Backend->Initialized || Bitmap == NULL) {
+        return E_POINTER;
+    }
+
+    /* Fast path: matching pixel format */
+    if (SourceFormat == Backend->Descriptor.PixelFormat) {
+        UINT32 BytesPerPixel = 0;
+
+        /* Determine bytes per pixel */
+        if (Backend->Descriptor.PixelFormat == FbPixelFormatIndexed256) {
+            BytesPerPixel = 1;
+        } else if (Backend->Descriptor.PixelFormat == FbPixelFormatRgb555 ||
+                   Backend->Descriptor.PixelFormat == FbPixelFormatRgb565) {
+            BytesPerPixel = 2;
+        } else if (Backend->Descriptor.PixelFormat == FbPixelFormatRgb888 ||
+                   Backend->Descriptor.PixelFormat == FbPixelFormatBgr888) {
+            BytesPerPixel = 3;
+        } else if (Backend->Descriptor.PixelFormat == FbPixelFormatRgba8888 ||
+                   Backend->Descriptor.PixelFormat == FbPixelFormatBgra8888) {
+            BytesPerPixel = 4;
+        }
+
+        if (BytesPerPixel > 0) {
+            /* Copy with bank switching - must handle bank boundaries */
+            for (UINT32 Row = 0; Row < Height; Row++) {
+                INT32 DestY = Y + Row;
+                if (DestY < 0 || DestY >= (INT32)Backend->Descriptor.Height) {
+                    continue;
+                }
+
+                for (UINT32 Col = 0; Col < Width; Col++) {
+                    INT32 DestX = X + Col;
+                    if (DestX < 0 || DestX >= (INT32)Backend->Descriptor.Width) {
+                        continue;
+                    }
+
+                    UINT32 LinearOffset = DestY * Backend->Descriptor.Pitch +
+                                         DestX * BytesPerPixel;
+                    UINT32 SrcOffset = Row * Width * BytesPerPixel + Col * BytesPerPixel;
+
+                    /* Handle bank switching and crossing */
+                    UINT32 Bank, WindowOffset;
+                    VesaBankedFb_MapAddress(Backend, LinearOffset, &Bank, &WindowOffset);
+
+                    /* Check if write crosses bank boundary */
+                    if ((WindowOffset + BytesPerPixel) <= VESA_BANK_SIZE) {
+                        /* Write fits within current bank */
+                        VesaBankedFb_SwitchToBank(Backend, Bank);
+
+                        for (UINT32 b = 0; b < BytesPerPixel; b++) {
+                            Backend->WindowBase[WindowOffset + b] = Bitmap[SrcOffset + b];
+                        }
+                    } else {
+                        /* Write crosses bank boundary - split into two writes */
+                        UINT32 FirstPartSize = VESA_BANK_SIZE - WindowOffset;
+
+                        /* First part */
+                        VesaBankedFb_SwitchToBank(Backend, Bank);
+                        for (UINT32 b = 0; b < FirstPartSize; b++) {
+                            Backend->WindowBase[WindowOffset + b] = Bitmap[SrcOffset + b];
+                        }
+
+                        /* Second part */
+                        VesaBankedFb_SwitchToBank(Backend, Bank + 1);
+                        for (UINT32 b = FirstPartSize; b < BytesPerPixel; b++) {
+                            Backend->WindowBase[b - FirstPartSize] = Bitmap[SrcOffset + b];
+                        }
+                    }
+                }
+            }
+            return S_OK;
+        }
+    }
+
+    /* Other formats - not implemented, let engine handle conversion */
     return E_NOTIMPL;
 }
 

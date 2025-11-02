@@ -411,7 +411,91 @@ VesaLinearFb_BlitBitmap(
     FB_PIXEL_FORMAT SourceFormat
     )
 {
-    /* Not implemented yet */
+    VESA_LINEAR_FB_BACKEND *Backend = (VESA_LINEAR_FB_BACKEND *)This;
+
+    if (!Backend->Initialized || Bitmap == NULL) {
+        return E_POINTER;
+    }
+
+    /* Fast path: matching pixel format */
+    if (SourceFormat == Backend->Descriptor.PixelFormat) {
+        UINT32 BytesPerPixel = 0;
+
+        /* Determine bytes per pixel */
+        if (Backend->Descriptor.PixelFormat == FbPixelFormatIndexed256 ||
+            Backend->Descriptor.PixelFormat == FbPixelFormat8Bpp) {
+            BytesPerPixel = 1;
+        } else if (Backend->Descriptor.PixelFormat == FbPixelFormatRgb555 ||
+                   Backend->Descriptor.PixelFormat == FbPixelFormatRgb565) {
+            BytesPerPixel = 2;
+        } else if (Backend->Descriptor.PixelFormat == FbPixelFormatRgb888 ||
+                   Backend->Descriptor.PixelFormat == FbPixelFormatBgr888) {
+            BytesPerPixel = 3;
+        } else if (Backend->Descriptor.PixelFormat == FbPixelFormatRgba8888 ||
+                   Backend->Descriptor.PixelFormat == FbPixelFormatBgra8888) {
+            BytesPerPixel = 4;
+        }
+
+        if (BytesPerPixel > 0) {
+            /* Direct row-by-row copy */
+            for (UINT32 Row = 0; Row < Height; Row++) {
+                INT32 DestY = Y + Row;
+                if (DestY < 0 || DestY >= (INT32)Backend->Descriptor.Height) {
+                    continue;
+                }
+
+                UINT32 DestOffset = DestY * Backend->Descriptor.Pitch + X * BytesPerPixel;
+                UINT32 SrcOffset = Row * Width * BytesPerPixel;
+                UINT32 CopyWidth = Width * BytesPerPixel;
+
+                /* Bounds check */
+                if (X >= 0 && (X + Width) <= Backend->Descriptor.Width) {
+                    /* Simple memcpy for aligned case */
+                    for (UINT32 i = 0; i < CopyWidth; i++) {
+                        Backend->FramebufferBase[DestOffset + i] = Bitmap[SrcOffset + i];
+                    }
+                } else {
+                    /* Clipped - copy pixel by pixel */
+                    for (UINT32 Col = 0; Col < Width; Col++) {
+                        INT32 DestX = X + Col;
+                        if (DestX >= 0 && DestX < (INT32)Backend->Descriptor.Width) {
+                            UINT32 DestPixelOffset = DestOffset + Col * BytesPerPixel;
+                            UINT32 SrcPixelOffset = SrcOffset + Col * BytesPerPixel;
+                            for (UINT32 b = 0; b < BytesPerPixel; b++) {
+                                Backend->FramebufferBase[DestPixelOffset + b] =
+                                    Bitmap[SrcPixelOffset + b];
+                            }
+                        }
+                    }
+                }
+            }
+            return S_OK;
+        }
+    }
+
+    /* 8-bit indexed format conversions */
+    if (SourceFormat == FbPixelFormatIndexed256 &&
+        Backend->Descriptor.PixelFormat == FbPixelFormat8Bpp) {
+        /* Direct 1:1 copy */
+        for (UINT32 Row = 0; Row < Height; Row++) {
+            INT32 DestY = Y + Row;
+            if (DestY < 0 || DestY >= (INT32)Backend->Descriptor.Height) {
+                continue;
+            }
+
+            for (UINT32 Col = 0; Col < Width; Col++) {
+                INT32 DestX = X + Col;
+                if (DestX >= 0 && DestX < (INT32)Backend->Descriptor.Width) {
+                    UINT32 DestOffset = DestY * Backend->Descriptor.Pitch + DestX;
+                    UINT32 SrcOffset = Row * Width + Col;
+                    Backend->FramebufferBase[DestOffset] = Bitmap[SrcOffset];
+                }
+            }
+        }
+        return S_OK;
+    }
+
+    /* Other formats - not implemented, let engine handle conversion */
     return E_NOTIMPL;
 }
 

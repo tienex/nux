@@ -458,7 +458,128 @@ Vga16Fb_BlitBitmap(
     FB_PIXEL_FORMAT SourceFormat
     )
 {
-    /* Not implemented yet */
+    VGA16_FB_BACKEND *Backend = (VGA16_FB_BACKEND *)This;
+
+    if (!Backend->Initialized || Bitmap == NULL) {
+        return E_POINTER;
+    }
+
+    /* Fast path: planar format matches our native format */
+    if (SourceFormat == FbPixelFormatPlanar4) {
+        /* Source is already in 4-plane format */
+        UINT32 BytesPerRow = (Width + 7) / 8;
+
+        for (UINT32 Plane = 0; Plane < 4; Plane++) {
+            /* Select plane to write */
+            Vga16_WriteSeq(VGA_SEQ_MAP_MASK, 1 << Plane);
+
+            for (UINT32 Row = 0; Row < Height; Row++) {
+                INT32 DestY = Y + Row;
+                if (DestY < 0 || DestY >= (INT32)Backend->Descriptor.Height) {
+                    continue;
+                }
+
+                UINT32 DestOffset = DestY * (Backend->Descriptor.Width / 8);
+                UINT32 SrcPlaneOffset = Plane * (Height * BytesPerRow);
+                UINT32 SrcRowOffset = SrcPlaneOffset + Row * BytesPerRow;
+
+                /* Copy row for this plane */
+                for (UINT32 ByteIdx = 0; ByteIdx < BytesPerRow; ByteIdx++) {
+                    UINT32 DestX = X / 8 + ByteIdx;
+                    if (DestX < Backend->Descriptor.Width / 8) {
+                        UINT8 SrcByte = Bitmap[SrcRowOffset + ByteIdx];
+                        UINT32 DestIdx = DestOffset + DestX;
+
+                        /* Handle partial byte at edges */
+                        if (X % 8 != 0 && ByteIdx == 0) {
+                            /* First byte - mask off left edge */
+                            UINT8 Shift = X % 8;
+                            UINT8 Mask = 0xFF >> Shift;
+                            Backend->VideoMemory[DestIdx] =
+                                (Backend->VideoMemory[DestIdx] & ~Mask) |
+                                (SrcByte & Mask);
+                        } else if (ByteIdx == BytesPerRow - 1 && (Width % 8) != 0) {
+                            /* Last byte - mask off right edge */
+                            UINT8 Mask = 0xFF << (8 - (Width % 8));
+                            Backend->VideoMemory[DestIdx] =
+                                (Backend->VideoMemory[DestIdx] & ~Mask) |
+                                (SrcByte & Mask);
+                        } else {
+                            /* Full byte */
+                            Backend->VideoMemory[DestIdx] = SrcByte;
+                        }
+                    }
+                }
+            }
+        }
+
+        /* Restore all planes */
+        Vga16_WriteSeq(VGA_SEQ_MAP_MASK, 0x0F);
+        return S_OK;
+    }
+
+    /* Indexed 4-bit format - unpack to planar */
+    if (SourceFormat == FbPixelFormatIndexed4 ||
+        SourceFormat == FbPixelFormatIndexed16) {
+        for (UINT32 Row = 0; Row < Height; Row++) {
+            INT32 DestY = Y + Row;
+            if (DestY < 0 || DestY >= (INT32)Backend->Descriptor.Height) {
+                continue;
+            }
+
+            for (UINT32 Col = 0; Col < Width; Col++) {
+                INT32 DestX = X + Col;
+                if (DestX < 0 || DestX >= (INT32)Backend->Descriptor.Width) {
+                    continue;
+                }
+
+                UINT8 ColorIndex;
+                if (SourceFormat == FbPixelFormatIndexed4) {
+                    /* 4bpp: two pixels per byte */
+                    UINT32 ByteIdx = Row * ((Width + 1) / 2) + (Col / 2);
+                    ColorIndex = (Col & 1) ?
+                        (Bitmap[ByteIdx] & 0x0F) :
+                        ((Bitmap[ByteIdx] >> 4) & 0x0F);
+                } else {
+                    /* 8bpp indexed: one pixel per byte */
+                    UINT32 ByteIdx = Row * Width + Col;
+                    ColorIndex = Bitmap[ByteIdx] & 0x0F;
+                }
+
+                Vga16Fb_WritePixel(Backend, DestX, DestY, ColorIndex);
+            }
+        }
+        return S_OK;
+    }
+
+    /* 1bpp monochrome - map to color 15 (white) and 0 (black) */
+    if (SourceFormat == FbPixelFormat1Bpp) {
+        UINT32 BytesPerRow = (Width + 7) / 8;
+
+        for (UINT32 Row = 0; Row < Height; Row++) {
+            INT32 DestY = Y + Row;
+            if (DestY < 0 || DestY >= (INT32)Backend->Descriptor.Height) {
+                continue;
+            }
+
+            for (UINT32 Col = 0; Col < Width; Col++) {
+                INT32 DestX = X + Col;
+                if (DestX < 0 || DestX >= (INT32)Backend->Descriptor.Width) {
+                    continue;
+                }
+
+                UINT32 ByteIdx = Row * BytesPerRow + (Col / 8);
+                UINT32 BitIdx = 7 - (Col % 8);
+                UINT8 Bit = (Bitmap[ByteIdx] >> BitIdx) & 1;
+                UINT8 ColorIndex = Bit ? 15 : 0;  /* White or black */
+
+                Vga16Fb_WritePixel(Backend, DestX, DestY, ColorIndex);
+            }
+        }
+        return S_OK;
+    }
+
+    /* Other formats - let engine handle conversion */
     return E_NOTIMPL;
 }
 
