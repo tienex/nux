@@ -112,7 +112,7 @@ ANX_BEGIN_INTERFACE(IFramebufferBackendExt, IFramebufferBackend,
 
     /* Hardware-accelerated clipping (VESA 2.0+ supports this) */
 
-    /* Set hardware clipping rectangle
+    /* Set hardware clipping rectangle (single rectangle - convenience method)
      * All subsequent draw operations will be clipped to this region.
      * Returns S_OK if hardware supports clipping, E_NOTIMPL otherwise.
      */
@@ -120,6 +120,7 @@ ANX_BEGIN_INTERFACE(IFramebufferBackendExt, IFramebufferBackend,
         IN CONST FB_RECT *Rect))
 
     /* Get current hardware clipping rectangle
+     * If region contains multiple rectangles, returns bounding box.
      * Returns S_FALSE if no clipping is active.
      */
     ANX_IFACE_METHOD(HRESULT, GetClipRect, (
@@ -129,6 +130,35 @@ ANX_BEGIN_INTERFACE(IFramebufferBackendExt, IFramebufferBackend,
     /* Reset hardware clipping (disable clipping) */
     ANX_IFACE_METHOD(HRESULT, ResetClip, (
         VOID))
+
+    /* Set clipping region from multiple rectangles (replaces current region)
+     * The effective clipping is the union of all rectangles.
+     * Returns S_OK if hardware supports clipping regions, E_NOTIMPL otherwise.
+     */
+    ANX_IFACE_METHOD(HRESULT, SetClipRegion, (
+        IN CONST FB_RECT *Rects,
+        IN UINT32 RectCount))
+
+    /* Get all rectangles in the current clipping region
+     * Returns S_FALSE if no clipping is active.
+     * If Rects is NULL, returns required count in RectCount.
+     */
+    ANX_IFACE_METHOD(HRESULT, GetClipRegion, (
+        OUT FB_RECT *Rects,
+        IN UINT32 MaxRects,
+        OUT UINT32 *RectCount))
+
+    /* Add rectangle to current clipping region (union operation)
+     * Expands the clippable area by adding this rectangle.
+     */
+    ANX_IFACE_METHOD(HRESULT, AddClipRect, (
+        IN CONST FB_RECT *Rect))
+
+    /* Intersect rectangle with current clipping region
+     * Narrows the clippable area to the intersection.
+     */
+    ANX_IFACE_METHOD(HRESULT, IntersectClipRect, (
+        IN CONST FB_RECT *Rect))
 
 ANX_END_INTERFACE(IFramebufferBackendExt)
 
@@ -193,6 +223,14 @@ ANX_END_INTERFACE(IFramebufferBackendExt)
     ((This)->lpVtbl->GetClipRect(This, Rect, Active))
 #define IFramebufferBackendExt_ResetClip(This) \
     ((This)->lpVtbl->ResetClip(This))
+#define IFramebufferBackendExt_SetClipRegion(This, Rects, Count) \
+    ((This)->lpVtbl->SetClipRegion(This, Rects, Count))
+#define IFramebufferBackendExt_GetClipRegion(This, Rects, Max, Count) \
+    ((This)->lpVtbl->GetClipRegion(This, Rects, Max, Count))
+#define IFramebufferBackendExt_AddClipRect(This, Rect) \
+    ((This)->lpVtbl->AddClipRect(This, Rect))
+#define IFramebufferBackendExt_IntersectClipRect(This, Rect) \
+    ((This)->lpVtbl->IntersectClipRect(This, Rect))
 
 #endif /* !__cplusplus */
 
