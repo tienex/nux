@@ -631,6 +631,649 @@ ExecutePow (
   }
 }
 
+static
+VOID
+ExecuteTan (
+  VINIL_EXECUTION_STATE  *State,
+  IVinilVariable         *Dst,
+  IVinilVariable         *Src
+  )
+{
+  VINIL_REGISTER_VALUE  *DstReg = GetRegister (State, Dst);
+  VINIL_REGISTER_VALUE  *SrcReg = GetRegister (State, Src);
+  UINT32                i;
+
+  if (DstReg != NULL && SrcReg != NULL) {
+    for (i = 0; i < 4; i++) {
+      DstReg->f[i] = tanf (SrcReg->f[i]);
+    }
+  }
+}
+
+static
+VOID
+ExecuteAsin (
+  VINIL_EXECUTION_STATE  *State,
+  IVinilVariable         *Dst,
+  IVinilVariable         *Src
+  )
+{
+  VINIL_REGISTER_VALUE  *DstReg = GetRegister (State, Dst);
+  VINIL_REGISTER_VALUE  *SrcReg = GetRegister (State, Src);
+  UINT32                i;
+
+  if (DstReg != NULL && SrcReg != NULL) {
+    for (i = 0; i < 4; i++) {
+      DstReg->f[i] = asinf (SrcReg->f[i]);
+    }
+  }
+}
+
+static
+VOID
+ExecuteAcos (
+  VINIL_EXECUTION_STATE  *State,
+  IVinilVariable         *Dst,
+  IVinilVariable         *Src
+  )
+{
+  VINIL_REGISTER_VALUE  *DstReg = GetRegister (State, Dst);
+  VINIL_REGISTER_VALUE  *SrcReg = GetRegister (State, Src);
+  UINT32                i;
+
+  if (DstReg != NULL && SrcReg != NULL) {
+    for (i = 0; i < 4; i++) {
+      DstReg->f[i] = acosf (SrcReg->f[i]);
+    }
+  }
+}
+
+static
+VOID
+ExecuteAtan (
+  VINIL_EXECUTION_STATE  *State,
+  IVinilVariable         *Dst,
+  IVinilVariable         *Src
+  )
+{
+  VINIL_REGISTER_VALUE  *DstReg = GetRegister (State, Dst);
+  VINIL_REGISTER_VALUE  *SrcReg = GetRegister (State, Src);
+  UINT32                i;
+
+  if (DstReg != NULL && SrcReg != NULL) {
+    for (i = 0; i < 4; i++) {
+      DstReg->f[i] = atanf (SrcReg->f[i]);
+    }
+  }
+}
+
+static
+VOID
+ExecuteAtan2 (
+  VINIL_EXECUTION_STATE  *State,
+  IVinilVariable         *Dst,
+  IVinilVariable         *Src1,
+  IVinilVariable         *Src2
+  )
+{
+  VINIL_REGISTER_VALUE  *DstReg = GetRegister (State, Dst);
+  VINIL_REGISTER_VALUE  *Src1Reg = GetRegister (State, Src1);
+  VINIL_REGISTER_VALUE  *Src2Reg = GetRegister (State, Src2);
+  UINT32                i;
+
+  if (DstReg != NULL && Src1Reg != NULL && Src2Reg != NULL) {
+    for (i = 0; i < 4; i++) {
+      DstReg->f[i] = atan2f (Src1Reg->f[i], Src2Reg->f[i]);
+    }
+  }
+}
+
+static
+VOID
+ExecuteClamp (
+  VINIL_EXECUTION_STATE  *State,
+  IVinilVariable         *Dst,
+  IVinilVariable         *Src1,
+  IVinilVariable         *Src2,
+  IVinilVariable         *Src3
+  )
+{
+  VINIL_REGISTER_VALUE  *DstReg = GetRegister (State, Dst);
+  VINIL_REGISTER_VALUE  *Src1Reg = GetRegister (State, Src1);
+  VINIL_REGISTER_VALUE  *Src2Reg = GetRegister (State, Src2);
+  VINIL_REGISTER_VALUE  *Src3Reg = GetRegister (State, Src3);
+  UINT32                i;
+
+  if (DstReg != NULL && Src1Reg != NULL && Src2Reg != NULL && Src3Reg != NULL) {
+    for (i = 0; i < 4; i++) {
+      DstReg->f[i] = fminf (fmaxf (Src1Reg->f[i], Src2Reg->f[i]), Src3Reg->f[i]);
+    }
+  }
+}
+
+static
+VOID
+ExecuteRound (
+  VINIL_EXECUTION_STATE  *State,
+  IVinilVariable         *Dst,
+  IVinilVariable         *Src
+  )
+{
+  VINIL_REGISTER_VALUE  *DstReg = GetRegister (State, Dst);
+  VINIL_REGISTER_VALUE  *SrcReg = GetRegister (State, Src);
+  UINT32                i;
+
+  if (DstReg != NULL && SrcReg != NULL) {
+    for (i = 0; i < 4; i++) {
+      DstReg->f[i] = roundf (SrcReg->f[i]);
+    }
+  }
+}
+
+static
+VOID
+ExecuteCrs (
+  VINIL_EXECUTION_STATE  *State,
+  IVinilVariable         *Dst,
+  IVinilVariable         *Src1,
+  IVinilVariable         *Src2
+  )
+{
+  VINIL_REGISTER_VALUE  *DstReg = GetRegister (State, Dst);
+  VINIL_REGISTER_VALUE  *Src1Reg = GetRegister (State, Src1);
+  VINIL_REGISTER_VALUE  *Src2Reg = GetRegister (State, Src2);
+
+  if (DstReg != NULL && Src1Reg != NULL && Src2Reg != NULL) {
+    /* Cross product: a x b = (a.y*b.z - a.z*b.y, a.z*b.x - a.x*b.z, a.x*b.y - a.y*b.x) */
+    DstReg->f[0] = Src1Reg->f[1] * Src2Reg->f[2] - Src1Reg->f[2] * Src2Reg->f[1];
+    DstReg->f[1] = Src1Reg->f[2] * Src2Reg->f[0] - Src1Reg->f[0] * Src2Reg->f[2];
+    DstReg->f[2] = Src1Reg->f[0] * Src2Reg->f[1] - Src1Reg->f[1] * Src2Reg->f[0];
+    DstReg->f[3] = 0.0f;
+  }
+}
+
+static
+VOID
+ExecuteLen (
+  VINIL_EXECUTION_STATE  *State,
+  IVinilVariable         *Dst,
+  IVinilVariable         *Src
+  )
+{
+  VINIL_REGISTER_VALUE  *DstReg = GetRegister (State, Dst);
+  VINIL_REGISTER_VALUE  *SrcReg = GetRegister (State, Src);
+  float                 Length;
+
+  if (DstReg != NULL && SrcReg != NULL) {
+    Length = sqrtf (SrcReg->f[0] * SrcReg->f[0] +
+                    SrcReg->f[1] * SrcReg->f[1] +
+                    SrcReg->f[2] * SrcReg->f[2] +
+                    SrcReg->f[3] * SrcReg->f[3]);
+    DstReg->f[0] = Length;
+    DstReg->f[1] = Length;
+    DstReg->f[2] = Length;
+    DstReg->f[3] = Length;
+  }
+}
+
+static
+VOID
+ExecuteNrm (
+  VINIL_EXECUTION_STATE  *State,
+  IVinilVariable         *Dst,
+  IVinilVariable         *Src
+  )
+{
+  VINIL_REGISTER_VALUE  *DstReg = GetRegister (State, Dst);
+  VINIL_REGISTER_VALUE  *SrcReg = GetRegister (State, Src);
+  float                 Length;
+  UINT32                i;
+
+  if (DstReg != NULL && SrcReg != NULL) {
+    Length = sqrtf (SrcReg->f[0] * SrcReg->f[0] +
+                    SrcReg->f[1] * SrcReg->f[1] +
+                    SrcReg->f[2] * SrcReg->f[2] +
+                    SrcReg->f[3] * SrcReg->f[3]);
+
+    if (Length > 0.0f) {
+      for (i = 0; i < 4; i++) {
+        DstReg->f[i] = SrcReg->f[i] / Length;
+      }
+    } else {
+      for (i = 0; i < 4; i++) {
+        DstReg->f[i] = 0.0f;
+      }
+    }
+  }
+}
+
+static
+VOID
+ExecuteSeq (
+  VINIL_EXECUTION_STATE  *State,
+  IVinilVariable         *Dst,
+  IVinilVariable         *Src1,
+  IVinilVariable         *Src2
+  )
+{
+  VINIL_REGISTER_VALUE  *DstReg = GetRegister (State, Dst);
+  VINIL_REGISTER_VALUE  *Src1Reg = GetRegister (State, Src1);
+  VINIL_REGISTER_VALUE  *Src2Reg = GetRegister (State, Src2);
+  UINT32                i;
+
+  if (DstReg != NULL && Src1Reg != NULL && Src2Reg != NULL) {
+    for (i = 0; i < 4; i++) {
+      DstReg->f[i] = (Src1Reg->f[i] == Src2Reg->f[i]) ? 1.0f : 0.0f;
+    }
+  }
+}
+
+static
+VOID
+ExecuteSne (
+  VINIL_EXECUTION_STATE  *State,
+  IVinilVariable         *Dst,
+  IVinilVariable         *Src1,
+  IVinilVariable         *Src2
+  )
+{
+  VINIL_REGISTER_VALUE  *DstReg = GetRegister (State, Dst);
+  VINIL_REGISTER_VALUE  *Src1Reg = GetRegister (State, Src1);
+  VINIL_REGISTER_VALUE  *Src2Reg = GetRegister (State, Src2);
+  UINT32                i;
+
+  if (DstReg != NULL && Src1Reg != NULL && Src2Reg != NULL) {
+    for (i = 0; i < 4; i++) {
+      DstReg->f[i] = (Src1Reg->f[i] != Src2Reg->f[i]) ? 1.0f : 0.0f;
+    }
+  }
+}
+
+static
+VOID
+ExecuteSlt (
+  VINIL_EXECUTION_STATE  *State,
+  IVinilVariable         *Dst,
+  IVinilVariable         *Src1,
+  IVinilVariable         *Src2
+  )
+{
+  VINIL_REGISTER_VALUE  *DstReg = GetRegister (State, Dst);
+  VINIL_REGISTER_VALUE  *Src1Reg = GetRegister (State, Src1);
+  VINIL_REGISTER_VALUE  *Src2Reg = GetRegister (State, Src2);
+  UINT32                i;
+
+  if (DstReg != NULL && Src1Reg != NULL && Src2Reg != NULL) {
+    for (i = 0; i < 4; i++) {
+      DstReg->f[i] = (Src1Reg->f[i] < Src2Reg->f[i]) ? 1.0f : 0.0f;
+    }
+  }
+}
+
+static
+VOID
+ExecuteSle (
+  VINIL_EXECUTION_STATE  *State,
+  IVinilVariable         *Dst,
+  IVinilVariable         *Src1,
+  IVinilVariable         *Src2
+  )
+{
+  VINIL_REGISTER_VALUE  *DstReg = GetRegister (State, Dst);
+  VINIL_REGISTER_VALUE  *Src1Reg = GetRegister (State, Src1);
+  VINIL_REGISTER_VALUE  *Src2Reg = GetRegister (State, Src2);
+  UINT32                i;
+
+  if (DstReg != NULL && Src1Reg != NULL && Src2Reg != NULL) {
+    for (i = 0; i < 4; i++) {
+      DstReg->f[i] = (Src1Reg->f[i] <= Src2Reg->f[i]) ? 1.0f : 0.0f;
+    }
+  }
+}
+
+static
+VOID
+ExecuteSgt (
+  VINIL_EXECUTION_STATE  *State,
+  IVinilVariable         *Dst,
+  IVinilVariable         *Src1,
+  IVinilVariable         *Src2
+  )
+{
+  VINIL_REGISTER_VALUE  *DstReg = GetRegister (State, Dst);
+  VINIL_REGISTER_VALUE  *Src1Reg = GetRegister (State, Src1);
+  VINIL_REGISTER_VALUE  *Src2Reg = GetRegister (State, Src2);
+  UINT32                i;
+
+  if (DstReg != NULL && Src1Reg != NULL && Src2Reg != NULL) {
+    for (i = 0; i < 4; i++) {
+      DstReg->f[i] = (Src1Reg->f[i] > Src2Reg->f[i]) ? 1.0f : 0.0f;
+    }
+  }
+}
+
+static
+VOID
+ExecuteSge (
+  VINIL_EXECUTION_STATE  *State,
+  IVinilVariable         *Dst,
+  IVinilVariable         *Src1,
+  IVinilVariable         *Src2
+  )
+{
+  VINIL_REGISTER_VALUE  *DstReg = GetRegister (State, Dst);
+  VINIL_REGISTER_VALUE  *Src1Reg = GetRegister (State, Src1);
+  VINIL_REGISTER_VALUE  *Src2Reg = GetRegister (State, Src2);
+  UINT32                i;
+
+  if (DstReg != NULL && Src1Reg != NULL && Src2Reg != NULL) {
+    for (i = 0; i < 4; i++) {
+      DstReg->f[i] = (Src1Reg->f[i] >= Src2Reg->f[i]) ? 1.0f : 0.0f;
+    }
+  }
+}
+
+static
+VOID
+ExecuteAnd (
+  VINIL_EXECUTION_STATE  *State,
+  IVinilVariable         *Dst,
+  IVinilVariable         *Src1,
+  IVinilVariable         *Src2
+  )
+{
+  VINIL_REGISTER_VALUE  *DstReg = GetRegister (State, Dst);
+  VINIL_REGISTER_VALUE  *Src1Reg = GetRegister (State, Src1);
+  VINIL_REGISTER_VALUE  *Src2Reg = GetRegister (State, Src2);
+  UINT32                i;
+
+  if (DstReg != NULL && Src1Reg != NULL && Src2Reg != NULL) {
+    for (i = 0; i < 4; i++) {
+      DstReg->u[i] = Src1Reg->u[i] & Src2Reg->u[i];
+    }
+  }
+}
+
+static
+VOID
+ExecuteOr (
+  VINIL_EXECUTION_STATE  *State,
+  IVinilVariable         *Dst,
+  IVinilVariable         *Src1,
+  IVinilVariable         *Src2
+  )
+{
+  VINIL_REGISTER_VALUE  *DstReg = GetRegister (State, Dst);
+  VINIL_REGISTER_VALUE  *Src1Reg = GetRegister (State, Src1);
+  VINIL_REGISTER_VALUE  *Src2Reg = GetRegister (State, Src2);
+  UINT32                i;
+
+  if (DstReg != NULL && Src1Reg != NULL && Src2Reg != NULL) {
+    for (i = 0; i < 4; i++) {
+      DstReg->u[i] = Src1Reg->u[i] | Src2Reg->u[i];
+    }
+  }
+}
+
+static
+VOID
+ExecuteXor (
+  VINIL_EXECUTION_STATE  *State,
+  IVinilVariable         *Dst,
+  IVinilVariable         *Src1,
+  IVinilVariable         *Src2
+  )
+{
+  VINIL_REGISTER_VALUE  *DstReg = GetRegister (State, Dst);
+  VINIL_REGISTER_VALUE  *Src1Reg = GetRegister (State, Src1);
+  VINIL_REGISTER_VALUE  *Src2Reg = GetRegister (State, Src2);
+  UINT32                i;
+
+  if (DstReg != NULL && Src1Reg != NULL && Src2Reg != NULL) {
+    for (i = 0; i < 4; i++) {
+      DstReg->u[i] = Src1Reg->u[i] ^ Src2Reg->u[i];
+    }
+  }
+}
+
+static
+VOID
+ExecuteNot (
+  VINIL_EXECUTION_STATE  *State,
+  IVinilVariable         *Dst,
+  IVinilVariable         *Src
+  )
+{
+  VINIL_REGISTER_VALUE  *DstReg = GetRegister (State, Dst);
+  VINIL_REGISTER_VALUE  *SrcReg = GetRegister (State, Src);
+  UINT32                i;
+
+  if (DstReg != NULL && SrcReg != NULL) {
+    for (i = 0; i < 4; i++) {
+      DstReg->u[i] = ~SrcReg->u[i];
+    }
+  }
+}
+
+static
+VOID
+ExecuteShl (
+  VINIL_EXECUTION_STATE  *State,
+  IVinilVariable         *Dst,
+  IVinilVariable         *Src1,
+  IVinilVariable         *Src2
+  )
+{
+  VINIL_REGISTER_VALUE  *DstReg = GetRegister (State, Dst);
+  VINIL_REGISTER_VALUE  *Src1Reg = GetRegister (State, Src1);
+  VINIL_REGISTER_VALUE  *Src2Reg = GetRegister (State, Src2);
+  UINT32                i;
+
+  if (DstReg != NULL && Src1Reg != NULL && Src2Reg != NULL) {
+    for (i = 0; i < 4; i++) {
+      DstReg->u[i] = Src1Reg->u[i] << Src2Reg->u[i];
+    }
+  }
+}
+
+static
+VOID
+ExecuteShr (
+  VINIL_EXECUTION_STATE  *State,
+  IVinilVariable         *Dst,
+  IVinilVariable         *Src1,
+  IVinilVariable         *Src2
+  )
+{
+  VINIL_REGISTER_VALUE  *DstReg = GetRegister (State, Dst);
+  VINIL_REGISTER_VALUE  *Src1Reg = GetRegister (State, Src1);
+  VINIL_REGISTER_VALUE  *Src2Reg = GetRegister (State, Src2);
+  UINT32                i;
+
+  if (DstReg != NULL && Src1Reg != NULL && Src2Reg != NULL) {
+    for (i = 0; i < 4; i++) {
+      DstReg->u[i] = Src1Reg->u[i] >> Src2Reg->u[i];
+    }
+  }
+}
+
+static
+VOID
+ExecuteSar (
+  VINIL_EXECUTION_STATE  *State,
+  IVinilVariable         *Dst,
+  IVinilVariable         *Src1,
+  IVinilVariable         *Src2
+  )
+{
+  VINIL_REGISTER_VALUE  *DstReg = GetRegister (State, Dst);
+  VINIL_REGISTER_VALUE  *Src1Reg = GetRegister (State, Src1);
+  VINIL_REGISTER_VALUE  *Src2Reg = GetRegister (State, Src2);
+  UINT32                i;
+
+  if (DstReg != NULL && Src1Reg != NULL && Src2Reg != NULL) {
+    for (i = 0; i < 4; i++) {
+      DstReg->i[i] = Src1Reg->i[i] >> Src2Reg->u[i];
+    }
+  }
+}
+
+static
+VOID
+ExecuteSelect (
+  VINIL_EXECUTION_STATE  *State,
+  IVinilVariable         *Dst,
+  IVinilVariable         *Src1,
+  IVinilVariable         *Src2,
+  IVinilVariable         *Src3
+  )
+{
+  VINIL_REGISTER_VALUE  *DstReg = GetRegister (State, Dst);
+  VINIL_REGISTER_VALUE  *Src1Reg = GetRegister (State, Src1);
+  VINIL_REGISTER_VALUE  *Src2Reg = GetRegister (State, Src2);
+  VINIL_REGISTER_VALUE  *Src3Reg = GetRegister (State, Src3);
+  UINT32                i;
+
+  if (DstReg != NULL && Src1Reg != NULL && Src2Reg != NULL && Src3Reg != NULL) {
+    for (i = 0; i < 4; i++) {
+      DstReg->f[i] = (Src1Reg->f[i] != 0.0f) ? Src2Reg->f[i] : Src3Reg->f[i];
+    }
+  }
+}
+
+static
+VOID
+ExecuteGetGlobalId (
+  VINIL_EXECUTION_STATE  *State,
+  IVinilVariable         *Dst,
+  IVinilVariable         *Src
+  )
+{
+  VINIL_REGISTER_VALUE  *DstReg = GetRegister (State, Dst);
+  VINIL_REGISTER_VALUE  *SrcReg = GetRegister (State, Src);
+
+  if (DstReg != NULL && SrcReg != NULL) {
+    UINT32 Dim = (UINT32)SrcReg->f[0];
+    if (Dim < 3) {
+      DstReg->f[0] = (float)State->GlobalId[Dim];
+      DstReg->f[1] = (float)State->GlobalId[Dim];
+      DstReg->f[2] = (float)State->GlobalId[Dim];
+      DstReg->f[3] = (float)State->GlobalId[Dim];
+    }
+  }
+}
+
+static
+VOID
+ExecuteGetLocalId (
+  VINIL_EXECUTION_STATE  *State,
+  IVinilVariable         *Dst,
+  IVinilVariable         *Src
+  )
+{
+  VINIL_REGISTER_VALUE  *DstReg = GetRegister (State, Dst);
+  VINIL_REGISTER_VALUE  *SrcReg = GetRegister (State, Src);
+
+  if (DstReg != NULL && SrcReg != NULL) {
+    UINT32 Dim = (UINT32)SrcReg->f[0];
+    if (Dim < 3) {
+      DstReg->f[0] = (float)State->LocalId[Dim];
+      DstReg->f[1] = (float)State->LocalId[Dim];
+      DstReg->f[2] = (float)State->LocalId[Dim];
+      DstReg->f[3] = (float)State->LocalId[Dim];
+    }
+  }
+}
+
+static
+VOID
+ExecuteGetGroupId (
+  VINIL_EXECUTION_STATE  *State,
+  IVinilVariable         *Dst,
+  IVinilVariable         *Src
+  )
+{
+  VINIL_REGISTER_VALUE  *DstReg = GetRegister (State, Dst);
+  VINIL_REGISTER_VALUE  *SrcReg = GetRegister (State, Src);
+
+  if (DstReg != NULL && SrcReg != NULL) {
+    UINT32 Dim = (UINT32)SrcReg->f[0];
+    if (Dim < 3) {
+      DstReg->f[0] = (float)State->GroupId[Dim];
+      DstReg->f[1] = (float)State->GroupId[Dim];
+      DstReg->f[2] = (float)State->GroupId[Dim];
+      DstReg->f[3] = (float)State->GroupId[Dim];
+    }
+  }
+}
+
+static
+VOID
+ExecuteGetGlobalSize (
+  VINIL_EXECUTION_STATE  *State,
+  IVinilVariable         *Dst,
+  IVinilVariable         *Src
+  )
+{
+  VINIL_REGISTER_VALUE  *DstReg = GetRegister (State, Dst);
+  VINIL_REGISTER_VALUE  *SrcReg = GetRegister (State, Src);
+
+  if (DstReg != NULL && SrcReg != NULL) {
+    UINT32 Dim = (UINT32)SrcReg->f[0];
+    if (Dim < 3) {
+      DstReg->f[0] = (float)State->GlobalSize[Dim];
+      DstReg->f[1] = (float)State->GlobalSize[Dim];
+      DstReg->f[2] = (float)State->GlobalSize[Dim];
+      DstReg->f[3] = (float)State->GlobalSize[Dim];
+    }
+  }
+}
+
+static
+VOID
+ExecuteGetLocalSize (
+  VINIL_EXECUTION_STATE  *State,
+  IVinilVariable         *Dst,
+  IVinilVariable         *Src
+  )
+{
+  VINIL_REGISTER_VALUE  *DstReg = GetRegister (State, Dst);
+  VINIL_REGISTER_VALUE  *SrcReg = GetRegister (State, Src);
+
+  if (DstReg != NULL && SrcReg != NULL) {
+    UINT32 Dim = (UINT32)SrcReg->f[0];
+    if (Dim < 3) {
+      DstReg->f[0] = (float)State->LocalSize[Dim];
+      DstReg->f[1] = (float)State->LocalSize[Dim];
+      DstReg->f[2] = (float)State->LocalSize[Dim];
+      DstReg->f[3] = (float)State->LocalSize[Dim];
+    }
+  }
+}
+
+static
+VOID
+ExecuteGetNumGroups (
+  VINIL_EXECUTION_STATE  *State,
+  IVinilVariable         *Dst,
+  IVinilVariable         *Src
+  )
+{
+  VINIL_REGISTER_VALUE  *DstReg = GetRegister (State, Dst);
+  VINIL_REGISTER_VALUE  *SrcReg = GetRegister (State, Src);
+
+  if (DstReg != NULL && SrcReg != NULL) {
+    UINT32 Dim = (UINT32)SrcReg->f[0];
+    if (Dim < 3 && State->LocalSize[Dim] > 0) {
+      UINT32 NumGroups = (State->GlobalSize[Dim] + State->LocalSize[Dim] - 1) / State->LocalSize[Dim];
+      DstReg->f[0] = (float)NumGroups;
+      DstReg->f[1] = (float)NumGroups;
+      DstReg->f[2] = (float)NumGroups;
+      DstReg->f[3] = (float)NumGroups;
+    }
+  }
+}
+
 //
 // Instruction Executor
 //
@@ -745,6 +1388,126 @@ ExecuteInstruction (
 
     case VINIL_OP_POW:
       ExecutePow (State, Instruction->Dst, Instruction->Src[0], Instruction->Src[1]);
+      break;
+
+    case VINIL_OP_TAN:
+      ExecuteTan (State, Instruction->Dst, Instruction->Src[0]);
+      break;
+
+    case VINIL_OP_ASIN:
+      ExecuteAsin (State, Instruction->Dst, Instruction->Src[0]);
+      break;
+
+    case VINIL_OP_ACOS:
+      ExecuteAcos (State, Instruction->Dst, Instruction->Src[0]);
+      break;
+
+    case VINIL_OP_ATAN:
+      ExecuteAtan (State, Instruction->Dst, Instruction->Src[0]);
+      break;
+
+    case VINIL_OP_ATAN2:
+      ExecuteAtan2 (State, Instruction->Dst, Instruction->Src[0], Instruction->Src[1]);
+      break;
+
+    case VINIL_OP_CLAMP:
+      ExecuteClamp (State, Instruction->Dst, Instruction->Src[0], Instruction->Src[1], Instruction->Src[2]);
+      break;
+
+    case VINIL_OP_ROUND:
+      ExecuteRound (State, Instruction->Dst, Instruction->Src[0]);
+      break;
+
+    case VINIL_OP_CRS:
+      ExecuteCrs (State, Instruction->Dst, Instruction->Src[0], Instruction->Src[1]);
+      break;
+
+    case VINIL_OP_LEN:
+      ExecuteLen (State, Instruction->Dst, Instruction->Src[0]);
+      break;
+
+    case VINIL_OP_NRM:
+      ExecuteNrm (State, Instruction->Dst, Instruction->Src[0]);
+      break;
+
+    case VINIL_OP_SEQ:
+      ExecuteSeq (State, Instruction->Dst, Instruction->Src[0], Instruction->Src[1]);
+      break;
+
+    case VINIL_OP_SNE:
+      ExecuteSne (State, Instruction->Dst, Instruction->Src[0], Instruction->Src[1]);
+      break;
+
+    case VINIL_OP_SLT:
+      ExecuteSlt (State, Instruction->Dst, Instruction->Src[0], Instruction->Src[1]);
+      break;
+
+    case VINIL_OP_SLE:
+      ExecuteSle (State, Instruction->Dst, Instruction->Src[0], Instruction->Src[1]);
+      break;
+
+    case VINIL_OP_SGT:
+      ExecuteSgt (State, Instruction->Dst, Instruction->Src[0], Instruction->Src[1]);
+      break;
+
+    case VINIL_OP_SGE:
+      ExecuteSge (State, Instruction->Dst, Instruction->Src[0], Instruction->Src[1]);
+      break;
+
+    case VINIL_OP_AND:
+      ExecuteAnd (State, Instruction->Dst, Instruction->Src[0], Instruction->Src[1]);
+      break;
+
+    case VINIL_OP_OR:
+      ExecuteOr (State, Instruction->Dst, Instruction->Src[0], Instruction->Src[1]);
+      break;
+
+    case VINIL_OP_XOR:
+      ExecuteXor (State, Instruction->Dst, Instruction->Src[0], Instruction->Src[1]);
+      break;
+
+    case VINIL_OP_NOT:
+      ExecuteNot (State, Instruction->Dst, Instruction->Src[0]);
+      break;
+
+    case VINIL_OP_SHL:
+      ExecuteShl (State, Instruction->Dst, Instruction->Src[0], Instruction->Src[1]);
+      break;
+
+    case VINIL_OP_SHR:
+      ExecuteShr (State, Instruction->Dst, Instruction->Src[0], Instruction->Src[1]);
+      break;
+
+    case VINIL_OP_SAR:
+      ExecuteSar (State, Instruction->Dst, Instruction->Src[0], Instruction->Src[1]);
+      break;
+
+    case VINIL_OP_SELECT:
+      ExecuteSelect (State, Instruction->Dst, Instruction->Src[0], Instruction->Src[1], Instruction->Src[2]);
+      break;
+
+    case VINIL_OP_GET_GLOBAL_ID:
+      ExecuteGetGlobalId (State, Instruction->Dst, Instruction->Src[0]);
+      break;
+
+    case VINIL_OP_GET_LOCAL_ID:
+      ExecuteGetLocalId (State, Instruction->Dst, Instruction->Src[0]);
+      break;
+
+    case VINIL_OP_GET_GROUP_ID:
+      ExecuteGetGroupId (State, Instruction->Dst, Instruction->Src[0]);
+      break;
+
+    case VINIL_OP_GET_GLOBAL_SIZE:
+      ExecuteGetGlobalSize (State, Instruction->Dst, Instruction->Src[0]);
+      break;
+
+    case VINIL_OP_GET_LOCAL_SIZE:
+      ExecuteGetLocalSize (State, Instruction->Dst, Instruction->Src[0]);
+      break;
+
+    case VINIL_OP_GET_NUM_GROUPS:
+      ExecuteGetNumGroups (State, Instruction->Dst, Instruction->Src[0]);
       break;
 
     case VINIL_OP_RET:
