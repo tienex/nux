@@ -147,3 +147,16 @@ extern CONST UINT8 gStandardWaitCursorXor[16 * 16 / 8];
 /* Standard crosshair cursor (monochrome) */
 extern CONST UINT8 gStandardCrosshairCursorAnd[16 * 16 / 8];
 extern CONST UINT8 gStandardCrosshairCursorXor[16 * 16 / 8];
+
+/* --------------------------------------------------------------- */
+/*  Cursor Constructor                                              */
+/* --------------------------------------------------------------- */
+
+/*
+ * Create a cursor for a backend.
+ * The cursor is initially hidden with a default arrow shape.
+ */
+IFramebufferCursor *
+FbCreateCursor(
+    IN IFramebufferBackend *Backend
+    );

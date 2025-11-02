@@ -371,9 +371,17 @@ FbScreen_GetCursor(
         return E_POINTER;
     }
 
-    /* TODO: Create cursor on demand when cursor.c is implemented */
-    *Cursor = NULL;
-    return E_NOTIMPL;
+    /* Create cursor on demand */
+    if (Screen->Cursor == NULL) {
+        Screen->Cursor = FbCreateCursor(Screen->Backend);
+        if (Screen->Cursor == NULL) {
+            return E_OUTOFMEMORY;
+        }
+    }
+
+    *Cursor = Screen->Cursor;
+    IUnknown_AddRef((IUnknown *)Screen->Cursor);
+    return S_OK;
 }
 
 static HRESULT STDMETHODCALLTYPE
