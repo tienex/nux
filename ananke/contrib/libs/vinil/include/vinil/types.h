@@ -41,7 +41,6 @@
 
 #include <vinil/vinil.h>
 #include <vinil/memory.h>
-#include <vinil/il.h>
 
 #ifdef __cplusplus
 extern "C" {

@@ -39,7 +39,7 @@
 #ifndef VINIL_MEMORY_H
 #define VINIL_MEMORY_H 1
 
-#include <vinil/vinil.h>
+#include <ananke/types.h>
 #include <setjmp.h>
 
 #ifdef __cplusplus

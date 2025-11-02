@@ -97,20 +97,58 @@ typedef struct interp_context {
 static inline void get_src_value(interp_context* ctx,
                                   vinil_src_operand* src,
                                   vec4* result) {
-    /* TODO: Implement full operand resolution */
-    /* For now, just return a simple value */
-    result->x = result->y = result->z = result->w = 0.0f;
-    (void)ctx;
-    (void)src;
+    vec4 temp;
+    vinil_uint32 reg_id;
+
+    if (src->var == NULL) {
+        result->x = result->y = result->z = result->w = 0.0f;
+        return;
+    }
+
+    /* Get register ID from variable */
+    reg_id = src->var->id % MAX_REGISTERS;
+    temp = ctx->registers[reg_id];
+
+    /* Apply swizzle */
+    vinil_uint32 x_sel = src->swizzle.x;
+    vinil_uint32 y_sel = src->swizzle.y;
+    vinil_uint32 z_sel = src->swizzle.z;
+    vinil_uint32 w_sel = src->swizzle.w;
+
+    float* components = (float*)&temp;
+    result->x = components[x_sel];
+    result->y = components[y_sel];
+    result->z = components[z_sel];
+    result->w = components[w_sel];
+
+    /* Apply negate */
+    if (src->negate) {
+        result->x = -result->x;
+        result->y = -result->y;
+        result->z = -result->z;
+        result->w = -result->w;
+    }
 }
 
 static inline void set_dst_value(interp_context* ctx,
                                   vinil_dst_operand* dst,
                                   vec4* value) {
-    /* TODO: Implement full destination write */
-    (void)ctx;
-    (void)dst;
-    (void)value;
+    vinil_uint32 reg_id;
+    vec4* target;
+
+    if (dst->var == NULL) {
+        return;
+    }
+
+    /* Get register ID from variable */
+    reg_id = dst->var->id % MAX_REGISTERS;
+    target = &ctx->registers[reg_id];
+
+    /* Apply write mask */
+    if (dst->mask.x) target->x = value->x;
+    if (dst->mask.y) target->y = value->y;
+    if (dst->mask.z) target->z = value->z;
+    if (dst->mask.w) target->w = value->w;
 }
 
 /*
