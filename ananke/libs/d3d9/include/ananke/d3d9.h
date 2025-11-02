@@ -21,6 +21,13 @@
 #include <ananke/guid.h>
 
 /* --------------------------------------------------------------- */
+/*  Basic type definitions for D3D9                                */
+/* --------------------------------------------------------------- */
+
+typedef char  CHAR;     /* 8-bit character */
+typedef float FLOAT;    /* 32-bit float */
+
+/* --------------------------------------------------------------- */
 /*  Forward Declarations                                           */
 /* --------------------------------------------------------------- */
 
@@ -429,6 +436,23 @@ ANX_BEGIN_INTERFACE(IDirect3DDevice9, IUnknown,
         IN CONST FLOAT *pConstantData,
         IN UINT32 Vector4fCount))
 
+    /* State getters */
+    ANX_IFACE_METHOD(HRESULT, GetRenderState, (
+        IN D3DRENDERSTATETYPE State,
+        OUT UINT32 *pValue))
+
+    /* Texture stage states */
+    ANX_IFACE_METHOD(HRESULT, SetTextureStageState, (
+        IN UINT32 Stage,
+        IN D3DTEXTURESTAGESTATETYPE Type,
+        IN UINT32 Value))
+
+    /* Sampler states */
+    ANX_IFACE_METHOD(HRESULT, SetSamplerState, (
+        IN UINT32 Sampler,
+        IN D3DSAMPLERSTATETYPE Type,
+        IN UINT32 Value))
+
 ANX_END_INTERFACE(IDirect3DDevice9)
 
 /* --------------------------------------------------------------- */
@@ -612,6 +636,12 @@ Direct3DCreate9(
     ((This)->lpVtbl->SetVertexShaderConstantF(This, StartReg, pData, Count))
 #define IDirect3DDevice9_SetPixelShaderConstantF(This, StartReg, pData, Count) \
     ((This)->lpVtbl->SetPixelShaderConstantF(This, StartReg, pData, Count))
+#define IDirect3DDevice9_GetRenderState(This, State, pValue) \
+    ((This)->lpVtbl->GetRenderState(This, State, pValue))
+#define IDirect3DDevice9_SetTextureStageState(This, Stage, Type, Value) \
+    ((This)->lpVtbl->SetTextureStageState(This, Stage, Type, Value))
+#define IDirect3DDevice9_SetSamplerState(This, Sampler, Type, Value) \
+    ((This)->lpVtbl->SetSamplerState(This, Sampler, Type, Value))
 
 #define IDirect3DVertexBuffer9_Lock(This, Offset, Size, ppData, Flags) \
     ((This)->lpVtbl->Lock(This, Offset, Size, ppData, Flags))

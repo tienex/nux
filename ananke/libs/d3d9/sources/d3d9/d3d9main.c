@@ -59,6 +59,7 @@ typedef struct _D3D9_DEVICE {
     /* State tracking */
     D3DBLEND              CurrentSrcBlend;
     D3DBLEND              CurrentDestBlend;
+    UINT32                RenderStates[256];  /* Cache of render states */
 
     /* Presentation parameters */
     D3DPRESENT_PARAMETERS PresentParams;
@@ -484,6 +485,12 @@ D3D9Device_SetRenderState(
     UINT32 Value)
 {
     D3D9_DEVICE *device = (D3D9_DEVICE*)This;
+    HRESULT hr;
+
+    /* Cache the state value */
+    if (State < 256) {
+        device->RenderStates[State] = Value;
+    }
 
     /* Handle blend states specially to apply them together */
     if (State == D3DRS_SRCBLEND) {
@@ -501,7 +508,54 @@ D3D9Device_SetRenderState(
     }
 
     /* Delegate to state manager for other states */
-    return D3D9ApplyRenderState(device->GlContext, State, Value);
+    hr = D3D9ApplyRenderState(device->GlContext, State, Value);
+
+    return hr;
+}
+
+static HRESULT STDMETHODCALLTYPE
+D3D9Device_GetRenderState(
+    IDirect3DDevice9 *This,
+    D3DRENDERSTATETYPE State,
+    UINT32 *pValue)
+{
+    D3D9_DEVICE *device = (D3D9_DEVICE*)This;
+
+    if (!pValue) return E_POINTER;
+    if (State >= 256) return E_INVALIDARG;
+
+    *pValue = device->RenderStates[State];
+    return S_OK;
+}
+
+static HRESULT STDMETHODCALLTYPE
+D3D9Device_SetTextureStageState(
+    IDirect3DDevice9 *This,
+    UINT32 Stage,
+    D3DTEXTURESTAGESTATETYPE Type,
+    UINT32 Value)
+{
+    D3D9_DEVICE *device = (D3D9_DEVICE*)This;
+
+    if (Stage >= 8) return E_INVALIDARG;
+
+    /* Delegate to state manager */
+    return D3D9ApplyTextureStageState(device->GlContext, Stage, Type, Value);
+}
+
+static HRESULT STDMETHODCALLTYPE
+D3D9Device_SetSamplerState(
+    IDirect3DDevice9 *This,
+    UINT32 Sampler,
+    D3DSAMPLERSTATETYPE Type,
+    UINT32 Value)
+{
+    D3D9_DEVICE *device = (D3D9_DEVICE*)This;
+
+    if (Sampler >= 8) return E_INVALIDARG;
+
+    /* Delegate to state manager */
+    return D3D9ApplySamplerState(device->GlContext, Sampler, Type, Value);
 }
 
 static HRESULT STDMETHODCALLTYPE
@@ -720,6 +774,9 @@ static IDirect3DDevice9Vtbl D3D9DeviceVtbl = {
     .SetViewport               = D3D9Device_SetViewport,
     .SetVertexShaderConstantF  = D3D9Device_SetVertexShaderConstantF,
     .SetPixelShaderConstantF   = D3D9Device_SetPixelShaderConstantF,
+    .GetRenderState            = D3D9Device_GetRenderState,
+    .SetTextureStageState      = D3D9Device_SetTextureStageState,
+    .SetSamplerState           = D3D9Device_SetSamplerState,
 };
 
 /* --------------------------------------------------------------- */
@@ -820,6 +877,15 @@ D3D9Main_CreateDevice(
     /* Initialize default blend states */
     device->CurrentSrcBlend = D3DBLEND_ONE;
     device->CurrentDestBlend = D3DBLEND_ZERO;
+
+    /* Initialize render states to defaults */
+    RtlZeroMemory(device->RenderStates, sizeof(device->RenderStates));
+    device->RenderStates[D3DRS_ZENABLE] = 1;             /* Depth test enabled */
+    device->RenderStates[D3DRS_ZWRITEENABLE] = 1;        /* Depth write enabled */
+    device->RenderStates[D3DRS_CULLMODE] = D3DCULL_CCW;  /* CCW culling */
+    device->RenderStates[D3DRS_SRCBLEND] = D3DBLEND_ONE;
+    device->RenderStates[D3DRS_DESTBLEND] = D3DBLEND_ZERO;
+    device->RenderStates[D3DRS_ALPHABLENDENABLE] = 0;    /* Blending disabled */
 
     /* Setup viewport */
     if (pPresentationParameters) {

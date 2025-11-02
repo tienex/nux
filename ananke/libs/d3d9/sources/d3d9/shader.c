@@ -19,6 +19,7 @@
 #include <ananke/d3d9.h>
 #include <ananke/gles20com.h>
 #include <ananke/ntrtl.h>
+#include "d3d9_internal.h"
 
 /* --------------------------------------------------------------- */
 /*  Vertex Shader Implementation                                   */
@@ -102,8 +103,14 @@ D3D9CreateVertexShader(
     shader->lpVtbl = &D3D9VertexShaderVtbl;
     shader->RefCount = 1;
 
-    /* Create GL shader (stub for now - needs HLSL to GLSL translator) */
-    hr = IGLDevice_CreateProgram(GlDevice, &shader->GlProgram);
+    /* Translate and compile the shader */
+    hr = D3D9CreateGLShader(
+        GlDevice,
+        pFunction,
+        TRUE,  /* IsVertexShader */
+        &shader->GlShader,
+        &shader->GlProgram);
+
     if (FAILED(hr)) {
         RtlFreeMemory(shader);
         return hr;
@@ -195,8 +202,14 @@ D3D9CreatePixelShader(
     shader->lpVtbl = &D3D9PixelShaderVtbl;
     shader->RefCount = 1;
 
-    /* Create GL shader (stub for now - needs HLSL to GLSL translator) */
-    hr = IGLDevice_CreateProgram(GlDevice, &shader->GlProgram);
+    /* Translate and compile the shader */
+    hr = D3D9CreateGLShader(
+        GlDevice,
+        pFunction,
+        FALSE,  /* IsVertexShader */
+        &shader->GlShader,
+        &shader->GlProgram);
+
     if (FAILED(hr)) {
         RtlFreeMemory(shader);
         return hr;

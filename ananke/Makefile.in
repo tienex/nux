@@ -46,7 +46,8 @@ SRCS += libs/d3d9/sources/gles20com/gldevice.c \
         libs/d3d9/sources/d3d9/shader.c \
         libs/d3d9/sources/d3d9/statemanager.c \
         libs/d3d9/sources/d3d9/vertexbinding.c \
-        libs/d3d9/sources/d3d9/shaderconstants.c
+        libs/d3d9/sources/d3d9/shaderconstants.c \
+        libs/d3d9/sources/d3d9/shadertranslator.c
 
 # Include directories
 CFLAGS += -I$(SRCDIR)/include

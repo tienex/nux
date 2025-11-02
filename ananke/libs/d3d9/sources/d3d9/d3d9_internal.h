@@ -200,3 +200,28 @@ HRESULT
 D3D9InvalidateShaderConstants(
     D3D9_SHADER_CONSTANTS *pConstants
 );
+
+/* --------------------------------------------------------------- */
+/*  Shader Translation                                             */
+/* --------------------------------------------------------------- */
+
+HRESULT
+D3D9TranslateShader(
+    CONST UINT32 *pFunction,
+    BOOLEAN IsVertexShader,
+    CHAR **ppGLSLSource
+);
+
+VOID
+D3D9FreeShaderSource(
+    CHAR *pGLSLSource
+);
+
+HRESULT
+D3D9CreateGLShader(
+    IGLDevice *pGLDevice,
+    CONST UINT32 *pFunction,
+    BOOLEAN IsVertexShader,
+    IGLShader **ppGLShader,
+    IGLProgram **ppGLProgram
+);
