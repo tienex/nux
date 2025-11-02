@@ -10,6 +10,7 @@
 --*/
 
 #include <ananke/framebuffer/dither.h>
+#include <ananke/framebuffer/pixelformat.h>  /* For FbRgbToGray */
 
 /* --------------------------------------------------------------- */
 /*  Classic Mac Dither Pattern Matrix                              */
@@ -124,7 +125,7 @@ FbDitherRgb(
         case FbPixelFormat1Bpp:
             /* Convert to grayscale and apply threshold */
             {
-                UINT8 Gray = (UINT8)((Color->Red * 77 + Color->Green * 150 + Color->Blue * 29) >> 8);
+                UINT8 Gray = FbRgbToGray(*Color);
                 BOOLEAN Pixel = FbDitherClassicMac(X, Y, Gray);
                 Color->Red = Color->Green = Color->Blue = Pixel ? 255 : 0;
             }
@@ -324,7 +325,7 @@ FbRgbaToMonochromeWithDither(
 
     /* For ordered dithering, use existing algorithm */
     if (Algorithm == FbDitherOrderedBayer) {
-        Gray = (UINT8)((Color->Red * 77 + Color->Green * 150 + Color->Blue * 29) >> 8);
+        Gray = FbRgbToGray(*Color);
         BOOLEAN Pixel = FbDitherClassicMac(X, Y, Gray);
         Color->Red = Color->Green = Color->Blue = Pixel ? 255 : 0;
         return TRUE;
@@ -339,7 +340,8 @@ FbRgbaToMonochromeWithDither(
     OldB = FbClamp((INT32)Color->Blue  + ErrorBuffer->Errors[Offset + 2]);
 
     /* Convert to grayscale using ITU-R BT.601 luma */
-    Gray = (UINT8)((OldR * 77 + OldG * 150 + OldB * 29) >> 8);
+    FB_COLOR TempColor = { (UINT8)OldR, (UINT8)OldG, (UINT8)OldB, 255 };
+    Gray = FbRgbToGray(TempColor);
 
     /* Quantize to black or white */
     Quantized = (Gray >= 128) ? 255 : 0;
