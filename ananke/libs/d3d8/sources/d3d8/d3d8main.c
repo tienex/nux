@@ -21,6 +21,17 @@
 #include <ananke/d3d_common.h>
 #include <ananke/gles20com.h>
 
+/* External texture creation function */
+HRESULT D3D8CreateTexture(
+    IGLDevice *pGLDevice,
+    UINT Width,
+    UINT Height,
+    UINT Levels,
+    DWORD Usage,
+    D3DFORMAT8 Format,
+    D3DPOOL8 Pool,
+    IDirect3DTexture8 **ppTexture);
+
 /* --------------------------------------------------------------- */
 /*  D3D8 Device Structure                                          */
 /* --------------------------------------------------------------- */
@@ -262,7 +273,23 @@ D3D8Device_SetTexture(
     DWORD Stage,
     IDirect3DTexture8 *pTexture)
 {
-    /* TODO: Set texture */
+    D3D8_DEVICE *device = (D3D8_DEVICE*)This;
+    IGLTexture *glTexture = NULL;
+
+    if (Stage >= D3D_MAX_TEXTURE_STAGES) return E_INVALIDARG;
+
+    /* Extract IGLTexture from D3D8 texture object */
+    if (pTexture) {
+        /* Access internal IGLTexture - assumes D3D8_TEXTURE structure */
+        /* This works because IDirect3DTexture8Vtbl* is first member */
+        typedef struct { void *vtbl; UINT32 ref; void *dev; IGLTexture *gltex; } TEX_ACCESS;
+        TEX_ACCESS *texAccess = (TEX_ACCESS*)pTexture;
+        glTexture = texAccess->gltex;
+    }
+
+    /* Store in FFP state for binding during render */
+    device->FfpState.textureStages[Stage].texture = glTexture;
+
     return S_OK;
 }
 
