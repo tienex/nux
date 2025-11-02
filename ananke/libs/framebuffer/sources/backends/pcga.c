@@ -735,13 +735,24 @@ Pcga_ScrollText(
 /*  Font Loading and Management                                    */
 /* --------------------------------------------------------------- */
 
-/* Font ROM addresses in BIOS */
-#define CGA_FONT_8x8_ROM        0xFFA6E   /* CGA 8x8 font (thin) */
-#define EGA_FONT_8x8_ROM        0xF000FA6E /* EGA 8x8 font */
-#define EGA_FONT_8x14_ROM       0xF000FA6E /* EGA 8x14 font (offset varies) */
-#define VGA_FONT_8x8_ROM        0xC0000 + 0x4000  /* VGA BIOS area */
-#define VGA_FONT_8x14_ROM       0xC0000 + 0x5000
-#define VGA_FONT_8x16_ROM       0xC0000 + 0x6000
+/* Interrupt Vector Table (IVT) locations for fonts
+ * The IVT is at physical address 0x00000000 and contains 256 4-byte entries.
+ * Each entry is a far pointer (segment:offset) to interrupt handler or data.
+ */
+#define IVT_BASE                0x00000000  /* IVT physical address */
+#define IVT_INT_1F              0x0000007C  /* INT 1Fh: Graphics font (chars 128-255, 8x8) */
+#define IVT_INT_43              0x0000010C  /* INT 43h: Character generator table (primary) */
+#define IVT_INT_44              0x00000110  /* INT 44h: Graphics font table (EGA/VGA secondary) */
+
+/* VGA BIOS INT 10h, AX=1130h font table indices (for reference, not directly used) */
+#define VGA_FONT_TABLE_8x8_HI   0  /* INT 1Fh pointer (chars 128-255) */
+#define VGA_FONT_TABLE_8x8      1  /* INT 43h pointer (all 256 chars) */
+#define VGA_FONT_TABLE_8x14     2  /* 8x14 ROM font (EGA/VGA) */
+#define VGA_FONT_TABLE_8x8_LO   3  /* 8x8 font (chars 0-127 only) */
+#define VGA_FONT_TABLE_8x8_HI2  4  /* 8x8 font (chars 128-255, top half) */
+#define VGA_FONT_TABLE_9x14     5  /* 9x14 alternate font (VGA) */
+#define VGA_FONT_TABLE_8x16     6  /* 8x16 ROM font (VGA) */
+#define VGA_FONT_TABLE_9x16     7  /* 9x16 alternate font (VGA) */
 
 /* Graphics adapter types */
 typedef enum _PCGA_ADAPTER_TYPE {
@@ -752,6 +763,77 @@ typedef enum _PCGA_ADAPTER_TYPE {
     PCGA_ADAPTER_SVGA = 4,  /* Super VGA extensions */
     PCGA_ADAPTER_XGA = 5,   /* IBM XGA */
 } PCGA_ADAPTER_TYPE;
+
+/*
+ * Read a far pointer (segment:offset) from the IVT.
+ * Returns linear physical address.
+ */
+static UINT32
+Pcga_ReadIVTVector(
+    UINT32 IvtAddress
+    )
+{
+    /* IVT entries are 4 bytes: offset (word), segment (word) */
+    CONST UINT8 *IvtPtr = (CONST UINT8 *)(UINTN)IvtAddress;
+
+    /* Read little-endian values */
+    UINT16 Offset = ((UINT16)IvtPtr[0]) | (((UINT16)IvtPtr[1]) << 8);
+    UINT16 Segment = ((UINT16)IvtPtr[2]) | (((UINT16)IvtPtr[3]) << 8);
+
+    /* Convert segment:offset to linear address */
+    /* Linear address = (segment * 16) + offset */
+    UINT32 LinearAddress = ((UINT32)Segment << 4) + Offset;
+
+    return LinearAddress;
+}
+
+/*
+ * Get font address from BIOS IVT for a specific font height.
+ * Returns physical address of font data, or 0 if not found.
+ */
+static UINT32
+Pcga_GetFontAddressFromIVT(
+    UINT32 CharHeight,
+    PCGA_ADAPTER_TYPE AdapterType
+    )
+{
+    UINT32 FontAddress = 0;
+
+    if (AdapterType == PCGA_ADAPTER_CGA || AdapterType == PCGA_ADAPTER_EGA) {
+        /* CGA and EGA use INT 43h for primary 8x8 font */
+        if (CharHeight == 8) {
+            FontAddress = Pcga_ReadIVTVector(IVT_INT_43);
+        } else if (CharHeight == 14 && AdapterType == PCGA_ADAPTER_EGA) {
+            /* EGA: INT 44h typically points to 8x14 font */
+            FontAddress = Pcga_ReadIVTVector(IVT_INT_44);
+
+            /* If INT 44h is not set or zero, compute from INT 43h */
+            /* Some BIOSes store 8x14 font 14 bytes after each 8x8 char */
+            if (FontAddress == 0) {
+                UINT32 BaseFont = Pcga_ReadIVTVector(IVT_INT_43);
+                /* Try INT 43h + offset (varies by BIOS) */
+                /* Common: 8x8 font is 2KB (256*8), 8x14 follows */
+                FontAddress = BaseFont + (256 * 8);
+            }
+        }
+    } else {
+        /* VGA/MCGA/SVGA/XGA: INT 43h points to active font */
+        /* INT 44h may point to alternate font (often 8x14 or 8x16) */
+        if (CharHeight == 8) {
+            FontAddress = Pcga_ReadIVTVector(IVT_INT_43);
+        } else if (CharHeight == 14 || CharHeight == 16) {
+            /* Try INT 44h first */
+            FontAddress = Pcga_ReadIVTVector(IVT_INT_44);
+
+            /* If not set, fall back to INT 43h */
+            if (FontAddress == 0) {
+                FontAddress = Pcga_ReadIVTVector(IVT_INT_43);
+            }
+        }
+    }
+
+    return FontAddress;
+}
 
 /*
  * Detect graphics adapter type based on hardware.
@@ -827,8 +909,11 @@ Pcga_DetectAdapter(
 }
 
 /*
- * Extract font from BIOS ROM.
- * CGA and EGA fonts are stored in system ROM.
+ * Extract font from BIOS ROM using IVT vectors.
+ * CGA and EGA fonts are accessed via Interrupt Vector Table pointers:
+ * - INT 43h points to primary font (typically 8x8)
+ * - INT 44h points to secondary font (typically 8x14 on EGA)
+ * - INT 1Fh points to graphics font extension (chars 128-255)
  */
 static VOID
 Pcga_ExtractRomFont(
@@ -837,37 +922,26 @@ Pcga_ExtractRomFont(
     IN PCGA_ADAPTER_TYPE AdapterType
     )
 {
-    CONST UINT8 *RomFont = NULL;
+    UINT32 FontAddress;
+    CONST UINT8 *RomFont;
 
-    /* Determine ROM font address based on adapter and height */
-    if (AdapterType == PCGA_ADAPTER_CGA) {
-        /* CGA: 8x8 font only */
-        if (CharHeight == 8) {
-            RomFont = (CONST UINT8 *)(UINTN)CGA_FONT_8x8_ROM;
-        }
-    } else if (AdapterType == PCGA_ADAPTER_EGA) {
-        /* EGA: 8x8 or 8x14 fonts */
-        if (CharHeight == 8) {
-            RomFont = (CONST UINT8 *)(UINTN)EGA_FONT_8x8_ROM;
-        } else if (CharHeight == 14) {
-            RomFont = (CONST UINT8 *)(UINTN)EGA_FONT_8x14_ROM;
-        }
-    } else {
-        /* VGA/MCGA/SVGA/XGA: 8x8, 8x14, or 8x16 fonts */
-        /* MCGA, SVGA, and XGA are VGA-compatible for font handling */
-        if (CharHeight == 8) {
-            RomFont = (CONST UINT8 *)(UINTN)VGA_FONT_8x8_ROM;
-        } else if (CharHeight == 14) {
-            RomFont = (CONST UINT8 *)(UINTN)VGA_FONT_8x14_ROM;
-        } else if (CharHeight == 16) {
-            RomFont = (CONST UINT8 *)(UINTN)VGA_FONT_8x16_ROM;
-        }
+    if (FontBuffer == NULL) {
+        return;
     }
 
-    if (RomFont != NULL && FontBuffer != NULL) {
-        /* Copy 256 characters × CharHeight bytes */
-        ANX_MEMCPY(FontBuffer, RomFont, 256 * CharHeight);
+    /* Get font address from IVT vectors */
+    FontAddress = Pcga_GetFontAddressFromIVT(CharHeight, AdapterType);
+
+    if (FontAddress == 0) {
+        /* Font not found in IVT, cannot extract */
+        return;
     }
+
+    /* Convert physical address to pointer */
+    RomFont = (CONST UINT8 *)(UINTN)FontAddress;
+
+    /* Copy 256 characters × CharHeight bytes */
+    ANX_MEMCPY(FontBuffer, RomFont, 256 * CharHeight);
 }
 
 /*
