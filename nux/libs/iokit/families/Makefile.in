@@ -11,7 +11,7 @@ include @top_srcdir@/mk/top.mk
 # 5. Low-level buses (i2c, spi, hid)
 # 6. Virtualization (virt)
 
-SUBDIRS = bus storage pcie usb firewire isa i2c spi hid nvme sata scsi thunderbolt rdma virt
+SUBDIRS = bus storage pcie usb firewire isa i2c spi hid nvme sata scsi thunderbolt rdma virt network
 
 # Dependency declarations
 bus:
@@ -43,6 +43,8 @@ thunderbolt: pcie
 rdma: pcie
 
 virt: pcie
+
+network:
 
 include @top_srcdir@/mk/subdir.mk
 include @top_srcdir@/mk/bottom.mk
