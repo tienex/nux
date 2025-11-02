@@ -536,6 +536,56 @@ TextmodeFb_BlitBitmap(
     FB_PIXEL_FORMAT SourceFormat
     )
 {
+    TEXTMODE_BACKEND *Backend = (TEXTMODE_BACKEND *)This;
+
+    if (!Backend->Initialized || Bitmap == NULL) {
+        return E_POINTER;
+    }
+
+    /* Textmode backend uses indexed color pixel buffer */
+    /* Convert source format to indexed colors and write to buffer */
+
+    /* Fast path: indexed formats */
+    if (SourceFormat == FbPixelFormatIndexed4 ||
+        SourceFormat == FbPixelFormatIndexed16 ||
+        SourceFormat == FbPixelFormatIndexed256) {
+
+        for (UINT32 Row = 0; Row < Height; Row++) {
+            INT32 DestY = Y + Row;
+            if (DestY < 0 || DestY >= (INT32)Backend->Descriptor.Height) {
+                continue;
+            }
+
+            for (UINT32 Col = 0; Col < Width; Col++) {
+                INT32 DestX = X + Col;
+                if (DestX < 0 || DestX >= (INT32)Backend->Descriptor.Width) {
+                    continue;
+                }
+
+                UINT8 ColorIndex = 0;
+
+                /* Extract color index based on format */
+                if (SourceFormat == FbPixelFormatIndexed4) {
+                    UINT32 ByteIdx = Row * ((Width + 1) / 2) + (Col / 2);
+                    ColorIndex = (Col & 1) ?
+                        (Bitmap[ByteIdx] & 0x0F) :
+                        ((Bitmap[ByteIdx] >> 4) & 0x0F);
+                } else if (SourceFormat == FbPixelFormatIndexed16) {
+                    UINT32 ByteIdx = Row * Width + Col;
+                    ColorIndex = Bitmap[ByteIdx] & 0x0F;
+                } else {  /* FbPixelFormatIndexed256 */
+                    UINT32 ByteIdx = Row * Width + Col;
+                    ColorIndex = Bitmap[ByteIdx] & 0x0F;  /* Map to 16 colors */
+                }
+
+                /* Write to pixel buffer */
+                UINT32 Offset = DestY * Backend->Descriptor.Width + DestX;
+                Backend->PixelBuffer[Offset] = ColorIndex;
+            }
+        }
+        return S_OK;
+    }
+
     /* Format conversion handled by engine */
     return E_NOTIMPL;
 }
