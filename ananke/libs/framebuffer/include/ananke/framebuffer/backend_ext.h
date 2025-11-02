@@ -110,7 +110,48 @@ ANX_BEGIN_INTERFACE(IFramebufferBackendExt, IFramebufferBackend,
         IN INT32 HotSpotY,
         IN FB_CURSOR_TYPE Type))
 
+    /* Hardware-accelerated clipping (VESA 2.0+ supports this) */
+
+    /* Set hardware clipping rectangle
+     * All subsequent draw operations will be clipped to this region.
+     * Returns S_OK if hardware supports clipping, E_NOTIMPL otherwise.
+     */
+    ANX_IFACE_METHOD(HRESULT, SetClipRect, (
+        IN CONST FB_RECT *Rect))
+
+    /* Get current hardware clipping rectangle
+     * Returns S_FALSE if no clipping is active.
+     */
+    ANX_IFACE_METHOD(HRESULT, GetClipRect, (
+        OUT FB_RECT *Rect,
+        OUT BOOLEAN *IsActive))
+
+    /* Reset hardware clipping (disable clipping) */
+    ANX_IFACE_METHOD(HRESULT, ResetClip, (
+        VOID))
+
 ANX_END_INTERFACE(IFramebufferBackendExt)
+
+/* --------------------------------------------------------------- */
+/*  Hardware Capability Flags                                       */
+/* --------------------------------------------------------------- */
+
+/* Returned by GetCapabilities() to indicate what hardware features
+ * are supported by the backend/driver.
+ */
+
+#define FB_CAP_PAGE_FLIPPING        0x00000001  /* Hardware page flipping */
+#define FB_CAP_VSYNC                0x00000002  /* VBlank synchronization */
+#define FB_CAP_HARDWARE_CURSOR      0x00000004  /* Hardware mouse cursor */
+#define FB_CAP_HARDWARE_FILL        0x00000008  /* Hardware-accelerated fills */
+#define FB_CAP_HARDWARE_BLIT        0x00000010  /* Hardware-accelerated blits */
+#define FB_CAP_HARDWARE_LINE        0x00000020  /* Hardware-accelerated lines */
+#define FB_CAP_ROP_SUPPORT          0x00000040  /* ROP (raster operations) */
+#define FB_CAP_HARDWARE_CLIPPING    0x00000080  /* Hardware clipping regions */
+#define FB_CAP_ALPHA_BLENDING       0x00000100  /* Hardware alpha blending */
+#define FB_CAP_STRETCH_BLIT         0x00000200  /* Stretch blitting */
+#define FB_CAP_ROTATION             0x00000400  /* Screen rotation */
+#define FB_CAP_3D_ACCELERATION      0x00000800  /* 3D acceleration */
 
 /* --------------------------------------------------------------- */
 /*  Helper Macros for C (COBJMACROS style)                          */
@@ -146,6 +187,12 @@ ANX_END_INTERFACE(IFramebufferBackendExt)
     ((This)->lpVtbl->DrawLine(This, X1, Y1, X2, Y2, Color))
 #define IFramebufferBackendExt_SetHardwareCursor(This, Vis, X, Y, Data, W, H, HX, HY, Type) \
     ((This)->lpVtbl->SetHardwareCursor(This, Vis, X, Y, Data, W, H, HX, HY, Type))
+#define IFramebufferBackendExt_SetClipRect(This, Rect) \
+    ((This)->lpVtbl->SetClipRect(This, Rect))
+#define IFramebufferBackendExt_GetClipRect(This, Rect, Active) \
+    ((This)->lpVtbl->GetClipRect(This, Rect, Active))
+#define IFramebufferBackendExt_ResetClip(This) \
+    ((This)->lpVtbl->ResetClip(This))
 
 #endif /* !__cplusplus */
 

@@ -16,6 +16,8 @@
 #include <ananke/framebuffer/screen.h>
 #include <ananke/framebuffer/image.h>
 #include <ananke/framebuffer/font.h>
+#include <ananke/framebuffer/backend_ext.h>
+#include <ananke/framebuffer/backends.h>
 #include <ananke/framebuffer/com_helpers.h>
 #include <ananke/atomics.h>
 #include <ananke/hresult.h>
