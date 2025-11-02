@@ -64,6 +64,29 @@ typedef struct _D3D9_INDEX_BUFFER {
 
 extern IDirect3DIndexBuffer9Vtbl D3D9IndexBufferVtbl;
 
+HRESULT
+D3D9CreateIndexBuffer(
+    IGLDevice *pGLDevice,
+    UINT Length,
+    DWORD Usage,
+    D3DFORMAT Format,
+    D3DPOOL Pool,
+    IDirect3DIndexBuffer9 **ppIndexBuffer,
+    HANDLE *pSharedHandle
+);
+
+HRESULT
+D3D9GetIndexBufferGLBuffer(
+    IDirect3DIndexBuffer9 *pIndexBuffer,
+    IGLBuffer **ppGLBuffer
+);
+
+HRESULT
+D3D9GetIndexBufferFormat(
+    IDirect3DIndexBuffer9 *pIndexBuffer,
+    GLenum *pGLFormat
+);
+
 /* --------------------------------------------------------------- */
 /*  Texture                                                        */
 /* --------------------------------------------------------------- */

@@ -46,6 +46,24 @@ HRESULT D3D8GetVertexBufferGLBuffer(
     IDirect3DVertexBuffer8 *pVertexBuffer,
     IGLBuffer **ppGLBuffer);
 
+/* External index buffer creation function */
+HRESULT D3D8CreateIndexBuffer(
+    IGLDevice *pGLDevice,
+    UINT Length,
+    DWORD Usage,
+    DWORD Format,
+    IDirect3DIndexBuffer8 **ppIndexBuffer);
+
+/* Helper to get IGLBuffer from index buffer */
+HRESULT D3D8GetIndexBufferGLBuffer(
+    IDirect3DIndexBuffer8 *pIndexBuffer,
+    IGLBuffer **ppGLBuffer);
+
+/* Helper to get index buffer format */
+HRESULT D3D8GetIndexBufferFormat(
+    IDirect3DIndexBuffer8 *pIndexBuffer,
+    GLenum *pGLFormat);
+
 /* --------------------------------------------------------------- */
 /*  D3D8 Device Structure                                          */
 /* --------------------------------------------------------------- */
@@ -71,6 +89,10 @@ typedef struct _D3D8_DEVICE {
     /* Current streams */
     IDirect3DVertexBuffer8 *StreamSource;
     UINT32                StreamStride;
+
+    /* Current index buffer */
+    IDirect3DIndexBuffer8 *IndexBuffer;
+    UINT32                BaseVertexIndex;
 
     BOOLEAN               InScene;
 } D3D8_DEVICE;
@@ -330,6 +352,11 @@ D3D8Device_SetIndices(
     IDirect3DIndexBuffer8 *pIndexData,
     UINT32 BaseVertexIndex)
 {
+    D3D8_DEVICE *device = (D3D8_DEVICE*)This;
+
+    device->IndexBuffer = pIndexData;
+    device->BaseVertexIndex = BaseVertexIndex;
+
     return S_OK;
 }
 
@@ -398,7 +425,75 @@ D3D8Device_DrawIndexedPrimitive(
     UINT32 StartIndex,
     UINT32 PrimitiveCount)
 {
-    return E_NOTIMPL;
+    D3D8_DEVICE *device = (D3D8_DEVICE*)This;
+    GLenum glPrimType = D3DPrimitiveTypeToGL(PrimitiveType);
+    GLenum indexType;
+    UINT32 indexCount;
+    HRESULT hr;
+
+    if (!device->IndexBuffer || !device->StreamSource) {
+        return E_FAIL;  /* Need both vertex and index buffers */
+    }
+
+    /* If using FVF (no programmable shader), use FFP */
+    if (device->CurrentVertexShader == 0) {
+        /* Update FFP shader if needed */
+        D3DUpdateFFPShaderProgram(device->GlDevice,
+                                  &device->FfpState,
+                                  &device->CurrentFVFDesc);
+
+        /* Apply FFP state (render states, textures) */
+        D3DApplyFFPState(device->GlContext, &device->FfpState);
+
+        if (device->FfpState.currentProgram) {
+            IGLProgram_UseProgram(device->FfpState.currentProgram);
+
+            /* Update shader uniforms */
+            hr = D3DUpdateFFPUniforms(device->FfpState.currentProgram, &device->FfpState);
+            if (FAILED(hr)) return hr;
+
+            /* Bind vertex attributes from VBO */
+            if (device->StreamSource) {
+                IGLBuffer *glBuffer = NULL;
+                hr = D3D8GetVertexBufferGLBuffer(device->StreamSource, &glBuffer);
+                if (FAILED(hr)) return hr;
+
+                IGLBuffer_Bind(glBuffer, GL_ARRAY_BUFFER);
+
+                hr = D3DBindVertexAttributes(device->GlContext,
+                                              device->FfpState.currentProgram,
+                                              &device->CurrentFVFDesc,
+                                              NULL);
+                if (FAILED(hr)) return hr;
+            }
+        }
+    }
+
+    /* Bind index buffer */
+    {
+        IGLBuffer *glIndexBuffer = NULL;
+        hr = D3D8GetIndexBufferGLBuffer(device->IndexBuffer, &glIndexBuffer);
+        if (FAILED(hr)) return hr;
+
+        IGLBuffer_Bind(glIndexBuffer, GL_ELEMENT_ARRAY_BUFFER);
+
+        /* Get index format (16-bit or 32-bit) */
+        hr = D3D8GetIndexBufferFormat(device->IndexBuffer, &indexType);
+        if (FAILED(hr)) return hr;
+    }
+
+    /* Calculate index count */
+    indexCount = PrimitiveCount;
+    if (PrimitiveType == D3DPT8_TRIANGLELIST) indexCount *= 3;
+    else if (PrimitiveType == D3DPT8_TRIANGLESTRIP) indexCount += 2;
+
+    /* Calculate offset into index buffer (in bytes) */
+    {
+        UINTN indexOffset = StartIndex * (indexType == GL_UNSIGNED_SHORT ? 2 : 4);
+
+        return IGLContext_DrawElements(device->GlContext, glPrimType, indexCount,
+                                       indexType, (VOID*)indexOffset);
+    }
 }
 
 /* Device vtable */
