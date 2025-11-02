@@ -52,7 +52,7 @@ VinilCreateBuilder (
     }
 
     /* Create memory pool for program */
-    Pool = vinil_memory_pool_create(4096);
+    Pool = vinil_memory_pool_create(4096, NULL);
     if (Pool == NULL) {
         free(NewBuilder);
         return E_OUTOFMEMORY;
@@ -116,7 +116,7 @@ VinilBuilderCreateVariable (
     }
 
     /* Allocate variable from pool */
-    Var = (vinil_variable *)vinil_memory_pool_alloc(
+    Var = (vinil_variable *)vinil_memory_pool_allocate(
         Builder->Program->memory,
         sizeof(vinil_variable)
     );
@@ -130,28 +130,28 @@ VinilBuilderCreateVariable (
     /* Create type based on VINIL_VAR_TYPE */
     switch (Type) {
     case VinilVarFloat:
-        VarType = vinil_type_create_scalar(Builder->Program->memory, VINIL_TYPE_FLOAT);
+        VarType = vinil_type_get_basic(VINIL_TYPE_FLOAT, VINIL_PRECISION_HIGH);
         break;
     case VinilVarFloat2:
-        VarType = vinil_type_create_vector(Builder->Program->memory, VINIL_TYPE_FLOAT, 2);
+        VarType = vinil_type_create_vector(VINIL_TYPE_FLOAT, VINIL_PRECISION_HIGH, 2);
         break;
     case VinilVarFloat3:
-        VarType = vinil_type_create_vector(Builder->Program->memory, VINIL_TYPE_FLOAT, 3);
+        VarType = vinil_type_create_vector(VINIL_TYPE_FLOAT, VINIL_PRECISION_HIGH, 3);
         break;
     case VinilVarFloat4:
-        VarType = vinil_type_create_vector(Builder->Program->memory, VINIL_TYPE_FLOAT, 4);
+        VarType = vinil_type_create_vector(VINIL_TYPE_FLOAT, VINIL_PRECISION_HIGH, 4);
         break;
     case VinilVarInt:
-        VarType = vinil_type_create_scalar(Builder->Program->memory, VINIL_TYPE_INT);
+        VarType = vinil_type_get_basic(VINIL_TYPE_INT, VINIL_PRECISION_HIGH);
         break;
     case VinilVarInt2:
-        VarType = vinil_type_create_vector(Builder->Program->memory, VINIL_TYPE_INT, 2);
+        VarType = vinil_type_create_vector(VINIL_TYPE_INT, VINIL_PRECISION_HIGH, 2);
         break;
     case VinilVarInt3:
-        VarType = vinil_type_create_vector(Builder->Program->memory, VINIL_TYPE_INT, 3);
+        VarType = vinil_type_create_vector(VINIL_TYPE_INT, VINIL_PRECISION_HIGH, 3);
         break;
     case VinilVarInt4:
-        VarType = vinil_type_create_vector(Builder->Program->memory, VINIL_TYPE_INT, 4);
+        VarType = vinil_type_create_vector(VINIL_TYPE_INT, VINIL_PRECISION_HIGH, 4);
         break;
     default:
         return E_FAIL;
@@ -191,7 +191,7 @@ VinilBuilderCreateBlock (
         return E_POINTER;
     }
 
-    NewBlock = (vinil_block *)vinil_memory_pool_alloc(
+    NewBlock = (vinil_block *)vinil_memory_pool_allocate(
         Builder->Program->memory,
         sizeof(vinil_block)
     );
@@ -309,7 +309,7 @@ VinilBuilderBuildAdd (
         return E_POINTER;
     }
 
-    Inst = (vinil_inst_binary *)vinil_memory_pool_alloc(
+    Inst = (vinil_inst_binary *)vinil_memory_pool_allocate(
         Builder->Program->memory,
         sizeof(vinil_inst_binary)
     );
@@ -344,7 +344,7 @@ VinilBuilderBuildSub (
         return E_POINTER;
     }
 
-    Inst = (vinil_inst_binary *)vinil_memory_pool_alloc(
+    Inst = (vinil_inst_binary *)vinil_memory_pool_allocate(
         Builder->Program->memory,
         sizeof(vinil_inst_binary)
     );
@@ -379,7 +379,7 @@ VinilBuilderBuildMul (
         return E_POINTER;
     }
 
-    Inst = (vinil_inst_binary *)vinil_memory_pool_alloc(
+    Inst = (vinil_inst_binary *)vinil_memory_pool_allocate(
         Builder->Program->memory,
         sizeof(vinil_inst_binary)
     );
@@ -415,7 +415,7 @@ VinilBuilderBuildMad (
         return E_POINTER;
     }
 
-    Inst = (vinil_inst_ternary *)vinil_memory_pool_alloc(
+    Inst = (vinil_inst_ternary *)vinil_memory_pool_allocate(
         Builder->Program->memory,
         sizeof(vinil_inst_ternary)
     );
@@ -450,7 +450,7 @@ VinilBuilderBuildMov (
         return E_POINTER;
     }
 
-    Inst = (vinil_inst_unary *)vinil_memory_pool_alloc(
+    Inst = (vinil_inst_unary *)vinil_memory_pool_allocate(
         Builder->Program->memory,
         sizeof(vinil_inst_unary)
     );
@@ -484,7 +484,7 @@ VinilBuilderBuildDp3 (
         return E_POINTER;
     }
 
-    Inst = (vinil_inst_binary *)vinil_memory_pool_alloc(
+    Inst = (vinil_inst_binary *)vinil_memory_pool_allocate(
         Builder->Program->memory,
         sizeof(vinil_inst_binary)
     );
@@ -519,7 +519,7 @@ VinilBuilderBuildDp4 (
         return E_POINTER;
     }
 
-    Inst = (vinil_inst_binary *)vinil_memory_pool_alloc(
+    Inst = (vinil_inst_binary *)vinil_memory_pool_allocate(
         Builder->Program->memory,
         sizeof(vinil_inst_binary)
     );
@@ -551,7 +551,7 @@ VinilBuilderBuildRet (
         return E_POINTER;
     }
 
-    Inst = (vinil_inst_base *)vinil_memory_pool_alloc(
+    Inst = (vinil_inst_base *)vinil_memory_pool_allocate(
         Builder->Program->memory,
         sizeof(vinil_inst_base)
     );

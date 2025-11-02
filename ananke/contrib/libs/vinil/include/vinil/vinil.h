@@ -1,50 +1,34 @@
 /** @file
   VINIL - Vincent Intermediate Language Unified Library
 
-  COM-based API for unified execution engine supporting graphics and compute
-  workloads across OpenGL ES, OpenCL, CUDA, HIP, and SYCL.
+  Clean, modern COM-based API for unified graphics and compute IL.
 
-  Copyright (C) 2003-2007 Hans-Martin Will
   Copyright (C) 2025 NUX Project
 
   SPDX-License-Identifier:    CDDL-1.0
 **/
 
-#ifndef __vinil_vinil_h__
-#define __vinil_vinil_h__ 1
+#ifndef __vinil_h__
+#define __vinil_h__ 1
 
 #include <ananke/types.h>
-#include <ananke/com.h>
 #include <ananke/hresult.h>
-#include <ananke/guid.h>
+#include <ananke/com.h>
 
 //
 // Version Information
 //
 
-#define VINIL_VERSION_MAJOR     0
-#define VINIL_VERSION_MINOR     2
+#define VINIL_VERSION_MAJOR     1
+#define VINIL_VERSION_MINOR     0
 #define VINIL_VERSION_PATCH     0
 
 //
-// Compilation Flags
+// GUIDs
 //
 
-typedef enum _VINIL_COMPILE_FLAGS {
-  VinilCompileFlagNone        = 0,
-  VinilCompileFlagUseJit      = (1 << 0),  /* Use JIT compiler */
-  VinilCompileFlagOptimize    = (1 << 1),  /* Enable optimizations */
-  VinilCompileFlagDebugInfo   = (1 << 2),  /* Include debug information */
-} VINIL_COMPILE_FLAGS;
-
-//
-// Execution Modes
-//
-
-typedef enum _VINIL_EXEC_MODE {
-  VinilExecModeGraphics   = 0,  /* Graphics shader execution */
-  VinilExecModeCompute    = 1,  /* Compute kernel execution */
-} VINIL_EXEC_MODE;
+ANX_DEFINE_GUID(IID_IVinilContext, 0x12345678, 0x1234, 0x1234, 0x12, 0x34, 0x56, 0x78, 0x9A, 0xBC, 0xDE, 0xF0);
+ANX_DEFINE_GUID(IID_IVinilProgram, 0x23456789, 0x2345, 0x2345, 0x23, 0x45, 0x67, 0x89, 0xAB, 0xCD, 0xEF, 0x01);
 
 //
 // Forward Declarations
@@ -52,152 +36,137 @@ typedef enum _VINIL_EXEC_MODE {
 
 typedef struct IVinilContext IVinilContext;
 typedef struct IVinilProgram IVinilProgram;
-typedef struct IVinilExecutable IVinilExecutable;
 
-/* --------------------------------------------------------------- */
-/*  IVinilContext - Main execution context                         */
-/* --------------------------------------------------------------- */
+//
+// Execution Modes
+//
 
-// {VINIL001-0000-0000-C000-000000000046}
-#define ANX_IID_IVinilContext "VINIL001-0000-0000-C000-000000000046"
-ANX_DEFINE_GUID(IID_IVinilContext,
-    0xFFFFFF01, 0x0000, 0x0000,
-    0xC0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x46);
+typedef enum _VINIL_MODE {
+    VinilModeGraphics   = 0,
+    VinilModeCompute    = 1,
+} VINIL_MODE;
 
-ANX_BEGIN_INTERFACE(IVinilContext, IUnknown,
-    IID_IVinilContext, ANX_IID_IVinilContext)
+//
+// Execution Backends
+//
 
+typedef enum _VINIL_BACKEND {
+    VinilBackendInterpreter = 0,  /* Software interpreter */
+    VinilBackendJIT         = 1,  /* JIT compiler */
+    VinilBackendAOT         = 2,  /* Pre-compiled native */
+} VINIL_BACKEND;
+
+//
+// IVinilContext Interface
+//
+
+ANX_BEGIN_INTERFACE(IVinilContext, IUnknown, IID_IVinilContext, "12345678-1234-1234-1234-56789ABCDEF0")
     /**
-      Create a new IL program.
+      Execute IL program.
 
-      @param[out]  Program  Receives the new program interface.
-
-      @retval  S_OK               Success.
-      @retval  E_OUTOFMEMORY      Out of memory.
-    **/
-    ANX_IFACE_METHOD(HRESULT, CreateProgram, (
-        OUT IVinilProgram **Program))
-
-    /**
-      Get the last error message.
-
-      @param[out]  ErrorMessage  Receives error message string.
-
-      @retval  S_OK  Success.
-    **/
-    ANX_IFACE_METHOD(HRESULT, GetLastError, (
-        OUT CONST CHAR8 **ErrorMessage))
-
-    /**
-      Get library version information.
-
-      @param[out]  Major  Major version number.
-      @param[out]  Minor  Minor version number.
-      @param[out]  Patch  Patch version number.
-
-      @retval  S_OK  Success.
-    **/
-    ANX_IFACE_METHOD(HRESULT, GetVersion, (
-        OUT UINT32 *Major,
-        OUT UINT32 *Minor,
-        OUT UINT32 *Patch))
-
-ANX_END_INTERFACE(IVinilContext)
-
-/* --------------------------------------------------------------- */
-/*  IVinilProgram - IL program builder                             */
-/* --------------------------------------------------------------- */
-
-// {VINIL002-0000-0000-C000-000000000046}
-#define ANX_IID_IVinilProgram "VINIL002-0000-0000-C000-000000000046"
-ANX_DEFINE_GUID(IID_IVinilProgram,
-    0xFFFFFF02, 0x0000, 0x0000,
-    0xC0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x46);
-
-ANX_BEGIN_INTERFACE(IVinilProgram, IUnknown,
-    IID_IVinilProgram, ANX_IID_IVinilProgram)
-
-    /**
-      Compile the IL program to executable code.
-
-      @param[in]   Flags       Compilation flags.
-      @param[out]  Executable  Receives the compiled executable.
-
-      @retval  S_OK               Success.
-      @retval  E_FAIL             Compilation failed.
-      @retval  E_OUTOFMEMORY      Out of memory.
-    **/
-    ANX_IFACE_METHOD(HRESULT, Compile, (
-        IN VINIL_COMPILE_FLAGS Flags,
-        OUT IVinilExecutable **Executable))
-
-    /**
-      Get compilation log/errors.
-
-      @param[out]  Log  Receives compilation log string.
-
-      @retval  S_OK  Success.
-    **/
-    ANX_IFACE_METHOD(HRESULT, GetCompileLog, (
-        OUT CONST CHAR8 **Log))
-
-ANX_END_INTERFACE(IVinilProgram)
-
-/* --------------------------------------------------------------- */
-/*  IVinilExecutable - Compiled executable                         */
-/* --------------------------------------------------------------- */
-
-// {VINIL003-0000-0000-C000-000000000046}
-#define ANX_IID_IVinilExecutable "VINIL003-0000-0000-C000-000000000046"
-ANX_DEFINE_GUID(IID_IVinilExecutable,
-    0xFFFFFF03, 0x0000, 0x0000,
-    0xC0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x46);
-
-ANX_BEGIN_INTERFACE(IVinilExecutable, IUnknown,
-    IID_IVinilExecutable, ANX_IID_IVinilExecutable)
-
-    /**
-      Execute the compiled code.
-
-      @param[in]  Mode      Execution mode (graphics or compute).
-      @param[in]  UserData  User-provided execution context.
+      @param[in]  Program  IL program to execute.
+      @param[in]  Backend  Execution backend to use.
+      @param[in]  Inputs   Input data array.
+      @param[out] Outputs  Output data array.
 
       @retval  S_OK       Success.
+      @retval  E_POINTER  Invalid pointer.
       @retval  E_FAIL     Execution failed.
-      @retval  E_NOTIMPL  Not implemented.
     **/
-    ANX_IFACE_METHOD(HRESULT, Execute, (
-        IN VINIL_EXEC_MODE Mode,
-        IN VOID *UserData))
+    ANX_IFACE_METHOD(HRESULT, Execute, (IVinilProgram *Program, VINIL_BACKEND Backend, VOID *Inputs, VOID *Outputs))
 
     /**
-      Get execution statistics.
+      Execute compute kernel with work-group configuration.
 
-      @param[out]  CyclesExecuted  Number of cycles executed.
+      @param[in]  Program     IL program (kernel).
+      @param[in]  Backend     Execution backend to use.
+      @param[in]  GlobalSize  Global work size [x, y, z].
+      @param[in]  LocalSize   Local work size [x, y, z].
+      @param[in]  Args        Kernel arguments.
 
-      @retval  S_OK  Success.
+      @retval  S_OK       Success.
+      @retval  E_POINTER  Invalid pointer.
+      @retval  E_FAIL     Execution failed.
     **/
-    ANX_IFACE_METHOD(HRESULT, GetStats, (
-        OUT UINT64 *CyclesExecuted))
+    ANX_IFACE_METHOD(HRESULT, ExecuteKernel, (IVinilProgram *Program, VINIL_BACKEND Backend, CONST UINT32 *GlobalSize, CONST UINT32 *LocalSize, VOID *Args))
+ANX_END_INTERFACE(IVinilContext)
 
-ANX_END_INTERFACE(IVinilExecutable)
+//
+// IVinilProgram Interface
+//
 
-/* --------------------------------------------------------------- */
-/*  Factory Function                                                */
-/* --------------------------------------------------------------- */
+ANX_BEGIN_INTERFACE(IVinilProgram, IUnknown, IID_IVinilProgram, "23456789-2345-2345-2345-6789ABCDEF01")
+    /**
+      Get program mode (graphics or compute).
+
+      @param[out]  Mode  Program mode.
+
+      @retval  S_OK       Success.
+      @retval  E_POINTER  Invalid pointer.
+    **/
+    ANX_IFACE_METHOD(HRESULT, GetMode, (VINIL_MODE *Mode))
+
+    /**
+      Get number of instructions in program.
+
+      @param[out]  Count  Instruction count.
+
+      @retval  S_OK       Success.
+      @retval  E_POINTER  Invalid pointer.
+    **/
+    ANX_IFACE_METHOD(HRESULT, GetInstructionCount, (UINT32 *Count))
+ANX_END_INTERFACE(IVinilProgram)
+
+//
+// Factory Functions
+//
 
 /**
-  Create the main VINIL context.
+  Create execution context.
 
-  @param[out]  Context  Receives the context interface.
+  @param[out]  Context  Created context interface.
 
-  @retval  S_OK               Success.
-  @retval  E_OUTOFMEMORY      Out of memory.
-  @retval  E_POINTER          Context is NULL.
+  @retval  S_OK           Success.
+  @retval  E_POINTER      Invalid pointer.
+  @retval  E_OUTOFMEMORY  Memory allocation failed.
 **/
 HRESULT
 VinilCreateContext (
-  OUT IVinilContext **Context
-  );
+    IVinilContext  **Context
+    );
 
-#endif // __vinil_vinil_h__
+//
+// Utility Functions
+//
+
+/**
+  Get VINIL version.
+
+  @param[out]  Major  Major version.
+  @param[out]  Minor  Minor version.
+  @param[out]  Patch  Patch version.
+
+  @retval  S_OK       Success.
+  @retval  E_POINTER  Invalid pointer.
+**/
+HRESULT
+VinilGetVersion (
+    UINT32  *Major,
+    UINT32  *Minor,
+    UINT32  *Patch
+    );
+
+/**
+  Get supported backends.
+
+  @param[out]  Backends  Bitmask of supported backends.
+
+  @retval  S_OK       Success.
+  @retval  E_POINTER  Invalid pointer.
+**/
+HRESULT
+VinilGetSupportedBackends (
+    UINT32  *Backends
+    );
+
+#endif // __vinil_h__

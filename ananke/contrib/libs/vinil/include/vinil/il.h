@@ -39,7 +39,7 @@
 #ifndef VINIL_IL_H
 #define VINIL_IL_H 1
 
-#include <vinil/vinil.h>
+#include <vinil/base.h>
 #include <vinil/memory.h>
 
 #ifdef __cplusplus
@@ -306,21 +306,7 @@ typedef enum vinil_inst_kind {
     VINIL_INST_BARRIER,     /* Barrier/fence */
 } vinil_inst_kind;
 
-/* Precision hint for operations */
-typedef enum vinil_precision {
-    VINIL_PRECISION_UNDEFINED,  /* No precision (e.g., void, bool) */
-    VINIL_PRECISION_LOW,
-    VINIL_PRECISION_MEDIUM,
-    VINIL_PRECISION_HIGH,
-} vinil_precision;
-
-/* Memory address space (for compute) */
-typedef enum vinil_address_space {
-    VINIL_ADDR_PRIVATE,     /* Per work-item, registers/stack */
-    VINIL_ADDR_GLOBAL,      /* All work-items, main memory */
-    VINIL_ADDR_LOCAL,       /* Work-group shared memory */
-    VINIL_ADDR_CONSTANT,    /* Read-only global memory */
-} vinil_address_space;
+/* Note: vinil_precision and vinil_address_space are defined in base.h */
 
 /* Condition codes for branching */
 typedef enum vinil_cond {

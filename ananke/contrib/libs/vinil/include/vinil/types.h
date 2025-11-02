@@ -39,8 +39,7 @@
 #ifndef VINIL_TYPES_H
 #define VINIL_TYPES_H 1
 
-#include <vinil/vinil.h>
-#include <vinil/memory.h>
+#include <vinil/base.h>
 
 #ifdef __cplusplus
 extern "C" {
