@@ -1,66 +1,115 @@
-/*
-** ==========================================================================
-**
-** VINIL Usage Example
-**
-** Simple example demonstrating the VINIL API
-**
-** ==========================================================================
-*/
+/*++
+    Module Name:
+
+        example.c
+
+    Abstract:
+
+        Example program demonstrating VINIL COM-based API usage.
+
+    Copyright (C) 2025 NUX Project
+
+    SPDX-License-Identifier:    CDDL-1.0
+--*/
 
 #include <vinil/vinil.h>
 #include <stdio.h>
 
-int main(void) {
-    printf("VINIL Library Example\n");
-    printf("====================\n");
-    printf("Version: %s\n\n", vinil_version_string());
+INT32
+main (
+    VOID
+    )
+{
+    HRESULT          Hr;
+    IVinilContext    *Context = NULL;
+    IVinilProgram    *Program = NULL;
+    IVinilExecutable *Executable = NULL;
+    UINT32           Major, Minor, Patch;
+    CONST CHAR8      *ErrorMsg;
+    UINT64           Cycles;
 
-    /* Create execution context */
-    vinil_context* ctx = vinil_context_create();
-    if (!ctx) {
-        fprintf(stderr, "Failed to create VINIL context\n");
+    printf("VINIL Library COM Example\n");
+    printf("=========================\n\n");
+
+    //
+    // Create context
+    //
+    Hr = VinilCreateContext(&Context);
+    if (FAILED(Hr)) {
+        printf("✗ Failed to create context: 0x%08X\n", Hr);
         return 1;
     }
     printf("✓ Created execution context\n");
 
-    /* Create a program */
-    vinil_program* prog = vinil_program_create(ctx);
-    if (!prog) {
-        fprintf(stderr, "Failed to create program\n");
-        vinil_context_destroy(ctx);
-        return 1;
+    //
+    // Get version
+    //
+    Hr = Context->lpVtbl->GetVersion(Context, &Major, &Minor, &Patch);
+    if (SUCCEEDED(Hr)) {
+        printf("  Version: %u.%u.%u\n\n", Major, Minor, Patch);
     }
-    printf("✓ Created program\n");
 
-    /* TODO: Build IL program here */
-    printf("  (IL program construction not yet implemented)\n");
+    //
+    // Create program
+    //
+    Hr = Context->lpVtbl->CreateProgram(Context, &Program);
+    if (FAILED(Hr)) {
+        printf("✗ Failed to create program: 0x%08X\n", Hr);
+        goto Cleanup;
+    }
+    printf("✓ Created IL program\n");
+    printf("  (IL construction not yet implemented)\n\n");
 
-    /* Compile program (using JIT) */
-    vinil_executable* exe = vinil_program_compile(ctx, prog, VINIL_TRUE);
-    if (!exe) {
-        fprintf(stderr, "Failed to compile program\n");
-        vinil_program_destroy(prog);
-        vinil_context_destroy(ctx);
-        return 1;
+    //
+    // Compile program
+    //
+    Hr = Program->lpVtbl->Compile(
+        Program,
+        VinilCompileFlagUseJit | VinilCompileFlagOptimize,
+        &Executable
+        );
+    if (FAILED(Hr)) {
+        printf("✗ Compilation failed: 0x%08X\n", Hr);
+        goto Cleanup;
     }
     printf("✓ Compiled program (JIT mode)\n");
 
-    /* Execute */
-    vinil_error err = vinil_execute(ctx, exe, NULL);
-    if (err != VINIL_SUCCESS) {
-        printf("⚠ Execution returned: %s (expected - not yet implemented)\n",
-               vinil_error_string(err));
+    //
+    // Execute
+    //
+    Hr = Executable->lpVtbl->Execute(Executable, VinilExecModeGraphics, NULL);
+    if (Hr == E_NOTIMPL) {
+        printf("⚠ Execution returned: Not implemented (expected)\n\n");
+    } else if (FAILED(Hr)) {
+        printf("✗ Execution failed: 0x%08X\n", Hr);
+    } else {
+        Executable->lpVtbl->GetStats(Executable, &Cycles);
+        printf("✓ Execution succeeded (%llu cycles)\n\n", 
+               (unsigned long long)Cycles);
     }
 
-    /* Cleanup */
-    vinil_executable_destroy(exe);
-    vinil_program_destroy(prog);
-    vinil_context_destroy(ctx);
-    printf("✓ Cleaned up resources\n");
+    //
+    // Get error message (should be empty)
+    //
+    Hr = Context->lpVtbl->GetLastError(Context, &ErrorMsg);
+    if (SUCCEEDED(Hr) && ErrorMsg[0] != '\0') {
+        printf("Last error: %s\n", ErrorMsg);
+    }
 
-    printf("\nVINIL library is functional!\n");
+    printf("✓ Cleaned up resources\n\n");
+    printf("VINIL COM library is functional!\n");
     printf("Next steps: Implement IL construction, compilation, and execution.\n");
 
-    return 0;
+Cleanup:
+    if (Executable != NULL) {
+        Executable->lpVtbl->Release(Executable);
+    }
+    if (Program != NULL) {
+        Program->lpVtbl->Release(Program);
+    }
+    if (Context != NULL) {
+        Context->lpVtbl->Release(Context);
+    }
+
+    return SUCCEEDED(Hr) ? 0 : 1;
 }

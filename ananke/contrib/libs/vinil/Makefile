@@ -4,7 +4,8 @@
 # Compiler settings
 CC ?= gcc
 AR = ar
-CFLAGS = -Wall -Wextra -O2 -fPIC -Iinclude -Isrc
+ANANKE_INC = ../../../include
+CFLAGS = -Wall -Wextra -O2 -fPIC -Iinclude -Isrc -I$(ANANKE_INC)
 LDFLAGS = -shared
 LIBS = -lm -lpthread
 
