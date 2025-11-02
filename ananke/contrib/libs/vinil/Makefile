@@ -4,9 +4,9 @@
 # Compiler settings
 CC ?= gcc
 AR = ar
-CFLAGS = -Wall -Wextra -O2 -fPIC -Iinclude
+CFLAGS = -Wall -Wextra -O2 -fPIC -Iinclude -Isrc
 LDFLAGS = -shared
-LIBS = -lm
+LIBS = -lm -lpthread
 
 # Directories
 SRC_DIR = src

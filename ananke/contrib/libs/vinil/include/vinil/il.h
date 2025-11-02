@@ -351,16 +351,29 @@ typedef struct vinil_writemask {
 
 /*
 ** ==========================================================================
-** TO BE CONTINUED...
+** INSTRUCTION STRUCTURES
 **
-** The full IL definition will include:
-** - Register/variable structures
-** - Source/destination operand structures
-** - Complete instruction union
-** - Block and program structures
-** - Builder functions
+** Full definitions are in src/il_impl.h - these are forward declarations
+** for the public API
 ** ==========================================================================
 */
+
+typedef struct vinil_block vinil_block;
+typedef struct vinil_label vinil_label;
+typedef struct vinil_variable vinil_variable;
+
+/* Instruction union - actual definition varies by backend */
+union vinil_inst {
+    struct {
+        union vinil_inst* prev;
+        union vinil_inst* next;
+        vinil_inst_kind kind;
+        vinil_opcode opcode;
+    } base;
+
+    /* Other instruction variants defined in il_impl.h */
+    char data[256];  /* Placeholder - actual size determined by impl */
+};
 
 #ifdef __cplusplus
 }
