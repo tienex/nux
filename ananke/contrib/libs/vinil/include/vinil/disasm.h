@@ -9,9 +9,7 @@
   SPDX-License-Identifier:    CDDL-1.0
 **/
 
-#ifndef __vinil_disasm_h__
-#define __vinil_disasm_h__ 1
-
+#pragma once
 #include <ananke/types.h>
 #include <ananke/hresult.h>
 
@@ -139,4 +137,3 @@ VinilDisasmProgram (
     UINTN               BufferSize
     );
 
-#endif // __vinil_disasm_h__

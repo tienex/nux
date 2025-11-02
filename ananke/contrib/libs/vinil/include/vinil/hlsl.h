@@ -9,9 +9,7 @@
   SPDX-License-Identifier:    CDDL-1.0
 **/
 
-#ifndef __vinil_hlsl_h__
-#define __vinil_hlsl_h__ 1
-
+#pragma once
 #include <ananke/types.h>
 #include <ananke/hresult.h>
 
@@ -145,4 +143,3 @@ VinilValidateHLSL (
     VINIL_HLSL_ERROR        *Error
     );
 
-#endif // __vinil_hlsl_h__

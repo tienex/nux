@@ -9,9 +9,7 @@
   SPDX-License-Identifier:    CDDL-1.0
 **/
 
-#ifndef VINIL_MEMORY_H
-#define VINIL_MEMORY_H 1
-
+#pragma once
 #include <vinil/base.h>
 #include <ananke/com.h>
 #include <setjmp.h>
@@ -81,4 +79,3 @@ VinilCreateMemoryPool (
     IVinilMemoryPool    **MemoryPool
     );
 
-#endif /* VINIL_MEMORY_H */

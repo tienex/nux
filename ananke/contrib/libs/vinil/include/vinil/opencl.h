@@ -9,9 +9,7 @@
   SPDX-License-Identifier:    CDDL-1.0
 **/
 
-#ifndef __vinil_opencl_h__
-#define __vinil_opencl_h__ 1
-
+#pragma once
 #include <ananke/types.h>
 #include <ananke/hresult.h>
 
@@ -149,4 +147,3 @@ VinilGetOpenCLKernels (
     UINTN           *Count
     );
 
-#endif // __vinil_opencl_h__

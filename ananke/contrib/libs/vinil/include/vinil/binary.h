@@ -9,9 +9,7 @@
   SPDX-License-Identifier:    CDDL-1.0
 **/
 
-#ifndef __vinil_binary_h__
-#define __vinil_binary_h__ 1
-
+#pragma once
 #include <ananke/types.h>
 #include <ananke/hresult.h>
 
@@ -160,4 +158,3 @@ VinilValidateBinary (
     UINTN       BufferSize
     );
 
-#endif // __vinil_binary_h__

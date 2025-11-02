@@ -9,9 +9,7 @@
   SPDX-License-Identifier:    CDDL-1.0
 **/
 
-#ifndef __vinil_aot_h__
-#define __vinil_aot_h__ 1
-
+#pragma once
 #include <ananke/types.h>
 #include <ananke/hresult.h>
 
@@ -195,4 +193,3 @@ VinilGetFormatName (
     VINIL_AOT_FORMAT  Format
     );
 
-#endif // __vinil_aot_h__

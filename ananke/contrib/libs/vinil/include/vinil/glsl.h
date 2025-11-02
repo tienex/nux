@@ -9,9 +9,7 @@
   SPDX-License-Identifier:    CDDL-1.0
 **/
 
-#ifndef __vinil_glsl_h__
-#define __vinil_glsl_h__ 1
-
+#pragma once
 #include <ananke/types.h>
 #include <ananke/hresult.h>
 
@@ -128,4 +126,3 @@ VinilValidateGLSL (
     VINIL_GLSL_ERROR        *Error
     );
 
-#endif // __vinil_glsl_h__

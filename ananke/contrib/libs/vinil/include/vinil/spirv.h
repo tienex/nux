@@ -9,9 +9,7 @@
   SPDX-License-Identifier:    CDDL-1.0
 **/
 
-#ifndef __vinil_spirv_h__
-#define __vinil_spirv_h__ 1
-
+#pragma once
 #include <ananke/types.h>
 #include <ananke/hresult.h>
 
@@ -136,4 +134,3 @@ VinilGetSPIRVExecutionModel (
     VINIL_SPIRV_EXEC_MODEL  *Model
     );
 
-#endif // __vinil_spirv_h__

@@ -9,9 +9,7 @@
   SPDX-License-Identifier:    CDDL-1.0
 **/
 
-#ifndef __vinil_asm_h__
-#define __vinil_asm_h__ 1
-
+#pragma once
 #include <ananke/types.h>
 #include <ananke/hresult.h>
 
@@ -165,4 +163,3 @@ VinilValidateAsm (
      ATOMIC.ADD t0, g[0], c0 ; Atomic add
 */
 
-#endif // __vinil_asm_h__

@@ -9,9 +9,7 @@
   SPDX-License-Identifier:    CDDL-1.0
 **/
 
-#ifndef VINIL_TYPES_H
-#define VINIL_TYPES_H 1
-
+#pragma once
 #include <vinil/base.h>
 #include <vinil/memory.h>
 #include <ananke/com.h>
@@ -264,4 +262,3 @@ VinilCreatePointerType (
     IVinilType              **PointerType
     );
 
-#endif /* VINIL_TYPES_H */

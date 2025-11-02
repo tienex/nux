@@ -8,9 +8,7 @@
   SPDX-License-Identifier:    CDDL-1.0
 **/
 
-#ifndef __vinil_h__
-#define __vinil_h__ 1
-
+#pragma once
 #include <ananke/types.h>
 #include <ananke/hresult.h>
 #include <ananke/com.h>
@@ -169,4 +167,3 @@ VinilGetSupportedBackends (
     UINT32  *Backends
     );
 
-#endif // __vinil_h__

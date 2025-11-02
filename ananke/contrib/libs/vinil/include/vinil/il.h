@@ -9,9 +9,7 @@
   SPDX-License-Identifier:    CDDL-1.0
 **/
 
-#ifndef VINIL_IL_H
-#define VINIL_IL_H 1
-
+#pragma once
 #include <vinil/base.h>
 #include <vinil/memory.h>
 #include <ananke/com.h>
@@ -279,4 +277,3 @@ ANX_BEGIN_INTERFACE(IVinilVariable, IUnknown, IID_IVinilVariable, "67890123-6789
     ANX_IFACE_METHOD(HRESULT, GetName, (CONST CHAR8 **Name, UINTN *NameLength))
 ANX_END_INTERFACE(IVinilVariable, IID_IVinilVariable)
 
-#endif /* VINIL_IL_H */

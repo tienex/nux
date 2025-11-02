@@ -8,9 +8,7 @@
   SPDX-License-Identifier:    CDDL-1.0
 **/
 
-#ifndef __vinil_builder_h__
-#define __vinil_builder_h__ 1
-
+#pragma once
 #include <vinil/vinil.h>
 #include <vinil/il.h>
 #include <ananke/com.h>
@@ -155,4 +153,3 @@ VinilCreateBuilder (
     IVinilBuilder  **Builder
     );
 
-#endif // __vinil_builder_h__

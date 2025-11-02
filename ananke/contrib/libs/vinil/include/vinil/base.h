@@ -9,8 +9,7 @@
   SPDX-License-Identifier:    CDDL-1.0
 **/
 
-#ifndef __vinil_base_h__
-#define __vinil_base_h__ 1
+#pragma once
 
 #include <ananke/types.h>
 #include <stddef.h>
@@ -55,5 +54,3 @@ typedef enum _VINIL_ADDRESS_SPACE {
     VINIL_ADDR_LOCAL,       /* Work-group shared memory */
     VINIL_ADDR_CONSTANT,    /* Read-only global memory */
 } VINIL_ADDRESS_SPACE;
-
-#endif // __vinil_base_h__
