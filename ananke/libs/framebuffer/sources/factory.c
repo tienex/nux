@@ -57,46 +57,11 @@ FbRegisterBackend(
 }
 
 /*
- * Initialize the backend registry.
- * Called automatically on first FbCreateBackend() call.
- * Each backend registers itself for one or more backend types.
+ * NOTE: The factory has no hardcoded knowledge of which backends exist.
+ * Backends are initialized by backends_init.c which calls each backend's
+ * registration function. This allows backends to be added or removed by
+ * modifying only backends_init.c, not the factory itself.
  */
-VOID
-FbInitializeBackendRegistry(
-    VOID
-    )
-{
-    /* Generic backend */
-    FbRegisterBackend(FbBackendGeneric, FbCreateGenericBackend);
-
-    /* Hercules backend */
-    FbRegisterBackend(FbBackendHercules, FbCreateHerculesBackend);
-
-    /* PC Graphics backend (unified CGA/EGA/VGA/SVGA/VESA/XGA) */
-    FbRegisterBackend(FbBackendPcGraphics, FbCreatePcGraphicsBackend);
-    FbRegisterBackend(FbBackendVga16, FbCreatePcGraphicsBackend);
-    FbRegisterBackend(FbBackendVesaLinear, FbCreatePcGraphicsBackend);
-    FbRegisterBackend(FbBackendVesaBanked, FbCreatePcGraphicsBackend);
-
-    /* UEFI backend (unified GOP/UGA/Apple EFI) */
-    FbRegisterBackend(FbBackendUefiGop, FbCreateUefiBackend);
-    FbRegisterBackend(FbBackendUefiUga, FbCreateUefiBackend);
-    FbRegisterBackend(FbBackendAppleEfi, FbCreateUefiBackend);
-
-    /* Unix framebuffer device backend (Linux, BSD, Solaris, etc.) */
-#if defined(__linux__) || defined(__unix__)
-    extern IFramebufferBackend *FbCreateFbdevBackend(VOID);
-    FbRegisterBackend(FbBackendGeneric, FbCreateFbdevBackend);
-#endif
-
-    /* Terminal backend (unified ANSI/text mode) */
-    extern IFramebufferBackend *FbCreateTerminalBackend(VOID);
-    FbRegisterBackend(FbBackendGeneric, FbCreateTerminalBackend);
-
-    /* TODO: Add registration for other platform-specific backends
-     * (Amiga, Atari, Mac, Sun, SGI, NeXT, Acorn) when they are
-     * compiled in. Each backend should register itself here. */
-}
 
 /*
  * Create a framebuffer backend by type.
@@ -110,7 +75,7 @@ FbCreateBackend(
     /* Initialize backends on first call */
     static BOOLEAN Initialized = FALSE;
     if (!Initialized) {
-        FbInitializeBackendRegistry();
+        FbInitializeBackends();
         Initialized = TRUE;
     }
 

@@ -18,6 +18,7 @@
 --*/
 
 #include <ananke/framebuffer.h>
+#include <ananke/framebuffer/backends.h>
 #include <ananke/framebuffer/pixelformat.h>
 #include <ananke/framebuffer/dither.h>
 #include <ananke/framebuffer/com_helpers.h>
@@ -500,4 +501,23 @@ FbUefiSetProtocol(
 {
     UEFI_GOP_FB_BACKEND *UefiBackend = (UEFI_GOP_FB_BACKEND *)Backend;
     UefiBackend->GopProtocol = GopProtocol;
+}
+
+/* --------------------------------------------------------------- */
+/*  Backend Registration                                           */
+/* --------------------------------------------------------------- */
+
+/*
+ * Register this backend with the factory.
+ * Called by the backend initialization system.
+ */
+VOID
+FbRegisterUefiBackend(
+    VOID
+    )
+{
+    /* UEFI backend handles all UEFI graphics protocols */
+    FbRegisterBackend(FbBackendUefiGop, FbCreateUefiBackend);
+    FbRegisterBackend(FbBackendUefiUga, FbCreateUefiBackend);
+    FbRegisterBackend(FbBackendAppleEfi, FbCreateUefiBackend);
 }

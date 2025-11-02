@@ -22,6 +22,7 @@
 
 #include <ananke/framebuffer.h>
 #include <ananke/framebuffer/backend_ext.h>
+#include <ananke/framebuffer/backends.h>
 #include <ananke/framebuffer/pixelformat.h>
 #include <ananke/framebuffer/dither.h>
 #include <ananke/framebuffer/com_helpers.h>
@@ -689,4 +690,20 @@ FbCreateTerminalBackend(
     )
 {
     return (IFramebufferBackend *)&gAnsiTermBackendInstance;
+}
+
+/* --------------------------------------------------------------- */
+/*  Backend Registration                                           */
+/* --------------------------------------------------------------- */
+
+/*
+ * Register this backend with the factory.
+ * Called by the backend initialization system.
+ */
+VOID
+FbRegisterTerminalBackend(
+    VOID
+    )
+{
+    FbRegisterBackend(FbBackendGeneric, FbCreateTerminalBackend);
 }

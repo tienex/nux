@@ -16,6 +16,7 @@
 --*/
 
 #include <ananke/framebuffer.h>
+#include <ananke/framebuffer/backends.h>
 #include <ananke/framebuffer/dither.h>
 #include <ananke/framebuffer/com_helpers.h>
 #include <ananke/atomics.h>
@@ -495,4 +496,20 @@ FbCreateHerculesBackend(
     )
 {
     return (IFramebufferBackend *)&gHerculesBackendInstance;
+}
+
+/* --------------------------------------------------------------- */
+/*  Backend Registration                                           */
+/* --------------------------------------------------------------- */
+
+/*
+ * Register this backend with the factory.
+ * Called by the backend initialization system.
+ */
+VOID
+FbRegisterHerculesBackend(
+    VOID
+    )
+{
+    FbRegisterBackend(FbBackendHercules, FbCreateHerculesBackend);
 }

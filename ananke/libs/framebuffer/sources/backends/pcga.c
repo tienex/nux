@@ -33,6 +33,7 @@
 
 #include <ananke/framebuffer.h>
 #include <ananke/framebuffer/backend_ext.h>
+#include <ananke/framebuffer/backends.h>
 #include <ananke/framebuffer/pixelformat.h>
 #include <ananke/framebuffer/dither.h>
 #include <ananke/framebuffer/screen.h>
@@ -4027,4 +4028,24 @@ FbPcGraphicsGetPaletteEntry(
     *Blue = PcBackend->Palette[Index].Blue;
 
     return S_OK;
+}
+
+/* --------------------------------------------------------------- */
+/*  Backend Registration                                           */
+/* --------------------------------------------------------------- */
+
+/*
+ * Register this backend with the factory.
+ * Called by the backend initialization system.
+ */
+VOID
+FbRegisterPcGraphicsBackend(
+    VOID
+    )
+{
+    /* PC Graphics backend handles multiple backend types */
+    FbRegisterBackend(FbBackendPcGraphics, FbCreatePcGraphicsBackend);
+    FbRegisterBackend(FbBackendVga16, FbCreatePcGraphicsBackend);
+    FbRegisterBackend(FbBackendVesaLinear, FbCreatePcGraphicsBackend);
+    FbRegisterBackend(FbBackendVesaBanked, FbCreatePcGraphicsBackend);
 }

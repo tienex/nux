@@ -381,12 +381,12 @@ FbRegisterBackend(
     );
 
 /*
- * Initialize the backend registry.
+ * Initialize all available backends.
  * This is called automatically on first FbCreateBackend() call.
- * Backends register themselves during this initialization.
+ * Each backend registers itself for one or more backend types.
  */
 VOID
-FbInitializeBackendRegistry(
+FbInitializeBackends(
     VOID
     );
 

@@ -27,6 +27,7 @@
 
 #include <ananke/framebuffer.h>
 #include <ananke/framebuffer/backend_ext.h>
+#include <ananke/framebuffer/backends.h>
 #include <ananke/framebuffer/pixelformat.h>
 #include <ananke/framebuffer/com_helpers.h>
 #include <ananke/atomics.h>
@@ -653,3 +654,24 @@ FbLinuxFbdevSetInterface(
     FBDEV_BACKEND *FbdevBackend = (FBDEV_BACKEND *)Backend;
     FbdevBackend->Interface = Interface;
 }
+
+/* --------------------------------------------------------------- */
+/*  Backend Registration                                           */
+/* --------------------------------------------------------------- */
+
+/*
+ * Register this backend with the factory.
+ * Called by the backend initialization system.
+ * Only registered on Unix-like systems.
+ */
+#if defined(__linux__) || defined(__unix__) || defined(__FreeBSD__) || \
+    defined(__OpenBSD__) || defined(__NetBSD__) || defined(__DragonFly__) || \
+    defined(__sun) || defined(__HAIKU__)
+VOID
+FbRegisterFbdevBackend(
+    VOID
+    )
+{
+    FbRegisterBackend(FbBackendGeneric, FbCreateFbdevBackend);
+}
+#endif
