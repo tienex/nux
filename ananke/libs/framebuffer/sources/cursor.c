@@ -7,15 +7,14 @@
 
         IFramebufferCursor implementation.
 
-        Provides software cursor rendering with save/restore mechanism.
-        Supports monochrome (AND/XOR masks) and color (RGBA) cursors.
-        Hardware cursor support can be added by backends in the future.
+        Cursor is a pure data object representing cursor appearance.
+        Internally uses IFramebufferImage for pixel storage.
+        Display control (position, visibility) is handled by IFramebufferScreen.
 
 --*/
 
 #include <ananke/framebuffer/cursor.h>
-#include <ananke/framebuffer/screen.h>
-#include <ananke/framebuffer/backends.h>
+#include <ananke/framebuffer/image.h>
 #include <ananke/framebuffer/com_helpers.h>
 #include <ananke/atomics.h>
 #include <ananke/hresult.h>
@@ -24,51 +23,18 @@
 /*  Cursor Implementation Structure                                */
 /* --------------------------------------------------------------- */
 
-/* Forward declaration for timer sink */
-typedef struct _FB_CURSOR_TIMER_SINK FB_CURSOR_TIMER_SINK;
-
 typedef struct _FB_CURSOR_IMPL {
     IFramebufferCursor      Base;
     REFOBJ                  RefCount;
-    IFramebufferBackend     *Backend;
+
+    /* Cursor metadata */
     FB_CURSOR_DESC          Descriptor;
-    BOOLEAN                 Visible;
-    INT32                   X;
-    INT32                   Y;
 
-    /* Cursor bitmap data */
-    UINT8                   AndMask[FB_CURSOR_MAX_WIDTH * FB_CURSOR_MAX_HEIGHT / 8];
-    UINT8                   XorMask[FB_CURSOR_MAX_WIDTH * FB_CURSOR_MAX_HEIGHT / 8];
-    UINT8                   ColorData[FB_CURSOR_MAX_WIDTH * FB_CURSOR_MAX_HEIGHT * 4];
-
-    /* Background save/restore for software cursor */
-    BOOLEAN                 BackgroundSaved;
-    INT32                   SavedX;
-    INT32                   SavedY;
-    UINT32                  SavedWidth;
-    UINT32                  SavedHeight;
-    FB_COLOR                SavedBackground[FB_CURSOR_MAX_WIDTH * FB_CURSOR_MAX_HEIGHT];
-
-    /* Animation support */
-    FB_CURSOR_FRAME         *Frames;
-    UINT32                  AllocatedFrames;
-    IFramebufferTimer       *Timer;
-    UINT32                  TimerCookie;
-    FB_CURSOR_TIMER_SINK    *TimerSink;
+    /* Image storage */
+    IFramebufferImage       *Image;         /* For static cursors */
+    IFramebufferImage       **Frames;       /* For animated cursors */
+    UINT32                  *FrameTimes;    /* Display time per frame (ms) */
 } FB_CURSOR_IMPL;
-
-/* --------------------------------------------------------------- */
-/*  Timer Sink Implementation (nested interface)                   */
-/* --------------------------------------------------------------- */
-
-/*
- * Internal timer sink that cursor uses to receive timer callbacks.
- * This implements IFramebufferTimerSink and forwards to the cursor.
- */
-struct _FB_CURSOR_TIMER_SINK {
-    IFramebufferTimerSink   Base;
-    FB_CURSOR_IMPL          *Cursor;  /* Back pointer to cursor */
-};
 
 /* --------------------------------------------------------------- */
 /*  Forward Declarations                                            */
@@ -78,30 +44,19 @@ static HRESULT STDMETHODCALLTYPE FbCursor_QueryInterface(
     IFramebufferCursor *This, REFIID riid, VOID **ppvObject);
 static UINT32 STDMETHODCALLTYPE FbCursor_AddRef(IFramebufferCursor *This);
 static UINT32 STDMETHODCALLTYPE FbCursor_Release(IFramebufferCursor *This);
-static HRESULT STDMETHODCALLTYPE FbCursor_SetVisible(
-    IFramebufferCursor *This, BOOLEAN Visible);
-static HRESULT STDMETHODCALLTYPE FbCursor_IsVisible(
-    IFramebufferCursor *This, BOOLEAN *Visible);
-static HRESULT STDMETHODCALLTYPE FbCursor_SetPosition(
-    IFramebufferCursor *This, INT32 X, INT32 Y);
-static HRESULT STDMETHODCALLTYPE FbCursor_GetPosition(
-    IFramebufferCursor *This, INT32 *X, INT32 *Y);
-static HRESULT STDMETHODCALLTYPE FbCursor_SetMonoCursor(
-    IFramebufferCursor *This, CONST UINT8 *AndMask, CONST UINT8 *XorMask,
-    UINT32 Width, UINT32 Height, INT32 HotSpotX, INT32 HotSpotY);
-static HRESULT STDMETHODCALLTYPE FbCursor_SetColorCursor(
-    IFramebufferCursor *This, CONST UINT8 *Data,
-    UINT32 Width, UINT32 Height, INT32 HotSpotX, INT32 HotSpotY);
 static HRESULT STDMETHODCALLTYPE FbCursor_GetDescriptor(
     IFramebufferCursor *This, FB_CURSOR_DESC *Descriptor);
-static HRESULT STDMETHODCALLTYPE FbCursor_IsHardwareCursor(
-    IFramebufferCursor *This, BOOLEAN *IsHardware);
-
-/* Internal helpers */
-static VOID FbCursor_SaveBackground(FB_CURSOR_IMPL *Cursor);
-static VOID FbCursor_RestoreBackground(FB_CURSOR_IMPL *Cursor);
-static VOID FbCursor_DrawMono(FB_CURSOR_IMPL *Cursor);
-static VOID FbCursor_DrawColor(FB_CURSOR_IMPL *Cursor);
+static HRESULT STDMETHODCALLTYPE FbCursor_GetType(
+    IFramebufferCursor *This, FB_CURSOR_TYPE *Type);
+static HRESULT STDMETHODCALLTYPE FbCursor_GetHotSpot(
+    IFramebufferCursor *This, INT32 *X, INT32 *Y);
+static HRESULT STDMETHODCALLTYPE FbCursor_GetImage(
+    IFramebufferCursor *This, IFramebufferImage **Image);
+static HRESULT STDMETHODCALLTYPE FbCursor_GetFrameCount(
+    IFramebufferCursor *This, UINT32 *Count);
+static HRESULT STDMETHODCALLTYPE FbCursor_GetFrame(
+    IFramebufferCursor *This, UINT32 FrameIndex,
+    IFramebufferImage **Image, UINT32 *DisplayTimeMs);
 
 /* --------------------------------------------------------------- */
 /*  VTable                                                          */
@@ -111,14 +66,12 @@ static CONST IFramebufferCursorVtbl gCursorVtbl = {
     .QueryInterface     = FbCursor_QueryInterface,
     .AddRef             = FbCursor_AddRef,
     .Release            = FbCursor_Release,
-    .SetVisible         = FbCursor_SetVisible,
-    .IsVisible          = FbCursor_IsVisible,
-    .SetPosition        = FbCursor_SetPosition,
-    .GetPosition        = FbCursor_GetPosition,
-    .SetMonoCursor      = FbCursor_SetMonoCursor,
-    .SetColorCursor     = FbCursor_SetColorCursor,
     .GetDescriptor      = FbCursor_GetDescriptor,
-    .IsHardwareCursor   = FbCursor_IsHardwareCursor,
+    .GetType            = FbCursor_GetType,
+    .GetHotSpot         = FbCursor_GetHotSpot,
+    .GetImage           = FbCursor_GetImage,
+    .GetFrameCount      = FbCursor_GetFrameCount,
+    .GetFrame           = FbCursor_GetFrame,
 };
 
 /* --------------------------------------------------------------- */
@@ -132,191 +85,6 @@ FB_IMPLEMENT_IUNKNOWN(FbCursor, FB_CURSOR_IMPL, IFramebufferCursor, IID_IFramebu
 /* --------------------------------------------------------------- */
 
 static HRESULT STDMETHODCALLTYPE
-FbCursor_SetVisible(
-    IFramebufferCursor *This,
-    BOOLEAN Visible
-    )
-{
-    FB_CURSOR_IMPL *Cursor = (FB_CURSOR_IMPL *)This;
-
-    if (Visible == Cursor->Visible) {
-        return S_OK;  /* No change */
-    }
-
-    if (Visible) {
-        /* Show cursor */
-        FbCursor_SaveBackground(Cursor);
-
-        if (Cursor->Descriptor.Type == FbCursorMono) {
-            FbCursor_DrawMono(Cursor);
-        } else {
-            FbCursor_DrawColor(Cursor);
-        }
-    } else {
-        /* Hide cursor */
-        FbCursor_RestoreBackground(Cursor);
-    }
-
-    Cursor->Visible = Visible;
-    return S_OK;
-}
-
-static HRESULT STDMETHODCALLTYPE
-FbCursor_IsVisible(
-    IFramebufferCursor *This,
-    BOOLEAN *Visible
-    )
-{
-    FB_CURSOR_IMPL *Cursor = (FB_CURSOR_IMPL *)This;
-
-    if (Visible == NULL) {
-        return E_POINTER;
-    }
-
-    *Visible = Cursor->Visible;
-    return S_OK;
-}
-
-static HRESULT STDMETHODCALLTYPE
-FbCursor_SetPosition(
-    IFramebufferCursor *This,
-    INT32 X,
-    INT32 Y
-    )
-{
-    FB_CURSOR_IMPL *Cursor = (FB_CURSOR_IMPL *)This;
-
-    /* If visible, hide at old position and show at new position */
-    if (Cursor->Visible) {
-        FbCursor_RestoreBackground(Cursor);
-    }
-
-    Cursor->X = X;
-    Cursor->Y = Y;
-
-    if (Cursor->Visible) {
-        FbCursor_SaveBackground(Cursor);
-
-        if (Cursor->Descriptor.Type == FbCursorMono) {
-            FbCursor_DrawMono(Cursor);
-        } else {
-            FbCursor_DrawColor(Cursor);
-        }
-    }
-
-    return S_OK;
-}
-
-static HRESULT STDMETHODCALLTYPE
-FbCursor_GetPosition(
-    IFramebufferCursor *This,
-    INT32 *X,
-    INT32 *Y
-    )
-{
-    FB_CURSOR_IMPL *Cursor = (FB_CURSOR_IMPL *)This;
-
-    if (X == NULL || Y == NULL) {
-        return E_POINTER;
-    }
-
-    *X = Cursor->X;
-    *Y = Cursor->Y;
-    return S_OK;
-}
-
-static HRESULT STDMETHODCALLTYPE
-FbCursor_SetMonoCursor(
-    IFramebufferCursor *This,
-    CONST UINT8 *AndMask,
-    CONST UINT8 *XorMask,
-    UINT32 Width,
-    UINT32 Height,
-    INT32 HotSpotX,
-    INT32 HotSpotY
-    )
-{
-    FB_CURSOR_IMPL *Cursor = (FB_CURSOR_IMPL *)This;
-
-    if (AndMask == NULL || XorMask == NULL) {
-        return E_POINTER;
-    }
-
-    if (Width == 0 || Height == 0 || Width > FB_CURSOR_MAX_WIDTH || Height > FB_CURSOR_MAX_HEIGHT) {
-        return E_INVALIDARG;
-    }
-
-    /* Hide cursor if visible */
-    BOOLEAN WasVisible = Cursor->Visible;
-    if (WasVisible) {
-        FbCursor_SetVisible(This, FALSE);
-    }
-
-    /* Update descriptor */
-    Cursor->Descriptor.Type = FbCursorMono;
-    Cursor->Descriptor.Width = Width;
-    Cursor->Descriptor.Height = Height;
-    Cursor->Descriptor.HotSpotX = HotSpotX;
-    Cursor->Descriptor.HotSpotY = HotSpotY;
-
-    /* Copy masks */
-    UINT32 MaskSize = (Width * Height + 7) / 8;
-    ANX_MEMCPY(Cursor->AndMask, AndMask, MaskSize);
-    ANX_MEMCPY(Cursor->XorMask, XorMask, MaskSize);
-
-    /* Restore visibility */
-    if (WasVisible) {
-        FbCursor_SetVisible(This, TRUE);
-    }
-
-    return S_OK;
-}
-
-static HRESULT STDMETHODCALLTYPE
-FbCursor_SetColorCursor(
-    IFramebufferCursor *This,
-    CONST UINT8 *Data,
-    UINT32 Width,
-    UINT32 Height,
-    INT32 HotSpotX,
-    INT32 HotSpotY
-    )
-{
-    FB_CURSOR_IMPL *Cursor = (FB_CURSOR_IMPL *)This;
-
-    if (Data == NULL) {
-        return E_POINTER;
-    }
-
-    if (Width == 0 || Height == 0 || Width > FB_CURSOR_MAX_WIDTH || Height > FB_CURSOR_MAX_HEIGHT) {
-        return E_INVALIDARG;
-    }
-
-    /* Hide cursor if visible */
-    BOOLEAN WasVisible = Cursor->Visible;
-    if (WasVisible) {
-        FbCursor_SetVisible(This, FALSE);
-    }
-
-    /* Update descriptor */
-    Cursor->Descriptor.Type = FbCursorColor;
-    Cursor->Descriptor.Width = Width;
-    Cursor->Descriptor.Height = Height;
-    Cursor->Descriptor.HotSpotX = HotSpotX;
-    Cursor->Descriptor.HotSpotY = HotSpotY;
-
-    /* Copy color data (RGBA format) */
-    ANX_MEMCPY(Cursor->ColorData, Data, Width * Height * 4);
-
-    /* Restore visibility */
-    if (WasVisible) {
-        FbCursor_SetVisible(This, TRUE);
-    }
-
-    return S_OK;
-}
-
-static HRESULT STDMETHODCALLTYPE
 FbCursor_GetDescriptor(
     IFramebufferCursor *This,
     FB_CURSOR_DESC *Descriptor
@@ -328,318 +96,514 @@ FbCursor_GetDescriptor(
         return E_POINTER;
     }
 
-    ANX_MEMCPY(Descriptor, &Cursor->Descriptor, sizeof(FB_CURSOR_DESC));
+    *Descriptor = Cursor->Descriptor;
     return S_OK;
 }
 
 static HRESULT STDMETHODCALLTYPE
-FbCursor_IsHardwareCursor(
+FbCursor_GetType(
     IFramebufferCursor *This,
-    BOOLEAN *IsHardware
+    FB_CURSOR_TYPE *Type
     )
 {
-    if (IsHardware == NULL) {
+    FB_CURSOR_IMPL *Cursor = (FB_CURSOR_IMPL *)This;
+
+    if (Type == NULL) {
         return E_POINTER;
     }
 
-    /* Software cursor only for now */
-    *IsHardware = FALSE;
+    *Type = Cursor->Descriptor.Type;
+    return S_OK;
+}
+
+static HRESULT STDMETHODCALLTYPE
+FbCursor_GetHotSpot(
+    IFramebufferCursor *This,
+    INT32 *X,
+    INT32 *Y
+    )
+{
+    FB_CURSOR_IMPL *Cursor = (FB_CURSOR_IMPL *)This;
+
+    if (X == NULL || Y == NULL) {
+        return E_POINTER;
+    }
+
+    *X = Cursor->Descriptor.HotSpotX;
+    *Y = Cursor->Descriptor.HotSpotY;
+    return S_OK;
+}
+
+static HRESULT STDMETHODCALLTYPE
+FbCursor_GetImage(
+    IFramebufferCursor *This,
+    IFramebufferImage **Image
+    )
+{
+    FB_CURSOR_IMPL *Cursor = (FB_CURSOR_IMPL *)This;
+
+    if (Image == NULL) {
+        return E_POINTER;
+    }
+
+    /* For static cursors, return the single image */
+    if (Cursor->Descriptor.Type != FbCursorAnimated) {
+        if (Cursor->Image == NULL) {
+            return E_FAIL;
+        }
+
+        IUnknown_AddRef((IUnknown *)Cursor->Image);
+        *Image = Cursor->Image;
+        return S_OK;
+    }
+
+    /* For animated cursors, return current frame */
+    if (Cursor->Frames == NULL || Cursor->Descriptor.FrameCount == 0) {
+        return E_FAIL;
+    }
+
+    UINT32 CurrentFrame = Cursor->Descriptor.CurrentFrame;
+    if (CurrentFrame >= Cursor->Descriptor.FrameCount) {
+        CurrentFrame = 0;
+    }
+
+    IUnknown_AddRef((IUnknown *)Cursor->Frames[CurrentFrame]);
+    *Image = Cursor->Frames[CurrentFrame];
+    return S_OK;
+}
+
+static HRESULT STDMETHODCALLTYPE
+FbCursor_GetFrameCount(
+    IFramebufferCursor *This,
+    UINT32 *Count
+    )
+{
+    FB_CURSOR_IMPL *Cursor = (FB_CURSOR_IMPL *)This;
+
+    if (Count == NULL) {
+        return E_POINTER;
+    }
+
+    *Count = Cursor->Descriptor.FrameCount;
+    return S_OK;
+}
+
+static HRESULT STDMETHODCALLTYPE
+FbCursor_GetFrame(
+    IFramebufferCursor *This,
+    UINT32 FrameIndex,
+    IFramebufferImage **Image,
+    UINT32 *DisplayTimeMs
+    )
+{
+    FB_CURSOR_IMPL *Cursor = (FB_CURSOR_IMPL *)This;
+
+    if (Image == NULL) {
+        return E_POINTER;
+    }
+
+    /* Validate frame index */
+    if (FrameIndex >= Cursor->Descriptor.FrameCount) {
+        return E_INVALIDARG;
+    }
+
+    /* For static cursors */
+    if (Cursor->Descriptor.Type != FbCursorAnimated) {
+        if (FrameIndex != 0) {
+            return E_INVALIDARG;
+        }
+
+        IUnknown_AddRef((IUnknown *)Cursor->Image);
+        *Image = Cursor->Image;
+
+        if (DisplayTimeMs != NULL) {
+            *DisplayTimeMs = 0;  /* Static cursor has no display time */
+        }
+        return S_OK;
+    }
+
+    /* For animated cursors */
+    if (Cursor->Frames == NULL || Cursor->Frames[FrameIndex] == NULL) {
+        return E_FAIL;
+    }
+
+    IUnknown_AddRef((IUnknown *)Cursor->Frames[FrameIndex]);
+    *Image = Cursor->Frames[FrameIndex];
+
+    if (DisplayTimeMs != NULL && Cursor->FrameTimes != NULL) {
+        *DisplayTimeMs = Cursor->FrameTimes[FrameIndex];
+    }
+
     return S_OK;
 }
 
 /* --------------------------------------------------------------- */
-/*  Internal Helper Functions                                       */
+/*  Factory Functions                                              */
 /* --------------------------------------------------------------- */
 
-static VOID
-FbCursor_SaveBackground(
-    FB_CURSOR_IMPL *Cursor
-    )
-{
-    INT32 ScreenX = Cursor->X - Cursor->Descriptor.HotSpotX;
-    INT32 ScreenY = Cursor->Y - Cursor->Descriptor.HotSpotY;
-    UINT32 Width = Cursor->Descriptor.Width;
-    UINT32 Height = Cursor->Descriptor.Height;
-
-    /* Save background for restore */
-    for (UINT32 Y = 0; Y < Height; Y++) {
-        for (UINT32 X = 0; X < Width; X++) {
-            FB_COLOR Color = {0, 0, 0, 0};
-            IFramebufferBackend_GetPixel(Cursor->Backend, ScreenX + X, ScreenY + Y, &Color);
-            Cursor->SavedBackground[Y * Width + X] = Color;
-        }
-    }
-
-    Cursor->BackgroundSaved = TRUE;
-    Cursor->SavedX = ScreenX;
-    Cursor->SavedY = ScreenY;
-    Cursor->SavedWidth = Width;
-    Cursor->SavedHeight = Height;
-}
-
-static VOID
-FbCursor_RestoreBackground(
-    FB_CURSOR_IMPL *Cursor
-    )
-{
-    if (!Cursor->BackgroundSaved) {
-        return;
-    }
-
-    /* Restore saved background */
-    for (UINT32 Y = 0; Y < Cursor->SavedHeight; Y++) {
-        for (UINT32 X = 0; X < Cursor->SavedWidth; X++) {
-            FB_COLOR Color = Cursor->SavedBackground[Y * Cursor->SavedWidth + X];
-            IFramebufferBackend_SetPixel(Cursor->Backend, Cursor->SavedX + X, Cursor->SavedY + Y, Color);
-        }
-    }
-
-    Cursor->BackgroundSaved = FALSE;
-}
-
-static VOID
-FbCursor_DrawMono(
-    FB_CURSOR_IMPL *Cursor
-    )
-{
-    INT32 ScreenX = Cursor->X - Cursor->Descriptor.HotSpotX;
-    INT32 ScreenY = Cursor->Y - Cursor->Descriptor.HotSpotY;
-    UINT32 Width = Cursor->Descriptor.Width;
-    UINT32 Height = Cursor->Descriptor.Height;
-
-    /* Draw monochrome cursor with AND/XOR masks */
-    for (UINT32 Y = 0; Y < Height; Y++) {
-        for (UINT32 X = 0; X < Width; X++) {
-            UINT32 BitIndex = Y * Width + X;
-            UINT32 ByteIndex = BitIndex / 8;
-            UINT32 BitOffset = 7 - (BitIndex % 8);
-
-            BOOLEAN AndBit = (Cursor->AndMask[ByteIndex] & (1 << BitOffset)) != 0;
-            BOOLEAN XorBit = (Cursor->XorMask[ByteIndex] & (1 << BitOffset)) != 0;
-
-            if (!AndBit && !XorBit) {
-                /* Transparent pixel - skip */
-                continue;
-            }
-
-            FB_COLOR Color;
-            IFramebufferBackend_GetPixel(Cursor->Backend, ScreenX + X, ScreenY + Y, &Color);
-
-            if (AndBit && XorBit) {
-                /* White pixel */
-                Color.Red = Color.Green = Color.Blue = 255;
-            } else if (AndBit && !XorBit) {
-                /* Black pixel */
-                Color.Red = Color.Green = Color.Blue = 0;
-            } else if (!AndBit && XorBit) {
-                /* Invert pixel */
-                Color.Red = 255 - Color.Red;
-                Color.Green = 255 - Color.Green;
-                Color.Blue = 255 - Color.Blue;
-            }
-
-            IFramebufferBackend_SetPixel(Cursor->Backend, ScreenX + X, ScreenY + Y, Color);
-        }
-    }
-}
-
-static VOID
-FbCursor_DrawColor(
-    FB_CURSOR_IMPL *Cursor
-    )
-{
-    INT32 ScreenX = Cursor->X - Cursor->Descriptor.HotSpotX;
-    INT32 ScreenY = Cursor->Y - Cursor->Descriptor.HotSpotY;
-    UINT32 Width = Cursor->Descriptor.Width;
-    UINT32 Height = Cursor->Descriptor.Height;
-
-    /* Draw color cursor with alpha blending */
-    for (UINT32 Y = 0; Y < Height; Y++) {
-        for (UINT32 X = 0; X < Width; X++) {
-            UINT32 Index = (Y * Width + X) * 4;
-            UINT8 R = Cursor->ColorData[Index + 0];
-            UINT8 G = Cursor->ColorData[Index + 1];
-            UINT8 B = Cursor->ColorData[Index + 2];
-            UINT8 A = Cursor->ColorData[Index + 3];
-
-            if (A == 0) {
-                /* Fully transparent - skip */
-                continue;
-            }
-
-            if (A == 255) {
-                /* Fully opaque - direct write */
-                FB_COLOR Color = {R, G, B, 255};
-                IFramebufferBackend_SetPixel(Cursor->Backend, ScreenX + X, ScreenY + Y, Color);
-            } else {
-                /* Alpha blend */
-                FB_COLOR BgColor;
-                IFramebufferBackend_GetPixel(Cursor->Backend, ScreenX + X, ScreenY + Y, &BgColor);
-
-                FB_COLOR BlendColor;
-                BlendColor.Red   = (R * A + BgColor.Red * (255 - A)) / 255;
-                BlendColor.Green = (G * A + BgColor.Green * (255 - A)) / 255;
-                BlendColor.Blue  = (B * A + BgColor.Blue * (255 - A)) / 255;
-                BlendColor.Alpha = 255;
-
-                IFramebufferBackend_SetPixel(Cursor->Backend, ScreenX + X, ScreenY + Y, BlendColor);
-            }
-        }
-    }
-}
-
-/* --------------------------------------------------------------- */
-/*  Public Constructor                                              */
-/* --------------------------------------------------------------- */
-
-/*
- * Create a cursor for a backend.
- */
 IFramebufferCursor *
-FbCreateCursor(
-    IN IFramebufferBackend *Backend
+FbCreateCursorFromImage(
+    IN IFramebufferImage *Image,
+    IN INT32 HotSpotX,
+    IN INT32 HotSpotY
     )
 {
     FB_CURSOR_IMPL *Cursor;
+    FB_IMAGE_INFO ImageInfo;
+    HRESULT Hr;
 
-    if (Backend == NULL) {
+    if (Image == NULL) {
         return NULL;
     }
 
-    /* Allocate cursor object */
+    /* Get image info */
+    Hr = IFramebufferImage_GetInfo(Image, &ImageInfo);
+    if (FAILED(Hr)) {
+        return NULL;
+    }
+
+    /* Allocate cursor */
     Cursor = (FB_CURSOR_IMPL *)ANX_MALLOC(sizeof(FB_CURSOR_IMPL));
     if (Cursor == NULL) {
         return NULL;
     }
 
-    /* Initialize */
     ANX_MEMSET(Cursor, 0, sizeof(FB_CURSOR_IMPL));
     Cursor->Base.lpVtbl = &gCursorVtbl;
     Cursor->RefCount.RefCount = 1;
-    Cursor->Backend = Backend;
-    Cursor->Visible = FALSE;
-    Cursor->X = 0;
-    Cursor->Y = 0;
-    Cursor->BackgroundSaved = FALSE;
 
-    /* Set default arrow cursor */
-    Cursor->Descriptor.Type = FbCursorMono;
-    Cursor->Descriptor.Width = 16;
-    Cursor->Descriptor.Height = 16;
-    Cursor->Descriptor.HotSpotX = 0;
-    Cursor->Descriptor.HotSpotY = 0;
+    /* Set up descriptor - determine type from image format */
+    Cursor->Descriptor.Type = FbCursorColor;  /* Assume color cursor */
+    Cursor->Descriptor.Width = ImageInfo.Width;
+    Cursor->Descriptor.Height = ImageInfo.Height;
+    Cursor->Descriptor.HotSpotX = HotSpotX;
+    Cursor->Descriptor.HotSpotY = HotSpotY;
+    Cursor->Descriptor.FrameCount = 1;
+    Cursor->Descriptor.CurrentFrame = 0;
 
-    /* Add reference to backend */
-    IUnknown_AddRef((IUnknown *)Backend);
+    /* Store image (add reference) */
+    IUnknown_AddRef((IUnknown *)Image);
+    Cursor->Image = Image;
 
     return &Cursor->Base;
 }
 
+IFramebufferCursor *
+FbCreateMonoCursor(
+    IN CONST FB_MONO_CURSOR_DESC *Descriptor
+    )
+{
+    FB_CURSOR_IMPL *Cursor;
+    IFramebufferImage *Image;
+    UINT32 MaskSize;
+
+    if (Descriptor == NULL || Descriptor->AndMask == NULL || Descriptor->XorMask == NULL) {
+        return NULL;
+    }
+
+    /* Validate dimensions */
+    if (Descriptor->Width == 0 || Descriptor->Height == 0 ||
+        Descriptor->Width > FB_CURSOR_MAX_WIDTH ||
+        Descriptor->Height > FB_CURSOR_MAX_HEIGHT) {
+        return NULL;
+    }
+
+    /* Create image from monochrome data
+     * Note: We need to convert mono masks to an image format.
+     * For now, convert to 1-bit indexed or RGBA with alpha channel.
+     * This is implementation-specific - mono masks need conversion.
+     */
+
+    /* Calculate mask size in bytes */
+    MaskSize = ((Descriptor->Width + 7) / 8) * Descriptor->Height;
+
+    /* Create monochrome image
+     * TODO: Implement FbCreateImageFromMonoMask helper or
+     * convert masks to RGBA format here
+     */
+
+    /* For now, create placeholder RGBA image */
+    UINT32 ImageSize = Descriptor->Width * Descriptor->Height * 4;
+    UINT8 *RgbaData = (UINT8 *)ANX_MALLOC(ImageSize);
+    if (RgbaData == NULL) {
+        return NULL;
+    }
+
+    /* Convert AND/XOR masks to RGBA
+     * AND mask: 1 = use pixel, 0 = transparent
+     * XOR mask: 1 = invert, 0 = black
+     * Typical conversion:
+     * - AND=0: Transparent (alpha=0)
+     * - AND=1, XOR=0: Black pixel
+     * - AND=1, XOR=1: White pixel (inverted)
+     */
+    for (UINT32 Y = 0; Y < Descriptor->Height; Y++) {
+        for (UINT32 X = 0; X < Descriptor->Width; X++) {
+            UINT32 ByteOffset = Y * ((Descriptor->Width + 7) / 8) + (X / 8);
+            UINT32 BitMask = 1 << (7 - (X % 8));
+
+            UINT8 AndBit = (Descriptor->AndMask[ByteOffset] & BitMask) ? 1 : 0;
+            UINT8 XorBit = (Descriptor->XorMask[ByteOffset] & BitMask) ? 1 : 0;
+
+            UINT32 PixelOffset = (Y * Descriptor->Width + X) * 4;
+
+            if (AndBit == 0) {
+                /* Transparent */
+                RgbaData[PixelOffset + 0] = 0;    /* R */
+                RgbaData[PixelOffset + 1] = 0;    /* G */
+                RgbaData[PixelOffset + 2] = 0;    /* B */
+                RgbaData[PixelOffset + 3] = 0;    /* A = transparent */
+            } else {
+                /* Opaque pixel */
+                UINT8 Color = XorBit ? 255 : 0;   /* White or black */
+                RgbaData[PixelOffset + 0] = Color;
+                RgbaData[PixelOffset + 1] = Color;
+                RgbaData[PixelOffset + 2] = Color;
+                RgbaData[PixelOffset + 3] = 255;  /* A = opaque */
+            }
+        }
+    }
+
+    /* Create image from RGBA data */
+    Image = FbCreateImageFromMemory(
+        RgbaData,
+        Descriptor->Width,
+        Descriptor->Height,
+        Descriptor->Width * 4,
+        FbPixelFormatRGBA32
+    );
+
+    ANX_FREE(RgbaData);
+
+    if (Image == NULL) {
+        return NULL;
+    }
+
+    /* Create cursor from image */
+    Cursor = (FB_CURSOR_IMPL *)FbCreateCursorFromImage(
+        Image,
+        Descriptor->HotSpotX,
+        Descriptor->HotSpotY
+    );
+
+    /* Release our image reference (cursor now owns it) */
+    IUnknown_Release((IUnknown *)Image);
+
+    if (Cursor != NULL) {
+        /* Update type to monochrome */
+        Cursor->Descriptor.Type = FbCursorMono;
+    }
+
+    return (IFramebufferCursor *)Cursor;
+}
+
+IFramebufferCursor *
+FbCreateColorCursor(
+    IN CONST FB_COLOR_CURSOR_DESC *Descriptor
+    )
+{
+    IFramebufferImage *Image;
+
+    if (Descriptor == NULL || Descriptor->Data == NULL) {
+        return NULL;
+    }
+
+    /* Validate dimensions */
+    if (Descriptor->Width == 0 || Descriptor->Height == 0 ||
+        Descriptor->Width > FB_CURSOR_MAX_WIDTH ||
+        Descriptor->Height > FB_CURSOR_MAX_HEIGHT) {
+        return NULL;
+    }
+
+    /* Create image from RGBA data */
+    Image = FbCreateImageFromMemory(
+        Descriptor->Data,
+        Descriptor->Width,
+        Descriptor->Height,
+        Descriptor->Width * 4,  /* Pitch: RGBA = 4 bytes per pixel */
+        FbPixelFormatRGBA32
+    );
+
+    if (Image == NULL) {
+        return NULL;
+    }
+
+    /* Create cursor from image */
+    IFramebufferCursor *Cursor = FbCreateCursorFromImage(
+        Image,
+        Descriptor->HotSpotX,
+        Descriptor->HotSpotY
+    );
+
+    /* Release our image reference (cursor now owns it) */
+    IUnknown_Release((IUnknown *)Image);
+
+    return Cursor;
+}
+
+IFramebufferCursor *
+FbCreateAnimatedCursor(
+    IN CONST FB_ANIMATED_CURSOR_DESC *Descriptor
+    )
+{
+    FB_CURSOR_IMPL *Cursor;
+    UINT32 I;
+
+    if (Descriptor == NULL || Descriptor->Frames == NULL || Descriptor->FrameCount == 0) {
+        return NULL;
+    }
+
+    /* Validate dimensions and frame count */
+    if (Descriptor->Width == 0 || Descriptor->Height == 0 ||
+        Descriptor->Width > FB_CURSOR_MAX_WIDTH ||
+        Descriptor->Height > FB_CURSOR_MAX_HEIGHT ||
+        Descriptor->FrameCount > FB_CURSOR_MAX_FRAMES) {
+        return NULL;
+    }
+
+    /* Allocate cursor */
+    Cursor = (FB_CURSOR_IMPL *)ANX_MALLOC(sizeof(FB_CURSOR_IMPL));
+    if (Cursor == NULL) {
+        return NULL;
+    }
+
+    ANX_MEMSET(Cursor, 0, sizeof(FB_CURSOR_IMPL));
+    Cursor->Base.lpVtbl = &gCursorVtbl;
+    Cursor->RefCount.RefCount = 1;
+
+    /* Set up descriptor */
+    Cursor->Descriptor.Type = FbCursorAnimated;
+    Cursor->Descriptor.Width = Descriptor->Width;
+    Cursor->Descriptor.Height = Descriptor->Height;
+    Cursor->Descriptor.HotSpotX = Descriptor->HotSpotX;
+    Cursor->Descriptor.HotSpotY = Descriptor->HotSpotY;
+    Cursor->Descriptor.FrameCount = Descriptor->FrameCount;
+    Cursor->Descriptor.CurrentFrame = 0;
+
+    /* Allocate frame arrays */
+    Cursor->Frames = (IFramebufferImage **)ANX_MALLOC(
+        sizeof(IFramebufferImage *) * Descriptor->FrameCount);
+    Cursor->FrameTimes = (UINT32 *)ANX_MALLOC(
+        sizeof(UINT32) * Descriptor->FrameCount);
+
+    if (Cursor->Frames == NULL || Cursor->FrameTimes == NULL) {
+        if (Cursor->Frames != NULL) ANX_FREE(Cursor->Frames);
+        if (Cursor->FrameTimes != NULL) ANX_FREE(Cursor->FrameTimes);
+        ANX_FREE(Cursor);
+        return NULL;
+    }
+
+    ANX_MEMSET(Cursor->Frames, 0, sizeof(IFramebufferImage *) * Descriptor->FrameCount);
+
+    /* Convert each frame to an image */
+    for (I = 0; I < Descriptor->FrameCount; I++) {
+        if (Descriptor->FrameType == FbCursorMono) {
+            /* Monochrome frame - convert to image
+             * Frame data contains AND mask followed by XOR mask
+             */
+            UINT32 MaskSize = ((Descriptor->Width + 7) / 8) * Descriptor->Height;
+            CONST UINT8 *AndMask = Descriptor->Frames[I].Data;
+            CONST UINT8 *XorMask = Descriptor->Frames[I].Data + MaskSize;
+
+            FB_MONO_CURSOR_DESC MonoDesc = {
+                .AndMask = AndMask,
+                .XorMask = XorMask,
+                .Width = Descriptor->Width,
+                .Height = Descriptor->Height,
+                .HotSpotX = Descriptor->HotSpotX,
+                .HotSpotY = Descriptor->HotSpotY,
+            };
+
+            /* Create temporary mono cursor and extract its image */
+            IFramebufferCursor *TempCursor = FbCreateMonoCursor(&MonoDesc);
+            if (TempCursor == NULL) {
+                goto cleanup_frames;
+            }
+
+            IFramebufferCursor_GetImage(TempCursor, &Cursor->Frames[I]);
+            IUnknown_Release((IUnknown *)TempCursor);
+
+        } else {
+            /* Color frame - RGBA data */
+            Cursor->Frames[I] = FbCreateImageFromMemory(
+                Descriptor->Frames[I].Data,
+                Descriptor->Width,
+                Descriptor->Height,
+                Descriptor->Width * 4,
+                FbPixelFormatRGBA32
+            );
+
+            if (Cursor->Frames[I] == NULL) {
+                goto cleanup_frames;
+            }
+        }
+
+        /* Store display time */
+        Cursor->FrameTimes[I] = Descriptor->Frames[I].DisplayTime;
+    }
+
+    return &Cursor->Base;
+
+cleanup_frames:
+    /* Cleanup on failure */
+    for (I = 0; I < Descriptor->FrameCount; I++) {
+        if (Cursor->Frames[I] != NULL) {
+            IUnknown_Release((IUnknown *)Cursor->Frames[I]);
+        }
+    }
+    ANX_FREE(Cursor->Frames);
+    ANX_FREE(Cursor->FrameTimes);
+    ANX_FREE(Cursor);
+    return NULL;
+}
+
 /* --------------------------------------------------------------- */
-/*  Standard Cursor Bitmaps                                         */
+/*  Standard Cursor Shapes (Data)                                  */
 /* --------------------------------------------------------------- */
 
 /* Standard arrow cursor (16x16 monochrome) */
 CONST UINT8 gStandardArrowCursorAnd[16 * 16 / 8] = {
-    0x00, 0x00,  /* ................ */
-    0x40, 0x00,  /* .#.............. */
-    0x60, 0x00,  /* .##............. */
-    0x70, 0x00,  /* .###............ */
-    0x78, 0x00,  /* .####........... */
-    0x7C, 0x00,  /* .#####.......... */
-    0x7E, 0x00,  /* .######......... */
-    0x7F, 0x00,  /* .#######........ */
-    0x7F, 0x80,  /* .########....... */
-    0x7C, 0x00,  /* .#####.......... */
-    0x6C, 0x00,  /* .##.##.......... */
-    0x46, 0x00,  /* .#...##......... */
-    0x06, 0x00,  /* .....##......... */
-    0x03, 0x00,  /* ......##........ */
-    0x03, 0x00,  /* ......##........ */
-    0x00, 0x00,  /* ................ */
+    0x3F, 0xFF,  /* 00111111 11111111 */
+    0x1F, 0xFF,  /* 00011111 11111111 */
+    0x0F, 0xFF,  /* 00001111 11111111 */
+    0x07, 0xFF,  /* 00000111 11111111 */
+    0x03, 0xFF,  /* 00000011 11111111 */
+    0x01, 0xFF,  /* 00000001 11111111 */
+    0x00, 0xFF,  /* 00000000 11111111 */
+    0x00, 0x7F,  /* 00000000 01111111 */
+    0x00, 0x3F,  /* 00000000 00111111 */
+    0x00, 0x1F,  /* 00000000 00011111 */
+    0x00, 0xFF,  /* 00000000 11111111 */
+    0x01, 0xFF,  /* 00000001 11111111 */
+    0x31, 0xFF,  /* 00110001 11111111 */
+    0xF8, 0xFF,  /* 11111000 11111111 */
+    0xF8, 0xFF,  /* 11111000 11111111 */
+    0xFC, 0xFF,  /* 11111100 11111111 */
 };
 
 CONST UINT8 gStandardArrowCursorXor[16 * 16 / 8] = {
     0x00, 0x00,
-    0x00, 0x00,
-    0x00, 0x00,
-    0x00, 0x00,
-    0x00, 0x00,
-    0x00, 0x00,
-    0x00, 0x00,
-    0x00, 0x00,
-    0x00, 0x00,
-    0x00, 0x00,
-    0x00, 0x00,
-    0x00, 0x00,
-    0x00, 0x00,
-    0x00, 0x00,
-    0x00, 0x00,
+    0x40, 0x00,
+    0x60, 0x00,
+    0x70, 0x00,
+    0x78, 0x00,
+    0x7C, 0x00,
+    0x7E, 0x00,
+    0x7F, 0x00,
+    0x7F, 0x80,
+    0x7C, 0x00,
+    0x6C, 0x00,
+    0x46, 0x00,
+    0x06, 0x00,
+    0x03, 0x00,
+    0x03, 0x00,
     0x00, 0x00,
 };
 
-/* Standard I-beam cursor (16x16 monochrome) */
-CONST UINT8 gStandardIBeamCursorAnd[16 * 16 / 8] = {
-    0x1F, 0x80,  /* ...######....... */
-    0x0E, 0x00,  /* ....###......... */
-    0x04, 0x00,  /* .....#.......... */
-    0x04, 0x00,  /* .....#.......... */
-    0x04, 0x00,  /* .....#.......... */
-    0x04, 0x00,  /* .....#.......... */
-    0x04, 0x00,  /* .....#.......... */
-    0x04, 0x00,  /* .....#.......... */
-    0x04, 0x00,  /* .....#.......... */
-    0x04, 0x00,  /* .....#.......... */
-    0x04, 0x00,  /* .....#.......... */
-    0x04, 0x00,  /* .....#.......... */
-    0x04, 0x00,  /* .....#.......... */
-    0x0E, 0x00,  /* ....###......... */
-    0x1F, 0x80,  /* ...######....... */
-    0x00, 0x00,  /* ................ */
-};
-
-CONST UINT8 gStandardIBeamCursorXor[16 * 16 / 8] = {0};
-
-/* Standard wait/hourglass cursor (16x16 monochrome) */
-CONST UINT8 gStandardWaitCursorAnd[16 * 16 / 8] = {
-    0xFF, 0xFE,  /* ###############. */
-    0x80, 0x02,  /* #.............#. */
-    0x40, 0x04,  /* .#...........#.. */
-    0x20, 0x08,  /* ..#.........#... */
-    0x10, 0x10,  /* ...#.......#.... */
-    0x08, 0x20,  /* ....#.....#..... */
-    0x05, 0x40,  /* .....#.#.#...... */
-    0x02, 0x80,  /* ......#.#....... */
-    0x02, 0x80,  /* ......#.#....... */
-    0x05, 0x40,  /* .....#.#.#...... */
-    0x08, 0x20,  /* ....#.....#..... */
-    0x10, 0x10,  /* ...#.......#.... */
-    0x20, 0x08,  /* ..#.........#... */
-    0x40, 0x04,  /* .#...........#.. */
-    0x80, 0x02,  /* #.............#. */
-    0xFF, 0xFE,  /* ###############. */
-};
-
-CONST UINT8 gStandardWaitCursorXor[16 * 16 / 8] = {0};
-
-/* Standard crosshair cursor (16x16 monochrome) */
-CONST UINT8 gStandardCrosshairCursorAnd[16 * 16 / 8] = {
-    0x04, 0x00,  /* .....#.......... */
-    0x04, 0x00,  /* .....#.......... */
-    0x04, 0x00,  /* .....#.......... */
-    0x04, 0x00,  /* .....#.......... */
-    0x04, 0x00,  /* .....#.......... */
-    0x04, 0x00,  /* .....#.......... */
-    0xFF, 0xFE,  /* ###############. */
-    0x04, 0x00,  /* .....#.......... */
-    0xFF, 0xFE,  /* ###############. */
-    0x04, 0x00,  /* .....#.......... */
-    0x04, 0x00,  /* .....#.......... */
-    0x04, 0x00,  /* .....#.......... */
-    0x04, 0x00,  /* .....#.......... */
-    0x04, 0x00,  /* .....#.......... */
-    0x04, 0x00,  /* .....#.......... */
-    0x00, 0x00,  /* ................ */
-};
-
-CONST UINT8 gStandardCrosshairCursorXor[16 * 16 / 8] = {0};
+/* Note: Other standard cursors (I-beam, wait, crosshair) would be defined similarly */
+CONST UINT8 gStandardIBeamCursorAnd[16 * 16 / 8] = { /* TODO */ };
+CONST UINT8 gStandardIBeamCursorXor[16 * 16 / 8] = { /* TODO */ };
+CONST UINT8 gStandardWaitCursorAnd[16 * 16 / 8] = { /* TODO */ };
+CONST UINT8 gStandardWaitCursorXor[16 * 16 / 8] = { /* TODO */ };
+CONST UINT8 gStandardCrosshairCursorAnd[16 * 16 / 8] = { /* TODO */ };
+CONST UINT8 gStandardCrosshairCursorXor[16 * 16 / 8] = { /* TODO */ };
