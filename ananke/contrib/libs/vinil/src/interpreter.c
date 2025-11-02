@@ -35,8 +35,8 @@ typedef struct _VINIL_CONTEXT_IMPL {
 static HRESULT STDMETHODCALLTYPE Context_QueryInterface (IVinilContext *This, REFIID riid, void **ppvObject);
 static UINT32 STDMETHODCALLTYPE Context_AddRef (IVinilContext *This);
 static UINT32 STDMETHODCALLTYPE Context_Release (IVinilContext *This);
-static HRESULT STDMETHODCALLTYPE Context_Execute (IVinilContext *This, IVinilProgram *Program, VINIL_EXECUTION_BACKEND Backend, VOID *Inputs, VOID *Outputs);
-static HRESULT STDMETHODCALLTYPE Context_ExecuteKernel (IVinilContext *This, IVinilProgram *Program, VINIL_EXECUTION_BACKEND Backend, CONST UINT32 *GlobalSize, CONST UINT32 *LocalSize, VOID *Args);
+static HRESULT STDMETHODCALLTYPE Context_Execute (void *This, IVinilProgram *Program, VINIL_EXECUTION_BACKEND Backend, VOID *Inputs, VOID *Outputs);
+static HRESULT STDMETHODCALLTYPE Context_ExecuteKernel (void *This, IVinilProgram *Program, VINIL_EXECUTION_BACKEND Backend, CONST UINT32 *GlobalSize, CONST UINT32 *LocalSize, VOID *Args);
 
 //
 // Vtable
@@ -1628,7 +1628,7 @@ static
 HRESULT
 STDMETHODCALLTYPE
 Context_Execute (
-  IVinilContext           *This,
+  void                    *This,
   IVinilProgram           *Program,
   VINIL_EXECUTION_BACKEND Backend,
   VOID                    *Inputs,
@@ -1662,7 +1662,7 @@ static
 HRESULT
 STDMETHODCALLTYPE
 Context_ExecuteKernel (
-  IVinilContext           *This,
+  void                    *This,
   IVinilProgram           *Program,
   VINIL_EXECUTION_BACKEND Backend,
   CONST UINT32            *GlobalSize,
@@ -1672,7 +1672,6 @@ Context_ExecuteKernel (
 {
   VINIL_EXECUTION_STATE  State;
   HRESULT                Result;
-  UINT32                 x, y, z;
   UINT32                 lx, ly, lz;
   UINT32                 gx, gy, gz;
 

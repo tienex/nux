@@ -268,13 +268,14 @@ ParserSetError (
 }
 
 static BOOLEAN
+__attribute__((unused))
 ParserExpect (
     PARSER      *Parser,
     TOKEN_TYPE  Type
     )
 {
     if (Parser->CurrentToken.Type != Type) {
-        ParserSetError(Parser, "Unexpected token");
+        ParserSetError(Parser, (CONST CHAR8 *)"Unexpected token");
         return FALSE;
     }
 
@@ -338,7 +339,7 @@ VinilAssemble (
             /* TODO: Parse instruction */
             LexerNextToken(&Parser.Lexer, &Parser.CurrentToken);
         } else {
-            ParserSetError(&Parser, "Expected instruction or directive");
+            ParserSetError(&Parser, (CONST CHAR8 *)"Expected instruction or directive");
             Success = FALSE;
             break;
         }

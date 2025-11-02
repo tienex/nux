@@ -38,18 +38,18 @@ typedef struct _VINIL_BUILDER_IMPL {
 static HRESULT STDMETHODCALLTYPE Builder_QueryInterface (IVinilBuilder *This, REFIID riid, void **ppvObject);
 static UINT32 STDMETHODCALLTYPE Builder_AddRef (IVinilBuilder *This);
 static UINT32 STDMETHODCALLTYPE Builder_Release (IVinilBuilder *This);
-static HRESULT STDMETHODCALLTYPE Builder_CreateVariable (IVinilBuilder *This, VINIL_VARIABLE_TYPE Type, CONST CHAR8 *Name, IVinilVariable **Variable);
-static HRESULT STDMETHODCALLTYPE Builder_CreateBlock (IVinilBuilder *This, IVinilBlock **Block);
-static HRESULT STDMETHODCALLTYPE Builder_SetInsertBlock (IVinilBuilder *This, IVinilBlock *Block);
-static HRESULT STDMETHODCALLTYPE Builder_BuildAdd (IVinilBuilder *This, IVinilVariable *Dst, IVinilVariable *Src1, IVinilVariable *Src2);
-static HRESULT STDMETHODCALLTYPE Builder_BuildSub (IVinilBuilder *This, IVinilVariable *Dst, IVinilVariable *Src1, IVinilVariable *Src2);
-static HRESULT STDMETHODCALLTYPE Builder_BuildMul (IVinilBuilder *This, IVinilVariable *Dst, IVinilVariable *Src1, IVinilVariable *Src2);
-static HRESULT STDMETHODCALLTYPE Builder_BuildMad (IVinilBuilder *This, IVinilVariable *Dst, IVinilVariable *Src1, IVinilVariable *Src2, IVinilVariable *Src3);
-static HRESULT STDMETHODCALLTYPE Builder_BuildMov (IVinilBuilder *This, IVinilVariable *Dst, IVinilVariable *Src);
-static HRESULT STDMETHODCALLTYPE Builder_BuildDp3 (IVinilBuilder *This, IVinilVariable *Dst, IVinilVariable *Src1, IVinilVariable *Src2);
-static HRESULT STDMETHODCALLTYPE Builder_BuildDp4 (IVinilBuilder *This, IVinilVariable *Dst, IVinilVariable *Src1, IVinilVariable *Src2);
+static HRESULT STDMETHODCALLTYPE Builder_CreateVariable (void *This, VINIL_VARIABLE_TYPE Type, CONST CHAR8 *Name, IVinilVariable **Variable);
+static HRESULT STDMETHODCALLTYPE Builder_CreateBlock (void *This, IVinilBlock **Block);
+static HRESULT STDMETHODCALLTYPE Builder_SetInsertBlock (void *This, IVinilBlock *Block);
+static HRESULT STDMETHODCALLTYPE Builder_BuildAdd (void *This, IVinilVariable *Dst, IVinilVariable *Src1, IVinilVariable *Src2);
+static HRESULT STDMETHODCALLTYPE Builder_BuildSub (void *This, IVinilVariable *Dst, IVinilVariable *Src1, IVinilVariable *Src2);
+static HRESULT STDMETHODCALLTYPE Builder_BuildMul (void *This, IVinilVariable *Dst, IVinilVariable *Src1, IVinilVariable *Src2);
+static HRESULT STDMETHODCALLTYPE Builder_BuildMad (void *This, IVinilVariable *Dst, IVinilVariable *Src1, IVinilVariable *Src2, IVinilVariable *Src3);
+static HRESULT STDMETHODCALLTYPE Builder_BuildMov (void *This, IVinilVariable *Dst, IVinilVariable *Src);
+static HRESULT STDMETHODCALLTYPE Builder_BuildDp3 (void *This, IVinilVariable *Dst, IVinilVariable *Src1, IVinilVariable *Src2);
+static HRESULT STDMETHODCALLTYPE Builder_BuildDp4 (void *This, IVinilVariable *Dst, IVinilVariable *Src1, IVinilVariable *Src2);
 static HRESULT STDMETHODCALLTYPE Builder_BuildRet (void *This);
-static HRESULT STDMETHODCALLTYPE Builder_Finalize (IVinilBuilder *This, IVinilProgram **Program);
+static HRESULT STDMETHODCALLTYPE Builder_Finalize (void *This, IVinilProgram **Program);
 
 //
 // Vtable
@@ -154,7 +154,7 @@ static
 HRESULT
 STDMETHODCALLTYPE
 Builder_CreateVariable (
-  IVinilBuilder        *This,
+  void                 *This,
   VINIL_VARIABLE_TYPE  Type,
   CONST CHAR8          *Name,
   IVinilVariable       **Variable
@@ -218,7 +218,7 @@ static
 HRESULT
 STDMETHODCALLTYPE
 Builder_CreateBlock (
-  IVinilBuilder  *This,
+  void *This,
   IVinilBlock    **Block
   )
 {
@@ -235,7 +235,7 @@ static
 HRESULT
 STDMETHODCALLTYPE
 Builder_SetInsertBlock (
-  IVinilBuilder  *This,
+  void *This,
   IVinilBlock    *Block
   )
 {
@@ -261,7 +261,7 @@ static
 HRESULT
 STDMETHODCALLTYPE
 Builder_BuildAdd (
-  IVinilBuilder   *This,
+  void *This,
   IVinilVariable  *Dst,
   IVinilVariable  *Src1,
   IVinilVariable  *Src2
@@ -280,7 +280,7 @@ static
 HRESULT
 STDMETHODCALLTYPE
 Builder_BuildSub (
-  IVinilBuilder   *This,
+  void *This,
   IVinilVariable  *Dst,
   IVinilVariable  *Src1,
   IVinilVariable  *Src2
@@ -299,7 +299,7 @@ static
 HRESULT
 STDMETHODCALLTYPE
 Builder_BuildMul (
-  IVinilBuilder   *This,
+  void *This,
   IVinilVariable  *Dst,
   IVinilVariable  *Src1,
   IVinilVariable  *Src2
@@ -318,7 +318,7 @@ static
 HRESULT
 STDMETHODCALLTYPE
 Builder_BuildMad (
-  IVinilBuilder   *This,
+  void *This,
   IVinilVariable  *Dst,
   IVinilVariable  *Src1,
   IVinilVariable  *Src2,
@@ -338,7 +338,7 @@ static
 HRESULT
 STDMETHODCALLTYPE
 Builder_BuildMov (
-  IVinilBuilder   *This,
+  void *This,
   IVinilVariable  *Dst,
   IVinilVariable  *Src
   )
@@ -356,7 +356,7 @@ static
 HRESULT
 STDMETHODCALLTYPE
 Builder_BuildDp3 (
-  IVinilBuilder   *This,
+  void *This,
   IVinilVariable  *Dst,
   IVinilVariable  *Src1,
   IVinilVariable  *Src2
@@ -375,7 +375,7 @@ static
 HRESULT
 STDMETHODCALLTYPE
 Builder_BuildDp4 (
-  IVinilBuilder   *This,
+  void *This,
   IVinilVariable  *Dst,
   IVinilVariable  *Src1,
   IVinilVariable  *Src2
@@ -406,7 +406,7 @@ static
 HRESULT
 STDMETHODCALLTYPE
 Builder_Finalize (
-  IVinilBuilder  *This,
+  void *This,
   IVinilProgram  **Program
   )
 {

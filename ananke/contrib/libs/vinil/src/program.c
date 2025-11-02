@@ -20,11 +20,11 @@
 // Forward Declarations
 //
 
-static HRESULT STDMETHODCALLTYPE Program_QueryInterface (IVinilProgram *This, REFIID riid, void **ppvObject);
-static UINT32 STDMETHODCALLTYPE Program_AddRef (IVinilProgram *This);
-static UINT32 STDMETHODCALLTYPE Program_Release (IVinilProgram *This);
-static HRESULT STDMETHODCALLTYPE Program_GetMode (IVinilProgram *This, VINIL_EXECUTION_MODE *Mode);
-static HRESULT STDMETHODCALLTYPE Program_GetInstructionCount (IVinilProgram *This, UINT32 *Count);
+static HRESULT STDMETHODCALLTYPE Program_QueryInterface (void *This, REFIID riid, void **ppvObject);
+static UINT32 STDMETHODCALLTYPE Program_AddRef (void *This);
+static UINT32 STDMETHODCALLTYPE Program_Release (void *This);
+static HRESULT STDMETHODCALLTYPE Program_GetMode (void *This, VINIL_EXECUTION_MODE *Mode);
+static HRESULT STDMETHODCALLTYPE Program_GetInstructionCount (void *This, UINT32 *Count);
 
 //
 // Vtable

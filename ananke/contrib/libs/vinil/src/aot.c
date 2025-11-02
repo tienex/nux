@@ -24,23 +24,23 @@
 /* --------------------------------------------------------------- */
 
 static CONST CHAR8 *gArchNames[] = {
-    "x86",
-    "x86-64",
-    "arm",
-    "arm64",
-    "riscv32",
-    "riscv64",
-    "powerpc",
-    "powerpc64",
-    "mips",
-    "mips64",
+    (CONST CHAR8 *)"x86",
+    (CONST CHAR8 *)"x86-64",
+    (CONST CHAR8 *)"arm",
+    (CONST CHAR8 *)"arm64",
+    (CONST CHAR8 *)"riscv32",
+    (CONST CHAR8 *)"riscv64",
+    (CONST CHAR8 *)"powerpc",
+    (CONST CHAR8 *)"powerpc64",
+    (CONST CHAR8 *)"mips",
+    (CONST CHAR8 *)"mips64",
 };
 
 static CONST CHAR8 *gFormatNames[] = {
-    "ELF",
-    "Mach-O",
-    "PE/COFF",
-    "WebAssembly",
+    (CONST CHAR8 *)"ELF",
+    (CONST CHAR8 *)"Mach-O",
+    (CONST CHAR8 *)"PE/COFF",
+    (CONST CHAR8 *)"WebAssembly",
 };
 
 CONST CHAR8 *

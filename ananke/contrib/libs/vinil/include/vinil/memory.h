@@ -15,6 +15,12 @@
 #include <setjmp.h>
 
 //
+// Forward Declarations
+//
+
+typedef struct IVinilErrorSink IVinilErrorSink;
+
+//
 // Constants
 //
 

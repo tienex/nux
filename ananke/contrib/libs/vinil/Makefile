@@ -6,7 +6,7 @@ CC ?= gcc
 AR = ar
 ANANKE_INC = ../../../include
 SLJIT_INC = ../sljit/sljit_src
-CFLAGS = -Wall -Wextra -O2 -fPIC -Iinclude -Isrc -I$(ANANKE_INC) -I$(SLJIT_INC)
+CFLAGS = -Wall -Wextra -Wno-unused-function -Wno-pointer-sign -Wno-unused-parameter -O2 -fPIC -Iinclude -Isrc -I$(ANANKE_INC) -I$(SLJIT_INC)
 LDFLAGS = -shared
 LIBS = -lm -lpthread
 
