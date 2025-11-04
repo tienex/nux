@@ -143,4 +143,64 @@ CONST VINIL_OPCODE_INFO gVinilOpcodeTable[VINIL_OP_COUNT] = {
     [VINIL_OP_SELECT]  = { VINIL_OP_SELECT,  "SELECT",  "Select (ternary)",            VinilOpcatArithmetic,     3, TRUE,  TRUE,  TRUE  },
     [VINIL_OP_SHUFFLE] = { VINIL_OP_SHUFFLE, "SHUFFLE", "Vector shuffle",              VinilOpcatVector,         2, TRUE,  FALSE, TRUE  },
     [VINIL_OP_NOP]     = { VINIL_OP_NOP,     "NOP",     "No operation",                VinilOpcatControlFlow,    0, FALSE, TRUE,  TRUE  },
+
+    /* Stack Operations - Bytecode */
+    [VINIL_OP_PUSH]    = { VINIL_OP_PUSH,    "PUSH",    "Push to stack",               VinilOpcatControlFlow,    1, FALSE, FALSE, TRUE  },
+    [VINIL_OP_POP]     = { VINIL_OP_POP,     "POP",     "Pop from stack",              VinilOpcatControlFlow,    0, TRUE,  FALSE, TRUE  },
+    [VINIL_OP_PUSHN]   = { VINIL_OP_PUSHN,   "PUSHN",   "Push N bytes",                VinilOpcatControlFlow,    1, FALSE, FALSE, TRUE  },
+    [VINIL_OP_POPN]    = { VINIL_OP_POPN,    "POPN",    "Pop N bytes",                 VinilOpcatControlFlow,    1, FALSE, FALSE, TRUE  },
+    [VINIL_OP_DUP]     = { VINIL_OP_DUP,     "DUP",     "Duplicate top",               VinilOpcatControlFlow,    0, FALSE, FALSE, TRUE  },
+    [VINIL_OP_SWAP]    = { VINIL_OP_SWAP,    "SWAP",    "Swap top two",                VinilOpcatControlFlow,    0, FALSE, FALSE, TRUE  },
+
+    /* Sized Moves - Bytecode */
+    [VINIL_OP_MOV8]    = { VINIL_OP_MOV8,    "MOV8",    "Move 8-bit",                  VinilOpcatArithmetic,     1, TRUE,  FALSE, TRUE  },
+    [VINIL_OP_MOV16]   = { VINIL_OP_MOV16,   "MOV16",   "Move 16-bit",                 VinilOpcatArithmetic,     1, TRUE,  FALSE, TRUE  },
+    [VINIL_OP_MOV32]   = { VINIL_OP_MOV32,   "MOV32",   "Move 32-bit",                 VinilOpcatArithmetic,     1, TRUE,  FALSE, TRUE  },
+    [VINIL_OP_MOV64]   = { VINIL_OP_MOV64,   "MOV64",   "Move 64-bit",                 VinilOpcatArithmetic,     1, TRUE,  FALSE, TRUE  },
+
+    /* Zero Extension - Bytecode */
+    [VINIL_OP_ZEXT8]   = { VINIL_OP_ZEXT8,   "ZEXT8",   "Zero extend 8->32",           VinilOpcatArithmetic,     1, TRUE,  FALSE, TRUE  },
+    [VINIL_OP_ZEXT16]  = { VINIL_OP_ZEXT16,  "ZEXT16",  "Zero extend 16->32",          VinilOpcatArithmetic,     1, TRUE,  FALSE, TRUE  },
+    [VINIL_OP_ZEXT32]  = { VINIL_OP_ZEXT32,  "ZEXT32",  "Zero extend 32->64",          VinilOpcatArithmetic,     1, TRUE,  FALSE, TRUE  },
+
+    /* Sign Extension - Bytecode */
+    [VINIL_OP_SEXT8]   = { VINIL_OP_SEXT8,   "SEXT8",   "Sign extend 8->32",           VinilOpcatArithmetic,     1, TRUE,  FALSE, TRUE  },
+    [VINIL_OP_SEXT16]  = { VINIL_OP_SEXT16,  "SEXT16",  "Sign extend 16->32",          VinilOpcatArithmetic,     1, TRUE,  FALSE, TRUE  },
+    [VINIL_OP_SEXT32]  = { VINIL_OP_SEXT32,  "SEXT32",  "Sign extend 32->64",          VinilOpcatArithmetic,     1, TRUE,  FALSE, TRUE  },
+
+    /* Truncation - Bytecode */
+    [VINIL_OP_TRUNC8]  = { VINIL_OP_TRUNC8,  "TRUNC8",  "Truncate to 8-bit",           VinilOpcatArithmetic,     1, TRUE,  FALSE, TRUE  },
+    [VINIL_OP_TRUNC16] = { VINIL_OP_TRUNC16, "TRUNC16", "Truncate to 16-bit",          VinilOpcatArithmetic,     1, TRUE,  FALSE, TRUE  },
+    [VINIL_OP_TRUNC32] = { VINIL_OP_TRUNC32, "TRUNC32", "Truncate to 32-bit",          VinilOpcatArithmetic,     1, TRUE,  FALSE, TRUE  },
+
+    /* Unsigned Arithmetic - Bytecode */
+    [VINIL_OP_MULU]    = { VINIL_OP_MULU,    "MULU",    "Unsigned multiply",           VinilOpcatArithmetic,     2, TRUE,  FALSE, TRUE  },
+    [VINIL_OP_DIVU]    = { VINIL_OP_DIVU,    "DIVU",    "Unsigned divide",             VinilOpcatArithmetic,     2, TRUE,  FALSE, TRUE  },
+    [VINIL_OP_MODU]    = { VINIL_OP_MODU,    "MODU",    "Unsigned modulo",             VinilOpcatArithmetic,     2, TRUE,  FALSE, TRUE  },
+
+    /* Comparison - Bytecode */
+    [VINIL_OP_CMP]     = { VINIL_OP_CMP,     "CMP",     "Compare (set flags)",         VinilOpcatComparison,     2, FALSE, FALSE, TRUE  },
+    [VINIL_OP_CMPU]    = { VINIL_OP_CMPU,    "CMPU",    "Compare unsigned",            VinilOpcatComparison,     2, FALSE, FALSE, TRUE  },
+
+    /* Conditional Branches - Bytecode */
+    [VINIL_OP_JEQ]     = { VINIL_OP_JEQ,     "JEQ",     "Jump if equal",               VinilOpcatControlFlow,    1, FALSE, FALSE, TRUE  },
+    [VINIL_OP_JNE]     = { VINIL_OP_JNE,     "JNE",     "Jump if not equal",           VinilOpcatControlFlow,    1, FALSE, FALSE, TRUE  },
+    [VINIL_OP_JLT]     = { VINIL_OP_JLT,     "JLT",     "Jump if less than",           VinilOpcatControlFlow,    1, FALSE, FALSE, TRUE  },
+    [VINIL_OP_JLE]     = { VINIL_OP_JLE,     "JLE",     "Jump if less or equal",       VinilOpcatControlFlow,    1, FALSE, FALSE, TRUE  },
+    [VINIL_OP_JGT]     = { VINIL_OP_JGT,     "JGT",     "Jump if greater than",        VinilOpcatControlFlow,    1, FALSE, FALSE, TRUE  },
+    [VINIL_OP_JGE]     = { VINIL_OP_JGE,     "JGE",     "Jump if greater or equal",    VinilOpcatControlFlow,    1, FALSE, FALSE, TRUE  },
+    [VINIL_OP_JMP]     = { VINIL_OP_JMP,     "JMP",     "Unconditional jump",          VinilOpcatControlFlow,    1, FALSE, FALSE, TRUE  },
+
+    /* Memory with Index - Bytecode */
+    [VINIL_OP_LOAD_INDEXED]  = { VINIL_OP_LOAD_INDEXED,  "LOAD.IDX",  "Load indexed",                VinilOpcatMemory,         3, TRUE,  FALSE, TRUE  },
+    [VINIL_OP_STORE_INDEXED] = { VINIL_OP_STORE_INDEXED, "STORE.IDX", "Store indexed",               VinilOpcatMemory,         4, FALSE, FALSE, TRUE  },
+    [VINIL_OP_LEA]           = { VINIL_OP_LEA,           "LEA",       "Load effective address",      VinilOpcatMemory,         2, TRUE,  FALSE, TRUE  },
+
+    /* Pointer Operations - Bytecode */
+    [VINIL_OP_LOAD_PTR]  = { VINIL_OP_LOAD_PTR,  "LOAD.PTR",  "Load via pointer",            VinilOpcatMemory,         1, TRUE,  FALSE, TRUE  },
+    [VINIL_OP_STORE_PTR] = { VINIL_OP_STORE_PTR, "STORE.PTR", "Store via pointer",           VinilOpcatMemory,         2, FALSE, FALSE, TRUE  },
+
+    /* System - Bytecode */
+    [VINIL_OP_TRAP]      = { VINIL_OP_TRAP,      "TRAP",      "Software trap",               VinilOpcatControlFlow,    0, FALSE, FALSE, TRUE  },
+    [VINIL_OP_NOP_HINT]  = { VINIL_OP_NOP_HINT,  "NOP.HINT",  "No-op with hint",             VinilOpcatControlFlow,    1, FALSE, FALSE, TRUE  },
 };

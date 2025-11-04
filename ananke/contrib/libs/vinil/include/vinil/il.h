@@ -161,6 +161,66 @@ typedef enum _VINIL_OPCODE {
     VINIL_OP_SHUFFLE,       /* Vector shuffle */
     VINIL_OP_NOP,           /* No operation */
 
+    /* ===== Stack-Based Bytecode Extensions ===== */
+
+    /* Stack Operations */
+    VINIL_OP_PUSH,          /* Push value onto stack */
+    VINIL_OP_POP,           /* Pop value from stack */
+    VINIL_OP_PUSHN,         /* Push N bytes onto stack */
+    VINIL_OP_POPN,          /* Pop N bytes from stack */
+    VINIL_OP_DUP,           /* Duplicate top of stack */
+    VINIL_OP_SWAP,          /* Swap top two stack values */
+
+    /* Sized Move Operations (explicit width) */
+    VINIL_OP_MOV8,          /* Move 8-bit (byte) */
+    VINIL_OP_MOV16,         /* Move 16-bit (word) */
+    VINIL_OP_MOV32,         /* Move 32-bit (dword) */
+    VINIL_OP_MOV64,         /* Move 64-bit (qword) */
+
+    /* Zero/Sign Extension */
+    VINIL_OP_ZEXT8,         /* Zero extend 8-bit to 32-bit */
+    VINIL_OP_ZEXT16,        /* Zero extend 16-bit to 32-bit */
+    VINIL_OP_ZEXT32,        /* Zero extend 32-bit to 64-bit */
+    VINIL_OP_SEXT8,         /* Sign extend 8-bit to 32-bit */
+    VINIL_OP_SEXT16,        /* Sign extend 16-bit to 32-bit */
+    VINIL_OP_SEXT32,        /* Sign extend 32-bit to 64-bit */
+
+    /* Truncation */
+    VINIL_OP_TRUNC8,        /* Truncate to 8-bit */
+    VINIL_OP_TRUNC16,       /* Truncate to 16-bit */
+    VINIL_OP_TRUNC32,       /* Truncate to 32-bit */
+
+    /* Unsigned Arithmetic */
+    VINIL_OP_MULU,          /* Unsigned multiply */
+    VINIL_OP_DIVU,          /* Unsigned divide */
+    VINIL_OP_MODU,          /* Unsigned modulo */
+
+    /* Comparison (sets condition flags) */
+    VINIL_OP_CMP,           /* Compare (sets EQ, LT, GT flags) */
+    VINIL_OP_CMPU,          /* Compare unsigned */
+
+    /* Conditional Branches (use condition flags) */
+    VINIL_OP_JEQ,           /* Jump if equal */
+    VINIL_OP_JNE,           /* Jump if not equal */
+    VINIL_OP_JLT,           /* Jump if less than */
+    VINIL_OP_JLE,           /* Jump if less or equal */
+    VINIL_OP_JGT,           /* Jump if greater than */
+    VINIL_OP_JGE,           /* Jump if greater or equal */
+    VINIL_OP_JMP,           /* Unconditional jump */
+
+    /* Memory Operations with Offset/Index */
+    VINIL_OP_LOAD_INDEXED,  /* Load with index: dst = mem[base + index * scale] */
+    VINIL_OP_STORE_INDEXED, /* Store with index: mem[base + index * scale] = src */
+    VINIL_OP_LEA,           /* Load effective address: dst = &(base + offset) */
+
+    /* Pointer/Address Operations */
+    VINIL_OP_LOAD_PTR,      /* Load pointer value: dst = *ptr */
+    VINIL_OP_STORE_PTR,     /* Store pointer value: *ptr = src */
+
+    /* System/Debugging */
+    VINIL_OP_TRAP,          /* Software trap/breakpoint */
+    VINIL_OP_NOP_HINT,      /* No-op with hint (for alignment) */
+
     VINIL_OP_COUNT
 } VINIL_OPCODE;
 
