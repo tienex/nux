@@ -4,19 +4,22 @@
 include @top_srcdir@/mk/top.mk
 
 # Build order with dependencies:
-# 1. Core abstractions (bus, storage)
-# 2. System infrastructure (timer, power)
-# 3. Base buses (pcie, usb, firewire, isa)
-# 4. Storage protocols (nvme, sata, scsi)
-# 5. High-speed interconnects (thunderbolt, rdma)
-# 6. Low-level buses (i2c, spi, hid)
-# 7. Multimedia (display, audio, network)
-# 8. Security (crypto)
-# 9. Virtualization (virt)
+# 1. Platform firmware (platform - device enumeration)
+# 2. Core abstractions (bus, storage)
+# 3. System infrastructure (timer, power)
+# 4. Base buses (pcie, usb, firewire, isa)
+# 5. Storage protocols (nvme, sata, scsi)
+# 6. High-speed interconnects (thunderbolt, rdma)
+# 7. Low-level buses (i2c, spi, hid)
+# 8. Multimedia (display, audio, network)
+# 9. Security (crypto)
+# 10. Virtualization (virt)
 
-SUBDIRS = bus storage timer power pcie usb firewire isa i2c spi hid nvme sata scsi thunderbolt rdma display audio network crypto virt
+SUBDIRS = platform bus storage timer power pcie usb firewire isa i2c spi hid nvme sata scsi thunderbolt rdma display audio network crypto virt
 
 # Dependency declarations
+platform:
+
 bus:
 
 storage:
