@@ -3460,6 +3460,91 @@ JitGenWriteFence (
   return S_OK;
 }
 
+/* TEX: Sample texture - falls back to interpreter */
+/* Complex COM vtable dispatch not worth JIT compiling */
+static
+HRESULT
+JitGenTex (
+  VINIL_JIT_CONTEXT       *Context,
+  VINIL_INSTRUCTION_NODE  *Inst
+  )
+{
+  /* Texture sampling requires COM vtable dispatch - fall back to interpreter */
+  (VOID)Context;
+  (VOID)Inst;
+  return E_NOTIMPL;
+}
+
+/* TXL: Sample texture with LOD - falls back to interpreter */
+static
+HRESULT
+JitGenTxl (
+  VINIL_JIT_CONTEXT       *Context,
+  VINIL_INSTRUCTION_NODE  *Inst
+  )
+{
+  /* Texture sampling requires COM vtable dispatch - fall back to interpreter */
+  (VOID)Context;
+  (VOID)Inst;
+  return E_NOTIMPL;
+}
+
+/* TXB: Sample texture with bias - falls back to interpreter */
+static
+HRESULT
+JitGenTxb (
+  VINIL_JIT_CONTEXT       *Context,
+  VINIL_INSTRUCTION_NODE  *Inst
+  )
+{
+  /* Texture sampling requires COM vtable dispatch - fall back to interpreter */
+  (VOID)Context;
+  (VOID)Inst;
+  return E_NOTIMPL;
+}
+
+/* TXP: Sample texture with projection - falls back to interpreter */
+static
+HRESULT
+JitGenTxp (
+  VINIL_JIT_CONTEXT       *Context,
+  VINIL_INSTRUCTION_NODE  *Inst
+  )
+{
+  /* Texture sampling requires COM vtable dispatch - fall back to interpreter */
+  (VOID)Context;
+  (VOID)Inst;
+  return E_NOTIMPL;
+}
+
+/* TXD: Sample texture with gradients - falls back to interpreter */
+static
+HRESULT
+JitGenTxd (
+  VINIL_JIT_CONTEXT       *Context,
+  VINIL_INSTRUCTION_NODE  *Inst
+  )
+{
+  /* Texture sampling requires COM vtable dispatch - fall back to interpreter */
+  (VOID)Context;
+  (VOID)Inst;
+  return E_NOTIMPL;
+}
+
+/* TXF: Fetch texel at integer coordinates - falls back to interpreter */
+static
+HRESULT
+JitGenTxf (
+  VINIL_JIT_CONTEXT       *Context,
+  VINIL_INSTRUCTION_NODE  *Inst
+  )
+{
+  /* Texture sampling requires COM vtable dispatch - fall back to interpreter */
+  (VOID)Context;
+  (VOID)Inst;
+  return E_NOTIMPL;
+}
+
 /* SHL: dst = src1 << src2 (logical left shift) */
 static
 HRESULT
@@ -4068,6 +4153,24 @@ JitCompileInstruction (
 
     case VINIL_OP_WRITE_FENCE:
       return JitGenWriteFence (Context, Inst);
+
+    case VINIL_OP_TEX:
+      return JitGenTex (Context, Inst);
+
+    case VINIL_OP_TXL:
+      return JitGenTxl (Context, Inst);
+
+    case VINIL_OP_TXB:
+      return JitGenTxb (Context, Inst);
+
+    case VINIL_OP_TXP:
+      return JitGenTxp (Context, Inst);
+
+    case VINIL_OP_TXD:
+      return JitGenTxd (Context, Inst);
+
+    case VINIL_OP_TXF:
+      return JitGenTxf (Context, Inst);
 
     case VINIL_OP_RET:
       return JitGenRet (Context, Inst);

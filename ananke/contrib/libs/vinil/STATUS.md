@@ -135,13 +135,16 @@
 - [x] Memory operations: LOAD, STORE, LOAD_VEC, STORE_VEC (100%)
 - [x] Atomic operations: ATOMIC_ADD, SUB, AND, OR, XOR, XCHG, CAS (78%, MIN/MAX deferred)
 - [x] Synchronization: BARRIER, FENCE, MEM_FENCE, READ_FENCE, WRITE_FENCE (100%)
+- [x] Texture operations: TEX, TXL, TXB, TXP, TXD, TXF (0%, deferred - fall back to interpreter)
 - [x] Register allocation framework
 - [x] Prologue/epilogue generation (3 float scratch registers)
 - [x] Program compilation API
 - [x] External function calls (floorf, ceilf, sqrtf, truncf, roundf, expf, exp2f, logf, log2f, sinf, cosf, tanf, asinf, acosf, atanf, atan2f, powf, NTRTL atomics, __sync_synchronize)
-- [x] 79/94 opcodes implemented
-- [ ] Extended opcode support (15 opcodes remaining)
-- [ ] Control flow compilation
+- [x] 79/94 opcodes JIT-compiled (7 control flow remaining)
+- [x] 85/94 opcodes recognized in switch (texture ops fall back to interpreter)
+- [ ] Control flow compilation (IF, ELSE, ENDIF, LOOP, ENDLOOP, BREAK, CONTINUE)
+- [ ] Texture operation JIT compilation (complex COM vtable dispatch)
+- [ ] Atomic MIN/MAX JIT compilation (complex CAS loops)
 - [ ] Optimization passes
 
 ### 11. Build System (100%)
@@ -204,10 +207,10 @@ These are massive dependencies that would dwarf VINIL itself.
 | **Disassembler** | **2** | **400** | **94** | **100%** |
 | **Assembler** | **1** | **650** | **94** | **100%** |
 | Binary Format | 1 | 500 | - | 100% |
-| JIT | 1 | 4195 | 79/94 | 84% |
+| JIT | 1 | 4300 | 79/94 | 84% |
 | Frontends (stubs) | 4 | 600 | - | 0% |
 | AOT (stub) | 1 | 250 | - | 0% |
-| **Total** | **18** | **~10,425** | - | **92%** |
+| **Total** | **18** | **~10,530** | - | **92%** |
 
 ## 🚀 What's Working
 
@@ -269,8 +272,10 @@ These are massive dependencies that would dwarf VINIL itself.
    //   Memory: LOAD, STORE, LOAD_VEC, STORE_VEC (100%)
    //   Atomics: ATOMIC_ADD, SUB, AND, OR, XOR, XCHG, CAS (78%, MIN/MAX deferred)
    //   Synchronization: BARRIER, FENCE, MEM_FENCE, READ_FENCE, WRITE_FENCE (100%)
+   //   Texture: TEX, TXL, TXB, TXP, TXD, TXF (fall back to interpreter)
    //   Control: RET
    // ~10-100x faster than interpreter for arithmetic and vector operations
+   // Seamless fallback to interpreter for unsupported operations
    ```
 
 ## 📝 Recent Commits
@@ -295,7 +300,8 @@ These are massive dependencies that would dwarf VINIL itself.
 18. **eb55b83** - Add work-item functions (GET_GLOBAL_ID, GET_LOCAL_ID, GET_GROUP_ID, GET_GLOBAL_SIZE, GET_LOCAL_SIZE, GET_NUM_GROUPS) to JIT compiler
 19. **4654c24** - Add memory operations (LOAD, STORE, LOAD_VEC, STORE_VEC) to JIT compiler
 20. **9d868d2** - Add atomic operations (ATOMIC_ADD, SUB, AND, OR, XOR, XCHG, CAS) to JIT compiler
-21. **(pending)** - Add synchronization operations (BARRIER, FENCE, MEM_FENCE, READ_FENCE, WRITE_FENCE) to JIT compiler
+21. **d219b8e** - Add synchronization operations (BARRIER, FENCE, MEM_FENCE, READ_FENCE, WRITE_FENCE) to JIT compiler
+22. **(pending)** - Add texture operation stubs (TEX, TXL, TXB, TXP, TXD, TXF) - fall back to interpreter
 
 ## 🎯 Summary
 
