@@ -1557,7 +1557,7 @@ ExecuteInstruction (
     /* Stack Operations */
     case VINIL_OP_PUSH:
       /* PUSH src0 - push register value onto stack */
-      if (Instruction->Src[0] != NULL && State->Stack != NULL) {
+      if (Instruction->Src[0] != NULL) {
         VINIL_REGISTER_VALUE *SrcReg = GetRegister (State, Instruction->Src[0]);
         if (SrcReg != NULL && State->SP >= sizeof(VINIL_REGISTER_VALUE)) {
           State->SP -= sizeof(VINIL_REGISTER_VALUE);
@@ -1568,9 +1568,9 @@ ExecuteInstruction (
 
     case VINIL_OP_POP:
       /* POP dst - pop value from stack */
-      if (Instruction->Dst != NULL && State->Stack != NULL) {
+      if (Instruction->Dst != NULL) {
         VINIL_REGISTER_VALUE *DstReg = GetRegister (State, Instruction->Dst);
-        if (DstReg != NULL && State->SP + sizeof(VINIL_REGISTER_VALUE) <= State->StackSize) {
+        if (DstReg != NULL && State->SP + sizeof(VINIL_REGISTER_VALUE) <= sizeof(State->Stack)) {
           memcpy(DstReg, &State->Stack[State->SP], sizeof(VINIL_REGISTER_VALUE));
           State->SP += sizeof(VINIL_REGISTER_VALUE);
         }
@@ -1579,7 +1579,7 @@ ExecuteInstruction (
 
     case VINIL_OP_DUP:
       /* DUP - duplicate top of stack */
-      if (State->Stack != NULL && State->SP + sizeof(VINIL_REGISTER_VALUE) <= State->StackSize) {
+      if (State->SP + sizeof(VINIL_REGISTER_VALUE) <= sizeof(State->Stack)) {
         if (State->SP >= sizeof(VINIL_REGISTER_VALUE)) {
           State->SP -= sizeof(VINIL_REGISTER_VALUE);
           memcpy(&State->Stack[State->SP], &State->Stack[State->SP + sizeof(VINIL_REGISTER_VALUE)], sizeof(VINIL_REGISTER_VALUE));
@@ -1589,7 +1589,7 @@ ExecuteInstruction (
 
     case VINIL_OP_SWAP:
       /* SWAP - swap top two stack values */
-      if (State->Stack != NULL && State->SP + 2 * sizeof(VINIL_REGISTER_VALUE) <= State->StackSize) {
+      if (State->SP + 2 * sizeof(VINIL_REGISTER_VALUE) <= sizeof(State->Stack)) {
         VINIL_REGISTER_VALUE Temp;
         memcpy(&Temp, &State->Stack[State->SP], sizeof(VINIL_REGISTER_VALUE));
         memcpy(&State->Stack[State->SP], &State->Stack[State->SP + sizeof(VINIL_REGISTER_VALUE)], sizeof(VINIL_REGISTER_VALUE));
@@ -2425,12 +2425,7 @@ VinilInterpreterExecute (
   memset (&State, 0, sizeof (VINIL_EXECUTION_STATE));
   State.Inputs = Inputs;
   State.Outputs = Outputs;
-
-  /* Allocate bytecode stack (4KB) */
-  UINT8 StackBuffer[4096];
-  State.Stack = StackBuffer;
-  State.StackSize = sizeof(StackBuffer);
-  State.SP = State.StackSize;  /* Stack grows downward */
+  State.SP = sizeof(State.Stack);  /* Stack grows downward from top */
 
   /* Execute program */
   Result = ExecuteProgram (Program, &State);
@@ -2511,12 +2506,7 @@ Context_ExecuteKernel (
             for (lx = 0; lx < LocalSize[0]; lx++) {
               /* Initialize work-item state */
               memset (&State, 0, sizeof (VINIL_EXECUTION_STATE));
-
-              /* Allocate bytecode stack (4KB) */
-              UINT8 StackBuffer[4096];
-              State.Stack = StackBuffer;
-              State.StackSize = sizeof(StackBuffer);
-              State.SP = State.StackSize;  /* Stack grows downward */
+              State.SP = sizeof(State.Stack);  /* Stack grows downward from top */
 
               State.GlobalId[0] = gx + lx;
               State.GlobalId[1] = gy + ly;

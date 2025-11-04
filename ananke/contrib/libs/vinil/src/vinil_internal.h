@@ -224,10 +224,9 @@ typedef struct _VINIL_EXECUTION_STATE {
   VOID                             *SharedMemory;
   UINTN                            SharedMemorySize;
 
-  /* Stack-based bytecode execution support */
-  UINT8                            *Stack;           /* General-purpose stack (4KB) */
-  UINTN                            StackSize;        /* Stack size in bytes */
-  UINTN                            SP;               /* Stack pointer (grows down) */
+  /* Stack-based bytecode execution support (internal, not user-accessible) */
+  UINT8                            Stack[4096];      /* Internal bytecode stack */
+  UINTN                            SP;               /* Stack pointer (grows down, internal) */
 } VINIL_EXECUTION_STATE;
 
 //
