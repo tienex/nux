@@ -2090,6 +2090,251 @@ JitGenDp2 (
   return S_OK;
 }
 
+/* CRS: dst = cross(src1, src2) - 3D cross product */
+static
+HRESULT
+JitGenCrs (
+  VINIL_JIT_CONTEXT       *Context,
+  VINIL_INSTRUCTION_NODE  *Inst
+  )
+{
+  struct sljit_compiler *C = Context->Compiler;
+  sljit_sw DstOffset, Src1Offset, Src2Offset;
+  HRESULT Result;
+  union {
+    float f;
+    sljit_u32 u;
+  } zero;
+
+  zero.f = 0.0f;
+
+  Result = GetVariableOffset (Context, Inst->Dst, &DstOffset);
+  if (FAILED (Result)) return Result;
+
+  Result = GetVariableOffset (Context, Inst->Src[0], &Src1Offset);
+  if (FAILED (Result)) return Result;
+
+  Result = GetVariableOffset (Context, Inst->Src[1], &Src2Offset);
+  if (FAILED (Result)) return Result;
+
+  /* Cross product: a x b = (a.y*b.z - a.z*b.y, a.z*b.x - a.x*b.z, a.x*b.y - a.y*b.x, 0) */
+
+  /* X component: a.y*b.z - a.z*b.y */
+  sljit_emit_fmem (C, SLJIT_MOV_F32 | SLJIT_MEM_ALIGNED_16,
+    SLJIT_FR0,
+    SLJIT_MEM1(REG_STATE), Src1Offset + 4);  /* a.y */
+  sljit_emit_fmem (C, SLJIT_MOV_F32 | SLJIT_MEM_ALIGNED_16,
+    SLJIT_FR1,
+    SLJIT_MEM1(REG_STATE), Src2Offset + 8);  /* b.z */
+  sljit_emit_fop2 (C, SLJIT_MUL_F32, SLJIT_FR0, 0, SLJIT_FR0, 0, SLJIT_FR1, 0);
+
+  sljit_emit_fmem (C, SLJIT_MOV_F32 | SLJIT_MEM_ALIGNED_16,
+    SLJIT_FR1,
+    SLJIT_MEM1(REG_STATE), Src1Offset + 8);  /* a.z */
+  sljit_emit_fmem (C, SLJIT_MOV_F32 | SLJIT_MEM_ALIGNED_16,
+    SLJIT_FR2,
+    SLJIT_MEM1(REG_STATE), Src2Offset + 4);  /* b.y */
+  sljit_emit_fop2 (C, SLJIT_MUL_F32, SLJIT_FR1, 0, SLJIT_FR1, 0, SLJIT_FR2, 0);
+  sljit_emit_fop2 (C, SLJIT_SUB_F32, SLJIT_FR0, 0, SLJIT_FR0, 0, SLJIT_FR1, 0);
+  sljit_emit_fmem (C, SLJIT_MOV_F32 | SLJIT_MEM_STORE | SLJIT_MEM_ALIGNED_16,
+    SLJIT_FR0,
+    SLJIT_MEM1(REG_STATE), DstOffset + 0);
+
+  /* Y component: a.z*b.x - a.x*b.z */
+  sljit_emit_fmem (C, SLJIT_MOV_F32 | SLJIT_MEM_ALIGNED_16,
+    SLJIT_FR0,
+    SLJIT_MEM1(REG_STATE), Src1Offset + 8);  /* a.z */
+  sljit_emit_fmem (C, SLJIT_MOV_F32 | SLJIT_MEM_ALIGNED_16,
+    SLJIT_FR1,
+    SLJIT_MEM1(REG_STATE), Src2Offset + 0);  /* b.x */
+  sljit_emit_fop2 (C, SLJIT_MUL_F32, SLJIT_FR0, 0, SLJIT_FR0, 0, SLJIT_FR1, 0);
+
+  sljit_emit_fmem (C, SLJIT_MOV_F32 | SLJIT_MEM_ALIGNED_16,
+    SLJIT_FR1,
+    SLJIT_MEM1(REG_STATE), Src1Offset + 0);  /* a.x */
+  sljit_emit_fmem (C, SLJIT_MOV_F32 | SLJIT_MEM_ALIGNED_16,
+    SLJIT_FR2,
+    SLJIT_MEM1(REG_STATE), Src2Offset + 8);  /* b.z */
+  sljit_emit_fop2 (C, SLJIT_MUL_F32, SLJIT_FR1, 0, SLJIT_FR1, 0, SLJIT_FR2, 0);
+  sljit_emit_fop2 (C, SLJIT_SUB_F32, SLJIT_FR0, 0, SLJIT_FR0, 0, SLJIT_FR1, 0);
+  sljit_emit_fmem (C, SLJIT_MOV_F32 | SLJIT_MEM_STORE | SLJIT_MEM_ALIGNED_16,
+    SLJIT_FR0,
+    SLJIT_MEM1(REG_STATE), DstOffset + 4);
+
+  /* Z component: a.x*b.y - a.y*b.x */
+  sljit_emit_fmem (C, SLJIT_MOV_F32 | SLJIT_MEM_ALIGNED_16,
+    SLJIT_FR0,
+    SLJIT_MEM1(REG_STATE), Src1Offset + 0);  /* a.x */
+  sljit_emit_fmem (C, SLJIT_MOV_F32 | SLJIT_MEM_ALIGNED_16,
+    SLJIT_FR1,
+    SLJIT_MEM1(REG_STATE), Src2Offset + 4);  /* b.y */
+  sljit_emit_fop2 (C, SLJIT_MUL_F32, SLJIT_FR0, 0, SLJIT_FR0, 0, SLJIT_FR1, 0);
+
+  sljit_emit_fmem (C, SLJIT_MOV_F32 | SLJIT_MEM_ALIGNED_16,
+    SLJIT_FR1,
+    SLJIT_MEM1(REG_STATE), Src1Offset + 4);  /* a.y */
+  sljit_emit_fmem (C, SLJIT_MOV_F32 | SLJIT_MEM_ALIGNED_16,
+    SLJIT_FR2,
+    SLJIT_MEM1(REG_STATE), Src2Offset + 0);  /* b.x */
+  sljit_emit_fop2 (C, SLJIT_MUL_F32, SLJIT_FR1, 0, SLJIT_FR1, 0, SLJIT_FR2, 0);
+  sljit_emit_fop2 (C, SLJIT_SUB_F32, SLJIT_FR0, 0, SLJIT_FR0, 0, SLJIT_FR1, 0);
+  sljit_emit_fmem (C, SLJIT_MOV_F32 | SLJIT_MEM_STORE | SLJIT_MEM_ALIGNED_16,
+    SLJIT_FR0,
+    SLJIT_MEM1(REG_STATE), DstOffset + 8);
+
+  /* W component: 0.0 */
+  sljit_emit_op1 (C, SLJIT_MOV, REG_TMP1, 0, SLJIT_IMM, zero.u);
+  sljit_emit_op1 (C, SLJIT_MOV,
+    SLJIT_MEM1(REG_STATE), DstOffset + 12,
+    REG_TMP1, 0);
+
+  return S_OK;
+}
+
+/* LEN: dst = length(src) = sqrt(dot(src, src)) */
+static
+HRESULT
+JitGenLen (
+  VINIL_JIT_CONTEXT       *Context,
+  VINIL_INSTRUCTION_NODE  *Inst
+  )
+{
+  struct sljit_compiler *C = Context->Compiler;
+  sljit_sw DstOffset, SrcOffset;
+  HRESULT Result;
+  sljit_s32 i;
+
+  Result = GetVariableOffset (Context, Inst->Dst, &DstOffset);
+  if (FAILED (Result)) return Result;
+
+  Result = GetVariableOffset (Context, Inst->Src[0], &SrcOffset);
+  if (FAILED (Result)) return Result;
+
+  /* Calculate length: sqrt(x*x + y*y + z*z + w*w) */
+
+  /* X*X */
+  sljit_emit_fmem (C, SLJIT_MOV_F32 | SLJIT_MEM_ALIGNED_16,
+    SLJIT_FR0,
+    SLJIT_MEM1(REG_STATE), SrcOffset + 0);
+  sljit_emit_fop2 (C, SLJIT_MUL_F32, SLJIT_FR0, 0, SLJIT_FR0, 0, SLJIT_FR0, 0);
+
+  /* Y*Y + accumulate */
+  for (i = 1; i < 4; i++) {
+    sljit_emit_fmem (C, SLJIT_MOV_F32 | SLJIT_MEM_ALIGNED_16,
+      SLJIT_FR1,
+      SLJIT_MEM1(REG_STATE), SrcOffset + i * 4);
+    sljit_emit_fop2 (C, SLJIT_MUL_F32, SLJIT_FR1, 0, SLJIT_FR1, 0, SLJIT_FR1, 0);
+    sljit_emit_fop2 (C, SLJIT_ADD_F32, SLJIT_FR0, 0, SLJIT_FR0, 0, SLJIT_FR1, 0);
+  }
+
+  /* sqrt(sum) */
+  sljit_emit_icall (C, SLJIT_CALL, SLJIT_ARGS1(F32, F32), SLJIT_IMM, SLJIT_FUNC_ADDR(sqrtf));
+
+  /* Store result in all 4 components */
+  for (i = 0; i < 4; i++) {
+    sljit_emit_fmem (C, SLJIT_MOV_F32 | SLJIT_MEM_STORE | SLJIT_MEM_ALIGNED_16,
+      SLJIT_FR0,
+      SLJIT_MEM1(REG_STATE), DstOffset + i * 4);
+  }
+
+  return S_OK;
+}
+
+/* NRM: dst = normalize(src) = src / length(src) */
+static
+HRESULT
+JitGenNrm (
+  VINIL_JIT_CONTEXT       *Context,
+  VINIL_INSTRUCTION_NODE  *Inst
+  )
+{
+  struct sljit_compiler *C = Context->Compiler;
+  sljit_sw DstOffset, SrcOffset;
+  HRESULT Result;
+  sljit_s32 i;
+  struct sljit_jump *jump_nonzero, *jump_end;
+  union {
+    float f;
+    sljit_u32 u;
+  } zero;
+
+  zero.f = 0.0f;
+
+  Result = GetVariableOffset (Context, Inst->Dst, &DstOffset);
+  if (FAILED (Result)) return Result;
+
+  Result = GetVariableOffset (Context, Inst->Src[0], &SrcOffset);
+  if (FAILED (Result)) return Result;
+
+  /* Calculate length: sqrt(x*x + y*y + z*z + w*w) */
+
+  /* X*X */
+  sljit_emit_fmem (C, SLJIT_MOV_F32 | SLJIT_MEM_ALIGNED_16,
+    SLJIT_FR0,
+    SLJIT_MEM1(REG_STATE), SrcOffset + 0);
+  sljit_emit_fop2 (C, SLJIT_MUL_F32, SLJIT_FR0, 0, SLJIT_FR0, 0, SLJIT_FR0, 0);
+
+  /* Y*Y, Z*Z, W*W + accumulate */
+  for (i = 1; i < 4; i++) {
+    sljit_emit_fmem (C, SLJIT_MOV_F32 | SLJIT_MEM_ALIGNED_16,
+      SLJIT_FR1,
+      SLJIT_MEM1(REG_STATE), SrcOffset + i * 4);
+    sljit_emit_fop2 (C, SLJIT_MUL_F32, SLJIT_FR1, 0, SLJIT_FR1, 0, SLJIT_FR1, 0);
+    sljit_emit_fop2 (C, SLJIT_ADD_F32, SLJIT_FR0, 0, SLJIT_FR0, 0, SLJIT_FR1, 0);
+  }
+
+  /* sqrt(sum) - length in FR0 */
+  sljit_emit_icall (C, SLJIT_CALL, SLJIT_ARGS1(F32, F32), SLJIT_IMM, SLJIT_FUNC_ADDR(sqrtf));
+
+  /* Check if length > 0 */
+  sljit_emit_op1 (C, SLJIT_MOV, REG_TMP1, 0, SLJIT_IMM, zero.u);
+  sljit_emit_op1 (C, SLJIT_MOV, SLJIT_MEM1(SLJIT_SP), -16, REG_TMP1, 0);
+  sljit_emit_fmem (C, SLJIT_MOV_F32,
+    SLJIT_FR1,
+    SLJIT_MEM1(SLJIT_SP), -16);
+
+  sljit_emit_fop1 (C, SLJIT_CMP_F32 | SLJIT_SET_GREATER,
+    SLJIT_FR0, 0,
+    SLJIT_FR1, 0);
+
+  jump_nonzero = sljit_emit_jump (C, SLJIT_GREATER);
+
+  /* Length == 0, set all components to 0.0 */
+  for (i = 0; i < 4; i++) {
+    sljit_emit_op1 (C, SLJIT_MOV, REG_TMP1, 0, SLJIT_IMM, zero.u);
+    sljit_emit_op1 (C, SLJIT_MOV,
+      SLJIT_MEM1(REG_STATE), DstOffset + i * 4,
+      REG_TMP1, 0);
+  }
+
+  jump_end = sljit_emit_jump (C, SLJIT_JUMP);
+
+  /* Length > 0, normalize: divide each component by length */
+  sljit_set_label (jump_nonzero, sljit_emit_label (C));
+
+  for (i = 0; i < 4; i++) {
+    /* Load src component */
+    sljit_emit_fmem (C, SLJIT_MOV_F32 | SLJIT_MEM_ALIGNED_16,
+      SLJIT_FR1,
+      SLJIT_MEM1(REG_STATE), SrcOffset + i * 4);
+
+    /* Divide by length */
+    sljit_emit_fop2 (C, SLJIT_DIV_F32,
+      SLJIT_FR1, 0,
+      SLJIT_FR1, 0,
+      SLJIT_FR0, 0);
+
+    /* Store result */
+    sljit_emit_fmem (C, SLJIT_MOV_F32 | SLJIT_MEM_STORE | SLJIT_MEM_ALIGNED_16,
+      SLJIT_FR1,
+      SLJIT_MEM1(REG_STATE), DstOffset + i * 4);
+  }
+
+  sljit_set_label (jump_end, sljit_emit_label (C));
+
+  return S_OK;
+}
+
 //
 // Main Instruction Compiler
 //
@@ -2212,6 +2457,15 @@ JitCompileInstruction (
 
     case VINIL_OP_DP4:
       return JitGenDp4 (Context, Inst);
+
+    case VINIL_OP_CRS:
+      return JitGenCrs (Context, Inst);
+
+    case VINIL_OP_LEN:
+      return JitGenLen (Context, Inst);
+
+    case VINIL_OP_NRM:
+      return JitGenNrm (Context, Inst);
 
     case VINIL_OP_RET:
       return JitGenRet (Context, Inst);
