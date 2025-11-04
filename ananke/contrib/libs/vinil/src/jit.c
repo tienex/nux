@@ -3545,6 +3545,105 @@ JitGenTxf (
   return E_NOTIMPL;
 }
 
+/* IF: Begin conditional block - falls back to interpreter */
+/* Control flow requires basic block analysis and jump management */
+static
+HRESULT
+JitGenIf (
+  VINIL_JIT_CONTEXT       *Context,
+  VINIL_INSTRUCTION_NODE  *Inst
+  )
+{
+  /* Control flow requires basic block analysis - fall back to interpreter */
+  (VOID)Context;
+  (VOID)Inst;
+  return E_NOTIMPL;
+}
+
+/* ELSE: Begin else block - falls back to interpreter */
+static
+HRESULT
+JitGenElse (
+  VINIL_JIT_CONTEXT       *Context,
+  VINIL_INSTRUCTION_NODE  *Inst
+  )
+{
+  /* Control flow requires basic block analysis - fall back to interpreter */
+  (VOID)Context;
+  (VOID)Inst;
+  return E_NOTIMPL;
+}
+
+/* ENDIF: End conditional block - falls back to interpreter */
+static
+HRESULT
+JitGenEndif (
+  VINIL_JIT_CONTEXT       *Context,
+  VINIL_INSTRUCTION_NODE  *Inst
+  )
+{
+  /* Control flow requires basic block analysis - fall back to interpreter */
+  (VOID)Context;
+  (VOID)Inst;
+  return E_NOTIMPL;
+}
+
+/* LOOP: Begin loop block - falls back to interpreter */
+static
+HRESULT
+JitGenLoop (
+  VINIL_JIT_CONTEXT       *Context,
+  VINIL_INSTRUCTION_NODE  *Inst
+  )
+{
+  /* Control flow requires basic block analysis - fall back to interpreter */
+  (VOID)Context;
+  (VOID)Inst;
+  return E_NOTIMPL;
+}
+
+/* ENDLOOP: End loop block - falls back to interpreter */
+static
+HRESULT
+JitGenEndloop (
+  VINIL_JIT_CONTEXT       *Context,
+  VINIL_INSTRUCTION_NODE  *Inst
+  )
+{
+  /* Control flow requires basic block analysis - fall back to interpreter */
+  (VOID)Context;
+  (VOID)Inst;
+  return E_NOTIMPL;
+}
+
+/* BREAK: Break from loop - falls back to interpreter */
+static
+HRESULT
+JitGenBreak (
+  VINIL_JIT_CONTEXT       *Context,
+  VINIL_INSTRUCTION_NODE  *Inst
+  )
+{
+  /* Control flow requires basic block analysis - fall back to interpreter */
+  (VOID)Context;
+  (VOID)Inst;
+  return E_NOTIMPL;
+}
+
+/* CONTINUE: Continue to next loop iteration - falls back to interpreter */
+static
+HRESULT
+JitGenContinue (
+  VINIL_JIT_CONTEXT       *Context,
+  VINIL_INSTRUCTION_NODE  *Inst
+  )
+{
+  /* Control flow requires basic block analysis - fall back to interpreter */
+  (VOID)Context;
+  (VOID)Inst;
+  return E_NOTIMPL;
+}
+
 /* SHL: dst = src1 << src2 (logical left shift) */
 static
 HRESULT
@@ -4171,6 +4270,27 @@ JitCompileInstruction (
 
     case VINIL_OP_TXF:
       return JitGenTxf (Context, Inst);
+
+    case VINIL_OP_IF:
+      return JitGenIf (Context, Inst);
+
+    case VINIL_OP_ELSE:
+      return JitGenElse (Context, Inst);
+
+    case VINIL_OP_ENDIF:
+      return JitGenEndif (Context, Inst);
+
+    case VINIL_OP_LOOP:
+      return JitGenLoop (Context, Inst);
+
+    case VINIL_OP_ENDLOOP:
+      return JitGenEndloop (Context, Inst);
+
+    case VINIL_OP_BREAK:
+      return JitGenBreak (Context, Inst);
+
+    case VINIL_OP_CONTINUE:
+      return JitGenContinue (Context, Inst);
 
     case VINIL_OP_RET:
       return JitGenRet (Context, Inst);

@@ -119,7 +119,7 @@
 - [x] Format validation
 - [x] Load/Save IL programs
 
-### 10. JIT Compiler (84%)
+### 10. JIT Compiler (84% JIT-compiled, 100% recognized)
 - [x] SLJIT integration
 - [x] Arithmetic operations: MOV, MOVA, ADD, SUB, MUL, DIV, MAD, NEG, ABS, CLAMP (100%)
 - [x] Comparison operations: MIN, MAX (100%)
@@ -136,13 +136,16 @@
 - [x] Atomic operations: ATOMIC_ADD, SUB, AND, OR, XOR, XCHG, CAS (78%, MIN/MAX deferred)
 - [x] Synchronization: BARRIER, FENCE, MEM_FENCE, READ_FENCE, WRITE_FENCE (100%)
 - [x] Texture operations: TEX, TXL, TXB, TXP, TXD, TXF (0%, deferred - fall back to interpreter)
+- [x] Control flow: IF, ELSE, ENDIF, LOOP, ENDLOOP, BREAK, CONTINUE (0%, deferred - fall back to interpreter)
 - [x] Register allocation framework
 - [x] Prologue/epilogue generation (3 float scratch registers)
 - [x] Program compilation API
 - [x] External function calls (floorf, ceilf, sqrtf, truncf, roundf, expf, exp2f, logf, log2f, sinf, cosf, tanf, asinf, acosf, atanf, atan2f, powf, NTRTL atomics, __sync_synchronize)
-- [x] 79/94 opcodes JIT-compiled (7 control flow remaining)
-- [x] 85/94 opcodes recognized in switch (texture ops fall back to interpreter)
-- [ ] Control flow compilation (IF, ELSE, ENDIF, LOOP, ENDLOOP, BREAK, CONTINUE)
+- [x] **79/94 opcodes fully JIT-compiled (84%)**
+- [x] **94/94 opcodes recognized in switch statement (100%)**
+- [x] **15 opcodes fall back to interpreter** (control flow, texture ops, atomic MIN/MAX)
+- [x] Seamless fallback mechanism for unsupported operations
+- [ ] Full control flow JIT compilation (requires basic block analysis)
 - [ ] Texture operation JIT compilation (complex COM vtable dispatch)
 - [ ] Atomic MIN/MAX JIT compilation (complex CAS loops)
 - [ ] Optimization passes
@@ -207,10 +210,10 @@ These are massive dependencies that would dwarf VINIL itself.
 | **Disassembler** | **2** | **400** | **94** | **100%** |
 | **Assembler** | **1** | **650** | **94** | **100%** |
 | Binary Format | 1 | 500 | - | 100% |
-| JIT | 1 | 4300 | 79/94 | 84% |
+| **JIT** | **1** | **4,420** | **79/94** | **84%** |
 | Frontends (stubs) | 4 | 600 | - | 0% |
 | AOT (stub) | 1 | 250 | - | 0% |
-| **Total** | **18** | **~10,530** | - | **92%** |
+| **Total** | **18** | **~10,650** | - | **93%** |
 
 ## 🚀 What's Working
 
@@ -257,7 +260,8 @@ These are massive dependencies that would dwarf VINIL itself.
 6. **JIT Compilation**
    ```c
    IVinilContext_Execute(ctx, program, VinilBackendJit, inputs, outputs);
-   // JIT-compiled opcodes (79/94):
+   // All 94 opcodes recognized in switch statement
+   // 79 opcodes with full JIT compilation (84%):
    //   Arithmetic: MOV, MOVA, ADD, SUB, MUL, DIV, MAD, NEG, ABS, CLAMP (100%)
    //   Comparison: MIN, MAX (100%)
    //   Reciprocals: RCP, RSQ (100%)
@@ -272,10 +276,13 @@ These are massive dependencies that would dwarf VINIL itself.
    //   Memory: LOAD, STORE, LOAD_VEC, STORE_VEC (100%)
    //   Atomics: ATOMIC_ADD, SUB, AND, OR, XOR, XCHG, CAS (78%, MIN/MAX deferred)
    //   Synchronization: BARRIER, FENCE, MEM_FENCE, READ_FENCE, WRITE_FENCE (100%)
-   //   Texture: TEX, TXL, TXB, TXP, TXD, TXF (fall back to interpreter)
-   //   Control: RET
-   // ~10-100x faster than interpreter for arithmetic and vector operations
-   // Seamless fallback to interpreter for unsupported operations
+   //   Control: RET (100%)
+   // 15 opcodes fall back to interpreter (16%):
+   //   Control flow: IF, ELSE, ENDIF, LOOP, ENDLOOP, BREAK, CONTINUE (7 opcodes)
+   //   Texture: TEX, TXL, TXB, TXP, TXD, TXF (6 opcodes)
+   //   Atomics: ATOMIC_MIN, ATOMIC_MAX (2 opcodes)
+   // ~10-100x faster than interpreter for JIT-compiled operations
+   // Seamless fallback to interpreter for complex operations
    ```
 
 ## 📝 Recent Commits
@@ -301,7 +308,8 @@ These are massive dependencies that would dwarf VINIL itself.
 19. **4654c24** - Add memory operations (LOAD, STORE, LOAD_VEC, STORE_VEC) to JIT compiler
 20. **9d868d2** - Add atomic operations (ATOMIC_ADD, SUB, AND, OR, XOR, XCHG, CAS) to JIT compiler
 21. **d219b8e** - Add synchronization operations (BARRIER, FENCE, MEM_FENCE, READ_FENCE, WRITE_FENCE) to JIT compiler
-22. **(pending)** - Add texture operation stubs (TEX, TXL, TXB, TXP, TXD, TXF) - fall back to interpreter
+22. **3def7e0** - Add texture operation stubs (TEX, TXL, TXB, TXP, TXD, TXF) - fall back to interpreter
+23. **(pending)** - Add control flow operation stubs (IF, ELSE, ENDIF, LOOP, ENDLOOP, BREAK, CONTINUE) - complete 94/94 opcode recognition
 
 ## 🎯 Summary
 
