@@ -119,7 +119,7 @@
 - [x] Format validation
 - [x] Load/Save IL programs
 
-### 10. JIT Compiler (84% JIT-compiled, 100% recognized)
+### 10. JIT Compiler (86% JIT-compiled, 100% recognized)
 - [x] SLJIT integration
 - [x] Arithmetic operations: MOV, MOVA, ADD, SUB, MUL, DIV, MAD, NEG, ABS, CLAMP (100%)
 - [x] Comparison operations: MIN, MAX (100%)
@@ -133,7 +133,7 @@
 - [x] Miscellaneous operations: SELECT, SHUFFLE, NOP, DISCARD (100%)
 - [x] Work-item functions: GET_GLOBAL_ID, GET_LOCAL_ID, GET_GROUP_ID, GET_GLOBAL_SIZE, GET_LOCAL_SIZE, GET_NUM_GROUPS (100%)
 - [x] Memory operations: LOAD, STORE, LOAD_VEC, STORE_VEC (100%)
-- [x] Atomic operations: ATOMIC_ADD, SUB, AND, OR, XOR, XCHG, CAS (78%, MIN/MAX deferred)
+- [x] Atomic operations: ATOMIC_ADD, SUB, MIN, MAX, AND, OR, XOR, XCHG, CAS (100%)
 - [x] Synchronization: BARRIER, FENCE, MEM_FENCE, READ_FENCE, WRITE_FENCE (100%)
 - [x] Texture operations: TEX, TXL, TXB, TXP, TXD, TXF (0%, deferred - fall back to interpreter)
 - [x] Control flow: IF, ELSE, ENDIF, LOOP, ENDLOOP, BREAK, CONTINUE (0%, deferred - fall back to interpreter)
@@ -141,13 +141,12 @@
 - [x] Prologue/epilogue generation (3 float scratch registers)
 - [x] Program compilation API
 - [x] External function calls (floorf, ceilf, sqrtf, truncf, roundf, expf, exp2f, logf, log2f, sinf, cosf, tanf, asinf, acosf, atanf, atan2f, powf, NTRTL atomics, __sync_synchronize)
-- [x] **79/94 opcodes fully JIT-compiled (84%)**
+- [x] **81/94 opcodes fully JIT-compiled (86%)**
 - [x] **94/94 opcodes recognized in switch statement (100%)**
-- [x] **15 opcodes fall back to interpreter** (control flow, texture ops, atomic MIN/MAX)
+- [x] **13 opcodes fall back to interpreter** (control flow, texture ops)
 - [x] Seamless fallback mechanism for unsupported operations
-- [ ] Full control flow JIT compilation (requires basic block analysis)
-- [ ] Texture operation JIT compilation (complex COM vtable dispatch)
-- [ ] Atomic MIN/MAX JIT compilation (complex CAS loops)
+- [ ] Full control flow JIT compilation (requires basic block analysis and CFG construction)
+- [ ] Texture operation JIT compilation (requires COM vtable dispatch, architecture-specific)
 - [ ] Optimization passes
 
 ### 11. Build System (100%)

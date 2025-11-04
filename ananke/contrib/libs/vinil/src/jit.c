@@ -12,6 +12,7 @@
 #define COBJMACROS
 #include <vinil/vinil.h>
 #include <vinil/il.h>
+#include <vinil/backend_ops.h>
 #include "vinil_internal.h"
 
 /* SLJIT configuration */
@@ -22,6 +23,31 @@
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
+
+//
+// Extended SLJIT argument macros (5-6 arguments)
+//
+
+#ifndef SLJIT_ARGS5
+#define SLJIT_ARGS5(ret, arg1, arg2, arg3, arg4, arg5) \
+  (SLJIT_ARG_RETURN(SLJIT_ARG_TYPE_##ret) \
+   | SLJIT_ARG_VALUE(SLJIT_ARG_TYPE_##arg1, 1) \
+   | SLJIT_ARG_VALUE(SLJIT_ARG_TYPE_##arg2, 2) \
+   | SLJIT_ARG_VALUE(SLJIT_ARG_TYPE_##arg3, 3) \
+   | SLJIT_ARG_VALUE(SLJIT_ARG_TYPE_##arg4, 4) \
+   | SLJIT_ARG_VALUE(SLJIT_ARG_TYPE_##arg5, 5))
+#endif
+
+#ifndef SLJIT_ARGS6
+#define SLJIT_ARGS6(ret, arg1, arg2, arg3, arg4, arg5, arg6) \
+  (SLJIT_ARG_RETURN(SLJIT_ARG_TYPE_##ret) \
+   | SLJIT_ARG_VALUE(SLJIT_ARG_TYPE_##arg1, 1) \
+   | SLJIT_ARG_VALUE(SLJIT_ARG_TYPE_##arg2, 2) \
+   | SLJIT_ARG_VALUE(SLJIT_ARG_TYPE_##arg3, 3) \
+   | SLJIT_ARG_VALUE(SLJIT_ARG_TYPE_##arg4, 4) \
+   | SLJIT_ARG_VALUE(SLJIT_ARG_TYPE_##arg5, 5) \
+   | SLJIT_ARG_VALUE(SLJIT_ARG_TYPE_##arg6, 6))
+#endif
 
 //
 // NTRTL Atomic Operations (from ananke/libs/ntrtl/arch/*/interlocked.S)
@@ -40,6 +66,67 @@ extern UINT32 RtlAtomicCompareExchange32 (volatile UINT32 *Ptr, UINT32 Expected,
 //
 
 extern void __sync_synchronize (void);
+
+//
+// Texture Sampler Wrapper Functions (for >4 arg calls)
+//
+
+/* Wrapper for SampleLod (5 args) */
+static
+HRESULT
+TexSampleLodWrapper (
+  struct IVinilTextureSampler *This,
+  UINT32                      Unit,
+  CONST float                 *Coords,
+  float                       Lod,
+  float                       *Color
+  )
+{
+  return This->lpVtbl->SampleLod (This, Unit, Coords, Lod, Color);
+}
+
+/* Wrapper for SampleBias (5 args) */
+static
+HRESULT
+TexSampleBiasWrapper (
+  struct IVinilTextureSampler *This,
+  UINT32                      Unit,
+  CONST float                 *Coords,
+  float                       Bias,
+  float                       *Color
+  )
+{
+  return This->lpVtbl->SampleBias (This, Unit, Coords, Bias, Color);
+}
+
+/* Wrapper for SampleGrad (6 args) */
+static
+HRESULT
+TexSampleGradWrapper (
+  struct IVinilTextureSampler *This,
+  UINT32                      Unit,
+  CONST float                 *Coords,
+  CONST float                 *DDx,
+  CONST float                 *DDy,
+  float                       *Color
+  )
+{
+  return This->lpVtbl->SampleGrad (This, Unit, Coords, DDx, DDy, Color);
+}
+
+/* Wrapper for Fetch (5 args) */
+static
+HRESULT
+TexFetchWrapper (
+  struct IVinilTextureSampler *This,
+  UINT32                      Unit,
+  CONST INT32                 *Coords,
+  INT32                       Lod,
+  float                       *Color
+  )
+{
+  return This->lpVtbl->Fetch (This, Unit, Coords, Lod, Color);
+}
 
 //
 // Register Allocation
@@ -3335,7 +3422,6 @@ JitGenAtomicCas (
 }
 
 /* ATOMIC_MIN: dst = old_value; *addr = min(*addr, value) using CAS loop */
-/* TODO: Implement MIN/MAX with proper CAS loop - falls back to interpreter for now */
 static
 HRESULT
 JitGenAtomicMin (
@@ -3343,14 +3429,72 @@ JitGenAtomicMin (
   VINIL_INSTRUCTION_NODE  *Inst
   )
 {
-  /* Complex CAS loop - fall back to interpreter */
-  (VOID)Context;
-  (VOID)Inst;
-  return E_NOTIMPL;
+  struct sljit_compiler *C = Context->Compiler;
+  sljit_sw DstOffset, AddrOffset, ValOffset;
+  HRESULT Result;
+  struct sljit_label *loop_start;
+  struct sljit_jump *jump_retry;
+
+  Result = GetVariableOffset (Context, Inst->Dst, &DstOffset);
+  if (FAILED (Result)) return Result;
+
+  Result = GetVariableOffset (Context, Inst->Src[0], &AddrOffset);
+  if (FAILED (Result)) return Result;
+
+  Result = GetVariableOffset (Context, Inst->Src[1], &ValOffset);
+  if (FAILED (Result)) return Result;
+
+  /* Load address offset from src[0] first component */
+  sljit_emit_op1 (C, SLJIT_MOV_U32, SLJIT_R3, 0,
+    SLJIT_MEM1(REG_STATE), AddrOffset);
+
+  /* Load SharedMemory pointer */
+  sljit_emit_op1 (C, SLJIT_MOV_P, SLJIT_R4, 0,
+    SLJIT_MEM1(REG_STATE), SHARED_MEMORY_PTR_OFFSET);
+
+  /* Add offset to base pointer - final pointer in R3 */
+  sljit_emit_op2 (C, SLJIT_ADD, SLJIT_R3, 0, SLJIT_R4, 0, SLJIT_R3, 0);
+
+  /* Load value from src[1] first component into R4 */
+  sljit_emit_op1 (C, SLJIT_MOV_S32, SLJIT_R4, 0,
+    SLJIT_MEM1(REG_STATE), ValOffset);
+
+  /* Loop: do { old = *ptr; new = min(old, value); } while (CAS(ptr, old, new) != old) */
+  loop_start = sljit_emit_label (C);
+
+  /* Load old value from memory into R5 */
+  sljit_emit_op1 (C, SLJIT_MOV_S32, SLJIT_R5, 0, SLJIT_MEM1(SLJIT_R3), 0);
+
+  /* Calculate new = min(old, value): if (R4 < R5) new = R4 else new = R5 */
+  /* Compare R4 (value) with R5 (old) */
+  sljit_emit_op2 (C, SLJIT_SUB | SLJIT_SET_SIG_LESS, SLJIT_R0, 0, SLJIT_R4, 0, SLJIT_R5, 0);
+
+  /* Select: if (value < old) then value else old */
+  sljit_emit_select (C, SLJIT_SIG_LESS, SLJIT_R2, SLJIT_R4, 0, SLJIT_R5);
+
+  /* Call RtlAtomicCompareExchange32(ptr=R0, expected=R1, value=R2) */
+  sljit_emit_op1 (C, SLJIT_MOV, SLJIT_R0, 0, SLJIT_R3, 0);  /* ptr */
+  sljit_emit_op1 (C, SLJIT_MOV, SLJIT_R1, 0, SLJIT_R5, 0);  /* expected (old) */
+  /* R2 already has new value from select */
+
+  sljit_emit_icall (C, SLJIT_CALL, SLJIT_ARGS3(W, P, W, W),
+    SLJIT_IMM, SLJIT_FUNC_ADDR(RtlAtomicCompareExchange32));
+
+  /* Compare return value (R0) with expected (R5) */
+  sljit_emit_op2 (C, SLJIT_SUB | SLJIT_SET_Z, SLJIT_R1, 0, SLJIT_R0, 0, SLJIT_R5, 0);
+
+  /* If not equal, retry */
+  jump_retry = sljit_emit_jump (C, SLJIT_NOT_EQUAL);
+  sljit_set_label (jump_retry, loop_start);
+
+  /* Store old value (in R5) to destination */
+  sljit_emit_op1 (C, SLJIT_MOV,
+    SLJIT_MEM1(REG_STATE), DstOffset, SLJIT_R5, 0);
+
+  return S_OK;
 }
 
 /* ATOMIC_MAX: dst = old_value; *addr = max(*addr, value) using CAS loop */
-/* TODO: Implement MIN/MAX with proper CAS loop - falls back to interpreter for now */
 static
 HRESULT
 JitGenAtomicMax (
@@ -3358,10 +3502,69 @@ JitGenAtomicMax (
   VINIL_INSTRUCTION_NODE  *Inst
   )
 {
-  /* Complex CAS loop - fall back to interpreter */
-  (VOID)Context;
-  (VOID)Inst;
-  return E_NOTIMPL;
+  struct sljit_compiler *C = Context->Compiler;
+  sljit_sw DstOffset, AddrOffset, ValOffset;
+  HRESULT Result;
+  struct sljit_label *loop_start;
+  struct sljit_jump *jump_retry;
+
+  Result = GetVariableOffset (Context, Inst->Dst, &DstOffset);
+  if (FAILED (Result)) return Result;
+
+  Result = GetVariableOffset (Context, Inst->Src[0], &AddrOffset);
+  if (FAILED (Result)) return Result;
+
+  Result = GetVariableOffset (Context, Inst->Src[1], &ValOffset);
+  if (FAILED (Result)) return Result;
+
+  /* Load address offset from src[0] first component */
+  sljit_emit_op1 (C, SLJIT_MOV_U32, SLJIT_R3, 0,
+    SLJIT_MEM1(REG_STATE), AddrOffset);
+
+  /* Load SharedMemory pointer */
+  sljit_emit_op1 (C, SLJIT_MOV_P, SLJIT_R4, 0,
+    SLJIT_MEM1(REG_STATE), SHARED_MEMORY_PTR_OFFSET);
+
+  /* Add offset to base pointer - final pointer in R3 */
+  sljit_emit_op2 (C, SLJIT_ADD, SLJIT_R3, 0, SLJIT_R4, 0, SLJIT_R3, 0);
+
+  /* Load value from src[1] first component into R4 */
+  sljit_emit_op1 (C, SLJIT_MOV_S32, SLJIT_R4, 0,
+    SLJIT_MEM1(REG_STATE), ValOffset);
+
+  /* Loop: do { old = *ptr; new = max(old, value); } while (CAS(ptr, old, new) != old) */
+  loop_start = sljit_emit_label (C);
+
+  /* Load old value from memory into R5 */
+  sljit_emit_op1 (C, SLJIT_MOV_S32, SLJIT_R5, 0, SLJIT_MEM1(SLJIT_R3), 0);
+
+  /* Calculate new = max(old, value): if (R4 > R5) new = R4 else new = R5 */
+  /* Compare R4 (value) with R5 (old) */
+  sljit_emit_op2 (C, SLJIT_SUB | SLJIT_SET_SIG_GREATER, SLJIT_R0, 0, SLJIT_R4, 0, SLJIT_R5, 0);
+
+  /* Select: if (value > old) then value else old */
+  sljit_emit_select (C, SLJIT_SIG_GREATER, SLJIT_R2, SLJIT_R4, 0, SLJIT_R5);
+
+  /* Call RtlAtomicCompareExchange32(ptr=R0, expected=R1, value=R2) */
+  sljit_emit_op1 (C, SLJIT_MOV, SLJIT_R0, 0, SLJIT_R3, 0);  /* ptr */
+  sljit_emit_op1 (C, SLJIT_MOV, SLJIT_R1, 0, SLJIT_R5, 0);  /* expected (old) */
+  /* R2 already has new value from select */
+
+  sljit_emit_icall (C, SLJIT_CALL, SLJIT_ARGS3(W, P, W, W),
+    SLJIT_IMM, SLJIT_FUNC_ADDR(RtlAtomicCompareExchange32));
+
+  /* Compare return value (R0) with expected (R5) */
+  sljit_emit_op2 (C, SLJIT_SUB | SLJIT_SET_Z, SLJIT_R1, 0, SLJIT_R0, 0, SLJIT_R5, 0);
+
+  /* If not equal, retry */
+  jump_retry = sljit_emit_jump (C, SLJIT_NOT_EQUAL);
+  sljit_set_label (jump_retry, loop_start);
+
+  /* Store old value (in R5) to destination */
+  sljit_emit_op1 (C, SLJIT_MOV,
+    SLJIT_MEM1(REG_STATE), DstOffset, SLJIT_R5, 0);
+
+  return S_OK;
 }
 
 /* BARRIER: Full memory barrier for work-group synchronization */
@@ -3460,8 +3663,8 @@ JitGenWriteFence (
   return S_OK;
 }
 
-/* TEX: Sample texture - falls back to interpreter */
-/* Complex COM vtable dispatch not worth JIT compiling */
+/* TEX: Sample texture with COM vtable dispatch */
+/* dst = Sample(TextureSampler, unit, coords) */
 static
 HRESULT
 JitGenTex (
@@ -3469,13 +3672,83 @@ JitGenTex (
   VINIL_INSTRUCTION_NODE  *Inst
   )
 {
-  /* Texture sampling requires COM vtable dispatch - fall back to interpreter */
-  (VOID)Context;
-  (VOID)Inst;
-  return E_NOTIMPL;
+  struct sljit_compiler *C = Context->Compiler;
+  sljit_sw DstOffset, CoordOffset, UnitOffset;
+  HRESULT Result;
+  struct sljit_jump *skip_if_null;
+
+  /*
+   * Execution state layout (64-bit pointers):
+   * Registers[256]: 0-4095 (4096 bytes)
+   * Inputs: 4096-4103 (8 bytes)
+   * Outputs: 4104-4111 (8 bytes)
+   * GlobalId[3], LocalId[3], GroupId[3]: 4112-4147 (36 bytes)
+   * GlobalSize[3], LocalSize[3], NumGroups[3]: 4148-4183 (36 bytes)
+   * Discarded, Returned: 4184-4187 (4 bytes with padding)
+   * ControlFlowStack[32]: 4188-4699 (512 bytes)
+   * ControlFlowDepth: 4700-4703 (4 bytes)
+   * ConditionResult: 4704-4707 (4 bytes with padding)
+   * TextureSampler: 4708-4715 (8 bytes)
+   * SharedMemory: 4716-4723 (8 bytes)
+   */
+  #define TEXTURE_SAMPLER_PTR_OFFSET  4708
+
+  /* vtable offsets (64-bit pointers, 8 bytes each) */
+  #define VTBL_SAMPLE_OFFSET  24  /* 3rd method after QueryInterface, AddRef, Release */
+
+  Result = GetVariableOffset (Context, Inst->Dst, &DstOffset);
+  if (FAILED (Result)) return Result;
+  Result = GetVariableOffset (Context, Inst->Src[0], &CoordOffset);
+  if (FAILED (Result)) return Result;
+  Result = GetVariableOffset (Context, Inst->Src[1], &UnitOffset);
+  if (FAILED (Result)) return Result;
+
+  /* Load TextureSampler pointer into R0 */
+  sljit_emit_op1 (C, SLJIT_MOV_P, SLJIT_R0, 0,
+    SLJIT_MEM1(REG_STATE), TEXTURE_SAMPLER_PTR_OFFSET);
+
+  /* Check if TextureSampler is NULL - skip if so */
+  sljit_emit_op2 (C, SLJIT_SUB | SLJIT_SET_Z, SLJIT_R5, 0,
+    SLJIT_R0, 0, SLJIT_IMM, 0);
+  skip_if_null = sljit_emit_jump (C, SLJIT_EQUAL);
+
+  /* Load vtable pointer from TextureSampler (first field, offset 0) */
+  sljit_emit_op1 (C, SLJIT_MOV_P, SLJIT_R1, 0, SLJIT_MEM1(SLJIT_R0), 0);
+
+  /* Load Sample function pointer from vtable (offset 24) */
+  sljit_emit_op1 (C, SLJIT_MOV_P, SLJIT_R2, 0,
+    SLJIT_MEM1(SLJIT_R1), VTBL_SAMPLE_OFFSET);
+
+  /* Prepare arguments for Sample(this, unit, coords, color) */
+  /* R0: this (TextureSampler) - already loaded */
+
+  /* R1: unit (UINT32 from src1.x) */
+  sljit_emit_op1 (C, SLJIT_MOV_U32, SLJIT_R1, 0,
+    SLJIT_MEM1(REG_STATE), UnitOffset);
+
+  /* R2: coords pointer (float *) - point to src0 in state */
+  sljit_emit_op2 (C, SLJIT_ADD, SLJIT_R2, 0,
+    REG_STATE, 0, SLJIT_IMM, CoordOffset);
+
+  /* R3: color pointer (float *) - point to dst in state */
+  sljit_emit_op2 (C, SLJIT_ADD, SLJIT_R3, 0,
+    REG_STATE, 0, SLJIT_IMM, DstOffset);
+
+  /* Load function pointer back into R4 for call */
+  sljit_emit_op1 (C, SLJIT_MOV_P, SLJIT_R4, 0, SLJIT_MEM1(SLJIT_R1), VTBL_SAMPLE_OFFSET);
+
+  /* Call Sample(TextureSampler, Unit, Coords, Color) */
+  sljit_emit_icall (C, SLJIT_CALL, SLJIT_ARGS4(W, P, W, P, P),
+    SLJIT_R4, 0);
+
+  /* Skip target for NULL TextureSampler */
+  sljit_set_label (skip_if_null, sljit_emit_label (C));
+
+  return S_OK;
 }
 
-/* TXL: Sample texture with LOD - falls back to interpreter */
+/* TXL: Sample texture with LOD */
+/* dst = SampleLod(TextureSampler, unit, coords, lod) */
 static
 HRESULT
 JitGenTxl (
@@ -3483,13 +3756,62 @@ JitGenTxl (
   VINIL_INSTRUCTION_NODE  *Inst
   )
 {
-  /* Texture sampling requires COM vtable dispatch - fall back to interpreter */
-  (VOID)Context;
-  (VOID)Inst;
-  return E_NOTIMPL;
+  struct sljit_compiler *C = Context->Compiler;
+  sljit_sw DstOffset, CoordOffset, UnitOffset, LodOffset;
+  HRESULT Result;
+  struct sljit_jump *skip_if_null;
+
+  #define TEXTURE_SAMPLER_PTR_OFFSET  4708
+  #define VTBL_SAMPLELOD_OFFSET  32  /* 4th method */
+
+  Result = GetVariableOffset (Context, Inst->Dst, &DstOffset);
+  if (FAILED (Result)) return Result;
+  Result = GetVariableOffset (Context, Inst->Src[0], &CoordOffset);
+  if (FAILED (Result)) return Result;
+  Result = GetVariableOffset (Context, Inst->Src[1], &UnitOffset);
+  if (FAILED (Result)) return Result;
+  Result = GetVariableOffset (Context, Inst->Src[2], &LodOffset);
+  if (FAILED (Result)) return Result;
+
+  /* Load TextureSampler pointer */
+  sljit_emit_op1 (C, SLJIT_MOV_P, SLJIT_R0, 0,
+    SLJIT_MEM1(REG_STATE), TEXTURE_SAMPLER_PTR_OFFSET);
+
+  /* Skip if NULL */
+  sljit_emit_op2 (C, SLJIT_SUB | SLJIT_SET_Z, SLJIT_R5, 0,
+    SLJIT_R0, 0, SLJIT_IMM, 0);
+  skip_if_null = sljit_emit_jump (C, SLJIT_EQUAL);
+
+  /* Prepare arguments: TexSampleLodWrapper(this, unit, coords, lod, color) */
+  /* R0: this (already loaded) */
+
+  /* R1: unit */
+  sljit_emit_op1 (C, SLJIT_MOV_U32, SLJIT_R1, 0,
+    SLJIT_MEM1(REG_STATE), UnitOffset);
+
+  /* R2: coords pointer */
+  sljit_emit_op2 (C, SLJIT_ADD, SLJIT_R2, 0,
+    REG_STATE, 0, SLJIT_IMM, CoordOffset);
+
+  /* FR0: lod (float) */
+  sljit_emit_fop1 (C, SLJIT_MOV_F32, SLJIT_FR0, 0,
+    SLJIT_MEM1(REG_STATE), LodOffset);
+
+  /* R3: color pointer */
+  sljit_emit_op2 (C, SLJIT_ADD, SLJIT_R3, 0,
+    REG_STATE, 0, SLJIT_IMM, DstOffset);
+
+  /* Call wrapper: TexSampleLodWrapper(this=R0, unit=R1, coords=R2, lod=FR0, color=R3) */
+  sljit_emit_icall (C, SLJIT_CALL, SLJIT_ARGS5(W, P, W, P, F32, P),
+    SLJIT_IMM, SLJIT_FUNC_ADDR(TexSampleLodWrapper));
+
+  sljit_set_label (skip_if_null, sljit_emit_label (C));
+
+  return S_OK;
 }
 
-/* TXB: Sample texture with bias - falls back to interpreter */
+/* TXB: Sample texture with bias */
+/* dst = SampleBias(TextureSampler, unit, coords, bias) */
 static
 HRESULT
 JitGenTxb (
@@ -3497,13 +3819,62 @@ JitGenTxb (
   VINIL_INSTRUCTION_NODE  *Inst
   )
 {
-  /* Texture sampling requires COM vtable dispatch - fall back to interpreter */
-  (VOID)Context;
-  (VOID)Inst;
-  return E_NOTIMPL;
+  struct sljit_compiler *C = Context->Compiler;
+  sljit_sw DstOffset, CoordOffset, UnitOffset, BiasOffset;
+  HRESULT Result;
+  struct sljit_jump *skip_if_null;
+
+  #define TEXTURE_SAMPLER_PTR_OFFSET  4708
+  #define VTBL_SAMPLEBIAS_OFFSET  40  /* 5th method */
+
+  Result = GetVariableOffset (Context, Inst->Dst, &DstOffset);
+  if (FAILED (Result)) return Result;
+  Result = GetVariableOffset (Context, Inst->Src[0], &CoordOffset);
+  if (FAILED (Result)) return Result;
+  Result = GetVariableOffset (Context, Inst->Src[1], &UnitOffset);
+  if (FAILED (Result)) return Result;
+  Result = GetVariableOffset (Context, Inst->Src[2], &BiasOffset);
+  if (FAILED (Result)) return Result;
+
+  /* Load TextureSampler pointer */
+  sljit_emit_op1 (C, SLJIT_MOV_P, SLJIT_R0, 0,
+    SLJIT_MEM1(REG_STATE), TEXTURE_SAMPLER_PTR_OFFSET);
+
+  /* Skip if NULL */
+  sljit_emit_op2 (C, SLJIT_SUB | SLJIT_SET_Z, SLJIT_R5, 0,
+    SLJIT_R0, 0, SLJIT_IMM, 0);
+  skip_if_null = sljit_emit_jump (C, SLJIT_EQUAL);
+
+  /* Prepare arguments: TexSampleBiasWrapper(this, unit, coords, bias, color) */
+  /* R0: this (already loaded) */
+
+  /* R1: unit */
+  sljit_emit_op1 (C, SLJIT_MOV_U32, SLJIT_R1, 0,
+    SLJIT_MEM1(REG_STATE), UnitOffset);
+
+  /* R2: coords pointer */
+  sljit_emit_op2 (C, SLJIT_ADD, SLJIT_R2, 0,
+    REG_STATE, 0, SLJIT_IMM, CoordOffset);
+
+  /* FR0: bias (float) */
+  sljit_emit_fop1 (C, SLJIT_MOV_F32, SLJIT_FR0, 0,
+    SLJIT_MEM1(REG_STATE), BiasOffset);
+
+  /* R3: color pointer */
+  sljit_emit_op2 (C, SLJIT_ADD, SLJIT_R3, 0,
+    REG_STATE, 0, SLJIT_IMM, DstOffset);
+
+  /* Call wrapper: TexSampleBiasWrapper(this=R0, unit=R1, coords=R2, bias=FR0, color=R3) */
+  sljit_emit_icall (C, SLJIT_CALL, SLJIT_ARGS5(W, P, W, P, F32, P),
+    SLJIT_IMM, SLJIT_FUNC_ADDR(TexSampleBiasWrapper));
+
+  sljit_set_label (skip_if_null, sljit_emit_label (C));
+
+  return S_OK;
 }
 
-/* TXP: Sample texture with projection - falls back to interpreter */
+/* TXP: Sample texture with projection */
+/* dst = SampleProj(TextureSampler, unit, coords) */
 static
 HRESULT
 JitGenTxp (
@@ -3511,13 +3882,64 @@ JitGenTxp (
   VINIL_INSTRUCTION_NODE  *Inst
   )
 {
-  /* Texture sampling requires COM vtable dispatch - fall back to interpreter */
-  (VOID)Context;
-  (VOID)Inst;
-  return E_NOTIMPL;
+  struct sljit_compiler *C = Context->Compiler;
+  sljit_sw DstOffset, CoordOffset, UnitOffset;
+  HRESULT Result;
+  struct sljit_jump *skip_if_null;
+
+  #define TEXTURE_SAMPLER_PTR_OFFSET  4708
+  #define VTBL_SAMPLEPROJ_OFFSET  48  /* 6th method */
+
+  Result = GetVariableOffset (Context, Inst->Dst, &DstOffset);
+  if (FAILED (Result)) return Result;
+  Result = GetVariableOffset (Context, Inst->Src[0], &CoordOffset);
+  if (FAILED (Result)) return Result;
+  Result = GetVariableOffset (Context, Inst->Src[1], &UnitOffset);
+  if (FAILED (Result)) return Result;
+
+  /* Load TextureSampler pointer */
+  sljit_emit_op1 (C, SLJIT_MOV_P, SLJIT_R0, 0,
+    SLJIT_MEM1(REG_STATE), TEXTURE_SAMPLER_PTR_OFFSET);
+
+  /* Skip if NULL */
+  sljit_emit_op2 (C, SLJIT_SUB | SLJIT_SET_Z, SLJIT_R5, 0,
+    SLJIT_R0, 0, SLJIT_IMM, 0);
+  skip_if_null = sljit_emit_jump (C, SLJIT_EQUAL);
+
+  /* Load vtable */
+  sljit_emit_op1 (C, SLJIT_MOV_P, SLJIT_R1, 0, SLJIT_MEM1(SLJIT_R0), 0);
+
+  /* Prepare arguments: SampleProj(this, unit, coords, color) */
+  /* R0: this (already loaded) */
+
+  /* R1: unit */
+  sljit_emit_op1 (C, SLJIT_MOV_U32, SLJIT_R1, 0,
+    SLJIT_MEM1(REG_STATE), UnitOffset);
+
+  /* R2: coords pointer */
+  sljit_emit_op2 (C, SLJIT_ADD, SLJIT_R2, 0,
+    REG_STATE, 0, SLJIT_IMM, CoordOffset);
+
+  /* R3: color pointer */
+  sljit_emit_op2 (C, SLJIT_ADD, SLJIT_R3, 0,
+    REG_STATE, 0, SLJIT_IMM, DstOffset);
+
+  /* Load function pointer */
+  sljit_emit_op1 (C, SLJIT_MOV_P, SLJIT_R4, 0,
+    SLJIT_MEM1(SLJIT_R1), VTBL_SAMPLEPROJ_OFFSET);
+
+  /* Call SampleProj(TextureSampler, Unit, Coords, Color) */
+  sljit_emit_icall (C, SLJIT_CALL, SLJIT_ARGS4(W, P, W, P, P),
+    SLJIT_R4, 0);
+
+  sljit_set_label (skip_if_null, sljit_emit_label (C));
+
+  return S_OK;
 }
 
-/* TXD: Sample texture with gradients - falls back to interpreter */
+/* TXD: Sample texture with gradients */
+/* dst = SampleGrad(TextureSampler, unit, coords, ddx, ddy) */
+/* Note: unit is packed in coords.w component */
 static
 HRESULT
 JitGenTxd (
@@ -3525,13 +3947,68 @@ JitGenTxd (
   VINIL_INSTRUCTION_NODE  *Inst
   )
 {
-  /* Texture sampling requires COM vtable dispatch - fall back to interpreter */
-  (VOID)Context;
-  (VOID)Inst;
-  return E_NOTIMPL;
+  struct sljit_compiler *C = Context->Compiler;
+  sljit_sw DstOffset, CoordOffset, DDxOffset, DDyOffset;
+  HRESULT Result;
+  struct sljit_jump *skip_if_null;
+
+  #define TEXTURE_SAMPLER_PTR_OFFSET  4708
+  #define VTBL_SAMPLEGRAD_OFFSET  56  /* 7th method */
+
+  Result = GetVariableOffset (Context, Inst->Dst, &DstOffset);
+  if (FAILED (Result)) return Result;
+  Result = GetVariableOffset (Context, Inst->Src[0], &CoordOffset);
+  if (FAILED (Result)) return Result;
+  Result = GetVariableOffset (Context, Inst->Src[1], &DDxOffset);
+  if (FAILED (Result)) return Result;
+  Result = GetVariableOffset (Context, Inst->Src[2], &DDyOffset);
+  if (FAILED (Result)) return Result;
+
+  /* Load TextureSampler pointer */
+  sljit_emit_op1 (C, SLJIT_MOV_P, SLJIT_R0, 0,
+    SLJIT_MEM1(REG_STATE), TEXTURE_SAMPLER_PTR_OFFSET);
+
+  /* Skip if NULL */
+  sljit_emit_op2 (C, SLJIT_SUB | SLJIT_SET_Z, SLJIT_R5, 0,
+    SLJIT_R0, 0, SLJIT_IMM, 0);
+  skip_if_null = sljit_emit_jump (C, SLJIT_EQUAL);
+
+  /* Extract unit from coords.w (4th component, offset +12) and convert to UINT32 */
+  sljit_emit_fop1 (C, SLJIT_MOV_F32, SLJIT_FR0, 0,
+    SLJIT_MEM1(REG_STATE), CoordOffset + 12);
+  sljit_emit_fop1 (C, SLJIT_CONV_S32_FROM_F32, SLJIT_R1, 0, SLJIT_FR0, 0);
+
+  /* Prepare arguments: TexSampleGradWrapper(this, unit, coords, ddx, ddy, color) */
+  /* R0: this (already loaded) */
+  /* R1: unit (already loaded) */
+
+  /* R2: coords pointer */
+  sljit_emit_op2 (C, SLJIT_ADD, SLJIT_R2, 0,
+    REG_STATE, 0, SLJIT_IMM, CoordOffset);
+
+  /* R3: ddx pointer */
+  sljit_emit_op2 (C, SLJIT_ADD, SLJIT_R3, 0,
+    REG_STATE, 0, SLJIT_IMM, DDxOffset);
+
+  /* Save R4 and R5 for additional args (ddy, color) */
+  sljit_emit_op2 (C, SLJIT_ADD, SLJIT_R4, 0,
+    REG_STATE, 0, SLJIT_IMM, DDyOffset);
+
+  sljit_emit_op2 (C, SLJIT_ADD, SLJIT_R5, 0,
+    REG_STATE, 0, SLJIT_IMM, DstOffset);
+
+  /* Call wrapper: TexSampleGradWrapper(this=R0, unit=R1, coords=R2, ddx=R3, ddy=R4, color=R5) */
+  /* Note: On x86-64, first 6 args go in registers RDI,RSI,RDX,RCX,R8,R9 */
+  sljit_emit_icall (C, SLJIT_CALL, SLJIT_ARGS6(W, P, W, P, P, P, P),
+    SLJIT_IMM, SLJIT_FUNC_ADDR(TexSampleGradWrapper));
+
+  sljit_set_label (skip_if_null, sljit_emit_label (C));
+
+  return S_OK;
 }
 
-/* TXF: Fetch texel at integer coordinates - falls back to interpreter */
+/* TXF: Fetch texel at integer coordinates */
+/* dst = Fetch(TextureSampler, unit, int_coords, int_lod) */
 static
 HRESULT
 JitGenTxf (
@@ -3539,10 +4016,76 @@ JitGenTxf (
   VINIL_INSTRUCTION_NODE  *Inst
   )
 {
-  /* Texture sampling requires COM vtable dispatch - fall back to interpreter */
-  (VOID)Context;
-  (VOID)Inst;
-  return E_NOTIMPL;
+  struct sljit_compiler *C = Context->Compiler;
+  sljit_sw DstOffset, CoordOffset, UnitOffset, LodOffset;
+  HRESULT Result;
+  struct sljit_jump *skip_if_null;
+  sljit_s32 i;
+
+  #define TEXTURE_SAMPLER_PTR_OFFSET  4708
+  #define VTBL_FETCH_OFFSET  64  /* 8th method */
+
+  Result = GetVariableOffset (Context, Inst->Dst, &DstOffset);
+  if (FAILED (Result)) return Result;
+  Result = GetVariableOffset (Context, Inst->Src[0], &CoordOffset);
+  if (FAILED (Result)) return Result;
+  Result = GetVariableOffset (Context, Inst->Src[1], &UnitOffset);
+  if (FAILED (Result)) return Result;
+  Result = GetVariableOffset (Context, Inst->Src[2], &LodOffset);
+  if (FAILED (Result)) return Result;
+
+  /* Allocate 16 bytes on stack for INT32 coords[4] array */
+  sljit_emit_op2 (C, SLJIT_SUB, SLJIT_SP, 0, SLJIT_SP, 0, SLJIT_IMM, 16);
+
+  /* Convert float coords to INT32 and store on stack */
+  for (i = 0; i < 4; i++) {
+    /* Load float component */
+    sljit_emit_fop1 (C, SLJIT_MOV_F32, SLJIT_FR0, 0,
+      SLJIT_MEM1(REG_STATE), CoordOffset + (i * 4));
+    /* Convert to INT32 */
+    sljit_emit_fop1 (C, SLJIT_CONV_S32_FROM_F32, SLJIT_R5, 0, SLJIT_FR0, 0);
+    /* Store to stack */
+    sljit_emit_op1 (C, SLJIT_MOV_S32, SLJIT_MEM1(SLJIT_SP), i * 4, SLJIT_R5, 0);
+  }
+
+  /* Load TextureSampler pointer */
+  sljit_emit_op1 (C, SLJIT_MOV_P, SLJIT_R0, 0,
+    SLJIT_MEM1(REG_STATE), TEXTURE_SAMPLER_PTR_OFFSET);
+
+  /* Skip if NULL */
+  sljit_emit_op2 (C, SLJIT_SUB | SLJIT_SET_Z, SLJIT_R5, 0,
+    SLJIT_R0, 0, SLJIT_IMM, 0);
+  skip_if_null = sljit_emit_jump (C, SLJIT_EQUAL);
+
+  /* Prepare arguments: Fetch(this, unit, coords, lod, color) */
+  /* R0: this */
+
+  /* R1: unit */
+  sljit_emit_op1 (C, SLJIT_MOV_U32, SLJIT_R1, 0,
+    SLJIT_MEM1(REG_STATE), UnitOffset);
+
+  /* R2: coords pointer (stack pointer) */
+  sljit_emit_op1 (C, SLJIT_MOV, SLJIT_R2, 0, SLJIT_SP, 0);
+
+  /* R3: lod (INT32 from float) */
+  sljit_emit_fop1 (C, SLJIT_MOV_F32, SLJIT_FR0, 0,
+    SLJIT_MEM1(REG_STATE), LodOffset);
+  sljit_emit_fop1 (C, SLJIT_CONV_S32_FROM_F32, SLJIT_R3, 0, SLJIT_FR0, 0);
+
+  /* R4: color pointer */
+  sljit_emit_op2 (C, SLJIT_ADD, SLJIT_R4, 0,
+    REG_STATE, 0, SLJIT_IMM, DstOffset);
+
+  /* Call wrapper: TexFetchWrapper(this=R0, unit=R1, coords=R2, lod=R3, color=R4) */
+  sljit_emit_icall (C, SLJIT_CALL, SLJIT_ARGS5(W, P, W, P, W, P),
+    SLJIT_IMM, SLJIT_FUNC_ADDR(TexFetchWrapper));
+
+  sljit_set_label (skip_if_null, sljit_emit_label (C));
+
+  /* Restore stack (deallocate coords array) */
+  sljit_emit_op2 (C, SLJIT_ADD, SLJIT_SP, 0, SLJIT_SP, 0, SLJIT_IMM, 16);
+
+  return S_OK;
 }
 
 /* IF: Begin conditional block - falls back to interpreter */
