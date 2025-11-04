@@ -2803,6 +2803,181 @@ JitGenGetNumGroups (
   return S_OK;
 }
 
+/* LOAD: dst = SharedMemory[src[0]] - load single float from shared memory */
+static
+HRESULT
+JitGenLoad (
+  VINIL_JIT_CONTEXT       *Context,
+  VINIL_INSTRUCTION_NODE  *Inst
+  )
+{
+  struct sljit_compiler *C = Context->Compiler;
+  sljit_sw DstOffset, SrcOffset;
+  HRESULT Result;
+
+  /*
+   * SharedMemory pointer offset in VINIL_EXECUTION_STATE:
+   * - Registers[256]: 4096 bytes
+   * - Pointers (Inputs, Outputs): 16 bytes
+   * - Work-item IDs (6 arrays of 3 UINT32): 72 bytes
+   * - Flags (Discarded, Returned): 2 bytes + 2 padding
+   * - ControlFlowStack[32]: 512 bytes
+   * - ControlFlowDepth: 4 bytes
+   * - ConditionResult: 1 byte + 3 padding
+   * - TextureSampler: 8 bytes
+   * - SharedMemory: 8 bytes
+   * Total: 4096 + 16 + 72 + 4 + 512 + 4 + 4 + 8 = 4716
+   */
+  #define SHARED_MEMORY_PTR_OFFSET  4716
+
+  Result = GetVariableOffset (Context, Inst->Dst, &DstOffset);
+  if (FAILED (Result)) return Result;
+
+  Result = GetVariableOffset (Context, Inst->Src[0], &SrcOffset);
+  if (FAILED (Result)) return Result;
+
+  /* Load offset from src[0] (address register, first component as integer) */
+  sljit_emit_op1 (C, SLJIT_MOV_U32, SLJIT_R0, 0,
+    SLJIT_MEM1(REG_STATE), SrcOffset);
+
+  /* Load SharedMemory pointer */
+  sljit_emit_op1 (C, SLJIT_MOV_P, SLJIT_R1, 0,
+    SLJIT_MEM1(REG_STATE), SHARED_MEMORY_PTR_OFFSET);
+
+  /* Add offset to base pointer: R1 = SharedMemory + offset */
+  sljit_emit_op2 (C, SLJIT_ADD, SLJIT_R1, 0, SLJIT_R1, 0, SLJIT_R0, 0);
+
+  /* Load float from memory */
+  sljit_emit_fmem (C, SLJIT_MOV_F32, SLJIT_FR0, SLJIT_MEM1(SLJIT_R1), 0);
+
+  /* Store to dst[0] only */
+  sljit_emit_fmem (C, SLJIT_MOV_F32 | SLJIT_MEM_STORE | SLJIT_MEM_ALIGNED_16,
+    SLJIT_FR0, SLJIT_MEM1(REG_STATE), DstOffset);
+
+  return S_OK;
+}
+
+/* STORE: SharedMemory[src[0]] = src[1] - store single float to shared memory */
+static
+HRESULT
+JitGenStore (
+  VINIL_JIT_CONTEXT       *Context,
+  VINIL_INSTRUCTION_NODE  *Inst
+  )
+{
+  struct sljit_compiler *C = Context->Compiler;
+  sljit_sw AddrOffset, ValOffset;
+  HRESULT Result;
+
+  Result = GetVariableOffset (Context, Inst->Src[0], &AddrOffset);
+  if (FAILED (Result)) return Result;
+
+  Result = GetVariableOffset (Context, Inst->Src[1], &ValOffset);
+  if (FAILED (Result)) return Result;
+
+  /* Load offset from src[0] (address, first component as integer) */
+  sljit_emit_op1 (C, SLJIT_MOV_U32, SLJIT_R0, 0,
+    SLJIT_MEM1(REG_STATE), AddrOffset);
+
+  /* Load SharedMemory pointer */
+  sljit_emit_op1 (C, SLJIT_MOV_P, SLJIT_R1, 0,
+    SLJIT_MEM1(REG_STATE), SHARED_MEMORY_PTR_OFFSET);
+
+  /* Add offset to base pointer */
+  sljit_emit_op2 (C, SLJIT_ADD, SLJIT_R1, 0, SLJIT_R1, 0, SLJIT_R0, 0);
+
+  /* Load value from src[1][0] */
+  sljit_emit_fmem (C, SLJIT_MOV_F32 | SLJIT_MEM_ALIGNED_16,
+    SLJIT_FR0, SLJIT_MEM1(REG_STATE), ValOffset);
+
+  /* Store to memory */
+  sljit_emit_fmem (C, SLJIT_MOV_F32 | SLJIT_MEM_STORE,
+    SLJIT_FR0, SLJIT_MEM1(SLJIT_R1), 0);
+
+  return S_OK;
+}
+
+/* LOAD_VEC: dst = SharedMemory[src[0]] - load vec4 (16 bytes) from shared memory */
+static
+HRESULT
+JitGenLoadVec (
+  VINIL_JIT_CONTEXT       *Context,
+  VINIL_INSTRUCTION_NODE  *Inst
+  )
+{
+  struct sljit_compiler *C = Context->Compiler;
+  sljit_sw DstOffset, SrcOffset;
+  HRESULT Result;
+  sljit_s32 i;
+
+  Result = GetVariableOffset (Context, Inst->Dst, &DstOffset);
+  if (FAILED (Result)) return Result;
+
+  Result = GetVariableOffset (Context, Inst->Src[0], &SrcOffset);
+  if (FAILED (Result)) return Result;
+
+  /* Load offset from src[0] */
+  sljit_emit_op1 (C, SLJIT_MOV_U32, SLJIT_R0, 0,
+    SLJIT_MEM1(REG_STATE), SrcOffset);
+
+  /* Load SharedMemory pointer */
+  sljit_emit_op1 (C, SLJIT_MOV_P, SLJIT_R1, 0,
+    SLJIT_MEM1(REG_STATE), SHARED_MEMORY_PTR_OFFSET);
+
+  /* Add offset to base pointer */
+  sljit_emit_op2 (C, SLJIT_ADD, SLJIT_R1, 0, SLJIT_R1, 0, SLJIT_R0, 0);
+
+  /* Load 4 floats (16 bytes) from memory */
+  for (i = 0; i < 4; i++) {
+    sljit_emit_fmem (C, SLJIT_MOV_F32, SLJIT_FR0, SLJIT_MEM1(SLJIT_R1), i * 4);
+    sljit_emit_fmem (C, SLJIT_MOV_F32 | SLJIT_MEM_STORE | SLJIT_MEM_ALIGNED_16,
+      SLJIT_FR0, SLJIT_MEM1(REG_STATE), DstOffset + i * 4);
+  }
+
+  return S_OK;
+}
+
+/* STORE_VEC: SharedMemory[src[0]] = src[1] - store vec4 (16 bytes) to shared memory */
+static
+HRESULT
+JitGenStoreVec (
+  VINIL_JIT_CONTEXT       *Context,
+  VINIL_INSTRUCTION_NODE  *Inst
+  )
+{
+  struct sljit_compiler *C = Context->Compiler;
+  sljit_sw AddrOffset, ValOffset;
+  HRESULT Result;
+  sljit_s32 i;
+
+  Result = GetVariableOffset (Context, Inst->Src[0], &AddrOffset);
+  if (FAILED (Result)) return Result;
+
+  Result = GetVariableOffset (Context, Inst->Src[1], &ValOffset);
+  if (FAILED (Result)) return Result;
+
+  /* Load offset from src[0] */
+  sljit_emit_op1 (C, SLJIT_MOV_U32, SLJIT_R0, 0,
+    SLJIT_MEM1(REG_STATE), AddrOffset);
+
+  /* Load SharedMemory pointer */
+  sljit_emit_op1 (C, SLJIT_MOV_P, SLJIT_R1, 0,
+    SLJIT_MEM1(REG_STATE), SHARED_MEMORY_PTR_OFFSET);
+
+  /* Add offset to base pointer */
+  sljit_emit_op2 (C, SLJIT_ADD, SLJIT_R1, 0, SLJIT_R1, 0, SLJIT_R0, 0);
+
+  /* Store 4 floats (16 bytes) to memory */
+  for (i = 0; i < 4; i++) {
+    sljit_emit_fmem (C, SLJIT_MOV_F32 | SLJIT_MEM_ALIGNED_16,
+      SLJIT_FR0, SLJIT_MEM1(REG_STATE), ValOffset + i * 4);
+    sljit_emit_fmem (C, SLJIT_MOV_F32 | SLJIT_MEM_STORE,
+      SLJIT_FR0, SLJIT_MEM1(SLJIT_R1), i * 4);
+  }
+
+  return S_OK;
+}
+
 /* SHL: dst = src1 << src2 (logical left shift) */
 static
 HRESULT
@@ -3357,6 +3532,18 @@ JitCompileInstruction (
 
     case VINIL_OP_GET_NUM_GROUPS:
       return JitGenGetNumGroups (Context, Inst);
+
+    case VINIL_OP_LOAD:
+      return JitGenLoad (Context, Inst);
+
+    case VINIL_OP_STORE:
+      return JitGenStore (Context, Inst);
+
+    case VINIL_OP_LOAD_VEC:
+      return JitGenLoadVec (Context, Inst);
+
+    case VINIL_OP_STORE_VEC:
+      return JitGenStoreVec (Context, Inst);
 
     case VINIL_OP_RET:
       return JitGenRet (Context, Inst);
