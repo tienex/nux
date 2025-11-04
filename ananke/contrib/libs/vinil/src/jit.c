@@ -36,6 +36,12 @@ extern UINT32 RtlAtomicExchange32 (volatile UINT32 *Ptr, UINT32 Value);
 extern UINT32 RtlAtomicCompareExchange32 (volatile UINT32 *Ptr, UINT32 Expected, UINT32 Value);
 
 //
+// Memory Barrier (GCC builtin)
+//
+
+extern void __sync_synchronize (void);
+
+//
 // Register Allocation
 //
 
@@ -3358,6 +3364,102 @@ JitGenAtomicMax (
   return E_NOTIMPL;
 }
 
+/* BARRIER: Full memory barrier for work-group synchronization */
+static
+HRESULT
+JitGenBarrier (
+  VINIL_JIT_CONTEXT       *Context,
+  VINIL_INSTRUCTION_NODE  *Inst
+  )
+{
+  struct sljit_compiler *C = Context->Compiler;
+
+  (VOID)Inst;
+
+  /* Emit call to __sync_synchronize() for full memory barrier */
+  /* Function returns void, but we specify W (word) return and ignore it */
+  sljit_emit_icall (C, SLJIT_CALL, SLJIT_ARGS0(W),
+    SLJIT_IMM, SLJIT_FUNC_ADDR(__sync_synchronize));
+
+  return S_OK;
+}
+
+/* FENCE: Memory fence (sequential consistency) */
+static
+HRESULT
+JitGenFence (
+  VINIL_JIT_CONTEXT       *Context,
+  VINIL_INSTRUCTION_NODE  *Inst
+  )
+{
+  struct sljit_compiler *C = Context->Compiler;
+
+  (VOID)Inst;
+
+  /* Emit call to __sync_synchronize() for memory fence */
+  sljit_emit_icall (C, SLJIT_CALL, SLJIT_ARGS0(W),
+    SLJIT_IMM, SLJIT_FUNC_ADDR(__sync_synchronize));
+
+  return S_OK;
+}
+
+/* MEM_FENCE: Memory fence (sequential consistency) */
+static
+HRESULT
+JitGenMemFence (
+  VINIL_JIT_CONTEXT       *Context,
+  VINIL_INSTRUCTION_NODE  *Inst
+  )
+{
+  struct sljit_compiler *C = Context->Compiler;
+
+  (VOID)Inst;
+
+  /* Emit call to __sync_synchronize() for memory fence */
+  sljit_emit_icall (C, SLJIT_CALL, SLJIT_ARGS0(W),
+    SLJIT_IMM, SLJIT_FUNC_ADDR(__sync_synchronize));
+
+  return S_OK;
+}
+
+/* READ_FENCE: Acquire fence (read barrier) */
+static
+HRESULT
+JitGenReadFence (
+  VINIL_JIT_CONTEXT       *Context,
+  VINIL_INSTRUCTION_NODE  *Inst
+  )
+{
+  struct sljit_compiler *C = Context->Compiler;
+
+  (VOID)Inst;
+
+  /* Use full barrier for safety in JIT context */
+  sljit_emit_icall (C, SLJIT_CALL, SLJIT_ARGS0(W),
+    SLJIT_IMM, SLJIT_FUNC_ADDR(__sync_synchronize));
+
+  return S_OK;
+}
+
+/* WRITE_FENCE: Release fence (write barrier) */
+static
+HRESULT
+JitGenWriteFence (
+  VINIL_JIT_CONTEXT       *Context,
+  VINIL_INSTRUCTION_NODE  *Inst
+  )
+{
+  struct sljit_compiler *C = Context->Compiler;
+
+  (VOID)Inst;
+
+  /* Use full barrier for safety in JIT context */
+  sljit_emit_icall (C, SLJIT_CALL, SLJIT_ARGS0(W),
+    SLJIT_IMM, SLJIT_FUNC_ADDR(__sync_synchronize));
+
+  return S_OK;
+}
+
 /* SHL: dst = src1 << src2 (logical left shift) */
 static
 HRESULT
@@ -3951,6 +4053,21 @@ JitCompileInstruction (
 
     case VINIL_OP_ATOMIC_CAS:
       return JitGenAtomicCas (Context, Inst);
+
+    case VINIL_OP_BARRIER:
+      return JitGenBarrier (Context, Inst);
+
+    case VINIL_OP_FENCE:
+      return JitGenFence (Context, Inst);
+
+    case VINIL_OP_MEM_FENCE:
+      return JitGenMemFence (Context, Inst);
+
+    case VINIL_OP_READ_FENCE:
+      return JitGenReadFence (Context, Inst);
+
+    case VINIL_OP_WRITE_FENCE:
+      return JitGenWriteFence (Context, Inst);
 
     case VINIL_OP_RET:
       return JitGenRet (Context, Inst);

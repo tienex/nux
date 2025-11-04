@@ -119,7 +119,7 @@
 - [x] Format validation
 - [x] Load/Save IL programs
 
-### 10. JIT Compiler (79%)
+### 10. JIT Compiler (84%)
 - [x] SLJIT integration
 - [x] Arithmetic operations: MOV, MOVA, ADD, SUB, MUL, DIV, MAD, NEG, ABS, CLAMP (100%)
 - [x] Comparison operations: MIN, MAX (100%)
@@ -134,12 +134,13 @@
 - [x] Work-item functions: GET_GLOBAL_ID, GET_LOCAL_ID, GET_GROUP_ID, GET_GLOBAL_SIZE, GET_LOCAL_SIZE, GET_NUM_GROUPS (100%)
 - [x] Memory operations: LOAD, STORE, LOAD_VEC, STORE_VEC (100%)
 - [x] Atomic operations: ATOMIC_ADD, SUB, AND, OR, XOR, XCHG, CAS (78%, MIN/MAX deferred)
+- [x] Synchronization: BARRIER, FENCE, MEM_FENCE, READ_FENCE, WRITE_FENCE (100%)
 - [x] Register allocation framework
 - [x] Prologue/epilogue generation (3 float scratch registers)
 - [x] Program compilation API
-- [x] External function calls (floorf, ceilf, sqrtf, truncf, roundf, expf, exp2f, logf, log2f, sinf, cosf, tanf, asinf, acosf, atanf, atan2f, powf, NTRTL atomics)
-- [x] 74/94 opcodes implemented
-- [ ] Extended opcode support (20 opcodes remaining)
+- [x] External function calls (floorf, ceilf, sqrtf, truncf, roundf, expf, exp2f, logf, log2f, sinf, cosf, tanf, asinf, acosf, atanf, atan2f, powf, NTRTL atomics, __sync_synchronize)
+- [x] 79/94 opcodes implemented
+- [ ] Extended opcode support (15 opcodes remaining)
 - [ ] Control flow compilation
 - [ ] Optimization passes
 
@@ -203,10 +204,10 @@ These are massive dependencies that would dwarf VINIL itself.
 | **Disassembler** | **2** | **400** | **94** | **100%** |
 | **Assembler** | **1** | **650** | **94** | **100%** |
 | Binary Format | 1 | 500 | - | 100% |
-| JIT | 1 | 4080 | 74/94 | 79% |
+| JIT | 1 | 4195 | 79/94 | 84% |
 | Frontends (stubs) | 4 | 600 | - | 0% |
 | AOT (stub) | 1 | 250 | - | 0% |
-| **Total** | **18** | **~10,310** | - | **91%** |
+| **Total** | **18** | **~10,425** | - | **92%** |
 
 ## 🚀 What's Working
 
@@ -253,7 +254,7 @@ These are massive dependencies that would dwarf VINIL itself.
 6. **JIT Compilation**
    ```c
    IVinilContext_Execute(ctx, program, VinilBackendJit, inputs, outputs);
-   // JIT-compiled opcodes (74/94):
+   // JIT-compiled opcodes (79/94):
    //   Arithmetic: MOV, MOVA, ADD, SUB, MUL, DIV, MAD, NEG, ABS, CLAMP (100%)
    //   Comparison: MIN, MAX (100%)
    //   Reciprocals: RCP, RSQ (100%)
@@ -267,6 +268,7 @@ These are massive dependencies that would dwarf VINIL itself.
    //   Work-item: GET_GLOBAL_ID, GET_LOCAL_ID, GET_GROUP_ID, GET_GLOBAL_SIZE, GET_LOCAL_SIZE, GET_NUM_GROUPS (100%)
    //   Memory: LOAD, STORE, LOAD_VEC, STORE_VEC (100%)
    //   Atomics: ATOMIC_ADD, SUB, AND, OR, XOR, XCHG, CAS (78%, MIN/MAX deferred)
+   //   Synchronization: BARRIER, FENCE, MEM_FENCE, READ_FENCE, WRITE_FENCE (100%)
    //   Control: RET
    // ~10-100x faster than interpreter for arithmetic and vector operations
    ```
@@ -292,7 +294,8 @@ These are massive dependencies that would dwarf VINIL itself.
 17. **32763db** - Add MOVA, SHUFFLE, and DISCARD operations to JIT compiler
 18. **eb55b83** - Add work-item functions (GET_GLOBAL_ID, GET_LOCAL_ID, GET_GROUP_ID, GET_GLOBAL_SIZE, GET_LOCAL_SIZE, GET_NUM_GROUPS) to JIT compiler
 19. **4654c24** - Add memory operations (LOAD, STORE, LOAD_VEC, STORE_VEC) to JIT compiler
-20. **(pending)** - Add atomic operations (ATOMIC_ADD, SUB, AND, OR, XOR, XCHG, CAS) to JIT compiler
+20. **9d868d2** - Add atomic operations (ATOMIC_ADD, SUB, AND, OR, XOR, XCHG, CAS) to JIT compiler
+21. **(pending)** - Add synchronization operations (BARRIER, FENCE, MEM_FENCE, READ_FENCE, WRITE_FENCE) to JIT compiler
 
 ## 🎯 Summary
 
