@@ -24,6 +24,18 @@
 #include <math.h>
 
 //
+// NTRTL Atomic Operations (from ananke/libs/ntrtl/arch/*/interlocked.S)
+//
+
+extern INT32  RtlAtomicFetchAdd32 (volatile INT32 *Ptr, INT32 Value);
+extern INT32  RtlAtomicFetchSub32 (volatile INT32 *Ptr, INT32 Value);
+extern UINT32 RtlAtomicFetchOr32  (volatile UINT32 *Ptr, UINT32 Value);
+extern UINT32 RtlAtomicFetchAnd32 (volatile UINT32 *Ptr, UINT32 Value);
+extern UINT32 RtlAtomicFetchXor32 (volatile UINT32 *Ptr, UINT32 Value);
+extern UINT32 RtlAtomicExchange32 (volatile UINT32 *Ptr, UINT32 Value);
+extern UINT32 RtlAtomicCompareExchange32 (volatile UINT32 *Ptr, UINT32 Expected, UINT32 Value);
+
+//
 // Register Allocation
 //
 
@@ -2978,6 +2990,374 @@ JitGenStoreVec (
   return S_OK;
 }
 
+/* ATOMIC_ADD: dst = old_value; *addr += value (returns old value before add) */
+static
+HRESULT
+JitGenAtomicAdd (
+  VINIL_JIT_CONTEXT       *Context,
+  VINIL_INSTRUCTION_NODE  *Inst
+  )
+{
+  struct sljit_compiler *C = Context->Compiler;
+  sljit_sw DstOffset, AddrOffset, ValOffset;
+  HRESULT Result;
+
+  #define SHARED_MEMORY_PTR_OFFSET  4716
+
+  Result = GetVariableOffset (Context, Inst->Dst, &DstOffset);
+  if (FAILED (Result)) return Result;
+
+  Result = GetVariableOffset (Context, Inst->Src[0], &AddrOffset);
+  if (FAILED (Result)) return Result;
+
+  Result = GetVariableOffset (Context, Inst->Src[1], &ValOffset);
+  if (FAILED (Result)) return Result;
+
+  /* Load address offset from src[0] first component */
+  sljit_emit_op1 (C, SLJIT_MOV_U32, SLJIT_R0, 0,
+    SLJIT_MEM1(REG_STATE), AddrOffset);
+
+  /* Load SharedMemory pointer */
+  sljit_emit_op1 (C, SLJIT_MOV_P, SLJIT_R2, 0,
+    SLJIT_MEM1(REG_STATE), SHARED_MEMORY_PTR_OFFSET);
+
+  /* Add offset to base pointer to get final pointer in R0 */
+  sljit_emit_op2 (C, SLJIT_ADD, SLJIT_R0, 0, SLJIT_R2, 0, SLJIT_R0, 0);
+
+  /* Load value from src[1] first component into R1 */
+  sljit_emit_op1 (C, SLJIT_MOV_S32, SLJIT_R1, 0,
+    SLJIT_MEM1(REG_STATE), ValOffset);
+
+  /* Call RtlAtomicFetchAdd32(ptr, value) */
+  sljit_emit_icall (C, SLJIT_CALL, SLJIT_ARGS2(W, P, W),
+    SLJIT_IMM, SLJIT_FUNC_ADDR(RtlAtomicFetchAdd32));
+
+  /* Return value is in R0, store to dst first component */
+  sljit_emit_op1 (C, SLJIT_MOV,
+    SLJIT_MEM1(REG_STATE), DstOffset, SLJIT_R0, 0);
+
+  return S_OK;
+}
+
+/* ATOMIC_SUB: dst = old_value; *addr -= value (returns old value before sub) */
+static
+HRESULT
+JitGenAtomicSub (
+  VINIL_JIT_CONTEXT       *Context,
+  VINIL_INSTRUCTION_NODE  *Inst
+  )
+{
+  struct sljit_compiler *C = Context->Compiler;
+  sljit_sw DstOffset, AddrOffset, ValOffset;
+  HRESULT Result;
+
+  Result = GetVariableOffset (Context, Inst->Dst, &DstOffset);
+  if (FAILED (Result)) return Result;
+
+  Result = GetVariableOffset (Context, Inst->Src[0], &AddrOffset);
+  if (FAILED (Result)) return Result;
+
+  Result = GetVariableOffset (Context, Inst->Src[1], &ValOffset);
+  if (FAILED (Result)) return Result;
+
+  /* Load address offset from src[0] first component */
+  sljit_emit_op1 (C, SLJIT_MOV_U32, SLJIT_R0, 0,
+    SLJIT_MEM1(REG_STATE), AddrOffset);
+
+  /* Load SharedMemory pointer */
+  sljit_emit_op1 (C, SLJIT_MOV_P, SLJIT_R2, 0,
+    SLJIT_MEM1(REG_STATE), SHARED_MEMORY_PTR_OFFSET);
+
+  /* Add offset to base pointer */
+  sljit_emit_op2 (C, SLJIT_ADD, SLJIT_R0, 0, SLJIT_R2, 0, SLJIT_R0, 0);
+
+  /* Load value from src[1] first component */
+  sljit_emit_op1 (C, SLJIT_MOV_S32, SLJIT_R1, 0,
+    SLJIT_MEM1(REG_STATE), ValOffset);
+
+  /* Call RtlAtomicFetchSub32(ptr, value) */
+  sljit_emit_icall (C, SLJIT_CALL, SLJIT_ARGS2(W, P, W),
+    SLJIT_IMM, SLJIT_FUNC_ADDR(RtlAtomicFetchSub32));
+
+  /* Return value in R0, store to dst */
+  sljit_emit_op1 (C, SLJIT_MOV,
+    SLJIT_MEM1(REG_STATE), DstOffset, SLJIT_R0, 0);
+
+  return S_OK;
+}
+
+/* ATOMIC_AND: dst = old_value; *addr &= value (returns old value before AND) */
+static
+HRESULT
+JitGenAtomicAnd (
+  VINIL_JIT_CONTEXT       *Context,
+  VINIL_INSTRUCTION_NODE  *Inst
+  )
+{
+  struct sljit_compiler *C = Context->Compiler;
+  sljit_sw DstOffset, AddrOffset, ValOffset;
+  HRESULT Result;
+
+  Result = GetVariableOffset (Context, Inst->Dst, &DstOffset);
+  if (FAILED (Result)) return Result;
+
+  Result = GetVariableOffset (Context, Inst->Src[0], &AddrOffset);
+  if (FAILED (Result)) return Result;
+
+  Result = GetVariableOffset (Context, Inst->Src[1], &ValOffset);
+  if (FAILED (Result)) return Result;
+
+  /* Load address offset from src[0] first component */
+  sljit_emit_op1 (C, SLJIT_MOV_U32, SLJIT_R0, 0,
+    SLJIT_MEM1(REG_STATE), AddrOffset);
+
+  /* Load SharedMemory pointer */
+  sljit_emit_op1 (C, SLJIT_MOV_P, SLJIT_R2, 0,
+    SLJIT_MEM1(REG_STATE), SHARED_MEMORY_PTR_OFFSET);
+
+  /* Add offset to base pointer */
+  sljit_emit_op2 (C, SLJIT_ADD, SLJIT_R0, 0, SLJIT_R2, 0, SLJIT_R0, 0);
+
+  /* Load value from src[1] first component */
+  sljit_emit_op1 (C, SLJIT_MOV_U32, SLJIT_R1, 0,
+    SLJIT_MEM1(REG_STATE), ValOffset);
+
+  /* Call RtlAtomicFetchAnd32(ptr, value) */
+  sljit_emit_icall (C, SLJIT_CALL, SLJIT_ARGS2(W, P, W),
+    SLJIT_IMM, SLJIT_FUNC_ADDR(RtlAtomicFetchAnd32));
+
+  /* Return value in R0, store to dst */
+  sljit_emit_op1 (C, SLJIT_MOV,
+    SLJIT_MEM1(REG_STATE), DstOffset, SLJIT_R0, 0);
+
+  return S_OK;
+}
+
+/* ATOMIC_OR: dst = old_value; *addr |= value (returns old value before OR) */
+static
+HRESULT
+JitGenAtomicOr (
+  VINIL_JIT_CONTEXT       *Context,
+  VINIL_INSTRUCTION_NODE  *Inst
+  )
+{
+  struct sljit_compiler *C = Context->Compiler;
+  sljit_sw DstOffset, AddrOffset, ValOffset;
+  HRESULT Result;
+
+  Result = GetVariableOffset (Context, Inst->Dst, &DstOffset);
+  if (FAILED (Result)) return Result;
+
+  Result = GetVariableOffset (Context, Inst->Src[0], &AddrOffset);
+  if (FAILED (Result)) return Result;
+
+  Result = GetVariableOffset (Context, Inst->Src[1], &ValOffset);
+  if (FAILED (Result)) return Result;
+
+  /* Load address offset from src[0] first component */
+  sljit_emit_op1 (C, SLJIT_MOV_U32, SLJIT_R0, 0,
+    SLJIT_MEM1(REG_STATE), AddrOffset);
+
+  /* Load SharedMemory pointer */
+  sljit_emit_op1 (C, SLJIT_MOV_P, SLJIT_R2, 0,
+    SLJIT_MEM1(REG_STATE), SHARED_MEMORY_PTR_OFFSET);
+
+  /* Add offset to base pointer */
+  sljit_emit_op2 (C, SLJIT_ADD, SLJIT_R0, 0, SLJIT_R2, 0, SLJIT_R0, 0);
+
+  /* Load value from src[1] first component */
+  sljit_emit_op1 (C, SLJIT_MOV_U32, SLJIT_R1, 0,
+    SLJIT_MEM1(REG_STATE), ValOffset);
+
+  /* Call RtlAtomicFetchOr32(ptr, value) */
+  sljit_emit_icall (C, SLJIT_CALL, SLJIT_ARGS2(W, P, W),
+    SLJIT_IMM, SLJIT_FUNC_ADDR(RtlAtomicFetchOr32));
+
+  /* Return value in R0, store to dst */
+  sljit_emit_op1 (C, SLJIT_MOV,
+    SLJIT_MEM1(REG_STATE), DstOffset, SLJIT_R0, 0);
+
+  return S_OK;
+}
+
+/* ATOMIC_XOR: dst = old_value; *addr ^= value (returns old value before XOR) */
+static
+HRESULT
+JitGenAtomicXor (
+  VINIL_JIT_CONTEXT       *Context,
+  VINIL_INSTRUCTION_NODE  *Inst
+  )
+{
+  struct sljit_compiler *C = Context->Compiler;
+  sljit_sw DstOffset, AddrOffset, ValOffset;
+  HRESULT Result;
+
+  Result = GetVariableOffset (Context, Inst->Dst, &DstOffset);
+  if (FAILED (Result)) return Result;
+
+  Result = GetVariableOffset (Context, Inst->Src[0], &AddrOffset);
+  if (FAILED (Result)) return Result;
+
+  Result = GetVariableOffset (Context, Inst->Src[1], &ValOffset);
+  if (FAILED (Result)) return Result;
+
+  /* Load address offset from src[0] first component */
+  sljit_emit_op1 (C, SLJIT_MOV_U32, SLJIT_R0, 0,
+    SLJIT_MEM1(REG_STATE), AddrOffset);
+
+  /* Load SharedMemory pointer */
+  sljit_emit_op1 (C, SLJIT_MOV_P, SLJIT_R2, 0,
+    SLJIT_MEM1(REG_STATE), SHARED_MEMORY_PTR_OFFSET);
+
+  /* Add offset to base pointer */
+  sljit_emit_op2 (C, SLJIT_ADD, SLJIT_R0, 0, SLJIT_R2, 0, SLJIT_R0, 0);
+
+  /* Load value from src[1] first component */
+  sljit_emit_op1 (C, SLJIT_MOV_U32, SLJIT_R1, 0,
+    SLJIT_MEM1(REG_STATE), ValOffset);
+
+  /* Call RtlAtomicFetchXor32(ptr, value) */
+  sljit_emit_icall (C, SLJIT_CALL, SLJIT_ARGS2(W, P, W),
+    SLJIT_IMM, SLJIT_FUNC_ADDR(RtlAtomicFetchXor32));
+
+  /* Return value in R0, store to dst */
+  sljit_emit_op1 (C, SLJIT_MOV,
+    SLJIT_MEM1(REG_STATE), DstOffset, SLJIT_R0, 0);
+
+  return S_OK;
+}
+
+/* ATOMIC_XCHG: dst = old_value; *addr = value (exchange, returns old value) */
+static
+HRESULT
+JitGenAtomicXchg (
+  VINIL_JIT_CONTEXT       *Context,
+  VINIL_INSTRUCTION_NODE  *Inst
+  )
+{
+  struct sljit_compiler *C = Context->Compiler;
+  sljit_sw DstOffset, AddrOffset, ValOffset;
+  HRESULT Result;
+
+  Result = GetVariableOffset (Context, Inst->Dst, &DstOffset);
+  if (FAILED (Result)) return Result;
+
+  Result = GetVariableOffset (Context, Inst->Src[0], &AddrOffset);
+  if (FAILED (Result)) return Result;
+
+  Result = GetVariableOffset (Context, Inst->Src[1], &ValOffset);
+  if (FAILED (Result)) return Result;
+
+  /* Load address offset from src[0] first component */
+  sljit_emit_op1 (C, SLJIT_MOV_U32, SLJIT_R0, 0,
+    SLJIT_MEM1(REG_STATE), AddrOffset);
+
+  /* Load SharedMemory pointer */
+  sljit_emit_op1 (C, SLJIT_MOV_P, SLJIT_R2, 0,
+    SLJIT_MEM1(REG_STATE), SHARED_MEMORY_PTR_OFFSET);
+
+  /* Add offset to base pointer */
+  sljit_emit_op2 (C, SLJIT_ADD, SLJIT_R0, 0, SLJIT_R2, 0, SLJIT_R0, 0);
+
+  /* Load value from src[1] first component */
+  sljit_emit_op1 (C, SLJIT_MOV_U32, SLJIT_R1, 0,
+    SLJIT_MEM1(REG_STATE), ValOffset);
+
+  /* Call RtlAtomicExchange32(ptr, value) */
+  sljit_emit_icall (C, SLJIT_CALL, SLJIT_ARGS2(W, P, W),
+    SLJIT_IMM, SLJIT_FUNC_ADDR(RtlAtomicExchange32));
+
+  /* Return value in R0, store to dst */
+  sljit_emit_op1 (C, SLJIT_MOV,
+    SLJIT_MEM1(REG_STATE), DstOffset, SLJIT_R0, 0);
+
+  return S_OK;
+}
+
+/* ATOMIC_CAS: dst = old_value; if (*addr == compare) *addr = value (returns old value) */
+static
+HRESULT
+JitGenAtomicCas (
+  VINIL_JIT_CONTEXT       *Context,
+  VINIL_INSTRUCTION_NODE  *Inst
+  )
+{
+  struct sljit_compiler *C = Context->Compiler;
+  sljit_sw DstOffset, AddrOffset, CmpOffset, ValOffset;
+  HRESULT Result;
+
+  Result = GetVariableOffset (Context, Inst->Dst, &DstOffset);
+  if (FAILED (Result)) return Result;
+
+  Result = GetVariableOffset (Context, Inst->Src[0], &AddrOffset);
+  if (FAILED (Result)) return Result;
+
+  Result = GetVariableOffset (Context, Inst->Src[1], &CmpOffset);
+  if (FAILED (Result)) return Result;
+
+  Result = GetVariableOffset (Context, Inst->Src[2], &ValOffset);
+  if (FAILED (Result)) return Result;
+
+  /* Load address offset from src[0] first component */
+  sljit_emit_op1 (C, SLJIT_MOV_U32, SLJIT_R0, 0,
+    SLJIT_MEM1(REG_STATE), AddrOffset);
+
+  /* Load SharedMemory pointer */
+  sljit_emit_op1 (C, SLJIT_MOV_P, SLJIT_R3, 0,
+    SLJIT_MEM1(REG_STATE), SHARED_MEMORY_PTR_OFFSET);
+
+  /* Add offset to base pointer */
+  sljit_emit_op2 (C, SLJIT_ADD, SLJIT_R0, 0, SLJIT_R3, 0, SLJIT_R0, 0);
+
+  /* Load compare value from src[1] first component into R1 */
+  sljit_emit_op1 (C, SLJIT_MOV_U32, SLJIT_R1, 0,
+    SLJIT_MEM1(REG_STATE), CmpOffset);
+
+  /* Load new value from src[2] first component into R2 */
+  sljit_emit_op1 (C, SLJIT_MOV_U32, SLJIT_R2, 0,
+    SLJIT_MEM1(REG_STATE), ValOffset);
+
+  /* Call RtlAtomicCompareExchange32(ptr, expected, value) */
+  sljit_emit_icall (C, SLJIT_CALL, SLJIT_ARGS3(W, P, W, W),
+    SLJIT_IMM, SLJIT_FUNC_ADDR(RtlAtomicCompareExchange32));
+
+  /* Return value in R0, store to dst */
+  sljit_emit_op1 (C, SLJIT_MOV,
+    SLJIT_MEM1(REG_STATE), DstOffset, SLJIT_R0, 0);
+
+  return S_OK;
+}
+
+/* ATOMIC_MIN: dst = old_value; *addr = min(*addr, value) using CAS loop */
+/* TODO: Implement MIN/MAX with proper CAS loop - falls back to interpreter for now */
+static
+HRESULT
+JitGenAtomicMin (
+  VINIL_JIT_CONTEXT       *Context,
+  VINIL_INSTRUCTION_NODE  *Inst
+  )
+{
+  /* Complex CAS loop - fall back to interpreter */
+  (VOID)Context;
+  (VOID)Inst;
+  return E_NOTIMPL;
+}
+
+/* ATOMIC_MAX: dst = old_value; *addr = max(*addr, value) using CAS loop */
+/* TODO: Implement MIN/MAX with proper CAS loop - falls back to interpreter for now */
+static
+HRESULT
+JitGenAtomicMax (
+  VINIL_JIT_CONTEXT       *Context,
+  VINIL_INSTRUCTION_NODE  *Inst
+  )
+{
+  /* Complex CAS loop - fall back to interpreter */
+  (VOID)Context;
+  (VOID)Inst;
+  return E_NOTIMPL;
+}
+
 /* SHL: dst = src1 << src2 (logical left shift) */
 static
 HRESULT
@@ -3544,6 +3924,33 @@ JitCompileInstruction (
 
     case VINIL_OP_STORE_VEC:
       return JitGenStoreVec (Context, Inst);
+
+    case VINIL_OP_ATOMIC_ADD:
+      return JitGenAtomicAdd (Context, Inst);
+
+    case VINIL_OP_ATOMIC_SUB:
+      return JitGenAtomicSub (Context, Inst);
+
+    case VINIL_OP_ATOMIC_MIN:
+      return JitGenAtomicMin (Context, Inst);
+
+    case VINIL_OP_ATOMIC_MAX:
+      return JitGenAtomicMax (Context, Inst);
+
+    case VINIL_OP_ATOMIC_AND:
+      return JitGenAtomicAnd (Context, Inst);
+
+    case VINIL_OP_ATOMIC_OR:
+      return JitGenAtomicOr (Context, Inst);
+
+    case VINIL_OP_ATOMIC_XOR:
+      return JitGenAtomicXor (Context, Inst);
+
+    case VINIL_OP_ATOMIC_XCHG:
+      return JitGenAtomicXchg (Context, Inst);
+
+    case VINIL_OP_ATOMIC_CAS:
+      return JitGenAtomicCas (Context, Inst);
 
     case VINIL_OP_RET:
       return JitGenRet (Context, Inst);
