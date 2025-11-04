@@ -13,22 +13,11 @@
 #include <vinil/il.h>
 #include <vinil/types.h>
 #include <vinil/backend_ops.h>
+#include <vinil/rtl_atomics.h>
 #include "vinil_internal.h"
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
-
-//
-// NTRTL Atomic Operations (from ananke/libs/ntrtl/arch/*/interlocked.S)
-//
-
-extern INT32  RtlAtomicFetchAdd32 (volatile INT32 *Ptr, INT32 Value);
-extern INT32  RtlAtomicFetchSub32 (volatile INT32 *Ptr, INT32 Value);
-extern UINT32 RtlAtomicFetchOr32  (volatile UINT32 *Ptr, UINT32 Value);
-extern UINT32 RtlAtomicFetchAnd32 (volatile UINT32 *Ptr, UINT32 Value);
-extern UINT32 RtlAtomicFetchXor32 (volatile UINT32 *Ptr, UINT32 Value);
-extern UINT32 RtlAtomicExchange32 (volatile UINT32 *Ptr, UINT32 Value);
-extern UINT32 RtlAtomicCompareExchange32 (volatile UINT32 *Ptr, UINT32 Expected, UINT32 Value);
 
 // Execution state now defined in vinil_internal.h
 

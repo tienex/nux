@@ -13,6 +13,7 @@
 #include <vinil/vinil.h>
 #include <vinil/il.h>
 #include <vinil/backend_ops.h>
+#include <vinil/rtl_atomics.h>
 #include "vinil_internal.h"
 
 /* SLJIT configuration */
@@ -48,24 +49,6 @@
    | SLJIT_ARG_VALUE(SLJIT_ARG_TYPE_##arg5, 5) \
    | SLJIT_ARG_VALUE(SLJIT_ARG_TYPE_##arg6, 6))
 #endif
-
-//
-// NTRTL Atomic Operations (from ananke/libs/ntrtl/arch/*/interlocked.S)
-//
-
-extern INT32  RtlAtomicFetchAdd32 (volatile INT32 *Ptr, INT32 Value);
-extern INT32  RtlAtomicFetchSub32 (volatile INT32 *Ptr, INT32 Value);
-extern UINT32 RtlAtomicFetchOr32  (volatile UINT32 *Ptr, UINT32 Value);
-extern UINT32 RtlAtomicFetchAnd32 (volatile UINT32 *Ptr, UINT32 Value);
-extern UINT32 RtlAtomicFetchXor32 (volatile UINT32 *Ptr, UINT32 Value);
-extern UINT32 RtlAtomicExchange32 (volatile UINT32 *Ptr, UINT32 Value);
-extern UINT32 RtlAtomicCompareExchange32 (volatile UINT32 *Ptr, UINT32 Expected, UINT32 Value);
-
-//
-// Memory Barrier (GCC builtin)
-//
-
-extern void __sync_synchronize (void);
 
 //
 // Texture Sampler Wrapper Functions (for >4 arg calls)
@@ -3593,10 +3576,10 @@ JitGenBarrier (
 
   (VOID)Inst;
 
-  /* Emit call to __sync_synchronize() for full memory barrier */
+  /* Emit call to MemoryBarrier() for full memory barrier */
   /* Function returns void, but we specify W (word) return and ignore it */
   sljit_emit_icall (C, SLJIT_CALL, SLJIT_ARGS0(W),
-    SLJIT_IMM, SLJIT_FUNC_ADDR(__sync_synchronize));
+    SLJIT_IMM, SLJIT_FUNC_ADDR(RtlMemoryBarrier));
 
   return S_OK;
 }
@@ -3613,9 +3596,9 @@ JitGenFence (
 
   (VOID)Inst;
 
-  /* Emit call to __sync_synchronize() for memory fence */
+  /* Emit call to MemoryBarrier() for memory fence */
   sljit_emit_icall (C, SLJIT_CALL, SLJIT_ARGS0(W),
-    SLJIT_IMM, SLJIT_FUNC_ADDR(__sync_synchronize));
+    SLJIT_IMM, SLJIT_FUNC_ADDR(RtlMemoryBarrier));
 
   return S_OK;
 }
@@ -3632,9 +3615,9 @@ JitGenMemFence (
 
   (VOID)Inst;
 
-  /* Emit call to __sync_synchronize() for memory fence */
+  /* Emit call to MemoryBarrier() for memory fence */
   sljit_emit_icall (C, SLJIT_CALL, SLJIT_ARGS0(W),
-    SLJIT_IMM, SLJIT_FUNC_ADDR(__sync_synchronize));
+    SLJIT_IMM, SLJIT_FUNC_ADDR(RtlMemoryBarrier));
 
   return S_OK;
 }
@@ -3653,7 +3636,7 @@ JitGenReadFence (
 
   /* Use full barrier for safety in JIT context */
   sljit_emit_icall (C, SLJIT_CALL, SLJIT_ARGS0(W),
-    SLJIT_IMM, SLJIT_FUNC_ADDR(__sync_synchronize));
+    SLJIT_IMM, SLJIT_FUNC_ADDR(RtlMemoryBarrier));
 
   return S_OK;
 }
@@ -3672,7 +3655,7 @@ JitGenWriteFence (
 
   /* Use full barrier for safety in JIT context */
   sljit_emit_icall (C, SLJIT_CALL, SLJIT_ARGS0(W),
-    SLJIT_IMM, SLJIT_FUNC_ADDR(__sync_synchronize));
+    SLJIT_IMM, SLJIT_FUNC_ADDR(RtlMemoryBarrier));
 
   return S_OK;
 }
