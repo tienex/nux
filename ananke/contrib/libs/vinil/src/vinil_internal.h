@@ -228,12 +228,6 @@ typedef struct _VINIL_EXECUTION_STATE {
   UINT8                            *Stack;           /* General-purpose stack (4KB) */
   UINTN                            StackSize;        /* Stack size in bytes */
   UINTN                            SP;               /* Stack pointer (grows down) */
-
-  /* Condition flags for comparison/branch operations */
-  BOOLEAN                          FlagZero;         /* Zero flag (EQ) */
-  BOOLEAN                          FlagSign;         /* Sign flag (negative) */
-  BOOLEAN                          FlagCarry;        /* Carry flag (unsigned overflow) */
-  BOOLEAN                          FlagOverflow;     /* Overflow flag (signed overflow) */
 } VINIL_EXECUTION_STATE;
 
 //

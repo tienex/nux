@@ -1552,6 +1552,237 @@ ExecuteInstruction (
       /* Do nothing */
       break;
 
+    /* ===== Bytecode Extension Opcodes ===== */
+
+    /* Stack Operations */
+    case VINIL_OP_PUSH:
+      /* PUSH src0 - push register value onto stack */
+      if (Instruction->Src[0] != NULL && State->Stack != NULL) {
+        VINIL_REGISTER_VALUE *SrcReg = GetRegister (State, Instruction->Src[0]);
+        if (SrcReg != NULL && State->SP >= sizeof(VINIL_REGISTER_VALUE)) {
+          State->SP -= sizeof(VINIL_REGISTER_VALUE);
+          memcpy(&State->Stack[State->SP], SrcReg, sizeof(VINIL_REGISTER_VALUE));
+        }
+      }
+      break;
+
+    case VINIL_OP_POP:
+      /* POP dst - pop value from stack */
+      if (Instruction->Dst != NULL && State->Stack != NULL) {
+        VINIL_REGISTER_VALUE *DstReg = GetRegister (State, Instruction->Dst);
+        if (DstReg != NULL && State->SP + sizeof(VINIL_REGISTER_VALUE) <= State->StackSize) {
+          memcpy(DstReg, &State->Stack[State->SP], sizeof(VINIL_REGISTER_VALUE));
+          State->SP += sizeof(VINIL_REGISTER_VALUE);
+        }
+      }
+      break;
+
+    case VINIL_OP_DUP:
+      /* DUP - duplicate top of stack */
+      if (State->Stack != NULL && State->SP + sizeof(VINIL_REGISTER_VALUE) <= State->StackSize) {
+        if (State->SP >= sizeof(VINIL_REGISTER_VALUE)) {
+          State->SP -= sizeof(VINIL_REGISTER_VALUE);
+          memcpy(&State->Stack[State->SP], &State->Stack[State->SP + sizeof(VINIL_REGISTER_VALUE)], sizeof(VINIL_REGISTER_VALUE));
+        }
+      }
+      break;
+
+    case VINIL_OP_SWAP:
+      /* SWAP - swap top two stack values */
+      if (State->Stack != NULL && State->SP + 2 * sizeof(VINIL_REGISTER_VALUE) <= State->StackSize) {
+        VINIL_REGISTER_VALUE Temp;
+        memcpy(&Temp, &State->Stack[State->SP], sizeof(VINIL_REGISTER_VALUE));
+        memcpy(&State->Stack[State->SP], &State->Stack[State->SP + sizeof(VINIL_REGISTER_VALUE)], sizeof(VINIL_REGISTER_VALUE));
+        memcpy(&State->Stack[State->SP + sizeof(VINIL_REGISTER_VALUE)], &Temp, sizeof(VINIL_REGISTER_VALUE));
+      }
+      break;
+
+    /* Zero Extension */
+    case VINIL_OP_ZEXT8:
+      if (Instruction->Dst != NULL && Instruction->Src[0] != NULL) {
+        VINIL_REGISTER_VALUE *DstReg = GetRegister (State, Instruction->Dst);
+        VINIL_REGISTER_VALUE *SrcReg = GetRegister (State, Instruction->Src[0]);
+        if (DstReg != NULL && SrcReg != NULL) {
+          DstReg->u[0] = (UINT32)(SrcReg->u[0] & 0xFF);
+        }
+      }
+      break;
+
+    case VINIL_OP_ZEXT16:
+      if (Instruction->Dst != NULL && Instruction->Src[0] != NULL) {
+        VINIL_REGISTER_VALUE *DstReg = GetRegister (State, Instruction->Dst);
+        VINIL_REGISTER_VALUE *SrcReg = GetRegister (State, Instruction->Src[0]);
+        if (DstReg != NULL && SrcReg != NULL) {
+          DstReg->u[0] = (UINT32)(SrcReg->u[0] & 0xFFFF);
+        }
+      }
+      break;
+
+    case VINIL_OP_ZEXT32:
+      if (Instruction->Dst != NULL && Instruction->Src[0] != NULL) {
+        VINIL_REGISTER_VALUE *DstReg = GetRegister (State, Instruction->Dst);
+        VINIL_REGISTER_VALUE *SrcReg = GetRegister (State, Instruction->Src[0]);
+        if (DstReg != NULL && SrcReg != NULL) {
+          /* Zero extend 32-bit to 64-bit - store in two 32-bit slots */
+          DstReg->u[0] = SrcReg->u[0];
+          DstReg->u[1] = 0;
+        }
+      }
+      break;
+
+    /* Sign Extension */
+    case VINIL_OP_SEXT8:
+      if (Instruction->Dst != NULL && Instruction->Src[0] != NULL) {
+        VINIL_REGISTER_VALUE *DstReg = GetRegister (State, Instruction->Dst);
+        VINIL_REGISTER_VALUE *SrcReg = GetRegister (State, Instruction->Src[0]);
+        if (DstReg != NULL && SrcReg != NULL) {
+          INT8 val = (INT8)(SrcReg->i[0] & 0xFF);
+          DstReg->i[0] = (INT32)val;
+        }
+      }
+      break;
+
+    case VINIL_OP_SEXT16:
+      if (Instruction->Dst != NULL && Instruction->Src[0] != NULL) {
+        VINIL_REGISTER_VALUE *DstReg = GetRegister (State, Instruction->Dst);
+        VINIL_REGISTER_VALUE *SrcReg = GetRegister (State, Instruction->Src[0]);
+        if (DstReg != NULL && SrcReg != NULL) {
+          INT16 val = (INT16)(SrcReg->i[0] & 0xFFFF);
+          DstReg->i[0] = (INT32)val;
+        }
+      }
+      break;
+
+    case VINIL_OP_SEXT32:
+      if (Instruction->Dst != NULL && Instruction->Src[0] != NULL) {
+        VINIL_REGISTER_VALUE *DstReg = GetRegister (State, Instruction->Dst);
+        VINIL_REGISTER_VALUE *SrcReg = GetRegister (State, Instruction->Src[0]);
+        if (DstReg != NULL && SrcReg != NULL) {
+          /* Sign extend 32-bit to 64-bit - store in two 32-bit slots */
+          INT64 extended = (INT64)SrcReg->i[0];
+          DstReg->u[0] = (UINT32)(extended & 0xFFFFFFFF);
+          DstReg->u[1] = (UINT32)(extended >> 32);
+        }
+      }
+      break;
+
+    /* Truncation */
+    case VINIL_OP_TRUNC8:
+      if (Instruction->Dst != NULL && Instruction->Src[0] != NULL) {
+        VINIL_REGISTER_VALUE *DstReg = GetRegister (State, Instruction->Dst);
+        VINIL_REGISTER_VALUE *SrcReg = GetRegister (State, Instruction->Src[0]);
+        if (DstReg != NULL && SrcReg != NULL) {
+          DstReg->u[0] = SrcReg->u[0] & 0xFF;
+        }
+      }
+      break;
+
+    case VINIL_OP_TRUNC16:
+      if (Instruction->Dst != NULL && Instruction->Src[0] != NULL) {
+        VINIL_REGISTER_VALUE *DstReg = GetRegister (State, Instruction->Dst);
+        VINIL_REGISTER_VALUE *SrcReg = GetRegister (State, Instruction->Src[0]);
+        if (DstReg != NULL && SrcReg != NULL) {
+          DstReg->u[0] = SrcReg->u[0] & 0xFFFF;
+        }
+      }
+      break;
+
+    case VINIL_OP_TRUNC32:
+      if (Instruction->Dst != NULL && Instruction->Src[0] != NULL) {
+        VINIL_REGISTER_VALUE *DstReg = GetRegister (State, Instruction->Dst);
+        VINIL_REGISTER_VALUE *SrcReg = GetRegister (State, Instruction->Src[0]);
+        if (DstReg != NULL && SrcReg != NULL) {
+          /* Truncate 64-bit (from two 32-bit slots) to 32-bit */
+          DstReg->u[0] = SrcReg->u[0];
+        }
+      }
+      break;
+
+    /* Unsigned Arithmetic */
+    case VINIL_OP_MULU:
+      if (Instruction->Dst != NULL && Instruction->Src[0] != NULL && Instruction->Src[1] != NULL) {
+        VINIL_REGISTER_VALUE *DstReg = GetRegister (State, Instruction->Dst);
+        VINIL_REGISTER_VALUE *Src0Reg = GetRegister (State, Instruction->Src[0]);
+        VINIL_REGISTER_VALUE *Src1Reg = GetRegister (State, Instruction->Src[1]);
+        if (DstReg != NULL && Src0Reg != NULL && Src1Reg != NULL) {
+          DstReg->u[0] = Src0Reg->u[0] * Src1Reg->u[0];
+        }
+      }
+      break;
+
+    case VINIL_OP_DIVU:
+      if (Instruction->Dst != NULL && Instruction->Src[0] != NULL && Instruction->Src[1] != NULL) {
+        VINIL_REGISTER_VALUE *DstReg = GetRegister (State, Instruction->Dst);
+        VINIL_REGISTER_VALUE *Src0Reg = GetRegister (State, Instruction->Src[0]);
+        VINIL_REGISTER_VALUE *Src1Reg = GetRegister (State, Instruction->Src[1]);
+        if (DstReg != NULL && Src0Reg != NULL && Src1Reg != NULL && Src1Reg->u[0] != 0) {
+          DstReg->u[0] = Src0Reg->u[0] / Src1Reg->u[0];
+        }
+      }
+      break;
+
+    case VINIL_OP_MODU:
+      if (Instruction->Dst != NULL && Instruction->Src[0] != NULL && Instruction->Src[1] != NULL) {
+        VINIL_REGISTER_VALUE *DstReg = GetRegister (State, Instruction->Dst);
+        VINIL_REGISTER_VALUE *Src0Reg = GetRegister (State, Instruction->Src[0]);
+        VINIL_REGISTER_VALUE *Src1Reg = GetRegister (State, Instruction->Src[1]);
+        if (DstReg != NULL && Src0Reg != NULL && Src1Reg != NULL && Src1Reg->u[0] != 0) {
+          DstReg->u[0] = Src0Reg->u[0] % Src1Reg->u[0];
+        }
+      }
+      break;
+
+    /* Indexed Memory Operations */
+    case VINIL_OP_LOAD_INDEXED:
+      /* dst = mem[base + index] */
+      if (Instruction->Dst != NULL && Instruction->Src[0] != NULL &&
+          Instruction->Src[1] != NULL && State->SharedMemory != NULL) {
+        VINIL_REGISTER_VALUE *DstReg = GetRegister (State, Instruction->Dst);
+        VINIL_REGISTER_VALUE *BaseReg = GetRegister (State, Instruction->Src[0]);
+        VINIL_REGISTER_VALUE *IndexReg = GetRegister (State, Instruction->Src[1]);
+        if (DstReg != NULL && BaseReg != NULL && IndexReg != NULL) {
+          UINTN Offset = BaseReg->u[0] + IndexReg->u[0];
+          if (Offset + 4 <= State->SharedMemorySize) {
+            DstReg->u[0] = *((UINT32*)((UINT8*)State->SharedMemory + Offset));
+          }
+        }
+      }
+      break;
+
+    case VINIL_OP_STORE_INDEXED:
+      /* mem[base + index] = src */
+      if (Instruction->Src[0] != NULL && Instruction->Src[1] != NULL &&
+          Instruction->Src[2] != NULL && State->SharedMemory != NULL) {
+        VINIL_REGISTER_VALUE *BaseReg = GetRegister (State, Instruction->Src[0]);
+        VINIL_REGISTER_VALUE *IndexReg = GetRegister (State, Instruction->Src[1]);
+        VINIL_REGISTER_VALUE *SrcReg = GetRegister (State, Instruction->Src[2]);
+        if (BaseReg != NULL && IndexReg != NULL && SrcReg != NULL) {
+          UINTN Offset = BaseReg->u[0] + IndexReg->u[0];
+          if (Offset + 4 <= State->SharedMemorySize) {
+            *((UINT32*)((UINT8*)State->SharedMemory + Offset)) = SrcReg->u[0];
+          }
+        }
+      }
+      break;
+
+    case VINIL_OP_LEA:
+      /* Load effective address: dst = base + offset */
+      if (Instruction->Dst != NULL && Instruction->Src[0] != NULL && Instruction->Src[1] != NULL) {
+        VINIL_REGISTER_VALUE *DstReg = GetRegister (State, Instruction->Dst);
+        VINIL_REGISTER_VALUE *BaseReg = GetRegister (State, Instruction->Src[0]);
+        VINIL_REGISTER_VALUE *OffsetReg = GetRegister (State, Instruction->Src[1]);
+        if (DstReg != NULL && BaseReg != NULL && OffsetReg != NULL) {
+          DstReg->u[0] = BaseReg->u[0] + OffsetReg->u[0];
+        }
+      }
+      break;
+
+    /* System Operations */
+    case VINIL_OP_TRAP:
+      /* Software trap/breakpoint - could trigger debugger */
+      /* For now, just no-op */
+      break;
+
     /* Control Flow Opcodes */
     case VINIL_OP_IF:
       /* Evaluate condition from first component of Src0 */
@@ -2195,6 +2426,12 @@ VinilInterpreterExecute (
   State.Inputs = Inputs;
   State.Outputs = Outputs;
 
+  /* Allocate bytecode stack (4KB) */
+  UINT8 StackBuffer[4096];
+  State.Stack = StackBuffer;
+  State.StackSize = sizeof(StackBuffer);
+  State.SP = State.StackSize;  /* Stack grows downward */
+
   /* Execute program */
   Result = ExecuteProgram (Program, &State);
   if (FAILED (Result)) {
@@ -2274,6 +2511,12 @@ Context_ExecuteKernel (
             for (lx = 0; lx < LocalSize[0]; lx++) {
               /* Initialize work-item state */
               memset (&State, 0, sizeof (VINIL_EXECUTION_STATE));
+
+              /* Allocate bytecode stack (4KB) */
+              UINT8 StackBuffer[4096];
+              State.Stack = StackBuffer;
+              State.StackSize = sizeof(StackBuffer);
+              State.SP = State.StackSize;  /* Stack grows downward */
 
               State.GlobalId[0] = gx + lx;
               State.GlobalId[1] = gy + ly;
