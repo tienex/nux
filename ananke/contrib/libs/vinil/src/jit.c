@@ -2409,6 +2409,137 @@ JitGenNop (
   return S_OK;
 }
 
+/* MOVA: dst = src - move address (alias for MOV) */
+static
+HRESULT
+JitGenMova (
+  VINIL_JIT_CONTEXT       *Context,
+  VINIL_INSTRUCTION_NODE  *Inst
+  )
+{
+  /* MOVA is identical to MOV in our implementation */
+  return JitGenMov (Context, Inst);
+}
+
+/* SHUFFLE: dst[i] = src0[src1[i]] - component shuffle based on indices */
+static
+HRESULT
+JitGenShuffle (
+  VINIL_JIT_CONTEXT       *Context,
+  VINIL_INSTRUCTION_NODE  *Inst
+  )
+{
+  struct sljit_compiler *C = Context->Compiler;
+  sljit_sw DstOffset, SrcOffset, IdxOffset;
+  HRESULT Result;
+  sljit_s32 i;
+  struct sljit_jump *jump_cases[4];
+  struct sljit_label *label_end;
+
+  Result = GetVariableOffset (Context, Inst->Dst, &DstOffset);
+  if (FAILED (Result)) return Result;
+
+  Result = GetVariableOffset (Context, Inst->Src[0], &SrcOffset);
+  if (FAILED (Result)) return Result;
+
+  Result = GetVariableOffset (Context, Inst->Src[1], &IdxOffset);
+  if (FAILED (Result)) return Result;
+
+  /* For each destination component, load index and shuffle */
+  for (i = 0; i < 4; i++) {
+    /* Load index[i] as integer */
+    sljit_emit_op1 (C, SLJIT_MOV, SLJIT_R0, 0,
+      SLJIT_MEM1(REG_STATE), IdxOffset + i * 4);
+
+    /* Mask to 0-3: R0 = R0 & 3 */
+    sljit_emit_op2 (C, SLJIT_AND, SLJIT_R0, 0, SLJIT_R0, 0, SLJIT_IMM, 3);
+
+    /* Switch on index value to load correct component using conditional jumps */
+    /* Compare with 0 */
+    sljit_emit_op2 (C, SLJIT_SUB | SLJIT_SET_Z, SLJIT_R1, 0, SLJIT_R0, 0, SLJIT_IMM, 0);
+    jump_cases[0] = sljit_emit_jump (C, SLJIT_EQUAL);
+
+    /* Compare with 1 */
+    sljit_emit_op2 (C, SLJIT_SUB | SLJIT_SET_Z, SLJIT_R1, 0, SLJIT_R0, 0, SLJIT_IMM, 1);
+    jump_cases[1] = sljit_emit_jump (C, SLJIT_EQUAL);
+
+    /* Compare with 2 */
+    sljit_emit_op2 (C, SLJIT_SUB | SLJIT_SET_Z, SLJIT_R1, 0, SLJIT_R0, 0, SLJIT_IMM, 2);
+    jump_cases[2] = sljit_emit_jump (C, SLJIT_EQUAL);
+
+    /* Default case 3 - load src[3] */
+    sljit_emit_fmem (C, SLJIT_MOV_F32 | SLJIT_MEM_ALIGNED_16,
+      SLJIT_FR0, SLJIT_MEM1(REG_STATE), SrcOffset + 3 * 4);
+    jump_cases[3] = sljit_emit_jump (C, SLJIT_JUMP);
+
+    /* Case 2: load src[2] */
+    sljit_set_label (jump_cases[2], sljit_emit_label (C));
+    sljit_emit_fmem (C, SLJIT_MOV_F32 | SLJIT_MEM_ALIGNED_16,
+      SLJIT_FR0, SLJIT_MEM1(REG_STATE), SrcOffset + 2 * 4);
+    struct sljit_jump *jump_to_end2 = sljit_emit_jump (C, SLJIT_JUMP);
+
+    /* Case 1: load src[1] */
+    sljit_set_label (jump_cases[1], sljit_emit_label (C));
+    sljit_emit_fmem (C, SLJIT_MOV_F32 | SLJIT_MEM_ALIGNED_16,
+      SLJIT_FR0, SLJIT_MEM1(REG_STATE), SrcOffset + 1 * 4);
+    struct sljit_jump *jump_to_end1 = sljit_emit_jump (C, SLJIT_JUMP);
+
+    /* Case 0: load src[0] */
+    sljit_set_label (jump_cases[0], sljit_emit_label (C));
+    sljit_emit_fmem (C, SLJIT_MOV_F32 | SLJIT_MEM_ALIGNED_16,
+      SLJIT_FR0, SLJIT_MEM1(REG_STATE), SrcOffset + 0 * 4);
+
+    /* End label */
+    label_end = sljit_emit_label (C);
+    sljit_set_label (jump_cases[3], label_end);
+    sljit_set_label (jump_to_end2, label_end);
+    sljit_set_label (jump_to_end1, label_end);
+
+    /* Store result to dst[i] */
+    sljit_emit_fmem (C, SLJIT_MOV_F32 | SLJIT_MEM_STORE | SLJIT_MEM_ALIGNED_16,
+      SLJIT_FR0, SLJIT_MEM1(REG_STATE), DstOffset + i * 4);
+  }
+
+  return S_OK;
+}
+
+/* DISCARD: Mark fragment for discard */
+static
+HRESULT
+JitGenDiscard (
+  VINIL_JIT_CONTEXT       *Context,
+  VINIL_INSTRUCTION_NODE  *Inst
+  )
+{
+  struct sljit_compiler *C = Context->Compiler;
+  (void)Inst;
+
+  /*
+   * Set State->Discarded = TRUE
+   * Discarded is a BOOLEAN field in VINIL_EXECUTION_STATE
+   * Offset calculation:
+   * - Registers[256]: 256 * 16 = 4096 bytes
+   * - Inputs pointer: 8 bytes
+   * - Outputs pointer: 8 bytes
+   * - GlobalId[3]: 12 bytes
+   * - LocalId[3]: 12 bytes
+   * - GroupId[3]: 12 bytes
+   * - GlobalSize[3]: 12 bytes
+   * - LocalSize[3]: 12 bytes
+   * - NumGroups[3]: 12 bytes
+   * - Discarded: BOOLEAN (1 byte)
+   * Total offset: 4096 + 8 + 8 + 12*6 = 4184
+   */
+  #define DISCARDED_OFFSET  4184
+
+  /* Store TRUE (1) to State->Discarded */
+  sljit_emit_op1 (C, SLJIT_MOV, SLJIT_R0, 0, SLJIT_IMM, 1);
+  sljit_emit_op1 (C, SLJIT_MOV_U8,
+    SLJIT_MEM1(REG_STATE), DISCARDED_OFFSET, SLJIT_R0, 0);
+
+  return S_OK;
+}
+
 /* SHL: dst = src1 << src2 (logical left shift) */
 static
 HRESULT
@@ -2784,6 +2915,9 @@ JitCompileInstruction (
     case VINIL_OP_MOV:
       return JitGenMov (Context, Inst);
 
+    case VINIL_OP_MOVA:
+      return JitGenMova (Context, Inst);
+
     case VINIL_OP_ADD:
       return JitGenAdd (Context, Inst);
 
@@ -2936,6 +3070,12 @@ JitCompileInstruction (
 
     case VINIL_OP_NOP:
       return JitGenNop (Context, Inst);
+
+    case VINIL_OP_SHUFFLE:
+      return JitGenShuffle (Context, Inst);
+
+    case VINIL_OP_DISCARD:
+      return JitGenDiscard (Context, Inst);
 
     case VINIL_OP_RET:
       return JitGenRet (Context, Inst);

@@ -119,9 +119,9 @@
 - [x] Format validation
 - [x] Load/Save IL programs
 
-### 10. JIT Compiler (57%)
+### 10. JIT Compiler (61%)
 - [x] SLJIT integration
-- [x] Arithmetic operations: MOV, ADD, SUB, MUL, DIV, MAD, NEG, ABS, CLAMP (100%)
+- [x] Arithmetic operations: MOV, MOVA, ADD, SUB, MUL, DIV, MAD, NEG, ABS, CLAMP (100%)
 - [x] Comparison operations: MIN, MAX (100%)
 - [x] Reciprocal operations: RCP, RSQ (100%)
 - [x] Rounding operations: FLR, FRC, CEIL, TRUNC, ROUND (100%)
@@ -130,13 +130,13 @@
 - [x] Logical operations: AND, OR, XOR, NOT (100%)
 - [x] Bitwise shift operations: SHL, SHR, SAR (100%)
 - [x] Vector operations: DP2, DP3, DP4, CRS, LEN, NRM (100%)
-- [x] Miscellaneous operations: SELECT, NOP (100%)
+- [x] Miscellaneous operations: SELECT, SHUFFLE, NOP, DISCARD (100%)
 - [x] Register allocation framework
 - [x] Prologue/epilogue generation (3 float scratch registers)
 - [x] Program compilation API
 - [x] External function calls (floorf, ceilf, sqrtf, truncf, roundf, expf, exp2f, logf, log2f, sinf, cosf, tanf, asinf, acosf, atanf, atan2f, powf)
-- [x] 54/94 opcodes implemented
-- [ ] Extended opcode support (40 opcodes remaining)
+- [x] 57/94 opcodes implemented
+- [ ] Extended opcode support (37 opcodes remaining)
 - [ ] Control flow compilation
 - [ ] Optimization passes
 
@@ -200,7 +200,7 @@ These are massive dependencies that would dwarf VINIL itself.
 | **Disassembler** | **2** | **400** | **94** | **100%** |
 | **Assembler** | **1** | **650** | **94** | **100%** |
 | Binary Format | 1 | 500 | - | 100% |
-| JIT | 1 | 2950 | 54/94 | 57% |
+| JIT | 1 | 3100 | 57/94 | 61% |
 | Frontends (stubs) | 4 | 600 | - | 0% |
 | AOT (stub) | 1 | 250 | - | 0% |
 | **Total** | **18** | **~9,600** | - | **89%** |
@@ -250,8 +250,8 @@ These are massive dependencies that would dwarf VINIL itself.
 6. **JIT Compilation**
    ```c
    IVinilContext_Execute(ctx, program, VinilBackendJit, inputs, outputs);
-   // JIT-compiled opcodes (54/94):
-   //   Arithmetic: MOV, ADD, SUB, MUL, DIV, MAD, NEG, ABS, CLAMP (100%)
+   // JIT-compiled opcodes (57/94):
+   //   Arithmetic: MOV, MOVA, ADD, SUB, MUL, DIV, MAD, NEG, ABS, CLAMP (100%)
    //   Comparison: MIN, MAX (100%)
    //   Reciprocals: RCP, RSQ (100%)
    //   Rounding: FLR, FRC, CEIL, TRUNC, ROUND (100%)
@@ -260,7 +260,7 @@ These are massive dependencies that would dwarf VINIL itself.
    //   Logical: AND, OR, XOR, NOT (100%)
    //   Bitwise Shifts: SHL, SHR, SAR (100%)
    //   Vector: DP2, DP3, DP4, CRS, LEN, NRM (100%)
-   //   Misc: SELECT, NOP (100%)
+   //   Misc: SELECT, SHUFFLE, NOP, DISCARD (100%)
    //   Control: RET
    // ~10-100x faster than interpreter for arithmetic and vector operations
    ```
@@ -282,7 +282,8 @@ These are massive dependencies that would dwarf VINIL itself.
 13. **922b2c6** - Add transcendentals (SIN, COS, POW) and DP2 to JIT
 14. **ffa318a** - Complete vector operations (CRS, LEN, NRM) in JIT compiler
 15. **f55c0ae** - Add bitwise shifts (SHL, SHR, SAR) and complete transcendentals (TAN, ASIN, ACOS, ATAN, EXP, LOG) to JIT
-16. **(pending)** - Add miscellaneous operations (SELECT, ATAN2, NOP) to JIT
+16. **28bd669** - Add miscellaneous operations (SELECT, ATAN2, NOP) to JIT compiler
+17. **(pending)** - Add MOVA, SHUFFLE, and DISCARD operations to JIT compiler
 
 ## 🎯 Summary
 
