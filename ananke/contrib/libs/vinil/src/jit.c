@@ -2287,6 +2287,128 @@ JitGenLog (
   return S_OK;
 }
 
+/* SELECT: dst = (src1 != 0) ? src2 : src3 - component-wise ternary select */
+static
+HRESULT
+JitGenSelect (
+  VINIL_JIT_CONTEXT       *Context,
+  VINIL_INSTRUCTION_NODE  *Inst
+  )
+{
+  struct sljit_compiler *C = Context->Compiler;
+  sljit_sw DstOffset, Src1Offset, Src2Offset, Src3Offset;
+  HRESULT Result;
+  sljit_s32 i;
+  struct sljit_jump *jump_zero, *jump_end;
+  union { float f; sljit_u32 u; } zero = { 0.0f };
+
+  Result = GetVariableOffset (Context, Inst->Dst, &DstOffset);
+  if (FAILED (Result)) return Result;
+
+  Result = GetVariableOffset (Context, Inst->Src[0], &Src1Offset);
+  if (FAILED (Result)) return Result;
+
+  Result = GetVariableOffset (Context, Inst->Src[1], &Src2Offset);
+  if (FAILED (Result)) return Result;
+
+  Result = GetVariableOffset (Context, Inst->Src[2], &Src3Offset);
+  if (FAILED (Result)) return Result;
+
+  /* Component-wise: dst[i] = (src1[i] != 0.0) ? src2[i] : src3[i] */
+  for (i = 0; i < 4; i++) {
+    /* Load src1[i] (condition) */
+    sljit_emit_fmem (C, SLJIT_MOV_F32 | SLJIT_MEM_ALIGNED_16,
+      SLJIT_FR0, SLJIT_MEM1(REG_STATE), Src1Offset + i * 4);
+
+    /* Load 0.0 into FR1 */
+    sljit_emit_op1 (C, SLJIT_MOV, SLJIT_R0, 0, SLJIT_IMM, zero.u);
+    sljit_emit_op1 (C, SLJIT_MOV, SLJIT_MEM1(SLJIT_SP), 0, SLJIT_R0, 0);
+    sljit_emit_fmem (C, SLJIT_MOV_F32, SLJIT_FR1, SLJIT_MEM1(SLJIT_SP), 0);
+
+    /* Compare: is src1[i] == 0.0? */
+    sljit_emit_fop1 (C, SLJIT_CMP_F32 | SLJIT_SET_F_EQUAL, SLJIT_FR0, 0, SLJIT_FR1, 0);
+
+    /* If equal to zero, jump to load src3 */
+    jump_zero = sljit_emit_jump (C, SLJIT_F_EQUAL);
+
+    /* Not zero: load src2[i] */
+    sljit_emit_fmem (C, SLJIT_MOV_F32 | SLJIT_MEM_ALIGNED_16,
+      SLJIT_FR0, SLJIT_MEM1(REG_STATE), Src2Offset + i * 4);
+    jump_end = sljit_emit_jump (C, SLJIT_JUMP);
+
+    /* Zero: load src3[i] */
+    sljit_set_label (jump_zero, sljit_emit_label (C));
+    sljit_emit_fmem (C, SLJIT_MOV_F32 | SLJIT_MEM_ALIGNED_16,
+      SLJIT_FR0, SLJIT_MEM1(REG_STATE), Src3Offset + i * 4);
+
+    /* Store result */
+    sljit_set_label (jump_end, sljit_emit_label (C));
+    sljit_emit_fmem (C, SLJIT_MOV_F32 | SLJIT_MEM_STORE | SLJIT_MEM_ALIGNED_16,
+      SLJIT_FR0, SLJIT_MEM1(REG_STATE), DstOffset + i * 4);
+  }
+
+  return S_OK;
+}
+
+/* ATAN2: dst = atan2(src1, src2) - two-argument arc tangent */
+static
+HRESULT
+JitGenAtan2 (
+  VINIL_JIT_CONTEXT       *Context,
+  VINIL_INSTRUCTION_NODE  *Inst
+  )
+{
+  struct sljit_compiler *C = Context->Compiler;
+  sljit_sw DstOffset, Src1Offset, Src2Offset;
+  HRESULT Result;
+  sljit_s32 i;
+
+  Result = GetVariableOffset (Context, Inst->Dst, &DstOffset);
+  if (FAILED (Result)) return Result;
+
+  Result = GetVariableOffset (Context, Inst->Src[0], &Src1Offset);
+  if (FAILED (Result)) return Result;
+
+  Result = GetVariableOffset (Context, Inst->Src[1], &Src2Offset);
+  if (FAILED (Result)) return Result;
+
+  /* Component-wise: dst[i] = atan2f(src1[i], src2[i]) */
+  for (i = 0; i < 4; i++) {
+    /* Load src1[i] into FR0 */
+    sljit_emit_fmem (C, SLJIT_MOV_F32 | SLJIT_MEM_ALIGNED_16,
+      SLJIT_FR0, SLJIT_MEM1(REG_STATE), Src1Offset + i * 4);
+
+    /* Load src2[i] into FR1 */
+    sljit_emit_fmem (C, SLJIT_MOV_F32 | SLJIT_MEM_ALIGNED_16,
+      SLJIT_FR1, SLJIT_MEM1(REG_STATE), Src2Offset + i * 4);
+
+    /* Call atan2f(FR0, FR1) - result in FR0 */
+    sljit_emit_icall (C, SLJIT_CALL, SLJIT_ARGS2(F32, F32, F32),
+      SLJIT_IMM, SLJIT_FUNC_ADDR(atan2f));
+
+    /* Store result */
+    sljit_emit_fmem (C, SLJIT_MOV_F32 | SLJIT_MEM_STORE | SLJIT_MEM_ALIGNED_16,
+      SLJIT_FR0, SLJIT_MEM1(REG_STATE), DstOffset + i * 4);
+  }
+
+  return S_OK;
+}
+
+/* NOP: No operation */
+static
+HRESULT
+JitGenNop (
+  VINIL_JIT_CONTEXT       *Context,
+  VINIL_INSTRUCTION_NODE  *Inst
+  )
+{
+  (void)Context;
+  (void)Inst;
+
+  /* NOP - do nothing, just return success */
+  return S_OK;
+}
+
 /* SHL: dst = src1 << src2 (logical left shift) */
 static
 HRESULT
@@ -2782,6 +2904,9 @@ JitCompileInstruction (
     case VINIL_OP_ATAN:
       return JitGenAtan (Context, Inst);
 
+    case VINIL_OP_ATAN2:
+      return JitGenAtan2 (Context, Inst);
+
     case VINIL_OP_EXP:
       return JitGenExp (Context, Inst);
 
@@ -2805,6 +2930,12 @@ JitCompileInstruction (
 
     case VINIL_OP_NRM:
       return JitGenNrm (Context, Inst);
+
+    case VINIL_OP_SELECT:
+      return JitGenSelect (Context, Inst);
+
+    case VINIL_OP_NOP:
+      return JitGenNop (Context, Inst);
 
     case VINIL_OP_RET:
       return JitGenRet (Context, Inst);
