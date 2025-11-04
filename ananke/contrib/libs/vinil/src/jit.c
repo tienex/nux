@@ -959,6 +959,374 @@ JitGenRsq (
   return S_OK;
 }
 
+/* CEIL: dst = ceil(src) */
+static
+HRESULT
+JitGenCeil (
+  VINIL_JIT_CONTEXT       *Context,
+  VINIL_INSTRUCTION_NODE  *Inst
+  )
+{
+  struct sljit_compiler *C = Context->Compiler;
+  sljit_sw DstOffset, SrcOffset;
+  HRESULT Result;
+  sljit_s32 i;
+
+  Result = GetVariableOffset (Context, Inst->Dst, &DstOffset);
+  if (FAILED (Result)) return Result;
+
+  Result = GetVariableOffset (Context, Inst->Src[0], &SrcOffset);
+  if (FAILED (Result)) return Result;
+
+  /* Ceiling 4 floats component-wise using C library ceilf via icall */
+  for (i = 0; i < 4; i++) {
+    /* Load src[i] into FR0 */
+    sljit_emit_fmem (C, SLJIT_MOV_F32 | SLJIT_MEM_ALIGNED_16,
+      SLJIT_FR0,
+      SLJIT_MEM1(REG_STATE), SrcOffset + i * 4);
+
+    /* Call ceilf(FR0) - result in FR0 */
+    sljit_emit_icall (C, SLJIT_CALL, SLJIT_ARGS1(F32, F32), SLJIT_IMM, SLJIT_FUNC_ADDR(ceilf));
+
+    /* Store result */
+    sljit_emit_fmem (C, SLJIT_MOV_F32 | SLJIT_MEM_STORE | SLJIT_MEM_ALIGNED_16,
+      SLJIT_FR0,
+      SLJIT_MEM1(REG_STATE), DstOffset + i * 4);
+  }
+
+  return S_OK;
+}
+
+/* SQRT: dst = sqrt(src) */
+static
+HRESULT
+JitGenSqrt (
+  VINIL_JIT_CONTEXT       *Context,
+  VINIL_INSTRUCTION_NODE  *Inst
+  )
+{
+  struct sljit_compiler *C = Context->Compiler;
+  sljit_sw DstOffset, SrcOffset;
+  HRESULT Result;
+  sljit_s32 i;
+
+  Result = GetVariableOffset (Context, Inst->Dst, &DstOffset);
+  if (FAILED (Result)) return Result;
+
+  Result = GetVariableOffset (Context, Inst->Src[0], &SrcOffset);
+  if (FAILED (Result)) return Result;
+
+  /* Square root 4 floats component-wise using sqrtf via icall */
+  for (i = 0; i < 4; i++) {
+    /* Load src[i] into FR0 */
+    sljit_emit_fmem (C, SLJIT_MOV_F32 | SLJIT_MEM_ALIGNED_16,
+      SLJIT_FR0,
+      SLJIT_MEM1(REG_STATE), SrcOffset + i * 4);
+
+    /* Call sqrtf(FR0) - result in FR0 */
+    sljit_emit_icall (C, SLJIT_CALL, SLJIT_ARGS1(F32, F32), SLJIT_IMM, SLJIT_FUNC_ADDR(sqrtf));
+
+    /* Store result */
+    sljit_emit_fmem (C, SLJIT_MOV_F32 | SLJIT_MEM_STORE | SLJIT_MEM_ALIGNED_16,
+      SLJIT_FR0,
+      SLJIT_MEM1(REG_STATE), DstOffset + i * 4);
+  }
+
+  return S_OK;
+}
+
+/* SLT: dst = (src1 < src2) ? 1.0 : 0.0 */
+static
+HRESULT
+JitGenSlt (
+  VINIL_JIT_CONTEXT       *Context,
+  VINIL_INSTRUCTION_NODE  *Inst
+  )
+{
+  struct sljit_compiler *C = Context->Compiler;
+  sljit_sw DstOffset, Src1Offset, Src2Offset;
+  HRESULT Result;
+  sljit_s32 i;
+  struct sljit_jump *jump;
+  union {
+    float f;
+    sljit_u32 u;
+  } zero, one;
+
+  zero.f = 0.0f;
+  one.f = 1.0f;
+
+  Result = GetVariableOffset (Context, Inst->Dst, &DstOffset);
+  if (FAILED (Result)) return Result;
+
+  Result = GetVariableOffset (Context, Inst->Src[0], &Src1Offset);
+  if (FAILED (Result)) return Result;
+
+  Result = GetVariableOffset (Context, Inst->Src[1], &Src2Offset);
+  if (FAILED (Result)) return Result;
+
+  /* Set if less than: component-wise */
+  for (i = 0; i < 4; i++) {
+    /* Load src1[i] and src2[i] */
+    sljit_emit_fmem (C, SLJIT_MOV_F32 | SLJIT_MEM_ALIGNED_16,
+      SLJIT_FR0,
+      SLJIT_MEM1(REG_STATE), Src1Offset + i * 4);
+
+    sljit_emit_fmem (C, SLJIT_MOV_F32 | SLJIT_MEM_ALIGNED_16,
+      SLJIT_FR1,
+      SLJIT_MEM1(REG_STATE), Src2Offset + i * 4);
+
+    /* Compare: if FR0 < FR1, set result to 1.0, else 0.0 */
+    sljit_emit_fop1 (C, SLJIT_CMP_F32 | SLJIT_SET_LESS,
+      SLJIT_FR0, 0,
+      SLJIT_FR1, 0);
+
+    jump = sljit_emit_jump (C, SLJIT_LESS);
+
+    /* FR0 >= FR1, load 0.0 */
+    sljit_emit_op1 (C, SLJIT_MOV, REG_TMP1, 0, SLJIT_IMM, zero.u);
+    sljit_emit_op1 (C, SLJIT_MOV, SLJIT_MEM1(SLJIT_SP), -16, REG_TMP1, 0);
+    sljit_emit_fmem (C, SLJIT_MOV_F32,
+      SLJIT_FR0,
+      SLJIT_MEM1(SLJIT_SP), -16);
+
+    sljit_set_label (jump, sljit_emit_label (C));
+
+    /* FR0 < FR1, load 1.0 (jump target) */
+    sljit_emit_op1 (C, SLJIT_MOV, REG_TMP1, 0, SLJIT_IMM, one.u);
+    sljit_emit_op1 (C, SLJIT_MOV, SLJIT_MEM1(SLJIT_SP), -16, REG_TMP1, 0);
+    sljit_emit_fmem (C, SLJIT_MOV_F32,
+      SLJIT_FR0,
+      SLJIT_MEM1(SLJIT_SP), -16);
+
+    /* Store result */
+    sljit_emit_fmem (C, SLJIT_MOV_F32 | SLJIT_MEM_STORE | SLJIT_MEM_ALIGNED_16,
+      SLJIT_FR0,
+      SLJIT_MEM1(REG_STATE), DstOffset + i * 4);
+  }
+
+  return S_OK;
+}
+
+/* SGE: dst = (src1 >= src2) ? 1.0 : 0.0 */
+static
+HRESULT
+JitGenSge (
+  VINIL_JIT_CONTEXT       *Context,
+  VINIL_INSTRUCTION_NODE  *Inst
+  )
+{
+  struct sljit_compiler *C = Context->Compiler;
+  sljit_sw DstOffset, Src1Offset, Src2Offset;
+  HRESULT Result;
+  sljit_s32 i;
+  struct sljit_jump *jump;
+  union {
+    float f;
+    sljit_u32 u;
+  } zero, one;
+
+  zero.f = 0.0f;
+  one.f = 1.0f;
+
+  Result = GetVariableOffset (Context, Inst->Dst, &DstOffset);
+  if (FAILED (Result)) return Result;
+
+  Result = GetVariableOffset (Context, Inst->Src[0], &Src1Offset);
+  if (FAILED (Result)) return Result;
+
+  Result = GetVariableOffset (Context, Inst->Src[1], &Src2Offset);
+  if (FAILED (Result)) return Result;
+
+  /* Set if greater or equal: component-wise */
+  for (i = 0; i < 4; i++) {
+    /* Load src1[i] and src2[i] */
+    sljit_emit_fmem (C, SLJIT_MOV_F32 | SLJIT_MEM_ALIGNED_16,
+      SLJIT_FR0,
+      SLJIT_MEM1(REG_STATE), Src1Offset + i * 4);
+
+    sljit_emit_fmem (C, SLJIT_MOV_F32 | SLJIT_MEM_ALIGNED_16,
+      SLJIT_FR1,
+      SLJIT_MEM1(REG_STATE), Src2Offset + i * 4);
+
+    /* Compare: if FR0 >= FR1, set result to 1.0, else 0.0 */
+    sljit_emit_fop1 (C, SLJIT_CMP_F32 | SLJIT_SET_GREATER_EQUAL,
+      SLJIT_FR0, 0,
+      SLJIT_FR1, 0);
+
+    jump = sljit_emit_jump (C, SLJIT_GREATER_EQUAL);
+
+    /* FR0 < FR1, load 0.0 */
+    sljit_emit_op1 (C, SLJIT_MOV, REG_TMP1, 0, SLJIT_IMM, zero.u);
+    sljit_emit_op1 (C, SLJIT_MOV, SLJIT_MEM1(SLJIT_SP), -16, REG_TMP1, 0);
+    sljit_emit_fmem (C, SLJIT_MOV_F32,
+      SLJIT_FR0,
+      SLJIT_MEM1(SLJIT_SP), -16);
+
+    sljit_set_label (jump, sljit_emit_label (C));
+
+    /* FR0 >= FR1, load 1.0 (jump target) */
+    sljit_emit_op1 (C, SLJIT_MOV, REG_TMP1, 0, SLJIT_IMM, one.u);
+    sljit_emit_op1 (C, SLJIT_MOV, SLJIT_MEM1(SLJIT_SP), -16, REG_TMP1, 0);
+    sljit_emit_fmem (C, SLJIT_MOV_F32,
+      SLJIT_FR0,
+      SLJIT_MEM1(SLJIT_SP), -16);
+
+    /* Store result */
+    sljit_emit_fmem (C, SLJIT_MOV_F32 | SLJIT_MEM_STORE | SLJIT_MEM_ALIGNED_16,
+      SLJIT_FR0,
+      SLJIT_MEM1(REG_STATE), DstOffset + i * 4);
+  }
+
+  return S_OK;
+}
+
+/* SEQ: dst = (src1 == src2) ? 1.0 : 0.0 */
+static
+HRESULT
+JitGenSeq (
+  VINIL_JIT_CONTEXT       *Context,
+  VINIL_INSTRUCTION_NODE  *Inst
+  )
+{
+  struct sljit_compiler *C = Context->Compiler;
+  sljit_sw DstOffset, Src1Offset, Src2Offset;
+  HRESULT Result;
+  sljit_s32 i;
+  struct sljit_jump *jump;
+  union {
+    float f;
+    sljit_u32 u;
+  } zero, one;
+
+  zero.f = 0.0f;
+  one.f = 1.0f;
+
+  Result = GetVariableOffset (Context, Inst->Dst, &DstOffset);
+  if (FAILED (Result)) return Result;
+
+  Result = GetVariableOffset (Context, Inst->Src[0], &Src1Offset);
+  if (FAILED (Result)) return Result;
+
+  Result = GetVariableOffset (Context, Inst->Src[1], &Src2Offset);
+  if (FAILED (Result)) return Result;
+
+  /* Set if equal: component-wise */
+  for (i = 0; i < 4; i++) {
+    /* Load src1[i] and src2[i] */
+    sljit_emit_fmem (C, SLJIT_MOV_F32 | SLJIT_MEM_ALIGNED_16,
+      SLJIT_FR0,
+      SLJIT_MEM1(REG_STATE), Src1Offset + i * 4);
+
+    sljit_emit_fmem (C, SLJIT_MOV_F32 | SLJIT_MEM_ALIGNED_16,
+      SLJIT_FR1,
+      SLJIT_MEM1(REG_STATE), Src2Offset + i * 4);
+
+    /* Compare: if FR0 == FR1, set result to 1.0, else 0.0 */
+    sljit_emit_fop1 (C, SLJIT_CMP_F32 | SLJIT_SET_F_EQUAL,
+      SLJIT_FR0, 0,
+      SLJIT_FR1, 0);
+
+    jump = sljit_emit_jump (C, SLJIT_F_EQUAL);
+
+    /* FR0 != FR1, load 0.0 */
+    sljit_emit_op1 (C, SLJIT_MOV, REG_TMP1, 0, SLJIT_IMM, zero.u);
+    sljit_emit_op1 (C, SLJIT_MOV, SLJIT_MEM1(SLJIT_SP), -16, REG_TMP1, 0);
+    sljit_emit_fmem (C, SLJIT_MOV_F32,
+      SLJIT_FR0,
+      SLJIT_MEM1(SLJIT_SP), -16);
+
+    sljit_set_label (jump, sljit_emit_label (C));
+
+    /* FR0 == FR1, load 1.0 (jump target) */
+    sljit_emit_op1 (C, SLJIT_MOV, REG_TMP1, 0, SLJIT_IMM, one.u);
+    sljit_emit_op1 (C, SLJIT_MOV, SLJIT_MEM1(SLJIT_SP), -16, REG_TMP1, 0);
+    sljit_emit_fmem (C, SLJIT_MOV_F32,
+      SLJIT_FR0,
+      SLJIT_MEM1(SLJIT_SP), -16);
+
+    /* Store result */
+    sljit_emit_fmem (C, SLJIT_MOV_F32 | SLJIT_MEM_STORE | SLJIT_MEM_ALIGNED_16,
+      SLJIT_FR0,
+      SLJIT_MEM1(REG_STATE), DstOffset + i * 4);
+  }
+
+  return S_OK;
+}
+
+/* SNE: dst = (src1 != src2) ? 1.0 : 0.0 */
+static
+HRESULT
+JitGenSne (
+  VINIL_JIT_CONTEXT       *Context,
+  VINIL_INSTRUCTION_NODE  *Inst
+  )
+{
+  struct sljit_compiler *C = Context->Compiler;
+  sljit_sw DstOffset, Src1Offset, Src2Offset;
+  HRESULT Result;
+  sljit_s32 i;
+  struct sljit_jump *jump;
+  union {
+    float f;
+    sljit_u32 u;
+  } zero, one;
+
+  zero.f = 0.0f;
+  one.f = 1.0f;
+
+  Result = GetVariableOffset (Context, Inst->Dst, &DstOffset);
+  if (FAILED (Result)) return Result;
+
+  Result = GetVariableOffset (Context, Inst->Src[0], &Src1Offset);
+  if (FAILED (Result)) return Result;
+
+  Result = GetVariableOffset (Context, Inst->Src[1], &Src2Offset);
+  if (FAILED (Result)) return Result;
+
+  /* Set if not equal: component-wise */
+  for (i = 0; i < 4; i++) {
+    /* Load src1[i] and src2[i] */
+    sljit_emit_fmem (C, SLJIT_MOV_F32 | SLJIT_MEM_ALIGNED_16,
+      SLJIT_FR0,
+      SLJIT_MEM1(REG_STATE), Src1Offset + i * 4);
+
+    sljit_emit_fmem (C, SLJIT_MOV_F32 | SLJIT_MEM_ALIGNED_16,
+      SLJIT_FR1,
+      SLJIT_MEM1(REG_STATE), Src2Offset + i * 4);
+
+    /* Compare: if FR0 != FR1, set result to 1.0, else 0.0 */
+    sljit_emit_fop1 (C, SLJIT_CMP_F32 | SLJIT_SET_F_NOT_EQUAL,
+      SLJIT_FR0, 0,
+      SLJIT_FR1, 0);
+
+    jump = sljit_emit_jump (C, SLJIT_F_NOT_EQUAL);
+
+    /* FR0 == FR1, load 0.0 */
+    sljit_emit_op1 (C, SLJIT_MOV, REG_TMP1, 0, SLJIT_IMM, zero.u);
+    sljit_emit_op1 (C, SLJIT_MOV, SLJIT_MEM1(SLJIT_SP), -16, REG_TMP1, 0);
+    sljit_emit_fmem (C, SLJIT_MOV_F32,
+      SLJIT_FR0,
+      SLJIT_MEM1(SLJIT_SP), -16);
+
+    sljit_set_label (jump, sljit_emit_label (C));
+
+    /* FR0 != FR1, load 1.0 (jump target) */
+    sljit_emit_op1 (C, SLJIT_MOV, REG_TMP1, 0, SLJIT_IMM, one.u);
+    sljit_emit_op1 (C, SLJIT_MOV, SLJIT_MEM1(SLJIT_SP), -16, REG_TMP1, 0);
+    sljit_emit_fmem (C, SLJIT_MOV_F32,
+      SLJIT_FR0,
+      SLJIT_MEM1(SLJIT_SP), -16);
+
+    /* Store result */
+    sljit_emit_fmem (C, SLJIT_MOV_F32 | SLJIT_MEM_STORE | SLJIT_MEM_ALIGNED_16,
+      SLJIT_FR0,
+      SLJIT_MEM1(REG_STATE), DstOffset + i * 4);
+  }
+
+  return S_OK;
+}
+
 //
 // Main Instruction Compiler
 //
@@ -1012,6 +1380,24 @@ JitCompileInstruction (
 
     case VINIL_OP_FRC:
       return JitGenFrc (Context, Inst);
+
+    case VINIL_OP_CEIL:
+      return JitGenCeil (Context, Inst);
+
+    case VINIL_OP_SQRT:
+      return JitGenSqrt (Context, Inst);
+
+    case VINIL_OP_SLT:
+      return JitGenSlt (Context, Inst);
+
+    case VINIL_OP_SGE:
+      return JitGenSge (Context, Inst);
+
+    case VINIL_OP_SEQ:
+      return JitGenSeq (Context, Inst);
+
+    case VINIL_OP_SNE:
+      return JitGenSne (Context, Inst);
 
     case VINIL_OP_DP3:
       return JitGenDp3 (Context, Inst);
