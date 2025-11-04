@@ -4735,6 +4735,595 @@ JitGenNrm (
 }
 
 //
+// Bytecode Extension Opcodes - JIT Generators
+//
+
+/* PUSH: Push register value onto stack */
+static
+HRESULT
+JitGenPush (
+  VINIL_JIT_CONTEXT       *Context,
+  VINIL_INSTRUCTION_NODE  *Inst
+  )
+{
+  struct sljit_compiler *C = Context->Compiler;
+  sljit_sw SrcOffset;
+  HRESULT Result;
+  sljit_sw SPOffset = offsetof(VINIL_EXECUTION_STATE, SP);
+  sljit_sw StackOffset = offsetof(VINIL_EXECUTION_STATE, Stack);
+
+  Result = GetVariableOffset (Context, Inst->Src[0], &SrcOffset);
+  if (FAILED (Result)) return Result;
+
+  /* Load SP */
+  sljit_emit_op1 (C, SLJIT_MOV, REG_TMP1, 0, SLJIT_MEM1(REG_STATE), SPOffset);
+
+  /* SP -= sizeof(VINIL_REGISTER_VALUE) = 16 */
+  sljit_emit_op2 (C, SLJIT_SUB, REG_TMP1, 0, REG_TMP1, 0, SLJIT_IMM, 16);
+
+  /* Store updated SP */
+  sljit_emit_op1 (C, SLJIT_MOV, SLJIT_MEM1(REG_STATE), SPOffset, REG_TMP1, 0);
+
+  /* Copy 16 bytes from Src to Stack[SP] */
+  /* REG_TMP1 = SP, REG_TMP2 = Stack base address + SP */
+  sljit_emit_op2 (C, SLJIT_ADD, REG_TMP2, 0, SLJIT_IMM, StackOffset, REG_TMP1, 0);
+  sljit_emit_op2 (C, SLJIT_ADD, REG_TMP2, 0, REG_STATE, 0, REG_TMP2, 0);
+
+  /* Copy 4 words (16 bytes) */
+  for (int i = 0; i < 4; i++) {
+    sljit_emit_op1 (C, SLJIT_MOV, REG_TMP3, 0, SLJIT_MEM1(REG_STATE), SrcOffset + i * 4);
+    sljit_emit_op1 (C, SLJIT_MOV, SLJIT_MEM1(REG_TMP2), i * 4, REG_TMP3, 0);
+  }
+
+  return S_OK;
+}
+
+/* POP: Pop value from stack into register */
+static
+HRESULT
+JitGenPop (
+  VINIL_JIT_CONTEXT       *Context,
+  VINIL_INSTRUCTION_NODE  *Inst
+  )
+{
+  struct sljit_compiler *C = Context->Compiler;
+  sljit_sw DstOffset;
+  HRESULT Result;
+  sljit_sw SPOffset = offsetof(VINIL_EXECUTION_STATE, SP);
+  sljit_sw StackOffset = offsetof(VINIL_EXECUTION_STATE, Stack);
+
+  Result = GetVariableOffset (Context, Inst->Dst, &DstOffset);
+  if (FAILED (Result)) return Result;
+
+  /* Load SP */
+  sljit_emit_op1 (C, SLJIT_MOV, REG_TMP1, 0, SLJIT_MEM1(REG_STATE), SPOffset);
+
+  /* REG_TMP2 = Stack base + SP */
+  sljit_emit_op2 (C, SLJIT_ADD, REG_TMP2, 0, SLJIT_IMM, StackOffset, REG_TMP1, 0);
+  sljit_emit_op2 (C, SLJIT_ADD, REG_TMP2, 0, REG_STATE, 0, REG_TMP2, 0);
+
+  /* Copy 16 bytes from Stack[SP] to Dst */
+  for (int i = 0; i < 4; i++) {
+    sljit_emit_op1 (C, SLJIT_MOV, REG_TMP3, 0, SLJIT_MEM1(REG_TMP2), i * 4);
+    sljit_emit_op1 (C, SLJIT_MOV, SLJIT_MEM1(REG_STATE), DstOffset + i * 4, REG_TMP3, 0);
+  }
+
+  /* SP += 16 */
+  sljit_emit_op2 (C, SLJIT_ADD, REG_TMP1, 0, REG_TMP1, 0, SLJIT_IMM, 16);
+  sljit_emit_op1 (C, SLJIT_MOV, SLJIT_MEM1(REG_STATE), SPOffset, REG_TMP1, 0);
+
+  return S_OK;
+}
+
+/* DUP: Duplicate top of stack */
+static
+HRESULT
+JitGenDup (
+  VINIL_JIT_CONTEXT       *Context,
+  VINIL_INSTRUCTION_NODE  *Inst
+  )
+{
+  struct sljit_compiler *C = Context->Compiler;
+  sljit_sw SPOffset = offsetof(VINIL_EXECUTION_STATE, SP);
+  sljit_sw StackOffset = offsetof(VINIL_EXECUTION_STATE, Stack);
+
+  (void)Inst;
+
+  /* Load SP */
+  sljit_emit_op1 (C, SLJIT_MOV, REG_TMP1, 0, SLJIT_MEM1(REG_STATE), SPOffset);
+
+  /* SP -= 16 */
+  sljit_emit_op2 (C, SLJIT_SUB, REG_TMP1, 0, REG_TMP1, 0, SLJIT_IMM, 16);
+
+  /* Store new SP */
+  sljit_emit_op1 (C, SLJIT_MOV, SLJIT_MEM1(REG_STATE), SPOffset, REG_TMP1, 0);
+
+  /* REG_TMP2 = Stack base + SP */
+  sljit_emit_op2 (C, SLJIT_ADD, REG_TMP2, 0, SLJIT_IMM, StackOffset, REG_TMP1, 0);
+  sljit_emit_op2 (C, SLJIT_ADD, REG_TMP2, 0, REG_STATE, 0, REG_TMP2, 0);
+
+  /* Copy from [SP+16] to [SP] */
+  for (int i = 0; i < 4; i++) {
+    sljit_emit_op1 (C, SLJIT_MOV, REG_TMP3, 0, SLJIT_MEM1(REG_TMP2), 16 + i * 4);
+    sljit_emit_op1 (C, SLJIT_MOV, SLJIT_MEM1(REG_TMP2), i * 4, REG_TMP3, 0);
+  }
+
+  return S_OK;
+}
+
+/* SWAP: Swap top two stack values */
+static
+HRESULT
+JitGenSwap (
+  VINIL_JIT_CONTEXT       *Context,
+  VINIL_INSTRUCTION_NODE  *Inst
+  )
+{
+  struct sljit_compiler *C = Context->Compiler;
+  sljit_sw SPOffset = offsetof(VINIL_EXECUTION_STATE, SP);
+  sljit_sw StackOffset = offsetof(VINIL_EXECUTION_STATE, Stack);
+
+  (void)Inst;
+
+  /* Load SP */
+  sljit_emit_op1 (C, SLJIT_MOV, REG_TMP1, 0, SLJIT_MEM1(REG_STATE), SPOffset);
+
+  /* REG_TMP2 = Stack base + SP */
+  sljit_emit_op2 (C, SLJIT_ADD, REG_TMP2, 0, SLJIT_IMM, StackOffset, REG_TMP1, 0);
+  sljit_emit_op2 (C, SLJIT_ADD, REG_TMP2, 0, REG_STATE, 0, REG_TMP2, 0);
+
+  /* Swap: exchange [SP] <-> [SP+16] */
+  for (int i = 0; i < 4; i++) {
+    /* Load both values */
+    sljit_emit_op1 (C, SLJIT_MOV, REG_TMP1, 0, SLJIT_MEM1(REG_TMP2), i * 4);
+    sljit_emit_op1 (C, SLJIT_MOV, REG_TMP3, 0, SLJIT_MEM1(REG_TMP2), 16 + i * 4);
+    /* Store swapped */
+    sljit_emit_op1 (C, SLJIT_MOV, SLJIT_MEM1(REG_TMP2), i * 4, REG_TMP3, 0);
+    sljit_emit_op1 (C, SLJIT_MOV, SLJIT_MEM1(REG_TMP2), 16 + i * 4, REG_TMP1, 0);
+  }
+
+  return S_OK;
+}
+
+/* ZEXT8: Zero extend 8-bit to 32-bit */
+static
+HRESULT
+JitGenZext8 (
+  VINIL_JIT_CONTEXT       *Context,
+  VINIL_INSTRUCTION_NODE  *Inst
+  )
+{
+  struct sljit_compiler *C = Context->Compiler;
+  sljit_sw DstOffset, SrcOffset;
+  HRESULT Result;
+
+  Result = GetVariableOffset (Context, Inst->Dst, &DstOffset);
+  if (FAILED (Result)) return Result;
+  Result = GetVariableOffset (Context, Inst->Src[0], &SrcOffset);
+  if (FAILED (Result)) return Result;
+
+  /* Load source, mask to 8 bits, store */
+  sljit_emit_op1 (C, SLJIT_MOV, REG_TMP1, 0, SLJIT_MEM1(REG_STATE), SrcOffset);
+  sljit_emit_op2 (C, SLJIT_AND, REG_TMP1, 0, REG_TMP1, 0, SLJIT_IMM, 0xFF);
+  sljit_emit_op1 (C, SLJIT_MOV, SLJIT_MEM1(REG_STATE), DstOffset, REG_TMP1, 0);
+
+  return S_OK;
+}
+
+/* ZEXT16: Zero extend 16-bit to 32-bit */
+static
+HRESULT
+JitGenZext16 (
+  VINIL_JIT_CONTEXT       *Context,
+  VINIL_INSTRUCTION_NODE  *Inst
+  )
+{
+  struct sljit_compiler *C = Context->Compiler;
+  sljit_sw DstOffset, SrcOffset;
+  HRESULT Result;
+
+  Result = GetVariableOffset (Context, Inst->Dst, &DstOffset);
+  if (FAILED (Result)) return Result;
+  Result = GetVariableOffset (Context, Inst->Src[0], &SrcOffset);
+  if (FAILED (Result)) return Result;
+
+  sljit_emit_op1 (C, SLJIT_MOV, REG_TMP1, 0, SLJIT_MEM1(REG_STATE), SrcOffset);
+  sljit_emit_op2 (C, SLJIT_AND, REG_TMP1, 0, REG_TMP1, 0, SLJIT_IMM, 0xFFFF);
+  sljit_emit_op1 (C, SLJIT_MOV, SLJIT_MEM1(REG_STATE), DstOffset, REG_TMP1, 0);
+
+  return S_OK;
+}
+
+/* ZEXT32: Zero extend 32-bit to 64-bit */
+static
+HRESULT
+JitGenZext32 (
+  VINIL_JIT_CONTEXT       *Context,
+  VINIL_INSTRUCTION_NODE  *Inst
+  )
+{
+  struct sljit_compiler *C = Context->Compiler;
+  sljit_sw DstOffset, SrcOffset;
+  HRESULT Result;
+
+  Result = GetVariableOffset (Context, Inst->Dst, &DstOffset);
+  if (FAILED (Result)) return Result;
+  Result = GetVariableOffset (Context, Inst->Src[0], &SrcOffset);
+  if (FAILED (Result)) return Result;
+
+  /* Copy 32-bit value to dst[0], zero dst[1] */
+  sljit_emit_op1 (C, SLJIT_MOV, REG_TMP1, 0, SLJIT_MEM1(REG_STATE), SrcOffset);
+  sljit_emit_op1 (C, SLJIT_MOV, SLJIT_MEM1(REG_STATE), DstOffset, REG_TMP1, 0);
+  sljit_emit_op1 (C, SLJIT_MOV, SLJIT_MEM1(REG_STATE), DstOffset + 4, SLJIT_IMM, 0);
+
+  return S_OK;
+}
+
+/* SEXT8: Sign extend 8-bit to 32-bit */
+static
+HRESULT
+JitGenSext8 (
+  VINIL_JIT_CONTEXT       *Context,
+  VINIL_INSTRUCTION_NODE  *Inst
+  )
+{
+  struct sljit_compiler *C = Context->Compiler;
+  sljit_sw DstOffset, SrcOffset;
+  HRESULT Result;
+
+  Result = GetVariableOffset (Context, Inst->Dst, &DstOffset);
+  if (FAILED (Result)) return Result;
+  Result = GetVariableOffset (Context, Inst->Src[0], &SrcOffset);
+  if (FAILED (Result)) return Result;
+
+  /* Load, sign-extend from 8-bit */
+  sljit_emit_op1 (C, SLJIT_MOV, REG_TMP1, 0, SLJIT_MEM1(REG_STATE), SrcOffset);
+  sljit_emit_op1 (C, SLJIT_MOV_S8, REG_TMP1, 0, REG_TMP1, 0);
+  sljit_emit_op1 (C, SLJIT_MOV, SLJIT_MEM1(REG_STATE), DstOffset, REG_TMP1, 0);
+
+  return S_OK;
+}
+
+/* SEXT16: Sign extend 16-bit to 32-bit */
+static
+HRESULT
+JitGenSext16 (
+  VINIL_JIT_CONTEXT       *Context,
+  VINIL_INSTRUCTION_NODE  *Inst
+  )
+{
+  struct sljit_compiler *C = Context->Compiler;
+  sljit_sw DstOffset, SrcOffset;
+  HRESULT Result;
+
+  Result = GetVariableOffset (Context, Inst->Dst, &DstOffset);
+  if (FAILED (Result)) return Result;
+  Result = GetVariableOffset (Context, Inst->Src[0], &SrcOffset);
+  if (FAILED (Result)) return Result;
+
+  sljit_emit_op1 (C, SLJIT_MOV, REG_TMP1, 0, SLJIT_MEM1(REG_STATE), SrcOffset);
+  sljit_emit_op1 (C, SLJIT_MOV_S16, REG_TMP1, 0, REG_TMP1, 0);
+  sljit_emit_op1 (C, SLJIT_MOV, SLJIT_MEM1(REG_STATE), DstOffset, REG_TMP1, 0);
+
+  return S_OK;
+}
+
+/* SEXT32: Sign extend 32-bit to 64-bit */
+static
+HRESULT
+JitGenSext32 (
+  VINIL_JIT_CONTEXT       *Context,
+  VINIL_INSTRUCTION_NODE  *Inst
+  )
+{
+  struct sljit_compiler *C = Context->Compiler;
+  sljit_sw DstOffset, SrcOffset;
+  HRESULT Result;
+
+  Result = GetVariableOffset (Context, Inst->Dst, &DstOffset);
+  if (FAILED (Result)) return Result;
+  Result = GetVariableOffset (Context, Inst->Src[0], &SrcOffset);
+  if (FAILED (Result)) return Result;
+
+  /* Load 32-bit value */
+  sljit_emit_op1 (C, SLJIT_MOV_S32, REG_TMP1, 0, SLJIT_MEM1(REG_STATE), SrcOffset);
+
+  /* Store low 32 bits */
+  sljit_emit_op1 (C, SLJIT_MOV, SLJIT_MEM1(REG_STATE), DstOffset, REG_TMP1, 0);
+
+  /* Arithmetic shift right 31 bits to get sign extension */
+  sljit_emit_op2 (C, SLJIT_ASHR, REG_TMP1, 0, REG_TMP1, 0, SLJIT_IMM, 31);
+
+  /* Store high 32 bits (all 0s or all 1s) */
+  sljit_emit_op1 (C, SLJIT_MOV, SLJIT_MEM1(REG_STATE), DstOffset + 4, REG_TMP1, 0);
+
+  return S_OK;
+}
+
+/* TRUNC8: Truncate to 8-bit */
+static
+HRESULT
+JitGenTrunc8 (
+  VINIL_JIT_CONTEXT       *Context,
+  VINIL_INSTRUCTION_NODE  *Inst
+  )
+{
+  struct sljit_compiler *C = Context->Compiler;
+  sljit_sw DstOffset, SrcOffset;
+  HRESULT Result;
+
+  Result = GetVariableOffset (Context, Inst->Dst, &DstOffset);
+  if (FAILED (Result)) return Result;
+  Result = GetVariableOffset (Context, Inst->Src[0], &SrcOffset);
+  if (FAILED (Result)) return Result;
+
+  sljit_emit_op1 (C, SLJIT_MOV, REG_TMP1, 0, SLJIT_MEM1(REG_STATE), SrcOffset);
+  sljit_emit_op2 (C, SLJIT_AND, REG_TMP1, 0, REG_TMP1, 0, SLJIT_IMM, 0xFF);
+  sljit_emit_op1 (C, SLJIT_MOV, SLJIT_MEM1(REG_STATE), DstOffset, REG_TMP1, 0);
+
+  return S_OK;
+}
+
+/* TRUNC16: Truncate to 16-bit */
+static
+HRESULT
+JitGenTrunc16 (
+  VINIL_JIT_CONTEXT       *Context,
+  VINIL_INSTRUCTION_NODE  *Inst
+  )
+{
+  struct sljit_compiler *C = Context->Compiler;
+  sljit_sw DstOffset, SrcOffset;
+  HRESULT Result;
+
+  Result = GetVariableOffset (Context, Inst->Dst, &DstOffset);
+  if (FAILED (Result)) return Result;
+  Result = GetVariableOffset (Context, Inst->Src[0], &SrcOffset);
+  if (FAILED (Result)) return Result;
+
+  sljit_emit_op1 (C, SLJIT_MOV, REG_TMP1, 0, SLJIT_MEM1(REG_STATE), SrcOffset);
+  sljit_emit_op2 (C, SLJIT_AND, REG_TMP1, 0, REG_TMP1, 0, SLJIT_IMM, 0xFFFF);
+  sljit_emit_op1 (C, SLJIT_MOV, SLJIT_MEM1(REG_STATE), DstOffset, REG_TMP1, 0);
+
+  return S_OK;
+}
+
+/* TRUNC32: Truncate 64-bit to 32-bit */
+static
+HRESULT
+JitGenTrunc32 (
+  VINIL_JIT_CONTEXT       *Context,
+  VINIL_INSTRUCTION_NODE  *Inst
+  )
+{
+  struct sljit_compiler *C = Context->Compiler;
+  sljit_sw DstOffset, SrcOffset;
+  HRESULT Result;
+
+  Result = GetVariableOffset (Context, Inst->Dst, &DstOffset);
+  if (FAILED (Result)) return Result;
+  Result = GetVariableOffset (Context, Inst->Src[0], &SrcOffset);
+  if (FAILED (Result)) return Result;
+
+  /* Just copy low 32 bits */
+  sljit_emit_op1 (C, SLJIT_MOV, REG_TMP1, 0, SLJIT_MEM1(REG_STATE), SrcOffset);
+  sljit_emit_op1 (C, SLJIT_MOV, SLJIT_MEM1(REG_STATE), DstOffset, REG_TMP1, 0);
+
+  return S_OK;
+}
+
+/* MULU: Unsigned multiply */
+static
+HRESULT
+JitGenMulu (
+  VINIL_JIT_CONTEXT       *Context,
+  VINIL_INSTRUCTION_NODE  *Inst
+  )
+{
+  struct sljit_compiler *C = Context->Compiler;
+  sljit_sw DstOffset, Src1Offset, Src2Offset;
+  HRESULT Result;
+
+  Result = GetVariableOffset (Context, Inst->Dst, &DstOffset);
+  if (FAILED (Result)) return Result;
+  Result = GetVariableOffset (Context, Inst->Src[0], &Src1Offset);
+  if (FAILED (Result)) return Result;
+  Result = GetVariableOffset (Context, Inst->Src[1], &Src2Offset);
+  if (FAILED (Result)) return Result;
+
+  sljit_emit_op1 (C, SLJIT_MOV, REG_TMP1, 0, SLJIT_MEM1(REG_STATE), Src1Offset);
+  sljit_emit_op1 (C, SLJIT_MOV, REG_TMP2, 0, SLJIT_MEM1(REG_STATE), Src2Offset);
+  sljit_emit_op0 (C, SLJIT_LMUL_UW);  /* REG_TMP1 * REG_TMP2 -> result in REG_TMP1 */
+  sljit_emit_op1 (C, SLJIT_MOV, SLJIT_MEM1(REG_STATE), DstOffset, REG_TMP1, 0);
+
+  return S_OK;
+}
+
+/* DIVU: Unsigned divide */
+static
+HRESULT
+JitGenDivu (
+  VINIL_JIT_CONTEXT       *Context,
+  VINIL_INSTRUCTION_NODE  *Inst
+  )
+{
+  struct sljit_compiler *C = Context->Compiler;
+  sljit_sw DstOffset, Src1Offset, Src2Offset;
+  HRESULT Result;
+
+  Result = GetVariableOffset (Context, Inst->Dst, &DstOffset);
+  if (FAILED (Result)) return Result;
+  Result = GetVariableOffset (Context, Inst->Src[0], &Src1Offset);
+  if (FAILED (Result)) return Result;
+  Result = GetVariableOffset (Context, Inst->Src[1], &Src2Offset);
+  if (FAILED (Result)) return Result;
+
+  sljit_emit_op1 (C, SLJIT_MOV, REG_TMP1, 0, SLJIT_MEM1(REG_STATE), Src1Offset);
+  sljit_emit_op1 (C, SLJIT_MOV, REG_TMP2, 0, SLJIT_MEM1(REG_STATE), Src2Offset);
+  sljit_emit_op0 (C, SLJIT_DIVMOD_UW);  /* REG_TMP1 / REG_TMP2 -> quotient in REG_TMP1 */
+  sljit_emit_op1 (C, SLJIT_MOV, SLJIT_MEM1(REG_STATE), DstOffset, REG_TMP1, 0);
+
+  return S_OK;
+}
+
+/* MODU: Unsigned modulo */
+static
+HRESULT
+JitGenModu (
+  VINIL_JIT_CONTEXT       *Context,
+  VINIL_INSTRUCTION_NODE  *Inst
+  )
+{
+  struct sljit_compiler *C = Context->Compiler;
+  sljit_sw DstOffset, Src1Offset, Src2Offset;
+  HRESULT Result;
+
+  Result = GetVariableOffset (Context, Inst->Dst, &DstOffset);
+  if (FAILED (Result)) return Result;
+  Result = GetVariableOffset (Context, Inst->Src[0], &Src1Offset);
+  if (FAILED (Result)) return Result;
+  Result = GetVariableOffset (Context, Inst->Src[1], &Src2Offset);
+  if (FAILED (Result)) return Result;
+
+  sljit_emit_op1 (C, SLJIT_MOV, REG_TMP1, 0, SLJIT_MEM1(REG_STATE), Src1Offset);
+  sljit_emit_op1 (C, SLJIT_MOV, REG_TMP2, 0, SLJIT_MEM1(REG_STATE), Src2Offset);
+  sljit_emit_op0 (C, SLJIT_DIVMOD_UW);  /* REG_TMP1 / REG_TMP2 -> remainder in REG_TMP2 */
+  sljit_emit_op1 (C, SLJIT_MOV, SLJIT_MEM1(REG_STATE), DstOffset, REG_TMP2, 0);
+
+  return S_OK;
+}
+
+/* LOAD_INDEXED: Load from memory with base + index */
+static
+HRESULT
+JitGenLoadIndexed (
+  VINIL_JIT_CONTEXT       *Context,
+  VINIL_INSTRUCTION_NODE  *Inst
+  )
+{
+  struct sljit_compiler *C = Context->Compiler;
+  sljit_sw DstOffset, BaseOffset, IndexOffset;
+  HRESULT Result;
+  sljit_sw SharedMemOffset = offsetof(VINIL_EXECUTION_STATE, SharedMemory);
+
+  Result = GetVariableOffset (Context, Inst->Dst, &DstOffset);
+  if (FAILED (Result)) return Result;
+  Result = GetVariableOffset (Context, Inst->Src[0], &BaseOffset);
+  if (FAILED (Result)) return Result;
+  Result = GetVariableOffset (Context, Inst->Src[1], &IndexOffset);
+  if (FAILED (Result)) return Result;
+
+  /* Load SharedMemory pointer */
+  sljit_emit_op1 (C, SLJIT_MOV, REG_TMP1, 0, SLJIT_MEM1(REG_STATE), SharedMemOffset);
+
+  /* Load base + index */
+  sljit_emit_op1 (C, SLJIT_MOV, REG_TMP2, 0, SLJIT_MEM1(REG_STATE), BaseOffset);
+  sljit_emit_op1 (C, SLJIT_MOV, REG_TMP3, 0, SLJIT_MEM1(REG_STATE), IndexOffset);
+  sljit_emit_op2 (C, SLJIT_ADD, REG_TMP2, 0, REG_TMP2, 0, REG_TMP3, 0);
+
+  /* REG_TMP1 = SharedMemory + offset */
+  sljit_emit_op2 (C, SLJIT_ADD, REG_TMP1, 0, REG_TMP1, 0, REG_TMP2, 0);
+
+  /* Load value from memory */
+  sljit_emit_op1 (C, SLJIT_MOV, REG_TMP1, 0, SLJIT_MEM1(REG_TMP1), 0);
+
+  /* Store to destination */
+  sljit_emit_op1 (C, SLJIT_MOV, SLJIT_MEM1(REG_STATE), DstOffset, REG_TMP1, 0);
+
+  return S_OK;
+}
+
+/* STORE_INDEXED: Store to memory with base + index */
+static
+HRESULT
+JitGenStoreIndexed (
+  VINIL_JIT_CONTEXT       *Context,
+  VINIL_INSTRUCTION_NODE  *Inst
+  )
+{
+  struct sljit_compiler *C = Context->Compiler;
+  sljit_sw BaseOffset, IndexOffset, SrcOffset;
+  HRESULT Result;
+  sljit_sw SharedMemOffset = offsetof(VINIL_EXECUTION_STATE, SharedMemory);
+
+  Result = GetVariableOffset (Context, Inst->Src[0], &BaseOffset);
+  if (FAILED (Result)) return Result;
+  Result = GetVariableOffset (Context, Inst->Src[1], &IndexOffset);
+  if (FAILED (Result)) return Result;
+  Result = GetVariableOffset (Context, Inst->Src[2], &SrcOffset);
+  if (FAILED (Result)) return Result;
+
+  /* Load SharedMemory pointer */
+  sljit_emit_op1 (C, SLJIT_MOV, REG_TMP1, 0, SLJIT_MEM1(REG_STATE), SharedMemOffset);
+
+  /* Load base + index */
+  sljit_emit_op1 (C, SLJIT_MOV, REG_TMP2, 0, SLJIT_MEM1(REG_STATE), BaseOffset);
+  sljit_emit_op1 (C, SLJIT_MOV, REG_TMP3, 0, SLJIT_MEM1(REG_STATE), IndexOffset);
+  sljit_emit_op2 (C, SLJIT_ADD, REG_TMP2, 0, REG_TMP2, 0, REG_TMP3, 0);
+
+  /* REG_TMP1 = SharedMemory + offset */
+  sljit_emit_op2 (C, SLJIT_ADD, REG_TMP1, 0, REG_TMP1, 0, REG_TMP2, 0);
+
+  /* Load value to store */
+  sljit_emit_op1 (C, SLJIT_MOV, REG_TMP2, 0, SLJIT_MEM1(REG_STATE), SrcOffset);
+
+  /* Store to memory */
+  sljit_emit_op1 (C, SLJIT_MOV, SLJIT_MEM1(REG_TMP1), 0, REG_TMP2, 0);
+
+  return S_OK;
+}
+
+/* LEA: Load effective address (base + offset) */
+static
+HRESULT
+JitGenLea (
+  VINIL_JIT_CONTEXT       *Context,
+  VINIL_INSTRUCTION_NODE  *Inst
+  )
+{
+  struct sljit_compiler *C = Context->Compiler;
+  sljit_sw DstOffset, BaseOffset, OffsetOffset;
+  HRESULT Result;
+
+  Result = GetVariableOffset (Context, Inst->Dst, &DstOffset);
+  if (FAILED (Result)) return Result;
+  Result = GetVariableOffset (Context, Inst->Src[0], &BaseOffset);
+  if (FAILED (Result)) return Result;
+  Result = GetVariableOffset (Context, Inst->Src[1], &OffsetOffset);
+  if (FAILED (Result)) return Result;
+
+  /* Load base and offset */
+  sljit_emit_op1 (C, SLJIT_MOV, REG_TMP1, 0, SLJIT_MEM1(REG_STATE), BaseOffset);
+  sljit_emit_op1 (C, SLJIT_MOV, REG_TMP2, 0, SLJIT_MEM1(REG_STATE), OffsetOffset);
+
+  /* Add them */
+  sljit_emit_op2 (C, SLJIT_ADD, REG_TMP1, 0, REG_TMP1, 0, REG_TMP2, 0);
+
+  /* Store result */
+  sljit_emit_op1 (C, SLJIT_MOV, SLJIT_MEM1(REG_STATE), DstOffset, REG_TMP1, 0);
+
+  return S_OK;
+}
+
+/* TRAP: Software trap/breakpoint */
+static
+HRESULT
+JitGenTrap (
+  VINIL_JIT_CONTEXT       *Context,
+  VINIL_INSTRUCTION_NODE  *Inst
+  )
+{
+  struct sljit_compiler *C = Context->Compiler;
+
+  (void)Inst;
+
+  /* Emit a breakpoint instruction */
+  sljit_emit_op0 (C, SLJIT_BREAKPOINT);
+
+  return S_OK;
+}
+
+//
 // Main Instruction Compiler
 //
 
@@ -5024,6 +5613,67 @@ JitCompileInstruction (
 
     case VINIL_OP_RET:
       return JitGenRet (Context, Inst);
+
+    /* Bytecode Extension Opcodes */
+    case VINIL_OP_PUSH:
+      return JitGenPush (Context, Inst);
+
+    case VINIL_OP_POP:
+      return JitGenPop (Context, Inst);
+
+    case VINIL_OP_DUP:
+      return JitGenDup (Context, Inst);
+
+    case VINIL_OP_SWAP:
+      return JitGenSwap (Context, Inst);
+
+    case VINIL_OP_ZEXT8:
+      return JitGenZext8 (Context, Inst);
+
+    case VINIL_OP_ZEXT16:
+      return JitGenZext16 (Context, Inst);
+
+    case VINIL_OP_ZEXT32:
+      return JitGenZext32 (Context, Inst);
+
+    case VINIL_OP_SEXT8:
+      return JitGenSext8 (Context, Inst);
+
+    case VINIL_OP_SEXT16:
+      return JitGenSext16 (Context, Inst);
+
+    case VINIL_OP_SEXT32:
+      return JitGenSext32 (Context, Inst);
+
+    case VINIL_OP_TRUNC8:
+      return JitGenTrunc8 (Context, Inst);
+
+    case VINIL_OP_TRUNC16:
+      return JitGenTrunc16 (Context, Inst);
+
+    case VINIL_OP_TRUNC32:
+      return JitGenTrunc32 (Context, Inst);
+
+    case VINIL_OP_MULU:
+      return JitGenMulu (Context, Inst);
+
+    case VINIL_OP_DIVU:
+      return JitGenDivu (Context, Inst);
+
+    case VINIL_OP_MODU:
+      return JitGenModu (Context, Inst);
+
+    case VINIL_OP_LOAD_INDEXED:
+      return JitGenLoadIndexed (Context, Inst);
+
+    case VINIL_OP_STORE_INDEXED:
+      return JitGenStoreIndexed (Context, Inst);
+
+    case VINIL_OP_LEA:
+      return JitGenLea (Context, Inst);
+
+    case VINIL_OP_TRAP:
+      return JitGenTrap (Context, Inst);
 
     default:
       /* Unsupported opcode - fall back to interpreter */
