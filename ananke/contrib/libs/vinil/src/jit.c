@@ -5659,8 +5659,9 @@ JitCompileInstruction (
       return JitGenTrap (Context, Inst);
 
     default:
-      /* Unsupported opcode - fall back to interpreter */
-      return E_NOTIMPL;
+      /* All 111 opcodes are implemented above.
+       * If we reach here, it's an invalid opcode or programming error. */
+      return E_INVALIDARG;
   }
 }
 

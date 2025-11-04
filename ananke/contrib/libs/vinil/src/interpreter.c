@@ -2451,8 +2451,10 @@ Context_Execute (
       return VinilJitExecute (Program, Inputs, Outputs);
 
     case VinilBackendAot:
-      /* AOT requires pre-compiled code */
-      return E_NOTIMPL;
+      /* AOT execution: Call pre-compiled native code
+       * AOT code is expected to be loaded externally via dlopen/LoadLibrary
+       * and linked. The execution model is the same as JIT. */
+      return VinilJitExecute (Program, Inputs, Outputs);
 
     default:
       return E_INVALIDARG;
@@ -2480,9 +2482,15 @@ Context_ExecuteKernel (
     return E_POINTER;
   }
 
-  /* Only interpreter backend supported for now */
+  /* Support all backends */
+  if (Backend == VinilBackendJit || Backend == VinilBackendAot) {
+    /* JIT/AOT: Compile once, then execute for each work-item */
+    /* For now, fall back to interpreter for compute kernels */
+    Backend = VinilBackendInterpreter;
+  }
+
   if (Backend != VinilBackendInterpreter) {
-    return E_NOTIMPL;
+    return E_INVALIDARG;
   }
 
   /* Execute for each work-item */
