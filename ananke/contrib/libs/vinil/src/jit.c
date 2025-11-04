@@ -141,12 +141,26 @@ TexFetchWrapper (
 // JIT Compilation Context
 //
 
+/* Control flow stack entry for JIT */
+typedef struct {
+  UINT32 Type;  /* VINIL_CF_IF, VINIL_CF_ELSE, VINIL_CF_LOOP */
+  struct sljit_jump *IfFalseJump;  /* Jump when IF condition is false */
+  struct sljit_jump *ElseSkipJump;  /* Jump to skip ELSE block */
+  struct sljit_label *LoopStart;   /* Label for loop start */
+  struct sljit_jump *BreakJumps[8];  /* Jumps for BREAK statements */
+  UINT32 BreakCount;  /* Number of break jumps */
+} VINIL_JIT_CF_ENTRY;
+
 typedef struct {
   struct sljit_compiler *Compiler;
   VINIL_PROGRAM_IMPL *Program;
 
   /* Register to variable mapping */
   UINT32 VarToOffset[256];  /* Maps variable ID to register offset */
+
+  /* Control flow stack for JIT compilation */
+  VINIL_JIT_CF_ENTRY ControlFlowStack[32];
+  UINT32 ControlFlowDepth;
 
   /* Generated code */
   VOID *CodePtr;
@@ -4088,8 +4102,8 @@ JitGenTxf (
   return S_OK;
 }
 
-/* IF: Begin conditional block - falls back to interpreter */
-/* Control flow requires basic block analysis and jump management */
+/* IF: Begin conditional block */
+/* Evaluates condition and jumps to ELSE/ENDIF if false */
 static
 HRESULT
 JitGenIf (
@@ -4097,13 +4111,40 @@ JitGenIf (
   VINIL_INSTRUCTION_NODE  *Inst
   )
 {
-  /* Control flow requires basic block analysis - fall back to interpreter */
-  (VOID)Context;
-  (VOID)Inst;
-  return E_NOTIMPL;
+  struct sljit_compiler *C = Context->Compiler;
+  sljit_sw CondOffset;
+  HRESULT Result;
+  struct sljit_jump *jump_if_false;
+
+  if (Context->ControlFlowDepth >= 32) {
+    return E_FAIL;  /* Control flow stack overflow */
+  }
+
+  Result = GetVariableOffset (Context, Inst->Src[0], &CondOffset);
+  if (FAILED (Result)) return Result;
+
+  /* Load condition from first component (can be float, int, or bool) */
+  /* Check if condition != 0.0f */
+  sljit_emit_fop1 (C, SLJIT_MOV_F32, SLJIT_FR0, 0,
+    SLJIT_MEM1(REG_STATE), CondOffset);
+  sljit_emit_fop1 (C, SLJIT_CMP_F32 | SLJIT_SET_ORDERED_EQUAL, SLJIT_FR0, 0,
+    SLJIT_MEM0(), (sljit_sw)&(float){0.0f});
+
+  /* Jump to ELSE/ENDIF if condition is false (== 0.0f) */
+  jump_if_false = sljit_emit_jump (C, SLJIT_ORDERED_EQUAL);
+
+  /* Push to control flow stack */
+  Context->ControlFlowStack[Context->ControlFlowDepth].Type = VINIL_CF_IF;
+  Context->ControlFlowStack[Context->ControlFlowDepth].IfFalseJump = jump_if_false;
+  Context->ControlFlowStack[Context->ControlFlowDepth].ElseSkipJump = NULL;
+  Context->ControlFlowStack[Context->ControlFlowDepth].BreakCount = 0;
+  Context->ControlFlowDepth++;
+
+  return S_OK;
 }
 
-/* ELSE: Begin else block - falls back to interpreter */
+/* ELSE: Begin else block */
+/* Patches IF jump, creates jump to skip else block */
 static
 HRESULT
 JitGenElse (
@@ -4111,13 +4152,38 @@ JitGenElse (
   VINIL_INSTRUCTION_NODE  *Inst
   )
 {
-  /* Control flow requires basic block analysis - fall back to interpreter */
-  (VOID)Context;
+  struct sljit_compiler *C = Context->Compiler;
+  struct sljit_jump *skip_else;
+  struct sljit_label *else_label;
+
   (VOID)Inst;
-  return E_NOTIMPL;
+
+  if (Context->ControlFlowDepth == 0) {
+    return E_FAIL;  /* ELSE without IF */
+  }
+
+  if (Context->ControlFlowStack[Context->ControlFlowDepth - 1].Type != VINIL_CF_IF) {
+    return E_FAIL;  /* ELSE without matching IF */
+  }
+
+  /* Create jump to skip else block (when then-block was executed) */
+  skip_else = sljit_emit_jump (C, SLJIT_JUMP);
+
+  /* Mark this location as the else block start */
+  else_label = sljit_emit_label (C);
+
+  /* Patch the IF's false jump to point here */
+  sljit_set_label (Context->ControlFlowStack[Context->ControlFlowDepth - 1].IfFalseJump, else_label);
+
+  /* Update stack entry */
+  Context->ControlFlowStack[Context->ControlFlowDepth - 1].Type = VINIL_CF_ELSE;
+  Context->ControlFlowStack[Context->ControlFlowDepth - 1].ElseSkipJump = skip_else;
+
+  return S_OK;
 }
 
-/* ENDIF: End conditional block - falls back to interpreter */
+/* ENDIF: End conditional block */
+/* Patches all pending jumps and pops control flow stack */
 static
 HRESULT
 JitGenEndif (
@@ -4125,13 +4191,42 @@ JitGenEndif (
   VINIL_INSTRUCTION_NODE  *Inst
   )
 {
-  /* Control flow requires basic block analysis - fall back to interpreter */
-  (VOID)Context;
+  struct sljit_compiler *C = Context->Compiler;
+  struct sljit_label *endif_label;
+  VINIL_JIT_CF_ENTRY *entry;
+
   (VOID)Inst;
-  return E_NOTIMPL;
+
+  if (Context->ControlFlowDepth == 0) {
+    return E_FAIL;  /* ENDIF without IF */
+  }
+
+  entry = &Context->ControlFlowStack[Context->ControlFlowDepth - 1];
+
+  if (entry->Type != VINIL_CF_IF && entry->Type != VINIL_CF_ELSE) {
+    return E_FAIL;  /* ENDIF without matching IF/ELSE */
+  }
+
+  /* Mark this location as the endif */
+  endif_label = sljit_emit_label (C);
+
+  /* Patch jumps depending on whether there was an ELSE */
+  if (entry->Type == VINIL_CF_ELSE) {
+    /* Patch the else-skip jump to point here */
+    sljit_set_label (entry->ElseSkipJump, endif_label);
+  } else {
+    /* No ELSE - patch the if-false jump to point here */
+    sljit_set_label (entry->IfFalseJump, endif_label);
+  }
+
+  /* Pop control flow stack */
+  Context->ControlFlowDepth--;
+
+  return S_OK;
 }
 
-/* LOOP: Begin loop block - falls back to interpreter */
+/* LOOP: Begin loop block */
+/* Creates a label for the loop start */
 static
 HRESULT
 JitGenLoop (
@@ -4139,13 +4234,31 @@ JitGenLoop (
   VINIL_INSTRUCTION_NODE  *Inst
   )
 {
-  /* Control flow requires basic block analysis - fall back to interpreter */
-  (VOID)Context;
+  struct sljit_compiler *C = Context->Compiler;
+  struct sljit_label *loop_start;
+
   (VOID)Inst;
-  return E_NOTIMPL;
+
+  if (Context->ControlFlowDepth >= 32) {
+    return E_FAIL;  /* Control flow stack overflow */
+  }
+
+  /* Mark this location as the loop start */
+  loop_start = sljit_emit_label (C);
+
+  /* Push to control flow stack */
+  Context->ControlFlowStack[Context->ControlFlowDepth].Type = VINIL_CF_LOOP;
+  Context->ControlFlowStack[Context->ControlFlowDepth].LoopStart = loop_start;
+  Context->ControlFlowStack[Context->ControlFlowDepth].BreakCount = 0;
+  Context->ControlFlowStack[Context->ControlFlowDepth].IfFalseJump = NULL;
+  Context->ControlFlowStack[Context->ControlFlowDepth].ElseSkipJump = NULL;
+  Context->ControlFlowDepth++;
+
+  return S_OK;
 }
 
-/* ENDLOOP: End loop block - falls back to interpreter */
+/* ENDLOOP: End loop block */
+/* Jumps back to loop start and patches break jumps */
 static
 HRESULT
 JitGenEndloop (
@@ -4153,13 +4266,44 @@ JitGenEndloop (
   VINIL_INSTRUCTION_NODE  *Inst
   )
 {
-  /* Control flow requires basic block analysis - fall back to interpreter */
-  (VOID)Context;
+  struct sljit_compiler *C = Context->Compiler;
+  struct sljit_jump *jump_to_start;
+  struct sljit_label *endloop_label;
+  VINIL_JIT_CF_ENTRY *entry;
+  UINT32 i;
+
   (VOID)Inst;
-  return E_NOTIMPL;
+
+  if (Context->ControlFlowDepth == 0) {
+    return E_FAIL;  /* ENDLOOP without LOOP */
+  }
+
+  entry = &Context->ControlFlowStack[Context->ControlFlowDepth - 1];
+
+  if (entry->Type != VINIL_CF_LOOP) {
+    return E_FAIL;  /* ENDLOOP without matching LOOP */
+  }
+
+  /* Unconditional jump back to loop start */
+  jump_to_start = sljit_emit_jump (C, SLJIT_JUMP);
+  sljit_set_label (jump_to_start, entry->LoopStart);
+
+  /* Mark this location as end of loop (for break jumps) */
+  endloop_label = sljit_emit_label (C);
+
+  /* Patch all break jumps to point here */
+  for (i = 0; i < entry->BreakCount; i++) {
+    sljit_set_label (entry->BreakJumps[i], endloop_label);
+  }
+
+  /* Pop control flow stack */
+  Context->ControlFlowDepth--;
+
+  return S_OK;
 }
 
-/* BREAK: Break from loop - falls back to interpreter */
+/* BREAK: Break from loop */
+/* Creates a forward jump to be patched by ENDLOOP */
 static
 HRESULT
 JitGenBreak (
@@ -4167,13 +4311,39 @@ JitGenBreak (
   VINIL_INSTRUCTION_NODE  *Inst
   )
 {
-  /* Control flow requires basic block analysis - fall back to interpreter */
-  (VOID)Context;
+  struct sljit_compiler *C = Context->Compiler;
+  struct sljit_jump *break_jump;
+  VINIL_JIT_CF_ENTRY *entry;
+  UINT32 i;
+
   (VOID)Inst;
-  return E_NOTIMPL;
+
+  /* Find the innermost loop */
+  for (i = Context->ControlFlowDepth; i > 0; i--) {
+    if (Context->ControlFlowStack[i - 1].Type == VINIL_CF_LOOP) {
+      entry = &Context->ControlFlowStack[i - 1];
+
+      /* Check if we have space for more breaks */
+      if (entry->BreakCount >= 8) {
+        return E_FAIL;  /* Too many breaks in one loop */
+      }
+
+      /* Create jump to end of loop */
+      break_jump = sljit_emit_jump (C, SLJIT_JUMP);
+
+      /* Add to break list (will be patched by ENDLOOP) */
+      entry->BreakJumps[entry->BreakCount] = break_jump;
+      entry->BreakCount++;
+
+      return S_OK;
+    }
+  }
+
+  return E_FAIL;  /* BREAK without enclosing LOOP */
 }
 
-/* CONTINUE: Continue to next loop iteration - falls back to interpreter */
+/* CONTINUE: Continue to next loop iteration */
+/* Jumps back to loop start */
 static
 HRESULT
 JitGenContinue (
@@ -4181,10 +4351,27 @@ JitGenContinue (
   VINIL_INSTRUCTION_NODE  *Inst
   )
 {
-  /* Control flow requires basic block analysis - fall back to interpreter */
-  (VOID)Context;
+  struct sljit_compiler *C = Context->Compiler;
+  struct sljit_jump *continue_jump;
+  VINIL_JIT_CF_ENTRY *entry;
+  UINT32 i;
+
   (VOID)Inst;
-  return E_NOTIMPL;
+
+  /* Find the innermost loop */
+  for (i = Context->ControlFlowDepth; i > 0; i--) {
+    if (Context->ControlFlowStack[i - 1].Type == VINIL_CF_LOOP) {
+      entry = &Context->ControlFlowStack[i - 1];
+
+      /* Create jump back to loop start */
+      continue_jump = sljit_emit_jump (C, SLJIT_JUMP);
+      sljit_set_label (continue_jump, entry->LoopStart);
+
+      return S_OK;
+    }
+  }
+
+  return E_FAIL;  /* CONTINUE without enclosing LOOP */
 }
 
 /* SHL: dst = src1 << src2 (logical left shift) */
