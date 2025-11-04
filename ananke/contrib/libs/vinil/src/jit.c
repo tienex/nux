@@ -1903,6 +1903,193 @@ JitGenNot (
   return S_OK;
 }
 
+/* SIN: dst = sin(src) */
+static
+HRESULT
+JitGenSin (
+  VINIL_JIT_CONTEXT       *Context,
+  VINIL_INSTRUCTION_NODE  *Inst
+  )
+{
+  struct sljit_compiler *C = Context->Compiler;
+  sljit_sw DstOffset, SrcOffset;
+  HRESULT Result;
+  sljit_s32 i;
+
+  Result = GetVariableOffset (Context, Inst->Dst, &DstOffset);
+  if (FAILED (Result)) return Result;
+
+  Result = GetVariableOffset (Context, Inst->Src[0], &SrcOffset);
+  if (FAILED (Result)) return Result;
+
+  /* Sine 4 floats component-wise using sinf via icall */
+  for (i = 0; i < 4; i++) {
+    /* Load src[i] into FR0 */
+    sljit_emit_fmem (C, SLJIT_MOV_F32 | SLJIT_MEM_ALIGNED_16,
+      SLJIT_FR0,
+      SLJIT_MEM1(REG_STATE), SrcOffset + i * 4);
+
+    /* Call sinf(FR0) - result in FR0 */
+    sljit_emit_icall (C, SLJIT_CALL, SLJIT_ARGS1(F32, F32), SLJIT_IMM, SLJIT_FUNC_ADDR(sinf));
+
+    /* Store result */
+    sljit_emit_fmem (C, SLJIT_MOV_F32 | SLJIT_MEM_STORE | SLJIT_MEM_ALIGNED_16,
+      SLJIT_FR0,
+      SLJIT_MEM1(REG_STATE), DstOffset + i * 4);
+  }
+
+  return S_OK;
+}
+
+/* COS: dst = cos(src) */
+static
+HRESULT
+JitGenCos (
+  VINIL_JIT_CONTEXT       *Context,
+  VINIL_INSTRUCTION_NODE  *Inst
+  )
+{
+  struct sljit_compiler *C = Context->Compiler;
+  sljit_sw DstOffset, SrcOffset;
+  HRESULT Result;
+  sljit_s32 i;
+
+  Result = GetVariableOffset (Context, Inst->Dst, &DstOffset);
+  if (FAILED (Result)) return Result;
+
+  Result = GetVariableOffset (Context, Inst->Src[0], &SrcOffset);
+  if (FAILED (Result)) return Result;
+
+  /* Cosine 4 floats component-wise using cosf via icall */
+  for (i = 0; i < 4; i++) {
+    /* Load src[i] into FR0 */
+    sljit_emit_fmem (C, SLJIT_MOV_F32 | SLJIT_MEM_ALIGNED_16,
+      SLJIT_FR0,
+      SLJIT_MEM1(REG_STATE), SrcOffset + i * 4);
+
+    /* Call cosf(FR0) - result in FR0 */
+    sljit_emit_icall (C, SLJIT_CALL, SLJIT_ARGS1(F32, F32), SLJIT_IMM, SLJIT_FUNC_ADDR(cosf));
+
+    /* Store result */
+    sljit_emit_fmem (C, SLJIT_MOV_F32 | SLJIT_MEM_STORE | SLJIT_MEM_ALIGNED_16,
+      SLJIT_FR0,
+      SLJIT_MEM1(REG_STATE), DstOffset + i * 4);
+  }
+
+  return S_OK;
+}
+
+/* POW: dst = pow(src1, src2) */
+static
+HRESULT
+JitGenPow (
+  VINIL_JIT_CONTEXT       *Context,
+  VINIL_INSTRUCTION_NODE  *Inst
+  )
+{
+  struct sljit_compiler *C = Context->Compiler;
+  sljit_sw DstOffset, Src1Offset, Src2Offset;
+  HRESULT Result;
+  sljit_s32 i;
+
+  Result = GetVariableOffset (Context, Inst->Dst, &DstOffset);
+  if (FAILED (Result)) return Result;
+
+  Result = GetVariableOffset (Context, Inst->Src[0], &Src1Offset);
+  if (FAILED (Result)) return Result;
+
+  Result = GetVariableOffset (Context, Inst->Src[1], &Src2Offset);
+  if (FAILED (Result)) return Result;
+
+  /* Power 4 floats component-wise using powf via icall */
+  for (i = 0; i < 4; i++) {
+    /* Load src1[i] (base) into FR0 */
+    sljit_emit_fmem (C, SLJIT_MOV_F32 | SLJIT_MEM_ALIGNED_16,
+      SLJIT_FR0,
+      SLJIT_MEM1(REG_STATE), Src1Offset + i * 4);
+
+    /* Load src2[i] (exponent) into FR1 */
+    sljit_emit_fmem (C, SLJIT_MOV_F32 | SLJIT_MEM_ALIGNED_16,
+      SLJIT_FR1,
+      SLJIT_MEM1(REG_STATE), Src2Offset + i * 4);
+
+    /* Call powf(FR0, FR1) - result in FR0 */
+    sljit_emit_icall (C, SLJIT_CALL, SLJIT_ARGS2(F32, F32, F32), SLJIT_IMM, SLJIT_FUNC_ADDR(powf));
+
+    /* Store result */
+    sljit_emit_fmem (C, SLJIT_MOV_F32 | SLJIT_MEM_STORE | SLJIT_MEM_ALIGNED_16,
+      SLJIT_FR0,
+      SLJIT_MEM1(REG_STATE), DstOffset + i * 4);
+  }
+
+  return S_OK;
+}
+
+/* DP2: dst = dot(src1.xy, src2.xy) */
+static
+HRESULT
+JitGenDp2 (
+  VINIL_JIT_CONTEXT       *Context,
+  VINIL_INSTRUCTION_NODE  *Inst
+  )
+{
+  struct sljit_compiler *C = Context->Compiler;
+  sljit_sw DstOffset, Src1Offset, Src2Offset;
+  HRESULT Result;
+  sljit_s32 i;
+
+  Result = GetVariableOffset (Context, Inst->Dst, &DstOffset);
+  if (FAILED (Result)) return Result;
+
+  Result = GetVariableOffset (Context, Inst->Src[0], &Src1Offset);
+  if (FAILED (Result)) return Result;
+
+  Result = GetVariableOffset (Context, Inst->Src[1], &Src2Offset);
+  if (FAILED (Result)) return Result;
+
+  /* First component: FR0 = src1.x * src2.x */
+  sljit_emit_fmem (C, SLJIT_MOV_F32 | SLJIT_MEM_ALIGNED_16,
+    SLJIT_FR0,
+    SLJIT_MEM1(REG_STATE), Src1Offset + 0);
+
+  sljit_emit_fmem (C, SLJIT_MOV_F32 | SLJIT_MEM_ALIGNED_16,
+    SLJIT_FR1,
+    SLJIT_MEM1(REG_STATE), Src2Offset + 0);
+
+  sljit_emit_fop2 (C, SLJIT_MUL_F32,
+    SLJIT_FR0, 0,
+    SLJIT_FR0, 0,
+    SLJIT_FR1, 0);
+
+  /* Accumulate Y */
+  sljit_emit_fmem (C, SLJIT_MOV_F32 | SLJIT_MEM_ALIGNED_16,
+    SLJIT_FR1,
+    SLJIT_MEM1(REG_STATE), Src1Offset + 4);
+
+  sljit_emit_fmem (C, SLJIT_MOV_F32 | SLJIT_MEM_ALIGNED_16,
+    SLJIT_FR2,
+    SLJIT_MEM1(REG_STATE), Src2Offset + 4);
+
+  sljit_emit_fop2 (C, SLJIT_MUL_F32,
+    SLJIT_FR1, 0,
+    SLJIT_FR1, 0,
+    SLJIT_FR2, 0);
+
+  sljit_emit_fop2 (C, SLJIT_ADD_F32,
+    SLJIT_FR0, 0,
+    SLJIT_FR0, 0,
+    SLJIT_FR1, 0);
+
+  /* Store result in all 4 components */
+  for (i = 0; i < 4; i++) {
+    sljit_emit_fmem (C, SLJIT_MOV_F32 | SLJIT_MEM_STORE | SLJIT_MEM_ALIGNED_16,
+      SLJIT_FR0,
+      SLJIT_MEM1(REG_STATE), DstOffset + i * 4);
+  }
+
+  return S_OK;
+}
+
 //
 // Main Instruction Compiler
 //
@@ -2007,6 +2194,18 @@ JitCompileInstruction (
 
     case VINIL_OP_NOT:
       return JitGenNot (Context, Inst);
+
+    case VINIL_OP_SIN:
+      return JitGenSin (Context, Inst);
+
+    case VINIL_OP_COS:
+      return JitGenCos (Context, Inst);
+
+    case VINIL_OP_POW:
+      return JitGenPow (Context, Inst);
+
+    case VINIL_OP_DP2:
+      return JitGenDp2 (Context, Inst);
 
     case VINIL_OP_DP3:
       return JitGenDp3 (Context, Inst);
