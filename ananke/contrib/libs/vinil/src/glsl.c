@@ -5,15 +5,18 @@
 
     Abstract:
 
-        VINIL GLSL compiler frontend - stub implementation.
-        TODO: Integrate with glslang or implement custom GLSL parser.
+        VINIL GLSL compiler frontend.
+        Full implementation requires integration with glslang library
+        or implementation of complete GLSL parser.
 
     Copyright (C) 2025 NUX Project
 
     SPDX-License-Identifier:    CDDL-1.0
 --*/
 
+#define COBJMACROS
 #include <vinil/glsl.h>
+#include <vinil/vinil.h>
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -33,11 +36,11 @@ VinilCompileGLSL (
         return E_POINTER;
     }
 
-    /* TODO: Implement GLSL parser and IL generation */
-    /* Possible approaches:
-     * 1. Integrate glslang library
+    /* GLSL parser and IL generation not implemented.
+     * Recommended approaches for full implementation:
+     * 1. Integrate glslang library (reference GLSL compiler)
      * 2. Use Clang with GLSL frontend
-     * 3. Implement custom GLSL parser
+     * 3. Implement custom GLSL parser and semantic analyzer
      */
 
     (VOID)SourceSize;
@@ -102,7 +105,7 @@ VinilValidateGLSL (
     Hr = VinilCompileGLSL(Source, SourceSize, ShaderType, Version, VinilGlslNone, &Program, Error);
 
     if (SUCCEEDED(Hr) && Program != NULL) {
-        /* TODO: Free program */
+        IVinilProgram_Release((IVinilProgram *)Program);
     }
 
     return Hr;

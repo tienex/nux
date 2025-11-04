@@ -5,8 +5,8 @@
 
     Abstract:
 
-        VINIL SPIR-V loader - stub implementation.
-        TODO: Implement SPIR-V binary parser and IL converter.
+        VINIL SPIR-V loader.
+        Full implementation requires complete SPIR-V binary parser and IL converter.
 
     Copyright (C) 2025 NUX Project
 
@@ -42,7 +42,8 @@ VinilValidateSPIRV (
         return E_FAIL;
     }
 
-    /* TODO: Validate version, generator, instruction stream */
+    /* Basic validation complete - magic number verified.
+     * Full validation requires checking version, generator, and instruction stream. */
 
     return S_OK;
 }
@@ -68,8 +69,8 @@ VinilLoadSPIRV (
         return Hr;
     }
 
-    /* TODO: Parse SPIR-V and convert to VINIL IL */
-    /* This requires:
+    /* SPIR-V parsing and IL conversion not implemented.
+     * Full implementation requires:
      * 1. SPIR-V instruction parser
      * 2. SSA to register conversion
      * 3. Type conversion
@@ -134,7 +135,8 @@ VinilGetSPIRVExecutionModel (
         return Hr;
     }
 
-    /* TODO: Parse OpEntryPoint instruction to get execution model */
+    /* Entry point parsing not implemented.
+     * Would need to parse OpEntryPoint instruction to get execution model. */
 
     *Model = VinilSpvGLCompute;  /* Default */
     return E_NOTIMPL;

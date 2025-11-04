@@ -5,15 +5,18 @@
 
     Abstract:
 
-        VINIL HLSL compiler frontend - stub implementation.
-        TODO: Integrate with DXC or implement custom HLSL parser.
+        VINIL HLSL compiler frontend.
+        Full implementation requires integration with DirectXShaderCompiler (DXC)
+        or implementation of complete HLSL parser.
 
     Copyright (C) 2025 NUX Project
 
     SPDX-License-Identifier:    CDDL-1.0
 --*/
 
+#define COBJMACROS
 #include <vinil/hlsl.h>
+#include <vinil/vinil.h>
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -34,11 +37,11 @@ VinilCompileHLSL (
         return E_POINTER;
     }
 
-    /* TODO: Implement HLSL parser and IL generation */
-    /* Possible approaches:
-     * 1. Integrate DirectXShaderCompiler (DXC)
+    /* HLSL parser and IL generation not implemented.
+     * Recommended approaches for full implementation:
+     * 1. Integrate DirectXShaderCompiler (DXC) library
      * 2. Use Clang with HLSL frontend
-     * 3. Implement custom HLSL parser
+     * 3. Implement custom HLSL parser and semantic analyzer
      */
 
     (VOID)SourceSize;
@@ -105,7 +108,7 @@ VinilValidateHLSL (
         ShaderType, VinilHlslSM_5_0, VinilHlslNone, &Program, Error);
 
     if (SUCCEEDED(Hr) && Program != NULL) {
-        /* TODO: Free program */
+        IVinilProgram_Release((IVinilProgram *)Program);
     }
 
     return Hr;

@@ -353,6 +353,345 @@ GenerateELF64Object (
     return S_OK;
 }
 
+/* Mach-O 64-bit structures */
+#define MH_MAGIC_64     0xfeedfacf
+#define MH_OBJECT       0x1
+#define CPU_TYPE_X86_64 0x01000007
+#define CPU_TYPE_ARM64  0x0100000c
+#define LC_SEGMENT_64   0x19
+#define LC_SYMTAB       0x2
+#define S_ATTR_PURE_INSTRUCTIONS 0x80000000
+#define S_ATTR_SOME_INSTRUCTIONS 0x00000400
+
+typedef struct {
+    uint32_t magic;
+    uint32_t cputype;
+    uint32_t cpusubtype;
+    uint32_t filetype;
+    uint32_t ncmds;
+    uint32_t sizeofcmds;
+    uint32_t flags;
+    uint32_t reserved;
+} mach_header_64;
+
+typedef struct {
+    uint32_t cmd;
+    uint32_t cmdsize;
+    char segname[16];
+    uint64_t vmaddr;
+    uint64_t vmsize;
+    uint64_t fileoff;
+    uint64_t filesize;
+    uint32_t maxprot;
+    uint32_t initprot;
+    uint32_t nsects;
+    uint32_t flags;
+} segment_command_64;
+
+typedef struct {
+    char sectname[16];
+    char segname[16];
+    uint64_t addr;
+    uint64_t size;
+    uint32_t offset;
+    uint32_t align;
+    uint32_t reloff;
+    uint32_t nreloc;
+    uint32_t flags;
+    uint32_t reserved1;
+    uint32_t reserved2;
+    uint32_t reserved3;
+} section_64;
+
+typedef struct {
+    uint32_t cmd;
+    uint32_t cmdsize;
+    uint32_t symoff;
+    uint32_t nsyms;
+    uint32_t stroff;
+    uint32_t strsize;
+} symtab_command;
+
+typedef struct {
+    uint32_t n_strx;
+    uint8_t n_type;
+    uint8_t n_sect;
+    uint16_t n_desc;
+    uint64_t n_value;
+} nlist_64;
+
+/* Generate Mach-O 64-bit object file */
+static HRESULT
+GenerateMachO64Object (
+    CONST VINIL_AOT_TARGET  *Target,
+    CONST VOID              *CodeData,
+    UINTN                   CodeSize,
+    VOID                    **ObjectData,
+    UINTN                   *ObjectSize
+    )
+{
+    UINT8 *Buffer;
+    UINTN Offset;
+    mach_header_64 *Header;
+    segment_command_64 *SegCmd;
+    section_64 *Sect;
+    symtab_command *SymCmd;
+    nlist_64 *Sym;
+    CONST CHAR8 *StrTable;
+    UINTN StrTableSize;
+    UINTN SymTableSize;
+    UINTN TotalSize;
+    uint32_t CpuType;
+
+    /* Determine CPU type */
+    switch (Target->Arch) {
+        case VinilAotX86_64:
+            CpuType = CPU_TYPE_X86_64;
+            break;
+        case VinilAotARM64:
+            CpuType = CPU_TYPE_ARM64;
+            break;
+        default:
+            CpuType = CPU_TYPE_X86_64;
+            break;
+    }
+
+    StrTable = "\0_vinil_shader\0";
+    StrTableSize = 16;
+    SymTableSize = sizeof(nlist_64);
+
+    TotalSize = sizeof(mach_header_64) +
+                sizeof(segment_command_64) + sizeof(section_64) +
+                sizeof(symtab_command) +
+                CodeSize +
+                SymTableSize +
+                StrTableSize;
+
+    Buffer = (UINT8 *)malloc(TotalSize);
+    if (Buffer == NULL) {
+        return E_OUTOFMEMORY;
+    }
+
+    memset(Buffer, 0, TotalSize);
+    Offset = 0;
+
+    /* Mach-O header */
+    Header = (mach_header_64 *)(Buffer + Offset);
+    Header->magic = MH_MAGIC_64;
+    Header->cputype = CpuType;
+    Header->cpusubtype = 0;
+    Header->filetype = MH_OBJECT;
+    Header->ncmds = 2;
+    Header->sizeofcmds = sizeof(segment_command_64) + sizeof(section_64) + sizeof(symtab_command);
+    Header->flags = 0;
+    Offset += sizeof(mach_header_64);
+
+    /* Segment command */
+    SegCmd = (segment_command_64 *)(Buffer + Offset);
+    SegCmd->cmd = LC_SEGMENT_64;
+    SegCmd->cmdsize = sizeof(segment_command_64) + sizeof(section_64);
+    memset(SegCmd->segname, 0, 16);
+    SegCmd->vmaddr = 0;
+    SegCmd->vmsize = CodeSize;
+    SegCmd->fileoff = sizeof(mach_header_64) + sizeof(segment_command_64) + sizeof(section_64) + sizeof(symtab_command);
+    SegCmd->filesize = CodeSize;
+    SegCmd->maxprot = 7;
+    SegCmd->initprot = 7;
+    SegCmd->nsects = 1;
+    SegCmd->flags = 0;
+    Offset += sizeof(segment_command_64);
+
+    /* Section */
+    Sect = (section_64 *)(Buffer + Offset);
+    strncpy(Sect->sectname, "__text", 16);
+    strncpy(Sect->segname, "__TEXT", 16);
+    Sect->addr = 0;
+    Sect->size = CodeSize;
+    Sect->offset = SegCmd->fileoff;
+    Sect->align = 4;
+    Sect->reloff = 0;
+    Sect->nreloc = 0;
+    Sect->flags = S_ATTR_PURE_INSTRUCTIONS | S_ATTR_SOME_INSTRUCTIONS;
+    Offset += sizeof(section_64);
+
+    /* Symbol table command */
+    SymCmd = (symtab_command *)(Buffer + Offset);
+    SymCmd->cmd = LC_SYMTAB;
+    SymCmd->cmdsize = sizeof(symtab_command);
+    SymCmd->symoff = SegCmd->fileoff + CodeSize;
+    SymCmd->nsyms = 1;
+    SymCmd->stroff = SymCmd->symoff + SymTableSize;
+    SymCmd->strsize = StrTableSize;
+    Offset += sizeof(symtab_command);
+
+    /* Code */
+    memcpy(Buffer + Offset, CodeData, CodeSize);
+    Offset += CodeSize;
+
+    /* Symbol table */
+    Sym = (nlist_64 *)(Buffer + Offset);
+    Sym->n_strx = 1;
+    Sym->n_type = 0x0f;
+    Sym->n_sect = 1;
+    Sym->n_desc = 0;
+    Sym->n_value = 0;
+    Offset += SymTableSize;
+
+    /* String table */
+    memcpy(Buffer + Offset, StrTable, StrTableSize);
+
+    *ObjectData = Buffer;
+    *ObjectSize = TotalSize;
+
+    return S_OK;
+}
+
+/* COFF structures for Windows */
+#define IMAGE_FILE_MACHINE_AMD64 0x8664
+#define IMAGE_FILE_MACHINE_ARM64 0xAA64
+#define IMAGE_SCN_CNT_CODE 0x00000020
+#define IMAGE_SCN_MEM_EXECUTE 0x20000000
+#define IMAGE_SCN_MEM_READ 0x40000000
+#define IMAGE_SYM_CLASS_EXTERNAL 2
+#define IMAGE_SYM_TYPE_FUNC 0x20
+
+typedef struct {
+    uint16_t Machine;
+    uint16_t NumberOfSections;
+    uint32_t TimeDateStamp;
+    uint32_t PointerToSymbolTable;
+    uint32_t NumberOfSymbols;
+    uint16_t SizeOfOptionalHeader;
+    uint16_t Characteristics;
+} IMAGE_FILE_HEADER;
+
+typedef struct {
+    char Name[8];
+    uint32_t VirtualSize;
+    uint32_t VirtualAddress;
+    uint32_t SizeOfRawData;
+    uint32_t PointerToRawData;
+    uint32_t PointerToRelocations;
+    uint32_t PointerToLinenumbers;
+    uint16_t NumberOfRelocations;
+    uint16_t NumberOfLinenumbers;
+    uint32_t Characteristics;
+} IMAGE_SECTION_HEADER;
+
+typedef struct {
+    union {
+        char ShortName[8];
+        struct {
+            uint32_t Zeros;
+            uint32_t Offset;
+        } Name;
+    } N;
+    uint32_t Value;
+    int16_t SectionNumber;
+    uint16_t Type;
+    uint8_t StorageClass;
+    uint8_t NumberOfAuxSymbols;
+} IMAGE_SYMBOL;
+
+/* Generate COFF object file */
+static HRESULT
+GenerateCOFFObject (
+    CONST VINIL_AOT_TARGET  *Target,
+    CONST VOID              *CodeData,
+    UINTN                   CodeSize,
+    VOID                    **ObjectData,
+    UINTN                   *ObjectSize
+    )
+{
+    UINT8 *Buffer;
+    UINTN Offset;
+    IMAGE_FILE_HEADER *FileHdr;
+    IMAGE_SECTION_HEADER *SectHdr;
+    IMAGE_SYMBOL *Sym;
+    CONST CHAR8 *StrTable;
+    UINTN StrTableSize;
+    UINTN TotalSize;
+    uint16_t Machine;
+
+    /* Determine machine type */
+    switch (Target->Arch) {
+        case VinilAotX86_64:
+            Machine = IMAGE_FILE_MACHINE_AMD64;
+            break;
+        case VinilAotARM64:
+            Machine = IMAGE_FILE_MACHINE_ARM64;
+            break;
+        default:
+            Machine = IMAGE_FILE_MACHINE_AMD64;
+            break;
+    }
+
+    StrTable = "\x0e\x00\x00\x00vinil_shader\0";
+    StrTableSize = 4 + 13;
+
+    TotalSize = sizeof(IMAGE_FILE_HEADER) +
+                sizeof(IMAGE_SECTION_HEADER) +
+                CodeSize +
+                sizeof(IMAGE_SYMBOL) +
+                StrTableSize;
+
+    Buffer = (UINT8 *)malloc(TotalSize);
+    if (Buffer == NULL) {
+        return E_OUTOFMEMORY;
+    }
+
+    memset(Buffer, 0, TotalSize);
+    Offset = 0;
+
+    /* File header */
+    FileHdr = (IMAGE_FILE_HEADER *)(Buffer + Offset);
+    FileHdr->Machine = Machine;
+    FileHdr->NumberOfSections = 1;
+    FileHdr->TimeDateStamp = 0;
+    FileHdr->PointerToSymbolTable = sizeof(IMAGE_FILE_HEADER) + sizeof(IMAGE_SECTION_HEADER) + CodeSize;
+    FileHdr->NumberOfSymbols = 1;
+    FileHdr->SizeOfOptionalHeader = 0;
+    FileHdr->Characteristics = 0;
+    Offset += sizeof(IMAGE_FILE_HEADER);
+
+    /* Section header */
+    SectHdr = (IMAGE_SECTION_HEADER *)(Buffer + Offset);
+    strncpy(SectHdr->Name, ".text", 8);
+    SectHdr->VirtualSize = 0;
+    SectHdr->VirtualAddress = 0;
+    SectHdr->SizeOfRawData = CodeSize;
+    SectHdr->PointerToRawData = sizeof(IMAGE_FILE_HEADER) + sizeof(IMAGE_SECTION_HEADER);
+    SectHdr->PointerToRelocations = 0;
+    SectHdr->PointerToLinenumbers = 0;
+    SectHdr->NumberOfRelocations = 0;
+    SectHdr->NumberOfLinenumbers = 0;
+    SectHdr->Characteristics = IMAGE_SCN_CNT_CODE | IMAGE_SCN_MEM_EXECUTE | IMAGE_SCN_MEM_READ;
+    Offset += sizeof(IMAGE_SECTION_HEADER);
+
+    /* Code */
+    memcpy(Buffer + Offset, CodeData, CodeSize);
+    Offset += CodeSize;
+
+    /* Symbol table */
+    Sym = (IMAGE_SYMBOL *)(Buffer + Offset);
+    Sym->N.Name.Zeros = 0;
+    Sym->N.Name.Offset = 4;
+    Sym->Value = 0;
+    Sym->SectionNumber = 1;
+    Sym->Type = IMAGE_SYM_TYPE_FUNC;
+    Sym->StorageClass = IMAGE_SYM_CLASS_EXTERNAL;
+    Sym->NumberOfAuxSymbols = 0;
+    Offset += sizeof(IMAGE_SYMBOL);
+
+    /* String table */
+    memcpy(Buffer + Offset, StrTable, StrTableSize);
+
+    *ObjectData = Buffer;
+    *ObjectSize = TotalSize;
+
+    return S_OK;
+}
+
 /* Forward declaration - implemented in jit.c */
 extern HRESULT VinilJitCompileProgram(IVinilProgram *Program, VOID **Code, UINTN *CodeSize);
 
@@ -385,10 +724,15 @@ VinilCompileAOT (
             break;
 
         case VinilAotMachO:
+            Hr = GenerateMachO64Object(Target, CodeData, CodeSize, ObjectData, ObjectSize);
+            break;
+
         case VinilAotCOFF:
+            Hr = GenerateCOFFObject(Target, CodeData, CodeSize, ObjectData, ObjectSize);
+            break;
+
         case VinilAotWasm:
-            /* For now, only ELF is fully implemented */
-            /* Return raw code with a note that it's in memory format */
+            /* WebAssembly binary format not yet implemented */
             *ObjectData = malloc(CodeSize);
             if (*ObjectData == NULL) {
                 return E_OUTOFMEMORY;
