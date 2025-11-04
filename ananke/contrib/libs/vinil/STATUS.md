@@ -119,21 +119,21 @@
 - [x] Format validation
 - [x] Load/Save IL programs
 
-### 10. JIT Compiler (24%)
+### 10. JIT Compiler (29%)
 - [x] SLJIT integration
-- [x] Arithmetic operations: MOV, ADD, SUB, MUL, DIV, MAD, NEG, ABS
+- [x] Arithmetic operations: MOV, ADD, SUB, MUL, DIV, MAD, NEG, ABS, CLAMP
 - [x] Comparison operations: MIN, MAX
 - [x] Reciprocal operations: RCP, RSQ
-- [x] Rounding operations: FLR, FRC, CEIL
+- [x] Rounding operations: FLR, FRC, CEIL, TRUNC
 - [x] Math operations: SQRT
-- [x] Conditional set operations: SLT, SGE, SEQ, SNE
+- [x] Conditional set operations: SLT, SGE, SEQ, SNE, SGT, SLE
 - [x] Vector operations: DP3, DP4
 - [x] Register allocation framework
 - [x] Prologue/epilogue generation (3 float scratch registers)
 - [x] Program compilation API
-- [x] External function calls (floorf, ceilf, sqrtf)
-- [x] 23/94 opcodes implemented
-- [ ] Extended opcode support (71 opcodes remaining)
+- [x] External function calls (floorf, ceilf, sqrtf, truncf)
+- [x] 27/94 opcodes implemented
+- [ ] Extended opcode support (67 opcodes remaining)
 - [ ] Control flow compilation
 - [ ] Optimization passes
 
@@ -197,10 +197,10 @@ These are massive dependencies that would dwarf VINIL itself.
 | **Disassembler** | **2** | **400** | **94** | **100%** |
 | **Assembler** | **1** | **650** | **94** | **100%** |
 | Binary Format | 1 | 500 | - | 100% |
-| JIT | 1 | 1600 | 23/94 | 24% |
+| JIT | 1 | 1900 | 27/94 | 29% |
 | Frontends (stubs) | 4 | 600 | - | 0% |
 | AOT (stub) | 1 | 250 | - | 0% |
-| **Total** | **18** | **~9,000** | - | **87%** |
+| **Total** | **18** | **~9,300** | - | **88%** |
 
 ## 🚀 What's Working
 
@@ -247,13 +247,13 @@ These are massive dependencies that would dwarf VINIL itself.
 6. **JIT Compilation**
    ```c
    IVinilContext_Execute(ctx, program, VinilBackendJit, inputs, outputs);
-   // JIT-compiled opcodes (23/94):
-   //   Arithmetic: MOV, ADD, SUB, MUL, DIV, MAD, NEG, ABS
+   // JIT-compiled opcodes (27/94):
+   //   Arithmetic: MOV, ADD, SUB, MUL, DIV, MAD, NEG, ABS, CLAMP
    //   Comparison: MIN, MAX
    //   Reciprocals: RCP, RSQ
-   //   Rounding: FLR, FRC, CEIL
+   //   Rounding: FLR, FRC, CEIL, TRUNC
    //   Math: SQRT
-   //   Conditional: SLT, SGE, SEQ, SNE
+   //   Conditional: SLT, SGE, SEQ, SNE, SGT, SLE (complete set!)
    //   Vector: DP3, DP4
    //   Control: RET
    // ~10-100x faster than interpreter for arithmetic and vector operations
@@ -270,7 +270,8 @@ These are massive dependencies that would dwarf VINIL itself.
 7. **556e1e9** - Expand JIT compiler with MIN, MAX, DP3, DP4 opcodes
 8. **c0e27de** - Update STATUS.md with JIT expansion progress
 9. **0e65050** - Add RCP, RSQ, FLR, FRC opcodes to JIT compiler
-10. **(pending)** - Add CEIL, SQRT, SLT, SGE, SEQ, SNE opcodes to JIT compiler
+10. **6b27ff7** - Add CEIL, SQRT, and comparison opcodes (SLT, SGE, SEQ, SNE) to JIT
+11. **(pending)** - Complete comparison set (SGT, SLE), add CLAMP and TRUNC to JIT
 
 ## 🎯 Summary
 
