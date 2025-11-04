@@ -2540,6 +2540,269 @@ JitGenDiscard (
   return S_OK;
 }
 
+/* GET_GLOBAL_ID: dst = GlobalId[src[0]] - get global work-item ID */
+static
+HRESULT
+JitGenGetGlobalId (
+  VINIL_JIT_CONTEXT       *Context,
+  VINIL_INSTRUCTION_NODE  *Inst
+  )
+{
+  struct sljit_compiler *C = Context->Compiler;
+  sljit_sw DstOffset, SrcOffset;
+  HRESULT Result;
+  sljit_s32 i;
+
+  /*
+   * Offset calculation for GlobalId[3]:
+   * - Registers[256]: 4096 bytes
+   * - Inputs pointer: 8 bytes
+   * - Outputs pointer: 8 bytes
+   * Total: 4112 bytes
+   */
+  #define GLOBAL_ID_OFFSET  4112
+
+  Result = GetVariableOffset (Context, Inst->Dst, &DstOffset);
+  if (FAILED (Result)) return Result;
+
+  Result = GetVariableOffset (Context, Inst->Src[0], &SrcOffset);
+  if (FAILED (Result)) return Result;
+
+  /* Load dimension index from src[0] as float, convert to int */
+  sljit_emit_fmem (C, SLJIT_MOV_F32 | SLJIT_MEM_ALIGNED_16,
+    SLJIT_FR0, SLJIT_MEM1(REG_STATE), SrcOffset);
+
+  /* Convert float to int (R0 = (int)FR0) */
+  sljit_emit_fop1 (C, SLJIT_CONV_S32_FROM_F32, SLJIT_R0, 0, SLJIT_FR0, 0);
+
+  /* Compute offset: GLOBAL_ID_OFFSET + Dim * 4 */
+  sljit_emit_op2 (C, SLJIT_SHL, SLJIT_R0, 0, SLJIT_R0, 0, SLJIT_IMM, 2); /* *4 */
+  sljit_emit_op2 (C, SLJIT_ADD, SLJIT_R0, 0, SLJIT_R0, 0, SLJIT_IMM, GLOBAL_ID_OFFSET);
+
+  /* Load UINT32 value from State->GlobalId[dim] */
+  sljit_emit_op1 (C, SLJIT_MOV_U32, SLJIT_R1, 0,
+    SLJIT_MEM2(REG_STATE, SLJIT_R0), 0);
+
+  /* Convert UINT32 to float */
+  sljit_emit_fop1 (C, SLJIT_CONV_F32_FROM_U32, SLJIT_FR0, 0, SLJIT_R1, 0);
+
+  /* Broadcast to all 4 components */
+  for (i = 0; i < 4; i++) {
+    sljit_emit_fmem (C, SLJIT_MOV_F32 | SLJIT_MEM_STORE | SLJIT_MEM_ALIGNED_16,
+      SLJIT_FR0, SLJIT_MEM1(REG_STATE), DstOffset + i * 4);
+  }
+
+  return S_OK;
+}
+
+/* GET_LOCAL_ID: dst = LocalId[src[0]] - get local work-item ID */
+static
+HRESULT
+JitGenGetLocalId (
+  VINIL_JIT_CONTEXT       *Context,
+  VINIL_INSTRUCTION_NODE  *Inst
+  )
+{
+  struct sljit_compiler *C = Context->Compiler;
+  sljit_sw DstOffset, SrcOffset;
+  HRESULT Result;
+  sljit_s32 i;
+
+  #define LOCAL_ID_OFFSET  4124
+
+  Result = GetVariableOffset (Context, Inst->Dst, &DstOffset);
+  if (FAILED (Result)) return Result;
+
+  Result = GetVariableOffset (Context, Inst->Src[0], &SrcOffset);
+  if (FAILED (Result)) return Result;
+
+  /* Load dimension index from src[0] as float, convert to int */
+  sljit_emit_fmem (C, SLJIT_MOV_F32 | SLJIT_MEM_ALIGNED_16,
+    SLJIT_FR0, SLJIT_MEM1(REG_STATE), SrcOffset);
+  sljit_emit_fop1 (C, SLJIT_CONV_S32_FROM_F32, SLJIT_R0, 0, SLJIT_FR0, 0);
+
+  /* Compute offset */
+  sljit_emit_op2 (C, SLJIT_SHL, SLJIT_R0, 0, SLJIT_R0, 0, SLJIT_IMM, 2);
+  sljit_emit_op2 (C, SLJIT_ADD, SLJIT_R0, 0, SLJIT_R0, 0, SLJIT_IMM, LOCAL_ID_OFFSET);
+
+  /* Load and convert */
+  sljit_emit_op1 (C, SLJIT_MOV_U32, SLJIT_R1, 0, SLJIT_MEM2(REG_STATE, SLJIT_R0), 0);
+  sljit_emit_fop1 (C, SLJIT_CONV_F32_FROM_U32, SLJIT_FR0, 0, SLJIT_R1, 0);
+
+  /* Broadcast */
+  for (i = 0; i < 4; i++) {
+    sljit_emit_fmem (C, SLJIT_MOV_F32 | SLJIT_MEM_STORE | SLJIT_MEM_ALIGNED_16,
+      SLJIT_FR0, SLJIT_MEM1(REG_STATE), DstOffset + i * 4);
+  }
+
+  return S_OK;
+}
+
+/* GET_GROUP_ID: dst = GroupId[src[0]] - get work-group ID */
+static
+HRESULT
+JitGenGetGroupId (
+  VINIL_JIT_CONTEXT       *Context,
+  VINIL_INSTRUCTION_NODE  *Inst
+  )
+{
+  struct sljit_compiler *C = Context->Compiler;
+  sljit_sw DstOffset, SrcOffset;
+  HRESULT Result;
+  sljit_s32 i;
+
+  #define GROUP_ID_OFFSET  4136
+
+  Result = GetVariableOffset (Context, Inst->Dst, &DstOffset);
+  if (FAILED (Result)) return Result;
+
+  Result = GetVariableOffset (Context, Inst->Src[0], &SrcOffset);
+  if (FAILED (Result)) return Result;
+
+  sljit_emit_fmem (C, SLJIT_MOV_F32 | SLJIT_MEM_ALIGNED_16,
+    SLJIT_FR0, SLJIT_MEM1(REG_STATE), SrcOffset);
+  sljit_emit_fop1 (C, SLJIT_CONV_S32_FROM_F32, SLJIT_R0, 0, SLJIT_FR0, 0);
+  sljit_emit_op2 (C, SLJIT_SHL, SLJIT_R0, 0, SLJIT_R0, 0, SLJIT_IMM, 2);
+  sljit_emit_op2 (C, SLJIT_ADD, SLJIT_R0, 0, SLJIT_R0, 0, SLJIT_IMM, GROUP_ID_OFFSET);
+  sljit_emit_op1 (C, SLJIT_MOV_U32, SLJIT_R1, 0, SLJIT_MEM2(REG_STATE, SLJIT_R0), 0);
+  sljit_emit_fop1 (C, SLJIT_CONV_F32_FROM_U32, SLJIT_FR0, 0, SLJIT_R1, 0);
+
+  for (i = 0; i < 4; i++) {
+    sljit_emit_fmem (C, SLJIT_MOV_F32 | SLJIT_MEM_STORE | SLJIT_MEM_ALIGNED_16,
+      SLJIT_FR0, SLJIT_MEM1(REG_STATE), DstOffset + i * 4);
+  }
+
+  return S_OK;
+}
+
+/* GET_GLOBAL_SIZE: dst = GlobalSize[src[0]] - get global work size */
+static
+HRESULT
+JitGenGetGlobalSize (
+  VINIL_JIT_CONTEXT       *Context,
+  VINIL_INSTRUCTION_NODE  *Inst
+  )
+{
+  struct sljit_compiler *C = Context->Compiler;
+  sljit_sw DstOffset, SrcOffset;
+  HRESULT Result;
+  sljit_s32 i;
+
+  #define GLOBAL_SIZE_OFFSET  4148
+
+  Result = GetVariableOffset (Context, Inst->Dst, &DstOffset);
+  if (FAILED (Result)) return Result;
+
+  Result = GetVariableOffset (Context, Inst->Src[0], &SrcOffset);
+  if (FAILED (Result)) return Result;
+
+  sljit_emit_fmem (C, SLJIT_MOV_F32 | SLJIT_MEM_ALIGNED_16,
+    SLJIT_FR0, SLJIT_MEM1(REG_STATE), SrcOffset);
+  sljit_emit_fop1 (C, SLJIT_CONV_S32_FROM_F32, SLJIT_R0, 0, SLJIT_FR0, 0);
+  sljit_emit_op2 (C, SLJIT_SHL, SLJIT_R0, 0, SLJIT_R0, 0, SLJIT_IMM, 2);
+  sljit_emit_op2 (C, SLJIT_ADD, SLJIT_R0, 0, SLJIT_R0, 0, SLJIT_IMM, GLOBAL_SIZE_OFFSET);
+  sljit_emit_op1 (C, SLJIT_MOV_U32, SLJIT_R1, 0, SLJIT_MEM2(REG_STATE, SLJIT_R0), 0);
+  sljit_emit_fop1 (C, SLJIT_CONV_F32_FROM_U32, SLJIT_FR0, 0, SLJIT_R1, 0);
+
+  for (i = 0; i < 4; i++) {
+    sljit_emit_fmem (C, SLJIT_MOV_F32 | SLJIT_MEM_STORE | SLJIT_MEM_ALIGNED_16,
+      SLJIT_FR0, SLJIT_MEM1(REG_STATE), DstOffset + i * 4);
+  }
+
+  return S_OK;
+}
+
+/* GET_LOCAL_SIZE: dst = LocalSize[src[0]] - get local work size */
+static
+HRESULT
+JitGenGetLocalSize (
+  VINIL_JIT_CONTEXT       *Context,
+  VINIL_INSTRUCTION_NODE  *Inst
+  )
+{
+  struct sljit_compiler *C = Context->Compiler;
+  sljit_sw DstOffset, SrcOffset;
+  HRESULT Result;
+  sljit_s32 i;
+
+  #define LOCAL_SIZE_OFFSET  4160
+
+  Result = GetVariableOffset (Context, Inst->Dst, &DstOffset);
+  if (FAILED (Result)) return Result;
+
+  Result = GetVariableOffset (Context, Inst->Src[0], &SrcOffset);
+  if (FAILED (Result)) return Result;
+
+  sljit_emit_fmem (C, SLJIT_MOV_F32 | SLJIT_MEM_ALIGNED_16,
+    SLJIT_FR0, SLJIT_MEM1(REG_STATE), SrcOffset);
+  sljit_emit_fop1 (C, SLJIT_CONV_S32_FROM_F32, SLJIT_R0, 0, SLJIT_FR0, 0);
+  sljit_emit_op2 (C, SLJIT_SHL, SLJIT_R0, 0, SLJIT_R0, 0, SLJIT_IMM, 2);
+  sljit_emit_op2 (C, SLJIT_ADD, SLJIT_R0, 0, SLJIT_R0, 0, SLJIT_IMM, LOCAL_SIZE_OFFSET);
+  sljit_emit_op1 (C, SLJIT_MOV_U32, SLJIT_R1, 0, SLJIT_MEM2(REG_STATE, SLJIT_R0), 0);
+  sljit_emit_fop1 (C, SLJIT_CONV_F32_FROM_U32, SLJIT_FR0, 0, SLJIT_R1, 0);
+
+  for (i = 0; i < 4; i++) {
+    sljit_emit_fmem (C, SLJIT_MOV_F32 | SLJIT_MEM_STORE | SLJIT_MEM_ALIGNED_16,
+      SLJIT_FR0, SLJIT_MEM1(REG_STATE), DstOffset + i * 4);
+  }
+
+  return S_OK;
+}
+
+/* GET_NUM_GROUPS: dst = (GlobalSize[src[0]] + LocalSize[src[0]] - 1) / LocalSize[src[0]] */
+static
+HRESULT
+JitGenGetNumGroups (
+  VINIL_JIT_CONTEXT       *Context,
+  VINIL_INSTRUCTION_NODE  *Inst
+  )
+{
+  struct sljit_compiler *C = Context->Compiler;
+  sljit_sw DstOffset, SrcOffset;
+  HRESULT Result;
+  sljit_s32 i;
+
+  #define NUM_GROUPS_OFFSET  4172
+
+  Result = GetVariableOffset (Context, Inst->Dst, &DstOffset);
+  if (FAILED (Result)) return Result;
+
+  Result = GetVariableOffset (Context, Inst->Src[0], &SrcOffset);
+  if (FAILED (Result)) return Result;
+
+  /* Load dimension index */
+  sljit_emit_fmem (C, SLJIT_MOV_F32 | SLJIT_MEM_ALIGNED_16,
+    SLJIT_FR0, SLJIT_MEM1(REG_STATE), SrcOffset);
+  sljit_emit_fop1 (C, SLJIT_CONV_S32_FROM_F32, SLJIT_R0, 0, SLJIT_FR0, 0);
+
+  /* Calculate offset for arrays (dim * 4) */
+  sljit_emit_op2 (C, SLJIT_SHL, SLJIT_R0, 0, SLJIT_R0, 0, SLJIT_IMM, 2);
+
+  /* Load GlobalSize[dim] into R1 */
+  sljit_emit_op2 (C, SLJIT_ADD, SLJIT_R2, 0, SLJIT_R0, 0, SLJIT_IMM, GLOBAL_SIZE_OFFSET);
+  sljit_emit_op1 (C, SLJIT_MOV_U32, SLJIT_R1, 0, SLJIT_MEM2(REG_STATE, SLJIT_R2), 0);
+
+  /* Load LocalSize[dim] into R2 */
+  sljit_emit_op2 (C, SLJIT_ADD, SLJIT_R2, 0, SLJIT_R0, 0, SLJIT_IMM, LOCAL_SIZE_OFFSET);
+  sljit_emit_op1 (C, SLJIT_MOV_U32, SLJIT_R2, 0, SLJIT_MEM2(REG_STATE, SLJIT_R2), 0);
+
+  /* Calculate: (GlobalSize + LocalSize - 1) / LocalSize */
+  sljit_emit_op2 (C, SLJIT_ADD, SLJIT_R1, 0, SLJIT_R1, 0, SLJIT_R2, 0);
+  sljit_emit_op2 (C, SLJIT_SUB, SLJIT_R1, 0, SLJIT_R1, 0, SLJIT_IMM, 1);
+  sljit_emit_op2 (C, SLJIT_DIV_UW, SLJIT_R1, 0, SLJIT_R1, 0, SLJIT_R2, 0);
+
+  /* Convert result to float */
+  sljit_emit_fop1 (C, SLJIT_CONV_F32_FROM_U32, SLJIT_FR0, 0, SLJIT_R1, 0);
+
+  /* Broadcast to all components */
+  for (i = 0; i < 4; i++) {
+    sljit_emit_fmem (C, SLJIT_MOV_F32 | SLJIT_MEM_STORE | SLJIT_MEM_ALIGNED_16,
+      SLJIT_FR0, SLJIT_MEM1(REG_STATE), DstOffset + i * 4);
+  }
+
+  return S_OK;
+}
+
 /* SHL: dst = src1 << src2 (logical left shift) */
 static
 HRESULT
@@ -3076,6 +3339,24 @@ JitCompileInstruction (
 
     case VINIL_OP_DISCARD:
       return JitGenDiscard (Context, Inst);
+
+    case VINIL_OP_GET_GLOBAL_ID:
+      return JitGenGetGlobalId (Context, Inst);
+
+    case VINIL_OP_GET_LOCAL_ID:
+      return JitGenGetLocalId (Context, Inst);
+
+    case VINIL_OP_GET_GROUP_ID:
+      return JitGenGetGroupId (Context, Inst);
+
+    case VINIL_OP_GET_GLOBAL_SIZE:
+      return JitGenGetGlobalSize (Context, Inst);
+
+    case VINIL_OP_GET_LOCAL_SIZE:
+      return JitGenGetLocalSize (Context, Inst);
+
+    case VINIL_OP_GET_NUM_GROUPS:
+      return JitGenGetNumGroups (Context, Inst);
 
     case VINIL_OP_RET:
       return JitGenRet (Context, Inst);

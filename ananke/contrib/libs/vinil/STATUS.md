@@ -119,7 +119,7 @@
 - [x] Format validation
 - [x] Load/Save IL programs
 
-### 10. JIT Compiler (61%)
+### 10. JIT Compiler (67%)
 - [x] SLJIT integration
 - [x] Arithmetic operations: MOV, MOVA, ADD, SUB, MUL, DIV, MAD, NEG, ABS, CLAMP (100%)
 - [x] Comparison operations: MIN, MAX (100%)
@@ -131,12 +131,13 @@
 - [x] Bitwise shift operations: SHL, SHR, SAR (100%)
 - [x] Vector operations: DP2, DP3, DP4, CRS, LEN, NRM (100%)
 - [x] Miscellaneous operations: SELECT, SHUFFLE, NOP, DISCARD (100%)
+- [x] Work-item functions: GET_GLOBAL_ID, GET_LOCAL_ID, GET_GROUP_ID, GET_GLOBAL_SIZE, GET_LOCAL_SIZE, GET_NUM_GROUPS (100%)
 - [x] Register allocation framework
 - [x] Prologue/epilogue generation (3 float scratch registers)
 - [x] Program compilation API
 - [x] External function calls (floorf, ceilf, sqrtf, truncf, roundf, expf, exp2f, logf, log2f, sinf, cosf, tanf, asinf, acosf, atanf, atan2f, powf)
-- [x] 57/94 opcodes implemented
-- [ ] Extended opcode support (37 opcodes remaining)
+- [x] 63/94 opcodes implemented
+- [ ] Extended opcode support (31 opcodes remaining)
 - [ ] Control flow compilation
 - [ ] Optimization passes
 
@@ -200,7 +201,7 @@ These are massive dependencies that would dwarf VINIL itself.
 | **Disassembler** | **2** | **400** | **94** | **100%** |
 | **Assembler** | **1** | **650** | **94** | **100%** |
 | Binary Format | 1 | 500 | - | 100% |
-| JIT | 1 | 3100 | 57/94 | 61% |
+| JIT | 1 | 3370 | 63/94 | 67% |
 | Frontends (stubs) | 4 | 600 | - | 0% |
 | AOT (stub) | 1 | 250 | - | 0% |
 | **Total** | **18** | **~9,600** | - | **89%** |
@@ -250,7 +251,7 @@ These are massive dependencies that would dwarf VINIL itself.
 6. **JIT Compilation**
    ```c
    IVinilContext_Execute(ctx, program, VinilBackendJit, inputs, outputs);
-   // JIT-compiled opcodes (57/94):
+   // JIT-compiled opcodes (63/94):
    //   Arithmetic: MOV, MOVA, ADD, SUB, MUL, DIV, MAD, NEG, ABS, CLAMP (100%)
    //   Comparison: MIN, MAX (100%)
    //   Reciprocals: RCP, RSQ (100%)
@@ -261,6 +262,7 @@ These are massive dependencies that would dwarf VINIL itself.
    //   Bitwise Shifts: SHL, SHR, SAR (100%)
    //   Vector: DP2, DP3, DP4, CRS, LEN, NRM (100%)
    //   Misc: SELECT, SHUFFLE, NOP, DISCARD (100%)
+   //   Work-item: GET_GLOBAL_ID, GET_LOCAL_ID, GET_GROUP_ID, GET_GLOBAL_SIZE, GET_LOCAL_SIZE, GET_NUM_GROUPS (100%)
    //   Control: RET
    // ~10-100x faster than interpreter for arithmetic and vector operations
    ```
@@ -283,7 +285,8 @@ These are massive dependencies that would dwarf VINIL itself.
 14. **ffa318a** - Complete vector operations (CRS, LEN, NRM) in JIT compiler
 15. **f55c0ae** - Add bitwise shifts (SHL, SHR, SAR) and complete transcendentals (TAN, ASIN, ACOS, ATAN, EXP, LOG) to JIT
 16. **28bd669** - Add miscellaneous operations (SELECT, ATAN2, NOP) to JIT compiler
-17. **(pending)** - Add MOVA, SHUFFLE, and DISCARD operations to JIT compiler
+17. **32763db** - Add MOVA, SHUFFLE, and DISCARD operations to JIT compiler
+18. **(pending)** - Add work-item functions (GET_GLOBAL_ID, GET_LOCAL_ID, GET_GROUP_ID, GET_GLOBAL_SIZE, GET_LOCAL_SIZE, GET_NUM_GROUPS) to JIT compiler
 
 ## 🎯 Summary
 
