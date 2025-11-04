@@ -753,6 +753,212 @@ JitGenDp4 (
   return S_OK;
 }
 
+/* RCP: dst = 1.0 / src */
+static
+HRESULT
+JitGenRcp (
+  VINIL_JIT_CONTEXT       *Context,
+  VINIL_INSTRUCTION_NODE  *Inst
+  )
+{
+  struct sljit_compiler *C = Context->Compiler;
+  sljit_sw DstOffset, SrcOffset;
+  HRESULT Result;
+  sljit_s32 i;
+  union {
+    float f;
+    sljit_u32 u;
+  } one;
+
+  one.f = 1.0f;
+
+  Result = GetVariableOffset (Context, Inst->Dst, &DstOffset);
+  if (FAILED (Result)) return Result;
+
+  Result = GetVariableOffset (Context, Inst->Src[0], &SrcOffset);
+  if (FAILED (Result)) return Result;
+
+  /* Reciprocal 4 floats component-wise: dst = 1.0 / src */
+  for (i = 0; i < 4; i++) {
+    /* Load constant 1.0 into FR0 */
+    sljit_emit_op1 (C, SLJIT_MOV, REG_TMP1, 0, SLJIT_IMM, one.u);
+    sljit_emit_fmem (C, SLJIT_MOV_F32 | SLJIT_MEM_STORE,
+      SLJIT_FR0,
+      SLJIT_MEM1(SLJIT_SP), -16);
+    sljit_emit_op1 (C, SLJIT_MOV, SLJIT_MEM1(SLJIT_SP), -16, REG_TMP1, 0);
+    sljit_emit_fmem (C, SLJIT_MOV_F32,
+      SLJIT_FR0,
+      SLJIT_MEM1(SLJIT_SP), -16);
+
+    /* Load src[i] into FR1 */
+    sljit_emit_fmem (C, SLJIT_MOV_F32 | SLJIT_MEM_ALIGNED_16,
+      SLJIT_FR1,
+      SLJIT_MEM1(REG_STATE), SrcOffset + i * 4);
+
+    /* FR0 = FR0 / FR1 = 1.0 / src */
+    sljit_emit_fop2 (C, SLJIT_DIV_F32,
+      SLJIT_FR0, 0,
+      SLJIT_FR0, 0,
+      SLJIT_FR1, 0);
+
+    /* Store result */
+    sljit_emit_fmem (C, SLJIT_MOV_F32 | SLJIT_MEM_STORE | SLJIT_MEM_ALIGNED_16,
+      SLJIT_FR0,
+      SLJIT_MEM1(REG_STATE), DstOffset + i * 4);
+  }
+
+  return S_OK;
+}
+
+/* FLR: dst = floor(src) */
+static
+HRESULT
+JitGenFlr (
+  VINIL_JIT_CONTEXT       *Context,
+  VINIL_INSTRUCTION_NODE  *Inst
+  )
+{
+  struct sljit_compiler *C = Context->Compiler;
+  sljit_sw DstOffset, SrcOffset;
+  HRESULT Result;
+  sljit_s32 i;
+
+  Result = GetVariableOffset (Context, Inst->Dst, &DstOffset);
+  if (FAILED (Result)) return Result;
+
+  Result = GetVariableOffset (Context, Inst->Src[0], &SrcOffset);
+  if (FAILED (Result)) return Result;
+
+  /* Floor 4 floats component-wise using C library floorf via icall */
+  for (i = 0; i < 4; i++) {
+    /* Load src[i] into FR0 */
+    sljit_emit_fmem (C, SLJIT_MOV_F32 | SLJIT_MEM_ALIGNED_16,
+      SLJIT_FR0,
+      SLJIT_MEM1(REG_STATE), SrcOffset + i * 4);
+
+    /* Call floorf(FR0) - FR0 is first float arg, result in FR0 */
+    sljit_emit_icall (C, SLJIT_CALL, SLJIT_ARGS1(F32, F32), SLJIT_IMM, SLJIT_FUNC_ADDR(floorf));
+
+    /* Store result */
+    sljit_emit_fmem (C, SLJIT_MOV_F32 | SLJIT_MEM_STORE | SLJIT_MEM_ALIGNED_16,
+      SLJIT_FR0,
+      SLJIT_MEM1(REG_STATE), DstOffset + i * 4);
+  }
+
+  return S_OK;
+}
+
+/* FRC: dst = frac(src) = src - floor(src) */
+static
+HRESULT
+JitGenFrc (
+  VINIL_JIT_CONTEXT       *Context,
+  VINIL_INSTRUCTION_NODE  *Inst
+  )
+{
+  struct sljit_compiler *C = Context->Compiler;
+  sljit_sw DstOffset, SrcOffset;
+  HRESULT Result;
+  sljit_s32 i;
+
+  Result = GetVariableOffset (Context, Inst->Dst, &DstOffset);
+  if (FAILED (Result)) return Result;
+
+  Result = GetVariableOffset (Context, Inst->Src[0], &SrcOffset);
+  if (FAILED (Result)) return Result;
+
+  /* Fractional 4 floats component-wise: dst = src - floor(src) */
+  for (i = 0; i < 4; i++) {
+    /* Load src[i] into FR0 */
+    sljit_emit_fmem (C, SLJIT_MOV_F32 | SLJIT_MEM_ALIGNED_16,
+      SLJIT_FR0,
+      SLJIT_MEM1(REG_STATE), SrcOffset + i * 4);
+
+    /* Save original value to FR1 */
+    sljit_emit_fop1 (C, SLJIT_MOV_F32,
+      SLJIT_FR1, 0,
+      SLJIT_FR0, 0);
+
+    /* Call floorf(FR0) - result in FR0 */
+    sljit_emit_icall (C, SLJIT_CALL, SLJIT_ARGS1(F32, F32), SLJIT_IMM, SLJIT_FUNC_ADDR(floorf));
+
+    /* FR0 = FR1 - FR0 = src - floor(src) */
+    sljit_emit_fop2 (C, SLJIT_SUB_F32,
+      SLJIT_FR0, 0,
+      SLJIT_FR1, 0,
+      SLJIT_FR0, 0);
+
+    /* Store result */
+    sljit_emit_fmem (C, SLJIT_MOV_F32 | SLJIT_MEM_STORE | SLJIT_MEM_ALIGNED_16,
+      SLJIT_FR0,
+      SLJIT_MEM1(REG_STATE), DstOffset + i * 4);
+  }
+
+  return S_OK;
+}
+
+/* RSQ: dst = 1.0 / sqrt(src) */
+static
+HRESULT
+JitGenRsq (
+  VINIL_JIT_CONTEXT       *Context,
+  VINIL_INSTRUCTION_NODE  *Inst
+  )
+{
+  struct sljit_compiler *C = Context->Compiler;
+  sljit_sw DstOffset, SrcOffset;
+  HRESULT Result;
+  sljit_s32 i;
+  union {
+    float f;
+    sljit_u32 u;
+  } one;
+
+  one.f = 1.0f;
+
+  Result = GetVariableOffset (Context, Inst->Dst, &DstOffset);
+  if (FAILED (Result)) return Result;
+
+  Result = GetVariableOffset (Context, Inst->Src[0], &SrcOffset);
+  if (FAILED (Result)) return Result;
+
+  /* Reciprocal square root 4 floats component-wise: dst = 1.0 / sqrt(src) */
+  for (i = 0; i < 4; i++) {
+    /* Load src[i] into FR0 */
+    sljit_emit_fmem (C, SLJIT_MOV_F32 | SLJIT_MEM_ALIGNED_16,
+      SLJIT_FR0,
+      SLJIT_MEM1(REG_STATE), SrcOffset + i * 4);
+
+    /* Call sqrtf(FR0) - result in FR0 */
+    sljit_emit_icall (C, SLJIT_CALL, SLJIT_ARGS1(F32, F32), SLJIT_IMM, SLJIT_FUNC_ADDR(sqrtf));
+
+    /* Save sqrt result to FR1 */
+    sljit_emit_fop1 (C, SLJIT_MOV_F32,
+      SLJIT_FR1, 0,
+      SLJIT_FR0, 0);
+
+    /* Load constant 1.0 into FR0 */
+    sljit_emit_op1 (C, SLJIT_MOV, REG_TMP1, 0, SLJIT_IMM, one.u);
+    sljit_emit_op1 (C, SLJIT_MOV, SLJIT_MEM1(SLJIT_SP), -16, REG_TMP1, 0);
+    sljit_emit_fmem (C, SLJIT_MOV_F32,
+      SLJIT_FR0,
+      SLJIT_MEM1(SLJIT_SP), -16);
+
+    /* FR0 = FR0 / FR1 = 1.0 / sqrt(src) */
+    sljit_emit_fop2 (C, SLJIT_DIV_F32,
+      SLJIT_FR0, 0,
+      SLJIT_FR0, 0,
+      SLJIT_FR1, 0);
+
+    /* Store result */
+    sljit_emit_fmem (C, SLJIT_MOV_F32 | SLJIT_MEM_STORE | SLJIT_MEM_ALIGNED_16,
+      SLJIT_FR0,
+      SLJIT_MEM1(REG_STATE), DstOffset + i * 4);
+  }
+
+  return S_OK;
+}
+
 //
 // Main Instruction Compiler
 //
@@ -794,6 +1000,18 @@ JitCompileInstruction (
 
     case VINIL_OP_MAX:
       return JitGenMax (Context, Inst);
+
+    case VINIL_OP_RCP:
+      return JitGenRcp (Context, Inst);
+
+    case VINIL_OP_RSQ:
+      return JitGenRsq (Context, Inst);
+
+    case VINIL_OP_FLR:
+      return JitGenFlr (Context, Inst);
+
+    case VINIL_OP_FRC:
+      return JitGenFrc (Context, Inst);
 
     case VINIL_OP_DP3:
       return JitGenDp3 (Context, Inst);

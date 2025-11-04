@@ -119,16 +119,19 @@
 - [x] Format validation
 - [x] Load/Save IL programs
 
-### 10. JIT Compiler (14%)
+### 10. JIT Compiler (18%)
 - [x] SLJIT integration
 - [x] Arithmetic operations: MOV, ADD, SUB, MUL, DIV, MAD, NEG, ABS
 - [x] Comparison operations: MIN, MAX
+- [x] Reciprocal operations: RCP, RSQ
+- [x] Rounding operations: FLR, FRC
 - [x] Vector operations: DP3, DP4
 - [x] Register allocation framework
 - [x] Prologue/epilogue generation (3 float scratch registers)
 - [x] Program compilation API
-- [x] 13/94 opcodes implemented
-- [ ] Extended opcode support (81 opcodes remaining)
+- [x] External function calls (floorf, sqrtf)
+- [x] 17/94 opcodes implemented
+- [ ] Extended opcode support (77 opcodes remaining)
 - [ ] Control flow compilation
 - [ ] Optimization passes
 
@@ -192,10 +195,10 @@ These are massive dependencies that would dwarf VINIL itself.
 | **Disassembler** | **2** | **400** | **94** | **100%** |
 | **Assembler** | **1** | **650** | **94** | **100%** |
 | Binary Format | 1 | 500 | - | 100% |
-| JIT | 1 | 1000 | 13/94 | 14% |
+| JIT | 1 | 1200 | 17/94 | 18% |
 | Frontends (stubs) | 4 | 600 | - | 0% |
 | AOT (stub) | 1 | 250 | - | 0% |
-| **Total** | **18** | **~8,400** | - | **85%** |
+| **Total** | **18** | **~8,600** | - | **86%** |
 
 ## 🚀 What's Working
 
@@ -242,7 +245,13 @@ These are massive dependencies that would dwarf VINIL itself.
 6. **JIT Compilation**
    ```c
    IVinilContext_Execute(ctx, program, VinilBackendJit, inputs, outputs);
-   // JIT-compiled opcodes (13/94): MOV, ADD, SUB, MUL, DIV, MAD, NEG, ABS, MIN, MAX, DP3, DP4, RET
+   // JIT-compiled opcodes (17/94):
+   //   Arithmetic: MOV, ADD, SUB, MUL, DIV, MAD, NEG, ABS
+   //   Comparison: MIN, MAX
+   //   Reciprocals: RCP, RSQ
+   //   Rounding: FLR, FRC
+   //   Vector: DP3, DP4
+   //   Control: RET
    // ~10-100x faster than interpreter for arithmetic and vector operations
    ```
 
@@ -255,6 +264,8 @@ These are massive dependencies that would dwarf VINIL itself.
 5. **29d703d** - Update STATUS.md to reflect 100% core completion
 6. **a403412** - Expand JIT compiler and create test suite (DIV, MAD, NEG, ABS)
 7. **556e1e9** - Expand JIT compiler with MIN, MAX, DP3, DP4 opcodes
+8. **c0e27de** - Update STATUS.md with JIT expansion progress
+9. **(pending)** - Add RCP, RSQ, FLR, FRC opcodes to JIT compiler
 
 ## 🎯 Summary
 
