@@ -119,21 +119,23 @@
 - [x] Format validation
 - [x] Load/Save IL programs
 
-### 10. JIT Compiler (29%)
+### 10. JIT Compiler (37%)
 - [x] SLJIT integration
-- [x] Arithmetic operations: MOV, ADD, SUB, MUL, DIV, MAD, NEG, ABS, CLAMP
-- [x] Comparison operations: MIN, MAX
-- [x] Reciprocal operations: RCP, RSQ
-- [x] Rounding operations: FLR, FRC, CEIL, TRUNC
-- [x] Math operations: SQRT
-- [x] Conditional set operations: SLT, SGE, SEQ, SNE, SGT, SLE
+- [x] Arithmetic operations: MOV, ADD, SUB, MUL, DIV, MAD, NEG, ABS, CLAMP (100%)
+- [x] Comparison operations: MIN, MAX (100%)
+- [x] Reciprocal operations: RCP, RSQ (100%)
+- [x] Rounding operations: FLR, FRC, CEIL, TRUNC, ROUND (100% complete!)
+- [x] Math operations: SQRT, EXP2, LOG2
+- [x] Conditional set operations: SLT, SGE, SEQ, SNE, SGT, SLE (100% complete!)
+- [x] Logical operations: AND, OR, XOR, NOT (100% complete!)
 - [x] Vector operations: DP3, DP4
 - [x] Register allocation framework
 - [x] Prologue/epilogue generation (3 float scratch registers)
 - [x] Program compilation API
-- [x] External function calls (floorf, ceilf, sqrtf, truncf)
-- [x] 27/94 opcodes implemented
-- [ ] Extended opcode support (67 opcodes remaining)
+- [x] External function calls (floorf, ceilf, sqrtf, truncf, roundf, exp2f, log2f)
+- [x] Bitwise integer operations (AND, OR, XOR, NOT)
+- [x] 35/94 opcodes implemented
+- [ ] Extended opcode support (59 opcodes remaining)
 - [ ] Control flow compilation
 - [ ] Optimization passes
 
@@ -197,10 +199,10 @@ These are massive dependencies that would dwarf VINIL itself.
 | **Disassembler** | **2** | **400** | **94** | **100%** |
 | **Assembler** | **1** | **650** | **94** | **100%** |
 | Binary Format | 1 | 500 | - | 100% |
-| JIT | 1 | 1900 | 27/94 | 29% |
+| JIT | 1 | 2200 | 35/94 | 37% |
 | Frontends (stubs) | 4 | 600 | - | 0% |
 | AOT (stub) | 1 | 250 | - | 0% |
-| **Total** | **18** | **~9,300** | - | **88%** |
+| **Total** | **18** | **~9,600** | - | **89%** |
 
 ## 🚀 What's Working
 
@@ -247,13 +249,14 @@ These are massive dependencies that would dwarf VINIL itself.
 6. **JIT Compilation**
    ```c
    IVinilContext_Execute(ctx, program, VinilBackendJit, inputs, outputs);
-   // JIT-compiled opcodes (27/94):
-   //   Arithmetic: MOV, ADD, SUB, MUL, DIV, MAD, NEG, ABS, CLAMP
-   //   Comparison: MIN, MAX
-   //   Reciprocals: RCP, RSQ
-   //   Rounding: FLR, FRC, CEIL, TRUNC
-   //   Math: SQRT
-   //   Conditional: SLT, SGE, SEQ, SNE, SGT, SLE (complete set!)
+   // JIT-compiled opcodes (35/94):
+   //   Arithmetic: MOV, ADD, SUB, MUL, DIV, MAD, NEG, ABS, CLAMP (100%)
+   //   Comparison: MIN, MAX (100%)
+   //   Reciprocals: RCP, RSQ (100%)
+   //   Rounding: FLR, FRC, CEIL, TRUNC, ROUND (100% complete!)
+   //   Math: SQRT, EXP2, LOG2
+   //   Conditional: SLT, SGE, SEQ, SNE, SGT, SLE (100% complete!)
+   //   Logical: AND, OR, XOR, NOT (100% complete!)
    //   Vector: DP3, DP4
    //   Control: RET
    // ~10-100x faster than interpreter for arithmetic and vector operations
@@ -271,7 +274,8 @@ These are massive dependencies that would dwarf VINIL itself.
 8. **c0e27de** - Update STATUS.md with JIT expansion progress
 9. **0e65050** - Add RCP, RSQ, FLR, FRC opcodes to JIT compiler
 10. **6b27ff7** - Add CEIL, SQRT, and comparison opcodes (SLT, SGE, SEQ, SNE) to JIT
-11. **(pending)** - Complete comparison set (SGT, SLE), add CLAMP and TRUNC to JIT
+11. **cce422b** - Complete comparison set (SGT, SLE), add CLAMP and TRUNC to JIT
+12. **(pending)** - Add ROUND, EXP2, LOG2, and logical ops (AND, OR, XOR, NOT) to JIT
 
 ## 🎯 Summary
 

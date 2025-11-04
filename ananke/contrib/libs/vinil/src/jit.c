@@ -1601,6 +1601,308 @@ JitGenTrunc (
   return S_OK;
 }
 
+/* ROUND: dst = round(src) */
+static
+HRESULT
+JitGenRound (
+  VINIL_JIT_CONTEXT       *Context,
+  VINIL_INSTRUCTION_NODE  *Inst
+  )
+{
+  struct sljit_compiler *C = Context->Compiler;
+  sljit_sw DstOffset, SrcOffset;
+  HRESULT Result;
+  sljit_s32 i;
+
+  Result = GetVariableOffset (Context, Inst->Dst, &DstOffset);
+  if (FAILED (Result)) return Result;
+
+  Result = GetVariableOffset (Context, Inst->Src[0], &SrcOffset);
+  if (FAILED (Result)) return Result;
+
+  /* Round 4 floats component-wise using C library roundf via icall */
+  for (i = 0; i < 4; i++) {
+    /* Load src[i] into FR0 */
+    sljit_emit_fmem (C, SLJIT_MOV_F32 | SLJIT_MEM_ALIGNED_16,
+      SLJIT_FR0,
+      SLJIT_MEM1(REG_STATE), SrcOffset + i * 4);
+
+    /* Call roundf(FR0) - result in FR0 */
+    sljit_emit_icall (C, SLJIT_CALL, SLJIT_ARGS1(F32, F32), SLJIT_IMM, SLJIT_FUNC_ADDR(roundf));
+
+    /* Store result */
+    sljit_emit_fmem (C, SLJIT_MOV_F32 | SLJIT_MEM_STORE | SLJIT_MEM_ALIGNED_16,
+      SLJIT_FR0,
+      SLJIT_MEM1(REG_STATE), DstOffset + i * 4);
+  }
+
+  return S_OK;
+}
+
+/* EXP2: dst = exp2(src) = 2^src */
+static
+HRESULT
+JitGenExp2 (
+  VINIL_JIT_CONTEXT       *Context,
+  VINIL_INSTRUCTION_NODE  *Inst
+  )
+{
+  struct sljit_compiler *C = Context->Compiler;
+  sljit_sw DstOffset, SrcOffset;
+  HRESULT Result;
+  sljit_s32 i;
+
+  Result = GetVariableOffset (Context, Inst->Dst, &DstOffset);
+  if (FAILED (Result)) return Result;
+
+  Result = GetVariableOffset (Context, Inst->Src[0], &SrcOffset);
+  if (FAILED (Result)) return Result;
+
+  /* Exponential base 2: 4 floats component-wise using exp2f via icall */
+  for (i = 0; i < 4; i++) {
+    /* Load src[i] into FR0 */
+    sljit_emit_fmem (C, SLJIT_MOV_F32 | SLJIT_MEM_ALIGNED_16,
+      SLJIT_FR0,
+      SLJIT_MEM1(REG_STATE), SrcOffset + i * 4);
+
+    /* Call exp2f(FR0) - result in FR0 */
+    sljit_emit_icall (C, SLJIT_CALL, SLJIT_ARGS1(F32, F32), SLJIT_IMM, SLJIT_FUNC_ADDR(exp2f));
+
+    /* Store result */
+    sljit_emit_fmem (C, SLJIT_MOV_F32 | SLJIT_MEM_STORE | SLJIT_MEM_ALIGNED_16,
+      SLJIT_FR0,
+      SLJIT_MEM1(REG_STATE), DstOffset + i * 4);
+  }
+
+  return S_OK;
+}
+
+/* LOG2: dst = log2(src) */
+static
+HRESULT
+JitGenLog2 (
+  VINIL_JIT_CONTEXT       *Context,
+  VINIL_INSTRUCTION_NODE  *Inst
+  )
+{
+  struct sljit_compiler *C = Context->Compiler;
+  sljit_sw DstOffset, SrcOffset;
+  HRESULT Result;
+  sljit_s32 i;
+
+  Result = GetVariableOffset (Context, Inst->Dst, &DstOffset);
+  if (FAILED (Result)) return Result;
+
+  Result = GetVariableOffset (Context, Inst->Src[0], &SrcOffset);
+  if (FAILED (Result)) return Result;
+
+  /* Logarithm base 2: 4 floats component-wise using log2f via icall */
+  for (i = 0; i < 4; i++) {
+    /* Load src[i] into FR0 */
+    sljit_emit_fmem (C, SLJIT_MOV_F32 | SLJIT_MEM_ALIGNED_16,
+      SLJIT_FR0,
+      SLJIT_MEM1(REG_STATE), SrcOffset + i * 4);
+
+    /* Call log2f(FR0) - result in FR0 */
+    sljit_emit_icall (C, SLJIT_CALL, SLJIT_ARGS1(F32, F32), SLJIT_IMM, SLJIT_FUNC_ADDR(log2f));
+
+    /* Store result */
+    sljit_emit_fmem (C, SLJIT_MOV_F32 | SLJIT_MEM_STORE | SLJIT_MEM_ALIGNED_16,
+      SLJIT_FR0,
+      SLJIT_MEM1(REG_STATE), DstOffset + i * 4);
+  }
+
+  return S_OK;
+}
+
+/* AND: dst = src1 & src2 (bitwise) */
+static
+HRESULT
+JitGenAnd (
+  VINIL_JIT_CONTEXT       *Context,
+  VINIL_INSTRUCTION_NODE  *Inst
+  )
+{
+  struct sljit_compiler *C = Context->Compiler;
+  sljit_sw DstOffset, Src1Offset, Src2Offset;
+  HRESULT Result;
+  sljit_s32 i;
+
+  Result = GetVariableOffset (Context, Inst->Dst, &DstOffset);
+  if (FAILED (Result)) return Result;
+
+  Result = GetVariableOffset (Context, Inst->Src[0], &Src1Offset);
+  if (FAILED (Result)) return Result;
+
+  Result = GetVariableOffset (Context, Inst->Src[1], &Src2Offset);
+  if (FAILED (Result)) return Result;
+
+  /* Bitwise AND 4 words component-wise */
+  for (i = 0; i < 4; i++) {
+    /* Load src1[i] as integer */
+    sljit_emit_op1 (C, SLJIT_MOV,
+      REG_TMP1, 0,
+      SLJIT_MEM1(REG_STATE), Src1Offset + i * 4);
+
+    /* Load src2[i] as integer */
+    sljit_emit_op1 (C, SLJIT_MOV,
+      REG_TMP2, 0,
+      SLJIT_MEM1(REG_STATE), Src2Offset + i * 4);
+
+    /* AND operation */
+    sljit_emit_op2 (C, SLJIT_AND,
+      REG_TMP1, 0,
+      REG_TMP1, 0,
+      REG_TMP2, 0);
+
+    /* Store result */
+    sljit_emit_op1 (C, SLJIT_MOV,
+      SLJIT_MEM1(REG_STATE), DstOffset + i * 4,
+      REG_TMP1, 0);
+  }
+
+  return S_OK;
+}
+
+/* OR: dst = src1 | src2 (bitwise) */
+static
+HRESULT
+JitGenOr (
+  VINIL_JIT_CONTEXT       *Context,
+  VINIL_INSTRUCTION_NODE  *Inst
+  )
+{
+  struct sljit_compiler *C = Context->Compiler;
+  sljit_sw DstOffset, Src1Offset, Src2Offset;
+  HRESULT Result;
+  sljit_s32 i;
+
+  Result = GetVariableOffset (Context, Inst->Dst, &DstOffset);
+  if (FAILED (Result)) return Result;
+
+  Result = GetVariableOffset (Context, Inst->Src[0], &Src1Offset);
+  if (FAILED (Result)) return Result;
+
+  Result = GetVariableOffset (Context, Inst->Src[1], &Src2Offset);
+  if (FAILED (Result)) return Result;
+
+  /* Bitwise OR 4 words component-wise */
+  for (i = 0; i < 4; i++) {
+    /* Load src1[i] as integer */
+    sljit_emit_op1 (C, SLJIT_MOV,
+      REG_TMP1, 0,
+      SLJIT_MEM1(REG_STATE), Src1Offset + i * 4);
+
+    /* Load src2[i] as integer */
+    sljit_emit_op1 (C, SLJIT_MOV,
+      REG_TMP2, 0,
+      SLJIT_MEM1(REG_STATE), Src2Offset + i * 4);
+
+    /* OR operation */
+    sljit_emit_op2 (C, SLJIT_OR,
+      REG_TMP1, 0,
+      REG_TMP1, 0,
+      REG_TMP2, 0);
+
+    /* Store result */
+    sljit_emit_op1 (C, SLJIT_MOV,
+      SLJIT_MEM1(REG_STATE), DstOffset + i * 4,
+      REG_TMP1, 0);
+  }
+
+  return S_OK;
+}
+
+/* XOR: dst = src1 ^ src2 (bitwise) */
+static
+HRESULT
+JitGenXor (
+  VINIL_JIT_CONTEXT       *Context,
+  VINIL_INSTRUCTION_NODE  *Inst
+  )
+{
+  struct sljit_compiler *C = Context->Compiler;
+  sljit_sw DstOffset, Src1Offset, Src2Offset;
+  HRESULT Result;
+  sljit_s32 i;
+
+  Result = GetVariableOffset (Context, Inst->Dst, &DstOffset);
+  if (FAILED (Result)) return Result;
+
+  Result = GetVariableOffset (Context, Inst->Src[0], &Src1Offset);
+  if (FAILED (Result)) return Result;
+
+  Result = GetVariableOffset (Context, Inst->Src[1], &Src2Offset);
+  if (FAILED (Result)) return Result;
+
+  /* Bitwise XOR 4 words component-wise */
+  for (i = 0; i < 4; i++) {
+    /* Load src1[i] as integer */
+    sljit_emit_op1 (C, SLJIT_MOV,
+      REG_TMP1, 0,
+      SLJIT_MEM1(REG_STATE), Src1Offset + i * 4);
+
+    /* Load src2[i] as integer */
+    sljit_emit_op1 (C, SLJIT_MOV,
+      REG_TMP2, 0,
+      SLJIT_MEM1(REG_STATE), Src2Offset + i * 4);
+
+    /* XOR operation */
+    sljit_emit_op2 (C, SLJIT_XOR,
+      REG_TMP1, 0,
+      REG_TMP1, 0,
+      REG_TMP2, 0);
+
+    /* Store result */
+    sljit_emit_op1 (C, SLJIT_MOV,
+      SLJIT_MEM1(REG_STATE), DstOffset + i * 4,
+      REG_TMP1, 0);
+  }
+
+  return S_OK;
+}
+
+/* NOT: dst = ~src (bitwise) */
+static
+HRESULT
+JitGenNot (
+  VINIL_JIT_CONTEXT       *Context,
+  VINIL_INSTRUCTION_NODE  *Inst
+  )
+{
+  struct sljit_compiler *C = Context->Compiler;
+  sljit_sw DstOffset, SrcOffset;
+  HRESULT Result;
+  sljit_s32 i;
+
+  Result = GetVariableOffset (Context, Inst->Dst, &DstOffset);
+  if (FAILED (Result)) return Result;
+
+  Result = GetVariableOffset (Context, Inst->Src[0], &SrcOffset);
+  if (FAILED (Result)) return Result;
+
+  /* Bitwise NOT 4 words component-wise */
+  for (i = 0; i < 4; i++) {
+    /* Load src[i] as integer */
+    sljit_emit_op1 (C, SLJIT_MOV,
+      REG_TMP1, 0,
+      SLJIT_MEM1(REG_STATE), SrcOffset + i * 4);
+
+    /* NOT operation */
+    sljit_emit_op2 (C, SLJIT_XOR,
+      REG_TMP1, 0,
+      REG_TMP1, 0,
+      SLJIT_IMM, 0xFFFFFFFF);
+
+    /* Store result */
+    sljit_emit_op1 (C, SLJIT_MOV,
+      SLJIT_MEM1(REG_STATE), DstOffset + i * 4,
+      REG_TMP1, 0);
+  }
+
+  return S_OK;
+}
+
 //
 // Main Instruction Compiler
 //
@@ -1684,6 +1986,27 @@ JitCompileInstruction (
 
     case VINIL_OP_TRUNC:
       return JitGenTrunc (Context, Inst);
+
+    case VINIL_OP_ROUND:
+      return JitGenRound (Context, Inst);
+
+    case VINIL_OP_EXP2:
+      return JitGenExp2 (Context, Inst);
+
+    case VINIL_OP_LOG2:
+      return JitGenLog2 (Context, Inst);
+
+    case VINIL_OP_AND:
+      return JitGenAnd (Context, Inst);
+
+    case VINIL_OP_OR:
+      return JitGenOr (Context, Inst);
+
+    case VINIL_OP_XOR:
+      return JitGenXor (Context, Inst);
+
+    case VINIL_OP_NOT:
+      return JitGenNot (Context, Inst);
 
     case VINIL_OP_DP3:
       return JitGenDp3 (Context, Inst);
