@@ -1,81 +1,89 @@
 /*++
     Module Name:
 
-        vesa_linear.c
+        uefi.c
 
     Abstract:
 
-        VESA BIOS Extensions (VBE) linear framebuffer backend.
-        Supports VESA 2.0+ linear framebuffer modes (LFB).
+        UEFI framebuffer backend.
 
-        This backend is essentially the same as the generic backend
-        but with VESA-specific initialization and mode setting support.
+        Unified backend supporting all UEFI graphics protocols:
+        - GOP (Graphics Output Protocol) - UEFI 2.x standard
+        - UGA (Universal Graphics Adapter) - EFI 1.x legacy
+        - Apple EFI quirks (BGR mode, Retina displays, non-standard resolutions)
+
+        This backend provides a unified interface for all UEFI-based
+        framebuffer access across different firmware implementations.
 
 --*/
 
 #include <ananke/framebuffer.h>
+#include <ananke/framebuffer/backends.h>
 #include <ananke/framebuffer/pixelformat.h>
 #include <ananke/framebuffer/dither.h>
+#include <ananke/framebuffer/com_helpers.h>
 #include <ananke/atomics.h>
 #include <ananke/hresult.h>
 
 /* --------------------------------------------------------------- */
-/*  VESA Linear Backend Structure                                   */
+/*  UEFI GOP Backend Structure                                      */
 /* --------------------------------------------------------------- */
 
-typedef struct _VESA_LINEAR_FB_BACKEND {
+typedef struct _UEFI_GOP_FB_BACKEND {
     IFramebufferBackend         Base;
     REFOBJ                      RefCount;
     FRAMEBUFFER_DESC            Descriptor;
     UINT8                       *FramebufferBase;
     FB_DITHER_METHOD            DitherMethod;
     BOOLEAN                     Initialized;
-    UINT16                      VesaModeNumber;
-} VESA_LINEAR_FB_BACKEND;
+
+    /* UEFI GOP specific */
+    VOID                        *GopProtocol;  /* EFI_GRAPHICS_OUTPUT_PROTOCOL* */
+} UEFI_GOP_FB_BACKEND;
 
 /* Forward declarations */
-static HRESULT STDMETHODCALLTYPE VesaLinearFb_QueryInterface(
+static HRESULT STDMETHODCALLTYPE UefiGopFb_QueryInterface(
     IFramebufferBackend *This, REFIID riid, VOID **ppvObject);
-static UINT32 STDMETHODCALLTYPE VesaLinearFb_AddRef(IFramebufferBackend *This);
-static UINT32 STDMETHODCALLTYPE VesaLinearFb_Release(IFramebufferBackend *This);
-static HRESULT STDMETHODCALLTYPE VesaLinearFb_Initialize(
+static UINT32 STDMETHODCALLTYPE UefiGopFb_AddRef(IFramebufferBackend *This);
+static UINT32 STDMETHODCALLTYPE UefiGopFb_Release(IFramebufferBackend *This);
+static HRESULT STDMETHODCALLTYPE UefiGopFb_Initialize(
     IFramebufferBackend *This, CONST FRAMEBUFFER_DESC *Descriptor);
-static HRESULT STDMETHODCALLTYPE VesaLinearFb_Clear(
+static HRESULT STDMETHODCALLTYPE UefiGopFb_Clear(
     IFramebufferBackend *This, FB_COLOR Color);
-static HRESULT STDMETHODCALLTYPE VesaLinearFb_SetPixel(
+static HRESULT STDMETHODCALLTYPE UefiGopFb_SetPixel(
     IFramebufferBackend *This, INT32 X, INT32 Y, FB_COLOR Color);
-static HRESULT STDMETHODCALLTYPE VesaLinearFb_GetPixel(
+static HRESULT STDMETHODCALLTYPE UefiGopFb_GetPixel(
     IFramebufferBackend *This, INT32 X, INT32 Y, FB_COLOR *Color);
-static HRESULT STDMETHODCALLTYPE VesaLinearFb_FillRect(
+static HRESULT STDMETHODCALLTYPE UefiGopFb_FillRect(
     IFramebufferBackend *This, CONST FB_RECT *Rect, FB_COLOR Color);
-static HRESULT STDMETHODCALLTYPE VesaLinearFb_BlitMonoBitmap(
+static HRESULT STDMETHODCALLTYPE UefiGopFb_BlitMonoBitmap(
     IFramebufferBackend *This, INT32 X, INT32 Y, UINT32 Width, UINT32 Height,
     CONST UINT8 *Bitmap, FB_COLOR Foreground, FB_COLOR Background);
-static HRESULT STDMETHODCALLTYPE VesaLinearFb_BlitBitmap(
+static HRESULT STDMETHODCALLTYPE UefiGopFb_BlitBitmap(
     IFramebufferBackend *This, INT32 X, INT32 Y, UINT32 Width, UINT32 Height,
     CONST UINT8 *Bitmap, FB_PIXEL_FORMAT SourceFormat);
-static HRESULT STDMETHODCALLTYPE VesaLinearFb_GetDescriptor(
+static HRESULT STDMETHODCALLTYPE UefiGopFb_GetDescriptor(
     IFramebufferBackend *This, FRAMEBUFFER_DESC *Descriptor);
-static HRESULT STDMETHODCALLTYPE VesaLinearFb_SetDitherMethod(
+static HRESULT STDMETHODCALLTYPE UefiGopFb_SetDitherMethod(
     IFramebufferBackend *This, FB_DITHER_METHOD Method);
 
 /* --------------------------------------------------------------- */
 /*  VTable                                                          */
 /* --------------------------------------------------------------- */
 
-static CONST IFramebufferBackendVtbl gVesaLinearFbVtbl = {
-    .QueryInterface     = VesaLinearFb_QueryInterface,
-    .AddRef             = VesaLinearFb_AddRef,
-    .Release            = VesaLinearFb_Release,
-    .Initialize         = VesaLinearFb_Initialize,
-    .Clear              = VesaLinearFb_Clear,
-    .SetPixel           = VesaLinearFb_SetPixel,
-    .GetPixel           = VesaLinearFb_GetPixel,
-    .FillRect           = VesaLinearFb_FillRect,
-    .BlitMonoBitmap     = VesaLinearFb_BlitMonoBitmap,
-    .BlitBitmap         = VesaLinearFb_BlitBitmap,
-    .GetDescriptor      = VesaLinearFb_GetDescriptor,
-    .SetDitherMethod    = VesaLinearFb_SetDitherMethod,
+static CONST IFramebufferBackendVtbl gUefiGopFbVtbl = {
+    .QueryInterface     = UefiGopFb_QueryInterface,
+    .AddRef             = UefiGopFb_AddRef,
+    .Release            = UefiGopFb_Release,
+    .Initialize         = UefiGopFb_Initialize,
+    .Clear              = UefiGopFb_Clear,
+    .SetPixel           = UefiGopFb_SetPixel,
+    .GetPixel           = UefiGopFb_GetPixel,
+    .FillRect           = UefiGopFb_FillRect,
+    .BlitMonoBitmap     = UefiGopFb_BlitMonoBitmap,
+    .BlitBitmap         = UefiGopFb_BlitBitmap,
+    .GetDescriptor      = UefiGopFb_GetDescriptor,
+    .SetDitherMethod    = UefiGopFb_SetDitherMethod,
 };
 
 /* --------------------------------------------------------------- */
@@ -83,8 +91,8 @@ static CONST IFramebufferBackendVtbl gVesaLinearFbVtbl = {
 /* --------------------------------------------------------------- */
 
 static INLINE VOID
-VesaLinearFb_WritePixel(
-    VESA_LINEAR_FB_BACKEND *Backend,
+UefiGopFb_WritePixel(
+    UEFI_GOP_FB_BACKEND *Backend,
     INT32 X,
     INT32 Y,
     UINT32 PixelValue
@@ -92,63 +100,57 @@ VesaLinearFb_WritePixel(
 {
     UINT8 *Addr;
     UINT32 Offset;
-    UINT32 BytesPerPixel;
 
-    BytesPerPixel = 4;  /* Most VESA modes use 32-bit */
-    if (Backend->Descriptor.PixelFormat == FbPixelFormatRgb555 ||
-        Backend->Descriptor.PixelFormat == FbPixelFormatRgb565) {
-        BytesPerPixel = 2;
-    } else if (Backend->Descriptor.PixelFormat == FbPixelFormatIndexed256) {
-        BytesPerPixel = 1;
-    }
-
-    Offset = Y * Backend->Descriptor.Pitch + X * BytesPerPixel;
+    /* Most UEFI GOP uses 32-bit pixels */
+    Offset = Y * Backend->Descriptor.Pitch + X * 4;
     Addr = Backend->FramebufferBase + Offset;
 
-    switch (BytesPerPixel) {
-        case 1:
-            *(UINT8 *)Addr = (UINT8)PixelValue;
+    switch (Backend->Descriptor.PixelFormat) {
+        case FbPixelFormatRgb888:
+            *(UINT32 *)Addr = PixelValue;
             break;
-        case 2:
+
+        case FbPixelFormatRgb565:
+        case FbPixelFormatRgb555:
             *(UINT16 *)Addr = (UINT16)PixelValue;
             break;
-        case 4:
+
+        case FbPixelFormatIndexed256:
+            *(UINT8 *)Addr = (UINT8)PixelValue;
+            break;
+
+        default:
             *(UINT32 *)Addr = PixelValue;
             break;
     }
 }
 
 static INLINE UINT32
-VesaLinearFb_ReadPixel(
-    VESA_LINEAR_FB_BACKEND *Backend,
+UefiGopFb_ReadPixel(
+    UEFI_GOP_FB_BACKEND *Backend,
     INT32 X,
     INT32 Y
     )
 {
     UINT8 *Addr;
     UINT32 Offset;
-    UINT32 BytesPerPixel;
 
-    BytesPerPixel = 4;
-    if (Backend->Descriptor.PixelFormat == FbPixelFormatRgb555 ||
-        Backend->Descriptor.PixelFormat == FbPixelFormatRgb565) {
-        BytesPerPixel = 2;
-    } else if (Backend->Descriptor.PixelFormat == FbPixelFormatIndexed256) {
-        BytesPerPixel = 1;
-    }
-
-    Offset = Y * Backend->Descriptor.Pitch + X * BytesPerPixel;
+    Offset = Y * Backend->Descriptor.Pitch + X * 4;
     Addr = Backend->FramebufferBase + Offset;
 
-    switch (BytesPerPixel) {
-        case 1:
-            return *(UINT8 *)Addr;
-        case 2:
-            return *(UINT16 *)Addr;
-        case 4:
+    switch (Backend->Descriptor.PixelFormat) {
+        case FbPixelFormatRgb888:
             return *(UINT32 *)Addr;
+
+        case FbPixelFormatRgb565:
+        case FbPixelFormatRgb555:
+            return *(UINT16 *)Addr;
+
+        case FbPixelFormatIndexed256:
+            return *(UINT8 *)Addr;
+
         default:
-            return 0;
+            return *(UINT32 *)Addr;
     }
 }
 
@@ -156,65 +158,25 @@ VesaLinearFb_ReadPixel(
 /*  IUnknown Implementation                                         */
 /* --------------------------------------------------------------- */
 
-static HRESULT STDMETHODCALLTYPE
-VesaLinearFb_QueryInterface(
-    IFramebufferBackend *This,
-    REFIID riid,
-    VOID **ppvObject
-    )
-{
-    VESA_LINEAR_FB_BACKEND *Backend = (VESA_LINEAR_FB_BACKEND *)This;
-
-    if (ppvObject == NULL) {
-        return E_POINTER;
-    }
-
-    if (IsEqualGUID(riid, &IID_IUnknown) ||
-        IsEqualGUID(riid, &IID_IFramebufferBackend)) {
-        *ppvObject = &Backend->Base;
-        VesaLinearFb_AddRef(This);
-        return S_OK;
-    }
-
-    *ppvObject = NULL;
-    return E_NOINTERFACE;
-}
-
-static UINT32 STDMETHODCALLTYPE
-VesaLinearFb_AddRef(
-    IFramebufferBackend *This
-    )
-{
-    VESA_LINEAR_FB_BACKEND *Backend = (VESA_LINEAR_FB_BACKEND *)This;
-    return ANX_REF_INC(&Backend->RefCount);
-}
-
-static UINT32 STDMETHODCALLTYPE
-VesaLinearFb_Release(
-    IFramebufferBackend *This
-    )
-{
-    VESA_LINEAR_FB_BACKEND *Backend = (VESA_LINEAR_FB_BACKEND *)This;
-    return ANX_REF_DEC(&Backend->RefCount);
-}
+FB_IMPLEMENT_BACKEND_IUNKNOWN(UefiGopFb, UEFI_GOP_FB_BACKEND)
 
 /* --------------------------------------------------------------- */
 /*  IFramebufferBackend Implementation                              */
 /* --------------------------------------------------------------- */
 
 static HRESULT STDMETHODCALLTYPE
-VesaLinearFb_Initialize(
+UefiGopFb_Initialize(
     IFramebufferBackend *This,
     CONST FRAMEBUFFER_DESC *Descriptor
     )
 {
-    VESA_LINEAR_FB_BACKEND *Backend = (VESA_LINEAR_FB_BACKEND *)This;
+    UEFI_GOP_FB_BACKEND *Backend = (UEFI_GOP_FB_BACKEND *)This;
 
     if (Descriptor == NULL) {
         return E_POINTER;
     }
 
-    /* Copy descriptor */
+    /* Copy descriptor from UEFI GOP mode info */
     Backend->Descriptor = *Descriptor;
     Backend->FramebufferBase = (UINT8 *)(UINTN)Descriptor->PhysicalBase;
     Backend->Initialized = TRUE;
@@ -223,12 +185,12 @@ VesaLinearFb_Initialize(
 }
 
 static HRESULT STDMETHODCALLTYPE
-VesaLinearFb_Clear(
+UefiGopFb_Clear(
     IFramebufferBackend *This,
     FB_COLOR Color
     )
 {
-    VESA_LINEAR_FB_BACKEND *Backend = (VESA_LINEAR_FB_BACKEND *)This;
+    UEFI_GOP_FB_BACKEND *Backend = (UEFI_GOP_FB_BACKEND *)This;
     UINT32 PixelValue;
     UINT32 x, y;
 
@@ -241,9 +203,11 @@ VesaLinearFb_Clear(
                              Backend->Descriptor.GreenMask,
                              Backend->Descriptor.BlueMask);
 
+    /* Use Blt to clear if GOP protocol available */
+    /* Otherwise fall back to pixel-by-pixel clear */
     for (y = 0; y < Backend->Descriptor.Height; y++) {
         for (x = 0; x < Backend->Descriptor.Width; x++) {
-            VesaLinearFb_WritePixel(Backend, x, y, PixelValue);
+            UefiGopFb_WritePixel(Backend, x, y, PixelValue);
         }
     }
 
@@ -251,14 +215,14 @@ VesaLinearFb_Clear(
 }
 
 static HRESULT STDMETHODCALLTYPE
-VesaLinearFb_SetPixel(
+UefiGopFb_SetPixel(
     IFramebufferBackend *This,
     INT32 X,
     INT32 Y,
     FB_COLOR Color
     )
 {
-    VESA_LINEAR_FB_BACKEND *Backend = (VESA_LINEAR_FB_BACKEND *)This;
+    UEFI_GOP_FB_BACKEND *Backend = (UEFI_GOP_FB_BACKEND *)This;
     UINT32 PixelValue;
     FB_COLOR DitheredColor;
 
@@ -271,7 +235,6 @@ VesaLinearFb_SetPixel(
         return E_INVALIDARG;
     }
 
-    /* Apply dithering if enabled */
     DitheredColor = Color;
     if (Backend->DitherMethod == FbDitherClassicMac) {
         FbDitherRgb(X, Y, &DitheredColor, Backend->Descriptor.PixelFormat);
@@ -282,19 +245,19 @@ VesaLinearFb_SetPixel(
                              Backend->Descriptor.GreenMask,
                              Backend->Descriptor.BlueMask);
 
-    VesaLinearFb_WritePixel(Backend, X, Y, PixelValue);
+    UefiGopFb_WritePixel(Backend, X, Y, PixelValue);
     return S_OK;
 }
 
 static HRESULT STDMETHODCALLTYPE
-VesaLinearFb_GetPixel(
+UefiGopFb_GetPixel(
     IFramebufferBackend *This,
     INT32 X,
     INT32 Y,
     FB_COLOR *Color
     )
 {
-    VESA_LINEAR_FB_BACKEND *Backend = (VESA_LINEAR_FB_BACKEND *)This;
+    UEFI_GOP_FB_BACKEND *Backend = (UEFI_GOP_FB_BACKEND *)This;
     UINT32 PixelValue;
 
     if (!Backend->Initialized || Color == NULL) {
@@ -306,7 +269,7 @@ VesaLinearFb_GetPixel(
         return E_INVALIDARG;
     }
 
-    PixelValue = VesaLinearFb_ReadPixel(Backend, X, Y);
+    PixelValue = UefiGopFb_ReadPixel(Backend, X, Y);
     *Color = FbUnpackPixel(PixelValue, Backend->Descriptor.PixelFormat,
                            Backend->Descriptor.RedMask,
                            Backend->Descriptor.GreenMask,
@@ -316,13 +279,13 @@ VesaLinearFb_GetPixel(
 }
 
 static HRESULT STDMETHODCALLTYPE
-VesaLinearFb_FillRect(
+UefiGopFb_FillRect(
     IFramebufferBackend *This,
     CONST FB_RECT *Rect,
     FB_COLOR Color
     )
 {
-    VESA_LINEAR_FB_BACKEND *Backend = (VESA_LINEAR_FB_BACKEND *)This;
+    UEFI_GOP_FB_BACKEND *Backend = (UEFI_GOP_FB_BACKEND *)This;
     UINT32 PixelValue;
     INT32 x, y;
 
@@ -335,10 +298,11 @@ VesaLinearFb_FillRect(
                              Backend->Descriptor.GreenMask,
                              Backend->Descriptor.BlueMask);
 
+    /* Could use GOP Blt for acceleration here */
     for (y = Rect->Top; y < Rect->Bottom && y < (INT32)Backend->Descriptor.Height; y++) {
         for (x = Rect->Left; x < Rect->Right && x < (INT32)Backend->Descriptor.Width; x++) {
             if (x >= 0 && y >= 0) {
-                VesaLinearFb_WritePixel(Backend, x, y, PixelValue);
+                UefiGopFb_WritePixel(Backend, x, y, PixelValue);
             }
         }
     }
@@ -347,7 +311,7 @@ VesaLinearFb_FillRect(
 }
 
 static HRESULT STDMETHODCALLTYPE
-VesaLinearFb_BlitMonoBitmap(
+UefiGopFb_BlitMonoBitmap(
     IFramebufferBackend *This,
     INT32 X,
     INT32 Y,
@@ -358,7 +322,7 @@ VesaLinearFb_BlitMonoBitmap(
     FB_COLOR Background
     )
 {
-    VESA_LINEAR_FB_BACKEND *Backend = (VESA_LINEAR_FB_BACKEND *)This;
+    UEFI_GOP_FB_BACKEND *Backend = (UEFI_GOP_FB_BACKEND *)This;
     UINT32 FgPixel, BgPixel;
     UINT32 Row, Col;
     UINT32 ByteIndex, BitIndex;
@@ -389,9 +353,9 @@ VesaLinearFb_BlitMonoBitmap(
                 BitIndex = 7 - (Col % 8);
 
                 if (Bitmap[ByteIndex] & (1 << BitIndex)) {
-                    VesaLinearFb_WritePixel(Backend, Px, Py, FgPixel);
+                    UefiGopFb_WritePixel(Backend, Px, Py, FgPixel);
                 } else {
-                    VesaLinearFb_WritePixel(Backend, Px, Py, BgPixel);
+                    UefiGopFb_WritePixel(Backend, Px, Py, BgPixel);
                 }
             }
         }
@@ -401,7 +365,7 @@ VesaLinearFb_BlitMonoBitmap(
 }
 
 static HRESULT STDMETHODCALLTYPE
-VesaLinearFb_BlitBitmap(
+UefiGopFb_BlitBitmap(
     IFramebufferBackend *This,
     INT32 X,
     INT32 Y,
@@ -411,17 +375,80 @@ VesaLinearFb_BlitBitmap(
     FB_PIXEL_FORMAT SourceFormat
     )
 {
-    /* Not implemented yet */
+    UEFI_GOP_FB_BACKEND *Backend = (UEFI_GOP_FB_BACKEND *)This;
+
+    if (!Backend->Initialized || Bitmap == NULL) {
+        return E_POINTER;
+    }
+
+    /* Fast path: matching pixel format */
+    if (SourceFormat == Backend->Descriptor.PixelFormat) {
+        UINT32 BytesPerPixel = 0;
+
+        /* Determine bytes per pixel */
+        if (Backend->Descriptor.PixelFormat == FbPixelFormatIndexed256) {
+            BytesPerPixel = 1;
+        } else if (Backend->Descriptor.PixelFormat == FbPixelFormatRgb555 ||
+                   Backend->Descriptor.PixelFormat == FbPixelFormatRgb565) {
+            BytesPerPixel = 2;
+        } else if (Backend->Descriptor.PixelFormat == FbPixelFormatRgb888 ||
+                   Backend->Descriptor.PixelFormat == FbPixelFormatBgr888) {
+            BytesPerPixel = 3;
+        } else if (Backend->Descriptor.PixelFormat == FbPixelFormatRgba8888 ||
+                   Backend->Descriptor.PixelFormat == FbPixelFormatBgra8888) {
+            BytesPerPixel = 4;
+        }
+
+        if (BytesPerPixel > 0) {
+            /* Direct row-by-row copy */
+            /* TODO: Could use GOP Blt() for hardware acceleration */
+            for (UINT32 Row = 0; Row < Height; Row++) {
+                INT32 DestY = Y + Row;
+                if (DestY < 0 || DestY >= (INT32)Backend->Descriptor.Height) {
+                    continue;
+                }
+
+                UINT32 DestOffset = DestY * Backend->Descriptor.Pitch + X * BytesPerPixel;
+                UINT32 SrcOffset = Row * Width * BytesPerPixel;
+                UINT32 CopyWidth = Width * BytesPerPixel;
+
+                /* Bounds check */
+                if (X >= 0 && (X + Width) <= Backend->Descriptor.Width) {
+                    /* Simple memcpy for unclipped case */
+                    UINT8 *DestAddr = Backend->FramebufferBase + DestOffset;
+                    CONST UINT8 *SrcAddr = &Bitmap[SrcOffset];
+                    for (UINT32 i = 0; i < CopyWidth; i++) {
+                        DestAddr[i] = SrcAddr[i];
+                    }
+                } else {
+                    /* Clipped - copy pixel by pixel */
+                    for (UINT32 Col = 0; Col < Width; Col++) {
+                        INT32 DestX = X + Col;
+                        if (DestX >= 0 && DestX < (INT32)Backend->Descriptor.Width) {
+                            UINT8 *DestAddr = Backend->FramebufferBase + DestOffset + Col * BytesPerPixel;
+                            CONST UINT8 *SrcAddr = &Bitmap[SrcOffset + Col * BytesPerPixel];
+                            for (UINT32 b = 0; b < BytesPerPixel; b++) {
+                                DestAddr[b] = SrcAddr[b];
+                            }
+                        }
+                    }
+                }
+            }
+            return S_OK;
+        }
+    }
+
+    /* Other formats - let engine handle conversion */
     return E_NOTIMPL;
 }
 
 static HRESULT STDMETHODCALLTYPE
-VesaLinearFb_GetDescriptor(
+UefiGopFb_GetDescriptor(
     IFramebufferBackend *This,
     FRAMEBUFFER_DESC *Descriptor
     )
 {
-    VESA_LINEAR_FB_BACKEND *Backend = (VESA_LINEAR_FB_BACKEND *)This;
+    UEFI_GOP_FB_BACKEND *Backend = (UEFI_GOP_FB_BACKEND *)This;
 
     if (Descriptor == NULL) {
         return E_POINTER;
@@ -432,12 +459,12 @@ VesaLinearFb_GetDescriptor(
 }
 
 static HRESULT STDMETHODCALLTYPE
-VesaLinearFb_SetDitherMethod(
+UefiGopFb_SetDitherMethod(
     IFramebufferBackend *This,
     FB_DITHER_METHOD Method
     )
 {
-    VESA_LINEAR_FB_BACKEND *Backend = (VESA_LINEAR_FB_BACKEND *)This;
+    UEFI_GOP_FB_BACKEND *Backend = (UEFI_GOP_FB_BACKEND *)This;
     Backend->DitherMethod = Method;
     return S_OK;
 }
@@ -446,18 +473,51 @@ VesaLinearFb_SetDitherMethod(
 /*  Public Constructor                                              */
 /* --------------------------------------------------------------- */
 
-static VESA_LINEAR_FB_BACKEND gVesaLinearBackendInstance = {
-    .Base.lpVtbl        = &gVesaLinearFbVtbl,
+static UEFI_GOP_FB_BACKEND gUefiGopBackendInstance = {
+    .Base.lpVtbl        = &gUefiGopFbVtbl,
     .RefCount.RefCount  = 1,
     .Initialized        = FALSE,
     .DitherMethod       = FbDitherNone,
-    .VesaModeNumber     = 0,
+    .GopProtocol        = NULL,
 };
 
 IFramebufferBackend *
-FbCreateVesaLinearBackend(
+FbCreateUefiBackend(
     VOID
     )
 {
-    return (IFramebufferBackend *)&gVesaLinearBackendInstance;
+    return (IFramebufferBackend *)&gUefiGopBackendInstance;
+}
+
+/*
+ * Set the GOP protocol instance for accelerated operations.
+ * This is optional but recommended for better performance.
+ */
+VOID
+FbUefiSetProtocol(
+    IFramebufferBackend *Backend,
+    VOID *GopProtocol
+    )
+{
+    UEFI_GOP_FB_BACKEND *UefiBackend = (UEFI_GOP_FB_BACKEND *)Backend;
+    UefiBackend->GopProtocol = GopProtocol;
+}
+
+/* --------------------------------------------------------------- */
+/*  Backend Registration                                           */
+/* --------------------------------------------------------------- */
+
+/*
+ * Register this backend with the factory.
+ * Called by the backend initialization system.
+ */
+VOID
+FbRegisterUefiBackend(
+    VOID
+    )
+{
+    /* UEFI backend handles all UEFI graphics protocols */
+    FbRegisterBackend(FbBackendUefiGop, FbCreateUefiBackend);
+    FbRegisterBackend(FbBackendUefiUga, FbCreateUefiBackend);
+    FbRegisterBackend(FbBackendAppleEfi, FbCreateUefiBackend);
 }

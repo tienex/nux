@@ -12,6 +12,7 @@
 #include <ananke/framebuffer.h>
 #include <ananke/framebuffer/font.h>
 #include <ananke/framebuffer/bidi.h>
+#include <ananke/framebuffer/com_helpers.h>
 #include <ananke/atomics.h>
 #include <ananke/hresult.h>
 
@@ -80,39 +81,11 @@ static CONST IFramebufferTextVtbl gFbTextVtbl = {
 /*  IUnknown Implementation                                         */
 /* --------------------------------------------------------------- */
 
-static HRESULT STDMETHODCALLTYPE
-FbText_QueryInterface(
-    IFramebufferText *This,
-    REFIID riid,
-    VOID **ppvObject
-    )
-{
-    FB_TEXT_RENDERER *Renderer = (FB_TEXT_RENDERER *)This;
+/* Use COM helper macros for QueryInterface and AddRef */
+FB_IMPLEMENT_QUERYINTERFACE(FbText, FB_TEXT_RENDERER, IFramebufferText, IID_IFramebufferText)
+FB_IMPLEMENT_ADDREF(FbText, FB_TEXT_RENDERER, IFramebufferText)
 
-    if (ppvObject == NULL) {
-        return E_POINTER;
-    }
-
-    if (IsEqualGUID(riid, &IID_IUnknown) ||
-        IsEqualGUID(riid, &IID_IFramebufferText)) {
-        *ppvObject = &Renderer->Base;
-        FbText_AddRef(This);
-        return S_OK;
-    }
-
-    *ppvObject = NULL;
-    return E_NOINTERFACE;
-}
-
-static UINT32 STDMETHODCALLTYPE
-FbText_AddRef(
-    IFramebufferText *This
-    )
-{
-    FB_TEXT_RENDERER *Renderer = (FB_TEXT_RENDERER *)This;
-    return ANX_REF_INC(&Renderer->RefCount);
-}
-
+/* Custom Release implementation with cleanup logic */
 static UINT32 STDMETHODCALLTYPE
 FbText_Release(
     IFramebufferText *This

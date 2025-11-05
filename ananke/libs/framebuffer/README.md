@@ -1,30 +1,120 @@
-  # ANANKE Framebuffer Library
+# ANANKE Framebuffer Library
 
-A COM-based framebuffer library with support for multiple pixel formats, Unicode text rendering, and bidirectional text (BIDI).
+A comprehensive COM-based framebuffer library with a modular backend architecture, software engine for feature emulation, and support for 30+ different graphics hardware platforms.
+
+## Architecture Overview
+
+The framebuffer library uses a three-tier architecture:
+
+1. **User-Facing Interfaces** - High-level abstractions for application developers
+2. **Framebuffer Engine** - Software emulation layer for unsupported features
+3. **Hardware Backends** - Platform-specific implementations
+
+```
+┌─────────────────────────────────────────────────────────┐
+│              User Application Code                       │
+└──────────────────┬──────────────────────────────────────┘
+                   │
+        ┌──────────┴───────────┐
+        ├─ IFramebufferManager │ (Device enumeration, mode setting)
+        ├─ IFramebufferScreen  │ (Hardware framebuffer access)
+        ├─ IFramebufferSurface │ (Software composition)
+        ├─ IFramebufferImage   │ (Blitting with format conversion)
+        └─ IFramebufferCursor  │ (Mouse cursor support)
+                   │
+┌──────────────────┴──────────────────────────────────────┐
+│          Framebuffer Engine (Software Fallback)          │
+│  - ROP operations        - Pixel format conversion       │
+│  - Fill acceleration     - Automatic dithering           │
+│  - Software cursor       - Feature emulation             │
+└──────────────────┬──────────────────────────────────────┘
+                   │
+┌──────────────────┴──────────────────────────────────────┐
+│              Hardware Backend (IFramebufferBackend)      │
+│  CGA, EGA, VGA, VESA, UEFI GOP, Hercules, Amiga,        │
+│  Atari, Mac, Sun, SGI, NeXT, Acorn, Text-mode, etc.     │
+└──────────────────────────────────────────────────────────┘
+```
 
 ## Features
 
+### User-Facing Interfaces
+
+#### IFramebufferManager
+- Enumerate available framebuffer devices
+- List supported graphics modes with capabilities
+- Set graphics modes at runtime
+- Get device capabilities (hardware acceleration, VBlank, page flipping)
+- Create screens and surfaces
+
+#### IFramebufferScreen
+- Access to hardware framebuffer
+- VBlank synchronization
+- Page flipping / double buffering
+- Hardware cursor support
+- Palette management for indexed modes
+
+#### IFramebufferSurface
+- Software composition surface
+- Blit to screen or other surfaces
+- Off-screen rendering
+
+#### IFramebufferImage
+- Universal blitting with automatic format conversion
+- Supports all pixel format transformations
+- Automatic dithering for bit depth reduction
+- ROP (Raster Operation) support
+- Color key transparency
+
+#### IFramebufferCursor
+- Monochrome and color cursor support
+- Hardware cursor when available, software fallback
+- Standard cursor shapes included
+
+### Framebuffer Engine
+
+The engine provides software emulation for features not supported by hardware:
+
+- **ROP Operations:** XOR, OR, AND, NOT, blend, add, subtract
+- **Fill Acceleration:** Optimized rectangle filling
+- **Pixel Format Conversion:** Automatic conversion between any formats
+- **Dithering:** Classic Macintosh and Bayer dithering
+- **Software Cursor:** When hardware cursor unavailable
+- **Feature Emulation:** Any missing hardware feature
+
 ### Pixel Format Support
 
-- **RGB Modes:**
-  - RGB888 (24-bit true color)
-  - RGB565 (16-bit high color)
-  - RGB555 (15-bit high color)
+**Monochrome:**
+- 1BPP monochrome (Hercules, Mac, Atari mono)
+- 2BPP grayscale (NeXT)
 
-- **Indexed Color:**
-  - 256-color palette mode
-  - VGA 16-color planar mode
-  - Standard VGA palette included
+**CGA Formats:**
+- CGA 4-color indexed (320x200)
+- CGA 2-color monochrome (640x200)
 
-- **Monochrome:**
-  - 1BPP for Hercules graphics
+**EGA/VGA Planar:**
+- EGA 16-color planar (640x350)
+- VGA 16-color planar (640x480)
 
-### Dithering
+**VGA Linear:**
+- VGA Mode 13h (320x200x256)
+- 8-bit indexed (256 colors)
+- 4-bit indexed (16 colors)
 
-Implements classic Macintosh dithering algorithms:
-- Bayer-style 8x8 ordered dithering
-- 17-level grayscale patterns
-- Error diffusion for color reduction
+**RGB Formats:**
+- RGB332 (8-bit)
+- RGB555 (15-bit)
+- RGB565 (16-bit)
+- RGB888 (24-bit)
+- RGBA8888 (32-bit with alpha)
+- BGR888/BGRA8888 (Apple quirk mode)
+
+**Platform-Specific:**
+- Amiga OCS/ECS/AGA planar and HAM modes
+- Atari ST/TT/Falcon formats
+- Sun SPARC formats (cgthree, cgsix)
+- SGI RGB format
+- Acorn VIDC palette modes
 
 ### Text Rendering
 
@@ -35,13 +125,37 @@ Implements classic Macintosh dithering algorithms:
   - Scrawl font
   - Extensible with custom TrueType-converted fonts
 
+### Dithering
+
+- Classic Macintosh dithering (8x8 Bayer-style ordered dithering)
+- 17-level grayscale patterns
+- Error diffusion for color reduction
+- Automatic dithering when converting to lower bit depth
+
+### Text-Mode Graphics (libcaca-style)
+
+The library includes a unique text-mode graphics backend that renders graphics using characters:
+
+- **ASCII Art Mode:** Uses ASCII characters for grayscale shading
+- **Unicode Block Mode:** Uses Unicode box drawing characters
+- **Half-Block Mode:** 2:1 vertical resolution using ▀ and ▄
+- **Color Support:** ANSI/VT100 16-color text mode
+
+Perfect for serial consoles, SSH sessions, and retro aesthetics!
+
 ### COM Architecture
 
 All functionality exposed through COM interfaces:
 
-- `IFramebufferBackend` - Drawing operations
-- `IFramebufferText` - Unicode text rendering
+- `IFramebufferManager` - Device and mode management
+- `IFramebufferScreen` - Hardware framebuffer access
+- `IFramebufferSurface` - Software surfaces
+- `IFramebufferImage` - Image blitting and conversion
+- `IFramebufferCursor` - Cursor management
+- `IFramebufferBackend` - Backend drawing operations
+- `IFramebufferBackendExt` - Extended backend capabilities
 - `IFramebufferPalette` - Palette management
+- `IFramebufferText` - Unicode text rendering
 
 ## Building
 
@@ -150,6 +264,23 @@ Optionally accepts GOP protocol pointer for hardware-accelerated Blt operations.
 ```c
 IFramebufferBackend *backend = FbCreateUefiGopBackend();
 FbUefiGopSetProtocol(backend, GopProtocol);  // Optional
+```
+
+### UEFI Universal Graphics Adapter (`FbBackendUefiUga`)
+
+Legacy UEFI/EFI 1.x framebuffer through UGA protocol.
+UGA was the predecessor to GOP, used in early UEFI implementations and older Macs.
+Provides hardware-accelerated Blt operations (fill, copy, video-to-buffer).
+
+Features:
+- Software buffer fallback for systems without direct framebuffer access
+- Hardware-accelerated block transfers via UGA Blt
+- Full 32-bit BGRA color support
+- Compatible with EFI 1.10 and early UEFI 2.x
+
+```c
+IFramebufferBackend *backend = FbCreateUefiUgaBackend();
+FbUefiUgaSetProtocol(backend, UgaProtocol);  // Required
 ```
 
 ### Apple EFI (`FbBackendAppleEfi`)

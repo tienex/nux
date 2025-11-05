@@ -11,8 +11,10 @@
 --*/
 
 #include <ananke/framebuffer.h>
+#include <ananke/framebuffer/backends.h>
 #include <ananke/framebuffer/pixelformat.h>
 #include <ananke/framebuffer/dither.h>
+#include <ananke/framebuffer/com_helpers.h>
 #include <ananke/atomics.h>
 #include <ananke/hresult.h>
 
@@ -167,54 +169,8 @@ GenericFb_ReadPixel(
 /*  IUnknown Implementation                                         */
 /* --------------------------------------------------------------- */
 
-static HRESULT STDMETHODCALLTYPE
-GenericFb_QueryInterface(
-    IFramebufferBackend *This,
-    REFIID riid,
-    VOID **ppvObject
-    )
-{
-    GENERIC_FB_BACKEND *Backend = (GENERIC_FB_BACKEND *)This;
-
-    if (ppvObject == NULL) {
-        return E_POINTER;
-    }
-
-    if (IsEqualGUID(riid, &IID_IUnknown) ||
-        IsEqualGUID(riid, &IID_IFramebufferBackend)) {
-        *ppvObject = &Backend->Base;
-        GenericFb_AddRef(This);
-        return S_OK;
-    }
-
-    *ppvObject = NULL;
-    return E_NOINTERFACE;
-}
-
-static UINT32 STDMETHODCALLTYPE
-GenericFb_AddRef(
-    IFramebufferBackend *This
-    )
-{
-    GENERIC_FB_BACKEND *Backend = (GENERIC_FB_BACKEND *)This;
-    return ANX_REF_INC(&Backend->RefCount);
-}
-
-static UINT32 STDMETHODCALLTYPE
-GenericFb_Release(
-    IFramebufferBackend *This
-    )
-{
-    GENERIC_FB_BACKEND *Backend = (GENERIC_FB_BACKEND *)This;
-    UINT32 RefCount = ANX_REF_DEC(&Backend->RefCount);
-
-    if (RefCount == 0) {
-        /* Free backend - for now just leak it since we don't have malloc */
-        /* In a real implementation, this would call a memory allocator */
-    }
-
-    return RefCount;
-}
+/* Use COM helper macro for IUnknown implementation */
+FB_IMPLEMENT_BACKEND_IUNKNOWN(GenericFb, GENERIC_FB_BACKEND)
 
 /* --------------------------------------------------------------- */
 /*  IFramebufferBackend Implementation                              */
@@ -422,7 +378,70 @@ GenericFb_BlitBitmap(
     FB_PIXEL_FORMAT SourceFormat
     )
 {
-    /* Not implemented yet - would convert source format to target format */
+    GENERIC_FB_BACKEND *Backend = (GENERIC_FB_BACKEND *)This;
+
+    if (!Backend->Initialized || Bitmap == NULL) {
+        return E_POINTER;
+    }
+
+    /* Fast path: matching pixel format */
+    if (SourceFormat == Backend->Descriptor.PixelFormat) {
+        UINT32 BytesPerPixel = 0;
+
+        /* Determine bytes per pixel */
+        if (Backend->Descriptor.PixelFormat == FbPixelFormatIndexed256 ||
+            Backend->Descriptor.PixelFormat == FbPixelFormat8Bpp) {
+            BytesPerPixel = 1;
+        } else if (Backend->Descriptor.PixelFormat == FbPixelFormatRgb555 ||
+                   Backend->Descriptor.PixelFormat == FbPixelFormatRgb565) {
+            BytesPerPixel = 2;
+        } else if (Backend->Descriptor.PixelFormat == FbPixelFormatRgb888 ||
+                   Backend->Descriptor.PixelFormat == FbPixelFormatBgr888) {
+            BytesPerPixel = 3;
+        } else if (Backend->Descriptor.PixelFormat == FbPixelFormatRgba8888 ||
+                   Backend->Descriptor.PixelFormat == FbPixelFormatBgra8888) {
+            BytesPerPixel = 4;
+        }
+
+        if (BytesPerPixel > 0) {
+            /* Direct row-by-row copy */
+            for (UINT32 Row = 0; Row < Height; Row++) {
+                INT32 DestY = Y + Row;
+                if (DestY < 0 || DestY >= (INT32)Backend->Descriptor.Height) {
+                    continue;
+                }
+
+                UINT32 DestOffset = DestY * Backend->Descriptor.Pitch + X * BytesPerPixel;
+                UINT32 SrcOffset = Row * Width * BytesPerPixel;
+                UINT32 CopyWidth = Width * BytesPerPixel;
+
+                /* Bounds check */
+                if (X >= 0 && (X + Width) <= Backend->Descriptor.Width) {
+                    /* Simple memcpy for unclipped case */
+                    UINT8 *DestAddr = Backend->FramebufferBase + DestOffset;
+                    CONST UINT8 *SrcAddr = &Bitmap[SrcOffset];
+                    for (UINT32 i = 0; i < CopyWidth; i++) {
+                        DestAddr[i] = SrcAddr[i];
+                    }
+                } else {
+                    /* Clipped - copy pixel by pixel */
+                    for (UINT32 Col = 0; Col < Width; Col++) {
+                        INT32 DestX = X + Col;
+                        if (DestX >= 0 && DestX < (INT32)Backend->Descriptor.Width) {
+                            UINT8 *DestAddr = Backend->FramebufferBase + DestOffset + Col * BytesPerPixel;
+                            CONST UINT8 *SrcAddr = &Bitmap[SrcOffset + Col * BytesPerPixel];
+                            for (UINT32 b = 0; b < BytesPerPixel; b++) {
+                                DestAddr[b] = SrcAddr[b];
+                            }
+                        }
+                    }
+                }
+            }
+            return S_OK;
+        }
+    }
+
+    /* Format conversion would be handled by engine layer */
     return E_NOTIMPL;
 }
 
@@ -470,4 +489,20 @@ FbCreateGenericBackend(
     )
 {
     return (IFramebufferBackend *)&gGenericBackendInstance;
+}
+
+/* --------------------------------------------------------------- */
+/*  Backend Registration                                           */
+/* --------------------------------------------------------------- */
+
+/*
+ * Register this backend with the factory.
+ * Called by the backend initialization system.
+ */
+VOID
+FbRegisterGenericBackend(
+    VOID
+    )
+{
+    FbRegisterBackend(FbBackendGeneric, FbCreateGenericBackend);
 }

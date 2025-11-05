@@ -10,14 +10,24 @@
 --*/
 
 #include <ananke/framebuffer.h>
+#include <ananke/framebuffer/com_helpers.h>
 #include <ananke/atomics.h>
 #include <ananke/hresult.h>
 
 /* --------------------------------------------------------------- */
-/*  Standard VGA Palette                                            */
+/*  Standard VGA Palettes                                           */
 /* --------------------------------------------------------------- */
 
-static CONST FB_PALETTE_ENTRY gStandardVgaPalette[256] = {
+/*
+ * Standard VGA 256-color palette (6-bit RGB cube + grayscale).
+ * This is the default VGA palette used by DOS, Windows, and most PC software.
+ *
+ * Layout:
+ *   Entries 0-15:  Standard 16-color VGA palette (EGA compatible)
+ *   Entries 16-231: 216-color 6×6×6 RGB cube (web-safe colors)
+ *   Entries 232-255: 24-step grayscale ramp
+ */
+CONST FB_PALETTE_ENTRY gVga256Palette[256] = {
     /* Standard 16-color VGA palette */
     {   0,   0,   0, 0 },  /*  0: Black */
     {   0,   0, 170, 0 },  /*  1: Blue */
@@ -159,47 +169,8 @@ static CONST IFramebufferPaletteVtbl gFbPaletteVtbl = {
 /*  IUnknown Implementation                                         */
 /* --------------------------------------------------------------- */
 
-static HRESULT STDMETHODCALLTYPE
-FbPalette_QueryInterface(
-    IFramebufferPalette *This,
-    REFIID riid,
-    VOID **ppvObject
-    )
-{
-    FB_PALETTE_MGR *Manager = (FB_PALETTE_MGR *)This;
-
-    if (ppvObject == NULL) {
-        return E_POINTER;
-    }
-
-    if (IsEqualGUID(riid, &IID_IUnknown) ||
-        IsEqualGUID(riid, &IID_IFramebufferPalette)) {
-        *ppvObject = &Manager->Base;
-        FbPalette_AddRef(This);
-        return S_OK;
-    }
-
-    *ppvObject = NULL;
-    return E_NOINTERFACE;
-}
-
-static UINT32 STDMETHODCALLTYPE
-FbPalette_AddRef(
-    IFramebufferPalette *This
-    )
-{
-    FB_PALETTE_MGR *Manager = (FB_PALETTE_MGR *)This;
-    return ANX_REF_INC(&Manager->RefCount);
-}
-
-static UINT32 STDMETHODCALLTYPE
-FbPalette_Release(
-    IFramebufferPalette *This
-    )
-{
-    FB_PALETTE_MGR *Manager = (FB_PALETTE_MGR *)This;
-    return ANX_REF_DEC(&Manager->RefCount);
-}
+/* Use COM helper macros to implement IUnknown (QueryInterface, AddRef, Release) */
+FB_IMPLEMENT_IUNKNOWN(FbPalette, FB_PALETTE_MGR, IFramebufferPalette, IID_IFramebufferPalette)
 
 /* --------------------------------------------------------------- */
 /*  IFramebufferPalette Implementation                              */
@@ -289,7 +260,7 @@ FbPalette_LoadStandardVgaPalette(
     IFramebufferPalette *This
     )
 {
-    return FbPalette_SetPalette(This, gStandardVgaPalette, 256);
+    return FbPalette_SetPalette(This, gVga256Palette, 256);
 }
 
 /* --------------------------------------------------------------- */
@@ -310,3 +281,26 @@ FbCreatePaletteManager(
     FbPalette_LoadStandardVgaPalette((IFramebufferPalette *)&gPaletteMgrInstance);
     return (IFramebufferPalette *)&gPaletteMgrInstance;
 }
+
+/*
+ * Standard VGA 16-color palette (EGA compatible).
+ * This is just the first 16 entries of gVga256Palette.
+ */
+CONST FB_PALETTE_ENTRY gVga16Palette[16] = {
+    {   0,   0,   0, 0 },  /*  0: Black */
+    {   0,   0, 170, 0 },  /*  1: Blue */
+    {   0, 170,   0, 0 },  /*  2: Green */
+    {   0, 170, 170, 0 },  /*  3: Cyan */
+    { 170,   0,   0, 0 },  /*  4: Red */
+    { 170,   0, 170, 0 },  /*  5: Magenta */
+    { 170,  85,   0, 0 },  /*  6: Brown */
+    { 170, 170, 170, 0 },  /*  7: Light Gray */
+    {  85,  85,  85, 0 },  /*  8: Dark Gray */
+    {  85,  85, 255, 0 },  /*  9: Light Blue */
+    {  85, 255,  85, 0 },  /* 10: Light Green */
+    {  85, 255, 255, 0 },  /* 11: Light Cyan */
+    { 255,  85,  85, 0 },  /* 12: Light Red */
+    { 255,  85, 255, 0 },  /* 13: Light Magenta */
+    { 255, 255,  85, 0 },  /* 14: Yellow */
+    { 255, 255, 255, 0 },  /* 15: White */
+};

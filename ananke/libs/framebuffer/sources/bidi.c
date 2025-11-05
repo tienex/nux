@@ -116,36 +116,49 @@ static CONST MIRROR_PAIR gMirrorPairs[] = {
     { 0x203A, 0x2039 },  /* › ‹ */
 };
 
+/*
+ * Helper: Find mirror pair index for a character.
+ * Returns the index in gMirrorPairs, or (UINTN)-1 if not found.
+ */
+static INLINE UINTN
+FbFindMirrorPairIndex(
+    IN CHAR16 Character
+    )
+{
+    UINTN i;
+    UINTN Count = sizeof(gMirrorPairs) / sizeof(gMirrorPairs[0]);
+
+    for (i = 0; i < Count; i++) {
+        if (gMirrorPairs[i].Original == Character) {
+            return i;
+        }
+    }
+
+    return (UINTN)-1;
+}
+
+/*
+ * Check if a character needs mirroring when direction is reversed.
+ */
 BOOLEAN
 FbNeedsMirroring(
     IN CHAR16 Character
     )
 {
-    UINTN i;
-
-    for (i = 0; i < sizeof(gMirrorPairs) / sizeof(gMirrorPairs[0]); i++) {
-        if (gMirrorPairs[i].Original == Character) {
-            return TRUE;
-        }
-    }
-
-    return FALSE;
+    return FbFindMirrorPairIndex(Character) != (UINTN)-1;
 }
 
+/*
+ * Get the mirrored version of a character.
+ * Returns the original character if it has no mirror pair.
+ */
 CHAR16
 FbGetMirroredChar(
     IN CHAR16 Character
     )
 {
-    UINTN i;
-
-    for (i = 0; i < sizeof(gMirrorPairs) / sizeof(gMirrorPairs[0]); i++) {
-        if (gMirrorPairs[i].Original == Character) {
-            return gMirrorPairs[i].Mirrored;
-        }
-    }
-
-    return Character;
+    UINTN Index = FbFindMirrorPairIndex(Character);
+    return (Index != (UINTN)-1) ? gMirrorPairs[Index].Mirrored : Character;
 }
 
 /* --------------------------------------------------------------- */

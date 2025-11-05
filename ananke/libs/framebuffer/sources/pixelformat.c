@@ -10,29 +10,7 @@
 --*/
 
 #include <ananke/framebuffer/pixelformat.h>
-
-/* --------------------------------------------------------------- */
-/*  Standard VGA 16-Color Palette                                   */
-/* --------------------------------------------------------------- */
-
-static CONST FB_COLOR gVga16Colors[16] = {
-    {   0,   0,   0, 255 },  /* 0: Black */
-    {   0,   0, 170, 255 },  /* 1: Blue */
-    {   0, 170,   0, 255 },  /* 2: Green */
-    {   0, 170, 170, 255 },  /* 3: Cyan */
-    { 170,   0,   0, 255 },  /* 4: Red */
-    { 170,   0, 170, 255 },  /* 5: Magenta */
-    { 170,  85,   0, 255 },  /* 6: Brown */
-    { 170, 170, 170, 255 },  /* 7: Light Gray */
-    {  85,  85,  85, 255 },  /* 8: Dark Gray */
-    {  85,  85, 255, 255 },  /* 9: Light Blue */
-    {  85, 255,  85, 255 },  /* 10: Light Green */
-    {  85, 255, 255, 255 },  /* 11: Light Cyan */
-    { 255,  85,  85, 255 },  /* 12: Light Red */
-    { 255,  85, 255, 255 },  /* 13: Light Magenta */
-    { 255, 255,  85, 255 },  /* 14: Yellow */
-    { 255, 255, 255, 255 },  /* 15: White */
-};
+#include <ananke/framebuffer/palette.h>  /* For gVga16Palette */
 
 /* --------------------------------------------------------------- */
 /*  Helper Functions                                                */
@@ -221,7 +199,10 @@ FbUnpackPixel(
 
         case FbPixelFormatVga16Planar:
             if (Pixel < 16) {
-                Color = gVga16Colors[Pixel];
+                Color.Red   = gVga16Palette[Pixel].Red;
+                Color.Green = gVga16Palette[Pixel].Green;
+                Color.Blue  = gVga16Palette[Pixel].Blue;
+                Color.Alpha = 255;
             }
             break;
 
@@ -283,5 +264,5 @@ FbGetVga16Color(
     IN FB_COLOR Color
     )
 {
-    return FbFindClosestPaletteEntry(Color, (CONST FB_PALETTE_ENTRY *)gVga16Colors, 16);
+    return FbFindClosestPaletteEntry(Color, gVga16Palette, 16);
 }
