@@ -1,0 +1,22 @@
+# Q-bus Family Driver Makefile
+# Copyright (c) 2025 NUX Project
+
+include @top_srcdir@/mk/top.mk
+
+LIB = iokit_qbus
+
+SRCS = \
+	sources/qbus.c
+
+INCS = \
+	include/qbus.h
+
+INCDIR = $(includedir)/iokit/families/qbus
+
+CFLAGS += -I$(top_srcdir)/nux/libs/iokit/include/public
+CFLAGS += -I$(top_srcdir)/nux/libs/iokit/families/qbus/include
+CFLAGS += -I$(top_srcdir)/ananke/include
+CFLAGS += -I$(top_srcdir)/include
+
+include @top_srcdir@/mk/lib.mk
+include @top_srcdir@/mk/bottom.mk

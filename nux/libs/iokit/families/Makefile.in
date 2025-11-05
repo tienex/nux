@@ -7,15 +7,22 @@ include @top_srcdir@/mk/top.mk
 # 1. Platform firmware (platform - device enumeration)
 # 2. Core abstractions (bus, storage)
 # 3. System infrastructure (timer, power)
-# 4. Base buses (pcie, usb, firewire, isa)
-# 5. Storage protocols (nvme, sata, scsi)
-# 6. High-speed interconnects (thunderbolt, rdma)
-# 7. Low-level buses (i2c, spi, hid)
-# 8. Multimedia (display, audio, network)
-# 9. Security (crypto)
-# 10. Virtualization (virt)
+# 4. Modern buses (pcie, usb, firewire, isa)
+# 5. Legacy buses (nubus, zorro, sbus, turbochannel, mca, vmebus, unibus, qbus, cbus, s100)
+# 6. Storage protocols (nvme, sata, scsi)
+# 7. High-speed interconnects (thunderbolt, rdma)
+# 8. Low-level buses (i2c, spi, hid)
+# 9. Multimedia (display, audio, network)
+# 10. Security (crypto)
+# 11. Virtualization (virt)
 
-SUBDIRS = platform bus storage timer power pcie usb firewire isa i2c spi hid nvme sata scsi thunderbolt rdma display audio network crypto virt
+SUBDIRS = platform bus storage timer power \
+          pcie usb firewire isa \
+          nubus zorro sbus turbochannel mca vmebus unibus qbus cbus s100 \
+          nvme sata scsi thunderbolt rdma \
+          i2c spi hid \
+          display audio network \
+          crypto virt
 
 # Dependency declarations
 platform:
@@ -31,6 +38,27 @@ usb: pcie
 firewire: pcie
 
 isa:
+
+# Legacy bus families (no dependencies)
+nubus:
+
+zorro:
+
+sbus:
+
+turbochannel:
+
+mca:
+
+vmebus:
+
+unibus:
+
+qbus:
+
+cbus:
+
+s100:
 
 i2c:
 

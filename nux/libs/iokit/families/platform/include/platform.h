@@ -74,6 +74,20 @@ DEFINE_GUID(IID_IIOOpenFirmwareMatcher,
 DEFINE_GUID(IID_IIOARCMatcher,
     0xF6A7B8C9, 0xD0E1, 0x2F3A, 0x4B, 0x5C, 0x6D, 0x7E, 0x8F, 0x9A, 0x0B, 0x1C);
 
+/**
+ * @brief IIOPCIMatcher interface GUID
+ * {A7B8C9D0-E1F2-3A4B-5C6D-7E8F9A0B1C2D}
+ */
+DEFINE_GUID(IID_IIOPCIMatcher,
+    0xA7B8C9D0, 0xE1F2, 0x3A4B, 0x5C, 0x6D, 0x7E, 0x8F, 0x9A, 0x0B, 0x1C, 0x2D);
+
+/**
+ * @brief IIOLegacyBusMatcher interface GUID
+ * {B8C9D0E1-F2A3-4B5C-6D7E-8F9A0B1C2D3E}
+ */
+DEFINE_GUID(IID_IIOLegacyBusMatcher,
+    0xB8C9D0E1, 0xF2A3, 0x4B5C, 0x6D, 0x7E, 0x8F, 0x9A, 0x0B, 0x1C, 0x2D, 0x3E);
+
 //=============================================================================
 // Platform Type Definitions
 //=============================================================================
@@ -741,6 +755,216 @@ typedef struct IIOARCMatcher {
 } IIOARCMatcher;
 
 //=============================================================================
+// PCI/PCIe Matcher (Modern Systems)
+//=============================================================================
+
+/**
+ * @brief Legacy bus types
+ */
+typedef enum _LEGACY_BUS_TYPE {
+    LEGACY_BUS_NUBUS        = 1,    /**< NuBus (Apple Macintosh) */
+    LEGACY_BUS_ZORRO        = 2,    /**< Zorro II/III (Commodore Amiga) */
+    LEGACY_BUS_SBUS         = 3,    /**< SBus (Sun Microsystems) */
+    LEGACY_BUS_TURBOCHANNEL = 4,    /**< TURBOchannel (DEC) */
+    LEGACY_BUS_MCA          = 5,    /**< Micro Channel Architecture (IBM PS/2) */
+    LEGACY_BUS_VMEBUS       = 6,    /**< VMEbus (industrial/military) */
+    LEGACY_BUS_UNIBUS       = 7,    /**< UNIBUS (DEC PDP-11) */
+    LEGACY_BUS_QBUS         = 8,    /**< Q-bus (DEC PDP-11/VAX) */
+    LEGACY_BUS_CBUS         = 9,    /**< C-bus (NEC PC-9801) */
+    LEGACY_BUS_S100         = 10,   /**< S-100 (MITS Altair 8800) */
+} LEGACY_BUS_TYPE;
+
+/**
+ * @brief PCI device matcher - matches PCI/PCIe devices
+ */
+typedef struct IIOPCIMatcher {
+    IUnknown    Base;
+
+    /**
+     * @brief Match device by vendor ID and device ID
+     */
+    IO_RETURN (*MatchByVendorDevice)(
+        struct IIOPCIMatcher    *this,
+        UINT16                  uVendorID,
+        UINT16                  uDeviceID,
+        IIOPlatformDevice       **ppDevices,
+        UINT32                  *puCount
+    );
+
+    /**
+     * @brief Match device by class code
+     */
+    IO_RETURN (*MatchByClass)(
+        struct IIOPCIMatcher    *this,
+        UINT8                   uBaseClass,
+        UINT8                   uSubClass,
+        UINT8                   uProgIF,
+        IIOPlatformDevice       **ppDevices,
+        UINT32                  *puCount
+    );
+
+    /**
+     * @brief Match device by subsystem vendor/device ID
+     */
+    IO_RETURN (*MatchBySubsystem)(
+        struct IIOPCIMatcher    *this,
+        UINT16                  uSubVendorID,
+        UINT16                  uSubDeviceID,
+        IIOPlatformDevice       **ppDevices,
+        UINT32                  *puCount
+    );
+
+    /**
+     * @brief Match device by bus/device/function
+     */
+    IO_RETURN (*MatchByBDF)(
+        struct IIOPCIMatcher    *this,
+        UINT8                   uBus,
+        UINT8                   uDevice,
+        UINT8                   uFunction,
+        IIOPlatformDevice       **ppDevice
+    );
+
+    /**
+     * @brief Enumerate all PCI devices
+     */
+    IO_RETURN (*EnumerateDevices)(
+        struct IIOPCIMatcher    *this,
+        IIOPlatformDevice       ***pppDevices,
+        UINT32                  *puCount
+    );
+} IIOPCIMatcher;
+
+//=============================================================================
+// Legacy Bus Matcher (Vintage Systems)
+//=============================================================================
+
+/**
+ * @brief Legacy bus matcher - universal matcher for classic computer buses
+ */
+typedef struct IIOLegacyBusMatcher {
+    IUnknown    Base;
+
+    /**
+     * @brief Match device on NuBus by slot and board ID
+     */
+    IO_RETURN (*MatchNuBusDevice)(
+        struct IIOLegacyBusMatcher  *this,
+        UINT8                       uSlot,
+        UINT32                      uBoardID,
+        IIOPlatformDevice           **ppDevice
+    );
+
+    /**
+     * @brief Match device on Zorro bus by manufacturer and product
+     */
+    IO_RETURN (*MatchZorroDevice)(
+        struct IIOLegacyBusMatcher  *this,
+        UINT16                      uManufacturer,
+        UINT8                       uProduct,
+        IIOPlatformDevice           **ppDevices,
+        UINT32                      *puCount
+    );
+
+    /**
+     * @brief Match device on SBus by name or compatible string
+     */
+    IO_RETURN (*MatchSBusDevice)(
+        struct IIOLegacyBusMatcher  *this,
+        CONST CHAR8                 *pszName,
+        IIOPlatformDevice           **ppDevices,
+        UINT32                      *puCount
+    );
+
+    /**
+     * @brief Match device on TURBOchannel by module ID
+     */
+    IO_RETURN (*MatchTURBOchannelDevice)(
+        struct IIOLegacyBusMatcher  *this,
+        CONST CHAR8                 *pszModuleID,
+        IIOPlatformDevice           **ppDevices,
+        UINT32                      *puCount
+    );
+
+    /**
+     * @brief Match device on MCA by adapter ID
+     */
+    IO_RETURN (*MatchMCADevice)(
+        struct IIOLegacyBusMatcher  *this,
+        UINT16                      uAdapterID,
+        IIOPlatformDevice           **ppDevices,
+        UINT32                      *puCount
+    );
+
+    /**
+     * @brief Match device on VMEbus by manufacturer and board ID
+     */
+    IO_RETURN (*MatchVMEDevice)(
+        struct IIOLegacyBusMatcher  *this,
+        UINT32                      uManufacturerID,
+        UINT32                      uBoardID,
+        IIOPlatformDevice           **ppDevices,
+        UINT32                      *puCount
+    );
+
+    /**
+     * @brief Match device on UNIBUS by CSR address
+     */
+    IO_RETURN (*MatchUNIBUSDevice)(
+        struct IIOLegacyBusMatcher  *this,
+        UINT32                      uCSRAddress,
+        IIOPlatformDevice           **ppDevice
+    );
+
+    /**
+     * @brief Match device on Q-bus by CSR address
+     */
+    IO_RETURN (*MatchQBusDevice)(
+        struct IIOLegacyBusMatcher  *this,
+        UINT32                      uCSRAddress,
+        IIOPlatformDevice           **ppDevice
+    );
+
+    /**
+     * @brief Match device on C-bus by I/O base address
+     */
+    IO_RETURN (*MatchCBusDevice)(
+        struct IIOLegacyBusMatcher  *this,
+        UINT16                      uIOBase,
+        IIOPlatformDevice           **ppDevice
+    );
+
+    /**
+     * @brief Match device on S-100 bus by board type
+     */
+    IO_RETURN (*MatchS100Device)(
+        struct IIOLegacyBusMatcher  *this,
+        UINT8                       uBoardType,
+        IIOPlatformDevice           **ppDevices,
+        UINT32                      *puCount
+    );
+
+    /**
+     * @brief Enumerate all devices on a specific legacy bus
+     */
+    IO_RETURN (*EnumerateByBusType)(
+        struct IIOLegacyBusMatcher  *this,
+        LEGACY_BUS_TYPE             eBusType,
+        IIOPlatformDevice           ***pppDevices,
+        UINT32                      *puCount
+    );
+
+    /**
+     * @brief Detect which legacy buses are present in system
+     */
+    IO_RETURN (*DetectBuses)(
+        struct IIOLegacyBusMatcher  *this,
+        LEGACY_BUS_TYPE             *pBusTypes,
+        UINT32                      *puCount
+    );
+} IIOLegacyBusMatcher;
+
+//=============================================================================
 // Generic Platform Device Interface
 //=============================================================================
 
@@ -916,6 +1140,16 @@ IO_RETURN IOPlatformGetOpenFirmwareMatcher(IIOOpenFirmwareMatcher **ppMatcher);
  * @brief Get ARC matcher instance
  */
 IO_RETURN IOPlatformGetARCMatcher(IIOARCMatcher **ppMatcher);
+
+/**
+ * @brief Get PCI matcher instance
+ */
+IO_RETURN IOPlatformGetPCIMatcher(IIOPCIMatcher **ppMatcher);
+
+/**
+ * @brief Get Legacy Bus matcher instance
+ */
+IO_RETURN IOPlatformGetLegacyBusMatcher(IIOLegacyBusMatcher **ppMatcher);
 
 /**
  * @brief Enumerate all platform devices

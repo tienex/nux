@@ -1,14 +1,16 @@
 # IOKit Families - TODO List
 
-## ✅ FULLY IMPLEMENTED (22 Families)
+## ✅ FULLY IMPLEMENTED (32 Families)
 
 ### Platform Firmware (1 family)
-- [x] **Platform Family** - Device enumeration and matching across firmware interfaces
+- [x] **Platform Family** - Universal device enumeration and matching across firmware interfaces
   - [x] ACPI device matcher (Hardware ID, Compatible ID, UID, path)
   - [x] ISA Plug and Play matcher (CSN/LDN, resource allocation)
   - [x] Device Tree matcher (DTB/DTS, compatible strings, phandle)
   - [x] OpenFirmware matcher (IEEE 1275, device-type, properties)
   - [x] ARC/ARCS matcher (component class/type, configuration data)
+  - [x] PCI/PCIe matcher (vendor/device ID, class code, BDF)
+  - [x] Legacy Bus matcher (NuBus, Zorro, SBus, TURBOchannel, MCA, VMEbus, UNIBUS, Q-bus, C-bus, S-100)
   - [x] 150+ ACPI HID database entries
   - [x] Platform firmware detection (BIOS, UEFI, DT, OF, ARC)
 
@@ -76,139 +78,25 @@
 ### Virtualization (1 family)
 - [x] **Virtualization Family** - SR-IOV, virtio, VMware, Hyper-V, Xen
 
-**Total: 22 families, 51,000+ lines of code, 1,000+ device IDs, 95+ COM interfaces**
+### Legacy/Vintage Computer Buses (10 families)
+- [x] **NuBus Family** - Apple Macintosh II series (6 slots, 10 MB/s, Declaration ROM, 42+ cards)
+- [x] **Zorro Family** - Commodore Amiga 2000/3000/4000 (Zorro II/III, AutoConfig, 42+ cards)
+- [x] **SBus Family** - Sun Microsystems SPARCstation (FCode, DVMA, 32+ cards)
+- [x] **TURBOchannel Family** - DEC DECstation/AlphaStation (100 MB/s, 35+ cards)
+- [x] **MCA Family** - IBM PS/2/RS6000 (Micro Channel, POS registers, 59+ cards)
+- [x] **VMEbus Family** - Industrial/military/aerospace (VME64/64x, 7-level interrupts, 32+ cards)
+- [x] **UNIBUS Family** - DEC PDP-11 (18-bit, 256 KB, vectored interrupts, 57+ devices)
+- [x] **Q-bus Family** - DEC PDP-11/MicroVAX/VAXstation (16/18/22-bit, CSR, 51+ modules)
+- [x] **C-bus Family** - NEC PC-9801 series (8/16-bit, Japanese market, 48+ cards)
+- [x] **S-100 Bus Family** - MITS Altair 8800 and compatibles (IEEE 696, 100-pin, 41+ cards)
+
+**Total: 32 families, 70,000+ lines of code, 1,400+ device IDs, 110+ COM interfaces**
 
 ---
 
 ## 🟡 Medium Priority - Not Yet Implemented
 
-### Apple/Macintosh Buses
-
-#### NuBus
-- [ ] NuBus slot detection (slots $9-$E)
-- [ ] Declaration ROM parsing
-- [ ] sResource directory
-- [ ] Functional sResources (video, network, etc.)
-- [ ] Block transfer mode
-- [ ] NuBus interrupt handling
-- [ ] Support for 12" and 7" cards
-
-**Specifications:**
-- 32-bit synchronous bus
-- 10 MB/s transfer rate
-- Auto-configuration via Declaration ROM
-- Used in: Mac II, Quadra, Centris series
-
-#### Zorro (Amiga)
-
-##### Zorro II
-- [ ] Zorro II autoconfiguration
-- [ ] ConfigDev structure parsing
-- [ ] 16 MB address space (24-bit)
-- [ ] DMA support
-- [ ] Interrupt handling (INT2/INT6)
-
-##### Zorro III
-- [ ] Zorro III bus detection
-- [ ] 32-bit address space
-- [ ] Burst mode transfers
-- [ ] Improved DMA
-- [ ] Backward compatibility with Zorro II
-
-**Specifications:**
-- Zorro II: 8.3 MB/s (synchronous), 24-bit addressing
-- Zorro III: 150 MB/s (burst), 32-bit addressing
-- Used in: Amiga 2000/3000/4000 series
-
-### Workstation/Server Buses
-
-#### SBus (Sun Microsystems)
-- [ ] SBus slot detection
-- [ ] FCode ROM parsing
-- [ ] DVMA (Direct Virtual Memory Access)
-- [ ] SBus interrupt routing
-- [ ] Device tree integration
-
-**Specifications:**
-- 32-bit synchronous bus
-- 25/33 MHz operation
-- Used in: SPARCstation, SPARCserver
-
-#### TURBOchannel (DEC)
-- [ ] TC slot enumeration
-- [ ] TC option ROM parsing
-- [ ] DMA support
-- [ ] Interrupt handling
-
-**Specifications:**
-- 32-bit synchronous bus
-- 100 MB/s transfer rate
-- Used in: DECstation 5000, AlphaStation
-
-#### MCA (Micro Channel Architecture)
-- [ ] MCA bus detection
-- [ ] Programmable Option Select (POS)
-- [ ] MCA device ID parsing
-- [ ] Shared slots and bus arbitration
-- [ ] Streaming data mode
-
-**Specifications:**
-- 16/32-bit bus
-- Up to 320 MB/s (64-bit variant)
-- Used in: IBM PS/2, RS/6000
-
-## Low Priority 🟢
-
-### Historical/Legacy Buses
-
-#### UNIBUS (DEC PDP-11)
-- [ ] UNIBUS device addressing
-- [ ] Interrupt vector handling
-- [ ] DMA capabilities
-- [ ] Memory-mapped I/O
-
-**Specifications:**
-- 18-bit addressing (256 KB)
-- Used in: PDP-11 series
-
-#### Q-bus (DEC)
-- [ ] Q-bus device detection
-- [ ] CSR (Control Status Register) access
-- [ ] Interrupt handling
-- [ ] DMA support
-
-**Specifications:**
-- 16/18/22-bit addressing variants
-- Used in: PDP-11, MicroVAX, VAXstation
-
-#### MultiBus (Intel)
-- [ ] MultiBus I support
-- [ ] MultiBus II support
-- [ ] Message passing
-- [ ] Multi-master arbitration
-
-**Specifications:**
-- 16/20-bit addressing (Multibus I)
-- 32-bit with messaging (Multibus II)
-- Used in: Industrial computers, Intel SBC
-
-#### VMEbus
-- [ ] VME64 support
-- [ ] VME64x extensions
-- [ ] Geographical addressing
-- [ ] Interrupt handling (7 levels)
-- [ ] Block transfer modes
-
-**Specifications:**
-- 16/24/32/40/64-bit variants
-- Used in: Industrial, military, aerospace systems
-
-#### STD bus
-- [ ] STD-32 bus support
-- [ ] 8-bit backplane
-- [ ] Z80/6502 support
-
-### Specialized/Embedded Buses
+### Future Bus Families
 
 #### PC/104
 - [ ] PC/104 detection
@@ -221,6 +109,26 @@
 - [ ] Hot-swap capability
 - [ ] System slot detection
 - [ ] PICMG standards compliance
+
+## Low Priority 🟢
+
+### Historical/Legacy Buses
+
+#### MultiBus (Intel)
+- [ ] MultiBus I support
+- [ ] MultiBus II support
+- [ ] Message passing
+- [ ] Multi-master arbitration
+
+**Specifications:**
+- 16/20-bit addressing (Multibus I)
+- 32-bit with messaging (Multibus II)
+- Used in: Industrial computers, Intel SBC
+
+#### STD bus
+- [ ] STD-32 bus support
+- [ ] 8-bit backplane
+- [ ] Z80/6502 support
 
 #### CardBus
 - [ ] 32-bit CardBus support (completed in PCIe driver)
