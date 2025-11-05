@@ -31,7 +31,7 @@
         ANX_MIDL_INTERFACE(iid_str) iface : public base {
 #   define ANX_IFACE_METHOD(ret, name, args) \
         virtual ret STDMETHODCALLTYPE name args = 0;
-#   define ANX_END_INTERFACE(iface) \
+#   define ANX_END_INTERFACE(iface, iid_sym) \
         }; \
         ANX_BIND_UUIDOF_CXX(iface, iid_sym)
 #else
@@ -41,9 +41,11 @@
             ANX_STDMETHOD(QueryInterface)(iface* This, REFIID riid, void** ppvObject); \
             ANX_STDMETHOD_(UINT32, AddRef)(iface* This); \
             ANX_STDMETHOD_(UINT32, Release)(iface* This);
-#   define ANX_IFACE_METHOD(ret, name, args) \
+#   define ANX_IFACE_METHOD_FULL(iface, ret, name, args) \
         ret (STDMETHODCALLTYPE *name)(iface* This, ANX_UNPAREN args);
-#   define ANX_END_INTERFACE(iface) \
+#   define ANX_IFACE_METHOD(ret, name, args) \
+        ret (STDMETHODCALLTYPE *name)(void* This, ANX_UNPAREN args);
+#   define ANX_END_INTERFACE(iface, iid_sym) \
         } iface##Vtbl; \
         struct iface { const iface##Vtbl* lpVtbl; }; \
         ANX_BIND_UUIDOF_C(iface, iid_sym)
@@ -102,6 +104,10 @@ typedef struct IClassFactoryVtbl {
 } IClassFactoryVtbl;
 struct IClassFactory { const IClassFactoryVtbl* lpVtbl; };
 #endif
+
+/* IUnknown and IClassFactory GUIDs */
+ANX_DEFINE_GUID(IID_IUnknown, 0x00000000, 0x0000, 0x0000, 0xC0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x46);
+ANX_DEFINE_GUID(IID_IClassFactory, 0x00000001, 0x0000, 0x0000, 0xC0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x46);
 
 /* Unprefixed COBJMACROS */
 #ifndef COBJMACROS

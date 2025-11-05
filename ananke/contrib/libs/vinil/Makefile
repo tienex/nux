@@ -1,0 +1,85 @@
+# VINIL - Vincent Intermediate Language Unified Library
+# Makefile
+
+# Compiler settings
+CC ?= gcc
+AR = ar
+ANANKE_INC = ../../../include
+SLJIT_INC = ../sljit/sljit_src
+CFLAGS = -Wall -Wextra -Wno-unused-function -Wno-pointer-sign -Wno-unused-parameter -O2 -fPIC -Iinclude -Isrc -I$(ANANKE_INC) -I$(SLJIT_INC)
+LDFLAGS = -shared
+LIBS = -lm -lpthread
+
+# Directories
+SRC_DIR = src
+INC_DIR = include
+BUILD_DIR = build
+OBJ_DIR = $(BUILD_DIR)/obj
+LIB_DIR = $(BUILD_DIR)/lib
+
+# SLJIT
+SLJIT_SRC = ../sljit/sljit_src/sljitLir.c
+SLJIT_OBJ = $(OBJ_DIR)/sljitLir.o
+
+# Target library names
+STATIC_LIB = $(LIB_DIR)/libvinil.a
+SHARED_LIB = $(LIB_DIR)/libvinil.so
+
+# Source files
+SRCS = $(wildcard $(SRC_DIR)/*.c)
+OBJS = $(SRCS:$(SRC_DIR)/%.c=$(OBJ_DIR)/%.o) $(SLJIT_OBJ)
+
+# Header dependencies
+HEADERS = $(wildcard $(INC_DIR)/vinil/*.h)
+
+# Targets
+.PHONY: all clean install shared static example
+
+all: shared static
+
+example: shared
+	$(CC) $(CFLAGS) example.c -o $(BUILD_DIR)/example -L$(LIB_DIR) -lvinil $(LIBS)
+
+shared: $(SHARED_LIB)
+
+static: $(STATIC_LIB)
+
+# Create build directories
+$(OBJ_DIR) $(LIB_DIR):
+	mkdir -p $@
+
+# Compile source files
+$(OBJ_DIR)/%.o: $(SRC_DIR)/%.c $(HEADERS) | $(OBJ_DIR)
+	$(CC) $(CFLAGS) -c $< -o $@
+
+# Compile SLJIT
+$(SLJIT_OBJ): $(SLJIT_SRC) | $(OBJ_DIR)
+	$(CC) $(CFLAGS) -w -c $< -o $@
+
+# Build shared library
+$(SHARED_LIB): $(OBJS) | $(LIB_DIR)
+	$(CC) $(LDFLAGS) -o $@ $(OBJS) $(LIBS)
+
+# Build static library
+$(STATIC_LIB): $(OBJS) | $(LIB_DIR)
+	$(AR) rcs $@ $(OBJS)
+
+# Clean build artifacts
+clean:
+	rm -rf $(BUILD_DIR)
+
+# Install (to be implemented)
+install: all
+	@echo "Install target not yet implemented"
+	@echo "To use vinil, add -I$(PWD)/include and -L$(PWD)/$(LIB_DIR) to your build"
+
+# Show build information
+info:
+	@echo "VINIL Build Information"
+	@echo "======================="
+	@echo "Source files: $(SRCS)"
+	@echo "Object files: $(OBJS)"
+	@echo "Static library: $(STATIC_LIB)"
+	@echo "Shared library: $(SHARED_LIB)"
+	@echo "Compiler: $(CC)"
+	@echo "CFLAGS: $(CFLAGS)"
