@@ -1,0 +1,26 @@
+#
+# NUX: DCL Shell Library
+# Digital Command Language Shell with Syntax Coloring Support
+#
+# SPDX-License-Identifier: BSD-2-Clause
+#
+
+@COMPILE_LIBNUX@
+
+LIBDIR=lib
+LIBRARY=dcl
+
+# DCL is architecture-independent
+CFLAGS+= -I$(SRCDIR)
+
+# Source files
+SRCS+= sources/renderer/ansi.c
+SRCS+= sources/syntax/provider.c
+SRCS+= sources/parser/parser.c
+SRCS+= sources/messaging/messagebus.c
+SRCS+= sources/shell/helpers.c
+SRCS+= sources/shell/shell.c
+
+# Public headers
+INCDIR=include/public/dcl
+INCS+=$(addprefix include/public/dcl/,dcl.h)
