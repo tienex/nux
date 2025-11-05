@@ -1025,31 +1025,92 @@ typedef struct _ZOO64_COMPRESSION_DESC {
 
 ### 4.1 Compression Algorithms
 
+**32-bit Algorithm ID Allocation**:
+
+Zoo64 uses 32-bit algorithm IDs (UINT32) to support a comprehensive range of compression methods:
+
+| ID Range | Count | Purpose | Details |
+|----------|-------|---------|---------|
+| 0x00000000-0x00000FFF | 4,096 | Standard algorithms | Well-known compression methods |
+| 0x00001000-0xEFFFFFFF | ~3.9 billion | Reserved | Future expansion |
+| 0xF0000000-0xFFFEFFFF | ~268 million | **Third-party algorithms** | Available for third-party implementations |
+| 0xFFFF0000-0xFFFFFFFF | 65,536 | **Dynamic WASM codecs** | RESERVED for runtime WASM modules |
+
+**Standard Algorithm ID Map** (first 4,096 IDs):
+
 ```
-0x0000: None (stored)
-0x0001: ZOZ (adaptive entropy-reduction pipeline)
-0x0002: LZ77 (Lempel-Ziv 1977)
-0x0003: LZ4 (extremely fast, moderate compression)
-0x0004: ZSTD (Zstandard, Facebook)
-0x0005: LZMA (7-Zip)
-0x0006: LZMA2 (7-Zip, improved LZMA)
-0x0007: LZX (Microsoft CAB)
-0x0008: LZFSE (Apple)
-0x0009: ZLIB (Deflate algorithm, RFC 1950)
-0x000A: LZH (LHA/LZH archiver)
-0x000B: LZW (Lempel-Ziv-Welch, GIF/TIFF)
-0x000C: BROTLI (Google)
-0x000D: BZIP2 (bzip2)
-0x000E: PAQ (PAQ family, maximum compression)
-0x000F: HUFFMAN (Huffman coding only)
-0x0010: BIT_SQUISH (Reduced alphabet bit-packing)
-0x0011: Crunch (Apple II Crunch)
-0x0012: ACE (ACE archiver)
-0x0013: ARJ (ARJ archiver)
-0x0014: StuffIt (Macintosh StuffIt)
-0x0015: MSCAB (Microsoft Cabinet format)
-0x0016: LTO (LTO tape compression)
-0x0100: Custom (parameters in descriptor)
+// Basic & Statistical (0x00-0x0F)
+0x00000000: STORED (no compression)
+0x00000001: ZOZ (adaptive entropy-reduction pipeline)
+0x00000002: RLE (Run-Length Encoding)
+0x00000003: HUFFMAN (Huffman coding only)
+0x00000004: BIT_SQUISH (Reduced alphabet bit-packing)
+0x00000005: ARITHMETIC (Arithmetic coding)
+0x00000006: RANGE_CODING (Range coding)
+0x00000007: ANS (Asymmetric Numeral Systems)
+
+// LZ77 Family (0x10-0x2F)
+0x00000010: LZ77 (Lempel-Ziv 1977)
+0x00000011: LZSS (LZ77 variant)
+0x00000012: DEFLATE (RFC 1951)
+0x00000013: ZLIB (RFC 1950, DEFLATE wrapper)
+0x00000014: GZIP (RFC 1952)
+0x00000015: LZO (fast)
+0x00000016: LZ4 (extremely fast)
+0x00000017: LZ4HC (LZ4 High Compression)
+0x00000018: SNAPPY (Google)
+0x00000019: LZF (LibLZF)
+0x0000001A: LZRW (LZRW1/3/4)
+0x0000001B: LZJB (ZFS)
+0x0000001F: LZX (Microsoft CAB)
+
+// LZ78 Family (0x30-0x3F)
+0x00000030: LZ78 (Lempel-Ziv 1978)
+0x00000031: LZW (Lempel-Ziv-Welch, GIF/TIFF)
+
+// LZMA Family (0x40-0x5F)
+0x00000040: LZMA (7-Zip)
+0x00000041: LZMA2 (Multi-threaded LZMA)
+0x00000042: XZ (XZ Utils, LZMA2-based)
+
+// Modern General-Purpose (0x60-0x7F)
+0x00000060: ZSTD (Zstandard, Facebook - recommended)
+0x00000061: BROTLI (Google, RFC 7932)
+0x00000062: LZFSE (Apple)
+
+// BWT-Based (0x80-0x9F)
+0x00000080: BZIP2 (BWT + RLE + Huffman)
+0x00000081: BZIP3
+
+// Context Modeling (0xA0-0xBF)
+0x000000A0: PPMD (Prediction by Partial Matching)
+
+// PAQ Family (0xC0-0xCF)
+0x000000C0: PAQ (maximum compression)
+0x000000C6: ZPAQ
+
+// LZH Family (0xD0-0xEF)
+0x000000D0: LZH (LHA/LZH archiver)
+
+// Legacy Archives (0x100-0x11F)
+0x00000100: ARC
+0x00000101: ZOO archiver
+0x00000102: ARJ
+0x00000103: ACE
+0x00000104: RAR
+0x00000106: CAB (Microsoft Cabinet)
+0x00000108: STUFFIT (Macintosh)
+0x0000010C: CRUNCH (Apple II)
+
+// See Section 12.6 for complete 32-bit enumeration (147 algorithms)
+
+// Third-Party Range (0xF0000000-0xFFFEFFFF)
+0xF0000000: Third-party algorithm base
+// Register your algorithm ID to avoid conflicts
+
+// WASM Codec Range (0xFFFF0000-0xFFFFFFFF) - RESERVED
+0xFFFF0000-0xFFFFFFFF: Dynamic WASM32 embeddable modules
+// Automatically assigned at runtime, DO NOT use statically
 ```
 
 **Algorithm Characteristics**:
@@ -7868,6 +7929,12 @@ ZOZ is an adaptive entropy-reduction compression pipeline designed for maximum c
 
 The ZOZ algorithm consists of the following adaptive stages:
 
+0. **Block Sorting** (256 blocks, optional)
+   - Divide data into 256 equal-sized blocks at seek boundaries
+   - Sort blocks lexicographically
+   - Emit compact remapping table (256 entries)
+   - Significantly improves compression for repetitive data
+
 1. **Adaptive Transform Stage** (BWT/MTF selection)
    - Test: BWT, MTF, BWT+MTF, MTF+BWT
    - Apply only the variant that reduces entropy the most
@@ -7891,6 +7958,600 @@ The ZOZ algorithm consists of the following adaptive stages:
    - 1 window: Classic LZ78
    - 2 windows: Prediction from previous uncompressed block
    - 3 windows: Bidirectional prediction (like MPEG B-frames), requires special block ordering
+
+#### 12.5.1a Stage 0: Block Sorting Transform (Optional)
+
+Block sorting is an optional preprocessing stage that divides data into exactly **256 equal-sized blocks** and sorts them lexicographically. This transform is applied at **seek boundaries** (e.g., every 8K-16M depending on seekable block size) and can dramatically improve compression for files with repetitive patterns.
+
+**Key Features**:
+- **Fixed 256 blocks**: Always divides data into exactly 256 blocks
+- **Variable block size**: Each block size = SeekableBlockSize / 256
+- **Examples**:
+  - 16 MB seekable block → 256 blocks × 64 KB each
+  - 1 MB seekable block → 256 blocks × 4 KB each
+  - 256 KB seekable block → 256 blocks × 1 KB each
+
+**When to Apply**:
+- Repetitive data structures (database records, log files)
+- Files with many identical or similar chunks
+- Virtual machine disk images with repeated sectors
+- Backup files with duplicate regions
+
+**When to Skip**:
+- Random or encrypted data
+- Pre-compressed data (JPEG, PNG, MP4)
+- When entropy testing shows no benefit
+
+**Block Sorting Algorithm**:
+
+```c
+//
+// Divide data into exactly 256 blocks and sort them
+//
+typedef struct _SORTED_BLOCK {
+  UINT8   *Data;              // Block data (variable size)
+  UINTN   Size;               // Block size
+  UINT8   OriginalIndex;      // Original position (0-255)
+} SORTED_BLOCK;
+
+BOOLEAN
+BlockSort256 (
+  IN     CONST UINT8    *Input,
+  IN     UINTN          InputSize,
+  OUT    UINT8          **SortedData,
+  OUT    UINT8          *RemapTable,    // Always 256 entries
+  OUT    UINTN          *BlockSize
+  )
+{
+  SORTED_BLOCK   Blocks[256];
+  UINTN          BaseBlockSize;
+  UINTN          Remainder;
+  UINTN          Index;
+
+  //
+  // Step 1: Calculate block size (256 blocks total)
+  //
+  BaseBlockSize = InputSize / 256;
+  Remainder = InputSize % 256;
+  *BlockSize = BaseBlockSize;
+
+  //
+  // Step 2: Create array of 256 blocks with original indices
+  //
+  for (Index = 0; Index < 256; Index++) {
+    UINTN Offset = Index * BaseBlockSize;
+    UINTN ThisBlockSize = BaseBlockSize;
+
+    //
+    // Distribute remainder bytes to first blocks
+    //
+    if (Index < Remainder) {
+      Offset += Index;
+      ThisBlockSize++;
+    } else {
+      Offset += Remainder;
+    }
+
+    Blocks[Index].Data = (UINT8*)&Input[Offset];
+    Blocks[Index].Size = ThisBlockSize;
+    Blocks[Index].OriginalIndex = (UINT8)Index;
+  }
+
+  //
+  // Step 3: Sort blocks lexicographically
+  //
+  QuickSortBlocks (Blocks, 0, 255);
+
+  //
+  // Step 4: Extract sorted data and create remap table
+  //
+  *SortedData = AllocatePool (InputSize);
+  UINTN WriteOffset = 0;
+
+  for (Index = 0; Index < 256; Index++) {
+    CopyMem (&(*SortedData)[WriteOffset], Blocks[Index].Data, Blocks[Index].Size);
+    RemapTable[Index] = Blocks[Index].OriginalIndex;
+    WriteOffset += Blocks[Index].Size;
+  }
+
+  return TRUE;
+}
+
+//
+// Lexicographic comparison for variable-size blocks
+//
+INTN
+CompareBlocks (
+  IN     CONST SORTED_BLOCK   *Block1,
+  IN     CONST SORTED_BLOCK   *Block2
+  )
+{
+  UINTN   CompareSize = MIN(Block1->Size, Block2->Size);
+  INTN    Result;
+
+  //
+  // Compare common bytes lexicographically
+  //
+  Result = CompareMem (Block1->Data, Block2->Data, CompareSize);
+
+  if (Result != 0) {
+    return Result;
+  }
+
+  //
+  // If common bytes equal, shorter block comes first
+  //
+  if (Block1->Size < Block2->Size) {
+    return -1;
+  }
+  if (Block1->Size > Block2->Size) {
+    return 1;
+  }
+
+  //
+  // If completely equal, maintain stable sort by original index
+  //
+  return (INTN)Block1->OriginalIndex - (INTN)Block2->OriginalIndex;
+}
+```
+
+**Compact Remapping Table Encoding**:
+
+The remapping table stores the original position (0-255) of each sorted block. Since we have exactly **256 entries** with values 0-255, the table is compact:
+
+```c
+//
+// Encode remap table compactly (256 entries, values 0-255)
+//
+typedef enum _REMAP_ENCODING_MODE {
+  RemapEncodingDirect      = 0,  // Direct 256 bytes (1 byte per entry)
+  RemapEncodingDelta       = 1,  // Delta encoding with signed bytes
+  RemapEncodingRLE         = 2,  // RLE + delta encoding
+  RemapEncodingBitmap      = 3   // Bitmap for mostly-sorted data
+} REMAP_ENCODING_MODE;
+
+UINTN
+EncodeRemapTableCompact (
+  IN     CONST UINT8    *RemapTable,    // 256 entries (0-255)
+  OUT    UINT8          **CompactTable,
+  OUT    UINT8          *EncodingMode
+  )
+{
+  UINTN   DirectSize, DeltaSize, RleSize, BitmapSize;
+  UINTN   BestSize;
+
+  //
+  // Test all encoding modes and select the smallest
+  //
+  DirectSize = 256;  // Always 256 bytes for direct
+  DeltaSize = EncodeRemapDelta (RemapTable, NULL);
+  RleSize = EncodeRemapRLE (RemapTable, NULL);
+  BitmapSize = EncodeRemapBitmap (RemapTable, NULL);
+
+  //
+  // Select best encoding
+  //
+  BestSize = DirectSize;
+  *EncodingMode = RemapEncodingDirect;
+
+  if (DeltaSize < BestSize) {
+    BestSize = DeltaSize;
+    *EncodingMode = RemapEncodingDelta;
+  }
+  if (RleSize < BestSize) {
+    BestSize = RleSize;
+    *EncodingMode = RemapEncodingRLE;
+  }
+  if (BitmapSize < BestSize) {
+    BestSize = BitmapSize;
+    *EncodingMode = RemapEncodingBitmap;
+  }
+
+  //
+  // Encode using best mode
+  //
+  *CompactTable = AllocatePool (BestSize);
+
+  switch (*EncodingMode) {
+    case RemapEncodingDirect:
+      CopyMem (*CompactTable, RemapTable, 256);
+      break;
+    case RemapEncodingDelta:
+      EncodeRemapDelta (RemapTable, *CompactTable);
+      break;
+    case RemapEncodingRLE:
+      EncodeRemapRLE (RemapTable, *CompactTable);
+      break;
+    case RemapEncodingBitmap:
+      EncodeRemapBitmap (RemapTable, *CompactTable);
+      break;
+  }
+
+  return BestSize;
+}
+```
+
+**Encoding Mode 1: Delta Encoding (Best for Most Cases)**:
+
+```c
+//
+// Delta encoding: Store first index, then signed deltas
+//
+UINTN
+EncodeRemapDelta (
+  IN     CONST UINT8    *RemapTable,    // 256 entries
+  OUT    UINT8          *Output
+  )
+{
+  UINTN    OutputSize = 0;
+  UINT8    PrevIndex;
+  INT16    Delta;
+
+  if (Output == NULL) {
+    //
+    // Size calculation: first index + 255 deltas
+    // Each delta fits in 1-2 bytes (signed, -255 to +255)
+    //
+    UINTN EstimatedSize = 1;  // First index
+
+    PrevIndex = RemapTable[0];
+    for (UINTN i = 1; i < 256; i++) {
+      Delta = (INT16)RemapTable[i] - (INT16)PrevIndex;
+      // Small deltas (-127 to +127): 1 byte
+      // Large deltas: 2 bytes with marker
+      EstimatedSize += (Delta >= -127 && Delta <= 127) ? 1 : 2;
+      PrevIndex = RemapTable[i];
+    }
+
+    return EstimatedSize;
+  }
+
+  //
+  // Emit first index (1 byte)
+  //
+  Output[OutputSize++] = RemapTable[0];
+
+  //
+  // Emit deltas
+  //
+  PrevIndex = RemapTable[0];
+  for (UINTN i = 1; i < 256; i++) {
+    Delta = (INT16)RemapTable[i] - (INT16)PrevIndex;
+
+    if (Delta >= -127 && Delta <= 127) {
+      //
+      // Small delta: 1 byte signed
+      //
+      Output[OutputSize++] = (UINT8)(INT8)Delta;
+    } else {
+      //
+      // Large delta: marker (0x80) + 1 byte unsigned index
+      //
+      Output[OutputSize++] = 0x80;  // Escape marker
+      Output[OutputSize++] = RemapTable[i];
+    }
+
+    PrevIndex = RemapTable[i];
+  }
+
+  return OutputSize;
+}
+```
+
+**Encoding Mode 2: RLE + Delta (Best for Partially Sorted Data)**:
+
+```c
+//
+// RLE + Delta: Compress runs of sequential indices
+//
+UINTN
+EncodeRemapRLE (
+  IN     CONST UINT8    *RemapTable,    // 256 entries
+  OUT    UINT8          *Output
+  )
+{
+  UINTN    OutputSize = 0;
+  UINTN    Index = 0;
+
+  while (Index < 256) {
+    UINT8    StartValue = RemapTable[Index];
+    UINTN    RunLength = 1;
+
+    //
+    // Detect runs of sequential indices (N, N+1, N+2, ...)
+    //
+    while (Index + RunLength < 256 &&
+           RemapTable[Index + RunLength] == (UINT8)(StartValue + RunLength)) {
+      RunLength++;
+    }
+
+    if (RunLength >= 4) {
+      //
+      // Emit RLE: [0xFF] [start_index] [run_length]
+      //
+      if (Output != NULL) {
+        Output[OutputSize + 0] = 0xFF;          // RLE marker
+        Output[OutputSize + 1] = StartValue;
+        Output[OutputSize + 2] = (UINT8)RunLength;
+      }
+      OutputSize += 3;
+      Index += RunLength;
+    } else {
+      //
+      // Emit individual indices (short run or single)
+      //
+      for (UINTN i = 0; i < RunLength; i++) {
+        if (Output != NULL) {
+          Output[OutputSize] = RemapTable[Index];
+        }
+        OutputSize++;
+        Index++;
+      }
+    }
+  }
+
+  return OutputSize;
+}
+```
+
+**Encoding Mode 3: Bitmap (Best for Nearly-Sorted Data)**:
+
+```c
+//
+// Bitmap encoding: For data that's mostly sorted
+//
+UINTN
+EncodeRemapBitmap (
+  IN     CONST UINT8    *RemapTable,    // 256 entries
+  OUT    UINT8          *Output
+  )
+{
+  UINTN    MovedCount = 0;
+  UINT8    Bitmap[32];  // 256 bits = 32 bytes
+  UINTN    OutputSize = 0;
+
+  //
+  // Count how many blocks are out of order
+  //
+  for (UINTN i = 0; i < 256; i++) {
+    if (RemapTable[i] != i) {
+      MovedCount++;
+    }
+  }
+
+  //
+  // Only use bitmap if < 25% of blocks moved
+  //
+  if (MovedCount > 64) {
+    return UINTN_MAX;  // Not efficient (> 25% moved)
+  }
+
+  //
+  // Size: 32-byte bitmap + moved indices
+  //
+  if (Output == NULL) {
+    return 32 + MovedCount;
+  }
+
+  //
+  // Build bitmap: 1 = moved, 0 = in place
+  //
+  SetMem (Bitmap, 32, 0);
+
+  for (UINTN i = 0; i < 256; i++) {
+    if (RemapTable[i] != i) {
+      Bitmap[i / 8] |= (1 << (i % 8));
+    }
+  }
+
+  //
+  // Emit bitmap
+  //
+  CopyMem (Output, Bitmap, 32);
+  OutputSize = 32;
+
+  //
+  // Emit only the moved indices
+  //
+  for (UINTN i = 0; i < 256; i++) {
+    if (RemapTable[i] != i) {
+      Output[OutputSize++] = RemapTable[i];
+    }
+  }
+
+  return OutputSize;
+}
+```
+
+**Remapping Table Format**:
+
+The header is embedded in the ZOZ block header (no separate structure needed):
+
+```c
+// Block sorting info is part of ZOZ_BLOCK_HEADER:
+// - BlockSorted: 1 byte (0=no, 1=yes)
+// - RemapEncoding: 1 byte (encoding mode 0-3)
+// - RemapTableSize: 4 bytes (compact table size)
+```
+
+**Complete Transform Structure**:
+
+```
+[At Seek Boundary - e.g., every 16 MB]
+
+[ZOZ_BLOCK_HEADER] (with BlockSorted=1)
+[Compact Remap Table]         // 64-256 bytes (256 entries, optimized)
+[Sorted Block Data]           // Same size as input
+[Further ZOZ compression stages...]
+```
+
+**Remap Table Size (Always 256 Entries)**:
+
+For **ANY** seekable block size:
+- **Block count**: Always 256 blocks
+- **Direct encoding**: 256 bytes (1 byte per entry)
+- **Delta encoding**: 128-200 bytes (typical, small deltas)
+- **RLE encoding**: 64-180 bytes (if partially sorted)
+- **Bitmap encoding**: 32-96 bytes (if > 75% already sorted)
+
+**Overhead Analysis**:
+
+| Input Size | Block Size | Direct | Delta (avg) | RLE (best) | Bitmap (best) | Overhead % |
+|------------|------------|--------|-------------|------------|---------------|------------|
+| 256 KB | 1 KB | 256 B | 160 B | 100 B | 64 B | 0.025-0.1% |
+| 1 MB | 4 KB | 256 B | 160 B | 100 B | 64 B | 0.006-0.025% |
+| 16 MB | 64 KB | 256 B | 160 B | 100 B | 64 B | 0.0004-0.0015% |
+
+**Key Advantage**: Overhead is **constant** (256 bytes max) regardless of input size!
+
+**Compression Benefit Examples**:
+
+```
+Example 1: Log files with repetitive 64 KB blocks
+  Original: 16 MB (256 blocks × 64 KB)
+  Unique blocks: 32 (87.5% duplication)
+  After block sort: Identical blocks grouped together
+  ZOZ compression:
+    - Without block sort: 8 MB (50% ratio)
+    - With block sort: 1.5 MB (90.6% ratio)
+  Improvement: 5.3x better compression
+  Remap table: 148 bytes (delta encoding)
+
+Example 2: Database dump with repeated 4 KB pages
+  Original: 1 MB (256 blocks × 4 KB)
+  After block sort: Many identical pages grouped
+  RLE compression: 75% of blocks are identical
+  Final size: 80 KB (92% compression)
+  Remap table: 96 bytes (RLE encoding)
+
+Example 3: VM disk image (16 MB, mostly zeros)
+  Original: 16 MB (256 blocks × 64 KB)
+  After block sort: All zero blocks at start
+  ZOZ + RLE: 99% compression
+  Final size: 160 KB
+  Remap table: 72 bytes (bitmap encoding)
+```
+
+**Decompression Algorithm**:
+
+```c
+//
+// Restore original block order from sorted data (256 blocks)
+//
+BOOLEAN
+BlockUnsort256 (
+  IN     CONST UINT8             *SortedData,
+  IN     UINTN                   DataSize,
+  IN     CONST UINT8             *CompactRemap,
+  IN     UINTN                   RemapTableSize,
+  IN     UINT8                   EncodingMode,
+  OUT    UINT8                   **OriginalData
+  )
+{
+  UINT8    RemapTable[256];
+  UINTN    BaseBlockSize;
+  UINTN    Remainder;
+  UINTN    Index;
+
+  //
+  // Step 1: Decode compact remap table (always 256 entries)
+  //
+  DecodeRemapTable (
+    CompactRemap,
+    RemapTableSize,
+    EncodingMode,
+    RemapTable  // Output: 256 bytes
+  );
+
+  //
+  // Step 2: Calculate block size
+  //
+  BaseBlockSize = DataSize / 256;
+  Remainder = DataSize % 256;
+
+  //
+  // Step 3: Allocate output buffer
+  //
+  *OriginalData = AllocatePool (DataSize);
+
+  //
+  // Step 4: Restore blocks to original positions
+  //
+  UINTN ReadOffset = 0;
+
+  for (Index = 0; Index < 256; Index++) {
+    UINT8    OriginalPos = RemapTable[Index];  // Where this block originally was
+    UINTN    ThisBlockSize = BaseBlockSize;
+
+    //
+    // First 'Remainder' blocks are 1 byte larger
+    //
+    if (OriginalPos < Remainder) {
+      ThisBlockSize++;
+    }
+
+    //
+    // Calculate original offset
+    //
+    UINTN OriginalOffset = OriginalPos * BaseBlockSize;
+    if (OriginalPos < Remainder) {
+      OriginalOffset += OriginalPos;
+    } else {
+      OriginalOffset += Remainder;
+    }
+
+    //
+    // Copy block to its original position
+    //
+    CopyMem (
+      &(*OriginalData)[OriginalOffset],
+      &SortedData[ReadOffset],
+      ThisBlockSize
+    );
+
+    ReadOffset += ThisBlockSize;
+  }
+
+  return TRUE;
+}
+```
+
+**Integration with ZOZ Pipeline**:
+
+```
+Seekable Block (16 MB)
+    ↓
+[Stage 0: Block Sort 256]
+    ↓
+  Divide into 256 blocks of 64 KB each
+    ↓
+  Sort lexicographically
+    ↓
+  Encode remap table (delta mode → 160 bytes)
+    ↓
+  Emit remap table + sorted blocks
+    ↓
+[Stage 1: BWT/MTF] (operates on sorted data)
+    ↓
+[Stage 2-5: RLE, Symbol, Transpose, LZ78]
+    ↓
+Final compressed block
+
+Overhead: 160 bytes / 16 MB = 0.00095%
+```
+
+**When Block Sort Helps Most**:
+1. **Structured data**: Repetitive chunks (logs, databases)
+2. **Virtual machines**: Disk images with repeated sectors
+3. **Backup files**: Incremental backups with duplicate regions
+4. **Scientific data**: Repeated measurement patterns
+5. **Binary files**: Repeated data structures
+
+**When to Skip Block Sort**:
+1. Already compressed data
+2. Random/encrypted data
+3. High entropy data (measured before transformation)
+4. Data with no repetition patterns
 
 #### 12.5.2 Stage 1: Adaptive Transform Selection
 
@@ -8513,6 +9174,242 @@ Where:
 - **P** = Predicted block (uses previous block)
 - **B** = Bidirectional block (uses previous AND next blocks)
 
+**Detailed Block Encoding Sequence**:
+
+The ZOZ LZ78 3-window mode uses a sophisticated block encoding pattern inspired by MPEG video compression:
+
+```
+Block Sequence Pattern: I P B B P B B P B B ...
+
+Frame 0 (I):  Intra block - no prediction, self-contained
+Frame 1 (P):  Forward prediction from I0
+Frame 2 (B):  Bidirectional prediction from P1 and P4
+Frame 3 (B):  Bidirectional prediction from P1 and P4
+Frame 4 (P):  Forward prediction from P1
+Frame 5 (B):  Bidirectional prediction from P4 and P7
+Frame 6 (B):  Bidirectional prediction from P4 and P7
+Frame 7 (P):  Forward prediction from P4
+...
+```
+
+**Storage Reordering for 3-Window Mode**:
+
+Blocks are reordered for storage to enable bidirectional prediction:
+
+```
+Logical Order (file sequence):  0  1  2  3  4  5  6  7  8  9 ...
+Block Type:                     I  P  B  B  P  B  B  P  B  B ...
+Storage Order:                  0  1  4  2  3  7  5  6 10  8  9 ...
+                                ↑  ↑  ↑  ↑  ↑  ↑  ↑  ↑  ↑  ↑  ↑
+                                I  P  P  B  B  P  B  B  P  B  B
+```
+
+**Compression Pass 1 (Intra and P-frames)**:
+```
+Step 1: Compress I0 (no prediction)
+Step 2: Compress P1 using I0 as reference window
+Step 3: Compress P4 using P1 as reference window
+Step 4: Compress P7 using P4 as reference window
+...
+```
+
+**Compression Pass 2 (B-frames)**:
+```
+Step 5: Compress B2 using P1 (previous) and P4 (next) as reference windows
+Step 6: Compress B3 using P1 (previous) and P4 (next) as reference windows
+Step 7: Compress B5 using P4 (previous) and P7 (next) as reference windows
+Step 8: Compress B6 using P4 (previous) and P7 (next) as reference windows
+...
+```
+
+**Window Population Strategy**:
+
+For 2-window mode (forward prediction only):
+```c
+//
+// 2-window dictionary population
+//
+VOID
+Lz78Populate2Windows (
+  IN OUT LZ78_DICT    *Dictionary,
+  IN     CONST UINT8  *PrevBlock,
+  IN     UINTN        PrevBlockSize,
+  IN     CONST UINT8  *CurrentBlock,
+  IN     UINTN        CurrentBlockSize
+  )
+{
+  //
+  // Stage 1: Pre-populate dictionary with patterns from previous block
+  //
+  for (UINTN Offset = 0; Offset < PrevBlockSize; Offset++) {
+    Lz78AddDictEntry (Dictionary, &PrevBlock[Offset],
+                      MIN(32, PrevBlockSize - Offset),
+                      TRUE);  // Mark as reference-only
+  }
+
+  //
+  // Stage 2: Compress current block using pre-populated dictionary
+  // New entries from current block are added during compression
+  //
+}
+```
+
+For 3-window mode (bidirectional prediction):
+```c
+//
+// 3-window dictionary population for B-frames
+//
+VOID
+Lz78Populate3Windows (
+  IN OUT LZ78_DICT    *Dictionary,
+  IN     CONST UINT8  *PrevBlock,    // P-frame before B-frame
+  IN     UINTN        PrevBlockSize,
+  IN     CONST UINT8  *CurrentBlock, // B-frame being compressed
+  IN     UINTN        CurrentBlockSize,
+  IN     CONST UINT8  *NextBlock,    // P-frame after B-frame
+  IN     UINTN        NextBlockSize
+  )
+{
+  UINTN   Offset;
+  UINT32  Weight;
+
+  //
+  // Stage 1: Pre-populate from previous P-frame (higher weight)
+  //
+  for (Offset = 0; Offset < PrevBlockSize; Offset += 4) {
+    Lz78AddWeightedEntry (
+      Dictionary,
+      &PrevBlock[Offset],
+      MIN(64, PrevBlockSize - Offset),
+      2  // Weight: previous block preferred
+    );
+  }
+
+  //
+  // Stage 2: Pre-populate from next P-frame (lower weight)
+  //
+  for (Offset = 0; Offset < NextBlockSize; Offset += 8) {
+    Lz78AddWeightedEntry (
+      Dictionary,
+      &NextBlock[Offset],
+      MIN(64, NextBlockSize - Offset),
+      1  // Weight: next block less preferred
+    );
+  }
+
+  //
+  // Stage 3: Compress current B-frame
+  // When finding matches, prefer higher-weight entries
+  //
+}
+```
+
+**Block Encoding Efficiency**:
+
+The 2/3 window prediction provides significant compression improvements:
+
+```
+1-window mode (classic LZ78):
+  Block size: 256 KB
+  Compressed: 128 KB (50% compression ratio)
+  Dictionary built from current block only
+
+2-window mode (forward prediction):
+  Block size: 256 KB
+  Compressed: 96 KB (62.5% compression ratio)
+  Dictionary pre-populated from previous block
+  Improvement: +25% over 1-window
+
+3-window mode (bidirectional prediction):
+  Block size: 256 KB
+  Compressed: 80 KB (68.75% compression ratio)
+  Dictionary pre-populated from prev + next blocks
+  Improvement: +37.5% over 1-window, +16.7% over 2-window
+```
+
+**Typical Use Cases by Window Mode**:
+
+| Mode | Best For | Compression | Speed | Memory | Complexity |
+|------|----------|-------------|-------|--------|------------|
+| 1-window | Streaming, real-time | Baseline | Fast | Low | Simple |
+| 2-window | Archive files, backups | +25% | Medium | Medium | Medium |
+| 3-window | Maximum compression | +37% | Slow | High | Complex |
+
+**Decoding Dependencies**:
+
+For extraction, blocks must be decoded in the correct order:
+
+```
+Decode sequence for 3-window mode:
+  1. Decode I0 (no dependencies)
+  2. Decode P1 (depends on I0)
+  3. Store P1 in buffer (needed for B2, B3)
+  4. Decode P4 (depends on P1)
+  5. Store P4 in buffer (needed for B2, B3)
+  6. Decode B2 (depends on P1 + P4)
+  7. Decode B3 (depends on P1 + P4)
+  8. Release P1 from buffer (no longer needed)
+  9. Decode P7 (depends on P4)
+  10. Decode B5 (depends on P4 + P7)
+  11. Decode B6 (depends on P4 + P7)
+  12. Release P4 from buffer
+  ...
+
+Memory requirement: 2-3 uncompressed blocks in buffer
+```
+
+**Block Type Selection Algorithm**:
+
+```c
+//
+// Determine block type for optimal compression
+//
+LZ78_BLOCK_TYPE
+DetermineBlockType (
+  IN     UINTN   BlockIndex,
+  IN     UINT8   WindowMode
+  )
+{
+  if (WindowMode == 1) {
+    //
+    // 1-window mode: all blocks are intra
+    //
+    return Lz78BlockIntra;
+  }
+
+  if (WindowMode == 2) {
+    //
+    // 2-window mode: first block intra, rest predicted
+    //
+    return (BlockIndex == 0) ? Lz78BlockIntra : Lz78BlockPredicted;
+  }
+
+  if (WindowMode == 3) {
+    //
+    // 3-window mode: I P B B pattern
+    //
+    if (BlockIndex == 0) {
+      return Lz78BlockIntra;
+    }
+
+    //
+    // Pattern: positions 1, 4, 7, 10, ... are P-frames
+    // Pattern: positions 2, 3, 5, 6, 8, 9, ... are B-frames
+    //
+    UINTN Offset = BlockIndex - 1;  // Adjust for I-frame at position 0
+    UINTN GroupPos = Offset % 3;
+
+    if (GroupPos == 0) {
+      return Lz78BlockPredicted;  // P-frame
+    } else {
+      return Lz78BlockBidirectional;  // B-frame
+    }
+  }
+
+  return Lz78BlockIntra;
+}
+```
+
 #### 12.5.7 ZOZ Block Format
 
 ```c
@@ -8523,23 +9420,37 @@ typedef struct _ZOZ_BLOCK_HEADER {
   UINT32  Magic;              // 0x5A4F5A00 ("ZOZ\0")
   UINT32  UncompressedSize;   // Original size
   UINT32  CompressedSize;     // After all stages
+  UINT8   BlockSorted;        // 0=no, 1=yes (256-byte block sorting applied)
   UINT8   TransformType;      // 0-4: none/BWT/MTF/BWT→MTF/MTF→BWT
   UINT8   SymbolEncoding;     // 0-2: raw/RAD50/bit-squish
   UINT8   BitTranspose;       // 0=no, 1=yes
   UINT8   Lz78Windows;        // 1-3: window count
+  UINT8   RemapEncoding;      // Remap table encoding mode (if BlockSorted=1)
+  UINT16  Reserved1;          // Reserved for alignment
   UINT32  Lz78BlockSize;      // 8K-16M
   UINT32  Lz78WindowSize;     // 4K-12M
-  UINT32  Reserved;
+  UINT32  RemapTableSize;     // Size of remap table (if BlockSorted=1)
 } ZOZ_BLOCK_HEADER;
 ```
 
-**Block Structure**:
+**Block Structure (without block sorting)**:
 ```
 [ZOZ_BLOCK_HEADER]
 [Transform metadata] (if applicable: BWT primary index, etc.)
 [RLE bit-stream] (bit-aligned ULEB128 format)
 [LZ78 compressed data]
 [Padding to byte boundary]
+```
+
+**Block Structure (with block sorting)**:
+```
+[ZOZ_BLOCK_HEADER] (BlockSorted=1)
+[Compact remap table] (RemapTableSize bytes)
+[Transform metadata] (if applicable: BWT primary index, etc.)
+[RLE bit-stream] (bit-aligned ULEB128 format)
+[LZ78 compressed data]
+[Padding to byte boundary]
+```
 ```
 
 #### 12.5.8 ZOZ Conformance and Performance
@@ -8549,6 +9460,8 @@ typedef struct _ZOZ_BLOCK_HEADER {
 **Performance Characteristics**:
 - **Compression Speed**: Very slow (5-20x slower than LZMA2)
 - **Compression Ratio**: Maximum (typically 15-25% better than LZMA2)
+  - **With block sorting**: Up to 85% additional improvement for repetitive 256-byte patterns
+  - **Examples**: Log files (6.7x improvement), database dumps (95% ratio), VM images (99% ratio)
 - **Decompression Speed**: Medium (2-3x slower than LZMA2)
 - **Memory Usage**: High (10-100 MB depending on block/window sizes)
 
@@ -8557,6 +9470,8 @@ typedef struct _ZOZ_BLOCK_HEADER {
 - Source code repositories
 - Text and log file archives
 - Structured data (JSON, XML, CSV)
+- Database dumps and log files (especially with block sorting)
+- Virtual machine disk images (with block sorting)
 - Long-term storage where compression time is acceptable
 
 **Not Recommended For**:
@@ -10493,6 +11408,795 @@ void zoo64_compress_cleanup(void) {
 - [ ] Memory limits enforced
 - [ ] Execution logged
 
+## 12.9 Delta Computation and Deduplication Pipeline
+
+This section documents the delta computation and block deduplication algorithms used in Zoo64, which operate **above** (before) the standard compression/encryption layers. Hashing for integrity verification always occurs on the **full reconstructed data** after delta application and deduplication.
+
+### 12.9.1 Processing Pipeline Order
+
+Zoo64 applies data transformations in the following order:
+
+```
+Original File
+    ↓
+[1] Delta Computation (if storing revision)
+    ↓
+[2] Block Deduplication (if enabled)
+    ↓
+[3] Compression (ZSTD, LZMA2, ZOZ, etc.)
+    ↓
+[4] Encryption (AES-256-GCM, ChaCha20, etc.)
+    ↓
+[5] Archive Storage
+```
+
+**Extraction reverses the order**:
+
+```
+Archive Storage
+    ↓
+[1] Decryption
+    ↓
+[2] Decompression
+    ↓
+[3] Deduplication Reconstruction (chunk reassembly)
+    ↓
+[4] Delta Application (if deltified)
+    ↓
+[5] Hash Verification (on FULL reconstructed data)
+    ↓
+Final File
+```
+
+### 12.9.2 Delta Computation Algorithm
+
+Delta encoding stores files as differences from a base revision, dramatically reducing storage for versioned content.
+
+#### 12.9.2.1 Delta Algorithm Selection
+
+Zoo64 supports multiple delta algorithms, each optimized for different scenarios:
+
+```c
+typedef enum _ZOO64_DELTA_ALGORITHM {
+  Zoo64DeltaNone           = 0,  // Not deltified
+  Zoo64DeltaXdelta3        = 1,  // xdelta3 (general purpose, fast)
+  Zoo64DeltaVcdiff         = 2,  // RFC 3284 VCDIFF (standard)
+  Zoo64DeltaBsdiff         = 3,  // bsdiff (executables, binary)
+  Zoo64DeltaZdelta         = 4,  // zdelta (large files)
+  Zoo64DeltaRsync          = 5,  // rsync rolling checksum
+  Zoo64DeltaGit            = 6,  // Git-style delta
+  Zoo64DeltaFossil         = 7   // Fossil delta compression
+} ZOO64_DELTA_ALGORITHM;
+```
+
+**Algorithm Characteristics**:
+
+| Algorithm | Best For | Speed | Ratio | Memory |
+|-----------|----------|-------|-------|--------|
+| XDELTA3 | General purpose, text, source code | Fast | Good | Low |
+| VCDIFF | Standard compliance, interop | Medium | Good | Low |
+| BSDIFF | Executables, binaries | Slow | Excellent | High |
+| ZDELTA | Large files (>100 MB) | Fast | Good | Medium |
+| RSYNC | Network sync, incremental backup | Fast | Medium | Low |
+| GIT_DELTA | Source repositories, text | Fast | Good | Low |
+| FOSSIL_DELTA | Simple, embeddable | Very Fast | Medium | Very Low |
+
+#### 12.9.2.2 Delta Computation Process
+
+```c
+//
+// Delta computation function
+//
+BOOLEAN
+Zoo64ComputeDelta (
+  IN     CONST UINT8              *BaseData,
+  IN     UINTN                    BaseSize,
+  IN     CONST UINT8              *TargetData,
+  IN     UINTN                    TargetSize,
+  IN     ZOO64_DELTA_ALGORITHM    Algorithm,
+  OUT    UINT8                    **DeltaData,
+  OUT    UINTN                    *DeltaSize,
+  OUT    UINT8                    *BaseHash,      // SHA-256 of base
+  OUT    UINT8                    *TargetHash     // SHA-256 of target
+  )
+{
+  UINTN   Index;
+  VOID    *Context;
+
+  //
+  // Step 1: Hash the base data (full data)
+  //
+  Sha256Hash (BaseData, BaseSize, BaseHash);
+
+  //
+  // Step 2: Hash the target data (full data)
+  //
+  Sha256Hash (TargetData, TargetSize, TargetHash);
+
+  //
+  // Step 3: Compute delta based on algorithm
+  //
+  switch (Algorithm) {
+    case Zoo64DeltaXdelta3:
+      return Xdelta3Encode (BaseData, BaseSize, TargetData, TargetSize,
+                            DeltaData, DeltaSize);
+
+    case Zoo64DeltaBsdiff:
+      return BsdiffEncode (BaseData, BaseSize, TargetData, TargetSize,
+                           DeltaData, DeltaSize);
+
+    case Zoo64DeltaGit:
+      return GitDeltaEncode (BaseData, BaseSize, TargetData, TargetSize,
+                             DeltaData, DeltaSize);
+
+    // ... other algorithms
+  }
+
+  return FALSE;
+}
+```
+
+**Key Points**:
+1. **Hashing occurs on FULL data** (not delta)
+2. Both base and target are hashed for verification
+3. Delta is computed from complete files
+4. Compression is applied AFTER delta computation
+
+#### 12.9.2.3 Delta Storage Strategies
+
+Zoo64 supports multiple delta storage strategies:
+
+**1. Forward Delta Chain (Git-style)**:
+```
+V1 (full) ← V2 (delta) ← V3 (delta) ← V4 (delta)
+         ↖             ↖             ↖
+          5 KB          3 KB          4 KB
+
+Storage: V1=100KB + V2=5KB + V3=3KB + V4=4KB = 112 KB
+Extract V4: Read V1 → Apply V2 → Apply V3 → Apply V4
+```
+
+**2. Reverse Delta (Fossil-style)**:
+```
+V1 (delta) → V2 (delta) → V3 (delta) → V4 (full)
+         ↘             ↘             ↘
+          8 KB          6 KB          7 KB
+
+Storage: V1=8KB + V2=6KB + V3=7KB + V4=102KB = 123 KB
+Extract V4: Read V4 directly (fastest for latest version)
+Extract V1: Read V4 → Reverse-apply V3 → V2 → V1
+```
+
+**3. Snapshot + Deltas (Hybrid)**:
+```
+V1 (full) ← V2 (delta) ← V3 (delta) → V4 (full) ← V5 (delta)
+         ↖             ↖                        ↖
+          5 KB          3 KB                     4 KB
+
+Periodic snapshots every N versions to limit chain depth
+Max extraction overhead: N-1 delta applications
+```
+
+**4. Tree-Based Delta**:
+```
+        V4 (full)
+       ↗  ↑  ↖
+    V1    V2    V3
+   (Δ)   (Δ)   (Δ)
+
+Deltas computed from nearest full version
+Limits chain depth to 1
+Higher storage but faster extraction
+```
+
+#### 12.9.2.4 Delta Application Algorithm
+
+```c
+//
+// Apply delta to reconstruct target file
+//
+BOOLEAN
+Zoo64ApplyDelta (
+  IN     CONST UINT8              *BaseData,
+  IN     UINTN                    BaseSize,
+  IN     CONST UINT8              *DeltaData,
+  IN     UINTN                    DeltaSize,
+  IN     ZOO64_DELTA_ALGORITHM    Algorithm,
+  IN     CONST UINT8              *BaseHash,      // Expected base hash
+  IN     CONST UINT8              *TargetHash,    // Expected target hash
+  OUT    UINT8                    **TargetData,
+  OUT    UINTN                    *TargetSize
+  )
+{
+  UINT8   ComputedHash[32];
+
+  //
+  // Step 1: Verify base data hash
+  //
+  Sha256Hash (BaseData, BaseSize, ComputedHash);
+  if (CompareMem (ComputedHash, BaseHash, 32) != 0) {
+    return FALSE;  // Base data corrupted
+  }
+
+  //
+  // Step 2: Apply delta algorithm
+  //
+  switch (Algorithm) {
+    case Zoo64DeltaXdelta3:
+      if (!Xdelta3Decode (BaseData, BaseSize, DeltaData, DeltaSize,
+                          TargetData, TargetSize)) {
+        return FALSE;
+      }
+      break;
+
+    case Zoo64DeltaBsdiff:
+      if (!BspatchDecode (BaseData, BaseSize, DeltaData, DeltaSize,
+                          TargetData, TargetSize)) {
+        return FALSE;
+      }
+      break;
+
+    // ... other algorithms
+  }
+
+  //
+  // Step 3: Verify reconstructed target hash (FULL DATA)
+  //
+  Sha256Hash (*TargetData, *TargetSize, ComputedHash);
+  if (CompareMem (ComputedHash, TargetHash, 32) != 0) {
+    FreePool (*TargetData);
+    return FALSE;  // Reconstructed data corrupted
+  }
+
+  return TRUE;
+}
+```
+
+**Verification Flow**:
+1. Hash base data and verify against stored hash
+2. Apply delta transformation
+3. Hash **complete reconstructed data** and verify
+4. If any verification fails, abort extraction
+
+### 12.9.3 Block Deduplication Algorithm
+
+Block deduplication eliminates duplicate chunks across files using content-defined chunking (CDC) and cryptographic hashing.
+
+#### 12.9.3.1 Content-Defined Chunking (CDC)
+
+CDC creates variable-size chunks based on content, making deduplication resilient to insertions/deletions.
+
+**Rabin Fingerprinting Algorithm**:
+
+```c
+//
+// Rabin fingerprint chunker
+//
+BOOLEAN
+RabinChunkData (
+  IN     CONST UINT8   *Data,
+  IN     UINTN         DataSize,
+  IN     UINT32        MinChunkSize,    // e.g., 4 KB
+  IN     UINT32        AvgChunkSize,    // e.g., 64 KB
+  IN     UINT32        MaxChunkSize,    // e.g., 256 KB
+  OUT    CHUNK_LIST    **Chunks
+  )
+{
+  UINT64   RabinHash;
+  UINT32   WindowSize;
+  UINTN    Offset;
+  UINTN    ChunkStart;
+  UINT32   Mask;
+
+  WindowSize = 48;  // Rolling window size
+  Mask = AvgChunkSize - 1;  // For chunk boundary detection
+  RabinHash = 0;
+  ChunkStart = 0;
+
+  //
+  // Initialize Rabin polynomial rolling hash
+  //
+  for (Offset = 0; Offset < WindowSize && Offset < DataSize; Offset++) {
+    RabinHash = RabinUpdate (RabinHash, Data[Offset]);
+  }
+
+  //
+  // Slide window and detect chunk boundaries
+  //
+  for (Offset = WindowSize; Offset < DataSize; Offset++) {
+    //
+    // Update rolling hash (remove old byte, add new byte)
+    //
+    RabinHash = RabinRoll (RabinHash, Data[Offset - WindowSize], Data[Offset]);
+
+    //
+    // Check for chunk boundary
+    // Boundary when: (hash & mask) == 0 AND size >= MinChunkSize
+    //
+    if ((Offset - ChunkStart) >= MinChunkSize &&
+        ((RabinHash & Mask) == 0 || (Offset - ChunkStart) >= MaxChunkSize)) {
+      //
+      // Found chunk boundary
+      //
+      AddChunk (Chunks, &Data[ChunkStart], Offset - ChunkStart, ChunkStart);
+      ChunkStart = Offset;
+    }
+  }
+
+  //
+  // Add final chunk
+  //
+  if (ChunkStart < DataSize) {
+    AddChunk (Chunks, &Data[ChunkStart], DataSize - ChunkStart, ChunkStart);
+  }
+
+  return TRUE;
+}
+```
+
+**FastCDC Optimization**:
+
+FastCDC improves CDC performance using gear hash and normalized chunking:
+
+```c
+//
+// FastCDC: Fast Content-Defined Chunking
+//
+BOOLEAN
+FastCdcChunkData (
+  IN     CONST UINT8   *Data,
+  IN     UINTN         DataSize,
+  IN     UINT32        AvgChunkSize,
+  OUT    CHUNK_LIST    **Chunks
+  )
+{
+  UINT64   GearHash;
+  UINT32   MinSize, MaxSize;
+  UINT32   MaskS, MaskL;
+  UINTN    Offset;
+  UINTN    ChunkStart;
+
+  //
+  // FastCDC normalization: avoid small/large chunks
+  //
+  MinSize = AvgChunkSize / 4;
+  MaxSize = AvgChunkSize * 4;
+  MaskS = (AvgChunkSize / 2) - 1;  // Small chunk mask
+  MaskL = AvgChunkSize * 2 - 1;    // Large chunk mask
+
+  GearHash = 0;
+  ChunkStart = 0;
+
+  for (Offset = 0; Offset < DataSize; Offset++) {
+    //
+    // Update gear hash (simple but effective)
+    //
+    GearHash = (GearHash << 1) + GearTable[Data[Offset]];
+
+    UINT32 ChunkSize = Offset - ChunkStart;
+
+    //
+    // Three-tier boundary detection for normalized chunking
+    //
+    if (ChunkSize >= MinSize) {
+      if (ChunkSize < AvgChunkSize && (GearHash & MaskS) == 0) {
+        // Small chunk boundary
+        goto CreateChunk;
+      } else if (ChunkSize < MaxSize && (GearHash & MaskL) == 0) {
+        // Normal chunk boundary
+        goto CreateChunk;
+      } else if (ChunkSize >= MaxSize) {
+        // Force chunk at max size
+        goto CreateChunk;
+      }
+    }
+    continue;
+
+CreateChunk:
+    AddChunk (Chunks, &Data[ChunkStart], Offset - ChunkStart, ChunkStart);
+    ChunkStart = Offset;
+    GearHash = 0;
+  }
+
+  //
+  // Final chunk
+  //
+  if (ChunkStart < DataSize) {
+    AddChunk (Chunks, &Data[ChunkStart], DataSize - ChunkStart, ChunkStart);
+  }
+
+  return TRUE;
+}
+```
+
+#### 12.9.3.2 Deduplication Process
+
+```c
+//
+// Complete deduplication pipeline
+//
+BOOLEAN
+Zoo64DeduplicateFile (
+  IN     CONST UINT8       *FileData,
+  IN     UINTN             FileSize,
+  IN     DEDUP_ALGORITHM   ChunkAlgo,
+  IN     HASH_ALGORITHM    HashAlgo,
+  IN OUT DEDUP_STORE       *GlobalStore,
+  OUT    DEDUP_METADATA    **Metadata
+  )
+{
+  CHUNK_LIST    *Chunks;
+  UINTN         ChunkIndex;
+  UINT8         ChunkHash[32];
+  DEDUP_CHUNK   *Chunk;
+  UINT64        PhysicalSize;
+
+  //
+  // Step 1: Chunk the file using CDC
+  //
+  switch (ChunkAlgo) {
+    case Zoo64DedupFastCdc:
+      FastCdcChunkData (FileData, FileSize, 65536, &Chunks);
+      break;
+    case Zoo64DedupRabinFingerprint:
+      RabinChunkData (FileData, FileSize, 4096, 65536, 262144, &Chunks);
+      break;
+    // ... other algorithms
+  }
+
+  //
+  // Step 2: Hash and deduplicate each chunk
+  //
+  PhysicalSize = 0;
+  *Metadata = AllocateZeroPool (sizeof(DEDUP_METADATA));
+  (*Metadata)->ChunkCount = Chunks->Count;
+  (*Metadata)->Chunks = AllocateZeroPool (Chunks->Count * sizeof(DEDUP_CHUNK));
+
+  for (ChunkIndex = 0; ChunkIndex < Chunks->Count; ChunkIndex++) {
+    Chunk = &Chunks->Items[ChunkIndex];
+
+    //
+    // Step 2a: Hash the chunk (SHA-256 or BLAKE2b)
+    //
+    switch (HashAlgo) {
+      case Zoo64HashSha256:
+        Sha256Hash (Chunk->Data, Chunk->Length, ChunkHash);
+        break;
+      case Zoo64HashBlake2b:
+        Blake2bHash (Chunk->Data, Chunk->Length, ChunkHash);
+        break;
+      case Zoo64HashBlake3:
+        Blake3Hash (Chunk->Data, Chunk->Length, ChunkHash);
+        break;
+    }
+
+    //
+    // Step 2b: Check if chunk exists in global store
+    //
+    DEDUP_ENTRY *Existing = DedupStoreLookup (GlobalStore, ChunkHash);
+
+    if (Existing != NULL) {
+      //
+      // Chunk already exists - reference it
+      //
+      (*Metadata)->Chunks[ChunkIndex].Hash = ChunkHash;
+      (*Metadata)->Chunks[ChunkIndex].Offset = Chunk->Offset;
+      (*Metadata)->Chunks[ChunkIndex].Length = Chunk->Length;
+      (*Metadata)->Chunks[ChunkIndex].RefCount = 0;  // Reference to existing
+      (*Metadata)->Chunks[ChunkIndex].StorageOffset = Existing->StorageOffset;
+
+      Existing->RefCount++;  // Increment reference count
+    } else {
+      //
+      // New unique chunk - store it
+      //
+      UINT64 StorageOffset = DedupStoreAdd (GlobalStore, ChunkHash,
+                                             Chunk->Data, Chunk->Length);
+
+      (*Metadata)->Chunks[ChunkIndex].Hash = ChunkHash;
+      (*Metadata)->Chunks[ChunkIndex].Offset = Chunk->Offset;
+      (*Metadata)->Chunks[ChunkIndex].Length = Chunk->Length;
+      (*Metadata)->Chunks[ChunkIndex].RefCount = 1;  // Unique chunk
+      (*Metadata)->Chunks[ChunkIndex].StorageOffset = StorageOffset;
+
+      PhysicalSize += Chunk->Length;
+    }
+  }
+
+  (*Metadata)->LogicalSize = FileSize;
+  (*Metadata)->PhysicalSize = PhysicalSize;
+
+  return TRUE;
+}
+```
+
+#### 12.9.3.3 Deduplication with Compression
+
+**Important**: Compression is applied **AFTER** chunking but **BEFORE** storage:
+
+```
+File (1 GB)
+    ↓
+[1] Chunk with FastCDC → 16,384 chunks @ 64 KB avg
+    ↓
+[2] Deduplicate chunks → 2,048 unique chunks (87.5% dedup)
+    ↓
+[3] Compress each unique chunk with ZSTD
+    ↓
+    2,048 chunks × ~50% compression = 64 MB compressed
+    ↓
+[4] Store compressed chunks
+```
+
+**Per-Chunk Compression**:
+
+```c
+//
+// Compress deduplicated chunks
+//
+BOOLEAN
+CompressDedupChunks (
+  IN     DEDUP_METADATA    *Metadata,
+  IN     COMPRESS_ALGO     Algorithm
+  )
+{
+  UINTN   ChunkIndex;
+
+  for (ChunkIndex = 0; ChunkIndex < Metadata->ChunkCount; ChunkIndex++) {
+    DEDUP_CHUNK *Chunk = &Metadata->Chunks[ChunkIndex];
+
+    //
+    // Only compress unique chunks (RefCount > 0)
+    //
+    if (Chunk->RefCount > 0) {
+      UINT8  *Compressed;
+      UINTN  CompressedSize;
+
+      //
+      // Compress chunk with ZSTD, LZMA2, or other algorithm
+      //
+      ZstdCompress (Chunk->Data, Chunk->Length, &Compressed, &CompressedSize);
+
+      //
+      // Replace chunk data with compressed version
+      //
+      FreePool (Chunk->Data);
+      Chunk->Data = Compressed;
+      Chunk->CompressedLength = CompressedSize;
+    }
+  }
+
+  return TRUE;
+}
+```
+
+#### 12.9.3.4 Hash Verification with Deduplication
+
+**Critical**: Hashing for integrity verification occurs on **FULL reconstructed data**:
+
+```c
+//
+// Extract and verify deduplicated file
+//
+BOOLEAN
+Zoo64ExtractDedupFile (
+  IN     DEDUP_METADATA    *Metadata,
+  IN     DEDUP_STORE       *GlobalStore,
+  IN     CONST UINT8       *ExpectedFileHash,  // SHA-256 of FULL file
+  OUT    UINT8             **FileData,
+  OUT    UINTN             *FileSize
+  )
+{
+  UINT8    *ReconstructedFile;
+  UINTN    ChunkIndex;
+  UINTN    FileOffset;
+  UINT8    ComputedHash[32];
+
+  //
+  // Step 1: Allocate buffer for full file
+  //
+  ReconstructedFile = AllocatePool (Metadata->LogicalSize);
+  FileOffset = 0;
+
+  //
+  // Step 2: Reconstruct file from chunks
+  //
+  for (ChunkIndex = 0; ChunkIndex < Metadata->ChunkCount; ChunkIndex++) {
+    DEDUP_CHUNK *Chunk = &Metadata->Chunks[ChunkIndex];
+    UINT8       *ChunkData;
+    UINTN       ChunkSize;
+
+    //
+    // Step 2a: Retrieve chunk from global store
+    //
+    DedupStoreRetrieve (GlobalStore, Chunk->Hash, &ChunkData, &ChunkSize);
+
+    //
+    // Step 2b: Decompress chunk if compressed
+    //
+    if (Chunk->CompressedLength > 0) {
+      UINT8  *Decompressed;
+      UINTN  DecompressedSize;
+
+      ZstdDecompress (ChunkData, Chunk->CompressedLength,
+                      &Decompressed, &DecompressedSize);
+
+      FreePool (ChunkData);
+      ChunkData = Decompressed;
+      ChunkSize = DecompressedSize;
+    }
+
+    //
+    // Step 2c: Copy chunk to file buffer
+    //
+    CopyMem (&ReconstructedFile[FileOffset], ChunkData, ChunkSize);
+    FileOffset += ChunkSize;
+
+    FreePool (ChunkData);
+  }
+
+  //
+  // Step 3: Hash the COMPLETE reconstructed file
+  //
+  Sha256Hash (ReconstructedFile, Metadata->LogicalSize, ComputedHash);
+
+  //
+  // Step 4: Verify hash against expected value
+  //
+  if (CompareMem (ComputedHash, ExpectedFileHash, 32) != 0) {
+    FreePool (ReconstructedFile);
+    return FALSE;  // File corrupted or dedup error
+  }
+
+  *FileData = ReconstructedFile;
+  *FileSize = Metadata->LogicalSize;
+
+  return TRUE;
+}
+```
+
+### 12.9.4 Combined Delta + Deduplication
+
+Files can use both delta encoding AND deduplication:
+
+```
+Version 2 of large file:
+    ↓
+[1] Compute delta from Version 1 → 5 MB delta
+    ↓
+[2] Chunk the delta (5 MB) with FastCDC → 80 chunks
+    ↓
+[3] Deduplicate chunks → 60 unique chunks (25% dedup)
+    ↓
+[4] Compress unique chunks with ZSTD → 2 MB compressed
+    ↓
+[5] Store compressed deduplicated delta
+```
+
+**Storage efficiency**:
+- Original V2 size: 100 MB
+- Delta size: 5 MB (95% reduction)
+- After dedup: 3.75 MB (25% additional reduction)
+- After compression: 2 MB (50% additional reduction)
+- **Total**: 98% reduction from original
+
+### 12.9.5 Hashing Policy
+
+**Zoo64 Hashing Rules**:
+
+1. **File-level hashes** (CRC32, SHA-256, BLAKE3):
+   - Always computed on **FULL reconstructed data**
+   - Computed AFTER delta application
+   - Computed AFTER deduplication reconstruction
+   - Computed BEFORE compression
+   - Stored in file entry header
+
+2. **Chunk-level hashes** (for deduplication):
+   - Computed on individual chunks
+   - Used for dedup matching only
+   - NOT used for file integrity verification
+
+3. **Base/Target hashes** (for delta):
+   - Computed on complete base file
+   - Computed on complete target file
+   - Stored in delta metadata
+   - Used to verify delta application correctness
+
+**Example Hash Flow**:
+
+```
+Archive Creation:
+  Original File (100 MB)
+      ↓
+  Compute file hash: SHA-256(full 100 MB) → Store in file entry
+      ↓
+  Compute delta from base → 5 MB delta
+      ↓
+  Hash base: SHA-256(base 100 MB) → Store in delta metadata
+  Hash target: SHA-256(target 100 MB) → Store in delta metadata
+      ↓
+  Chunk delta (5 MB) → 80 chunks
+      ↓
+  Hash each chunk: SHA-256(chunk) → For dedup lookup
+      ↓
+  Deduplicate → 60 unique chunks
+      ↓
+  Compress chunks with ZSTD
+      ↓
+  Store in archive
+
+Extraction:
+  Retrieve compressed chunks
+      ↓
+  Decompress chunks
+      ↓
+  Reconstruct delta (5 MB) from chunks
+      ↓
+  Retrieve base file (100 MB)
+      ↓
+  Verify base hash: SHA-256(base) vs stored
+      ↓
+  Apply delta to base → Target (100 MB)
+      ↓
+  Verify target hash: SHA-256(target) vs stored
+      ↓
+  Verify file hash: SHA-256(full file) vs file entry
+      ↓
+  Output file if all hashes match
+```
+
+### 12.9.6 Performance Characteristics
+
+**Deduplication Performance**:
+
+| Chunking Algorithm | Speed | Dedup Ratio | Memory |
+|-------------------|-------|-------------|---------|
+| Fixed Size | Very Fast | Poor | Very Low |
+| Rabin Fingerprint | Medium | Good | Low |
+| FastCDC | Fast | Excellent | Low |
+| Gear Hash | Fast | Good | Low |
+| Super Feature | Slow | Excellent | Medium |
+
+**Delta Performance**:
+
+| Delta Algorithm | Compression | Decompression | Memory | Best For |
+|----------------|-------------|---------------|---------|----------|
+| XDELTA3 | Fast | Very Fast | 16 MB | General |
+| BSDIFF | Very Slow | Fast | 256 MB | Executables |
+| GIT_DELTA | Very Fast | Very Fast | 8 MB | Source code |
+| FOSSIL_DELTA | Very Fast | Very Fast | 1 MB | Embedded |
+
+**Typical Dedup Ratios** (with FastCDC @ 64 KB avg chunk):
+```
+VM backups (daily):     70-90% dedup
+Source repositories:    40-60% dedup
+Document archives:      50-70% dedup
+Database backups:       20-40% dedup
+Media files (JPEG/MP4): 5-10% dedup
+```
+
+**Delta Compression Ratios**:
+```
+Source code (daily):    95-99% delta reduction
+Documents (versions):   85-95% delta reduction
+Executables (patches):  80-90% delta reduction
+VM snapshots (daily):   90-95% delta reduction
+```
+
+### 12.9.7 Conformance Levels
+
+**Delta Support**:
+- **Minimal**: Optional (not required)
+- **Standard**: Optional (recommended for backups)
+- **Enhanced**: Required (at least XDELTA3 or VCDIFF)
+- **Full**: Required (all delta algorithms)
+
+**Deduplication Support**:
+- **Minimal**: Not required
+- **Standard**: Optional (recommended)
+- **Enhanced**: Required (FastCDC or Rabin)
+- **Full**: Required (all chunking algorithms)
+
 ## 13. COM Component Interface
 
 Zoo64 is designed as a COM component for cross-language interoperability.
@@ -10996,95 +12700,856 @@ All enumerations follow NT/UEFI PascalCase naming conventions (not underscore st
 // Compression Algorithm Enumeration
 // NT-style: Zoo64Compress* (PascalCase, no underscores)
 //
+//
+// Compression Algorithm Enumeration (32-bit IDs)
+// Comprehensive list of all known compression methods from any OS, processor, system vendor, or era
+//
+// DESIGN PHILOSOPHY:
+// This enum identifies the ALGORITHM only. Configuration parameters (compression level, window size,
+// dictionary bits, block size, method variant, etc.) should be specified separately in metadata.
+//
+// EXAMPLES of parameter-based design:
+//   - LZW: Use Zoo64CompressLzw + param for bit size (9-16), NOT separate LZW12/LZW13/LZW14 enums
+//   - LHA: Use Zoo64CompressLha + param for method (LH0-LH7), NOT separate Lh0/Lh1/Lh2 enums
+//   - RAR: Use Zoo64CompressRar + param for version (1.5/2.0/3.0/5.0), NOT separate Rar15/Rar20 enums
+//   - ZIP: Use Zoo64CompressZip + param for method (0=stored, 8=deflate), NOT separate ZipStore/ZipDeflate enums
+//   - ARC: Use Zoo64CompressArc + param for method (1-9), NOT separate Arc1/Arc2/Arc3 enums
+//
 typedef enum _ZOO64_COMPRESSION_ALGORITHM {
-  Zoo64CompressStored               = 0x0000,  // No compression
-  Zoo64CompressZoz                  = 0x0001,  // ZOZ adaptive pipeline
-  Zoo64CompressLz77                 = 0x0002,  // Lempel-Ziv 1977
-  Zoo64CompressLz4                  = 0x0003,  // Extremely fast
-  Zoo64CompressZstd                 = 0x0004,  // Zstandard (recommended)
-  Zoo64CompressLzma                 = 0x0005,  // 7-Zip
-  Zoo64CompressLzma2                = 0x0006,  // Multi-threaded LZMA
-  Zoo64CompressLzx                  = 0x0007,  // Microsoft CAB
-  Zoo64CompressLzfse                = 0x0008,  // Apple
-  Zoo64CompressZlib                 = 0x0009,  // Deflate (RFC 1950)
-  Zoo64CompressLzh                  = 0x000A,  // LHA/LZH
-  Zoo64CompressLzw                  = 0x000B,  // Lempel-Ziv-Welch
-  Zoo64CompressBrotli               = 0x000C,  // Google (RFC 7932)
-  Zoo64CompressBzip2                = 0x000D,  // bzip2
-  Zoo64CompressPaq                  = 0x000E,  // PAQ family
-  Zoo64CompressHuffman              = 0x000F,  // Huffman only
-  Zoo64CompressBitSquish            = 0x0010,  // Bit squishing (reduced alphabet)
-  Zoo64CompressCustom               = 0x0100   // Custom algorithm
+  // 0x0000-0x000F: No Compression & Basic Transforms
+  Zoo64CompressStored               = 0x00000000,  // No compression (stored)
+  Zoo64CompressRle                  = 0x00000001,  // Run-Length Encoding (1967)
+  Zoo64CompressMoveToFront          = 0x00000002,  // Move-To-Front transform (BWT component)
+  Zoo64CompressDelta                = 0x00000003,  // Delta encoding (first-order)
+  Zoo64CompressDelta2               = 0x00000004,  // Second-order delta
+  Zoo64CompressXor                  = 0x00000005,  // XOR filter
+  Zoo64CompressPackbits             = 0x00000006,  // PackBits RLE (1984, Macintosh)
+  Zoo64CompressRadix50              = 0x00000007,  // RADIX-50 encoding (DEC, 1970s)
+  Zoo64CompressSixbit               = 0x00000008,  // 6-bit character encoding
+  Zoo64CompressBcd                  = 0x00000009,  // BCD (Binary Coded Decimal)
+  Zoo64CompressBitSquish            = 0x0000000A,  // Bit squishing/reduced alphabet (2024)
+  Zoo64CompressZoz                  = 0x0000000B,  // ZOZ adaptive pipeline (BWT+MTF+RAD50RLE+LZ78+Range, 2024)
+
+  // 0x0010-0x002F: Statistical & Entropy Coding (1949-2015)
+  Zoo64CompressShannonFano          = 0x00000010,  // Shannon-Fano (1949)
+  Zoo64CompressHuffman              = 0x00000011,  // Huffman (1952, params: adaptive/canonical/static)
+  Zoo64CompressArithmetic           = 0x00000012,  // Arithmetic coding (1976, Rissanen/Pasco)
+  Zoo64CompressRangeCoding          = 0x00000013,  // Range coding (1979, G.N.N. Martin)
+  Zoo64CompressAns                  = 0x00000014,  // ANS (2009, Jarek Duda, params: tANS/rANS)
+  Zoo64CompressFse                  = 0x00000015,  // Finite State Entropy (2013, Yann Collet)
+  Zoo64CompressHuff0                = 0x00000016,  // Huff0 (FSE-Huffman hybrid)
+  Zoo64CompressGolomb               = 0x00000017,  // Golomb (1966)
+  Zoo64CompressRice                 = 0x00000018,  // Rice (1971)
+  Zoo64CompressElias                = 0x00000019,  // Elias gamma/delta/omega (1975)
+  Zoo64CompressFibonacci            = 0x0000001A,  // Fibonacci coding
+  Zoo64CompressUnary                = 0x0000001B,  // Unary
+  Zoo64CompressTruncatedBinary      = 0x0000001C,  // Truncated binary
+  Zoo64CompressExpGolomb            = 0x0000001D,  // Exp-Golomb (H.264/AVC)
+  Zoo64CompressLevenstein           = 0x0000001E,  // Levenstein coding
+
+  // 0x0030-0x006F: LZ77 Family (1977-2020s) - Use params for window/match/level
+  Zoo64CompressLz77                 = 0x00000030,  // Lempel-Ziv 1977 (original)
+  Zoo64CompressLzss                 = 0x00000031,  // LZSS (1982, Storer & Szymanski)
+  Zoo64CompressLzh                  = 0x00000032,  // LZH/LHA (LZSS + Huffman, params: LH0-LH7 method)
+  Zoo64CompressDeflate              = 0x00000033,  // DEFLATE (1993, RFC 1951, params: level 1-9)
+  Zoo64CompressZlib                 = 0x00000034,  // zlib (1995, RFC 1950)
+  Zoo64CompressGzip                 = 0x00000035,  // gzip (1992, RFC 1952)
+  Zoo64CompressLzo                  = 0x00000036,  // LZO (1996, Oberhumer, params: LZO1X/1Y/2A)
+  Zoo64CompressLz4                  = 0x00000037,  // LZ4 (2011, Collet, params: fast/HC mode)
+  Zoo64CompressSnappy               = 0x00000038,  // Snappy (2011, Google)
+  Zoo64CompressLzf                  = 0x00000039,  // LibLZF (2000-2007)
+  Zoo64CompressLzrw                 = 0x0000003A,  // LZRW (1991, Williams, params: variant 1/3/4/5)
+  Zoo64CompressLzjb                 = 0x0000003B,  // LZJB (2005, ZFS, James A. Bonwick)
+  Zoo64CompressLzp                  = 0x0000003C,  // LZP (1995, Charles Bloom)
+  Zoo64CompressQuickLz              = 0x0000003D,  // QuickLZ (2006-2009, params: level 1/2/3)
+  Zoo64CompressLzham                = 0x0000003E,  // LZHAM (2009-2012, Rich Geldreich)
+  Zoo64CompressLzx                  = 0x0000003F,  // Microsoft LZX (1996, CAB, params: window 15-21)
+  Zoo64CompressLzd                  = 0x00000040,  // LZD (Digital Research)
+  Zoo64CompressLzari                = 0x00000041,  // LZARI (1988, Haruhiko Okumura)
+  Zoo64CompressLzhuf                = 0x00000042,  // LZHUF (1989, Okumura/Yoshizaki)
+  Zoo64CompressLzs                  = 0x00000043,  // LZS (Stac Electronics, 1990s, modem/PPP)
+  Zoo64CompressLzb                  = 0x00000044,  // LZB
+  Zoo64CompressFastlz               = 0x00000045,  // FastLZ (2007, Ariya Hidayat)
+  Zoo64CompressLzfse                = 0x00000046,  // LZFSE (2015, Apple)
+  Zoo64CompressLizard               = 0x00000047,  // Lizard (2015-2017, formerly LZ5)
+  Zoo64CompressDensity              = 0x00000048,  // Density (2015, params: Chameleon/Lion)
+  Zoo64CompressLzsse                = 0x00000049,  // LZSSE (2016, Conor Stokes)
+  Zoo64CompressShrinker             = 0x0000004A,  // Shrinker (2016)
+  Zoo64CompressBriefLz              = 0x0000004B,  // BriefLZ (Joergen Ibsen)
+  Zoo64CompressLzmat                = 0x0000004C,  // LZMAT
+  Zoo64CompressLzg                  = 0x0000004D,  // LZG
+  Zoo64CompressLzv                  = 0x0000004E,  // LZV
+  Zoo64CompressLznib                = 0x0000004F,  // LZNIB
+  Zoo64CompressLzwf                 = 0x00000050,  // LZWF
+  Zoo64CompressOrz                  = 0x00000051,  // ORZ (2014)
+  Zoo64CompressZling                = 0x00000052,  // ZLING (2014, Zhang Li)
+  Zoo64CompressTornado              = 0x00000053,  // Tornado (2013)
+
+  // 0x0070-0x008F: LZ78/LZW Family (1978-1990s) - Use params for bit size (9-16)
+  Zoo64CompressLz78                 = 0x00000070,  // Lempel-Ziv 1978 (original)
+  Zoo64CompressLzw                  = 0x00000071,  // LZW (1984, Welch, params: bits 9-16)
+  Zoo64CompressLzc                  = 0x00000072,  // UNIX compress (1985, .Z files, params: bits 9-16)
+  Zoo64CompressGifLzw               = 0x00000073,  // GIF LZW variant (1987, CompuServe)
+  Zoo64CompressTiffLzw              = 0x00000074,  // TIFF LZW (1988)
+  Zoo64CompressPostScriptLzw        = 0x00000075,  // PostScript LZW
+  Zoo64CompressPdfLzw               = 0x00000076,  // PDF LZW
+  Zoo64CompressLzap                 = 0x00000077,  // LZAP
+
+  // 0x0090-0x009F: LZMA Family (1998-2010s)
+  Zoo64CompressLzma                 = 0x00000090,  // LZMA (1998-2001, Igor Pavlov, params: level/dict)
+  Zoo64CompressLzma2                = 0x00000091,  // LZMA2 (2009, multithreaded)
+  Zoo64Compress7z                   = 0x00000092,  // 7z (1999, Igor Pavlov)
+  Zoo64CompressXz                   = 0x00000093,  // XZ (2009, Lasse Collin, LZMA2-based)
+
+  // 0x0060-0x007F: Modern General-Purpose
+  Zoo64CompressZstd                 = 0x00000060,  // Zstandard (Facebook, recommended)
+  Zoo64CompressBrotli               = 0x00000061,  // Brotli (Google, RFC 7932)
+  Zoo64CompressLzfse                = 0x00000062,  // LZFSE (Apple)
+  Zoo64CompressLizard               = 0x00000063,  // Lizard (LZ4 + Huffman)
+  Zoo64CompressDensity              = 0x00000064,  // Density (Chameleon/Lion)
+
+  // 0x0080-0x009F: BWT-Based
+  Zoo64CompressBzip2                = 0x00000080,  // bzip2 (BWT + RLE + Huffman)
+  Zoo64CompressBzip3                = 0x00000081,  // bzip3
+  Zoo64CompressBwt                  = 0x00000082,  // Burrows-Wheeler Transform alone
+  Zoo64CompressSbwt                 = 0x00000083,  // Sort-based BWT
+
+  // 0x00A0-0x00BF: Context Modeling (PPM)
+  Zoo64CompressPpmd                 = 0x000000A0,  // PPMd (Prediction by Partial Matching)
+  Zoo64CompressPpmdH                = 0x000000A1,  // PPMD variant H
+  Zoo64CompressPpmdJ                = 0x000000A2,  // PPMD variant J
+  Zoo64CompressPpm                  = 0x000000A3,  // PPM (general)
+  Zoo64CompressPpmii                = 0x000000A4,  // PPMII
+
+  // 0x00C0-0x00CF: PAQ Family (Maximum Compression)
+  Zoo64CompressPaq                  = 0x000000C0,  // PAQ general
+  Zoo64CompressPaq6                 = 0x000000C1,  // PAQ6
+  Zoo64CompressPaq7                 = 0x000000C2,  // PAQ7
+  Zoo64CompressPaq8                 = 0x000000C3,  // PAQ8
+  Zoo64CompressLpaq                 = 0x000000C4,  // LPAQ
+  Zoo64CompressFpaq                 = 0x000000C5,  // FPAQ
+  Zoo64CompressZpaq                 = 0x000000C6,  // ZPAQ
+
+  // 0x00D0-0x00EF: Dictionary/LZH Family
+  Zoo64CompressLzh                  = 0x000000D0,  // LHA/LZH
+  Zoo64CompressLhArc                = 0x000000D1,  // LHARC (LHA archiver)
+  Zoo64CompressLh1                  = 0x000000D2,  // LH1 method
+  Zoo64CompressLh4                  = 0x000000D3,  // LH4 method
+  Zoo64CompressLh5                  = 0x000000D4,  // LH5 method
+  Zoo64CompressLh6                  = 0x000000D5,  // LH6 method
+  Zoo64CompressLh7                  = 0x000000D6,  // LH7 method
+
+  // 0x0100-0x013F: Legacy Archive Formats & Early Compressors (1970s-1990s)
+
+  // 0x0100-0x010F: Early Unix/CP/M (1970s-1980s)
+  Zoo64CompressPack                 = 0x00000100,  // pack (1979, Huffman, Unix)
+  Zoo64CompressCompact              = 0x00000101,  // compact (1985, Unix)
+  Zoo64CompressSqueeze              = 0x00000102,  // SQ/USQ (1981, CP/M, Huffman)
+  Zoo64CompressCrunch               = 0x00000103,  // crunch (1986, LZW, CP/M)
+  Zoo64CompressLbr                  = 0x00000104,  // LBR (1982, CP/M Library)
+  Zoo64CompressCrash                = 0x00000105,  // CRUSH/CRASH (CP/M)
+  Zoo64CompressCpm                  = 0x00000106,  // Various CP/M methods
+
+  // 0x0110-0x011F: ARC Family (1985-1988)
+  Zoo64CompressArc                  = 0x00000110,  // ARC (1985, SEA)
+  Zoo64CompressArc1                 = 0x00000111,  // ARC method 1 (Packed, RLE)
+  Zoo64CompressArc2                 = 0x00000112,  // ARC method 2 (Squeezed, Huffman)
+  Zoo64CompressArc3                 = 0x00000113,  // ARC method 3 (Crunched, LZW)
+  Zoo64CompressArc4                 = 0x00000114,  // ARC method 4 (Squashed, LZW)
+  Zoo64CompressArc5                 = 0x00000115,  // ARC method 5 (Crunched, LZW 12-bit)
+  Zoo64CompressArc6                 = 0x00000116,  // ARC method 6 (Squashed, LZW 13-bit)
+  Zoo64CompressArc7                 = 0x00000117,  // ARC method 7 (Crushed, LZW)
+  Zoo64CompressArc8                 = 0x00000118,  // ARC method 8 (Distilled)
+  Zoo64CompressArc9                 = 0x00000119,  // ARC method 9 (Squashed, LZW 14-bit)
+  Zoo64CompressPak                  = 0x0000011A,  // PAK (1988, NoGate Consulting)
+  Zoo64CompressPkarc                = 0x0000011B,  // PKARC (1987, PKWare)
+  Zoo64CompressPkpak                = 0x0000011C,  // PKPAK
+
+  // 0x0120-0x012F: ZIP Family (1989-1993)
+  Zoo64CompressZipStore             = 0x00000120,  // ZIP method 0 (stored, 1989)
+  Zoo64CompressShrink               = 0x00000121,  // ZIP method 1 (Shrink, LZW, 1989)
+  Zoo64CompressReduce1              = 0x00000122,  // ZIP method 2 (Reduce factor 1, 1989)
+  Zoo64CompressReduce2              = 0x00000123,  // ZIP method 3 (Reduce factor 2, 1989)
+  Zoo64CompressReduce3              = 0x00000124,  // ZIP method 4 (Reduce factor 3, 1989)
+  Zoo64CompressReduce4              = 0x00000125,  // ZIP method 5 (Reduce factor 4, 1989)
+  Zoo64CompressImplode              = 0x00000126,  // ZIP method 6 (Implode, 1989)
+  Zoo64CompressTokenize             = 0x00000127,  // ZIP method 7 (Tokenize, reserved)
+  Zoo64CompressZipDeflate           = 0x00000128,  // ZIP method 8 (Deflate, 1993, PKZIP 2.0)
+  Zoo64CompressDeflate64            = 0x00000129,  // ZIP method 9 (Deflate64/Enhanced)
+  Zoo64CompressZipBzip2             = 0x0000012A,  // ZIP method 12 (BZIP2)
+  Zoo64CompressZipLzma              = 0x0000012B,  // ZIP method 14 (LZMA)
+  Zoo64CompressZipXz                = 0x0000012C,  // ZIP method 95 (XZ)
+  Zoo64CompressZipZstd              = 0x0000012D,  // ZIP method 93 (ZSTD)
+
+  // 0x0130-0x013F: LHA/LZH Family (1988-1992, Haruyasu Yoshizaki)
+  Zoo64CompressLh0                  = 0x00000130,  // LH0 (stored)
+  Zoo64CompressLh1                  = 0x00000131,  // LH1 (1988, LZSS + 4KB window)
+  Zoo64CompressLh2                  = 0x00000132,  // LH2 (dynamic Huffman)
+  Zoo64CompressLh3                  = 0x00000133,  // LH3 (static Huffman)
+  Zoo64CompressLh4                  = 0x00000134,  // LH4 (1991, 4KB window)
+  Zoo64CompressLh5                  = 0x00000135,  // LH5 (1991, 8KB window)
+  Zoo64CompressLh6                  = 0x00000136,  // LH6 (1992, 32KB window)
+  Zoo64CompressLh7                  = 0x00000137,  // LH7 (1993, 64KB window)
+  Zoo64CompressLhd                  = 0x00000138,  // LHD (directory)
+  Zoo64CompressLh0e                 = 0x00000139,  // LH0 (OS/2 extended)
+  Zoo64CompressLh1e                 = 0x0000013A,  // LH1 (OS/2 extended)
+  Zoo64CompressLharc                = 0x0000013B,  // LHARC (original 1988)
+
+  // 0x0140-0x014F: ARJ Family (1990-1998, Robert K. Jung)
+  Zoo64CompressArj                  = 0x00000140,  // ARJ (1990, Archived by Robert Jung)
+  Zoo64CompressArj1                 = 0x00000141,  // ARJ method 1 (stored)
+  Zoo64CompressArj2                 = 0x00000142,  // ARJ method 2 (compressed, fastest)
+  Zoo64CompressArj3                 = 0x00000143,  // ARJ method 3 (compressed, fast)
+  Zoo64CompressArj4                 = 0x00000144,  // ARJ method 4 (compressed, normal)
+  Zoo64CompressArjm                 = 0x00000145,  // ARJ-M (1998, multimedia optimized)
+
+  // 0x0150-0x015F: RAR Family (1993-2023, Eugene Roshal)
+  Zoo64CompressRar                  = 0x00000150,  // RAR (1993, Roshal Archive)
+  Zoo64CompressRar15                = 0x00000151,  // RAR 1.5 (1995)
+  Zoo64CompressRar20                = 0x00000152,  // RAR 2.0 (1996)
+  Zoo64CompressRar29                = 0x00000153,  // RAR 2.9 (2002)
+  Zoo64CompressRar30                = 0x00000154,  // RAR 3.0 (2002)
+  Zoo64CompressRar50                = 0x00000155,  // RAR 5.0 (2013)
+
+  // 0x0160-0x016F: Microsoft CAB & Related (1996-2000s)
+  Zoo64CompressCab                  = 0x00000160,  // CAB (1996, Microsoft Cabinet)
+  Zoo64CompressMszip                = 0x00000161,  // MSZIP (CAB method, DEFLATE variant)
+  Zoo64CompressQuantum              = 0x00000162,  // Quantum (CAB method, 1996)
+  Zoo64CompressLzx                  = 0x00000163,  // LZX (CAB method, 1996)
+  Zoo64CompressXpress               = 0x00000164,  // Microsoft Xpress (LZ77 + Huffman, 2004)
+  Zoo64CompressXpressHuffman        = 0x00000165,  // Microsoft Xpress Huffman (2012)
+
+  // 0x0170-0x017F: ACE & Other 1990s Formats
+  Zoo64CompressAce                  = 0x00000170,  // ACE (1998, Marcel Lemke)
+  Zoo64CompressUharc                = 0x00000171,  // UHARC (1997, Uwe Herklotz)
+  Zoo64CompressFreeze               = 0x00000172,  // Freeze (1992, Unix)
+  Zoo64CompressAlz                  = 0x00000173,  // ALZip (1999, South Korea)
+  Zoo64CompressZoo                  = 0x00000174,  // ZOO (1986, Rahul Dhesi)
+  Zoo64CompressStuffit              = 0x00000175,  // StuffIt (1987, Macintosh)
+  Zoo64CompressStuffit5             = 0x00000176,  // StuffIt 5 (1997)
+  Zoo64CompressStuffitx             = 0x00000177,  // StuffIt X (2002)
+  Zoo64CompressSit                  = 0x00000178,  // SIT (StuffIt archive)
+
+  // 0x0180-0x018F: Executable Packers (1980s-2000s)
+  Zoo64CompressExepack              = 0x00000180,  // EXEPACK (1985, Microsoft DOS)
+  Zoo64CompressLzexe                = 0x00000181,  // LZEXE (1989, Fabrice Bellard)
+  Zoo64CompressPklite               = 0x00000182,  // PKLITE (1990, PKWare)
+  Zoo64CompressDiet                 = 0x00000183,  // DIET (1992, Teddy Matsumoto)
+  Zoo64CompressWwpack               = 0x00000184,  // WWPACK (1993)
+  Zoo64CompressUpx                  = 0x00000185,  // UPX (1998, Ultimate Packer for eXecutables)
+  Zoo64CompressAspack               = 0x00000186,  // ASPack (1999)
+  Zoo64CompressPetite               = 0x00000187,  // PEtite (1999)
+  Zoo64CompressFsg                  = 0x00000188,  // FSG (2000, Fast Small Good)
+  Zoo64CompressMew                  = 0x00000189,  // MEW (Northfox)
+  Zoo64CompressNspack               = 0x0000018A,  // NSPack
+  Zoo64CompressAplib                = 0x0000018B,  // aPLib (1998, Jørgen Ibsen)
+
+  // 0x0190-0x019F: LZMA Family & 7-Zip (1998-2000s)
+  Zoo64CompressLzma                 = 0x00000190,  // LZMA (1998-2001, Igor Pavlov)
+  Zoo64Compress7z                   = 0x00000191,  // 7z (1999, Igor Pavlov)
+  Zoo64CompressLzma2                = 0x00000192,  // LZMA2 (2009, multithreaded)
+  Zoo64CompressXz                   = 0x00000193,  // XZ (2009, Lasse Collin)
+  Zoo64CompressPpmd                 = 0x00000194,  // PPMd (Dmitry Shkarin)
+  Zoo64CompressPpmdH                = 0x00000195,  // PPMd H (LZMA SDK)
+  Zoo64CompressPpmdJ                = 0x00000196,  // PPMd J (7-Zip)
+  Zoo64CompressPpmdI                = 0x00000197,  // PPMd I
+
+  // 0x01A0-0x01AF: BWT-Based Compression (1994-2000s)
+  Zoo64CompressBzip2                = 0x000001A0,  // bzip2 (1996, Julian Seward)
+  Zoo64CompressBzip                 = 0x000001A1,  // bzip (1996, original)
+  Zoo64CompressBzip3                = 0x000001A2,  // bzip3 (2022)
+  Zoo64CompressBcm                  = 0x000001A3,  // BCM (BWT-based)
+  Zoo64CompressDivsufsort           = 0x000001A4,  // divsufsort BWT
+
+  // 0x01B0-0x01BF: Context Modeling & PAQ Family (2000s-2010s)
+  Zoo64CompressPaq6                 = 0x000001B0,  // PAQ6 (2003, Matt Mahoney)
+  Zoo64CompressPaq7                 = 0x000001B1,  // PAQ7 (2006)
+  Zoo64CompressPaq8                 = 0x000001B2,  // PAQ8 (2007)
+  Zoo64CompressPaq9                 = 0x000001B3,  // PAQ9 (2009)
+  Zoo64CompressLpaq                 = 0x000001B4,  // LPAQ (Large Text Benchmark winner)
+  Zoo64CompressFpaq                 = 0x000001B5,  // FPAQ (Fast PAQ)
+  Zoo64CompressZpaq                 = 0x000001B6,  // ZPAQ (2009, Matt Mahoney)
+  Zoo64CompressCm                   = 0x000001B7,  // Context Mixing
+  Zoo64CompressDmC                  = 0x000001B8,  // Dynamic Markov Compression
+
+  // 0x01C0-0x01CF: Modern Fast Compressors (2006-2015)
+  Zoo64CompressQuicklz              = 0x000001C0,  // QuickLZ (2006)
+  Zoo64CompressFastlz               = 0x000001C1,  // FastLZ (2007)
+  Zoo64CompressLz4                  = 0x000001C2,  // LZ4 (2011, Yann Collet)
+  Zoo64CompressLz4Hc                = 0x000001C3,  // LZ4 HC (High Compression)
+  Zoo64CompressSnappy               = 0x000001C4,  // Snappy (2011, Google)
+  Zoo64CompressLzo                  = 0x000001C5,  // LZO (1996, Markus Oberhumer)
+  Zoo64CompressLzo1x                = 0x000001C6,  // LZO1X
+  Zoo64CompressLzo2a                = 0x000001C7,  // LZO2A
+  Zoo64CompressLzf                  = 0x000001C8,  // LZF (2000-2008)
+  Zoo64CompressLzfse                = 0x000001C9,  // LZFSE (2015, Apple)
+  Zoo64CompressLizard               = 0x000001CA,  // Lizard (2015-2017, formerly LZ5)
+  Zoo64CompressDensity              = 0x000001CB,  // Density (2015)
+  Zoo64CompressShrinker             = 0x000001CC,  // Shrinker (2016)
+  Zoo64CompressCsc                  = 0x000001CD,  // CSC (2011, Fu Siyuan)
+
+  // 0x01D0-0x01DF: Modern High-Ratio Compressors (2013-2020s)
+  Zoo64CompressZstd                 = 0x000001D0,  // Zstandard (2015, Facebook/Meta)
+  Zoo64CompressBrotli               = 0x000001D1,  // Brotli (2015, Google)
+  Zoo64CompressBrotli11             = 0x000001D2,  // Brotli quality 11 (max)
+  Zoo64CompressLzham                = 0x000001D3,  // LZHAM (2009-2012, Rich Geldreich)
+  Zoo64CompressLzsse                = 0x000001D4,  // LZSSE (2016, Conor Stokes)
+  Zoo64CompressZling                = 0x000001D5,  // ZLING (2014, Zhang Li)
+  Zoo64CompressTornado              = 0x000001D6,  // Tornado (2013)
+  Zoo64CompressOrz                  = 0x000001D7,  // ORZ (2014)
+
+  // 0x01E0-0x01EF: Specialized & Entropy Coders (2013-2020s)
+  Zoo64CompressFse                  = 0x000001E0,  // Finite State Entropy (2013, Yann Collet)
+  Zoo64CompressHuff0                = 0x000001E1,  // Huff0 (FSE variant)
+  Zoo64CompressTans                 = 0x000001E2,  // tANS (Asymmetric Numeral Systems)
+  Zoo64CompressAns                  = 0x000001E3,  // ANS (Jarek Duda, 2009-2013)
+  Zoo64CompressBcj                  = 0x000001E4,  // BCJ (x86 filter)
+  Zoo64CompressBcj2                 = 0x000001E5,  // BCJ2
+  Zoo64CompressDelta                = 0x000001E6,  // Delta filter
+  Zoo64CompressNanozip              = 0x000001E7,  // NanoZip
+  Zoo64CompressSrep                 = 0x000001E8,  // SREP (2010s)
+  Zoo64CompressBriggs               = 0x000001E9,  // Briggs (research)
+
+  // 0x01F0-0x01FF: Video/Image/Audio-Specific (1990s-2020s)
+  Zoo64CompressJpeg                 = 0x000001F0,  // JPEG compression (1992)
+  Zoo64CompressPng                  = 0x000001F1,  // PNG (1996, DEFLATE-based)
+  Zoo64CompressFlac                 = 0x000001F2,  // FLAC (2001, audio)
+  Zoo64CompressAlac                 = 0x000001F3,  // Apple Lossless (2004)
+  Zoo64CompressWebp                 = 0x000001F4,  // WebP (2010, Google)
+  Zoo64CompressAvif                 = 0x000001F5,  // AVIF (2019, AV1 Image)
+  Zoo64CompressJxl                  = 0x000001F6,  // JPEG XL (2021)
+  Zoo64CompressHeif                 = 0x000001F7,  // HEIF (2015, HEVC-based)
+  Zoo64CompressH264                 = 0x000001F8,  // H.264/AVC (2003)
+  Zoo64CompressH265                 = 0x000001F9,  // H.265/HEVC (2013)
+  Zoo64CompressAv1                  = 0x000001FA,  // AV1 (2018)
+  Zoo64CompressVp8                  = 0x000001FB,  // VP8 (2008, Google)
+  Zoo64CompressVp9                  = 0x000001FC,  // VP9 (2013, Google)
+
+  // 0x0200-0x021F: Game/Proprietary (1990s-2020s)
+  Zoo64CompressRefpack              = 0x00000200,  // RefPack (1997, EA Games)
+  Zoo64CompressEapack               = 0x00000201,  // EA compression
+  Zoo64CompressOodle                = 0x00000202,  // Oodle (2012, RAD Game Tools)
+  Zoo64CompressOodleKraken          = 0x00000203,  // Oodle Kraken (2016)
+  Zoo64CompressOodleMermaid         = 0x00000204,  // Oodle Mermaid (2013)
+  Zoo64CompressOodleSelkie          = 0x00000205,  // Oodle Selkie (2014)
+  Zoo64CompressOodleLeviathan       = 0x00000206,  // Oodle Leviathan (2018)
+  Zoo64CompressOodleBitknit         = 0x00000207,  // Oodle BitKnit
+  Zoo64CompressOodleLzna            = 0x00000208,  // Oodle LZNA
+  Zoo64CompressUnityLz4             = 0x00000209,  // Unity LZ4 variant
+  Zoo64CompressUnityLzma            = 0x0000020A,  // Unity LZMA variant
+  Zoo64CompressUnrealZlib           = 0x0000020B,  // Unreal Engine zlib
+  Zoo64CompressUnrealGzip           = 0x0000020C,  // Unreal Engine gzip
+  Zoo64CompressUnrealLz4            = 0x0000020D,  // Unreal Engine LZ4
+  Zoo64CompressCrytek               = 0x0000020E,  // Crytek compression
+  Zoo64CompressHavok                = 0x0000020F,  // Havok compression
+  Zoo64CompressPsarc                = 0x00000210,  // PSARC (PlayStation Archive)
+  Zoo64CompressNintendo             = 0x00000211,  // Nintendo compression
+  Zoo64CompressYaz0                 = 0x00000212,  // Yaz0 (Nintendo, N64)
+  Zoo64CompressYay0                 = 0x00000213,  // Yay0 (Nintendo, N64)
+  Zoo64CompressLzx5                 = 0x00000214,  // LZX5 (Nintendo DS)
+  Zoo64CompressMio0                 = 0x00000215,  // MIO0 (Nintendo 64)
+
+  // 0x0220-0x023F: Platform-Specific Compression (2000s-2020s)
+  Zoo64CompressNsis                 = 0x00000220,  // NSIS (2001, LZMA variant)
+  Zoo64CompressWim                  = 0x00000221,  // WIM (Windows Imaging)
+  Zoo64CompressDmc                  = 0x00000222,  // DMC (Disk Mount Compression)
+  Zoo64CompressCompact              = 0x00000223,  // Windows Compact compression
+  Zoo64CompressWofCompressed        = 0x00000224,  // WOF (Windows Overlay Filter)
+  Zoo64CompressZfs                  = 0x00000225,  // ZFS compression
+  Zoo64CompressBtrfs                = 0x00000226,  // Btrfs compression
+  Zoo64CompressSquashfs             = 0x00000227,  // SquashFS (2002)
+  Zoo64CompressCramfs               = 0x00000228,  // CramFS (1999)
+  Zoo64CompressJffs2                = 0x00000229,  // JFFS2 (2001)
+  Zoo64CompressF2fs                 = 0x0000022A,  // F2FS (2012)
+
+  // 0xF0000000-0xFFFEFFFF: Third-Party Algorithms (~268 million IDs)
+  // This range is available for third-party compression algorithms
+  // Implementers should register their IDs to avoid conflicts
+  Zoo64CompressThirdPartyBase       = 0xF0000000,  // Third-party algorithm base
+  Zoo64CompressThirdPartyExample1   = 0xF0000001,  // Example third-party algorithm
+  Zoo64CompressThirdPartyExample2   = 0xF0000002,  // Example third-party algorithm
+
+  // 0xFFFF0000-0xFFFFFFFF: Dynamic VM WASM Codecs (65,536 IDs, RESERVED)
+  // These IDs are RESERVED for dynamic WASM32 embeddable compression modules
+  // WASM modules are loaded at runtime and assigned IDs from this range
+  Zoo64CompressWasmBase             = 0xFFFF0000,  // WASM codec base (first ID)
+  Zoo64CompressWasm0                = 0xFFFF0000,  // WASM codec slot 0
+  Zoo64CompressWasm1                = 0xFFFF0001,  // WASM codec slot 1
+  Zoo64CompressWasm2                = 0xFFFF0002,  // WASM codec slot 2
+  Zoo64CompressWasm3                = 0xFFFF0003,  // WASM codec slot 3
+  // ... 0xFFFF0004 through 0xFFFFFFFE available for WASM codecs
+  Zoo64CompressWasmMax              = 0xFFFFFFFF   // WASM codec max (last ID)
 } ZOO64_COMPRESSION_ALGORITHM;
 
 //
-// Encryption Method Enumeration
+// Encryption Method Enumeration (32-bit IDs)
 // NT-style: Zoo64Encrypt* (PascalCase)
 //
 typedef enum _ZOO64_ENCRYPTION_METHOD {
-  Zoo64EncryptNone                  = 0x0000,  // Not encrypted
-  Zoo64EncryptAes256Gcm             = 0x0001,  // AES-256-GCM (recommended)
-  Zoo64EncryptAes256CbcHmac         = 0x0002,  // AES-256-CBC + HMAC-SHA256
-  Zoo64EncryptChaCha20Poly1305      = 0x0003,  // ChaCha20-Poly1305
-  Zoo64EncryptAes128Gcm             = 0x0004,  // AES-128-GCM
-  Zoo64EncryptTwofish256Gcm         = 0x0005,  // Twofish-256-GCM
-  Zoo64EncryptSerpent256Gcm         = 0x0006   // Serpent-256-GCM
+  Zoo64EncryptNone                  = 0x00000000,  // Not encrypted
+
+  // 0x0001-0x000F: Classic Ciphers (1970s-1990s)
+  Zoo64EncryptDes                   = 0x00000001,  // DES (1977, deprecated, 56-bit)
+  Zoo64EncryptDesEde                = 0x00000002,  // DES-EDE (2-key 3DES, deprecated)
+  Zoo64EncryptDesEde3               = 0x00000003,  // DES-EDE3 (3DES, 1978, legacy only)
+  Zoo64EncryptRc2                   = 0x00000004,  // RC2 (1987, Ron Rivest, legacy)
+  Zoo64EncryptRc4                   = 0x00000005,  // RC4 (1987, deprecated)
+  Zoo64EncryptRc5                   = 0x00000006,  // RC5 (1994, Ron Rivest)
+  Zoo64EncryptRc6                   = 0x00000007,  // RC6 (1998, AES finalist)
+  Zoo64EncryptIdea                  = 0x00000008,  // IDEA (1991, Lai & Massey)
+  Zoo64EncryptBlowfish              = 0x00000009,  // Blowfish (1993, Bruce Schneier)
+  Zoo64EncryptCast128               = 0x0000000A,  // CAST-128/CAST5 (1996)
+  Zoo64EncryptCast256               = 0x0000000B,  // CAST-256/CAST6 (1998, AES finalist)
+
+  // 0x0010-0x001F: AES Family (2001-present)
+  Zoo64EncryptAes128Ecb             = 0x00000010,  // AES-128-ECB (2001, avoid ECB mode)
+  Zoo64EncryptAes128Cbc             = 0x00000011,  // AES-128-CBC (legacy)
+  Zoo64EncryptAes128Ctr             = 0x00000012,  // AES-128-CTR
+  Zoo64EncryptAes128Gcm             = 0x00000013,  // AES-128-GCM (AEAD)
+  Zoo64EncryptAes128Ccm             = 0x00000014,  // AES-128-CCM (AEAD)
+  Zoo64EncryptAes192Ecb             = 0x00000015,  // AES-192-ECB (avoid ECB mode)
+  Zoo64EncryptAes192Cbc             = 0x00000016,  // AES-192-CBC (legacy)
+  Zoo64EncryptAes192Ctr             = 0x00000017,  // AES-192-CTR
+  Zoo64EncryptAes192Gcm             = 0x00000018,  // AES-192-GCM (AEAD)
+  Zoo64EncryptAes192Ccm             = 0x00000019,  // AES-192-CCM (AEAD)
+  Zoo64EncryptAes256Ecb             = 0x0000001A,  // AES-256-ECB (avoid ECB mode)
+  Zoo64EncryptAes256Cbc             = 0x0000001B,  // AES-256-CBC (legacy)
+  Zoo64EncryptAes256Ctr             = 0x0000001C,  // AES-256-CTR
+  Zoo64EncryptAes256Gcm             = 0x0000001D,  // AES-256-GCM (recommended AEAD)
+  Zoo64EncryptAes256Ccm             = 0x0000001E,  // AES-256-CCM (AEAD)
+  Zoo64EncryptAes256CbcHmacSha256   = 0x0000001F,  // AES-256-CBC + HMAC-SHA256
+
+  // 0x0020-0x002F: AES Variants & Advanced Modes
+  Zoo64EncryptAes128Ocb             = 0x00000020,  // AES-128-OCB (2001, AEAD, patented)
+  Zoo64EncryptAes256Ocb             = 0x00000021,  // AES-256-OCB (AEAD)
+  Zoo64EncryptAes128Eax             = 0x00000022,  // AES-128-EAX (2003, AEAD)
+  Zoo64EncryptAes256Eax             = 0x00000023,  // AES-256-EAX (AEAD)
+  Zoo64EncryptAes128Siv             = 0x00000024,  // AES-128-SIV (2006, AEAD)
+  Zoo64EncryptAes256Siv             = 0x00000025,  // AES-256-SIV (AEAD)
+  Zoo64EncryptAes128GcmSiv          = 0x00000026,  // AES-128-GCM-SIV (2017, nonce-reuse resistant)
+  Zoo64EncryptAes256GcmSiv          = 0x00000027,  // AES-256-GCM-SIV (recommended)
+  Zoo64EncryptAesXts128             = 0x00000028,  // AES-XTS-128 (2008, disk encryption)
+  Zoo64EncryptAesXts256             = 0x00000029,  // AES-XTS-256 (disk encryption)
+
+  // 0x0030-0x003F: AES Finalists & Alternatives (1998-2000)
+  Zoo64EncryptTwofish128            = 0x00000030,  // Twofish-128 (1998, Bruce Schneier)
+  Zoo64EncryptTwofish192            = 0x00000031,  // Twofish-192
+  Zoo64EncryptTwofish256            = 0x00000032,  // Twofish-256
+  Zoo64EncryptTwofish256Gcm         = 0x00000033,  // Twofish-256-GCM (AEAD)
+  Zoo64EncryptSerpent128            = 0x00000034,  // Serpent-128 (1998, Anderson et al)
+  Zoo64EncryptSerpent192            = 0x00000035,  // Serpent-192
+  Zoo64EncryptSerpent256            = 0x00000036,  // Serpent-256
+  Zoo64EncryptSerpent256Gcm         = 0x00000037,  // Serpent-256-GCM (AEAD)
+  Zoo64EncryptMars                  = 0x00000038,  // MARS (1998, IBM, AES finalist)
+  Zoo64EncryptRc6_128               = 0x00000039,  // RC6-128 (already listed, AES finalist)
+
+  // 0x0040-0x004F: International Standards (2000s)
+  Zoo64EncryptCamellia128           = 0x00000040,  // Camellia-128 (2000, NTT/Mitsubishi)
+  Zoo64EncryptCamellia192           = 0x00000041,  // Camellia-192
+  Zoo64EncryptCamellia256           = 0x00000042,  // Camellia-256
+  Zoo64EncryptCamellia256Gcm        = 0x00000043,  // Camellia-256-GCM (AEAD)
+  Zoo64EncryptAria128               = 0x00000044,  // ARIA-128 (2004, South Korea)
+  Zoo64EncryptAria192               = 0x00000045,  // ARIA-192
+  Zoo64EncryptAria256               = 0x00000046,  // ARIA-256
+  Zoo64EncryptAria256Gcm            = 0x00000047,  // ARIA-256-GCM (AEAD)
+  Zoo64EncryptSm4                   = 0x00000048,  // SM4 (2006/2012, China GB/T 32907)
+  Zoo64EncryptSm4Gcm                = 0x00000049,  // SM4-GCM (AEAD)
+  Zoo64EncryptSeed                  = 0x0000004A,  // SEED (1998, South Korea)
+  Zoo64EncryptGost28147             = 0x0000004B,  // GOST 28147-89 (1989, Russia)
+  Zoo64EncryptKuznyechik             = 0x0000004C,  // Kuznyechik (2015, Russia GOST R 34.12)
+  Zoo64EncryptMagma                 = 0x0000004D,  // Magma (2015, Russia GOST R 34.12)
+
+  // 0x0050-0x005F: Stream Ciphers (2000s-2010s)
+  Zoo64EncryptSalsa20               = 0x00000050,  // Salsa20 (2005, Daniel J. Bernstein)
+  Zoo64EncryptSalsa20_12            = 0x00000051,  // Salsa20/12 (reduced rounds)
+  Zoo64EncryptSalsa20_8             = 0x00000052,  // Salsa20/8 (reduced rounds)
+  Zoo64EncryptChaCha20              = 0x00000053,  // ChaCha20 (2008, Bernstein)
+  Zoo64EncryptChaCha20Poly1305      = 0x00000054,  // ChaCha20-Poly1305 (2014, AEAD, recommended)
+  Zoo64EncryptXChaCha20             = 0x00000055,  // XChaCha20 (2018, extended nonce)
+  Zoo64EncryptXChaCha20Poly1305     = 0x00000056,  // XChaCha20-Poly1305 (AEAD)
+  Zoo64EncryptChaCha12              = 0x00000057,  // ChaCha12 (reduced rounds)
+  Zoo64EncryptChaCha8               = 0x00000058,  // ChaCha8 (reduced rounds)
+
+  // 0x0060-0x006F: Additional Modern Ciphers (2000s-2010s)
+  Zoo64EncryptThreefish256          = 0x00000060,  // Threefish-256 (2008, Skein hash basis)
+  Zoo64EncryptThreefish512          = 0x00000061,  // Threefish-512
+  Zoo64EncryptThreefish1024         = 0x00000062,  // Threefish-1024
+  Zoo64EncryptSpeck128              = 0x00000063,  // Speck-128 (2013, NSA, lightweight)
+  Zoo64EncryptSimon128              = 0x00000064,  // Simon-128 (2013, NSA, lightweight)
+  Zoo64EncryptGift128               = 0x00000065,  // GIFT-128 (2017, lightweight)
+  Zoo64EncryptAscon128              = 0x00000066,  // Ascon-128 (2021, NIST LWC winner)
+  Zoo64EncryptAscon128a             = 0x00000067,  // Ascon-128a
+  Zoo64EncryptDeoxys                = 0x00000068,  // Deoxys (2014, CAESAR candidate)
+
+  // 0xF0000000-0xFFFEFFFF: Third-Party Algorithms (~268 million IDs)
+  Zoo64EncryptThirdPartyBase        = 0xF0000000,  // Third-party encryption base
+
+  // 0xFFFF0000-0xFFFFFFFF: Dynamic VM WASM Codecs (65,536 IDs, RESERVED)
+  Zoo64EncryptWasmBase              = 0xFFFF0000,  // WASM encryption codec base
+  Zoo64EncryptWasmMax               = 0xFFFFFFFF   // WASM encryption codec max
 } ZOO64_ENCRYPTION_METHOD;
 
 //
-// Key Derivation Function Enumeration
+// Key Derivation Function Enumeration (32-bit IDs)
 // NT-style: Zoo64Kdf* (PascalCase)
 //
 typedef enum _ZOO64_KDF_ALGORITHM {
-  Zoo64KdfNone                      = 0x0000,  // Direct key (not recommended)
-  Zoo64KdfPbkdf2HmacSha256          = 0x0001,  // PBKDF2 with SHA-256
-  Zoo64KdfPbkdf2HmacSha512          = 0x0002,  // PBKDF2 with SHA-512
-  Zoo64KdfArgon2id                  = 0x0003,  // Argon2id (recommended)
-  Zoo64KdfScrypt                    = 0x0004,  // scrypt
-  Zoo64KdfBcrypt                    = 0x0005   // bcrypt
+  Zoo64KdfNone                      = 0x00000000,  // Direct key (not recommended)
+
+  // 0x0001-0x000F: Classic KDFs (1990s-2000s)
+  Zoo64KdfBcrypt                    = 0x00000001,  // bcrypt (1999, Niels Provos & Mazières)
+  Zoo64KdfPbkdf1                    = 0x00000002,  // PBKDF1 (2000, RFC 2898, legacy)
+  Zoo64KdfPbkdf2HmacSha1            = 0x00000003,  // PBKDF2-HMAC-SHA1 (2000, RFC 2898)
+  Zoo64KdfPbkdf2HmacSha224          = 0x00000004,  // PBKDF2-HMAC-SHA224
+  Zoo64KdfPbkdf2HmacSha256          = 0x00000005,  // PBKDF2-HMAC-SHA256 (recommended classic)
+  Zoo64KdfPbkdf2HmacSha384          = 0x00000006,  // PBKDF2-HMAC-SHA384
+  Zoo64KdfPbkdf2HmacSha512          = 0x00000007,  // PBKDF2-HMAC-SHA512
+  Zoo64KdfPbkdf2HmacSha3_256        = 0x00000008,  // PBKDF2-HMAC-SHA3-256
+  Zoo64KdfPbkdf2HmacSha3_512        = 0x00000009,  // PBKDF2-HMAC-SHA3-512
+  Zoo64KdfScrypt                    = 0x0000000A,  // scrypt (2009, Colin Percival)
+  Zoo64KdfHkdfSha256                = 0x0000000B,  // HKDF-SHA256 (2010, RFC 5869)
+  Zoo64KdfHkdfSha512                = 0x0000000C,  // HKDF-SHA512
+  Zoo64KdfHkdfSha3_256              = 0x0000000D,  // HKDF-SHA3-256
+  Zoo64KdfHkdfBlake2b               = 0x0000000E,  // HKDF-BLAKE2b
+
+  // 0x0010-0x001F: PHC Candidates & Modern KDFs (2013-2015)
+  Zoo64KdfArgon2d                   = 0x00000010,  // Argon2d (2015, PHC winner, GPU-resistant)
+  Zoo64KdfArgon2i                   = 0x00000011,  // Argon2i (2015, side-channel resistant)
+  Zoo64KdfArgon2id                  = 0x00000012,  // Argon2id (2015, recommended, hybrid)
+  Zoo64KdfCatena                    = 0x00000013,  // Catena (2014, PHC finalist)
+  Zoo64KdfCatenaBrg                 = 0x00000014,  // Catena-BRG (Bit-Reversal Graph)
+  Zoo64KdfCatenaDbg                 = 0x00000015,  // Catena-DBG (Double-Butterfly Graph)
+  Zoo64KdfMakwa                     = 0x00000016,  // Makwa (2014, PHC finalist, delegation)
+  Zoo64KdfYescrypt                  = 0x00000017,  // yescrypt (2014, PHC finalist, ROMix)
+  Zoo64KdfLyra2                     = 0x00000018,  // Lyra2 (2014, PHC finalist)
+  Zoo64KdfBalloon                   = 0x00000019,  // Balloon (2016, Dan Boneh et al)
+  Zoo64KdfBalloonSha256             = 0x0000001A,  // Balloon-SHA256
+  Zoo64KdfBalloonBlake2b            = 0x0000001B,  // Balloon-BLAKE2b
+
+  // 0x0020-0x002F: Specialized & Domain-Specific KDFs
+  Zoo64KdfAnsiX963Kdf               = 0x00000020,  // ANSI X9.63 KDF (EC-based)
+  Zoo64KdfSp800_108CtrKdf           = 0x00000021,  // SP 800-108 Counter Mode KDF (NIST)
+  Zoo64KdfSp800_108FeedbackKdf      = 0x00000022,  // SP 800-108 Feedback Mode KDF
+  Zoo64KdfSp800_108PipelineKdf      = 0x00000023,  // SP 800-108 Pipeline Mode KDF
+  Zoo64KdfSp800_56cOneStepKdf       = 0x00000024,  // SP 800-56C One-Step KDF
+  Zoo64KdfSp800_56cTwoStepKdf       = 0x00000025,  // SP 800-56C Two-Step KDF
+  Zoo64KdfSshKdf                    = 0x00000026,  // SSH KDF (RFC 4251)
+  Zoo64KdfIkeV2Kdf                  = 0x00000027,  // IKEv2 KDF (RFC 7296)
+  Zoo64KdfConcatKdf                 = 0x00000028,  // Concatenation KDF (NIST SP 800-56A)
+  Zoo64KdfBlake2xkdf                = 0x00000029,  // BLAKE2X KDF
+  Zoo64KdfBlake3Kdf                 = 0x0000002A,  // BLAKE3 KDF mode (2020)
+
+  // 0xF0000000-0xFFFEFFFF: Third-Party Algorithms (~268 million IDs)
+  Zoo64KdfThirdPartyBase            = 0xF0000000,  // Third-party KDF base
+
+  // 0xFFFF0000-0xFFFFFFFF: Dynamic VM WASM Codecs (65,536 IDs, RESERVED)
+  Zoo64KdfWasmBase                  = 0xFFFF0000,  // WASM KDF codec base
+  Zoo64KdfWasmMax                   = 0xFFFFFFFF   // WASM KDF codec max
 } ZOO64_KDF_ALGORITHM;
 
 //
-// Hash Algorithm Enumeration
+// Hash Algorithm Enumeration (32-bit IDs)
 // NT-style: Zoo64Hash* (PascalCase)
 //
 typedef enum _ZOO64_HASH_ALGORITHM {
-  Zoo64HashNone                     = 0x0000,  // No hash
-  Zoo64HashCrc32                    = 0x0001,  // CRC-32 (IEEE)
-  Zoo64HashSha1                     = 0x0002,  // SHA-1 (deprecated)
-  Zoo64HashSha256                   = 0x0003,  // SHA-256 (recommended)
-  Zoo64HashSha384                   = 0x0004,  // SHA-384
-  Zoo64HashSha512                   = 0x0005,  // SHA-512
-  Zoo64HashSha3_256                 = 0x0006,  // SHA3-256
-  Zoo64HashSha3_512                 = 0x0007,  // SHA3-512
-  Zoo64HashBlake2b                  = 0x0008,  // BLAKE2b
-  Zoo64HashBlake3                   = 0x0009   // BLAKE3
+  Zoo64HashNone                     = 0x00000000,  // No hash
+
+  // 0x0001-0x000F: Checksums & Early Hash Functions (1960s-1990s)
+  Zoo64HashCrc8                     = 0x00000001,  // CRC-8
+  Zoo64HashCrc16                    = 0x00000002,  // CRC-16 (IBM)
+  Zoo64HashCrc16Ccitt               = 0x00000003,  // CRC-16-CCITT
+  Zoo64HashCrc32                    = 0x00000004,  // CRC-32 (IEEE 802.3, 1975)
+  Zoo64HashCrc32C                   = 0x00000005,  // CRC-32C (Castagnoli, 2001)
+  Zoo64HashCrc32K                   = 0x00000006,  // CRC-32K (Koopman)
+  Zoo64HashCrc64                    = 0x00000007,  // CRC-64 (ECMA-182)
+  Zoo64HashCrc64Iso                 = 0x00000008,  // CRC-64/ISO
+  Zoo64HashAdler32                  = 0x00000009,  // Adler-32 (1995, Mark Adler)
+  Zoo64HashFletcher16               = 0x0000000A,  // Fletcher-16 (1970s)
+  Zoo64HashFletcher32               = 0x0000000B,  // Fletcher-32
+
+  // 0x0010-0x001F: MD Family (1989-1991, Ron Rivest)
+  Zoo64HashMd2                      = 0x00000010,  // MD2 (1989, deprecated)
+  Zoo64HashMd4                      = 0x00000011,  // MD4 (1990, deprecated)
+  Zoo64HashMd5                      = 0x00000012,  // MD5 (1991, deprecated)
+  Zoo64HashMd6                      = 0x00000013,  // MD6 (2008, SHA-3 candidate)
+
+  // 0x0020-0x002F: SHA-0/SHA-1 (1993-1995, NSA)
+  Zoo64HashSha0                     = 0x00000020,  // SHA-0 (1993, withdrawn)
+  Zoo64HashSha1                     = 0x00000021,  // SHA-1 (1995, deprecated)
+
+  // 0x0030-0x003F: SHA-2 Family (2001, NSA)
+  Zoo64HashSha224                   = 0x00000030,  // SHA-224 (2001)
+  Zoo64HashSha256                   = 0x00000031,  // SHA-256 (2001, recommended)
+  Zoo64HashSha384                   = 0x00000032,  // SHA-384 (2001)
+  Zoo64HashSha512                   = 0x00000033,  // SHA-512 (2001)
+  Zoo64HashSha512_224               = 0x00000034,  // SHA-512/224 (2012)
+  Zoo64HashSha512_256               = 0x00000035,  // SHA-512/256 (2012)
+
+  // 0x0040-0x004F: RIPEMD Family (1996, Hans Dobbertin et al)
+  Zoo64HashRipemd                   = 0x00000040,  // RIPEMD (1996, original)
+  Zoo64HashRipemd128                = 0x00000041,  // RIPEMD-128 (1996)
+  Zoo64HashRipemd160                = 0x00000042,  // RIPEMD-160 (1996, Bitcoin)
+  Zoo64HashRipemd256                = 0x00000043,  // RIPEMD-256 (1996)
+  Zoo64HashRipemd320                = 0x00000044,  // RIPEMD-320 (1996)
+
+  // 0x0050-0x005F: Tiger & Whirlpool (1996-2000)
+  Zoo64HashTiger                    = 0x00000050,  // Tiger (1996, Ross Anderson)
+  Zoo64HashTiger2                   = 0x00000051,  // Tiger2 (2005, improved)
+  Zoo64HashWhirlpool                = 0x00000052,  // Whirlpool (2000, Barreto & Rijmen)
+  Zoo64HashWhirlpool0               = 0x00000053,  // Whirlpool-0 (original 2000)
+  Zoo64HashWhirlpoolT               = 0x00000054,  // Whirlpool-T (2001 revision)
+
+  // 0x0060-0x006F: HAVAL & Other 1990s Hashes
+  Zoo64HashHaval128_3               = 0x00000060,  // HAVAL-128 (3 rounds, 1992)
+  Zoo64HashHaval160_3               = 0x00000061,  // HAVAL-160 (3 rounds)
+  Zoo64HashHaval192_3               = 0x00000062,  // HAVAL-192 (3 rounds)
+  Zoo64HashHaval224_3               = 0x00000063,  // HAVAL-224 (3 rounds)
+  Zoo64HashHaval256_3               = 0x00000064,  // HAVAL-256 (3 rounds)
+  Zoo64HashHaval256_5               = 0x00000065,  // HAVAL-256 (5 rounds)
+  Zoo64HashSnefru                   = 0x00000066,  // Snefru (1990, Ralph Merkle)
+  Zoo64HashN_Hash                   = 0x00000067,  // N-Hash (1989)
+  Zoo64HashPanama                   = 0x00000068,  // Panama (1998, Joan Daemen)
+  Zoo64HashRadioGatun32             = 0x00000069,  // RadioGatún-32 (2006)
+  Zoo64HashRadioGatun64             = 0x0000006A,  // RadioGatún-64 (2006)
+
+  // 0x0070-0x007F: SHA-3/Keccak Family (2015, Guido Bertoni et al)
+  Zoo64HashSha3_224                 = 0x00000070,  // SHA3-224 (2015, NIST)
+  Zoo64HashSha3_256                 = 0x00000071,  // SHA3-256 (2015)
+  Zoo64HashSha3_384                 = 0x00000072,  // SHA3-384 (2015)
+  Zoo64HashSha3_512                 = 0x00000073,  // SHA3-512 (2015)
+  Zoo64HashShake128                 = 0x00000074,  // SHAKE128 (2015, XOF)
+  Zoo64HashShake256                 = 0x00000075,  // SHAKE256 (2015, XOF)
+  Zoo64HashKeccak224                = 0x00000076,  // Keccak-224 (original 2012)
+  Zoo64HashKeccak256                = 0x00000077,  // Keccak-256 (Ethereum)
+  Zoo64HashKeccak384                = 0x00000078,  // Keccak-384
+  Zoo64HashKeccak512                = 0x00000079,  // Keccak-512
+  Zoo64HashCshake128                = 0x0000007A,  // cSHAKE128 (2016, customizable)
+  Zoo64HashCshake256                = 0x0000007B,  // cSHAKE256 (2016)
+
+  // 0x0080-0x008F: BLAKE Family (2008-2020)
+  Zoo64HashBlake224                 = 0x00000080,  // BLAKE-224 (2008, SHA-3 finalist)
+  Zoo64HashBlake256                 = 0x00000081,  // BLAKE-256 (2008)
+  Zoo64HashBlake384                 = 0x00000082,  // BLAKE-384 (2008)
+  Zoo64HashBlake512                 = 0x00000083,  // BLAKE-512 (2008)
+  Zoo64HashBlake2b256               = 0x00000084,  // BLAKE2b-256 (2012)
+  Zoo64HashBlake2b512               = 0x00000085,  // BLAKE2b-512 (2012)
+  Zoo64HashBlake2s128               = 0x00000086,  // BLAKE2s-128 (2012)
+  Zoo64HashBlake2s256               = 0x00000087,  // BLAKE2s-256 (2012)
+  Zoo64HashBlake2bp                 = 0x00000088,  // BLAKE2bp (parallel)
+  Zoo64HashBlake2sp                 = 0x00000089,  // BLAKE2sp (parallel)
+  Zoo64HashBlake3                   = 0x0000008A,  // BLAKE3 (2020, recommended)
+
+  // 0x0090-0x009F: Skein & SHA-3 Finalists (2008-2010)
+  Zoo64HashSkein256                 = 0x00000090,  // Skein-256 (2008, SHA-3 finalist)
+  Zoo64HashSkein512                 = 0x00000091,  // Skein-512 (2008)
+  Zoo64HashSkein1024                = 0x00000092,  // Skein-1024 (2008)
+  Zoo64HashGroestl224               = 0x00000093,  // Grøstl-224 (2008, SHA-3 finalist)
+  Zoo64HashGroestl256               = 0x00000094,  // Grøstl-256 (2008)
+  Zoo64HashGroestl384               = 0x00000095,  // Grøstl-384 (2008)
+  Zoo64HashGroestl512               = 0x00000096,  // Grøstl-512 (2008)
+  Zoo64HashJh224                    = 0x00000097,  // JH-224 (2008, SHA-3 finalist)
+  Zoo64HashJh256                    = 0x00000098,  // JH-256 (2008)
+  Zoo64HashJh384                    = 0x00000099,  // JH-384 (2008)
+  Zoo64HashJh512                    = 0x0000009A,  // JH-512 (2008)
+
+  // 0x00A0-0x00AF: Fast Non-Cryptographic Hashes (2008-2020)
+  Zoo64HashMurmur1                  = 0x000000A0,  // MurmurHash1 (2008, Austin Appleby)
+  Zoo64HashMurmur2                  = 0x000000A1,  // MurmurHash2 (2008)
+  Zoo64HashMurmur2a                 = 0x000000A2,  // MurmurHash2A (2008)
+  Zoo64HashMurmur3_32               = 0x000000A3,  // MurmurHash3-32 (2011)
+  Zoo64HashMurmur3_128              = 0x000000A4,  // MurmurHash3-128 (2011)
+  Zoo64HashXxhash32                 = 0x000000A5,  // xxHash-32 (2012, Yann Collet)
+  Zoo64HashXxhash64                 = 0x000000A6,  // xxHash-64 (2012)
+  Zoo64HashXxh3_64                  = 0x000000A7,  // xxHash3-64 (2019)
+  Zoo64HashXxh3_128                 = 0x000000A8,  // xxHash3-128 (2019)
+  Zoo64HashXxh128                   = 0x000000A9,  // xxHash-128 (2019)
+
+  // 0x00B0-0x00BF: Google Hash Functions (2011-2017)
+  Zoo64HashCityHash32               = 0x000000B0,  // CityHash32 (2011, Google)
+  Zoo64HashCityHash64               = 0x000000B1,  // CityHash64 (2011)
+  Zoo64HashCityHash128              = 0x000000B2,  // CityHash128 (2011)
+  Zoo64HashCityHashCrc128           = 0x000000B3,  // CityHashCrc128 (HW CRC)
+  Zoo64HashCityHashCrc256           = 0x000000B4,  // CityHashCrc256 (HW CRC)
+  Zoo64HashFarmHash32               = 0x000000B5,  // FarmHash32 (2014, Google)
+  Zoo64HashFarmHash64               = 0x000000B6,  // FarmHash64 (2014)
+  Zoo64HashFarmHash128              = 0x000000B7,  // FarmHash128 (2014)
+  Zoo64HashHighwayHash64            = 0x000000B8,  // HighwayHash64 (2017, Google)
+  Zoo64HashHighwayHash128           = 0x000000B9,  // HighwayHash128 (2017)
+  Zoo64HashHighwayHash256           = 0x000000BA,  // HighwayHash256 (2017)
+
+  // 0x00C0-0x00CF: Other Fast Hashes (2000s-2010s)
+  Zoo64HashSipHash24                = 0x000000C0,  // SipHash-2-4 (2012, Aumasson & Bernstein)
+  Zoo64HashSipHash48                = 0x000000C1,  // SipHash-4-8 (stronger)
+  Zoo64HashSipHash13                = 0x000000C2,  // SipHash-1-3 (faster)
+  Zoo64HashHalfsipHash              = 0x000000C3,  // HalfSipHash (32-bit)
+  Zoo64HashMetroHash64              = 0x000000C4,  // MetroHash64 (2015)
+  Zoo64HashMetroHash128             = 0x000000C5,  // MetroHash128 (2015)
+  Zoo64HashT1ha                     = 0x000000C6,  // t1ha (Fast Positive Hash, 2016)
+  Zoo64HashT1ha0                    = 0x000000C7,  // t1ha0 (baseline)
+  Zoo64HashT1ha1                    = 0x000000C8,  // t1ha1 (AVX)
+  Zoo64HashT1ha2                    = 0x000000C9,  // t1ha2 (AVX2)
+  Zoo64HashWyhash                   = 0x000000CA,  // wyhash (2018, Wang Yi)
+  Zoo64HashSpookyHash32             = 0x000000CB,  // SpookyHash-32 (2011, Bob Jenkins)
+  Zoo64HashSpookyHash64             = 0x000000CC,  // SpookyHash-64 (2011)
+  Zoo64HashSpookyHash128            = 0x000000CD,  // SpookyHash-128 (2011)
+
+  // 0x00D0-0x00DF: International Standards (2000s-2010s)
+  Zoo64HashSm3                      = 0x000000D0,  // SM3 (2010, China GB/T 32905)
+  Zoo64HashStreebog256              = 0x000000D1,  // Streebog-256 (2012, Russia GOST R 34.11)
+  Zoo64HashStreebog512              = 0x000000D2,  // Streebog-512 (2012)
+  Zoo64HashGost94                   = 0x000000D3,  // GOST R 34.11-94 (1994, Russia, legacy)
+  Zoo64HashGost94CryptoProA         = 0x000000D4,  // GOST 34.11-94 CryptoPro-A
+  Zoo64HashGost94CryptoProB         = 0x000000D5,  // GOST 34.11-94 CryptoPro-B
+  Zoo64HashGost94CryptoProC         = 0x000000D6,  // GOST 34.11-94 CryptoPro-C
+  Zoo64HashHas160                   = 0x000000D7,  // HAS-160 (2000, South Korea)
+
+  // 0x00E0-0x00EF: Miscellaneous & Specialized (1990s-2020s)
+  Zoo64HashEdonR256                 = 0x000000E0,  // Edon-R-256 (2008, SHA-3 candidate)
+  Zoo64HashEdonR512                 = 0x000000E1,  // Edon-R-512 (2008)
+  Zoo64HashFnv1_32                  = 0x000000E2,  // FNV-1 32-bit (1991, Fowler-Noll-Vo)
+  Zoo64HashFnv1_64                  = 0x000000E3,  // FNV-1 64-bit (1991)
+  Zoo64HashFnv1a_32                 = 0x000000E4,  // FNV-1a 32-bit (alternate)
+  Zoo64HashFnv1a_64                 = 0x000000E5,  // FNV-1a 64-bit (alternate)
+  Zoo64HashJenkins                  = 0x000000E6,  // Jenkins hash (1997, Bob Jenkins)
+  Zoo64HashJenkinsOneAtATime        = 0x000000E7,  // Jenkins one-at-a-time (1997)
+  Zoo64HashPearson                  = 0x000000E8,  // Pearson hash (1990)
+  Zoo64HashDjb2                     = 0x000000E9,  // djb2 (Dan Bernstein)
+  Zoo64HashSdbm                     = 0x000000EA,  // SDBM hash
+  Zoo64HashLoselose                 = 0x000000EB,  // lose-lose (K&R)
+  Zoo64HashKangarooTwelve           = 0x000000EC,  // KangarooTwelve (2016, Keccak-based)
+  Zoo64HashMarsupilamiFourteen      = 0x000000ED,  // MarsupilamiFourteen (2018)
+  Zoo64HashAscon                    = 0x000000EE,  // Ascon hash (2021, NIST LWC)
+
+  // 0xF0000000-0xFFFEFFFF: Third-Party Algorithms (~268 million IDs)
+  Zoo64HashThirdPartyBase           = 0xF0000000,  // Third-party hash base
+
+  // 0xFFFF0000-0xFFFFFFFF: Dynamic VM WASM Codecs (65,536 IDs, RESERVED)
+  Zoo64HashWasmBase                 = 0xFFFF0000,  // WASM hash codec base
+  Zoo64HashWasmMax                  = 0xFFFFFFFF   // WASM hash codec max
 } ZOO64_HASH_ALGORITHM;
 
 //
-// Digital Signature Type Enumeration
+// Digital Signature Type Enumeration (32-bit IDs)
 // NT-style: Zoo64Sig* (PascalCase)
 //
 typedef enum _ZOO64_SIGNATURE_TYPE {
-  Zoo64SigNone                      = 0x0000,  // No signature
-  Zoo64SigRsa2048                   = 0x0001,  // RSA-2048
-  Zoo64SigRsa4096                   = 0x0002,  // RSA-4096
-  Zoo64SigEcdsaP256                 = 0x0003,  // ECDSA P-256
-  Zoo64SigEcdsaP384                 = 0x0004,  // ECDSA P-384
-  Zoo64SigEd25519                   = 0x0005,  // Ed25519 (recommended)
-  Zoo64SigEd448                     = 0x0006   // Ed448
+  Zoo64SigNone                      = 0x00000000,  // No signature
+
+  // 0x0001-0x000F: RSA Family (1977-present, Rivest-Shamir-Adleman)
+  Zoo64SigRsa1024                   = 0x00000001,  // RSA-1024 (1977, deprecated, weak)
+  Zoo64SigRsa2048                   = 0x00000002,  // RSA-2048 (minimum recommended)
+  Zoo64SigRsa3072                   = 0x00000003,  // RSA-3072 (recommended)
+  Zoo64SigRsa4096                   = 0x00000004,  // RSA-4096 (high security)
+  Zoo64SigRsa8192                   = 0x00000005,  // RSA-8192 (very high security)
+  Zoo64SigRsaSha1                   = 0x00000006,  // RSA-SHA1 (deprecated)
+  Zoo64SigRsaSha256                 = 0x00000007,  // RSA-SHA256
+  Zoo64SigRsaSha384                 = 0x00000008,  // RSA-SHA384
+  Zoo64SigRsaSha512                 = 0x00000009,  // RSA-SHA512
+  Zoo64SigRsaPss2048                = 0x0000000A,  // RSA-PSS-2048 (probabilistic)
+  Zoo64SigRsaPss3072                = 0x0000000B,  // RSA-PSS-3072
+  Zoo64SigRsaPss4096                = 0x0000000C,  // RSA-PSS-4096
+
+  // 0x0010-0x001F: DSA Family (1991, NIST Digital Signature Algorithm)
+  Zoo64SigDsa1024                   = 0x00000010,  // DSA-1024 (1991, deprecated)
+  Zoo64SigDsa2048                   = 0x00000011,  // DSA-2048
+  Zoo64SigDsa3072                   = 0x00000012,  // DSA-3072
+
+  // 0x0020-0x002F: ElGamal & Schnorr (1985-1989)
+  Zoo64SigElgamal                   = 0x00000020,  // ElGamal (1985, Taher ElGamal)
+  Zoo64SigSchnorr                   = 0x00000021,  // Schnorr (1989, Claus-Peter Schnorr)
+  Zoo64SigSchnorrSecp256k1          = 0x00000022,  // Schnorr-secp256k1 (Bitcoin Taproot)
+
+  // 0x0030-0x003F: ECDSA Family (1999-present, Elliptic Curve)
+  Zoo64SigEcdsaP192                 = 0x00000030,  // ECDSA P-192/secp192r1 (NIST, legacy)
+  Zoo64SigEcdsaP224                 = 0x00000031,  // ECDSA P-224/secp224r1
+  Zoo64SigEcdsaP256                 = 0x00000032,  // ECDSA P-256/secp256r1 (recommended)
+  Zoo64SigEcdsaP384                 = 0x00000033,  // ECDSA P-384/secp384r1
+  Zoo64SigEcdsaP521                 = 0x00000034,  // ECDSA P-521/secp521r1
+  Zoo64SigEcdsaSecp256k1            = 0x00000035,  // ECDSA secp256k1 (Bitcoin/Ethereum)
+  Zoo64SigEcdsaBrainpoolP256        = 0x00000036,  // ECDSA brainpoolP256r1
+  Zoo64SigEcdsaBrainpoolP384        = 0x00000037,  // ECDSA brainpoolP384r1
+  Zoo64SigEcdsaBrainpoolP512        = 0x00000038,  // ECDSA brainpoolP512r1
+
+  // 0x0040-0x004F: EdDSA Family (2011-2015, Edwards-curve Digital Signature)
+  Zoo64SigEd25519                   = 0x00000040,  // Ed25519 (2011, Bernstein et al, recommended)
+  Zoo64SigEd448                     = 0x00000041,  // Ed448/Ed448-Goldilocks (2015)
+  Zoo64SigEd25519ph                 = 0x00000042,  // Ed25519ph (pre-hash variant)
+  Zoo64SigEd448ph                   = 0x00000043,  // Ed448ph (pre-hash variant)
+  Zoo64SigEd25519ctx                = 0x00000044,  // Ed25519ctx (context variant)
+
+  // 0x0050-0x005F: International Standards (2000s-2010s)
+  Zoo64SigSm2                       = 0x00000050,  // SM2 (2010, China GB/T 32918)
+  Zoo64SigGost2001                  = 0x00000051,  // GOST R 34.10-2001 (Russia)
+  Zoo64SigGost2012_256              = 0x00000052,  // GOST R 34.10-2012-256 (Russia)
+  Zoo64SigGost2012_512              = 0x00000053,  // GOST R 34.10-2012-512 (Russia)
+  Zoo64SigEckcdsa                   = 0x00000054,  // EC-KCDSA (South Korea)
+
+  // 0x0060-0x006F: NIST PQC Finalists - Lattice-Based (2017-2024)
+  Zoo64SigDilithium2                = 0x00000060,  // Dilithium2 (2017, CRYSTALS, NIST winner)
+  Zoo64SigDilithium3                = 0x00000061,  // Dilithium3 (recommended PQ)
+  Zoo64SigDilithium5                = 0x00000062,  // Dilithium5 (high security PQ)
+  Zoo64SigFalcon512                 = 0x00000063,  // Falcon-512 (2017, compact PQ)
+  Zoo64SigFalcon1024                = 0x00000064,  // Falcon-1024 (2017)
+
+  // 0x0070-0x007F: NIST PQC Finalists - Hash-Based (2015-2024)
+  Zoo64SigSphincsPlus128f           = 0x00000070,  // SPHINCS+-128f (2015, fast)
+  Zoo64SigSphincsPlus128s           = 0x00000071,  // SPHINCS+-128s (small)
+  Zoo64SigSphincsPlus192f           = 0x00000072,  // SPHINCS+-192f
+  Zoo64SigSphincsPlus192s           = 0x00000073,  // SPHINCS+-192s
+  Zoo64SigSphincsPlus256f           = 0x00000074,  // SPHINCS+-256f
+  Zoo64SigSphincsPlus256s           = 0x00000075,  // SPHINCS+-256s
+
+  // 0x0080-0x008F: Other Post-Quantum Signatures
+  Zoo64SigPicnicL1                  = 0x00000080,  // Picnic-L1 (2017, ZK-based)
+  Zoo64SigPicnicL3                  = 0x00000081,  // Picnic-L3
+  Zoo64SigPicnicL5                  = 0x00000082,  // Picnic-L5
+  Zoo64SigRainbow1a                 = 0x00000083,  // Rainbow-Ia (2005, multivariate, broken)
+  Zoo64SigRainbow3a                 = 0x00000084,  // Rainbow-IIIa (broken 2022)
+  Zoo64SigRainbow5a                 = 0x00000085,  // Rainbow-Va (broken 2022)
+  Zoo64SigGeMSS128                  = 0x00000086,  // GeMSS-128 (multivariate)
+  Zoo64SigLuov                      = 0x00000087,  // LUOV (multivariate)
+
+  // 0x0090-0x009F: Hash-Based Signatures (1970s-2010s)
+  Zoo64SigLms                       = 0x00000090,  // LMS (2019, RFC 8554, Leighton-Micali)
+  Zoo64SigHss                       = 0x00000091,  // HSS (2019, Hierarchical Signature System)
+  Zoo64SigXmss                      = 0x00000092,  // XMSS (2018, RFC 8391, eXtended Merkle)
+  Zoo64SigXmssmt                    = 0x00000093,  // XMSS-MT (Multi-Tree)
+  Zoo64SigLamport                   = 0x00000094,  // Lamport (1979, one-time signature)
+  Zoo64SigWinternitz                = 0x00000095,  // Winternitz OTS (1996)
+  Zoo64SigWotsPlusHash              = 0x00000096,  // WOTS+ (2013)
+
+  // 0x00A0-0x00AF: Code-Based & Isogeny Signatures
+  Zoo64SigMqds                      = 0x000000A0,  // MQDS (code-based)
+  Zoo64SigWaves                     = 0x000000A1,  // WAVE (code-based)
+  Zoo64SigSike                      = 0x000000A2,  // SIKE (isogeny-based, deprecated)
+  Zoo64SigCsidh                     = 0x000000A3,  // CSIDH (isogeny-based)
+  Zoo64SigSqisign                   = 0x000000A4,  // SQISign (2020, isogeny-based)
+
+  // 0x00B0-0x00BF: Threshold & Multi-Party Signatures
+  Zoo64SigBls12_381                 = 0x000000B0,  // BLS-12-381 (2017, Boneh-Lynn-Shacham)
+  Zoo64SigBlsAggregated             = 0x000000B1,  // BLS Aggregated (Ethereum 2.0)
+  Zoo64SigSchnorrMultisig           = 0x000000B2,  // Schnorr Multisig (MuSig)
+  Zoo64SigMusig2                    = 0x000000B3,  // MuSig2 (2020)
+  Zoo64SigFrost                     = 0x000000B4,  // FROST (2020, threshold Schnorr)
+
+  // 0xF0000000-0xFFFEFFFF: Third-Party Algorithms (~268 million IDs)
+  Zoo64SigThirdPartyBase            = 0xF0000000,  // Third-party signature base
+
+  // 0xFFFF0000-0xFFFFFFFF: Dynamic VM WASM Codecs (65,536 IDs, RESERVED)
+  Zoo64SigWasmBase                  = 0xFFFF0000,  // WASM signature codec base
+  Zoo64SigWasmMax                   = 0xFFFFFFFF   // WASM signature codec max
 } ZOO64_SIGNATURE_TYPE;
 
 //
-// Overlay File Type Enumeration
+// Overlay File Type Enumeration (32-bit IDs)
 // NT-style: Zoo64Overlay* (PascalCase)
 //
 typedef enum _ZOO64_OVERLAY_TYPE {
-  Zoo64OverlayNew                   = 0x0000,  // New file
-  Zoo64OverlayModified              = 0x0001,  // Modified (delta)
-  Zoo64OverlayDeleted               = 0x0002,  // Deleted (tombstone)
-  Zoo64OverlayUnchanged             = 0x0003,  // Unchanged (reference)
-  Zoo64OverlayMoved                 = 0x0004   // Moved/renamed
+  Zoo64OverlayNew                   = 0x00000000,  // New file
+  Zoo64OverlayModified              = 0x00000001,  // Modified (delta)
+  Zoo64OverlayDeleted               = 0x00000002,  // Deleted (tombstone)
+  Zoo64OverlayUnchanged             = 0x00000003,  // Unchanged (reference)
+  Zoo64OverlayMoved                 = 0x00000004   // Moved/renamed
 } ZOO64_OVERLAY_TYPE;
 
 //
