@@ -58,6 +58,30 @@ typedef enum _SAS_SPEED {
 } SAS_SPEED;
 
 /**
+ * @brief Fibre Channel Link Speeds
+ */
+typedef enum _FC_SPEED {
+    FC_SPEED_1_GBPS         = 0,        /**< FC-1: 1 Gbps */
+    FC_SPEED_2_GBPS         = 1,        /**< FC-2: 2 Gbps */
+    FC_SPEED_4_GBPS         = 2,        /**< FC-4: 4 Gbps */
+    FC_SPEED_8_GBPS         = 3,        /**< FC-8: 8 Gbps */
+    FC_SPEED_16_GBPS        = 4,        /**< FC-16: 16 Gbps */
+    FC_SPEED_32_GBPS        = 5,        /**< FC-32: 32 Gbps */
+    FC_SPEED_64_GBPS        = 6,        /**< FC-64: 64 Gbps */
+    FC_SPEED_128_GBPS       = 7,        /**< FC-128: 128 Gbps */
+} FC_SPEED;
+
+/**
+ * @brief Fibre Channel Topology
+ */
+typedef enum _FC_TOPOLOGY {
+    FC_TOPOLOGY_UNKNOWN     = 0,        /**< Unknown topology */
+    FC_TOPOLOGY_P2P         = 1,        /**< Point-to-Point */
+    FC_TOPOLOGY_FABRIC      = 2,        /**< Fabric (switched) */
+    FC_TOPOLOGY_LOOP        = 3,        /**< Arbitrated Loop (FC-AL) */
+} FC_TOPOLOGY;
+
+/**
  * @brief SCSI Device Types
  */
 typedef enum _SCSI_DEVICE_TYPE {
@@ -186,6 +210,8 @@ typedef struct _SCSI_SENSE_DATA {
 typedef struct _SCSI_CONTROLLER_INFO {
     SCSI_PROTOCOL   Protocol;           /**< SCSI protocol version */
     SAS_SPEED       MaxSpeed;           /**< Maximum link speed (SAS) */
+    FC_SPEED        FCMaxSpeed;         /**< Maximum link speed (FC) */
+    FC_TOPOLOGY     FCTopology;         /**< Fibre Channel topology */
     UINT16          VendorID;           /**< PCI Vendor ID */
     UINT16          DeviceID;           /**< PCI Device ID */
     UINT32          MaxTargets;         /**< Maximum target IDs */
@@ -195,8 +221,12 @@ typedef struct _SCSI_CONTROLLER_INFO {
     BOOLEAN         bWideSupport;       /**< Wide SCSI support (16-bit) */
     BOOLEAN         bTaggedQueuing;     /**< Tagged command queuing */
     BOOLEAN         bSASSupport;        /**< SAS support */
+    BOOLEAN         bFCSupport;         /**< Fibre Channel support */
+    BOOLEAN         bFCoESupport;       /**< FCoE (FC over Ethernet) support */
     BOOLEAN         bHotplug;           /**< Hot-plug support */
     BOOLEAN         bExpander;          /**< SAS expander support */
+    UINT64          WWN;                /**< World Wide Name (FC) */
+    UINT64          WWPN;               /**< World Wide Port Name (FC) */
 } SCSI_CONTROLLER_INFO;
 
 /**

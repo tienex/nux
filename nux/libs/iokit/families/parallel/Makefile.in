@@ -1,0 +1,25 @@
+# Parallel Port Family Driver Makefile
+# Copyright (c) 2025 NUX Project
+
+include @top_srcdir@/mk/top.mk
+
+LIB = iokit_parallel
+
+SRCS = \
+	sources/parallel.c
+
+INCS = \
+	include/parallel.h
+
+INCDIR = $(includedir)/iokit/families/parallel
+
+CFLAGS += -I$(top_srcdir)/nux/libs/iokit/include/public
+CFLAGS += -I$(top_srcdir)/nux/libs/iokit/families/parallel/include
+CFLAGS += -I$(top_srcdir)/nux/libs/iokit/families/pcie/include
+CFLAGS += -I$(top_srcdir)/nux/libs/iokit/families/isa/include
+CFLAGS += -I$(top_srcdir)/nux/libs/iokit/families/usb/include
+CFLAGS += -I$(top_srcdir)/ananke/include
+CFLAGS += -I$(top_srcdir)/include
+
+include @top_srcdir@/mk/lib.mk
+include @top_srcdir@/mk/bottom.mk
