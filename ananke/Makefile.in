@@ -39,6 +39,11 @@ SRCS += libs/framebuffer/sources/dither.c \
         libs/framebuffer/sources/fonts/8x16.c \
         libs/framebuffer/sources/fonts/scrawl.c
 
+# YAML library sources
+SRCS += libs/yaml/sources/yaml_node.c \
+        libs/yaml/sources/yaml_reader.c \
+        libs/yaml/sources/yaml_writer.c
+
 # Include directories
 CFLAGS += -I$(SRCDIR)/include
 CFLAGS += -I$(SRCDIR)/libs/framebuffer/include
