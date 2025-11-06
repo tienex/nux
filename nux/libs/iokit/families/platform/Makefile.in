@@ -1,0 +1,22 @@
+# Platform Firmware and Device Enumeration Makefile
+# Copyright (c) 2025 NUX Project
+
+include @top_srcdir@/mk/top.mk
+
+LIB = iokit_platform
+
+SRCS = \
+	sources/platform.c
+
+INCS = \
+	include/platform.h
+
+INCDIR = $(includedir)/iokit/families/platform
+
+CFLAGS += -I$(top_srcdir)/nux/libs/iokit/include/public
+CFLAGS += -I$(top_srcdir)/nux/libs/iokit/families/platform/include
+CFLAGS += -I$(top_srcdir)/ananke/include
+CFLAGS += -I$(top_srcdir)/include
+
+include @top_srcdir@/mk/lib.mk
+include @top_srcdir@/mk/bottom.mk

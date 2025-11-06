@@ -1,0 +1,24 @@
+# ATA/IDE Family Driver Makefile
+# Copyright (c) 2025 NUX Project
+
+include @top_srcdir@/mk/top.mk
+
+LIB = iokit_ata
+
+SRCS = \
+	sources/ata.c
+
+INCS = \
+	include/ata.h
+
+INCDIR = $(includedir)/iokit/families/ata
+
+CFLAGS += -I$(top_srcdir)/nux/libs/iokit/include/public
+CFLAGS += -I$(top_srcdir)/nux/libs/iokit/families/ata/include
+CFLAGS += -I$(top_srcdir)/nux/libs/iokit/families/storage/include
+CFLAGS += -I$(top_srcdir)/nux/libs/iokit/families/pcie/include
+CFLAGS += -I$(top_srcdir)/ananke/include
+CFLAGS += -I$(top_srcdir)/include
+
+include @top_srcdir@/mk/lib.mk
+include @top_srcdir@/mk/bottom.mk

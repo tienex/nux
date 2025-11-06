@@ -1,0 +1,26 @@
+# Floppy Family Driver Makefile
+# Copyright (c) 2025 NUX Project
+
+include @top_srcdir@/mk/top.mk
+
+LIB = iokit_floppy
+
+SRCS = \
+	sources/floppy.c
+
+INCS = \
+	include/floppy.h
+
+INCDIR = $(includedir)/iokit/families/floppy
+
+CFLAGS += -I$(top_srcdir)/nux/libs/iokit/include/public
+CFLAGS += -I$(top_srcdir)/nux/libs/iokit/families/floppy/include
+CFLAGS += -I$(top_srcdir)/nux/libs/iokit/families/storage/include
+CFLAGS += -I$(top_srcdir)/ananke/include
+CFLAGS += -I$(top_srcdir)/include
+
+# Dependency: floppy family depends on storage family
+LDADD += -liokit_storage
+
+include @top_srcdir@/mk/lib.mk
+include @top_srcdir@/mk/bottom.mk
