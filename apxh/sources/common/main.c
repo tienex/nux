@@ -117,6 +117,8 @@ GetArchName (
       return "i386";
     case ArchAmd64:
       return "AMD64";
+    case ArchRiscV32:
+      return "RISCV32";
     case ArchRiscV64:
       return "RISCV64";
     default:
@@ -142,6 +144,11 @@ VirtualAddressInitialize (
       break;
     case ArchAmd64:
       Pae64Initialize ();
+      break;
+#endif
+#if EC_MACHINE_RISCV32
+    case ArchRiscV32:
+      Sv32Initialize ();
       break;
 #endif
 #if EC_MACHINE_RISCV64
@@ -187,6 +194,11 @@ VirtualAddressPopulate (
       break;
     case ArchAmd64:
       Pae64Populate (Va, Size, U, W, X);
+      break;
+#endif
+#if EC_MACHINE_RISCV32
+    case ArchRiscV32:
+      Sv32Populate (Va, Size, U, W, X);
       break;
 #endif
 #if EC_MACHINE_RISCV64
@@ -327,6 +339,11 @@ VirtualAddressMapPhysical (
       Pae64MapPhysical (Va, Size, 0, Mt);
       break;
 #endif
+#if EC_MACHINE_RISCV32
+    case ArchRiscV32:
+      Sv32MapPhysical (Va, Size, 0, Mt);
+      break;
+#endif
 #if EC_MACHINE_RISCV64
     case ArchRiscV64:
       Sv48MapPhysical (Va, Size, 0, Mt);
@@ -384,6 +401,11 @@ VirtualAddressMapFramebuffer (
       Pae64MapPhysical (Va, Size, Pa, Mt);
       break;
 #endif
+#if EC_MACHINE_RISCV32
+    case ArchRiscV32:
+      Sv32MapPhysical (Va, Size, Pa, Mt);
+      break;
+#endif
 #if EC_MACHINE_RISCV64
     case ArchRiscV64:
       Sv48MapPhysical (Va, Size, Pa, Mt);
@@ -424,6 +446,11 @@ VirtualAddressMapLinear (
       Pae64MapLinear (Va, Size);
       break;
 #endif
+#if EC_MACHINE_RISCV32
+    case ArchRiscV32:
+      Sv32MapLinear (Va, Size);
+      break;
+#endif
 #if EC_MACHINE_RISCV64
     case ArchRiscV64:
       Sv48MapLinear (Va, Size);
@@ -462,6 +489,11 @@ VirtualAddressAllocateTopPageTable (
       Pae64AllocateTopPageTable (Va, Size);
       break;
 #endif
+#if EC_MACHINE_RISCV32
+    case ArchRiscV32:
+      Sv32AllocateTopPageTable (Va, Size);
+      break;
+#endif
 #if EC_MACHINE_RISCV64
     case ArchRiscV64:
       Sv48AllocateTopPageTable (Va, Size);
@@ -498,6 +530,11 @@ VirtualAddressAllocatePageTable (
       break;
     case ArchAmd64:
       Pae64AllocatePageTable (Va, Size);
+      break;
+#endif
+#if EC_MACHINE_RISCV32
+    case ArchRiscV32:
+      Sv32AllocatePageTable (Va, Size);
       break;
 #endif
 #if EC_MACHINE_RISCV64
@@ -997,6 +1034,11 @@ VirtualAddressVerify (
       Pae64Verify (Va, Size);
       break;
 #endif
+#if EC_MACHINE_RISCV32
+    case ArchRiscV32:
+      Sv32Verify (Va, Size);
+      break;
+#endif
 #if EC_MACHINE_RISCV64
     case ArchRiscV64:
       Sv48Verify (Va, Size);
@@ -1033,6 +1075,11 @@ VirtualAddressGetPhysical (
       return Pae64GetPhysical (Va);
       break;
 #endif
+#if EC_MACHINE_RISCV32
+    case ArchRiscV32:
+      return Sv32GetPhysical (Va);
+      break;
+#endif
 #if EC_MACHINE_RISCV64
     case ArchRiscV64:
       return Sv48GetPhysical (Va);
@@ -1065,6 +1112,11 @@ VirtualAddressSetEntry (
       break;
     case ArchAmd64:
       Pae64Entry (Entry);
+      break;
+#endif
+#if EC_MACHINE_RISCV32
+    case ArchRiscV32:
+      Sv32Entry (Entry);
       break;
 #endif
 #if EC_MACHINE_RISCV64
@@ -1128,6 +1180,11 @@ main (
       KEntry = LoadElf64 (ElfStart, 0);
       break;
 #endif
+#if EC_MACHINE_RISCV32
+    case ArchRiscV32:
+      KEntry = LoadElf32 (ElfStart, 0);
+      break;
+#endif
 #if EC_MACHINE_RISCV64
     case ArchRiscV64:
       KEntry = LoadElf64 (ElfStart, 0);
@@ -1159,6 +1216,11 @@ main (
 	  break;
 	case ArchAmd64:
 	  UEntry = LoadElf64 (ElfStart, 1);
+	  break;
+#endif
+#if EC_MACHINE_RISCV32
+	case ArchRiscV32:
+	  UEntry = LoadElf32 (ElfStart, 1);
 	  break;
 #endif
 #if EC_MACHINE_RISCV64
