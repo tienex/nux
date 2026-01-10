@@ -22,41 +22,146 @@ AC_NUXROOT_DIR([${nux_dir}])
 AC_LIBEC_DIR([${libec_dir}])
 
 
-AC_ARG_VAR([ARCH], [The architecture to compile for: i386 or amd64])
+AC_ARG_ENABLE([targets],
+	[AS_HELP_STRING([--enable-targets=LIST],
+		[comma-separated list of target architectures: i386,amd64,riscv64 @<:@default: i386@:>@])],
+	[enable_targets=$enableval],
+	[enable_targets=])
 
-if test x"${ARCH}" == x ; then
-   AC_MSG_ERROR([Please select a valid architecture with `./configure ARCH=<arch>`])
+if test x"${enable_targets}" = x ; then
+   AC_MSG_ERROR([Please select target architecture(s) with --enable-targets=LIST (e.g., --enable-targets=i386,amd64)])
 fi
 
-AS_CASE([${ARCH}],
-	[i386], [tool_prefix=i686-unknown-elf],
-	[amd64], [tool_prefix=amd64-unknown-elf],
-	[riscv64], [tool_prefix=riscv64-unknown-elf],
-	[*], [AC_MSG_ERROR([Supported Architectures: i386, amd64, riscv64])])
+# Parse target list (POSIX-compatible)
+target_count=0
+primary_target=""
+saved_ifs="$IFS"
+IFS=','
+for target in $enable_targets; do
+	# Validate target
+	case "$target" in
+		i386|amd64|riscv64) ;;
+		*) AC_MSG_ERROR([Unsupported target: $target. Supported targets: i386, amd64, riscv64]) ;;
+	esac
 
-AC_ARG_VAR([TOOLCHAIN],[toolchain prefix @<:@default: <ARCH>-elf@:>@])
-if test x"${TOOLCHAIN}" != x ; then
-   tool_prefix="${TOOLCHAIN}"
+	# Set primary target (first in list)
+	if test x"$primary_target" = x ; then
+		primary_target="$target"
+	fi
+	target_count=`expr $target_count + 1`
+done
+IFS="$saved_ifs"
+
+# Toolchain selection
+AC_ARG_WITH([toolchain],
+	[AS_HELP_STRING([--with-toolchain=TYPE],
+		[toolchain type: gnu or llvm @<:@default: gnu@:>@])],
+	[with_toolchain=$withval],
+	[with_toolchain=gnu])
+
+case "$with_toolchain" in
+	gnu|llvm) ;;
+	*) AC_MSG_ERROR([Invalid toolchain type: $with_toolchain. Use 'gnu' or 'llvm']) ;;
+esac
+
+AC_ARG_WITH([toolchain-prefix],
+	[AS_HELP_STRING([--with-toolchain-prefix=PREFIX],
+		[toolchain prefix for cross-compilation tools @<:@default: <arch>-unknown-elf-@:>@])],
+	[toolchain_prefix=$withval],
+	[toolchain_prefix=])
+
+AC_ARG_WITH([toolchain-suffix],
+	[AS_HELP_STRING([--with-toolchain-suffix=SUFFIX],
+		[toolchain suffix for all tools @<:@default: empty@:>@])],
+	[toolchain_suffix=$withval],
+	[toolchain_suffix=])
+
+# Image format selection
+AC_ARG_WITH([image],
+	[AS_HELP_STRING([--with-image=FORMAT],
+		[image format: elf, macho, or pecoff @<:@default: elf@:>@])],
+	[with_image=$withval],
+	[with_image=elf])
+
+case "$with_image" in
+	elf|macho|pecoff) ;;
+	*) AC_MSG_ERROR([Invalid image format: $with_image. Use 'elf', 'macho', or 'pecoff']) ;;
+esac
+
+# Validate universal binary support based on image format
+# PE/COFF only supports single target, ELF and Mach-O support multiple targets
+if test $target_count -gt 1 ; then
+	case "$with_image" in
+		pecoff)
+			AC_MSG_ERROR([PE/COFF format does not support multiple targets. Only ELF and Mach-O formats support universal binaries. Please specify a single target with --enable-targets=<target>])
+			;;
+		elf|macho)
+			# Universal binary is allowed
+			;;
+	esac
 fi
 
-AC_CHECK_TOOL(TARGET_CC, ${tool_prefix}-gcc, :)
+# Determine tool names based on toolchain type
+if test x"$with_toolchain" = x"llvm"; then
+	cc_name="clang"
+	cxx_name="clang++"
+	ld_name="ld.lld"
+	ar_name="llvm-ar"
+	objcopy_name="llvm-objcopy"
+else
+	cc_name="gcc"
+	cxx_name="g++"
+	ld_name="ld"
+	ar_name="ar"
+	objcopy_name="objcopy"
+fi
+
+# Set up tool prefix for primary target
+if test x"${toolchain_prefix}" != x ; then
+	tool_prefix="${toolchain_prefix}"
+else
+	case "$primary_target" in
+		i386) tool_prefix="i686-unknown-elf-" ;;
+		amd64) tool_prefix="x86_64-unknown-elf-" ;;
+		riscv64) tool_prefix="riscv64-unknown-elf-" ;;
+	esac
+fi
+
+# Check for required tools
+AC_CHECK_TOOL(TARGET_CC, ${tool_prefix}${cc_name}${toolchain_suffix}, :)
 if test x"${TARGET_CC}" = 'x:' ; then
-  AC_MSG_ERROR([${tool_prefix}-gcc not found])
+  AC_MSG_ERROR([${tool_prefix}${cc_name}${toolchain_suffix} not found])
 fi
-AC_CHECK_TOOL(TARGET_LD, ${tool_prefix}-ld, :)
+AC_CHECK_TOOL(TARGET_CXX, ${tool_prefix}${cxx_name}${toolchain_suffix}, :)
+AC_CHECK_TOOL(TARGET_LD, ${tool_prefix}${ld_name}${toolchain_suffix}, :)
 if test x"${TARGET_LD}" = 'x:' ; then
-  AC_MSG_ERROR([${tool_prefix}-ld not found])
+  AC_MSG_ERROR([${tool_prefix}${ld_name}${toolchain_suffix} not found])
 fi
-AC_CHECK_TOOL(TARGET_AR, ${tool_prefix}-ar, :)
+AC_CHECK_TOOL(TARGET_AR, ${tool_prefix}${ar_name}${toolchain_suffix}, :)
 if test x"${TARGET_AR}" = 'x:' ; then
-  AC_MSG_ERROR([${tool_prefix}-ar not found])
+  AC_MSG_ERROR([${tool_prefix}${ar_name}${toolchain_suffix} not found])
 fi
-AC_CHECK_TOOL(TARGET_OBJCOPY, ${tool_prefix}-objcopy, :)
+AC_CHECK_TOOL(TARGET_OBJCOPY, ${tool_prefix}${objcopy_name}${toolchain_suffix}, :)
 if test x"${TARGET_OBJCOPY}" = 'x:' ; then
-  AC_MSG_ERROR([${tool_prefix}-objcopy not found])
+  AC_MSG_ERROR([${tool_prefix}${objcopy_name}${toolchain_suffix} not found])
 fi
 
-machine=${ARCH}
+machine=${primary_target}
+
+# Determine build type
+# Universal binaries are only supported for ELF and Mach-O with multiple targets
+universal_binary=no
+if test $target_count -gt 1 ; then
+	case "$with_image" in
+		elf|macho)
+			universal_binary=yes
+			;;
+		pecoff)
+			# Should never reach here due to earlier validation
+			universal_binary=no
+			;;
+	esac
+fi
 
 AC_ARG_ENABLE([opt],
 	AS_HELP_STRING([--disable-opt],[compile without compiler optimizations]))
@@ -71,6 +176,12 @@ AS_IF([test "x$enable_relax" != "xno"],
 	[wflags=''])
 
 AC_SUBST(MACHINE, ${machine})
+AC_SUBST(TOOLCHAIN_TYPE, ${with_toolchain})
+AC_SUBST(TOOLCHAIN_PREFIX, ${toolchain_prefix})
+AC_SUBST(TOOLCHAIN_SUFFIX, ${toolchain_suffix})
+AC_SUBST(IMAGE_FORMAT, ${with_image})
+AC_SUBST(ENABLE_TARGETS, ${enable_targets})
+AC_SUBST(UNIVERSAL_BINARY, ${universal_binary})
 AC_SUBST(CONFIGURE_FLAGS, ["${optflags} ${wflags} -I\$(SRCROOT)/${nux_dir}/include -I\$(BUILDROOT)/${nux_dir}/include"])
 AC_SUBST(APXH_SUBDIRS, [${apxh_subdirs}])
 AC_SUBST(INSTALLDIR, ${prefix})

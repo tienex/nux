@@ -341,7 +341,7 @@ README.md
 - Implementation: `libnux/`, `libhal_*/`, `libplt_*/`
 
 ### Build Information
-- Configure: `./configure ARCH=<arch>`
+- Configure: `./configure --enable-targets=<arch1,arch2,...> [--with-image=elf|macho|pecoff] [--with-toolchain=gnu|llvm]`
 - Build: `make -j`
 - See README.md for details
 
