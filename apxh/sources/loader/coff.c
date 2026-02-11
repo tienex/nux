@@ -30,6 +30,8 @@
 
 #include <apxh/internal.h>
 #include <apxh/imgload.h>
+#include <ananke/resource.h>
+#include "imgresource.h"
 
 //
 // COFF Magic Numbers (Common Object File Format)
@@ -783,7 +785,7 @@ CoffLoadImage (
 
     if (IsBss) {
       // BSS: zero-filled, writable
-      VirtualAddressMemset(
+      VasFill(
         Sec->VirtualAddr,
         0,
         Sec->Size,
@@ -793,7 +795,7 @@ CoffLoadImage (
       );
     } else if (Sec->DataPtr > 0) {
       // Normal section with data
-      VirtualAddressCopy(
+      VasCopy(
         Sec->VirtualAddr,
         COFF_OFF(Sec->DataPtr),
         Sec->Size,
@@ -1324,6 +1326,298 @@ CoffGetMinimumSubsystemVersion (
   return S_FALSE;
 }
 
+/**
+  Find section by name in COFF image.
+
+  @param[in]  ImageBase    Pointer to COFF image.
+  @param[in]  SectionName  Section name to find.
+  @param[out] Data         Receives pointer to section data.
+  @param[out] Size         Receives size of section.
+
+  @return S_OK if found, S_FALSE if not found, error code otherwise.
+**/
+static
+HRESULT
+CoffFindSection (
+  IN  VOID         *ImageBase,
+  IN  CONST CHAR8  *SectionName,
+  OUT VOID         **Data,
+  OUT UINT64       *Size
+  )
+{
+  COFF_FILE_HEADER *FileHeader;
+  COFF_SECTION_HEADER *Sections;
+  UINT16 NumSections;
+  UINT16 i;
+  UINTN NameLen;
+
+  if (ImageBase == NULL || SectionName == NULL || Data == NULL || Size == NULL) {
+    return E_POINTER;
+  }
+
+  FileHeader = (COFF_FILE_HEADER *)ImageBase;
+  NumSections = FileHeader->NumberOfSections;
+  Sections = (COFF_SECTION_HEADER *)((UINT8 *)ImageBase +
+                                     sizeof(COFF_FILE_HEADER) +
+                                     FileHeader->SizeOfOptionalHeader);
+
+  NameLen = strlen(SectionName);
+  if (NameLen > 8) {
+    NameLen = 8;  // COFF section names are max 8 characters
+  }
+
+  // Search for section
+  for (i = 0; i < NumSections; i++) {
+    if (memcmp(Sections[i].Name, SectionName, NameLen) == 0) {
+      *Data = (UINT8 *)ImageBase + Sections[i].PointerToRawData;
+      *Size = Sections[i].SizeOfRawData;
+      return S_OK;
+    }
+  }
+
+  return S_FALSE;  // Section not found
+}
+
+/**
+  Get COFF init/fini function arrays.
+
+  COFF uses special sections for initialization and termination:
+  - .init: Initialization code section (executed before main)
+  - .fini: Finalization code section (executed after main)
+  - .ctors: Array of constructor function pointers (C++)
+  - .dtors: Array of destructor function pointers (C++)
+
+  @param[in]  ImageBase       Pointer to COFF image.
+  @param[out] InitSection     Receives pointer to .init section (NULL if none).
+  @param[out] InitSize        Receives size of .init section.
+  @param[out] FiniSection     Receives pointer to .fini section (NULL if none).
+  @param[out] FiniSize        Receives size of .fini section.
+  @param[out] CtorsArray      Receives pointer to .ctors array (NULL if none).
+  @param[out] NumCtors        Receives number of constructors.
+  @param[out] DtorsArray      Receives pointer to .dtors array (NULL if none).
+  @param[out] NumDtors        Receives number of destructors.
+
+  @return S_OK if any init/fini found, S_FALSE if none found.
+**/
+static
+HRESULT
+CoffGetInitFini (
+  IN  VOID     *ImageBase,
+  OUT VOID     **InitSection,
+  OUT UINT64   *InitSize,
+  OUT VOID     **FiniSection,
+  OUT UINT64   *FiniSize,
+  OUT VOID     **CtorsArray,
+  OUT UINT32   *NumCtors,
+  OUT VOID     **DtorsArray,
+  OUT UINT32   *NumDtors
+  )
+{
+  VOID     *InitData;
+  VOID     *FiniData;
+  VOID     *CtorsData;
+  VOID     *DtorsData;
+  UINT64   InitSz;
+  UINT64   FiniSz;
+  UINT64   CtorsSz;
+  UINT64   DtorsSz;
+  HRESULT  Status;
+  BOOLEAN  FoundAny;
+
+  if (ImageBase == NULL) {
+    return E_POINTER;
+  }
+
+  // Initialize outputs
+  if (InitSection != NULL) *InitSection = NULL;
+  if (InitSize != NULL) *InitSize = 0;
+  if (FiniSection != NULL) *FiniSection = NULL;
+  if (FiniSize != NULL) *FiniSize = 0;
+  if (CtorsArray != NULL) *CtorsArray = NULL;
+  if (NumCtors != NULL) *NumCtors = 0;
+  if (DtorsArray != NULL) *DtorsArray = NULL;
+  if (NumDtors != NULL) *NumDtors = 0;
+
+  FoundAny = FALSE;
+
+  // Find .init section
+  Status = CoffFindSection(ImageBase, ".init", &InitData, &InitSz);
+  if (Status == S_OK) {
+    if (InitSection != NULL) *InitSection = InitData;
+    if (InitSize != NULL) *InitSize = InitSz;
+    FoundAny = TRUE;
+  }
+
+  // Find .fini section
+  Status = CoffFindSection(ImageBase, ".fini", &FiniData, &FiniSz);
+  if (Status == S_OK) {
+    if (FiniSection != NULL) *FiniSection = FiniData;
+    if (FiniSize != NULL) *FiniSize = FiniSz;
+    FoundAny = TRUE;
+  }
+
+  // Find .ctors section (array of function pointers)
+  Status = CoffFindSection(ImageBase, ".ctors", &CtorsData, &CtorsSz);
+  if (Status == S_OK) {
+    if (CtorsArray != NULL) *CtorsArray = CtorsData;
+    if (NumCtors != NULL) *NumCtors = (UINT32)(CtorsSz / sizeof(UINT32));  // Assume 32-bit pointers
+    FoundAny = TRUE;
+  }
+
+  // Find .dtors section (array of function pointers)
+  Status = CoffFindSection(ImageBase, ".dtors", &DtorsData, &DtorsSz);
+  if (Status == S_OK) {
+    if (DtorsArray != NULL) *DtorsArray = DtorsData;
+    if (NumDtors != NULL) *NumDtors = (UINT32)(DtorsSz / sizeof(UINT32));  // Assume 32-bit pointers
+    FoundAny = TRUE;
+  }
+
+  return FoundAny ? S_OK : S_FALSE;
+}
+
+/**
+  Get resource from COFF image.
+
+  COFF has no native resource system, so we only check .axursrc section.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+CoffGetResource (
+  IN  IImageLoader        *This,
+  IN  VOID                *ImageBase,
+  IN  IMGLOAD_RESOURCE_ID *ResourceId,
+  IN  IMGLOAD_RESOURCE_ID *ResourceType,
+  OUT IImageResource      **Resource
+  )
+{
+  VOID *ResourceFork;
+  UINT64 Size;
+  BOOLEAN NeedsFree;
+  HRESULT Status;
+  UINT32 TypeCode;
+  UINT16 Id;
+  CONST CHAR8 *Name;
+
+  if (ImageBase == NULL || Resource == NULL) {
+    return E_POINTER;
+  }
+
+  *Resource = NULL;
+
+  // Extract type code from ResourceType
+  if (ResourceType != NULL) {
+    if (ResourceType->IsNumeric) {
+      TypeCode = ResourceType->Id;
+    } else {
+      TypeCode = ANX_MAKE_TYPE(ResourceType->Name);
+    }
+  } else {
+    TypeCode = 0;
+  }
+
+  // Extract resource ID/name from ResourceId
+  if (ResourceId != NULL) {
+    if (ResourceId->IsNumeric) {
+      Id = (UINT16)ResourceId->Id;
+      Name = NULL;
+    } else {
+      Id = 0;
+      Name = ResourceId->Name;
+    }
+  } else {
+    Id = 0;
+    Name = NULL;
+  }
+
+  // Find universal resource fork in .axursrc section
+  Status = FindUniversalResourceFork(
+    ImageBase,
+    ResourceStrategyDirect,
+    NULL,  // No native resources in COFF
+    CoffFindSection,
+    ".axursrc",
+    &ResourceFork,
+    &Size,
+    &NeedsFree
+  );
+
+  if (FAILED(Status) || Status == S_FALSE) {
+    return Status;
+  }
+
+  // Create resource object
+  Status = CreateImageResource(ResourceFork, TypeCode, Id, Name, Resource);
+
+  if (NeedsFree && ResourceFork != NULL) {
+    free(ResourceFork);
+  }
+
+  return Status;
+}
+
+/**
+  Get resource enumerator for COFF image.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+CoffGetResourceEnumerator (
+  IN  IImageLoader        *This,
+  IN  VOID                *ImageBase,
+  IN  IMGLOAD_RESOURCE_ID *ResourceType,
+  OUT IEnumImageResource  **Enumerator
+  )
+{
+  VOID *ResourceFork;
+  UINT64 Size;
+  BOOLEAN NeedsFree;
+  HRESULT Status;
+  UINT32 TypeCode;
+
+  if (ImageBase == NULL || Enumerator == NULL) {
+    return E_POINTER;
+  }
+
+  *Enumerator = NULL;
+
+  // Extract type code from ResourceType
+  if (ResourceType != NULL) {
+    if (ResourceType->IsNumeric) {
+      TypeCode = ResourceType->Id;
+    } else {
+      TypeCode = ANX_MAKE_TYPE(ResourceType->Name);
+    }
+  } else {
+    TypeCode = 0;
+  }
+
+  // Find universal resource fork
+  Status = FindUniversalResourceFork(
+    ImageBase,
+    ResourceStrategyDirect,
+    NULL,
+    CoffFindSection,
+    ".axursrc",
+    &ResourceFork,
+    &Size,
+    &NeedsFree
+  );
+
+  if (FAILED(Status) || Status == S_FALSE) {
+    return Status;
+  }
+
+  // Create enumerator
+  Status = CreateImageResourceEnumerator(ResourceFork, TypeCode, Enumerator);
+
+  if (NeedsFree && ResourceFork != NULL) {
+    free(ResourceFork);
+  }
+
+  return Status;
+}
+
 //
 // COFF Loader VTable
 //
@@ -1346,7 +1640,10 @@ static CONST IImageLoaderVtbl gCoffVtbl = {
   CoffGetTargetSystem,
   CoffGetMinimumSystemVersion,
   CoffGetTargetSubsystem,
-  CoffGetMinimumSubsystemVersion
+  CoffGetMinimumSubsystemVersion,
+  CoffGetResource,
+  CoffGetResourceEnumerator,
+  CoffGetInitFini
 };
 
 //

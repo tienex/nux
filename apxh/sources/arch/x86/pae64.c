@@ -11,6 +11,7 @@
 **/
 
 #include <apxh/x86/pae.h>
+#include <apxh/arch.h>
 
 #define PAE64_DIRECTMAP_START 0
 #define PAE64_DIRECTMAP_END   (1LL << 30)
@@ -150,7 +151,7 @@ Pae64GetL1p (
   @param[in] Va    Virtual address.
   @param[in] Size  Size of region.
 **/
-VOID
+static VOID
 Pae64Verify (
   IN VIRTUAL_ADDRESS   VirtualAddress,
   IN SIZE64  Size
@@ -165,7 +166,7 @@ Pae64Verify (
   Sets up PAE64 (AMD64) paging with 4-level page tables. Enables
   NX if supported and configures PAT table.
 **/
-VOID
+static VOID
 Pae64Initialize (
   VOID
   )
@@ -286,7 +287,7 @@ Pae64PopulatePage (
 
   @return Physical address.
 **/
-UINTN
+static UINTN
 Pae64GetPhysical (
   IN VIRTUAL_ADDRESS  VirtualAddress
   )
@@ -412,7 +413,7 @@ INT32 P1G = CpuSupports1gbPages ();
   @param[in] Pa    Physical address.
   @param[in] Mt    Memory type.
 **/
-VOID
+static VOID
 Pae64MapPhysical (
   IN VIRTUAL_ADDRESS           VirtualAddress,
   IN SIZE64          Size,
@@ -431,7 +432,7 @@ Pae64MapPhysical (
   @param[in] Va    Virtual address.
   @param[in] Size  Size of region.
 **/
-VOID
+static VOID
 Pae64AllocateTopPageTable (
   IN VIRTUAL_ADDRESS   VirtualAddress,
   IN SIZE64  Size
@@ -453,7 +454,7 @@ Pae64AllocateTopPageTable (
   @param[in] Va    Virtual address.
   @param[in] Size  Size of region.
 **/
-VOID
+static VOID
 Pae64AllocatePageTable (
   IN VIRTUAL_ADDRESS   VirtualAddress,
   IN SIZE64  Size
@@ -480,7 +481,7 @@ Pae64AllocatePageTable (
   @param[in] Va    Virtual address for linear mapping.
   @param[in] Size  Size of region (must be >= PAE64_LINEAR_SIZE).
 **/
-VOID
+static VOID
 Pae64MapLinear (
   IN VIRTUAL_ADDRESS   VirtualAddress,
   IN SIZE64  Size
@@ -519,7 +520,7 @@ Pae64MapLinear (
   @param[in] W     TRUE for writable.
   @param[in] X     TRUE for executable.
 **/
-VOID
+static VOID
 Pae64Populate (
   IN VIRTUAL_ADDRESS   VirtualAddress,
   IN SIZE64  Size,
@@ -548,11 +549,184 @@ Pae64Populate (
 
   @param[in] Entry  Kernel entry point address.
 **/
-VOID
+static VOID
 Pae64Entry (
   IN VIRTUAL_ADDRESS  Entry
   )
 {
   PlatformEntry (ArchAmd64, (VIRTUAL_ADDRESS) (UINTN) gPae64Cr3, Entry);
 }
+
+//
+// IVirtualAddressSpace COM Interface Implementation
+//
+
+static HRESULT STDMETHODCALLTYPE
+Pae64QueryInterface (
+  IN  IVirtualAddressSpace  *This,
+  IN  CONST GUID     *Iid,
+  OUT VOID           **Object
+  )
+{
+  if (memcmp (Iid, &IID_IVirtualAddressSpace, sizeof (GUID)) == 0 ||
+      memcmp (Iid, &IID_IUnknown, sizeof (GUID)) == 0)
+    {
+      *Object = This;
+      return S_OK;
+    }
+
+  *Object = NULL;
+  return E_NOINTERFACE;
+}
+
+static UINT32 STDMETHODCALLTYPE
+Pae64AddRef (
+  IN IVirtualAddressSpace  *This
+  )
+{
+  return 1;  // Static instance, no reference counting
+}
+
+static UINT32 STDMETHODCALLTYPE
+Pae64Release (
+  IN IVirtualAddressSpace  *This
+  )
+{
+  return 1;  // Static instance, no reference counting
+}
+
+static HRESULT STDMETHODCALLTYPE
+Pae64IInitialize (
+  IN IVirtualAddressSpace  *This
+  )
+{
+  Pae64Initialize ();
+  return S_OK;
+}
+
+static HRESULT STDMETHODCALLTYPE
+Pae64IGetPhysical (
+  IN  IVirtualAddressSpace    *This,
+  IN  VIRTUAL_ADDRESS  VirtualAddress,
+  OUT UINTN            *PhysicalAddress
+  )
+{
+  if (PhysicalAddress == NULL) {
+    return E_POINTER;
+  }
+
+  *PhysicalAddress = Pae64GetPhysical (VirtualAddress);
+  return S_OK;
+}
+
+static HRESULT STDMETHODCALLTYPE
+Pae64IVerify (
+  IN IVirtualAddressSpace    *This,
+  IN VIRTUAL_ADDRESS  VirtualAddress,
+  IN SIZE64           Size
+  )
+{
+  Pae64Verify (VirtualAddress, Size);
+  return S_OK;
+}
+
+static HRESULT STDMETHODCALLTYPE
+Pae64IPopulate (
+  IN IVirtualAddressSpace    *This,
+  IN VIRTUAL_ADDRESS  VirtualAddress,
+  IN SIZE64           Size,
+  IN INT32            IsUserMode,
+  IN INT32            IsWritable,
+  IN INT32            IsExecutable
+  )
+{
+  Pae64Populate (VirtualAddress, Size, IsUserMode, IsWritable, IsExecutable);
+  return S_OK;
+}
+
+static HRESULT STDMETHODCALLTYPE
+Pae64IMapPhysical (
+  IN IVirtualAddressSpace    *This,
+  IN VIRTUAL_ADDRESS  VirtualAddress,
+  IN SIZE64           Size,
+  IN UINT64           PhysicalAddress,
+  IN MEMORY_TYPE      Type
+  )
+{
+  Pae64MapPhysical (VirtualAddress, Size, PhysicalAddress, Type);
+  return S_OK;
+}
+
+static HRESULT STDMETHODCALLTYPE
+Pae64IAllocatePageTable (
+  IN IVirtualAddressSpace    *This,
+  IN VIRTUAL_ADDRESS  VirtualAddress,
+  IN SIZE64           Size
+  )
+{
+  Pae64AllocatePageTable (VirtualAddress, Size);
+  return S_OK;
+}
+
+static HRESULT STDMETHODCALLTYPE
+Pae64IAllocateTopPageTable (
+  IN IVirtualAddressSpace    *This,
+  IN VIRTUAL_ADDRESS  VirtualAddress,
+  IN SIZE64           Size
+  )
+{
+  Pae64AllocateTopPageTable (VirtualAddress, Size);
+  return S_OK;
+}
+
+static HRESULT STDMETHODCALLTYPE
+Pae64IMapLinear (
+  IN IVirtualAddressSpace    *This,
+  IN VIRTUAL_ADDRESS  VirtualAddress,
+  IN SIZE64           Size
+  )
+{
+  Pae64MapLinear (VirtualAddress, Size);
+  return S_OK;
+}
+
+static HRESULT STDMETHODCALLTYPE
+Pae64IEntry (
+  IN IVirtualAddressSpace    *This,
+  IN VIRTUAL_ADDRESS  EntryPoint
+  )
+{
+  Pae64Entry (EntryPoint);
+  return S_OK;  // Never returns
+}
+
+//
+// PAE64 Architecture VTable
+//
+
+static CONST IVirtualAddressSpaceVtbl gPae64Vtbl = {
+  Pae64QueryInterface,
+  Pae64AddRef,
+  Pae64Release,
+  Pae64IInitialize,
+  Pae64IGetPhysical,
+  Pae64IVerify,
+  Pae64IPopulate,
+  Pae64IMapPhysical,
+  Pae64IAllocatePageTable,
+  Pae64IAllocateTopPageTable,
+  Pae64IMapLinear,
+  Pae64IEntry
+};
+
+//
+// PAE64 Architecture Instance
+//
+
+IVirtualAddressSpace gPae64Arch = {
+  &gPae64Vtbl
+};
+
+// Auto-register this architecture
+APXH_REGISTER_ARCH(gPae64Arch, ArchAmd64);
 

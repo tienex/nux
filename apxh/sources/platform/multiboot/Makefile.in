@@ -6,8 +6,8 @@ LDADD_START+= crt0.o
 
 PROGRAM=apxh
 SRCS+= ../src/main.c ../src/elf.c ../src/payload.c
-SRCS+= ../src/pae_common.c ../src/pae32.c ../src/pae64.c
-SRCS+= ec.c mb.c rsdp.c
+SRCS+= ../src/pae_common.c ../src/pae32.c ../src/pae64.c ../src/split.c
+SRCS+= console.c platform.c rsdp.c mps.c
 
 
 CC=@TOOLCHAIN_32@-gcc

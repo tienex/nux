@@ -37,6 +37,8 @@
 
 #include <apxh/internal.h>
 #include <apxh/imgload.h>
+#include <ananke/resource.h>
+#include "imgresource.h"
 
 //
 // OSF/ROSE Type Definitions (from mach_o_types.h)
@@ -442,7 +444,7 @@ RoseLoadImage (
           BOOLEAN Writable = (InitProt & MO_PROT_WRITE) != 0;
           BOOLEAN Executable = (InitProt & MO_PROT_EXECUTE) != 0;
 
-          VirtualAddressCopy(
+          VasCopy(
             VmAddr,
             SrcData,
             VmSize,
@@ -832,6 +834,231 @@ RoseGetMinimumSubsystemVersion (
   memset(MinimumVersion, 0, sizeof(IMGLOAD_SYSTEM_VERSION));
   return S_FALSE;
 }
+
+/**
+  Find region by name pattern in OSF/ROSE image.
+
+  ROSE doesn't have named regions like sections, but we can search for
+  a region at a specific file offset or by convention.
+
+  @param[in]  ImageBase      Pointer to ROSE image.
+  @param[in]  SectionName    Section name (used as hint, e.g., ".axursrc").
+  @param[out] Data           Receives pointer to region data.
+  @param[out] Size           Receives size of region.
+
+  @return S_OK if found, S_FALSE if not found.
+**/
+static
+HRESULT
+RoseFindResourceRegion (
+  IN  VOID         *ImageBase,
+  IN  CONST CHAR8  *SectionName,
+  OUT VOID         **Data,
+  OUT UINT64       *Size
+  )
+{
+  raw_mo_header_t *RawHdr;
+  UINT32 NumCmds, FirstCmdOff, i;
+
+  if (ImageBase == NULL || Data == NULL || Size == NULL) {
+    return E_POINTER;
+  }
+
+  RawHdr = (raw_mo_header_t *)ImageBase;
+  NumCmds = ANX_BSWAP32(RawHdr->rmoh_n_load_cmds);
+  FirstCmdOff = ANX_BSWAP32(RawHdr->rmoh_first_cmd_off);
+
+  // Search for LDC_REGION commands
+  // Look for a region that could contain resources (writable, non-executable)
+  for (i = 0; i < NumCmds; i++) {
+    ldc_header_t *LdcHdr = (ldc_header_t *)ROSE_OFF(FirstCmdOff);
+    UINT32 CmdType = ANX_BSWAP32(LdcHdr->ldci_cmd_type);
+    UINT32 CmdSize = ANX_BSWAP32(LdcHdr->ldci_cmd_size);
+
+    if (CmdType == LDC_REGION) {
+      region_command_t *RegCmd = (region_command_t *)LdcHdr;
+      UINT64 FileOffset = ANX_BSWAP64(RegCmd->regc_file_offset);
+      UINT32 VmSize = ANX_BSWAP32(RegCmd->regc_vmsize);
+      UINT32 InitProt = ANX_BSWAP32(RegCmd->regc_initprot);
+
+      // Look for writable, non-executable regions (data regions)
+      // Resources would typically be in such regions
+      if (FileOffset > 0 && VmSize > 0 &&
+          (InitProt & MO_PROT_WRITE) &&
+          !(InitProt & MO_PROT_EXECUTE)) {
+        // Check if this region has a resource signature
+        VOID *RegionData = ROSE_OFF(FileOffset);
+
+        // Simple heuristic: check for universal resource signature
+        // This is a simplified approach - could be enhanced with
+        // a proper region naming convention
+        if (VmSize >= 4) {
+          UINT32 *Signature = (UINT32 *)RegionData;
+          // Check for common resource signatures (simplified)
+          if (*Signature == ANX_RSRC_TYPE_AUR ||
+              *Signature == ANX_RSRC_TYPE_AUR_16BIT ||
+              *Signature == ANX_RSRC_ID_AUR_32BIT) {
+            *Data = RegionData;
+            *Size = VmSize;
+            return S_OK;
+          }
+        }
+      }
+    }
+
+    FirstCmdOff += CmdSize;
+  }
+
+  return S_FALSE;  // No resource region found
+}
+
+/**
+  Get resource from OSF/ROSE image.
+
+  ROSE format uses regions (similar to sections). Resources can be
+  embedded in a dedicated resource region identified by signature.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+RoseGetResource (
+  IN  IImageLoader        *This,
+  IN  VOID                *ImageBase,
+  IN  IMGLOAD_RESOURCE_ID *ResourceId,
+  IN  IMGLOAD_RESOURCE_ID *ResourceType,
+  OUT IImageResource      **Resource
+  )
+{
+  VOID *ResourceFork;
+  UINT64 Size;
+  BOOLEAN NeedsFree;
+  HRESULT Status;
+  UINT32 TypeCode;
+  UINT16 Id;
+  CONST CHAR8 *Name;
+
+  if (ImageBase == NULL || Resource == NULL) {
+    return E_POINTER;
+  }
+
+  *Resource = NULL;
+
+  // Extract type code from ResourceType
+  if (ResourceType != NULL) {
+    if (ResourceType->IsNumeric) {
+      TypeCode = ResourceType->Id;
+    } else {
+      TypeCode = ANX_MAKE_TYPE(ResourceType->Name);
+    }
+  } else {
+    TypeCode = 0;
+  }
+
+  // Extract resource ID/name from ResourceId
+  if (ResourceId != NULL) {
+    if (ResourceId->IsNumeric) {
+      Id = (UINT16)ResourceId->Id;
+      Name = NULL;
+    } else {
+      Id = 0;
+      Name = ResourceId->Name;
+    }
+  } else {
+    Id = 0;
+    Name = NULL;
+  }
+
+  // Find universal resource fork (region-based)
+  Status = FindUniversalResourceFork(
+    ImageBase,
+    ResourceStrategyDirect,
+    NULL,  // No native resources in ROSE
+    RoseFindResourceRegion,
+    NULL,  // Region name not used
+    &ResourceFork,
+    &Size,
+    &NeedsFree
+  );
+
+  if (FAILED(Status) || Status == S_FALSE) {
+    return Status;
+  }
+
+  // Create resource object
+  Status = CreateImageResource(ResourceFork, TypeCode, Id, Name, Resource);
+
+  if (NeedsFree && ResourceFork != NULL) {
+    free(ResourceFork);
+  }
+
+  return Status;
+}
+
+/**
+  Get resource enumerator for OSF/ROSE image.
+
+  Enumerates all resources of a given type from the universal resource region.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+RoseGetResourceEnumerator (
+  IN  IImageLoader        *This,
+  IN  VOID                *ImageBase,
+  IN  IMGLOAD_RESOURCE_ID *ResourceType,
+  OUT IEnumImageResource  **Enumerator
+  )
+{
+  VOID *ResourceFork;
+  UINT64 Size;
+  BOOLEAN NeedsFree;
+  HRESULT Status;
+  UINT32 TypeCode;
+
+  if (ImageBase == NULL || Enumerator == NULL) {
+    return E_POINTER;
+  }
+
+  *Enumerator = NULL;
+
+  // Extract type code from ResourceType
+  if (ResourceType != NULL) {
+    if (ResourceType->IsNumeric) {
+      TypeCode = ResourceType->Id;
+    } else {
+      TypeCode = ANX_MAKE_TYPE(ResourceType->Name);
+    }
+  } else {
+    TypeCode = 0;
+  }
+
+  // Find universal resource fork
+  Status = FindUniversalResourceFork(
+    ImageBase,
+    ResourceStrategyDirect,
+    NULL,
+    RoseFindResourceRegion,
+    NULL,
+    &ResourceFork,
+    &Size,
+    &NeedsFree
+  );
+
+  if (FAILED(Status) || Status == S_FALSE) {
+    return Status;
+  }
+
+  // Create enumerator
+  Status = CreateImageResourceEnumerator(ResourceFork, TypeCode, Enumerator);
+
+  if (NeedsFree && ResourceFork != NULL) {
+    free(ResourceFork);
+  }
+
+  return Status;
+}
+
+//
 // OSF/ROSE Loader VTable
 //
 
@@ -853,7 +1080,9 @@ static CONST IImageLoaderVtbl gRoseVtbl = {
   RoseGetTargetSystem,
   RoseGetMinimumSystemVersion,
   RoseGetTargetSubsystem,
-  RoseGetMinimumSubsystemVersion
+  RoseGetMinimumSubsystemVersion,
+  RoseGetResource,
+  RoseGetResourceEnumerator
 };
 
 //

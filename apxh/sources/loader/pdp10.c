@@ -33,6 +33,8 @@
 
 #include <apxh/internal.h>
 #include <apxh/imgload.h>
+#include <ananke/resource.h>
+#include "imgresource.h"
 
 //
 // PDP-10 SAV Format Constants
@@ -617,6 +619,55 @@ Pdp10GetMinimumSubsystemVersion (
 // PDP-10 Loader VTable
 //
 
+
+/**
+  Get resource from PDP-10 SAV image.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+Pdp10GetResource (
+  IN  IImageLoader   *This,
+  IN  VOID           *ImageBase,
+  IN  UINT32         TypeCode,
+  IN  UINT32         Id,
+  IN  CONST CHAR8    *Name,
+  OUT IImageResource **Resource
+  )
+{
+  if (Resource == NULL) {
+    return E_POINTER;
+  }
+
+  *Resource = NULL;
+
+  // PDP-10 SAV format not yet fully implemented
+  return S_FALSE;
+}
+
+/**
+  Get resource enumerator for PDP-10 SAV image.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+Pdp10GetResourceEnumerator (
+  IN  IImageLoader        *This,
+  IN  VOID                *ImageBase,
+  IN  UINT32              TypeCode,
+  OUT IEnumImageResource  **Enumerator
+  )
+{
+  if (Enumerator == NULL) {
+    return E_POINTER;
+  }
+
+  *Enumerator = NULL;
+
+  // PDP-10 SAV format not yet fully implemented  
+  return S_FALSE;
+}
+
 static CONST IImageLoaderVtbl gPdp10Vtbl = {
   Pdp10QueryInterface,
   Pdp10AddRef,
@@ -636,6 +687,9 @@ static CONST IImageLoaderVtbl gPdp10Vtbl = {
   Pdp10GetMinimumSystemVersion,
   Pdp10GetTargetSubsystem,
   Pdp10GetMinimumSubsystemVersion
+,
+  Pdp10GetResource,
+  Pdp10GetResourceEnumerator
 };
 
 //

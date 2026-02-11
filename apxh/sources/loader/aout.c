@@ -18,6 +18,8 @@
 
 #include <apxh/internal.h>
 #include <apxh/imgload.h>
+#include <ananke/resource.h>
+#include "imgresource.h"
 
 //
 // a.out Magic Numbers
@@ -63,6 +65,94 @@ typedef struct _AOUT_RELOC {
   UINT32  Extern : 1;     ///< External reference flag
   UINT32  Type   : 4;     ///< Relocation type
 } AOUT_RELOC;
+
+/**
+  a.out symbol table entry (nlist structure).
+
+  The symbol table follows text + data segments in the file.
+  String table follows symbol table.
+**/
+typedef struct _AOUT_NLIST {
+  union {
+    UINT32  Offset;  ///< Offset into string table
+  } Name;
+  UINT8   Type;      ///< Symbol type and binding
+  INT8    Other;     ///< Reserved (usually 0)
+  UINT16  Desc;      ///< Description field
+  UINT32  Value;     ///< Symbol value (address or offset)
+} AOUT_NLIST;
+
+//
+// a.out Symbol Types (n_type field)
+//
+
+#define N_UNDF   0x00  ///< Undefined
+#define N_ABS    0x02  ///< Absolute
+#define N_TEXT   0x04  ///< Text segment
+#define N_DATA   0x06  ///< Data segment
+#define N_BSS    0x08  ///< BSS segment
+#define N_COMM   0x12  ///< Common symbol
+#define N_FN     0x1E  ///< File name
+#define N_EXT    0x01  ///< External symbol flag (OR'd with type)
+#define N_TYPE   0x1E  ///< Mask for symbol type
+
+//
+// a.out Dynamic Linking Structures
+//
+// These structures are used when __DYNAMIC symbol is present.
+// The __DYNAMIC symbol points to a link_dynamic structure.
+//
+
+/**
+  Runtime linking structure (pointed to by __DYNAMIC).
+
+  This is the main structure for dynamic linking in a.out.
+  It contains version information and pointers to various
+  dynamic linking tables.
+**/
+typedef struct _AOUT_LINK_DYNAMIC {
+  INT32   Version;        ///< Version number (usually 2 or 3)
+  UINT32  LinkMapPtr;     ///< Pointer to link_map (for ld.so)
+  UINT32  SymbolsPtr;     ///< Pointer to link_dynamic_2
+  UINT32  DebugPtr;       ///< Reserved for debugger
+} AOUT_LINK_DYNAMIC;
+
+/**
+  Secondary dynamic linking structure.
+
+  Contains pointers to actual dynamic tables.
+**/
+typedef struct _AOUT_LINK_DYNAMIC2 {
+  UINT32  SymTabPtr;      ///< Pointer to symbol table (nlist array)
+  UINT32  SymTabSize;     ///< Size of symbol table
+  UINT32  StrTabPtr;      ///< Pointer to string table
+  UINT32  StrTabSize;     ///< Size of string table
+  UINT32  TextRelocPtr;   ///< Pointer to text relocations
+  UINT32  TextRelocSize;  ///< Size of text relocations
+  UINT32  DataRelocPtr;   ///< Pointer to data relocations
+  UINT32  DataRelocSize;  ///< Size of data relocations
+  UINT32  GotPtr;         ///< Pointer to GOT (Global Offset Table)
+  UINT32  GotSize;        ///< Size of GOT
+  UINT32  PltPtr;         ///< Pointer to PLT (Procedure Linkage Table)
+  UINT32  PltSize;        ///< Size of PLT
+} AOUT_LINK_DYNAMIC2;
+
+/**
+  Dynamic relocation entry.
+
+  Used for runtime relocations in dynamically linked a.out.
+**/
+typedef struct _AOUT_RUNTIME_RELOC {
+  UINT32  Address;        ///< Relocation address
+  UINT32  SymNum : 24;    ///< Symbol index
+  UINT32  PcRel  : 1;     ///< PC-relative flag
+  UINT32  Length : 2;     ///< Relocation length
+  UINT32  Extern : 1;     ///< External flag
+  UINT32  Copy   : 1;     ///< Copy relocation flag
+  UINT32  JmpSlot: 1;     ///< Jump slot flag (PLT)
+  UINT32  Relative: 1;    ///< Relative to base flag
+  UINT32  Symbolic: 1;    ///< Symbolic flag
+} AOUT_RUNTIME_RELOC;
 
 ANX_PACK_POP()
 
@@ -285,7 +375,7 @@ AoutLoadImage (
 
   // Load text segment (executable)
   if (Header->TextSize > 0) {
-    VirtualAddressCopy(
+    VasCopy(
       TextAddr,
       AOUT_OFF(TextOffset),
       Header->TextSize,
@@ -297,7 +387,7 @@ AoutLoadImage (
 
   // Load data segment (writable)
   if (Header->DataSize > 0) {
-    VirtualAddressCopy(
+    VasCopy(
       DataAddr,
       AOUT_OFF(DataOffset),
       Header->DataSize,
@@ -309,7 +399,7 @@ AoutLoadImage (
 
   // Zero-fill BSS
   if (Header->BssSize > 0) {
-    VirtualAddressMemset(
+    VasFill(
       BssAddr,
       0,
       Header->BssSize,
@@ -365,6 +455,70 @@ AoutGetUnwindInfo (
 }
 
 /**
+  Get __DYNAMIC structure from a.out image.
+
+  Searches the static symbol table for the __DYNAMIC symbol and
+  returns pointer to the dynamic linking structure if found.
+
+  @param[in]  ImageBase  Pointer to a.out image.
+  @param[out] Dynamic    Receives pointer to AOUT_LINK_DYNAMIC (NULL if not found).
+
+  @return S_OK if found, S_FALSE if not dynamically linked.
+**/
+static
+HRESULT
+AoutGetDynamic (
+  IN  VOID                 *ImageBase,
+  OUT AOUT_LINK_DYNAMIC    **Dynamic
+  )
+{
+  AOUT_HEADER    *Header;
+  AOUT_NLIST     *Symbols;
+  CHAR8          *StringTable;
+  UINT32         NumSymbols;
+  UINT32         i;
+  UINT32         SymbolOffset;
+
+  if (ImageBase == NULL || Dynamic == NULL) {
+    return E_POINTER;
+  }
+
+  *Dynamic = NULL;
+  Header = (AOUT_HEADER *)ImageBase;
+
+  if (Header->SymbolSize == 0) {
+    return S_FALSE;  // No symbol table
+  }
+
+  // Symbol table is at: header + text + data
+  SymbolOffset = sizeof(AOUT_HEADER) + Header->TextSize + Header->DataSize;
+  Symbols = (AOUT_NLIST *)AOUT_OFF(SymbolOffset);
+  NumSymbols = Header->SymbolSize / sizeof(AOUT_NLIST);
+
+  // String table follows symbol table
+  StringTable = (CHAR8 *)AOUT_OFF(SymbolOffset + Header->SymbolSize);
+
+  // Search for __DYNAMIC symbol
+  for (i = 0; i < NumSymbols; i++) {
+    CHAR8 *SymName;
+
+    if (Symbols[i].Name.Offset == 0) {
+      continue;  // No name
+    }
+
+    SymName = &StringTable[Symbols[i].Name.Offset];
+
+    if (strcmp(SymName, "___DYNAMIC") == 0 || strcmp(SymName, "__DYNAMIC") == 0) {
+      // Found __DYNAMIC symbol
+      *Dynamic = (AOUT_LINK_DYNAMIC *)(UINTN)Symbols[i].Value;
+      return S_OK;
+    }
+  }
+
+  return S_FALSE;  // Not dynamically linked
+}
+
+/**
   Look up symbol by virtual address.
 **/
 static
@@ -377,13 +531,80 @@ AoutGetSymbolByAddress (
   OUT IMGLOAD_SYMBOL_INFO  *SymbolInfo
   )
 {
+  AOUT_HEADER        *Header;
+  AOUT_NLIST         *Symbols;
+  CHAR8              *StringTable;
+  UINT32             NumSymbols;
+  UINT32             i;
+  UINT32             SymbolOffset;
+  AOUT_LINK_DYNAMIC  *Dynamic;
+  AOUT_LINK_DYNAMIC2 *Dynamic2;
+  HRESULT            Status;
+
   if (SymbolInfo == NULL) {
     return E_POINTER;
   }
 
-  // a.out symbol table parsing would go here
   memset(SymbolInfo, 0, sizeof(IMGLOAD_SYMBOL_INFO));
-  return S_FALSE;
+  Header = (AOUT_HEADER *)ImageBase;
+
+  //
+  // Try dynamic symbol table first if __DYNAMIC is present
+  //
+  Status = AoutGetDynamic(ImageBase, &Dynamic);
+  if (Status == S_OK && Dynamic != NULL && Dynamic->SymbolsPtr != 0) {
+    Dynamic2 = (AOUT_LINK_DYNAMIC2 *)(UINTN)Dynamic->SymbolsPtr;
+
+    if (Dynamic2->SymTabPtr != 0 && Dynamic2->SymTabSize > 0) {
+      Symbols = (AOUT_NLIST *)(UINTN)Dynamic2->SymTabPtr;
+      StringTable = (CHAR8 *)(UINTN)Dynamic2->StrTabPtr;
+      NumSymbols = Dynamic2->SymTabSize / sizeof(AOUT_NLIST);
+
+      for (i = 0; i < NumSymbols; i++) {
+        if (Symbols[i].Value == (UINT32)Address) {
+          SymbolInfo->Address = Symbols[i].Value;
+          SymbolInfo->Size = 0;  // a.out doesn't encode symbol size
+
+          if (Symbols[i].Name.Offset != 0 && StringTable != NULL) {
+            SymbolInfo->Name = &StringTable[Symbols[i].Name.Offset];
+          } else {
+            SymbolInfo->Name = NULL;
+          }
+
+          return S_OK;
+        }
+      }
+    }
+  }
+
+  //
+  // Fall back to static symbol table
+  //
+  if (Header->SymbolSize == 0) {
+    return S_FALSE;  // No symbols
+  }
+
+  SymbolOffset = sizeof(AOUT_HEADER) + Header->TextSize + Header->DataSize;
+  Symbols = (AOUT_NLIST *)AOUT_OFF(SymbolOffset);
+  StringTable = (CHAR8 *)AOUT_OFF(SymbolOffset + Header->SymbolSize);
+  NumSymbols = Header->SymbolSize / sizeof(AOUT_NLIST);
+
+  for (i = 0; i < NumSymbols; i++) {
+    if (Symbols[i].Value == (UINT32)Address) {
+      SymbolInfo->Address = Symbols[i].Value;
+      SymbolInfo->Size = 0;  // a.out doesn't encode symbol size
+
+      if (Symbols[i].Name.Offset != 0) {
+        SymbolInfo->Name = &StringTable[Symbols[i].Name.Offset];
+      } else {
+        SymbolInfo->Name = NULL;
+      }
+
+      return S_OK;
+    }
+  }
+
+  return S_FALSE;  // Symbol not found
 }
 
 /**
@@ -399,13 +620,86 @@ AoutGetSymbolByName (
   OUT IMGLOAD_SYMBOL_INFO  *SymbolInfo
   )
 {
+  AOUT_HEADER        *Header;
+  AOUT_NLIST         *Symbols;
+  CHAR8              *StringTable;
+  UINT32             NumSymbols;
+  UINT32             i;
+  UINT32             SymbolOffset;
+  AOUT_LINK_DYNAMIC  *Dynamic;
+  AOUT_LINK_DYNAMIC2 *Dynamic2;
+  HRESULT            Status;
+  UINTN              NameLen;
+
   if (Name == NULL || SymbolInfo == NULL) {
     return E_POINTER;
   }
 
-  // a.out symbol table parsing would go here
   memset(SymbolInfo, 0, sizeof(IMGLOAD_SYMBOL_INFO));
-  return S_FALSE;
+  Header = (AOUT_HEADER *)ImageBase;
+  NameLen = strlen(Name);
+
+  //
+  // Try dynamic symbol table first if __DYNAMIC is present
+  //
+  Status = AoutGetDynamic(ImageBase, &Dynamic);
+  if (Status == S_OK && Dynamic != NULL && Dynamic->SymbolsPtr != 0) {
+    Dynamic2 = (AOUT_LINK_DYNAMIC2 *)(UINTN)Dynamic->SymbolsPtr;
+
+    if (Dynamic2->SymTabPtr != 0 && Dynamic2->SymTabSize > 0) {
+      Symbols = (AOUT_NLIST *)(UINTN)Dynamic2->SymTabPtr;
+      StringTable = (CHAR8 *)(UINTN)Dynamic2->StrTabPtr;
+      NumSymbols = Dynamic2->SymTabSize / sizeof(AOUT_NLIST);
+
+      for (i = 0; i < NumSymbols; i++) {
+        CHAR8 *SymName;
+
+        if (Symbols[i].Name.Offset == 0 || StringTable == NULL) {
+          continue;  // No name
+        }
+
+        SymName = &StringTable[Symbols[i].Name.Offset];
+
+        if (strcmp(SymName, Name) == 0) {
+          SymbolInfo->Address = Symbols[i].Value;
+          SymbolInfo->Size = 0;  // a.out doesn't encode symbol size
+          SymbolInfo->Name = SymName;
+          return S_OK;
+        }
+      }
+    }
+  }
+
+  //
+  // Fall back to static symbol table
+  //
+  if (Header->SymbolSize == 0) {
+    return S_FALSE;  // No symbols
+  }
+
+  SymbolOffset = sizeof(AOUT_HEADER) + Header->TextSize + Header->DataSize;
+  Symbols = (AOUT_NLIST *)AOUT_OFF(SymbolOffset);
+  StringTable = (CHAR8 *)AOUT_OFF(SymbolOffset + Header->SymbolSize);
+  NumSymbols = Header->SymbolSize / sizeof(AOUT_NLIST);
+
+  for (i = 0; i < NumSymbols; i++) {
+    CHAR8 *SymName;
+
+    if (Symbols[i].Name.Offset == 0) {
+      continue;  // No name
+    }
+
+    SymName = &StringTable[Symbols[i].Name.Offset];
+
+    if (strcmp(SymName, Name) == 0) {
+      SymbolInfo->Address = Symbols[i].Value;
+      SymbolInfo->Size = 0;  // a.out doesn't encode symbol size
+      SymbolInfo->Name = SymName;
+      return S_OK;
+    }
+  }
+
+  return S_FALSE;  // Symbol not found
 }
 
 /**
@@ -676,6 +970,263 @@ AoutGetMinimumSubsystemVersion (
   memset(MinimumVersion, 0, sizeof(IMGLOAD_SYSTEM_VERSION));
   return S_FALSE;
 }
+
+/**
+  Find resource fork by symbol in a.out image.
+
+  a.out doesn't have sections, so we use special symbols to locate the
+  resource fork:
+  - __apxh_uresource_start: Start address of resource fork
+  - __apxh_uresource_size: Size of resource fork
+
+  @param[in]  ImageBase    Pointer to a.out image.
+  @param[in]  SectionName  Ignored (for compatibility with FindSectionFunc).
+  @param[out] Data         Receives pointer to resource fork data.
+  @param[out] Size         Receives size of resource fork.
+
+  @return S_OK if found, S_FALSE if not found, error code otherwise.
+**/
+static
+HRESULT
+AoutFindResourceBySymbol (
+  IN  VOID         *ImageBase,
+  IN  CONST CHAR8  *SectionName,
+  OUT VOID         **Data,
+  OUT UINT64       *Size
+  )
+{
+  IMGLOAD_SYMBOL_INFO StartSymbol;
+  IMGLOAD_SYMBOL_INFO SizeSymbol;
+  HRESULT Status;
+  UINT32 ResourceSize;
+
+  if (ImageBase == NULL || Data == NULL || Size == NULL) {
+    return E_POINTER;
+  }
+
+  // Look up start symbol
+  Status = AoutGetSymbolByName(NULL, ImageBase, "__apxh_uresource_start", &StartSymbol);
+  if (Status != S_OK) {
+    return S_FALSE;  // Symbol not found
+  }
+
+  // Look up size symbol
+  Status = AoutGetSymbolByName(NULL, ImageBase, "__apxh_uresource_size", &SizeSymbol);
+  if (Status != S_OK) {
+    return S_FALSE;  // Symbol not found
+  }
+
+  // Size symbol contains the size as its address
+  ResourceSize = (UINT32)SizeSymbol.Address;
+
+  // Calculate pointer to resource fork
+  *Data = (VOID *)(UINTN)StartSymbol.Address;
+  *Size = ResourceSize;
+
+  return S_OK;
+}
+
+/**
+  Get resource from a.out image.
+
+  a.out uses symbol-based resource location since it has no section headers.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+AoutGetResource (
+  IN  IImageLoader        *This,
+  IN  VOID                *ImageBase,
+  IN  IMGLOAD_RESOURCE_ID *ResourceId,
+  IN  IMGLOAD_RESOURCE_ID *ResourceType,
+  OUT IImageResource      **Resource
+  )
+{
+  VOID *ResourceFork;
+  UINT64 Size;
+  BOOLEAN NeedsFree;
+  HRESULT Status;
+  UINT32 TypeCode;
+  UINT16 Id;
+  CONST CHAR8 *Name;
+
+  if (ImageBase == NULL || Resource == NULL) {
+    return E_POINTER;
+  }
+
+  *Resource = NULL;
+
+  // Extract type code from ResourceType
+  if (ResourceType != NULL) {
+    if (ResourceType->IsNumeric) {
+      TypeCode = ResourceType->Id;
+    } else {
+      TypeCode = ANX_MAKE_TYPE(ResourceType->Name);
+    }
+  } else {
+    TypeCode = 0;
+  }
+
+  // Extract resource ID/name from ResourceId
+  if (ResourceId != NULL) {
+    if (ResourceId->IsNumeric) {
+      Id = (UINT16)ResourceId->Id;
+      Name = NULL;
+    } else {
+      Id = 0;
+      Name = ResourceId->Name;
+    }
+  } else {
+    Id = 0;
+    Name = NULL;
+  }
+
+  // Find universal resource fork using symbol lookup
+  Status = FindUniversalResourceFork(
+    ImageBase,
+    ResourceStrategyDirect,
+    NULL,  // No native resources in a.out
+    AoutFindResourceBySymbol,
+    NULL,  // Section name not used for symbol lookup
+    &ResourceFork,
+    &Size,
+    &NeedsFree
+  );
+
+  if (FAILED(Status) || Status == S_FALSE) {
+    return Status;
+  }
+
+  // Create resource object
+  Status = CreateImageResource(ResourceFork, TypeCode, Id, Name, Resource);
+
+  if (NeedsFree && ResourceFork != NULL) {
+    free(ResourceFork);
+  }
+
+  return Status;
+}
+
+/**
+  Get initialization and termination functions from a.out image.
+
+  a.out uses special symbols for init/fini functions:
+  - _init or __init: Initialization function
+  - _fini or __fini: Termination function
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+AoutGetInitFini (
+  IN  IImageLoader          *This,
+  IN  VOID                  *ImageBase,
+  OUT IMGLOAD_INITFINI_INFO *InitFiniInfo
+  )
+{
+  IMGLOAD_SYMBOL_INFO SymbolInfo;
+  HRESULT Status;
+
+  if (InitFiniInfo == NULL) {
+    return E_POINTER;
+  }
+
+  memset(InitFiniInfo, 0, sizeof(IMGLOAD_INITFINI_INFO));
+
+  // Look for _init symbol
+  Status = AoutGetSymbolByName(This, ImageBase, "_init", &SymbolInfo);
+  if (Status == S_OK && SymbolInfo.Address != 0) {
+    InitFiniInfo->InitAddress = SymbolInfo.Address;
+    InitFiniInfo->HasInit = TRUE;
+  } else {
+    // Try __init
+    Status = AoutGetSymbolByName(This, ImageBase, "__init", &SymbolInfo);
+    if (Status == S_OK && SymbolInfo.Address != 0) {
+      InitFiniInfo->InitAddress = SymbolInfo.Address;
+      InitFiniInfo->HasInit = TRUE;
+    }
+  }
+
+  // Look for _fini symbol
+  Status = AoutGetSymbolByName(This, ImageBase, "_fini", &SymbolInfo);
+  if (Status == S_OK && SymbolInfo.Address != 0) {
+    InitFiniInfo->FiniAddress = SymbolInfo.Address;
+    InitFiniInfo->HasFini = TRUE;
+  } else {
+    // Try __fini
+    Status = AoutGetSymbolByName(This, ImageBase, "__fini", &SymbolInfo);
+    if (Status == S_OK && SymbolInfo.Address != 0) {
+      InitFiniInfo->FiniAddress = SymbolInfo.Address;
+      InitFiniInfo->HasFini = TRUE;
+    }
+  }
+
+  InitFiniInfo->Priority = 0;
+
+  return (InitFiniInfo->HasInit || InitFiniInfo->HasFini) ? S_OK : S_FALSE;
+}
+
+/**
+  Get resource enumerator for a.out image.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+AoutGetResourceEnumerator (
+  IN  IImageLoader        *This,
+  IN  VOID                *ImageBase,
+  IN  IMGLOAD_RESOURCE_ID *ResourceType,
+  OUT IEnumImageResource  **Enumerator
+  )
+{
+  VOID *ResourceFork;
+  UINT64 Size;
+  BOOLEAN NeedsFree;
+  HRESULT Status;
+  UINT32 TypeCode;
+
+  if (ImageBase == NULL || Enumerator == NULL) {
+    return E_POINTER;
+  }
+
+  *Enumerator = NULL;
+
+  // Extract type code from ResourceType
+  if (ResourceType != NULL) {
+    if (ResourceType->IsNumeric) {
+      TypeCode = ResourceType->Id;
+    } else {
+      TypeCode = ANX_MAKE_TYPE(ResourceType->Name);
+    }
+  } else {
+    TypeCode = 0;
+  }
+
+  // Find universal resource fork using symbol lookup
+  Status = FindUniversalResourceFork(
+    ImageBase,
+    ResourceStrategyDirect,
+    NULL,
+    AoutFindResourceBySymbol,
+    NULL,
+    &ResourceFork,
+    &Size,
+    &NeedsFree
+  );
+
+  if (FAILED(Status) || Status == S_FALSE) {
+    return Status;
+  }
+
+  // Create enumerator
+  Status = CreateImageResourceEnumerator(ResourceFork, TypeCode, Enumerator);
+
+  if (NeedsFree && ResourceFork != NULL) {
+    free(ResourceFork);
+  }
+
+  return Status;
+}
+
 // a.out Loader VTable
 //
 
@@ -697,7 +1248,10 @@ static CONST IImageLoaderVtbl gAoutVtbl = {
   AoutGetTargetSystem,
   AoutGetMinimumSystemVersion,
   AoutGetTargetSubsystem,
-  AoutGetMinimumSubsystemVersion
+  AoutGetMinimumSubsystemVersion,
+  AoutGetResource,
+  AoutGetResourceEnumerator,
+  AoutGetInitFini
 };
 
 //

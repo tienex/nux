@@ -17,6 +17,8 @@
 
 #include <apxh/internal.h>
 #include <apxh/imgload.h>
+#include <ananke/resource.h>
+#include "imgresource.h"
 
 //
 // Amiga HUNK Magic Numbers
@@ -172,10 +174,10 @@ HunkGetArch (
     return E_POINTER;
   }
 
-  // Traditional Amiga HUNK is 68K only, which is not supported by APXH
+  // Traditional Amiga HUNK is 68K only
   // Note: AROS may extend HUNK to host x86 code, but no standard detection method exists
-  *Architecture = ArchUnsupported;
-  return IMGLOAD_E_UNSUPPORTED_ARCH;
+  *Architecture = ArchM68k;
+  return S_OK;
 }
 
 /**
@@ -302,7 +304,7 @@ HunkParseFile (
           return IMGLOAD_E_INVALID_FORMAT;
         }
 
-        VirtualAddressCopy(
+        VasCopy(
           State->NextAddr,
           Ptr,
           Size,
@@ -329,7 +331,7 @@ HunkParseFile (
 
         info("  HUNK_BSS at 0x%08x (size: 0x%08x)", State->NextAddr, Size);
 
-        VirtualAddressMemset(
+        VasFill(
           State->NextAddr,
           0,
           Size,
@@ -981,6 +983,60 @@ HunkGetMinimumSubsystemVersion (
   memset(MinimumVersion, 0, sizeof(IMGLOAD_SYSTEM_VERSION));
   return S_FALSE;
 }
+
+/**
+  Get resource from HUNK image.
+
+  Amiga HUNK format does not have native resources. Resources can be embedded
+  using the universal resource fork strategy in a dedicated HUNK_DATA segment.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+HunkGetResource (
+  IN  IImageLoader   *This,
+  IN  VOID           *ImageBase,
+  IN  UINT32         TypeCode,
+  IN  UINT32         Id,
+  IN  CONST CHAR8    *Name,
+  OUT IImageResource **Resource
+  )
+{
+  if (Resource == NULL) {
+    return E_POINTER;
+  }
+
+  *Resource = NULL;
+
+  // Amiga HUNK doesn't have native resources or sections
+  // Universal resources would need to be embedded in a custom hunk
+  // which is not standardized
+  return S_FALSE;
+}
+
+/**
+  Get resource enumerator for HUNK image.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+HunkGetResourceEnumerator (
+  IN  IImageLoader        *This,
+  IN  VOID                *ImageBase,
+  IN  UINT32              TypeCode,
+  OUT IEnumImageResource  **Enumerator
+  )
+{
+  if (Enumerator == NULL) {
+    return E_POINTER;
+  }
+
+  *Enumerator = NULL;
+
+  // Amiga HUNK doesn't have native resources
+  return S_FALSE;
+}
+
 // Amiga HUNK Loader VTable
 //
 
@@ -1004,7 +1060,9 @@ static CONST IImageLoaderVtbl gHunkVtbl = {
   HunkGetTargetSystem,
   HunkGetMinimumSystemVersion,
   HunkGetTargetSubsystem,
-  HunkGetMinimumSubsystemVersion
+  HunkGetMinimumSubsystemVersion,
+  HunkGetResource,
+  HunkGetResourceEnumerator
 };
 
 //

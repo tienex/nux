@@ -20,6 +20,8 @@
 
 #include <apxh/internal.h>
 #include <apxh/imgload.h>
+#include <ananke/resource.h>
+#include "imgresource.h"
 
 //
 // PE/COFF Magic Numbers
@@ -31,14 +33,54 @@
 #define PE_OPT_MAGIC_PE32PLUS 0x20B   ///< PE32+ (64-bit) optional header
 
 //
-// Machine Types
+// Machine Types (comprehensive, including historical)
 //
 
-#define IMAGE_FILE_MACHINE_I386   0x014C  ///< x86
-#define IMAGE_FILE_MACHINE_AMD64  0x8664  ///< x86-64
-#define IMAGE_FILE_MACHINE_ARM    0x01C0  ///< ARM
-#define IMAGE_FILE_MACHINE_ARM64  0xAA64  ///< ARM64
-#define IMAGE_FILE_MACHINE_RISCV64 0x5064 ///< RISC-V 64-bit
+#define IMAGE_FILE_MACHINE_UNKNOWN   0x0000  ///< Unknown
+#define IMAGE_FILE_MACHINE_I386      0x014C  ///< Intel x86
+#define IMAGE_FILE_MACHINE_R3000     0x0162  ///< MIPS R3000 (little endian)
+#define IMAGE_FILE_MACHINE_R4000     0x0166  ///< MIPS R4000 (little endian)
+#define IMAGE_FILE_MACHINE_R10000    0x0168  ///< MIPS R10000 (little endian)
+#define IMAGE_FILE_MACHINE_WCEMIPSV2 0x0169  ///< MIPS WCE v2 (little endian)
+#define IMAGE_FILE_MACHINE_ALPHA     0x0184  ///< DEC Alpha AXP
+#define IMAGE_FILE_MACHINE_SH3       0x01A2  ///< Hitachi SH3
+#define IMAGE_FILE_MACHINE_SH3DSP    0x01A3  ///< Hitachi SH3 DSP
+#define IMAGE_FILE_MACHINE_SH3E      0x01A4  ///< Hitachi SH3E
+#define IMAGE_FILE_MACHINE_SH4       0x01A6  ///< Hitachi SH4
+#define IMAGE_FILE_MACHINE_SH5       0x01A8  ///< Hitachi SH5
+#define IMAGE_FILE_MACHINE_ARM       0x01C0  ///< ARM little endian
+#define IMAGE_FILE_MACHINE_THUMB     0x01C2  ///< ARM Thumb/Thumb-2 LE
+#define IMAGE_FILE_MACHINE_ARMNT     0x01C4  ///< ARM Thumb-2 LE
+#define IMAGE_FILE_MACHINE_AM33      0x01D3  ///< Matsushita AM33
+#define IMAGE_FILE_MACHINE_POWERPC   0x01F0  ///< PowerPC little endian
+#define IMAGE_FILE_MACHINE_POWERPCFP 0x01F1  ///< PowerPC with FP support
+#define IMAGE_FILE_MACHINE_POWERPCBE 0x01F2  ///< PowerPC big endian
+#define IMAGE_FILE_MACHINE_IA64      0x0200  ///< Intel Itanium
+#define IMAGE_FILE_MACHINE_MACPPC    0x01DF  ///< Mac PowerPC (unofficial)
+#define IMAGE_FILE_MACHINE_M68K      0x0268  ///< Motorola 68000
+#define IMAGE_FILE_MACHINE_MIPS16    0x0266  ///< MIPS16
+#define IMAGE_FILE_MACHINE_ALPHA64   0x0284  ///< Alpha AXP 64-bit
+#define IMAGE_FILE_MACHINE_MIPSFPU   0x0366  ///< MIPS with FPU
+#define IMAGE_FILE_MACHINE_MIPSFPU16 0x0466  ///< MIPS16 with FPU
+#define IMAGE_FILE_MACHINE_TRICORE   0x0520  ///< Infineon TriCore
+#define IMAGE_FILE_MACHINE_CEF       0x0CEF  ///< CEF
+#define IMAGE_FILE_MACHINE_EBC       0x0EBC  ///< EFI Byte Code
+#define IMAGE_FILE_MACHINE_AMD64     0x8664  ///< AMD64/x86-64
+#define IMAGE_FILE_MACHINE_M32R      0x9041  ///< Mitsubishi M32R LE
+#define IMAGE_FILE_MACHINE_ARM64     0xAA64  ///< ARM64/AArch64
+#define IMAGE_FILE_MACHINE_CEE       0xC0EE  ///< CLR pure MSIL
+#define IMAGE_FILE_MACHINE_RISCV32   0x5032  ///< RISC-V 32-bit
+#define IMAGE_FILE_MACHINE_RISCV64   0x5064  ///< RISC-V 64-bit
+#define IMAGE_FILE_MACHINE_RISCV128  0x5128  ///< RISC-V 128-bit
+#define IMAGE_FILE_MACHINE_LOONGARCH32 0x6232 ///< LoongArch 32-bit
+#define IMAGE_FILE_MACHINE_LOONGARCH64 0x6264 ///< LoongArch 64-bit
+#define IMAGE_FILE_MACHINE_PARISC    0x0290  ///< HP PA-RISC
+#define IMAGE_FILE_MACHINE_PARISC64  0x0291  ///< HP PA-RISC 64-bit (unofficial)
+#define IMAGE_FILE_MACHINE_SPARC     0x02C2  ///< SPARC (unofficial)
+#define IMAGE_FILE_MACHINE_SPARCV9   0x02C3  ///< SPARC v9 64-bit (unofficial)
+#define IMAGE_FILE_MACHINE_S390      0x5390  ///< IBM s390/s390x (unofficial)
+#define IMAGE_FILE_MACHINE_POWERPC64 0x01F3  ///< PowerPC 64-bit (unofficial)
+#define IMAGE_FILE_MACHINE_MIPS64    0x0167  ///< MIPS 64-bit (unofficial)
 
 //
 // Section Characteristics
@@ -207,9 +249,60 @@ typedef struct _PE_SECTION_HEADER {
 } PE_SECTION_HEADER;
 
 // Data Directory Indices
+#define IMAGE_DIRECTORY_ENTRY_EXPORT     0  ///< Export directory
+#define IMAGE_DIRECTORY_ENTRY_IMPORT     1  ///< Import directory
+#define IMAGE_DIRECTORY_ENTRY_RESOURCE   2  ///< Resource directory
 #define IMAGE_DIRECTORY_ENTRY_EXCEPTION  3  ///< Exception (.pdata)
 #define IMAGE_DIRECTORY_ENTRY_BASERELOC  5  ///< Base relocations (.reloc)
 #define IMAGE_DIRECTORY_ENTRY_TLS        9  ///< TLS
+
+//
+// Resource Directory Structures
+//
+
+typedef struct _PE_RESOURCE_DIRECTORY {
+  UINT32  Characteristics;        ///< Resource flags
+  UINT32  TimeDateStamp;          ///< Creation time
+  UINT16  MajorVersion;           ///< Major version
+  UINT16  MinorVersion;           ///< Minor version
+  UINT16  NumberOfNamedEntries;   ///< Number of named entries
+  UINT16  NumberOfIdEntries;      ///< Number of ID entries
+} PE_RESOURCE_DIRECTORY;
+
+typedef struct _PE_RESOURCE_DIRECTORY_ENTRY {
+  UINT32  Name;                   ///< Name offset (high bit set) or ID
+  UINT32  OffsetToData;           ///< Subdirectory offset (high bit set) or data RVA
+} PE_RESOURCE_DIRECTORY_ENTRY;
+
+typedef struct _PE_RESOURCE_DATA_ENTRY {
+  UINT32  OffsetToData;           ///< RVA of resource data
+  UINT32  Size;                   ///< Size of resource data
+  UINT32  CodePage;               ///< Code page
+  UINT32  Reserved;               ///< Reserved (0)
+} PE_RESOURCE_DATA_ENTRY;
+
+//
+// Resource Type Constants (standard Windows types)
+//
+
+#define RT_CURSOR       1   ///< Cursor
+#define RT_BITMAP       2   ///< Bitmap
+#define RT_ICON         3   ///< Icon
+#define RT_MENU         4   ///< Menu
+#define RT_DIALOG       5   ///< Dialog
+#define RT_STRING       6   ///< String table
+#define RT_FONTDIR      7   ///< Font directory
+#define RT_FONT         8   ///< Font
+#define RT_ACCELERATOR  9   ///< Accelerator table
+#define RT_RCDATA       10  ///< Raw data
+#define RT_MESSAGETABLE 11  ///< Message table
+#define RT_VERSION      16  ///< Version information
+#define RT_PLUGPLAY     19  ///< Plug and Play
+#define RT_VXD          20  ///< VxD
+#define RT_ANICURSOR    21  ///< Animated cursor
+#define RT_ANIICON      22  ///< Animated icon
+#define RT_HTML         23  ///< HTML
+#define RT_MANIFEST     24  ///< Manifest
 
 typedef struct _PE_TLS_DIRECTORY32 {
   UINT32  StartAddressOfRawData;  ///< Start of TLS data
@@ -228,6 +321,20 @@ typedef struct _PE_TLS_DIRECTORY64 {
   UINT32  SizeOfZeroFill;         ///< BSS size
   UINT32  Characteristics;        ///< Alignment (low 4 bits)
 } PE_TLS_DIRECTORY64;
+
+typedef struct _PE_EXPORT_DIRECTORY {
+  UINT32  Characteristics;        ///< Reserved, must be 0
+  UINT32  TimeDateStamp;          ///< Time/date stamp
+  UINT16  MajorVersion;           ///< Major version
+  UINT16  MinorVersion;           ///< Minor version
+  UINT32  Name;                   ///< RVA of DLL name
+  UINT32  Base;                   ///< Starting ordinal number
+  UINT32  NumberOfFunctions;      ///< Number of entries in EAT
+  UINT32  NumberOfNames;          ///< Number of entries in name pointer table
+  UINT32  AddressOfFunctions;     ///< RVA of export address table (EAT)
+  UINT32  AddressOfNames;         ///< RVA of export name pointer table
+  UINT32  AddressOfNameOrdinals;  ///< RVA of ordinal table
+} PE_EXPORT_DIRECTORY;
 
 typedef struct _PE_BASE_RELOCATION {
   UINT32  VirtualAddress;  ///< Page RVA
@@ -297,6 +404,8 @@ PeGetArch (
 {
   DOS_HEADER *DosHeader;
   PE_NT_HEADERS32 *NtHeaders;
+  UINT16 OptMagic;
+  BOOLEAN IsPe32;  // TRUE for PE32, FALSE for PE32+
 
   if (Architecture == NULL) {
     return E_POINTER;
@@ -305,19 +414,201 @@ PeGetArch (
   DosHeader = (DOS_HEADER *)ImageBase;
   NtHeaders = (PE_NT_HEADERS32 *)PE_OFF(DosHeader->NewHeaderOffset);
 
+  // Determine if this is PE32 or PE32+
+  OptMagic = NtHeaders->OptionalHeader.Magic;
+  IsPe32 = (OptMagic == PE_OPT_MAGIC_PE32);
+
+  // For hybrid architectures: PE32 (32-bit format) with 64-bit machine type
+  // indicates 32-bit pointers on 64-bit hardware
   switch (NtHeaders->FileHeader.Machine) {
     case IMAGE_FILE_MACHINE_I386:
       *Architecture = Arch386;
       break;
+
     case IMAGE_FILE_MACHINE_AMD64:
-      *Architecture = ArchAmd64;
+      // x32 ABI: PE32 with AMD64 machine type
+      if (IsPe32)
+        *Architecture = ArchAmd64_32;
+      else
+        *Architecture = ArchAmd64;
       break;
-    case IMAGE_FILE_MACHINE_RISCV64:
-      *Architecture = ArchRiscV64;
+
+    case IMAGE_FILE_MACHINE_ARM:
+    case IMAGE_FILE_MACHINE_ARMNT:
+      *Architecture = ArchArm32;
       break;
+
+    case IMAGE_FILE_MACHINE_THUMB:
+      *Architecture = ArchThumb;
+      break;
+
     case IMAGE_FILE_MACHINE_ARM64:
-      *Architecture = ArchArm64;
+      // ARM64_32 (ILP32): PE32 with ARM64 machine type
+      if (IsPe32)
+        *Architecture = ArchArm64_32;
+      else
+        *Architecture = ArchArm64;
       break;
+
+    case IMAGE_FILE_MACHINE_RISCV32:
+      *Architecture = ArchRiscV32;
+      break;
+
+    case IMAGE_FILE_MACHINE_RISCV64:
+      // RV64 ILP32: PE32 with RISC-V 64 machine type
+      if (IsPe32)
+        *Architecture = ArchRiscV64_32;
+      else
+        *Architecture = ArchRiscV64;
+      break;
+
+    case IMAGE_FILE_MACHINE_RISCV128:
+      *Architecture = ArchRiscV128;
+      break;
+
+    case IMAGE_FILE_MACHINE_LOONGARCH32:
+      *Architecture = ArchLoongArch32;
+      break;
+
+    case IMAGE_FILE_MACHINE_LOONGARCH64:
+      // LA32 on LA64: PE32 with LoongArch64 machine type
+      if (IsPe32)
+        *Architecture = ArchLoongArch64_32;
+      else
+        *Architecture = ArchLoongArch64;
+      break;
+
+    case IMAGE_FILE_MACHINE_POWERPC:
+    case IMAGE_FILE_MACHINE_POWERPCFP:
+    case IMAGE_FILE_MACHINE_POWERPCBE:
+    case IMAGE_FILE_MACHINE_MACPPC:
+      *Architecture = ArchPpc32;
+      break;
+
+    case IMAGE_FILE_MACHINE_POWERPC64:
+      // 32-bit on PPC64: PE32 with PPC64 machine type
+      if (IsPe32)
+        *Architecture = ArchPpc64_32;
+      else
+        *Architecture = ArchPpc64;
+      break;
+
+    case IMAGE_FILE_MACHINE_M68K:
+      *Architecture = ArchM68k;
+      break;
+
+    case IMAGE_FILE_MACHINE_R3000:
+      *Architecture = ArchMipsR3000;
+      break;
+
+    case IMAGE_FILE_MACHINE_R4000:
+      *Architecture = ArchMipsR4000;
+      break;
+
+    case IMAGE_FILE_MACHINE_R10000:
+      *Architecture = ArchMipsR10000;
+      break;
+
+    case IMAGE_FILE_MACHINE_WCEMIPSV2:
+    case IMAGE_FILE_MACHINE_MIPS16:
+    case IMAGE_FILE_MACHINE_MIPSFPU:
+    case IMAGE_FILE_MACHINE_MIPSFPU16:
+      *Architecture = ArchMips32;
+      break;
+
+    case IMAGE_FILE_MACHINE_MIPS64:
+      // n32 ABI: PE32 with MIPS64 machine type
+      if (IsPe32)
+        *Architecture = ArchMips64_32;
+      else
+        *Architecture = ArchMips64;
+      break;
+
+    case IMAGE_FILE_MACHINE_ALPHA:
+      // 32-bit on Alpha: PE32 with Alpha machine type
+      if (IsPe32)
+        *Architecture = ArchAlpha32;
+      else
+        *Architecture = ArchAlpha;
+      break;
+
+    case IMAGE_FILE_MACHINE_ALPHA64:
+      *Architecture = ArchAlpha;
+      break;
+
+    case IMAGE_FILE_MACHINE_SH3:
+    case IMAGE_FILE_MACHINE_SH3DSP:
+    case IMAGE_FILE_MACHINE_SH3E:
+      *Architecture = ArchSh3;
+      break;
+
+    case IMAGE_FILE_MACHINE_SH4:
+      *Architecture = ArchSh4;
+      break;
+
+    case IMAGE_FILE_MACHINE_SH5:
+      *Architecture = ArchSh5;
+      break;
+
+    case IMAGE_FILE_MACHINE_IA64:
+      // 32-bit on IA-64: PE32 with IA-64 machine type
+      if (IsPe32)
+        *Architecture = ArchIa64_32;
+      else
+        *Architecture = ArchIa64;
+      break;
+
+    case IMAGE_FILE_MACHINE_PARISC:
+      *Architecture = ArchPaRisc;
+      break;
+
+    case IMAGE_FILE_MACHINE_PARISC64:
+      // 32-bit on PA-RISC 64: PE32 with PA-RISC64 machine type
+      if (IsPe32)
+        *Architecture = ArchPaRisc64_32;
+      else
+        *Architecture = ArchPaRisc64;
+      break;
+
+    case IMAGE_FILE_MACHINE_SPARC:
+      *Architecture = ArchSparc;
+      break;
+
+    case IMAGE_FILE_MACHINE_SPARCV9:
+      // 32-bit on SPARC64: PE32 with SPARCv9 machine type
+      if (IsPe32)
+        *Architecture = ArchSparc64_32;
+      else
+        *Architecture = ArchSparc64;
+      break;
+
+    case IMAGE_FILE_MACHINE_S390:
+      // s390x: PE32+ indicates 64-bit
+      if (!IsPe32)
+        *Architecture = ArchS390x;
+      else
+        *Architecture = ArchS390x_32;  // 32-bit on s390x
+      break;
+
+    case IMAGE_FILE_MACHINE_AM33:
+      *Architecture = ArchAm29000;
+      break;
+
+    case IMAGE_FILE_MACHINE_M32R:
+      *Architecture = ArchUnsupported; // No specific M32R arch defined yet
+      break;
+
+    case IMAGE_FILE_MACHINE_EBC:
+      *Architecture = ArchUnsupported; // EFI Byte Code is virtual
+      break;
+
+    case IMAGE_FILE_MACHINE_CEE:
+      *Architecture = ArchUnsupported; // CLR MSIL is virtual
+      break;
+
+    case IMAGE_FILE_MACHINE_TRICORE:
+    case IMAGE_FILE_MACHINE_CEF:
+    case IMAGE_FILE_MACHINE_UNKNOWN:
     default:
       *Architecture = ArchUnsupported;
       return IMGLOAD_E_UNSUPPORTED_ARCH;
@@ -338,11 +629,29 @@ PeGetEndianness (
   OUT IMGLOAD_ENDIAN  *Endianness
   )
 {
+  DOS_HEADER *DosHeader;
+  PE_NT_HEADERS32 *NtHeaders;
+
   if (Endianness == NULL) {
     return E_POINTER;
   }
 
-  // All Windows architectures are little-endian
+  DosHeader = (DOS_HEADER *)ImageBase;
+  NtHeaders = (PE_NT_HEADERS32 *)PE_OFF(DosHeader->NewHeaderOffset);
+
+  // Check for big-endian architectures
+  switch (NtHeaders->FileHeader.Machine) {
+    case 0x0160:  // MIPS R3000 big endian (unofficial)
+    case IMAGE_FILE_MACHINE_POWERPCBE:
+    case IMAGE_FILE_MACHINE_MACPPC:
+    case IMAGE_FILE_MACHINE_M68K:
+      *Endianness = ImgEndianBig;
+      return S_OK;
+    default:
+      break;
+  }
+
+  // All other Windows PE architectures are little-endian
   *Endianness = ImgEndianLittle;
   return S_OK;
 }
@@ -406,7 +715,7 @@ PeLoadSection (
 
   if (Section->SizeOfRawData > 0) {
     // Copy section data from file
-    VirtualAddressCopy(
+    VasCopy(
       VirtualAddr,
       PE_OFF(Section->PointerToRawData),
       Section->SizeOfRawData,
@@ -418,7 +727,7 @@ PeLoadSection (
 
   if (Section->VirtualSize > Section->SizeOfRawData) {
     // Zero-fill remainder
-    VirtualAddressMemset(
+    VasFill(
       VirtualAddr + Section->SizeOfRawData,
       0,
       Section->VirtualSize - Section->SizeOfRawData,
@@ -632,7 +941,7 @@ PeGetSymbolByAddress (
 }
 
 /**
-  Look up symbol by name.
+  Look up symbol by name in PE export directory.
 **/
 static
 HRESULT
@@ -644,12 +953,79 @@ PeGetSymbolByName (
   OUT IMGLOAD_SYMBOL_INFO  *SymbolInfo
   )
 {
+  DOS_HEADER *DosHeader;
+  PE_NT_HEADERS32 *NtHeaders32;
+  PE_NT_HEADERS64 *NtHeaders64;
+  PE_DATA_DIRECTORY *ExportDir;
+  PE_EXPORT_DIRECTORY *ExportDirectory;
+  UINT32 *NamePointerTable;
+  UINT16 *OrdinalTable;
+  UINT32 *AddressTable;
+  UINT32 i;
+  BOOLEAN Is64Bit;
+  UINT64 ImageBaseVA;
+  UINTN NameLen;
+
   if (Name == NULL || SymbolInfo == NULL) {
     return E_POINTER;
   }
 
-  // PE symbol table parsing would go here
   memset(SymbolInfo, 0, sizeof(IMGLOAD_SYMBOL_INFO));
+
+  DosHeader = (DOS_HEADER *)ImageBase;
+  NtHeaders32 = (PE_NT_HEADERS32 *)PE_OFF(DosHeader->NewHeaderOffset);
+  NtHeaders64 = (PE_NT_HEADERS64 *)NtHeaders32;
+
+  Is64Bit = (NtHeaders32->OptionalHeader.Magic == PE_OPT_MAGIC_PE32PLUS);
+
+  // Get export data directory
+  ExportDir = Is64Bit ?
+    &NtHeaders64->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_EXPORT] :
+    &NtHeaders32->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_EXPORT];
+
+  if (ExportDir->VirtualAddress == 0 || ExportDir->Size == 0) {
+    // No exports
+    return S_FALSE;
+  }
+
+  ExportDirectory = (PE_EXPORT_DIRECTORY *)PE_OFF(ExportDir->VirtualAddress);
+
+  // Get export tables
+  NamePointerTable = (UINT32 *)PE_OFF(ExportDirectory->AddressOfNames);
+  OrdinalTable = (UINT16 *)PE_OFF(ExportDirectory->AddressOfNameOrdinals);
+  AddressTable = (UINT32 *)PE_OFF(ExportDirectory->AddressOfFunctions);
+
+  ImageBaseVA = Is64Bit ?
+    NtHeaders64->OptionalHeader.ImageBase :
+    (UINT64)NtHeaders32->OptionalHeader.ImageBase;
+
+  NameLen = strlen(Name);
+
+  // Search for the export by name
+  for (i = 0; i < ExportDirectory->NumberOfNames; i++) {
+    CHAR8 *ExportName = (CHAR8 *)PE_OFF(NamePointerTable[i]);
+    UINTN ExportNameLen = strlen(ExportName);
+
+    if (ExportNameLen == NameLen && memcmp(ExportName, Name, NameLen) == 0) {
+      // Found the export
+      UINT16 Ordinal = OrdinalTable[i];
+      UINT32 FunctionRVA = AddressTable[Ordinal];
+
+      // Copy name
+      UINTN CopyLen = (NameLen < sizeof(SymbolInfo->Name) - 1) ?
+                      NameLen : (sizeof(SymbolInfo->Name) - 1);
+      memcpy(SymbolInfo->Name, Name, CopyLen);
+      SymbolInfo->Name[CopyLen] = '\0';
+
+      // Set address
+      SymbolInfo->Address = ImageBaseVA + FunctionRVA;
+      SymbolInfo->Size = 0;  // PE doesn't store symbol size in exports
+
+      return S_OK;
+    }
+  }
+
+  // Not found
   return S_FALSE;
 }
 
@@ -1066,6 +1442,596 @@ PeGetMinimumSubsystemVersion (
   return (MinimumVersion->Major > 0) ? S_OK : S_FALSE;
 }
 
+/**
+  Convert RVA to file pointer by searching section headers.
+**/
+static
+VOID *
+PeRvaToPointer (
+  IN VOID    *ImageBase,
+  IN UINT32  Rva
+  )
+{
+  DOS_HEADER *DosHeader;
+  PE_NT_HEADERS32 *NtHeaders;
+  PE_SECTION_HEADER *Sections;
+  UINT16 NumSections;
+  UINT16 i;
+
+  if (Rva == 0) {
+    return NULL;
+  }
+
+  DosHeader = (DOS_HEADER *)ImageBase;
+  NtHeaders = (PE_NT_HEADERS32 *)PE_OFF(DosHeader->NewHeaderOffset);
+  NumSections = NtHeaders->FileHeader.NumSections;
+
+  Sections = (PE_SECTION_HEADER *)((UINT8 *)&NtHeaders->OptionalHeader +
+                                   NtHeaders->FileHeader.OptionalHeaderSize);
+
+  // Find section containing this RVA
+  for (i = 0; i < NumSections; i++) {
+    UINT32 SectionStart = Sections[i].VirtualAddress;
+    UINT32 SectionEnd = SectionStart + Sections[i].VirtualSize;
+
+    if (Rva >= SectionStart && Rva < SectionEnd) {
+      // Calculate offset within section
+      UINT32 SectionOffset = Rva - SectionStart;
+      return PE_OFF(Sections[i].PointerToRawData + SectionOffset);
+    }
+  }
+
+  // RVA not found in any section
+  return NULL;
+}
+
+/**
+  Search for resource in PE resource directory tree.
+
+  PE resource directory has 3 levels:
+  - Level 0: Resource Type (RT_BITMAP, RT_ICON, or custom types like AUR)
+  - Level 1: Resource Name/ID
+  - Level 2: Language
+
+  @param[in]  ResourceDir    Pointer to resource directory root.
+  @param[in]  TypeCode       Resource type to search for.
+  @param[in]  Id             Resource ID (0 if using name).
+  @param[in]  Name           Resource name (NULL if using ID).
+  @param[out] Data           Receives pointer to resource data.
+  @param[out] Size           Receives size of resource data.
+
+  @return S_OK if found, S_FALSE if not found, error code otherwise.
+**/
+static
+HRESULT
+PeSearchResourceDirectory (
+  IN  VOID         *ResourceDir,
+  IN  UINT32       TypeCode,
+  IN  UINT32       Id,
+  IN  CONST CHAR8  *Name,
+  OUT VOID         **Data,
+  OUT UINT64       *Size
+  )
+{
+  PE_RESOURCE_DIRECTORY *Dir;
+  PE_RESOURCE_DIRECTORY_ENTRY *Entries;
+  UINT32 NumEntries;
+  UINT32 i;
+  VOID *TypeDir;
+  PE_RESOURCE_DIRECTORY *NameDir;
+  PE_RESOURCE_DIRECTORY_ENTRY *NameEntries;
+  UINT32 NameNumEntries;
+  UINT32 j;
+  VOID *LangDir;
+  PE_RESOURCE_DIRECTORY *LangResDir;
+  PE_RESOURCE_DIRECTORY_ENTRY *LangEntries;
+  PE_RESOURCE_DATA_ENTRY *DataEntry;
+
+  if (ResourceDir == NULL || Data == NULL || Size == NULL) {
+    return E_POINTER;
+  }
+
+  // Level 0: Search for type
+  Dir = (PE_RESOURCE_DIRECTORY *)ResourceDir;
+  NumEntries = Dir->NumberOfNamedEntries + Dir->NumberOfIdEntries;
+  Entries = (PE_RESOURCE_DIRECTORY_ENTRY *)((UINT8 *)Dir + sizeof(PE_RESOURCE_DIRECTORY));
+
+  TypeDir = NULL;
+  for (i = 0; i < NumEntries; i++) {
+    UINT32 EntryName = Entries[i].Name;
+    BOOLEAN IsNameEntry = !!(EntryName & 0x80000000);
+
+    if (IsNameEntry) {
+      // Named entry - check if Name parameter matches
+      if (Name != NULL) {
+        UINT32 NameOffset = EntryName & 0x7FFFFFFF;
+        UINT16 *NameData = (UINT16 *)((UINT8 *)ResourceDir + NameOffset);
+        UINT16 NameLength = NameData[0];
+        CHAR8 *NameString = (CHAR8 *)&NameData[1];
+        UINTN NameLen = strlen(Name);
+
+        // Compare Unicode name with ASCII name (simple conversion)
+        BOOLEAN Match = TRUE;
+        if (NameLength != NameLen) {
+          Match = FALSE;
+        } else {
+          for (UINT32 k = 0; k < NameLength; k++) {
+            if ((CHAR8)NameString[k * 2] != Name[k]) {
+              Match = FALSE;
+              break;
+            }
+          }
+        }
+
+        if (Match) {
+          TypeDir = (UINT8 *)ResourceDir + (Entries[i].OffsetToData & 0x7FFFFFFF);
+          break;
+        }
+      }
+    } else {
+      // ID entry
+      if (EntryName == TypeCode) {
+        TypeDir = (UINT8 *)ResourceDir + (Entries[i].OffsetToData & 0x7FFFFFFF);
+        break;
+      }
+    }
+  }
+
+  if (TypeDir == NULL) {
+    return S_FALSE;  // Type not found
+  }
+
+  // Level 1: Get first name/ID entry (we don't filter by specific name/ID at this level)
+  NameDir = (PE_RESOURCE_DIRECTORY *)TypeDir;
+  NameNumEntries = NameDir->NumberOfNamedEntries + NameDir->NumberOfIdEntries;
+  NameEntries = (PE_RESOURCE_DIRECTORY_ENTRY *)((UINT8 *)NameDir + sizeof(PE_RESOURCE_DIRECTORY));
+
+  if (NameNumEntries == 0) {
+    return S_FALSE;  // No names/IDs under this type
+  }
+
+  // Just take the first entry
+  LangDir = (UINT8 *)ResourceDir + (NameEntries[0].OffsetToData & 0x7FFFFFFF);
+
+  // Level 2: Get first language entry
+  LangResDir = (PE_RESOURCE_DIRECTORY *)LangDir;
+  LangEntries = (PE_RESOURCE_DIRECTORY_ENTRY *)((UINT8 *)LangResDir + sizeof(PE_RESOURCE_DIRECTORY));
+
+  if ((LangResDir->NumberOfNamedEntries + LangResDir->NumberOfIdEntries) == 0) {
+    return S_FALSE;  // No language entries
+  }
+
+  // Get data entry
+  DataEntry = (PE_RESOURCE_DATA_ENTRY *)((UINT8 *)ResourceDir + (LangEntries[0].OffsetToData & 0x7FFFFFFF));
+
+  *Data = (VOID *)(UINTN)DataEntry->OffsetToData;  // This is an RVA, caller must convert
+  *Size = DataEntry->Size;
+
+  return S_OK;
+}
+
+/**
+  Find native resource in PE resource directory.
+
+  Searches the PE resource tree for a specific resource by type and name/ID.
+
+  @param[in]  ImageBase      Pointer to PE image.
+  @param[in]  TypeCode       Resource type (4-char code or RT_* constant).
+  @param[in]  Id             Resource ID (0 if using name).
+  @param[in]  Name           Resource name (NULL if using ID).
+  @param[out] Data           Receives pointer to resource data.
+  @param[out] Size           Receives size of resource data.
+
+  @return S_OK if found, S_FALSE if not found, error code otherwise.
+**/
+static
+HRESULT
+PeFindNativeResource (
+  IN  VOID         *ImageBase,
+  IN  UINT32       TypeCode,
+  IN  UINT32       Id,
+  IN  CONST CHAR8  *Name,
+  OUT VOID         **Data,
+  OUT UINT64       *Size
+  )
+{
+  DOS_HEADER *DosHeader;
+  PE_NT_HEADERS32 *NtHeaders32;
+  PE_NT_HEADERS64 *NtHeaders64;
+  PE_DATA_DIRECTORY *ResourceDir;
+  VOID *ResourceDirBase;
+  BOOLEAN Is64Bit;
+  HRESULT Status;
+  VOID *ResourceRva;
+  UINT64 ResourceSize;
+
+  if (ImageBase == NULL || Data == NULL || Size == NULL) {
+    return E_POINTER;
+  }
+
+  DosHeader = (DOS_HEADER *)ImageBase;
+  NtHeaders32 = (PE_NT_HEADERS32 *)PE_OFF(DosHeader->NewHeaderOffset);
+  NtHeaders64 = (PE_NT_HEADERS64 *)NtHeaders32;
+
+  Is64Bit = (NtHeaders32->OptionalHeader.Magic == PE_OPT_MAGIC_PE32PLUS);
+
+  // Get resource data directory
+  ResourceDir = Is64Bit ?
+    &NtHeaders64->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_RESOURCE] :
+    &NtHeaders32->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_RESOURCE];
+
+  if (ResourceDir->VirtualAddress == 0 || ResourceDir->Size == 0) {
+    return S_FALSE;  // No resources
+  }
+
+  ResourceDirBase = PeRvaToPointer(ImageBase, ResourceDir->VirtualAddress);
+  if (ResourceDirBase == NULL) {
+    return IMGLOAD_E_INVALID_FORMAT;
+  }
+
+  // Search resource directory
+  Status = PeSearchResourceDirectory(
+    ResourceDirBase,
+    TypeCode,
+    Id,
+    Name,
+    &ResourceRva,
+    &ResourceSize
+  );
+
+  if (FAILED(Status) || Status == S_FALSE) {
+    return Status;
+  }
+
+  // Convert RVA to pointer
+  *Data = PeRvaToPointer(ImageBase, (UINT32)(UINTN)ResourceRva);
+  *Size = ResourceSize;
+
+  if (*Data == NULL) {
+    return IMGLOAD_E_INVALID_FORMAT;
+  }
+
+  return S_OK;
+}
+
+/**
+  Find section by name in PE image.
+
+  @param[in]  ImageBase      Pointer to PE image.
+  @param[in]  SectionName    Name of section to find (e.g., ".axursrc").
+  @param[out] Data           Receives pointer to section data.
+  @param[out] Size           Receives size of section.
+
+  @return S_OK if found, S_FALSE if not found, error code otherwise.
+**/
+static
+HRESULT
+PeFindSection (
+  IN  VOID         *ImageBase,
+  IN  CONST CHAR8  *SectionName,
+  OUT VOID         **Data,
+  OUT UINT64       *Size
+  )
+{
+  DOS_HEADER *DosHeader;
+  PE_NT_HEADERS32 *NtHeaders;
+  PE_SECTION_HEADER *Sections;
+  UINT16 NumSections;
+  UINT16 i;
+  UINTN NameLen;
+
+  if (ImageBase == NULL || SectionName == NULL || Data == NULL || Size == NULL) {
+    return E_POINTER;
+  }
+
+  DosHeader = (DOS_HEADER *)ImageBase;
+  NtHeaders = (PE_NT_HEADERS32 *)PE_OFF(DosHeader->NewHeaderOffset);
+  NumSections = NtHeaders->FileHeader.NumSections;
+
+  Sections = (PE_SECTION_HEADER *)((UINT8 *)&NtHeaders->OptionalHeader +
+                                   NtHeaders->FileHeader.OptionalHeaderSize);
+
+  NameLen = strlen(SectionName);
+  if (NameLen > 8) {
+    NameLen = 8;  // Section names are max 8 characters
+  }
+
+  // Search for section
+  for (i = 0; i < NumSections; i++) {
+    if (memcmp(Sections[i].Name, SectionName, NameLen) == 0) {
+      *Data = PE_OFF(Sections[i].PointerToRawData);
+      *Size = Sections[i].SizeOfRawData;
+      return S_OK;
+    }
+  }
+
+  return S_FALSE;  // Section not found
+}
+
+/**
+  Get resource from PE image.
+
+  Hybrid strategy: Combines universal resources (from AUR or .axursrc)
+  with native PE resources. Tries universal fork first, then native.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+PeGetResource (
+  IN  IImageLoader        *This,
+  IN  VOID                *ImageBase,
+  IN  IMGLOAD_RESOURCE_ID *ResourceId,
+  IN  IMGLOAD_RESOURCE_ID *ResourceType,
+  OUT IImageResource      **Resource
+  )
+{
+  VOID *ResourceFork;
+  UINT64 Size;
+  BOOLEAN NeedsFree;
+  HRESULT Status;
+  UINT32 TypeCode;
+  UINT32 PeTypeId;
+  UINT16 Id;
+  CONST CHAR8 *Name;
+  VOID *NativeData;
+  UINT64 NativeSize;
+
+  if (ImageBase == NULL || Resource == NULL) {
+    return E_POINTER;
+  }
+
+  *Resource = NULL;
+
+  // Extract type code from ResourceType
+  if (ResourceType != NULL) {
+    if (ResourceType->IsNumeric) {
+      TypeCode = ResourceType->Id;
+      PeTypeId = ResourceType->Id;
+    } else {
+      // Convert name to 4-char type code (take first 4 chars)
+      TypeCode = ANX_MAKE_TYPE(ResourceType->Name);
+      PeTypeId = 0;  // Use name for PE lookup
+    }
+  } else {
+    TypeCode = 0;  // All types
+    PeTypeId = 0;
+  }
+
+  // Extract resource ID/name from ResourceId
+  if (ResourceId != NULL) {
+    if (ResourceId->IsNumeric) {
+      Id = (UINT16)ResourceId->Id;
+      Name = NULL;
+    } else {
+      Id = 0;
+      Name = ResourceId->Name;
+    }
+  } else {
+    Id = 0;
+    Name = NULL;
+  }
+
+  // First, try to get universal resource fork
+  Status = FindUniversalResourceFork(
+    ImageBase,
+    ResourceStrategyBoth,
+    PeFindNativeResource,
+    PeFindSection,
+    ".axursrc",
+    &ResourceFork,
+    &Size,
+    &NeedsFree
+  );
+
+  if (Status == S_OK) {
+    // Try to find resource in universal fork
+    Status = CreateImageResource(
+      ResourceFork,
+      TypeCode,
+      Id,
+      Name,
+      Resource
+    );
+
+    if (Status == S_OK) {
+      // Found in universal fork
+      if (NeedsFree && ResourceFork != NULL) {
+        free(ResourceFork);
+      }
+      return S_OK;
+    }
+
+    // Not found in universal fork, will try native PE resources
+    if (NeedsFree && ResourceFork != NULL) {
+      free(ResourceFork);
+    }
+  }
+
+  // Try native PE resources (excluding AUR types which are for universal fork)
+  if (PeTypeId != ANX_RSRC_TYPE_AUR &&
+      PeTypeId != ANX_RSRC_TYPE_AUR_16BIT &&
+      PeTypeId != ANX_RSRC_ID_AUR_32BIT) {
+
+    Status = PeFindNativeResource(
+      ImageBase,
+      PeTypeId,
+      Id,
+      (ResourceType != NULL && !ResourceType->IsNumeric) ? ResourceType->Name : Name,
+      &NativeData,
+      &NativeSize
+    );
+
+    if (Status == S_OK) {
+      // Found in native resources - wrap it as IImageResource
+      Status = CreateNativeImageResource(
+        TypeCode,
+        Id,
+        (ResourceType != NULL && !ResourceType->IsNumeric) ? ResourceType->Name : Name,
+        NativeData,
+        NativeSize,
+        Resource
+      );
+      return Status;
+    }
+  }
+
+  return S_FALSE;  // Not found in either source
+}
+
+/**
+  Get initialization and termination functions from PE image.
+
+  PE uses TLS callbacks as initialization functions. These are executed
+  before the entry point. PE does not have standard termination functions.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+PeGetInitFini (
+  IN  IImageLoader          *This,
+  IN  VOID                  *ImageBase,
+  OUT IMGLOAD_INITFINI_INFO *InitFiniInfo
+  )
+{
+  DOS_HEADER *DosHeader;
+  PE_NT_HEADERS32 *NtHeaders32;
+  PE_NT_HEADERS64 *NtHeaders64;
+  PE_DATA_DIRECTORY *TlsDir;
+  BOOLEAN Is64Bit;
+  UINT64 ImageBaseVA;
+
+  if (InitFiniInfo == NULL) {
+    return E_POINTER;
+  }
+
+  memset(InitFiniInfo, 0, sizeof(IMGLOAD_INITFINI_INFO));
+
+  DosHeader = (DOS_HEADER *)ImageBase;
+  NtHeaders32 = (PE_NT_HEADERS32 *)PE_OFF(DosHeader->NewHeaderOffset);
+  NtHeaders64 = (PE_NT_HEADERS64 *)NtHeaders32;
+
+  Is64Bit = (NtHeaders32->OptionalHeader.Magic == PE_OPT_MAGIC_PE32PLUS);
+
+  // Get image base for converting absolute addresses
+  ImageBaseVA = Is64Bit ?
+    NtHeaders64->OptionalHeader.ImageBase :
+    (UINT64)NtHeaders32->OptionalHeader.ImageBase;
+
+  // Get TLS data directory
+  TlsDir = Is64Bit ?
+    &NtHeaders64->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_TLS] :
+    &NtHeaders32->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_TLS];
+
+  if (TlsDir->VirtualAddress == 0 || TlsDir->Size == 0) {
+    // No TLS callbacks
+    return S_FALSE;
+  }
+
+  // Get TLS directory and extract callback array address
+  if (Is64Bit) {
+    PE_TLS_DIRECTORY64 *TlsDirectory = (PE_TLS_DIRECTORY64 *)PeRvaToPointer(ImageBase, TlsDir->VirtualAddress);
+
+    if (TlsDirectory == NULL) {
+      return S_FALSE;
+    }
+
+    if (TlsDirectory->AddressOfCallBacks != 0) {
+      // TLS callbacks exist - use the callback array address as init
+      // The array itself is a NULL-terminated array of function pointers
+      InitFiniInfo->InitAddress = TlsDirectory->AddressOfCallBacks;
+      InitFiniInfo->HasInit = TRUE;
+    }
+  } else {
+    PE_TLS_DIRECTORY32 *TlsDirectory = (PE_TLS_DIRECTORY32 *)PeRvaToPointer(ImageBase, TlsDir->VirtualAddress);
+
+    if (TlsDirectory == NULL) {
+      return S_FALSE;
+    }
+
+    if (TlsDirectory->AddressOfCallBacks != 0) {
+      // TLS callbacks exist - use the callback array address as init
+      InitFiniInfo->InitAddress = TlsDirectory->AddressOfCallBacks;
+      InitFiniInfo->HasInit = TRUE;
+    }
+  }
+
+  // PE doesn't have standard termination functions
+  InitFiniInfo->HasFini = FALSE;
+  InitFiniInfo->FiniAddress = 0;
+  InitFiniInfo->Priority = 0;
+
+  return InitFiniInfo->HasInit ? S_OK : S_FALSE;
+}
+
+/**
+  Get resource enumerator for PE image.
+
+  Enumerates all resources of a given type from the universal resource fork.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+PeGetResourceEnumerator (
+  IN  IImageLoader        *This,
+  IN  VOID                *ImageBase,
+  IN  IMGLOAD_RESOURCE_ID *ResourceType,
+  OUT IEnumImageResource  **Enumerator
+  )
+{
+  VOID *ResourceFork;
+  UINT64 Size;
+  BOOLEAN NeedsFree;
+  HRESULT Status;
+  UINT32 TypeCode;
+
+  if (ImageBase == NULL || Enumerator == NULL) {
+    return E_POINTER;
+  }
+
+  *Enumerator = NULL;
+
+  // Extract type code from ResourceType
+  if (ResourceType != NULL) {
+    if (ResourceType->IsNumeric) {
+      TypeCode = ResourceType->Id;
+    } else {
+      // Convert name to 4-char type code
+      TypeCode = ANX_MAKE_TYPE(ResourceType->Name);
+    }
+  } else {
+    TypeCode = 0;  // All types
+  }
+
+  // Use FindUniversalResourceFork with hybrid strategy
+  Status = FindUniversalResourceFork(
+    ImageBase,
+    ResourceStrategyBoth,
+    PeFindNativeResource,
+    PeFindSection,
+    ".axursrc",
+    &ResourceFork,
+    &Size,
+    &NeedsFree
+  );
+
+  if (FAILED(Status) || Status == S_FALSE) {
+    return Status;
+  }
+
+  // Create enumerator
+  Status = CreateImageResourceEnumerator(
+    ResourceFork,
+    TypeCode,
+    Enumerator
+  );
+
+  if (NeedsFree && ResourceFork != NULL) {
+    free(ResourceFork);
+  }
+
+  return Status;
+}
+
 //
 // PE Loader VTable
 //
@@ -1088,7 +2054,10 @@ static CONST IImageLoaderVtbl gPeVtbl = {
   PeGetTargetSystem,
   PeGetMinimumSystemVersion,
   PeGetTargetSubsystem,
-  PeGetMinimumSubsystemVersion
+  PeGetMinimumSubsystemVersion,
+  PeGetResource,
+  PeGetResourceEnumerator,
+  PeGetInitFini
 };
 
 //

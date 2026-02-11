@@ -2,6 +2,270 @@
 
 This document provides references for implementing image format loaders in APXH.
 
+## Universal Resource System
+
+APXH implements a universal resource system based on Classic Macintosh resource fork format,
+enabling cross-platform resource embedding in all executable formats.
+
+### Resource Embedding Strategies
+
+**Formats WITH Native Resources** (e.g., PE, Mach-O, OS/2 ELF):
+- Embed universal resource fork as AUR (APXH Universal Resource) resource within native system
+- Use hybrid strategy that exposes both native and universal resources
+- AUR type codes: "AUR " (32-bit), "Au" (16-bit), "APXHURSC" (64-bit)
+- Implementation: `ResourceStrategyBoth` with `FindUniversalResourceFork()`
+
+**Formats WITHOUT Native Resources** (e.g., generic ELF, COFF, a.out):
+- Store universal resource fork in dedicated section/segment
+- Section names: `.axursrc` (ELF), `.rsrc` (COFF), `__apxh_uresource` (Mach-O segment)
+- Implementation: `ResourceStrategyDirect` with `FindUniversalResourceFork()`
+
+**Special Case: OS/2 PowerPC ELF** (hybrid):
+- Native resources via `SHT_RES` sections or `PT_RES` program headers
+- OS/2 resource format with collections, items, and locale information
+- Supports both 32-bit and 64-bit ELF
+- Fallback to `.axursrc` section for universal resources
+- Implementation: `ResourceStrategyBoth` with OS/2 resource parser
+
+**Special Case: LE/LX Format** (dual-OS support):
+- Used by both OS/2 (OsType = 1) and Windows VxD (OsType = 4)
+- Same resource table structure (`LE_RESOURCE_ENTRY`) for both
+- OS/2: Uses OS/2-specific resource types
+- Windows: Uses Windows resource types (RT_BITMAP, RT_ICON, RT_CURSOR, etc.)
+- Resource type interpretation depends on OsType field in LE header
+- Implementation: `ResourceStrategyBoth` with OS type detection
+
+### Resource Support Status
+
+| Format | Native Resources | Status | Section/Segment Name |
+|--------|------------------|--------|---------------------|
+| PE     | ✅ Yes | ✅ Implemented | Resource directory (native) + `.axursrc` |
+| Mach-O | ✅ Yes | ✅ Implemented | `__RSRC` segment (native) + `__apxh_uresource` |
+| ELF    | ✅ OS/2 | ✅ Implemented | `SHT_RES`/`PT_RES` (OS/2 native) + `.axursrc` |
+| COFF   | ❌ No  | ✅ Implemented | `.axursrc` section |
+| XCOFF  | ❌ No  | ✅ Implemented | `.axursrc` section (AIX) |
+| ECOFF  | ❌ No  | ✅ Implemented | `.axursrc` section (DEC/SGI) |
+| a.out  | ❌ No  | ✅ Implemented | Symbol-based (`__apxh_uresource_start/size`) |
+| LE/LX  | ✅ OS/2/Win | ✅ Implemented | Native resource table (OS/2 types or Windows types) |
+| PEF    | ❌ No  | ✅ Implemented | `.axursrc` section (CFM: Mac OS 68K/PPC, BeOS PPC) |
+| NLM    | ❌ No  | ✅ Implemented | Custom data segment (NetWare) |
+| Amiga Hunk | ❌ No  | ✅ Implemented | No native resources (AmigaOS 68K) |
+| Atari TOS | ❌ No  | ✅ Implemented | No native resources (Atari ST/TT/Falcon 68K) |
+| Plan 9 | ❌ No  | ✅ Implemented | No native resources (Plan 9 a.out) |
+| Xenix X.OUT | ❌ No  | ✅ Implemented | No native resources (SCO XENIX multi-arch) |
+| HP SOM | ❌ No  | ⚠️ Stub | Stub implementation (PA-RISC) |
+| OpenVMS | ❌ No  | ⚠️ Stub | Stub implementation (VAX/Alpha/Itanium) |
+| PDP-10 SAV | ❌ No  | ⚠️ Stub | Stub implementation (PDP-10 36-bit) |
+| EPOC32 | ✅ Yes | ⚠️ Partial | Native resources (Symbian OS ARM E32Image) |
+| PalmOS PRC | ✅ Yes | ⚠️ Partial | Native resource database (Palm OS 68K/ARM) |
+| RISC OS AIF | ❌ No  | ⚠️ Partial | No native resources (Acorn ARM) |
+| Mac OS 68K | ✅ Yes | ⚠️ Partial | Native resource fork with CODE resources |
+
+### Implementation Guide
+
+For formats WITHOUT native resources:
+1. Add `#include <ananke/resource.h>` and `#include "imgresource.h"`
+2. Implement section finder: `FormatFindSection(ImageBase, SectionName, Data, Size)`
+3. Implement GetResource using `FindUniversalResourceFork()` with `ResourceStrategyDirect`
+4. Implement GetResourceEnumerator similarly
+5. Update vtable to include resource methods
+
+Example implementation pattern (see `elf.c` for reference):
+```c
+static HRESULT FormatGetResource(...) {
+  Status = FindUniversalResourceFork(ImageBase, ResourceStrategyDirect,
+                                     NULL, FormatFindSection, ".axursrc",
+                                     &ResourceFork, &Size, &NeedsFree);
+  if (Status == S_OK) {
+    return CreateImageResource(ResourceFork, TypeCode, Id, Name, Resource);
+  }
+  return Status;
+}
+```
+
+**Special Case: Formats Without Sections (a.out)**
+
+For formats that lack section headers, use symbol-based resource location:
+1. Define special symbols when linking:
+   - `__apxh_uresource_start`: Points to resource fork start address
+   - `__apxh_uresource_size`: Value equals resource fork size
+2. Implement finder that looks up these symbols using `GetSymbolByName()`
+3. Use the finder with `FindUniversalResourceFork()` as usual
+
+See `aout.c` for a complete symbol-based implementation example.
+
+---
+
+## Initialization and Termination Functions
+
+APXH loaders support extracting initialization and termination function information from
+executable formats, enabling proper startup/shutdown sequences for libraries and applications.
+
+### Init/Fini Support Status
+
+| Format | Init/Fini Mechanism | Status | Sections/Mechanisms |
+|--------|---------------------|--------|---------------------|
+| Mach-O | ✅ Sections | ✅ Implemented | `__DATA,__mod_init_func`, `__DATA,__mod_term_func` |
+| PE     | ✅ TLS Callbacks | ✅ Implemented | TLS directory (`AddressOfCallBacks`) |
+| ELF (OS/2) | ✅ Dynamic Tags | ✅ Implemented | `DT_INIT`, `DT_FINI`, `DT_INITTERM`, `DT_IT` |
+| ELF (generic) | ✅ Sections | ✅ Implemented | `.init`, `.fini`, `.ctors`, `.dtors` |
+| COFF   | ✅ Sections | ✅ Implemented | `.init`, `.fini`, `.ctors`, `.dtors` |
+| XCOFF  | ✅ Sections | ✅ Implemented | `.init`, `.fini`, `.ctors`, `.dtors` (AIX) |
+| ECOFF  | ✅ Sections | ✅ Implemented | `.init`, `.fini`, `.ctors`, `.dtors` (DEC/SGI) |
+| a.out  | ⚠️ Limited | ⚠️ Partial | Dynamic linker support via `__DYNAMIC` |
+| LE/LX  | ✅ OS/2/Win | ✅ Implemented | InitObjectNum/InitEip (OS/2 apps and Windows VxD) |
+| PEF    | ✅ Loader Header | ✅ Implemented | InitSection/InitOffset, TermSection/TermOffset (CFM 68K/PPC) |
+| NLM    | ✅ Entry Points | ✅ Implemented | CodeStartOffset, ExitProcedureOffset, CheckUnloadProcedureOffset |
+| Amiga Hunk | ❌ No  | ⚠️ N/A | No explicit init/fini (AmigaOS handles library initialization) |
+| Atari TOS | ❌ No  | ⚠️ N/A | No explicit init/fini (TOS handles program initialization) |
+| Plan 9 | ❌ No  | ⚠️ N/A | No explicit init/fini (Plan 9 a.out variant) |
+| Xenix X.OUT | ✅ Segmented | ✅ Implemented | Entry segment (segmented x.out only, multi-arch) |
+| HP SOM | ⚠️ Stub | ⚠️ Stub | Stub implementation |
+| OpenVMS | ⚠️ Stub | ⚠️ Stub | Stub implementation |
+| PDP-10 SAV | ⚠️ Stub | ⚠️ Stub | Stub implementation |
+| EPOC32 | ❌ No  | ⚠️ N/A | No explicit init/fini (Symbian OS E32Image) |
+| PalmOS PRC | ❌ No  | ⚠️ N/A | No explicit init/fini (Palm OS handles initialization) |
+| RISC OS AIF | ❌ No  | ⚠️ N/A | No explicit init/fini (RISC OS handles initialization) |
+| Mac OS 68K | ❌ No  | ⚠️ N/A | No explicit init/fini (Mac OS handles CODE resource loading) |
+
+### Implementation Patterns
+
+#### 1. **Mach-O (macOS/iOS)**: Function Pointer Arrays
+```c
+// __DATA,__mod_init_func: Array of init function pointers (called before main)
+// __DATA,__mod_term_func: Array of term function pointers (called at exit)
+MachoGetInitFini(ImageBase, &InitFuncs, &NumInitFuncs, &TermFuncs, &NumTermFuncs);
+```
+
+#### 2. **PE (Windows)**: TLS Callbacks
+```c
+// TLS directory contains AddressOfCallBacks (array of callback functions)
+// Callbacks are called on process/thread attach/detach
+PeGetTlsInfo(ImageBase, &TlsInfo);  // TlsInfo.CallbacksAddr points to callback array
+```
+
+#### 3. **ELF**: Multiple Mechanisms
+**OS/2 PowerPC ELF** (dynamic tags):
+```c
+// DT_INIT:     Single init function address
+// DT_FINI:     Single fini function address
+// DT_INITTERM: Combined init/term function (OS/2 specific)
+// DT_IT:       Init/term type (IT_GLOBAL, IT_INSTANCE, IT_THREAD)
+// DT_ITPRTY:   Priority (0 = highest)
+GetOs2InitFiniInfo(ImageBase, &InitAddr, &FiniAddr, &InitTermAddr, &InitType, &TermType, &Priority);
+```
+
+**Generic ELF** (sections):
+```c
+// .init:  Initialization code section
+// .fini:  Finalization code section
+// .ctors: Constructor function pointer array (C++)
+// .dtors: Destructor function pointer array (C++)
+```
+
+#### 4. **COFF Family** (COFF/XCOFF/ECOFF): Standard Sections
+```c
+// All three formats use identical section-based approach:
+CoffGetInitFini(ImageBase, &InitSection, &InitSize, &FiniSection, &FiniSize,
+                &CtorsArray, &NumCtors, &DtorsArray, &NumDtors);
+```
+
+**Section Types:**
+- `.init` / `.fini`: Code sections containing initialization/finalization code
+- `.ctors` / `.dtors`: Arrays of function pointers (C++ global constructors/destructors)
+
+#### 5. **a.out**: Dynamic Linker Support
+```c
+// If __DYNAMIC symbol present, dynamic linker handles init/fini
+// Static executables may use custom sections (non-standard)
+AoutGetDynamic(ImageBase, &Dynamic);  // Returns AOUT_LINK_DYNAMIC structure
+```
+
+#### 6. **PEF (Mac OS/BeOS)**: Loader Info Header
+```c
+// PEF loader info header contains section/offset pairs for init/term functions
+// InitSection/InitOffset: Fragment initialization function
+// TermSection/TermOffset: Fragment termination function
+PefGetInitFini(ImageBase, &InitAddress, &TermAddress);
+```
+
+**Notes:**
+- Called by Code Fragment Manager (CFM) on fragment load/unload
+- Init function initializes global variables and resources
+- Term function cleans up resources and prepares for unload
+- Both are optional (section index can be -1)
+
+#### 7. **NLM (NetWare)**: Module Entry Points
+```c
+// NLM header contains RVA offsets for module lifecycle functions
+// CodeStartOffset:         Module initialization (entry point)
+// ExitProcedureOffset:     Module termination
+// CheckUnloadProcedureOffset: Pre-unload verification (returns 0 if OK to unload)
+NlmGetInitFini(ImageBase, &InitAddress, &TermAddress, &CheckUnloadAddress);
+```
+
+**Notes:**
+- CodeStartOffset called when module is loaded
+- ExitProcedureOffset called when module is unloaded
+- CheckUnloadProcedureOffset called before unload to verify it's safe
+- All three are optional (offset can be 0)
+- NetWare kernel manages module lifecycle
+
+### Execution Order
+
+Typical initialization sequence (loader responsibility):
+1. **Load executable and dependencies**
+2. **Apply relocations**
+3. **Execute init functions** (in dependency order):
+   - Library-level init (IT_GLOBAL for OS/2)
+   - Per-instance init (IT_INSTANCE for OS/2)
+   - TLS callbacks with DLL_PROCESS_ATTACH (PE)
+   - C++ global constructors (.ctors)
+4. **Call entry point** (main/WinMain/etc.)
+
+Typical termination sequence:
+1. **Return from entry point**
+2. **Execute fini functions** (reverse dependency order):
+   - C++ global destructors (.dtors)
+   - TLS callbacks with DLL_PROCESS_DETACH (PE)
+   - Per-instance term (IT_INSTANCE for OS/2)
+   - Library-level term (IT_GLOBAL for OS/2)
+3. **Unload libraries**
+
+### Platform-Specific Notes
+
+**macOS/iOS (Mach-O):**
+- `__mod_init_func` runs before `main()` or library use
+- `__mod_term_func` runs at process exit via `atexit()`
+- Used by C++ constructors and `__attribute__((constructor))`
+
+**Windows (PE):**
+- TLS callbacks run on every thread creation/destruction
+- `DllMain(DLL_PROCESS_ATTACH)` for DLL initialization
+- `DllMain(DLL_PROCESS_DETACH)` for DLL termination
+
+**OS/2 and Windows (LE/LX):**
+- LE/LX format used by both OS/2 (OsType = 1) and Windows VxD (OsType = 4)
+- OS/2 applications:
+  - Init/term via `InitObjectNum`/`InitEip` (entry point)
+  - OS/2 kernel handles DLL initialization and termination
+  - Init/term types control when functions run (for ELF):
+    - `IT_GLOBAL`: First load / final unload (library-level)
+    - `IT_INSTANCE`: Each process attach / detach
+    - `IT_THREAD`: Each thread (reserved in Release 1)
+- Windows VxD drivers:
+  - Init via `InitObjectNum`/`InitEip` (driver entry point)
+  - Windows kernel calls entry point during system initialization
+  - No explicit termination (drivers remain loaded until system shutdown)
+
+**Unix (ELF/COFF/ECOFF/XCOFF):**
+- `.init` / `.fini` sections contain arbitrary code
+- `.ctors` / `.dtors` are NULL-terminated function pointer arrays
+- Linker combines all `.ctors` from object files into one array
+- C++ runtime calls each constructor/destructor in order
+
+---
+
 ## ELF (Executable and Linkable Format)
 
 **Status:** ✅ Fully implemented with unwinding/symbol support
@@ -247,9 +511,23 @@ This document provides references for implementing image format loaders in APXH.
 
 ## Other Formats
 
-### Xenix COFF
+### SCO Xenix X.OUT
 - **Implementation:** `xenix.c`
-- **Status:** Stub implementation
+- **Status:** Fully implemented
+- SCO XENIX extended output format (x.out)
+- **Features:**
+  - Multiple CPU architectures (8086, 80186, 80286, 80386, 68K, VAX, Z8000, Z80, NS16032, PDP-11)
+  - Segmented x.out format (XE_SEG) with segment tables
+  - Non-segmented x.out format
+  - Version detection (v2.x, v3.x, v5.x)
+  - Byte/word swapping for cross-platform binaries
+  - Extension header with stack size and machine-dependent tables
+  - Shared library support (XE_VMOD)
+  - Multiple relocation and symbol table formats
+  - Init/fini support for segmented executables
+  - Large model support (XE_LTEXT, XE_LDATA)
+  - Pure text sharing (XE_PURE)
+  - Floating point hardware requirement detection (XE_FPH)
 
 ### NLM (NetWare Loadable Module)
 - **Implementation:** `nlm.c`
@@ -279,6 +557,35 @@ This document provides references for implementing image format loaders in APXH.
 - **Implementation:** `plan9.c`
 - **Status:** Detection implemented
 - Plan 9 a.out variant
+
+### EPOC32 (Symbian OS)
+- **Implementation:** `epoc32.c`
+- **Status:** Detection implemented
+- E32Image format for Symbian OS
+- ARM architecture (ARMv4, ARMv5)
+- UID verification support
+
+### PalmOS PRC
+- **Implementation:** `palmos.c`
+- **Status:** Detection implemented
+- Palm Resource Code (PRC) database format
+- M68K architecture (Palm OS 1.0-4.x) and ARM (Palm OS 5.x+)
+- Native resource database support
+
+### RISC OS AIF
+- **Implementation:** `acorn.c`
+- **Status:** Detection implemented
+- Acorn Image Format for RISC OS
+- ARM architecture
+- Relocatable executable format
+
+### Classic Mac OS 68K
+- **Implementation:** `macos68k.c`
+- **Status:** Detection implemented
+- Classic Macintosh 68K resource-based executable (pre-PEF)
+- M68K architecture (68000, 68020, 68030, 68040)
+- Resource fork with CODE resources
+- Jump table and A5 world support
 
 ---
 

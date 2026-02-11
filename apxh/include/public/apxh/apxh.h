@@ -27,7 +27,8 @@
 typedef enum _APXH_PLATFORM_TYPE {
   ApxhPlatformUnknown = 0,  ///< Unknown platform type
   ApxhPlatformAcpi    = 1,  ///< ACPI-based platform (x86)
-  ApxhPlatformDtb     = 2   ///< Device Tree Blob platform (RISC-V, ARM)
+  ApxhPlatformDtb     = 2,  ///< Device Tree Blob platform (RISC-V, ARM)
+  ApxhPlatformMps     = 3   ///< Intel MultiProcessor Specification (legacy x86 SMP)
 } APXH_PLATFORM_TYPE;
 
 //
@@ -62,7 +63,7 @@ ANX_PACK_PUSH(1)
 
 typedef struct _APXH_PLATFORM_DESCRIPTOR {
   ///
-  /// Platform type (ApxhPlatformUnknown, ApxhPlatformAcpi, ApxhPlatformDtb).
+  /// Platform type (ApxhPlatformUnknown, ApxhPlatformAcpi, ApxhPlatformDtb, ApxhPlatformMps).
   ///
   UINT64  Type;
 
@@ -70,6 +71,7 @@ typedef struct _APXH_PLATFORM_DESCRIPTOR {
   /// Pointer to platform-specific data:
   /// - For ApxhPlatformAcpi: Physical address of ACPI RSDP
   /// - For ApxhPlatformDtb: Physical address of Device Tree Blob
+  /// - For ApxhPlatformMps: Physical address of MP Floating Pointer Structure
   ///
   UINT64  PlatformPointer;
 } APXH_PLATFORM_DESCRIPTOR;
@@ -99,6 +101,12 @@ typedef struct _APXH_TLS_INFO {
 //
 // APXH_BOOT_INFO - Main Boot Information Structure
 //
+
+// Mixed-mode execution flags
+#define APXH_MIXEDMODE_32ON64     (1 << 0)  ///< 32-bit kernel on 64-bit CPU
+#define APXH_MIXEDMODE_64UON32K   (1 << 1)  ///< 64-bit user on 32-bit kernel
+#define APXH_MIXEDMODE_32UON64K   (1 << 2)  ///< 32-bit user on 64-bit kernel
+#define APXH_MIXEDMODE_MIXED      (1 << 3)  ///< General mixed-mode (different bitness)
 
 typedef struct _APXH_BOOT_INFO {
   ///
@@ -151,6 +159,67 @@ typedef struct _APXH_BOOT_INFO {
   /// User-mode thread-local storage information.
   ///
   APXH_TLS_INFO  UserTls;
+
+  ///
+  /// Kernel architecture (ARCH enum).
+  /// Specifies the instruction set architecture of the kernel.
+  /// Single byte value - endian-safe, no conversion needed.
+  ///
+  UINT8   KernelArchitecture;
+
+  ///
+  /// User architecture (ARCH enum).
+  /// Specifies the instruction set architecture of user-space.
+  /// May be ArchInvalid (0) if no user-space program is loaded.
+  /// Single byte value - endian-safe, no conversion needed.
+  ///
+  UINT8   UserArchitecture;
+
+  ///
+  /// Host CPU architecture (ARCH enum).
+  /// Specifies the native instruction set of the physical CPU.
+  /// Single byte value - endian-safe, no conversion needed.
+  ///
+  UINT8   HostArchitecture;
+
+  ///
+  /// Kernel endianness (IMGLOAD_ENDIAN enum).
+  /// 0 = ImgEndianUnknown, 1 = ImgEndianLittle, 2 = ImgEndianBig
+  /// Single byte value - endian-safe, no conversion needed.
+  ///
+  UINT8   KernelEndianness;
+
+  ///
+  /// User endianness (IMGLOAD_ENDIAN enum).
+  /// 0 = ImgEndianUnknown, 1 = ImgEndianLittle, 2 = ImgEndianBig
+  /// May be 0 (Unknown) if no user-space program is loaded.
+  /// Single byte value - endian-safe, no conversion needed.
+  ///
+  UINT8   UserEndianness;
+
+  ///
+  /// Mixed-endian flag.
+  /// Non-zero if kernel and user have different endianness.
+  /// Kernel must handle endianness conversion for syscalls and data transfer.
+  /// Single byte value - endian-safe, no conversion needed.
+  ///
+  UINT8   MixedEndian;
+
+  ///
+  /// Reserved for alignment (2 bytes).
+  /// Must be zero. Allows future expansion without breaking ABI.
+  ///
+  UINT16  Reserved1;
+
+  ///
+  /// Mixed-mode execution flags.
+  /// Bit 0: 32-bit kernel on 64-bit CPU (32-on-64)
+  /// Bit 1: 64-bit user on 32-bit kernel (64U-on-32K)
+  /// Bit 2: 32-bit user on 64-bit kernel (32U-on-64K)
+  /// Bit 3: General mixed-mode (kernel and user have different bitness)
+  /// Multi-byte value - MUST be endian-converted if kernel endianness differs.
+  ///
+  UINT32  MixedModeFlags;
 } APXH_BOOT_INFO;
 
 //

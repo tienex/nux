@@ -191,7 +191,11 @@ typedef enum _IMGLOAD_ENDIAN {
   ImgEndianUnknown = 0,  ///< Unknown endianness
   ImgEndianLittle  = 1,  ///< Little-endian
   ImgEndianBig     = 2   ///< Big-endian
+  // IMPORTANT: All values must fit in UINT8 (0-255) for endian-safety
 } IMGLOAD_ENDIAN;
+
+// Compile-time assertion to ensure IMGLOAD_ENDIAN fits in UINT8
+_Static_assert(ImgEndianBig <= 255, "IMGLOAD_ENDIAN values must fit in UINT8 for endian-safety");
 
 //
 // TLS Information Structure
@@ -243,6 +247,41 @@ typedef struct _IMGLOAD_RELOC_INFO {
 } IMGLOAD_RELOC_INFO, *PIMGLOAD_RELOC_INFO;
 
 //
+// Resource Identifier (by name or numeric ID)
+//
+
+typedef struct _IMGLOAD_RESOURCE_ID {
+  BOOLEAN      IsNumeric;   ///< TRUE for numeric ID, FALSE for name
+  union {
+    UINT32      Id;         ///< Numeric resource ID
+    CONST CHAR8 *Name;      ///< Resource name (null-terminated)
+  };
+} IMGLOAD_RESOURCE_ID, *PIMGLOAD_RESOURCE_ID;
+
+//
+// Initialization/Termination Function Information Structure
+//
+
+typedef struct _IMGLOAD_INITFINI_INFO {
+  BOOLEAN          HasInit;       ///< TRUE if initialization function present
+  BOOLEAN          HasFini;       ///< TRUE if termination function present
+  VIRTUAL_ADDRESS  InitAddress;   ///< Initialization function address
+  VIRTUAL_ADDRESS  FiniAddress;   ///< Termination function address
+  UINT32           Priority;      ///< Initialization priority (0 = highest, optional)
+} IMGLOAD_INITFINI_INFO, *PIMGLOAD_INITFINI_INFO;
+
+//
+// Resource Information Structure
+//
+
+typedef struct _IMGLOAD_RESOURCE_INFO {
+  VOID       *Data;       ///< Pointer to resource data
+  UINT64     Size;        ///< Size of resource data
+  UINT32     Type;        ///< Resource type (format-specific)
+  BOOLEAN    IsLoaded;    ///< TRUE if resource is in memory, FALSE if reference only
+} IMGLOAD_RESOURCE_INFO, *PIMGLOAD_RESOURCE_INFO;
+
+//
 // Image Load Context
 //
 
@@ -256,6 +295,10 @@ typedef struct _IMGLOAD_CONTEXT {
   IMGLOAD_TLS_INFO      KernelTls;        ///< Kernel TLS information
   IMGLOAD_TLS_INFO      UserTls;          ///< User TLS information
   IMGLOAD_UNWIND_INFO   UnwindInfo;       ///< Unwinding information
+  IMGLOAD_INITFINI_INFO InitFini;         ///< Initialization/termination functions
+  IEnumImageResource    *Resources;       ///< Resource enumerator (optional, may be NULL)
+  BOOLEAN               CompatibilityMode;///< TRUE if running in arch compatibility mode (e.g., 32-on-64)
+  ARCH                  HostArchitecture; ///< Host architecture (for compatibility mode)
 } IMGLOAD_CONTEXT, *PIMGLOAD_CONTEXT;
 
 //
@@ -263,6 +306,24 @@ typedef struct _IMGLOAD_CONTEXT {
 //
 
 typedef struct _IImageLoader IImageLoader;
+typedef struct _IImageResource IImageResource;
+typedef struct _IEnumImageResource IEnumImageResource;
+
+//
+// Image Resource Interface GUID
+// {C4E2F8A1-3D5B-4C7E-9A1F-6B8D4E3C2A91}
+//
+
+#define ANX_IID_IImageResource "C4E2F8A1-3D5B-4C7E-9A1F-6B8D4E3C2A91"
+ANX_DEFINE_GUID(IID_IImageResource, 0xC4E2F8A1,0x3D5B,0x4C7E,0x9A,0x1F,0x6B,0x8D,0x4E,0x3C,0x2A,0x91);
+
+//
+// Image Resource Enumerator Interface GUID
+// {D5F3A9B2-4E6C-5D8F-A2E0-7C9E5F4D3B92}
+//
+
+#define ANX_IID_IEnumImageResource "D5F3A9B2-4E6C-5D8F-A2E0-7C9E5F4D3B92"
+ANX_DEFINE_GUID(IID_IEnumImageResource, 0xD5F3A9B2,0x4E6C,0x5D8F,0xA2,0xE0,0x7C,0x9E,0x5F,0x4D,0x3B,0x92);
 
 //
 // Image Loader Interface GUID
@@ -282,6 +343,107 @@ ANX_DEFINE_GUID(IID_IImageLoader, 0xA57F0B12,0x8D4E,0x4F1A,0x9C,0x3B,0x2E,0x6F,0
 #define APXH_REGISTER_IMGLOADER(LoaderVar) \
   ANX_ATTR_SECTION(".imgloaders") ANX_ATTR_USED \
   static IImageLoader * CONST _imgloader_ptr_##LoaderVar = &LoaderVar
+
+//
+// Image Resource Interface (COM-style with ANX macros)
+//
+
+ANX_BEGIN_INTERFACE(IImageResource, IUnknown, IID_IImageResource, ANX_IID_IImageResource)
+  /**
+    Get resource data pointer.
+
+    @param[out] Data  Receives pointer to resource data.
+    @param[out] Size  Receives size of resource data.
+
+    @return S_OK on success, error code otherwise.
+  **/
+  ANX_IFACE_METHOD(HRESULT, GetData, (
+    IN  IImageResource  *This,
+    OUT VOID            **Data,
+    OUT UINT64          *Size
+    ))
+
+  /**
+    Get resource type.
+
+    @param[out] Type  Receives resource type (format-specific).
+
+    @return S_OK on success, error code otherwise.
+  **/
+  ANX_IFACE_METHOD(HRESULT, GetType, (
+    IN  IImageResource  *This,
+    OUT UINT32          *Type
+    ))
+
+  /**
+    Get resource ID.
+
+    @param[out] ResourceId  Receives resource identifier.
+
+    @return S_OK on success, error code otherwise.
+  **/
+  ANX_IFACE_METHOD(HRESULT, GetId, (
+    IN  IImageResource      *This,
+    OUT IMGLOAD_RESOURCE_ID *ResourceId
+    ))
+
+ANX_END_INTERFACE(IImageResource)
+
+//
+// Image Resource Enumerator Interface (COM-style with ANX macros)
+//
+
+ANX_BEGIN_INTERFACE(IEnumImageResource, IUnknown, IID_IEnumImageResource, ANX_IID_IEnumImageResource)
+  /**
+    Get next resource from enumeration.
+
+    @param[in]  Count      Number of resources to retrieve.
+    @param[out] Resources  Array to receive resource pointers.
+    @param[out] Fetched    Receives number of resources actually retrieved.
+
+    @return S_OK if Count resources retrieved, S_FALSE if fewer, error code otherwise.
+  **/
+  ANX_IFACE_METHOD(HRESULT, Next, (
+    IN  IEnumImageResource  *This,
+    IN  UINT32              Count,
+    OUT IImageResource      **Resources,
+    OUT UINT32              *Fetched
+    ))
+
+  /**
+    Skip specified number of resources.
+
+    @param[in] Count  Number of resources to skip.
+
+    @return S_OK on success, S_FALSE if fewer resources available, error code otherwise.
+  **/
+  ANX_IFACE_METHOD(HRESULT, Skip, (
+    IN IEnumImageResource  *This,
+    IN UINT32              Count
+    ))
+
+  /**
+    Reset enumeration to beginning.
+
+    @return S_OK on success, error code otherwise.
+  **/
+  ANX_IFACE_METHOD(HRESULT, Reset, (
+    IN IEnumImageResource  *This
+    ))
+
+  /**
+    Clone this enumerator.
+
+    @param[out] Clone  Receives cloned enumerator.
+
+    @return S_OK on success, error code otherwise.
+  **/
+  ANX_IFACE_METHOD(HRESULT, Clone, (
+    IN  IEnumImageResource   *This,
+    OUT IEnumImageResource   **Clone
+    ))
+
+ANX_END_INTERFACE(IEnumImageResource)
 
 //
 // Image Loader Interface (COM-style with ANX macros)
@@ -485,6 +647,60 @@ ANX_BEGIN_INTERFACE(IImageLoader, IUnknown, IID_IImageLoader, ANX_IID_IImageLoad
   ANX_IFACE_METHOD(HRESULT, GetMinimumSubsystemVersion, (
     IN  VOID                     *ImageBase,
     OUT IMGLOAD_SYSTEM_VERSION   *MinimumVersion
+    ))
+
+  /**
+    Get resource from image by name or ID.
+
+    Uses format-specific mechanisms to locate resources (e.g., ELF uses
+    OS/2 PowerPC .rsrc sections, PE uses resource directory).
+
+    @param[in]  ImageBase      Pointer to image in memory.
+    @param[in]  ResourceId     Resource identifier (name or numeric ID).
+    @param[in]  ResourceType   Resource type identifier (format-specific).
+    @param[out] Resource       Receives IImageResource interface pointer.
+
+    @return S_OK on success, S_FALSE if not found, error code otherwise.
+  **/
+  ANX_IFACE_METHOD(HRESULT, GetResource, (
+    IN  VOID                  *ImageBase,
+    IN  IMGLOAD_RESOURCE_ID   *ResourceId,
+    IN  IMGLOAD_RESOURCE_ID   *ResourceType,
+    OUT IImageResource        **Resource
+    ))
+
+  /**
+    Get resource enumerator for image.
+
+    Returns an enumerator for iterating over all resources of a given type
+    in the image.
+
+    @param[in]  ImageBase       Pointer to image in memory.
+    @param[in]  ResourceType    Resource type to enumerate (NULL for all types).
+    @param[out] Enumerator      Receives IEnumImageResource interface pointer.
+
+    @return S_OK on success, S_FALSE if no resources, error code otherwise.
+  **/
+  ANX_IFACE_METHOD(HRESULT, GetResourceEnumerator, (
+    IN  VOID                   *ImageBase,
+    IN  IMGLOAD_RESOURCE_ID    *ResourceType,
+    OUT IEnumImageResource     **Enumerator
+    ))
+
+  /**
+    Get initialization and termination function information from image.
+
+    Extracts information about initialization and termination functions
+    that should be called when loading/unloading the image.
+
+    @param[in]  ImageBase    Pointer to image in memory.
+    @param[out] InitFiniInfo Receives init/fini information.
+
+    @return S_OK on success, S_FALSE if no init/fini functions, error code otherwise.
+  **/
+  ANX_IFACE_METHOD(HRESULT, GetInitFini, (
+    IN  VOID                    *ImageBase,
+    OUT IMGLOAD_INITFINI_INFO   *InitFiniInfo
     ))
 
 ANX_END_INTERFACE(IImageLoader)

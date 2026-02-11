@@ -5,12 +5,18 @@
   3-level page tables (PDPT, PD, PT). Supports 36-bit physical addressing
   with 4KB pages on 32-bit x86 processors.
 
+  Supports configurable kernel/user address space splits:
+  - 0.5GB/3.5GB, 1GB/3GB, 2GB/2GB, 3GB/1GB, 3.5GB/0.5GB
+  - 4GB/4GB (special mode with separate page tables)
+
   Copyright (C) 2019 Gianluca Guida, glguida@tlbflush.org
 
   SPDX-License-Identifier: BSD-2-Clause
 **/
 
 #include <apxh/x86/pae.h>
+#include <apxh/x86/split.h>
+#include <apxh/arch.h>
 
 /* 1 Gb direct map in the Payload Page Table. */
 #define PAE_DIRECTMAP_START 0
@@ -136,7 +142,7 @@ PteMergeFlags (
   @param[in] Va    Virtual address.
   @param[in] Size  Size of region.
 **/
-VOID
+static VOID
 PaeVerify (
   IN VIRTUAL_ADDRESS   VirtualAddress,
   IN SIZE64  Size
@@ -151,16 +157,29 @@ PaeVerify (
   Sets up PAE (Physical Address Extension) paging with 3-level page
   tables. Allocates CR3 and 4 L2 page directory tables. Enables NX
   if supported and configures PAT table.
+
+  If PAE is not supported, prints a warning but continues with
+  initialization to allow basic operation on legacy systems.
+
+  Also initializes address space split configuration (default 1GB/3GB).
 **/
-VOID
+static VOID
 PaeInitialize (
   VOID
   )
 {
 INT32 i;
 
-  /* Enable NX */
-  assert (CpuSupportsPae ());
+  /* Initialize address space split configuration */
+  AddressSpaceSplitInit();
+
+  /* Check for PAE support */
+  if (!CpuSupportsPae ()) {
+    printf ("WARNING: CPU does not support PAE!\n");
+    printf ("WARNING: Page table setup may not work correctly on this system.\n");
+    printf ("WARNING: The kernel will need to set up its own page tables.\n");
+    /* Continue anyway to allow bootloader to function on very old systems */
+  }
 
   gNxEnabled = CpuSupportsNx ();
 
@@ -261,7 +280,8 @@ PaeGetL1p (
 /**
   Map page with PAE.
 
-  Creates a page mapping with specified permissions.
+  Creates a page mapping with specified permissions. Automatically
+  determines user vs kernel based on address space split configuration.
 
   @param[in] Pt      Page table root.
   @param[in] Va       Virtual address.
@@ -283,11 +303,22 @@ PaeMapPage (
   PTE *L1Entry, *Cr3;
   UINT64 L1F;
   UINTN Page;
+  ADDR_SPACE_SPLIT CurrentSplit;
+  BOOLEAN IsUser;
 
   Cr3 = (PTE *) PageTable;
 
+  // Determine if this is a user space address based on split configuration
+  CurrentSplit = GetCurrentAddressSpaceSplit();
+  IsUser = IsUserSpaceAddress(VirtualAddress, CurrentSplit);
+
   L1Entry = PaeGetL1p (Cr3, VirtualAddress, IsPayload);
   L1F = (IsWritable ? PTE_W : 0) | (IsExecutable ? 0 : PTE_NX) | PTE_P;
+
+  // Set user-accessible bit for user space addresses
+  if (IsUser) {
+    L1F |= PTE_U;
+  }
 
   Page = (UINTN) PteGetAddr (L1Entry);
   assert (Page == 0);
@@ -356,7 +387,7 @@ PaePopulatePage (
 
   @return Physical address.
 **/
-UINTN
+static UINTN
 PaeGetPhysical (
   IN VIRTUAL_ADDRESS  VirtualAddress
   )
@@ -430,7 +461,7 @@ PaeDirectMap (
   @param[in] Pa    Physical address.
   @param[in] Mt    Memory type.
 **/
-VOID
+static VOID
 PaeMapPhysical (
   IN VIRTUAL_ADDRESS           VirtualAddress,
   IN SIZE64          Size,
@@ -450,7 +481,7 @@ PaeMapPhysical (
   @param[in] Va    Virtual address.
   @param[in] Size  Size of region.
 **/
-VOID
+static VOID
 PaeAllocateTopPageTable (
   IN VIRTUAL_ADDRESS   VirtualAddress,
   IN SIZE64  Size
@@ -469,7 +500,7 @@ PaeAllocateTopPageTable (
   @param[in] Va    Virtual address.
   @param[in] Size  Size of region.
 **/
-VOID
+static VOID
 PaeAllocatePageTable (
   IN VIRTUAL_ADDRESS   VirtualAddress,
   IN SIZE64  Size
@@ -496,7 +527,7 @@ PaeAllocatePageTable (
   @param[in] Va    Virtual address for linear mapping.
   @param[in] Size  Size of region (must be >= PAE_LINEAR_SIZE).
 **/
-VOID
+static VOID
 PaeMapLinear (
   IN VIRTUAL_ADDRESS   VirtualAddress,
   IN SIZE64  Size
@@ -541,7 +572,7 @@ INT32 i;
   @param[in] W     TRUE for writable.
   @param[in] X     TRUE for executable.
 **/
-VOID
+static VOID
 PaePopulate (
   IN VIRTUAL_ADDRESS   VirtualAddress,
   IN SIZE64  Size,
@@ -570,13 +601,186 @@ PaePopulate (
 
   @param[in] Entry  Kernel entry point address.
 **/
-VOID
+static VOID
 PaeEntry (
   IN VIRTUAL_ADDRESS  Entry
   )
 {
   PlatformEntry (Arch386, (VIRTUAL_ADDRESS) (UINTN) gPaeCr3, Entry);
 }
+
+//
+// IVirtualAddressSpace COM Interface Implementation
+//
+
+static HRESULT STDMETHODCALLTYPE
+PaeQueryInterface (
+  IN  IVirtualAddressSpace  *This,
+  IN  CONST GUID     *Iid,
+  OUT VOID           **Object
+  )
+{
+  if (memcmp (Iid, &IID_IVirtualAddressSpace, sizeof (GUID)) == 0 ||
+      memcmp (Iid, &IID_IUnknown, sizeof (GUID)) == 0)
+    {
+      *Object = This;
+      return S_OK;
+    }
+
+  *Object = NULL;
+  return E_NOINTERFACE;
+}
+
+static UINT32 STDMETHODCALLTYPE
+PaeAddRef (
+  IN IVirtualAddressSpace  *This
+  )
+{
+  return 1;  // Static instance, no reference counting
+}
+
+static UINT32 STDMETHODCALLTYPE
+PaeRelease (
+  IN IVirtualAddressSpace  *This
+  )
+{
+  return 1;  // Static instance, no reference counting
+}
+
+static HRESULT STDMETHODCALLTYPE
+PaeIInitialize (
+  IN IVirtualAddressSpace  *This
+  )
+{
+  PaeInitialize ();
+  return S_OK;
+}
+
+static HRESULT STDMETHODCALLTYPE
+PaeIGetPhysical (
+  IN  IVirtualAddressSpace    *This,
+  IN  VIRTUAL_ADDRESS  VirtualAddress,
+  OUT UINTN            *PhysicalAddress
+  )
+{
+  if (PhysicalAddress == NULL) {
+    return E_POINTER;
+  }
+
+  *PhysicalAddress = PaeGetPhysical (VirtualAddress);
+  return S_OK;
+}
+
+static HRESULT STDMETHODCALLTYPE
+PaeIVerify (
+  IN IVirtualAddressSpace    *This,
+  IN VIRTUAL_ADDRESS  VirtualAddress,
+  IN SIZE64           Size
+  )
+{
+  PaeVerify (VirtualAddress, Size);
+  return S_OK;
+}
+
+static HRESULT STDMETHODCALLTYPE
+PaeIPopulate (
+  IN IVirtualAddressSpace    *This,
+  IN VIRTUAL_ADDRESS  VirtualAddress,
+  IN SIZE64           Size,
+  IN INT32            IsUserMode,
+  IN INT32            IsWritable,
+  IN INT32            IsExecutable
+  )
+{
+  PaePopulate (VirtualAddress, Size, IsUserMode, IsWritable, IsExecutable);
+  return S_OK;
+}
+
+static HRESULT STDMETHODCALLTYPE
+PaeIMapPhysical (
+  IN IVirtualAddressSpace    *This,
+  IN VIRTUAL_ADDRESS  VirtualAddress,
+  IN SIZE64           Size,
+  IN UINT64           PhysicalAddress,
+  IN MEMORY_TYPE      Type
+  )
+{
+  PaeMapPhysical (VirtualAddress, Size, PhysicalAddress, Type);
+  return S_OK;
+}
+
+static HRESULT STDMETHODCALLTYPE
+PaeIAllocatePageTable (
+  IN IVirtualAddressSpace    *This,
+  IN VIRTUAL_ADDRESS  VirtualAddress,
+  IN SIZE64           Size
+  )
+{
+  PaeAllocatePageTable (VirtualAddress, Size);
+  return S_OK;
+}
+
+static HRESULT STDMETHODCALLTYPE
+PaeIAllocateTopPageTable (
+  IN IVirtualAddressSpace    *This,
+  IN VIRTUAL_ADDRESS  VirtualAddress,
+  IN SIZE64           Size
+  )
+{
+  PaeAllocateTopPageTable (VirtualAddress, Size);
+  return S_OK;
+}
+
+static HRESULT STDMETHODCALLTYPE
+PaeIMapLinear (
+  IN IVirtualAddressSpace    *This,
+  IN VIRTUAL_ADDRESS  VirtualAddress,
+  IN SIZE64           Size
+  )
+{
+  PaeMapLinear (VirtualAddress, Size);
+  return S_OK;
+}
+
+static HRESULT STDMETHODCALLTYPE
+PaeIEntry (
+  IN IVirtualAddressSpace    *This,
+  IN VIRTUAL_ADDRESS  EntryPoint
+  )
+{
+  PaeEntry (EntryPoint);
+  return S_OK;  // Never returns
+}
+
+//
+// PAE Architecture VTable
+//
+
+static CONST IVirtualAddressSpaceVtbl gPaeVtbl = {
+  PaeQueryInterface,
+  PaeAddRef,
+  PaeRelease,
+  PaeIInitialize,
+  PaeIGetPhysical,
+  PaeIVerify,
+  PaeIPopulate,
+  PaeIMapPhysical,
+  PaeIAllocatePageTable,
+  PaeIAllocateTopPageTable,
+  PaeIMapLinear,
+  PaeIEntry
+};
+
+//
+// PAE Architecture Instance
+//
+
+IVirtualAddressSpace gPaeArch = {
+  &gPaeVtbl
+};
+
+// Auto-register this architecture
+APXH_REGISTER_ARCH(gPaeArch, Arch386);
 
 
 /*

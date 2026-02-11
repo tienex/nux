@@ -18,6 +18,8 @@
 
 #include <apxh/internal.h>
 #include <apxh/imgload.h>
+#include <ananke/resource.h>
+#include "imgresource.h"
 
 //
 // PEF Magic Numbers
@@ -163,14 +165,12 @@ PefGetArch (
 
   switch (Header->Architecture) {
     case PEF_ARCH_PWPC:
-      // PowerPC not supported by APXH
-      *Architecture = ArchUnsupported;
-      return IMGLOAD_E_UNSUPPORTED_ARCH;
+      *Architecture = ArchPpc32;
+      return S_OK;
 
     case PEF_ArchM68k:
-      // Motorola 68K not supported by APXH
-      *Architecture = ArchUnsupported;
-      return IMGLOAD_E_UNSUPPORTED_ARCH;
+      *Architecture = ArchM68k;
+      return S_OK;
 
     default:
       *Architecture = ArchUnsupported;
@@ -295,7 +295,7 @@ PefLoadSection (
 
   if (Section->UnpackedSize > 0 && Section->ContainerOffset != 0) {
     // Copy section data
-    VirtualAddressCopy(
+    VasCopy(
       Section->DefaultAddress,
       PEF_OFF(Section->ContainerOffset),
       Section->UnpackedSize,
@@ -307,7 +307,7 @@ PefLoadSection (
 
   if (Section->TotalSize > Section->UnpackedSize) {
     // Zero-fill remainder
-    VirtualAddressMemset(
+    VasFill(
       Section->DefaultAddress + Section->UnpackedSize,
       0,
       Section->TotalSize - Section->UnpackedSize,
@@ -493,6 +493,219 @@ PefApplyRelocations (
   // PEF relocations are applied during load
   // No additional relocation needed
   return S_OK;
+}
+
+/**
+  Find section by name in PEF image.
+**/
+static
+HRESULT
+PefFindSection (
+  IN  VOID         *ImageBase,
+  IN  CONST CHAR8  *Name,
+  OUT VOID         **Data,
+  OUT UINT64       *Size
+  )
+{
+  PEF_CONTAINER_HEADER *Header;
+  PEF_SECTION_HEADER *Sections;
+  PEF_LOADER_INFO_HEADER *LoaderInfo;
+  UINT32 i;
+  CHAR8 *SectionName;
+  UINT8 *LoaderSection;
+
+  if (Name == NULL || Data == NULL || Size == NULL) {
+    return E_POINTER;
+  }
+
+  Header = (PEF_CONTAINER_HEADER *)ImageBase;
+  Sections = (PEF_SECTION_HEADER *)(Header + 1);
+
+  // Find loader section for string table
+  LoaderSection = NULL;
+  for (i = 0; i < Header->SectionCount; i++) {
+    if (Sections[i].SectionKind == kPEFLoaderSection) {
+      LoaderSection = (UINT8 *)ImageBase + Sections[i].ContainerOffset;
+      break;
+    }
+  }
+
+  if (LoaderSection == NULL) {
+    return S_FALSE;
+  }
+
+  LoaderInfo = (PEF_LOADER_INFO_HEADER *)LoaderSection;
+
+  // Search sections
+  for (i = 0; i < Header->SectionCount; i++) {
+    if (Sections[i].NameOffset >= 0) {
+      // Section has a name - look it up in loader strings
+      SectionName = (CHAR8 *)LoaderSection + LoaderInfo->LoaderStringsOffset + Sections[i].NameOffset;
+
+      if (strcmp(SectionName, Name) == 0) {
+        *Data = (UINT8 *)ImageBase + Sections[i].ContainerOffset;
+        *Size = Sections[i].PackedSize;
+        return S_OK;
+      }
+    }
+  }
+
+  return S_FALSE;
+}
+
+/**
+  Extract initialization and termination function addresses from PEF image.
+**/
+static
+HRESULT
+PefGetInitFini (
+  IN  VOID     *ImageBase,
+  OUT UINT64   *InitAddress,
+  OUT UINT64   *TermAddress
+  )
+{
+  PEF_CONTAINER_HEADER *Header;
+  PEF_SECTION_HEADER *Sections;
+  PEF_LOADER_INFO_HEADER *LoaderInfo;
+  UINT32 i;
+  UINT8 *LoaderSection;
+
+  if (InitAddress == NULL || TermAddress == NULL) {
+    return E_POINTER;
+  }
+
+  *InitAddress = 0;
+  *TermAddress = 0;
+
+  Header = (PEF_CONTAINER_HEADER *)ImageBase;
+  Sections = (PEF_SECTION_HEADER *)(Header + 1);
+
+  // Find loader section
+  LoaderSection = NULL;
+  for (i = 0; i < Header->SectionCount; i++) {
+    if (Sections[i].SectionKind == kPEFLoaderSection) {
+      LoaderSection = (UINT8 *)ImageBase + Sections[i].ContainerOffset;
+      break;
+    }
+  }
+
+  if (LoaderSection == NULL) {
+    return S_FALSE;
+  }
+
+  LoaderInfo = (PEF_LOADER_INFO_HEADER *)LoaderSection;
+
+  // Extract init function address
+  if (LoaderInfo->InitSection >= 0 && (UINT32)LoaderInfo->InitSection < Header->SectionCount) {
+    *InitAddress = Sections[LoaderInfo->InitSection].DefaultAddress + LoaderInfo->InitOffset;
+  }
+
+  // Extract term function address
+  if (LoaderInfo->TermSection >= 0 && (UINT32)LoaderInfo->TermSection < Header->SectionCount) {
+    *TermAddress = Sections[LoaderInfo->TermSection].DefaultAddress + LoaderInfo->TermOffset;
+  }
+
+  return (*InitAddress != 0 || *TermAddress != 0) ? S_OK : S_FALSE;
+}
+
+/**
+  Get resource from PEF image.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+PefGetResource (
+  IN  IImageLoader   *This,
+  IN  VOID           *ImageBase,
+  IN  UINT32         TypeCode,
+  IN  UINT32         Id,
+  IN  CONST CHAR8    *Name,
+  OUT IImageResource **Resource
+  )
+{
+  VOID *ResourceFork;
+  UINT64 Size;
+  BOOLEAN NeedsFree;
+  HRESULT Status;
+
+  if (Resource == NULL) {
+    return E_POINTER;
+  }
+
+  *Resource = NULL;
+
+  // PEF doesn't have native resources, use universal resource fork
+  Status = FindUniversalResourceFork(
+    ImageBase,
+    ResourceStrategyDirect,
+    NULL,
+    PefFindSection,
+    ".axursrc",
+    &ResourceFork,
+    &Size,
+    &NeedsFree
+  );
+
+  if (Status != S_OK) {
+    return Status;
+  }
+
+  Status = CreateImageResource(ResourceFork, TypeCode, (UINT16)Id, Name, Resource);
+
+  if (NeedsFree) {
+    free(ResourceFork);
+  }
+
+  return Status;
+}
+
+/**
+  Get resource enumerator for PEF image.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+PefGetResourceEnumerator (
+  IN  IImageLoader        *This,
+  IN  VOID                *ImageBase,
+  IN  UINT32              TypeCode,
+  OUT IEnumImageResource  **Enumerator
+  )
+{
+  VOID *ResourceFork;
+  UINT64 Size;
+  BOOLEAN NeedsFree;
+  HRESULT Status;
+
+  if (Enumerator == NULL) {
+    return E_POINTER;
+  }
+
+  *Enumerator = NULL;
+
+  // PEF doesn't have native resources, use universal resource fork
+  Status = FindUniversalResourceFork(
+    ImageBase,
+    ResourceStrategyDirect,
+    NULL,
+    PefFindSection,
+    ".axursrc",
+    &ResourceFork,
+    &Size,
+    &NeedsFree
+  );
+
+  if (Status != S_OK) {
+    return Status;
+  }
+
+  Status = CreateImageResourceEnumerator(ResourceFork, TypeCode, Enumerator);
+
+  if (NeedsFree) {
+    free(ResourceFork);
+  }
+
+  return Status;
 }
 
 /**
@@ -740,7 +953,10 @@ static CONST IImageLoaderVtbl gPefVtbl = {
   PefGetTargetSystem,
   PefGetMinimumSystemVersion,
   PefGetTargetSubsystem,
-  PefGetMinimumSubsystemVersion
+  PefGetMinimumSubsystemVersion,
+  PefGetResource,
+  PefGetResourceEnumerator,
+  PefGetInitFini
 };
 #endif
 

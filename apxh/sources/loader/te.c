@@ -19,6 +19,8 @@
 
 #include <apxh/internal.h>
 #include <apxh/imgload.h>
+#include <ananke/resource.h>
+#include "imgresource.h"
 
 //
 // TE Image Signature
@@ -375,7 +377,7 @@ TeLoadImage (
          Section->Name, SectionVa, Section->SizeOfRawData, Section->Characteristics);
 
     // Copy section data
-    VirtualAddressCopy(
+    VasCopy(
       SectionVa,
       TE_OFF(Section->PointerToRawData + Adjustment),
       Section->SizeOfRawData,
@@ -388,7 +390,7 @@ TeLoadImage (
     if (Section->VirtualSize > Section->SizeOfRawData) {
       UINT32 ZeroSize = Section->VirtualSize - Section->SizeOfRawData;
 
-      VirtualAddressMemset(
+      VasFill(
         SectionVa + Section->SizeOfRawData,
         0,
         ZeroSize,
@@ -726,6 +728,208 @@ TeGetMinimumSubsystemVersion (
   return S_FALSE;
 }
 
+/**
+  Find section by name in TE image.
+
+  @param[in]  ImageBase      Pointer to TE image.
+  @param[in]  SectionName    Name of section to find (e.g., ".axursrc").
+  @param[out] Data           Receives pointer to section data.
+  @param[out] Size           Receives size of section.
+
+  @return S_OK if found, S_FALSE if not found, error code otherwise.
+**/
+static
+HRESULT
+TeFindSection (
+  IN  VOID         *ImageBase,
+  IN  CONST CHAR8  *SectionName,
+  OUT VOID         **Data,
+  OUT UINT64       *Size
+  )
+{
+  TE_IMAGE_HEADER *Header;
+  TE_IMAGE_SECTION_HEADER *Sections;
+  UINT8 NumSections;
+  UINT8 i;
+  UINTN NameLen;
+  UINT32 Adjustment;
+
+  if (ImageBase == NULL || SectionName == NULL || Data == NULL || Size == NULL) {
+    return E_POINTER;
+  }
+
+  Header = (TE_IMAGE_HEADER *)ImageBase;
+  NumSections = Header->NumberOfSections;
+
+  // Section headers follow immediately after TE header
+  Sections = (TE_IMAGE_SECTION_HEADER *)((UINT8 *)ImageBase + sizeof(TE_IMAGE_HEADER));
+
+  // Calculate adjustment for RVA to file offset conversion
+  Adjustment = sizeof(TE_IMAGE_HEADER) - Header->StrippedSize;
+
+  NameLen = strlen(SectionName);
+  if (NameLen > 8) {
+    NameLen = 8;  // Section names are max 8 characters
+  }
+
+  // Search for section
+  for (i = 0; i < NumSections; i++) {
+    if (memcmp(Sections[i].Name, SectionName, NameLen) == 0) {
+      *Data = TE_OFF(Sections[i].PointerToRawData + Adjustment);
+      *Size = Sections[i].SizeOfRawData;
+      return S_OK;
+    }
+  }
+
+  return S_FALSE;  // Section not found
+}
+
+/**
+  Get resource from TE image.
+
+  TE format doesn't have native resources (stripped from PE), but can
+  support universal resources embedded in a .axursrc section.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+TeGetResource (
+  IN  IImageLoader        *This,
+  IN  VOID                *ImageBase,
+  IN  IMGLOAD_RESOURCE_ID *ResourceId,
+  IN  IMGLOAD_RESOURCE_ID *ResourceType,
+  OUT IImageResource      **Resource
+  )
+{
+  VOID *ResourceFork;
+  UINT64 Size;
+  BOOLEAN NeedsFree;
+  HRESULT Status;
+  UINT32 TypeCode;
+  UINT16 Id;
+  CONST CHAR8 *Name;
+
+  if (ImageBase == NULL || Resource == NULL) {
+    return E_POINTER;
+  }
+
+  *Resource = NULL;
+
+  // Extract type code from ResourceType
+  if (ResourceType != NULL) {
+    if (ResourceType->IsNumeric) {
+      TypeCode = ResourceType->Id;
+    } else {
+      TypeCode = ANX_MAKE_TYPE(ResourceType->Name);
+    }
+  } else {
+    TypeCode = 0;
+  }
+
+  // Extract resource ID/name from ResourceId
+  if (ResourceId != NULL) {
+    if (ResourceId->IsNumeric) {
+      Id = (UINT16)ResourceId->Id;
+      Name = NULL;
+    } else {
+      Id = 0;
+      Name = ResourceId->Name;
+    }
+  } else {
+    Id = 0;
+    Name = NULL;
+  }
+
+  // Find universal resource fork (.axursrc section)
+  Status = FindUniversalResourceFork(
+    ImageBase,
+    ResourceStrategyDirect,
+    NULL,  // No native resources in TE
+    TeFindSection,
+    ".axursrc",
+    &ResourceFork,
+    &Size,
+    &NeedsFree
+  );
+
+  if (FAILED(Status) || Status == S_FALSE) {
+    return Status;
+  }
+
+  // Create resource object
+  Status = CreateImageResource(ResourceFork, TypeCode, Id, Name, Resource);
+
+  if (NeedsFree && ResourceFork != NULL) {
+    free(ResourceFork);
+  }
+
+  return Status;
+}
+
+/**
+  Get resource enumerator for TE image.
+
+  Enumerates all resources of a given type from the universal resource fork.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+TeGetResourceEnumerator (
+  IN  IImageLoader        *This,
+  IN  VOID                *ImageBase,
+  IN  IMGLOAD_RESOURCE_ID *ResourceType,
+  OUT IEnumImageResource  **Enumerator
+  )
+{
+  VOID *ResourceFork;
+  UINT64 Size;
+  BOOLEAN NeedsFree;
+  HRESULT Status;
+  UINT32 TypeCode;
+
+  if (ImageBase == NULL || Enumerator == NULL) {
+    return E_POINTER;
+  }
+
+  *Enumerator = NULL;
+
+  // Extract type code from ResourceType
+  if (ResourceType != NULL) {
+    if (ResourceType->IsNumeric) {
+      TypeCode = ResourceType->Id;
+    } else {
+      TypeCode = ANX_MAKE_TYPE(ResourceType->Name);
+    }
+  } else {
+    TypeCode = 0;
+  }
+
+  // Find universal resource fork
+  Status = FindUniversalResourceFork(
+    ImageBase,
+    ResourceStrategyDirect,
+    NULL,
+    TeFindSection,
+    ".axursrc",
+    &ResourceFork,
+    &Size,
+    &NeedsFree
+  );
+
+  if (FAILED(Status) || Status == S_FALSE) {
+    return Status;
+  }
+
+  // Create enumerator
+  Status = CreateImageResourceEnumerator(ResourceFork, TypeCode, Enumerator);
+
+  if (NeedsFree && ResourceFork != NULL) {
+    free(ResourceFork);
+  }
+
+  return Status;
+}
+
 //
 // TE Loader VTable
 //
@@ -750,7 +954,9 @@ static CONST IImageLoaderVtbl gTeVtbl = {
   TeGetTargetSystem,
   TeGetMinimumSystemVersion,
   TeGetTargetSubsystem,
-  TeGetMinimumSubsystemVersion
+  TeGetMinimumSubsystemVersion,
+  TeGetResource,
+  TeGetResourceEnumerator
 };
 
 //

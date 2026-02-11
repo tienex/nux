@@ -1,9 +1,10 @@
 /** @file
   APXH Main Bootloader
 
-  Main entry point and coordination logic for APXH ELF bootloader.
-  Manages ELF loading, virtual address space setup, and boot information
-  structures for both kernel and user-space payloads.
+  Main entry point and coordination logic for APXH bootloader.
+  Manages executable image loading (ELF, PE, LE/LX, Mach-O, etc.),
+  virtual address space setup, and boot information structures for
+  both kernel and user-space payloads.
 
   Copyright (C) 2019 Gianluca Guida, glguida@tlbflush.org
 
@@ -11,8 +12,123 @@
 **/
 
 #include <apxh/internal.h>
+#include <apxh/endian.h>
 
-static ARCH gElfArch;
+static ARCH gImageArch;
+static ARCH gKernelArch = ArchInvalid;       ///< Kernel architecture
+static ARCH gUserArch = ArchInvalid;         ///< User architecture
+static ARCH gHostArch = ArchInvalid;         ///< Host/CPU architecture
+static IMGLOAD_ENDIAN gKernelEndian = ImgEndianUnknown;  ///< Kernel endianness
+static IMGLOAD_ENDIAN gUserEndian = ImgEndianUnknown;    ///< User endianness
+static BOOLEAN gMixedMode = FALSE;           ///< TRUE if kernel/user have different bitness
+static BOOLEAN g32on64Mode = FALSE;          ///< TRUE if 32-bit on 64-bit CPU
+static BOOLEAN g64Uon32KMode = FALSE;        ///< TRUE if 64-bit user on 32-bit kernel
+static BOOLEAN gMixedEndian = FALSE;         ///< TRUE if kernel/user have different endianness
+
+/**
+  Get kernel architecture.
+
+  @return Kernel architecture.
+**/
+ARCH
+GetKernelArchitecture (
+  VOID
+  )
+{
+  return gKernelArch;
+}
+
+/**
+  Get user architecture.
+
+  @return User architecture (ArchInvalid if no user).
+**/
+ARCH
+GetUserArchitecture (
+  VOID
+  )
+{
+  return gUserArch;
+}
+
+/**
+  Get host CPU architecture.
+
+  @return Host CPU architecture.
+**/
+ARCH
+GetHostArchitecture (
+  VOID
+  )
+{
+  return gHostArch;
+}
+
+/**
+  Get mixed-mode flags.
+
+  @return Flags indicating mixed-mode execution scenarios.
+**/
+UINT32
+GetMixedModeFlags (
+  VOID
+  )
+{
+  UINT32 Flags = 0;
+
+  if (g32on64Mode)
+    Flags |= APXH_MIXEDMODE_32ON64;
+  if (g64Uon32KMode)
+    Flags |= APXH_MIXEDMODE_64UON32K;
+  if (gMixedMode)
+    Flags |= APXH_MIXEDMODE_MIXED;
+
+  // Check for 32U-on-64K (32-bit user on 64-bit kernel)
+  if (Is64BitArch(gKernelArch) && !Is64BitArch(gUserArch) && gUserArch != ArchInvalid)
+    Flags |= APXH_MIXEDMODE_32UON64K;
+
+  return Flags;
+}
+
+/**
+  Get kernel endianness.
+
+  @return Kernel endianness.
+**/
+IMGLOAD_ENDIAN
+GetKernelEndianness (
+  VOID
+  )
+{
+  return gKernelEndian;
+}
+
+/**
+  Get user endianness.
+
+  @return User endianness (ImgEndianUnknown if no user).
+**/
+IMGLOAD_ENDIAN
+GetUserEndianness (
+  VOID
+  )
+{
+  return gUserEndian;
+}
+
+/**
+  Check if mixed-endian mode is active.
+
+  @retval TRUE  Kernel and user have different endianness.
+  @retval FALSE Kernel and user have same endianness.
+**/
+BOOLEAN
+GetMixedEndianMode (
+  VOID
+  )
+{
+  return gMixedEndian;
+}
 static UINT8 gBootPagemap[PAGEMAP_SZ (BOOTMEM)]
   ANX_ATTR_ALIGN(4096);
 static VIRTUAL_ADDRESS gReqPfnmapVa, gReqInfoVa, gReqBatreeVa, gReqRegionVa,
@@ -91,113 +207,160 @@ Initialize (
 {
   PlatformInit ();
   gMinRamAddr = PlatformGetMinRamPageFrameNumber () << PAGE_SHIFT;
+
+  // Detect host CPU architecture
+  gHostArch = ArchitectureGetNative();
 }
 
 /**
-  Get architecture name.
+  Check if architecture is 64-bit ISA.
 
-  Returns human-readable architecture name for display.
+  Determines if the architecture uses a 64-bit instruction set,
+  including hybrid ILP32 modes (32-bit pointers on 64-bit ISA).
 
-  @param[in] Arch  Architecture enumeration value.
+  @param[in] Arch  Architecture to check.
 
-  @return Pointer to architecture name string.
+  @retval TRUE   Architecture uses 64-bit ISA.
+  @retval FALSE  Architecture uses 32-bit or other ISA.
 **/
-CONST CHAR *
-GetArchName (
+static BOOLEAN
+Is64BitArch (
   IN ARCH  Arch
   )
 {
-  switch (Arch)
-    {
-    case ArchInvalid:
-      return "invalid";
-    case ArchUnsupported:
-      return "unsupported";
-    case Arch386:
-      return "i386";
+  switch (Arch) {
+    // Native 64-bit architectures
     case ArchAmd64:
-      return "AMD64";
+    case ArchArm64:
     case ArchRiscV64:
-      return "RISCV64";
+    case ArchPpc64:
+    case ArchMips64:
+    case ArchIa64:
+    case ArchSparc64:
+    case ArchS390x:
+    case ArchPaRisc64:
+    case ArchLoongArch64:
+    case ArchRiscV128:
+      return TRUE;
+
+    // Hybrid ILP32 modes (32-bit pointers on 64-bit ISA)
+    // These use 64-bit ISA and require 64-bit page tables
+    case ArchAmd64_32:       // x32: ILP32 on x86-64
+    case ArchArm64_32:       // ILP32 on AArch64
+    case ArchRiscV64_32:     // ILP32 on RISC-V 64
+    case ArchMips64_32:      // n32 ABI on MIPS64
+    case ArchLoongArch64_32: // LA32 on LA64
+    case ArchPpc64_32:       // 32-bit mode on PowerPC 64
+    case ArchAlpha32:        // 32-bit mode on Alpha
+    case ArchPaRisc64_32:    // 32-bit mode on PA-RISC 64
+    case ArchIa64_32:        // 32-bit compat on Itanium
+    case ArchS390x_32:       // 32-bit mode on s390x
+    case ArchSparc64_32:     // 32-bit mode on SPARC 64
+      return TRUE;
+
     default:
-      return "unknown";
-    }
+      return FALSE;
+  }
 }
 
 /**
-  Initialize virtual address subsystem.
+  Get endianness name.
 
-  Sets up paging structures for the target architecture.
+  @param[in] Endian  Endianness type.
+
+  @return String name of endianness.
 **/
-VOID
-VirtualAddressInitialize (
+static CONST CHAR *
+GetEndianName (
+  IN IMGLOAD_ENDIAN  Endian
+  )
+{
+  switch (Endian) {
+    case ImgEndianLittle:
+      return "little-endian";
+    case ImgEndianBig:
+      return "big-endian";
+    case ImgEndianUnknown:
+    default:
+      return "unknown";
+  }
+}
+
+/**
+  Analyze kernel/user architecture and endianness combination.
+
+  Detects mixed-mode scenarios:
+  - 32-bit kernel/user on 64-bit CPU (32-on-64)
+  - 64-bit user on 32-bit kernel (64U-on-32K)
+  - 32-bit user on 64-bit kernel (32U-on-64K)
+  - Mixed-endian (kernel and user have different endianness)
+
+  Sets global flags accordingly.
+**/
+static VOID
+AnalyzeArchitectureCombination (
   VOID
   )
 {
-  switch (gElfArch)
-    {
-#if (EC_MACHINE_I386) || (EC_MACHINE_AMD64)
-    case Arch386:
-      PaeInitialize ();
-      break;
-    case ArchAmd64:
-      Pae64Initialize ();
-      break;
-#endif
-#if EC_MACHINE_RISCV64
-    case ArchRiscV64:
-      Sv48Initialize ();
-      break;
-#endif
-    default:
-      printf ("Unsupported VM architecture.\n");
-      exit (-1);
+  BOOLEAN KernelIs64 = Is64BitArch(gKernelArch);
+  BOOLEAN UserIs64 = Is64BitArch(gUserArch);
+  BOOLEAN HostIs64 = Is64BitArch(gHostArch);
+
+  // Reset flags
+  gMixedMode = FALSE;
+  g32on64Mode = FALSE;
+  g64Uon32KMode = FALSE;
+  gMixedEndian = FALSE;
+
+  // Check for 64-bit ISA user on 32-bit ISA kernel
+  if (!KernelIs64 && UserIs64) {
+    g64Uon32KMode = TRUE;
+    gMixedMode = TRUE;
+    info("Detected 64-bit ISA user on 32-bit ISA kernel (64U-on-32K mode)");
+    info("  Kernel: %s (32-bit ISA)", ArchitectureGetName(gKernelArch));
+    info("  User:   %s (64-bit ISA)", ArchitectureGetName(gUserArch));
+
+    if (!HostIs64) {
+      warn("64U-on-32K requires 64-bit capable CPU!");
+      warn("Host CPU is: %s", ArchitectureGetName(gHostArch));
     }
-}
+  }
+  // Check for 32-bit ISA kernel on 64-bit ISA host
+  else if (!KernelIs64 && HostIs64) {
+    g32on64Mode = TRUE;
+    info("Detected 32-bit ISA kernel on 64-bit ISA CPU (32-on-64 mode)");
+    info("  Kernel: %s (32-bit ISA)", ArchitectureGetName(gKernelArch));
+    info("  Host:   %s (64-bit ISA)", ArchitectureGetName(gHostArch));
+  }
+  // Check for 32-bit ISA user on 64-bit ISA kernel
+  else if (KernelIs64 && !UserIs64 && gUserArch != ArchInvalid) {
+    gMixedMode = TRUE;
+    info("Detected 32-bit ISA user on 64-bit ISA kernel (32U-on-64K mode)");
+    info("  Kernel: %s (64-bit ISA)", ArchitectureGetName(gKernelArch));
+    info("  User:   %s (32-bit ISA)", ArchitectureGetName(gUserArch));
+  }
+  // Check if both are same bitness but different architectures
+  else if (gKernelArch != gUserArch && gUserArch != ArchInvalid) {
+    info("Kernel and user have different architectures:");
+    info("  Kernel: %s", ArchitectureGetName(gKernelArch));
+    info("  User:   %s", ArchitectureGetName(gUserArch));
+  }
 
-/**
-  Populate virtual address range.
-
-  Allocates and maps pages for the specified virtual address range
-  with given permissions.
-
-  @param[in] Va    Virtual address.
-  @param[in] Size  Size of region.
-  @param[in] U     TRUE for user-accessible.
-  @param[in] W     TRUE for writable.
-  @param[in] X     TRUE for executable.
-**/
-VOID
-VirtualAddressPopulate (
-  IN VIRTUAL_ADDRESS   Va,
-  IN SIZE64  Size,
-  IN INT32       U,
-  IN INT32       W,
-  IN INT32       X
-  )
-{
-  PlatformVerify (Va, Size);
-  VirtualAddressVerify (Va, Size);
-
-  switch (gElfArch)
-    {
-#if EC_MACHINE_I386 || EC_MACHINE_AMD64
-    case Arch386:
-      PaePopulate (Va, Size, U, W, X);
-      break;
-    case ArchAmd64:
-      Pae64Populate (Va, Size, U, W, X);
-      break;
-#endif
-#if EC_MACHINE_RISCV64
-    case ArchRiscV64:
-      Sv48Populate (Va, Size, U, W, X);
-      break;
-#endif
-    default:
-      printf ("Unsupported VM architecture.\n");
-      exit (-1);
-    }
+  // Check for mixed-endian mode
+  if (gUserArch != ArchInvalid &&
+      gKernelEndian != ImgEndianUnknown &&
+      gUserEndian != ImgEndianUnknown &&
+      gKernelEndian != gUserEndian) {
+    gMixedEndian = TRUE;
+    info("Detected mixed-endian execution mode:");
+    info("  Kernel: %s (%s)", ArchitectureGetName(gKernelArch), GetEndianName(gKernelEndian));
+    info("  User:   %s (%s)", ArchitectureGetName(gUserArch), GetEndianName(gUserEndian));
+    info("Kernel must handle endianness conversion for user space");
+  } else if (gUserArch != ArchInvalid) {
+    // Report matching endianness
+    info("Kernel and user endianness: %s / %s",
+         GetEndianName(gKernelEndian), GetEndianName(gUserEndian));
+  }
 }
 
 /**
@@ -214,7 +377,7 @@ VirtualAddressPopulate (
   @param[in] X     TRUE for executable.
 **/
 VOID
-VirtualAddressCopy (
+VasCopy (
   IN VIRTUAL_ADDRESS   Va,
   IN VOID      *Addr,
   IN SIZE64  Size,
@@ -226,13 +389,13 @@ VirtualAddressCopy (
   SSIZE64 Len = Size;
 
   PlatformVerify (Va, Size);
-  VirtualAddressVerify (Va, Size);
+  VasVerify (Va, Size);
 
 #if 0
   printf ("Copying %08llx <- %p (u: %d, w:%d, x:%d, %d bytes)\n", Va, Addr, U,
 	  W, X, Size);
 #endif
-  VirtualAddressPopulate (Va, Size, U, W, X);
+  VasPopulate (Va, Size, U, W, X);
 
   while (Len > 0)
     {
@@ -242,7 +405,7 @@ VirtualAddressCopy (
       if (CLen > Len)
 	CLen = Len;
 
-      PAddr = VirtualAddressGetPhysical (Va);
+      PAddr = VasGetPhysical (Va);
 
       memcpy ((VOID *) PAddr, Addr, CLen);
 
@@ -266,7 +429,7 @@ VirtualAddressCopy (
   @param[in] X     TRUE for executable.
 **/
 VOID
-VirtualAddressMemset (
+VasFill (
   IN VIRTUAL_ADDRESS   Va,
   IN INT32       FillChar,
   IN SIZE64  Size,
@@ -278,236 +441,23 @@ VirtualAddressMemset (
   SSIZE64 Len = Size;
 
   PlatformVerify (Va, Size);
-  VirtualAddressVerify (Va, Size);
+  VasVerify (Va, Size);
 
   printf ("Setting %08llx <- %d (u:%d, w:%d, x: %d, %d bytes)\n", Va, FillChar, U, W,
 	  X, Size);
-  VirtualAddressPopulate (Va, Size, U, W, X);
+  VasPopulate (Va, Size, U, W, X);
 
   while (Len > 0)
     {
       UINTN PAddr;
       SIZE64 CLen = PAGE_CEILING (Va) - Va;
 
-      PAddr = VirtualAddressGetPhysical (Va);
+      PAddr = VasGetPhysical (Va);
 
       memset ((VOID *) PAddr, 0, CLen);
 
       Len -= CLen;
       Va += CLen;
-    }
-}
-
-/**
-  Map physical memory at virtual address.
-
-  Creates identity mapping of physical memory starting at PA 0.
-
-  @param[in] Va    Virtual address.
-  @param[in] Size  Size of region.
-  @param[in] Mt    Memory type (WC, WB, UC).
-**/
-VOID
-VirtualAddressMapPhysical (
-  IN VIRTUAL_ADDRESS           Va,
-  IN SIZE64          Size,
-  IN MEMORY_TYPE  Mt
-  )
-{
-  PlatformVerify (Va, Size);
-  VirtualAddressVerify (Va, Size);
-
-  switch (gElfArch)
-    {
-#if EC_MACHINE_I386 || EC_MACHINE_AMD64
-    case Arch386:
-      PaeMapPhysical (Va, Size, 0, Mt);
-      break;
-    case ArchAmd64:
-      Pae64MapPhysical (Va, Size, 0, Mt);
-      break;
-#endif
-#if EC_MACHINE_RISCV64
-    case ArchRiscV64:
-      Sv48MapPhysical (Va, Size, 0, Mt);
-      break;
-#endif
-    default:
-      printf ("Unsupported VM architecture.\n");
-      exit (-1);
-    }
-}
-
-/**
-  Map framebuffer at virtual address.
-
-  Maps platform framebuffer memory to specified virtual address
-  with appropriate memory type.
-
-  @param[in] Va    Virtual address.
-  @param[in] Size  Size of region.
-  @param[in] Mt    Memory type (typically WC for framebuffer).
-**/
-VOID
-VirtualAddressMapFramebuffer (
-  IN VIRTUAL_ADDRESS           Va,
-  IN SIZE64          Size,
-  IN MEMORY_TYPE  Mt
-  )
-{
-  UINT64 Pa;
-  FRAMEBUFFER_DESC *FbPtr;
-
-  PlatformVerify (Va, Size);
-  VirtualAddressVerify (Va, Size);
-
-  FbPtr = PlatformGetFramebuffer ();
-  if (FbPtr == NULL || FbPtr->Type == FB_INVALID)
-    return;
-
-  if (FbPtr->Size > Size)
-    {
-      printf ("ERROR: framebuffer too big. Shrinking int from %lx to %lx\n",
-	      FbPtr->Size, Size);
-      FbPtr->Size = Size;
-    }
-
-  Pa = FbPtr->Addr;
-
-  switch (gElfArch)
-    {
-#if EC_MACHINE_I386 || EC_MACHINE_AMD64
-    case Arch386:
-      PaeMapPhysical (Va, Size, Pa, Mt);
-      break;
-    case ArchAmd64:
-      Pae64MapPhysical (Va, Size, Pa, Mt);
-      break;
-#endif
-#if EC_MACHINE_RISCV64
-    case ArchRiscV64:
-      Sv48MapPhysical (Va, Size, Pa, Mt);
-      break;
-#endif
-    default:
-      (VOID) Pa;
-      printf ("Unsupported VM architecture.\n");
-      exit (-1);
-    }
-}
-
-/**
-  Set up linear (recursive) mapping.
-
-  Creates recursive page table mapping allowing page tables to be
-  accessed as regular memory.
-
-  @param[in] Va    Virtual address for linear mapping.
-  @param[in] Size  Size of region.
-**/
-VOID
-VirtualAddressMapLinear (
-  IN VIRTUAL_ADDRESS   Va,
-  IN SIZE64  Size
-  )
-{
-  PlatformVerify (Va, Size);
-  VirtualAddressVerify (Va, Size);
-
-  switch (gElfArch)
-    {
-#if EC_MACHINE_I386 || EC_MACHINE_AMD64
-    case Arch386:
-      PaeMapLinear (Va, Size);
-      break;
-    case ArchAmd64:
-      Pae64MapLinear (Va, Size);
-      break;
-#endif
-#if EC_MACHINE_RISCV64
-    case ArchRiscV64:
-      Sv48MapLinear (Va, Size);
-      break;
-#endif
-    default:
-      printf ("Unsupported VM architecture.\n");
-      exit (-1);
-    }
-}
-
-/**
-  Allocate top-level page tables.
-
-  Pre-allocates top-level page table structures for address range.
-
-  @param[in] Va    Virtual address.
-  @param[in] Size  Size of region.
-**/
-VOID
-VirtualAddressAllocateTopPageTable (
-  IN VIRTUAL_ADDRESS   Va,
-  IN SIZE64  Size
-  )
-{
-  PlatformVerify (Va, Size);
-  VirtualAddressVerify (Va, Size);
-
-  switch (gElfArch)
-    {
-#if EC_MACHINE_I386 || EC_MACHINE_AMD64
-    case Arch386:
-      PaeAllocateTopPageTable (Va, Size);
-      break;
-    case ArchAmd64:
-      Pae64AllocateTopPageTable (Va, Size);
-      break;
-#endif
-#if EC_MACHINE_RISCV64
-    case ArchRiscV64:
-      Sv48AllocateTopPageTable (Va, Size);
-      break;
-#endif
-    default:
-      printf ("Unsupported VM architecture.\n");
-      exit (-1);
-    }
-}
-
-/**
-  Allocate page tables.
-
-  Pre-allocates page table structures for address range.
-
-  @param[in] Va    Virtual address.
-  @param[in] Size  Size of region.
-**/
-VOID
-VirtualAddressAllocatePageTable (
-  IN VIRTUAL_ADDRESS   Va,
-  IN SIZE64  Size
-  )
-{
-  PlatformVerify (Va, Size);
-  VirtualAddressVerify (Va, Size);
-
-  switch (gElfArch)
-    {
-#if EC_MACHINE_I386 || EC_MACHINE_AMD64
-    case Arch386:
-      PaeAllocatePageTable (Va, Size);
-      break;
-    case ArchAmd64:
-      Pae64AllocatePageTable (Va, Size);
-      break;
-#endif
-#if EC_MACHINE_RISCV64
-    case ArchRiscV64:
-      Sv48AllocatePageTable (Va, Size);
-      break;
-#endif
-    default:
-      printf ("Unsupported VM architecture.\n");
-      exit (-1);
     }
 }
 
@@ -521,15 +471,15 @@ VirtualAddressAllocatePageTable (
   @param[in] Size  Size of region.
 **/
 VOID
-VirtualAddressMapInfo (
+VasMapInfo (
   IN VIRTUAL_ADDRESS   Va,
   IN SIZE64  Size
   )
 {
   PlatformVerify (Va, Size);
-  VirtualAddressVerify (Va, Size);
+  VasVerify (Va, Size);
 
-  VirtualAddressPopulate (Va, Size, 0, 0, 0);
+  VasPopulate (Va, Size, 0, 0, 0);
 
   /* Only save the va and size, we'll have to finish all allocations
      before we can return the proper data. */
@@ -547,7 +497,7 @@ VirtualAddressMapInfo (
   @param[in] NumRegions  Number of memory regions.
 **/
 static VOID
-VirtualAddressMapInfoCopy (
+VasMapInfoCopy (
   IN UINT64   UEntry,
   IN UINT64   NumRegions
   )
@@ -592,15 +542,35 @@ VirtualAddressMapInfoCopy (
   BootInfo.UserTls.InitializedDataSize = gUtlsInitsize;
   BootInfo.UserTls.TotalSize = gUtlsSize;
 
-  VirtualAddressCopy (Va, &BootInfo, MIN (Size, sizeof (APXH_BOOT_INFO)), 0, 0, 0);
+  // Architecture and mixed-mode information
+  // Use UINT8 for enums - endian-safe (single byte, no endianness issues)
+  BootInfo.KernelArchitecture = (UINT8)gKernelArch;
+  BootInfo.UserArchitecture = (UINT8)gUserArch;
+  BootInfo.HostArchitecture = (UINT8)gHostArch;
+  BootInfo.MixedModeFlags = GetMixedModeFlags();
+
+  // Endianness information
+  // Use UINT8 for enums - endian-safe (single byte, no endianness issues)
+  BootInfo.KernelEndianness = (UINT8)gKernelEndian;
+  BootInfo.UserEndianness = (UINT8)gUserEndian;
+  BootInfo.MixedEndian = (UINT8)gMixedEndian;
+
+  // Reserved field for alignment
+  BootInfo.Reserved1 = 0;
+
+  // Convert boot info to kernel's endianness if needed
+  // This ensures the kernel receives boot structures in its native byte order
+  ConvertBootInfoEndianness(&BootInfo, gKernelEndian);
+
+  VasCopy (Va, &BootInfo, MIN (Size, sizeof (APXH_BOOT_INFO)), 0, 0, 0);
 #undef MIN
 }
 
 
-#define OR_WORD(p, x) ((*(UINT64 *)VirtualAddressGetPhysical(gReqBatreeVa + (VIRTUAL_ADDRESS)(UINTN)(p))) |= (x))
-#define MASK_WORD(p,x) ((*(UINT64 *)VirtualAddressGetPhysical(gReqBatreeVa + (VIRTUAL_ADDRESS)(UINTN)(p))) &= (x))
-#define GET_WORD(p) (*(UINT64 *)VirtualAddressGetPhysical(gReqBatreeVa + (VIRTUAL_ADDRESS)(UINTN)(p)))
-#define SET_WORD(p,x) (*(UINT64 *)VirtualAddressGetPhysical(gReqBatreeVa + (VIRTUAL_ADDRESS)(UINTN)(p)) = x)
+#define OR_WORD(p, x) ((*(UINT64 *)VasGetPhysical(gReqBatreeVa + (VIRTUAL_ADDRESS)(UINTN)(p))) |= (x))
+#define MASK_WORD(p,x) ((*(UINT64 *)VasGetPhysical(gReqBatreeVa + (VIRTUAL_ADDRESS)(UINTN)(p))) &= (x))
+#define GET_WORD(p) (*(UINT64 *)VasGetPhysical(gReqBatreeVa + (VIRTUAL_ADDRESS)(UINTN)(p)))
+#define SET_WORD(p,x) (*(UINT64 *)VasGetPhysical(gReqBatreeVa + (VIRTUAL_ADDRESS)(UINTN)(p)) = x)
 #include <nux/batree.h>
 
 /**
@@ -613,7 +583,7 @@ VirtualAddressMapInfoCopy (
   @param[in] Size  Size of region.
 **/
 VOID
-VirtualAddressMapBatree (
+VasMapBatree (
   IN VIRTUAL_ADDRESS   Va,
   IN SIZE64  Size
   )
@@ -626,7 +596,7 @@ VirtualAddressMapBatree (
   UINT32 MaxPageFrameNumber = PlatformGetMaxRamPageFrameNumber ();
 
   PlatformVerify (Va, Size);
-  VirtualAddressVerify (Va, Size);
+  VasVerify (Va, Size);
 
   Order = BatreeOrder (MaxPageFrameNumber);
   RequiredSize = 8 * BATREE_SIZE (Order);
@@ -640,7 +610,7 @@ VirtualAddressMapBatree (
 
   Size = RequiredSize;
   printf ("Populating size %d (order: %d)\n", Size, Order);
-  VirtualAddressPopulate (Va, Size, 0, 1, 0);
+  VasPopulate (Va, Size, 0, 1, 0);
 
   /* Copy the header. */
   BatreeHeader.Magic = APXH_BATREE_MAGIC;
@@ -648,7 +618,11 @@ VirtualAddressMapBatree (
   BatreeHeader.Order = Order;
   BatreeHeader.Offset = sizeof (BatreeHeader);
   BatreeHeader.Size = 8 * BATREE_SIZE (Order);
-  VirtualAddressCopy (Va, &BatreeHeader, sizeof (BatreeHeader), 0, 1, 0);
+
+  // Convert BAtree header to kernel's endianness if needed
+  ConvertBatreeHeaderEndianness(&BatreeHeader, gKernelEndian);
+
+  VasCopy (Va, &BatreeHeader, sizeof (BatreeHeader), 0, 1, 0);
 
   /* Fill the S-Tree with all RAM regions. */
   gReqBatreeVa = Va + sizeof (BatreeHeader);
@@ -714,7 +688,7 @@ VirtualAddressMapBatree (
   Marks all pages allocated by bootloader as busy in the BAtree.
 **/
 VOID
-VirtualAddressMapBatreeCopy (
+VasMapBatreeCopy (
   VOID
   )
 {
@@ -756,7 +730,7 @@ VirtualAddressMapBatreeCopy (
   @param[in] Size  Size of region.
 **/
 VOID
-VirtualAddressMapRegions (
+VasMapRegions (
   IN VIRTUAL_ADDRESS   Va,
   IN SIZE64  Size
   )
@@ -765,7 +739,7 @@ VirtualAddressMapRegions (
   UINT32 Regions = PlatformGetMemoryRegionCount ();
 
   PlatformVerify (Va, Size);
-  VirtualAddressVerify (Va, Size);
+  VasVerify (Va, Size);
 
   MaxRegion = Size / sizeof (APXH_REGION);
 
@@ -776,7 +750,7 @@ VirtualAddressMapRegions (
 
   printf ("Size of area: %lld = %ld * %d\n", Size, Regions,
 	  sizeof (APXH_REGION));
-  VirtualAddressPopulate (Va, Size, 0, 0, 0);
+  VasPopulate (Va, Size, 0, 0, 0);
 
   gReqRegionVa = Va;
   gReqRegionSize = Size;
@@ -789,7 +763,7 @@ VirtualAddressMapRegions (
   Fills memory regions array with platform memory map.
 **/
 static VOID
-VirtualAddressMapRegionsCopy (
+VasMapRegionsCopy (
   VOID
   )
 {
@@ -816,7 +790,10 @@ VirtualAddressMapRegionsCopy (
 #if 0
       printf ("Copying %d %d %d\n", ApxhReg.Type, ApxhReg.Pfn, ApxhReg.Length);
 #endif
-      VirtualAddressCopy (Va + i * sizeof (APXH_REGION), &ApxhReg,
+      // Convert region to kernel's endianness if needed
+      ConvertRegionEndianness(&ApxhReg, gKernelEndian);
+
+      VasCopy (Va + i * sizeof (APXH_REGION), &ApxhReg,
 	       sizeof (APXH_REGION), 0, 0, 0);
     }
 }
@@ -830,7 +807,7 @@ VirtualAddressMapRegionsCopy (
   @param[in] Size  Size of region.
 **/
 VOID
-VirtualAddressMapPageFrameNumbers (
+VasMapPageFrameNumbers (
   IN VIRTUAL_ADDRESS   Va,
   IN SIZE64  Size
   )
@@ -840,7 +817,7 @@ VirtualAddressMapPageFrameNumbers (
   UINT32 Regions = PlatformGetMemoryRegionCount ();
 
   PlatformVerify (Va, Size);
-  VirtualAddressVerify (Va, Size);
+  VasVerify (Va, Size);
 
   MaxPageFrameNumber = Size / PFNMAP_ENTRY_SIZE;
 
@@ -850,7 +827,7 @@ VirtualAddressMapPageFrameNumbers (
       Size = MaxPageFrameNumber * PFNMAP_ENTRY_SIZE;
     }
 
-  VirtualAddressPopulate (Va, Size, 0, 1, 0);
+  VasPopulate (Va, Size, 0, 1, 0);
 
   for (RegionIndex = 0; RegionIndex < Regions; RegionIndex++)
     {
@@ -873,7 +850,7 @@ VirtualAddressMapPageFrameNumbers (
 	      break;
 	    }
 
-	  Ptr = (UINT8 *) VirtualAddressGetPhysical (Va + Frame * PFNMAP_ENTRY_SIZE);
+	  Ptr = (UINT8 *) VasGetPhysical (Va + Frame * PFNMAP_ENTRY_SIZE);
 	  assert (Ptr != NULL);
 
 	  /* There's  a  priority  in  numbering of  regions.  RAM  is
@@ -893,7 +870,7 @@ VirtualAddressMapPageFrameNumbers (
   Marks all pages allocated by bootloader as busy in the PFN map.
 **/
 static VOID
-VirtualAddressMapPageFrameNumbersCopy (
+VasMapPageFrameNumbersCopy (
   VOID
   )
 {
@@ -921,7 +898,7 @@ VirtualAddressMapPageFrameNumbersCopy (
 	  /* Page is allocated. Mark as BSY. */
 
 	  UINT8 *Ptr =
-	    (UINT8 *) VirtualAddressGetPhysical (Va + Frame * PFNMAP_ENTRY_SIZE);
+	    (UINT8 *) VasGetPhysical (Va + Frame * PFNMAP_ENTRY_SIZE);
 	  assert (Ptr != NULL);
 
 	  *Ptr = BootInfoRegionBusy;
@@ -940,7 +917,7 @@ VirtualAddressMapPageFrameNumbersCopy (
   @param[in] Size      Total TLS size including BSS.
 **/
 VOID
-VirtualAddressMapKernelTls (
+VasMapKernelTls (
   IN VIRTUAL_ADDRESS   Va,
   IN SIZE64  InitSize,
   IN SIZE64  Size
@@ -961,7 +938,7 @@ VirtualAddressMapKernelTls (
   @param[in] Size      Total TLS size including BSS.
 **/
 VOID
-VirtualAddressMapUserTls (
+VasMapUserTls (
   IN VIRTUAL_ADDRESS   Va,
   IN SIZE64  InitSize,
   IN SIZE64  Size
@@ -970,115 +947,6 @@ VirtualAddressMapUserTls (
   gUtlsVa = Va;
   gUtlsInitsize = InitSize;
   gUtlsSize = Size;
-}
-
-/**
-  Verify virtual address range.
-
-  Validates that virtual address range is suitable for target
-  architecture.
-
-  @param[in] Va    Virtual address.
-  @param[in] Size  Size of region.
-**/
-VOID
-VirtualAddressVerify (
-  IN VIRTUAL_ADDRESS   Va,
-  IN SIZE64  Size
-  )
-{
-  switch (gElfArch)
-    {
-#if EC_MACHINE_I386 || EC_MACHINE_AMD64
-    case Arch386:
-      PaeVerify (Va, Size);
-      break;
-    case ArchAmd64:
-      Pae64Verify (Va, Size);
-      break;
-#endif
-#if EC_MACHINE_RISCV64
-    case ArchRiscV64:
-      Sv48Verify (Va, Size);
-      break;
-#endif
-    default:
-      printf ("Unsupported VM architecture.\n");
-      exit (-1);
-    }
-}
-
-/**
-  Get physical address from virtual.
-
-  Translates virtual address to physical address using current
-  page tables.
-
-  @param[in] Va  Virtual address.
-
-  @return Physical address.
-**/
-UINTN
-VirtualAddressGetPhysical (
-  IN VIRTUAL_ADDRESS  Va
-  )
-{
-  switch (gElfArch)
-    {
-#if EC_MACHINE_I386 || EC_MACHINE_AMD64
-    case Arch386:
-      return PaeGetPhysical (Va);
-      break;
-    case ArchAmd64:
-      return Pae64GetPhysical (Va);
-      break;
-#endif
-#if EC_MACHINE_RISCV64
-    case ArchRiscV64:
-      return Sv48GetPhysical (Va);
-      break;
-#endif
-    default:
-      printf ("Unsupported VM architecture.\n");
-      exit (-1);
-    }
-}
-
-/**
-  Transfer control to kernel.
-
-  Performs final setup and transfers control to loaded kernel
-  entry point. Does not return.
-
-  @param[in] Entry  Kernel entry point address.
-**/
-VOID
-VirtualAddressSetEntry (
-  IN VIRTUAL_ADDRESS  Entry
-  )
-{
-  switch (gElfArch)
-    {
-#if EC_MACHINE_I386 || EC_MACHINE_AMD64
-    case Arch386:
-      PaeEntry (Entry);
-      break;
-    case ArchAmd64:
-      Pae64Entry (Entry);
-      break;
-#endif
-#if EC_MACHINE_RISCV64
-    case ArchRiscV64:
-      Sv48Entry (Entry);
-      break;
-#endif
-    default:
-      printf ("Unsupported VM architecture.\n");
-      exit (-1);
-    }
-
-  printf ("Returned from entry!");
-  exit (-1);
 }
 
 /**
@@ -1099,77 +967,96 @@ main (
   IN char  *ArgumentVector[]
   )
 {
-  VOID *ElfStart;
-  SIZE64 ElfSize;
+  VOID *KernelImageStart, *UserImageStart;
+  SIZE64 KernelImageSize, UserImageSize;
   UINT64 KEntry, UEntry;
+  ARCH VasArch;
 
   printf ("\nAPXH started.\n\n");
 
   Initialize ();
 
   /*
+     Peek at both payloads to determine architecture and endianness before VAS initialization.
+     This is critical for mixed-mode scenarios like 64U-on-32K where we need
+     64-bit page tables even though the kernel is 32-bit, and for mixed-endian
+     scenarios where kernel and user may have different byte ordering.
+   */
+  KernelImageStart = GetPayloadStart (ArgumentCount, ArgumentVector, PayloadKernel);
+  KernelImageSize = GetPayloadSize (PayloadKernel);
+  gKernelArch = GetImageArch (KernelImageStart);
+  gKernelEndian = GetImageEndian (KernelImageStart);
+
+  UserImageStart = GetPayloadStart (ArgumentCount, ArgumentVector, PayloadUser);
+  UserImageSize = GetPayloadSize (PayloadUser);
+  if (UserImageStart != NULL && UserImageSize != 0) {
+    gUserArch = GetImageArch (UserImageStart);
+    gUserEndian = GetImageEndian (UserImageStart);
+  } else {
+    gUserArch = ArchInvalid;
+    gUserEndian = ImgEndianUnknown;
+  }
+
+  /*
+     Determine VAS architecture based on mixed-mode requirements:
+     - 64U-on-32K: Use 64-bit page tables (user arch) to map 64-bit user space
+     - Otherwise: Use kernel architecture (kernel controls paging)
+   */
+  VasArch = gKernelArch;
+  if (!Is64BitArch(gKernelArch) && Is64BitArch(gUserArch)) {
+    // 64-bit user on 32-bit kernel - requires 64-bit page tables
+    VasArch = gUserArch;
+    info("64U-on-32K detected: Using 64-bit page tables for 32-bit kernel");
+    info("  Kernel: %s (32-bit)", ArchitectureGetName(gKernelArch));
+    info("  User:   %s (64-bit)", ArchitectureGetName(gUserArch));
+    info("  VAS:    %s (64-bit page tables)", ArchitectureGetName(VasArch));
+  } else if (Is64BitArch(gKernelArch) && !Is64BitArch(gUserArch) && gUserArch != ArchInvalid) {
+    // 32-bit user on 64-bit kernel - use 64-bit page tables
+    info("32U-on-64K detected: Using 64-bit page tables");
+    info("  Kernel: %s (64-bit)", ArchitectureGetName(gKernelArch));
+    info("  User:   %s (32-bit)", ArchitectureGetName(gUserArch));
+  } else if (gKernelArch != gHostArch) {
+    // 32-on-64 or other compatibility mode
+    info("Compatibility mode: Kernel %s on %s CPU",
+         ArchitectureGetName(gKernelArch),
+         ArchitectureGetName(gHostArch));
+  }
+
+  // Set gImageArch for VAS initialization
+  gImageArch = VasArch;
+
+  printf ("Kernel payload %s at addr %p (%d bytes)\n",
+	  GetArchName (gKernelArch), KernelImageStart, KernelImageSize);
+  if (gUserArch != ArchInvalid) {
+    printf ("User payload %s at addr %p (%d bytes)\n",
+	    GetArchName (gUserArch), UserImageStart, UserImageSize);
+  }
+
+  // Initialize architecture handlers and VAS with selected architecture
+  ArchitecturesInit ();
+  VasInitialize ();
+
+  /*
      Load kernel.
    */
-  ElfStart = GetPayloadStart (ArgumentCount, ArgumentVector, PayloadKernel);
-  ElfSize = GetPayloadSize (PayloadKernel);
-  gElfArch = GetElfArch (ElfStart);
-  printf ("Kernel payload %s ELF at addr %p (%d bytes)\n",
-	  GetArchName (gElfArch), ElfStart, ElfSize);
-
-  VirtualAddressInitialize ();
-
-  switch (gElfArch)
-    {
-#if EC_MACHINE_I386 || EC_MACHINE_AMD64
-    case Arch386:
-      KEntry = LoadElf32 (ElfStart, 0);
-      break;
-    case ArchAmd64:
-      KEntry = LoadElf64 (ElfStart, 0);
-      break;
-#endif
-#if EC_MACHINE_RISCV64
-    case ArchRiscV64:
-      KEntry = LoadElf64 (ElfStart, 0);
-      break;
-#endif
-    default:
-      printf ("Unsupported ELF architecture");
-      exit (-1);
-    }
-
+  KEntry = LoadExecutable (KernelImageStart, FALSE);
+  if (KEntry == (VIRTUAL_ADDRESS)-1) {
+    printf ("Failed to load kernel image");
+    exit (-1);
+  }
   printf ("Kernel entry: %llx\n", KEntry);
 
   /*
      Load user if it exists.
    */
-  ElfStart = GetPayloadStart (ArgumentCount, ArgumentVector, PayloadUser);
-  ElfSize = GetPayloadSize (PayloadUser);
-  if (ElfStart != NULL && ElfSize != 0)
+  if (gUserArch != ArchInvalid)
     {
-      gElfArch = GetElfArch (ElfStart);
-      printf ("User payload %s ELF at addr %p (%d bytes)\n",
-	      GetArchName (gElfArch), ElfStart, ElfSize);
-
-      switch (gElfArch)
-	{
-#if EC_MACHINE_I386 || EC_MACHINE_AMD64
-	case Arch386:
-	  UEntry = LoadElf32 (ElfStart, 1);
-	  break;
-	case ArchAmd64:
-	  UEntry = LoadElf64 (ElfStart, 1);
-	  break;
-#endif
-#if EC_MACHINE_RISCV64
-	case ArchRiscV64:
-	  UEntry = LoadElf64 (ElfStart, 1);
-	  break;
-#endif
-	default:
-	  printf ("Unsupported ELF architecture");
-	  exit (-1);
-	}
+      // Load user image (format and bitness detected automatically)
+      UEntry = LoadExecutable (UserImageStart, TRUE);
+      if (UEntry == (VIRTUAL_ADDRESS)-1) {
+        printf ("Failed to load user image");
+        exit (-1);
+      }
       printf ("User entry: %llx\n", UEntry);
     }
   else
@@ -1177,13 +1064,19 @@ main (
       UEntry = 0;
     }
 
+  // Analyze kernel/user architecture combination
+  // Detects 32-on-64, 64U-on-32K, and other mixed modes
+  AnalyzeArchitectureCombination();
+
   /* Stop allocations as we're copying boot-time allocation. */
   gStopPayloadAllocation = TRUE;
-  VirtualAddressMapInfoCopy (UEntry, gReqRegionNum);
-  VirtualAddressMapPageFrameNumbersCopy ();
-  VirtualAddressMapBatreeCopy ();
-  VirtualAddressMapRegionsCopy ();
+  VasMapInfoCopy (UEntry, gReqRegionNum);
+  VasMapPageFrameNumbersCopy ();
+  VasMapBatreeCopy ();
+  VasMapRegionsCopy ();
 
-  VirtualAddressSetEntry (KEntry);
+  // Transfer control to kernel using kernel's architecture
+  // For mixed-mode (e.g., 64U-on-32K), this ensures we use the correct entry mechanism
+  VasSetEntry (KEntry, gKernelArch);
   return 0;
 }

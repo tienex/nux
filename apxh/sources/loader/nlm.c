@@ -17,6 +17,8 @@
 
 #include <apxh/internal.h>
 #include <apxh/imgload.h>
+#include <ananke/resource.h>
+#include "imgresource.h"
 
 //
 // NLM Magic and Signatures
@@ -347,7 +349,7 @@ NlmLoadImage (
     info("  Code segment at 0x%016llx (size: 0x%llx)",
          NLM_DEFAULT_CODE_BASE, CodeSize);
 
-    VirtualAddressCopy(
+    VasCopy(
       NLM_DEFAULT_CODE_BASE,
       NLM_OFF(CodeOffset),
       CodeSize,
@@ -362,7 +364,7 @@ NlmLoadImage (
     info("  Data segment at 0x%016llx (size: 0x%llx)",
          NLM_DEFAULT_DATA_BASE, DataSize);
 
-    VirtualAddressCopy(
+    VasCopy(
       NLM_DEFAULT_DATA_BASE,
       NLM_OFF(DataOffset),
       DataSize,
@@ -377,7 +379,7 @@ NlmLoadImage (
     info("  BSS segment at 0x%016llx (size: 0x%llx)",
          NLM_DEFAULT_DATA_BASE + DataSize, BssSize);
 
-    VirtualAddressMemset(
+    VasFill(
       NLM_DEFAULT_DATA_BASE + DataSize,
       0,
       BssSize,
@@ -434,7 +436,7 @@ NlmGetTlsInfo (
 
       // Copy TLS initialization data if present
       if (HeaderV5->TlsDataSize > 0) {
-        VirtualAddressCopy(
+        VasCopy(
           TlsInfo->InitDataAddr,
           NLM_OFF(HeaderV5->TlsDataOffset),
           HeaderV5->TlsDataSize,
@@ -734,6 +736,216 @@ NlmApplyRelocations (
   return S_OK;
 }
 
+/**
+  Find custom data section in NLM image (used for resource embedding).
+
+  NLM doesn't have named sections like ELF/COFF, but has a CustomData segment
+  that can potentially hold embedded resources. This function checks if the
+  custom data contains a valid resource fork.
+**/
+static
+HRESULT
+NlmFindSection (
+  IN  VOID         *ImageBase,
+  IN  CONST CHAR8  *Name,
+  OUT VOID         **Data,
+  OUT UINT64       *Size
+  )
+{
+  NLM_HEADER_V4 *Header;
+  UINT64 CustomDataOffset, CustomDataSize;
+
+  if (Name == NULL || Data == NULL || Size == NULL) {
+    return E_POINTER;
+  }
+
+  // Only look for resource section names
+  if (strcmp(Name, ".axursrc") != 0) {
+    return S_FALSE;
+  }
+
+  Header = (NLM_HEADER_V4 *)ImageBase;
+
+  if (Header->Version == NLM_VERSION_5) {
+    NLM_HEADER_V5 *HeaderV5 = (NLM_HEADER_V5 *)ImageBase;
+    CustomDataOffset = HeaderV5->CustomDataOffset;
+    CustomDataSize = HeaderV5->CustomDataSize;
+  } else {
+    CustomDataOffset = Header->CustomDataOffset;
+    CustomDataSize = Header->CustomDataSize;
+  }
+
+  // Check if custom data exists and could contain resources
+  if (CustomDataSize == 0) {
+    return S_FALSE;
+  }
+
+  *Data = NLM_OFF(CustomDataOffset);
+  *Size = CustomDataSize;
+  return S_OK;
+}
+
+/**
+  Extract initialization and termination function addresses from NLM image.
+**/
+static
+HRESULT
+NlmGetInitFini (
+  IN  VOID     *ImageBase,
+  OUT UINT64   *InitAddress,
+  OUT UINT64   *TermAddress,
+  OUT UINT64   *CheckUnloadAddress
+  )
+{
+  NLM_HEADER_V4 *Header;
+
+  if (InitAddress == NULL || TermAddress == NULL || CheckUnloadAddress == NULL) {
+    return E_POINTER;
+  }
+
+  *InitAddress = 0;
+  *TermAddress = 0;
+  *CheckUnloadAddress = 0;
+
+  Header = (NLM_HEADER_V4 *)ImageBase;
+
+  if (Header->Version == NLM_VERSION_5) {
+    NLM_HEADER_V5 *HeaderV5 = (NLM_HEADER_V5 *)ImageBase;
+
+    // CodeStartOffset is the module initialization function
+    if (HeaderV5->CodeStartOffset != 0) {
+      *InitAddress = NLM_DEFAULT_CODE_BASE + HeaderV5->CodeStartOffset;
+    }
+
+    // ExitProcedureOffset is the module termination function
+    if (HeaderV5->ExitProcedureOffset != 0) {
+      *TermAddress = NLM_DEFAULT_CODE_BASE + HeaderV5->ExitProcedureOffset;
+    }
+
+    // CheckUnloadProcedureOffset is called before unload to verify it's safe
+    if (HeaderV5->CheckUnloadProcedureOffset != 0) {
+      *CheckUnloadAddress = NLM_DEFAULT_CODE_BASE + HeaderV5->CheckUnloadProcedureOffset;
+    }
+  } else {
+    // NLM v4
+    if (Header->CodeStartOffset != 0) {
+      *InitAddress = NLM_DEFAULT_CODE_BASE + Header->CodeStartOffset;
+    }
+
+    if (Header->ExitProcedureOffset != 0) {
+      *TermAddress = NLM_DEFAULT_CODE_BASE + Header->ExitProcedureOffset;
+    }
+
+    if (Header->CheckUnloadProcedureOffset != 0) {
+      *CheckUnloadAddress = NLM_DEFAULT_CODE_BASE + Header->CheckUnloadProcedureOffset;
+    }
+  }
+
+  return (*InitAddress != 0 || *TermAddress != 0 || *CheckUnloadAddress != 0) ? S_OK : S_FALSE;
+}
+
+/**
+  Get resource from NLM image.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+NlmGetResource (
+  IN  IImageLoader   *This,
+  IN  VOID           *ImageBase,
+  IN  UINT32         TypeCode,
+  IN  UINT32         Id,
+  IN  CONST CHAR8    *Name,
+  OUT IImageResource **Resource
+  )
+{
+  VOID *ResourceFork;
+  UINT64 Size;
+  BOOLEAN NeedsFree;
+  HRESULT Status;
+
+  if (Resource == NULL) {
+    return E_POINTER;
+  }
+
+  *Resource = NULL;
+
+  // NLM doesn't have native resources, try to find universal resource fork
+  // embedded in custom data section
+  Status = FindUniversalResourceFork(
+    ImageBase,
+    ResourceStrategyDirect,
+    NULL,
+    NlmFindSection,
+    ".axursrc",
+    &ResourceFork,
+    &Size,
+    &NeedsFree
+  );
+
+  if (Status != S_OK) {
+    return Status;
+  }
+
+  Status = CreateImageResource(ResourceFork, TypeCode, (UINT16)Id, Name, Resource);
+
+  if (NeedsFree) {
+    free(ResourceFork);
+  }
+
+  return Status;
+}
+
+/**
+  Get resource enumerator for NLM image.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+NlmGetResourceEnumerator (
+  IN  IImageLoader        *This,
+  IN  VOID                *ImageBase,
+  IN  UINT32              TypeCode,
+  OUT IEnumImageResource  **Enumerator
+  )
+{
+  VOID *ResourceFork;
+  UINT64 Size;
+  BOOLEAN NeedsFree;
+  HRESULT Status;
+
+  if (Enumerator == NULL) {
+    return E_POINTER;
+  }
+
+  *Enumerator = NULL;
+
+  // NLM doesn't have native resources, try to find universal resource fork
+  // embedded in custom data section
+  Status = FindUniversalResourceFork(
+    ImageBase,
+    ResourceStrategyDirect,
+    NULL,
+    NlmFindSection,
+    ".axursrc",
+    &ResourceFork,
+    &Size,
+    &NeedsFree
+  );
+
+  if (Status != S_OK) {
+    return Status;
+  }
+
+  Status = CreateImageResourceEnumerator(ResourceFork, TypeCode, Enumerator);
+
+  if (NeedsFree) {
+    free(ResourceFork);
+  }
+
+  return Status;
+}
+
 //
 
 /**
@@ -838,7 +1050,10 @@ static CONST IImageLoaderVtbl gNlmVtbl = {
   NlmGetTargetSystem,
   NlmGetMinimumSystemVersion,
   NlmGetTargetSubsystem,
-  NlmGetMinimumSubsystemVersion
+  NlmGetMinimumSubsystemVersion,
+  NlmGetResource,
+  NlmGetResourceEnumerator,
+  NlmGetInitFini
 };
 
 //

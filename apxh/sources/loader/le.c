@@ -19,6 +19,8 @@
 
 #include <apxh/internal.h>
 #include <apxh/imgload.h>
+#include <ananke/resource.h>
+#include "imgresource.h"
 
 //
 // LE/LX Magic Numbers
@@ -131,6 +133,24 @@ typedef struct _LE_PAGE_TABLE_ENTRY {
   UINT32  PageDataOffset : 24;  ///< Page data offset (from data pages offset)
   UINT8   Type;                  ///< Page type
 } LE_PAGE_TABLE_ENTRY;
+
+/**
+  LE/LX Resource Table Entry.
+
+  LE/LX uses a resource table similar to NE format.
+  Both OS/2 and Windows VxD use the same structure, but with different type values:
+  - OS/2 (OsType = 1): OS/2-specific resource types
+  - Windows VxD (OsType = 4): Windows resource types (RT_BITMAP, RT_ICON, etc.)
+
+  Resources are organized by type, then by ID/name.
+**/
+typedef struct _LE_RESOURCE_ENTRY {
+  UINT16  TypeId;       ///< Resource type ID (OS/2 or Windows types depending on OsType)
+  UINT16  NameId;       ///< Resource name ID
+  UINT32  ResourceSize; ///< Size of resource data
+  UINT16  ObjectNum;    ///< Object number containing resource (1-based)
+  UINT32  Offset;       ///< Offset within object
+} LE_RESOURCE_ENTRY;
 
 ANX_PACK_POP()
 
@@ -385,7 +405,7 @@ LeLoadObject (
     switch (PageEntry->Type) {
       case LE_PAGE_LEGAL:
         // Normal page with data
-        VirtualAddressCopy(
+        VasCopy(
           PageVa,
           LE_OFF(DataPagesBase + PageEntry->PageDataOffset),
           PageDataSize,
@@ -396,7 +416,7 @@ LeLoadObject (
 
         // Zero remainder if partial page
         if (PageDataSize < PageSize) {
-          VirtualAddressMemset(
+          VasFill(
             PageVa + PageDataSize,
             0,
             PageSize - PageDataSize,
@@ -409,7 +429,7 @@ LeLoadObject (
 
       case LE_PAGE_ZEROED:
         // Zero-filled page
-        VirtualAddressMemset(
+        VasFill(
           PageVa,
           0,
           PageSize,
@@ -849,6 +869,10 @@ LeApplyRelocations (
 
 /**
   Get target operating system from Le image.
+
+  LE/LX format was used by multiple operating systems:
+  - OS/2 (OsType = 1)
+  - Windows VxD (OsType = 4) - Virtual Device Drivers for Windows 3.x/9x
 **/
 static
 HRESULT
@@ -859,11 +883,30 @@ LeGetTargetSystem (
   OUT IMGLOAD_TARGET_SYSTEM  *TargetSystem
   )
 {
+  DOS_HEADER_SHORT *DosHeader;
+  LE_HEADER *LeHeader;
+
   if (TargetSystem == NULL) {
     return E_POINTER;
   }
 
-  *TargetSystem = ImgSystemOs2;
+  DosHeader = (DOS_HEADER_SHORT *)ImageBase;
+  LeHeader = (LE_HEADER *)LE_OFF(DosHeader->NewHeaderOffset);
+
+  // Determine target OS based on OsType field
+  switch (LeHeader->OsType) {
+    case 1:
+      *TargetSystem = ImgSystemOs2;
+      break;
+    case 4:
+      *TargetSystem = ImgSystemWindows;
+      break;
+    default:
+      // Unknown OS type, default to OS/2
+      *TargetSystem = ImgSystemOs2;
+      break;
+  }
+
   return S_OK;
 }
 
@@ -889,6 +932,8 @@ LeGetMinimumSystemVersion (
 
 /**
   Get target subsystem from Le image.
+
+  Distinguishes between OS/2 applications and Windows VxD drivers.
 **/
 static
 HRESULT
@@ -899,6 +944,7 @@ LeGetTargetSubsystem (
   OUT IMGLOAD_TARGET_SUBSYSTEM  *TargetSubsystem
   )
 {
+  DOS_HEADER_SHORT *DosHeader;
   LE_HEADER *Header;
   UINT32 PmFlags;
 
@@ -906,9 +952,17 @@ LeGetTargetSubsystem (
     return E_POINTER;
   }
 
-  Header = (LE_HEADER *)ImageBase;
+  DosHeader = (DOS_HEADER_SHORT *)ImageBase;
+  Header = (LE_HEADER *)LE_OFF(DosHeader->NewHeaderOffset);
 
-  // Check PM (Presentation Manager) compatibility flags
+  // Check OS type first
+  if (Header->OsType == 4) {
+    // Windows VxD (Virtual Device Driver)
+    *TargetSubsystem = ImgSubsystemNative;  // Kernel-mode driver
+    return S_OK;
+  }
+
+  // OS/2: Check PM (Presentation Manager) compatibility flags
   PmFlags = Header->ModuleFlags & 0x00000300;
 
   switch (PmFlags) {
@@ -951,6 +1005,304 @@ LeGetMinimumSubsystemVersion (
   memset(MinimumVersion, 0, sizeof(IMGLOAD_SYSTEM_VERSION));
   return S_FALSE;
 }
+
+/**
+  Get LE/LX init/fini information.
+
+  OS/2 LE/LX uses entry point and module flags for initialization:
+  - InitObjectNum/InitEip: Entry point for DLL initialization
+  - LE_MODULE_INIT_GLOBAL: Global initialization flag
+  - LE_MODULE_IS_DLL: Indicates library vs executable
+
+  @param[in]  ImageBase       Pointer to LE/LX image.
+  @param[out] InitAddress     Receives init entry point address (0 if none).
+  @param[out] FiniAddress     Receives fini address (0 if none - not supported in LE/LX).
+  @param[out] IsGlobalInit    Receives TRUE if global initialization.
+  @param[out] IsDll           Receives TRUE if DLL/driver.
+
+  @return S_OK if init info found, S_FALSE if not found.
+**/
+static
+HRESULT
+LeGetInitFini (
+  IN  VOID     *ImageBase,
+  OUT UINT64   *InitAddress,
+  OUT UINT64   *FiniAddress,
+  OUT BOOLEAN  *IsGlobalInit,
+  OUT BOOLEAN  *IsDll
+  )
+{
+  DOS_HEADER_SHORT       *DosHeader;
+  LE_HEADER              *LeHeader;
+  LE_OBJECT_TABLE_ENTRY  *Objects;
+
+  if (ImageBase == NULL) {
+    return E_POINTER;
+  }
+
+  // Initialize outputs
+  if (InitAddress != NULL) *InitAddress = 0;
+  if (FiniAddress != NULL) *FiniAddress = 0;  // LE/LX doesn't have explicit fini
+  if (IsGlobalInit != NULL) *IsGlobalInit = FALSE;
+  if (IsDll != NULL) *IsDll = FALSE;
+
+  DosHeader = (DOS_HEADER_SHORT *)ImageBase;
+  LeHeader = (LE_HEADER *)LE_OFF(DosHeader->NewHeaderOffset);
+
+  // Check if this is a DLL
+  if (IsDll != NULL) {
+    *IsDll = (LeHeader->ModuleFlags & LE_MODULE_IS_DLL) != 0;
+  }
+
+  // Check if global initialization is required
+  if (IsGlobalInit != NULL) {
+    *IsGlobalInit = (LeHeader->ModuleFlags & LE_MODULE_INIT_GLOBAL) != 0;
+  }
+
+  // Get initialization entry point (for DLLs)
+  if (InitAddress != NULL && LeHeader->InitObjectNum > 0 &&
+      LeHeader->InitObjectNum <= LeHeader->NumObjects) {
+    Objects = (LE_OBJECT_TABLE_ENTRY *)
+      LE_OFF(DosHeader->NewHeaderOffset + LeHeader->ObjectTableOffset);
+
+    LE_OBJECT_TABLE_ENTRY *InitObj = &Objects[LeHeader->InitObjectNum - 1];
+    *InitAddress = InitObj->BaseAddress + LeHeader->InitEip;
+  }
+
+  return S_OK;
+}
+
+/**
+  Find native resource in LE/LX image.
+
+  Searches the LE/LX resource table for the specified resource.
+
+  LE/LX format was used by both OS/2 and Windows:
+  - OS/2 (OsType = 1): Uses OS/2 resource format with OS/2-specific types
+  - Windows VxD (OsType = 4): Uses Windows resource format with Windows-specific types (RT_BITMAP, RT_ICON, etc.)
+
+  Both use the same LE_RESOURCE_ENTRY table structure, but resource type
+  values and interpretation differ based on the target OS.
+
+  @param[in]  ImageBase    Pointer to LE/LX image.
+  @param[in]  TypeCode     Resource type code (4-char or numeric).
+  @param[in]  Id           Resource ID (0 if using name).
+  @param[in]  Name         Resource name (NULL if using ID).
+  @param[out] Data         Receives pointer to resource data.
+  @param[out] Size         Receives size of resource data.
+
+  @return S_OK if found, S_FALSE if not found, error code otherwise.
+**/
+static
+HRESULT
+LeFindNativeResource (
+  IN  VOID         *ImageBase,
+  IN  UINT32       TypeCode,
+  IN  UINT32       Id,
+  IN  CONST CHAR8  *Name,
+  OUT VOID         **Data,
+  OUT UINT64       *Size
+  )
+{
+  DOS_HEADER_SHORT  *DosHeader;
+  LE_HEADER         *LeHeader;
+  LE_RESOURCE_ENTRY *Resources;
+  UINT32            i;
+  UINT16            TypeId;
+
+  if (ImageBase == NULL || Data == NULL || Size == NULL) {
+    return E_POINTER;
+  }
+
+  *Data = NULL;
+  *Size = 0;
+
+  DosHeader = (DOS_HEADER_SHORT *)ImageBase;
+  LeHeader = (LE_HEADER *)LE_OFF(DosHeader->NewHeaderOffset);
+
+  if (LeHeader->ResourceTableOffset == 0 || LeHeader->NumResourceEntries == 0) {
+    return S_FALSE;  // No resources
+  }
+
+  // Note: Resource table format is the same for OS/2 (OsType=1) and Windows (OsType=4),
+  // but resource type values differ (OS/2 types vs Windows RT_* types)
+  Resources = (LE_RESOURCE_ENTRY *)LE_OFF(DosHeader->NewHeaderOffset + LeHeader->ResourceTableOffset);
+
+  // Convert type code to type ID (for simplicity, use lower 16 bits)
+  TypeId = (UINT16)(TypeCode & 0xFFFF);
+
+  // Search for matching resource
+  for (i = 0; i < LeHeader->NumResourceEntries; i++) {
+    if (Resources[i].TypeId == TypeId) {
+      // Type matches, now check ID/name
+      if (Name != NULL) {
+        // Name-based lookup not yet implemented for LE/LX
+        continue;
+      } else if (Resources[i].NameId == (UINT16)Id) {
+        // Found matching resource by ID
+        LE_OBJECT_TABLE_ENTRY *Objects = (LE_OBJECT_TABLE_ENTRY *)
+          LE_OFF(DosHeader->NewHeaderOffset + LeHeader->ObjectTableOffset);
+
+        if (Resources[i].ObjectNum > 0 && Resources[i].ObjectNum <= LeHeader->NumObjects) {
+          LE_OBJECT_TABLE_ENTRY *Obj = &Objects[Resources[i].ObjectNum - 1];
+
+          *Data = (UINT8 *)ImageBase + Obj->BaseAddress + Resources[i].Offset;
+          *Size = Resources[i].ResourceSize;
+          return S_OK;
+        }
+      }
+    }
+  }
+
+  return S_FALSE;  // Resource not found
+}
+
+/**
+  Get resource from LE/LX image.
+
+  Uses hybrid strategy: tries native OS/2 resources first, then .axursrc section.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+LeGetResource (
+  IN  IImageLoader        *This,
+  IN  VOID                *ImageBase,
+  IN  IMGLOAD_RESOURCE_ID *ResourceId,
+  IN  IMGLOAD_RESOURCE_ID *ResourceType,
+  OUT IImageResource      **Resource
+  )
+{
+  VOID *ResourceFork;
+  UINT64 Size;
+  BOOLEAN NeedsFree;
+  HRESULT Status;
+  UINT32 TypeCode;
+  UINT16 Id;
+  CONST CHAR8 *Name;
+
+  if (ImageBase == NULL || Resource == NULL) {
+    return E_POINTER;
+  }
+
+  *Resource = NULL;
+
+  // Extract type code from ResourceType
+  if (ResourceType != NULL) {
+    if (ResourceType->IsNumeric) {
+      TypeCode = ResourceType->Id;
+    } else {
+      TypeCode = ANX_MAKE_TYPE(ResourceType->Name);
+    }
+  } else {
+    TypeCode = 0;
+  }
+
+  // Extract resource ID/name from ResourceId
+  if (ResourceId != NULL) {
+    if (ResourceId->IsNumeric) {
+      Id = (UINT16)ResourceId->Id;
+      Name = NULL;
+    } else {
+      Id = 0;
+      Name = ResourceId->Name;
+    }
+  } else {
+    Id = 0;
+    Name = NULL;
+  }
+
+  // Try hybrid strategy: native OS/2 resources first, then .axursrc
+  // Note: LE/LX doesn't have sections like ELF/COFF, so .axursrc would need
+  // to be in a resource object. For now, we only support native resources.
+  Status = FindUniversalResourceFork(
+    ImageBase,
+    ResourceStrategyBoth,
+    LeFindNativeResource,
+    NULL,  // No section-based search for LE/LX
+    NULL,
+    &ResourceFork,
+    &Size,
+    &NeedsFree
+  );
+
+  if (FAILED(Status) || Status == S_FALSE) {
+    return Status;
+  }
+
+  // Create resource object
+  Status = CreateImageResource(ResourceFork, TypeCode, Id, Name, Resource);
+
+  if (NeedsFree && ResourceFork != NULL) {
+    free(ResourceFork);
+  }
+
+  return Status;
+}
+
+/**
+  Get resource enumerator for LE/LX image.
+**/
+static
+HRESULT
+STDMETHODCALLTYPE
+LeGetResourceEnumerator (
+  IN  IImageLoader        *This,
+  IN  VOID                *ImageBase,
+  IN  IMGLOAD_RESOURCE_ID *ResourceType,
+  OUT IEnumImageResource  **Enumerator
+  )
+{
+  VOID *ResourceFork;
+  UINT64 Size;
+  BOOLEAN NeedsFree;
+  HRESULT Status;
+  UINT32 TypeCode;
+
+  if (ImageBase == NULL || Enumerator == NULL) {
+    return E_POINTER;
+  }
+
+  *Enumerator = NULL;
+
+  // Extract type code
+  if (ResourceType != NULL) {
+    if (ResourceType->IsNumeric) {
+      TypeCode = ResourceType->Id;
+    } else {
+      TypeCode = ANX_MAKE_TYPE(ResourceType->Name);
+    }
+  } else {
+    TypeCode = 0;  // All types
+  }
+
+  // Try to find universal resource fork (hybrid strategy)
+  Status = FindUniversalResourceFork(
+    ImageBase,
+    ResourceStrategyBoth,
+    LeFindNativeResource,
+    NULL,
+    NULL,
+    &ResourceFork,
+    &Size,
+    &NeedsFree
+  );
+
+  if (FAILED(Status) || Status == S_FALSE) {
+    return Status;
+  }
+
+  // Create enumerator
+  Status = CreateImageResourceEnumerator(ResourceFork, TypeCode, Enumerator);
+
+  if (NeedsFree && ResourceFork != NULL) {
+    free(ResourceFork);
+  }
+
+  return Status;
+}
+
+//
 // LE/LX Loader VTable
 //
 
@@ -974,7 +1326,10 @@ static CONST IImageLoaderVtbl gLeVtbl = {
   LeGetTargetSystem,
   LeGetMinimumSystemVersion,
   LeGetTargetSubsystem,
-  LeGetMinimumSubsystemVersion
+  LeGetMinimumSubsystemVersion,
+  LeGetResource,
+  LeGetResourceEnumerator,
+  LeGetInitFini
 };
 
 //
